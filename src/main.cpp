@@ -71,8 +71,6 @@ int main() {
     startupCommands = {};
     shortcuts = {};
     terminal = TerminalPassthrough();
-    textBuffer = false;
-    defaultTextEntryOnAI = false;
     if (!std::filesystem::exists(USER_DATA)) {
         createNewUSER_DATAFile();
     } else {
@@ -148,8 +146,8 @@ void writeUserData() {
         userData["Startup_Commands"] = startupCommands;
         userData["Shortcuts_Enabled"] = shotcutsEnabled;
         userData["Shortcuts"] = shortcuts;
-        userData["Text_Buffer"] = textBuffer;
-        userData["Text_Entry"] = defaultTextEntryOnAI;
+        userData["Text_Buffer"] = false;
+        userData["Text_Entry"] = "terminal";
         userData["Command_Prefix"] = commandPrefix;
         file << userData.dump(4);
         file.close();

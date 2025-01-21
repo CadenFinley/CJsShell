@@ -5,16 +5,12 @@
 #include <regex>
 #include <fstream>
 
-namespace fs = std::filesystem; // Alias for std::filesystem
+namespace fs = std::filesystem; 
 
 TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     currentDirectory = fs::current_path().string();
     terminalCacheUserInput = std::vector<std::string>();
     terminalCacheTerminalOutput = std::vector<std::string>();
-}
-
-TerminalPassthrough::~TerminalPassthrough() {
-    // Destructor definition
 }
 
 std::string TerminalPassthrough::getTerminalName() {

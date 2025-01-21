@@ -11,7 +11,6 @@ namespace fs = std::filesystem;
 class TerminalPassthrough {
 public:
     TerminalPassthrough();  // Constructor declaration
-    ~TerminalPassthrough(); // Destructor declaration
 
     std::string getTerminalName();
     void setDisplayWholePath(bool displayWholePath);
