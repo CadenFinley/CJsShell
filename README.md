@@ -1,6 +1,6 @@
-# TerminalPassthrough
+# DevToolsTerminal-LITE
 
-DevToolsTerminal LITE is a C++ project that provides a terminal interface with additional features such as command history, shortcuts, and startup commands. It supports multiple operating systems including Windows, Linux, and macOS. It is build based on the heavier application, DevToolsTerminal.
+DevToolsTerminal LITE is a C++ project that provides a terminal interface with additional features such as command history, shortcuts, and startup commands. It supports multiple operating systems including Windows, Linux, and macOS. It is build based on the heavier application, DevToolsTerminal: https://github.com/CadenFinley/DevToolsTerminal
 
 ## Features
 
