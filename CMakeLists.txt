@@ -10,17 +10,5 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Include the header files directory
 include_directories(include)
 
-# Include nlohmann/json library
-include(FetchContent)
-FetchContent_Declare(
-  json
-  GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG v3.10.5
-)
-FetchContent_MakeAvailable(json)
-
 # Add the executable
-add_executable(TermPassCPP src/main.cpp src/terminalpassthrough.cpp) # Include terminalpassthrough.cpp
-
-# Link the nlohmann/json library
-target_link_libraries(TermPassCPP PRIVATE nlohmann_json::nlohmann_json)
+add_executable(TermPassCPP src/main.cpp) 

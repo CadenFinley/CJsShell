@@ -10,7 +10,7 @@
 #include <cctype>
 #include <locale>
 #include "terminalpassthrough.h"
-#include <nlohmann/json.hpp> // Include nlohmann/json library
+#include "nlohmann/json.hpp" // Include nlohmann/json library
 
 using json = nlohmann::json;
 
@@ -36,7 +36,7 @@ std::map<std::string, std::string> shortcuts;
 bool textBuffer; // Declare textBuffer
 bool defaultTextEntryOnAI; // Declare defaultTextEntryOnAI
 
-TerminalPassthrough terminal;
+TerminalPassthrough terminal; // Ensure this line is present
 
 /**
  * @brief Main process loop that continuously reads and processes user commands.

@@ -5,12 +5,13 @@
 #include <thread>
 #include <vector>
 #include <filesystem>
+#include <regex> // Add this line
 
 namespace fs = std::filesystem;
 
 class TerminalPassthrough {
 public:
-    TerminalPassthrough(){
+    TerminalPassthrough() : displayWholePath(false) { // Fix constructor definition
         currentDirectory = fs::current_path().string();
         terminalCacheUserInput = std::vector<std::string>();
         terminalCacheTerminalOutput = std::vector<std::string>();
