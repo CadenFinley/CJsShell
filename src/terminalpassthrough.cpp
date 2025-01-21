@@ -61,16 +61,16 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition() {
                 }
             }
             std::string repoName = displayWholePath ? getCurrentFilePath() : getCurrentFileName();
-            gitInfo = repoName + " (git:" + branchName + ")";
+            gitInfo = "\033[1;32m" + repoName + " git:(" + branchName + ")\033[0m";
         } catch (const std::exception& e) {
             std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
         }
         return getTerminalName() + ": " + gitInfo + " ";
     }
     if (displayWholePath) {
-        return getTerminalName() + ": " + getCurrentFilePath() + " ";
+        return getTerminalName() + ": \033[1;34m" + getCurrentFilePath() + "\033[0m ";
     } else {
-        return getTerminalName() + ": " + getCurrentFileName() + " ";
+        return getTerminalName() + ": \033[1;34m" + getCurrentFileName() + "\033[0m ";
     }
 }
 

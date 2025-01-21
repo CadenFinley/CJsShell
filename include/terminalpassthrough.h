@@ -4,9 +4,9 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <filesystem> // Add this include
+#include <filesystem>
 
-namespace fs = std::filesystem; // Add this line
+namespace fs = std::filesystem;
 
 class TerminalPassthrough {
 public:
@@ -17,7 +17,7 @@ public:
     void setDisplayWholePath(bool displayWholePath);
     void printCurrentTerminalPosition();
     std::string returnCurrentTerminalPosition();
-    std::thread executeCommand(std::string command);
+    std::thread executeCommand(std::string command); // Update declaration
     void toggleDisplayWholePath();
     bool isDisplayWholePath();
     std::vector<std::string> getTerminalCacheUserInput();
@@ -34,7 +34,7 @@ private:
 
     std::string getCurrentFilePath();
     std::string getCurrentFileName();
-    bool isRootPath(const fs::path& path); // Add this line
+    bool isRootPath(const fs::path& path);
 };
 
 #endif // TERMINALPASSTHROUGH_H
