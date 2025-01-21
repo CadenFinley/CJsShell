@@ -10,7 +10,7 @@
 #include <cctype>
 #include <locale>
 #include "terminalpassthrough.h"
-#include <nlohmann/json.hpp> // Include nlohmann/json library
+#include "nlohmann/json.hpp" // Include nlohmann/json library
 
 using json = nlohmann::json;
 
