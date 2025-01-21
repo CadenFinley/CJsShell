@@ -38,6 +38,9 @@ bool defaultTextEntryOnAI; // Declare defaultTextEntryOnAI
 
 TerminalPassthrough terminal;
 
+/**
+ * @brief Main process loop that continuously reads and processes user commands.
+ */
 void mainProcessLoop();
 void createNewUSER_DATAFile();
 void createNewUSER_HISTORYfile();
@@ -61,7 +64,7 @@ void exit();
 
 
 int main() {
-    std::cout << "DevToolsTerminal - Caden Finley (c) 2025" << std::endl;
+    std::cout << "DevToolsTerminal LITE - Caden Finley (c) 2025" << std::endl;
     std::cout << "Created 2025 @ " << PURPLE_COLOR_BOLD << "Abilene Chrsitian University" << RESET_COLOR << std::endl;
     std::cout << "Loading..." << std::endl;
     applicationDirectory = std::filesystem::current_path().string();
@@ -91,6 +94,9 @@ int main() {
     return 0;
 }
 
+/**
+ * @brief Main process loop that continuously reads and processes user commands.
+ */
 void mainProcessLoop() {
     while (true) {
         if (TESTING) {
@@ -103,6 +109,9 @@ void mainProcessLoop() {
     }
 }
 
+/**
+ * @brief Create a new user data file with default settings.
+ */
 void createNewUSER_DATAFile() {
     std::cout << "User data file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_DATA);
@@ -115,6 +124,9 @@ void createNewUSER_DATAFile() {
     }
 }
 
+/**
+ * @brief Create a new user command history file.
+ */
 void createNewUSER_HISTORYfile() {
     std::cout << "User history file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_COMMAND_HISTORY);
@@ -123,6 +135,9 @@ void createNewUSER_HISTORYfile() {
     }
 }
 
+/**
+ * @brief Load user data from the user data file.
+ */
 void loadUserData() {
     std::ifstream file(USER_DATA);
     if (file.is_open()) {
@@ -139,6 +154,9 @@ void loadUserData() {
     }
 }
 
+/**
+ * @brief Write user data to the user data file.
+ */
 void writeUserData() {
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
@@ -156,11 +174,18 @@ void writeUserData() {
     }
 }
 
+/**
+ * @brief Change the current directory to the application directory.
+ */
 void goToApplicationDirectory() {
     commandProcesser("terminal cd /");
     commandProcesser("terminal cd " + applicationDirectory);
 }
 
+/**
+ * @brief Read and return the contents of the user data file.
+ * @return Contents of the user data file as a string.
+ */
 std::string readAndReturnUserDataFile() {
     std::ifstream file(USER_DATA);
     if (file.is_open()) {
@@ -173,6 +198,11 @@ std::string readAndReturnUserDataFile() {
     }
 }
 
+/**
+ * @brief Split a command string into individual commands.
+ * @param command Command string to split.
+ * @return Vector of command strings.
+ */
 std::vector<std::string> commandSplicer(const std::string& command) {
     std::vector<std::string> commands;
     std::istringstream iss(command);
@@ -183,6 +213,10 @@ std::vector<std::string> commandSplicer(const std::string& command) {
     return commands;
 }
 
+/**
+ * @brief Parse and process a user command.
+ * @param command Command string to parse.
+ */
 void commandParser(const std::string& command) {
     if (command.empty()) {
         std::cout << "Invalid input. Please try again." << std::endl;
@@ -198,6 +232,10 @@ void commandParser(const std::string& command) {
     sendTerminalCommand(command);
 }
 
+/**
+ * @brief Add user input to the command history file.
+ * @param input User input string to add.
+ */
 void addUserInputToHistory(const std::string& input) {
     std::ofstream file(USER_COMMAND_HISTORY, std::ios_base::app);
     if (file.is_open()) {
@@ -228,6 +266,10 @@ inline void trim(std::string &s) {
     ltrim(s);
 }
 
+/**
+ * @brief Process a shortcut command.
+ * @param command Shortcut command string to process.
+ */
 void shortcutProcesser(const std::string& command) {
     if (!shotcutsEnabled) {
         std::cout << "Shortcuts are disabled." << std::endl;
@@ -250,6 +292,10 @@ void shortcutProcesser(const std::string& command) {
     }
 }
 
+/**
+ * @brief Process a user command.
+ * @param command Command string to process.
+ */
 void commandProcesser(const std::string& command) {
     commandsQueue = std::queue<std::string>();
     auto commands = commandSplicer(command);
@@ -299,6 +345,10 @@ void commandProcesser(const std::string& command) {
     }
 }
 
+/**
+ * @brief Send a command to the terminal for execution.
+ * @param command Command string to send.
+ */
 void sendTerminalCommand(const std::string& command) {
     if (TESTING) {
         std::cout << "Sending Command: " << command << std::endl;
@@ -310,6 +360,9 @@ void sendTerminalCommand(const std::string& command) {
     }
 }
 
+/**
+ * @brief Process user settings commands.
+ */
 void userSettingsCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -417,6 +470,9 @@ void userSettingsCommands() {
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
+/**
+ * @brief Handle startup commands.
+ */
 void startupCommandsHandler() { // Renamed function
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -483,6 +539,9 @@ void startupCommandsHandler() { // Renamed function
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
+/**
+ * @brief Process shortcut commands.
+ */
 void shortcutCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -545,6 +604,9 @@ void shortcutCommands() {
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
+/**
+ * @brief Process text commands.
+ */
 void textCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -568,6 +630,9 @@ void textCommands() {
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
+/**
+ * @brief Get the next command from the command queue.
+ */
 void getNextCommand() {
     if (!commandsQueue.empty()) {
         lastCommandParsed = commandsQueue.front();
@@ -580,6 +645,9 @@ void getNextCommand() {
     }
 }
 
+/**
+ * @brief Exit the application, saving user data.
+ */
 void exit() {
     writeUserData();
     std::cout << "Exiting..." << std::endl;
