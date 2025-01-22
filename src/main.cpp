@@ -94,15 +94,12 @@ int main() {
     }
     if (openAIPromptEngine.getAPIKey().empty()) {
         std::cout << "OpenAI API key not found." << std::endl;
-        defaultTextEntryOnAI = false;
     } else {
         if (openAIPromptEngine.testAPIKey(openAIPromptEngine.getAPIKey())) {
-            defaultTextEntryOnAI = true;
             std::cout << "Successfully Connected to OpenAI servers!" << std::endl;
         } else {
             std::cout << "An error occurred while connecting to OpenAI servers." << std::endl;
             std::cout << "Please check your internet connection and try again later." << std::endl;
-            defaultTextEntryOnAI = false;
         }
     }
     if (!startupCommands.empty() && startCommandsOn) {
