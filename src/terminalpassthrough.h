@@ -97,7 +97,6 @@ public:
      * @param command Command to execute.
      * @return A thread running the command.
      */
-    //g++ -o DevToolsTerminal src/main.cpp -IC:\msys64\mingw64\include -LC:\msys64\mingw64\lib -lcurl
     std::thread executeCommand(std::string command){
         terminalCacheUserInput.push_back(command);
         return std::thread([this, command]() {
@@ -122,20 +121,34 @@ public:
                         }
                     }
                 } else {
+                    std::string result;
+                    std::array<char, 128> buffer;
                     std::string fullCommand;
                     if (getTerminalName() == "cmd") {
-                        fullCommand = "cd " + currentDirectory + " && " + command;
+                        fullCommand = "cd " + currentDirectory + " && " + command + " 2>&1";
                     } else {
-                        fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + "\"";
+                        fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + " 2>&1\"";
                     }
-                    std::system(fullCommand.c_str());
+                    int terminalExecCode = std::system(fullCommand.c_str());
+                    if(terminalExecCode != 0){
+                        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(fullCommand.c_str(), "r"), pclose);
+                        if (!pipe) {
+                            throw std::runtime_error("popen() failed!");
+                        }
+                        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+                            result += buffer.data();
+                        }
+                    } else {
+                        result = &"Terminal Output success: " [ terminalExecCode];
+                    }
+                    terminalCacheTerminalOutput.push_back(result);
                 }
             } catch (const std::exception& e) {
                 std::cerr << "Error executing command: '" << command << "' " << e.what() << std::endl;
             }
         });
     }
-
+    
     /**
      * @brief Toggle the display mode between whole path and current directory name.
      */

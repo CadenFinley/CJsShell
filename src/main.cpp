@@ -243,14 +243,14 @@ std::vector<std::string> commandSplicer(const std::string& command) {
     std::istringstream iss(command);
     std::string word;
     int numberOfWordsInSeparates = 0;
-
+    
     while (iss >> word) {
         if (word.front() == '\'' || word.front() == '(') {
             char startChar = word.front();
             char endChar = (startChar == '(') ? ')' : '\'';
             word.erase(0, 1);
             std::string combined = word;
-
+            
             while (!word.empty() && word.back() != endChar) {
                 if (!(iss >> word)) break;
                 numberOfWordsInSeparates++;
@@ -264,19 +264,19 @@ std::vector<std::string> commandSplicer(const std::string& command) {
             commands.push_back(word);
         }
     }
-
+    
     commands.erase(std::remove(commands.begin(), commands.end(), "'"), commands.end());
     commands.erase(std::remove(commands.begin(), commands.end(), "("), commands.end());
     commands.erase(std::remove(commands.begin(), commands.end(), ")"), commands.end());
-
-    int index = commands.size() - 2;
+    
+    long index = commands.size() - 2;
     std::string bufferCommand = commands.back();
     for (int i = 1; i < numberOfWordsInSeparates; i++) {
         commands.pop_back();
         index--;
     }
     commands.push_back(bufferCommand);
-
+    
     return commands;
 }
 
@@ -310,7 +310,7 @@ void commandParser(const std::string& command) {
 void addUserInputToHistory(const std::string& input) {
     std::ofstream file(USER_COMMAND_HISTORY, std::ios_base::app);
     if (file.is_open()) {
-        file << "timestamp_placeholder" << " " << input << "\n"; // Placeholder for TimeEngine::timeStamp()
+        file << std::to_string(time(nullptr)) << " " << input << "\n";
         file.close();
     } else {
         std::cout << "An error occurred while writing to the user input history file." << std::endl;
@@ -396,6 +396,15 @@ void commandProcesser(const std::string& command) {
         aiSettingsCommands();
     } else if (lastCommandParsed == "user") {
         userSettingsCommands();
+    } else if (lastCommandParsed == "aihelp"){
+        if (!defaultTextEntryOnAI && !openAIPromptEngine.getAPIKey().empty() ){
+            std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. User input " + terminal.returnMostRecentUserInput() + " Terminal output " + terminal.returnMostRecentTerminalOutput());
+            if (TESTING) {
+                std::cout << message << std::endl;
+            }
+            std::cout << openAIPromptEngine.buildPromptAndReturnResponse(message, false) << std::endl;
+            return;
+        }
     } else if (lastCommandParsed == "terminal") {
         try {
             std::string terminalCommand = command.substr(9);
@@ -717,20 +726,20 @@ void textCommands() {
     }
     if(lastCommandParsed == "displayfullpath"){
         getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "enable"){
-        terminal.setDisplayWholePath(true);
-        std::cout << "Display whole path enabled." << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "disable"){
-        terminal.setDisplayWholePath(false);
-        std::cout << "Display whole path disabled." << std::endl;
-        return;
-    }
+        if (lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "enable"){
+            terminal.setDisplayWholePath(true);
+            std::cout << "Display whole path enabled." << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "disable"){
+            terminal.setDisplayWholePath(false);
+            std::cout << "Display whole path disabled." << std::endl;
+            return;
+        }
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
@@ -998,3 +1007,5 @@ std::string getFileExtensionForLanguage(const std::string& language) {
     if (language == "xml") return "xml";
     return "txt";
 }
+
+
