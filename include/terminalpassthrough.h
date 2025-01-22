@@ -202,6 +202,9 @@ private:
      * @return Current file path as a string.
      */
     std::string getCurrentFilePath(){
+        if (currentDirectory.empty()) {
+            return fs::current_path().string();
+        }
         return currentDirectory;
     }
 
@@ -210,7 +213,12 @@ private:
      * @return Current file name as a string.
      */
     std::string getCurrentFileName(){
-        return fs::path(currentDirectory).filename().string();
+        std::string currentDirectory = getCurrentFilePath();
+        std::string currentFileName = fs::path(currentDirectory).filename().string();
+        if (currentFileName.empty()) {
+            return "/";
+        }
+        return currentFileName;
     }
 
     /**
