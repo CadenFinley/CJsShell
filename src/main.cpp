@@ -84,6 +84,14 @@ int main() {
     shortcuts = {};
     terminal = TerminalPassthrough();
     openAIPromptEngine = OpenAIPromptEngine();
+        if (!std::filesystem::exists(USER_DATA)) {
+        createNewUSER_DATAFile();
+    } else {
+        loadUserData();
+    }
+    if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
+        createNewUSER_HISTORYfile();
+    }
     if (openAIPromptEngine.getAPIKey().empty()) {
         std::cout << "OpenAI API key not found." << std::endl;
         defaultTextEntryOnAI = false;
@@ -96,14 +104,6 @@ int main() {
             std::cout << "Please check your internet connection and try again later." << std::endl;
             defaultTextEntryOnAI = false;
         }
-    }
-    if (!std::filesystem::exists(USER_DATA)) {
-        createNewUSER_DATAFile();
-    } else {
-        loadUserData();
-    }
-    if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
-        createNewUSER_HISTORYfile();
     }
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
