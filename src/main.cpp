@@ -63,7 +63,7 @@ void shortcutProcesser(const std::string& command);
 void commandProcesser(const std::string& command);
 void sendTerminalCommand(const std::string& command);
 void userSettingsCommands();
-void startupCommandsHandler(); // Rename to avoid conflict
+void startupCommandsHandler();
 void shortcutCommands();
 void textCommands();
 void getNextCommand();
@@ -89,6 +89,7 @@ int main() {
     }
 
     if (!std::filesystem::exists(DATA_DIRECTORY)) {
+        std::cout << DATA_DIRECTORY.string() << " not found in: " << applicationDirectory << std::endl;
         std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
     }
 
@@ -223,7 +224,7 @@ void writeUserData() {
  */
 void goToApplicationDirectory() {
     commandProcesser("terminal cd /");
-    commandProcesser("terminal cd " + applicationDirectory);
+    commandProcesser("terminal cd " + applicationDirectory +"/"+ DATA_DIRECTORY.string());
 }
 
 /**
@@ -782,7 +783,7 @@ void aiSettingsCommands() {
     if (lastCommandParsed == "log") {
         std::string lastChatSent = openAIPromptEngine.getLastPromptUsed();
         std::string lastChatReceived = openAIPromptEngine.getLastResponseReceived();
-        std::string fileName = DATA_DIRECTORY + "/OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt";
+        std::string fileName = (DATA_DIRECTORY / ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt")).string();
         std::ofstream file(fileName);
         if (file.is_open()) {
             file << "Chat Sent: " << lastChatSent << "\n";
@@ -791,6 +792,7 @@ void aiSettingsCommands() {
             std::cout << "Chat log saved to " << fileName << std::endl;
         } else {
             std::cout << "An error occurred while creating the chat file." << std::endl;
+            return;
         }
         getNextCommand();
         if (lastCommandParsed.empty()) {
@@ -799,11 +801,11 @@ void aiSettingsCommands() {
         if (lastCommandParsed == "extract") {
             getNextCommand();
             if (lastCommandParsed.empty()) {
-                extractCodeSnippet(fileName, DATA_DIRECTORY + "/extracted_code");
+                extractCodeSnippet(fileName, (DATA_DIRECTORY / "extracted_code").string());
                 std::filesystem::remove(fileName);
                 return;
             }
-            extractCodeSnippet(fileName, DATA_DIRECTORY + "/" + lastCommandParsed);
+            extractCodeSnippet(fileName, (DATA_DIRECTORY / lastCommandParsed).string());
             std::filesystem::remove(fileName);
             return;
         }
