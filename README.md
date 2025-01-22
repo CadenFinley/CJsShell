@@ -1,6 +1,6 @@
 # DevToolsTerminal-LITE
 
-DevToolsTerminal-LITE is a open-source, lightweight terminal application that allows you to execute terminal commands, manage shortcuts and startup commands, and integrate with OpenAI for AI-based responses and help. This is a lighweight, c++ build as compared to: https://github.com/CadenFinley/DevToolsTerminal
+DevToolsTerminal-LITE is a open-source, lightweight terminal application that allows you to execute terminal commands, manage shortcuts and startup commands, and integrate with OpenAI for AI-based responses and help. This is a lightweight, c++ build as compared to: https://github.com/CadenFinley/DevToolsTerminal
 
 It has all the same features all while not requiring any java nonsense.
 
