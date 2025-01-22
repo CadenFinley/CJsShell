@@ -35,6 +35,7 @@ std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HIS
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::map<std::string, std::string> shortcuts;
+std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 bool textBuffer = false; // Initialize textBuffer
 bool defaultTextEntryOnAI = false; // Initialize defaultTextEntryOnAI
 bool incognitoChatMode = false;
@@ -45,10 +46,6 @@ std::vector<std::string> savedChatCache;
 OpenAIPromptEngine openAIPromptEngine;
 TerminalPassthrough terminal;
 
-
-/**
- * @brief Main process loop that continuously reads and processes user commands.
- */
 void mainProcessLoop();
 void createNewUSER_DATAFile();
 void createNewUSER_HISTORYfile();
@@ -74,12 +71,14 @@ void chatProcess(const std::string& message);
 void showChatHistory();
 void extractCodeSnippet(const std::string& logFile, const std::string& fileName);
 std::string getFileExtensionForLanguage(const std::string& language);
+void multiScriptShortcutCommands();
 
 int main() {
     std::cout << "Loading..." << std::endl;
 
     startupCommands = {};
     shortcuts = {};
+    multiScriptShortcuts = {};
     terminal = TerminalPassthrough();
     openAIPromptEngine = OpenAIPromptEngine();
 
@@ -182,15 +181,18 @@ void loadUserData() {
     if (file.is_open()) {
         json userData;
         file >> userData;
-        openAIPromptEngine.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
-        savedChatCache = userData["Chat_Cache"].get<std::vector<std::string>>();
-        openAIPromptEngine.setChatCache(savedChatCache);
-        startupCommands = userData["Startup_Commands"].get<std::vector<std::string>>();
-        shotcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
-        shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string>>();
-        textBuffer = userData["Text_Buffer"].get<bool>();
-        defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();
-        commandPrefix = userData["Command_Prefix"].get<std::string>();
+        if(userData.contains("OpenAI_API_KEY")){openAIPromptEngine.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());}
+        if(userData.contains("Chat_Cache")) {
+            savedChatCache = userData["Chat_Cache"].get<std::vector<std::string>>();
+            openAIPromptEngine.setChatCache(savedChatCache);
+        }
+        if(userData.contains("Startup_Commands")){startupCommands = userData["Startup_Commands"].get<std::vector<std::string>>();}
+        if(userData.contains("Shortcuts_Enabled")){shotcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();}
+        if(userData.contains("Shortcuts")){shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string>>();}
+        if(userData.contains("Text_Buffer")){textBuffer = userData["Text_Buffer"].get<bool>();}
+        if(userData.contains("Text_Entry")){defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();}
+        if(userData.contains("Command_Prefix")){commandPrefix = userData["Command_Prefix"].get<std::string>();}
+        if (userData.contains("Multi_Script_Shortcuts")){multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();}
         file.close();
     } else {
         std::cout << "An error occurred while reading the user data file." << std::endl;
@@ -212,6 +214,7 @@ void writeUserData() {
         userData["Text_Buffer"] = textBuffer;
         userData["Text_Entry"] = defaultTextEntryOnAI;
         userData["Command_Prefix"] = commandPrefix;
+        userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
         file << userData.dump(4);
         file.close();
     } else {
@@ -252,41 +255,31 @@ std::vector<std::string> commandSplicer(const std::string& command) {
     std::vector<std::string> commands;
     std::istringstream iss(command);
     std::string word;
-    int numberOfWordsInSeparates = 0;
-    
+    std::string combined;
+    bool inQuotes = false;
+    char quoteChar = '\0';
+
     while (iss >> word) {
-        if (word.front() == '\'' || word.front() == '(') {
-            char startChar = word.front();
-            char endChar = (startChar == '(') ? ')' : '\'';
-            word.erase(0, 1);
-            std::string combined = word;
-            
-            while (!word.empty() && word.back() != endChar) {
-                if (!(iss >> word)) break;
-                numberOfWordsInSeparates++;
-                combined += " " + word;
-            }
-            if (!combined.empty() && combined.back() == endChar) {
-                combined.pop_back();
-            }
+        if (!inQuotes && (word.front() == '\'' || word.front() == '"' || word.front() == '(' || word.front() == '[')) {
+            inQuotes = true;
+            quoteChar = word.front();
+            combined = word.substr(1);
+        } else if (inQuotes && word.back() == quoteChar) {
+            combined += " " + word.substr(0, word.size() - 1);
             commands.push_back(combined);
+            inQuotes = false;
+            quoteChar = '\0';
+        } else if (inQuotes) {
+            combined += " " + word;
         } else {
             commands.push_back(word);
         }
     }
-    
-    commands.erase(std::remove(commands.begin(), commands.end(), "'"), commands.end());
-    commands.erase(std::remove(commands.begin(), commands.end(), "("), commands.end());
-    commands.erase(std::remove(commands.begin(), commands.end(), ")"), commands.end());
-    
-    long index = commands.size() - 2;
-    std::string bufferCommand = commands.back();
-    for (int i = 1; i < numberOfWordsInSeparates; i++) {
-        commands.pop_back();
-        index--;
+
+    if (inQuotes) {
+        commands.push_back(combined);
     }
-    commands.push_back(bufferCommand);
-    
+
     return commands;
 }
 
@@ -373,6 +366,30 @@ void shortcutProcesser(const std::string& command) {
     }
 }
 
+void multiScriptShortcutProcesser(const std::string& command){
+    if (!shotcutsEnabled) {
+        std::cout << "Shortcuts are disabled." << std::endl;
+        return;
+    }
+    if (!multiScriptShortcuts.empty()) {
+        std::string strippedCommand = command.substr(2);
+        trim(strippedCommand);
+        if (strippedCommand.empty()) {
+            std::cout << "No shortcut given." << std::endl;
+            return;
+        }
+        if (multiScriptShortcuts.find(strippedCommand) != multiScriptShortcuts.end()) {
+            for(const auto& command : multiScriptShortcuts[strippedCommand]){
+                commandProcesser(command);
+            }
+        } else {
+            std::cout << "No command for given shortcut: " << strippedCommand << std::endl;
+        }
+    } else {
+        std::cout << "No shortcuts." << std::endl;
+    }
+}
+
 /**
  * @brief Process a user command.
  * @param command Command string to process.
@@ -396,6 +413,8 @@ void commandProcesser(const std::string& command) {
     getNextCommand();
     if (lastCommandParsed == "ss") {
         shortcutProcesser(command);
+    } else if(lastCommandParsed == "mm"){
+        multiScriptShortcutProcesser(command);
     } else if (lastCommandParsed == "approot") {
         goToApplicationDirectory();
     } else if (lastCommandParsed == "clear") {
@@ -665,6 +684,10 @@ void shortcutCommands() {
         std::cout << "Shortcuts disabled." << std::endl;
         return;
     }
+    if(lastCommandParsed == "mm"){
+        multiScriptShortcutCommands();
+        return;
+    }
     if (lastCommandParsed == "add") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
@@ -688,6 +711,10 @@ void shortcutCommands() {
             std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
+        if(shortcuts.find(lastCommandParsed) == shortcuts.end()){
+            std::cout << "Shortcut not found." << std::endl;
+            return;
+        }
         shortcuts.erase(lastCommandParsed);
         std::cout << "Shortcut removed." << std::endl;
         return;
@@ -701,6 +728,62 @@ void shortcutCommands() {
         } else {
             std::cout << "No shortcuts." << std::endl;
         }
+        if(!multiScriptShortcuts.empty()){
+            std::cout << "Multi-Script Shortcuts:" << std::endl;
+            for (const auto& [key, value] : multiScriptShortcuts) {
+                std::cout << key + " = ";
+                for(const auto& command : value){
+                    std::cout << "'"+command + "' ";
+                }
+                std::cout << std::endl;
+            }
+        } else {
+            std::cout << "No multi-script shortcuts." << std::endl;
+        }
+        return;
+    }
+    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+}
+
+void multiScriptShortcutCommands(){
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
+    }
+    if(lastCommandParsed == "add"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        std::string shortcut = lastCommandParsed;
+        std::vector<std::string> commands;
+        getNextCommand();
+        while(!lastCommandParsed.empty()){
+            commands.push_back(lastCommandParsed);
+            getNextCommand();
+        }
+        if(commands.empty()){
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        multiScriptShortcuts[shortcut] = commands;
+        std::cout << "Multi-Script Shortcut added." << std::endl;
+        return;
+    }
+    if(lastCommandParsed == "remove"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        if(multiScriptShortcuts.find(lastCommandParsed) == multiScriptShortcuts.end()){
+            std::cout << "Multi-Script Shortcut not found." << std::endl;
+            return;
+        }
+        multiScriptShortcuts.erase(lastCommandParsed);
+        std::cout << "Multi-Script Shortcut removed." << std::endl;
         return;
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
