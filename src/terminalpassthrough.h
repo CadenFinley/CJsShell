@@ -102,27 +102,7 @@ public:
         terminalCacheUserInput.push_back(command);
         return std::thread([this, command]() {
             try {
-                if (command.rfind("cd ", 0) == 0) {
-                    std::string newDir = command.substr(3);
-                    if (newDir == "/") {
-                        currentDirectory = "/";
-                    } else if (newDir == "..") {
-                        fs::path dir = fs::path(currentDirectory).parent_path();
-                        if (fs::exists(dir) && fs::is_directory(dir)) {
-                            currentDirectory = dir.string();
-                        } else {
-                            throw std::runtime_error("No such file or directory");
-                        }
-                    } else {
-                        fs::path dir = fs::path(currentDirectory) / newDir;
-                        if (fs::exists(dir) && fs::is_directory(dir)) {
-                            currentDirectory = fs::canonical(dir).string();
-                        } else {
-                            throw std::runtime_error("No such file or directory");
-                        }
-                    }
-                } else {
-                    std::string result;
+                std::string result;
                     std::array<char, 128> buffer;
                     std::string fullCommand;
                     if (getTerminalName() == "cmd") {
@@ -148,7 +128,6 @@ public:
                         }
                     }
                     terminalCacheTerminalOutput.push_back(result);
-                }
             } catch (const std::exception& e) {
                 std::cerr << "Error executing command: '" << command << "' " << e.what() << std::endl;
             }
