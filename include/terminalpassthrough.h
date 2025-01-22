@@ -120,7 +120,11 @@ public:
             } else {
                 std::string fullCommand = "cd " + currentDirectory + " && " + command;
                 if (getTerminalName() == "cmd") {
+                    if(currentDirectory == "/"){
+                        fullCommand = command;
+                    } else {
                     fullCommand = "cmd /c \"cd /d " + currentDirectory + " && " + command + "\"";
+                    }
                 } else {
                     fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + "\"";
                 }

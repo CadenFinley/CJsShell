@@ -95,7 +95,6 @@ public:
      * @return A thread running the command.
      */
     std::thread executeCommand(std::string command){
-        std::cout << command + "!"<< std::endl;
         terminalCacheUserInput.push_back(command);
     return std::thread([this, command]() {
         try {
@@ -121,7 +120,11 @@ public:
             } else {
                 std::string fullCommand = "cd " + currentDirectory + " && " + command;
                 if (getTerminalName() == "cmd") {
+                    if(currentDirectory == "/"){
+                        fullCommand = command;
+                    } else {
                     fullCommand = "cmd /c \"cd /d " + currentDirectory + " && " + command + "\"";
+                    }
                 } else {
                     fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + "\"";
                 }

@@ -10,7 +10,7 @@
 #include <cctype>
 #include <locale>
 #include "terminalpassthrough.h"
-#include "nlohmann/json.hpp" // Include nlohmann/json library
+#include "json.hpp"
 
 using json = nlohmann::json;
 
@@ -64,8 +64,6 @@ void exit();
 
 
 int main() {
-    std::cout << "DevToolsTerminal LITE - Caden Finley (c) 2025" << std::endl;
-    std::cout << "Created 2025 @ " << PURPLE_COLOR_BOLD << "Abilene Chrsitian University" << RESET_COLOR << std::endl;
     std::cout << "Loading..." << std::endl;
     applicationDirectory = std::filesystem::current_path().string();
     if (applicationDirectory.find(":") != std::string::npos) {
@@ -90,6 +88,8 @@ int main() {
         }
         runningStartup = false;
     }
+    std::cout << "DevToolsTerminal LITE - Caden Finley (c) 2025" << std::endl;
+    std::cout << "Created 2025 @ " << PURPLE_COLOR_BOLD << "Abilene Chrsitian University" << RESET_COLOR << std::endl;
     mainProcessLoop();
     return 0;
 }
@@ -626,6 +626,23 @@ void textCommands() {
         commandPrefix = lastCommandParsed;
         std::cout << "Command prefix set to " + commandPrefix << std::endl;
         return;
+    }
+    if(lastCommandParsed == "displayfullpath"){
+        getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
+    }
+    if(lastCommandParsed == "enable"){
+        terminal.setDisplayWholePath(true);
+        std::cout << "Display whole path enabled." << std::endl;
+        return;
+    }
+    if(lastCommandParsed == "disable"){
+        terminal.setDisplayWholePath(false);
+        std::cout << "Display whole path disabled." << std::endl;
+        return;
+    }
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
