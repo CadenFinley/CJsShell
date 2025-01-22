@@ -131,16 +131,21 @@ public:
                         fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + " 2>&1\"";
                     }
                     int terminalExecCode = std::system(fullCommand.c_str());
-                    if(terminalExecCode != 0){
-                        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(fullCommand.c_str(), "r"), pclose);
-                        if (!pipe) {
-                            throw std::runtime_error("popen() failed!");
-                        }
-                        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-                            result += buffer.data();
-                        }
+                    if(getTerminalName() == "cmd"){
+                        std::cout << "Terminal Output result: " << terminalExecCode << std::endl;
+                        result = "Terminal Output result: " + std::to_string(terminalExecCode);
                     } else {
-                        result = &"Terminal Output success: " [ terminalExecCode];
+                        if(terminalExecCode != 0){
+                            std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(fullCommand.c_str(), "r"), pclose);
+                            if (!pipe) {
+                                throw std::runtime_error("popen() failed!");
+                            }
+                            while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+                                result += buffer.data();
+                            }
+                        } else {
+                            result = "Terminal Output result: " + std::to_string(terminalExecCode);
+                        }
                     }
                     terminalCacheTerminalOutput.push_back(result);
                 }
