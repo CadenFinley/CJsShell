@@ -15,9 +15,6 @@
 
 using json = nlohmann::json;
 
-std::filesystem::path USER_DATA = ".USER_DATA.json";
-std::filesystem::path USER_COMMAND_HISTORY = ".USER_COMMAND_HISTORY.txt";
-
 bool TESTING = false;
 bool shotcutsEnabled = true;
 bool startCommandsOn = true;
@@ -30,6 +27,10 @@ const std::string GREEN_COLOR_BOLD = "\033[1;32m";
 const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
+
+std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
+std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
+std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
@@ -76,22 +77,31 @@ std::string getFileExtensionForLanguage(const std::string& language);
 
 int main() {
     std::cout << "Loading..." << std::endl;
-    applicationDirectory = std::filesystem::current_path().string();
-    if (applicationDirectory.find(":") != std::string::npos) {
-        applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
-    }
+
     startupCommands = {};
     shortcuts = {};
     terminal = TerminalPassthrough();
     openAIPromptEngine = OpenAIPromptEngine();
-        if (!std::filesystem::exists(USER_DATA)) {
+
+    applicationDirectory = std::filesystem::current_path().string();
+    if (applicationDirectory.find(":") != std::string::npos) {
+        applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
+    }
+
+    if (!std::filesystem::exists(DATA_DIRECTORY)) {
+        std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
+    }
+
+    if (!std::filesystem::exists(USER_DATA)) {
         createNewUSER_DATAFile();
     } else {
         loadUserData();
     }
+
     if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
         createNewUSER_HISTORYfile();
     }
+
     if (openAIPromptEngine.getAPIKey().empty()) {
         std::cout << "OpenAI API key not found." << std::endl;
     } else {
@@ -102,6 +112,7 @@ int main() {
             std::cout << "Please check your internet connection and try again later." << std::endl;
         }
     }
+
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
         std::cout << "Running startup commands..." << std::endl;
@@ -110,6 +121,7 @@ int main() {
         }
         runningStartup = false;
     }
+    
     std::cout << "DevToolsTerminal LITE - Caden Finley (c) 2025" << std::endl;
     std::cout << "Created 2025 @ " << PURPLE_COLOR_BOLD << "Abilene Chrsitian University" << RESET_COLOR << std::endl;
     mainProcessLoop();
@@ -770,7 +782,7 @@ void aiSettingsCommands() {
     if (lastCommandParsed == "log") {
         std::string lastChatSent = openAIPromptEngine.getLastPromptUsed();
         std::string lastChatReceived = openAIPromptEngine.getLastResponseReceived();
-        std::string fileName = "OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt";
+        std::string fileName = DATA_DIRECTORY + "/OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt";
         std::ofstream file(fileName);
         if (file.is_open()) {
             file << "Chat Sent: " << lastChatSent << "\n";
@@ -787,11 +799,11 @@ void aiSettingsCommands() {
         if (lastCommandParsed == "extract") {
             getNextCommand();
             if (lastCommandParsed.empty()) {
-                extractCodeSnippet(fileName, "extracted_code");
+                extractCodeSnippet(fileName, DATA_DIRECTORY + "/extracted_code");
                 std::filesystem::remove(fileName);
                 return;
             }
-            extractCodeSnippet(fileName, lastCommandParsed);
+            extractCodeSnippet(fileName, DATA_DIRECTORY + "/" + lastCommandParsed);
             std::filesystem::remove(fileName);
             return;
         }
