@@ -13,3 +13,4 @@ CMakeUserPresets.json
 .DS_Store
 .USER_DATA.json
 .USER_COMMAND_HISTORY.txt
+.vscode

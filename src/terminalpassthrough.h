@@ -97,6 +97,7 @@ public:
      * @param command Command to execute.
      * @return A thread running the command.
      */
+    //g++ -o DevToolsTerminal src/main.cpp -IC:\msys64\mingw64\include -LC:\msys64\mingw64\lib -lcurl
     std::thread executeCommand(std::string command){
         terminalCacheUserInput.push_back(command);
         return std::thread([this, command]() {
@@ -121,13 +122,9 @@ public:
                         }
                     }
                 } else {
-                    std::string fullCommand = "cd " + currentDirectory + " && " + command;
+                    std::string fullCommand;
                     if (getTerminalName() == "cmd") {
-                        if(currentDirectory == "/"){
-                            fullCommand = command;
-                        } else {
-                            fullCommand = "cmd /c \"cd /d " + currentDirectory + " && " + command + "\"";
-                        }
+                        fullCommand = "cd " + currentDirectory + " && " + command;
                     } else {
                         fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + "\"";
                     }
