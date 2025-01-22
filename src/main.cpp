@@ -242,9 +242,41 @@ std::vector<std::string> commandSplicer(const std::string& command) {
     std::vector<std::string> commands;
     std::istringstream iss(command);
     std::string word;
+    int numberOfWordsInSeparates = 0;
+
     while (iss >> word) {
-        commands.push_back(word);
+        if (word.front() == '\'' || word.front() == '(') {
+            char startChar = word.front();
+            char endChar = (startChar == '(') ? ')' : '\'';
+            word.erase(0, 1);
+            std::string combined = word;
+
+            while (!word.empty() && word.back() != endChar) {
+                if (!(iss >> word)) break;
+                numberOfWordsInSeparates++;
+                combined += " " + word;
+            }
+            if (!combined.empty() && combined.back() == endChar) {
+                combined.pop_back();
+            }
+            commands.push_back(combined);
+        } else {
+            commands.push_back(word);
+        }
     }
+
+    commands.erase(std::remove(commands.begin(), commands.end(), "'"), commands.end());
+    commands.erase(std::remove(commands.begin(), commands.end(), "("), commands.end());
+    commands.erase(std::remove(commands.begin(), commands.end(), ")"), commands.end());
+
+    int index = commands.size() - 2;
+    std::string bufferCommand = commands.back();
+    for (int i = 1; i < numberOfWordsInSeparates; i++) {
+        commands.pop_back();
+        index--;
+    }
+    commands.push_back(bufferCommand);
+
     return commands;
 }
 
@@ -539,8 +571,20 @@ void startupCommandsHandler() { // Renamed function
             std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
-        startupCommands.erase(std::remove(startupCommands.begin(), startupCommands.end(), lastCommandParsed), startupCommands.end());
-        std::cout << "Command removed from startup commands." << std::endl;
+        std::vector<std::string> newStartupCommands;
+        bool removed = false;
+        for (const auto& command : startupCommands) {
+            if (command != lastCommandParsed) {
+                newStartupCommands.push_back(command);
+            } else {
+                removed = true;
+                std::cout << "Command removed from startup commands." << std::endl;
+            }
+        }
+        if (!removed) {
+            std::cout << "Command not found in startup commands." << std::endl;
+        }
+        startupCommands = newStartupCommands;
         return;
     }
     if (lastCommandParsed == "clear") {
