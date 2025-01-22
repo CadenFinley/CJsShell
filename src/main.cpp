@@ -366,6 +366,10 @@ void shortcutProcesser(const std::string& command) {
     }
 }
 
+/**
+ * @brief Process a multi-script shortcut command.
+ * @param command Multi-script shortcut command string to process.
+ */
 void multiScriptShortcutProcesser(const std::string& command){
     if (!shotcutsEnabled) {
         std::cout << "Shortcuts are disabled." << std::endl;
@@ -745,6 +749,9 @@ void shortcutCommands() {
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
+/**
+ * @brief Process multi-script shortcut commands.
+ */
 void multiScriptShortcutCommands(){
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -873,6 +880,9 @@ void exit() {
     std::exit(0);
 }
 
+/**
+ * @brief Process AI settings commands.
+ */
 void aiSettingsCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -977,6 +987,9 @@ void aiSettingsCommands() {
         return;
 }
 
+/**
+ * @brief Process AI chat commands.
+ */
 void aiChatCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -1043,6 +1056,10 @@ void aiChatCommands() {
     }
 }
 
+/**
+ * @brief Process a chat message.
+ * @param message Chat message to process.
+ */
 void chatProcess(const std::string& message) {
     if (message.empty()) {
         std::cout << "Invalid input. Please try again." << std::endl;
@@ -1056,6 +1073,9 @@ void chatProcess(const std::string& message) {
     std::cout << "ChatGPT: " << response << std::endl;
 }
 
+/**
+ * @brief Show the chat history.
+ */
 void showChatHistory() {
     if (!openAIPromptEngine.getChatCache().empty()) {
         std::cout << "Chat history:" << std::endl;
@@ -1065,6 +1085,11 @@ void showChatHistory() {
     }
 }
 
+/**
+ * @brief Extract a code snippet from a log file.
+ * @param logFile Log file to extract from.
+ * @param fileName File name to save the extracted code snippet.
+ */
 void extractCodeSnippet(const std::string& logFile, const std::string& fileName) {
     std::ifstream file(logFile);
     if (file.is_open()) {
@@ -1101,6 +1126,11 @@ void extractCodeSnippet(const std::string& logFile, const std::string& fileName)
     }
 }
 
+/**
+ * @brief Get the file extension for a given programming language.
+ * @param language Programming language.
+ * @return File extension for the given language.
+ */
 std::string getFileExtensionForLanguage(const std::string& language) {
     if (language == "java") return "java";
     if (language == "python") return "py";
