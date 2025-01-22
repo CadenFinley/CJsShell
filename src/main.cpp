@@ -419,6 +419,7 @@ void commandProcesser(const std::string& command) {
         std::cout << "Commands:" << std::endl;
         std::cout << "Command Prefix: " + commandPrefix << std::endl;
         std::cout << "ss [ARGS]" << std::endl;
+        std::cout << "ai" << std::endl;
         std::cout << "approot" << std::endl;
         std::cout << "terminal o[ARGS]" << std::endl;
         std::cout << "user" << std::endl;
@@ -826,6 +827,7 @@ void aiSettingsCommands() {
             return;
         }
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
     }
     if (lastCommandParsed == "chat") {
         getNextCommand();
@@ -860,7 +862,8 @@ void aiSettingsCommands() {
         std::cout << "dump" << std::endl;
         return;
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    defaultTextEntryOnAI = true;
+        return;
 }
 
 void aiChatCommands() {
