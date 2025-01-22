@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
+#include <array>
 
 namespace fs = std::filesystem;
 
