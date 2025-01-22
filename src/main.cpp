@@ -746,6 +746,23 @@ void textCommands() {
             return;
         }
     }
+    if(lastCommandParsed == "defaultentry"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "ai"){
+            defaultTextEntryOnAI = true;
+            std::cout << "Default text entry set to AI." << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "terminal"){
+            defaultTextEntryOnAI = false;
+            std::cout << "Default text entry set to terminal." << std::endl;
+            return;
+        }
+    }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
