@@ -79,16 +79,16 @@ public:
                     }
                 }
                 std::string repoName = displayWholePath ? getCurrentFilePath() : getCurrentFileName();
-                gitInfo = "\033[1;32m" + repoName + " git:(" + branchName + ")\033[0m";
+                gitInfo = "\033[1;32m" + repoName + RESET_COLOR+BLUE_COLOR_BOLD+" git:("+RESET_COLOR+YELLOW_COLOR_BOLD + branchName +RESET_COLOR+BLUE_COLOR_BOLD+ ")"+RESET_COLOR;
             } catch (const std::exception& e) {
                 std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
             }
-            return getTerminalName() + ": " + gitInfo + " ";
+            return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": " + gitInfo + " ";
         }
         if (displayWholePath) {
-            return getTerminalName() + ": \033[1;34m" + getCurrentFilePath() + "\033[0m ";
+            return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFilePath() + "\033[0m ";
         } else {
-            return getTerminalName() + ": \033[1;34m" + getCurrentFileName() + "\033[0m ";
+            return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFileName() + "\033[0m ";
         }
     }
 
@@ -199,6 +199,10 @@ private:
     bool displayWholePath;
     std::vector<std::string> terminalCacheUserInput;
     std::vector<std::string> terminalCacheTerminalOutput;
+    std::string RED_COLOR_BOLD = "\033[1;31m";
+    std::string RESET_COLOR = "\033[0m";
+    std::string BLUE_COLOR_BOLD = "\033[1;34m";
+    std::string YELLOW_COLOR_BOLD = "\033[1;33m";
 
     /**
      * @brief Get the current file path.

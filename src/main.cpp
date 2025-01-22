@@ -128,7 +128,7 @@ void mainProcessLoop() {
             std::cout << RED_COLOR_BOLD << "DEV MODE" << RESET_COLOR << std::endl;
         }
         if(defaultTextEntryOnAI){
-            std::cout << "AI Menu: ";
+            std::cout <<GREEN_COLOR_BOLD<< "AI Menu: "<<RESET_COLOR;
         } else {
             std::cout << terminal.returnCurrentTerminalPosition();
         }
