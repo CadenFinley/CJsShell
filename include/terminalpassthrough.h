@@ -5,13 +5,16 @@
 #include <thread>
 #include <vector>
 #include <filesystem>
-#include <regex> // Add this line
+#include <regex>
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
 
 namespace fs = std::filesystem;
 
 class TerminalPassthrough {
 public:
-    TerminalPassthrough() : displayWholePath(false) { // Fix constructor definition
+    TerminalPassthrough() : displayWholePath(false) {
         currentDirectory = fs::current_path().string();
         terminalCacheUserInput = std::vector<std::string>();
         terminalCacheTerminalOutput = std::vector<std::string>();
@@ -54,7 +57,7 @@ public:
         std::string gitInfo;
         fs::path currentPath = fs::path(getCurrentFilePath());
         fs::path gitHeadPath;
-        while (!isRootPath(currentPath)) { // Use isRootPath method
+        while (!isRootPath(currentPath)) {
             gitHeadPath = currentPath / ".git" / "HEAD";
             if (fs::exists(gitHeadPath)) {
                 break;
@@ -96,44 +99,44 @@ public:
      */
     std::thread executeCommand(std::string command){
         terminalCacheUserInput.push_back(command);
-    return std::thread([this, command]() {
-        try {
-            if (command.rfind("cd ", 0) == 0) {
-                std::string newDir = command.substr(3);
-                if (newDir == "/") {
-                    currentDirectory = "/";
-                } else if (newDir == "..") {
-                    fs::path dir = fs::path(currentDirectory).parent_path();
-                    if (fs::exists(dir) && fs::is_directory(dir)) {
-                        currentDirectory = dir.string();
+        return std::thread([this, command]() {
+            try {
+                if (command.rfind("cd ", 0) == 0) {
+                    std::string newDir = command.substr(3);
+                    if (newDir == "/") {
+                        currentDirectory = "/";
+                    } else if (newDir == "..") {
+                        fs::path dir = fs::path(currentDirectory).parent_path();
+                        if (fs::exists(dir) && fs::is_directory(dir)) {
+                            currentDirectory = dir.string();
+                        } else {
+                            throw std::runtime_error("No such file or directory");
+                        }
                     } else {
-                        throw std::runtime_error("No such file or directory");
+                        fs::path dir = fs::path(currentDirectory) / newDir;
+                        if (fs::exists(dir) && fs::is_directory(dir)) {
+                            currentDirectory = fs::canonical(dir).string();
+                        } else {
+                            throw std::runtime_error("No such file or directory");
+                        }
                     }
                 } else {
-                    fs::path dir = fs::path(currentDirectory) / newDir;
-                    if (fs::exists(dir) && fs::is_directory(dir)) {
-                        currentDirectory = fs::canonical(dir).string();
+                    std::string fullCommand = "cd " + currentDirectory + " && " + command;
+                    if (getTerminalName() == "cmd") {
+                        if(currentDirectory == "/"){
+                            fullCommand = command;
+                        } else {
+                            fullCommand = "cmd /c \"cd /d " + currentDirectory + " && " + command + "\"";
+                        }
                     } else {
-                        throw std::runtime_error("No such file or directory");
+                        fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + "\"";
                     }
+                    std::system(fullCommand.c_str());
                 }
-            } else {
-                std::string fullCommand = "cd " + currentDirectory + " && " + command;
-                if (getTerminalName() == "cmd") {
-                    if(currentDirectory == "/"){
-                        fullCommand = command;
-                    } else {
-                    fullCommand = "cmd /c \"cd /d " + currentDirectory + " && " + command + "\"";
-                    }
-                } else {
-                    fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + "\"";
-                }
-                std::system(fullCommand.c_str());
+            } catch (const std::exception& e) {
+                std::cerr << "Error executing command: '" << command << "' " << e.what() << std::endl;
             }
-        } catch (const std::exception& e) {
-            std::cerr << "Error executing command: '" << command << "' " << e.what() << std::endl;
-        }
-    });
+        });
     }
 
     /**

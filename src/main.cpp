@@ -10,7 +10,7 @@
 #include <cctype>
 #include <locale>
 #include "terminalpassthrough.h"
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
 
 using json = nlohmann::json;
