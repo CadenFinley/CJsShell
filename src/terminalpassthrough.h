@@ -102,6 +102,7 @@ public:
         terminalCacheUserInput.push_back(command);
         return std::thread([this, command]() {
             try {
+                std::string result;
                 if (command.rfind("cd ", 0) == 0) {
                     std::string newDir = command.substr(3);
                     if (newDir == "/") {
@@ -111,6 +112,7 @@ public:
                         if (fs::exists(dir) && fs::is_directory(dir)) {
                             currentDirectory = dir.string();
                         } else {
+                            result = "No such file or directory: " + dir.string();
                             throw std::runtime_error("No such file or directory");
                         }
                     } else {
@@ -118,11 +120,12 @@ public:
                         if (fs::exists(dir) && fs::is_directory(dir)) {
                             currentDirectory = fs::canonical(dir).string();
                         } else {
+                            result = "No such file or directory: " + dir.string();
                             throw std::runtime_error("No such file or directory");
                         }
                     }
+                    result = "Changed directory to: " + currentDirectory;
                 } else {
-                    std::string result;
                     std::array<char, 128> buffer;
                     std::string fullCommand;
                     if (getTerminalName() == "cmd") {
@@ -131,10 +134,6 @@ public:
                         fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + " 2>&1\"";
                     }
                     int terminalExecCode = std::system(fullCommand.c_str());
-                    if(getTerminalName() == "cmd"){
-                        std::cout << "Terminal Output result: " << terminalExecCode << std::endl;
-                        result = "Terminal Output result: " + std::to_string(terminalExecCode);
-                    } else {
                         if(terminalExecCode != 0){
                             std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(fullCommand.c_str(), "r"), pclose);
                             if (!pipe) {
@@ -146,9 +145,8 @@ public:
                         } else {
                             result = "Terminal Output result: " + std::to_string(terminalExecCode);
                         }
-                    }
-                    terminalCacheTerminalOutput.push_back(result);
                 }
+                terminalCacheTerminalOutput.push_back(result);
             } catch (const std::exception& e) {
                 std::cerr << "Error executing command: '" << command << "' " << e.what() << std::endl;
             }

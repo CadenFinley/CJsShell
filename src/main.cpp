@@ -475,18 +475,12 @@ void userSettingsCommands() {
         if (lastCommandParsed == "enable") {
             TESTING = true;
             std::cout << "Testing mode enabled." << std::endl;
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                return;
-            }
+            return;
         }
         if (lastCommandParsed == "disable") {
             TESTING = false;
             std::cout << "Testing mode disabled." << std::endl;
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                return;
-            }
+            return;
         }
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
