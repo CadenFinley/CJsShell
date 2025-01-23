@@ -956,9 +956,7 @@ void aiSettingsCommands() {
             std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
-        std::cout << "Sent message to GPT: " << lastCommandParsed << std::endl;
-        chatProcess(lastCommandParsed);
-        return;
+        aiChatCommands();
     }
     if (lastCommandParsed == "get") {
         getNextCommand();
@@ -1054,6 +1052,9 @@ void aiChatCommands() {
         std::cout << "history: disable, enable, save, clear" << std::endl;
         std::cout << "cache: enable, disable, clear" << std::endl;
     }
+    std::cout << "Sent message to GPT: " << lastCommandParsed << std::endl;
+    chatProcess(lastCommandParsed);
+    return;
 }
 
 /**
