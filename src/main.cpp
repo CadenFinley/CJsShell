@@ -875,6 +875,14 @@ void getNextCommand() {
  * @brief Exit the application, saving user data.
  */
 void exit() {
+    if(!incognitoChatMode){
+        std::cout << "Would you like to save the chat history?" << std::endl;
+        std::string response;
+        std::getline(std::cin, response);
+        if (response == "yes" || response == "y") {
+            savedChatCache = openAIPromptEngine.getChatCache();
+        }
+    }
     writeUserData();
     std::cout << "Exiting..." << std::endl;
     std::exit(0);
@@ -951,11 +959,6 @@ void aiSettingsCommands() {
         return;
     }
     if (lastCommandParsed == "chat") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
         aiChatCommands();
     }
     if (lastCommandParsed == "get") {

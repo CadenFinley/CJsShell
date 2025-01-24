@@ -90,7 +90,11 @@ std::string OpenAIPromptEngine::chatGPT(const std::string& passedMessage, bool u
     std::string sentMessage;
 
     if (usingChatCache && !lastPromptUsed.empty()) {
-        sentMessage = "These are the previous messages from this conversation: '" + std::to_string(chatCache.size()) + "' This is the users response based on the previous conversation: '" + passedMessage + "'";
+        std::string messageFromCache;
+        for (const auto& message : chatCache) {
+            messageFromCache += message + " ";
+        }
+        sentMessage = "These are the previous messages from this conversation: '" + messageFromCache + "' This is the users response based on the previous conversation: '" + passedMessage + "'";
     } else {
         sentMessage = passedMessage;
     }
