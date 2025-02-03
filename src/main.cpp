@@ -1004,8 +1004,7 @@ void aiSettingsCommands() {
         std::cout << "dump" << std::endl;
         return;
     }
-    defaultTextEntryOnAI = true;
-        return;
+    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 /**
