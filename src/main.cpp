@@ -133,6 +133,7 @@ int main() {
  */
 void mainProcessLoop() {
     while (true) {
+        writeUserData();
         if (TESTING) {
             std::cout << RED_COLOR_BOLD << "DEV MODE" << RESET_COLOR << std::endl;
         }
@@ -520,7 +521,23 @@ void userSettingsCommands() {
         return;
     }
     if (lastCommandParsed == "data") {
-        getNextCommand();
+        userDataCommands();
+        return;
+    }
+    if (lastCommandParsed == "help") {
+        std::cout << "Commands: " << std::endl;
+        std::cout << "startup: add [ARGS], remove [ARGS], clear, enable, disable, list, runall" << std::endl;
+        std::cout << "text: commandprefix [ARGS]" << std::endl;
+        std::cout << "shortcut: clear, enable, disable, add [ARGS], remove [ARGS], list" << std::endl;
+        std::cout << "testing [ARGS]" << std::endl;
+        std::cout << "data: get [ARGS], clear" << std::endl;
+        return;
+    }
+    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+}
+
+void userDataCommands(){
+    getNextCommand();
         if (lastCommandParsed.empty()) {
             std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
@@ -559,6 +576,23 @@ void userSettingsCommands() {
                 return;
             }
         }
+        if(lastCommandParsed == "saveloop"){
+            getNextCommand();
+            if (lastCommandParsed.empty()) {
+                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                return;
+            }
+            if (lastCommandParsed == "enable") {
+                textBuffer = true;
+                std::cout << "Text buffer enabled." << std::endl;
+                return;
+            }
+            if (lastCommandParsed == "disable") {
+                textBuffer = false;
+                std::cout << "Text buffer disabled." << std::endl;
+                return;
+            }
+        }
         if (lastCommandParsed == "clear") {
             std::filesystem::remove(USER_DATA);
             createNewUSER_DATAFile();
@@ -570,17 +604,6 @@ void userSettingsCommands() {
         }
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "Commands: " << std::endl;
-        std::cout << "startup: add [ARGS], remove [ARGS], clear, enable, disable, list, runall" << std::endl;
-        std::cout << "text: commandprefix [ARGS]" << std::endl;
-        std::cout << "shortcut: clear, enable, disable, add [ARGS], remove [ARGS], list" << std::endl;
-        std::cout << "testing [ARGS]" << std::endl;
-        std::cout << "data: get [ARGS], clear" << std::endl;
-        return;
-    }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 /**
@@ -876,12 +899,9 @@ void getNextCommand() {
  */
 void exit() {
     if(!incognitoChatMode){
-        std::cout << "Would you like to save the chat history?" << std::endl;
-        std::string response;
-        std::getline(std::cin, response);
-        if (response == "yes" || response == "y") {
-            savedChatCache = openAIPromptEngine.getChatCache();
-        }
+        savedChatCache = openAIPromptEngine.getChatCache();
+    } else {
+        savedChatCache.clear();
     }
     writeUserData();
     std::cout << "Exiting..." << std::endl;
