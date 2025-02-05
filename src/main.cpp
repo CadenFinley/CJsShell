@@ -40,6 +40,7 @@ bool textBuffer = false; // Initialize textBuffer
 bool defaultTextEntryOnAI = false; // Initialize defaultTextEntryOnAI
 bool incognitoChatMode = false;
 bool usingChatCache = true;
+bool saveLoop = false;
 
 std::vector<std::string> savedChatCache;
 
@@ -72,6 +73,7 @@ void showChatHistory();
 void extractCodeSnippet(const std::string& logFile, const std::string& fileName);
 std::string getFileExtensionForLanguage(const std::string& language);
 void multiScriptShortcutCommands();
+void userDataCommands();
 
 int main() {
     std::cout << "Loading..." << std::endl;
@@ -133,7 +135,9 @@ int main() {
  */
 void mainProcessLoop() {
     while (true) {
-        writeUserData();
+        if(saveLoop){
+            writeUserData();
+        }
         if (TESTING) {
             std::cout << RED_COLOR_BOLD << "DEV MODE" << RESET_COLOR << std::endl;
         }
@@ -583,12 +587,12 @@ void userDataCommands(){
                 return;
             }
             if (lastCommandParsed == "enable") {
-                textBuffer = true;
+                saveLoop = true;
                 std::cout << "Text buffer enabled." << std::endl;
                 return;
             }
             if (lastCommandParsed == "disable") {
-                textBuffer = false;
+                saveLoop = false;
                 std::cout << "Text buffer disabled." << std::endl;
                 return;
             }
