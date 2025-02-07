@@ -183,12 +183,10 @@ void mainProcessLoop() {
                     command.erase(cursorPosition - 1, 1);
                     cursorPosition--;
                     std::cout << "\033[2K\r" << terminalSetting << command;
-                    if (cursorPosition > 0) {
                         std::cout << "\033[" << (cursorPosition - terminalSetting.length()) << "D";
                         if (cursorPosition == command.length()) {
                             std::cout << "\033[" << "C";
                         }
-                    }
                 }
             } else {
                 command.insert(cursorPosition, 1, c);
@@ -267,7 +265,7 @@ void handleArrowKey(char arrow, size_t& cursorPosition, const std::string& comma
             if (cursorPosition > 0) {
                 cursorPosition--;
                 std::cout << "\033[D";
-                if (cursorPosition <= 0) {
+                if (cursorPosition < 0) {
                     std::cout << "\033[C";
                 }
             }
