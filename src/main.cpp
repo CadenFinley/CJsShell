@@ -9,21 +9,11 @@
 #include <algorithm>
 #include <cctype>
 #include <locale>
-
-#if defined(__linux__) || defined(__APPLE__)
 #include <termios.h>
 #include <unistd.h>
-#endif
-
-#ifdef _WIN32
-#include <conio.h>
-#include <windows.h>
-#endif
-
 #include "terminalpassthrough.h"
 #include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
-
 
 using json = nlohmann::json;
 
@@ -213,17 +203,6 @@ void mainProcessLoop() {
  * @param enable Enable or disable raw mode.
  */
 void setRawMode(bool enable) {
-    #ifdef _WIN32
-    static DWORD oldMode;
-    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-    if (enable) {
-        GetConsoleMode(hStdin, &oldMode);
-        SetConsoleMode(hStdin, oldMode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
-    } else {
-        SetConsoleMode(hStdin, oldMode);
-    }
-    rawEnabled = enable;
-    #elif defined(__linux__) || defined(__APPLE__)
     static struct termios oldt, newt;
     if (enable) {
         tcgetattr(STDIN_FILENO, &oldt);
@@ -234,7 +213,6 @@ void setRawMode(bool enable) {
         tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
     }
     rawEnabled = enable;
-    #endif
 }
 
 /**
@@ -245,11 +223,6 @@ void setRawMode(bool enable) {
  * @param terminalTag Terminal tag string.
  */
 void handleArrowKey(char arrow, size_t& cursorPosition, const std::string& command, const std::string& terminalTag) {
-    #ifdef _WIN32
-    if (arrow == 0 || arrow == 224) {
-        arrow = _getch();
-    }
-    #endif
     switch (arrow) {
         case 'A': // Up arrow
             // Handle up arrow key if needed
