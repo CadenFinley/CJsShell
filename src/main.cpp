@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <cctype>
 #include <locale>
+#include <termios.h>
+#include <unistd.h>
 #include "terminalpassthrough.h"
 #include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
@@ -41,6 +43,7 @@ bool defaultTextEntryOnAI = false; // Initialize defaultTextEntryOnAI
 bool incognitoChatMode = false;
 bool usingChatCache = true;
 bool saveLoop = false;
+bool rawEnabled = false;
 
 std::vector<std::string> savedChatCache;
 
@@ -74,6 +77,8 @@ void extractCodeSnippet(const std::string& logFile, const std::string& fileName)
 std::string getFileExtensionForLanguage(const std::string& language);
 void multiScriptShortcutCommands();
 void userDataCommands();
+void setRawMode(bool enable);
+void handleArrowKey(char arrow, size_t& cursorPosition, const std::string& command, const std::string& terminalTag);
 
 int main() {
     std::cout << "Loading..." << std::endl;
@@ -134,21 +139,112 @@ int main() {
  * @brief Main process loop that continuously reads and processes user commands.
  */
 void mainProcessLoop() {
+    std::string terminalSetting;
+    setRawMode(true);
     while (true) {
-        if(saveLoop){
+        if (saveLoop) {
             writeUserData();
         }
         if (TESTING) {
-            std::cout << RED_COLOR_BOLD << "DEV MODE" << RESET_COLOR << std::endl;
+            std::cout << RED_COLOR_BOLD << "DEV MODE " << rawEnabled << RESET_COLOR << std::endl;
         }
-        if(defaultTextEntryOnAI){
-            std::cout <<GREEN_COLOR_BOLD<< "AI Menu: "<<RESET_COLOR;
+        if (defaultTextEntryOnAI) {
+            terminalSetting = GREEN_COLOR_BOLD + "AI Menu: " + RESET_COLOR;
         } else {
-            std::cout << terminal.returnCurrentTerminalPosition();
+            terminalSetting = terminal.returnCurrentTerminalPosition();
         }
+        std::cout << terminalSetting;
         std::string command;
-        std::getline(std::cin, command);
+        char c;
+        size_t cursorPosition = 0;
+        while (true) {
+            std::cin.get(c);
+            if (c == '\033') { // if the first value is esc
+                std::cin.get(c); // skip the [
+                if (c == '[') {
+                    std::cin.get(c);
+                    handleArrowKey(c, cursorPosition, command, terminalSetting);
+                }
+            } else if (c == '\n') {
+                std::cout << std::endl;
+                break;
+            } else if (c == 127) { // handle backspace
+                if (command.size() > 0 && cursorPosition > 0) {
+                    command.erase(cursorPosition - 1, 1);
+                    cursorPosition--;
+                    std::cout << "\033[2K\r" << terminalSetting << command;
+                    if (cursorPosition > 0) {
+                        std::cout << "\033[" << (cursorPosition - terminalSetting.length()) << "D";
+                        if (cursorPosition == command.length()) {
+                            std::cout << "\033[" << "C";
+                        }
+                    }
+                }
+            } else {
+                command.insert(cursorPosition, 1, c);
+                cursorPosition++;
+                std::cout << "\033[2K\r" << terminalSetting << command;
+                std::cout << "\033[" << cursorPosition - terminalSetting.length() << "C";
+                std::cout << "\033[" << "D";
+                if (cursorPosition != command.length()) {
+                    std::cout << "\033[D";
+                }
+            }
+        }
+        setRawMode(false);
         commandParser(command);
+        setRawMode(true);
+    }
+    setRawMode(false);
+}
+
+/**
+ * @brief Set the terminal to raw mode.
+ * @param enable Enable or disable raw mode.
+ */
+void setRawMode(bool enable) {
+    static struct termios oldt, newt;
+    if (enable) {
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        newt.c_lflag &= ~(ICANON | ECHO);
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    }
+    rawEnabled = enable;
+}
+
+/**
+ * @brief Handle arrow key inputs.
+ * @param arrow Arrow key character.
+ * @param cursorPosition Reference to the cursor position.
+ * @param command Reference to the command string.
+ * @param terminalTag Terminal tag string.
+ */
+void handleArrowKey(char arrow, size_t& cursorPosition, const std::string& command, const std::string& terminalTag) {
+    switch (arrow) {
+        case 'A': // Up arrow
+            // Handle up arrow key if needed
+            break;
+        case 'B': // Down arrow
+            // Handle down arrow key if needed
+            break;
+        case 'C': // Right arrow
+            if (cursorPosition < command.length()) {
+                cursorPosition++;
+                std::cout << "\033[C";
+            }
+            break;
+        case 'D': // Left arrow
+            if (cursorPosition > 0) {
+                cursorPosition--;
+                std::cout << "\033[D";
+                if (cursorPosition <= 0) {
+                    std::cout << "\033[C";
+                }
+            }
+            break;
     }
 }
 
@@ -908,6 +1004,7 @@ void exit() {
         savedChatCache.clear();
     }
     writeUserData();
+    setRawMode(false);
     std::cout << "Exiting..." << std::endl;
     std::exit(0);
 }
@@ -1172,5 +1269,6 @@ std::string getFileExtensionForLanguage(const std::string& language) {
     if (language == "xml") return "xml";
     return "txt";
 }
+
 
 
