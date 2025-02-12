@@ -140,8 +140,8 @@ int main() {
  */
 void mainProcessLoop() {
     std::string terminalSetting;
-    setRawMode(true);
     while (true) {
+        setRawMode(true);
         if (saveLoop) {
             writeUserData();
         }
@@ -169,27 +169,34 @@ void mainProcessLoop() {
                 std::cout << std::endl;
                 break;
             } else if (c == 127) { // handle backspace
-                if (command.size() > 0) {
+                if (command.size() > 0 && cursorPosition > 0) {
                     command.erase(cursorPosition - 1, 1);
                     std::cout << "\033[2K\r" << terminalSetting << command;
-                    if (cursorPosition > 0) {
-                        cursorPosition--;
-                        if (cursorPosition < command.length()) {
+                    cursorPosition--;
+                    int stepsBehind = command.length() - cursorPosition;
+                    if (stepsBehind > 0) {
+                        while (stepsBehind > 0) {
                             std::cout << "\033[D";
+                            stepsBehind--;
                         }
                     }
                 }
             } else {
                 command.insert(cursorPosition, 1, c);
-                cursorPosition++;
                 std::cout << "\033[2K\r" << terminalSetting << command;
+                cursorPosition++;
+                int stepsBehind = command.length() - cursorPosition;
+                if (stepsBehind > 0) {
+                    while (stepsBehind > 0) {
+                        std::cout << "\033[D";
+                        stepsBehind--;
+                    }
+                }
             }
         }
         setRawMode(false);
         commandParser(command);
-        setRawMode(true);
     }
-    setRawMode(false);
 }
 
 /**
