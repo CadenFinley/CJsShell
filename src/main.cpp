@@ -124,6 +124,12 @@ int main() {
     return 0;
 }
 
+int getTerminalWidth(){
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    return w.ws_col;
+}
+
 /**
  * @brief Main process loop that continuously reads and processes user commands.
  */
@@ -175,7 +181,7 @@ void mainProcessLoop() {
             } else {
                 command.insert(cursorPosition, 1, c);
                 std::cout << "\033[2K\r" << terminalSetting << command;
-                if(command.length() + terminalSetting.length() < 80){
+                if(command.length() + terminalSetting.length() < getTerminalWidth()){
                     cursorPosition++;
                     int stepsBehind = command.length() - cursorPosition;
                     if (stepsBehind > 0) {
