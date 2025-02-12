@@ -399,7 +399,6 @@ std::vector<std::string> commandSplicer(const std::string& command) {
  */
 void commandParser(const std::string& command) {
     if (command.empty()) {
-        std::cout << "Invalid input. Please try again." << std::endl;
         return;
     }
     if (!runningStartup) {
