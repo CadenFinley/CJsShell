@@ -266,25 +266,27 @@ private:
 };
 
 std::string TerminalPassthrough::getPreviousCommand() {
+    if (terminalCacheUserInput.empty()) {
+        return "";
+    }
     if (commandHistoryIndex > 0) {
         commandHistoryIndex--;
-        return terminalCacheUserInput[commandHistoryIndex];
-    } else if (commandHistoryIndex == -1 && !terminalCacheUserInput.empty()) {
+    } else {
         commandHistoryIndex = terminalCacheUserInput.size() - 1;
-        return terminalCacheUserInput[commandHistoryIndex];
     }
-    return "";
+    return terminalCacheUserInput[commandHistoryIndex];
 }
 
 std::string TerminalPassthrough::getNextCommand() {
-    if (commandHistoryIndex >= 0 && commandHistoryIndex < terminalCacheUserInput.size() - 1) {
-        commandHistoryIndex++;
-        return terminalCacheUserInput[commandHistoryIndex];
-    } else if (commandHistoryIndex == terminalCacheUserInput.size() - 1) {
-        commandHistoryIndex = -1;
+    if (terminalCacheUserInput.empty()) {
         return "";
     }
-    return "";
+    if (commandHistoryIndex < terminalCacheUserInput.size() - 1) {
+        commandHistoryIndex++;
+    } else {
+        commandHistoryIndex = 0;
+    }
+    return terminalCacheUserInput[commandHistoryIndex];
 }
 
 #endif // TERMINALPASSTHROUGH_H

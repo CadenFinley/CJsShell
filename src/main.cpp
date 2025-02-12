@@ -39,8 +39,8 @@ std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::map<std::string, std::string> shortcuts;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
-bool textBuffer = false; // Initialize textBuffer
-bool defaultTextEntryOnAI = false; // Initialize defaultTextEntryOnAI
+bool textBuffer = false;
+bool defaultTextEntryOnAI = false;
 bool incognitoChatMode = false;
 bool usingChatCache = true;
 bool saveLoop = false;
@@ -50,6 +50,9 @@ std::vector<std::string> savedChatCache;
 
 OpenAIPromptEngine openAIPromptEngine;
 TerminalPassthrough terminal;
+
+std::vector<std::string> commandLines;
+
 
 void mainProcessLoop();
 void createNewUSER_DATAFile();
@@ -79,7 +82,10 @@ std::string getFileExtensionForLanguage(const std::string& language);
 void multiScriptShortcutCommands();
 void userDataCommands();
 void setRawMode(bool enable);
-void handleArrowKey(char arrow, size_t& cursorPosition, std::string& command, const std::string& terminalTag);
+void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag);
+void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
+void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
+void clearLines(const std::vector<std::string>& commandLines);
 
 int main() {
     std::cout << "Loading..." << std::endl;
@@ -150,59 +156,97 @@ void mainProcessLoop() {
             terminalSetting = terminal.returnCurrentTerminalPosition();
         }
         std::cout << terminalSetting;
-        std::string command;
-        std::string finalCommand;
         char c;
-        size_t cursorPosition = 0;
+        size_t cursorPositionX = 0;
+        size_t cursorPositionY = 0;
+        commandLines = {""};
         while (true) {
             std::cin.get(c);
             if (c == '\033') {
                 std::cin.get(c);
                 if (c == '[') {
                     std::cin.get(c);
-                    handleArrowKey(c, cursorPosition, command, terminalSetting);
+                    handleArrowKey(c, cursorPositionX, cursorPositionY, commandLines, commandLines[cursorPositionY], terminalSetting);
                 }
             } else if (c == '\n') {
                 std::cout << std::endl;
-                finalCommand.append(command);
                 break;
             } else if (c == 127) {
-                if (command.size() > 0 && cursorPosition > 0) {
-                    command.erase(cursorPosition - 1, 1);
-                    std::cout << "\033[2K\r" << terminalSetting << command;
-                    cursorPosition--;
-                    int stepsBehind = command.length() - cursorPosition;
-                    if (stepsBehind > 0) {
-                        while (stepsBehind > 0) {
-                            std::cout << "\033[D";
-                            stepsBehind--;
-                        }
-                    }
+                clearLines(commandLines);
+                if (commandLines[cursorPositionY].length() > 0 && cursorPositionX > 0) {
+                    commandLines[cursorPositionY].erase(cursorPositionX - 1, 1);
+                    cursorPositionX--;
+                } else if (cursorPositionX == 0 && cursorPositionY > 0) {
+                    cursorPositionX = commandLines[cursorPositionY - 1].length();
+                    commandLines[cursorPositionY - 1] += commandLines[cursorPositionY];
+                    commandLines.erase(commandLines.begin() + cursorPositionY);
+                    cursorPositionY--;
                 }
+                reprintCommandLines(commandLines, terminalSetting);
+                placeCursor(cursorPositionX, cursorPositionY);
             } else {
-                command.insert(cursorPosition, 1, c);
-                std::cout << "\033[2K\r" << terminalSetting << command;
-                if(command.length() + terminalSetting.length() < getTerminalWidth()){
-                    cursorPosition++;
-                    int stepsBehind = command.length() - cursorPosition;
-                    if (stepsBehind > 0) {
-                        while (stepsBehind > 0) {
-                            std::cout << "\033[D";
-                            stepsBehind--;
-                        }
-                    }
+                clearLines(commandLines);
+                commandLines[cursorPositionY].insert(cursorPositionX, 1, c);
+                if (commandLines[cursorPositionY].length() + terminalSetting.length() < getTerminalWidth()) {
+                    cursorPositionX++;
                 } else {
-                    finalCommand.append(command);
-                    cursorPosition = 0;
-                    terminalSetting = "";
-                    command = "";
-                    std::cout << std::endl;
+                    cursorPositionY++;
+                    commandLines.push_back("");
+                    cursorPositionX = 0;
                 }
+                reprintCommandLines(commandLines, terminalSetting);
+                placeCursor(cursorPositionX, cursorPositionY);
             }
+        }
+        std::string finalCommand;
+        for (const auto& line : commandLines) {
+            finalCommand += line;
         }
         setRawMode(false);
         commandParser(finalCommand);
         setRawMode(true);
+    }
+}
+
+void clearLines(const std::vector<std::string>& commandLines){
+    std::cout << "\033[2K\r";
+    if(commandLines.size() > 1){
+        for (int i = 0; i < commandLines.size(); i++) {
+            if (i > 0) {
+                std::cout << "\033[A";
+            }
+            std::cout << "\033[2K\r";
+        }
+    }
+}
+
+void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting) {
+    for (int i = 0; i < commandLines.size(); i++) {
+        if (i == 0) {
+            std::cout << terminalSetting << commandLines[i];
+        } else {
+            std::cout << commandLines[i];
+        }
+        if (i < commandLines.size() - 1) {
+            std::cout << std::endl;
+        }
+    }
+}
+
+void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
+    int columnsBehind = commandLines[cursorPositionY].length() - cursorPositionX;
+    int rowsBehind = commandLines.size() - cursorPositionY - 1;
+    if (columnsBehind > 0) {
+        while (columnsBehind > 0) {
+            std::cout << "\033[D";
+            columnsBehind--;
+        }
+    }
+    if(rowsBehind > 0){
+        while (rowsBehind > 0) {
+            std::cout << "\033[A";
+            rowsBehind--;
+        }
     }
 }
 
@@ -226,32 +270,46 @@ void setRawMode(bool enable) {
 /**
  * @brief Handle arrow key inputs.
  * @param arrow Arrow key character.
- * @param cursorPosition Reference to the cursor position.
+ * @param cursorPositionX Reference to the cursor position.
  * @param command Reference to the command string.
  * @param terminalTag Terminal tag string.
  */
-void handleArrowKey(char arrow, size_t& cursorPosition, std::string& command, const std::string& terminalTag) {
+void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
     switch (arrow) {
         case 'A': // Up arrow
+            clearLines(commandLines);
+            commandLines = {""};
             command = terminal.getPreviousCommand();
-            cursorPosition = command.length();
+            cursorPositionX = command.length();
+            cursorPositionY = commandLines.size() - 1;
             std::cout << "\033[2K\r" << terminalTag << command;
             break;
         case 'B': // Down arrow
+            clearLines(commandLines);
+            commandLines = {""};
             command = terminal.getNextCommand();
-            cursorPosition = command.length();
+            cursorPositionX = command.length();
+            cursorPositionY = commandLines.size() - 1;
             std::cout << "\033[2K\r" << terminalTag << command;
             break;
         case 'C': // Right arrow
-            if (cursorPosition < command.length()) {
-                cursorPosition++;
+            if (cursorPositionX < command.length()) {
+                cursorPositionX++;
                 std::cout << "\033[C";
+            } else if (cursorPositionY < commandLines.size() - 1) {
+                cursorPositionY++;
+                cursorPositionX = 0;
+                std::cout << "\033[B";
             }
             break;
         case 'D': // Left arrow
-            if (cursorPosition > 0) {
-                cursorPosition--;
+            if (cursorPositionX > 0) {
+                cursorPositionX--;
                 std::cout << "\033[D";
+            } else if (cursorPositionY > 0) {
+                cursorPositionY--;
+                cursorPositionX = commandLines[cursorPositionY].length();
+                std::cout << "\033[A";
             }
             break;
     }
@@ -1194,7 +1252,6 @@ void aiChatCommands() {
  */
 void chatProcess(const std::string& message) {
     if (message.empty()) {
-        std::cout << "Invalid input. Please try again." << std::endl;
         return;
     }
     if (openAIPromptEngine.getAPIKey().empty()) {
