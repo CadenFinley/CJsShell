@@ -109,17 +109,6 @@ int main() {
         createNewUSER_HISTORYfile();
     }
 
-    if (openAIPromptEngine.getAPIKey().empty()) {
-        std::cout << "OpenAI API key not found." << std::endl;
-    } else {
-        if (openAIPromptEngine.testAPIKey(openAIPromptEngine.getAPIKey())) {
-            std::cout << "Successfully Connected to OpenAI servers!" << std::endl;
-        } else {
-            std::cout << "An error occurred while connecting to OpenAI servers." << std::endl;
-            std::cout << "Please check your internet connection and try again later." << std::endl;
-        }
-    }
-
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
         std::cout << "Running startup commands..." << std::endl;
@@ -159,8 +148,8 @@ void mainProcessLoop() {
         size_t cursorPosition = 0;
         while (true) {
             std::cin.get(c);
-            if (c == '\033') { // if the first value is esc
-                std::cin.get(c); // skip the [
+            if (c == '\033') {
+                std::cin.get(c);
                 if (c == '[') {
                     std::cin.get(c);
                     handleArrowKey(c, cursorPosition, command, terminalSetting);
@@ -168,7 +157,7 @@ void mainProcessLoop() {
             } else if (c == '\n') {
                 std::cout << std::endl;
                 break;
-            } else if (c == 127) { // handle backspace
+            } else if (c == 127) {
                 if (command.size() > 0 && cursorPosition > 0) {
                     command.erase(cursorPosition - 1, 1);
                     std::cout << "\033[2K\r" << terminalSetting << command;
@@ -399,7 +388,7 @@ void commandParser(const std::string& command) {
     if (!runningStartup) {
         addUserInputToHistory(command);
     }
-    if (command.rfind(commandPrefix, 0) == 0) { // Use rfind to check prefix
+    if (command.rfind(commandPrefix, 0) == 0) {
         commandProcesser(command.substr(1));
         return;
     }
