@@ -208,6 +208,18 @@ public:
         return terminalCacheTerminalOutput.back();
     }
 
+    /**
+     * @brief Get the previous command from the history.
+     * @return Previous command string.
+     */
+    std::string getPreviousCommand();
+
+    /**
+     * @brief Get the next command from the history.
+     * @return Next command string.
+     */
+    std::string getNextCommand();
+
 private:
     std::string currentDirectory;
     bool displayWholePath;
@@ -217,6 +229,7 @@ private:
     std::string RESET_COLOR = "\033[0m";
     std::string BLUE_COLOR_BOLD = "\033[1;34m";
     std::string YELLOW_COLOR_BOLD = "\033[1;33m";
+    int commandHistoryIndex = -1;
 
     /**
      * @brief Get the current file path.
@@ -251,5 +264,27 @@ private:
         return path == path.root_path();
     }
 };
+
+std::string TerminalPassthrough::getPreviousCommand() {
+    if (commandHistoryIndex > 0) {
+        commandHistoryIndex--;
+        return terminalCacheUserInput[commandHistoryIndex];
+    } else if (commandHistoryIndex == -1 && !terminalCacheUserInput.empty()) {
+        commandHistoryIndex = terminalCacheUserInput.size() - 1;
+        return terminalCacheUserInput[commandHistoryIndex];
+    }
+    return "";
+}
+
+std::string TerminalPassthrough::getNextCommand() {
+    if (commandHistoryIndex >= 0 && commandHistoryIndex < terminalCacheUserInput.size() - 1) {
+        commandHistoryIndex++;
+        return terminalCacheUserInput[commandHistoryIndex];
+    } else if (commandHistoryIndex == terminalCacheUserInput.size() - 1) {
+        commandHistoryIndex = -1;
+        return "";
+    }
+    return "";
+}
 
 #endif // TERMINALPASSTHROUGH_H

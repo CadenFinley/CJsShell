@@ -78,7 +78,7 @@ std::string getFileExtensionForLanguage(const std::string& language);
 void multiScriptShortcutCommands();
 void userDataCommands();
 void setRawMode(bool enable);
-void handleArrowKey(char arrow, size_t& cursorPosition, const std::string& command, const std::string& terminalTag);
+void handleArrowKey(char arrow, size_t& cursorPosition, std::string& command, const std::string& terminalTag);
 
 int main() {
     std::cout << "Loading..." << std::endl;
@@ -216,13 +216,17 @@ void setRawMode(bool enable) {
  * @param command Reference to the command string.
  * @param terminalTag Terminal tag string.
  */
-void handleArrowKey(char arrow, size_t& cursorPosition, const std::string& command, const std::string& terminalTag) {
+void handleArrowKey(char arrow, size_t& cursorPosition, std::string& command, const std::string& terminalTag) {
     switch (arrow) {
         case 'A': // Up arrow
-            // Handle up arrow key if needed
+            command = terminal.getPreviousCommand();
+            cursorPosition = command.length();
+            std::cout << "\033[2K\r" << terminalTag << command;
             break;
         case 'B': // Down arrow
-            // Handle down arrow key if needed
+            command = terminal.getNextCommand();
+            cursorPosition = command.length();
+            std::cout << "\033[2K\r" << terminalTag << command;
             break;
         case 'C': // Right arrow
             if (cursorPosition < command.length()) {
