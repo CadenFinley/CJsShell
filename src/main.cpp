@@ -144,6 +144,7 @@ void mainProcessLoop() {
         }
         std::cout << terminalSetting;
         std::string command;
+        std::string finalCommand;
         char c;
         size_t cursorPosition = 0;
         while (true) {
@@ -156,6 +157,7 @@ void mainProcessLoop() {
                 }
             } else if (c == '\n') {
                 std::cout << std::endl;
+                finalCommand.append(command);
                 break;
             } else if (c == 127) {
                 if (command.size() > 0 && cursorPosition > 0) {
@@ -173,18 +175,26 @@ void mainProcessLoop() {
             } else {
                 command.insert(cursorPosition, 1, c);
                 std::cout << "\033[2K\r" << terminalSetting << command;
-                cursorPosition++;
-                int stepsBehind = command.length() - cursorPosition;
-                if (stepsBehind > 0) {
-                    while (stepsBehind > 0) {
-                        std::cout << "\033[D";
-                        stepsBehind--;
+                if(command.length() + terminalSetting.length() < 80){
+                    cursorPosition++;
+                    int stepsBehind = command.length() - cursorPosition;
+                    if (stepsBehind > 0) {
+                        while (stepsBehind > 0) {
+                            std::cout << "\033[D";
+                            stepsBehind--;
+                        }
                     }
+                } else {
+                    finalCommand.append(command);
+                    cursorPosition = 0;
+                    terminalSetting = "";
+                    command = "";
+                    std::cout << std::endl;
                 }
             }
         }
         setRawMode(false);
-        commandParser(command);
+        commandParser(finalCommand);
         setRawMode(true);
     }
 }
