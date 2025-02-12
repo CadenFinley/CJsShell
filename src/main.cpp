@@ -14,6 +14,7 @@
 #include "terminalpassthrough.h"
 #include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
+#include <sys/ioctl.h>
 
 using json = nlohmann::json;
 
