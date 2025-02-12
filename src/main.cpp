@@ -140,8 +140,8 @@ int main() {
  */
 void mainProcessLoop() {
     std::string terminalSetting;
+    setRawMode(true);
     while (true) {
-        setRawMode(true);
         if (saveLoop) {
             writeUserData();
         }
@@ -196,6 +196,7 @@ void mainProcessLoop() {
         }
         setRawMode(false);
         commandParser(command);
+        setRawMode(true);
     }
 }
 
