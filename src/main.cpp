@@ -169,14 +169,13 @@ void mainProcessLoop() {
                 std::cout << std::endl;
                 break;
             } else if (c == 127) { // handle backspace
-                if (command.size() > 0 && cursorPosition > 0) {
+                if (command.size() > 0) {
                     command.erase(cursorPosition - 1, 1);
-                    cursorPosition--;
                     std::cout << "\033[2K\r" << terminalSetting << command;
                     if (cursorPosition > 0) {
-                        std::cout << "\033[" << (cursorPosition - terminalSetting.length()) << "D";
-                        if (cursorPosition == command.length()) {
-                            std::cout << "\033[" << "C";
+                        cursorPosition--;
+                        if (cursorPosition < command.length()) {
+                            std::cout << "\033[D";
                         }
                     }
                 }
@@ -184,11 +183,6 @@ void mainProcessLoop() {
                 command.insert(cursorPosition, 1, c);
                 cursorPosition++;
                 std::cout << "\033[2K\r" << terminalSetting << command;
-                std::cout << "\033[" << cursorPosition - terminalSetting.length() << "C";
-                std::cout << "\033[" << "D";
-                if (cursorPosition != command.length()) {
-                    std::cout << "\033[D";
-                }
             }
         }
         setRawMode(false);
@@ -240,9 +234,6 @@ void handleArrowKey(char arrow, size_t& cursorPosition, const std::string& comma
             if (cursorPosition > 0) {
                 cursorPosition--;
                 std::cout << "\033[D";
-                if (cursorPosition <= 0) {
-                    std::cout << "\033[C";
-                }
             }
             break;
     }
