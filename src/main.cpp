@@ -161,7 +161,6 @@ void mainProcessLoop() {
         size_t cursorPositionY = 0;
         commandLines.clear();
         commandLines.push_back("");
-        clearLines(commandLines);
         while (true) {
             std::cin.get(c);
             if (c == '\033') {
