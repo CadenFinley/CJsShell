@@ -188,7 +188,7 @@ void mainProcessLoop() {
             } else {
                 clearLines(commandLines);
                 commandLines[cursorPositionY].insert(cursorPositionX, 1, c);
-                if (commandLines[cursorPositionY].length() + terminal.getTerminalCurrentPositionRawLength() < getTerminalWidth()) {
+                if (commandLines[cursorPositionY].length() + terminal.getTerminalCurrentPositionRawLength() < getTerminalWidth() + 30) {
                     cursorPositionX++;
                 } else {
                     cursorPositionY++;

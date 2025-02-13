@@ -88,7 +88,7 @@ public:
             } catch (const std::exception& e) {
                 std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
             }
-            terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2 + gitInfo.length();
+            terminalCurrentPositionRawLength = getTerminalName().length() + 2 + gitInfo.length();
             return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": " + gitInfo + " ";
         }
         if (displayWholePath) {
