@@ -59,6 +59,7 @@ public:
      * @return Current terminal position.
      */
     std::string returnCurrentTerminalPosition(){
+        int gitInfoLength = 0;
         std::string gitInfo;
         fs::path currentPath = fs::path(getCurrentFilePath());
         fs::path gitHeadPath;
@@ -84,12 +85,12 @@ public:
                     }
                 }
                 std::string repoName = displayWholePath ? getCurrentFilePath() : getCurrentFileName();
-                int gitInfoLength = repoName.length() + branchName.length() + 9;
+                gitInfoLength = repoName.length() + branchName.length() + 9;
                 gitInfo = "\033[1;32m" + repoName + RESET_COLOR+BLUE_COLOR_BOLD+" git:("+RESET_COLOR+YELLOW_COLOR_BOLD + branchName +RESET_COLOR+BLUE_COLOR_BOLD+ ")"+RESET_COLOR;
             } catch (const std::exception& e) {
                 std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
             }
-            terminalCurrentPositionRawLength = getTerminalName().length() + 2 + gitInfolength;
+            terminalCurrentPositionRawLength = getTerminalName().length() + 2 + gitInfoLength;
             return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": " + gitInfo + " ";
         }
         if (displayWholePath) {
