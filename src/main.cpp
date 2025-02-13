@@ -188,13 +188,13 @@ void mainProcessLoop() {
             } else {
                 clearLines(commandLines);
                 commandLines[cursorPositionY].insert(cursorPositionX, 1, c);
-                int currentLineLengeth;
+                int currentLineLength;
                 if(cursorPositionY == 0){
-                    currentLineLengeth = commandLines[cursorPositionY].length() + terminal.getTerminalCurrentPositionRawLength();
+                    currentLineLength = commandLines[cursorPositionY].length() + terminal.getTerminalCurrentPositionRawLength();
                 } else {
-                    currentLineLengeth = commandLines[cursorPositionY].length();
+                    currentLineLength = commandLines[cursorPositionY].length();
                 }
-                if (currentLineLength < getTerminalWidth() + 30) {
+                if (currentLineLength < getTerminalWidth()) {
                     cursorPositionX++;
                 } else {
                     cursorPositionY++;
