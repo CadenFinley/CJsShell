@@ -50,6 +50,10 @@ public:
         std::cout << returnCurrentTerminalPosition();
     }
 
+    int getTerminalCurrentPositionRawLength(){
+        return terminalCurrentPositionRawLength;
+    }
+
     /**
      * @brief Return the current terminal position as a string.
      * @return Current terminal position.
@@ -84,11 +88,14 @@ public:
             } catch (const std::exception& e) {
                 std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
             }
+            terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2 + gitInfo.length();
             return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": " + gitInfo + " ";
         }
         if (displayWholePath) {
+            terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2;
             return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFilePath() + "\033[0m" + " ";
         } else {
+            terminalCurrentPositionRawLength = getCurrentFileName().length() + getTerminalName().length() + 2;
             return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFileName() + "\033[0m" + " ";
         }
     }
@@ -230,6 +237,7 @@ private:
     std::string BLUE_COLOR_BOLD = "\033[1;34m";
     std::string YELLOW_COLOR_BOLD = "\033[1;33m";
     int commandHistoryIndex = -1;
+    int terminalCurrentPositionRawLength = 0;
 
     /**
      * @brief Get the current file path.

@@ -159,7 +159,9 @@ void mainProcessLoop() {
         char c;
         size_t cursorPositionX = 0;
         size_t cursorPositionY = 0;
-        commandLines = {""};
+        commandLines.clear();
+        commandLines.push_back("");
+        clearLines(commandLines);
         while (true) {
             std::cin.get(c);
             if (c == '\033') {
@@ -187,7 +189,7 @@ void mainProcessLoop() {
             } else {
                 clearLines(commandLines);
                 commandLines[cursorPositionY].insert(cursorPositionX, 1, c);
-                if (commandLines[cursorPositionY].length() + terminalSetting.length() < getTerminalWidth()) {
+                if (commandLines[cursorPositionY].length() + terminal.getTerminalCurrentPositionRawLength() < getTerminalWidth()) {
                     cursorPositionX++;
                 } else {
                     cursorPositionY++;
