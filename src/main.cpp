@@ -1178,7 +1178,13 @@ void aiSettingsCommands() {
         std::cout << "dump" << std::endl;
         return;
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    for(int i = 0; i < commandsQueue.size(); i++){
+        lastCommandParsed += " " + commandsQueue.front();
+        commandsQueue.pop();
+    }
+    std::cout << "Sent message to GPT: " << lastCommandParsed << std::endl;
+    chatProcess(lastCommandParsed);
+    return;
 }
 
 /**
@@ -1247,6 +1253,10 @@ void aiChatCommands() {
         std::cout << "Commands: " << std::endl;
         std::cout << "history: disable, enable, save, clear" << std::endl;
         std::cout << "cache: enable, disable, clear" << std::endl;
+    }
+    for(int i = 0; i < commandsQueue.size(); i++){
+        lastCommandParsed += " " + commandsQueue.front();
+        commandsQueue.pop();
     }
     std::cout << "Sent message to GPT: " << lastCommandParsed << std::endl;
     chatProcess(lastCommandParsed);
