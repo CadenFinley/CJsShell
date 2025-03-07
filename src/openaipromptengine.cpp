@@ -174,7 +174,7 @@ std::string OpenAIPromptEngine::chatGPT(const std::string& message, bool format)
         return chatGPT(message, format);
     }
 
-    if (!response.empty()) {
+    if (!response.empty() && assistantType != "code-interpreter") {
         chatCache.push_back("User: " + message);
         chatCache.push_back("AI: " + response);
     }
@@ -278,7 +278,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
         prompt << "] This is the latest message from the user: [" << message << "] ";
     } else {
         if (assistantType == "code-interpreter") {
-            prompt << message;
+            prompt << message << " please use markdown syntax in your response.";
         } else {
             prompt << " This is the first message from the user: [" << message << "] ";
         }
@@ -481,7 +481,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     if (codeBlocks.empty()) {
         return "";
     }
-
     size_t i = 0;
     std::stringstream changesSummary;
     for (const auto& codeBlock : codeBlocks) {

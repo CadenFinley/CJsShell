@@ -599,7 +599,7 @@ void commandProcesser(const std::string& command) {
     } else if(lastCommandParsed == "ss"){
         shortcutProcesser(command);
     } else if(lastCommandParsed == "mm"){
-        multiScriptShortcutCommands();
+        multiScriptShortcutProcesser(command);
     } else if (lastCommandParsed == "ai") {
         aiSettingsCommands();
     } else if (lastCommandParsed == "user") {
