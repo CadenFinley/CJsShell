@@ -278,7 +278,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
         prompt << "] This is the latest message from the user: [" << message << "] ";
     } else {
         if (assistantType == "code-interpreter") {
-            prompt << message << " please use markdown syntax in your response.";
+            prompt << message << " please use markdown syntax in your response for the code.";
         } else {
             prompt << " This is the first message from the user: [" << message << "] ";
         }
@@ -509,36 +509,33 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 newLines.push_back(line);
             }
             
-            // Compare and update lines
-            for (size_t j = 0; j < std::max(originalLines.size(), newLines.size()); j++) {
-                if (j < newLines.size() && (j >= originalLines.size() || originalLines[j] != newLines[j])) {
-                    updatedLines.push_back(newLines[j]);
-                } else if (j < originalLines.size()) {
-                    updatedLines.push_back(originalLines[j]);
-                } else {
-                    updatedLines.push_back("");
-                }
-            }
-
+            // Use newLines as the updated file content, deleting extraneous lines
+            updatedLines = newLines;
+            
             // Write changes back to file
             std::ofstream outFile(fileToChange);
             for (const auto& updatedLine : updatedLines) {
                 outFile << updatedLine << "\n";
             }
             outFile.close();
-
+            
             // Write changes summary using git-like format with color highlighting
             changesSummary << "\033[1;34m" << fileToChange << "\033[0m\n";
-            for (size_t j = 0; j < updatedLines.size(); j++) {
-                if (j >= originalLines.size()) {
-                    changesSummary << "\033[1;32m+ " << j + 1 << ": " << updatedLines[j] << "\033[0m\n";
-                } else if (originalLines[j] != updatedLines[j]) {
+            size_t commonLines = std::min(originalLines.size(), newLines.size());
+            for (size_t j = 0; j < commonLines; j++) {
+                if (originalLines[j] != newLines[j]) {
                     changesSummary << "\033[1;31m- " << j + 1 << ": " << originalLines[j] << "\033[0m\n";
-                    changesSummary << "\033[1;32m+ " << j + 1 << ": " << updatedLines[j] << "\033[0m\n";
+                    changesSummary << "\033[1;32m+ " << j + 1 << ": " << newLines[j] << "\033[0m\n";
                 }
             }
-            for (size_t j = updatedLines.size(); j < originalLines.size(); j++) {
-                changesSummary << "\033[1;31m- " << j + 1 << ": " << originalLines[j] << "\033[0m\n";
+            if (originalLines.size() > newLines.size()) {
+                for (size_t j = newLines.size(); j < originalLines.size(); j++) {
+                    changesSummary << "\033[1;31m- " << j + 1 << ": " << originalLines[j] << "\033[0m\n";
+                }
+            } else if (newLines.size() > originalLines.size()) {
+                for (size_t j = originalLines.size(); j < newLines.size(); j++) {
+                    changesSummary << "\033[1;32m+ " << j + 1 << ": " << newLines[j] << "\033[0m\n";
+                }
             }
         } catch (const std::exception& e) {
             return "\nFailed to apply changes to file: " + fileToChange;
