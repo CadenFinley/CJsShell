@@ -18,6 +18,7 @@ include_directories(${CURL_INCLUDE_DIRS})
 # Add the executable
 add_executable(DevToolsTerminal-LITE
     src/main.cpp
+    src/openaipromptengine.cpp
 )
 
 # Link the CURL library

@@ -35,12 +35,27 @@ public:
         #endif
     }
 
+    std::vector<std::string> getFilesAtCurrentPath(){
+        std::vector<std::string> files;
+        for (const auto& entry : fs::directory_iterator(getCurrentFilePath())) {
+            files.push_back(entry.path().string()); // Changed to return full path
+        }
+        return files;
+    }
+
     /**
      * @brief Set whether to display the whole path or just the current directory name.
      * @param displayWholePath Boolean flag to set the display mode.
      */
     void setDisplayWholePath(bool displayWholePath){
         this->displayWholePath = displayWholePath;
+    }
+
+    std::string getFullPathOfFile(const std::string& file){
+        if (fs::exists (fs::path(getCurrentFilePath()) / file)) {
+            return (fs::path(getCurrentFilePath()) / file).string();
+        }
+        return "";
     }
 
     /**
@@ -229,6 +244,21 @@ public:
      */
     std::string getNextCommand();
 
+    void addCommandToHistory(const std::string& command){
+        terminalCacheUserInput.push_back(command);
+    }
+
+        /**
+     * @brief Get the current file path.
+     * @return Current file path as a string.
+     */
+    std::string getCurrentFilePath(){
+        if (currentDirectory.empty()) {
+            return fs::current_path().string();
+        }
+        return currentDirectory;
+    }
+
 private:
     std::string currentDirectory;
     bool displayWholePath;
@@ -240,17 +270,6 @@ private:
     std::string YELLOW_COLOR_BOLD = "\033[1;33m";
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
-
-    /**
-     * @brief Get the current file path.
-     * @return Current file path as a string.
-     */
-    std::string getCurrentFilePath(){
-        if (currentDirectory.empty()) {
-            return fs::current_path().string();
-        }
-        return currentDirectory;
-    }
 
     /**
      * @brief Get the current file name.
