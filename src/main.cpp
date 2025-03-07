@@ -1269,6 +1269,11 @@ void aiSettingsCommands() {
         std::cout << "Model set to " << lastCommandParsed << std::endl;
         return;
     }
+    if(lastCommandParsed == "rejectchanges"){
+        openAIPromptEngine.rejectChanges();
+        std::cout << "Changes rejected." << std::endl;
+        return;
+    }
     if (lastCommandParsed == "help") {
         std::cout << "Commands: " << std::endl;
         std::cout << "log: extract o[ARGS] o[ARGS]" << std::endl;
@@ -1281,13 +1286,7 @@ void aiSettingsCommands() {
         std::cout << "model: [ARGS]" << std::endl;
         return;
     }
-    for(int i = 0; i < commandsQueue.size(); i++){
-        lastCommandParsed += " " + commandsQueue.front();
-        commandsQueue.pop();
-    }
-    std::cout << "Sent message to GPT: " << lastCommandParsed << std::endl;
-    chatProcess(lastCommandParsed);
-    return;
+    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 /**

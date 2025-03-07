@@ -64,6 +64,7 @@ public:
     int addFile(const std::string& userFile);
     int addFiles(const std::vector<std::string>& userFiles);
     static bool testAPIKey(const std::string& apiKey);
+    void rejectChanges();
 
 private:
     // Private Methods

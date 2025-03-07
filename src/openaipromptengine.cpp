@@ -287,7 +287,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
 
     if (assistantType == "code-interpreter") {
         prompt << " These are the files provided by the user: [ " << fileContents << " ]";
-        prompt << " If the user requests edit be made to the code please return the updated code block in full, and only return the code block if any edits were made.";
+        prompt << " If the user requests edit be made to the code please return the updated code block in full, and only return the code block if any edits were made. Please only make edits if the user requests for them to be made.";
     }
 
     return prompt.str();
@@ -454,6 +454,8 @@ std::vector<std::string> OpenAIPromptEngine::extractCodeSnippet(const std::strin
     return codeSnippets;
 }
 
+std::map<std::string, std::vector<std::string>> originalFileContents;
+
 std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::string& message) {
     std::vector<std::string> codeBlocks = extractCodeSnippet(message);
     if (codeBlocks.empty()) {
@@ -479,6 +481,9 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             }
             inFile.close();
             
+            // Store original file contents
+            originalFileContents[fileToChange] = originalLines;
+            
             // Split new code into lines
             std::stringstream ss(codeBlock);
             while (std::getline(ss, line)) {
@@ -494,16 +499,20 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 }
             }
 
-            // Write changes summary
+            // Write changes summary using git-like format
+            changesSummary << "diff --git a/" << fileToChange << " b/" << fileToChange << "\n";
+            changesSummary << "--- a/" << fileToChange << "\n";
+            changesSummary << "+++ b/" << fileToChange << "\n";
             for (size_t j = 0; j < updatedLines.size(); j++) {
                 if (j >= originalLines.size()) {
-                    changesSummary << "+ Line " << j + 1 << ": " << updatedLines[j] << "\n";
-                } else if (originalLines[j] != updatedLines[j] && updatedLines[j].length() > 0 && originalLines[j].length() > 0) {
-                    changesSummary << "-> Line " << j + 1 << " changed from: " << originalLines[j] << " to: " << updatedLines[j] << "\n";
+                    changesSummary << "+ " << updatedLines[j] << "\n";
+                } else if (originalLines[j] != updatedLines[j]) {
+                    changesSummary << "- " << originalLines[j] << "\n";
+                    changesSummary << "+ " << updatedLines[j] << "\n";
                 }
             }
             for (size_t j = updatedLines.size(); j < originalLines.size(); j++) {
-                changesSummary << "- Line " << j + 1 << ": " << originalLines[j] << "\n";
+                changesSummary << "- " << originalLines[j] << "\n";
             }
             
             // Write changes back to file
@@ -512,7 +521,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 outFile << updatedLine << "\n";
             }
             outFile.close();
-            
         } catch (const std::exception& e) {
             return "\nFailed to apply changes to file: " + fileToChange;
         }
@@ -520,6 +528,17 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     }
     
     return "\nSuccessfully applied changes to files.\nChanges Summary:\n" + changesSummary.str();
+}
+
+void OpenAIPromptEngine::rejectChanges() {
+    for (const auto& [file, originalLines] : originalFileContents) {
+        std::ofstream outFile(file);
+        for (const auto& line : originalLines) {
+            outFile << line << "\n";
+        }
+        outFile.close();
+    }
+    originalFileContents.clear();
 }
 
 void OpenAIPromptEngine::processTextFile(const std::string& file, std::string& out) {
