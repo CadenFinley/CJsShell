@@ -491,20 +491,22 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             }
             
             // Compare and update lines
-            for (size_t j = 0; j < originalLines.size() || j < newLines.size(); j++) {
+            for (size_t j = 0; j < std::max(originalLines.size(), newLines.size()); j++) {
                 if (j < newLines.size() && (j >= originalLines.size() || originalLines[j] != newLines[j])) {
                     updatedLines.push_back(newLines[j]);
-                } else {
+                } else if (j < originalLines.size() && (j >= newLines.size() || originalLines[j] != newLines[j])) {
+                    changesSummary << "\033[1;31m- " << originalLines[j] << "\033[0m\n";
+                } else if (j < originalLines.size()) {
                     updatedLines.push_back(originalLines[j]);
                 }
             }
 
-                        // Write changes back to file
-                        std::ofstream outFile(fileToChange);
-                        for (const auto& updatedLine : updatedLines) {
-                            outFile << updatedLine << "\n";
-                        }
-                        outFile.close();
+            // Write changes back to file
+            std::ofstream outFile(fileToChange);
+            for (const auto& updatedLine : updatedLines) {
+                outFile << updatedLine << "\n";
+            }
+            outFile.close();
 
             // Write changes summary using git-like format with color highlighting
             changesSummary << "\033[1;34mdiff --git a/" << fileToChange << " b/" << fileToChange << "\033[0m\n";
