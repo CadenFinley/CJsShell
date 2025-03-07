@@ -262,7 +262,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
     if(assistantType != "code-interpreter"){
         prompt << initialInstruction;
     } else {
-        prompt << "You are a AI codebot. Please only make the edits that the user requests, and nothing else. Please return the edits in full in the response.";
+        prompt << "Please only make the edits that the user requests, and nothing else even if there are other issues. Please return the edits in full in the response.";
     }
     if (maxPromptLength != -1 && assistantType != "code-interpreter") {
         int promptLength = dynamicPromptLength ? std::max(static_cast<int>(message.length() * dynamicPromptLengthScale), 100) : maxPromptLength;
@@ -499,6 +499,13 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 }
             }
 
+                        // Write changes back to file
+                        std::ofstream outFile(fileToChange);
+                        for (const auto& updatedLine : updatedLines) {
+                            outFile << updatedLine << "\n";
+                        }
+                        outFile.close();
+
             // Write changes summary using git-like format with color highlighting
             changesSummary << "\033[1;34mdiff --git a/" << fileToChange << " b/" << fileToChange << "\033[0m\n";
             changesSummary << "\033[1;31m--- a/" << fileToChange << "\033[0m\n";
@@ -514,13 +521,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             for (size_t j = updatedLines.size(); j < originalLines.size(); j++) {
                 changesSummary << "\033[1;31m- " << originalLines[j] << "\033[0m\n";
             }
-            
-            // Write changes back to file
-            std::ofstream outFile(fileToChange);
-            for (const auto& updatedLine : updatedLines) {
-                outFile << updatedLine << "\n";
-            }
-            outFile.close();
         } catch (const std::exception& e) {
             return "\nFailed to apply changes to file: " + fileToChange;
         }
