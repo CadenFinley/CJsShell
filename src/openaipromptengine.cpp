@@ -259,12 +259,13 @@ std::string OpenAIPromptEngine::getInvalidConfigurationMessage() const {
 
 std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
     std::stringstream prompt;
-    prompt << initialInstruction;
-
+    if(assistantType != "code-interpreter"){
+        prompt << initialInstruction;
+    } else {
+        prompt << "You are a AI codebot. Please only make the edits that the user requests, and nothing else. Please return the edits in full in the response.";
+    }
     if (maxPromptLength != -1 && assistantType != "code-interpreter") {
-        int promptLength = dynamicPromptLength ?
-            std::max(static_cast<int>(message.length() * dynamicPromptLengthScale), 100) : 
-            maxPromptLength;
+        int promptLength = dynamicPromptLength ? std::max(static_cast<int>(message.length() * dynamicPromptLengthScale), 100) : maxPromptLength;
         prompt << " Please keep the response length under " << promptLength << " characters.";
     }
 
@@ -286,8 +287,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
     }
 
     if (assistantType == "code-interpreter") {
-        prompt << " These are the files provided by the user: [ " << fileContents << " ]";
-        prompt << " If the user requests edit be made to the code please return the updated code block in full, and only return the code block if any edits were made. Please only make edits if the user requests for them to be made.";
+        prompt << " User Files: [ " << fileContents << " ]";
     }
 
     return prompt.str();
@@ -499,20 +499,20 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 }
             }
 
-            // Write changes summary using git-like format
-            changesSummary << "diff --git a/" << fileToChange << " b/" << fileToChange << "\n";
-            changesSummary << "--- a/" << fileToChange << "\n";
-            changesSummary << "+++ b/" << fileToChange << "\n";
+            // Write changes summary using git-like format with color highlighting
+            changesSummary << "\033[1;34mdiff --git a/" << fileToChange << " b/" << fileToChange << "\033[0m\n";
+            changesSummary << "\033[1;31m--- a/" << fileToChange << "\033[0m\n";
+            changesSummary << "\033[1;32m+++ b/" << fileToChange << "\033[0m\n";
             for (size_t j = 0; j < updatedLines.size(); j++) {
                 if (j >= originalLines.size()) {
-                    changesSummary << "+ " << updatedLines[j] << "\n";
+                    changesSummary << "\033[1;32m+ " << updatedLines[j] << "\033[0m\n";
                 } else if (originalLines[j] != updatedLines[j]) {
-                    changesSummary << "- " << originalLines[j] << "\n";
-                    changesSummary << "+ " << updatedLines[j] << "\n";
+                    changesSummary << "\033[1;31m- " << originalLines[j] << "\033[0m\n";
+                    changesSummary << "\033[1;32m+ " << updatedLines[j] << "\033[0m\n";
                 }
             }
             for (size_t j = updatedLines.size(); j < originalLines.size(); j++) {
-                changesSummary << "- " << originalLines[j] << "\n";
+                changesSummary << "\033[1;31m- " << originalLines[j] << "\033[0m\n";
             }
             
             // Write changes back to file
