@@ -484,18 +484,25 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     }
     size_t i = 0;
     std::stringstream changesSummary;
+    std::string fileToChange;
     for (const auto& codeBlock : codeBlocks) {
-        std::string fileToChange;
-        bool newFileCreated = false;
-        if (files.empty() || i > files.size()) {
-            std::string language = codeBlock.substr(0, codeBlock.find('\n'));
-            std::string extension = getFileExtensionForLanguage(language);
-            files.push_back(".DTT-Data/new_file_" + std::to_string(i) + "." + extension);
-            std::cout << "New file created: " << files.back() << std::endl;
-            newFileCreated = true;
-        }
-        fileToChange = files[i];
         try {
+            if (files.empty() || i >= files.size()) {
+                std::string language = codeBlock.substr(0, codeBlock.find('\n'));
+                std::string extension = getFileExtensionForLanguage(language);
+                
+                // Add timestamp to the file name
+                auto t = std::time(nullptr);
+                auto tm = *std::localtime(&t);
+                std::ostringstream oss;
+                oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+                std::string timestamp = oss.str();
+                
+                files.push_back(".DTT-Data/new_file_" + timestamp + "_" + std::to_string(i) + "." + extension);
+                std::cout << "New file created: " << files.back() << std::endl;
+            }
+            fileToChange = files[i];
+            
             std::vector<std::string> originalLines;
             std::vector<std::string> newLines;
             std::vector<std::string> updatedLines;
@@ -521,7 +528,7 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             }
             
             // Remove the first line which contains the language name if a new file was created
-            if (newFileCreated && !newLines.empty()) {
+            if (!newLines.empty()) {
                 newLines.erase(newLines.begin());
             }
             
