@@ -487,10 +487,10 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     for (const auto& codeBlock : codeBlocks) {
         std::string fileToChange;
         bool newFileCreated = false;
-        if (files.empty() || i >= files.size()) {
+        if (files.empty() || i > files.size()) {
             std::string language = codeBlock.substr(0, codeBlock.find('\n'));
             std::string extension = getFileExtensionForLanguage(language);
-            files.push_back("new_file_" + std::to_string(i) + "." + extension);
+            files.push_back(".DTT-Data/new_file_" + std::to_string(i) + "." + extension);
             std::cout << "New file created: " << files.back() << std::endl;
             newFileCreated = true;
         }

@@ -77,8 +77,6 @@ void aiSettingsCommands();
 void aiChatCommands();
 void chatProcess(const std::string& message);
 void showChatHistory();
-void extractCodeSnippet(const std::string& logFile, const std::string& fileName);
-std::string getFileExtensionForLanguage(const std::string& language);
 void multiScriptShortcutCommands();
 void userDataCommands();
 void setRawMode(bool enable);
@@ -1106,40 +1104,6 @@ void aiSettingsCommands() {
             std::cout << "An error occurred while creating the chat file." << std::endl;
             return;
         }
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            return;
-        }
-        if (lastCommandParsed == "extract") {
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                extractCodeSnippet(fileName, (DATA_DIRECTORY / "extracted_code").string());
-                std::filesystem::remove(fileName);
-                return;
-            }
-            std::string fileNameToSave = lastCommandParsed;
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                extractCodeSnippet(fileName, (DATA_DIRECTORY / fileNameToSave).string());
-                std::filesystem::remove(fileName);
-                return;
-            }
-            if(lastCommandParsed == "approot"){
-                extractCodeSnippet(fileName, (DATA_DIRECTORY / fileNameToSave).string());
-                std::filesystem::remove(fileName);
-                return;
-            }
-            if(lastCommandParsed == "currentpath"){
-                std::string currentPath = terminal.getCurrentFilePath();
-                extractCodeSnippet(fileName, (std::filesystem::path(currentPath) / fileNameToSave).string());
-                std::filesystem::remove(fileName);
-                return;
-            }
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
     }
     if (lastCommandParsed == "apikey") {
         getNextCommand();
@@ -1296,7 +1260,7 @@ void aiSettingsCommands() {
     }
     if (lastCommandParsed == "help") {
         std::cout << "Commands: " << std::endl;
-        std::cout << "log: extract o[ARGS] o[ARGS]" << std::endl;
+        std::cout << "log" << std::endl;
         std::cout << "apikey: set [ARGS], get" << std::endl;
         std::cout << "chat: [ARGS]" << std::endl;
         std::cout << "get: [ARGS]" << std::endl;
@@ -1399,67 +1363,3 @@ void showChatHistory() {
         }
     }
 }
-
-/**
- * @brief Extract a code snippet from a log file.
- * @param logFile Log file to extract from.
- * @param fileName File name to save the extracted code snippet.
- */
-void extractCodeSnippet(const std::string& logFile, const std::string& fileName) {
-    std::ifstream file(logFile);
-    if (file.is_open()) {
-        std::string line;
-        std::string codeSnippet;
-        std::string fileExtension;
-        bool inCodeBlock = false;
-        while (std::getline(file, line)) {
-            if (line.rfind("```", 0) == 0) {
-                if (inCodeBlock) {
-                    break;
-                } else {
-                    inCodeBlock = true;
-                    std::string language = line.substr(3);
-                    fileExtension = getFileExtensionForLanguage(language);
-                }
-            } else if (inCodeBlock) {
-                codeSnippet += line + "\n";
-            }
-        }
-        file.close();
-        if (!fileExtension.empty() && !codeSnippet.empty()) {
-            std::ofstream outputFile(fileName + "." + fileExtension);
-            if (outputFile.is_open()) {
-                outputFile << codeSnippet;
-                outputFile.close();
-                std::cout << "Code snippet extracted and saved to " << fileName + "." + fileExtension << std::endl;
-            }
-        } else {
-            std::cout << "No code snippet found in the log file." << std::endl;
-        }
-    } else {
-        std::cout << "An error occurred while extracting the code snippet." << std::endl;
-    }
-}
-
-/**
- * @brief Get the file extension for a given programming language.
- * @param language Programming language.
- * @return File extension for the given language.
- */
-std::string getFileExtensionForLanguage(const std::string& language) {
-    if (language == "java") return "java";
-    if (language == "python") return "py";
-    if (language == "javascript") return "js";
-    if (language == "typescript") return "ts";
-    if (language == "csharp") return "cs";
-    if (language == "cpp") return "cpp";
-    if (language == "c") return "c";
-    if (language == "html") return "html";
-    if (language == "css") return "css";
-    if (language == "json") return "json";
-    if (language == "xml") return "xml";
-    return "txt";
-}
-
-
-
