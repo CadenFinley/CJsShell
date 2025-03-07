@@ -238,9 +238,7 @@ void OpenAIPromptEngine::initialize(const std::string& apiKey, const std::string
 }
 
 bool OpenAIPromptEngine::isValidConfiguration() const {
-    bool validAssistantType = assistantType == "chat" || 
-                             assistantType == "file-search" || 
-                             assistantType == "code-interpreter";
+    bool validAssistantType = assistantType == "chat" || assistantType == "file-search" || assistantType == "code-interpreter";
     return !USER_API_KEY.empty() && !initialInstruction.empty() && !assistantType.empty() && validAssistantType;
 }
 
@@ -403,8 +401,7 @@ std::string OpenAIPromptEngine::extractContentFromJSON(const std::string& jsonRe
 }
 
 bool endsWith(const std::string& str, const std::string& suffix) {
-    return str.size() >= suffix.size() && 
-           str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+    return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 int OpenAIPromptEngine::processFileContents() {
