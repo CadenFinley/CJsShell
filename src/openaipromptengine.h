@@ -84,6 +84,7 @@ private:
     std::string processCodeBlocksForCodeInterpreter(const std::string& message);
     static std::string formatMarkdown(const std::string& text);
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp);
+    std::string getFileExtensionForLanguage(const std::string& language);
 
     // Member Variables
     std::string USER_API_KEY;

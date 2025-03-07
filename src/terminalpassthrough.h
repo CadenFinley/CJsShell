@@ -248,7 +248,7 @@ public:
         terminalCacheUserInput.push_back(command);
     }
 
-        /**
+    /**
      * @brief Get the current file path.
      * @return Current file path as a string.
      */

@@ -278,20 +278,20 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
         prompt << "] This is the latest message from the user: [" << message << "] ";
     } else {
         if (assistantType == "code-interpreter") {
-            prompt << message << " please use markdown syntax in your response for the code.";
+            prompt << message << " Please use markdown syntax in your response for the code. Please only return code in your response if edits were made.";
         } else {
             prompt << " This is the first message from the user: [" << message << "] ";
         }
     }
 
-    if (assistantType == "file-search") {
+    if (assistantType == "file-search" && fileContents.length() > 0) {
         prompt << " This is the contents of the provided files from the user: [ " << fileContents << " ]";
         if (cacheTokens) {
             prompt << " Please keep this content of these files in cached tokens.";
         }
     }
 
-    if (assistantType == "code-interpreter") {
+    if (assistantType == "code-interpreter" && fileContents.length() > 0) {
         prompt << " User Files: [ " << fileContents << " ]";
     }
 
@@ -453,6 +453,7 @@ std::vector<std::string> OpenAIPromptEngine::extractCodeSnippet(const std::strin
     std::vector<std::string> codeSnippets;
     std::stringstream codeSnippet;
     bool inCodeBlock = false;
+    std::string language;
     
     std::istringstream stream(content);
     std::string line;
@@ -460,17 +461,17 @@ std::vector<std::string> OpenAIPromptEngine::extractCodeSnippet(const std::strin
     while (std::getline(stream, line)) {
         if (line.substr(0, 3) == "```") {
             if (inCodeBlock) {
-                codeSnippets.push_back(codeSnippet.str());
+                codeSnippets.push_back(language + "\n" + codeSnippet.str());
                 codeSnippet.str("");
                 inCodeBlock = false;
             } else {
                 inCodeBlock = true;
+                language = line.length() > 3 ? line.substr(3) : "";
             }
         } else if (inCodeBlock) {
             codeSnippet << line << '\n';
         }
     }
-    
     return codeSnippets;
 }
 
@@ -484,33 +485,72 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     size_t i = 0;
     std::stringstream changesSummary;
     for (const auto& codeBlock : codeBlocks) {
-        if (i >= files.size()) break;
-        
-        const std::string& fileToChange = files[i];
+        std::string fileToChange;
+        bool newFileCreated = false;
+        if (files.empty() || i >= files.size()) {
+            std::string language = codeBlock.substr(0, codeBlock.find('\n'));
+            std::string extension = getFileExtensionForLanguage(language);
+            files.push_back("new_file_" + std::to_string(i) + "." + extension);
+            std::cout << "New file created: " << files.back() << std::endl;
+            newFileCreated = true;
+        }
+        fileToChange = files[i];
         try {
             std::vector<std::string> originalLines;
             std::vector<std::string> newLines;
             std::vector<std::string> updatedLines;
             
-            // Read original file
+            // Read original file if it exists
             std::ifstream inFile(fileToChange);
-            std::string line;
-            while (std::getline(inFile, line)) {
-                originalLines.push_back(line);
+            if (inFile.is_open()) {
+                std::string line;
+                while (std::getline(inFile, line)) {
+                    originalLines.push_back(line);
+                }
+                inFile.close();
             }
-            inFile.close();
             
             // Store original file contents
             originalFileContents[fileToChange] = originalLines;
             
             // Split new code into lines
             std::stringstream ss(codeBlock);
+            std::string line;
             while (std::getline(ss, line)) {
                 newLines.push_back(line);
             }
             
-            // Use newLines as the updated file content, deleting extraneous lines
-            updatedLines = newLines;
+            // Remove the first line which contains the language name if a new file was created
+            if (newFileCreated && !newLines.empty()) {
+                newLines.erase(newLines.begin());
+            }
+            
+            // Determine if newLines represents the full file or just an excerpt.
+            if (!originalLines.empty() && newLines.size() == originalLines.size() &&
+                std::equal(originalLines.begin(), originalLines.end(), newLines.begin())) {
+                // newLines is the entire file so replace all.
+                updatedLines = newLines;
+            } else {
+                // Attempt to locate the excerpt within originalLines.
+                size_t startIndex = std::string::npos;
+                for (size_t idx = 0; idx < originalLines.size(); idx++) {
+                    if (originalLines[idx].find(newLines.front()) != std::string::npos) {
+                        startIndex = idx;
+                        break;
+                    }
+                }
+                if (startIndex != std::string::npos &&
+                    startIndex + newLines.size() <= originalLines.size()) {
+                    // Found matching section; apply changes only to that snippet.
+                    updatedLines = originalLines;
+                    for (size_t j = 0; j < newLines.size(); j++) {
+                        updatedLines[startIndex + j] = newLines[j];
+                    }
+                } else {
+                    // Fallback: treat newLines as the full file.
+                    updatedLines = newLines;
+                }
+            }
             
             // Write changes back to file
             std::ofstream outFile(fileToChange);
@@ -544,6 +584,21 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     }
     refreshFiles();
     return "\nSuccessfully applied changes to files.\nChanges Summary:\n" + changesSummary.str();
+}
+
+std::string OpenAIPromptEngine::getFileExtensionForLanguage(const std::string& language) {
+    if (language == "java") return "java";
+    if (language == "python") return "py";
+    if (language == "javascript") return "js";
+    if (language == "typescript") return "ts";
+    if (language == "csharp") return "cs";
+    if (language == "cpp") return "cpp";
+    if (language == "c") return "c";
+    if (language == "html") return "html";
+    if (language == "css") return "css";
+    if (language == "json") return "json";
+    if (language == "xml") return "xml";
+    return "txt";
 }
 
 void OpenAIPromptEngine::rejectChanges() {
