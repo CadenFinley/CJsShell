@@ -94,7 +94,7 @@ private:
     bool maxPromptPrecision = false;
     bool dynamicPromptLength = false;
     float dynamicPromptLengthScale = 5;
-    float timeoutFlagSeconds = 60;
+    float timeoutFlagSeconds = 300;
     std::string currentModel = "gpt-3.5-turbo";
     std::vector<std::string> lastUsedFiles;
     std::string fileContents;

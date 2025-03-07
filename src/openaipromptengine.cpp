@@ -491,10 +491,10 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             for (size_t j = 0; j < std::max(originalLines.size(), newLines.size()); j++) {
                 if (j < newLines.size() && (j >= originalLines.size() || originalLines[j] != newLines[j])) {
                     updatedLines.push_back(newLines[j]);
-                } else if (j < originalLines.size() && (j >= newLines.size() || originalLines[j] != newLines[j])) {
-                    changesSummary << "\033[1;31m- " << originalLines[j] << "\033[0m\n";
                 } else if (j < originalLines.size()) {
                     updatedLines.push_back(originalLines[j]);
+                } else {
+                    updatedLines.push_back("");
                 }
             }
 
