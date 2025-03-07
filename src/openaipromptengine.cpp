@@ -116,6 +116,12 @@ void OpenAIPromptEngine::clearFiles() {
     files.clear();
 }
 
+void OpenAIPromptEngine::refreshFiles() {
+    std::vector<std::string> activeFiles = getFiles();
+    clearFiles();
+    setFiles(activeFiles);
+}
+
 std::string OpenAIPromptEngine::getLastResponseReceived() const {
     return lastResponseReceived;
 }
@@ -259,22 +265,23 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
     std::stringstream prompt;
     if(assistantType != "code-interpreter"){
         prompt << initialInstruction;
-    } else {
-        prompt << "Please only make the edits that the user requests, and nothing else even if there are other issues. Please return the edits in full in the response.";
+        if (maxPromptLength != -1) {
+            int promptLength = dynamicPromptLength ? std::max(static_cast<int>(message.length() * dynamicPromptLengthScale), 100) : maxPromptLength;
+            prompt << " Please keep the response length under " << promptLength << " characters.";
+        }
     }
-    if (maxPromptLength != -1 && assistantType != "code-interpreter") {
-        int promptLength = dynamicPromptLength ? std::max(static_cast<int>(message.length() * dynamicPromptLengthScale), 100) : maxPromptLength;
-        prompt << " Please keep the response length under " << promptLength << " characters.";
-    }
-
-    if (!chatCache.empty()) {
+    if (!chatCache.empty() && assistantType != "code-interpreter") {
         prompt << " This is the chat history between you and the user: [ ";
         for (const auto& chat : chatCache) {
             prompt << chat << " ";
         }
         prompt << "] This is the latest message from the user: [" << message << "] ";
     } else {
-        prompt << " This is the first message from the user: [" << message << "] ";
+        if (assistantType == "code-interpreter") {
+            prompt << message;
+        } else {
+            prompt << " This is the first message from the user: [" << message << "] ";
+        }
     }
 
     if (assistantType == "file-search") {
@@ -317,6 +324,18 @@ std::string OpenAIPromptEngine::makeCallToChatGPT(const std::string& message) {
     std::string requestBodyStr = requestBody.dump();
     std::string responseData;
 
+    // Start a thread to display the loading animation
+    std::atomic<bool> loading(true);
+    std::thread loadingThread([&loading]() {
+        const char* loadingChars = "|/-\\";
+        int i = 0;
+        while (loading) {
+            std::cout << "\rLoading " << loadingChars[i++ % 4] << std::flush;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        std::cout << "\r                    \r" << std::flush; // Clear the loading line
+    });
+
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, requestBodyStr.c_str());
@@ -325,6 +344,10 @@ std::string OpenAIPromptEngine::makeCallToChatGPT(const std::string& message) {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(timeoutFlagSeconds));
 
     CURLcode res = curl_easy_perform(curl);
+    
+    // Stop the loading animation
+    loading = false;
+    loadingThread.join();
     
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
@@ -506,26 +529,24 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             outFile.close();
 
             // Write changes summary using git-like format with color highlighting
-            changesSummary << "\033[1;34mdiff --git a/" << fileToChange << " b/" << fileToChange << "\033[0m\n";
-            changesSummary << "\033[1;31m--- a/" << fileToChange << "\033[0m\n";
-            changesSummary << "\033[1;32m+++ b/" << fileToChange << "\033[0m\n";
+            changesSummary << "\033[1;34m" << fileToChange << "\033[0m\n";
             for (size_t j = 0; j < updatedLines.size(); j++) {
                 if (j >= originalLines.size()) {
-                    changesSummary << "\033[1;32m+ " << updatedLines[j] << "\033[0m\n";
+                    changesSummary << "\033[1;32m+ " << j + 1 << ": " << updatedLines[j] << "\033[0m\n";
                 } else if (originalLines[j] != updatedLines[j]) {
-                    changesSummary << "\033[1;31m- " << originalLines[j] << "\033[0m\n";
-                    changesSummary << "\033[1;32m+ " << updatedLines[j] << "\033[0m\n";
+                    changesSummary << "\033[1;31m- " << j + 1 << ": " << originalLines[j] << "\033[0m\n";
+                    changesSummary << "\033[1;32m+ " << j + 1 << ": " << updatedLines[j] << "\033[0m\n";
                 }
             }
             for (size_t j = updatedLines.size(); j < originalLines.size(); j++) {
-                changesSummary << "\033[1;31m- " << originalLines[j] << "\033[0m\n";
+                changesSummary << "\033[1;31m- " << j + 1 << ": " << originalLines[j] << "\033[0m\n";
             }
         } catch (const std::exception& e) {
             return "\nFailed to apply changes to file: " + fileToChange;
         }
         i++;
     }
-    
+    refreshFiles();
     return "\nSuccessfully applied changes to files.\nChanges Summary:\n" + changesSummary.str();
 }
 
@@ -538,6 +559,7 @@ void OpenAIPromptEngine::rejectChanges() {
         outFile.close();
     }
     originalFileContents.clear();
+    refreshFiles();
 }
 
 void OpenAIPromptEngine::processTextFile(const std::string& file, std::string& out) {

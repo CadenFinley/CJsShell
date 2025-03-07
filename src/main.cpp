@@ -1256,6 +1256,16 @@ void aiSettingsCommands() {
             }
             return;
         }
+        if(lastCommandParsed == "refresh"){
+            openAIPromptEngine.refreshFiles();
+            std::cout << "Files refreshed." << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "clear"){
+            openAIPromptEngine.clearFiles();
+            std::cout << "Files cleared." << std::endl;
+            return;
+        }
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
@@ -1274,6 +1284,16 @@ void aiSettingsCommands() {
         std::cout << "Changes rejected." << std::endl;
         return;
     }
+    if(lastCommandParsed == "timeoutflag"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "The current timeout flag is " << openAIPromptEngine.getTimeoutFlagSeconds() << std::endl;
+            return;
+        }
+        openAIPromptEngine.setTimeoutFlagSeconds(std::stoi(lastCommandParsed));
+        std::cout << "Timeout flag set to " << lastCommandParsed << " seconds."<< std::endl;
+        return;
+    }
     if (lastCommandParsed == "help") {
         std::cout << "Commands: " << std::endl;
         std::cout << "log: extract o[ARGS] o[ARGS]" << std::endl;
@@ -1282,8 +1302,10 @@ void aiSettingsCommands() {
         std::cout << "get: [ARGS]" << std::endl;
         std::cout << "dump" << std::endl;
         std::cout << "mode: [ARGS]" << std::endl;
-        std::cout << "file: add [ARGS], remove [ARGS], active, available" << std::endl;
+        std::cout << "file: add [ARGS], remove [ARGS], active, available, refresh" << std::endl;
         std::cout << "model: [ARGS]" << std::endl;
+        std::cout << "rejectchanges" << std::endl;
+        std::cout << "timeoutflag: [ARGS]" << std::endl;
         return;
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
