@@ -468,15 +468,16 @@ void commandParser(const std::string& command) {
         addUserInputToHistory(command);
     }
     if (command.rfind(commandPrefix, 0) == 0) {
+        terminal.addCommandToHistory(command);
         commandProcesser(command.substr(1));
         return;
     }
     if (defaultTextEntryOnAI) {
+        terminal.addCommandToHistory(command);
         chatProcess(command);
     } else {
         sendTerminalCommand(command);
     }
-    terminal.addCommandToHistory(command);
 }
 
 /**
