@@ -53,6 +53,16 @@ DevToolsTerminal LITE is a lightweight terminal emulator with integrated OpenAI 
 - `!ai log` - Log the last AI chat.
 - `!ai get [key]` - Get specific response data from the last AI chat.
 - `!ai dump` - Dump all response data from the last AI chat.
+- `!ai mode [mode]` - Set the assistant mode.
+- `!ai file add [file]` - Add a file to the AI context.
+- `!ai file remove [file]` - Remove a file from the AI context.
+- `!ai file active` - List active files in the AI context.
+- `!ai file available` - List available files in the current directory.
+- `!ai file refresh` - Refresh the list of active files.
+- `!ai file clear` - Clear all files from the AI context.
+- `!ai model [model]` - Set the AI model.
+- `!ai rejectchanges` - Reject changes made by the AI.
+- `!ai timeoutflag [seconds]` - Set the timeout flag for AI responses.
 
 ### User Settings Commands
 
@@ -63,6 +73,10 @@ DevToolsTerminal LITE is a lightweight terminal emulator with integrated OpenAI 
 - `!user startup disable` - Disable startup commands.
 - `!user startup list` - List all startup commands.
 - `!user startup runall` - Run all startup commands.
+- `!user data get [userdata|userhistory|all]` - Get user data or history.
+- `!user data clear` - Clear user data and history.
+- `!user data saveloop enable` - Enable save loop for user data.
+- `!user data saveloop disable` - Disable save loop for user data.
 
 ### Shortcut Commands
 
