@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cool Webpage with Canvas Animation</title>
+  <style>
+    /* Remove scrollbars and margins */
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #111;
+    }
+    /* Make the canvas cover the entire viewport */
+    #myCanvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="myCanvas"></canvas>
+  <script>
+    // Setup canvas
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Global variables for interactivity
+    const mouse = { x: undefined, y: undefined };
+    const maxRadius = 50;
+
+    window.addEventListener('mousemove', (event) => {
+      mouse.x = event.x;
+      mouse.y = event.y;
+    });
+
+    window.addEventListener('mouseout', () => {
+      mouse.x = undefined;
+      mouse.y = undefined;
+    });
+
+    // Circle class for animation
+    class Circle {
+      constructor(x, y, radius, dx, dy, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.baseRadius = radius; // Store original radius for later
+        this.dx = dx;
+        this.dy = dy;
+        this.color = color;
+      }
+      
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+        // Radial gradient for a glowing effect
+        let gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+        gradient.addColorStop(0, "#fff");
+        gradient.addColorStop(0.5, this.color);
+        gradient.addColorStop(1, this.color);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
+      
+      update() {
+        // Bounce off the edges
+        if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+          this.dx = -this.dx;
+        }
+        if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
+          this.dy = -this.dy;
+        }
+        
+        this.x += this.dx;
+        this.y += this.dy;
+
+        // Interactivity: Adjust radius based on mouse proximity
+        if (mouse.x && mouse.y) {
+          if (Math.abs(mouse.x - this.x) < 50 && Math.abs(mouse.y - this.y) < 50) {
+            if (this.radius < maxRadius) {
+              this.radius += 1;
+            }
+          } else if (this.radius > this.baseRadius) {
+            this.radius -= 1;
+          }
+        } else if (this.radius > this.baseRadius) {
+          this.radius -= 1;
+        }
+        
+        this.draw();
+      }
+    }
+
+    // Helper function to get a random vibrant color
+    function randomColor() {
+      const colors = ['#FF5733', '#33FF57', '#3357FF', '#F3FF33', '#FF33F3'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    // Create multiple circles with random properties
+    let circles = [];
+    function init() {
+      circles = [];
+      for (let i = 0; i < 50; i++) {
+        const radius = Math.random() * 20 + 10;
+        const x = Math.random() * (canvas.width - 2 * radius) + radius;
+        const y = Math.random() * (canvas.height - 2 * radius) + radius;
+        const dx = (Math.random() - 0.5) * 5;
+        const dy = (Math.random() - 0.5) * 5;
+        const color = randomColor();
+        circles.push(new Circle(x, y, radius, dx, dy, color));
+      }
+    }
+
+    // Animation loop with a trailing effect for extra coolness
+    function animate() {
+      requestAnimationFrame(animate);
+      // Semi-transparent fill for a smooth trailing effect
+      ctx.fillStyle = "rgba(17, 17, 17, 0.3)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      circles.forEach(circle => circle.update());
+    }
+
+    init();
+    animate();
+
+    // Reinitialize canvas and circles on window resize
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      init();
+    });
+  </script>
+</body>
+</html>

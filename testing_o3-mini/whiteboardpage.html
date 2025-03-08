@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Whiteboard</title>
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #f0f0f0;
+      }
+      #whiteboardcanvas {
+        border: 2px solid #333;
+        background: #fff;
+        display: block;
+      }
+      #toolbar {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        background: #fff;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      #toolbar button,
+      #toolbar input {
+        margin-right: 5px;
+        padding: 5px 10px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toolbar">
+      <button id="clear">Clear</button>
+      <button id="textBtn">Add Text</button>
+      <label for="colorPicker">Color</label>
+      <input type="color" id="colorPicker" value="#000000">
+    </div>
+    <canvas id="whiteboardcanvas"></canvas>
+    <script>
+      const canvas = document.getElementById("whiteboardcanvas");
+      const ctx = canvas.getContext("2d");
+
+      // Current settings
+      let currentColor = "#000000";
+      let drawing = false;
+      let addingText = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      // Resize canvas to fill the window
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      // Get mouse/touch coordinates relative to canvas
+      function getCoordinatese(e) {
+        if (e.touches) {
+          const rect = canvas.getBoundingClientRect();
+          return {
+            x: e.touches[0].clientX - rect.left,
+            y: e.touches[0].clientY - rect.top
+          };
+        }
+        return { x: e.offsetX, y: e.offsetY };
+      }
+
+      // Function to add a text box at click/touch location
+      function addTextBox(e) {
+        const coords = getCoordinatese(e);
+        const textBox = document.createElement("div");
+        textBox.contentEditable = true;
+        textBox.style.position = "absolute";
+        textBox.style.left = coords.x + "px";
+        textBox.style.top = coords.y + "px";
+        textBox.style.minWidth = "100px";
+        textBox.style.minHeight = "30px";
+        textBox.style.border = "1px dashed #333";
+        textBox.style.backgroundColor = "#fff";
+        textBox.style.padding = "5px";
+        textBox.style.color = currentColor;
+        textBox.innerText = "Enter text...";
+        document.body.appendChild(textBox);
+        textBox.focus();
+      }
+
+      // Start drawing or add text if mode is active
+      function startPosition(e) {
+        if (addingText) {
+          addTextBox(e);
+          addingText = false;
+          return;
+        }
+        drawing = true;
+        const coords = getCoordinatese(e);
+        lastX = coords.x;
+        lastY = coords.y;
+      }
+
+      // End drawing
+      function finishedPosition() {
+        drawing = false;
+        ctx.beginPath(); // reset path to avoid connecting lines
+      }
+
+      // Draw on canvas
+      function drawe(e) {
+        if (!drawing) return;
+        const { x, y } = getCoordinatese(e);
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        lastX = x;
+        lastY = y;
+      }
+
+      // Mouse events
+      canvas.addEventListener("mousedown", startPosition);
+      canvas.addEventListener("mouseup", finishedPosition);
+      canvas.addEventListener("mousemove", drawe);
+
+      // Touch events for mobile devices
+      canvas.addEventListener("touchstart", function(e) {
+        e.preventDefault();
+        startPosition(e);
+      });
+      canvas.addEventListener("touchend", function(e) {
+        e.preventDefault();
+        finishedPosition();
+      });
+      canvas.addEventListener("touchmove", function(e) {
+        e.preventDefault();
+        drawe(e);
+      });
+
+      // Clear button functionality
+      const clearBtn = document.getElementById("clear");
+      clearBtn.addEventListener("click", () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      });
+
+      // Color picker functionality
+      const colorPicker = document.getElementById("colorPicker");
+      colorPicker.addEventListener("input", (e) => {
+        currentColor = e.target.value;
+      });
+
+      // Text button functionality
+      const textBtn = document.getElementById("textBtn");
+      textBtn.addEventListener("click", () => {
+        addingText = true;
+      });
+    </script>
+  </body>
+</html>

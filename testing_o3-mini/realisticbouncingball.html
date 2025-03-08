@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realistic Bouncing Ball</title>
+  <style>
+    /* Basic reset and background styling */
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #222;
+      height: 100%;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    // Get canvas and context
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    
+    // Set canvas to full window size
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+    
+    // Update the canvas size on window resize
+    window.addEventListener("resize", () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    });
+    
+    // Define the ball object with physics properties
+    const ball = {
+      x: width / 2,
+      y: 50,
+      radius: 20,
+      vx: 4,     // horizontal velocity
+      vy: 2,     // vertical velocity
+      gravity: 0.5,  // gravitational acceleration
+      bounce: 0.7    // energy loss on bounce (less than 1 for realistic damping)
+    };
+
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    let prevMouseX = 0;
+    let prevMouseY = 0;
+    
+    // Mouse down event: check if click is inside the ball
+    canvas.addEventListener("mousedown", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const dx = mouseX - ball.x;
+      const dy = mouseY - ball.y;
+      // Check if the distance is within the ball radius
+      if (Math.sqrt(dx * dx + dy * dy) < ball.radius) {
+        dragging = true;
+        offsetX = dx;
+        offsetY = dy;
+        // Reset velocity so the ball doesn't jump when dragging
+        ball.vx = 0;
+        ball.vy = 0;
+        prevMouseX = mouseX;
+        prevMouseY = mouseY;
+      }
+    });
+    
+    // Mouse move event: update ball position if dragging
+    canvas.addEventListener("mousemove", (e) => {
+      if (dragging) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        // Update ball position following the mouse (keeping the original offset)
+        ball.x = mouseX - offsetX;
+        ball.y = mouseY - offsetY;
+        
+        // Optionally, update velocity based on mouse movement speed
+        ball.vx = mouseX - prevMouseX;
+        ball.vy = mouseY - prevMouseY;
+        
+        prevMouseX = mouseX;
+        prevMouseY = mouseY;
+      }
+    });
+    
+    // Mouse up event: release dragging
+    canvas.addEventListener("mouseup", () => {
+      dragging = false;
+    });
+    
+    // Also cancel dragging if mouse leaves the canvas
+    canvas.addEventListener("mouseleave", () => {
+      dragging = false;
+    });
+    
+    function animate() {
+      // Clear the canvas for the next frame
+      ctx.clearRect(0, 0, width, height);
+      
+      // Draw the ball
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff5722";
+      ctx.fill();
+      ctx.closePath();
+      
+      // Only apply physics when not dragging
+      if (!dragging) {
+        // Apply gravity to the vertical velocity
+        ball.vy += ball.gravity;
+
+        // Update ball's position
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+      }
+      
+      // Floor collision
+      if (ball.y + ball.radius > height) {
+        ball.y = height - ball.radius;
+        ball.vy = -ball.vy * ball.bounce;
+      }
+      
+      // Ceiling collision
+      if (ball.y - ball.radius < 0) {
+        ball.y = ball.radius;
+        ball.vy = -ball.vy * ball.bounce;
+      }
+      
+      // Right wall collision
+      if (ball.x + ball.radius > width) {
+        ball.x = width - ball.radius;
+        ball.vx = -ball.vx * ball.bounce;
+      }
+      
+      // Left wall collision
+      if (ball.x - ball.radius < 0) {
+        ball.x = ball.radius;
+        ball.vx = -ball.vx * ball.bounce;
+      }
+      
+      // Loop the animation
+      requestAnimationFrame(animate);
+    }
+    
+    // Start the animation
+    animate();
+  </script>
+</body>
+</html>

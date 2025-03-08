@@ -72,7 +72,7 @@ private:
     void initialize(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles);
     bool isValidConfiguration() const;
     std::string getInvalidConfigurationMessage() const;
-    std::string buildPrompt(const std::string& message) const;
+    std::string buildPrompt(const std::string& message);
     std::string makeCallToChatGPT(const std::string& message);
     static std::string filterMessage(const std::string& message);
     std::map<std::string, nlohmann::json> parseJSONResponse(const std::string& jsonResponse) const;

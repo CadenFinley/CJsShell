@@ -261,8 +261,9 @@ std::string OpenAIPromptEngine::getInvalidConfigurationMessage() const {
     return "Invalid configuration.";
 }
 
-std::string OpenAIPromptEngine::buildPrompt(const std::string& message) const {
+std::string OpenAIPromptEngine::buildPrompt(const std::string& message) {
     std::stringstream prompt;
+    processFileContents();
     if(assistantType != "code-interpreter"){
         prompt << initialInstruction;
         if (maxPromptLength != -1) {
