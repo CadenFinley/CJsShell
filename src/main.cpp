@@ -1340,7 +1340,6 @@ void aiChatCommands() {
  * @param message Chat message to process.
  */
 void chatProcess(const std::string& message) {
-    //this needs work
     if (message.empty()) {
         return;
     }
