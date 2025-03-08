@@ -663,7 +663,6 @@ std::string OpenAIPromptEngine::formatMarkdown(const std::string& text) {
     std::istringstream stream(text);
     std::string line;
     std::stringstream result;
-
     while (std::getline(stream, line)) {
         if (line.substr(0, 3) == "```") {
             inCodeBlock = !inCodeBlock;
