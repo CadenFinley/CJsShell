@@ -491,7 +491,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 std::string language = codeBlock.substr(0, codeBlock.find('\n'));
                 std::string extension = getFileExtensionForLanguage(language);
                 
-                // Add timestamp to the file name
                 auto t = std::time(nullptr);
                 auto tm = *std::localtime(&t);
                 std::ostringstream oss;
@@ -507,7 +506,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             std::vector<std::string> newLines;
             std::vector<std::string> updatedLines;
             
-            // Read original file if it exists
             std::ifstream inFile(fileToChange);
             if (inFile.is_open()) {
                 std::string line;
@@ -517,28 +515,22 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 inFile.close();
             }
             
-            // Store original file contents
             originalFileContents[fileToChange] = originalLines;
             
-            // Split new code into lines
             std::stringstream ss(codeBlock);
             std::string line;
             while (std::getline(ss, line)) {
                 newLines.push_back(line);
             }
             
-            // Remove the first line which contains the language name if a new file was created
             if (!newLines.empty()) {
                 newLines.erase(newLines.begin());
             }
             
-            // Determine if newLines represents the full file or just an excerpt.
             if (!originalLines.empty() && newLines.size() == originalLines.size() &&
                 std::equal(originalLines.begin(), originalLines.end(), newLines.begin())) {
-                // newLines is the entire file so replace all.
                 updatedLines = newLines;
             } else {
-                // Attempt to locate the excerpt within originalLines.
                 size_t startIndex = std::string::npos;
                 for (size_t idx = 0; idx < originalLines.size(); idx++) {
                     if (originalLines[idx].find(newLines.front()) != std::string::npos) {
@@ -548,25 +540,21 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 }
                 if (startIndex != std::string::npos &&
                     startIndex + newLines.size() <= originalLines.size()) {
-                    // Found matching section; apply changes only to that snippet.
                     updatedLines = originalLines;
                     for (size_t j = 0; j < newLines.size(); j++) {
                         updatedLines[startIndex + j] = newLines[j];
                     }
                 } else {
-                    // Fallback: treat newLines as the full file.
                     updatedLines = newLines;
                 }
             }
             
-            // Write changes back to file
             std::ofstream outFile(fileToChange);
             for (const auto& updatedLine : updatedLines) {
                 outFile << updatedLine << "\n";
             }
             outFile.close();
             
-            // Write changes summary using git-like format with color highlighting
             changesSummary << "\033[1;34m" << fileToChange << "\033[0m\n";
             size_t commonLines = std::min(originalLines.size(), newLines.size());
             for (size_t j = 0; j < commonLines; j++) {
@@ -682,7 +670,7 @@ bool OpenAIPromptEngine::testAPIKey(const std::string& apiKey) {
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L); // We only need the headers
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
 
     CURLcode res = curl_easy_perform(curl);
     long response_code;
