@@ -482,7 +482,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     if (codeBlocks.empty()) {
         return "";
     }
-    // NEW: Pre-create new files if there are more code blocks than files.
     if (codeBlocks.size() > files.size()) {
         for (size_t j = files.size(); j < codeBlocks.size(); j++) {
             auto t = std::time(nullptr);
@@ -504,15 +503,12 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
         try {
             std::string language = codeBlock.substr(0, codeBlock.find('\n'));
             std::string extension = getFileExtensionForLanguage(language);
-            // Removed in-loop file creation; now file is guaranteed to exist at index i.
             fileToChange = files[i];
-            // Check if file extension needs to be changed.
             if (fileToChange.find_last_of(".") != std::string::npos) {
                 std::string fileExtension = fileToChange.substr(fileToChange.find_last_of(".") + 1);
                 if (fileExtension != extension) {
-                    std::string oldFileName = fileToChange;  // store original file name
+                    std::string oldFileName = fileToChange;
                     std::string newFileName = fileToChange.substr(0, fileToChange.find_last_of(".")) + "." + extension;
-                    // Read the original file contents.
                     std::ifstream oldFile(oldFileName);
                     std::vector<std::string> oldContent;
                     std::string line;
@@ -520,19 +516,18 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                         oldContent.push_back(line);
                     }
                     oldFile.close();
-                    // Create a new file with the updated extension and write the original content.
                     std::ofstream newFile(newFileName);
                     for (const auto& l : oldContent) {
                         newFile << l << "\n";
                     }
                     newFile.close();
-                    std::remove(oldFileName.c_str());  // delete the old file
+                    std::remove(oldFileName.c_str());
                     fileToChange = newFileName;
-                    files[i] = newFileName; // update files vector with new file name
+                    files[i] = newFileName;
                 }
             } else {
                 fileToChange += "." + extension;
-                files[i] = fileToChange; // update files vector if file name modified
+                files[i] = fileToChange;
             }
             
             std::vector<std::string> originalLines;
