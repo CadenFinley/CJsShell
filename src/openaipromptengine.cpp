@@ -324,7 +324,6 @@ std::string OpenAIPromptEngine::makeCallToChatGPT(const std::string& message) {
     std::string requestBodyStr = requestBody.dump();
     std::string responseData;
 
-    // Start a thread to display the loading animation
     std::atomic<bool> loading(true);
     std::thread loadingThread([&loading]() {
         const char* loadingChars = "|/-\\";
@@ -333,7 +332,7 @@ std::string OpenAIPromptEngine::makeCallToChatGPT(const std::string& message) {
             std::cout << "\rLoading " << loadingChars[i++ % 4] << std::flush;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        std::cout << "\r                    \r" << std::flush; // Clear the loading line
+        std::cout << "\r                    \r" << std::flush;
     });
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -345,7 +344,6 @@ std::string OpenAIPromptEngine::makeCallToChatGPT(const std::string& message) {
 
     CURLcode res = curl_easy_perform(curl);
     
-    // Stop the loading animation
     loading = false;
     loadingThread.join();
     
@@ -395,7 +393,6 @@ std::string OpenAIPromptEngine::filterMessage(const std::string& message) {
             return !(std::isalnum(c) || c == ' ' || c == '-' || c == '_' || c == '.' || c == '~');
         }), filtered.end());
     
-    // Replace newlines with spaces
     std::replace(filtered.begin(), filtered.end(), '\n', ' ');
     return filtered;
 }
@@ -495,7 +492,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             std::cout << "New file created: " << files.back() << std::endl;
         }
     }
-    
     size_t i = 0;
     std::stringstream changesSummary;
     std::string fileToChange;
