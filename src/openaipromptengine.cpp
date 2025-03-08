@@ -482,25 +482,58 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     if (codeBlocks.empty()) {
         return "";
     }
+    // NEW: Pre-create new files if there are more code blocks than files.
+    if (codeBlocks.size() > files.size()) {
+        for (size_t j = files.size(); j < codeBlocks.size(); j++) {
+            auto t = std::time(nullptr);
+            auto tm = *std::localtime(&t);
+            std::ostringstream oss;
+            oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+            std::string timestamp = oss.str();
+            std::string language = codeBlocks[j].substr(0, codeBlocks[j].find('\n'));
+            std::string extension = getFileExtensionForLanguage(language);
+            files.push_back(".DTT-Data/new_file_" + timestamp + "_" + std::to_string(j) + "." + extension);
+            std::cout << "New file created: " << files.back() << std::endl;
+        }
+    }
+    
     size_t i = 0;
     std::stringstream changesSummary;
     std::string fileToChange;
     for (const auto& codeBlock : codeBlocks) {
         try {
-            if (files.empty() || i >= files.size()) {
-                std::string language = codeBlock.substr(0, codeBlock.find('\n'));
-                std::string extension = getFileExtensionForLanguage(language);
-                
-                auto t = std::time(nullptr);
-                auto tm = *std::localtime(&t);
-                std::ostringstream oss;
-                oss << std::put_time(&tm, "%Y%m%d%H%M%S");
-                std::string timestamp = oss.str();
-                
-                files.push_back(".DTT-Data/new_file_" + timestamp + "_" + std::to_string(i) + "." + extension);
-                std::cout << "New file created: " << files.back() << std::endl;
-            }
+            std::string language = codeBlock.substr(0, codeBlock.find('\n'));
+            std::string extension = getFileExtensionForLanguage(language);
+            // Removed in-loop file creation; now file is guaranteed to exist at index i.
             fileToChange = files[i];
+            // Check if file extension needs to be changed.
+            if (fileToChange.find_last_of(".") != std::string::npos) {
+                std::string fileExtension = fileToChange.substr(fileToChange.find_last_of(".") + 1);
+                if (fileExtension != extension) {
+                    std::string oldFileName = fileToChange;  // store original file name
+                    std::string newFileName = fileToChange.substr(0, fileToChange.find_last_of(".")) + "." + extension;
+                    // Read the original file contents.
+                    std::ifstream oldFile(oldFileName);
+                    std::vector<std::string> oldContent;
+                    std::string line;
+                    while(std::getline(oldFile, line)) {
+                        oldContent.push_back(line);
+                    }
+                    oldFile.close();
+                    // Create a new file with the updated extension and write the original content.
+                    std::ofstream newFile(newFileName);
+                    for (const auto& l : oldContent) {
+                        newFile << l << "\n";
+                    }
+                    newFile.close();
+                    std::remove(oldFileName.c_str());  // delete the old file
+                    fileToChange = newFileName;
+                    files[i] = newFileName; // update files vector with new file name
+                }
+            } else {
+                fileToChange += "." + extension;
+                files[i] = fileToChange; // update files vector if file name modified
+            }
             
             std::vector<std::string> originalLines;
             std::vector<std::string> newLines;
