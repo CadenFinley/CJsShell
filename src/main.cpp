@@ -42,6 +42,7 @@ std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 bool defaultTextEntryOnAI = false;
 bool usingChatCache = true;
 bool saveLoop = false;
+bool saveOnExit = true;ß
 bool rawEnabled = false;
 
 std::vector<std::string> savedChatCache;
@@ -125,8 +126,10 @@ int main() {
 
     mainProcessLoop();
     std::cout << "Exiting..." << std::endl;
-    savedChatCache = openAIPromptEngine.getChatCache();
-    writeUserData();
+    if(saveOnExit){
+        savedChatCache = openAIPromptEngine.getChatCache();
+        writeUserData();
+    }
     setRawMode(false);
     return 0;
 }
@@ -492,7 +495,7 @@ void shortcutProcesser(const std::string& command) {
             std::cout << "No command for given shortcut: " << strippedCommand << std::endl;
         }
     } else {
-        std::cout << "No shortcuts." << std::endl;
+        std::cout << "No shortcuts have been created." << std::endl;
     }
 }
 
@@ -516,7 +519,7 @@ void multiScriptShortcutProcesser(const std::string& command){
             std::cout << "No command for given shortcut: " << strippedCommand << std::endl;
         }
     } else {
-        std::cout << "No shortcuts." << std::endl;
+        std::cout << "No smulti-script shortcuts have been created." << std::endl;
     }
 }
 
@@ -581,7 +584,7 @@ void commandProcesser(const std::string& command) {
         std::cout << "clear" << std::endl;
         std::cout << "help" << std::endl;
     } else {
-        std::cout << "Unknown command. Please try again." << std::endl;
+        std::cout << "Unknown command. Please try again or try 'help'." << std::endl;
     }
 }
 
@@ -638,6 +641,40 @@ void userSettingsCommands() {
         userDataCommands();
         return;
     }
+    if(lastCommandParsed == "saveloop"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Save loop is currently " << (saveLoop ? "enabled." : "disabled.") << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "enable") {
+            saveLoop = true;
+            std::cout << "Save loop enabled." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "disable") {
+            saveLoop = false;
+            std::cout << "Save loop disabled." << std::endl;
+            return;
+        }
+    }
+    if(lastCommandParsed == "saveonexit"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Save on exit is currently " << (saveOnExit ? "enabled." : "disabled.") << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "enable") {
+            saveOnExit = true;
+            std::cout << "Save on exit enabled." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "disable") {
+            saveOnExit = false;
+            std::cout << "Save on exit disabled." << std::endl;
+            return;
+        }
+    }
     if (lastCommandParsed == "help") {
         std::cout << "Commands: " << std::endl;
         std::cout << "startup: add [ARGS], remove [ARGS], clear, enable, disable, list, runall" << std::endl;
@@ -645,9 +682,11 @@ void userSettingsCommands() {
         std::cout << "shortcut: clear, enable, disable, add [ARGS], remove [ARGS], list" << std::endl;
         std::cout << "testing [ARGS]" << std::endl;
         std::cout << "data: get [ARGS], clear" << std::endl;
+        std::cout << "saveloop [ARGS]" << std::endl;
+        std::cout << "saveonexit [ARGS]" << std::endl;
         return;
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void userDataCommands(){
@@ -690,23 +729,6 @@ void userDataCommands(){
             return;
         }
     }
-    if(lastCommandParsed == "saveloop"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            saveLoop = true;
-            std::cout << "Save loop enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            saveLoop = false;
-            std::cout << "Save loop disabled." << std::endl;
-            return;
-        }
-    }
     if (lastCommandParsed == "clear") {
         std::filesystem::remove(USER_DATA);
         createNewUSER_DATAFile();
@@ -716,14 +738,26 @@ void userDataCommands(){
         std::cout << "User history file cleared." << std::endl;
         return;
     }
+    if(lastCommandParsed == "help") {
+        std::cout << "Commands: " << std::endl;
+        std::cout << "get [ARGS]" << std::endl;
+        std::cout << "clear" << std::endl;
+        return;
+    }
     std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-    return;
 }
 
 void startupCommandsHandler() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        if (!startupCommands.empty()) {
+            std::cout << "Startup commands:" << std::endl;
+            for (const auto& command : startupCommands) {
+                std::cout << command << std::endl;
+            }
+        } else {
+            std::cout << "No startup commands." << std::endl;
+        }
         return;
     }
     if (lastCommandParsed == "add") {
@@ -801,7 +835,26 @@ void startupCommandsHandler() {
 void shortcutCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        if (!shortcuts.empty()) {
+            std::cout << "Shortcuts:" << std::endl;
+            for (const auto& [key, value] : shortcuts) {
+                std::cout << key + " = " + value << std::endl;
+            }
+        } else {
+            std::cout << "No shortcuts." << std::endl;
+        }
+        if(!multiScriptShortcuts.empty()){
+            std::cout << "Multi-Script Shortcuts:" << std::endl;
+            for (const auto& [key, value] : multiScriptShortcuts) {
+                std::cout << key + " = ";
+                for(const auto& command : value){
+                    std::cout << "'"+command + "' ";
+                }
+                std::cout << std::endl;
+            }
+        } else {
+            std::cout << "No multi-script shortcuts." << std::endl;
+        }
         return;
     }
     if (lastCommandParsed == "clear") {
@@ -933,11 +986,14 @@ void textCommands() {
     if (lastCommandParsed == "commandprefix") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cout << "Command prefix is currently " + commandPrefix << std::endl;
             return;
         }
-        if (lastCommandParsed.length() > 1 || lastCommandParsed.empty()) {
+        if (lastCommandParsed.length() > 1) {
             std::cout << "Invalid command prefix. Must be a single character." << std::endl;
+            return;
+        } else if (lastCommandParsed == " ") {
+            std::cout << "Invalid command prefix. Must not be a space." << std::endl;
             return;
         }
         commandPrefix = lastCommandParsed;
@@ -947,7 +1003,7 @@ void textCommands() {
     if(lastCommandParsed == "displayfullpath"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cout << "Display whole path is currently " << (terminal.getDisplayWholePath() ? "enabled." : "disabled.") << std::endl;
             return;
         }
         if(lastCommandParsed == "enable"){
@@ -964,7 +1020,7 @@ void textCommands() {
     if(lastCommandParsed == "defaultentry"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cout << "Default text entry is currently " << (defaultTextEntryOnAI ? "AI." : "terminal.") << std::endl;
             return;
         }
         if(lastCommandParsed == "ai"){
@@ -1018,7 +1074,7 @@ void aiSettingsCommands() {
     if (lastCommandParsed == "apikey") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
+            std::cout << openAIPromptEngine.getAPIKey() << std::endl;
             return;
         }
         if (lastCommandParsed == "set") {
@@ -1074,7 +1130,16 @@ void aiSettingsCommands() {
     if (lastCommandParsed == "file") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
+            std::vector<std::string> activeFiles = openAIPromptEngine.getFiles();
+            std::cout << "Active Files: " << std::endl;
+            for(const auto& file : activeFiles){
+                std::cout << file << std::endl;
+            }
+            std::cout << "Total characters processed: " << openAIPromptEngine.getFileContents().length() << std::endl;
+            std::cout << "Files at current path: " << std::endl;
+            for(const auto& file : filesAtPath){
+                std::cout << file << std::endl;
+            }
             return;
         }
         std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath();
