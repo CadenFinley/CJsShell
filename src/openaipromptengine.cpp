@@ -1,6 +1,5 @@
 #include "openaipromptengine.h"
 
-// Constructors
 OpenAIPromptEngine::OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction) {
     initialize(apiKey, assistantType, initialInstruction, {});
 }
@@ -11,7 +10,6 @@ OpenAIPromptEngine::OpenAIPromptEngine(const std::string& apiKey, const std::str
 
 OpenAIPromptEngine::OpenAIPromptEngine() {}
 
-// Getters and Setters
 void OpenAIPromptEngine::setAPIKey(const std::string& apiKey) {
     USER_API_KEY = apiKey;
 }
@@ -162,7 +160,6 @@ float OpenAIPromptEngine::getDynamicPromptLengthScale() const {
     return dynamicPromptLengthScale;
 }
 
-// Public Methods
 std::string OpenAIPromptEngine::chatGPT(const std::string& message, bool format) {
     if (!isValidConfiguration()) {
         return getInvalidConfigurationMessage();
@@ -235,7 +232,6 @@ int OpenAIPromptEngine::addFiles(const std::vector<std::string>& userFiles) {
     return 0;
 }
 
-// Private Methods
 void OpenAIPromptEngine::initialize(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles) {
     USER_API_KEY = apiKey;
     this->assistantType = assistantType;
@@ -381,7 +377,6 @@ std::string OpenAIPromptEngine::makeCallToChatGPT(const std::string& message) {
     }
 }
 
-// Static callback function for CURL
 size_t OpenAIPromptEngine::WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {
     userp->append((char*)contents, size * nmemb);
     return size * nmemb;
@@ -501,7 +496,7 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             std::string language, fileName;
             iss >> language >> fileName;
             if (fileName.empty()) {
-                continue; // Skip if no filename is given
+                continue;
             }
             std::string extension = getFileExtensionForLanguage(language);
             if (fileName.find("/") != std::string::npos) {
@@ -526,9 +521,9 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             std::string language, fileName;
             iss >> language >> fileName;
             if (fileName.empty()) {
-                continue; // Skip if no filename is given
+                continue;
             }
-            fileName = sanitizeFileName(fileName); // Sanitize the file name
+            fileName = sanitizeFileName(fileName);
             std::string extension = getFileExtensionForLanguage(language);
             bool fileFound = false;
             for (const auto& file : files) {

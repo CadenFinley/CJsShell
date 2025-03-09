@@ -136,9 +136,6 @@ int getTerminalWidth(){
     return w.ws_col;
 }
 
-/**
- * @brief Main process loop that continuously reads and processes user commands.
- */
 void mainProcessLoop() {
     std::string terminalSetting;
     int terminalSettingLength;
@@ -260,10 +257,6 @@ void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
     }
 }
 
-/**
- * @brief Set the terminal to raw mode.
- * @param enable Enable or disable raw mode.
- */
 void setRawMode(bool enable) {
     static struct termios oldt, newt;
     if (enable) {
@@ -277,16 +270,9 @@ void setRawMode(bool enable) {
     rawEnabled = enable;
 }
 
-/**
- * @brief Handle arrow key inputs.
- * @param arrow Arrow key character.
- * @param cursorPositionX Reference to the cursor position.
- * @param command Reference to the command string.
- * @param terminalTag Terminal tag string.
- */
 void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
     switch (arrow) {
-        case 'A': // Up arrow
+        case 'A':
             clearLines(commandLines);
             commandLines = {""};
             command = terminal.getPreviousCommand();
@@ -294,7 +280,7 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
             cursorPositionY = commandLines.size() - 1;
             std::cout << "\033[2K\r" << terminalTag << command;
             break;
-        case 'B': // Down arrow
+        case 'B':
             clearLines(commandLines);
             commandLines = {""};
             command = terminal.getNextCommand();
@@ -302,7 +288,7 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
             cursorPositionY = commandLines.size() - 1;
             std::cout << "\033[2K\r" << terminalTag << command;
             break;
-        case 'C': // Right arrow
+        case 'C':
             if (cursorPositionX < command.length()) {
                 cursorPositionX++;
                 std::cout << "\033[C";
@@ -312,7 +298,7 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
                 std::cout << "\033[B";
             }
             break;
-        case 'D': // Left arrow
+        case 'D':
             if (cursorPositionX > 0) {
                 cursorPositionX--;
                 std::cout << "\033[D";
@@ -325,9 +311,6 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
     }
 }
 
-/**
- * @brief Create a new user data file with default settings.
- */
 void createNewUSER_DATAFile() {
     std::cout << "User data file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_DATA);
@@ -340,9 +323,6 @@ void createNewUSER_DATAFile() {
     }
 }
 
-/**
- * @brief Create a new user command history file.
- */
 void createNewUSER_HISTORYfile() {
     std::cout << "User history file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_COMMAND_HISTORY);
@@ -351,9 +331,6 @@ void createNewUSER_HISTORYfile() {
     }
 }
 
-/**
- * @brief Load user data from the user data file.
- */
 void loadUserData() {
     std::ifstream file(USER_DATA);
     if (file.is_open()) {
@@ -377,9 +354,6 @@ void loadUserData() {
     }
 }
 
-/**
- * @brief Write user data to the user data file.
- */
 void writeUserData() {
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
@@ -400,18 +374,11 @@ void writeUserData() {
     }
 }
 
-/**
- * @brief Change the current directory to the application directory.
- */
 void goToApplicationDirectory() {
     commandProcesser("terminal cd /");
     commandProcesser("terminal cd " + applicationDirectory +"/"+ DATA_DIRECTORY.string());
 }
 
-/**
- * @brief Read and return the contents of the user data file.
- * @return Contents of the user data file as a string.
- */
 std::string readAndReturnUserDataFile() {
     std::ifstream file(USER_DATA);
     if (file.is_open()) {
@@ -424,11 +391,6 @@ std::string readAndReturnUserDataFile() {
     }
 }
 
-/**
- * @brief Split a command string into individual commands.
- * @param command Command string to split.
- * @return Vector of command strings.
- */
 std::vector<std::string> commandSplicer(const std::string& command) {
     std::vector<std::string> commands;
     std::istringstream iss(command);
@@ -461,10 +423,6 @@ std::vector<std::string> commandSplicer(const std::string& command) {
     return commands;
 }
 
-/**
- * @brief Parse and process a user command.
- * @param command Command string to parse.
- */
 void commandParser(const std::string& command) {
     if (command.empty()) {
         return;
@@ -485,10 +443,6 @@ void commandParser(const std::string& command) {
     }
 }
 
-/**
- * @brief Add user input to the command history file.
- * @param input User input string to add.
- */
 void addUserInputToHistory(const std::string& input) {
     std::ofstream file(USER_COMMAND_HISTORY, std::ios_base::app);
     if (file.is_open()) {
@@ -499,30 +453,23 @@ void addUserInputToHistory(const std::string& input) {
     }
 }
 
-// trim from start (in place)
 inline void ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
         return !std::isspace(ch);
     }));
 }
 
-// trim from end (in place)
 inline void rtrim(std::string &s) {
     s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
         return !std::isspace(ch);
     }).base(), s.end());
 }
 
-// trim from both ends (in place)
 inline void trim(std::string &s) {
     rtrim(s);
     ltrim(s);
 }
 
-/**
- * @brief Process a shortcut command.
- * @param command Shortcut command string to process.
- */
 void shortcutProcesser(const std::string& command) {
     if (!shotcutsEnabled) {
         std::cout << "Shortcuts are disabled." << std::endl;
@@ -545,10 +492,6 @@ void shortcutProcesser(const std::string& command) {
     }
 }
 
-/**
- * @brief Process a multi-script shortcut command.
- * @param command Multi-script shortcut command string to process.
- */
 void multiScriptShortcutProcesser(const std::string& command){
     if (!shotcutsEnabled) {
         std::cout << "Shortcuts are disabled." << std::endl;
@@ -573,10 +516,6 @@ void multiScriptShortcutProcesser(const std::string& command){
     }
 }
 
-/**
- * @brief Process a user command.
- * @param command Command string to process.
- */
 void commandProcesser(const std::string& command) {
     commandsQueue = std::queue<std::string>();
     auto commands = commandSplicer(command);
@@ -623,7 +562,7 @@ void commandProcesser(const std::string& command) {
         try {
             std::string terminalCommand = command.substr(9);
             sendTerminalCommand(terminalCommand);
-        } catch (std::out_of_range& e) { // Changed exception type
+        } catch (std::out_of_range& e) {
             defaultTextEntryOnAI = false;
             return;
         }
@@ -644,10 +583,6 @@ void commandProcesser(const std::string& command) {
     }
 }
 
-/**
- * @brief Send a command to the terminal for execution.
- * @param command Command string to send.
- */
 void sendTerminalCommand(const std::string& command) {
     if (TESTING) {
         std::cout << "Sending Command: " << command << std::endl;
@@ -659,9 +594,6 @@ void sendTerminalCommand(const std::string& command) {
     }
 }
 
-/**
- * @brief Process user settings commands.
- */
 void userSettingsCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -785,10 +717,7 @@ void userDataCommands(){
         return;
 }
 
-/**
- * @brief Handle startup commands.
- */
-void startupCommandsHandler() { // Renamed function
+void startupCommandsHandler() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -866,9 +795,6 @@ void startupCommandsHandler() { // Renamed function
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
-/**
- * @brief Process shortcut commands.
- */
 void shortcutCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -951,9 +877,6 @@ void shortcutCommands() {
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
-/**
- * @brief Process multi-script shortcut commands.
- */
 void multiScriptShortcutCommands(){
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -998,9 +921,6 @@ void multiScriptShortcutCommands(){
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
-/**
- * @brief Process text commands.
- */
 void textCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -1058,9 +978,6 @@ void textCommands() {
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
-/**
- * @brief Get the next command from the command queue.
- */
 void getNextCommand() {
     if (!commandsQueue.empty()) {
         lastCommandParsed = commandsQueue.front();
@@ -1073,9 +990,6 @@ void getNextCommand() {
     }
 }
 
-/**
- * @brief Exit the application, saving user data.
- */
 void exit() {
     if(!incognitoChatMode){
         savedChatCache = openAIPromptEngine.getChatCache();
@@ -1088,9 +1002,6 @@ void exit() {
     std::exit(0);
 }
 
-/**
- * @brief Process AI settings commands.
- */
 void aiSettingsCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -1283,9 +1194,6 @@ void aiSettingsCommands() {
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
-/**
- * @brief Process AI chat commands.
- */
 void aiChatCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -1343,10 +1251,6 @@ void aiChatCommands() {
     return;
 }
 
-/**
- * @brief Process a chat message.
- * @param message Chat message to process.
- */
 void chatProcess(const std::string& message) {
     if (message.empty()) {
         return;
@@ -1359,9 +1263,6 @@ void chatProcess(const std::string& message) {
     std::cout << "ChatGPT: " << response << std::endl;
 }
 
-/**
- * @brief Show the chat history.
- */
 void showChatHistory() {
     if (!openAIPromptEngine.getChatCache().empty()) {
         std::cout << "Chat history:" << std::endl;

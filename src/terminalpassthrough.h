@@ -21,10 +21,6 @@ public:
         terminalCacheTerminalOutput = std::vector<std::string>();
     }
 
-    /**
-     * @brief Get the name of the terminal based on the operating system.
-     * @return Terminal name as a string.
-     */
     std::string getTerminalName(){
         #ifdef _WIN32
             return "cmd";
@@ -38,15 +34,11 @@ public:
     std::vector<std::string> getFilesAtCurrentPath(){
         std::vector<std::string> files;
         for (const auto& entry : fs::directory_iterator(getCurrentFilePath())) {
-            files.push_back(entry.path().string()); // Changed to return full path
+            files.push_back(entry.path().string());
         }
         return files;
     }
 
-    /**
-     * @brief Set whether to display the whole path or just the current directory name.
-     * @param displayWholePath Boolean flag to set the display mode.
-     */
     void setDisplayWholePath(bool displayWholePath){
         this->displayWholePath = displayWholePath;
     }
@@ -58,9 +50,6 @@ public:
         return "";
     }
 
-    /**
-     * @brief Print the current terminal position to the console.
-     */
     void printCurrentTerminalPosition(){
         std::cout << returnCurrentTerminalPosition();
     }
@@ -69,10 +58,6 @@ public:
         return terminalCurrentPositionRawLength;
     }
 
-    /**
-     * @brief Return the current terminal position as a string.
-     * @return Current terminal position.
-     */
     std::string returnCurrentTerminalPosition(){
         int gitInfoLength = 0;
         std::string gitInfo;
@@ -117,11 +102,6 @@ public:
         }
     }
 
-    /**
-     * @brief Execute a command in the terminal.
-     * @param command Command to execute.
-     * @return A thread running the command.
-     */
     std::thread executeCommand(std::string command){
         terminalCacheUserInput.push_back(command);
         return std::thread([this, command]() {
@@ -177,81 +157,43 @@ public:
         });
     }
     
-    /**
-     * @brief Toggle the display mode between whole path and current directory name.
-     */
     void toggleDisplayWholePath(){
         setDisplayWholePath(!displayWholePath);
     }
 
-    /**
-     * @brief Check if the display mode is set to show the whole path.
-     * @return True if displaying the whole path, false otherwise.
-     */
     bool isDisplayWholePath(){
         return displayWholePath;
     }
 
-    /**
-     * @brief Get the user input cache.
-     * @return Vector of user input strings.
-     */
     std::vector<std::string> getTerminalCacheUserInput(){
         return terminalCacheUserInput;
     }
 
-    /**
-     * @brief Get the terminal output cache.
-     * @return Vector of terminal output strings.
-     */
     std::vector<std::string> getTerminalCacheTerminalOutput(){
         return terminalCacheTerminalOutput;
     }
 
-    /**
-     * @brief Clear the terminal cache for both user input and terminal output.
-     */
     void clearTerminalCache(){
         terminalCacheUserInput.clear();
         terminalCacheTerminalOutput.clear();
     }
 
-    /**
-     * @brief Return the most recent user input from the cache.
-     * @return Most recent user input string.
-     */
     std::string returnMostRecentUserInput(){
         return terminalCacheUserInput.back();
     }
 
-    /**
-     * @brief Return the most recent terminal output from the cache.
-     * @return Most recent terminal output string.
-     */
     std::string returnMostRecentTerminalOutput(){
         return terminalCacheTerminalOutput.back();
     }
 
-    /**
-     * @brief Get the previous command from the history.
-     * @return Previous command string.
-     */
     std::string getPreviousCommand();
 
-    /**
-     * @brief Get the next command from the history.
-     * @return Next command string.
-     */
     std::string getNextCommand();
 
     void addCommandToHistory(const std::string& command){
         terminalCacheUserInput.push_back(command);
     }
 
-    /**
-     * @brief Get the current file path.
-     * @return Current file path as a string.
-     */
     std::string getCurrentFilePath(){
         if (currentDirectory.empty()) {
             return fs::current_path().string();
@@ -271,10 +213,6 @@ private:
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
 
-    /**
-     * @brief Get the current file name.
-     * @return Current file name as a string.
-     */
     std::string getCurrentFileName(){
         std::string currentDirectory = getCurrentFilePath();
         std::string currentFileName = fs::path(currentDirectory).filename().string();
@@ -284,11 +222,6 @@ private:
         return currentFileName;
     }
 
-    /**
-     * @brief Check if the given path is the root path.
-     * @param path Filesystem path to check.
-     * @return True if the path is the root path, false otherwise.
-     */
     bool isRootPath(const fs::path& path){
         return path == path.root_path();
     }
