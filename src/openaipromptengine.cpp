@@ -476,10 +476,10 @@ std::map<std::string, std::vector<std::string>> originalFileContents;
 
 std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::string& message) {
     std::vector<std::string> codeBlocks = extractCodeSnippet(message);
-    std::string directory = "";
     if (codeBlocks.empty()) {
         return "";
     }
+    std::string directory = "";
     if(files.empty()) {
         auto t = std::time(nullptr);
         auto tm = *std::localtime(&t);
