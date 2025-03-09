@@ -269,7 +269,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) {
     }
     if (!chatCache.empty() && assistantType != "code-interpreter") {
         prompt << " This is the chat history between you and the user: [ ";
-        for (const auto& chat : chatCache) {
+        for (const std::string& chat : chatCache) {
             prompt << chat << " ";
         }
         prompt << "] This is the latest message from the user: [" << message << "] ";

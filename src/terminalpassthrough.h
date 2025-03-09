@@ -1,6 +1,5 @@
 #ifndef TERMINALPASSTHROUGH_H
 #define TERMINALPASSTHROUGH_H
-
 #include <string>
 #include <thread>
 #include <vector>

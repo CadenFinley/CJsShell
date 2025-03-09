@@ -2,13 +2,9 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <filesystem>
 #include <fstream>
 #include <map>
 #include <queue>
-#include <algorithm>
-#include <cctype>
-#include <locale>
 #include <termios.h>
 #include <unistd.h>
 #include "terminalpassthrough.h"
