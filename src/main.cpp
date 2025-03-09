@@ -19,10 +19,18 @@ bool shotcutsEnabled = true;
 bool startCommandsOn = true;
 bool runningStartup = false;
 bool exitFlag = false;
+bool defaultTextEntryOnAI = false;
+bool usingChatCache = true;
+bool saveLoop = false;
+bool saveOnExit = true;ß
+bool rawEnabled = false;
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
 std::string applicationDirectory;
+std::string titleLine = "DevToolsTerminal LITE - Caden Finley (c) 2025";
+std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
+
 const std::string GREEN_COLOR_BOLD = "\033[1;32m";
 const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
@@ -32,35 +40,24 @@ std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 
-std::string titleLine = "DevToolsTerminal LITE - Caden Finley (c) 2025";
-std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
-
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
+std::vector<std::string> savedChatCache;
+std::vector<std::string> commandLines;
 std::map<std::string, std::string> shortcuts;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
-bool defaultTextEntryOnAI = false;
-bool usingChatCache = true;
-bool saveLoop = false;
-bool saveOnExit = true;ß
-bool rawEnabled = false;
-
-std::vector<std::string> savedChatCache;
 
 OpenAIPromptEngine openAIPromptEngine;
 TerminalPassthrough terminal;
 
-std::vector<std::string> commandLines;
-
-
+std::string readAndReturnUserDataFile();
+std::vector<std::string> commandSplicer(const std::string& command);
 void mainProcessLoop();
 void createNewUSER_DATAFile();
 void createNewUSER_HISTORYfile();
 void loadUserData();
 void writeUserData();
 void goToApplicationDirectory();
-std::string readAndReturnUserDataFile();
-std::vector<std::string> commandSplicer(const std::string& command);
 void commandParser(const std::string& command);
 void addUserInputToHistory(const std::string& input);
 void shortcutProcesser(const std::string& command);
