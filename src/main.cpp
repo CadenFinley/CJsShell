@@ -227,6 +227,7 @@ void clearLines(const std::vector<std::string>& commandLines){
 }
 
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting) {
+    clearLines(commandLines);
     for (int i = 0; i < commandLines.size(); i++) {
         if (i == 0) {
             std::cout << terminalSetting << commandLines[i];

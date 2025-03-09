@@ -471,7 +471,7 @@ std::vector<std::string> OpenAIPromptEngine::extractCodeSnippet(const std::strin
         } else if (inCodeBlock) {
             codeSnippet << line << '\n';
         } else {
-            filename = line; // Get the filename from the line above the code block
+            filename = line;
         }
     }
     return codeSnippets;
@@ -504,8 +504,16 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 continue; // Skip if no filename is given
             }
             std::string extension = getFileExtensionForLanguage(language);
-            files.push_back(".DTT-Data/" + directory + fileName);
-            std::cout << "New file created: " << files.back() << std::endl;
+            if (fileName.find("/") != std::string::npos) {
+                std::filesystem::create_directories(".DTT-Data/" + directory + fileName.substr(0, fileName.find_last_of("/")));
+                std::cout << "New file created: " << files.back() << std::endl;
+                fileName = fileName.substr(fileName.find_last_of("/") + 1);
+                codeBlocks[j] = language + " " + fileName + codeBlocks[j].substr(codeBlocks[j].find('\n'));
+                files.push_back(".DTT-Data/" + directory + fileName);
+            } else {
+                files.push_back(".DTT-Data/" + directory + fileName);
+                std::cout << "New file created: " << files.back() << std::endl;
+            }
         }
     }
     size_t i = 0;
@@ -721,9 +729,19 @@ bool OpenAIPromptEngine::testAPIKey(const std::string& apiKey) {
 std::string OpenAIPromptEngine::sanitizeFileName(const std::string& fileName) {
     std::string sanitized;
     for (char c : fileName) {
-        if (std::isalnum(c) || c == '.' || c == '_') {
+        if (std::isalnum(c) || c == '.' || c == '_' || c == '-' || c == '/') {
             sanitized += c;
         }
     }
     return sanitized;
+}
+
+std::vector<std::string> OpenAIPromptEngine::splitString(const std::string& str, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(str);
+    while (std::getline(tokenStream, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
 }
