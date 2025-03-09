@@ -84,6 +84,7 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
 void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
 void clearLines(const std::vector<std::string>& commandLines);
+void executeFile();
 
 int main() {
     std::cout << "Loading..." << std::endl;
@@ -591,6 +592,8 @@ void commandProcesser(const std::string& command) {
     getNextCommand();
     if (lastCommandParsed == "approot") {
         goToApplicationDirectory();
+    } else if(lastCommandParsed == "execute") {
+        executeFile();
     } else if (lastCommandParsed == "clear") {
         std::cout << "Clearing screen and terminal cache..." << std::endl;
         std::cout << "\033[2J\033[1;1H";
@@ -609,7 +612,7 @@ void commandProcesser(const std::string& command) {
             if (TESTING) {
                 std::cout << message << std::endl;
             }
-            std::cout << openAIPromptEngine.forceDirectChatGPT(message, true) << std::endl;
+            std::cout << openAIPromptEngine.forceDirectChatGPT(message, false) << std::endl;
             return;
         }
     } else if (lastCommandParsed == "terminal") {
@@ -1348,7 +1351,7 @@ void chatProcess(const std::string& message) {
         std::cout << "There is no OpenAPI key set." << std::endl;
         return;
     }
-    std::string response = openAIPromptEngine.chatGPT(message,true);
+    std::string response = openAIPromptEngine.chatGPT(message,false);
     std::cout << "ChatGPT: " << response << std::endl;
 }
 
@@ -1361,5 +1364,13 @@ void showChatHistory() {
         for (const auto& message : openAIPromptEngine.getChatCache()) {
             std::cout << message << std::endl;
         }
+    }
+}
+
+void executeFile(){
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
     }
 }

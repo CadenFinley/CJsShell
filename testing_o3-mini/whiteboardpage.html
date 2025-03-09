@@ -31,14 +31,39 @@
         padding: 5px 10px;
         font-size: 14px;
       }
+      /* Styles for QR Code container */
+      #qrContainer {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        z-index: 1000;
+        display: none;
+        text-align: center;
+      }
+      #qrContainer button {
+        margin-top: 10px;
+      }
     </style>
+    <!-- QRCode.js library from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   </head>
   <body>
     <div id="toolbar">
       <button id="clear">Clear</button>
       <button id="textBtn">Add Text</button>
+      <button id="qrBtn">Generate QR Code</button>
       <label for="colorPicker">Color</label>
       <input type="color" id="colorPicker" value="#000000">
+    </div>
+    <!-- QR Code container -->
+    <div id="qrContainer">
+      <div id="qrcode"></div>
+      <button id="closeQR">Close</button>
     </div>
     <canvas id="whiteboardcanvas"></canvas>
     <script>
@@ -57,11 +82,12 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
       }
+
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
 
       // Get mouse/touch coordinates relative to canvas
-      function getCoordinatese(e) {
+      function getCoordinates(e) {
         if (e.touches) {
           const rect = canvas.getBoundingClientRect();
           return {
@@ -74,7 +100,7 @@
 
       // Function to add a text box at click/touch location
       function addTextBox(e) {
-        const coords = getCoordinatese(e);
+        const coords = getCoordinates(e);
         const textBox = document.createElement("div");
         textBox.contentEditable = true;
         textBox.style.position = "absolute";
@@ -98,8 +124,9 @@
           addingText = false;
           return;
         }
+
         drawing = true;
-        const coords = getCoordinatese(e);
+        const coords = getCoordinates(e);
         lastX = coords.x;
         lastY = coords.y;
       }
@@ -111,16 +138,18 @@
       }
 
       // Draw on canvas
-      function drawe(e) {
+      function draw(e) {
         if (!drawing) return;
-        const { x, y } = getCoordinatese(e);
+        const { x, y } = getCoordinates(e);
         ctx.strokeStyle = currentColor;
         ctx.lineWidth = 2;
         ctx.lineCap = "round";
+
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
         ctx.lineTo(x, y);
         ctx.stroke();
+
         lastX = x;
         lastY = y;
       }
@@ -128,20 +157,20 @@
       // Mouse events
       canvas.addEventListener("mousedown", startPosition);
       canvas.addEventListener("mouseup", finishedPosition);
-      canvas.addEventListener("mousemove", drawe);
+      canvas.addEventListener("mousemove", draw);
 
       // Touch events for mobile devices
-      canvas.addEventListener("touchstart", function(e) {
+      canvas.addEventListener("touchstart", function (e) {
         e.preventDefault();
         startPosition(e);
       });
-      canvas.addEventListener("touchend", function(e) {
+      canvas.addEventListener("touchend", function (e) {
         e.preventDefault();
         finishedPosition();
       });
-      canvas.addEventListener("touchmove", function(e) {
+      canvas.addEventListener("touchmove", function (e) {
         e.preventDefault();
-        drawe(e);
+        draw(e);
       });
 
       // Clear button functionality
@@ -160,6 +189,29 @@
       const textBtn = document.getElementById("textBtn");
       textBtn.addEventListener("click", () => {
         addingText = true;
+      });
+
+      // QR Code button functionality
+      const qrBtn = document.getElementById("qrBtn");
+      const qrContainer = document.getElementById("qrContainer");
+      const qrcodeEl = document.getElementById("qrcode");
+      const closeQRBtn = document.getElementById("closeQR");
+
+      qrBtn.addEventListener("click", () => {
+        // Clear any existing QR code
+        qrcodeEl.innerHTML = "";
+        // Use the current page URL to let others connect to the whiteboard
+        new QRCode(qrcodeEl, {
+          text: window.location.href,
+          width: 200,
+          height: 200
+        });
+        // Show QR container
+        qrContainer.style.display = "block";
+      });
+
+      closeQRBtn.addEventListener("click", () => {
+        qrContainer.style.display = "none";
       });
     </script>
   </body>

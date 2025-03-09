@@ -279,7 +279,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) {
         prompt << "] This is the latest message from the user: [" << message << "] ";
     } else {
         if (assistantType == "code-interpreter") {
-            prompt << message << " Please use markdown syntax in your response for the code. Please only return code in your response if edits were made.";
+            prompt << message << "Please only return code in your response if edits were made.  Please use markdown syntax in your response for the code. Include only the exact file name and only thr file name in the line above. " ;
         } else {
             prompt << " This is the first message from the user: [" << message << "] ";
         }
@@ -432,7 +432,8 @@ int OpenAIPromptEngine::processFileContents() {
 
     std::stringstream out;
     for (const auto& file : files) {
-        out << "File: " << file << "\n";
+        std::string fileName = std::filesystem::path(file).filename().string();
+        out << "File: " << fileName << "\n";
         if (endsWith(file, ".txt")) {
             std::string content;
             processTextFile(file, content);
@@ -452,6 +453,7 @@ std::vector<std::string> OpenAIPromptEngine::extractCodeSnippet(const std::strin
     std::stringstream codeSnippet;
     bool inCodeBlock = false;
     std::string language;
+    std::string filename;
     
     std::istringstream stream(content);
     std::string line;
@@ -459,7 +461,7 @@ std::vector<std::string> OpenAIPromptEngine::extractCodeSnippet(const std::strin
     while (std::getline(stream, line)) {
         if (line.substr(0, 3) == "```") {
             if (inCodeBlock) {
-                codeSnippets.push_back(language + "\n" + codeSnippet.str());
+                codeSnippets.push_back(language + " " + filename + "\n" + codeSnippet.str());
                 codeSnippet.str("");
                 inCodeBlock = false;
             } else {
@@ -468,6 +470,8 @@ std::vector<std::string> OpenAIPromptEngine::extractCodeSnippet(const std::strin
             }
         } else if (inCodeBlock) {
             codeSnippet << line << '\n';
+        } else {
+            filename = line; // Get the filename from the line above the code block
         }
     }
     return codeSnippets;
@@ -477,19 +481,30 @@ std::map<std::string, std::vector<std::string>> originalFileContents;
 
 std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::string& message) {
     std::vector<std::string> codeBlocks = extractCodeSnippet(message);
+    std::string directory = "";
     if (codeBlocks.empty()) {
         return "";
     }
+    if(files.empty()) {
+        auto t = std::time(nullptr);
+        auto tm = *std::localtime(&t);
+        std::ostringstream oss;
+        oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+        std::string timestamp = oss.str();
+        directory = "project-" + timestamp + "/";
+        std::filesystem::create_directory(".DTT-Data/" + directory);
+    }
     if (codeBlocks.size() > files.size()) {
         for (size_t j = files.size(); j < codeBlocks.size(); j++) {
-            auto t = std::time(nullptr);
-            auto tm = *std::localtime(&t);
-            std::ostringstream oss;
-            oss << std::put_time(&tm, "%Y%m%d%H%M%S");
-            std::string timestamp = oss.str();
-            std::string language = codeBlocks[j].substr(0, codeBlocks[j].find('\n'));
+            std::string languageAndFileName = codeBlocks[j].substr(0, codeBlocks[j].find('\n'));
+            std::istringstream iss(languageAndFileName);
+            std::string language, fileName;
+            iss >> language >> fileName;
+            if (fileName.empty()) {
+                continue; // Skip if no filename is given
+            }
             std::string extension = getFileExtensionForLanguage(language);
-            files.push_back(".DTT-Data/new_file_" + timestamp + "_" + std::to_string(j) + "." + extension);
+            files.push_back(".DTT-Data/" + directory + fileName);
             std::cout << "New file created: " << files.back() << std::endl;
         }
     }
@@ -498,39 +513,30 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     std::string fileToChange;
     for (const auto& codeBlock : codeBlocks) {
         try {
-            std::string language = codeBlock.substr(0, codeBlock.find('\n'));
-            std::string extension = getFileExtensionForLanguage(language);
-            fileToChange = files[i];
-            if (fileToChange.find_last_of(".") != std::string::npos) {
-                std::string fileExtension = fileToChange.substr(fileToChange.find_last_of(".") + 1);
-                if (fileExtension != extension) {
-                    std::string oldFileName = fileToChange;
-                    std::string newFileName = fileToChange.substr(0, fileToChange.find_last_of(".")) + "." + extension;
-                    std::ifstream oldFile(oldFileName);
-                    std::vector<std::string> oldContent;
-                    std::string line;
-                    while(std::getline(oldFile, line)) {
-                        oldContent.push_back(line);
-                    }
-                    oldFile.close();
-                    std::ofstream newFile(newFileName);
-                    for (const auto& l : oldContent) {
-                        newFile << l << "\n";
-                    }
-                    newFile.close();
-                    std::remove(oldFileName.c_str());
-                    fileToChange = newFileName;
-                    files[i] = newFileName;
-                }
-            } else {
-                fileToChange += "." + extension;
-                files[i] = fileToChange;
+            std::string languageAndFileName = codeBlock.substr(0, codeBlock.find('\n'));
+            std::istringstream iss(languageAndFileName);
+            std::string language, fileName;
+            iss >> language >> fileName;
+            if (fileName.empty()) {
+                continue; // Skip if no filename is given
             }
-            
+            fileName = sanitizeFileName(fileName); // Sanitize the file name
+            std::string extension = getFileExtensionForLanguage(language);
+            bool fileFound = false;
+            for (const auto& file : files) {
+                if (file.find(fileName) != std::string::npos) {
+                    fileToChange = file;
+                    fileFound = true;
+                    break;
+                }
+            }
+            if (!fileFound) {
+                std::cout << "No matching file found for: " << fileName << std::endl;
+                continue;
+            }
             std::vector<std::string> originalLines;
             std::vector<std::string> newLines;
             std::vector<std::string> updatedLines;
-            
             std::ifstream inFile(fileToChange);
             if (inFile.is_open()) {
                 std::string line;
@@ -539,19 +545,15 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 }
                 inFile.close();
             }
-            
             originalFileContents[fileToChange] = originalLines;
-            
             std::stringstream ss(codeBlock);
             std::string line;
             while (std::getline(ss, line)) {
                 newLines.push_back(line);
             }
-            
             if (!newLines.empty()) {
                 newLines.erase(newLines.begin());
             }
-            
             if (!originalLines.empty() && newLines.size() == originalLines.size() &&
                 std::equal(originalLines.begin(), originalLines.end(), newLines.begin())) {
                 updatedLines = newLines;
@@ -570,16 +572,15 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                         updatedLines[startIndex + j] = newLines[j];
                     }
                 } else {
-                    updatedLines = newLines;
+                    updatedLines = originalLines;
+                    updatedLines.insert(updatedLines.end(), newLines.begin(), newLines.end());
                 }
             }
-            
             std::ofstream outFile(fileToChange);
             for (const auto& updatedLine : updatedLines) {
                 outFile << updatedLine << "\n";
             }
             outFile.close();
-            
             changesSummary << "\033[1;34m" << fileToChange << "\033[0m\n";
             size_t commonLines = std::min(originalLines.size(), newLines.size());
             for (size_t j = 0; j < commonLines; j++) {
@@ -610,7 +611,14 @@ std::string OpenAIPromptEngine::getFileExtensionForLanguage(const std::string& l
     if (language == "java") return "java";
     if (language == "python") return "py";
     if (language == "javascript") return "js";
+    if (language == "js") return "js";
     if (language == "typescript") return "ts";
+    if (language == "ts") return "ts";
+    if (language == "asm") return "asm";
+    if (language == "assembly") return "asm";
+    if (language == "bash") return "sh";
+    if (language == "shell") return "sh";
+    if (language == "sh") return "sh";
     if (language == "csharp") return "cs";
     if (language == "cpp") return "cpp";
     if (language == "c") return "c";
@@ -618,6 +626,10 @@ std::string OpenAIPromptEngine::getFileExtensionForLanguage(const std::string& l
     if (language == "css") return "css";
     if (language == "json") return "json";
     if (language == "xml") return "xml";
+    if (language == "markdown") return "md";
+    if (language == "md") return "md";
+    if (language == "gitignore") return ".gitignore";
+    if (language == "nasm") return "asm";
     return "txt";
 }
 
@@ -704,4 +716,14 @@ bool OpenAIPromptEngine::testAPIKey(const std::string& apiKey) {
     curl_easy_cleanup(curl);
 
     return (res == CURLE_OK && response_code == 200);
+}
+
+std::string OpenAIPromptEngine::sanitizeFileName(const std::string& fileName) {
+    std::string sanitized;
+    for (char c : fileName) {
+        if (std::isalnum(c) || c == '.' || c == '_') {
+            sanitized += c;
+        }
+    }
+    return sanitized;
 }

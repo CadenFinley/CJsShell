@@ -85,6 +85,9 @@ private:
     static std::string formatMarkdown(const std::string& text);
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp);
     std::string getFileExtensionForLanguage(const std::string& language);
+    std::vector<std::string> splitString(const std::string& str, char delimiter);
+    std::string sanitizeFileName(const std::string& fileName);
+
 
     // Member Variables
     std::string USER_API_KEY;
