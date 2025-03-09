@@ -133,6 +133,13 @@ DevToolsTerminal LITE is a lightweight terminal emulator with integrated OpenAI 
 | `!user text defaultentry ai` | Set default input mode to AI |
 | `!user text defaultentry terminal` | Set default input mode to terminal |
 
+#### Color Interface
+The terminal features color-coded interface elements:
+- Green: AI interactions and successful operations
+- Red: Error messages and development mode indicators
+- Purple: Application branding and highlights
+- Default: Standard command input and output
+
 #### Data Management
 | Command | Description |
 |---------|-------------|
@@ -142,6 +149,8 @@ DevToolsTerminal LITE is a lightweight terminal emulator with integrated OpenAI 
 | `!user data clear` | Clear all user data |
 | `!user data saveloop enable` | Enable automatic data saving |
 | `!user data saveloop disable` | Disable automatic data saving |
+| `!user saveonexit enable` | Enable saving data on exit |
+| `!user saveonexit disable` | Disable saving data on exit |
 
 #### Testing
 | Command | Description |
@@ -170,6 +179,7 @@ Adding files to the AI context allows the assistant to:
 - Reference specific code during conversations
 - Understand project structure and dependencies
 - Provide more relevant and accurate answers to code-related questions
+- Refresh file content with `!ai file refresh` to ensure latest changes are included
 
 ## Terminal Features
 

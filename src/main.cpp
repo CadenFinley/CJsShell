@@ -1257,6 +1257,7 @@ void aiSettingsCommands() {
         std::cout << "dump" << std::endl;
         std::cout << "mode: [ARGS]" << std::endl;
         std::cout << "file: add [ARGS], remove [ARGS], active, available, refresh" << std::endl;
+        std::cout << "directory: set, clear" << std::endl;
         std::cout << "model: [ARGS]" << std::endl;
         std::cout << "rejectchanges" << std::endl;
         std::cout << "timeoutflag: [ARGS]" << std::endl;
