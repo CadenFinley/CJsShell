@@ -292,7 +292,7 @@ std::string OpenAIPromptEngine::buildPrompt(const std::string& message) {
         prompt << "] This is the latest message from the user: [" << message << "] ";
     } else {
         if (assistantType == "code-interpreter") {
-            prompt << message << "Please only return code in your response if edits were made.  Please use markdown syntax in your response for the code. Include only the exact file name and only thr file name in the line above. " ;
+            prompt << message << "Please only return code in your response if edits were made and only make edits that the I request.  Please use markdown syntax in your response for the code. Include only the exact file name and only the file name in the line above. " ;
         } else {
             prompt << " This is the first message from the user: [" << message << "] ";
         }
