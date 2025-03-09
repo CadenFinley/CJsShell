@@ -498,20 +498,18 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
             if (fileName.empty()) {
                 continue;
             }
-            std::string extension = getFileExtensionForLanguage(language);
             if (fileName.find("/") != std::string::npos) {
                 std::filesystem::create_directories(".DTT-Data/" + directory + fileName.substr(0, fileName.find_last_of("/")));
                 std::cout << "New file created: " << files.back() << std::endl;
+                files.push_back(".DTT-Data/" + directory + fileName);
                 fileName = fileName.substr(fileName.find_last_of("/") + 1);
                 codeBlocks[j] = language + " " + fileName + codeBlocks[j].substr(codeBlocks[j].find('\n'));
-                files.push_back(".DTT-Data/" + directory + fileName);
             } else {
                 files.push_back(".DTT-Data/" + directory + fileName);
                 std::cout << "New file created: " << files.back() << std::endl;
             }
         }
     }
-    size_t i = 0;
     std::stringstream changesSummary;
     std::string fileToChange;
     for (const auto& codeBlock : codeBlocks) {
@@ -524,7 +522,6 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 continue;
             }
             fileName = sanitizeFileName(fileName);
-            std::string extension = getFileExtensionForLanguage(language);
             bool fileFound = false;
             for (const auto& file : files) {
                 if (file.find(fileName) != std::string::npos) {
@@ -604,36 +601,9 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
         } catch (const std::exception& e) {
             return "\nFailed to apply changes to file: " + fileToChange;
         }
-        i++;
     }
     refreshFiles();
     return "\nSuccessfully applied changes to files.\nChanges Summary:\n" + changesSummary.str();
-}
-
-std::string OpenAIPromptEngine::getFileExtensionForLanguage(const std::string& language) {
-    if (language == "java") return "java";
-    if (language == "python") return "py";
-    if (language == "javascript") return "js";
-    if (language == "js") return "js";
-    if (language == "typescript") return "ts";
-    if (language == "ts") return "ts";
-    if (language == "asm") return "asm";
-    if (language == "assembly") return "asm";
-    if (language == "bash") return "sh";
-    if (language == "shell") return "sh";
-    if (language == "sh") return "sh";
-    if (language == "csharp") return "cs";
-    if (language == "cpp") return "cpp";
-    if (language == "c") return "c";
-    if (language == "html") return "html";
-    if (language == "css") return "css";
-    if (language == "json") return "json";
-    if (language == "xml") return "xml";
-    if (language == "markdown") return "md";
-    if (language == "md") return "md";
-    if (language == "gitignore") return ".gitignore";
-    if (language == "nasm") return "asm";
-    return "txt";
 }
 
 void OpenAIPromptEngine::rejectChanges() {

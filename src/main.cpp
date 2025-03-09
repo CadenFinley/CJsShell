@@ -1209,6 +1209,7 @@ void aiChatCommands() {
         if (lastCommandParsed == "clear") {
             openAIPromptEngine.clearChatCache();
             savedChatCache.clear();
+            openAIPromptEngine.clearAllCachedTokens();
             std::cout << "Chat history cleared." << std::endl;
             return;
         }
@@ -1230,8 +1231,7 @@ void aiChatCommands() {
             return;
         }
         if (lastCommandParsed == "clear") {
-            openAIPromptEngine.clearChatCache();
-            savedChatCache.clear();
+            openAIPromptEngine.clearAllCachedTokens();
             std::cout << "Chat history cleared." << std::endl;
             return;
         }
@@ -1260,7 +1260,7 @@ void chatProcess(const std::string& message) {
         return;
     }
     std::string response = openAIPromptEngine.chatGPT(message,false);
-    std::cout << "ChatGPT: " << response << std::endl;
+    std::cout << "ChatGPT:\n" << response << std::endl;
 }
 
 void showChatHistory() {
