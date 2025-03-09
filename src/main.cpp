@@ -22,7 +22,7 @@ bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
 bool usingChatCache = true;
 bool saveLoop = false;
-bool saveOnExit = true;ß
+bool saveOnExit = true;
 bool rawEnabled = false;
 
 std::string commandPrefix = "!";
