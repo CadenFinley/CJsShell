@@ -18,6 +18,7 @@ class OpenAIPromptEngine {
 public:
     OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction);
     OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles);
+    OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles, const std::string& saveDirectory);
     OpenAIPromptEngine();
 
     void setAPIKey(const std::string& apiKey);
@@ -55,6 +56,8 @@ public:
     float getDynamicPromptLengthScale() const;
     void removeFile(const std::string& userFile);
     void clearFiles();
+    void setSaveDirectory(const std::string& directory);
+    std::string getSaveDirectory() const;
 
     std::string chatGPT(const std::string& message, bool format);
     std::string forceDirectChatGPT(const std::string& message, bool format);
@@ -102,6 +105,7 @@ private:
     std::string lastPromptUsed;
     std::string lastResponseReceived;
     std::map<std::string, nlohmann::json> responseDataMap;
+    std::string saveDirectory;
 };
 
 #endif // OPENAIPROMPTENGINE_H

@@ -8,6 +8,11 @@ OpenAIPromptEngine::OpenAIPromptEngine(const std::string& apiKey, const std::str
     initialize(apiKey, assistantType, initialInstruction, userFiles);
 }
 
+OpenAIPromptEngine::OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles, const std::string& saveDirectory) {
+    initialize(apiKey, assistantType, initialInstruction, userFiles);
+    setSaveDirectory(saveDirectory);
+}
+
 OpenAIPromptEngine::OpenAIPromptEngine() {}
 
 void OpenAIPromptEngine::setAPIKey(const std::string& apiKey) {
@@ -158,6 +163,18 @@ void OpenAIPromptEngine::setDynamicPromptLengthScale(float dynamicPromptLengthSc
 
 float OpenAIPromptEngine::getDynamicPromptLengthScale() const {
     return dynamicPromptLengthScale;
+}
+
+void OpenAIPromptEngine::setSaveDirectory(const std::string& directory) {
+    if(directory.back() == '/') {
+        saveDirectory = directory;
+    } else {
+        saveDirectory = directory + "/";
+    }
+}
+
+std::string OpenAIPromptEngine::getSaveDirectory() const {
+    return saveDirectory;
 }
 
 std::string OpenAIPromptEngine::chatGPT(const std::string& message, bool format) {
@@ -479,17 +496,17 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     if (codeBlocks.empty()) {
         return "";
     }
-    std::string directory = "";
-    if(files.empty()) {
-        auto t = std::chrono::system_clock::now();
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()) % 1000;
-        auto tm = std::chrono::system_clock::to_time_t(t);
-        std::ostringstream oss;
-        oss << std::put_time(std::localtime(&tm), "%H-%M-%S_%Y-%m-%d");
-        std::string timestamp = oss.str();
-        directory = "project_" + timestamp + "/";
-        std::filesystem::create_directory(".DTT-Data/" + directory);
-    }
+    std::string directory = saveDirectory;
+    // if(files.empty()) {
+    //     auto t = std::chrono::system_clock::now();
+    //     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()) % 1000;
+    //     auto tm = std::chrono::system_clock::to_time_t(t);
+    //     std::ostringstream oss;
+    //     oss << std::put_time(std::localtime(&tm), "%H-%M-%S_%Y-%m-%d");
+    //     std::string timestamp = oss.str();
+    //     directory = "project_" + timestamp + "/";
+    //     std::filesystem::create_directory(".DTT-Data/" + directory);
+    // }
     if (codeBlocks.size() > files.size()) {
         for (size_t j = files.size(); j < codeBlocks.size(); j++) {
             std::string languageAndFileName = codeBlocks[j].substr(0, codeBlocks[j].find('\n'));
@@ -500,13 +517,13 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 continue;
             }
             if (fileName.find("/") != std::string::npos) {
-                std::filesystem::create_directories(".DTT-Data/" + directory + fileName.substr(0, fileName.find_last_of("/")));
+                std::filesystem::create_directories(directory + fileName.substr(0, fileName.find_last_of("/")));
                 std::cout << "New file created: " << files.back() << std::endl;
-                files.push_back(".DTT-Data/" + directory + fileName);
+                files.push_back(directory + fileName);
                 fileName = fileName.substr(fileName.find_last_of("/") + 1);
                 codeBlocks[j] = language + " " + fileName + codeBlocks[j].substr(codeBlocks[j].find('\n'));
             } else {
-                files.push_back(".DTT-Data/" + directory + fileName);
+                files.push_back(directory + fileName);
                 std::cout << "New file created: " << files.back() << std::endl;
             }
         }
@@ -532,8 +549,18 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
                 }
             }
             if (!fileFound) {
-                std::cout << "No matching file found for: " << fileName << std::endl;
-                continue;
+                std::filesystem::path newFilePath = saveDirectory + fileName;
+                std::filesystem::create_directories(newFilePath.parent_path());
+                std::ofstream newFile(newFilePath);
+                if (newFile.is_open()) {
+                    newFile.close();
+                    fileToChange = newFilePath.string();
+                    files.push_back(fileToChange);
+                    std::cout << "New file created: " << fileToChange << std::endl;
+                } else {
+                    std::cerr << "Failed to create new file: " << newFilePath << std::endl;
+                    continue;
+                }
             }
             std::vector<std::string> originalLines;
             std::vector<std::string> newLines;

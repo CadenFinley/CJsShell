@@ -88,7 +88,7 @@ int main() {
     shortcuts = {};
     multiScriptShortcuts = {};
     terminal = TerminalPassthrough();
-    openAIPromptEngine = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.");
+    openAIPromptEngine = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
     applicationDirectory = std::filesystem::current_path().string();
     if (applicationDirectory.find(":") != std::string::npos) {
@@ -1205,6 +1205,23 @@ void aiSettingsCommands() {
         }
         std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
         return;
+    }
+    if(lastCommandParsed == "directory"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "The current directory is " << openAIPromptEngine.getSaveDirectory() << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "set") {
+            openAIPromptEngine.setSaveDirectory(terminal.getCurrentFilePath());
+            std::cout << "Directory set to " << terminal.getCurrentFilePath() << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "clear") {
+            openAIPromptEngine.setSaveDirectory(".DTT-Data");
+            std::cout << "Directory set to default." << std::endl;
+            return;
+        }
     }
     if(lastCommandParsed == "model"){
         getNextCommand();
