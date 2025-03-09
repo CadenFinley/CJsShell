@@ -141,6 +141,7 @@ int getTerminalWidth(){
  */
 void mainProcessLoop() {
     std::string terminalSetting;
+    int terminalSettingLength;
     setRawMode(true);
     while (true) {
         if (saveLoop) {
@@ -151,8 +152,10 @@ void mainProcessLoop() {
         }
         if (defaultTextEntryOnAI) {
             terminalSetting = GREEN_COLOR_BOLD + "AI Menu: " + RESET_COLOR;
+            terminalSettingLength = 9;
         } else {
             terminalSetting = terminal.returnCurrentTerminalPosition();
+            terminalSettingLength = terminal.getTerminalCurrentPositionRawLength();
         }
         std::cout << terminalSetting;
         char c;
@@ -189,7 +192,7 @@ void mainProcessLoop() {
                 commandLines[cursorPositionY].insert(cursorPositionX, 1, c);
                 int currentLineLength;
                 if(cursorPositionY == 0){
-                    currentLineLength = commandLines[cursorPositionY].length() + terminal.getTerminalCurrentPositionRawLength();
+                    currentLineLength = commandLines[cursorPositionY].length() + terminalSettingLength;
                 } else {
                     currentLineLength = commandLines[cursorPositionY].length();
                 }
