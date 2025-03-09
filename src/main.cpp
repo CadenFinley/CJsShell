@@ -18,6 +18,7 @@ bool TESTING = false;
 bool shotcutsEnabled = true;
 bool startCommandsOn = true;
 bool runningStartup = false;
+bool exitFlag = false;
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -31,13 +32,14 @@ std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 
+std::string titleLine = "DevToolsTerminal LITE - Caden Finley (c) 2025";
+std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
+
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::map<std::string, std::string> shortcuts;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
-bool textBuffer = false;
 bool defaultTextEntryOnAI = false;
-bool incognitoChatMode = false;
 bool usingChatCache = true;
 bool saveLoop = false;
 bool rawEnabled = false;
@@ -68,7 +70,6 @@ void startupCommandsHandler();
 void shortcutCommands();
 void textCommands();
 void getNextCommand();
-void exit();
 void aiSettingsCommands();
 void aiChatCommands();
 void chatProcess(const std::string& message);
@@ -80,7 +81,6 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
 void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
 void clearLines(const std::vector<std::string>& commandLines);
-void executeFile();
 
 int main() {
     std::cout << "Loading..." << std::endl;
@@ -119,10 +119,15 @@ int main() {
         }
         runningStartup = false;
     }
-    
-    std::cout << "DevToolsTerminal LITE - Caden Finley (c) 2025" << std::endl;
-    std::cout << "Created 2025 @ " << PURPLE_COLOR_BOLD << "Abilene Chrsitian University" << RESET_COLOR << std::endl;
+
+    std::cout << titleLine << std::endl;
+    std::cout << createdLine << std::endl;
+
     mainProcessLoop();
+    std::cout << "Exiting..." << std::endl;
+    savedChatCache = openAIPromptEngine.getChatCache();
+    writeUserData();
+    setRawMode(false);
     return 0;
 }
 
@@ -207,6 +212,9 @@ void mainProcessLoop() {
         setRawMode(false);
         commandParser(finalCommand);
         setRawMode(true);
+        if (exitFlag) {
+            break;
+        }
     }
 }
 
@@ -341,7 +349,6 @@ void loadUserData() {
         if(userData.contains("Startup_Commands")){startupCommands = userData["Startup_Commands"].get<std::vector<std::string>>();}
         if(userData.contains("Shortcuts_Enabled")){shotcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();}
         if(userData.contains("Shortcuts")){shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string>>();}
-        if(userData.contains("Text_Buffer")){textBuffer = userData["Text_Buffer"].get<bool>();}
         if(userData.contains("Text_Entry")){defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();}
         if(userData.contains("Command_Prefix")){commandPrefix = userData["Command_Prefix"].get<std::string>();}
         if (userData.contains("Multi_Script_Shortcuts")){multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();}
@@ -360,7 +367,7 @@ void writeUserData() {
         userData["Startup_Commands"] = startupCommands;
         userData["Shortcuts_Enabled"] = shotcutsEnabled;
         userData["Shortcuts"] = shortcuts;
-        userData["Text_Buffer"] = textBuffer;
+        userData["Text_Buffer"] = false;
         userData["Text_Entry"] = defaultTextEntryOnAI;
         userData["Command_Prefix"] = commandPrefix;
         userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
@@ -532,8 +539,6 @@ void commandProcesser(const std::string& command) {
     getNextCommand();
     if (lastCommandParsed == "approot") {
         goToApplicationDirectory();
-    } else if(lastCommandParsed == "execute") {
-        executeFile();
     } else if (lastCommandParsed == "clear") {
         std::cout << "Clearing screen and terminal cache..." << std::endl;
         std::cout << "\033[2J\033[1;1H";
@@ -564,7 +569,7 @@ void commandProcesser(const std::string& command) {
             return;
         }
     } else if (lastCommandParsed == "exit") {
-        exit();
+        exitFlag = true;
     } else if (lastCommandParsed == "help") {
         std::cout << "Commands:" << std::endl;
         std::cout << "Command Prefix: " + commandPrefix << std::endl;
@@ -583,6 +588,10 @@ void commandProcesser(const std::string& command) {
 void sendTerminalCommand(const std::string& command) {
     if (TESTING) {
         std::cout << "Sending Command: " << command << std::endl;
+    }
+    if(command == "exit"){
+        exitFlag = true;
+        return;
     }
     std::thread commandThread = terminal.executeCommand(command);
     commandThread.join();
@@ -984,18 +993,6 @@ void getNextCommand() {
     }
 }
 
-void exit() {
-    if(!incognitoChatMode){
-        savedChatCache = openAIPromptEngine.getChatCache();
-    } else {
-        savedChatCache.clear();
-    }
-    writeUserData();
-    setRawMode(false);
-    std::cout << "Exiting..." << std::endl;
-    std::exit(0);
-}
-
 void aiSettingsCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -1249,6 +1246,14 @@ void chatProcess(const std::string& message) {
     if (message.empty()) {
         return;
     }
+    if(message == "exit"){
+        exitFlag = true;
+        return;
+    }
+    if(message == "clear"){
+        sendTerminalCommand("clear");
+        return;
+    }
     if (openAIPromptEngine.getAPIKey().empty()) {
         std::cerr << "Error: No OpenAPI key set. Please set the API key using 'ai apikey set [KEY]'." << std::endl;
         return;
@@ -1263,13 +1268,5 @@ void showChatHistory() {
         for (const auto& message : openAIPromptEngine.getChatCache()) {
             std::cout << message << std::endl;
         }
-    }
-}
-
-void executeFile(){
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
     }
 }
