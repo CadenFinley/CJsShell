@@ -16,12 +16,10 @@ using json = nlohmann::json;
 
 class OpenAIPromptEngine {
 public:
-    // Constructors
     OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction);
     OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles);
     OpenAIPromptEngine();
 
-    // Getters and Setters
     void setAPIKey(const std::string& apiKey);
     std::string getAPIKey() const;
     void setInitialInstruction(const std::string& instruction);
@@ -58,7 +56,6 @@ public:
     void removeFile(const std::string& userFile);
     void clearFiles();
 
-    // Public Methods
     std::string chatGPT(const std::string& message, bool format);
     std::string forceDirectChatGPT(const std::string& message, bool format);
     int setFiles(const std::vector<std::string>& userFiles);
@@ -70,7 +67,6 @@ public:
     void refreshFiles();
 
 private:
-    // Private Methods
     void initialize(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles);
     bool isValidConfiguration() const;
     std::string getInvalidConfigurationMessage() const;
@@ -89,7 +85,6 @@ private:
     std::vector<std::string> splitString(const std::string& str, char delimiter);
     std::string sanitizeFileName(const std::string& fileName);
 
-    // Member Variables
     std::string USER_API_KEY;
     std::string initialInstruction;
     std::string assistantType;

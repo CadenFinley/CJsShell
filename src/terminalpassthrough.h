@@ -16,13 +16,11 @@ class TerminalPassthrough {
 public:
     TerminalPassthrough();
 
-    // Terminal information methods
     std::string getTerminalName();
     std::string returnCurrentTerminalPosition();
     int getTerminalCurrentPositionRawLength();
     void printCurrentTerminalPosition();
 
-    // Path and file methods
     std::vector<std::string> getFilesAtCurrentPath();
     std::string getFullPathOfFile(const std::string& file);
     std::string getCurrentFilePath();
@@ -30,13 +28,11 @@ public:
     void toggleDisplayWholePath();
     bool isDisplayWholePath();
 
-    // Command execution methods
     std::thread executeCommand(std::string command);
     void addCommandToHistory(const std::string& command);
     std::string getPreviousCommand();
     std::string getNextCommand();
 
-    // Cache methods
     std::vector<std::string> getTerminalCacheUserInput();
     std::vector<std::string> getTerminalCacheTerminalOutput();
     void clearTerminalCache();
@@ -55,7 +51,6 @@ private:
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
 
-    // Helper methods
     std::string getCurrentFileName();
     bool isRootPath(const fs::path& path);
 };
