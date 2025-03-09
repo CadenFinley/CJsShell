@@ -481,12 +481,13 @@ std::string OpenAIPromptEngine::processCodeBlocksForCodeInterpreter(const std::s
     }
     std::string directory = "";
     if(files.empty()) {
-        auto t = std::time(nullptr);
-        auto tm = *std::localtime(&t);
+        auto t = std::chrono::system_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()) % 1000;
+        auto tm = std::chrono::system_clock::to_time_t(t);
         std::ostringstream oss;
-        oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+        oss << std::put_time(std::localtime(&tm), "%H-%M-%S_%Y-%m-%d");
         std::string timestamp = oss.str();
-        directory = "project-" + timestamp + "/";
+        directory = "project_" + timestamp + "/";
         std::filesystem::create_directory(".DTT-Data/" + directory);
     }
     if (codeBlocks.size() > files.size()) {
