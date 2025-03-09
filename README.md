@@ -161,7 +161,7 @@ The application supports three OpenAI assistant modes:
 ### Code Interpreter Mode
 When using the code-interpreter mode, the assistant can:
 - Read existing code files
-- Suggest changes to code files and automattically apply them (similar or Github Copilot)
+- Suggest changes to code files and automattically apply them (similar to Github Copilot)
 - Create new files in the .DTT-Data directory
 - Show diffs of the changes made
 
