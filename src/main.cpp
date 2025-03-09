@@ -141,7 +141,7 @@ void mainProcessLoop() {
             writeUserData();
         }
         if (TESTING) {
-            std::cout << RED_COLOR_BOLD << "DEV MODE " << rawEnabled << RESET_COLOR << std::endl;
+            std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
         }
         if (defaultTextEntryOnAI) {
             terminalSetting = GREEN_COLOR_BOLD + "AI Menu: " + RESET_COLOR;
@@ -586,9 +586,6 @@ void sendTerminalCommand(const std::string& command) {
     }
     std::thread commandThread = terminal.executeCommand(command);
     commandThread.join();
-    if (TESTING) {
-        std::cout << "Command Thread Joined." << std::endl;
-    }
 }
 
 void userSettingsCommands() {
