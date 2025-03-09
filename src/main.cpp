@@ -319,7 +319,7 @@ void createNewUSER_DATAFile() {
         writeUserData();
         file.close();
     } else {
-        std::cout << "An error occurred while creating the user data file." << std::endl;
+        std::cerr << "Error: Unable to create the user data file at " << USER_DATA << std::endl;
     }
 }
 
@@ -327,7 +327,7 @@ void createNewUSER_HISTORYfile() {
     std::cout << "User history file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_COMMAND_HISTORY);
     if (!file.is_open()) {
-        std::cout << "An error occurred while creating the user history file." << std::endl;
+        std::cerr << "Error: Unable to create the user history file at " << USER_COMMAND_HISTORY << std::endl;
     }
 }
 
@@ -350,7 +350,7 @@ void loadUserData() {
         if (userData.contains("Multi_Script_Shortcuts")){multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();}
         file.close();
     } else {
-        std::cout << "An error occurred while reading the user data file." << std::endl;
+        std::cerr << "Error: Unable to read the user data file at " << USER_DATA << std::endl;
     }
 }
 
@@ -370,7 +370,7 @@ void writeUserData() {
         file << userData.dump(4);
         file.close();
     } else {
-        std::cout << "An error occurred while writing to the user data file." << std::endl;
+        std::cerr << "Error: Unable to write to the user data file at " << USER_DATA << std::endl;
     }
 }
 
@@ -386,7 +386,7 @@ std::string readAndReturnUserDataFile() {
         file.close();
         return userData.empty() ? "No data found." : userData;
     } else {
-        std::cout << "An error occurred while reading the user data file." << std::endl;
+        std::cerr << "Error: Unable to read the user data file at " << USER_DATA << std::endl;
         return "";
     }
 }
@@ -449,7 +449,7 @@ void addUserInputToHistory(const std::string& input) {
         file << std::to_string(time(nullptr)) << " " << input << "\n";
         file.close();
     } else {
-        std::cout << "An error occurred while writing to the user input history file." << std::endl;
+        std::cerr << "Error: Unable to write to the user input history file at " << USER_COMMAND_HISTORY << std::endl;
     }
 }
 
@@ -649,72 +649,72 @@ void userSettingsCommands() {
 
 void userDataCommands(){
     getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "get") {
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-                return;
-            }
-            if (lastCommandParsed == "userdata") {
-                std::cout << readAndReturnUserDataFile() << std::endl;
-                return;
-            }
-            if (lastCommandParsed == "userhistory") {
-                std::ifstream file(USER_COMMAND_HISTORY);
-                if (file.is_open()) {
-                    std::string history((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-                    file.close();
-                    std::cout << history << std::endl;
-                } else {
-                    std::cout << "An error occurred while reading the user history file." << std::endl;
-                }
-                return;
-            }
-            if (lastCommandParsed == "all") {
-                std::cout << readAndReturnUserDataFile() << std::endl;
-                std::ifstream file(USER_COMMAND_HISTORY);
-                if (file.is_open()) {
-                    std::string history((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-                    file.close();
-                    std::cout << history << std::endl;
-                } else {
-                    std::cout << "An error occurred while reading the user history file." << std::endl;
-                }
-                return;
-            }
-        }
-        if(lastCommandParsed == "saveloop"){
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-                return;
-            }
-            if (lastCommandParsed == "enable") {
-                saveLoop = true;
-                std::cout << "Text buffer enabled." << std::endl;
-                return;
-            }
-            if (lastCommandParsed == "disable") {
-                saveLoop = false;
-                std::cout << "Text buffer disabled." << std::endl;
-                return;
-            }
-        }
-        if (lastCommandParsed == "clear") {
-            std::filesystem::remove(USER_DATA);
-            createNewUSER_DATAFile();
-            std::cout << "User data file cleared." << std::endl;
-            std::filesystem::remove(USER_COMMAND_HISTORY);
-            createNewUSER_HISTORYfile();
-            std::cout << "User history file cleared." << std::endl;
-            return;
-        }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    if (lastCommandParsed.empty()) {
+        std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
         return;
+    }
+    if (lastCommandParsed == "get") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "userdata") {
+            std::cout << readAndReturnUserDataFile() << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "userhistory") {
+            std::ifstream file(USER_COMMAND_HISTORY);
+            if (file.is_open()) {
+                std::string history((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                std::cout << history << std::endl;
+            } else {
+                std::cerr << "Error: Unable to read the user history file at " << USER_COMMAND_HISTORY << std::endl;
+            }
+            return;
+        }
+        if (lastCommandParsed == "all") {
+            std::cout << readAndReturnUserDataFile() << std::endl;
+            std::ifstream file(USER_COMMAND_HISTORY);
+            if (file.is_open()) {
+                std::string history((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                std::cout << history << std::endl;
+            } else {
+                std::cerr << "Error: Unable to read the user history file at " << USER_COMMAND_HISTORY << std::endl;
+            }
+            return;
+        }
+    }
+    if(lastCommandParsed == "saveloop"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "enable") {
+            saveLoop = true;
+            std::cout << "Save loop enabled." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "disable") {
+            saveLoop = false;
+            std::cout << "Save loop disabled." << std::endl;
+            return;
+        }
+    }
+    if (lastCommandParsed == "clear") {
+        std::filesystem::remove(USER_DATA);
+        createNewUSER_DATAFile();
+        std::cout << "User data file cleared." << std::endl;
+        std::filesystem::remove(USER_COMMAND_HISTORY);
+        createNewUSER_HISTORYfile();
+        std::cout << "User history file cleared." << std::endl;
+        return;
+    }
+    std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
+    return;
 }
 
 void startupCommandsHandler() {
@@ -1020,28 +1020,28 @@ void aiSettingsCommands() {
             file.close();
             std::cout << "Chat log saved to " << fileName << std::endl;
         } else {
-            std::cout << "An error occurred while creating the chat file." << std::endl;
+            std::cerr << "Error: Unable to create the chat log file at " << fileName << std::endl;
             return;
         }
     }
     if (lastCommandParsed == "apikey") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
             return;
         }
         if (lastCommandParsed == "set") {
             getNextCommand();
             if (lastCommandParsed.empty()) {
-                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                std::cerr << "Error: No API key provided. Try 'help' for a list of commands." << std::endl;
                 return;
             }
             openAIPromptEngine.setAPIKey(lastCommandParsed);
             if (openAIPromptEngine.testAPIKey(openAIPromptEngine.getAPIKey())) {
-                std::cout << "OpenAI API key set." << std::endl;
+                std::cout << "OpenAI API key set successfully." << std::endl;
                 return;
             } else {
-                std::cout << "Invalid API key." << std::endl;
+                std::cerr << "Error: Invalid API key." << std::endl;
                 return;
             }
         }
@@ -1049,7 +1049,7 @@ void aiSettingsCommands() {
             std::cout << openAIPromptEngine.getAPIKey() << std::endl;
             return;
         }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
         return;
     }
     if (lastCommandParsed == "chat") {
@@ -1059,7 +1059,7 @@ void aiSettingsCommands() {
     if (lastCommandParsed == "get") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
             return;
         }
         std::cout << openAIPromptEngine.getResponseData(lastCommandParsed) << std::endl;
@@ -1083,14 +1083,14 @@ void aiSettingsCommands() {
     if (lastCommandParsed == "file") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
             return;
         }
         std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath();
         if (lastCommandParsed == "add"){
             getNextCommand();
             if (lastCommandParsed.empty()) {
-                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
                 return;
             }
             if (lastCommandParsed == "all"){
@@ -1099,7 +1099,7 @@ void aiSettingsCommands() {
             }
             std::string fileToAdd = terminal.getFullPathOfFile(lastCommandParsed);
             if(fileToAdd.empty()){
-                std::cout << "File not found." << std::endl;
+                std::cerr << "Error: File not found." << std::endl;
                 return;
             }
             std::cout << "Processed "<<openAIPromptEngine.addFile(fileToAdd) << " characters." << std::endl;
@@ -1108,7 +1108,7 @@ void aiSettingsCommands() {
         if (lastCommandParsed == "remove"){
             getNextCommand();
             if (lastCommandParsed.empty()) {
-                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
                 return;
             }
             if (lastCommandParsed == "all"){
@@ -1117,7 +1117,7 @@ void aiSettingsCommands() {
             }
             std::string fileToRemove = terminal.getFullPathOfFile(lastCommandParsed);
             if(fileToRemove.empty()){
-                std::cout << "File not found." << std::endl;
+                std::cerr << "Error: File not found." << std::endl;
                 return;
             }
             openAIPromptEngine.removeFile(fileToRemove);
@@ -1149,7 +1149,7 @@ void aiSettingsCommands() {
             std::cout << "Files cleared." << std::endl;
             return;
         }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
         return;
     }
     if(lastCommandParsed == "model"){
@@ -1191,19 +1191,19 @@ void aiSettingsCommands() {
         std::cout << "timeoutflag: [ARGS]" << std::endl;
         return;
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
 }
 
 void aiChatCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
         return;
     }
     if (lastCommandParsed == "history") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
             return;
         }
         if (lastCommandParsed == "clear") {
@@ -1216,7 +1216,7 @@ void aiChatCommands() {
     if (lastCommandParsed == "cache") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
             return;
         }
         if (lastCommandParsed == "enable") {
@@ -1256,7 +1256,7 @@ void chatProcess(const std::string& message) {
         return;
     }
     if (openAIPromptEngine.getAPIKey().empty()) {
-        std::cout << "There is no OpenAPI key set." << std::endl;
+        std::cerr << "Error: No OpenAPI key set. Please set the API key using 'ai apikey set [KEY]'." << std::endl;
         return;
     }
     std::string response = openAIPromptEngine.chatGPT(message,false);
