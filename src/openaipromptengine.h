@@ -89,7 +89,6 @@ private:
     std::vector<std::string> splitString(const std::string& str, char delimiter);
     std::string sanitizeFileName(const std::string& fileName);
 
-
     // Member Variables
     std::string USER_API_KEY;
     std::string initialInstruction;
