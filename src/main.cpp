@@ -223,7 +223,6 @@ void clearLines(const std::vector<std::string>& commandLines){
 }
 
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting) {
-    clearLines(commandLines);
     for (int i = 0; i < commandLines.size(); i++) {
         if (i == 0) {
             std::cout << terminalSetting << commandLines[i];
@@ -270,7 +269,8 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
     switch (arrow) {
         case 'A':
             clearLines(commandLines);
-            commandLines = {""};
+            commandLines.clear();
+            commandLines.push_back("");
             command = terminal.getPreviousCommand();
             cursorPositionX = command.length();
             cursorPositionY = commandLines.size() - 1;
@@ -278,7 +278,8 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
             break;
         case 'B':
             clearLines(commandLines);
-            commandLines = {""};
+            commandLines.clear();
+            commandLines.push_back("");
             command = terminal.getNextCommand();
             cursorPositionX = command.length();
             cursorPositionY = commandLines.size() - 1;
