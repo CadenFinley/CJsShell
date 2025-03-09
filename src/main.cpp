@@ -24,17 +24,18 @@ bool usingChatCache = true;
 bool saveLoop = false;
 bool saveOnExit = true;
 bool rawEnabled = false;
+bool displayWholePath = false;
+
+const std::string GREEN_COLOR_BOLD = "\033[1;32m";
+const std::string RESET_COLOR = "\033[0m";
+const std::string RED_COLOR_BOLD = "\033[1;31m";
+const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
 std::string applicationDirectory;
 std::string titleLine = "DevToolsTerminal LITE - Caden Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
-
-const std::string GREEN_COLOR_BOLD = "\033[1;32m";
-const std::string RESET_COLOR = "\033[0m";
-const std::string RED_COLOR_BOLD = "\033[1;31m";
-const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 
 std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
@@ -1000,7 +1001,7 @@ void textCommands() {
     if(lastCommandParsed == "displayfullpath"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Display whole path is currently " << (terminal.getDisplayWholePath() ? "enabled." : "disabled.") << std::endl;
+            std::cout << "Display whole path is currently " << (terminal.isDisplayWholePath() ? "enabled." : "disabled.") << std::endl;
             return;
         }
         if(lastCommandParsed == "enable"){
@@ -1126,6 +1127,7 @@ void aiSettingsCommands() {
     }
     if (lastCommandParsed == "file") {
         getNextCommand();
+        std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath();
         if (lastCommandParsed.empty()) {
             std::vector<std::string> activeFiles = openAIPromptEngine.getFiles();
             std::cout << "Active Files: " << std::endl;
@@ -1139,7 +1141,6 @@ void aiSettingsCommands() {
             }
             return;
         }
-        std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath();
         if (lastCommandParsed == "add"){
             getNextCommand();
             if (lastCommandParsed.empty()) {
