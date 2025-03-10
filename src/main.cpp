@@ -32,7 +32,7 @@ const std::string GREEN_COLOR_BOLD = "\033[1;32m";
 const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
-const std::string updateURL = " https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
+const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string currentVersion = "1.2";
 
 std::string commandPrefix = "!";
@@ -365,20 +365,51 @@ void createNewUSER_HISTORYfile() {
 void loadUserData() {
     std::ifstream file(USER_DATA);
     if (file.is_open()) {
-        json userData;
-        file >> userData;
-        if(userData.contains("OpenAI_API_KEY")){openAIPromptEngine.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());}
-        if(userData.contains("Chat_Cache")) {
-            savedChatCache = userData["Chat_Cache"].get<std::vector<std::string>>();
-            openAIPromptEngine.setChatCache(savedChatCache);
+        // Check for an empty file to avoid parsing errors
+        if (file.peek() == std::ifstream::traits_type::eof()) {
+            std::cout << "User data file is empty. Creating new file..." << std::endl;
+            file.close();
+            createNewUSER_DATAFile();
+            return;
         }
-        if(userData.contains("Startup_Commands")){startupCommands = userData["Startup_Commands"].get<std::vector<std::string>>();}
-        if(userData.contains("Shortcuts_Enabled")){shotcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();}
-        if(userData.contains("Shortcuts")){shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string>>();}
-        if(userData.contains("Text_Entry")){defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();}
-        if(userData.contains("Command_Prefix")){commandPrefix = userData["Command_Prefix"].get<std::string>();}
-        if (userData.contains("Multi_Script_Shortcuts")){multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();}
-        file.close();
+        try {
+            json userData;
+            file >> userData;
+            // ...existing code...
+            if(userData.contains("OpenAI_API_KEY")){
+                openAIPromptEngine.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
+            }
+            if(userData.contains("Chat_Cache")) {
+                savedChatCache = userData["Chat_Cache"].get<std::vector<std::string>>();
+                openAIPromptEngine.setChatCache(savedChatCache);
+            }
+            if(userData.contains("Startup_Commands")){
+                startupCommands = userData["Startup_Commands"].get<std::vector<std::string>>();
+            }
+            if(userData.contains("Shortcuts_Enabled")){
+                shotcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
+            }
+            if(userData.contains("Shortcuts")){
+                shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string>>();
+            }
+            if(userData.contains("Text_Entry")){
+                defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();
+            }
+            if(userData.contains("Command_Prefix")){
+                commandPrefix = userData["Command_Prefix"].get<std::string>();
+            }
+            if(userData.contains("Multi_Script_Shortcuts")){
+                multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();
+            }
+            // ...existing code...
+            file.close();
+        }
+        catch(const json::parse_error& e) {
+            std::cerr << "Error parsing user data file: " << e.what() << "\nCreating new file." << std::endl;
+            file.close();
+            createNewUSER_DATAFile();
+            return;
+        }
     } else {
         std::cerr << "Error: Unable to read the user data file at " << USER_DATA << std::endl;
     }
@@ -1446,6 +1477,7 @@ bool checkForUpdate() {
                 currentVer = currentVer.substr(1);
             }
             if (isNewerVersion(latestTag, currentVer)) {
+                std::cout << currentVersion << " -> " << latestTag << std::endl;
                 return true;
             }
         }
@@ -1468,7 +1500,11 @@ bool downloadLatestRelease(){
         releaseJson += buffer;
     }
     pclose(pipe);
-    
+    // Added check for an empty response to avoid parsing errors.
+    if(releaseJson.empty()){
+        std::cerr << "Error: Empty response when fetching release info." << std::endl;
+        return false;
+    }
     try {
         json releaseData = json::parse(releaseJson);
         if(!releaseData.contains("assets") || !releaseData["assets"].is_array() || releaseData["assets"].empty()){
@@ -1478,8 +1514,6 @@ bool downloadLatestRelease(){
         std::string downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
         size_t pos = downloadUrl.find_last_of('/');
         std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
-        
-        // Download the update to the application's directory instead of /tmp
         std::string downloadPath = (std::filesystem::current_path() / filename).string();
         std::string downloadCmd = "curl -L -o " + downloadPath + " " + downloadUrl;
         int ret = system(downloadCmd.c_str());
@@ -1488,17 +1522,11 @@ bool downloadLatestRelease(){
             system(chmodCmd.c_str());
             std::cout << "Downloaded latest release asset to " << downloadPath << std::endl;
             std::cout << "Replacing current running program with updated version..." << std::endl;
-            
-            // Use the known executable path (assumed to be in the application directory with name "DevToolsTerminal")
             std::string exePath = (std::filesystem::current_path() / "DevToolsTerminal").string();
-            
-            // Replace the current executable with the downloaded update
             if(std::rename(downloadPath.c_str(), exePath.c_str()) != 0){
                 std::cerr << "Error: Failed to replace the current executable." << std::endl;
                 return false;
             }
-            
-            // Replace the running program with the new version.
             execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
             std::cerr << "Error: Failed to execute the updated program." << std::endl;
             return false;
