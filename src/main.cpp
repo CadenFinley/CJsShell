@@ -11,6 +11,7 @@
 #include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
 #include <sys/ioctl.h>
+#include <limits>
 
 using json = nlohmann::json;
 
@@ -30,11 +31,13 @@ const std::string GREEN_COLOR_BOLD = "\033[1;32m";
 const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
+const std::string updateURL = " https://api.github.com/repos/cadenfinley/DevToolsTerminal-LITE/releases/latest";
+const std::string currentVersion = "1.0";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
 std::string applicationDirectory;
-std::string titleLine = "DevToolsTerminal LITE - Caden Finley (c) 2025";
+std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 
 std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
@@ -80,9 +83,28 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
 void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
 void clearLines(const std::vector<std::string>& commandLines);
+bool checkForUpdate();
+bool downloadLatestRelease();
 
 int main() {
     std::cout << "Loading..." << std::endl;
+
+    if (checkForUpdate()) {
+        std::cout << "An update is available. Would you like to download it? (Y/N)" << std::endl;
+        char response;
+        std::cin >> response;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        if (response == 'Y' || response == 'y') {
+            if (downloadLatestRelease()) {
+                std::cout << "Update downloaded successfully. Please restart the application." << std::endl;
+                return 0;
+            } else {
+                std::cout << "Failed to download the update. Please try again later." << std::endl;
+            }
+        }
+    } else {
+        std::cout << "You are up to date!." << std::endl;
+    }
 
     startupCommands = {};
     shortcuts = {};
@@ -1349,5 +1371,109 @@ void showChatHistory() {
         for (const auto& message : openAIPromptEngine.getChatCache()) {
             std::cout << message << std::endl;
         }
+    }
+}
+
+bool checkForUpdate() {
+    std::cout << "Checking for updates..." << std::endl;
+    auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
+        auto splitVersion = [](const std::string &ver) {
+            std::vector<int> parts;
+            std::istringstream iss(ver);
+            std::string token;
+            while (std::getline(iss, token, '.')) {
+                parts.push_back(std::stoi(token));
+            }
+            return parts;
+        };
+        std::vector<int> latestParts = splitVersion(latest);
+        std::vector<int> currentParts = splitVersion(current);
+        size_t len = std::max(latestParts.size(), currentParts.size());
+        latestParts.resize(len, 0);
+        currentParts.resize(len, 0);
+        for (size_t i = 0; i < len; i++) {
+            if (latestParts[i] > currentParts[i]) return true;
+            if (latestParts[i] < currentParts[i]) return false;
+        }
+        return false;
+    };
+
+    std::string command = "curl -s " + updateURL;
+    std::string result;
+    FILE *pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::cerr << "Error: Unable to execute update check." << std::endl;
+        return false;
+    }
+    char buffer[128];
+    while (fgets(buffer, 128, pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    try {
+        json jsonData = json::parse(result);
+        if (jsonData.contains("tag_name")) {
+            std::string latestTag = jsonData["tag_name"].get<std::string>();
+            // Remove leading 'v' if present
+            if (!latestTag.empty() && latestTag[0] == 'v') {
+                latestTag = latestTag.substr(1);
+            }
+            std::string currentVer = currentVersion;
+            if (!currentVer.empty() && currentVer[0] == 'v') {
+                currentVer = currentVer.substr(1);
+            }
+            if (isNewerVersion(latestTag, currentVer)) {
+                return true;
+            }
+        }
+    } catch (std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    return false;
+}
+
+bool downloadLatestRelease(){
+    std::string releaseJson;
+    std::string curlCmd = "curl -s " + updateURL;
+    FILE* pipe = popen(curlCmd.c_str(), "r");
+    if(!pipe){
+        std::cerr << "Error: Unable to fetch release information." << std::endl;
+        return false;
+    }
+    char buffer[128];
+    while(fgets(buffer, 128, pipe) != nullptr){
+        releaseJson += buffer;
+    }
+    pclose(pipe);
+    
+    try {
+        json releaseData = json::parse(releaseJson);
+        if(!releaseData.contains("assets") || !releaseData["assets"].is_array() || releaseData["assets"].empty()){
+            std::cerr << "Error: No assets found in the latest release." << std::endl;
+            return false;
+        }
+        std::string downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
+        size_t pos = downloadUrl.find_last_of('/');
+        std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
+        
+        std::string downloadPath = "/tmp/" + filename;
+        std::string downloadCmd = "curl -L -o " + downloadPath + " " + downloadUrl;
+        int ret = system(downloadCmd.c_str());
+        if(ret == 0){
+            std::string chmodCmd = "chmod +x " + downloadPath;
+            system(chmodCmd.c_str());
+            std::cout << "Downloaded latest release asset to " << downloadPath << std::endl;
+            std::cout << "Replacing current program with updated version..." << std::endl;
+            execl(downloadPath.c_str(), downloadPath.c_str(), (char*)NULL);
+            std::cerr << "Error: Failed to replace current program." << std::endl;
+            return false;
+        } else {
+            std::cerr << "Error: Download command failed." << std::endl;
+            return false;
+        }
+    } catch(std::exception &e) {
+        std::cerr << "Error parsing release JSON: " << e.what() << std::endl;
+        return false;
     }
 }
