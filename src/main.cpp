@@ -1415,7 +1415,6 @@ bool checkForUpdate() {
         json jsonData = json::parse(result);
         if (jsonData.contains("tag_name")) {
             std::string latestTag = jsonData["tag_name"].get<std::string>();
-            // Remove leading 'v' if present
             if (!latestTag.empty() && latestTag[0] == 'v') {
                 latestTag = latestTag.substr(1);
             }
