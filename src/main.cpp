@@ -26,13 +26,14 @@ bool saveLoop = false;
 bool saveOnExit = true;
 bool rawEnabled = false;
 bool displayWholePath = false;
+bool checkForUpdates = true;
 
 const std::string GREEN_COLOR_BOLD = "\033[1;32m";
 const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = " https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
-const std::string currentVersion = "1.0";
+const std::string currentVersion = "1.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -89,7 +90,7 @@ bool downloadLatestRelease();
 int main() {
     std::cout << "Loading..." << std::endl;
 
-    if (checkForUpdate()) {
+    if (checkForUpdates && checkForUpdate()) {
         std::cout << "An update is available. Would you like to download it? (Y/N)" << std::endl;
         char response;
         std::cin >> response;
@@ -695,6 +696,23 @@ void userSettingsCommands() {
             return;
         }
     }
+    if(lastCommandParsed == "checkforupdates"){
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Check for updates is currently " << (checkForUpdates ? "enabled." : "disabled.") << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "enable") {
+            checkForUpdates = true;
+            std::cout << "Check for updates enabled." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "disable") {
+            checkForUpdates = false;
+            std::cout << "Check for updates disabled." << std::endl;
+            return;
+        }
+    }
     if (lastCommandParsed == "help") {
         std::cout << "Commands: " << std::endl;
         std::cout << "startup: add [ARGS], remove [ARGS], clear, enable, disable, list, runall" << std::endl;
@@ -704,6 +722,7 @@ void userSettingsCommands() {
         std::cout << "data: get [ARGS], clear" << std::endl;
         std::cout << "saveloop [ARGS]" << std::endl;
         std::cout << "saveonexit [ARGS]" << std::endl;
+        std::cout << "checkforupdates [ARGS]" << std::endl;
         return;
     }
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
