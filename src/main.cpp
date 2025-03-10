@@ -33,12 +33,12 @@ const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
-const std::string currentVersion = "1.2";
+const std::string currentVersion = "1.3";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
 std::string applicationDirectory;
-std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley (c) 2025";
+std::string titleLine = "DevToolsTerminal v" + currentVersion + " - CadenFinley.com (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 
 std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
