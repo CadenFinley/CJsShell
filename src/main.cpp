@@ -1475,16 +1475,28 @@ bool downloadLatestRelease(){
         size_t pos = downloadUrl.find_last_of('/');
         std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
         
-        std::string downloadPath = "/tmp/" + filename;
+        // Download the update to the application's directory instead of /tmp
+        std::string downloadPath = (std::filesystem::current_path() / filename).string();
         std::string downloadCmd = "curl -L -o " + downloadPath + " " + downloadUrl;
         int ret = system(downloadCmd.c_str());
         if(ret == 0){
             std::string chmodCmd = "chmod +x " + downloadPath;
             system(chmodCmd.c_str());
             std::cout << "Downloaded latest release asset to " << downloadPath << std::endl;
-            std::cout << "Replacing current program with updated version..." << std::endl;
-            execl(downloadPath.c_str(), downloadPath.c_str(), (char*)NULL);
-            std::cerr << "Error: Failed to replace current program." << std::endl;
+            std::cout << "Replacing current running program with updated version..." << std::endl;
+            
+            // Use the known executable path (assumed to be in the application directory with name "DevToolsTerminal")
+            std::string exePath = (std::filesystem::current_path() / "DevToolsTerminal").string();
+            
+            // Replace the current executable with the downloaded update
+            if(std::rename(downloadPath.c_str(), exePath.c_str()) != 0){
+                std::cerr << "Error: Failed to replace the current executable." << std::endl;
+                return false;
+            }
+            
+            // Replace the running program with the new version.
+            execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
+            std::cerr << "Error: Failed to execute the updated program." << std::endl;
             return false;
         } else {
             std::cerr << "Error: Download command failed." << std::endl;
