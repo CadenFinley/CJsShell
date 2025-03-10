@@ -39,7 +39,7 @@ const std::string currentVersion = "1.3.1";
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
 std::string applicationDirectory;
-std::string titleLine = "DevToolsTerminal v" + currentVersion + " - CadenFinley.com (c) 2025";
+std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 
 std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
