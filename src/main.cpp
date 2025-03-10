@@ -16,16 +16,17 @@
 using json = nlohmann::json;
 
 bool TESTING = false;
-bool shotcutsEnabled = true;
-bool startCommandsOn = true;
 bool runningStartup = false;
 bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
-bool usingChatCache = true;
 bool saveLoop = false;
 bool saveOnExit = true;
 bool rawEnabled = false;
 bool displayWholePath = false;
+
+bool shotcutsEnabled = true;
+bool startCommandsOn = true;
+bool usingChatCache = true;
 bool checkForUpdates = true;
 
 const std::string GREEN_COLOR_BOLD = "\033[1;32m";
@@ -85,9 +86,9 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
 void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
 void clearLines(const std::vector<std::string>& commandLines);
+void displayChangeLog(const std::string& changeLog);
 bool checkForUpdate();
 bool downloadLatestRelease();
-void displayChangeLog(const std::string& changeLog);
 
 int main() {
     sendTerminalCommand("clear");
@@ -300,6 +301,9 @@ void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
 }
 
 void setRawMode(bool enable) {
+    if (rawEnabled == enable) {
+        return;
+    }
     static struct termios oldt, newt;
     if (enable) {
         tcgetattr(STDIN_FILENO, &oldt);

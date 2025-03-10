@@ -359,7 +359,9 @@ std::string OpenAIPromptEngine::makeCallToChatGPT(const std::string& message) {
     CURLcode res = curl_easy_perform(curl);
     
     loading = false;
-    loadingThread.join();
+    if (loadingThread.joinable()) {
+        loadingThread.join();
+    }
     
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
