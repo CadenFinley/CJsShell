@@ -1,6 +1,6 @@
-# DevToolsTerminal LITE
+# DevToolsTerminal
 
-DevToolsTerminal LITE is a lightweight terminal emulator with integrated OpenAI capabilities. It allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
+DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capabilities. It allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
 
 ## Features
 
