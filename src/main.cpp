@@ -31,7 +31,7 @@ const std::string GREEN_COLOR_BOLD = "\033[1;32m";
 const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
-const std::string updateURL = " https://api.github.com/repos/cadenfinley/DevToolsTerminal-LITE/releases/latest";
+const std::string updateURL = " https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string currentVersion = "1.0";
 
 std::string commandPrefix = "!";
