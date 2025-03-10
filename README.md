@@ -16,8 +16,8 @@ DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capab
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/cadenfinley/DevToolsTerminal-LITE.git
-   cd DevToolsTerminal-LITE
+   git clone https://github.com/cadenfinley/DevToolsTerminal.git
+   cd DevToolsTerminal
    ```
 
 2. Build the project:
@@ -30,7 +30,7 @@ DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capab
 
 3. Run the application:
    ```sh
-   ./DevToolsTerminal-LITE
+   ./DevToolsTerminal
    ```
 
 ## Commands Reference
