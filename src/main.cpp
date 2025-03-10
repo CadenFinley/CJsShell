@@ -33,7 +33,7 @@ const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = " https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
-const std::string currentVersion = "1.1";
+const std::string currentVersion = "1.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -90,21 +90,23 @@ bool downloadLatestRelease();
 int main() {
     std::cout << "Loading..." << std::endl;
 
-    if (checkForUpdates && checkForUpdate()) {
-        std::cout << "An update is available. Would you like to download it? (Y/N)" << std::endl;
-        char response;
-        std::cin >> response;
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        if (response == 'Y' || response == 'y') {
-            if (downloadLatestRelease()) {
-                std::cout << "Update downloaded successfully. Please restart the application." << std::endl;
-                return 0;
-            } else {
-                std::cout << "Failed to download the update. Please try again later." << std::endl;
+    if(checkForUpdates){
+        if (checkForUpdate()) {
+            std::cout << "An update is available. Would you like to download it? (Y/N)" << std::endl;
+            char response;
+            std::cin >> response;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            if (response == 'Y' || response == 'y') {
+                if (downloadLatestRelease()) {
+                    std::cout << "Update downloaded successfully. Please restart the application." << std::endl;
+                    return 0;
+                } else {
+                    std::cout << "Failed to download the update. Please try again later." << std::endl;
+                }
             }
+        } else {
+            std::cout << "You are up to date!." << std::endl;
         }
-    } else {
-        std::cout << "You are up to date!." << std::endl;
     }
 
     startupCommands = {};
@@ -584,6 +586,8 @@ void commandProcesser(const std::string& command) {
             std::cout << openAIPromptEngine.forceDirectChatGPT(message, false) << std::endl;
             return;
         }
+    } else if(lastCommandParsed == "version") {
+        std::cout << "DevToolsTerminal v" + currentVersion << std::endl;
     } else if (lastCommandParsed == "terminal") {
         try {
             std::string terminalCommand = command.substr(9);
