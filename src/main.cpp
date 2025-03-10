@@ -7,11 +7,11 @@
 #include <queue>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <limits>
 #include "terminalpassthrough.h"
 #include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
-#include <sys/ioctl.h>
-#include <limits>
 
 using json = nlohmann::json;
 
@@ -33,7 +33,8 @@ const std::string RESET_COLOR = "\033[0m";
 const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
-const std::string currentVersion = "1.3";
+const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
+const std::string currentVersion = "1.3.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -86,8 +87,10 @@ void reprintCommandLines(const std::vector<std::string>& commandLines, const std
 void clearLines(const std::vector<std::string>& commandLines);
 bool checkForUpdate();
 bool downloadLatestRelease();
+void displayChangeLog(const std::string& changeLog);
 
 int main() {
+    sendTerminalCommand("clear");
     std::cout << "Loading..." << std::endl;
 
     if(checkForUpdates){
@@ -97,16 +100,26 @@ int main() {
             std::cin >> response;
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             if (response == 'Y' || response == 'y') {
-                if (downloadLatestRelease()) {
-                    std::cout << "Update downloaded successfully. Please restart the application." << std::endl;
-                    return 0;
-                } else {
+                if (!downloadLatestRelease()) {
                     std::cout << "Failed to download the update. Please try again later." << std::endl;
                 }
             }
         } else {
             std::cout << "You are up to date!." << std::endl;
         }
+    }
+
+    std::ifstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
+    if (changelogFile.is_open()) {
+        std::cout << "Thanks for downloading the latest version of DevToolsTerminal Version: " << currentVersion << std::endl;
+        std::cout << "Check out the github repo for more information:\n" << githubRepoURL << std::endl;
+        std::cout << "And check me out at CadenFinley.com" << std::endl;
+        std::string changeLog((std::istreambuf_iterator<char>(changelogFile)), std::istreambuf_iterator<char>());
+        changelogFile.close();
+        displayChangeLog(changeLog);
+        std::cout << "Press enter to continue..." << std::endl;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        std::filesystem::remove(DATA_DIRECTORY / "CHANGELOG.txt");
     }
 
     startupCommands = {};
@@ -365,7 +378,6 @@ void createNewUSER_HISTORYfile() {
 void loadUserData() {
     std::ifstream file(USER_DATA);
     if (file.is_open()) {
-        // Check for an empty file to avoid parsing errors
         if (file.peek() == std::ifstream::traits_type::eof()) {
             std::cout << "User data file is empty. Creating new file..." << std::endl;
             file.close();
@@ -375,7 +387,6 @@ void loadUserData() {
         try {
             json userData;
             file >> userData;
-            // ...existing code...
             if(userData.contains("OpenAI_API_KEY")){
                 openAIPromptEngine.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
             }
@@ -401,7 +412,6 @@ void loadUserData() {
             if(userData.contains("Multi_Script_Shortcuts")){
                 multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();
             }
-            // ...existing code...
             file.close();
         }
         catch(const json::parse_error& e) {
@@ -1456,7 +1466,7 @@ bool checkForUpdate() {
     std::string result;
     FILE *pipe = popen(command.c_str(), "r");
     if (!pipe) {
-        std::cerr << "Error: Unable to execute update check." << std::endl;
+        std::cerr << "Error: Unable to execute update check or no internet connection." << std::endl;
         return false;
     }
     char buffer[128];
@@ -1487,6 +1497,21 @@ bool checkForUpdate() {
     return false;
 }
 
+bool isDownloadURLValid(const std::string& url) {
+    std::string command = "curl -Is " + url + " | head -n 1";
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        return false;
+    }
+    char buffer[128];
+    std::string result;
+    while (fgets(buffer, 128, pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+    return result.find("200 OK") != std::string::npos;
+}
+
 bool downloadLatestRelease(){
     std::string releaseJson;
     std::string curlCmd = "curl -s " + updateURL;
@@ -1500,7 +1525,6 @@ bool downloadLatestRelease(){
         releaseJson += buffer;
     }
     pclose(pipe);
-    // Added check for an empty response to avoid parsing errors.
     if(releaseJson.empty()){
         std::cerr << "Error: Empty response when fetching release info." << std::endl;
         return false;
@@ -1511,7 +1535,25 @@ bool downloadLatestRelease(){
             std::cerr << "Error: No assets found in the latest release." << std::endl;
             return false;
         }
-        std::string downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
+        std::string downloadUrl;
+        std::string changeLog;
+        if(releaseData.contains("body")) {
+            changeLog = releaseData["body"].get<std::string>();
+        }
+        #ifdef _WIN32
+        for (const auto& asset : releaseData["assets"]) {
+            if (asset["browser_download_url"].get<std::string>().find(".exe") != std::string::npos) {
+                downloadUrl = asset["browser_download_url"].get<std::string>();
+                break;
+            }
+        }
+        #else
+        downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
+        #endif
+        if (downloadUrl.empty() || !isDownloadURLValid(downloadUrl)) {
+            std::cerr << "Error: Invalid download URL or no internet connection." << std::endl;
+            return false;
+        }
         size_t pos = downloadUrl.find_last_of('/');
         std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
         std::string downloadPath = (std::filesystem::current_path() / filename).string();
@@ -1523,9 +1565,17 @@ bool downloadLatestRelease(){
             std::cout << "Downloaded latest release asset to " << downloadPath << std::endl;
             std::cout << "Replacing current running program with updated version..." << std::endl;
             std::string exePath = (std::filesystem::current_path() / "DevToolsTerminal").string();
+            #ifdef _WIN32
+            exePath += ".exe";
+            #endif
             if(std::rename(downloadPath.c_str(), exePath.c_str()) != 0){
                 std::cerr << "Error: Failed to replace the current executable." << std::endl;
                 return false;
+            }
+            std::ofstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
+            if (changelogFile.is_open()) {
+                changelogFile << changeLog;
+                changelogFile.close();
             }
             execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
             std::cerr << "Error: Failed to execute the updated program." << std::endl;
@@ -1538,4 +1588,19 @@ bool downloadLatestRelease(){
         std::cerr << "Error parsing release JSON: " << e.what() << std::endl;
         return false;
     }
+}
+
+void displayChangeLog(const std::string& changeLog) {
+    std::string clickableChangeLog = changeLog;
+    size_t pos = 0;
+    while ((pos = clickableChangeLog.find("http", pos)) != std::string::npos) {
+        size_t end = clickableChangeLog.find_first_of(" \n", pos);
+        if (end == std::string::npos) end = clickableChangeLog.length();
+        std::string url = clickableChangeLog.substr(pos, end - pos);
+        std::string clickableUrl = "\033]8;;" + url + "\033\\" + url + "\033]8;;\033\\";
+        clickableChangeLog.replace(pos, url.length(), clickableUrl);
+        pos += clickableUrl.length();
+    }
+    std::cout << "Change Log:" << std::endl;
+    std::cout << clickableChangeLog << std::endl;
 }
