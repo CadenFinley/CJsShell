@@ -161,6 +161,14 @@ bool PluginManager::handlePluginCommand(const std::string targetedPlugin, std::q
     return false;
 }
 
+std::vector<std::string> PluginManager::getPluginCommands(const std::string& name) const {
+    auto it = loadedPlugins.find(name);
+    if (it != loadedPlugins.end()) {
+        return it->second.instance->getCommands();
+    }
+    return {};
+}
+
 std::string PluginManager::getPluginInfo(const std::string& name) const {
     auto it = loadedPlugins.find(name);
     if (it != loadedPlugins.end()) {

@@ -758,10 +758,18 @@ void commandProcesser(const std::string& command) {
     } else {
         auto plugins = pluginManager->getEnabledPlugins();
         for(const auto& name : plugins) {
-            if(lastCommandParsed == name){
-                pluginManager->handlePluginCommand(name, commandsQueue);
+            std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(name);
+            if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
+                std::queue<std::string> args;
+                args.push(lastCommandParsed);
+                while(!commandsQueue.empty()){
+                    args.push(commandsQueue.front());
+                    commandsQueue.pop();
+                }
+                pluginManager->handlePluginCommand(name, args);
                 return;
             }
+            
         }
         std::cout << "Unknown command. Please try again." << std::endl;
     }
@@ -823,14 +831,43 @@ void pluginCommands(){
         }
         return;
     }
-    else if(lastCommandParsed == "help") {
-        std::cout << "Plugin commands:" << std::endl;
-        std::cout << "list: List all available plugins" << std::endl;
-        std::cout << "enable [NAME]: Enable a plugin" << std::endl;
-        std::cout << "disable [NAME]: Disable a plugin" << std::endl;
-        std::cout << "info [NAME]: Get information about a plugin" << std::endl;
+    else if (lastCommandParsed == "commands") {
+        getNextCommand();
+        if(lastCommandParsed.empty()){
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "all") {
+            auto plugins = pluginManager->getEnabledPlugins();
+            for(const auto& name : plugins) {
+                std::cout << "Commands for " << name << ":" << std::endl;
+                std::vector<std::string> listOfPluginCommands = pluginManager->getPluginCommands(name);
+                for (const auto& cmd : listOfPluginCommands) {
+                    std::cout << "  " << cmd << std::endl;
+                }
+            }
+            return;
+        }
+        std::cout << "Commands for " << lastCommandParsed << ":" << std::endl;
+        std::vector<std::string> listOfPluginCommands = pluginManager->getPluginCommands(lastCommandParsed);
+        for (const auto& cmd : listOfPluginCommands) {
+            std::cout << "  " << cmd << std::endl;
+        }
         return;
     }
+    else if(lastCommandParsed == "help") {
+        std::cout << "Plugin commands:" << std::endl;
+            std::cout << "list available: List all available plugins" << std::endl;
+            std::cout << "list enabled: List all enabled plugins" << std::endl;
+            std::cout << "enable [NAME]: Enable a plugin" << std::endl;
+            std::cout << "enable all: Enable all plugins" << std::endl;
+            std::cout << "enablebydefault: Enable plugins by default" << std::endl;
+            std::cout << "disable [NAME]: Disable a plugin" << std::endl;
+            std::cout << "info [NAME]: Get information about a plugin" << std::endl;
+            std::cout << "commands [NAME]: List all commands for a plugin" << std::endl;
+            return;
+    }
+    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void sendTerminalCommand(const std::string& command) {

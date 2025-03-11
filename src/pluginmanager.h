@@ -25,6 +25,8 @@ public:
     bool handlePluginCommand(const std::string targetedPlugin, std::queue<std::string>& args);
     
     std::string getPluginInfo(const std::string& name) const;
+    std::vector<std::string> getPluginCommands(const std::string& name) const;
+    
     
     bool updatePluginSetting(const std::string& pluginName, const std::string& key, const std::string& value);
     std::map<std::string, std::map<std::string, std::string>> getAllPluginSettings() const;
