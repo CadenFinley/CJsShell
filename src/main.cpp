@@ -49,6 +49,7 @@ std::string lastLogin = "N/A";
 std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
+std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
@@ -115,6 +116,11 @@ int main() {
     if (!std::filesystem::exists(DATA_DIRECTORY)) {
         std::cout << DATA_DIRECTORY.string() << " not found in: " << applicationDirectory << std::endl;
         std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
+    }
+
+    if (!std::filesystem::exists(THEMES_DIRECTORY)) {
+        std::filesystem::create_directory(THEMES_DIRECTORY);
+        createDefaultTheme();
     }
 
     pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
