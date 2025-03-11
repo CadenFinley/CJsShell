@@ -35,7 +35,7 @@ const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.3.2";
+const std::string currentVersion = "1.3.3";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -93,6 +93,7 @@ bool checkForUpdate();
 bool downloadLatestRelease();
 
 int main() {
+    sendTerminalCommand("cd /");
     sendTerminalCommand("clear");
     std::cout << "Loading..." << std::endl;
 
@@ -372,7 +373,6 @@ void createNewUSER_DATAFile() {
     std::cout << "User data file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
-        startupCommands.push_back("terminal cd /");
         writeUserData();
         file.close();
     } else {
