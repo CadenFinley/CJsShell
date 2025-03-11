@@ -37,8 +37,6 @@ bool PluginManager::discoverPlugins() {
         std::string fileName = entry.path().filename().string();
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
             loadPlugin(entry.path());
-        } else {
-            std::cout << "Skipping non-plugin file: " << entry.path() << std::endl;
         }
     }
     

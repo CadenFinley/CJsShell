@@ -1,6 +1,0 @@
-1. Command Autocompletion: Implement a feature that suggests and completes commands as the user types.
-3. Syntax Highlighting: Add syntax highlighting for different types of commands and outputs.
-4. Customizable Themes: Allow users to customize the color scheme and appearance of the terminal.
-7. Plugin System: Create a plugin system to allow users to add custom functionalities.
-8. Session Management: Save and restore terminal sessions, including command history and open tabs.
-9. Search Functionality: Implement a search feature to find text within the terminal output.
