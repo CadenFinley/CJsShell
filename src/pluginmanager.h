@@ -3,38 +3,32 @@
 #include "plugininterface.h"
 #include <string>
 #include <vector>
+#include <queue>
 #include <map>
 #include <memory>
 #include <filesystem>
-#include <dlfcn.h> // For dynamic library loading on UNIX/Mac
+#include <dlfcn.h>
 
 class PluginManager {
 public:
     PluginManager(const std::filesystem::path& pluginsDir);
     ~PluginManager();
     
-    // Discover and load plugins from the plugins directory
     bool discoverPlugins();
     
-    // Get information about available plugins
     std::vector<std::string> getAvailablePlugins() const;
     std::vector<std::string> getEnabledPlugins() const;
     
-    // Enable/disable plugins
     bool enablePlugin(const std::string& name);
     bool disablePlugin(const std::string& name);
     
-    // Plugin commands
-    bool handlePluginCommand(const std::string& command, const std::vector<std::string>& args);
+    bool handlePluginCommand(const std::string targetedPlugin, std::queue<std::string>& args);
     
-    // Get plugin info
     std::string getPluginInfo(const std::string& name) const;
     
-    // Plugin settings
     bool updatePluginSetting(const std::string& pluginName, const std::string& key, const std::string& value);
     std::map<std::string, std::map<std::string, std::string>> getAllPluginSettings() const;
     
-    // Event system
     void registerEventCallback(const std::string& event, std::function<void(const std::string&)> callback);
     void triggerEvent(const std::string& event, const std::string& data);
 

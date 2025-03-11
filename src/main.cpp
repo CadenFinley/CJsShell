@@ -24,6 +24,7 @@ bool saveLoop = false;
 bool saveOnExit = true;
 bool rawEnabled = false;
 bool displayWholePath = false;
+bool enablePluginsByDefault = false;
 
 bool shotcutsEnabled = true;
 bool startCommandsOn = true;
@@ -93,6 +94,7 @@ void clearLines(const std::vector<std::string>& commandLines);
 void displayChangeLog(const std::string& changeLog);
 bool checkForUpdate();
 bool downloadLatestRelease();
+void pluginCommands();
 std::string getClipboardContent();
 
 int main() {
@@ -118,6 +120,11 @@ int main() {
 
     pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
     pluginManager->discoverPlugins();
+    if (enablePluginsByDefault) {
+        for (const auto& plugin : pluginManager->getAvailablePlugins()) {
+            pluginManager->enablePlugin(plugin);
+        }
+    }
 
     if (!std::filesystem::exists(USER_DATA)) {
         createNewUSER_DATAFile();
@@ -184,7 +191,6 @@ int main() {
         writeUserData();
     }
     setRawMode(false);
-    // Clean up plugin manager if needed
     delete pluginManager;
     return 0;
 }
@@ -703,9 +709,7 @@ void commandProcesser(const std::string& command) {
     if (lastCommandParsed == "approot") {
         goToApplicationDirectory();
     } else if (lastCommandParsed == "clear") {
-        std::cout << "Clearing screen and terminal cache..." << std::endl;
-        std::cout << "\033[2J\033[1;1H";
-        terminal.clearTerminalCache();
+        sendTerminalCommand("clear");
     } else if(lastCommandParsed == "ss"){
         shortcutProcesser(command);
     } else if(lastCommandParsed == "mm"){
@@ -735,6 +739,8 @@ void commandProcesser(const std::string& command) {
         }
     } else if (lastCommandParsed == "exit") {
         exitFlag = true;
+    } else if(lastCommandParsed == "plugin") {
+        pluginCommands();
     } else if (lastCommandParsed == "help") {
         std::cout << "Commands:" << std::endl;
         std::cout << "Command Prefix: " + commandPrefix << std::endl;
@@ -747,14 +753,25 @@ void commandProcesser(const std::string& command) {
         std::cout << "aihelp: Get AI help for terminal issues" << std::endl;
         std::cout << "version: Display application version" << std::endl;
         std::cout << "exit: Exit application" << std::endl;
-        std::cout << "clear: Clear screen and terminal cache" << std::endl;
-        std::cout << "help: Display this help message" << std::endl;
+        std::cout << "plugin: Manage plugins" << std::endl;
         return;
+    } else {
+        auto plugins = pluginManager->getEnabledPlugins();
+        for(const auto& name : plugins) {
+            if(lastCommandParsed == name){
+                pluginManager->handlePluginCommand(name, commandsQueue);
+                return;
+            }
+        }
+        std::cout << "Unknown command. Please try again." << std::endl;
     }
-    // New plugin commands branch
-    else if(lastCommandParsed == "plugin") {
+}
+
+void pluginCommands(){
+    getNextCommand();
+    if(lastCommandParsed == "list") {
         getNextCommand();
-        if(lastCommandParsed == "list") {
+        if(lastCommandParsed == "available") {
             auto plugins = pluginManager->getAvailablePlugins();
             std::cout << "Available plugins:" << std::endl;
             for(const auto& name : plugins) {
@@ -762,44 +779,57 @@ void commandProcesser(const std::string& command) {
             }
             return;
         }
-        else if(lastCommandParsed == "enable") {
-            getNextCommand();
-            if(!lastCommandParsed.empty()){
-                if(pluginManager->enablePlugin(lastCommandParsed))
-                    std::cout << "Enabled plugin: " << lastCommandParsed << std::endl;
-                else
-                    std::cout << "Failed to enable plugin: " << lastCommandParsed << std::endl;
+        if(lastCommandParsed == "enabled") {
+            auto plugins = pluginManager->getEnabledPlugins();
+            std::cout << "Enabled plugins:" << std::endl;
+            for(const auto& name : plugins) {
+                std::cout << name << std::endl;
             }
             return;
         }
-        else if(lastCommandParsed == "disable") {
-            getNextCommand();
-            if(!lastCommandParsed.empty()){
-                if(pluginManager->disablePlugin(lastCommandParsed))
-                    std::cout << "Disabled plugin: " << lastCommandParsed << std::endl;
-                else
-                    std::cout << "Failed to disable plugin: " << lastCommandParsed << std::endl;
-            }
-            return;
-        }
-        else if(lastCommandParsed == "info") {
-            getNextCommand();
-            if(!lastCommandParsed.empty()){
-                std::cout << pluginManager->getPluginInfo(lastCommandParsed) << std::endl;
-            }
-            return;
-        }
-        else {
-            std::cout << "Unknown plugin command. Try:" << std::endl;
-            std::cout << "  plugin list" << std::endl;
-            std::cout << "  plugin enable <name>" << std::endl;
-            std::cout << "  plugin disable <name>" << std::endl;
-            std::cout << "  plugin info <name>" << std::endl;
-            return;
-        }
+        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
     }
-    else {
-        std::cout << "Unknown command. Please try again or try 'help'." << std::endl;
+    else if(lastCommandParsed == "enable") {
+        getNextCommand();
+        if(!lastCommandParsed.empty()){
+            if(lastCommandParsed == "all"){
+                for(const auto& plugin : pluginManager->getAvailablePlugins()){
+                    pluginManager->enablePlugin(plugin);
+                }
+                return;
+            }
+            pluginManager->enablePlugin(lastCommandParsed);
+        }
+        return;
+    }
+    else if(lastCommandParsed == "enablebydefault") {
+        enablePluginsByDefault = true;
+        std::cout << "Plugins will now be enabled by default." << std::endl;
+        return;
+
+    }
+    else if(lastCommandParsed == "disable") {
+        getNextCommand();
+        if(!lastCommandParsed.empty()){
+            pluginManager->disablePlugin(lastCommandParsed);
+        }
+        return;
+    }
+    else if(lastCommandParsed == "info") {
+        getNextCommand();
+        if(!lastCommandParsed.empty()){
+            std::cout << pluginManager->getPluginInfo(lastCommandParsed) << std::endl;
+        }
+        return;
+    }
+    else if(lastCommandParsed == "help") {
+        std::cout << "Plugin commands:" << std::endl;
+        std::cout << "list: List all available plugins" << std::endl;
+        std::cout << "enable [NAME]: Enable a plugin" << std::endl;
+        std::cout << "disable [NAME]: Disable a plugin" << std::endl;
+        std::cout << "info [NAME]: Get information about a plugin" << std::endl;
+        return;
     }
 }
 

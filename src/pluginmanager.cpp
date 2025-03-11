@@ -1,6 +1,8 @@
 #include "pluginmanager.h"
 #include <iostream>
+#include <queue>
 #include <fstream>
+
 
 PluginManager::PluginManager(const std::filesystem::path& pluginsDir)
     : pluginsDirectory(pluginsDir) {
@@ -32,6 +34,7 @@ bool PluginManager::discoverPlugins() {
     }
     
     for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
+        std::string fileName = entry.path().filename().string();
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
             loadPlugin(entry.path());
         } else {
@@ -49,10 +52,8 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
     
-    // Reset errors
     dlerror();
     
-    // Get creation function
     CreatePluginFunc createFunc = (CreatePluginFunc)dlsym(handle, "createPlugin");
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
@@ -60,8 +61,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         dlclose(handle);
         return false;
     }
-    
-    // Get destruction function
+
     DestroyPluginFunc destroyFunc = (DestroyPluginFunc)dlsym(handle, "destroyPlugin");
     dlsym_error = dlerror();
     if (dlsym_error) {
@@ -70,7 +70,6 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
     
-    // Create plugin instance
     PluginInterface* instance = createFunc();
     if (!instance) {
         std::cerr << "Failed to create plugin instance" << std::endl;
@@ -78,10 +77,8 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
     
-    // Get plugin info
     std::string name = instance->getName();
     
-    // Store plugin data
     PluginData data;
     data.handle = handle;
     data.instance = instance;
@@ -158,14 +155,10 @@ bool PluginManager::disablePlugin(const std::string& name) {
     return false;
 }
 
-bool PluginManager::handlePluginCommand(const std::string& command, const std::vector<std::string>& args) {
-    for (auto& [name, data] : loadedPlugins) {
-        if (data.enabled) {
-            std::vector<std::string> argsCopy = args;
-            if (data.instance->handleCommand(command, argsCopy)) {
-                return true;
-            }
-        }
+bool PluginManager::handlePluginCommand(const std::string targetedPlugin, std::queue<std::string>& args) {
+    auto it = loadedPlugins.find(targetedPlugin);
+    if (it != loadedPlugins.end() && it->second.enabled) {
+        return it->second.instance->handleCommand(args);
     }
     return false;
 }
