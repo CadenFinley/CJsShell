@@ -42,6 +42,8 @@ std::string lastCommandParsed;
 std::string applicationDirectory;
 std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
+std::string lastUpdated = "N/A";
+std::string lastLogin = "N/A";
 
 std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
@@ -94,6 +96,39 @@ int main() {
     sendTerminalCommand("clear");
     std::cout << "Loading..." << std::endl;
 
+    startupCommands = {};
+    shortcuts = {};
+    multiScriptShortcuts = {};
+    terminal = TerminalPassthrough();
+    openAIPromptEngine = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
+
+    applicationDirectory = std::filesystem::current_path().string();
+    if (applicationDirectory.find(":") != std::string::npos) {
+        applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
+    }
+
+    if (!std::filesystem::exists(DATA_DIRECTORY)) {
+        std::cout << DATA_DIRECTORY.string() << " not found in: " << applicationDirectory << std::endl;
+        std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
+    }
+
+    if (!std::filesystem::exists(USER_DATA)) {
+        createNewUSER_DATAFile();
+    } else {
+        loadUserData();
+    }
+
+    if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
+        createNewUSER_HISTORYfile();
+    }
+
+    std::cout << "Last Login: " << lastLogin << std::endl;
+    std::time_t now = std::time(nullptr);
+    std::tm* now_tm = std::localtime(&now);
+    char buffer[100];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
+    lastLogin = buffer;
+
     if(checkForUpdates){
         if (checkForUpdate()) {
             std::cout << "An update is available. Would you like to download it? (Y/N)" << std::endl;
@@ -121,32 +156,6 @@ int main() {
         std::cout << "Press enter to continue..." << std::endl;
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::filesystem::remove(DATA_DIRECTORY / "CHANGELOG.txt");
-    }
-
-    startupCommands = {};
-    shortcuts = {};
-    multiScriptShortcuts = {};
-    terminal = TerminalPassthrough();
-    openAIPromptEngine = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
-
-    applicationDirectory = std::filesystem::current_path().string();
-    if (applicationDirectory.find(":") != std::string::npos) {
-        applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
-    }
-
-    if (!std::filesystem::exists(DATA_DIRECTORY)) {
-        std::cout << DATA_DIRECTORY.string() << " not found in: " << applicationDirectory << std::endl;
-        std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
-    }
-
-    if (!std::filesystem::exists(USER_DATA)) {
-        createNewUSER_DATAFile();
-    } else {
-        loadUserData();
-    }
-
-    if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
-        createNewUSER_HISTORYfile();
     }
 
     if (!startupCommands.empty() && startCommandsOn) {
@@ -416,6 +425,12 @@ void loadUserData() {
             if(userData.contains("Multi_Script_Shortcuts")){
                 multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();
             }
+            if(userData.contains("Last_Updated")){
+                lastUpdated = userData["Last_Updated"].get<std::string>();
+            }
+            if(userData.contains("Last_Login")){
+                lastLogin = userData["Last_Login"].get<std::string>();
+            }
             file.close();
         }
         catch(const json::parse_error& e) {
@@ -442,6 +457,8 @@ void writeUserData() {
         userData["Text_Entry"] = defaultTextEntryOnAI;
         userData["Command_Prefix"] = commandPrefix;
         userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
+        userData["Last_Updated"] = lastUpdated;
+        userData["Last_Login"] = lastLogin;
         file << userData.dump(4);
         file.close();
     } else {
@@ -1568,6 +1585,7 @@ bool checkForUpdate() {
                 currentVer = currentVer.substr(1);
             }
             if (isNewerVersion(latestTag, currentVer)) {
+                std::cout << "Last Updated: " << lastUpdated << std::endl;
                 std::cout << currentVersion << " -> " << latestTag << std::endl;
                 return true;
             }
