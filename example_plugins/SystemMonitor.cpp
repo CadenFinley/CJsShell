@@ -36,7 +36,7 @@ public:
     ~SystemMonitor() throw() { }
     
     std::string getName() const {
-        return "SystemMonitor";
+        return "sysmon";
     }
     
     std::string getVersion() const {
@@ -87,6 +87,8 @@ public:
             std::cout << "Disk Usage: " << used << "GB / " << total << "GB (" 
                       << std::fixed << std::setprecision(1) << (used * 100.0 / total) << "%)" << std::endl;
             return true;
+        } else {
+            std::cout << "Unknown command: " << cmd << std::endl;
         }
         return false;
     }

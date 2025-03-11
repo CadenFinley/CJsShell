@@ -37,7 +37,7 @@ const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.4";
+const std::string currentVersion = "1.4.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -756,22 +756,7 @@ void commandProcesser(const std::string& command) {
         std::cout << "plugin: Manage plugins" << std::endl;
         return;
     } else {
-        auto plugins = pluginManager->getEnabledPlugins();
-        for(const auto& name : plugins) {
-            std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(name);
-            if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
-                std::queue<std::string> args;
-                args.push(lastCommandParsed);
-                while(!commandsQueue.empty()){
-                    args.push(commandsQueue.front());
-                    commandsQueue.pop();
-                }
-                pluginManager->handlePluginCommand(name, args);
-                return;
-            }
-            
-        }
-        std::cout << "Unknown command. Please try again." << std::endl;
+        pluginManager->handlePluginCommand(lastCommandParsed, commandsQueue);
     }
 }
 
@@ -815,7 +800,6 @@ void pluginCommands(){
         enablePluginsByDefault = true;
         std::cout << "Plugins will now be enabled by default." << std::endl;
         return;
-
     }
     else if(lastCommandParsed == "disable") {
         getNextCommand();
