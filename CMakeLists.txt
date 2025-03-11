@@ -20,6 +20,7 @@ add_executable(DevToolsTerminal
     src/main.cpp
     src/openaipromptengine.cpp
     src/terminalpassthrough.cpp
+    src/pluginmanager.cpp
 )
 
 # Link the CURL library

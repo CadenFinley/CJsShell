@@ -34,6 +34,8 @@ bool PluginManager::discoverPlugins() {
     for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
             loadPlugin(entry.path());
+        } else {
+            std::cout << "Skipping non-plugin file: " << entry.path() << std::endl;
         }
     }
     

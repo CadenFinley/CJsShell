@@ -12,6 +12,7 @@
 #include "terminalpassthrough.h"
 #include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
+#include "pluginmanager.h"
 
 using json = nlohmann::json;
 
@@ -58,6 +59,7 @@ std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 
 OpenAIPromptEngine openAIPromptEngine;
 TerminalPassthrough terminal;
+PluginManager* pluginManager = nullptr;
 
 std::string readAndReturnUserDataFile();
 std::vector<std::string> commandSplicer(const std::string& command);
@@ -113,6 +115,9 @@ int main() {
         std::cout << DATA_DIRECTORY.string() << " not found in: " << applicationDirectory << std::endl;
         std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
     }
+
+    pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
+    pluginManager->discoverPlugins();
 
     if (!std::filesystem::exists(USER_DATA)) {
         createNewUSER_DATAFile();
@@ -179,6 +184,8 @@ int main() {
         writeUserData();
     }
     setRawMode(false);
+    // Clean up plugin manager if needed
+    delete pluginManager;
     return 0;
 }
 
@@ -743,7 +750,55 @@ void commandProcesser(const std::string& command) {
         std::cout << "clear: Clear screen and terminal cache" << std::endl;
         std::cout << "help: Display this help message" << std::endl;
         return;
-    } else {
+    }
+    // New plugin commands branch
+    else if(lastCommandParsed == "plugin") {
+        getNextCommand();
+        if(lastCommandParsed == "list") {
+            auto plugins = pluginManager->getAvailablePlugins();
+            std::cout << "Available plugins:" << std::endl;
+            for(const auto& name : plugins) {
+                std::cout << name << std::endl;
+            }
+            return;
+        }
+        else if(lastCommandParsed == "enable") {
+            getNextCommand();
+            if(!lastCommandParsed.empty()){
+                if(pluginManager->enablePlugin(lastCommandParsed))
+                    std::cout << "Enabled plugin: " << lastCommandParsed << std::endl;
+                else
+                    std::cout << "Failed to enable plugin: " << lastCommandParsed << std::endl;
+            }
+            return;
+        }
+        else if(lastCommandParsed == "disable") {
+            getNextCommand();
+            if(!lastCommandParsed.empty()){
+                if(pluginManager->disablePlugin(lastCommandParsed))
+                    std::cout << "Disabled plugin: " << lastCommandParsed << std::endl;
+                else
+                    std::cout << "Failed to disable plugin: " << lastCommandParsed << std::endl;
+            }
+            return;
+        }
+        else if(lastCommandParsed == "info") {
+            getNextCommand();
+            if(!lastCommandParsed.empty()){
+                std::cout << pluginManager->getPluginInfo(lastCommandParsed) << std::endl;
+            }
+            return;
+        }
+        else {
+            std::cout << "Unknown plugin command. Try:" << std::endl;
+            std::cout << "  plugin list" << std::endl;
+            std::cout << "  plugin enable <name>" << std::endl;
+            std::cout << "  plugin disable <name>" << std::endl;
+            std::cout << "  plugin info <name>" << std::endl;
+            return;
+        }
+    }
+    else {
         std::cout << "Unknown command. Please try again or try 'help'." << std::endl;
     }
 }
