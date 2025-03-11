@@ -1578,21 +1578,6 @@ bool checkForUpdate() {
     return false;
 }
 
-bool isDownloadURLValid(const std::string& url) {
-    std::string command = "curl -Is " + url + " | head -n 1";
-    FILE* pipe = popen(command.c_str(), "r");
-    if (!pipe) {
-        return false;
-    }
-    char buffer[128];
-    std::string result;
-    while (fgets(buffer, 128, pipe) != nullptr) {
-        result += buffer;
-    }
-    pclose(pipe);
-    return result.find("200 OK") != std::string::npos;
-}
-
 bool downloadLatestRelease(){
     std::string releaseJson;
     std::string curlCmd = "curl -s " + updateURL;
@@ -1631,10 +1616,6 @@ bool downloadLatestRelease(){
         #else
         downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
         #endif
-        if (downloadUrl.empty() || !isDownloadURLValid(downloadUrl)) {
-            std::cerr << "Error: Invalid download URL or no internet connection." << std::endl;
-            return false;
-        }
         size_t pos = downloadUrl.find_last_of('/');
         std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
         std::string downloadPath = (std::filesystem::current_path() / filename).string();
