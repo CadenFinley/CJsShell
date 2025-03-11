@@ -44,6 +44,7 @@ DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capab
 | `!clear` | Clear screen and terminal cache |
 | `!approot` | Navigate to application data directory |
 | `!terminal [command]` | Execute terminal command directly |
+| `!version` | Display application version information |
 
 ### Shortcuts
 
@@ -70,6 +71,8 @@ DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capab
 | `!ai model [model]` | Set AI model (default: gpt-3.5-turbo) |
 | `!ai mode [mode]` | Set assistant type (chat, file-search, or code-interpreter) |
 | `!ai timeoutflag [seconds]` | Set timeout for AI responses |
+| `!ai directory set` | Set directory for AI-generated files to current directory |
+| `!ai directory clear` | Reset directory to default (.DTT-Data) |
 
 #### AI File Integration
 | Command | Description |
@@ -151,6 +154,8 @@ The terminal features color-coded interface elements:
 | `!user data saveloop disable` | Disable automatic data saving |
 | `!user saveonexit enable` | Enable saving data on exit |
 | `!user saveonexit disable` | Disable saving data on exit |
+| `!user checkforupdates enable` | Enable automatic update checking |
+| `!user checkforupdates disable` | Disable automatic update checking |
 
 #### Testing
 | Command | Description |
