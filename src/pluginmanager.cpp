@@ -87,7 +87,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     
     loadedPlugins[name] = data;
     
-    std::cout << "Loaded plugin: " << name << " v" << instance->getVersion() << std::endl;
+    std::cout << "Loaded plugin: " << path.filename().string() << " ( " << name << " )" << " v" << instance->getVersion() << std::endl;
     return true;
 }
 
