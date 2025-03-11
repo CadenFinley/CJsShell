@@ -24,7 +24,6 @@ bool saveLoop = false;
 bool saveOnExit = true;
 bool rawEnabled = false;
 bool displayWholePath = false;
-bool enablePluginsByDefault = false;
 
 bool shotcutsEnabled = true;
 bool startCommandsOn = true;
@@ -37,7 +36,7 @@ const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.4.1.1";
+const std::string currentVersion = "1.4.1.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -174,12 +173,6 @@ int main() {
             commandParser(commandPrefix + command);
         }
         runningStartup = false;
-    }
-
-    if (enablePluginsByDefault) {
-        for (const auto& plugin : pluginManager->getAvailablePlugins()) {
-            pluginManager->enablePlugin(plugin);
-        }
     }
 
     std::cout << titleLine << std::endl;
@@ -797,26 +790,6 @@ void pluginCommands(){
         }
         return;
     }
-    else if(lastCommandParsed == "enablebydefault") {
-        getNextCommand();
-        if(lastCommandParsed.empty()){
-            enablePluginsByDefault = !enablePluginsByDefault;
-            std::cout << "Plugins will be enabled by default: " << (enablePluginsByDefault ? "true" : "false") << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "true") {
-            enablePluginsByDefault = true;
-            std::cout << "Plugins will be enabled by default." << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "false") {
-            enablePluginsByDefault = false;
-            std::cout << "Plugins will not be enabled by default." << std::endl;
-            return;
-        }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
-    }
     else if(lastCommandParsed == "disable") {
         getNextCommand();
         if(!lastCommandParsed.empty()){
@@ -861,7 +834,6 @@ void pluginCommands(){
             std::cout << "list enabled: List all enabled plugins" << std::endl;
             std::cout << "enable [NAME]: Enable a plugin" << std::endl;
             std::cout << "enable all: Enable all plugins" << std::endl;
-            std::cout << "enablebydefault [T/F]: Enable plugins by default" << std::endl;
             std::cout << "disable [NAME]: Disable a plugin" << std::endl;
             std::cout << "info [NAME]: Get information about a plugin" << std::endl;
             std::cout << "commands [NAME]: List all commands for a plugin" << std::endl;
