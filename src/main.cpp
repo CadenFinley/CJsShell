@@ -750,7 +750,20 @@ void commandProcesser(const std::string& command) {
         std::cout << "plugin: Manage plugins" << std::endl;
         return;
     } else {
-        pluginManager->handlePluginCommand(lastCommandParsed, commandsQueue);
+        std::queue<std::string> tempQueue;
+        tempQueue.push(lastCommandParsed);
+        while (!commandsQueue.empty()) {
+            tempQueue.push(commandsQueue.front());
+            commandsQueue.pop();
+        }
+        std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
+        for(const auto& plugin : enabledPlugins){
+            std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(plugin);
+            if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
+                pluginManager->handlePluginCommand(plugin, tempQueue);
+                return;
+            }
+        }
     }
 }
 

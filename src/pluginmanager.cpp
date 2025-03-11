@@ -130,6 +130,10 @@ std::vector<std::string> PluginManager::getEnabledPlugins() const {
 
 bool PluginManager::enablePlugin(const std::string& name) {
     auto it = loadedPlugins.find(name);
+    if(it->second.enabled){
+        std::cout << "Plugin already enabled: " << name << std::endl;
+        return true;
+    }
     if (it != loadedPlugins.end() && !it->second.enabled) {
         if (it->second.instance->initialize()) {
             it->second.enabled = true;
