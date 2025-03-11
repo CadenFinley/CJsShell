@@ -84,13 +84,14 @@ void showChatHistory();
 void multiScriptShortcutCommands();
 void userDataCommands();
 void setRawMode(bool enable);
-void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag);
+std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag);
 void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
 void clearLines(const std::vector<std::string>& commandLines);
 void displayChangeLog(const std::string& changeLog);
 bool checkForUpdate();
 bool downloadLatestRelease();
+std::string getClipboardContent();
 
 int main() {
     sendTerminalCommand("cd /");
@@ -213,11 +214,63 @@ void mainProcessLoop() {
         commandLines.push_back("");
         while (true) {
             std::cin.get(c);
-            if (c == '\033') {
+            if (c == 22) {
+                std::string clipboardContent = getClipboardContent();
+                if (!clipboardContent.empty()) {
+                    clearLines(commandLines);
+                    
+                    std::istringstream stream(clipboardContent);
+                    std::string line;
+                    bool isFirstLine = true;
+                    
+                    while (std::getline(stream, line)) {
+                        if (isFirstLine) {
+                            commandLines[cursorPositionY].insert(cursorPositionX, line);
+                            cursorPositionX += line.length();
+                            isFirstLine = false;
+                        } else {
+                            cursorPositionY++;
+                            if (cursorPositionY >= commandLines.size()) {
+                                commandLines.push_back(line);
+                            } else {
+                                commandLines.insert(commandLines.begin() + cursorPositionY, line);
+                            }
+                            cursorPositionX = line.length();
+                        }
+                    }
+                    
+                    reprintCommandLines(commandLines, terminalSetting);
+                    placeCursor(cursorPositionX, cursorPositionY);
+                }
+            } else if (c == '\033') {
                 std::cin.get(c);
                 if (c == '[') {
                     std::cin.get(c);
-                    handleArrowKey(c, cursorPositionX, cursorPositionY, commandLines, commandLines[cursorPositionY], terminalSetting);
+                    std::string returnedArrowContent = handleArrowKey(c, cursorPositionX, cursorPositionY, commandLines, commandLines[cursorPositionY], terminalSetting);
+                    if(returnedArrowContent != ""){
+                        clearLines(commandLines);
+                        commandLines.clear();
+                        commandLines.push_back("");
+                        cursorPositionX = 0;
+                        cursorPositionY = 0;
+                        
+                        std::istringstream stream(returnedArrowContent);
+                        std::string line;
+                        bool isFirstLine = true;
+                        while (std::getline(stream, line)) {
+                            if (isFirstLine) {
+                                commandLines[0] = line;
+                                cursorPositionX = line.length();
+                                isFirstLine = false;
+                            } else {
+                                cursorPositionY++;
+                                commandLines.push_back(line);
+                                cursorPositionX = line.length();
+                            }
+                        }
+                        reprintCommandLines(commandLines, terminalSetting);
+                        placeCursor(cursorPositionX, cursorPositionY);
+                    }
                 }
             } else if (c == '\n') {
                 std::cout << std::endl;
@@ -326,26 +379,12 @@ void setRawMode(bool enable) {
     rawEnabled = enable;
 }
 
-void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
+std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
     switch (arrow) {
         case 'A':
-            clearLines(commandLines);
-            commandLines.clear();
-            commandLines.push_back("");
-            command = terminal.getPreviousCommand();
-            cursorPositionX = command.length();
-            cursorPositionY = commandLines.size() - 1;
-            std::cout << "\033[2K\r" << terminalTag << command;
-            break;
+            return terminal.getPreviousCommand();
         case 'B':
-            clearLines(commandLines);
-            commandLines.clear();
-            commandLines.push_back("");
-            command = terminal.getNextCommand();
-            cursorPositionX = command.length();
-            cursorPositionY = commandLines.size() - 1;
-            std::cout << "\033[2K\r" << terminalTag << command;
-            break;
+            return terminal.getNextCommand();
         case 'C':
             if (cursorPositionX < command.length()) {
                 cursorPositionX++;
@@ -355,7 +394,7 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
                 cursorPositionX = 0;
                 std::cout << "\033[B";
             }
-            break;
+            return "";
         case 'D':
             if (cursorPositionX > 0) {
                 cursorPositionX--;
@@ -365,8 +404,37 @@ void handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY
                 cursorPositionX = commandLines[cursorPositionY].length();
                 std::cout << "\033[A";
             }
-            break;
+            return "";
     }
+    return "";
+}
+
+std::string getClipboardContent() {
+    std::string result;
+    usleep(10000);
+    
+    FILE* pipe = popen("pbpaste", "r");
+    if (!pipe) {
+        std::cerr << "Failed to access clipboard" << std::endl;
+        return "";
+    }
+    
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+    
+    int status = pclose(pipe);
+    if (status != 0) {
+        std::cerr << "Clipboard command failed with status: " << status << std::endl;
+        return "";
+    }
+
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+    
+    return result;
 }
 
 void createNewUSER_DATAFile() {
