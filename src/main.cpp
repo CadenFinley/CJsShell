@@ -39,7 +39,7 @@ const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.4.2.1";
+const std::string currentVersion = "1.4.2.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -781,25 +781,30 @@ void commandProcesser(const std::string& command) {
 
 void pluginCommands(){
     getNextCommand();
-    if(lastCommandParsed == "list") {
+    if(lastCommandParsed == "info") {
         getNextCommand();
-        if(lastCommandParsed == "available") {
-            auto plugins = pluginManager->getAvailablePlugins();
-            std::cout << "Available plugins:" << std::endl;
-            for(const auto& name : plugins) {
-                std::cout << name << std::endl;
-            }
+        if(lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
-        if(lastCommandParsed == "enabled") {
-            auto plugins = pluginManager->getEnabledPlugins();
-            std::cout << "Enabled plugins:" << std::endl;
-            for(const auto& name : plugins) {
-                std::cout << name << std::endl;
-            }
-            return;
+        std::string pluginToGetInfo = lastCommandParsed;
+        std::cout << pluginManager->getPluginInfo(pluginToGetInfo) << std::endl;
+        return;
+    }
+    if(lastCommandParsed == "available") {
+        auto plugins = pluginManager->getAvailablePlugins();
+        std::cout << "Available plugins:" << std::endl;
+        for(const auto& name : plugins) {
+            std::cout << name << std::endl;
         }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
+    }
+    if(lastCommandParsed == "enabled") {
+        auto plugins = pluginManager->getEnabledPlugins();
+        std::cout << "Enabled plugins:" << std::endl;
+        for(const auto& name : plugins) {
+            std::cout << name << std::endl;
+        }
         return;
     }
     if(lastCommandParsed == "settings") {
