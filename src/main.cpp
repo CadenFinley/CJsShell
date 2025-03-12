@@ -39,7 +39,7 @@ const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.4.2.2";
+const std::string currentVersion = "1.4.2.3";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -126,9 +126,6 @@ int main() {
         std::filesystem::create_directory(THEMES_DIRECTORY);
     }
 
-    pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
-    pluginManager->discoverPlugins();
-
     if (!std::filesystem::exists(USER_DATA)) {
         createNewUSER_DATAFile();
     } else {
@@ -167,6 +164,9 @@ int main() {
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::filesystem::remove(DATA_DIRECTORY / "CHANGELOG.txt");
     }
+
+    pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
+    pluginManager->discoverPlugins();
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
