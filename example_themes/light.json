@@ -1,0 +1,14 @@
+{
+    "GREEN_COLOR_BOLD": "\\033[0;32m",
+    "RESET_COLOR": "\\033[0m",
+    "RED_COLOR_BOLD": "\\033[0;31m",
+    "PURPLE_COLOR_BOLD": "\\033[0;35m",
+    "BLUE_COLOR_BOLD": "\\033[0;34m",
+    "YELLOW_COLOR_BOLD": "\\033[0;33m",
+    "CYAN_COLOR_BOLD": "\\033[0;36m",
+    "TERMINAL_TEXT": "\\033[0;30m",
+    "COMMAND_PROMPT": "\\033[1;34m",
+    "ERROR_TEXT": "\\033[0;31m",
+    "SUCCESS_TEXT": "\\033[0;32m",
+    "HIGHLIGHT_TEXT": "\\033[0;36m"
+}

@@ -4,7 +4,6 @@
 #include <algorithm>
 
 namespace {
-    // Converts occurrences of the literal "\033" to an actual escape character.
     std::string parseAnsiCodes(const std::string &input) {
         std::string output = input;
         std::string pattern = "\\033";
@@ -55,12 +54,10 @@ void ThemeManager::createDefaultTheme() {
 void ThemeManager::discoverAvailableThemes() {
     availableThemes.clear();
     
-    // Add default theme if it doesn't exist
     if (availableThemes.find("default") == availableThemes.end()) {
         createDefaultTheme();
     }
     
-    // Load all themes from the themes directory
     for (const auto& entry : std::filesystem::directory_iterator(themesDirectory)) {
         if (entry.path().extension() == ".json") {
             std::string themeName = entry.path().stem().string();
@@ -104,7 +101,6 @@ bool ThemeManager::loadTheme(const std::string& themeName) {
             std::map<std::string, std::string> themeColors;
             for (auto& [key, value] : themeData.items()) {
                 if (value.is_string()) {
-                    // Convert literal ANSI codes to proper escape characters.
                     themeColors[key] = parseAnsiCodes(value.get<std::string>());
                 }
             }
@@ -153,7 +149,6 @@ bool ThemeManager::deleteTheme(const std::string& themeName) {
         std::filesystem::remove(themePath);
         availableThemes.erase(themeName);
         
-        // If current theme was deleted, switch to default
         if (currentThemeName == themeName) {
             loadTheme("default");
         }
@@ -177,12 +172,10 @@ std::string ThemeManager::getColor(const std::string& colorName) const {
         return currentThemeColors.at(colorName);
     }
     
-    // Return reset color if the requested color doesn't exist
     if (currentThemeColors.find("RESET_COLOR") != currentThemeColors.end()) {
         return currentThemeColors.at("RESET_COLOR");
     }
     
-    // Fallback to ANSI reset
     return "\033[0m";
 }
 

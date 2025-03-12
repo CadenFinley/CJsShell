@@ -34,22 +34,20 @@ bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
 
-// Changed from constants to variables for theme support
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
 std::string RESET_COLOR = "\033[0m";
 std::string RED_COLOR_BOLD = "\033[1;31m";
 std::string PURPLE_COLOR_BOLD = "\033[1;35m";
-std::string BLUE_COLOR_BOLD = "\033[1;34m";  // Added blue color
-std::string YELLOW_COLOR_BOLD = "\033[1;33m"; // Added yellow color
-std::string CYAN_COLOR_BOLD = "\033[1;36m";   // Added cyan color
+std::string BLUE_COLOR_BOLD = "\033[1;34m";
+std::string YELLOW_COLOR_BOLD = "\033[1;33m";
+std::string CYAN_COLOR_BOLD = "\033[1;36m";
 
-// Theme-related variables
 std::string currentTheme = "default";
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.5.0";
+const std::string currentVersion = "1.5.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -74,7 +72,7 @@ std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 OpenAIPromptEngine openAIPromptEngine;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
-ThemeManager* themeManager = nullptr; // added global theme manager
+ThemeManager* themeManager = nullptr;
 
 std::string readAndReturnUserDataFile();
 std::vector<std::string> commandSplicer(const std::string& command);
@@ -120,16 +118,17 @@ void discoverAvailableThemes();
 void applyColorToStrings();
 
 int main() {
-    
-    sendTerminalCommand("cd /");
-    sendTerminalCommand("clear");
-    std::cout << "Loading..." << std::endl;
 
     startupCommands = {};
     shortcuts = {};
     multiScriptShortcuts = {};
     terminal = TerminalPassthrough();
     openAIPromptEngine = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
+
+    sendTerminalCommand("cd /");
+    sendTerminalCommand("clear");
+
+    std::cout << "Loading..." << std::endl;
 
     applicationDirectory = std::filesystem::current_path().string();
     if (applicationDirectory.find(":") != std::string::npos) {
@@ -213,7 +212,7 @@ int main() {
     }
     setRawMode(false);
     delete pluginManager;
-    delete themeManager; // delete theme manager before exit
+    delete themeManager;
     return 0;
 }
 
