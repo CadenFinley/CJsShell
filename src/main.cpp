@@ -39,7 +39,7 @@ const std::string RED_COLOR_BOLD = "\033[1;31m";
 const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.4.1.3";
+const std::string currentVersion = "1.4.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
