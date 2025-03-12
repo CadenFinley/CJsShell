@@ -5,7 +5,10 @@
 #include <string>
 #include <curl/curl.h>
 #include <sstream>
-#include "nlohmann/json.hpp" // Include the JSON library
+#include <fstream>
+#include <filesystem>
+#include <queue>
+#include "nlohmann/json.hpp"
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     ((std::string*)userp)->append((char*)contents, size * nmemb);
@@ -14,9 +17,38 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 
 class ClaudeAnthropic : public PluginInterface {
 private:
+    std::string DATA_DIRECTORY = ".DTT-Data";
+    std::string SETTINGS_DIRECTORY = DATA_DIRECTORY + "/claude-anthropic-settings";
+    std::string USER_DATA = SETTINGS_DIRECTORY + "/claude-anthropic-settings.json";
     CURL* curl;
     std::string apiKey;
     int maxTokens;
+
+    void writeUserDataFile(){
+        std::ofstream file(USER_DATA);
+        if (file.is_open()) {
+            nlohmann::json settings;
+            settings["api_key"] = apiKey;
+            settings["max_tokens"] = maxTokens;
+            file << settings.dump(4);
+            file.close();
+        } else {
+            std::cerr << "Error: Unable to write to the user data file at " << USER_DATA << std::endl;
+        }
+    }
+
+    void readUserDataFile(){
+        std::ifstream file(USER_DATA);
+        if (file.is_open()) {
+            nlohmann::json settings;
+            file >> settings;
+            file.close();
+            apiKey = settings["api_key"].get<std::string>();
+            maxTokens = settings["max_tokens"].get<int>();
+        } else {
+            std::cerr << "Error: Unable to read the user data file at " << USER_DATA << std::endl;
+        }
+    }
 
 public:
     ClaudeAnthropic() : curl(nullptr), maxTokens(1000) {}
@@ -41,12 +73,30 @@ public:
     }
     
     bool initialize() { 
+        std::ifstream checkDir(SETTINGS_DIRECTORY + "/.exists");
+        if (!checkDir.good()) {
+            std::string mkdirCmd = "mkdir -p \"" + SETTINGS_DIRECTORY + "\"";
+            system(mkdirCmd.c_str());
+            
+            std::ifstream checkFile(USER_DATA);
+            if (!checkFile.good()) {
+                std::ofstream file(USER_DATA);
+                if (file.is_open()) {
+                    file << "{\n\"api_key\": \"\",\n\"max_tokens\": 1000\n}";
+                    file.close();
+                } else {
+                    std::cerr << "Error: Unable to create the user data file at " << USER_DATA << std::endl;
+                }
+            }
+        }
+
+        readUserDataFile();
+        
         curl = curl_easy_init();
         if (!curl) {
             std::cerr << "Failed to initialize CURL" << std::endl;
             return false;
         }
-        maxTokens = 1000;
         return true;
     }
     
@@ -55,6 +105,7 @@ public:
             curl_easy_cleanup(curl);
             curl = nullptr;
         }
+        writeUserDataFile();
     }
     
     bool handleCommand(std::queue<std::string>& args) {
@@ -139,8 +190,13 @@ public:
                 std::cerr << "Invalid max_tokens value: " << value << std::endl;
             }
         }
+        writeUserDataFile();
     }
 };
 
-PLUGIN_API PluginInterface* createPlugin() { return new ClaudeAnthropic(); }
-PLUGIN_API void destroyPlugin(PluginInterface* plugin) { delete plugin; }
+extern "C" {
+    PLUGIN_API PluginInterface* createPlugin() { 
+        return static_cast<PluginInterface*>(new ClaudeAnthropic()); 
+    }
+    PLUGIN_API void destroyPlugin(PluginInterface* plugin) { delete plugin; }
+}
