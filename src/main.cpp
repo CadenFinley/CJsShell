@@ -14,6 +14,9 @@
 #include "openaipromptengine.h"
 #include "pluginmanager.h"
 
+#include <streambuf>
+#include <ostream>
+
 using json = nlohmann::json;
 
 bool TESTING = false;
@@ -98,6 +101,7 @@ void pluginCommands();
 std::string getClipboardContent();
 
 int main() {
+    
     sendTerminalCommand("cd /");
     sendTerminalCommand("clear");
     std::cout << "Loading..." << std::endl;
@@ -120,7 +124,6 @@ int main() {
 
     if (!std::filesystem::exists(THEMES_DIRECTORY)) {
         std::filesystem::create_directory(THEMES_DIRECTORY);
-        createDefaultTheme();
     }
 
     pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
@@ -135,13 +138,6 @@ int main() {
     if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
         createNewUSER_HISTORYfile();
     }
-
-    std::cout << "Last Login: " << lastLogin << std::endl;
-    std::time_t now = std::time(nullptr);
-    std::tm* now_tm = std::localtime(&now);
-    char buffer[100];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
-    lastLogin = buffer;
 
     if(checkForUpdates){
         if (checkForUpdate()) {
@@ -180,6 +176,15 @@ int main() {
         }
         runningStartup = false;
     }
+
+    std::cout << "Last Login: " << lastLogin << std::endl;
+    std::time_t now = std::time(nullptr);
+    std::tm* now_tm = std::localtime(&now);
+    char buffer[100];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
+    lastLogin = buffer;
+
+    sendTerminalCommand("clear");
 
     std::cout << titleLine << std::endl;
     std::cout << createdLine << std::endl;
@@ -770,6 +775,7 @@ void commandProcesser(const std::string& command) {
                 return;
             }
         }
+        std::cerr << "Unknown command. Please try again." << std::endl;
     }
 }
 
@@ -796,69 +802,95 @@ void pluginCommands(){
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
-    else if(lastCommandParsed == "enable") {
+    if(lastCommandParsed == "settings") {
+        std::cout << "Settings for plugins:" << std::endl;
+        auto settings = pluginManager->getAllPluginSettings();
+        for (const auto& [plugin, settingMap] : settings) {
+            std::cout << plugin << ":" << std::endl;
+            for (const auto& [key, value] : settingMap) {
+                std::cout << "  " << key << " = " << value << std::endl;
+            }
+        }
+        return;
+    }
+    std::string pluginToModify = lastCommandParsed;
+    std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
+    if (std::find(enabledPlugins.begin(), enabledPlugins.end(), pluginToModify) != enabledPlugins.end()) {
         getNextCommand();
-        if(!lastCommandParsed.empty()){
-            if(lastCommandParsed == "all"){
-                for(const auto& plugin : pluginManager->getAvailablePlugins()){
-                    pluginManager->enablePlugin(plugin);
-                }
+        if(lastCommandParsed == "enable") {
+            pluginManager->enablePlugin(pluginToModify);
+            return;
+        }
+        if(lastCommandParsed == "disable") {
+            pluginManager->disablePlugin(pluginToModify);
+            return;
+        }
+        if(lastCommandParsed == "info") {
+            std::cout << pluginManager->getPluginInfo(pluginToModify) << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "commands") {
+            std::cout << "Commands for " << pluginToModify << ":" << std::endl;
+            std::vector<std::string> listOfPluginCommands = pluginManager->getPluginCommands(pluginToModify);
+            for (const auto& cmd : listOfPluginCommands) {
+                std::cout << "  " << cmd << std::endl;
+            }
+            return;
+        }
+        if(lastCommandParsed == "settings") {
+            getNextCommand();
+            if(lastCommandParsed.empty()) {
+                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
                 return;
             }
-            pluginManager->enablePlugin(lastCommandParsed);
-        }
-        return;
-    }
-    else if(lastCommandParsed == "disable") {
-        getNextCommand();
-        if(!lastCommandParsed.empty()){
-            pluginManager->disablePlugin(lastCommandParsed);
-        }
-        return;
-    }
-    else if(lastCommandParsed == "info") {
-        getNextCommand();
-        if(!lastCommandParsed.empty()){
-            std::cout << pluginManager->getPluginInfo(lastCommandParsed) << std::endl;
-        }
-        return;
-    }
-    else if (lastCommandParsed == "commands") {
-        getNextCommand();
-        if(lastCommandParsed.empty()){
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "all") {
-            auto plugins = pluginManager->getEnabledPlugins();
-            for(const auto& name : plugins) {
-                std::cout << "Commands for " << name << ":" << std::endl;
-                std::vector<std::string> listOfPluginCommands = pluginManager->getPluginCommands(name);
-                for (const auto& cmd : listOfPluginCommands) {
-                    std::cout << "  " << cmd << std::endl;
+            if(lastCommandParsed == "set") {
+                getNextCommand();
+                if(lastCommandParsed.empty()) {
+                    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                    return;
+                }
+                std::string settingToModify = lastCommandParsed;
+                getNextCommand();
+                if(lastCommandParsed.empty()) {
+                    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                    return;
+                }
+                std::string settingValue = lastCommandParsed;
+                if(pluginManager->updatePluginSetting(pluginToModify, settingToModify, settingValue)){
+                    std::cout << "Setting " << settingToModify << " set to " << settingValue << " for plugin " << pluginToModify << std::endl;
+                    return;
+                } else {
+                    std::cout << "Setting " << settingToModify << " not found for plugin " << pluginToModify << std::endl;
+                    return;
                 }
             }
-            return;
         }
-        std::cout << "Commands for " << lastCommandParsed << ":" << std::endl;
-        std::vector<std::string> listOfPluginCommands = pluginManager->getPluginCommands(lastCommandParsed);
-        for (const auto& cmd : listOfPluginCommands) {
-            std::cout << "  " << cmd << std::endl;
-        }
-        return;
-    }
-    else if(lastCommandParsed == "help") {
-        std::cout << "Plugin commands:" << std::endl;
-            std::cout << "list available: List all available plugins" << std::endl;
-            std::cout << "list enabled: List all enabled plugins" << std::endl;
+        if(lastCommandParsed == "help") {
+            std::cout << "Plugin commands:" << std::endl;
             std::cout << "enable [NAME]: Enable a plugin" << std::endl;
-            std::cout << "enable all: Enable all plugins" << std::endl;
             std::cout << "disable [NAME]: Disable a plugin" << std::endl;
             std::cout << "info [NAME]: Get information about a plugin" << std::endl;
             std::cout << "commands [NAME]: List all commands for a plugin" << std::endl;
+            std::cout << "settings set [SETTING] [VALUE]: Set a setting for a plugin" << std::endl;
             return;
+        }
+        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
+    } else {
+        std::vector<std::string> availablePlugins = pluginManager->getAvailablePlugins();
+        if(std::find(availablePlugins.begin(), availablePlugins.end(), pluginToModify) != availablePlugins.end()){
+            getNextCommand();
+            if(lastCommandParsed == "enable") {
+                pluginManager->enablePlugin(pluginToModify);
+                return;
+            }
+            std::cout << "Plugin: "<< pluginToModify << " is disabled." << std::endl;
+            return;
+        } else {
+            std::cout << "Plugin " << pluginToModify << " does not exist." << std::endl;
+            return;
+        }
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void sendTerminalCommand(const std::string& command) {

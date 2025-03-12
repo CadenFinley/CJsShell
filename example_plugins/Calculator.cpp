@@ -176,7 +176,7 @@ public:
             
             try {
                 lastResult = evaluateExpression(expression);
-                std::cout << "Result: " << lastResult << std::endl;
+                std::cout << lastResult << std::endl;
             } catch (const std::exception& e) {
                 std::cout << "Error: " << e.what() << std::endl;
             }

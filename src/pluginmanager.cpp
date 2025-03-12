@@ -39,7 +39,7 @@ bool PluginManager::discoverPlugins() {
             loadPlugin(entry.path());
         }
     }
-    
+    std::cout << "Be sure to only download plugins from trusted sources." << std::endl;
     return true;
 }
 

@@ -216,5 +216,11 @@ bool TerminalPassthrough::isRootPath(const fs::path& path){
 }
 
 void TerminalPassthrough::addCommandToHistory(const std::string& command) {
+    if (command.empty()) {
+        return;
+    }
+    if (std::find(terminalCacheUserInput.begin(), terminalCacheUserInput.end(), command) != terminalCacheUserInput.end()) {
+        return;
+    }
     terminalCacheUserInput.push_back(command);
 }
