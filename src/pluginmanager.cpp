@@ -32,14 +32,13 @@ bool PluginManager::discoverPlugins() {
         std::cerr << "Plugins directory does not exist: " << pluginsDirectory << std::endl;
         return false;
     }
-    
+    std::cout << "Be sure to only download plugins from trusted sources." << std::endl;
     for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
         std::string fileName = entry.path().filename().string();
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
             loadPlugin(entry.path());
         }
     }
-    std::cout << "Be sure to only download plugins from trusted sources." << std::endl;
     return true;
 }
 

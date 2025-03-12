@@ -13,6 +13,7 @@
 #include "nlohmann/json.hpp"
 #include "openaipromptengine.h"
 #include "pluginmanager.h"
+#include "thememanager.h"
 
 #include <streambuf>
 #include <ostream>
@@ -33,13 +34,22 @@ bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
 
-const std::string GREEN_COLOR_BOLD = "\033[1;32m";
-const std::string RESET_COLOR = "\033[0m";
-const std::string RED_COLOR_BOLD = "\033[1;31m";
-const std::string PURPLE_COLOR_BOLD = "\033[1;35m";
+// Changed from constants to variables for theme support
+std::string GREEN_COLOR_BOLD = "\033[1;32m";
+std::string RESET_COLOR = "\033[0m";
+std::string RED_COLOR_BOLD = "\033[1;31m";
+std::string PURPLE_COLOR_BOLD = "\033[1;35m";
+std::string BLUE_COLOR_BOLD = "\033[1;34m";  // Added blue color
+std::string YELLOW_COLOR_BOLD = "\033[1;33m"; // Added yellow color
+std::string CYAN_COLOR_BOLD = "\033[1;36m";   // Added cyan color
+
+// Theme-related variables
+std::string currentTheme = "default";
+std::map<std::string, std::map<std::string, std::string>> availableThemes;
+
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.4.2.3";
+const std::string currentVersion = "1.5.0";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -64,6 +74,7 @@ std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 OpenAIPromptEngine openAIPromptEngine;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
+ThemeManager* themeManager = nullptr; // added global theme manager
 
 std::string readAndReturnUserDataFile();
 std::vector<std::string> commandSplicer(const std::string& command);
@@ -100,6 +111,14 @@ bool downloadLatestRelease();
 void pluginCommands();
 std::string getClipboardContent();
 
+// New theme-related function prototypes
+void themeCommands();
+void loadTheme(const std::string& themeName);
+void saveTheme(const std::string& themeName);
+void createDefaultTheme();
+void discoverAvailableThemes();
+void applyColorToStrings();
+
 int main() {
     
     sendTerminalCommand("cd /");
@@ -120,10 +139,6 @@ int main() {
     if (!std::filesystem::exists(DATA_DIRECTORY)) {
         std::cout << DATA_DIRECTORY.string() << " not found in: " << applicationDirectory << std::endl;
         std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
-    }
-
-    if (!std::filesystem::exists(THEMES_DIRECTORY)) {
-        std::filesystem::create_directory(THEMES_DIRECTORY);
     }
 
     if (!std::filesystem::exists(USER_DATA)) {
@@ -168,6 +183,9 @@ int main() {
     pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
     pluginManager->discoverPlugins();
 
+    themeManager = new ThemeManager(THEMES_DIRECTORY);
+    applyColorToStrings();
+
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
         std::cout << "Running startup commands..." << std::endl;
@@ -195,6 +213,7 @@ int main() {
     }
     setRawMode(false);
     delete pluginManager;
+    delete themeManager; // delete theme manager before exit
     return 0;
 }
 
@@ -744,6 +763,8 @@ void commandProcesser(const std::string& command) {
         exitFlag = true;
     } else if(lastCommandParsed == "plugin") {
         pluginCommands();
+    } else if (lastCommandParsed == "theme") {
+        themeCommands();
     } else if (lastCommandParsed == "help") {
         std::cout << "Commands:" << std::endl;
         std::cout << "Command Prefix: " + commandPrefix << std::endl;
@@ -1905,4 +1926,62 @@ void displayChangeLog(const std::string& changeLog) {
     }
     std::cout << "Change Log:" << std::endl;
     std::cout << clickableChangeLog << std::endl;
+}
+
+void applyColorToStrings() {
+    // Update global color variables based on the current theme
+    GREEN_COLOR_BOLD = themeManager->getColor("GREEN_COLOR_BOLD");
+    RESET_COLOR = themeManager->getColor("RESET_COLOR");
+    RED_COLOR_BOLD = themeManager->getColor("RED_COLOR_BOLD");
+    PURPLE_COLOR_BOLD = themeManager->getColor("PURPLE_COLOR_BOLD");
+    BLUE_COLOR_BOLD = themeManager->getColor("BLUE_COLOR_BOLD");
+    YELLOW_COLOR_BOLD = themeManager->getColor("YELLOW_COLOR_BOLD");
+    CYAN_COLOR_BOLD = themeManager->getColor("CYAN_COLOR_BOLD");
+}
+
+void loadTheme(const std::string& themeName) {
+    if (themeManager->loadTheme(themeName)) {
+        applyColorToStrings();
+        std::cout << "Theme loaded: " << themeName << std::endl;
+    } else {
+        std::cerr << "Failed to load theme: " << themeName << std::endl;
+    }
+}
+
+void saveTheme(const std::string& themeName) {
+    std::map<std::string, std::string> colors = {
+        {"GREEN_COLOR_BOLD", GREEN_COLOR_BOLD},
+        {"RESET_COLOR", RESET_COLOR},
+        {"RED_COLOR_BOLD", RED_COLOR_BOLD},
+        {"PURPLE_COLOR_BOLD", PURPLE_COLOR_BOLD},
+        {"BLUE_COLOR_BOLD", BLUE_COLOR_BOLD},
+        {"YELLOW_COLOR_BOLD", YELLOW_COLOR_BOLD},
+        {"CYAN_COLOR_BOLD", CYAN_COLOR_BOLD}
+    };
+    if (themeManager->saveTheme(themeName, colors)) {
+        std::cout << "Theme saved: " << themeName << std::endl;
+    } else {
+        std::cerr << "Failed to save theme: " << themeName << std::endl;
+    }
+}
+
+void themeCommands() {
+    getNextCommand();
+    if (lastCommandParsed == "load") {
+        getNextCommand();
+        if (!lastCommandParsed.empty()) {
+            loadTheme(lastCommandParsed);
+        } else {
+            std::cerr << "No theme name provided to load." << std::endl;
+        }
+    } else if (lastCommandParsed == "save") {
+        getNextCommand();
+        if (!lastCommandParsed.empty()) {
+            saveTheme(lastCommandParsed);
+        } else {
+            std::cerr << "No theme name provided to save." << std::endl;
+        }
+    } else {
+        std::cerr << "Unknown theme command. Use 'load' or 'save'." << std::endl;
+    }
 }
