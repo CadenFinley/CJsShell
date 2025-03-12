@@ -33,6 +33,21 @@ DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capab
    ./DevToolsTerminal
    ```
 
+## Command Format
+
+Commands in DevToolsTerminal follow a consistent format:
+
+1. **Command Prefix**: By default, commands start with `!` (customizable via `!user text commandprefix [char]`)
+2. **Command Structure**: `!category subcategory action [arguments]`
+   - Example: `!user shortcut add myshortcut ls -la`
+3. **Direct Terminal Commands**: Any input without the command prefix is sent directly to the terminal
+4. **AI Mode**: When in AI mode (toggled via `!user text defaultentry ai`), input without command prefix is sent to ChatGPT
+
+### Command Types
+- **Simple Commands**: Single word commands like `!help`, `!exit`, `!clear`
+- **Category Commands**: Multi-level commands like `!user startup add [command]`
+- **Shortcut Commands**: Execute defined shortcuts via `!ss [shortcut]` or `!mm [shortcut]`
+
 ## Commands Reference
 
 ### Basic Commands
@@ -45,6 +60,20 @@ DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capab
 | `!approot` | Navigate to application data directory |
 | `!terminal [command]` | Execute terminal command directly |
 | `!version` | Display application version information |
+
+### Update Management
+
+| Command | Description |
+|---------|-------------|
+| `!version` | Display current application version |
+| `!checkforupdates` | Manually check for available updates |
+| `!user checkforupdates enable` | Enable automatic update checking on startup |
+| `!user checkforupdates disable` | Disable automatic update checking on startup |
+
+The application automatically checks for updates on startup (if enabled) and will:
+1. Compare local version with latest GitHub release
+2. Prompt to download if an update is available
+3. Display changelog after installing update
 
 ### Shortcuts
 
@@ -162,6 +191,21 @@ The terminal features color-coded interface elements:
 |---------|-------------|
 | `!user testing enable` | Enable testing mode |
 | `!user testing disable` | Disable testing mode |
+
+### Plugin System
+
+| Command | Description |
+|---------|-------------|
+| `!plugin list available` | List all available plugins |
+| `!plugin list enabled` | List all enabled plugins |
+| `!plugin enableall` | Enable all available plugins |
+| `!plugin settings` | Show all plugin settings |
+| `!plugin [name] enable` | Enable specific plugin |
+| `!plugin [name] disable` | Disable specific plugin |
+| `!plugin [name] info` | Get information about a plugin |
+| `!plugin [name] commands` | List commands provided by a plugin |
+| `!plugin [name] settings set [key] [value]` | Change plugin setting |
+| `!plugin help` | Show plugin command help |
 
 ## OpenAI Integration Details
 
