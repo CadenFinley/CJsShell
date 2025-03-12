@@ -184,8 +184,6 @@ int main() {
     std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
     lastLogin = buffer;
 
-    sendTerminalCommand("clear");
-
     std::cout << titleLine << std::endl;
     std::cout << createdLine << std::endl;
 
