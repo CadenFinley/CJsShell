@@ -335,7 +335,8 @@ protected:
             
             // HTML/XML attribute values - this one works fine with standard regex_replace
             std::regex valueRegex("=\"([^\"]*?)\"");
-            result = std::regex_replace(result, valueRegex, 
+            result = std::regex_replace(result, 
+                valueRegex, 
                 "=\"" + syntaxColors.string + "$1" + syntaxColors.normal + "\"");
         }
         else if (lang == "css") {
@@ -597,6 +598,93 @@ protected:
             result = std::regex_replace(result, commandRegex, syntaxColors.function + "$1" + syntaxColors.normal);
             
             // Apply keywords
+            for (const auto& keyword : keywords) {
+                std::regex keywordRegex("\\b" + keyword + "\\b");
+                result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
+            }
+        }
+        // Added new language support
+        else if (lang == "swift") {
+            // Swift keywords and basic highlighting
+            std::vector<std::string> keywords = {"func", "let", "var", "if", "else", "for", "while", "return", "class", "struct", "enum", "protocol", "import", "extension"};
+            std::regex stringRegex("\"(\\\\.|[^\"])*\"");
+            result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
+            std::regex lineCommentRegex("//.*$");
+            result = std::regex_replace(result, lineCommentRegex, syntaxColors.comment + "$&" + syntaxColors.normal);
+            std::regex blockCommentRegex("/\\*[^*]*\\*+([^/*][^*]*\\*+)*/");
+            result = std::regex_replace(result, blockCommentRegex, syntaxColors.comment + "$&" + syntaxColors.normal);
+            std::regex funcRegex("\\bfunc\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
+            result = std::regex_replace(result, funcRegex, syntaxColors.keyword + "func" + syntaxColors.normal + " " + syntaxColors.function + "$1" + syntaxColors.normal);
+            for (const auto& keyword : keywords) {
+                std::regex keywordRegex("\\b" + keyword + "\\b");
+                result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
+            }
+        }
+        else if (lang == "kotlin") {
+            // Kotlin keywords and basic highlighting
+            std::vector<std::string> keywords = {"fun", "val", "var", "if", "else", "when", "class", "object", "interface", "for", "while", "return", "import", "package"};
+            std::regex stringRegex("\"(\\\\.|[^\"])*\"");
+            result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
+            std::regex lineCommentRegex("//.*$");
+            result = std::regex_replace(result, lineCommentRegex, syntaxColors.comment + "$&" + syntaxColors.normal);
+            std::regex funcRegex("\\bfun\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
+            result = std::regex_replace(result, funcRegex, syntaxColors.keyword + "fun" + syntaxColors.normal + " " + syntaxColors.function + "$1" + syntaxColors.normal);
+            for (const auto& keyword : keywords) {
+                std::regex keywordRegex("\\b" + keyword + "\\b");
+                result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
+            }
+        }
+        else if (lang == "haskell") {
+            // Haskell keywords and basic highlighting
+            std::vector<std::string> keywords = {"module", "import", "where", "do", "let", "in", "if", "then", "else", "case", "of"};
+            std::regex stringRegex("\"(\\\\.|[^\"])*\"");
+            result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
+            std::regex lineCommentRegex("--.*$");
+            result = std::regex_replace(result, lineCommentRegex, syntaxColors.comment + "$&" + syntaxColors.normal);
+            std::regex funcRegex("^([a-z][a-zA-Z0-9_']*)\\s*=");
+            result = std::regex_replace(result, funcRegex, syntaxColors.function + "$1" + syntaxColors.normal + " =");
+            for (const auto& keyword : keywords) {
+                std::regex keywordRegex("\\b" + keyword + "\\b");
+                result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
+            }
+        }
+        else if (lang == "lua") {
+            // Lua keywords and basic highlighting
+            std::vector<std::string> keywords = {"function", "local", "end", "if", "then", "else", "elseif", "for", "in", "do", "repeat", "until", "return"};
+            std::regex stringRegex("(['\"])(.*?)\\1");
+            result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
+            std::regex commentRegex("--.*$");
+            result = std::regex_replace(result, commentRegex, syntaxColors.comment + "$&" + syntaxColors.normal);
+            std::regex funcRegex("\\bfunction\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
+            result = std::regex_replace(result, funcRegex, syntaxColors.keyword + "function" + syntaxColors.normal + " " + syntaxColors.function + "$1" + syntaxColors.normal);
+            for (const auto& keyword : keywords) {
+                std::regex keywordRegex("\\b" + keyword + "\\b");
+                result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
+            }
+        }
+        else if (lang == "r") {
+            // R keywords and basic highlighting
+            std::vector<std::string> keywords = {"if", "else", "for", "while", "repeat", "function", "in", "NULL", "TRUE", "FALSE", "NA"};
+            std::regex stringRegex("(['\"])(.*?)\\1");
+            result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
+            std::regex commentRegex("#.*$");
+            result = std::regex_replace(result, commentRegex, syntaxColors.comment + "$&" + syntaxColors.normal);
+            std::regex funcRegex("\\bfunction\\s*\\(");
+            result = std::regex_replace(result, funcRegex, syntaxColors.keyword + "function" + syntaxColors.normal + "(");
+            for (const auto& keyword : keywords) {
+                std::regex keywordRegex("\\b" + keyword + "\\b");
+                result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
+            }
+        }
+        else if (lang == "scala") {
+            // Scala keywords and basic highlighting
+            std::vector<std::string> keywords = {"def", "val", "var", "if", "else", "match", "case", "for", "yield", "class", "object", "trait", "extends", "with", "import", "package"};
+            std::regex stringRegex("\"(\\\\.|[^\"])*\"");
+            result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
+            std::regex lineCommentRegex("//.*$");
+            result = std::regex_replace(result, lineCommentRegex, syntaxColors.comment + "$&" + syntaxColors.normal);
+            std::regex funcRegex("\\bdef\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
+            result = std::regex_replace(result, funcRegex, syntaxColors.keyword + "def" + syntaxColors.normal + " " + syntaxColors.function + "$1" + syntaxColors.normal);
             for (const auto& keyword : keywords) {
                 std::regex keywordRegex("\\b" + keyword + "\\b");
                 result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
