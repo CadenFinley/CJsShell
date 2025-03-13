@@ -15,6 +15,7 @@
 class DockerManagerPlugin : public PluginInterface {
 private:
     std::map<std::string, std::string> settings;
+    bool dockerAvailable;
     
     // Helper function to execute Docker commands and return output
     std::string executeCommand(const std::string& cmd) {
@@ -43,8 +44,23 @@ private:
         return parsedArgs;
     }
     
+    // Check if Docker is available
+    bool checkDockerInstalled() {
+        std::string dockerVersion = executeCommand(settings["docker_path"] + " --version 2>&1");
+        if (dockerVersion.find("Docker version") == std::string::npos) {
+            return false;
+        }
+        
+        std::string dockerRunning = executeCommand(settings["docker_path"] + " info 2>&1");
+        if (dockerRunning.find("ERROR") != std::string::npos) {
+            return false;
+        }
+        
+        return true;
+    }
+    
 public:
-    DockerManagerPlugin() {
+    DockerManagerPlugin() : dockerAvailable(false) {
         // Default settings
         settings["docker_path"] = "docker";
         settings["auto_refresh"] = "true";
@@ -71,18 +87,17 @@ public:
     
     bool initialize() override {
         // Check if Docker is installed and running
+        dockerAvailable = checkDockerInstalled();
+        
+        if (!dockerAvailable) {
+            std::cerr << "Docker is not installed, not in PATH, or the Docker daemon is not running." << std::endl;
+            std::cerr << "The plugin will load but commands requiring Docker will be disabled." << std::endl;
+            std::cerr << "Use 'check' to verify Docker status." << std::endl;
+            // We still return true so the plugin loads
+            return true;
+        }
+        
         std::string dockerVersion = executeCommand(settings["docker_path"] + " --version");
-        if (dockerVersion.find("Docker version") == std::string::npos) {
-            std::cerr << "Docker is not installed or not in PATH. Plugin initialization failed." << std::endl;
-            return false;
-        }
-        
-        std::string dockerRunning = executeCommand(settings["docker_path"] + " info");
-        if (dockerRunning.find("ERROR") != std::string::npos) {
-            std::cerr << "Docker daemon is not running. Plugin initialization failed." << std::endl;
-            return false;
-        }
-        
         std::cout << "Docker Manager plugin initialized successfully." << std::endl;
         std::cout << "Docker version: " << dockerVersion;
         return true;
@@ -95,18 +110,39 @@ public:
     bool handleCommand(std::queue<std::string>& args) override {
         if (args.empty()) {
             std::cout << "Docker Manager usage: docker [command] [options]" << std::endl;
-            std::cout << "Use 'docker help' for available commands." << std::endl;
+            std::cout << "Use 'dockerhelp' for available commands." << std::endl;
             return true;
         }
         
         std::string command = args.front();
+        args.pop();
+
+        if(command != "docker") {
+            return false;
+        }
+
+        command = args.front();
         args.pop();
         
         if (command == "help") {
             showHelp();
             return true;
         }
-        else if (command == "ps" || command == "containers") {
+        else if (command == "check") {
+            return checkDocker();
+        }
+        
+        // For all Docker commands, check if Docker is available first
+        if (!dockerAvailable) {
+            dockerAvailable = checkDockerInstalled();
+            if (!dockerAvailable) {
+                std::cout << "Error: Docker is not available. Please make sure Docker is installed and the daemon is running." << std::endl;
+                std::cout << "Use 'check' to verify Docker status." << std::endl;
+                return false;
+            }
+        }
+        
+        if (command == "ps" || command == "containers") {
             return listContainers(args);
         }
         else if (command == "images") {
@@ -151,6 +187,9 @@ public:
         else if (command == "run") {
             return runContainer(args);
         }
+        else if (command == "build") {
+            return buildImage(args);
+        }
         else {
             std::cout << "Unknown Docker command: " << command << std::endl;
             return false;
@@ -169,12 +208,22 @@ public:
     
     void updateSetting(const std::string& key, const std::string& value) override {
         settings[key] = value;
+        
+        // If docker_path is updated, check if Docker is available with the new path
+        if (key == "docker_path") {
+            dockerAvailable = checkDockerInstalled();
+            if (!dockerAvailable) {
+                std::cout << "Warning: Docker is not available at the specified path." << std::endl;
+            }
+        }
+        
         std::cout << "Docker Manager setting updated: " << key << " = " << value << std::endl;
     }
     
 private:
     void showHelp() {
         std::cout << "Docker Manager Plugin Commands:\n" << std::endl;
+        std::cout << "  docker check                     Check Docker installation status" << std::endl;
         std::cout << "  docker ps|containers [options]   List containers" << std::endl;
         std::cout << "  docker images [options]          List images" << std::endl;
         std::cout << "  docker start <container>         Start a container" << std::endl;
@@ -183,6 +232,7 @@ private:
         std::cout << "  docker rm <container>            Remove a container" << std::endl;
         std::cout << "  docker rmi <image>               Remove an image" << std::endl;
         std::cout << "  docker pull <image>              Pull an image" << std::endl;
+        std::cout << "  docker build [options] -t <tag> <path>  Build an image from a Dockerfile" << std::endl;
         std::cout << "  docker logs <container> [options] Show container logs" << std::endl;
         std::cout << "  docker exec <container> <command> Run a command in a container" << std::endl;
         std::cout << "  docker run [options] <image>     Run a new container" << std::endl;
@@ -190,6 +240,36 @@ private:
         std::cout << "  docker volumes                   List volumes" << std::endl;
         std::cout << "  docker info                      Show system-wide information" << std::endl;
         std::cout << "  docker stats [container]         Show container resource usage" << std::endl;
+    }
+    
+    bool checkDocker() {
+        dockerAvailable = checkDockerInstalled();
+        
+        if (dockerAvailable) {
+            std::string dockerVersion = executeCommand(settings["docker_path"] + " --version");
+            std::string dockerInfo = executeCommand(settings["docker_path"] + " info --format '{{.ServerVersion}}'");
+            
+            std::cout << "Docker is installed and running correctly." << std::endl;
+            std::cout << "Docker client: " << dockerVersion;
+            std::cout << "Docker server: " << dockerInfo << std::endl;
+            return true;
+        } else {
+            std::cout << "Docker is not available. Please check your installation." << std::endl;
+            
+            #ifdef __APPLE__
+            std::cout << "On macOS:" << std::endl;
+            std::cout << "1. Make sure Docker Desktop is installed" << std::endl;
+            std::cout << "2. Open Docker Desktop from your Applications folder" << std::endl;
+            std::cout << "3. Wait for Docker Desktop to start completely (whale icon in menu bar)" << std::endl;
+            #else
+            std::cout << "1. Is Docker installed? Run 'which docker' to verify the path." << std::endl;
+            std::cout << "2. Is the Docker daemon running? Try 'systemctl status docker' or 'dockerd'." << std::endl;
+            std::cout << "3. Do you have proper permissions? Try running with sudo or add your user to the docker group." << std::endl;
+            #endif
+            
+            std::cout << "4. If Docker is installed in a custom location, use 'docker.update docker_path /path/to/docker'." << std::endl;
+            return false;
+        }
     }
     
     bool listContainers(std::queue<std::string>& args) {
@@ -450,9 +530,25 @@ private:
         }
         
         std::string cmdOptions = settings["docker_path"] + " run";
+        std::string runCmd;
+        
+        // Process all arguments
+        std::vector<std::string> allArgs;
+        while (!args.empty()) {
+            allArgs.push_back(args.front());
+            args.pop();
+        }
+        
+        // Check if we need to run in background mode
+        bool hasDetachFlag = false;
+        for (const auto& arg : allArgs) {
+            if (arg == "-d" || arg == "--detach") {
+                hasDetachFlag = true;
+                break;
+            }
+        }
         
         // Build the command with all options
-        std::vector<std::string> allArgs = parseArgs(args);
         for (const auto& arg : allArgs) {
             cmdOptions += " " + arg;
         }
@@ -461,7 +557,39 @@ private:
         std::string result = executeCommand(cmdOptions);
         std::cout << result;
         
-        return !result.empty();
+        if (hasDetachFlag && result.empty()) {
+            std::cout << "Container started in detached mode." << std::endl;
+        }
+        
+        return true;
+    }
+
+    bool buildImage(std::queue<std::string>& args) {
+        if (args.empty()) {
+            std::cout << "Error: Build options and path required" << std::endl;
+            std::cout << "Usage: docker build [options] -t <tag> <path>" << std::endl;
+            return false;
+        }
+        
+        std::string cmd = settings["docker_path"] + " build";
+        
+        // Build the full command with all options
+        std::vector<std::string> allArgs;
+        while (!args.empty()) {
+            allArgs.push_back(args.front());
+            args.pop();
+        }
+        
+        // Build the command with all options
+        for (const auto& arg : allArgs) {
+            cmd += " " + arg;
+        }
+        
+        std::cout << "Building image with command: " << cmd << std::endl;
+        std::string result = executeCommand(cmd);
+        std::cout << result;
+        
+        return true;
     }
 };
 
