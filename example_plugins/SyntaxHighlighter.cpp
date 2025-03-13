@@ -118,6 +118,9 @@ protected:
         // Standard keywords across many languages
         std::vector<std::string> commonKeywords = {"if", "else", "for", "while", "return", "break", "continue"};
         
+        // Generic number regex that matches integers, decimals, scientific notation, and hex
+        std::regex numberRegex("\\b(0[xX][0-9a-fA-F]+|[0-9]+(?:\\.[0-9]*)?(?:[eE][+-]?[0-9]+)?)\\b");
+        
         // Apply language-specific syntax highlighting
         if (lang == "python" || lang == "py") {
             // Python keywords
@@ -125,6 +128,9 @@ protected:
                 "finally", "with", "in", "is", "and", "or", "not", "pass", "lambda", "nonlocal", "global", 
                 "async", "await", "yield", "assert", "del", "raise"};
             keywords.insert(keywords.end(), commonKeywords.begin(), commonKeywords.end());
+            
+            // Python numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
             
             // Python strings
             std::regex stringRegex("(['\"])(.*?)\\1");
@@ -159,6 +165,9 @@ protected:
             
             // C++ values
             std::vector<std::string> values = {"true", "false", "NULL", "nullptr"};
+            
+            // C++ numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
             
             // C++ strings
             std::regex stringRegex("(['\"])(.*?)\\1");
@@ -198,6 +207,9 @@ protected:
                 "private", "protected", "public", "short", "static", "strictfp", "super", "switch", 
                 "synchronized", "this", "throw", "throws", "transient", "try", "void", "volatile"};
             keywords.insert(keywords.end(), commonKeywords.begin(), commonKeywords.end());
+            
+            // Java numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
             
             // Java values
             std::vector<std::string> values = {"true", "false", "null"};
@@ -241,6 +253,9 @@ protected:
                     "readonly", "abstract", "declare", "keyof", "never", "unknown"};
                 keywords.insert(keywords.end(), tsKeywords.begin(), tsKeywords.end());
             }
+            
+            // JS/TS numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
             
             // JS/TS values
             std::vector<std::string> values = {"true", "false", "null", "undefined", "NaN", "Infinity"};
@@ -395,6 +410,9 @@ protected:
             // Go values
             std::vector<std::string> values = {"true", "false", "nil", "iota"};
             
+            // Go numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Go strings
             std::regex stringRegex("([`'\"])(.*?)\\1");
             result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
@@ -437,6 +455,9 @@ protected:
             
             // Rust values
             std::vector<std::string> values = {"true", "false", "None", "Some", "Ok", "Err"};
+            
+            // Rust numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
             
             // Rust strings
             std::regex stringRegex("\".*?\"");
@@ -489,6 +510,9 @@ protected:
                 keywords.push_back(kwLower);
             }
             
+            // SQL numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // SQL strings
             std::regex stringRegex("'.*?'");
             result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
@@ -514,6 +538,9 @@ protected:
                 "require", "require_once", "return", "static", "switch", "throw", "trait", "try", "unset", 
                 "use", "var", "while", "xor", "yield"};
             keywords.insert(keywords.end(), commonKeywords.begin(), commonKeywords.end());
+            
+            // PHP numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
             
             // PHP values
             std::vector<std::string> values = {"true", "false", "null"};
@@ -553,6 +580,9 @@ protected:
                 "in", "module", "next", "nil", "not", "or", "redo", "rescue", "retry", "return", "self", 
                 "super", "then", "true", "undef", "unless", "until", "when", "while", "yield"};
             
+            // Ruby numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Ruby special variables
             std::regex varRegex("[@$][a-zA-Z_][a-zA-Z0-9_]*");
             result = std::regex_replace(result, varRegex, syntaxColors.number + "$&" + syntaxColors.normal);
@@ -581,6 +611,9 @@ protected:
                 "while", "until", "do", "done", "in", "function", "time", "select", "break", "continue", 
                 "return", "exit", "export", "local", "readonly", "shift", "source", "alias", "unalias"};
             
+            // Shell numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Shell variables
             std::regex varRegex("\\$([a-zA-Z_][a-zA-Z0-9_]*|[0-9]+|[#@*?$!-])");
             result = std::regex_replace(result, varRegex, syntaxColors.number + "$&" + syntaxColors.normal);
@@ -603,8 +636,11 @@ protected:
                 result = std::regex_replace(result, keywordRegex, syntaxColors.keyword + keyword + syntaxColors.normal);
             }
         }
-        // Added new language support
+        // Added new language support with number highlighting
         else if (lang == "swift") {
+            // Swift numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Swift keywords and basic highlighting
             std::vector<std::string> keywords = {"func", "let", "var", "if", "else", "for", "while", "return", "class", "struct", "enum", "protocol", "import", "extension"};
             std::regex stringRegex("\"(\\\\.|[^\"])*\"");
@@ -621,6 +657,9 @@ protected:
             }
         }
         else if (lang == "kotlin") {
+            // Kotlin numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Kotlin keywords and basic highlighting
             std::vector<std::string> keywords = {"fun", "val", "var", "if", "else", "when", "class", "object", "interface", "for", "while", "return", "import", "package"};
             std::regex stringRegex("\"(\\\\.|[^\"])*\"");
@@ -635,6 +674,9 @@ protected:
             }
         }
         else if (lang == "haskell") {
+            // Haskell numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Haskell keywords and basic highlighting
             std::vector<std::string> keywords = {"module", "import", "where", "do", "let", "in", "if", "then", "else", "case", "of"};
             std::regex stringRegex("\"(\\\\.|[^\"])*\"");
@@ -649,6 +691,9 @@ protected:
             }
         }
         else if (lang == "lua") {
+            // Lua numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Lua keywords and basic highlighting
             std::vector<std::string> keywords = {"function", "local", "end", "if", "then", "else", "elseif", "for", "in", "do", "repeat", "until", "return"};
             std::regex stringRegex("(['\"])(.*?)\\1");
@@ -663,6 +708,9 @@ protected:
             }
         }
         else if (lang == "r") {
+            // R numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // R keywords and basic highlighting
             std::vector<std::string> keywords = {"if", "else", "for", "while", "repeat", "function", "in", "NULL", "TRUE", "FALSE", "NA"};
             std::regex stringRegex("(['\"])(.*?)\\1");
@@ -677,6 +725,9 @@ protected:
             }
         }
         else if (lang == "scala") {
+            // Scala numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Scala keywords and basic highlighting
             std::vector<std::string> keywords = {"def", "val", "var", "if", "else", "match", "case", "for", "yield", "class", "object", "trait", "extends", "with", "import", "package"};
             std::regex stringRegex("\"(\\\\.|[^\"])*\"");
@@ -692,6 +743,10 @@ protected:
         }
         else {
             // Generic syntax highlighting for unknown languages
+            
+            // Generic numbers
+            result = std::regex_replace(result, numberRegex, syntaxColors.number + "$&" + syntaxColors.normal);
+            
             // Generic strings
             std::regex stringRegex("(['\"])(.*?)\\1");
             result = std::regex_replace(result, stringRegex, syntaxColors.string + "$&" + syntaxColors.normal);
