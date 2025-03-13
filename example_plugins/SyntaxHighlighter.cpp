@@ -19,8 +19,8 @@ struct SyntaxColors {
 };
 
 // Fixed definition of CustomCoutBuffer class
-class CustomCoutBuffer : public std::streambuf {  // Fixed extra dot after std::
-    std::streambuf* original;  // Fixed extra dot
+class CustomCoutBuffer : public std::streambuf {  // Removed extra dot
+    std::streambuf* original;
     bool enabled;
     
     // Buffer to store the entire output
@@ -338,6 +338,47 @@ protected:
             result = std::regex_replace(result, valueRegex, 
                 "=\"" + syntaxColors.string + "$1" + syntaxColors.normal + "\"");
         }
+        else if (lang == "css") {
+            // CSS selectors
+            std::regex selectorRegex("([\\w\\-:,.#\\[\\]=~^$*|]+)\\s*\\{");
+            result = std::regex_replace(result, selectorRegex, 
+                syntaxColors.keyword + "$1" + syntaxColors.normal + " {");
+
+            // CSS properties
+            std::regex propertyRegex("([\\-\\w]+)\\s*:");
+            result = std::regex_replace(result, propertyRegex, 
+                syntaxColors.function + "$1" + syntaxColors.normal + ":");
+
+            // CSS values
+            std::regex valueRegex(":\\s*([^;\\{\\}]+)");
+            result = std::regex_replace(result, valueRegex, 
+                ": " + syntaxColors.string + "$1" + syntaxColors.normal);
+
+            // CSS important
+            std::regex importantRegex("(!important)");
+            result = std::regex_replace(result, importantRegex, 
+                syntaxColors.keyword + "$1" + syntaxColors.normal);
+
+            // CSS comments
+            std::regex commentRegex("/\\*[^*]*\\*+([^/*][^*]*\\*+)*/");
+            result = std::regex_replace(result, commentRegex, 
+                syntaxColors.comment + "$&" + syntaxColors.normal);
+
+            // CSS @ rules
+            std::regex atRuleRegex("(@[\\w-]+)");
+            result = std::regex_replace(result, atRuleRegex, 
+                syntaxColors.keyword + "$1" + syntaxColors.normal);
+
+            // CSS units
+            std::regex unitRegex("(\\d+)(px|em|rem|vh|vw|%)");
+            result = std::regex_replace(result, unitRegex, 
+                syntaxColors.number + "$1" + syntaxColors.keyword + "$2" + syntaxColors.normal);
+
+            // CSS colors
+            std::regex colorRegex("#[a-fA-F0-9]{3,6}");
+            result = std::regex_replace(result, colorRegex, 
+                syntaxColors.number + "$&" + syntaxColors.normal);
+        }
         else if (lang == "go" || lang == "golang") {
             // Go keywords
             std::vector<std::string> keywords = {"package", "import", "func", "type", "struct", "interface", 
@@ -414,10 +455,11 @@ protected:
                 result = std::regex_replace(result, macroRegex, syntaxColors.function + macro + syntaxColors.normal + "!");
             }
             
-            // Rust functions - added third parameter for the replacement string
+            // Rust functions
             std::regex funcRegex("\\b(fn|impl)\\s+([a-zA-Z_][a-zA-Z0-9_]*)");
             result = std::regex_replace(result, funcRegex, 
-                "$1 " + syntaxColors.function + "$2" + syntaxColors.normal);
+                syntaxColors.keyword + "$1" + syntaxColors.normal + " " + 
+                syntaxColors.function + "$2" + syntaxColors.normal);
             
             // Apply keywords
             for (const auto& keyword : keywords) {
@@ -627,7 +669,7 @@ public:
         originalCoutBuffer = std::cout.rdbuf();
         customBuffer = new CustomCoutBuffer(originalCoutBuffer);
         customBuffer->setEnabled(true);
-        std::cout.rdbuf(static_cast<std::streambuf*>(customBuffer));  // Added cast to std::streambuf*
+        std::cout.rdbuf(customBuffer);  // Removed static_cast as it's already derived from streambuf
         return true;
     }
 
