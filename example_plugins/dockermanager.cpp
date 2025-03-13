@@ -114,10 +114,8 @@ public:
             return true;
         }
         
+        // Get the command from the queue
         std::string command = args.front();
-        args.pop();
-
-        command = args.front();
         args.pop();
         
         if (command == "help") {
