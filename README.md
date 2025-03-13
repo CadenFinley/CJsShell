@@ -8,6 +8,7 @@ DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capab
 - **Shortcut Management**: Create, edit, and execute single and multi-command shortcuts for repetitive tasks
 - **AI Integration**: Connect with OpenAI's GPT models for AI-assisted development with multiple modes and models
 - **Customization**: Configure settings, command prefixes, and startup behaviors
+- **Theme Management**: Customize terminal colors and save/load themes
 - **Multi-line Input**: Support for entering multi-line commands with full cursor navigation
 - **Git Integration**: Automatic Git repository detection with branch display in prompt
 - **Data Persistence**: Save and load user preferences, command history, and chat contexts
@@ -192,6 +193,18 @@ The terminal features color-coded interface elements:
 | `!user testing enable` | Enable testing mode |
 | `!user testing disable` | Disable testing mode |
 
+### Theme Management
+
+| Command | Description |
+|---------|-------------|
+| `!theme load [name]` | Load a saved color theme |
+| `!theme save [name]` | Save current colors as a theme |
+
+The theme system allows you to customize and persist terminal color schemes:
+- Themes are stored in the `.DTT-Data/themes` directory
+- Each theme includes settings for all terminal color variables
+- Colors can affect prompts, messages, errors, and highlights
+
 ### Plugin System
 
 | Command | Description |
@@ -245,6 +258,15 @@ The terminal supports full multi-line editing capabilities:
 - Backspace handling across lines
 - Proper cursor positioning
 
+### Color Themes
+The terminal supports customizable color themes that control:
+- Command prompts and user input coloring
+- System message formatting
+- Error and warning highlighting
+- Application branding elements
+
+Custom themes can be saved and loaded across sessions for consistent visual experience.
+
 ### Cross-Platform Support
 The terminal passthrough layer works across:
 - Linux (bash)
@@ -253,10 +275,11 @@ The terminal passthrough layer works across:
 
 ## Data Storage
 
-User settings, command history, AI chat history, and code-interpreter generated files are stored in the `.DTT-Data` directory within your application directory:
+User settings, command history, AI chat history, theme files, and code-interpreter generated files are stored in the `.DTT-Data` directory within your application directory:
 
 - `.USER_DATA.json`: Contains user settings, shortcuts, API keys, and chat cache
 - `.USER_COMMAND_HISTORY.txt`: Stores the history of all commands entered
+- `themes/`: Directory containing saved color theme files
 - Additional directories created by code-interpreter for generated files
 
 ## Contributing

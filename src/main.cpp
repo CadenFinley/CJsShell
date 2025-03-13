@@ -766,17 +766,18 @@ void commandProcesser(const std::string& command) {
         themeCommands();
     } else if (lastCommandParsed == "help") {
         std::cout << "Commands:" << std::endl;
-        std::cout << "Command Prefix: " + commandPrefix << std::endl;
-        std::cout << "ai: Access AI commands and settings" << std::endl;
-        std::cout << "approot: Go to application directory" << std::endl;
-        std::cout << "terminal [ARGS]: Run terminal commands" << std::endl;
-        std::cout << "user: Access user settings" << std::endl;
-        std::cout << "ss: Run single script shortcuts" << std::endl;
-        std::cout << "mm: Run multi-script shortcuts" << std::endl;
-        std::cout << "aihelp: Get AI help for terminal issues" << std::endl;
-        std::cout << "version: Display application version" << std::endl;
-        std::cout << "exit: Exit application" << std::endl;
-        std::cout << "plugin: Manage plugins" << std::endl;
+        std::cout << " commandprefix: Change the command prefix (" << commandPrefix << ")" << std::endl;
+        std::cout << " ai: Access AI command settings and chat" << std::endl;
+        std::cout << " approot: Switch to the application directory" << std::endl;
+        std::cout << " terminal [ARGS]: Run terminal commands" << std::endl;
+        std::cout << " user: Access user settings" << std::endl;
+        std::cout << " ss: Execute single script shortcut" << std::endl;
+        std::cout << " mm: Execute multi-script shortcut" << std::endl;
+        std::cout << " aihelp: Get AI troubleshooting help" << std::endl;
+        std::cout << " theme: Manage themes (load/save)" << std::endl;
+        std::cout << " version: Display application version" << std::endl;
+        std::cout << " plugin: Manage plugins" << std::endl;
+        std::cout << " exit: Exit the application" << std::endl;
         return;
     } else {
         std::queue<std::string> tempQueue;
@@ -902,11 +903,14 @@ void pluginCommands(){
         }
         if(lastCommandParsed == "help") {
             std::cout << "Plugin commands:" << std::endl;
-            std::cout << "enable [NAME]: Enable a plugin" << std::endl;
-            std::cout << "disable [NAME]: Disable a plugin" << std::endl;
-            std::cout << "info [NAME]: Get information about a plugin" << std::endl;
-            std::cout << "commands [NAME]: List all commands for a plugin" << std::endl;
-            std::cout << "settings set [SETTING] [VALUE]: Set a setting for a plugin" << std::endl;
+            std::cout << " available: List available plugins" << std::endl;
+            std::cout << " enabled: List enabled plugins" << std::endl;
+            std::cout << " enable [NAME]: Enable a plugin" << std::endl;
+            std::cout << " disable [NAME]: Disable a plugin" << std::endl;
+            std::cout << " info [NAME]: Show plugin information" << std::endl;
+            std::cout << " commands [NAME]: List commands for a plugin" << std::endl;
+            std::cout << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting" << std::endl;
+            std::cout << " help: Show this help message" << std::endl;
             return;
         }
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1033,32 +1037,15 @@ void userSettingsCommands() {
         }
     }
     if (lastCommandParsed == "help") {
-        std::cout << "User settings commands: " << std::endl;
-        std::cout << "startup: Manage startup commands" << std::endl;
-        std::cout << "  add [CMD]: Add a startup command" << std::endl;
-        std::cout << "  remove [CMD]: Remove a startup command" << std::endl;
-        std::cout << "  clear: Clear all startup commands" << std::endl;
-        std::cout << "  enable/disable: Enable or disable startup commands" << std::endl;
-        std::cout << "  list: List all startup commands" << std::endl;
-        std::cout << "  runall: Run all startup commands" << std::endl;
-        std::cout << "text: Text-related settings" << std::endl;
-        std::cout << "  commandprefix [PREFIX]: Set the command prefix" << std::endl;
-        std::cout << "  displayfullpath enable/disable: Toggle full path display" << std::endl;
-        std::cout << "  defaultentry ai/terminal: Set default text entry mode" << std::endl;
-        std::cout << "shortcut: Manage shortcuts" << std::endl;
-        std::cout << "  clear: Clear all shortcuts" << std::endl;
-        std::cout << "  enable/disable: Enable or disable shortcuts" << std::endl;
-        std::cout << "  add [NAME] [CMD]: Add a shortcut" << std::endl;
-        std::cout << "  remove [NAME]: Remove a shortcut" << std::endl;
-        std::cout << "  list: List all shortcuts" << std::endl;
-        std::cout << "  mm: Manage multi-script shortcuts" << std::endl;
-        std::cout << "testing enable/disable: Toggle testing mode" << std::endl;
-        std::cout << "data: Manage user data" << std::endl;
-        std::cout << "  get userdata/userhistory/all: View user data" << std::endl;
-        std::cout << "  clear: Clear all user data" << std::endl;
-        std::cout << "saveloop enable/disable: Toggle automatic save" << std::endl;
-        std::cout << "saveonexit enable/disable: Toggle save on exit" << std::endl;
-        std::cout << "checkforupdates enable/disable: Toggle update checking on launch" << std::endl;
+        std::cout << "User settings commands:" << std::endl;
+        std::cout << " startup: Manage startup commands (add, remove, clear, enable, disable, list, runall)" << std::endl;
+        std::cout << " text: Configure text settings (commandprefix, displayfullpath, defaultentry)" << std::endl;
+        std::cout << " shortcut: Manage shortcuts (add, remove, clear, list, mm)" << std::endl;
+        std::cout << " testing: Toggle testing mode (enable/disable)" << std::endl;
+        std::cout << " data: Manage user data (get userdata/userhistory/all, clear)" << std::endl;
+        std::cout << " saveloop: Toggle auto-save loop (enable/disable)" << std::endl;
+        std::cout << " saveonexit: Toggle save on exit (enable/disable)" << std::endl;
+        std::cout << " checkforupdates: Toggle update checking (enable/disable)" << std::endl;
         return;
     }
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1115,11 +1102,11 @@ void userDataCommands(){
     }
     if(lastCommandParsed == "help") {
         std::cout << "User data commands: " << std::endl;
-        std::cout << "get: View user data" << std::endl;
+        std::cout << " get: View user data" << std::endl;
         std::cout << "  userdata: View JSON user data file" << std::endl;
         std::cout << "  userhistory: View command history" << std::endl;
         std::cout << "  all: View all user data" << std::endl;
-        std::cout << "clear: Clear all user data files" << std::endl;
+        std::cout << " clear: Clear all user data files" << std::endl;
         return;
     }
     std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
@@ -1208,14 +1195,14 @@ void startupCommandsHandler() {
         return;
     }
     if (lastCommandParsed == "help") {
-        std::cout << "Startup commands: " << std::endl;
-        std::cout << "add [CMD]: Add a command to run at startup" << std::endl;
-        std::cout << "remove [CMD]: Remove a command from startup" << std::endl;
-        std::cout << "clear: Remove all startup commands" << std::endl;
-        std::cout << "enable: Enable running startup commands" << std::endl;
-        std::cout << "disable: Disable running startup commands" << std::endl;
-        std::cout << "list: Show all startup commands" << std::endl;
-        std::cout << "runall: Run all startup commands now" << std::endl;
+        std::cout << "Startup commands:" << std::endl;
+        std::cout << " add [CMD]: Add a startup command" << std::endl;
+        std::cout << " remove [CMD]: Remove a startup command" << std::endl;
+        std::cout << " clear: Remove all startup commands" << std::endl;
+        std::cout << " enable: Enable startup commands" << std::endl;
+        std::cout << " disable: Disable startup commands" << std::endl;
+        std::cout << " list: Show all startup commands" << std::endl;
+        std::cout << " runall: Execute all startup commands now" << std::endl;
         return;
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1320,14 +1307,14 @@ void shortcutCommands() {
         return;
     }
     if (lastCommandParsed == "help") {
-        std::cout << "Shortcut commands: " << std::endl;
-        std::cout << "clear: Remove all shortcuts" << std::endl;
-        std::cout << "enable: Enable shortcuts" << std::endl;
-        std::cout << "disable: Disable shortcuts" << std::endl;
-        std::cout << "mm: Access multi-script shortcut commands" << std::endl;
-        std::cout << "add [NAME] [CMD]: Add a new shortcut" << std::endl;
-        std::cout << "remove [NAME]: Remove a shortcut" << std::endl;
-        std::cout << "list: Show all shortcuts" << std::endl;
+        std::cout << "Shortcut commands:" << std::endl;
+        std::cout << " clear: Remove all shortcuts" << std::endl;
+        std::cout << " enable: Enable shortcuts" << std::endl;
+        std::cout << " disable: Disable shortcuts" << std::endl;
+        std::cout << " mm: Access multi-script shortcut commands" << std::endl;
+        std::cout << " add [NAME] [CMD]: Add a new shortcut" << std::endl;
+        std::cout << " remove [NAME]: Remove a shortcut" << std::endl;
+        std::cout << " list: List all shortcuts" << std::endl;
         return;
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1375,9 +1362,9 @@ void multiScriptShortcutCommands(){
         return;
     }
     if (lastCommandParsed == "help") {
-        std::cout << "Multi-script shortcut commands: " << std::endl;
-        std::cout << "add [NAME] [CMD1] [CMD2]...: Add a multi-script shortcut" << std::endl;
-        std::cout << "remove [NAME]: Remove a multi-script shortcut" << std::endl;
+        std::cout << "Multi-script shortcut commands:" << std::endl;
+        std::cout << " add [NAME] [CMD1] [CMD2] ... : Add a multi-script shortcut" << std::endl;
+        std::cout << " remove [NAME]: Remove a multi-script shortcut" << std::endl;
         return;
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1441,10 +1428,10 @@ void textCommands() {
         }
     }
     if (lastCommandParsed == "help") {
-        std::cout << "Text commands: " << std::endl;
-        std::cout << "commandprefix [CHAR]: Set the command prefix character" << std::endl;
-        std::cout << "displayfullpath enable/disable: Toggle displaying full path" << std::endl;
-        std::cout << "defaultentry ai/terminal: Set default text entry mode" << std::endl;
+        std::cout << "Text commands:" << std::endl;
+        std::cout << " commandprefix [CHAR]: Set the command prefix" << std::endl;
+        std::cout << " displayfullpath enable/disable: Toggle full path display" << std::endl;
+        std::cout << " defaultentry ai/terminal: Set default text entry mode" << std::endl;
         return;
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1664,32 +1651,18 @@ void aiSettingsCommands() {
         return;
     }
     if (lastCommandParsed == "help") {
-        std::cout << "AI settings commands: " << std::endl;
-        std::cout << "log: Save recent chat exchange to file" << std::endl;
-        std::cout << "apikey: Manage OpenAI API key" << std::endl;
-        std::cout << "  set [KEY]: Set API key" << std::endl;
-        std::cout << "  get: View current API key" << std::endl;
-        std::cout << "chat: AI chat commands" << std::endl;
-        std::cout << "  history: View chat history" << std::endl;
-        std::cout << "  history clear: Clear chat history" << std::endl;
-        std::cout << "  cache enable/disable/clear: Manage token caching" << std::endl;
-        std::cout << "  [MESSAGE]: Send message to AI" << std::endl;
-        std::cout << "get [KEY]: Get specific response data" << std::endl;
-        std::cout << "dump: View all response data and last prompt" << std::endl;
-        std::cout << "mode [TYPE]: Set assistant mode" << std::endl;
-        std::cout << "file: Manage files for AI context" << std::endl;
-        std::cout << "  add [FILE/all]: Add file(s) to context" << std::endl;
-        std::cout << "  remove [FILE/all]: Remove file(s) from context" << std::endl;
-        std::cout << "  active: Show active files" << std::endl;
-        std::cout << "  available: Show files in current directory" << std::endl;
-        std::cout << "  refresh: Refresh file contents" << std::endl;
-        std::cout << "  clear: Remove all files from context" << std::endl;
-        std::cout << "directory: Manage save directory" << std::endl;
-        std::cout << "  set: Set current directory as save location" << std::endl;
-        std::cout << "  clear: Reset to default save location" << std::endl;
-        std::cout << "model [MODEL]: Set AI model" << std::endl;
-        std::cout << "rejectchanges: Reject AI suggested changes" << std::endl;
-        std::cout << "timeoutflag [SECONDS]: Set timeout duration" << std::endl;
+        std::cout << "AI settings commands:" << std::endl;
+        std::cout << " log: Save recent chat exchange to a file" << std::endl;
+        std::cout << " apikey: Manage OpenAI API key (set/get)" << std::endl;
+        std::cout << " chat: Access AI chat commands" << std::endl;
+        std::cout << " get [KEY]: Retrieve specific response data" << std::endl;
+        std::cout << " dump: Display all response data and last prompt" << std::endl;
+        std::cout << " mode [TYPE]: Set the assistant mode" << std::endl;
+        std::cout << " file: Manage files for context (add, remove, active, available, refresh, clear)" << std::endl;
+        std::cout << " directory: Manage save directory (set, clear)" << std::endl;
+        std::cout << " model [MODEL]: Set the AI model" << std::endl;
+        std::cout << " rejectchanges: Reject AI suggested changes" << std::endl;
+        std::cout << " timeoutflag [SECONDS]: Set the timeout duration" << std::endl;
         return;
     }
     std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
@@ -1737,13 +1710,13 @@ void aiChatCommands() {
         }
     }
     if (lastCommandParsed == "help") {
-        std::cout << "AI chat commands: " << std::endl;
-        std::cout << "history: Show chat history" << std::endl;
-        std::cout << "history clear: Clear chat history" << std::endl;
-        std::cout << "cache enable: Enable token caching" << std::endl;
-        std::cout << "cache disable: Disable token caching" << std::endl;
-        std::cout << "cache clear: Clear all cached tokens" << std::endl;
-        std::cout << "[MESSAGE]: Send message directly to AI" << std::endl;
+        std::cout << "AI chat commands:" << std::endl;
+        std::cout << " history: Show chat history" << std::endl;
+        std::cout << " history clear: Clear chat history" << std::endl;
+        std::cout << " cache enable: Enable token caching" << std::endl;
+        std::cout << " cache disable: Disable token caching" << std::endl;
+        std::cout << " cache clear: Clear all cached tokens" << std::endl;
+        std::cout << " [MESSAGE]: Send a direct message to AI" << std::endl;
         return;
     }
     for(int i = 0; i < commandsQueue.size(); i++){
