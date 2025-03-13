@@ -117,10 +117,6 @@ public:
         std::string command = args.front();
         args.pop();
 
-        if(command != "docker") {
-            return false;
-        }
-
         command = args.front();
         args.pop();
         
@@ -198,7 +194,24 @@ public:
     
     std::vector<std::string> getCommands() const override {
         std::vector<std::string> commands;
-        commands.push_back("docker");
+        commands.push_back("check");
+        commands.push_back("ps");
+        commands.push_back("containers");
+        commands.push_back("images");
+        commands.push_back("stats");
+        commands.push_back("start");
+        commands.push_back("stop");
+        commands.push_back("restart");
+        commands.push_back("rm");
+        commands.push_back("rmi");
+        commands.push_back("pull");
+        commands.push_back("logs");
+        commands.push_back("exec");
+        commands.push_back("networks");
+        commands.push_back("volumes");
+        commands.push_back("info");
+        commands.push_back("run");
+        commands.push_back("build");
         return commands;
     }
     
@@ -223,23 +236,23 @@ public:
 private:
     void showHelp() {
         std::cout << "Docker Manager Plugin Commands:\n" << std::endl;
-        std::cout << "  docker check                     Check Docker installation status" << std::endl;
-        std::cout << "  docker ps|containers [options]   List containers" << std::endl;
-        std::cout << "  docker images [options]          List images" << std::endl;
-        std::cout << "  docker start <container>         Start a container" << std::endl;
-        std::cout << "  docker stop <container>          Stop a container" << std::endl;
-        std::cout << "  docker restart <container>       Restart a container" << std::endl;
-        std::cout << "  docker rm <container>            Remove a container" << std::endl;
-        std::cout << "  docker rmi <image>               Remove an image" << std::endl;
-        std::cout << "  docker pull <image>              Pull an image" << std::endl;
-        std::cout << "  docker build [options] -t <tag> <path>  Build an image from a Dockerfile" << std::endl;
-        std::cout << "  docker logs <container> [options] Show container logs" << std::endl;
-        std::cout << "  docker exec <container> <command> Run a command in a container" << std::endl;
-        std::cout << "  docker run [options] <image>     Run a new container" << std::endl;
-        std::cout << "  docker networks [options]        List networks" << std::endl;
-        std::cout << "  docker volumes                   List volumes" << std::endl;
-        std::cout << "  docker info                      Show system-wide information" << std::endl;
-        std::cout << "  docker stats [container]         Show container resource usage" << std::endl;
+        std::cout << "  check                     Check Docker installation status" << std::endl;
+        std::cout << "  ps|containers [options]   List containers" << std::endl;
+        std::cout << "  images [options]          List images" << std::endl;
+        std::cout << "  start <container>         Start a container" << std::endl;
+        std::cout << "  stop <container>          Stop a container" << std::endl;
+        std::cout << "  restart <container>       Restart a container" << std::endl;
+        std::cout << "  rm <container>            Remove a container" << std::endl;
+        std::cout << "  rmi <image>               Remove an image" << std::endl;
+        std::cout << "  pull <image>              Pull an image" << std::endl;
+        std::cout << "  build [options] -t <tag> <path>  Build an image from a Dockerfile" << std::endl;
+        std::cout << "  logs <container> [options] Show container logs" << std::endl;
+        std::cout << "  exec <container> <command> Run a command in a container" << std::endl;
+        std::cout << "  run [options] <image>     Run a new container" << std::endl;
+        std::cout << "  networks [options]        List networks" << std::endl;
+        std::cout << "  volumes                   List volumes" << std::endl;
+        std::cout << "  info                      Show system-wide information" << std::endl;
+        std::cout << "  stats [container]         Show container resource usage" << std::endl;
     }
     
     bool checkDocker() {
