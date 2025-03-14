@@ -36,7 +36,7 @@ public:
     ~SystemMonitor() throw() { }
     
     std::string getName() const {
-        return "sysmon";
+        return "SystemMonitor";
     }
     
     std::string getVersion() const {

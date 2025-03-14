@@ -47,7 +47,7 @@ private:
     std::string USER_DATA = SETTINGS_DIRECTORY + "/color-error-settings.json";
 
 public:
-    std::string getName() const override { return "colorerror"; }
+    std::string getName() const override { return "ColorError"; }
     std::string getVersion() const override { return "1.0"; }
     std::string getDescription() const override { 
         return "Colors stderr output in red"; 

@@ -130,11 +130,11 @@ public:
     ~Calculator() throw() { }
     
     std::string getName() const { 
-        return "calc"; 
+        return "Calculator"; 
     }
     
     std::string getVersion() const { 
-        return "1"; 
+        return "1.0"; 
     }
     
     std::string getDescription() const { 

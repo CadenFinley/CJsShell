@@ -59,11 +59,11 @@ public:
     }
     
     std::string getName() const { 
-        return "claude"; 
+        return "Claude Anthropic"; 
     }
     
     std::string getVersion() const { 
-        return "1.0.0"; 
+        return "1.0"; 
     }
     
     std::string getDescription() const { 

@@ -314,7 +314,7 @@ public:
     }
     
     std::string getVersion() const override {
-        return "1.0.0";
+        return "1.0";
     }
     
     std::string getDescription() const override {
@@ -322,7 +322,7 @@ public:
     }
     
     std::string getAuthor() const override {
-        return "DevToolsTerminal";
+        return "Caden Finley";
     }
     
     bool initialize() override {

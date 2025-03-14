@@ -802,7 +802,7 @@ public:
       
     ~SyntaxHighlighter() {}
 
-    std::string getName() const { return "synhigh"; }
+    std::string getName() const { return "SyntaxHighlighter"; }
     std::string getVersion() const { return "1.0"; }
     std::string getDescription() const { return "Applies syntax highlighting to code blocks in std::cout output"; }
     std::string getAuthor() const { return "Caden Finley";}

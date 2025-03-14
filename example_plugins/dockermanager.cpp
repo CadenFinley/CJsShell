@@ -70,11 +70,11 @@ public:
     ~DockerManagerPlugin() override {}
     
     std::string getName() const override {
-        return "dockermanager";
+        return "DockerManager";
     }
     
     std::string getVersion() const override {
-        return "1.0.0";
+        return "1.0";
     }
     
     std::string getDescription() const override {
