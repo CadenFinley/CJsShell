@@ -96,9 +96,7 @@ public:
             // We still return true so the plugin loads
             return true;
         }
-        
         std::string dockerVersion = executeCommand(settings["docker_path"] + " --version");
-        std::cout << "Docker Manager plugin initialized successfully." << std::endl;
         std::cout << "Docker version: " << dockerVersion;
         return true;
     }
