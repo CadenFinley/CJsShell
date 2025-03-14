@@ -41,7 +41,7 @@ private:
         return enabledPlugins;
     }
     
-    void loadEnabledPlugins() {
+    std::string loadEnabledPlugins() {
         enabledPlugins.clear();
         
         // Parse .zshrc file to find enabled plugins
@@ -49,7 +49,7 @@ private:
         std::filesystem::path zshrcPath = std::filesystem::path(homePath) / ".zshrc";
         
         if (!std::filesystem::exists(zshrcPath)) {
-            return;
+            return "No .zshrc file found.";
         }
         
         std::ifstream zshrc(zshrcPath);
@@ -76,6 +76,11 @@ private:
                 break;
             }
         }
+        std::string out = "Enabled zsh plugins: ";
+        for (const auto& p : enabledPlugins) {
+            out += p + ", ";
+        }
+        return out;
     }
     
     bool enablePlugin(const std::string& plugin) {
@@ -326,7 +331,8 @@ public:
             std::cout << "Install Oh My Zsh first with: sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"" << std::endl;
             return false;
         }
-        loadEnabledPlugins();
+        std::string out = loadEnabledPlugins();
+        std::cout << out << std::endl;
         return true;
     }
     
