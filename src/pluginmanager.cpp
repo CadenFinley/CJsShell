@@ -1,7 +1,4 @@
 #include "pluginmanager.h"
-#include <iostream>
-#include <queue>
-#include <fstream>
 
 
 PluginManager::PluginManager(const std::filesystem::path& pluginsDir)

@@ -2,9 +2,11 @@
 
 #include "plugininterface.h"
 #include <string>
+#include <fstream>
 #include <vector>
 #include <queue>
 #include <map>
+#include <iostream>
 #include <memory>
 #include <filesystem>
 #include <dlfcn.h>

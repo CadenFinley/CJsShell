@@ -4,6 +4,8 @@
 #include <string>
 #include <map>
 #include <filesystem>
+#include <sstream>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include "nlohmann/json.hpp"

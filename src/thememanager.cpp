@@ -1,8 +1,5 @@
 #include "thememanager.h"
 
-#include <sstream>
-#include <algorithm>
-
 namespace {
     std::string parseAnsiCodes(const std::string &input) {
         std::string output = input;
