@@ -137,7 +137,6 @@ int main() {
     }
 
     if (!std::filesystem::exists(DATA_DIRECTORY)) {
-        std::cout << DATA_DIRECTORY.string() << " not found in: " << applicationDirectory << std::endl;
         std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
     }
 
@@ -473,7 +472,6 @@ std::string getClipboardContent() {
 }
 
 void createNewUSER_DATAFile() {
-    std::cout << "User data file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
         writeUserData();
@@ -484,7 +482,6 @@ void createNewUSER_DATAFile() {
 }
 
 void createNewUSER_HISTORYfile() {
-    std::cout << "User history file not found. Creating new file..." << std::endl;
     std::ofstream file(USER_COMMAND_HISTORY);
     if (!file.is_open()) {
         std::cerr << "Error: Unable to create the user history file at " << USER_COMMAND_HISTORY << std::endl;
