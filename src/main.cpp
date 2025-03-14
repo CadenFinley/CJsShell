@@ -9,14 +9,15 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <limits>
-#include "terminalpassthrough.h"
+#include <streambuf>
+#include <ostream>
+
 #include "nlohmann/json.hpp"
+
+#include "terminalpassthrough.h"
 #include "openaipromptengine.h"
 #include "pluginmanager.h"
 #include "thememanager.h"
-
-#include <streambuf>
-#include <ostream>
 
 using json = nlohmann::json;
 
