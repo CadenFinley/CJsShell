@@ -11,16 +11,26 @@ else
     # Not running in a terminal, open a new terminal window
     # The approach differs based on the desktop environment
     if [ "$(uname)" == "Darwin" ]; then
-        # macOS
-        osascript -e "tell application \"Terminal\" to do script \"cd '$(pwd)' && $EXECUTABLE $*\""
+        # macOS - Launch terminal and bring it to the foreground
+        osascript -e "tell application \"Terminal\"" \
+                  -e "do script \"cd '$(pwd)' && $EXECUTABLE $*\"" \
+                  -e "activate" \
+                  -e "end tell"
     elif [ -n "$DISPLAY" ]; then
         # Linux with GUI
         if command -v gnome-terminal &> /dev/null; then
-            gnome-terminal -- bash -c "cd '$(pwd)' && $EXECUTABLE $*; exec bash"
+            # gnome-terminal should grab focus by default, but we'll use --wait option
+            gnome-terminal --wait -- bash -c "cd '$(pwd)' && $EXECUTABLE $*; exec bash"
         elif command -v xterm &> /dev/null; then
-            xterm -e "cd '$(pwd)' && $EXECUTABLE $*; bash"
+            # Start xterm with raised window
+            xterm -raise -e "cd '$(pwd)' && $EXECUTABLE $*; bash"
         elif command -v konsole &> /dev/null; then
-            konsole -e "cd '$(pwd)' && $EXECUTABLE $*; bash"
+            # Konsole with window activation
+            konsole --new-tab -e "cd '$(pwd)' && $EXECUTABLE $*; bash" &
+            sleep 0.5 # Small delay to allow window to open
+            if command -v wmctrl &> /dev/null; then
+                wmctrl -a "konsole" # Try to focus konsole window if wmctrl is available
+            fi
         else
             echo "No supported terminal emulator found. Please run in a terminal."
             exit 1
