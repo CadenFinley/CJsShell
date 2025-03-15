@@ -1548,15 +1548,17 @@ void aiSettingsCommands() {
                 return;
             }
             if (lastCommandParsed == "all"){
-                std::cout << "Processed " << openAIPromptEngine.addFiles(filesAtPath) <<  " characters."  << std::endl;
+                int charsProcessed = openAIPromptEngine.addFiles(filesAtPath);
+                std::cout << "Processed " << charsProcessed <<  " characters from " << filesAtPath.size() << " files."  << std::endl;
                 return;
             }
             std::string fileToAdd = terminal.getFullPathOfFile(lastCommandParsed);
             if(fileToAdd.empty()){
-                std::cerr << "Error: File not found." << std::endl;
+                std::cerr << "Error: File not found: " << lastCommandParsed << std::endl;
                 return;
             }
-            std::cout << "Processed "<<openAIPromptEngine.addFile(fileToAdd) << " characters." << std::endl;
+            int charsProcessed = openAIPromptEngine.addFile(fileToAdd);
+            std::cout << "Processed " << charsProcessed << " characters from file: " << lastCommandParsed << std::endl;
             return;
         }
         if (lastCommandParsed == "remove"){
@@ -1566,24 +1568,35 @@ void aiSettingsCommands() {
                 return;
             }
             if (lastCommandParsed == "all"){
+                int fileCount = openAIPromptEngine.getFiles().size();
                 openAIPromptEngine.clearFiles();
+                std::cout << "Removed all " << fileCount << " files from context." << std::endl;
                 return;
             }
             std::string fileToRemove = terminal.getFullPathOfFile(lastCommandParsed);
             if(fileToRemove.empty()){
-                std::cerr << "Error: File not found." << std::endl;
+                std::cerr << "Error: File not found: " << lastCommandParsed << std::endl;
                 return;
             }
-            openAIPromptEngine.removeFile(fileToRemove);
+            bool removed = openAIPromptEngine.removeFile(fileToRemove);
+            if(removed) {
+                std::cout << "Successfully removed file: " << lastCommandParsed << std::endl;
+            } else {
+                std::cerr << "Error: File not found in active files: " << lastCommandParsed << std::endl;
+            }
             return;
         }
         if (lastCommandParsed == "active"){
             std::vector<std::string> activeFiles = openAIPromptEngine.getFiles();
             std::cout << "Active Files: " << std::endl;
-            for(const auto& file : activeFiles){
-                std::cout << file << std::endl;
+            if(activeFiles.empty()) {
+                std::cout << "  No active files." << std::endl;
+            } else {
+                for(const auto& file : activeFiles){
+                    std::cout << "  " << file << std::endl;
+                }
+                std::cout << "Total characters processed: " << openAIPromptEngine.getFileContents().length() << std::endl;
             }
-            std::cout << "Total characters processed: " << openAIPromptEngine.getFileContents().length() << std::endl;
             return;
         }
         if (lastCommandParsed == "available"){
