@@ -18,7 +18,7 @@ public:
     virtual bool initialize() = 0;
     virtual void shutdown() = 0;
     
-    //an "event main_process <phase>" command will be sent to all plugins via the handleCommand method during all phases of the mainProcessLoop ( start,  user_input, and end)
+    //an "event main_process <phase>" command will be sent to all plugins via the handleCommand method during all phases of the mainProcessLoop (pre_run, start, took_input: <char>, command_processed: <command>, and end)
     //an "event plugin_enabled <plugin_name>" command will be sent to all plugins via the handleCommand method when a plugin is enabled
     //an "event plugin_disabled <plugin_name>" command will be sent to all plugins via the handleCommand method when a plugin is disabled
     virtual bool handleCommand(std::queue<std::string>& args) = 0;

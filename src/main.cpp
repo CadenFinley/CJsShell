@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.5.4.1";
+const std::string currentVersion = "1.5.4.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -232,11 +232,12 @@ void mainProcessLoop() {
     std::string terminalSetting;
     int terminalSettingLength;
     setRawMode(true);
+    notifyPluginsTriggerMainProcess("pre_run");
     while (true) {
+        notifyPluginsTriggerMainProcess("start");
         if (saveLoop) {
             writeUserData();
         }
-        notifyPluginsTriggerMainProcess("start");
         if (TESTING) {
             std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
         }
@@ -255,6 +256,7 @@ void mainProcessLoop() {
         commandLines.push_back("");
         while (true) {
             std::cin.get(c);
+            notifyPluginsTriggerMainProcess("took_input: " + std::string(1, c));
             if (c == 22) {
                 std::string clipboardContent = getClipboardContent();
                 if (!clipboardContent.empty()) {
@@ -348,13 +350,12 @@ void mainProcessLoop() {
                 reprintCommandLines(commandLines, terminalSetting);
                 placeCursor(cursorPositionX, cursorPositionY);
             }
-            notifyPluginsTriggerMainProcess("user_input");
         }
         std::string finalCommand;
         for (const auto& line : commandLines) {
             finalCommand += line;
         }
-
+        notifyPluginsTriggerMainProcess("command_processed: " + finalCommand);
         setRawMode(false);
         commandParser(finalCommand);
         setRawMode(true);
