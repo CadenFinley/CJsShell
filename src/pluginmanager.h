@@ -10,6 +10,7 @@
 #include <memory>
 #include <filesystem>
 #include <dlfcn.h>
+#include <functional>
 
 class PluginManager {
 public:
@@ -29,12 +30,15 @@ public:
     std::string getPluginInfo(const std::string& name) const;
     std::vector<std::string> getPluginCommands(const std::string& name) const;
     
-    
     bool updatePluginSetting(const std::string& pluginName, const std::string& key, const std::string& value);
     std::map<std::string, std::map<std::string, std::string>> getAllPluginSettings() const;
     
+    // Event system methods
     void registerEventCallback(const std::string& event, std::function<void(const std::string&)> callback);
     void triggerEvent(const std::string& event, const std::string& data);
+    
+    // Get plugin instance for advanced integrations (used by GUI plugins)
+    PluginInterface* getPluginInstance(const std::string& name) const;
 
 private:
     struct PluginData {

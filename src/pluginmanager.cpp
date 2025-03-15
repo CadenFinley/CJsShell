@@ -29,7 +29,7 @@ bool PluginManager::discoverPlugins() {
         std::cerr << "Plugins directory does not exist: " << pluginsDirectory << std::endl;
         return false;
     }
-    std::cout << "Be sure to only download plugins from trusted sources." << std::endl;
+    std::cout << "Be sure to only download plugins and themes from trusted sources." << std::endl;
     for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
         std::string fileName = entry.path().filename().string();
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
@@ -134,6 +134,8 @@ bool PluginManager::enablePlugin(const std::string& name) {
         if (it->second.instance->initialize()) {
             it->second.enabled = true;
             std::cout << "Enabled plugin: " << name << std::endl;
+            // Notify other plugins that this plugin was enabled
+            triggerEvent("plugin_enabled", name);
             return true;
         } else {
             std::cerr << "Failed to initialize plugin: " << name << std::endl;
@@ -148,6 +150,8 @@ bool PluginManager::disablePlugin(const std::string& name) {
         it->second.instance->shutdown();
         it->second.enabled = false;
         std::cout << "Disabled plugin: " << name << std::endl;
+        // Notify other plugins that this plugin was disabled
+        triggerEvent("plugin_disabled", name);
         return true;
     }
     return false;
@@ -211,4 +215,24 @@ void PluginManager::triggerEvent(const std::string& event, const std::string& da
             callback(data);
         }
     }
+    
+    // Also forward the event to all enabled plugins that might be interested
+    for (auto& [name, pluginData] : loadedPlugins) {
+        if (pluginData.enabled) {
+            // Send event to the plugin via a queue
+            std::queue<std::string> args;
+            args.push("event");
+            args.push(event);
+            args.push(data);
+            pluginData.instance->handleCommand(args);
+        }
+    }
+}
+
+PluginInterface* PluginManager::getPluginInstance(const std::string& name) const {
+    auto it = loadedPlugins.find(name);
+    if (it != loadedPlugins.end()) {
+        return it->second.instance;
+    }
+    return nullptr;
 }
