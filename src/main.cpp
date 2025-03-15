@@ -230,6 +230,9 @@ void mainProcessLoop() {
         if (saveLoop) {
             writeUserData();
         }
+        for (const auto& enabled : pluginManager->getEnabledPlugins()) {
+            pluginManager->triggerEvent(enabled, "main_process", "start");
+        }
         if (TESTING) {
             std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
         }
@@ -349,6 +352,9 @@ void mainProcessLoop() {
         setRawMode(false);
         commandParser(finalCommand);
         setRawMode(true);
+        for (const auto& enabled : pluginManager->getEnabledPlugins()) {
+            pluginManager->triggerEvent(enabled, "main_process", "end");
+        }
         if (exitFlag) {
             break;
         }
@@ -1578,12 +1584,7 @@ void aiSettingsCommands() {
                 std::cerr << "Error: File not found: " << lastCommandParsed << std::endl;
                 return;
             }
-            bool removed = openAIPromptEngine.removeFile(fileToRemove);
-            if(removed) {
-                std::cout << "Successfully removed file: " << lastCommandParsed << std::endl;
-            } else {
-                std::cerr << "Error: File not found in active files: " << lastCommandParsed << std::endl;
-            }
+            openAIPromptEngine.removeFile(fileToRemove);
             return;
         }
         if (lastCommandParsed == "active"){

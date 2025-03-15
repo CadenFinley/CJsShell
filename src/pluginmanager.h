@@ -33,12 +33,13 @@ public:
     bool updatePluginSetting(const std::string& pluginName, const std::string& key, const std::string& value);
     std::map<std::string, std::map<std::string, std::string>> getAllPluginSettings() const;
     
-    // Event system methods
-    void registerEventCallback(const std::string& event, std::function<void(const std::string&)> callback);
-    void triggerEvent(const std::string& event, const std::string& data);
+    void triggerEvent(const std::string& targetPlugin, const std::string& event, const std::string& data);
     
-    // Get plugin instance for advanced integrations (used by GUI plugins)
     PluginInterface* getPluginInstance(const std::string& name) const;
+
+    bool uninstallPlugin(const std::string& name);
+
+    bool installPlugin(const std::filesystem::path& sourcePath);
 
 private:
     struct PluginData {
@@ -52,7 +53,6 @@ private:
     
     std::filesystem::path pluginsDirectory;
     std::map<std::string, PluginData> loadedPlugins;
-    std::map<std::string, std::vector<std::function<void(const std::string&)>>> eventCallbacks;
     
     // Helper methods
     bool loadPlugin(const std::filesystem::path& path);
