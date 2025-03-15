@@ -87,13 +87,14 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
     }
 }
 
-std::thread TerminalPassthrough::executeCommand(std::string command){
+std::thread TerminalPassthrough::executeCommand(std::string command) {
     terminalCacheUserInput.push_back(command);
     return std::thread([this, command]() {
         try {
+            std::string expandedCommand = expandEnvVars(command);
             std::string result;
-            if (command.rfind("cd ", 0) == 0) {
-                std::string newDir = command.substr(3);
+            if (expandedCommand.rfind("cd ", 0) == 0) {
+                std::string newDir = expandedCommand.substr(3);
                 if (newDir == "/") {
                     currentDirectory = "/";
                 } else if (newDir == "..") {
@@ -117,23 +118,35 @@ std::thread TerminalPassthrough::executeCommand(std::string command){
             } else {
                 std::array<char, 128> buffer;
                 std::string fullCommand;
-                if (getTerminalName() == "cmd") {
-                    fullCommand = "cd " + currentDirectory + " && " + command + " 2>&1";
-                } else {
-                    fullCommand = getTerminalName() + " -c \"cd " + currentDirectory + " && " + command + " 2>&1\"";
-                }
-                int terminalExecCode = std::system(fullCommand.c_str());
-                    if(terminalExecCode != 0){
-                        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(fullCommand.c_str(), "r"), pclose);
-                        if (!pipe) {
-                            throw std::runtime_error("popen() failed!");
-                        }
-                        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-                            result += buffer.data();
-                        }
+                
+                // Pass environment variables to the command
+                std::string envVarSetup;
+                for (const auto& [name, value] : envVars) {
+                    if (getTerminalName() == "cmd") {
+                        envVarSetup += "set \"" + name + "=" + value + "\" && ";
                     } else {
-                        result = "Terminal Output result: " + std::to_string(terminalExecCode);
+                        envVarSetup += "export " + name + "=\"" + value + "\"; ";
                     }
+                }
+                
+                if (getTerminalName() == "cmd") {
+                    fullCommand = envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1";
+                } else {
+                    fullCommand = getTerminalName() + " -c \"" + envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1\"";
+                }
+                
+                int terminalExecCode = std::system(fullCommand.c_str());
+                if(terminalExecCode != 0){
+                    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(fullCommand.c_str(), "r"), pclose);
+                    if (!pipe) {
+                        throw std::runtime_error("popen() failed!");
+                    }
+                    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+                        result += buffer.data();
+                    }
+                } else {
+                    result = "Terminal Output result: " + std::to_string(terminalExecCode);
+                }
             }
             terminalCacheTerminalOutput.push_back(result);
         } catch (const std::exception& e) {
@@ -223,4 +236,80 @@ void TerminalPassthrough::addCommandToHistory(const std::string& command) {
         return;
     }
     terminalCacheUserInput.push_back(command);
+}
+
+void TerminalPassthrough::setEnvVar(const std::string& name, const std::string& value) {
+    envVars[name] = value;
+}
+
+std::string TerminalPassthrough::getEnvVar(const std::string& name) const {
+    auto it = envVars.find(name);
+    if (it != envVars.end()) {
+        return it->second;
+    }
+    return "";
+}
+
+bool TerminalPassthrough::hasEnvVar(const std::string& name) const {
+    return envVars.find(name) != envVars.end();
+}
+
+void TerminalPassthrough::removeEnvVar(const std::string& name) {
+    envVars.erase(name);
+}
+
+std::map<std::string, std::string> TerminalPassthrough::getAllEnvVars() const {
+    return envVars;
+}
+
+std::string TerminalPassthrough::expandEnvVars(const std::string& command) const {
+    std::string result = command;
+    size_t pos = 0;
+    
+    // Find all occurrences of $VAR or ${VAR}
+    while ((pos = result.find('$', pos)) != std::string::npos) {
+        // Skip if it's escaped with \\$
+        if (pos > 0 && result[pos-1] == '\\') {
+            pos++;
+            continue;
+        }
+        
+        size_t varStart = pos + 1;
+        size_t varEnd;
+        bool hasBraces = false;
+        
+        // Check if it's ${VAR} format
+        if (varStart < result.size() && result[varStart] == '{') {
+            hasBraces = true;
+            varStart++;
+            varEnd = result.find('}', varStart);
+            if (varEnd == std::string::npos) {
+                // Unmatched brace, just continue
+                pos++;
+                continue;
+            }
+        } else {
+            // It's $VAR format
+            varEnd = varStart;
+            while (varEnd < result.size() && (isalnum(result[varEnd]) || result[varEnd] == '_')) {
+                varEnd++;
+            }
+        }
+        
+        if (varStart == varEnd) {
+            pos++;
+            continue;
+        }
+        
+        std::string varName = result.substr(varStart, varEnd - varStart);
+        std::string replacement = getEnvVar(varName);
+        
+        size_t replaceStart = pos;
+        size_t replaceLength = (hasBraces ? varEnd + 1 : varEnd) - pos;
+        
+        result.replace(replaceStart, replaceLength, replacement);
+        pos = replaceStart + replacement.length();
+    }
+    
+    return result;
 }

@@ -9,6 +9,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <array>
+#include <map>
 
 namespace fs = std::filesystem;
 
@@ -39,6 +40,14 @@ public:
     std::string returnMostRecentUserInput();
     std::string returnMostRecentTerminalOutput();
 
+    // Environment variable methods
+    void setEnvVar(const std::string& name, const std::string& value);
+    std::string getEnvVar(const std::string& name) const;
+    bool hasEnvVar(const std::string& name) const;
+    void removeEnvVar(const std::string& name);
+    std::map<std::string, std::string> getAllEnvVars() const;
+    std::string expandEnvVars(const std::string& command) const;
+
 private:
     std::string currentDirectory;
     bool displayWholePath;
@@ -50,6 +59,7 @@ private:
     std::string YELLOW_COLOR_BOLD = "\033[1;33m";
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
+    std::map<std::string, std::string> envVars;
 
     std::string getCurrentFileName();
     bool isRootPath(const fs::path& path);

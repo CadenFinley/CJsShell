@@ -69,6 +69,7 @@ std::vector<std::string> savedChatCache;
 std::vector<std::string> commandLines;
 std::map<std::string, std::string> shortcuts;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
+std::map<std::string, std::string> envVars;
 
 OpenAIPromptEngine openAIPromptEngine;
 TerminalPassthrough terminal;
@@ -109,14 +110,13 @@ bool checkForUpdate();
 bool downloadLatestRelease();
 void pluginCommands();
 std::string getClipboardContent();
-
-// New theme-related function prototypes
 void themeCommands();
 void loadTheme(const std::string& themeName);
 void saveTheme(const std::string& themeName);
 void createDefaultTheme();
 void discoverAvailableThemes();
 void applyColorToStrings();
+void envVarCommands();
 
 int main() {
 
@@ -542,6 +542,12 @@ void loadUserData() {
             if(userData.contains("Last_Login")){
                 lastLogin = userData["Last_Login"].get<std::string>();
             }
+            if(userData.contains("EnvVars")){
+                std::map<std::string, std::string> loadedEnvVars = userData["EnvVars"].get<std::map<std::string, std::string>>();
+                for(const auto& [name, value] : loadedEnvVars) {
+                    terminal.setEnvVar(name, value);
+                }
+            }
             file.close();
         }
         catch(const json::parse_error& e) {
@@ -570,6 +576,7 @@ void writeUserData() {
         userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
         userData["Last_Updated"] = lastUpdated;
         userData["Last_Login"] = lastLogin;
+        userData["EnvVars"] = terminal.getAllEnvVars();
         file << userData.dump(4);
         file.close();
     } else {
@@ -773,6 +780,8 @@ void commandProcesser(const std::string& command) {
         pluginCommands();
     } else if (lastCommandParsed == "theme") {
         themeCommands();
+    } else if (lastCommandParsed == "env") {
+        envVarCommands();
     } else if (lastCommandParsed == "help") {
         std::cout << "Commands:" << std::endl;
         std::cout << " commandprefix: Change the command prefix (" << commandPrefix << ")" << std::endl;
@@ -786,6 +795,7 @@ void commandProcesser(const std::string& command) {
         std::cout << " theme: Manage themes (load/save)" << std::endl;
         std::cout << " version: Display application version" << std::endl;
         std::cout << " plugin: Manage plugins" << std::endl;
+        std::cout << " env: Manage environment variables" << std::endl;
         std::cout << " exit: Exit the application" << std::endl;
         return;
     } else {
@@ -1979,4 +1989,113 @@ void themeCommands() {
     } else {
         std::cerr << "Unknown theme command. Use 'load' or 'save'." << std::endl;
     }
+}
+
+void envVarCommands() {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::map<std::string, std::string> allVars = terminal.getAllEnvVars();
+        if (allVars.empty()) {
+            std::cout << "No environment variables defined." << std::endl;
+        } else {
+            std::cout << "Environment Variables:" << std::endl;
+            for (const auto& [name, value] : allVars) {
+                std::cout << name << "=" << value << std::endl;
+            }
+        }
+        return;
+    }
+    
+    if (lastCommandParsed == "set") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No variable name provided." << std::endl;
+            return;
+        }
+        std::string varName = lastCommandParsed;
+        
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No value provided for variable " << varName << "." << std::endl;
+            return;
+        }
+        std::string varValue = lastCommandParsed;
+        
+        terminal.setEnvVar(varName, varValue);
+        std::cout << "Environment variable set: " << varName << "=" << varValue << std::endl;
+        return;
+    }
+    
+    if (lastCommandParsed == "get") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No variable name provided." << std::endl;
+            return;
+        }
+        std::string varName = lastCommandParsed;
+        
+        if (terminal.hasEnvVar(varName)) {
+            std::cout << varName << "=" << terminal.getEnvVar(varName) << std::endl;
+        } else {
+            std::cout << "Environment variable not defined: " << varName << std::endl;
+        }
+        return;
+    }
+    
+    if (lastCommandParsed == "remove" || lastCommandParsed == "unset") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No variable name provided." << std::endl;
+            return;
+        }
+        std::string varName = lastCommandParsed;
+        
+        if (terminal.hasEnvVar(varName)) {
+            terminal.removeEnvVar(varName);
+            std::cout << "Environment variable removed: " << varName << std::endl;
+        } else {
+            std::cout << "Environment variable not defined: " << varName << std::endl;
+        }
+        return;
+    }
+    
+    if (lastCommandParsed == "clear") {
+        std::map<std::string, std::string> allVars = terminal.getAllEnvVars();
+        for (const auto& [name, _] : allVars) {
+            terminal.removeEnvVar(name);
+        }
+        std::cout << "All environment variables cleared." << std::endl;
+        return;
+    }
+    
+    if (lastCommandParsed == "expand") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No string provided for expansion." << std::endl;
+            return;
+        }
+        
+        std::string toExpand = lastCommandParsed;
+        while (!commandsQueue.empty()) {
+            toExpand += " " + commandsQueue.front();
+            commandsQueue.pop();
+        }
+        
+        std::cout << "Original: " << toExpand << std::endl;
+        std::cout << "Expanded: " << terminal.expandEnvVars(toExpand) << std::endl;
+        return;
+    }
+    
+    if (lastCommandParsed == "help") {
+        std::cout << "Environment variable commands:" << std::endl;
+        std::cout << " env: List all environment variables" << std::endl;
+        std::cout << " env set NAME VALUE: Set an environment variable" << std::endl;
+        std::cout << " env get NAME: Get the value of an environment variable" << std::endl;
+        std::cout << " env remove|unset NAME: Remove an environment variable" << std::endl;
+        std::cout << " env clear: Remove all environment variables" << std::endl;
+        std::cout << " env expand STRING: Show expansion of variables in a string" << std::endl;
+        return;
+    }
+    
+    std::cerr << "Unknown command. Try 'env help' for a list of commands." << std::endl;
 }
