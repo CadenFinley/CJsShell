@@ -25,11 +25,11 @@ bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
-bool saveLoop = false;
-bool saveOnExit = true;
 bool rawEnabled = false;
 bool displayWholePath = false;
 
+bool saveLoop = true;
+bool saveOnExit = true;
 bool shotcutsEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.5.5";
+const std::string currentVersion = "1.5.5.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
