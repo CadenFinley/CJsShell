@@ -78,7 +78,7 @@ void ThemeManager::discoverAvailableThemes() {
         }
     }
     std::vector<std::string> themeNames = getAvailableThemeNames();
-    if (!themeNames.empty()) {
+    if (themeNames.size() > 1) {
         std::cout << "Available themes: ";
         for (const auto& [name, _] : availableThemes) {
             if(name != "default"){

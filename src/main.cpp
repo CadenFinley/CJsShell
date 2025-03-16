@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.5.5.3";
+const std::string currentVersion = "1.5.5.4";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
