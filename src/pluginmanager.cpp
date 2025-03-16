@@ -1,9 +1,8 @@
 #include "pluginmanager.h"
 
-
 PluginManager::PluginManager(const std::filesystem::path& pluginsDir)
     : pluginsDirectory(pluginsDir) {
-    
+
     if (!std::filesystem::exists(pluginsDirectory)) {
         std::filesystem::create_directories(pluginsDirectory);
     }
@@ -29,12 +28,20 @@ bool PluginManager::discoverPlugins() {
         std::cerr << "Plugins directory does not exist: " << pluginsDirectory << std::endl;
         return false;
     }
-    std::cout << "Be sure to only download plugins and themes from trusted sources." << std::endl;
     for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
         std::string fileName = entry.path().filename().string();
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
             loadPlugin(entry.path());
         }
+    }
+    std::vector<std::string> plugins = getAvailablePlugins();
+    if (!plugins.empty()) {
+        std::cout << "Be sure to only download plugins from trusted sources." << std::endl;
+        std::cout << "Plugins loaded: ";
+        for (const auto& name : plugins) {
+            std::cout << name << ", ";
+        }
+        std::cout << std::endl;
     }
     return true;
 }
@@ -83,7 +90,6 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     
     loadedPlugins[name] = data;
     
-    std::cout << "Loaded plugin: " << name << " " <<instance->getVersion()  << std::endl;
     return true;
 }
 
@@ -315,8 +321,7 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
     std::filesystem::path destPath = pluginsDirectory / sourcePath.filename();
 
     try {
-        std::filesystem::copy(sourcePath, destPath, 
-            std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::copy(sourcePath, destPath, std::filesystem::copy_options::overwrite_existing);
         
         if (loadPlugin(destPath)) {
             std::cout << "Successfully installed plugin: " << pluginName << " v" << version << std::endl;

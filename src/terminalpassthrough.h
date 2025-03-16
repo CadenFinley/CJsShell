@@ -40,7 +40,6 @@ public:
     std::string returnMostRecentUserInput();
     std::string returnMostRecentTerminalOutput();
 
-    // Environment variable methods
     void setEnvVar(const std::string& name, const std::string& value);
     std::string getEnvVar(const std::string& name) const;
     bool hasEnvVar(const std::string& name) const;

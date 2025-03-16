@@ -66,19 +66,22 @@ void ThemeManager::discoverAvailableThemes() {
                 std::map<std::string, std::string> themeColors;
                 for (auto& [key, value] : themeData.items()) {
                     if (value.is_string()) {
-                        // Convert ANSI sequences if stored as literal text.
                         themeColors[key] = parseAnsiCodes(value.get<std::string>());
                     }
                 }
                 
                 availableThemes[themeName] = themeColors;
-                std::cout << "Discovered theme: " << themeName << std::endl;
                 
             } catch (const std::exception& e) {
                 std::cerr << "Error loading theme " << themeName << ": " << e.what() << std::endl;
             }
         }
     }
+    std::cout << "Themes loaded: ";
+    for (const auto& [name, _] : availableThemes) {
+        std::cout << name << ", ";
+    }
+    std::cout << std::endl;
 }
 
 bool ThemeManager::loadTheme(const std::string& themeName) {

@@ -119,7 +119,6 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 std::array<char, 128> buffer;
                 std::string fullCommand;
                 
-                // Pass environment variables to the command
                 std::string envVarSetup;
                 for (const auto& [name, value] : envVars) {
                     if (getTerminalName() == "cmd") {

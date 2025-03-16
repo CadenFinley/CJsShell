@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.5.5.1";
+const std::string currentVersion = "1.5.5.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -1934,7 +1934,6 @@ void displayChangeLog(const std::string& changeLog) {
 }
 
 void applyColorToStrings() {
-    // Update global color variables based on the current theme
     GREEN_COLOR_BOLD = themeManager->getColor("GREEN_COLOR_BOLD");
     RESET_COLOR = themeManager->getColor("RESET_COLOR");
     RED_COLOR_BOLD = themeManager->getColor("RED_COLOR_BOLD");
