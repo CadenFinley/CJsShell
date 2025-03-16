@@ -77,11 +77,16 @@ void ThemeManager::discoverAvailableThemes() {
             }
         }
     }
-    std::cout << "Themes loaded: ";
-    for (const auto& [name, _] : availableThemes) {
-        std::cout << name << ", ";
+    std::vector<std::string> themeNames = getAvailableThemeNames();
+    if (!themeNames.empty()) {
+        std::cout << "Available themes: ";
+        for (const auto& [name, _] : availableThemes) {
+            if(name != "default"){
+                std::cout << name << ", ";
+            }
+        }
+        std::cout << std::endl;
     }
-    std::cout << std::endl;
 }
 
 bool ThemeManager::loadTheme(const std::string& themeName) {
