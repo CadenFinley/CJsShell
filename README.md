@@ -2,6 +2,44 @@
 
 DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capabilities. It allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
 
+## Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+- [Command Format](#command-format)
+- [Commands Reference](#commands-reference)
+  - [Basic Commands](#basic-commands)
+  - [Update Management](#update-management)
+  - [Shortcuts](#shortcuts)
+  - [User Settings](#user-settings)
+    - [Startup Commands](#startup-commands)
+    - [Shortcuts Management](#shortcuts-management)
+    - [Multi-Command Shortcuts](#multi-command-shortcuts)
+    - [Text and Display Settings](#text-and-display-settings)
+    - [Data Management](#data-management)
+    - [Testing](#testing)
+  - [Theme Management](#theme-management)
+  - [Environment Variables](#environment-variables)
+- [AI Integration](#ai-integration)
+  - [Core AI Commands](#core-ai-commands)
+  - [AI Configuration](#ai-configuration)
+  - [AI File Integration](#ai-file-integration)
+  - [AI Chat Management](#ai-chat-management)
+  - [OpenAI Integration Details](#openai-integration-details)
+- [Plugin System](#plugin-system)
+  - [Plugin Lifecycle](#plugin-lifecycle)
+  - [Plugin Events](#plugin-events)
+  - [Plugin Development Notes](#plugin-development-notes)
+  - [Safety Considerations](#safety-considerations)
+- [Terminal Features](#terminal-features)
+  - [Color Interface](#color-interface)
+  - [Git Integration](#git-integration)
+  - [Multi-line Editing](#multi-line-editing)
+  - [Cross-Platform Support](#cross-platform-support)
+- [Data Storage](#data-storage)
+- [Contributing](#contributing)
+- [License](#license)
+- [Author](#author)
+
 ## Features
 
 - **Terminal Integration**: Execute terminal commands directly within the application with proper directory tracking
@@ -83,51 +121,6 @@ The application automatically checks for updates on startup (if enabled) and wil
 | `!ss [shortcut]` | Execute a single-command shortcut |
 | `!mm [shortcut]` | Execute a multi-command shortcut |
 
-### AI Integration
-
-#### Core AI Commands
-| Command | Description |
-|---------|-------------|
-| `!ai` | Enter AI chat mode |
-| `!ai help` | Display AI command help |
-| `!ai chat [message]` | Send message to ChatGPT |
-| `!aihelp` | Get AI help for recent terminal errors |
-
-#### AI Configuration
-| Command | Description |
-|---------|-------------|
-| `!ai apikey set [KEY]` | Set OpenAI API key |
-| `!ai apikey get` | Display current API key |
-| `!ai model [model]` | Set AI model (default: gpt-3.5-turbo) |
-| `!ai mode [mode]` | Set assistant type (chat, file-search, or code-interpreter) |
-| `!ai timeoutflag [seconds]` | Set timeout for AI responses |
-| `!ai directory set` | Set directory for AI-generated files to current directory |
-| `!ai directory clear` | Reset directory to default (.DTT-Data) |
-
-#### AI File Integration
-| Command | Description |
-|---------|-------------|
-| `!ai file add [file]` | Add file to AI context |
-| `!ai file add all` | Add all files in directory to AI context |
-| `!ai file remove [file]` | Remove file from AI context |
-| `!ai file remove all` | Remove all files from AI context |
-| `!ai file active` | List active files in AI context |
-| `!ai file available` | List files available in current directory |
-| `!ai file refresh` | Refresh active file contents |
-| `!ai file clear` | Clear all files from context |
-
-#### AI Chat Management
-| Command | Description |
-|---------|-------------|
-| `!ai chat history clear` | Clear chat history |
-| `!ai chat cache enable` | Enable chat cache |
-| `!ai chat cache disable` | Disable chat cache |
-| `!ai chat cache clear` | Clear chat cache |
-| `!ai log` | Log last AI conversation to file |
-| `!ai get [key]` | Get specific response data |
-| `!ai dump` | Dump complete response data |
-| `!ai rejectchanges` | Reject AI-suggested changes |
-
 ### User Settings
 
 #### Startup Commands
@@ -166,13 +159,6 @@ The application automatically checks for updates on startup (if enabled) and wil
 | `!user text defaultentry ai` | Set default input mode to AI |
 | `!user text defaultentry terminal` | Set default input mode to terminal |
 
-#### Color Interface
-The terminal features color-coded interface elements:
-- Green: AI interactions and successful operations
-- Red: Error messages and development mode indicators
-- Purple: Application branding and highlights
-- Default: Standard command input and output
-
 #### Data Management
 | Command | Description |
 |---------|-------------|
@@ -197,15 +183,129 @@ The terminal features color-coded interface elements:
 
 | Command | Description |
 |---------|-------------|
+| `!theme list` | List all available themes |
 | `!theme load [name]` | Load a saved color theme |
 | `!theme save [name]` | Save current colors as a theme |
+| `!theme delete [name]` | Delete a saved theme |
+| `!theme set [color] [value]` | Set a specific color in the current theme |
+| `!theme current` | Display the name of the current theme |
 
 The theme system allows you to customize and persist terminal color schemes:
-- Themes are stored in the `.DTT-Data/themes` directory
+- Themes are stored in the `.DTT-Data/themes` directory as JSON files
 - Each theme includes settings for all terminal color variables
-- Colors can affect prompts, messages, errors, and highlights
+- The default theme is always available and cannot be deleted
+- Colors affect various UI elements including prompts, messages, and highlights
 
-### Plugin System
+#### Available Color Variables
+The following color variables can be customized:
+- `GREEN_COLOR_BOLD`: Used for success messages and AI interactions
+- `RED_COLOR_BOLD`: Used for error messages and critical information
+- `PURPLE_COLOR_BOLD`: Used for application branding and highlights
+- `BLUE_COLOR_BOLD`: Used for directory names and information sections
+- `YELLOW_COLOR_BOLD`: Used for warnings and branch names
+- `CYAN_COLOR_BOLD`: Used for system messages and notifications
+- `SHELL_COLOR`: Used for shell name in the prompt
+- `DIRECTORY_COLOR`: Used for directory path in the prompt
+- `BRANCH_COLOR`: Used for Git branch name in the prompt
+- `GIT_COLOR`: Used for Git indicators in the prompt
+
+Color values use standard ANSI escape codes (e.g., `\033[1;32m` for bold green).
+
+### Environment Variables
+
+| Command | Description |
+|---------|-------------|
+| `!env` | List all environment variables |
+| `!env set NAME VALUE` | Set an environment variable |
+| `!env get NAME` | Get value of an environment variable |
+| `!env remove NAME` | Remove an environment variable |
+| `!env unset NAME` | Alternative to remove |
+| `!env clear` | Remove all environment variables |
+| `!env expand STRING` | Show expansion of variables in a string |
+
+Environment variables can be:
+- Used in terminal commands with standard `$VAR` syntax
+- Referenced with ${NAME} syntax for variables with special characters
+- Persisted across sessions
+- Used in shortcuts and startup commands
+- Referenced in AI conversations for context
+- Automatically expanded in commands before execution
+
+## AI Integration
+
+### Core AI Commands
+| Command | Description |
+|---------|-------------|
+| `!ai` | Enter AI chat mode |
+| `!ai help` | Display AI command help |
+| `!ai chat [message]` | Send message to ChatGPT |
+| `!aihelp` | Get AI help for recent terminal errors |
+
+### AI Configuration
+| Command | Description |
+|---------|-------------|
+| `!ai apikey set [KEY]` | Set OpenAI API key |
+| `!ai apikey get` | Display current API key |
+| `!ai model [model]` | Set AI model (default: gpt-3.5-turbo) |
+| `!ai mode [mode]` | Set assistant type (chat, file-search, or code-interpreter) |
+| `!ai timeoutflag [seconds]` | Set timeout for AI responses |
+| `!ai directory set` | Set directory for AI-generated files to current directory |
+| `!ai directory clear` | Reset directory to default (.DTT-Data) |
+
+### AI File Integration
+| Command | Description |
+|---------|-------------|
+| `!ai file add [file]` | Add file to AI context |
+| `!ai file add all` | Add all files in directory to AI context |
+| `!ai file remove [file]` | Remove file from AI context |
+| `!ai file remove all` | Remove all files from AI context |
+| `!ai file active` | List active files in AI context |
+| `!ai file available` | List files available in current directory |
+| `!ai file refresh` | Refresh active file contents |
+| `!ai file clear` | Clear all files from context |
+
+### AI Chat Management
+| Command | Description |
+|---------|-------------|
+| `!ai chat history clear` | Clear chat history |
+| `!ai chat cache enable` | Enable chat cache |
+| `!ai chat cache disable` | Disable chat cache |
+| `!ai chat cache clear` | Clear chat cache |
+| `!ai log` | Log last AI conversation to file |
+| `!ai get [key]` | Get specific response data |
+| `!ai dump` | Dump complete response data |
+| `!ai rejectchanges` | Reject AI-suggested changes |
+
+### OpenAI Integration Details
+
+#### Assistant Types
+The application supports three OpenAI assistant modes:
+
+1. **chat**: Standard conversational assistant
+2. **file-search**: Assistant that analyzes provided files to help with related queries
+3. **code-interpreter**: Advanced mode that can receive, modify, and create code files
+
+#### Code Interpreter Mode
+When using the code-interpreter mode, the assistant can:
+- Read existing code files
+- Suggest changes to code files and automatically apply them (similar to Github Copilot)
+- Create new files in the specified save directory (defaults to .DTT-Data)
+- Generate automatic diffs showing changes made to files
+- Process and intelligently merge changes with existing file content
+- Format code blocks appropriately based on language
+- Create nested directory structures for new files when paths contain "/"
+- Allow rejecting changes via `!ai rejectchanges` command to restore original file state
+- Track file changes with colored diff output (red for deletions, green for additions)
+- Handle new file creation automatically when referenced in code blocks
+
+#### File Context
+Adding files to the AI context allows the assistant to:
+- Reference specific code during conversations
+- Understand project structure and dependencies
+- Provide more relevant and accurate answers to code-related questions
+- Refresh file content with `!ai file refresh` to ensure latest changes are included
+
+## Plugin System
 
 | Command | Description |
 |---------|-------------|
@@ -228,54 +328,62 @@ Plugins provide extended functionality to DevToolsTerminal:
 - Plugin state (enabled/disabled) persists across sessions
 - Settings are managed per-plugin and saved with user data
 
-## OpenAI Integration Details
+### Plugin Lifecycle
 
-### Assistant Types
-The application supports three OpenAI assistant modes:
+Plugins follow a specific lifecycle:
+1. **Discovery**: On startup, the application scans the plugins directory for compatible files (.so/.dylib)
+2. **Loading**: Plugin files are dynamically loaded but remain inactive
+3. **Initialization**: When enabled, the plugin's `initialize()` method is called
+4. **Execution**: The plugin can handle commands and respond to events
+5. **Shutdown**: When disabled, the plugin's `shutdown()` method is called
+6. **Unloading**: On application exit or plugin uninstallation, resources are released
 
-1. **chat**: Standard conversational assistant
-2. **file-search**: Assistant that analyzes provided files to help with related queries
-3. **code-interpreter**: Advanced mode that can receive, modify, and create code files
+### Plugin Events
 
-### Code Interpreter Mode
-When using the code-interpreter mode, the assistant can:
-- Read existing code files
-- Suggest changes to code files and automattically apply them (similar to Github Copilot)
-- Create new files in the .DTT-Data directory
-- Show diffs of the changes made
+Plugins can respond to various system events:
+- `event main_process pre_run`: Before the main process loop starts
+- `event main_process start`: When the main process loop begins
+- `event main_process took_input`: When user input is received
+- `event main_process command_processed`: After a command is processed
+- `event main_process end`: When the main process loop ends
+- `event plugin_enabled [name]`: When a plugin is enabled
+- `event plugin_disabled [name]`: When a plugin is disabled
 
-### File Context
-Adding files to the AI context allows the assistant to:
-- Reference specific code during conversations
-- Understand project structure and dependencies
-- Provide more relevant and accurate answers to code-related questions
-- Refresh file content with `!ai file refresh` to ensure latest changes are included
+### Plugin Development Notes
+
+For developers interested in creating plugins:
+- Plugins must implement the `PluginInterface` class
+- Required methods include getName(), getVersion(), getDescription(), getAuthor()
+- Plugins should properly handle initialization and shutdown
+- Command handling is done through the handleCommand() method with a queue of arguments
+- Plugins can define their own settings with default values
+- Ensure plugins are compiled as shared libraries (.so on Linux, .dylib on macOS)
+- Use the IMPLEMENT_PLUGIN macro to define required entry points
+
+### Safety Considerations
+
+When working with plugins:
+- Only install plugins from trusted sources
+- Plugins have full access to the terminal and system
+- Disable or uninstall plugins that exhibit unexpected behavior
+- The terminal will display a safety reminder when plugins are loaded
 
 ## Terminal Features
 
-### Environment Variables
-
-| Command | Description |
-|---------|-------------|
-| `!env` | List all environment variables |
-| `!env set NAME VALUE` | Set an environment variable |
-| `!env get NAME` | Get value of an environment variable |
-| `!env remove NAME` | Remove an environment variable |
-| `!env unset NAME` | Alternative to remove |
-| `!env clear` | Remove all environment variables |
-| `!env expand STRING` | Show expansion of variables in a string |
-
-Environment variables can be:
-- Used in terminal commands with standard `$VAR` syntax
-- Persisted across sessions
-- Used in shortcuts and startup commands
-- Referenced in AI conversations for context
+### Color Interface
+The terminal features color-coded interface elements:
+- Green: AI interactions and successful operations
+- Red: Error messages and development mode indicators
+- Purple: Application branding and highlights
+- Default: Standard command input and output
 
 ### Git Integration
 The terminal prompt automatically detects Git repositories and shows:
 - Current directory name (or full path if enabled)
 - Git branch name when inside a repository
-- Color-coded terminal information
+- Color-coded repository and branch information
+- Automatically traverses parent directories to find Git repositories
+- Visual distinction between Git and non-Git directories in prompt
 
 ### Multi-line Editing
 The terminal supports full multi-line editing capabilities:
@@ -283,15 +391,6 @@ The terminal supports full multi-line editing capabilities:
 - Command history navigation
 - Backspace handling across lines
 - Proper cursor positioning
-
-### Color Themes
-The terminal supports customizable color themes that control:
-- Command prompts and user input coloring
-- System message formatting
-- Error and warning highlighting
-- Application branding elements
-
-Custom themes can be saved and loaded across sessions for consistent visual experience.
 
 ### Cross-Platform Support
 The terminal passthrough layer works across:
