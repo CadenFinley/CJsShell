@@ -209,12 +209,13 @@ int main() {
     std::cout << titleLine << std::endl;
     std::cout << createdLine << std::endl;
 
+    //only breaks on the exitFlag being set to true
     mainProcessLoop();
+
     if(saveOnExit){
         savedChatCache = c_assistant.getChatCache();
         writeUserData();
     }
-    disableRawMode();
     delete pluginManager;
     delete themeManager;
     return 0;
