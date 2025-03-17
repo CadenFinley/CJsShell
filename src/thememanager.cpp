@@ -81,7 +81,10 @@ void ThemeManager::discoverAvailableThemes() {
         std::cout << "Available themes: ";
         for (const auto& [name, _] : availableThemes) {
             if(name != "default"){
-                std::cout << name << ", ";
+                std::cout << name;
+                if (name != themeNames.back()) {
+                    std::cout << ", ";
+                }
             }
         }
         std::cout << std::endl;

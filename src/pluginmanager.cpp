@@ -38,7 +38,10 @@ bool PluginManager::discoverPlugins() {
         std::cout << "Be sure to only download plugins from trusted sources." << std::endl;
         std::cout << "Plugins loaded: ";
         for (const auto& name : plugins) {
-            std::cout << name << ", ";
+            std::cout << name;
+            if (name != plugins.back()) {
+                std::cout << ", ";
+            }
         }
         std::cout << std::endl;
     }

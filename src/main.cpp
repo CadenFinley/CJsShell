@@ -155,7 +155,7 @@ int main() {
 
     if(checkForUpdates){
         if (checkForUpdate()) {
-            std::cout << "An update is available. Would you like to download it? (Y/N)" << std::endl;
+            std::cout << "\nAn update is available. Would you like to download it? (Y/N)" << std::endl;
             char response;
             std::cin >> response;
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -165,7 +165,7 @@ int main() {
                 }
             }
         } else {
-            std::cout << "You are up to date!." << std::endl;
+            std::cout << " ->  You are up to date!" << std::endl;
         }
     }
 
@@ -1829,7 +1829,7 @@ void showChatHistory() {
 }
 
 bool checkForUpdate() {
-    std::cout << "Checking for updates..." << std::endl;
+    std::cout << "Checking for updates...";
     auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
         auto splitVersion = [](const std::string &ver) {
             std::vector<int> parts;
@@ -1877,7 +1877,7 @@ bool checkForUpdate() {
                 currentVer = currentVer.substr(1);
             }
             if (isNewerVersion(latestTag, currentVer)) {
-                std::cout << "Last Updated: " << lastUpdated << std::endl;
+                std::cout << "\nLast Updated: " << lastUpdated << std::endl;
                 std::cout << currentVersion << " -> " << latestTag << std::endl;
                 return true;
             }
