@@ -1,0 +1,12 @@
+{
+    "BLUE_COLOR_BOLD": "\u001b[38;5;117m",
+    "BRANCH_COLOR": "\u001b[38;5;222m",
+    "CYAN_COLOR_BOLD": "\u001b[38;5;159m",
+    "DIRECTORY_COLOR": "\u001b[38;5;117m",
+    "GIT_COLOR": "\u001b[38;5;122m",
+    "GREEN_COLOR_BOLD": "\u001b[38;5;122m",
+    "PURPLE_COLOR_BOLD": "\u001b[38;5;183m",
+    "RED_COLOR_BOLD": "\u001b[38;5;203m",
+    "SHELL_COLOR": "\u001b[38;5;203m",
+    "YELLOW_COLOR_BOLD": "\u001b[38;5;222m"
+}
