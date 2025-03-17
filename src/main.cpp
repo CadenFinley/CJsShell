@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.6.0.1";
+const std::string currentVersion = "1.6.0.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -203,7 +203,6 @@ int main() {
     std::cout << createdLine << std::endl;
 
     mainProcessLoop();
-    std::cout << "Exiting..." << std::endl;
     if(saveOnExit){
         savedChatCache = c_assistant.getChatCache();
         writeUserData();
@@ -546,6 +545,13 @@ void loadUserData() {
                     terminal.setEnvVar(name, value);
                 }
             }
+            if(userData.contains("Current_Theme")) {
+                currentTheme = userData["Current_Theme"].get<std::string>();
+                if(themeManager && !currentTheme.empty()) {
+                    themeManager->loadTheme(currentTheme);
+                    applyColorToStrings();
+                }
+            }
             file.close();
         }
         catch(const json::parse_error& e) {
@@ -575,6 +581,7 @@ void writeUserData() {
         userData["Last_Updated"] = lastUpdated;
         userData["Last_Login"] = lastLogin;
         userData["EnvVars"] = terminal.getAllEnvVars();
+        userData["Current_Theme"] = currentTheme;
         file << userData.dump(4);
         file.close();
     } else {
@@ -1947,6 +1954,7 @@ void applyColorToStrings() {
 
 void loadTheme(const std::string& themeName) {
     if (themeManager->loadTheme(themeName)) {
+        currentTheme = themeName;
         applyColorToStrings();
         std::cout << "Theme loaded: " << themeName << std::endl;
     } else {
