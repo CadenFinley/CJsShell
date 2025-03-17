@@ -105,32 +105,40 @@ bool PluginManager::uninstallPlugin(const std::string& name) {
         return false;
     }
 
-    std::string pluginFileName;
+    std::filesystem::path pluginPath;
     for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
-        void* testHandle = dlopen(entry.path().c_str(), RTLD_LAZY);
-        if (testHandle) {
-            CreatePluginFunc createFunc = (CreatePluginFunc)dlsym(testHandle, "createPlugin");
-            if (createFunc) {
-                PluginInterface* testInstance = createFunc();
-                if (testInstance && testInstance->getName() == name) {
-                    pluginFileName = entry.path().string();
-                    dlclose(testHandle);
-                    break;
-                }
-            }
-            dlclose(testHandle);
+        if (entry.path().extension() != ".so" && entry.path().extension() != ".dylib") {
+            continue;
         }
+        
+        void* tempHandle = dlopen(entry.path().c_str(), RTLD_LAZY);
+        if (!tempHandle) {
+            continue;
+        }
+
+        CreatePluginFunc createFunc = (CreatePluginFunc)dlsym(tempHandle, "createPlugin");
+        if (!createFunc) {
+            dlclose(tempHandle);
+            continue;
+        }
+
+        PluginInterface* tempInstance = createFunc();
+        if (tempInstance && tempInstance->getName() == name) {
+            pluginPath = entry.path();
+            dlclose(tempHandle);
+            break;
+        }
+        dlclose(tempHandle);
     }
 
-    if (pluginFileName.empty()) {
+    if (pluginPath.empty()) {
         std::cerr << "Could not find plugin file for: " << name << std::endl;
         return false;
     }
 
-    unloadPlugin(name);
-
     try {
-        std::filesystem::remove(pluginFileName);
+        unloadPlugin(name);
+        std::filesystem::remove(pluginPath);
         std::cout << "Successfully uninstalled plugin: " << name << std::endl;
         return true;
     } catch (const std::filesystem::filesystem_error& e) {

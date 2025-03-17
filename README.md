@@ -209,16 +209,24 @@ The theme system allows you to customize and persist terminal color schemes:
 
 | Command | Description |
 |---------|-------------|
-| `!plugin list available` | List all available plugins |
-| `!plugin list enabled` | List all enabled plugins |
+| `!plugin available` | List all available plugins |
+| `!plugin enabled` | List all enabled plugins |
 | `!plugin enableall` | Enable all available plugins |
-| `!plugin settings` | Show all plugin settings |
+| `!plugin disableall` | Disable all installed plugins |
+| `!plugin settings` | Show settings for all plugins |
 | `!plugin [name] enable` | Enable specific plugin |
 | `!plugin [name] disable` | Disable specific plugin |
 | `!plugin [name] info` | Get information about a plugin |
 | `!plugin [name] commands` | List commands provided by a plugin |
 | `!plugin [name] settings set [key] [value]` | Change plugin setting |
-| `!plugin help` | Show plugin command help |
+| `!plugin install [path]` | Install a new plugin from file |
+| `!plugin uninstall [name]` | Remove an installed plugin |
+
+Plugins provide extended functionality to DevToolsTerminal:
+- Plugins are stored in the `.DTT-Data/plugins` directory
+- Each plugin can define its own commands and settings
+- Plugin state (enabled/disabled) persists across sessions
+- Settings are managed per-plugin and saved with user data
 
 ## OpenAI Integration Details
 
@@ -226,7 +234,7 @@ The theme system allows you to customize and persist terminal color schemes:
 The application supports three OpenAI assistant modes:
 
 1. **chat**: Standard conversational assistant
-2. **file-search**: Assistant that analyzes provided files to help with code-related queries
+2. **file-search**: Assistant that analyzes provided files to help with related queries
 3. **code-interpreter**: Advanced mode that can receive, modify, and create code files
 
 ### Code Interpreter Mode
@@ -244,6 +252,24 @@ Adding files to the AI context allows the assistant to:
 - Refresh file content with `!ai file refresh` to ensure latest changes are included
 
 ## Terminal Features
+
+### Environment Variables
+
+| Command | Description |
+|---------|-------------|
+| `!env` | List all environment variables |
+| `!env set NAME VALUE` | Set an environment variable |
+| `!env get NAME` | Get value of an environment variable |
+| `!env remove NAME` | Remove an environment variable |
+| `!env unset NAME` | Alternative to remove |
+| `!env clear` | Remove all environment variables |
+| `!env expand STRING` | Show expansion of variables in a string |
+
+Environment variables can be:
+- Used in terminal commands with standard `$VAR` syntax
+- Persisted across sessions
+- Used in shortcuts and startup commands
+- Referenced in AI conversations for context
 
 ### Git Integration
 The terminal prompt automatically detects Git repositories and shows:
@@ -280,6 +306,7 @@ User settings, command history, AI chat history, theme files, and code-interpret
 - `.USER_DATA.json`: Contains user settings, shortcuts, API keys, and chat cache
 - `.USER_COMMAND_HISTORY.txt`: Stores the history of all commands entered
 - `themes/`: Directory containing saved color theme files
+- `plugins/`: Directory containing user plugins
 - Additional directories created by code-interpreter for generated files
 
 ## Contributing

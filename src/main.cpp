@@ -841,6 +841,26 @@ void commandProcesser(const std::string& command) {
 
 void pluginCommands(){
     getNextCommand();
+    if(lastCommandParsed == "install") {
+        getNextCommand();
+        if(lastCommandParsed.empty()) {
+            std::cerr << "Error: No plugin file path provided." << std::endl;
+            return;
+        }
+        std::string pluginPath = terminal.getFullPathOfFile(lastCommandParsed);
+        pluginManager->installPlugin(pluginPath);
+        return;
+    }
+    if(lastCommandParsed == "uninstall") {
+        getNextCommand();
+        if(lastCommandParsed.empty()) {
+            std::cerr << "Error: No plugin name provided." << std::endl;
+            return;
+        }
+        std::string pluginName = lastCommandParsed;
+        pluginManager->uninstallPlugin(pluginName);
+        return;
+    }
     if(lastCommandParsed == "info") {
         getNextCommand();
         if(lastCommandParsed.empty()) {
@@ -952,6 +972,8 @@ void pluginCommands(){
             std::cout << " commands [NAME]: List commands for a plugin" << std::endl;
             std::cout << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting" << std::endl;
             std::cout << " help: Show this help message" << std::endl;
+            std::cout << " install [PATH]: Install a new plugin" << std::endl;
+            std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
             return;
         }
         std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
