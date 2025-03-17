@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.6.0.6";
+const std::string currentVersion = "1.6.1.0";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -663,13 +663,13 @@ void commandParser(const std::string& command) {
         addUserInputToHistory(command);
     }
     if (command.rfind(commandPrefix, 0) == 0) {
-        terminal.addCommandToHistory(command);
         commandProcesser(command.substr(1));
+        terminal.addCommandToHistory(command);
         return;
     }
     if (defaultTextEntryOnAI) {
-        terminal.addCommandToHistory(command);
         chatProcess(command);
+        terminal.addCommandToHistory(command);
     } else {
         sendTerminalCommand(command);
     }
@@ -779,7 +779,7 @@ void commandProcesser(const std::string& command) {
         userSettingsCommands();
     } else if (lastCommandParsed == "aihelp"){
         if (!defaultTextEntryOnAI && !c_assistant.getAPIKey().empty() ){
-            std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. User input " + terminal.returnMostRecentUserInput() + " Terminal output " + terminal.returnMostRecentTerminalOutput());
+            std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. I entered: " + terminal.returnMostRecentUserInput() + " and got this " + terminal.returnMostRecentTerminalOutput());
             if (TESTING) {
                 std::cout << message << std::endl;
             }
