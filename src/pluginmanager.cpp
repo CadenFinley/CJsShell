@@ -1,7 +1,6 @@
 #include "pluginmanager.h"
 
-PluginManager::PluginManager(const std::filesystem::path& pluginsDir)
-    : pluginsDirectory(pluginsDir) {
+PluginManager::PluginManager(const std::filesystem::path& pluginsDir) : pluginsDirectory(pluginsDir) {
 
     if (!std::filesystem::exists(pluginsDirectory)) {
         std::filesystem::create_directories(pluginsDirectory);
