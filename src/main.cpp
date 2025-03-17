@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.6.0.2";
+const std::string currentVersion = "1.6.0.3";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -548,7 +548,7 @@ void loadUserData() {
             if(userData.contains("Current_Theme")) {
                 currentTheme = userData["Current_Theme"].get<std::string>();
                 if(themeManager && !currentTheme.empty()) {
-                    themeManager->loadTheme(currentTheme);
+                    loadTheme(currentTheme);
                     applyColorToStrings();
                 }
             }
