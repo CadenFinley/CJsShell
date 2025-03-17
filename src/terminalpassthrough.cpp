@@ -71,7 +71,7 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
             }
             std::string repoName = displayWholePath ? getCurrentFilePath() : getCurrentFileName();
             gitInfoLength = repoName.length() + branchName.length() + 9;
-            gitInfo = "\033[1;32m" + repoName + RESET_COLOR+DIRECTORY_COLOR+" git:("+RESET_COLOR+BRANCH_COLOR + branchName +RESET_COLOR+DIRECTORY_COLOR+ ")"+RESET_COLOR;
+            gitInfo = GIT_COLOR + repoName + RESET_COLOR+DIRECTORY_COLOR+" git:("+RESET_COLOR+BRANCH_COLOR + branchName +RESET_COLOR+DIRECTORY_COLOR+ ")"+RESET_COLOR;
         } catch (const std::exception& e) {
             std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
         }
@@ -80,10 +80,10 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
     }
     if (displayWholePath) {
         terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2;
-        return SHELL_COLOR+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFilePath() + "\033[0m" + " ";
+        return SHELL_COLOR+getTerminalName()+RESET_COLOR + ": " + DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR + " ";
     } else {
         terminalCurrentPositionRawLength = getCurrentFileName().length() + getTerminalName().length() + 2;
-        return SHELL_COLOR+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFileName() + "\033[0m" + " ";
+        return SHELL_COLOR+getTerminalName()+RESET_COLOR + ": " + DIRECTORY_COLOR + getCurrentFileName() + RESET_COLOR + " ";
     }
 }
 
@@ -326,6 +326,10 @@ void TerminalPassthrough::setBranchColor(const std::string& color){
     this->BRANCH_COLOR = color;
 }
 
+void TerminalPassthrough::setGitColor(const std::string& color){
+    this->GIT_COLOR = color;
+}
+
 std::string TerminalPassthrough::getShellColor() const {
     return SHELL_COLOR;
 }
@@ -336,5 +340,9 @@ std::string TerminalPassthrough::getDirectoryColor() const {
 
 std::string TerminalPassthrough::getBranchColor() const {
     return BRANCH_COLOR;
+}
+
+std::string TerminalPassthrough::getGitColor() const {
+    return GIT_COLOR;
 }
 

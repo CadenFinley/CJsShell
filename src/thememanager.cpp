@@ -38,9 +38,11 @@ void ThemeManager::createDefaultTheme() {
         {"CYAN_COLOR_BOLD", "\033[1;36m"},
         {"SHELL_COLOR", "\033[1;31m"},
         {"DIRECTORY_COLOR", "\033[1;34m"},
-        {"BRANCH_COLOR", "\033[1;33m"}
+        {"BRANCH_COLOR", "\033[1;33m"},
+        {"GIT_COLOR", "\033[1;32m"}
     };
     
+    // Create and save the default theme
     saveTheme("default", defaultColors);
     availableThemes["default"] = defaultColors;
 }

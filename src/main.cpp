@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.6.0.0";
+const std::string currentVersion = "1.6.0.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -1942,6 +1942,7 @@ void applyColorToStrings() {
     terminal.setShellColor(themeManager->getColor("SHELL_COLOR"));
     terminal.setDirectoryColor(themeManager->getColor("DIRECTORY_COLOR"));
     terminal.setBranchColor(themeManager->getColor("BRANCH_COLOR"));
+    terminal.setGitColor(themeManager->getColor("GIT_COLOR"));
 }
 
 void loadTheme(const std::string& themeName) {
@@ -1964,7 +1965,9 @@ void saveTheme(const std::string& themeName) {
         {"CYAN_COLOR_BOLD", CYAN_COLOR_BOLD},
         {"SHELL_COLOR", terminal.getShellColor()},
         {"DIRECTORY_COLOR", terminal.getDirectoryColor()},
-        {"BRANCH_COLOR", terminal.getBranchColor()}
+        {"BRANCH_COLOR", terminal.getBranchColor()},
+        {"GIT_COLOR", terminal.getGitColor()}
+
     };
     if (themeManager->saveTheme(themeName, colors)) {
         std::cout << "Theme saved: " << themeName << std::endl;
