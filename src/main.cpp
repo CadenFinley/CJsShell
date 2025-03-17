@@ -25,8 +25,8 @@ bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
-bool rawEnabled = false;
 bool displayWholePath = false;
+bool rawModeEnabled = false;
 
 bool saveLoop = true;
 bool saveOnExit = true;
@@ -76,9 +76,15 @@ TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
 ThemeManager* themeManager = nullptr;
 
+std::mutex rawModeMutex;
+
 std::string readAndReturnUserDataFile();
 std::vector<std::string> commandSplicer(const std::string& command);
 void mainProcessLoop();
+void setRawMode(bool enable);
+void enableRawMode();
+void disableRawMode();
+bool isRawModeEnabled();
 void createNewUSER_DATAFile();
 void createNewUSER_HISTORYfile();
 void loadUserData();
@@ -100,7 +106,6 @@ void chatProcess(const std::string& message);
 void showChatHistory();
 void multiScriptShortcutCommands();
 void userDataCommands();
-void setRawMode(bool enable);
 std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag);
 void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
 void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
@@ -181,8 +186,9 @@ int main() {
     pluginManager->discoverPlugins();
 
     themeManager = new ThemeManager(THEMES_DIRECTORY);
-    themeManager->loadTheme(currentTheme);
-    applyColorToStrings();
+    if (themeManager->loadTheme(currentTheme)) {
+        applyColorToStrings();
+    }
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
@@ -208,7 +214,7 @@ int main() {
         savedChatCache = c_assistant.getChatCache();
         writeUserData();
     }
-    setRawMode(false);
+    disableRawMode();
     delete pluginManager;
     delete themeManager;
     return 0;
@@ -229,7 +235,6 @@ void notifyPluginsTriggerMainProcess(std::string trigger) {
 void mainProcessLoop() {
     std::string terminalSetting;
     int terminalSettingLength;
-    setRawMode(true);
     notifyPluginsTriggerMainProcess("pre_run");
     while (true) {
         notifyPluginsTriggerMainProcess("start");
@@ -252,6 +257,7 @@ void mainProcessLoop() {
         size_t cursorPositionY = 0;
         commandLines.clear();
         commandLines.push_back("");
+        enableRawMode();
         while (true) {
             std::cin.get(c);
             notifyPluginsTriggerMainProcess("took_input: " + std::string(1, c));
@@ -349,14 +355,13 @@ void mainProcessLoop() {
                 placeCursor(cursorPositionX, cursorPositionY);
             }
         }
+        disableRawMode();
         std::string finalCommand;
         for (const auto& line : commandLines) {
             finalCommand += line;
         }
         notifyPluginsTriggerMainProcess("command_processed: " + finalCommand);
-        setRawMode(false);
         commandParser(finalCommand);
-        setRawMode(true);
         notifyPluginsTriggerMainProcess("end");
         if (exitFlag) {
             break;
@@ -404,22 +409,6 @@ void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
             rowsBehind--;
         }
     }
-}
-
-void setRawMode(bool enable) {
-    if (rawEnabled == enable) {
-        return;
-    }
-    static struct termios oldt, newt;
-    if (enable) {
-        tcgetattr(STDIN_FILENO, &oldt);
-        newt = oldt;
-        newt.c_lflag &= ~(ICANON | ECHO);
-        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    } else {
-        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    }
-    rawEnabled = enable;
 }
 
 std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
@@ -480,6 +469,36 @@ std::string getClipboardContent() {
     return result;
 }
 
+void setRawMode(bool enable) {
+    std::lock_guard<std::mutex> lock(rawModeMutex);
+    if (rawModeEnabled == enable) {
+        return;
+    }
+    static struct termios oldt, newt;
+    if (enable) {
+        tcgetattr(STDIN_FILENO, &oldt);
+        newt = oldt;
+        newt.c_lflag &= ~(ICANON | ECHO);
+        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    } else {
+        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    }
+    rawModeEnabled = enable;
+}
+
+void enableRawMode() {
+    setRawMode(true);
+}
+
+void disableRawMode() {
+    setRawMode(false);
+}
+
+bool isRawModeEnabled() {
+    std::lock_guard<std::mutex> lock(rawModeMutex);
+    return rawModeEnabled;
+}
+
 void createNewUSER_DATAFile() {
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
@@ -513,17 +532,17 @@ void loadUserData() {
                 c_assistant.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
             }
             if(userData.contains("Chat_Cache")) {
-                savedChatCache = userData["Chat_Cache"].get<std::vector<std::string>>();
+                savedChatCache = userData["Chat_Cache"].get<std::vector<std::string> >();
                 c_assistant.setChatCache(savedChatCache);
             }
             if(userData.contains("Startup_Commands")){
-                startupCommands = userData["Startup_Commands"].get<std::vector<std::string>>();
+                startupCommands = userData["Startup_Commands"].get<std::vector<std::string> >();
             }
             if(userData.contains("Shortcuts_Enabled")){
                 shotcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
             }
             if(userData.contains("Shortcuts")){
-                shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string>>();
+                shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string> >();
             }
             if(userData.contains("Text_Entry")){
                 defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();

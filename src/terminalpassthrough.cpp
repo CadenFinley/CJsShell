@@ -266,9 +266,7 @@ std::string TerminalPassthrough::expandEnvVars(const std::string& command) const
     std::string result = command;
     size_t pos = 0;
     
-    // Find all occurrences of $VAR or ${VAR}
     while ((pos = result.find('$', pos)) != std::string::npos) {
-        // Skip if it's escaped with \\$
         if (pos > 0 && result[pos-1] == '\\') {
             pos++;
             continue;
@@ -278,18 +276,15 @@ std::string TerminalPassthrough::expandEnvVars(const std::string& command) const
         size_t varEnd;
         bool hasBraces = false;
         
-        // Check if it's ${VAR} format
         if (varStart < result.size() && result[varStart] == '{') {
             hasBraces = true;
             varStart++;
             varEnd = result.find('}', varStart);
             if (varEnd == std::string::npos) {
-                // Unmatched brace, just continue
                 pos++;
                 continue;
             }
         } else {
-            // It's $VAR format
             varEnd = varStart;
             while (varEnd < result.size() && (isalnum(result[varEnd]) || result[varEnd] == '_')) {
                 varEnd++;
