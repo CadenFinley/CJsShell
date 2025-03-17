@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.6.0.3";
+const std::string currentVersion = "1.6.0.4";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -181,6 +181,7 @@ int main() {
     pluginManager->discoverPlugins();
 
     themeManager = new ThemeManager(THEMES_DIRECTORY);
+    themeManager->loadTheme(currentTheme);
     applyColorToStrings();
 
     if (!startupCommands.empty() && startCommandsOn) {
@@ -547,10 +548,6 @@ void loadUserData() {
             }
             if(userData.contains("Current_Theme")) {
                 currentTheme = userData["Current_Theme"].get<std::string>();
-                if(themeManager && !currentTheme.empty()) {
-                    loadTheme(currentTheme);
-                    applyColorToStrings();
-                }
             }
             file.close();
         }
@@ -1956,7 +1953,6 @@ void loadTheme(const std::string& themeName) {
     if (themeManager->loadTheme(themeName)) {
         currentTheme = themeName;
         applyColorToStrings();
-        std::cout << "Theme loaded: " << themeName << std::endl;
     } else {
         std::cerr << "Failed to load theme: " << themeName << std::endl;
     }
