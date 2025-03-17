@@ -187,10 +187,10 @@ std::string TerminalPassthrough::getPreviousCommand() {
     if (terminalCacheUserInput.empty()) {
         return "";
     }
-    if (commandHistoryIndex > 0) {
-        commandHistoryIndex--;
+    if (commandHistoryIndex < terminalCacheUserInput.size() - 1) {
+        commandHistoryIndex++;
     } else {
-        commandHistoryIndex = terminalCacheUserInput.size() - 1;
+        commandHistoryIndex = 0;
     }
     return terminalCacheUserInput[commandHistoryIndex];
 }
@@ -199,10 +199,10 @@ std::string TerminalPassthrough::getNextCommand() {
     if (terminalCacheUserInput.empty()) {
         return "";
     }
-    if (commandHistoryIndex < terminalCacheUserInput.size() - 1) {
-        commandHistoryIndex++;
+    if (commandHistoryIndex > 0) {
+        commandHistoryIndex--;
     } else {
-        commandHistoryIndex = 0;
+        commandHistoryIndex = terminalCacheUserInput.size() - 1;
     }
     return terminalCacheUserInput[commandHistoryIndex];
 }
