@@ -47,15 +47,22 @@ public:
     std::map<std::string, std::string> getAllEnvVars() const;
     std::string expandEnvVars(const std::string& command) const;
 
+    void setShellColor(const std::string& color);
+    void setDirectoryColor(const std::string& color);
+    void setBranchColor(const std::string& color);
+    std::string getShellColor() const;
+    std::string getDirectoryColor() const;
+    std::string getBranchColor() const;
+
 private:
     std::string currentDirectory;
     bool displayWholePath;
     std::vector<std::string> terminalCacheUserInput;
     std::vector<std::string> terminalCacheTerminalOutput;
-    std::string RED_COLOR_BOLD = "\033[1;31m";
+    std::string SHELL_COLOR = "\033[1;31m";
     std::string RESET_COLOR = "\033[0m";
-    std::string BLUE_COLOR_BOLD = "\033[1;34m";
-    std::string YELLOW_COLOR_BOLD = "\033[1;33m";
+    std::string DIRECTORY_COLOR = "\033[1;34m";
+    std::string BRANCH_COLOR = "\033[1;33m";
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
     std::map<std::string, std::string> envVars;

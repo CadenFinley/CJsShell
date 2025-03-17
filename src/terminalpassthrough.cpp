@@ -71,24 +71,24 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
             }
             std::string repoName = displayWholePath ? getCurrentFilePath() : getCurrentFileName();
             gitInfoLength = repoName.length() + branchName.length() + 9;
-            gitInfo = "\033[1;32m" + repoName + RESET_COLOR+BLUE_COLOR_BOLD+" git:("+RESET_COLOR+YELLOW_COLOR_BOLD + branchName +RESET_COLOR+BLUE_COLOR_BOLD+ ")"+RESET_COLOR;
+            gitInfo = "\033[1;32m" + repoName + RESET_COLOR+DIRECTORY_COLOR+" git:("+RESET_COLOR+BRANCH_COLOR + branchName +RESET_COLOR+DIRECTORY_COLOR+ ")"+RESET_COLOR;
         } catch (const std::exception& e) {
             std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
         }
         terminalCurrentPositionRawLength = getTerminalName().length() + 2 + gitInfoLength;
-        return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": " + gitInfo + " ";
+        return SHELL_COLOR+getTerminalName()+RESET_COLOR + ": " + gitInfo + " ";
     }
     if (displayWholePath) {
         terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2;
-        return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFilePath() + "\033[0m" + " ";
+        return SHELL_COLOR+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFilePath() + "\033[0m" + " ";
     } else {
         terminalCurrentPositionRawLength = getCurrentFileName().length() + getTerminalName().length() + 2;
-        return RED_COLOR_BOLD+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFileName() + "\033[0m" + " ";
+        return SHELL_COLOR+getTerminalName()+RESET_COLOR + ": \033[1;34m" + getCurrentFileName() + "\033[0m" + " ";
     }
 }
 
 std::thread TerminalPassthrough::executeCommand(std::string command) {
-    terminalCacheUserInput.push_back(command);
+    addCommandToHistory(command);
     return std::thread([this, command]() {
         try {
             std::string expandedCommand = expandEnvVars(command);
@@ -234,6 +234,7 @@ void TerminalPassthrough::addCommandToHistory(const std::string& command) {
     if (std::find(terminalCacheUserInput.begin(), terminalCacheUserInput.end(), command) != terminalCacheUserInput.end()) {
         return;
     }
+    commandHistoryIndex = terminalCacheUserInput.size();
     terminalCacheUserInput.push_back(command);
 }
 
@@ -312,3 +313,28 @@ std::string TerminalPassthrough::expandEnvVars(const std::string& command) const
     
     return result;
 }
+
+void TerminalPassthrough::setShellColor(const std::string& color){
+    this->SHELL_COLOR = color;
+}
+
+void TerminalPassthrough::setDirectoryColor(const std::string& color){
+    this->DIRECTORY_COLOR = color;
+}
+
+void TerminalPassthrough::setBranchColor(const std::string& color){
+    this->BRANCH_COLOR = color;
+}
+
+std::string TerminalPassthrough::getShellColor() const {
+    return SHELL_COLOR;
+}
+
+std::string TerminalPassthrough::getDirectoryColor() const {
+    return DIRECTORY_COLOR;
+}
+
+std::string TerminalPassthrough::getBranchColor() const {
+    return BRANCH_COLOR;
+}
+

@@ -31,17 +31,14 @@ ThemeManager::~ThemeManager() {
 void ThemeManager::createDefaultTheme() {
     std::map<std::string, std::string> defaultColors = {
         {"GREEN_COLOR_BOLD", "\033[1;32m"},
-        {"RESET_COLOR", "\033[0m"},
         {"RED_COLOR_BOLD", "\033[1;31m"},
         {"PURPLE_COLOR_BOLD", "\033[1;35m"},
         {"BLUE_COLOR_BOLD", "\033[1;34m"},
         {"YELLOW_COLOR_BOLD", "\033[1;33m"},
         {"CYAN_COLOR_BOLD", "\033[1;36m"},
-        {"TERMINAL_TEXT", "\033[0;37m"},
-        {"COMMAND_PROMPT", "\033[1;32m"},
-        {"ERROR_TEXT", "\033[1;31m"},
-        {"SUCCESS_TEXT", "\033[1;32m"},
-        {"HIGHLIGHT_TEXT", "\033[1;36m"}
+        {"SHELL_COLOR", "\033[1;31m"},
+        {"DIRECTORY_COLOR", "\033[1;34m"},
+        {"BRANCH_COLOR", "\033[1;33m"}
     };
     
     saveTheme("default", defaultColors);

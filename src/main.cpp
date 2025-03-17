@@ -48,7 +48,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.5.5.4";
+const std::string currentVersion = "1.6.0.0";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -71,7 +71,7 @@ std::map<std::string, std::string> shortcuts;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> envVars;
 
-OpenAIPromptEngine openAIPromptEngine;
+OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
 ThemeManager* themeManager = nullptr;
@@ -124,7 +124,7 @@ int main() {
     shortcuts = {};
     multiScriptShortcuts = {};
     terminal = TerminalPassthrough();
-    openAIPromptEngine = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
+    c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
     sendTerminalCommand("cd /");
     sendTerminalCommand("clear");
@@ -205,7 +205,7 @@ int main() {
     mainProcessLoop();
     std::cout << "Exiting..." << std::endl;
     if(saveOnExit){
-        savedChatCache = openAIPromptEngine.getChatCache();
+        savedChatCache = c_assistant.getChatCache();
         writeUserData();
     }
     setRawMode(false);
@@ -510,11 +510,11 @@ void loadUserData() {
             json userData;
             file >> userData;
             if(userData.contains("OpenAI_API_KEY")){
-                openAIPromptEngine.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
+                c_assistant.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
             }
             if(userData.contains("Chat_Cache")) {
                 savedChatCache = userData["Chat_Cache"].get<std::vector<std::string>>();
-                openAIPromptEngine.setChatCache(savedChatCache);
+                c_assistant.setChatCache(savedChatCache);
             }
             if(userData.contains("Startup_Commands")){
                 startupCommands = userData["Startup_Commands"].get<std::vector<std::string>>();
@@ -563,7 +563,7 @@ void writeUserData() {
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
         json userData;
-        userData["OpenAI_API_KEY"] = openAIPromptEngine.getAPIKey();
+        userData["OpenAI_API_KEY"] = c_assistant.getAPIKey();
         userData["Chat_Cache"] = savedChatCache;
         userData["Startup_Commands"] = startupCommands;
         userData["Shortcuts_Enabled"] = shotcutsEnabled;
@@ -754,12 +754,12 @@ void commandProcesser(const std::string& command) {
     } else if (lastCommandParsed == "user") {
         userSettingsCommands();
     } else if (lastCommandParsed == "aihelp"){
-        if (!defaultTextEntryOnAI && !openAIPromptEngine.getAPIKey().empty() ){
+        if (!defaultTextEntryOnAI && !c_assistant.getAPIKey().empty() ){
             std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. User input " + terminal.returnMostRecentUserInput() + " Terminal output " + terminal.returnMostRecentTerminalOutput());
             if (TESTING) {
                 std::cout << message << std::endl;
             }
-            std::cout << openAIPromptEngine.forceDirectChatGPT(message, false) << std::endl;
+            std::cout << c_assistant.forceDirectChatGPT(message, false) << std::endl;
             return;
         }
     } else if(lastCommandParsed == "version") {
@@ -1474,8 +1474,8 @@ void aiSettingsCommands() {
         return;
     }
     if (lastCommandParsed == "log") {
-        std::string lastChatSent = openAIPromptEngine.getLastPromptUsed();
-        std::string lastChatReceived = openAIPromptEngine.getLastResponseReceived();
+        std::string lastChatSent = c_assistant.getLastPromptUsed();
+        std::string lastChatReceived = c_assistant.getLastResponseReceived();
         std::string fileName = (DATA_DIRECTORY / ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt")).string();
         std::ofstream file(fileName);
         if (file.is_open()) {
@@ -1491,7 +1491,7 @@ void aiSettingsCommands() {
     if (lastCommandParsed == "apikey") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << openAIPromptEngine.getAPIKey() << std::endl;
+            std::cout << c_assistant.getAPIKey() << std::endl;
             return;
         }
         if (lastCommandParsed == "set") {
@@ -1500,8 +1500,8 @@ void aiSettingsCommands() {
                 std::cerr << "Error: No API key provided. Try 'help' for a list of commands." << std::endl;
                 return;
             }
-            openAIPromptEngine.setAPIKey(lastCommandParsed);
-            if (openAIPromptEngine.testAPIKey(openAIPromptEngine.getAPIKey())) {
+            c_assistant.setAPIKey(lastCommandParsed);
+            if (c_assistant.testAPIKey(c_assistant.getAPIKey())) {
                 std::cout << "OpenAI API key set successfully." << std::endl;
                 return;
             } else {
@@ -1510,7 +1510,7 @@ void aiSettingsCommands() {
             }
         }
         if (lastCommandParsed == "get") {
-            std::cout << openAIPromptEngine.getAPIKey() << std::endl;
+            std::cout << c_assistant.getAPIKey() << std::endl;
             return;
         }
         std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
@@ -1526,21 +1526,21 @@ void aiSettingsCommands() {
             std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
             return;
         }
-        std::cout << openAIPromptEngine.getResponseData(lastCommandParsed) << std::endl;
+        std::cout << c_assistant.getResponseData(lastCommandParsed) << std::endl;
         return;
     }
     if (lastCommandParsed == "dump") {
-        std::cout << openAIPromptEngine.getResponseData("all") << std::endl;
-        std::cout << openAIPromptEngine.getLastPromptUsed() << std::endl;
+        std::cout << c_assistant.getResponseData("all") << std::endl;
+        std::cout << c_assistant.getLastPromptUsed() << std::endl;
         return;
     }
     if (lastCommandParsed == "mode") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "The current assistant mode is " << openAIPromptEngine.getAssistantType() << std::endl;
+            std::cout << "The current assistant mode is " << c_assistant.getAssistantType() << std::endl;
             return;
         }
-        openAIPromptEngine.setAssistantType(lastCommandParsed);
+        c_assistant.setAssistantType(lastCommandParsed);
         std::cout << "Assistant mode set to " << lastCommandParsed << std::endl;
         return;
     }
@@ -1548,12 +1548,12 @@ void aiSettingsCommands() {
         getNextCommand();
         std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath();
         if (lastCommandParsed.empty()) {
-            std::vector<std::string> activeFiles = openAIPromptEngine.getFiles();
+            std::vector<std::string> activeFiles = c_assistant.getFiles();
             std::cout << "Active Files: " << std::endl;
             for(const auto& file : activeFiles){
                 std::cout << file << std::endl;
             }
-            std::cout << "Total characters processed: " << openAIPromptEngine.getFileContents().length() << std::endl;
+            std::cout << "Total characters processed: " << c_assistant.getFileContents().length() << std::endl;
             std::cout << "Files at current path: " << std::endl;
             for(const auto& file : filesAtPath){
                 std::cout << file << std::endl;
@@ -1567,7 +1567,7 @@ void aiSettingsCommands() {
                 return;
             }
             if (lastCommandParsed == "all"){
-                int charsProcessed = openAIPromptEngine.addFiles(filesAtPath);
+                int charsProcessed = c_assistant.addFiles(filesAtPath);
                 std::cout << "Processed " << charsProcessed <<  " characters from " << filesAtPath.size() << " files."  << std::endl;
                 return;
             }
@@ -1576,7 +1576,7 @@ void aiSettingsCommands() {
                 std::cerr << "Error: File not found: " << lastCommandParsed << std::endl;
                 return;
             }
-            int charsProcessed = openAIPromptEngine.addFile(fileToAdd);
+            int charsProcessed = c_assistant.addFile(fileToAdd);
             std::cout << "Processed " << charsProcessed << " characters from file: " << lastCommandParsed << std::endl;
             return;
         }
@@ -1587,8 +1587,8 @@ void aiSettingsCommands() {
                 return;
             }
             if (lastCommandParsed == "all"){
-                int fileCount = openAIPromptEngine.getFiles().size();
-                openAIPromptEngine.clearFiles();
+                int fileCount = c_assistant.getFiles().size();
+                c_assistant.clearFiles();
                 std::cout << "Removed all " << fileCount << " files from context." << std::endl;
                 return;
             }
@@ -1597,11 +1597,11 @@ void aiSettingsCommands() {
                 std::cerr << "Error: File not found: " << lastCommandParsed << std::endl;
                 return;
             }
-            openAIPromptEngine.removeFile(fileToRemove);
+            c_assistant.removeFile(fileToRemove);
             return;
         }
         if (lastCommandParsed == "active"){
-            std::vector<std::string> activeFiles = openAIPromptEngine.getFiles();
+            std::vector<std::string> activeFiles = c_assistant.getFiles();
             std::cout << "Active Files: " << std::endl;
             if(activeFiles.empty()) {
                 std::cout << "  No active files." << std::endl;
@@ -1609,7 +1609,7 @@ void aiSettingsCommands() {
                 for(const auto& file : activeFiles){
                     std::cout << "  " << file << std::endl;
                 }
-                std::cout << "Total characters processed: " << openAIPromptEngine.getFileContents().length() << std::endl;
+                std::cout << "Total characters processed: " << c_assistant.getFileContents().length() << std::endl;
             }
             return;
         }
@@ -1621,12 +1621,12 @@ void aiSettingsCommands() {
             return;
         }
         if(lastCommandParsed == "refresh"){
-            openAIPromptEngine.refreshFiles();
+            c_assistant.refreshFiles();
             std::cout << "Files refreshed." << std::endl;
             return;
         }
         if(lastCommandParsed == "clear"){
-            openAIPromptEngine.clearFiles();
+            c_assistant.clearFiles();
             std::cout << "Files cleared." << std::endl;
             return;
         }
@@ -1636,16 +1636,16 @@ void aiSettingsCommands() {
     if(lastCommandParsed == "directory"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "The current directory is " << openAIPromptEngine.getSaveDirectory() << std::endl;
+            std::cout << "The current directory is " << c_assistant.getSaveDirectory() << std::endl;
             return;
         }
         if(lastCommandParsed == "set") {
-            openAIPromptEngine.setSaveDirectory(terminal.getCurrentFilePath());
+            c_assistant.setSaveDirectory(terminal.getCurrentFilePath());
             std::cout << "Directory set to " << terminal.getCurrentFilePath() << std::endl;
             return;
         }
         if(lastCommandParsed == "clear") {
-            openAIPromptEngine.setSaveDirectory(".DTT-Data");
+            c_assistant.setSaveDirectory(".DTT-Data");
             std::cout << "Directory set to default." << std::endl;
             return;
         }
@@ -1653,25 +1653,25 @@ void aiSettingsCommands() {
     if(lastCommandParsed == "model"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "The current model is " << openAIPromptEngine.getModel() << std::endl;
+            std::cout << "The current model is " << c_assistant.getModel() << std::endl;
             return;
         }
-        openAIPromptEngine.setModel(lastCommandParsed);
+        c_assistant.setModel(lastCommandParsed);
         std::cout << "Model set to " << lastCommandParsed << std::endl;
         return;
     }
     if(lastCommandParsed == "rejectchanges"){
-        openAIPromptEngine.rejectChanges();
+        c_assistant.rejectChanges();
         std::cout << "Changes rejected." << std::endl;
         return;
     }
     if(lastCommandParsed == "timeoutflag"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "The current timeout flag is " << openAIPromptEngine.getTimeoutFlagSeconds() << std::endl;
+            std::cout << "The current timeout flag is " << c_assistant.getTimeoutFlagSeconds() << std::endl;
             return;
         }
-        openAIPromptEngine.setTimeoutFlagSeconds(std::stoi(lastCommandParsed));
+        c_assistant.setTimeoutFlagSeconds(std::stoi(lastCommandParsed));
         std::cout << "Timeout flag set to " << lastCommandParsed << " seconds."<< std::endl;
         return;
     }
@@ -1706,7 +1706,7 @@ void aiChatCommands() {
             return;
         }
         if (lastCommandParsed == "clear") {
-            openAIPromptEngine.clearChatCache();
+            c_assistant.clearChatCache();
             savedChatCache.clear();
             std::cout << "Chat history cleared." << std::endl;
             return;
@@ -1719,17 +1719,17 @@ void aiChatCommands() {
             return;
         }
         if (lastCommandParsed == "enable") {
-            openAIPromptEngine.setCacheTokens(true);
+            c_assistant.setCacheTokens(true);
             std::cout << "Cache tokens enabled." << std::endl;
             return;
         }
         if (lastCommandParsed == "disable") {
-            openAIPromptEngine.setCacheTokens(false);
+            c_assistant.setCacheTokens(false);
             std::cout << "Cache tokens disabled." << std::endl;
             return;
         }
         if (lastCommandParsed == "clear") {
-            openAIPromptEngine.clearAllCachedTokens();
+            c_assistant.clearAllCachedTokens();
             std::cout << "Chat history cleared." << std::endl;
             return;
         }
@@ -1765,18 +1765,18 @@ void chatProcess(const std::string& message) {
         sendTerminalCommand("clear");
         return;
     }
-    if (openAIPromptEngine.getAPIKey().empty()) {
+    if (c_assistant.getAPIKey().empty()) {
         std::cerr << "Error: No OpenAPI key set. Please set the API key using 'ai apikey set [KEY]'." << std::endl;
         return;
     }
-    std::string response = openAIPromptEngine.chatGPT(message,false);
+    std::string response = c_assistant.chatGPT(message,false);
     std::cout << "ChatGPT:\n" << response << std::endl;
 }
 
 void showChatHistory() {
-    if (!openAIPromptEngine.getChatCache().empty()) {
+    if (!c_assistant.getChatCache().empty()) {
         std::cout << "Chat history:" << std::endl;
-        for (const auto& message : openAIPromptEngine.getChatCache()) {
+        for (const auto& message : c_assistant.getChatCache()) {
             std::cout << message << std::endl;
         }
     }
@@ -1939,6 +1939,9 @@ void applyColorToStrings() {
     BLUE_COLOR_BOLD = themeManager->getColor("BLUE_COLOR_BOLD");
     YELLOW_COLOR_BOLD = themeManager->getColor("YELLOW_COLOR_BOLD");
     CYAN_COLOR_BOLD = themeManager->getColor("CYAN_COLOR_BOLD");
+    terminal.setShellColor(themeManager->getColor("SHELL_COLOR"));
+    terminal.setDirectoryColor(themeManager->getColor("DIRECTORY_COLOR"));
+    terminal.setBranchColor(themeManager->getColor("BRANCH_COLOR"));
 }
 
 void loadTheme(const std::string& themeName) {
@@ -1958,7 +1961,10 @@ void saveTheme(const std::string& themeName) {
         {"PURPLE_COLOR_BOLD", PURPLE_COLOR_BOLD},
         {"BLUE_COLOR_BOLD", BLUE_COLOR_BOLD},
         {"YELLOW_COLOR_BOLD", YELLOW_COLOR_BOLD},
-        {"CYAN_COLOR_BOLD", CYAN_COLOR_BOLD}
+        {"CYAN_COLOR_BOLD", CYAN_COLOR_BOLD},
+        {"SHELL_COLOR", terminal.getShellColor()},
+        {"DIRECTORY_COLOR", terminal.getDirectoryColor()},
+        {"BRANCH_COLOR", terminal.getBranchColor()}
     };
     if (themeManager->saveTheme(themeName, colors)) {
         std::cout << "Theme saved: " << themeName << std::endl;
