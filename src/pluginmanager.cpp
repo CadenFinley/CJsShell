@@ -300,10 +300,16 @@ void PluginManager::triggerEvent(const std::string& targetPlugin, const std::str
 
 void PluginManager::triggerSubscribedGlobalEvent(const std::string& event, const std::string& eventData) {
     auto it = subscribedEvents.find(event);
-    if (it != subscribedEvents.end()) {
-        for (const auto& pluginName : it->second) {
-            triggerEvent(pluginName, event, eventData);
-        }
+    if (it == subscribedEvents.end()) {
+        return; // No plugins are subscribed to this event
+    }
+
+    if (it->second.empty()) {
+        return; // Event exists but no plugins are currently subscribed
+    }
+    
+    for (const auto& pluginName : it->second) {
+        triggerEvent(pluginName, event, eventData);
     }
 }
 
