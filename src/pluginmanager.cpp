@@ -1,6 +1,7 @@
 #include "pluginmanager.h"
 
-PluginManager::PluginManager(const std::filesystem::path& pluginsDir) : pluginsDirectory(pluginsDir) {
+PluginManager::PluginManager(const std::filesystem::path& pluginsDir) 
+    : pluginsDirectory(pluginsDir), pluginsDiscovered(false) {
 
     if (!std::filesystem::exists(pluginsDirectory)) {
         std::filesystem::create_directories(pluginsDirectory);
@@ -23,16 +24,39 @@ PluginManager::~PluginManager() {
 }
 
 bool PluginManager::discoverPlugins() {
+    // Skip discovery if already done unless forced
+    if (pluginsDiscovered && !loadedPlugins.empty()) {
+        return true;
+    }
+
     if (!std::filesystem::exists(pluginsDirectory)) {
         std::cerr << "Plugins directory does not exist: " << pluginsDirectory << std::endl;
         return false;
     }
+    
+    // Clear existing plugins before discovering
+    for (auto& [name, data] : loadedPlugins) {
+        if (data.enabled && data.instance) {
+            data.instance->shutdown();
+        }
+        if (data.instance && data.destroyFunc) {
+            data.destroyFunc(data.instance);
+        }
+        if (data.handle) {
+            dlclose(data.handle);
+        }
+    }
+    loadedPlugins.clear();
+    
     for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
         std::string fileName = entry.path().filename().string();
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
             loadPlugin(entry.path());
         }
     }
+    
+    pluginsDiscovered = true;
+    
     std::vector<std::string> plugins = getAvailablePlugins();
     if (!plugins.empty()) {
         std::cout << "Be sure to only download plugins from trusted sources." << std::endl;
@@ -57,7 +81,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     
     dlerror();
     
-    CreatePluginFunc createFunc = (CreatePluginFunc)dlsym(handle, "createPlugin");
+    CreatePluginFunc createFunc = reinterpret_cast<CreatePluginFunc>(dlsym(handle, "createPlugin"));
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
         std::cerr << "Cannot load symbol 'createPlugin': " << dlsym_error << std::endl;
@@ -65,7 +89,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
 
-    DestroyPluginFunc destroyFunc = (DestroyPluginFunc)dlsym(handle, "destroyPlugin");
+    DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(handle, "destroyPlugin"));
     dlsym_error = dlerror();
     if (dlsym_error) {
         std::cerr << "Cannot load symbol 'destroyPlugin': " << dlsym_error << std::endl;
@@ -92,6 +116,14 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     
     std::string name = instance->getName();
     
+    // Check if plugin is already loaded - avoid duplication
+    if (loadedPlugins.find(name) != loadedPlugins.end()) {
+        std::cerr << "Plugin '" << name << "' is already loaded. Ignoring duplicate." << std::endl;
+        destroyFunc(instance);
+        dlclose(handle);
+        return false;
+    }
+    
     PluginData data;
     data.handle = handle;
     data.instance = instance;
@@ -100,7 +132,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     data.enabled = false;
     data.settings = instance->getDefaultSettings();
     
-    loadedPlugins[name] = data;
+    loadedPlugins[name] = std::move(data); // Use move semantics
     
     return true;
 }
@@ -240,7 +272,7 @@ bool PluginManager::disablePlugin(const std::string& name) {
     return false;
 }
 
-bool PluginManager::handlePluginCommand(const std::string targetedPlugin, std::queue<std::string>& args) {
+bool PluginManager::handlePluginCommand(const std::string& targetedPlugin, std::queue<std::string>& args) {
     auto it = loadedPlugins.find(targetedPlugin);
     if (it != loadedPlugins.end() && it->second.enabled) {
         return it->second.instance->handleCommand(args);
@@ -300,16 +332,25 @@ void PluginManager::triggerEvent(const std::string& targetPlugin, const std::str
 
 void PluginManager::triggerSubscribedGlobalEvent(const std::string& event, const std::string& eventData) {
     auto it = subscribedEvents.find(event);
-    if (it == subscribedEvents.end()) {
+    if (it == subscribedEvents.end() || it->second.empty()) {
         return; // No plugins are subscribed to this event
     }
-
-    if (it->second.empty()) {
-        return; // Event exists but no plugins are currently subscribed
-    }
     
-    for (const auto& pluginName : it->second) {
-        triggerEvent(pluginName, event, eventData);
+    // Create arguments queue once instead of for each plugin
+    std::queue<std::string> args;
+    args.push("event");
+    args.push(event);
+    args.push(eventData);
+    
+    // Use a copy to avoid issues if handlers modify subscriptions
+    auto subscribedPlugins = it->second;
+    for (const auto& pluginName : subscribedPlugins) {
+        auto pluginIt = loadedPlugins.find(pluginName);
+        if (pluginIt != loadedPlugins.end() && pluginIt->second.enabled) {
+            // Create a copy of the args queue since it gets consumed
+            std::queue<std::string> argsCopy = args;
+            pluginIt->second.instance->handleCommand(argsCopy);
+        }
     }
 }
 
@@ -333,20 +374,33 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
+    // New optimized plugin validation
     void* tempHandle = dlopen(sourcePath.c_str(), RTLD_LAZY);
     if (!tempHandle) {
         std::cerr << "Invalid plugin file: " << dlerror() << std::endl;
         return false;
     }
 
-    CreatePluginFunc createFunc = (CreatePluginFunc)dlsym(tempHandle, "createPlugin");
-    if (!createFunc) {
-        std::cerr << "Invalid plugin file: missing createPlugin symbol" << std::endl;
+    // Clear any previous error
+    dlerror();
+    
+    CreatePluginFunc createFunc = reinterpret_cast<CreatePluginFunc>(dlsym(tempHandle, "createPlugin"));
+    const char* dlsym_error = dlerror();
+    if (dlsym_error) {
+        std::cerr << "Invalid plugin file: missing createPlugin symbol: " << dlsym_error << std::endl;
         dlclose(tempHandle);
         return false;
     }
 
-    PluginInterface* tempInstance = createFunc();
+    PluginInterface* tempInstance = nullptr;
+    try {
+        tempInstance = createFunc();
+    } catch (const std::exception& e) {
+        std::cerr << "Exception while creating plugin instance: " << e.what() << std::endl;
+        dlclose(tempHandle);
+        return false;
+    }
+    
     if (!tempInstance) {
         std::cerr << "Failed to create temporary plugin instance" << std::endl;
         dlclose(tempHandle);
@@ -358,7 +412,7 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         std::cerr << "Plugin interface version mismatch for " << tempInstance->getName() 
                   << ". Expected: " << PluginInterface::INTERFACE_VERSION 
                   << ", Got: " << tempInstance->getInterfaceVersion() << std::endl;
-        DestroyPluginFunc destroyFunc = (DestroyPluginFunc)dlsym(tempHandle, "destroyPlugin");
+        DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
         if (destroyFunc) {
             destroyFunc(tempInstance);
         }
@@ -369,17 +423,23 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
     std::string pluginName = tempInstance->getName();
     std::string version = tempInstance->getVersion();
     
-    // Cleanup the temp instance since we're done checking
-    DestroyPluginFunc destroyFunc = (DestroyPluginFunc)dlsym(tempHandle, "destroyPlugin");
+    // Check if already installed
+    if (isPluginLoaded(pluginName)) {
+        std::cerr << "Plugin already installed: " << pluginName << std::endl;
+        DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
+        if (destroyFunc) {
+            destroyFunc(tempInstance);
+        }
+        dlclose(tempHandle);
+        return false;
+    }
+    
+    // Cleanup the temp instance
+    DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
     if (destroyFunc) {
         destroyFunc(tempInstance);
     }
     dlclose(tempHandle);
-
-    if (loadedPlugins.find(pluginName) != loadedPlugins.end()) {
-        std::cerr << "Plugin already installed: " << pluginName << std::endl;
-        return false;
-    }
 
     std::filesystem::path destPath = pluginsDirectory / sourcePath.filename();
 
@@ -398,4 +458,14 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         std::cerr << "Failed to install plugin: " << e.what() << std::endl;
         return false;
     }
+}
+
+// New optimization methods
+
+void PluginManager::clearPluginCache() {
+    pluginsDiscovered = false;
+}
+
+bool PluginManager::isPluginLoaded(const std::string& name) const {
+    return loadedPlugins.find(name) != loadedPlugins.end();
 }

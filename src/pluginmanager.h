@@ -7,6 +7,8 @@
 #include <iostream>
 #include <dlfcn.h>
 #include <algorithm>
+#include <unordered_map>
+#include <memory>
 
 #include "plugininterface.h"
 
@@ -22,8 +24,9 @@ struct PluginData {
 class PluginManager {
 private:
     std::filesystem::path pluginsDirectory;
-    std::map<std::string, PluginData> loadedPlugins;
-    std::map<std::string, std::vector<std::string>> subscribedEvents;
+    std::unordered_map<std::string, PluginData> loadedPlugins;
+    std::unordered_map<std::string, std::vector<std::string>> subscribedEvents;
+    bool pluginsDiscovered;
 
     void unloadPlugin(const std::string& name);
 
@@ -41,11 +44,10 @@ public:
     
     bool enablePlugin(const std::string& name);
     bool disablePlugin(const std::string& name);
-    
-    // Returns the current interface version used by the application
+
     int getInterfaceVersion() const { return PluginInterface::INTERFACE_VERSION; }
     
-    bool handlePluginCommand(const std::string targetedPlugin, std::queue<std::string>& args);
+    bool handlePluginCommand(const std::string& targetedPlugin, std::queue<std::string>& args); // Fixed parameter to use reference
     std::vector<std::string> getPluginCommands(const std::string& name) const;
     std::string getPluginInfo(const std::string& name) const;
     
@@ -56,4 +58,7 @@ public:
     void triggerSubscribedGlobalEvent(const std::string& event, const std::string& eventData);
     
     PluginInterface* getPluginInstance(const std::string& name) const;
+    
+    void clearPluginCache(); // Force rediscovery of plugins
+    bool isPluginLoaded(const std::string& name) const;
 };
