@@ -7,9 +7,7 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
 }
 
 std::string TerminalPassthrough::getTerminalName(){
-    #ifdef _WIN32
-        return "cmd";
-    #elif __linux__
+    #ifdef __linux__
         return "bash";
     #else
         return "sh";
@@ -121,18 +119,10 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 
                 std::string envVarSetup;
                 for (const auto& [name, value] : envVars) {
-                    if (getTerminalName() == "cmd") {
-                        envVarSetup += "set \"" + name + "=" + value + "\" && ";
-                    } else {
-                        envVarSetup += "export " + name + "=\"" + value + "\"; ";
-                    }
+                    envVarSetup += "export " + name + "=\"" + value + "\"; ";
                 }
                 
-                if (getTerminalName() == "cmd") {
-                    fullCommand = envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1";
-                } else {
-                    fullCommand = getTerminalName() + " -c \"" + envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1\"";
-                }
+                fullCommand = getTerminalName() + " -c \"" + envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1\"";
                 
                 int terminalExecCode = std::system(fullCommand.c_str());
                 if(terminalExecCode != 0){

@@ -390,6 +390,7 @@ private:
     
     void stopAuthServer() {
         if (callbackServerSocket >= 0) {
+            ::shutdown(callbackServerSocket, SHUT_RDWR); // interrupt blocking accept()
             close(callbackServerSocket);
             callbackServerSocket = -1;
         }

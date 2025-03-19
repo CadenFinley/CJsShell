@@ -216,6 +216,7 @@ int main() {
         savedChatCache = c_assistant.getChatCache();
         writeUserData();
     }
+    
     delete pluginManager;
     delete themeManager;
     return 0;

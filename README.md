@@ -1,6 +1,6 @@
 # DevToolsTerminal
 
-DevToolsTerminal is a lightweight terminal emulator with integrated OpenAI capabilities. It allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
+DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems with integrated OpenAI capabilities. It allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
 
 ## Table of Contents
 - [Features](#features)
@@ -391,12 +391,6 @@ The terminal supports full multi-line editing capabilities:
 - Command history navigation
 - Backspace handling across lines
 - Proper cursor positioning
-
-### Cross-Platform Support
-The terminal passthrough layer works across:
-- Linux (bash)
-- macOS (sh)
-- Windows (cmd)
 
 ## Data Storage
 
