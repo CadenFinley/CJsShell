@@ -413,3 +413,5 @@ This project is licensed under the MIT License.
 ## Author
 
 Caden Finley @ Abilene Christian University (c) 2025
+
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CadenFinley/DevToolsTerminal?utm_source=oss&utm_medium=github&utm_campaign=CadenFinley%2FDevToolsTerminal&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
