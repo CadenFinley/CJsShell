@@ -103,9 +103,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     
     // Check plugin interface version compatibility
     if (instance->getInterfaceVersion() != PluginInterface::INTERFACE_VERSION) {
-        std::cerr << "Plugin interface version mismatch for " << instance->getName() 
-                  << ". Expected: " << PluginInterface::INTERFACE_VERSION 
-                  << ", Got: " << instance->getInterfaceVersion() << std::endl;
+        std::cerr << "Plugin interface version mismatch for " << instance->getName() << ". Expected: " << PluginInterface::INTERFACE_VERSION << ", Got: " << instance->getInterfaceVersion() << std::endl;
         destroyFunc(instance);
         dlclose(handle);
         return false;
