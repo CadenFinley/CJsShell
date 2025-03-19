@@ -101,7 +101,6 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
     
-    // Check plugin interface version compatibility
     if (instance->getInterfaceVersion() != PluginInterface::INTERFACE_VERSION) {
         std::cerr << "Plugin interface version mismatch for " << instance->getName() << ". Expected: " << PluginInterface::INTERFACE_VERSION << ", Got: " << instance->getInterfaceVersion() << std::endl;
         destroyFunc(instance);
@@ -111,7 +110,6 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     
     std::string name = instance->getName();
     
-    // Check if plugin is already loaded - avoid duplication
     if (loadedPlugins.find(name) != loadedPlugins.end()) {
         std::cerr << "Plugin '" << name << "' is already loaded. Ignoring duplicate." << std::endl;
         destroyFunc(instance);
