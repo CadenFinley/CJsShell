@@ -60,15 +60,7 @@ public:
             args.pop();
             std::string eventData = args.empty() ? "" : args.front();
             
-            if (eventType == "main_process") {
-                std::cout << "example_plugin recognized main_process: " << eventData << std::endl;
-            }
-            else if (eventType == "plugin_enabled") {
-                std::cout << "example_plugin recognized enabled: " << eventData << std::endl;
-            }
-            else if (eventType == "plugin_disabled") {
-                std::cout << "example_plugin recognized disabled: " << eventData << std::endl;
-            }
+            std::cout << "Received event: " << eventType << " with data: " << eventData << std::endl;
             return true;
         }
         return false;
@@ -81,11 +73,27 @@ public:
         return commands;
     }
 
+    std::vector<std::string> getSubscribedEvents() const {
+        std::vector<std::string> events;
+        events.push_back("main_process_pre_run");
+        events.push_back("main_process_start");
+        events.push_back("main_process_took_input");
+        events.push_back("main_process_command_processed");
+        events.push_back("main_process_end");
+        events.push_back("plugin_enabled");
+        events.push_back("plugin_disabled");
+        return events;
+    }
+
     std::map<std::string, std::string> getDefaultSettings() const {
         std::map<std::string, std::string> defaults;
         defaults["greeting"] = "Hello";
         defaults["count"] = "5";
         return defaults;
+    }
+
+    int getInterfaceVersion() const {
+        return 1;
     }
 
     void updateSetting(const std::string& key, const std::string& value) {

@@ -210,6 +210,13 @@ public:
         commands.push_back("build");
         return commands;
     }
+
+    std::vector<std::string> getSubscribedEvents() const override {
+        return {};
+    }
+    int getInterfaceVersion() const override {
+        return 1;
+    }
     
     std::map<std::string, std::string> getDefaultSettings() const override {
         return settings;

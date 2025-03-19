@@ -80,6 +80,16 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
     
+    // Check plugin interface version compatibility
+    if (instance->getInterfaceVersion() != PluginInterface::INTERFACE_VERSION) {
+        std::cerr << "Plugin interface version mismatch for " << instance->getName() 
+                  << ". Expected: " << PluginInterface::INTERFACE_VERSION 
+                  << ", Got: " << instance->getInterfaceVersion() << std::endl;
+        destroyFunc(instance);
+        dlclose(handle);
+        return false;
+    }
+    
     std::string name = instance->getName();
     
     PluginData data;
@@ -188,7 +198,7 @@ std::vector<std::string> PluginManager::getEnabledPlugins() const {
 
 bool PluginManager::enablePlugin(const std::string& name) {
     auto it = loadedPlugins.find(name);
-    if(it->second.enabled){
+    if(it != loadedPlugins.end() && it->second.enabled){
         std::cout << "Plugin already enabled: " << name << std::endl;
         return true;
     }
@@ -196,8 +206,12 @@ bool PluginManager::enablePlugin(const std::string& name) {
         if (it->second.instance->initialize()) {
             it->second.enabled = true;
             std::cout << "Enabled plugin: " << name << std::endl;
-            for (auto& enabledPlugin : getEnabledPlugins()) {
-                triggerEvent(enabledPlugin, "plugin_enabled", name);
+            triggerSubscribedGlobalEvent("plugin_enabled", name);
+            std::vector<std::string> events = it->second.instance->getSubscribedEvents();
+            if(!events.empty()){
+                for (const auto& event : events) {
+                    subscribedEvents[event].push_back(name);
+                }
             }
             return true;
         } else {
@@ -213,8 +227,13 @@ bool PluginManager::disablePlugin(const std::string& name) {
         it->second.instance->shutdown();
         it->second.enabled = false;
         std::cout << "Disabled plugin: " << name << std::endl;
-        for (auto& enabledPlugin : getEnabledPlugins()) {
-            triggerEvent(enabledPlugin, "plugin_disabled", name);
+        triggerSubscribedGlobalEvent("plugin_disabled", name);
+        std::vector<std::string> events = it->second.instance->getSubscribedEvents();
+        for (const auto& event : events) {
+            auto eventIt = subscribedEvents.find(event);
+            if (eventIt != subscribedEvents.end()) {
+                eventIt->second.erase(std::remove(eventIt->second.begin(), eventIt->second.end(), name), eventIt->second.end());
+            }
         }
         return true;
     }
@@ -279,6 +298,15 @@ void PluginManager::triggerEvent(const std::string& targetPlugin, const std::str
     }
 }
 
+void PluginManager::triggerSubscribedGlobalEvent(const std::string& event, const std::string& eventData) {
+    auto it = subscribedEvents.find(event);
+    if (it != subscribedEvents.end()) {
+        for (const auto& pluginName : it->second) {
+            triggerEvent(pluginName, event, eventData);
+        }
+    }
+}
+
 PluginInterface* PluginManager::getPluginInstance(const std::string& name) const {
     auto it = loadedPlugins.find(name);
     if (it != loadedPlugins.end()) {
@@ -319,8 +347,27 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
+    // Check interface version compatibility during installation
+    if (tempInstance->getInterfaceVersion() != PluginInterface::INTERFACE_VERSION) {
+        std::cerr << "Plugin interface version mismatch for " << tempInstance->getName() 
+                  << ". Expected: " << PluginInterface::INTERFACE_VERSION 
+                  << ", Got: " << tempInstance->getInterfaceVersion() << std::endl;
+        DestroyPluginFunc destroyFunc = (DestroyPluginFunc)dlsym(tempHandle, "destroyPlugin");
+        if (destroyFunc) {
+            destroyFunc(tempInstance);
+        }
+        dlclose(tempHandle);
+        return false;
+    }
+
     std::string pluginName = tempInstance->getName();
     std::string version = tempInstance->getVersion();
+    
+    // Cleanup the temp instance since we're done checking
+    DestroyPluginFunc destroyFunc = (DestroyPluginFunc)dlsym(tempHandle, "destroyPlugin");
+    if (destroyFunc) {
+        destroyFunc(tempInstance);
+    }
     dlclose(tempHandle);
 
     if (loadedPlugins.find(pluginName) != loadedPlugins.end()) {

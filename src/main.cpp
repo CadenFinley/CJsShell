@@ -46,6 +46,7 @@ std::string CYAN_COLOR_BOLD = "\033[1;36m";
 std::string currentTheme = "default";
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
+const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string currentVersion = "1.6.1.1";
@@ -62,6 +63,7 @@ std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
+std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
 
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
@@ -169,6 +171,11 @@ int main() {
         }
     }
 
+    std::time_t now = std::time(nullptr);
+    std::tm* now_tm = std::localtime(&now);
+    char buffer[100];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
+
     std::ifstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
     if (changelogFile.is_open()) {
         std::cout << "Thanks for downloading the latest version of DevToolsTerminal Version: " << currentVersion << std::endl;
@@ -177,12 +184,13 @@ int main() {
         std::string changeLog((std::istreambuf_iterator<char>(changelogFile)), std::istreambuf_iterator<char>());
         changelogFile.close();
         displayChangeLog(changeLog);
+        lastUpdated = buffer;
         std::cout << "Press enter to continue..." << std::endl;
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         std::filesystem::remove(DATA_DIRECTORY / "CHANGELOG.txt");
     }
 
-    pluginManager = new PluginManager(applicationDirectory / DATA_DIRECTORY / "plugins");
+    pluginManager = new PluginManager(PLUGINS_DIRECTORY);
     pluginManager->discoverPlugins();
 
     themeManager = new ThemeManager(THEMES_DIRECTORY);
@@ -200,10 +208,6 @@ int main() {
     }
 
     std::cout << "Last Login: " << lastLogin << std::endl;
-    std::time_t now = std::time(nullptr);
-    std::tm* now_tm = std::localtime(&now);
-    char buffer[100];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
     lastLogin = buffer;
 
     std::cout << titleLine << std::endl;
@@ -228,18 +232,16 @@ int getTerminalWidth(){
     return w.ws_col;
 }
 
-void notifyPluginsTriggerMainProcess(std::string trigger) {
-    for (const auto& enabled : pluginManager->getEnabledPlugins()) {
-        pluginManager->triggerEvent(enabled, "main_process", trigger);
-    }
+void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
+    pluginManager->triggerSubscribedGlobalEvent("main_process_" + trigger, data);
 }
 
 void mainProcessLoop() {
     std::string terminalSetting;
     int terminalSettingLength;
-    notifyPluginsTriggerMainProcess("pre_run");
+    notifyPluginsTriggerMainProcess("pre_run", processId);
     while (true) {
-        notifyPluginsTriggerMainProcess("start");
+        notifyPluginsTriggerMainProcess("start", processId);
         if (saveLoop) {
             writeUserData();
         }
@@ -262,7 +264,7 @@ void mainProcessLoop() {
         enableRawMode();
         while (true) {
             std::cin.get(c);
-            notifyPluginsTriggerMainProcess("took_input: " + std::string(1, c));
+            notifyPluginsTriggerMainProcess("took_input" , std::string(1, c));
             if (c == 22) {
                 std::string clipboardContent = getClipboardContent();
                 if (!clipboardContent.empty()) {
@@ -362,9 +364,9 @@ void mainProcessLoop() {
         for (const auto& line : commandLines) {
             finalCommand += line;
         }
-        notifyPluginsTriggerMainProcess("command_processed: " + finalCommand);
+        notifyPluginsTriggerMainProcess("command_processed" , finalCommand);
         commandParser(finalCommand);
-        notifyPluginsTriggerMainProcess("end");
+        notifyPluginsTriggerMainProcess("end", processId);
         if (exitFlag) {
             break;
         }

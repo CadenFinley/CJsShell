@@ -292,6 +292,14 @@ public:
             "status"
         };
     }
+
+    virtual int getInterfaceVersion() const override {
+        return 1;
+    }
+
+    virtual std::vector<std::string> getSubscribedEvents() const override {
+        return {};
+    }
     
     virtual std::map<std::string, std::string> getDefaultSettings() const override {
         return {

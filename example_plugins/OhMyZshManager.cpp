@@ -436,6 +436,14 @@ public:
     std::vector<std::string> getCommands() const override {
         return {"zsh"};
     }
+
+    std::vector<std::string> getSubscribedEvents() const override {
+        return {};
+    }
+
+    int getInterfaceVersion() const override {
+        return 1;
+    }
     
     std::map<std::string, std::string> getDefaultSettings() const override {
         return {

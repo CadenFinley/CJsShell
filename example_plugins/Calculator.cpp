@@ -239,6 +239,14 @@ public:
         cmds.push_back("clr");
         return cmds;
     }
+
+    int getInterfaceVersion() const {
+        return 1;
+    }
+
+    std::vector<std::string> getSubscribedEvents() const { 
+        return {};
+    }
     
     std::map<std::string, std::string> getDefaultSettings() const { 
         std::map<std::string, std::string> settings;

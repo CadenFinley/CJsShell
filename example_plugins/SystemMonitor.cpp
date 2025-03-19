@@ -119,6 +119,10 @@ public:
     std::vector<std::string> getCommands() const override {
         return {"sysinfo", "proginfo", "monitor"};
     }
+
+    std::vector<std::string> getSubscribedEvents() const override {
+        return {"main_process"};
+    }
     
     std::map<std::string, std::string> getDefaultSettings() const override {
         return {
@@ -138,11 +142,9 @@ public:
         args.pop();
         
         if (command == "event") {
-            if (!args.empty() && args.front() == "main_process") {
+            if (!args.empty() && args.front() == "main_process_command_processed") {
                 args.pop();
-                if (!args.empty() && args.front().find("command_processed:") != std::string::npos) {
-                    commandsProcessed++;
-                }
+                commandsProcessed++;
             }
             return true;
         }
@@ -172,6 +174,10 @@ public:
         }
         
         return false;
+    }
+
+    int getInterfaceVersion() const {
+        return 1;
     }
     
 private:

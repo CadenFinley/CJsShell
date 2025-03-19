@@ -173,6 +173,14 @@ public:
         cmds.push_back("chat");
         return cmds;
     }
+
+    std::vector<std::string> getSubscribedEvents() const { 
+        return {};
+    }
+
+    int getInterfaceVersion() const{
+        return 1;
+    }
     
     std::map<std::string, std::string> getDefaultSettings() const { 
         std::map<std::string, std::string> settings;

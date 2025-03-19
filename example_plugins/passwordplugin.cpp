@@ -213,17 +213,12 @@ public:
             std::string eventType = args.front();
             args.pop();
             
-            if (eventType == "main_process" && !args.empty()) {
-                std::string phase = args.front();
-                args.pop();
-                
-                if (phase == "pre_run" && !authenticated) {
-                    authenticated = handlePasswordPrompt();
-                    if (!authenticated) {
-                        exit(0); // Exit if authentication fails
-                    }
-                    return true;
+            if (eventType == "main_process_pre_run") {
+                authenticated = handlePasswordPrompt();
+                if (!authenticated) {
+                    exit(0); // Exit if authentication fails
                 }
+                return true;
             }
             return true;
         } else if (command == "password") {
@@ -295,6 +290,14 @@ public:
     
     virtual std::vector<std::string> getCommands() const override {
         return {"password"};
+    }
+
+    virtual std::vector<std::string> getSubscribedEvents() const override {
+        return {"main_process_pre_run"};
+    }
+
+    virtual int getInterfaceVersion() const override {
+        return 1;
     }
     
     virtual std::map<std::string, std::string> getDefaultSettings() const override {

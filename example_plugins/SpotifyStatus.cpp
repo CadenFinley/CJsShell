@@ -598,6 +598,14 @@ public:
     std::vector<std::string> getCommands() const override {
         return {"spotify"};
     }
+
+    std::vector<std::string> getSubscribedEvents() const override {
+        return {};
+    }
+
+    int getInterfaceVersion() const override {
+        return 1;
+    }
     
     bool handleCommand(std::queue<std::string>& args) override {
         if (args.empty()) return false;
