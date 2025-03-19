@@ -31,7 +31,7 @@ public:
     //an "event plugin_disabled <plugin_name>" command will be sent to all plugins via the handleCommand method when a plugin is disabled
     virtual bool handleCommand(std::queue<std::string>& args) = 0;
     virtual std::vector<std::string> getCommands() const = 0; //the vector of immeadiatly availble commands
-    virtual std::vector<std::string> getSubscribedEvents() const = 0; //the vector of events that can be triggered
+    virtual std::vector<std::string> getSubscribedEvents() const = 0; //the vector of events that the plugin is subscribed to
     
     //plugin settings
     virtual std::map<std::string, std::string> getDefaultSettings() const = 0;
