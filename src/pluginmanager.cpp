@@ -24,7 +24,6 @@ PluginManager::~PluginManager() {
 }
 
 bool PluginManager::discoverPlugins() {
-    // Skip discovery if already done unless forced
     if (pluginsDiscovered && !loadedPlugins.empty()) {
         return true;
     }
@@ -33,8 +32,6 @@ bool PluginManager::discoverPlugins() {
         std::cerr << "Plugins directory does not exist: " << pluginsDirectory << std::endl;
         return false;
     }
-    
-    // Clear existing plugins before discovering
     for (auto& [name, data] : loadedPlugins) {
         if (data.enabled && data.instance) {
             data.instance->shutdown();
@@ -132,7 +129,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     data.enabled = false;
     data.settings = instance->getDefaultSettings();
     
-    loadedPlugins[name] = std::move(data); // Use move semantics
+    loadedPlugins[name] = std::move(data);
     
     return true;
 }
@@ -333,21 +330,17 @@ void PluginManager::triggerEvent(const std::string& targetPlugin, const std::str
 void PluginManager::triggerSubscribedGlobalEvent(const std::string& event, const std::string& eventData) {
     auto it = subscribedEvents.find(event);
     if (it == subscribedEvents.end() || it->second.empty()) {
-        return; // No plugins are subscribed to this event
+        return;
     }
-    
-    // Create arguments queue once instead of for each plugin
     std::queue<std::string> args;
     args.push("event");
     args.push(event);
     args.push(eventData);
-    
-    // Use a copy to avoid issues if handlers modify subscriptions
+
     auto subscribedPlugins = it->second;
     for (const auto& pluginName : subscribedPlugins) {
         auto pluginIt = loadedPlugins.find(pluginName);
         if (pluginIt != loadedPlugins.end() && pluginIt->second.enabled) {
-            // Create a copy of the args queue since it gets consumed
             std::queue<std::string> argsCopy = args;
             pluginIt->second.instance->handleCommand(argsCopy);
         }
@@ -374,14 +367,12 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
-    // New optimized plugin validation
     void* tempHandle = dlopen(sourcePath.c_str(), RTLD_LAZY);
     if (!tempHandle) {
         std::cerr << "Invalid plugin file: " << dlerror() << std::endl;
         return false;
     }
 
-    // Clear any previous error
     dlerror();
     
     CreatePluginFunc createFunc = reinterpret_cast<CreatePluginFunc>(dlsym(tempHandle, "createPlugin"));
@@ -407,7 +398,6 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
-    // Check interface version compatibility during installation
     if (tempInstance->getInterfaceVersion() != PluginInterface::INTERFACE_VERSION) {
         std::cerr << "Plugin interface version mismatch for " << tempInstance->getName() 
                   << ". Expected: " << PluginInterface::INTERFACE_VERSION 
@@ -423,7 +413,6 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
     std::string pluginName = tempInstance->getName();
     std::string version = tempInstance->getVersion();
     
-    // Check if already installed
     if (isPluginLoaded(pluginName)) {
         std::cerr << "Plugin already installed: " << pluginName << std::endl;
         DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
@@ -433,8 +422,7 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         dlclose(tempHandle);
         return false;
     }
-    
-    // Cleanup the temp instance
+
     DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
     if (destroyFunc) {
         destroyFunc(tempInstance);
@@ -459,8 +447,6 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 }
-
-// New optimization methods
 
 void PluginManager::clearPluginCache() {
     pluginsDiscovered = false;
