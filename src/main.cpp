@@ -1063,7 +1063,9 @@ void sendTerminalCommand(const std::string& command) {
         return;
     }
     std::thread commandThread = terminal.executeCommand(command);
-    commandThread.join();
+    if (commandThread.joinable()) {
+        commandThread.join();
+    }
 }
 
 void userSettingsCommands() {

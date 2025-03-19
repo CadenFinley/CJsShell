@@ -42,7 +42,6 @@ void ThemeManager::createDefaultTheme() {
         {"GIT_COLOR", "\033[1;32m"}
     };
     
-    // Create and save the default theme
     saveTheme("default", defaultColors);
     availableThemes["default"] = defaultColors;
 }
