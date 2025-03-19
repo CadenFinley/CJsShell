@@ -49,7 +49,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.7.2.0";
+const std::string currentVersion = "1.7.3.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -717,10 +717,43 @@ void shortcutProcesser(const std::string& command) {
             std::cout << "No shortcut given." << std::endl;
             return;
         }
-        if (shortcuts.find(strippedCommand) != shortcuts.end()) {
-            commandProcesser(shortcuts[strippedCommand]);
+
+        std::istringstream iss(strippedCommand);
+        std::string shortcutName;
+        iss >> shortcutName;
+
+        if (shortcuts.find(shortcutName) != shortcuts.end()) {
+            std::string baseCommand = shortcuts[shortcutName];
+            std::vector<std::string> dashArgs;
+            std::string remainingArgs;
+            std::string arg;
+            while (iss >> arg) {
+                if (arg.front() == '-') {
+                    dashArgs.push_back(arg);
+                } else {
+                    remainingArgs += arg + " ";
+                }
+            }
+            trim(remainingArgs);
+            std::istringstream baseIss(baseCommand);
+            std::string singleCommand;
+            while (std::getline(baseIss, singleCommand, ';')) {
+                trim(singleCommand);
+                if (!singleCommand.empty()) {
+                    std::string fullCommand = singleCommand;
+                    if (!remainingArgs.empty()) {
+                        fullCommand += remainingArgs;
+                    }
+                    commandParser(fullCommand);
+                    for (const auto& dashArg : dashArgs) {
+                        std::string processedArg = dashArg;
+                        processedArg.erase(0, 1);
+                        commandParser(processedArg);
+                    }
+                }
+            }
         } else {
-            std::cout << "No command for given shortcut: " << strippedCommand << std::endl;
+            std::cout << "No command for given shortcut: " << shortcutName << std::endl;
         }
     } else {
         std::cout << "No shortcuts have been created." << std::endl;
@@ -740,8 +773,31 @@ void multiScriptShortcutProcesser(const std::string& command){
             return;
         }
         if (multiScriptShortcuts.find(strippedCommand) != multiScriptShortcuts.end()) {
-            for(const auto& command : multiScriptShortcuts[strippedCommand]){
-                commandProcesser(command);
+            std::istringstream iss(strippedCommand);
+            std::string shortcutName;
+            iss >> shortcutName;
+            std::vector<std::string> dashArgs;
+            std::string remainingArgs;
+            std::string arg;
+            while (iss >> arg) {
+                if (arg.front() == '-') {
+                    dashArgs.push_back(arg);
+                } else {
+                    remainingArgs += arg + " ";
+                }
+            }
+            trim(remainingArgs);
+            for(const auto& baseCommand : multiScriptShortcuts[shortcutName]) {
+                std::string fullCommand = baseCommand;
+                if (!remainingArgs.empty()) {
+                    fullCommand += remainingArgs;
+                }
+                commandParser(fullCommand);
+                for (const auto& dashArg : dashArgs) {
+                    std::string processedArg = dashArg;
+                    processedArg.erase(0, 1);
+                    commandParser(processedArg);
+                }
             }
         } else {
             std::cout << "No command for given shortcut: " << strippedCommand << std::endl;
