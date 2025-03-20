@@ -442,20 +442,56 @@ private:
                     
                     // Send success response to browser
                     std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
-                        "<html><head><title>Spotify Auth Success</title></head>"
-                        "<body><h1>Authorization Successful!</h1>"
-                        "<p>You can close this window and return to the terminal.</p>"
-                        "</body></html>";
+                        "<!DOCTYPE html><html><head><title>Spotify Auth Success</title>"
+                        "<style>"
+                        "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; "
+                        "margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; "
+                        "min-height: 100vh; background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); color: white; }"
+                        ".container { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 2rem; "
+                        "text-align: center; backdrop-filter: blur(10px); max-width: 500px; margin: 1rem; }"
+                        "h1 { margin-bottom: 1rem; }"
+                        ".logo { width: 64px; height: 64px; margin-bottom: 1rem; }"
+                        ".checkmark { font-size: 64px; margin-bottom: 1rem; animation: pop 0.5s ease-out; }"
+                        "@keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }"
+                        "p { line-height: 1.5; opacity: 0.9; }"
+                        "</style></head>"
+                        "<body><div class='container'>"
+                        "<img class='logo' src='https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png' "
+                        "alt='Spotify Logo'>"
+                        "<div class='checkmark'>✓</div>"
+                        "<h1>Successfully Connected!</h1>"
+                        "<p>You can now close this window and return to your terminal.</p>"
+                        "<p>Your Spotify status will begin displaying shortly.</p>"
+                        "</div></body></html>";
                     send(client_sock, response.c_str(), response.length(), 0);
                 }
             } else {
-                // Send a page that explains this is the callback URL
+                // Send a waiting/callback page
                 std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
-                    "<html><head><title>Spotify Auth</title></head>"
-                    "<body><h1>Spotify Auth Callback</h1>"
-                    "<p>This is the callback endpoint for Spotify authorization.</p>"
-                    "<p>You should be redirected here automatically during the auth flow.</p>"
-                    "</body></html>";
+                    "<!DOCTYPE html><html><head><title>Spotify Auth</title>"
+                    "<style>"
+                    "body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; "
+                    "margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; "
+                    "min-height: 100vh; background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); color: white; }"
+                    ".container { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 2rem; "
+                    "text-align: center; backdrop-filter: blur(10px); max-width: 500px; margin: 1rem; }"
+                    "h1 { margin-bottom: 1rem; }"
+                    ".logo { width: 64px; height: 64px; margin-bottom: 1rem; }"
+                    ".spinner { width: 40px; height: 40px; margin: 1rem auto; "
+                    "border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; "
+                    "border-top-color: white; animation: spin 1s linear infinite; }"
+                    "@keyframes spin { 0% { transform: rotate(0deg); } "
+                    "100% { transform: rotate(360deg); } }"
+                    "p { line-height: 1.5; opacity: 0.9; }"
+                    "</style></head>"
+                    "<body><div class='container'>"
+                    "<img class='logo' src='https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_White.png' "
+                    "alt='Spotify Logo'>"
+                    "<h1>Connecting to Spotify</h1>"
+                    "<div class='spinner'></div>"
+                    "<p>Please wait while we complete the authorization process...</p>"
+                    "<p>If you haven't authorized the app yet, you should be redirected shortly.</p>"
+                    "</div></body></html>";
                 send(client_sock, response.c_str(), response.length(), 0);
             }
             
