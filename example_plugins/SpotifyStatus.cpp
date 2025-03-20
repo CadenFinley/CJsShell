@@ -107,11 +107,18 @@ private:
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        
+        // Add timeout options to prevent hanging during network issues
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
 
         CURLcode res = curl_easy_perform(curl);
         curl_slist_free_all(headers);
 
-        if (res != CURLE_OK) return false;
+        if (res != CURLE_OK) {
+            std::cerr << "Token refresh failed: " << curl_easy_strerror(res) << std::endl;
+            return false;
+        }
 
         try {
             json j = json::parse(response);
@@ -119,7 +126,8 @@ private:
             int expires_in = j["expires_in"];
             tokenExpiry = std::chrono::system_clock::now() + std::chrono::seconds(expires_in - 60);
             return true;
-        } catch (...) {
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing token response: " << e.what() << std::endl;
             return false;
         }
     }
@@ -138,11 +146,24 @@ private:
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        
+        // Add timeout options to prevent hanging during network issues
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L); // 10 second timeout
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L); // 5 second connect timeout
 
         CURLcode res = curl_easy_perform(curl);
         curl_slist_free_all(headers);
 
-        if (res != CURLE_OK) return json();
+        if (res != CURLE_OK) {
+            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+            // Mark for reconnection on network-related errors
+            if (res == CURLE_OPERATION_TIMEDOUT || 
+                res == CURLE_COULDNT_CONNECT || 
+                res == CURLE_COULDNT_RESOLVE_HOST) {
+                needsReconnection = true;
+            }
+            return json();
+        }
 
         try {
             return json::parse(response);
@@ -165,36 +186,90 @@ private:
 
     void updateSpotifyStatus() {
         while (running) {
-            if (!accessToken.empty()) {
-                json playbackState = getCurrentPlayback();
-                
-                if (!playbackState.empty()) {
-                    bool isPlaying = playbackState["is_playing"];
-                    std::string title = playbackState["item"]["name"];
-                    std::string artist = playbackState["item"]["artists"][0]["name"];
+            try {
+                if (!accessToken.empty()) {
+                    // Check if we need to handle potential system sleep
+                    auto now = std::chrono::system_clock::now();
+                    auto timeSinceLastSuccess = std::chrono::duration_cast<std::chrono::seconds>(
+                        now - lastSuccessfulConnection).count();
                     
-                    // Format as <time played>:<total time>
-                    std::string timeInfo = "";
-                    if (playbackState.contains("item") && 
-                        playbackState["item"].contains("duration_ms") && 
-                        playbackState.contains("progress_ms")) {
-                        
-                        int duration = playbackState["item"]["duration_ms"];
-                        int progress = playbackState["progress_ms"];
-                        
-                        std::string playedTime = formatDuration(progress);
-                        std::string totalTime = formatDuration(duration);
-                        
-                        timeInfo = playedTime + " : " + totalTime;
+                    // If it's been significantly longer than our update interval, system might have been asleep
+                    if (lastSuccessfulConnection.time_since_epoch().count() > 0 && 
+                        timeSinceLastSuccess > updateInterval * 3) {
+                        std::cerr << "Potential system sleep detected, reconnecting..." << std::endl;
+                        needsReconnection = true;
+                        // Reset curl handle to ensure clean state
+                        curl_easy_reset(curl);
                     }
+                    
+                    // Force refresh token if reconnection needed
+                    if (needsReconnection) {
+                        if (!refreshAccessToken()) {
+                            std::cerr << "Failed to refresh token after sleep" << std::endl;
+                            // Don't hammer the API if we're failing
+                            std::this_thread::sleep_for(std::chrono::seconds(5));
+                            consecutiveFailures++;
+                            if (consecutiveFailures > MAX_CONSECUTIVE_FAILURES) {
+                                std::lock_guard<std::mutex> lock(mutex);
+                                currentStatus = "Spotify: Connection error";
+                                displayStatus();
+                                // Back off longer
+                                std::this_thread::sleep_for(std::chrono::seconds(30));
+                                consecutiveFailures = 0; // Reset and try again
+                            }
+                            continue;
+                        }
+                        needsReconnection = false;
+                    }
+                    
+                    json playbackState = getCurrentPlayback();
+                    
+                    if (!playbackState.empty()) {
+                        // Reset failure counter on success
+                        consecutiveFailures = 0;
+                        // Update last successful connection timestamp
+                        lastSuccessfulConnection = std::chrono::system_clock::now();
+                        
+                        bool isPlaying = playbackState["is_playing"];
+                        std::string title = playbackState["item"]["name"];
+                        std::string artist = playbackState["item"]["artists"][0]["name"];
+                        
+                        // Format as <time played>:<total time>
+                        std::string timeInfo = "";
+                        if (playbackState.contains("item") && 
+                            playbackState["item"].contains("duration_ms") && 
+                            playbackState.contains("progress_ms")) {
+                            
+                            int duration = playbackState["item"]["duration_ms"];
+                            int progress = playbackState["progress_ms"];
+                            
+                            std::string playedTime = formatDuration(progress);
+                            std::string totalTime = formatDuration(duration);
+                            
+                            timeInfo = playedTime + " : " + totalTime;
+                        }
 
-                    {
-                        std::lock_guard<std::mutex> lock(mutex);
-                        currentStatus = formatStatusLine(title, artist, timeInfo, isPlaying);
+                        {
+                            std::lock_guard<std::mutex> lock(mutex);
+                            currentStatus = formatStatusLine(title, artist, timeInfo, isPlaying);
+                        }
+                        
+                        displayStatus();
+                    } else {
+                        consecutiveFailures++;
+                        if (consecutiveFailures > MAX_CONSECUTIVE_FAILURES) {
+                            // After multiple failures, assume connection issues
+                            needsReconnection = true;
+                            std::lock_guard<std::mutex> lock(mutex);
+                            currentStatus = "Spotify: Connection error";
+                            displayStatus();
+                        }
                     }
-                    
-                    displayStatus();
                 }
+            } catch (const std::exception& e) {
+                std::cerr << "Error in update thread: " << e.what() << std::endl;
+                needsReconnection = true;
+                std::this_thread::sleep_for(std::chrono::seconds(5));
             }
             
             std::this_thread::sleep_for(std::chrono::seconds(updateInterval));
@@ -544,9 +619,17 @@ private:
         }
     }
 
+    // Add variables to track sleep state and reconnection attempts
+    std::chrono::system_clock::time_point lastSuccessfulConnection;
+    bool needsReconnection = false;
+    int consecutiveFailures = 0;
+    const int MAX_CONSECUTIVE_FAILURES = 5;
+
 public:
     SpotifyStatusPlugin() : dataDirectory(".DTT-Data") {
         curl = curl_easy_init();
+        // Initialize lastSuccessfulConnection to epoch (0)
+        lastSuccessfulConnection = std::chrono::system_clock::time_point();
     }
 
     ~SpotifyStatusPlugin() {
@@ -573,6 +656,9 @@ public:
     bool initialize() override {
         loadUserData();
         if (!curl) return false;
+        
+        // Set up curl global settings for better reliability
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L); // Prevent SIGALRM during DNS timeout
         
         if (!refreshToken.empty()) {
             if (!refreshAccessToken()) {
