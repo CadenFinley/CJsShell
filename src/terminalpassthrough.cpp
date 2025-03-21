@@ -87,11 +87,12 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
 
 std::thread TerminalPassthrough::executeCommand(std::string command) {
     addCommandToHistory(command);
-    return std::thread([this, command]() {
+    return std::thread([this, command = std::move(command)]() {
         try {
             std::string expandedCommand = expandEnvVars(command);
             std::string result;
-            if (expandedCommand.rfind("cd ", 0) == 0) {
+            
+            if (expandedCommand.compare(0, 3, "cd ") == 0) {
                 std::string newDir = expandedCommand.substr(3);
                 if (newDir == "/") {
                     currentDirectory = "/";
@@ -101,7 +102,8 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                         currentDirectory = dir.string();
                     } else {
                         result = "No such file or directory: " + dir.string();
-                        throw std::runtime_error("No such file or directory");
+                        terminalCacheTerminalOutput.push_back(result);
+                        return;
                     }
                 } else {
                     std::filesystem::path dir = std::filesystem::path(currentDirectory) / newDir;
@@ -109,37 +111,24 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                         currentDirectory = std::filesystem::canonical(dir).string();
                     } else {
                         result = "No such file or directory: " + dir.string();
-                        throw std::runtime_error("No such file or directory");
+                        terminalCacheTerminalOutput.push_back(result);
+                        return;
                     }
                 }
                 result = "Changed directory to: " + currentDirectory;
             } else {
-                std::array<char, 128> buffer;
-                std::string fullCommand;
-                
                 std::string envVarSetup;
+                envVarSetup.reserve(256);
                 for (const auto& [name, value] : envVars) {
                     envVarSetup += "export " + name + "=\"" + value + "\"; ";
                 }
-                
-                fullCommand = getTerminalName() + " -c \"" + envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1\"";
-                
-                int terminalExecCode = std::system(fullCommand.c_str());
-                if(terminalExecCode != 0){
-                    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(fullCommand.c_str(), "r"), pclose);
-                    if (!pipe) {
-                        throw std::runtime_error("popen() failed!");
-                    }
-                    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-                        result += buffer.data();
-                    }
-                } else {
-                    result = "Terminal Output result: " + std::to_string(terminalExecCode);
-                }
+                result = std::system((getTerminalName() + " -c \"" + envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1\"").c_str());
+                terminalCacheTerminalOutput.push_back(result);
             }
-            terminalCacheTerminalOutput.push_back(result);
         } catch (const std::exception& e) {
-            std::cerr << "Error executing command: '" << command << "' " << e.what() << std::endl;
+            std::string errorMsg = "Error executing command: '" + command + "' " + e.what();
+            std::cerr << errorMsg << std::endl;
+            terminalCacheTerminalOutput.push_back(std::move(errorMsg));
         }
     });
 }
