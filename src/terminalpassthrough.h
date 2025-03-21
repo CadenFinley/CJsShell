@@ -11,8 +11,6 @@
 #include <array>
 #include <map>
 
-namespace fs = std::filesystem;
-
 class TerminalPassthrough {
 public:
     TerminalPassthrough();
@@ -71,7 +69,7 @@ private:
     std::map<std::string, std::string> envVars;
 
     std::string getCurrentFileName();
-    bool isRootPath(const fs::path& path);
+    bool isRootPath(const std::filesystem::path& path);
 };
 
 #endif // TERMINALPASSTHROUGH_H

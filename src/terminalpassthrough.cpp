@@ -1,7 +1,7 @@
 #include "terminalpassthrough.h"
 
 TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
-    currentDirectory = fs::current_path().string();
+    currentDirectory = std::filesystem::current_path().string();
     terminalCacheUserInput = std::vector<std::string>();
     terminalCacheTerminalOutput = std::vector<std::string>();
 }
@@ -16,7 +16,7 @@ std::string TerminalPassthrough::getTerminalName(){
 
 std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(){
     std::vector<std::string> files;
-    for (const auto& entry : fs::directory_iterator(getCurrentFilePath())) {
+    for (const auto& entry : std::filesystem::directory_iterator(getCurrentFilePath())) {
         files.push_back(entry.path().string());
     }
     return files;
@@ -27,8 +27,8 @@ void TerminalPassthrough::setDisplayWholePath(bool displayWholePath){
 }
 
 std::string TerminalPassthrough::getFullPathOfFile(const std::string& file){
-    if (fs::exists (fs::path(getCurrentFilePath()) / file)) {
-        return (fs::path(getCurrentFilePath()) / file).string();
+    if (std::filesystem::exists (std::filesystem::path(getCurrentFilePath()) / file)) {
+        return (std::filesystem::path(getCurrentFilePath()) / file).string();
     }
     return "";
 }
@@ -44,16 +44,16 @@ int TerminalPassthrough::getTerminalCurrentPositionRawLength(){
 std::string TerminalPassthrough::returnCurrentTerminalPosition(){
     int gitInfoLength = 0;
     std::string gitInfo;
-    fs::path currentPath = fs::path(getCurrentFilePath());
-    fs::path gitHeadPath;
+    std::filesystem::path currentPath = std::filesystem::path(getCurrentFilePath());
+    std::filesystem::path gitHeadPath;
     while (!isRootPath(currentPath)) {
         gitHeadPath = currentPath / ".git" / "HEAD";
-        if (fs::exists(gitHeadPath)) {
+        if (std::filesystem::exists(gitHeadPath)) {
             break;
         }
         currentPath = currentPath.parent_path();
     }
-    bool gitRepo = fs::exists(gitHeadPath);
+    bool gitRepo = std::filesystem::exists(gitHeadPath);
     if (gitRepo) {
         try {
             std::ifstream headFile(gitHeadPath);
@@ -96,17 +96,17 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 if (newDir == "/") {
                     currentDirectory = "/";
                 } else if (newDir == "..") {
-                    fs::path dir = fs::path(currentDirectory).parent_path();
-                    if (fs::exists(dir) && fs::is_directory(dir)) {
+                    std::filesystem::path dir = std::filesystem::path(currentDirectory).parent_path();
+                    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
                         currentDirectory = dir.string();
                     } else {
                         result = "No such file or directory: " + dir.string();
                         throw std::runtime_error("No such file or directory");
                     }
                 } else {
-                    fs::path dir = fs::path(currentDirectory) / newDir;
-                    if (fs::exists(dir) && fs::is_directory(dir)) {
-                        currentDirectory = fs::canonical(dir).string();
+                    std::filesystem::path dir = std::filesystem::path(currentDirectory) / newDir;
+                    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
+                        currentDirectory = std::filesystem::canonical(dir).string();
                     } else {
                         result = "No such file or directory: " + dir.string();
                         throw std::runtime_error("No such file or directory");
@@ -199,21 +199,21 @@ std::string TerminalPassthrough::getNextCommand() {
 
 std::string TerminalPassthrough::getCurrentFilePath(){
     if (currentDirectory.empty()) {
-        return fs::current_path().string();
+        return std::filesystem::current_path().string();
     }
     return currentDirectory;
 }
 
 std::string TerminalPassthrough::getCurrentFileName(){
     std::string currentDirectory = getCurrentFilePath();
-    std::string currentFileName = fs::path(currentDirectory).filename().string();
+    std::string currentFileName = std::filesystem::path(currentDirectory).filename().string();
     if (currentFileName.empty()) {
         return "/";
     }
     return currentFileName;
 }
 
-bool TerminalPassthrough::isRootPath(const fs::path& path){
+bool TerminalPassthrough::isRootPath(const std::filesystem::path& path){
     return path == path.root_path();
 }
 
