@@ -877,7 +877,24 @@ void commandProcesser(const std::string& command) {
         std::cout << " version: Display application version" << std::endl;
         std::cout << " plugin: Manage plugins" << std::endl;
         std::cout << " env: Manage environment variables" << std::endl;
+        std::cout << " uninstall: Uninstall the application" << std::endl;
         std::cout << " exit: Exit the application" << std::endl;
+        return;
+    } else if (lastCommandParsed == "uninstall") {
+        std::cout << "Are you sure you want to uninstall DevToolsTerminal? (y/n): ";
+        char confirmation;
+        std::cin >> confirmation;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        
+        if (confirmation == 'y' || confirmation == 'Y') {
+            std::string uninstallScriptPath = applicationDirectory + "/tool-scripts/uninstall.sh";
+            std::string uninstallCommand = "bash \"" + uninstallScriptPath + "\"";
+            std::cout << "Running uninstall script..." << std::endl;
+            system(uninstallCommand.c_str());
+            exitFlag = true;
+        } else {
+            std::cout << "Uninstall cancelled." << std::endl;
+        }
         return;
     } else {
         std::queue<std::string> tempQueue;
