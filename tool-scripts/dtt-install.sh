@@ -95,10 +95,10 @@ fi
 echo "Installation complete!"
 echo "To uninstall later, run: $DATA_DIR/uninstall-$APP_NAME.sh"
 
-# Ask about restarting terminal
+# Determine terminal type and restart automatically if possible
 echo ""
-echo "For changes to take effect, you need to restart your terminal."
-read -p "Would you like to restart your terminal now? (y/n): " restart_choice
+echo "For changes to take effect, the terminal needs to be restarted."
+echo "Attempting to restart your terminal automatically..."
 
 # Ask about deleting the installer
 echo ""
@@ -112,12 +112,16 @@ if [[ "$delete_choice" =~ ^[Yy]$ ]]; then
     echo "Installer deleted."
 fi
 
-# Restart terminal if requested
-if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
-    echo "Restarting terminal..."
-    # Use exec to replace the current shell with a new one
+# Determine shell and restart appropriately
+CURRENT_SHELL=$(basename "$SHELL")
+if [[ "$CURRENT_SHELL" == "zsh" ]]; then
+    echo "Restarting zsh terminal..."
     exec zsh -l
+elif [[ "$CURRENT_SHELL" == "bash" ]]; then
+    echo "Restarting bash terminal..."
+    exec bash -l
 else
+    echo "Unable to automatically restart your terminal with shell: $CURRENT_SHELL"
     echo "Please restart your terminal manually to start using DevToolsTerminal."
 fi
 
