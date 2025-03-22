@@ -95,62 +95,9 @@ fi
 echo "Installation complete!"
 echo "To uninstall later, run: !uninstall"
 
-# Determine terminal type and restart appropriately
-CURRENT_SHELL=$(basename "$SHELL")
-
-# Detect operating system
-OS_TYPE="unknown"
-if [[ "$(uname)" == "Darwin" ]]; then
-    OS_TYPE="macos"
-elif [[ "$(uname)" == "Linux" ]]; then
-    OS_TYPE="linux"
-fi
-
-echo "Detected operating system: $OS_TYPE"
-
-if [[ "$CURRENT_SHELL" == "zsh" || "$CURRENT_SHELL" == "bash" ]]; then
-    echo "Setting up terminal restart..."
-    
-    if [[ "$OS_TYPE" == "macos" ]]; then
-        # macOS approach using AppleScript
-        TEMP_RESTART_SCRIPT=$(mktemp)
-        echo "#!/bin/bash" > "$TEMP_RESTART_SCRIPT"
-        echo "sleep 1" >> "$TEMP_RESTART_SCRIPT"
-        
-        if [[ "$CURRENT_SHELL" == "zsh" ]]; then
-            echo "osascript -e 'tell application \"Terminal\" to do script \"cd \\\"$(pwd)\\\"; exec zsh -l\"'" >> "$TEMP_RESTART_SCRIPT"
-            echo "osascript -e 'tell application \"Terminal\" to close first window'" >> "$TEMP_RESTART_SCRIPT"
-        else
-            echo "osascript -e 'tell application \"Terminal\" to do script \"cd \\\"$(pwd)\\\"; exec bash -l\"'" >> "$TEMP_RESTART_SCRIPT"
-            echo "osascript -e 'tell application \"Terminal\" to close first window'" >> "$TEMP_RESTART_SCRIPT"
-        fi
-        
-        chmod +x "$TEMP_RESTART_SCRIPT"
-        
-        # Execute the restart script in the background
-        bash "$TEMP_RESTART_SCRIPT" &
-        
-        echo "Terminal will restart momentarily..."
-        sleep 1
-        exit 0
-    else
-        # Linux approach
-        echo "For Linux systems, we recommend manually restarting your terminal"
-        echo "Please close this terminal and open a new one to start using DevToolsTerminal."
-        
-        # Alternative: try using the PROMPT_COMMAND method
-        if [[ "$CURRENT_SHELL" == "bash" ]]; then
-            echo "Attempting to restart bash session..."
-            exec bash -l
-        elif [[ "$CURRENT_SHELL" == "zsh" ]]; then
-            echo "Attempting to restart zsh session..."
-            exec zsh -l
-        fi
-    fi
-else
-    echo "Unable to automatically restart your terminal with shell: $CURRENT_SHELL"
-    echo "Please restart your terminal manually to start using DevToolsTerminal."
-fi
+# Launch the newly installed application
+echo "Starting DevToolsTerminal..."
+"$APP_PATH"
 
 # Ask about deleting the installer
 echo ""
