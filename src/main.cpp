@@ -28,8 +28,8 @@ bool defaultTextEntryOnAI = false;
 bool displayWholePath = false;
 bool rawModeEnabled = false;
 
-bool saveLoop = true;
-bool saveOnExit = true;
+bool saveLoop = false;
+bool saveOnExit = false;
 bool shotcutsEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
@@ -49,7 +49,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.0.0";
+const std::string currentVersion = "1.8.0.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -837,6 +837,7 @@ void commandProcesser(const std::string& command) {
         aiSettingsCommands();
     } else if (lastCommandParsed == "user") {
         userSettingsCommands();
+        writeUserData();
     } else if (lastCommandParsed == "aihelp"){
         if (!defaultTextEntryOnAI && !c_assistant.getAPIKey().empty() ){
             std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. I entered: " + terminal.returnMostRecentUserInput() + " and got this " + terminal.returnMostRecentTerminalOutput());
@@ -856,8 +857,6 @@ void commandProcesser(const std::string& command) {
             defaultTextEntryOnAI = false;
             return;
         }
-    } else if (lastCommandParsed == "exit") {
-        exitFlag = true;
     } else if(lastCommandParsed == "plugin") {
         pluginCommands();
     } else if (lastCommandParsed == "theme") {
@@ -879,7 +878,6 @@ void commandProcesser(const std::string& command) {
         std::cout << " plugin: Manage plugins" << std::endl;
         std::cout << " env: Manage environment variables" << std::endl;
         std::cout << " uninstall: Uninstall the application" << std::endl;
-        std::cout << " exit: Exit the application" << std::endl;
         return;
     } else if (lastCommandParsed == "uninstall") {
         std::cout << "Are you sure you want to uninstall DevToolsTerminal? (y/n): ";
@@ -1084,10 +1082,6 @@ void pluginCommands(){
 void sendTerminalCommand(const std::string& command) {
     if (TESTING) {
         std::cout << "Sending Command: " << command << std::endl;
-    }
-    if(command == "exit"){
-        exitFlag = true;
-        return;
     }
     std::thread commandThread = terminal.executeCommand(command);
     if (commandThread.joinable()) {
@@ -1637,6 +1631,7 @@ void aiSettingsCommands() {
             c_assistant.setAPIKey(lastCommandParsed);
             if (c_assistant.testAPIKey(c_assistant.getAPIKey())) {
                 std::cout << "OpenAI API key set successfully." << std::endl;
+                writeUserData();
                 return;
             } else {
                 std::cerr << "Error: Invalid API key." << std::endl;
@@ -1842,6 +1837,7 @@ void aiChatCommands() {
         if (lastCommandParsed == "clear") {
             c_assistant.clearChatCache();
             savedChatCache.clear();
+            writeUserData();
             std::cout << "Chat history cleared." << std::endl;
             return;
         }
