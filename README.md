@@ -55,6 +55,28 @@ DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems wi
 
 ## Installation
 
+### Option 1: Using the Installation Script (macOS/Linux)
+
+1. Download and run the installation script:
+   ```sh
+   curl -O https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh
+   chmod +x dtt-install.sh
+   ./dtt-install.sh
+   ```
+
+2. The script will:
+   - Download the latest release from GitHub
+   - Install to `/usr/local/bin` (or `~/.local/bin` if permission denied)
+   - Configure auto-launch with zsh
+   - Make the application executable
+
+3. Restart your terminal or run:
+   ```sh
+   source ~/.zshrc
+   ```
+
+### Option 2: Manual build Installation
+
 1. Clone the repository:
    ```sh
    git clone https://github.com/cadenfinley/DevToolsTerminal.git
