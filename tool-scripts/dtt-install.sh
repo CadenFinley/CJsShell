@@ -1,21 +1,26 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-INSTALL_DIR="/usr/local/bin"
+HOME_DIR="$HOME"
+DATA_DIR="$HOME_DIR/.DTT-Data"
 APP_NAME="DevToolsTerminal"
-APP_PATH="$INSTALL_DIR/$APP_NAME"
+APP_PATH="$DATA_DIR/$APP_NAME"
 ZSHRC_PATH="$HOME/.zshrc"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest"
 
 echo "DevToolsTerminal Installer"
 echo "-------------------------"
-echo "This will install DevToolsTerminal to $INSTALL_DIR and set it to auto-launch with zsh."
+echo "This will install DevToolsTerminal to $DATA_DIR and set it to auto-launch with zsh."
 
-# Check for sudo permissions
+# Create data directory if it doesn't exist
+if [ ! -d "$DATA_DIR" ]; then
+    echo "Creating directory $DATA_DIR..."
+    mkdir -p "$DATA_DIR"
+fi
+
+# Check for sudo permissions - not needed anymore but kept for compatibility
 check_permissions() {
-    if [ -w "$INSTALL_DIR" ]; then
-        return 0
-    elif sudo -n true 2>/dev/null; then
+    if [ -w "$DATA_DIR" ]; then
         return 0
     else
         return 1
@@ -33,40 +38,12 @@ if command -v curl &> /dev/null; then
         echo "Found latest version: $LATEST_VERSION"
         echo "Downloading from: $DOWNLOAD_URL"
         
-        # Check if we need sudo
-        if check_permissions; then
-            # Download with sudo if needed
-            if [ -w "$INSTALL_DIR" ]; then
-                curl -L -o "$APP_PATH" "$DOWNLOAD_URL"
-            else
-                sudo curl -L -o "$APP_PATH" "$DOWNLOAD_URL"
-            fi
-            
-            if [ $? -ne 0 ]; then
-                echo "Error: Failed to download DevToolsTerminal."
-                exit 1
-            fi
-        else
-            echo "No permission to write to $INSTALL_DIR"
-            echo "Falling back to user's home directory..."
-            INSTALL_DIR="$HOME/.local/bin"
-            APP_PATH="$INSTALL_DIR/$APP_NAME"
-            
-            # Create directory if it doesn't exist
-            mkdir -p "$INSTALL_DIR"
-            
-            # Download to user's local bin
-            curl -L -o "$APP_PATH" "$DOWNLOAD_URL"
-            if [ $? -ne 0 ]; then
-                echo "Error: Failed to download DevToolsTerminal."
-                exit 1
-            fi
-            
-            # Add to PATH if not already there
-            if ! grep -q "$INSTALL_DIR" "$ZSHRC_PATH"; then
-                echo "Adding $INSTALL_DIR to your PATH..."
-                echo 'export PATH="$PATH:'"$INSTALL_DIR"'"' >> "$ZSHRC_PATH"
-            fi
+        # Download to data directory
+        curl -L -o "$APP_PATH" "$DOWNLOAD_URL"
+        
+        if [ $? -ne 0 ]; then
+            echo "Error: Failed to download DevToolsTerminal."
+            exit 1
         fi
     else
         echo "Warning: Couldn't find download URL. Proceeding with local version if available."
@@ -76,11 +53,7 @@ else
 fi
 
 # Make sure the application is executable
-if [ -w "$(dirname "$APP_PATH")" ]; then
-    chmod +x "$APP_PATH"
-else
-    sudo chmod +x "$APP_PATH"
-fi
+chmod +x "$APP_PATH"
 
 if [ ! -x "$APP_PATH" ]; then
     echo "Error: Could not make DevToolsTerminal executable."
@@ -114,23 +87,37 @@ fi
 # Make uninstall script executable (if we have it)
 UNINSTALL_SCRIPT="$SCRIPT_DIR/dtt-uninstall.sh"
 if [ -f "$UNINSTALL_SCRIPT" ]; then
-    if [ -w "$UNINSTALL_SCRIPT" ]; then
-        chmod +x "$UNINSTALL_SCRIPT"
-    else
-        sudo chmod +x "$UNINSTALL_SCRIPT"
-    fi
-    
-    if [ -w "$INSTALL_DIR" ]; then
-        cp "$UNINSTALL_SCRIPT" "$INSTALL_DIR/uninstall-$APP_NAME.sh"
-        chmod +x "$INSTALL_DIR/uninstall-$APP_NAME.sh"
-    elif sudo -n true 2>/dev/null; then
-        sudo cp "$UNINSTALL_SCRIPT" "$INSTALL_DIR/uninstall-$APP_NAME.sh"
-        sudo chmod +x "$INSTALL_DIR/uninstall-$APP_NAME.sh"
-    else
-        echo "Note: Could not install uninstall script to $INSTALL_DIR."
-    fi
+    chmod +x "$UNINSTALL_SCRIPT"
+    cp "$UNINSTALL_SCRIPT" "$DATA_DIR/uninstall-$APP_NAME.sh"
+    chmod +x "$DATA_DIR/uninstall-$APP_NAME.sh"
 fi
 
 echo "Installation complete!"
-echo "To uninstall later, run: $INSTALL_DIR/uninstall-$APP_NAME.sh"
+echo "To uninstall later, run: $DATA_DIR/uninstall-$APP_NAME.sh"
+
+# Ask about restarting terminal
+echo ""
+echo "For changes to take effect, you need to restart your terminal."
+read -p "Would you like to restart your terminal now? (y/n): " restart_choice
+
+# Ask about deleting the installer
+echo ""
+read -p "Would you like to delete this installer script? (y/n): " delete_choice
+
+# Delete installer if requested
+if [[ "$delete_choice" =~ ^[Yy]$ ]]; then
+    SELF_PATH="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
+    echo "Removing installer script..."
+    rm "$SELF_PATH"
+    echo "Installer deleted."
+fi
+
+# Restart terminal if requested
+if [[ "$restart_choice" =~ ^[Yy]$ ]]; then
+    echo "Restarting terminal..."
+    # Use exec to replace the current shell with a new one
+    exec zsh -l
+else
+    echo "Please restart your terminal manually to start using DevToolsTerminal."
+fi
 
