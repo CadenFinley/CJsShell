@@ -124,15 +124,7 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 }
                 result = std::system((getTerminalName() + " -c \"" + envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1\"").c_str());
                 if(result != "0"){
-                    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(expandedCommand.c_str(), "r"), pclose);
-                    if (!pipe) {
-                        throw std::runtime_error("popen() failed!");
-                    }
-                    result = "";
-                    std::array<char, 128> buffer;
-                    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-                        result += buffer.data();
-                    }
+                    result = "Error executing command: '" + command + "'";
                 }
                 terminalCacheTerminalOutput.push_back(result);
             }
