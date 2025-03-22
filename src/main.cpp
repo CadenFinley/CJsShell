@@ -134,6 +134,8 @@ int main() {
     terminal = TerminalPassthrough();
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
+    sendTerminalCommand("clear");
+
     applicationDirectory = std::filesystem::current_path().string();
     if (applicationDirectory.find(":") != std::string::npos) {
         applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
