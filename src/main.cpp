@@ -49,7 +49,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.0.2";
+const std::string currentVersion = "1.8.0.3";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -133,9 +133,6 @@ int main() {
     multiScriptShortcuts = {};
     terminal = TerminalPassthrough();
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
-
-    sendTerminalCommand("cd /");
-    sendTerminalCommand("clear");
 
     applicationDirectory = std::filesystem::current_path().string();
     if (applicationDirectory.find(":") != std::string::npos) {
