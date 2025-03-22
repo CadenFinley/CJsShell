@@ -49,7 +49,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.7.3.2";
+const std::string currentVersion = "1.8.0.0";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -124,6 +124,7 @@ void createDefaultTheme();
 void discoverAvailableThemes();
 void applyColorToStrings();
 void envVarCommands();
+std::string generateUninstallScript();
 
 int main() {
 
@@ -887,7 +888,16 @@ void commandProcesser(const std::string& command) {
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         
         if (confirmation == 'y' || confirmation == 'Y') {
+            // First check if the script exists in the expected location
             std::string uninstallScriptPath = applicationDirectory + "/tool-scripts/uninstall.sh";
+            bool scriptExists = std::filesystem::exists(uninstallScriptPath);
+            
+            // If not found, generate it
+            if (!scriptExists) {
+                std::cout << "Uninstall script not found. Generating one..." << std::endl;
+                uninstallScriptPath = generateUninstallScript();
+            }
+            
             std::string uninstallCommand = "bash \"" + uninstallScriptPath + "\"";
             std::cout << "Running uninstall script..." << std::endl;
             system(uninstallCommand.c_str());
@@ -2226,4 +2236,137 @@ void envVarCommands() {
     }
     
     std::cerr << "Unknown command. Try 'env help' for a list of commands." << std::endl;
+}
+
+// Add this function to generate the uninstall script on demand
+std::string generateUninstallScript() {
+    std::filesystem::path uninstallPath = DATA_DIRECTORY / "dtt-uninstall.sh";
+    std::ofstream uninstallScript(uninstallPath);
+    
+    if (uninstallScript.is_open()) {
+        uninstallScript << "#!/bin/bash\n\n";
+        uninstallScript << "# Default installation locations to check\n";
+        uninstallScript << "SYSTEM_INSTALL_DIR=\"/usr/local/bin\"\n";
+        uninstallScript << "USER_INSTALL_DIR=\"$HOME/.local/bin\"\n";
+        uninstallScript << "APP_NAME=\"DevToolsTerminal\"\n";
+        uninstallScript << "SYSTEM_APP_PATH=\"$SYSTEM_INSTALL_DIR/$APP_NAME\"\n";
+        uninstallScript << "USER_APP_PATH=\"$USER_INSTALL_DIR/$APP_NAME\"\n";
+        uninstallScript << "ZSHRC_PATH=\"$HOME/.zshrc\"\n";
+        uninstallScript << "UNINSTALL_SCRIPT=\"$SYSTEM_INSTALL_DIR/uninstall-$APP_NAME.sh\"\n";
+        uninstallScript << "USER_UNINSTALL_SCRIPT=\"$USER_INSTALL_DIR/uninstall-$APP_NAME.sh\"\n\n";
+        
+        uninstallScript << "echo \"DevToolsTerminal Uninstaller\"\n";
+        uninstallScript << "echo \"---------------------------\"\n";
+        uninstallScript << "echo \"This will uninstall DevToolsTerminal and remove auto-launch from zsh.\"\n\n";
+        
+        uninstallScript << "# Function to remove auto-launch entries from .zshrc\n";
+        uninstallScript << "remove_from_zshrc() {\n";
+        uninstallScript << "    if [ -f \"$ZSHRC_PATH\" ]; then\n";
+        uninstallScript << "        echo \"Removing auto-launch configuration from .zshrc...\"\n";
+        uninstallScript << "        # Create a temporary file\n";
+        uninstallScript << "        TEMP_FILE=$(mktemp)\n";
+        uninstallScript << "        \n";
+        uninstallScript << "        # Filter out the DevToolsTerminal auto-launch block\n";
+        uninstallScript << "        sed '/# DevToolsTerminal Auto-Launch/,+3d' \"$ZSHRC_PATH\" > \"$TEMP_FILE\"\n";
+        uninstallScript << "        \n";
+        uninstallScript << "        # Also remove any PATH additions for the user installation\n";
+        uninstallScript << "        if [ -d \"$USER_INSTALL_DIR\" ]; then\n";
+        uninstallScript << "            sed \"/export PATH=\\\"\\$PATH:$USER_INSTALL_DIR\\\"/d\" \"$TEMP_FILE\" > \"${TEMP_FILE}.2\"\n";
+        uninstallScript << "            mv \"${TEMP_FILE}.2\" \"$TEMP_FILE\"\n";
+        uninstallScript << "        fi\n";
+        uninstallScript << "        \n";
+        uninstallScript << "        # Replace the original file\n";
+        uninstallScript << "        cat \"$TEMP_FILE\" > \"$ZSHRC_PATH\"\n";
+        uninstallScript << "        rm \"$TEMP_FILE\"\n";
+        uninstallScript << "        \n";
+        uninstallScript << "        echo \"Auto-launch configuration removed from .zshrc.\"\n";
+        uninstallScript << "    else\n";
+        uninstallScript << "        echo \"No .zshrc file found.\"\n";
+        uninstallScript << "    fi\n";
+        uninstallScript << "}\n\n";
+        
+        uninstallScript << "# Try to find the installed application\n";
+        uninstallScript << "APP_FOUND=false\n\n";
+        
+        uninstallScript << "if [ -f \"$SYSTEM_APP_PATH\" ]; then\n";
+        uninstallScript << "    echo \"Found DevToolsTerminal at $SYSTEM_APP_PATH\"\n";
+        uninstallScript << "    APP_PATH=\"$SYSTEM_APP_PATH\"\n";
+        uninstallScript << "    APP_FOUND=true\n";
+        uninstallScript << "    \n";
+        uninstallScript << "    # Check if we have permission to remove it\n";
+        uninstallScript << "    if [ -w \"$SYSTEM_INSTALL_DIR\" ]; then\n";
+        uninstallScript << "        echo \"Removing $APP_PATH...\"\n";
+        uninstallScript << "        rm \"$APP_PATH\"\n";
+        uninstallScript << "        # Also remove the uninstall script if it exists\n";
+        uninstallScript << "        if [ -f \"$UNINSTALL_SCRIPT\" ]; then\n";
+        uninstallScript << "            rm \"$UNINSTALL_SCRIPT\"\n";
+        uninstallScript << "        fi\n";
+        uninstallScript << "    elif sudo -n true 2>/dev/null; then\n";
+        uninstallScript << "        echo \"Removing $APP_PATH with sudo...\"\n";
+        uninstallScript << "        sudo rm \"$APP_PATH\"\n";
+        uninstallScript << "        # Also remove the uninstall script if it exists\n";
+        uninstallScript << "        if [ -f \"$UNINSTALL_SCRIPT\" ]; then\n";
+        uninstallScript << "            sudo rm \"$UNINSTALL_SCRIPT\"\n";
+        uninstallScript << "        fi\n";
+        uninstallScript << "    else\n";
+        uninstallScript << "        echo \"Error: You need root privileges to remove $APP_PATH\"\n";
+        uninstallScript << "        echo \"Please run: sudo rm $APP_PATH\"\n";
+        uninstallScript << "        if [ -f \"$UNINSTALL_SCRIPT\" ]; then\n";
+        uninstallScript << "            echo \"And also run: sudo rm $UNINSTALL_SCRIPT\"\n";
+        uninstallScript << "        fi\n";
+        uninstallScript << "    fi\n";
+        uninstallScript << "fi\n\n";
+        
+        uninstallScript << "if [ -f \"$USER_APP_PATH\" ]; then\n";
+        uninstallScript << "    echo \"Found DevToolsTerminal at $USER_APP_PATH\"\n";
+        uninstallScript << "    APP_PATH=\"$USER_APP_PATH\"\n";
+        uninstallScript << "    APP_FOUND=true\n";
+        uninstallScript << "    \n";
+        uninstallScript << "    echo \"Removing $APP_PATH...\"\n";
+        uninstallScript << "    rm \"$USER_APP_PATH\"\n";
+        uninstallScript << "    \n";
+        uninstallScript << "    # Also remove the user uninstall script if it exists\n";
+        uninstallScript << "    if [ -f \"$USER_UNINSTALL_SCRIPT\" ]; then\n";
+        uninstallScript << "        rm \"$USER_UNINSTALL_SCRIPT\"\n";
+        uninstallScript << "    fi\n";
+        uninstallScript << "    \n";
+        uninstallScript << "    # Clean up the directory if it's empty\n";
+        uninstallScript << "    if [ -d \"$USER_INSTALL_DIR\" ] && [ -z \"$(ls -A \"$USER_INSTALL_DIR\")\" ]; then\n";
+        uninstallScript << "        echo \"Removing empty directory $USER_INSTALL_DIR...\"\n";
+        uninstallScript << "        rmdir \"$USER_INSTALL_DIR\"\n";
+        uninstallScript << "    fi\n";
+        uninstallScript << "fi\n\n";
+        
+        uninstallScript << "if [ \"$APP_FOUND\" = false ]; then\n";
+        uninstallScript << "    echo \"Error: DevToolsTerminal installation not found.\"\n";
+        uninstallScript << "    echo \"Checked locations:\"\n";
+        uninstallScript << "    echo \"  - $SYSTEM_APP_PATH\"\n";
+        uninstallScript << "    echo \"  - $USER_APP_PATH\"\n";
+        uninstallScript << "else\n";
+        uninstallScript << "    # Remove from .zshrc regardless of which installation was found\n";
+        uninstallScript << "    remove_from_zshrc\n";
+        uninstallScript << "    \n";
+        uninstallScript << "    echo \"Uninstallation complete!\"\n";
+        uninstallScript << "    echo \"Note: Your personal data in ~/.DTT-Data has not been removed.\"\n";
+        uninstallScript << "    echo \"To completely remove all data, run: rm -rf ~/.DTT-Data\"\n";
+        uninstallScript << "fi\n\n";
+        
+        uninstallScript << "# Self-delete if this script was executed directly and isn't in a system path\n";
+        uninstallScript << "SCRIPT_PATH=$(realpath \"$0\")\n";
+        uninstallScript << "if [[ \"$SCRIPT_PATH\" != \"$UNINSTALL_SCRIPT\" && \"$SCRIPT_PATH\" != \"$USER_UNINSTALL_SCRIPT\" ]]; then\n";
+        uninstallScript << "    rm \"$SCRIPT_PATH\"\n";
+        uninstallScript << "fi\n";
+        
+        uninstallScript.close();
+        
+        // Make the script executable
+        std::string chmodCmd = "chmod +x " + uninstallPath.string();
+        system(chmodCmd.c_str());
+        
+        std::cout << "Generated uninstall script at " << uninstallPath.string() << std::endl;
+    } else {
+        std::cerr << "Error: Could not create uninstall script." << std::endl;
+    }
+    
+    return uninstallPath.string();
 }

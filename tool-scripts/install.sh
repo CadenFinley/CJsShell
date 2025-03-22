@@ -112,7 +112,7 @@ else
 fi
 
 # Make uninstall script executable (if we have it)
-UNINSTALL_SCRIPT="$SCRIPT_DIR/uninstall.sh"
+UNINSTALL_SCRIPT="$SCRIPT_DIR/dtt-uninstall.sh"
 if [ -f "$UNINSTALL_SCRIPT" ]; then
     if [ -w "$UNINSTALL_SCRIPT" ]; then
         chmod +x "$UNINSTALL_SCRIPT"
