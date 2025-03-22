@@ -49,7 +49,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.0.1";
+const std::string currentVersion = "1.8.0.2";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -2010,29 +2010,45 @@ bool downloadLatestRelease(){
         #else
         downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
         #endif
+        
+        // Create the data directory if it doesn't exist
+        if (!std::filesystem::exists(DATA_DIRECTORY)) {
+            std::filesystem::create_directory(DATA_DIRECTORY);
+        }
+        
+        // Set download path to DATA_DIRECTORY
         size_t pos = downloadUrl.find_last_of('/');
         std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
-        std::string downloadPath = (std::filesystem::current_path() / filename).string();
-        std::string downloadCmd = "curl -L -o " + downloadPath + " " + downloadUrl;
+        std::string downloadPath = (std::filesystem::path(DATA_DIRECTORY) / filename).string();
+        std::string downloadCmd = "curl -L -o \"" + downloadPath + "\" " + downloadUrl;
+        
         int ret = system(downloadCmd.c_str());
         if(ret == 0){
-            std::string chmodCmd = "chmod +x " + downloadPath;
+            std::string chmodCmd = "chmod +x \"" + downloadPath + "\"";
             system(chmodCmd.c_str());
             std::cout << "Downloaded latest release asset to " << downloadPath << std::endl;
             std::cout << "Replacing current running program with updated version..." << std::endl;
-            std::string exePath = (std::filesystem::current_path() / "DevToolsTerminal").string();
+            
+            // Determine the final executable path in DATA_DIRECTORY
+            std::string exePath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal").string();
             #ifdef _WIN32
             exePath += ".exe";
             #endif
+            
+            // Rename the downloaded file to the proper executable name
             if(std::rename(downloadPath.c_str(), exePath.c_str()) != 0){
-                std::cerr << "Error: Failed to replace the current executable." << std::endl;
+                std::cerr << "Error: Failed to rename the downloaded executable." << std::endl;
                 return false;
             }
+            
+            // Save changelog
             std::ofstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
             if (changelogFile.is_open()) {
                 changelogFile << changeLog;
                 changelogFile.close();
             }
+            
+            // Execute the new version from DATA_DIRECTORY
             execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
             std::cerr << "Error: Failed to execute the updated program." << std::endl;
             return false;
