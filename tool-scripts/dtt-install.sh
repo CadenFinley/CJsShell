@@ -95,9 +95,9 @@ fi
 echo "Installation complete!"
 echo "To uninstall later, run: !uninstall"
 
-# Launch the newly installed application
-echo "Starting DevToolsTerminal..."
-"$APP_PATH"
+# Instead of launching, tell the user to restart their terminal
+echo ""
+echo "Please restart your terminal to start using DevToolsTerminal."
 
 # Ask about deleting the installer
 echo ""
