@@ -27,9 +27,9 @@ bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
 bool displayWholePath = false;
 bool rawModeEnabled = false;
-
 bool saveLoop = false;
 bool saveOnExit = false;
+
 bool shotcutsEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
@@ -57,7 +57,6 @@ std::string applicationDirectory;
 std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
-std::string lastLogin = "N/A";
 
 std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
@@ -171,13 +170,12 @@ int main() {
         }
     }
 
-    std::time_t now = std::time(nullptr);
-    std::tm* now_tm = std::localtime(&now);
-    char buffer[100];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
-
     std::ifstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
     if (changelogFile.is_open()) {
+        std::time_t now = std::time(nullptr);
+        std::tm* now_tm = std::localtime(&now);
+        char buffer[100];
+        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
         std::cout << "Thanks for downloading the latest version of DevToolsTerminal Version: " << currentVersion << std::endl;
         std::cout << "Check out the github repo for more information:\n" << githubRepoURL << std::endl;
         std::cout << "And check me out at CadenFinley.com" << std::endl;
@@ -206,9 +204,6 @@ int main() {
         }
         runningStartup = false;
     }
-
-    std::cout << "Last Login: " << lastLogin << std::endl;
-    lastLogin = buffer;
 
     std::cout << titleLine << std::endl;
     std::cout << createdLine << std::endl;
@@ -508,15 +503,13 @@ void createNewUSER_DATAFile() {
     if (file.is_open()) {
         writeUserData();
         file.close();
-    } else {
-        std::cerr << "Error: Unable to create the user data file at " << USER_DATA << std::endl;
     }
 }
 
 void createNewUSER_HISTORYfile() {
     std::ofstream file(USER_COMMAND_HISTORY);
     if (!file.is_open()) {
-        std::cerr << "Error: Unable to create the user history file at " << USER_COMMAND_HISTORY << std::endl;
+        return;
     }
 }
 
@@ -524,7 +517,6 @@ void loadUserData() {
     std::ifstream file(USER_DATA);
     if (file.is_open()) {
         if (file.peek() == std::ifstream::traits_type::eof()) {
-            std::cout << "User data file is empty. Creating new file..." << std::endl;
             file.close();
             createNewUSER_DATAFile();
             return;
@@ -560,9 +552,6 @@ void loadUserData() {
             if(userData.contains("Last_Updated")){
                 lastUpdated = userData["Last_Updated"].get<std::string>();
             }
-            if(userData.contains("Last_Login")){
-                lastLogin = userData["Last_Login"].get<std::string>();
-            }
             if(userData.contains("EnvVars")){
                 std::map<std::string, std::string> loadedEnvVars = userData["EnvVars"].get<std::map<std::string, std::string>>();
                 for(const auto& [name, value] : loadedEnvVars) {
@@ -575,13 +564,10 @@ void loadUserData() {
             file.close();
         }
         catch(const json::parse_error& e) {
-            std::cerr << "Error parsing user data file: " << e.what() << "\nCreating new file." << std::endl;
             file.close();
             createNewUSER_DATAFile();
             return;
         }
-    } else {
-        std::cerr << "Error: Unable to read the user data file at " << USER_DATA << std::endl;
     }
 }
 
@@ -599,7 +585,6 @@ void writeUserData() {
         userData["Command_Prefix"] = commandPrefix;
         userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
         userData["Last_Updated"] = lastUpdated;
-        userData["Last_Login"] = lastLogin;
         userData["EnvVars"] = terminal.getAllEnvVars();
         userData["Current_Theme"] = currentTheme;
         file << userData.dump(4);
