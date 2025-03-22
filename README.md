@@ -71,7 +71,7 @@ DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems wi
 
 2. The script will:
    - Download the latest release from GitHub
-   - Install to `/usr/local/bin` (or `~/.local/bin` if permission denied)
+   - Install to `~/.DTT-Data` directory
    - Configure auto-launch with zsh
    - Make the application executable
 
@@ -79,6 +79,18 @@ DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems wi
    ```sh
    source ~/.zshrc
    ```
+
+### Uninstallation
+
+To uninstall DevToolsTerminal:
+
+1. Use the uninstall script with the command: "<command_prefix>uninstall"
+   
+2. The uninstaller will:
+   - Remove the DevToolsTerminal executable
+   - Remove auto-launch entries from your .zshrc file
+   - Optionally remove all stored data in the ~/.DTT-Data directory
+   - Clean up any legacy installations from previous versions
 
 ### Option 2: Manual build Installation
 
