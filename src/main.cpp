@@ -49,7 +49,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.0.6";
+const std::string currentVersion = "1.8.0.7";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -864,6 +864,10 @@ void commandProcesser(const std::string& command) {
         std::cout << " uninstall: Uninstall the application" << std::endl;
         return;
     } else if (lastCommandParsed == "uninstall") {
+        if (pluginManager->getEnabledPlugins().size() > 0) {
+            std::cout << "Please disable all plugins before uninstalling." << std::endl;
+            return;
+        }
         std::cout << "Are you sure you want to uninstall DevToolsTerminal? (y/n): ";
         char confirmation;
         std::cin >> confirmation;
