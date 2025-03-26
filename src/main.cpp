@@ -49,7 +49,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.0.7";
+const std::string currentVersion = "1.8.1.0";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -561,6 +561,9 @@ void loadUserData() {
             if(userData.contains("Current_Theme")) {
                 currentTheme = userData["Current_Theme"].get<std::string>();
             }
+            if(userData.contains("Auto_Update_Check")) {
+                checkForUpdates = userData["Auto_Update_Check"].get<bool>();
+            }
             file.close();
         }
         catch(const json::parse_error& e) {
@@ -587,6 +590,7 @@ void writeUserData() {
         userData["Last_Updated"] = lastUpdated;
         userData["EnvVars"] = terminal.getAllEnvVars();
         userData["Current_Theme"] = currentTheme;
+        userData["Auto_Update_Check"] = checkForUpdates;
         file << userData.dump(4);
         file.close();
     } else {
