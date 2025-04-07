@@ -21,6 +21,10 @@
 
 using json = nlohmann::json;
 
+//re work shortcuts into 1 type
+//add aliases for command strings to alias gets converted into normal text before parsing
+//cmake is not making
+
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
@@ -49,7 +53,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.1.0";
+const std::string currentVersion = "1.8.1.1";
 
 std::string commandPrefix = "!";
 std::string lastCommandParsed;
@@ -58,7 +62,8 @@ std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
 
-std::filesystem::path DATA_DIRECTORY = ".DTT-Data";
+std::string homeDir = std::getenv("HOME");
+std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
