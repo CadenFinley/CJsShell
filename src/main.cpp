@@ -21,8 +21,6 @@
 
 using json = nlohmann::json;
 
-//add aliases for command strings to alias gets converted into normal text before parsing
-
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
