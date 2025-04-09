@@ -95,18 +95,34 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
         try {
             std::string result;
             
-            // Check if the command matches an alias and replace it
             std::string processedCommand = command;
             std::istringstream iss(command);
             std::string commandName;
             iss >> commandName;
             
-            if (!commandName.empty() && aliases.find(commandName) != aliases.end()) {
-                // Get the rest of the command (arguments)
+            if (commandName == "cd") {
+                std::string dirArg;
+                iss >> dirArg;
+                
+                if (!dirArg.empty() && aliases.find(dirArg) != aliases.end()) {
+                    std::string aliasDef = aliases[dirArg];
+                    std::filesystem::path potentialDir = std::filesystem::path(currentDirectory) / aliasDef;
+                    
+                    if (std::filesystem::exists(potentialDir) && std::filesystem::is_directory(potentialDir)) {
+                        std::string remainingArgs;
+                        std::getline(iss >> std::ws, remainingArgs);
+                        
+                        processedCommand = "cd " + aliasDef;
+                        if (!remainingArgs.empty()) {
+                            processedCommand += " " + remainingArgs;
+                        }
+                    }
+                }
+            }
+            else if (!commandName.empty() && aliases.find(commandName) != aliases.end()) {
                 std::string args;
                 std::getline(iss >> std::ws, args);
                 
-                // Replace the alias with its definition and keep the arguments
                 processedCommand = aliases[commandName];
                 if (!args.empty()) {
                     processedCommand += " " + args;
@@ -114,7 +130,22 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
             }
             
             if (processedCommand.compare(0, 3, "cd ") == 0) {
-                std::string newDir = processedCommand.substr(3);
+                std::string cdCommand = processedCommand;
+                std::string subsequentCommand;
+                
+                // Check for && and split the command
+                size_t andPos = processedCommand.find("&&");
+                if (andPos != std::string::npos) {
+                    cdCommand = processedCommand.substr(0, andPos);
+                    subsequentCommand = processedCommand.substr(andPos + 2);
+                    // Trim whitespace
+                    cdCommand = cdCommand.substr(0, cdCommand.find_last_not_of(" \t") + 1);
+                    subsequentCommand = subsequentCommand.substr(subsequentCommand.find_first_not_of(" \t"));
+                }
+                
+                std::string newDir = cdCommand.substr(3);
+                bool cdSuccess = true;
+                
                 if (newDir == "/") {
                     currentDirectory = "/";
                 } else if (newDir == "..") {
@@ -125,7 +156,7 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                         result = "Cannot go up from root directory";
                         std::cerr << result << std::endl;
                         terminalCacheTerminalOutput.push_back(result);
-                        return;
+                        cdSuccess = false;
                     }
                 } else {
                     std::filesystem::path dir = std::filesystem::path(currentDirectory) / newDir;
@@ -133,22 +164,33 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                         result = "cd: " + newDir + ": No such file or directory";
                         std::cerr << result << std::endl;
                         terminalCacheTerminalOutput.push_back(result);
-                        return;
+                        cdSuccess = false;
                     } else if (!std::filesystem::is_directory(dir)) {
                         result = "cd: " + newDir + ": Not a directory";
                         std::cerr << result << std::endl;
                         terminalCacheTerminalOutput.push_back(result);
-                        return;
+                        cdSuccess = false;
                     } else if ((std::filesystem::status(dir).permissions() & std::filesystem::perms::owner_exec) == std::filesystem::perms::none) {
                         result = "cd: " + newDir + ": Permission denied";
                         std::cerr << result << std::endl;
                         terminalCacheTerminalOutput.push_back(result);
-                        return;
+                        cdSuccess = false;
                     } else {
                         currentDirectory = std::filesystem::canonical(dir).string();
                     }
                 }
-                result = "Changed directory to: " + currentDirectory;
+                
+                if (cdSuccess) {
+                    result = "Changed directory to: " + currentDirectory;
+                    
+                    // Execute subsequent command if it exists
+                    if (!subsequentCommand.empty()) {
+                        int cmdResult = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + subsequentCommand + " 2>&1\"").c_str());
+                        if (cmdResult != 0) {
+                            result += "\nError executing subsequent command: '" + subsequentCommand + "'";
+                        }
+                    }
+                }
             } else {
                 result = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + processedCommand + " 2>&1\"").c_str());
                 if(result != "0"){
