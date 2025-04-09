@@ -26,6 +26,10 @@ void TerminalPassthrough::setDisplayWholePath(bool displayWholePath){
     this->displayWholePath = displayWholePath;
 }
 
+void TerminalPassthrough::setAliases(const std::map<std::string, std::string>& aliases){
+    this->aliases = aliases;
+}
+
 std::string TerminalPassthrough::getFullPathOfFile(const std::string& file){
     if (std::filesystem::exists (std::filesystem::path(getCurrentFilePath()) / file)) {
         return (std::filesystem::path(getCurrentFilePath()) / file).string();
@@ -89,11 +93,28 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
     addCommandToHistory(command);
     return std::thread([this, command = std::move(command)]() {
         try {
-            std::string expandedCommand = expandEnvVars(command);
             std::string result;
             
-            if (expandedCommand.compare(0, 3, "cd ") == 0) {
-                std::string newDir = expandedCommand.substr(3);
+            // Check if the command matches an alias and replace it
+            std::string processedCommand = command;
+            std::istringstream iss(command);
+            std::string commandName;
+            iss >> commandName;
+            
+            if (!commandName.empty() && aliases.find(commandName) != aliases.end()) {
+                // Get the rest of the command (arguments)
+                std::string args;
+                std::getline(iss >> std::ws, args);
+                
+                // Replace the alias with its definition and keep the arguments
+                processedCommand = aliases[commandName];
+                if (!args.empty()) {
+                    processedCommand += " " + args;
+                }
+            }
+            
+            if (processedCommand.compare(0, 3, "cd ") == 0) {
+                std::string newDir = processedCommand.substr(3);
                 if (newDir == "/") {
                     currentDirectory = "/";
                 } else if (newDir == "..") {
@@ -101,30 +122,37 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                     if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
                         currentDirectory = dir.string();
                     } else {
-                        result = "No such file or directory: " + dir.string();
+                        result = "Cannot go up from root directory";
+                        std::cerr << result << std::endl;
                         terminalCacheTerminalOutput.push_back(result);
                         return;
                     }
                 } else {
                     std::filesystem::path dir = std::filesystem::path(currentDirectory) / newDir;
-                    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
-                        currentDirectory = std::filesystem::canonical(dir).string();
-                    } else {
-                        result = "No such file or directory: " + dir.string();
+                    if (!std::filesystem::exists(dir)) {
+                        result = "cd: " + newDir + ": No such file or directory";
+                        std::cerr << result << std::endl;
                         terminalCacheTerminalOutput.push_back(result);
                         return;
+                    } else if (!std::filesystem::is_directory(dir)) {
+                        result = "cd: " + newDir + ": Not a directory";
+                        std::cerr << result << std::endl;
+                        terminalCacheTerminalOutput.push_back(result);
+                        return;
+                    } else if ((std::filesystem::status(dir).permissions() & std::filesystem::perms::owner_exec) == std::filesystem::perms::none) {
+                        result = "cd: " + newDir + ": Permission denied";
+                        std::cerr << result << std::endl;
+                        terminalCacheTerminalOutput.push_back(result);
+                        return;
+                    } else {
+                        currentDirectory = std::filesystem::canonical(dir).string();
                     }
                 }
                 result = "Changed directory to: " + currentDirectory;
             } else {
-                std::string envVarSetup;
-                envVarSetup.reserve(256);
-                for (const auto& [name, value] : envVars) {
-                    envVarSetup += "export " + name + "=\"" + value + "\"; ";
-                }
-                result = std::system((getTerminalName() + " -c \"" + envVarSetup + "cd " + currentDirectory + " && " + expandedCommand + " 2>&1\"").c_str());
+                result = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + processedCommand + " 2>&1\"").c_str());
                 if(result != "0"){
-                    result = "Error executing command: '" + command + "'";
+                    result = "Error executing command: '" + processedCommand + "'";
                 }
                 terminalCacheTerminalOutput.push_back(result);
             }
@@ -218,77 +246,6 @@ void TerminalPassthrough::addCommandToHistory(const std::string& command) {
     }
     commandHistoryIndex = terminalCacheUserInput.size();
     terminalCacheUserInput.push_back(command);
-}
-
-void TerminalPassthrough::setEnvVar(const std::string& name, const std::string& value) {
-    envVars[name] = value;
-}
-
-std::string TerminalPassthrough::getEnvVar(const std::string& name) const {
-    auto it = envVars.find(name);
-    if (it != envVars.end()) {
-        return it->second;
-    }
-    return "";
-}
-
-bool TerminalPassthrough::hasEnvVar(const std::string& name) const {
-    return envVars.find(name) != envVars.end();
-}
-
-void TerminalPassthrough::removeEnvVar(const std::string& name) {
-    envVars.erase(name);
-}
-
-std::map<std::string, std::string> TerminalPassthrough::getAllEnvVars() const {
-    return envVars;
-}
-
-std::string TerminalPassthrough::expandEnvVars(const std::string& command) const {
-    std::string result = command;
-    size_t pos = 0;
-    
-    while ((pos = result.find('$', pos)) != std::string::npos) {
-        if (pos > 0 && result[pos-1] == '\\') {
-            pos++;
-            continue;
-        }
-        
-        size_t varStart = pos + 1;
-        size_t varEnd;
-        bool hasBraces = false;
-        
-        if (varStart < result.size() && result[varStart] == '{') {
-            hasBraces = true;
-            varStart++;
-            varEnd = result.find('}', varStart);
-            if (varEnd == std::string::npos) {
-                pos++;
-                continue;
-            }
-        } else {
-            varEnd = varStart;
-            while (varEnd < result.size() && (isalnum(result[varEnd]) || result[varEnd] == '_')) {
-                varEnd++;
-            }
-        }
-        
-        if (varStart == varEnd) {
-            pos++;
-            continue;
-        }
-        
-        std::string varName = result.substr(varStart, varEnd - varStart);
-        std::string replacement = getEnvVar(varName);
-        
-        size_t replaceStart = pos;
-        size_t replaceLength = (hasBraces ? varEnd + 1 : varEnd) - pos;
-        
-        result.replace(replaceStart, replaceLength, replacement);
-        pos = replaceStart + replacement.length();
-    }
-    
-    return result;
 }
 
 void TerminalPassthrough::setShellColor(const std::string& color){

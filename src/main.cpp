@@ -21,9 +21,7 @@
 
 using json = nlohmann::json;
 
-//re work shortcuts into 1 type
 //add aliases for command strings to alias gets converted into normal text before parsing
-//cmake is not making
 
 bool TESTING = false;
 bool runningStartup = false;
@@ -34,7 +32,7 @@ bool rawModeEnabled = false;
 bool saveLoop = false;
 bool saveOnExit = false;
 
-bool shotcutsEnabled = true;
+bool shortcutsEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
@@ -53,11 +51,11 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.1.1";
+const std::string currentVersion = "1.8.2.0";
 
 std::string commandPrefix = "!";
+std::string shortcutsPrefix = "-";
 std::string lastCommandParsed;
-std::string applicationDirectory;
 std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
@@ -73,9 +71,8 @@ std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
 std::vector<std::string> commandLines;
-std::map<std::string, std::string> shortcuts;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
-std::map<std::string, std::string> envVars;
+std::map<std::string, std::string> aliases;
 
 OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
@@ -110,7 +107,6 @@ void aiSettingsCommands();
 void aiChatCommands();
 void chatProcess(const std::string& message);
 void showChatHistory();
-void multiScriptShortcutCommands();
 void userDataCommands();
 std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag);
 void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
@@ -127,25 +123,25 @@ void saveTheme(const std::string& themeName);
 void createDefaultTheme();
 void discoverAvailableThemes();
 void applyColorToStrings();
-void envVarCommands();
 std::string generateUninstallScript();
+void multiScriptShortcutProcesser(const std::string& command);
+void aliasCommands();
 
 int main() {
 
     startupCommands = {};
-    shortcuts = {};
     multiScriptShortcuts = {};
+    aliases = {};
     terminal = TerminalPassthrough();
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
     sendTerminalCommand("clear");
 
-    applicationDirectory = std::filesystem::current_path().string();
-    if (applicationDirectory.find(":") != std::string::npos) {
-        applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
-    }
-
     if (!std::filesystem::exists(DATA_DIRECTORY)) {
+        std::string applicationDirectory = std::filesystem::current_path().string();
+        if (applicationDirectory.find(":") != std::string::npos) {
+            applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
+        }
         std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
     }
 
@@ -540,10 +536,7 @@ void loadUserData() {
                 startupCommands = userData["Startup_Commands"].get<std::vector<std::string> >();
             }
             if(userData.contains("Shortcuts_Enabled")){
-                shotcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
-            }
-            if(userData.contains("Shortcuts")){
-                shortcuts = userData["Shortcuts"].get<std::map<std::string, std::string> >();
+                shortcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
             }
             if(userData.contains("Text_Entry")){
                 defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();
@@ -551,23 +544,23 @@ void loadUserData() {
             if(userData.contains("Command_Prefix")){
                 commandPrefix = userData["Command_Prefix"].get<std::string>();
             }
+            if(userData.contains("Shortcuts_Prefix")){
+                shortcutsPrefix = userData["Shortcuts_Prefix"].get<std::string>();
+            }
             if(userData.contains("Multi_Script_Shortcuts")){
                 multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();
             }
             if(userData.contains("Last_Updated")){
                 lastUpdated = userData["Last_Updated"].get<std::string>();
             }
-            if(userData.contains("EnvVars")){
-                std::map<std::string, std::string> loadedEnvVars = userData["EnvVars"].get<std::map<std::string, std::string>>();
-                for(const auto& [name, value] : loadedEnvVars) {
-                    terminal.setEnvVar(name, value);
-                }
-            }
             if(userData.contains("Current_Theme")) {
                 currentTheme = userData["Current_Theme"].get<std::string>();
             }
             if(userData.contains("Auto_Update_Check")) {
                 checkForUpdates = userData["Auto_Update_Check"].get<bool>();
+            }
+            if(userData.contains("Aliases")) {
+                aliases = userData["Aliases"].get<std::map<std::string, std::string>>();
             }
             file.close();
         }
@@ -586,16 +579,16 @@ void writeUserData() {
         userData["OpenAI_API_KEY"] = c_assistant.getAPIKey();
         userData["Chat_Cache"] = savedChatCache;
         userData["Startup_Commands"] = startupCommands;
-        userData["Shortcuts_Enabled"] = shotcutsEnabled;
-        userData["Shortcuts"] = shortcuts;
+        userData["Shortcuts_Enabled"] = shortcutsEnabled;
         userData["Text_Buffer"] = false;
         userData["Text_Entry"] = defaultTextEntryOnAI;
         userData["Command_Prefix"] = commandPrefix;
+        userData["Shortcuts_Prefix"] = shortcutsPrefix;
         userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
         userData["Last_Updated"] = lastUpdated;
-        userData["EnvVars"] = terminal.getAllEnvVars();
         userData["Current_Theme"] = currentTheme;
         userData["Auto_Update_Check"] = checkForUpdates;
+        userData["Aliases"] = aliases;
         file << userData.dump(4);
         file.close();
     } else {
@@ -605,7 +598,7 @@ void writeUserData() {
 
 void goToApplicationDirectory() {
     commandProcesser("terminal cd /");
-    commandProcesser("terminal cd " + applicationDirectory +"/"+ DATA_DIRECTORY.string());
+    commandProcesser("terminal cd " + DATA_DIRECTORY.string());
 }
 
 std::string readAndReturnUserDataFile() {
@@ -664,6 +657,10 @@ void commandParser(const std::string& command) {
         terminal.addCommandToHistory(command);
         return;
     }
+    if (command.rfind(shortcutsPrefix, 0) == 0) {
+        multiScriptShortcutProcesser(command);
+        return;
+    }
     if (defaultTextEntryOnAI) {
         chatProcess(command);
         terminal.addCommandToHistory(command);
@@ -699,105 +696,28 @@ inline void trim(std::string &s) {
     ltrim(s);
 }
 
-void shortcutProcesser(const std::string& command) {
-    if (!shotcutsEnabled) {
-        std::cout << "Shortcuts are disabled." << std::endl;
-        return;
-    }
-    if (!shortcuts.empty()) {
-        std::string strippedCommand = command.substr(2);
-        trim(strippedCommand);
-        if (strippedCommand.empty()) {
-            std::cout << "No shortcut given." << std::endl;
-            return;
-        }
-
-        std::istringstream iss(strippedCommand);
-        std::string shortcutName;
-        iss >> shortcutName;
-
-        if (shortcuts.find(shortcutName) != shortcuts.end()) {
-            std::string baseCommand = shortcuts[shortcutName];
-            std::vector<std::string> dashArgs;
-            std::string remainingArgs;
-            std::string arg;
-            while (iss >> arg) {
-                if (arg.front() == '-') {
-                    dashArgs.push_back(arg);
-                } else {
-                    remainingArgs += arg + " ";
-                }
-            }
-            trim(remainingArgs);
-            std::istringstream baseIss(baseCommand);
-            std::string singleCommand;
-            while (std::getline(baseIss, singleCommand, ';')) {
-                trim(singleCommand);
-                if (!singleCommand.empty()) {
-                    std::string fullCommand = singleCommand;
-                    if (!remainingArgs.empty()) {
-                        fullCommand += remainingArgs;
-                    }
-                    commandParser(fullCommand);
-                    for (const auto& dashArg : dashArgs) {
-                        std::string processedArg = dashArg;
-                        processedArg.erase(0, 1);
-                        commandParser(processedArg);
-                    }
-                }
-            }
-        } else {
-            std::cout << "No command for given shortcut: " << shortcutName << std::endl;
-        }
-    } else {
-        std::cout << "No shortcuts have been created." << std::endl;
-    }
-}
-
 void multiScriptShortcutProcesser(const std::string& command){
-    if (!shotcutsEnabled) {
+    if (!shortcutsEnabled) {
         std::cout << "Shortcuts are disabled." << std::endl;
         return;
     }
     if (!multiScriptShortcuts.empty()) {
-        std::string strippedCommand = command.substr(2);
+        std::string strippedCommand = command.substr(1);
         trim(strippedCommand);
         if (strippedCommand.empty()) {
             std::cout << "No shortcut given." << std::endl;
             return;
         }
         if (multiScriptShortcuts.find(strippedCommand) != multiScriptShortcuts.end()) {
-            std::istringstream iss(strippedCommand);
-            std::string shortcutName;
-            iss >> shortcutName;
-            std::vector<std::string> dashArgs;
-            std::string remainingArgs;
-            std::string arg;
-            while (iss >> arg) {
-                if (arg.front() == '-') {
-                    dashArgs.push_back(arg);
-                } else {
-                    remainingArgs += arg + " ";
-                }
-            }
-            trim(remainingArgs);
-            for(const auto& baseCommand : multiScriptShortcuts[shortcutName]) {
-                std::string fullCommand = baseCommand;
-                if (!remainingArgs.empty()) {
-                    fullCommand += remainingArgs;
-                }
-                commandParser(fullCommand);
-                for (const auto& dashArg : dashArgs) {
-                    std::string processedArg = dashArg;
-                    processedArg.erase(0, 1);
-                    commandParser(processedArg);
-                }
+            std::vector<std::string> commands = multiScriptShortcuts[strippedCommand];
+            for (const auto& cmd : commands) {
+                commandParser(commandPrefix + cmd);
             }
         } else {
             std::cout << "No command for given shortcut: " << strippedCommand << std::endl;
         }
     } else {
-        std::cout << "No smulti-script shortcuts have been created." << std::endl;
+        std::cout << "No shortcuts have been created." << std::endl;
     }
 }
 
@@ -805,7 +725,15 @@ void commandProcesser(const std::string& command) {
     commandsQueue = std::queue<std::string>();
     auto commands = commandSplicer(command);
     for (const auto& cmd : commands) {
-        commandsQueue.push(cmd);
+        if (aliases.find(cmd) != aliases.end()) {
+            std::string aliasCommand = aliases[cmd];
+            std::vector<std::string> aliasCommands = commandSplicer(aliasCommand);
+            for (const auto& aliasCmd : aliasCommands) {
+                commandsQueue.push(aliasCmd);
+            }
+        } else {
+            commandsQueue.push(cmd);
+        }
     }
     if (TESTING) {
         std::cout << "Commands Queue: ";
@@ -822,11 +750,7 @@ void commandProcesser(const std::string& command) {
         goToApplicationDirectory();
     } else if (lastCommandParsed == "clear") {
         sendTerminalCommand("clear");
-    } else if(lastCommandParsed == "ss"){
-        shortcutProcesser(command);
-    } else if(lastCommandParsed == "mm"){
-        multiScriptShortcutProcesser(command);
-    } else if (lastCommandParsed == "ai") {
+    }else if (lastCommandParsed == "ai") {
         aiSettingsCommands();
     } else if (lastCommandParsed == "user") {
         userSettingsCommands();
@@ -844,8 +768,17 @@ void commandProcesser(const std::string& command) {
         std::cout << "DevToolsTerminal v" + currentVersion << std::endl;
     } else if (lastCommandParsed == "terminal") {
         try {
-            std::string terminalCommand = command.substr(9);
-            sendTerminalCommand(terminalCommand);
+            std::string remainingCommands;
+            while (!commandsQueue.empty()) {
+                std::string command = commandsQueue.front();
+                commandsQueue.pop();
+                if (remainingCommands.empty()) {
+                    remainingCommands = command;
+                } else {
+                    remainingCommands += " " + command;
+                }
+            }
+            sendTerminalCommand(remainingCommands);
         } catch (std::out_of_range& e) {
             defaultTextEntryOnAI = false;
             return;
@@ -854,8 +787,6 @@ void commandProcesser(const std::string& command) {
         pluginCommands();
     } else if (lastCommandParsed == "theme") {
         themeCommands();
-    } else if (lastCommandParsed == "env") {
-        envVarCommands();
     } else if (lastCommandParsed == "help") {
         std::cout << "Commands:" << std::endl;
         std::cout << " commandprefix: Change the command prefix (" << commandPrefix << ")" << std::endl;
@@ -863,8 +794,6 @@ void commandProcesser(const std::string& command) {
         std::cout << " approot: Switch to the application directory" << std::endl;
         std::cout << " terminal [ARGS]: Run terminal commands" << std::endl;
         std::cout << " user: Access user settings" << std::endl;
-        std::cout << " ss: Execute single script shortcut" << std::endl;
-        std::cout << " mm: Execute multi-script shortcut" << std::endl;
         std::cout << " aihelp: Get AI troubleshooting help" << std::endl;
         std::cout << " theme: Manage themes (load/save)" << std::endl;
         std::cout << " version: Display application version" << std::endl;
@@ -883,16 +812,7 @@ void commandProcesser(const std::string& command) {
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         
         if (confirmation == 'y' || confirmation == 'Y') {
-            // First check if the script exists in the expected location
-            std::string uninstallScriptPath = applicationDirectory + "/tool-scripts/uninstall.sh";
-            bool scriptExists = std::filesystem::exists(uninstallScriptPath);
-            
-            // If not found, generate it
-            if (!scriptExists) {
-                std::cout << "Uninstall script not found. Generating one..." << std::endl;
-                uninstallScriptPath = generateUninstallScript();
-            }
-            
+            std::string uninstallScriptPath = generateUninstallScript();
             std::string uninstallCommand = "bash \"" + uninstallScriptPath + "\"";
             std::cout << "Running uninstall script..." << std::endl;
             system(uninstallCommand.c_str());
@@ -1080,6 +1000,7 @@ void sendTerminalCommand(const std::string& command) {
     if (TESTING) {
         std::cout << "Sending Command: " << command << std::endl;
     }
+    terminal.setAliases(aliases);
     std::thread commandThread = terminal.executeCommand(command);
     if (commandThread.joinable()) {
         commandThread.join();
@@ -1102,6 +1023,10 @@ void userSettingsCommands() {
     }
     if (lastCommandParsed == "shortcut") {
         shortcutCommands();
+        return;
+    }
+    if (lastCommandParsed == "alias") {
+        aliasCommands();
         return;
     }
     if (lastCommandParsed == "testing") {
@@ -1182,7 +1107,8 @@ void userSettingsCommands() {
         std::cout << "User settings commands:" << std::endl;
         std::cout << " startup: Manage startup commands (add, remove, clear, enable, disable, list, runall)" << std::endl;
         std::cout << " text: Configure text settings (commandprefix, displayfullpath, defaultentry)" << std::endl;
-        std::cout << " shortcut: Manage shortcuts (add, remove, clear, list, mm)" << std::endl;
+        std::cout << " shortcut: Manage shortcuts (add, remove, list)" << std::endl;
+        std::cout << " alias: Manage aliases (add, remove, list)" << std::endl;
         std::cout << " testing: Toggle testing mode (enable/disable)" << std::endl;
         std::cout << " data: Manage user data (get userdata/userhistory/all, clear)" << std::endl;
         std::cout << " saveloop: Toggle auto-save loop (enable/disable)" << std::endl;
@@ -1191,6 +1117,75 @@ void userSettingsCommands() {
         return;
     }
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+}
+
+void aliasCommands() {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "add") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        std::string aliasName = lastCommandParsed;
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        std::string aliasValue = lastCommandParsed;
+        aliases[aliasName] = aliasValue;
+        writeUserData();
+        std::cout << "Alias added: " << aliasName << " -> " << aliasValue << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "remove") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            return;
+        }
+        if (aliases.empty()) {
+            std::cout << "No aliases found." << std::endl;
+            return;
+        }
+        if (aliases.find(lastCommandParsed) == aliases.end()) {
+            std::cout << "Alias not found: " << lastCommandParsed << std::endl;
+            return;
+        }
+        if(lastCommandParsed == "all") {
+            aliases.clear();
+            writeUserData();
+            std::cout << "All aliases removed." << std::endl;
+            return;
+        }
+        std::string aliasName = lastCommandParsed;
+        aliases.erase(aliasName);
+        writeUserData();
+        std::cout << "Alias removed: " << aliasName << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "list") {
+        if (!aliases.empty()) {
+            for (const auto& [key, value] : aliases) {
+                std::cout << key << ": " << value << std::endl;
+            }
+        } else {
+            std::cout << "No aliases found." << std::endl;
+        }
+        return;
+    }
+    if (lastCommandParsed == "help") {
+        std::cout << "Alias commands:" << std::endl;
+        std::cout << " add [NAME] [VALUE]: Add a new alias" << std::endl;
+        std::cout << " remove [NAME]: Remove an existing alias" << std::endl;
+        std::cout << " list: List all aliases" << std::endl;
+        return;
+    }
 }
 
 void userDataCommands(){
@@ -1353,16 +1348,8 @@ void startupCommandsHandler() {
 void shortcutCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        if (!shortcuts.empty()) {
-            std::cout << "Shortcuts:" << std::endl;
-            for (const auto& [key, value] : shortcuts) {
-                std::cout << key + " = " + value << std::endl;
-            }
-        } else {
-            std::cout << "No shortcuts." << std::endl;
-        }
         if(!multiScriptShortcuts.empty()){
-            std::cout << "Multi-Script Shortcuts:" << std::endl;
+            std::cout << "Shortcuts:" << std::endl;
             for (const auto& [key, value] : multiScriptShortcuts) {
                 std::cout << key + " = ";
                 for(const auto& command : value){
@@ -1371,101 +1358,46 @@ void shortcutCommands() {
                 std::cout << std::endl;
             }
         } else {
-            std::cout << "No multi-script shortcuts." << std::endl;
+            std::cout << "No shortcuts." << std::endl;
         }
         return;
     }
-    if (lastCommandParsed == "clear") {
-        shortcuts.clear();
-        std::cout << "Shortcuts cleared." << std::endl;
-        return;
-    }
     if (lastCommandParsed == "enable") {
-        shotcutsEnabled = true;
+        shortcutsEnabled = true;
         std::cout << "Shortcuts enabled." << std::endl;
         return;
     }
     if (lastCommandParsed == "disable") {
-        shotcutsEnabled = false;
+        shortcutsEnabled = false;
         std::cout << "Shortcuts disabled." << std::endl;
         return;
     }
-    if(lastCommandParsed == "mm"){
-        multiScriptShortcutCommands();
-        return;
-    }
-    if (lastCommandParsed == "add") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::string shortcut = lastCommandParsed;
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::string command = lastCommandParsed;
-        shortcuts[shortcut] = command;
-        std::cout << "Shortcut added." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "remove") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        if(shortcuts.find(lastCommandParsed) == shortcuts.end()){
-            std::cout << "Shortcut not found." << std::endl;
-            return;
-        }
-        shortcuts.erase(lastCommandParsed);
-        std::cout << "Shortcut removed." << std::endl;
-        return;
-    }
     if (lastCommandParsed == "list") {
-        if (!shortcuts.empty()) {
-            std::cout << "Shortcuts:" << std::endl;
-            for (const auto& [key, value] : shortcuts) {
-                std::cout << key + " = " + value << std::endl;
-            }
-        } else {
-            std::cout << "No shortcuts." << std::endl;
-        }
-        if(!multiScriptShortcuts.empty()){
-            std::cout << "Multi-Script Shortcuts:" << std::endl;
-            for (const auto& [key, value] : multiScriptShortcuts) {
-                std::cout << key + " = ";
-                for(const auto& command : value){
-                    std::cout << "'"+command + "' ";
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            if(!multiScriptShortcuts.empty()){
+                std::cout << "Shortcuts:" << std::endl;
+                for (const auto& [key, value] : multiScriptShortcuts) {
+                    std::cout << key + " = ";
+                    for(const auto& command : value){
+                        std::cout << "'"+command + "' ";
+                    }
+                    std::cout << std::endl;
                 }
-                std::cout << std::endl;
+            } else {
+                std::cout << "No shortcuts." << std::endl;
             }
-        } else {
-            std::cout << "No multi-script shortcuts." << std::endl;
+            return;
         }
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "Shortcut commands:" << std::endl;
-        std::cout << " clear: Remove all shortcuts" << std::endl;
-        std::cout << " enable: Enable shortcuts" << std::endl;
-        std::cout << " disable: Disable shortcuts" << std::endl;
-        std::cout << " mm: Access multi-script shortcut commands" << std::endl;
-        std::cout << " add [NAME] [CMD]: Add a new shortcut" << std::endl;
-        std::cout << " remove [NAME]: Remove a shortcut" << std::endl;
-        std::cout << " list: List all shortcuts" << std::endl;
-        return;
-    }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-}
-
-void multiScriptShortcutCommands(){
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        if (multiScriptShortcuts.find(lastCommandParsed) != multiScriptShortcuts.end()) {
+            std::cout << lastCommandParsed + " = ";
+            for(const auto& command : multiScriptShortcuts[lastCommandParsed]){
+                std::cout << "'"+command + "' ";
+            }
+            std::cout << std::endl;
+        } else {
+            std::cout << "Shortcut not found." << std::endl;
+        }
         return;
     }
     if(lastCommandParsed == "add"){
@@ -1486,7 +1418,7 @@ void multiScriptShortcutCommands(){
             return;
         }
         multiScriptShortcuts[shortcut] = commands;
-        std::cout << "Multi-Script Shortcut added." << std::endl;
+        std::cout << "Shortcut added." << std::endl;
         return;
     }
     if(lastCommandParsed == "remove"){
@@ -1495,18 +1427,26 @@ void multiScriptShortcutCommands(){
             std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
+        if (lastCommandParsed == "all") {
+            multiScriptShortcuts.clear();
+            std::cout << "All shortcuts removed." << std::endl;
+            return;
+        }
         if(multiScriptShortcuts.find(lastCommandParsed) == multiScriptShortcuts.end()){
-            std::cout << "Multi-Script Shortcut not found." << std::endl;
+            std::cout << "Shortcut not found." << std::endl;
             return;
         }
         multiScriptShortcuts.erase(lastCommandParsed);
-        std::cout << "Multi-Script Shortcut removed." << std::endl;
+        std::cout << "Shortcut removed." << std::endl;
         return;
     }
     if (lastCommandParsed == "help") {
-        std::cout << "Multi-script shortcut commands:" << std::endl;
-        std::cout << " add [NAME] [CMD1] [CMD2] ... : Add a multi-script shortcut" << std::endl;
-        std::cout << " remove [NAME]: Remove a multi-script shortcut" << std::endl;
+        std::cout << "Shortcut commands:" << std::endl;
+        std::cout << " enable: Enable shortcuts" << std::endl;
+        std::cout << " disable: Disable shortcuts" << std::endl;
+        std::cout << " list: List all shortcuts" << std::endl;
+        std::cout << " add [NAME] [CMD1] [CMD2] ... : Add a shortcut" << std::endl;
+        std::cout << " remove [NAME]: Remove a shortcut" << std::endl;
         return;
     }
     std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1533,6 +1473,23 @@ void textCommands() {
         }
         commandPrefix = lastCommandParsed;
         std::cout << "Command prefix set to " + commandPrefix << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "shortcutprefix") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Shortcut prefix is currently " + shortcutsPrefix << std::endl;
+            return;
+        }
+        if (lastCommandParsed.length() > 1) {
+            std::cout << "Invalid shortcut prefix. Must be a single character." << std::endl;
+            return;
+        } else if (lastCommandParsed == " ") {
+            std::cout << "Invalid shortcut prefix. Must not be a space." << std::endl;
+            return;
+        }
+        shortcutsPrefix = lastCommandParsed;
+        std::cout << "Shortcut prefix set to " + shortcutsPrefix << std::endl;
         return;
     }
     if(lastCommandParsed == "displayfullpath"){
@@ -2131,116 +2088,7 @@ void themeCommands() {
         std::cerr << "Unknown theme command. Use 'load' or 'save'." << std::endl;
     }
 }
-
-void envVarCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::map<std::string, std::string> allVars = terminal.getAllEnvVars();
-        if (allVars.empty()) {
-            std::cout << "No environment variables defined." << std::endl;
-        } else {
-            std::cout << "Environment Variables:" << std::endl;
-            for (const auto& [name, value] : allVars) {
-                std::cout << name << "=" << value << std::endl;
-            }
-        }
-        return;
-    }
-    
-    if (lastCommandParsed == "set") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No variable name provided." << std::endl;
-            return;
-        }
-        std::string varName = lastCommandParsed;
-        
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No value provided for variable " << varName << "." << std::endl;
-            return;
-        }
-        std::string varValue = lastCommandParsed;
-        
-        terminal.setEnvVar(varName, varValue);
-        std::cout << "Environment variable set: " << varName << "=" << varValue << std::endl;
-        return;
-    }
-    
-    if (lastCommandParsed == "get") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No variable name provided." << std::endl;
-            return;
-        }
-        std::string varName = lastCommandParsed;
-        
-        if (terminal.hasEnvVar(varName)) {
-            std::cout << varName << "=" << terminal.getEnvVar(varName) << std::endl;
-        } else {
-            std::cout << "Environment variable not defined: " << varName << std::endl;
-        }
-        return;
-    }
-    
-    if (lastCommandParsed == "remove" || lastCommandParsed == "unset") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No variable name provided." << std::endl;
-            return;
-        }
-        std::string varName = lastCommandParsed;
-        
-        if (terminal.hasEnvVar(varName)) {
-            terminal.removeEnvVar(varName);
-            std::cout << "Environment variable removed: " << varName << std::endl;
-        } else {
-            std::cout << "Environment variable not defined: " << varName << std::endl;
-        }
-        return;
-    }
-    
-    if (lastCommandParsed == "clear") {
-        std::map<std::string, std::string> allVars = terminal.getAllEnvVars();
-        for (const auto& [name, _] : allVars) {
-            terminal.removeEnvVar(name);
-        }
-        std::cout << "All environment variables cleared." << std::endl;
-        return;
-    }
-    
-    if (lastCommandParsed == "expand") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No string provided for expansion." << std::endl;
-            return;
-        }
-        
-        std::string toExpand = lastCommandParsed;
-        while (!commandsQueue.empty()) {
-            toExpand += " " + commandsQueue.front();
-            commandsQueue.pop();
-        }
-        
-        std::cout << "Original: " << toExpand << std::endl;
-        std::cout << "Expanded: " << terminal.expandEnvVars(toExpand) << std::endl;
-        return;
-    }
-    
-    if (lastCommandParsed == "help") {
-        std::cout << "Environment variable commands:" << std::endl;
-        std::cout << " env: List all environment variables" << std::endl;
-        std::cout << " env set NAME VALUE: Set an environment variable" << std::endl;
-        std::cout << " env get NAME: Get the value of an environment variable" << std::endl;
-        std::cout << " env remove|unset NAME: Remove an environment variable" << std::endl;
-        std::cout << " env clear: Remove all environment variables" << std::endl;
-        std::cout << " env expand STRING: Show expansion of variables in a string" << std::endl;
-        return;
-    }
-    
-    std::cerr << "Unknown command. Try 'env help' for a list of commands." << std::endl;
-}
-
+   
 std::string generateUninstallScript() {
     std::filesystem::path uninstallPath = DATA_DIRECTORY / "dtt-uninstall.sh";
     std::ofstream uninstallScript(uninstallPath);
@@ -2320,7 +2168,7 @@ std::string generateUninstallScript() {
         uninstallScript << "        echo \"Removing legacy installation from $SYSTEM_APP_PATH...\"\n";
         uninstallScript << "        rm \"$SYSTEM_APP_PATH\"\n";
         uninstallScript << "        # Also remove the uninstall script if it exists\n";
-        uninstallScript << "        if [ -f \"$LEGACY_UNINSTALL_SCRIPT\" ]; then\n";
+        uninstallScript << "        if [ -f \"$LEGACY_UNINSTALL_SCRIPT\" ] && [ \"$LEGACY_UNINSTALL_SCRIPT\" != \"$0\" ]; then\n";
         uninstallScript << "            rm \"$LEGACY_UNINSTALL_SCRIPT\"\n";
         uninstallScript << "        fi\n";
         uninstallScript << "    elif sudo -n true 2>/dev/null; then\n";

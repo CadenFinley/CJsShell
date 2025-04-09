@@ -9,7 +9,7 @@
 class PluginInterface {
 public:
     // Plugin interface version for compatibility checking
-    static constexpr int INTERFACE_VERSION = 1;
+    static constexpr int INTERFACE_VERSION = 2;
     
     //plugin has its own default constructor
     virtual ~PluginInterface() {}
@@ -36,6 +36,10 @@ public:
     //plugin settings
     virtual std::map<std::string, std::string> getDefaultSettings() const = 0;
     virtual void updateSetting(const std::string& key, const std::string& value) = 0;
+
+private:
+    std::string homeDirectory = getenv("HOME");
+    std::string pluginDirectory;
 };
 
 //plugin interface

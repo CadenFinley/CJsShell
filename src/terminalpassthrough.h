@@ -29,6 +29,7 @@ public:
 
     std::thread executeCommand(std::string command);
     void addCommandToHistory(const std::string& command);
+    void setAliases(const std::map<std::string, std::string>& aliases);
     std::string getPreviousCommand();
     std::string getNextCommand();
 
@@ -37,13 +38,6 @@ public:
     void clearTerminalCache();
     std::string returnMostRecentUserInput();
     std::string returnMostRecentTerminalOutput();
-
-    void setEnvVar(const std::string& name, const std::string& value);
-    std::string getEnvVar(const std::string& name) const;
-    bool hasEnvVar(const std::string& name) const;
-    void removeEnvVar(const std::string& name);
-    std::map<std::string, std::string> getAllEnvVars() const;
-    std::string expandEnvVars(const std::string& command) const;
 
     void setShellColor(const std::string& color);
     void setDirectoryColor(const std::string& color);
@@ -59,6 +53,7 @@ private:
     bool displayWholePath;
     std::vector<std::string> terminalCacheUserInput;
     std::vector<std::string> terminalCacheTerminalOutput;
+    std::map<std::string, std::string> aliases;
     std::string SHELL_COLOR = "\033[1;31m";
     std::string RESET_COLOR = "\033[0m";
     std::string DIRECTORY_COLOR = "\033[1;34m";
@@ -66,7 +61,6 @@ private:
     std::string GIT_COLOR = "\033[1;32m";
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
-    std::map<std::string, std::string> envVars;
 
     std::string getCurrentFileName();
     bool isRootPath(const std::filesystem::path& path);
