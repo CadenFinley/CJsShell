@@ -33,6 +33,7 @@ bool saveLoop = false;
 bool saveOnExit = false;
 
 bool shortcutsEnabled = true;
+bool aliasesEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
@@ -51,7 +52,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.2.1";
+const std::string currentVersion = "1.8.2.2";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -698,14 +699,14 @@ inline void trim(std::string &s) {
 
 void multiScriptShortcutProcesser(const std::string& command){
     if (!shortcutsEnabled) {
-        std::cout << "Shortcuts are disabled." << std::endl;
+        std::cerr << "Shortcuts are disabled." << std::endl;
         return;
     }
     if (!multiScriptShortcuts.empty()) {
         std::string strippedCommand = command.substr(1);
         trim(strippedCommand);
         if (strippedCommand.empty()) {
-            std::cout << "No shortcut given." << std::endl;
+            std::cerr << "No shortcut given." << std::endl;
             return;
         }
         if (multiScriptShortcuts.find(strippedCommand) != multiScriptShortcuts.end()) {
@@ -714,24 +715,30 @@ void multiScriptShortcutProcesser(const std::string& command){
                 commandParser(commandPrefix + cmd);
             }
         } else {
-            std::cout << "No command for given shortcut: " << strippedCommand << std::endl;
+            std::cerr << "No command for given shortcut: " << strippedCommand << std::endl;
         }
     } else {
-        std::cout << "No shortcuts have been created." << std::endl;
+        std::cerr << "No shortcuts have been created." << std::endl;
     }
 }
 
 void commandProcesser(const std::string& command) {
     commandsQueue = std::queue<std::string>();
     auto commands = commandSplicer(command);
-    for (const auto& cmd : commands) {
-        if (aliases.find(cmd) != aliases.end()) {
-            std::string aliasCommand = aliases[cmd];
-            std::vector<std::string> aliasCommands = commandSplicer(aliasCommand);
-            for (const auto& aliasCmd : aliasCommands) {
-                commandsQueue.push(aliasCmd);
+    if(aliasesEnabled){
+        for (const auto& cmd : commands) {
+            if (aliases.find(cmd) != aliases.end()) {
+                std::string aliasCommand = aliases[cmd];
+                std::vector<std::string> aliasCommands = commandSplicer(aliasCommand);
+                for (const auto& aliasCmd : aliasCommands) {
+                    commandsQueue.push(aliasCmd);
+                }
+            } else {
+                commandsQueue.push(cmd);
             }
-        } else {
+        }
+    } else {
+        for (const auto& cmd : commands) {
             commandsQueue.push(cmd);
         }
     }
@@ -743,7 +750,7 @@ void commandProcesser(const std::string& command) {
         std::cout << std::endl;
     }
     if (commandsQueue.empty()) {
-        std::cout << "Unknown command. Please try again." << std::endl;
+        std::cerr << "Unknown command. Please try again." << std::endl;
     }
     getNextCommand();
     if (lastCommandParsed == "approot") {
@@ -803,7 +810,7 @@ void commandProcesser(const std::string& command) {
         return;
     } else if (lastCommandParsed == "uninstall") {
         if (pluginManager->getEnabledPlugins().size() > 0) {
-            std::cout << "Please disable all plugins before uninstalling." << std::endl;
+            std::cerr << "Please disable all plugins before uninstalling." << std::endl;
             return;
         }
         std::cout << "Are you sure you want to uninstall DevToolsTerminal? (y/n): ";
@@ -865,7 +872,7 @@ void pluginCommands(){
     if(lastCommandParsed == "info") {
         getNextCommand();
         if(lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         std::string pluginToGetInfo = lastCommandParsed;
@@ -938,19 +945,19 @@ void pluginCommands(){
         if(lastCommandParsed == "settings") {
             getNextCommand();
             if(lastCommandParsed.empty()) {
-                std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
                 return;
             }
             if(lastCommandParsed == "set") {
                 getNextCommand();
                 if(lastCommandParsed.empty()) {
-                    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
                     return;
                 }
                 std::string settingToModify = lastCommandParsed;
                 getNextCommand();
                 if(lastCommandParsed.empty()) {
-                    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+                    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
                     return;
                 }
                 std::string settingValue = lastCommandParsed;
@@ -977,7 +984,7 @@ void pluginCommands(){
             std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
             return;
         }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     } else {
         std::vector<std::string> availablePlugins = pluginManager->getAvailablePlugins();
@@ -987,10 +994,10 @@ void pluginCommands(){
                 pluginManager->enablePlugin(pluginToModify);
                 return;
             }
-            std::cout << "Plugin: "<< pluginToModify << " is disabled." << std::endl;
+            std::cerr << "Plugin: "<< pluginToModify << " is disabled." << std::endl;
             return;
         } else {
-            std::cout << "Plugin " << pluginToModify << " does not exist." << std::endl;
+            std::cerr << "Plugin " << pluginToModify << " does not exist." << std::endl;
             return;
         }
     }
@@ -1010,7 +1017,7 @@ void sendTerminalCommand(const std::string& command) {
 void userSettingsCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
     if (lastCommandParsed == "startup") {
@@ -1032,7 +1039,7 @@ void userSettingsCommands() {
     if (lastCommandParsed == "testing") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         if (lastCommandParsed == "enable") {
@@ -1045,7 +1052,7 @@ void userSettingsCommands() {
             std::cout << "Testing mode disabled." << std::endl;
             return;
         }
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
     if (lastCommandParsed == "data") {
@@ -1122,19 +1129,29 @@ void userSettingsCommands() {
 void aliasCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cout << "Aliases are currently " << (aliasesEnabled ? "enabled." : "disabled.") << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "enable") {
+        aliasesEnabled = true;
+        std::cout << "Aliases enabled." << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "disable") {
+        aliasesEnabled = false;
+        std::cout << "Aliases disabled." << std::endl;
         return;
     }
     if (lastCommandParsed == "add") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         std::string aliasName = lastCommandParsed;
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         std::string aliasValue = lastCommandParsed;
@@ -1146,15 +1163,15 @@ void aliasCommands() {
     if (lastCommandParsed == "remove") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         if (aliases.empty()) {
-            std::cout << "No aliases found." << std::endl;
+            std::cerr << "No aliases found." << std::endl;
             return;
         }
         if (aliases.find(lastCommandParsed) == aliases.end()) {
-            std::cout << "Alias not found: " << lastCommandParsed << std::endl;
+            std::cerr << "Alias not found: " << lastCommandParsed << std::endl;
             return;
         }
         if(lastCommandParsed == "all") {
@@ -1175,7 +1192,7 @@ void aliasCommands() {
                 std::cout << key << ": " << value << std::endl;
             }
         } else {
-            std::cout << "No aliases found." << std::endl;
+            std::cerr << "No aliases found." << std::endl;
         }
         return;
     }
@@ -1258,14 +1275,14 @@ void startupCommandsHandler() {
                 std::cout << command << std::endl;
             }
         } else {
-            std::cout << "No startup commands." << std::endl;
+            std::cerr << "No startup commands." << std::endl;
         }
         return;
     }
     if (lastCommandParsed == "add") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         startupCommands.push_back(lastCommandParsed);
@@ -1275,7 +1292,7 @@ void startupCommandsHandler() {
     if (lastCommandParsed == "remove") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         std::vector<std::string> newStartupCommands;
@@ -1289,7 +1306,7 @@ void startupCommandsHandler() {
             }
         }
         if (!removed) {
-            std::cout << "Command not found in startup commands." << std::endl;
+            std::cerr << "Command not found in startup commands." << std::endl;
         }
         startupCommands = newStartupCommands;
         return;
@@ -1316,7 +1333,7 @@ void startupCommandsHandler() {
                 std::cout << command << std::endl;
             }
         } else {
-            std::cout << "No startup commands." << std::endl;
+            std::cerr << "No startup commands." << std::endl;
         }
         return;
     }
@@ -1327,7 +1344,7 @@ void startupCommandsHandler() {
                 commandParser(commandPrefix + command);
             }
         } else {
-            std::cout << "No startup commands." << std::endl;
+            std::cerr << "No startup commands." << std::endl;
         }
         return;
     }
@@ -1342,7 +1359,7 @@ void startupCommandsHandler() {
         std::cout << " runall: Execute all startup commands now" << std::endl;
         return;
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void shortcutCommands() {
@@ -1358,7 +1375,7 @@ void shortcutCommands() {
                 std::cout << std::endl;
             }
         } else {
-            std::cout << "No shortcuts." << std::endl;
+            std::cerr << "No shortcuts." << std::endl;
         }
         return;
     }
@@ -1385,7 +1402,7 @@ void shortcutCommands() {
                     std::cout << std::endl;
                 }
             } else {
-                std::cout << "No shortcuts." << std::endl;
+                std::cerr << "No shortcuts." << std::endl;
             }
             return;
         }
@@ -1396,14 +1413,14 @@ void shortcutCommands() {
             }
             std::cout << std::endl;
         } else {
-            std::cout << "Shortcut not found." << std::endl;
+            std::cerr << "Shortcut not found." << std::endl;
         }
         return;
     }
     if(lastCommandParsed == "add"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         std::string shortcut = lastCommandParsed;
@@ -1414,7 +1431,7 @@ void shortcutCommands() {
             getNextCommand();
         }
         if(commands.empty()){
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         multiScriptShortcuts[shortcut] = commands;
@@ -1424,7 +1441,7 @@ void shortcutCommands() {
     if(lastCommandParsed == "remove"){
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
             return;
         }
         if (lastCommandParsed == "all") {
@@ -1433,7 +1450,7 @@ void shortcutCommands() {
             return;
         }
         if(multiScriptShortcuts.find(lastCommandParsed) == multiScriptShortcuts.end()){
-            std::cout << "Shortcut not found." << std::endl;
+            std::cerr << "Shortcut not found." << std::endl;
             return;
         }
         multiScriptShortcuts.erase(lastCommandParsed);
@@ -1449,13 +1466,13 @@ void shortcutCommands() {
         std::cout << " remove [NAME]: Remove a shortcut" << std::endl;
         return;
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void textCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
     if (lastCommandParsed == "commandprefix") {
@@ -1465,10 +1482,10 @@ void textCommands() {
             return;
         }
         if (lastCommandParsed.length() > 1) {
-            std::cout << "Invalid command prefix. Must be a single character." << std::endl;
+            std::cerr << "Invalid command prefix. Must be a single character." << std::endl;
             return;
         } else if (lastCommandParsed == " ") {
-            std::cout << "Invalid command prefix. Must not be a space." << std::endl;
+            std::cerr << "Invalid command prefix. Must not be a space." << std::endl;
             return;
         }
         commandPrefix = lastCommandParsed;
@@ -1482,10 +1499,10 @@ void textCommands() {
             return;
         }
         if (lastCommandParsed.length() > 1) {
-            std::cout << "Invalid shortcut prefix. Must be a single character." << std::endl;
+            std::cerr << "Invalid shortcut prefix. Must be a single character." << std::endl;
             return;
         } else if (lastCommandParsed == " ") {
-            std::cout << "Invalid shortcut prefix. Must not be a space." << std::endl;
+            std::cerr << "Invalid shortcut prefix. Must not be a space." << std::endl;
             return;
         }
         shortcutsPrefix = lastCommandParsed;
@@ -1533,7 +1550,7 @@ void textCommands() {
         std::cout << " defaultentry ai/terminal: Set default text entry mode" << std::endl;
         return;
     }
-    std::cout << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void getNextCommand() {
