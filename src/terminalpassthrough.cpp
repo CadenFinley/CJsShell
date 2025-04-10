@@ -4,7 +4,7 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     currentDirectory = std::filesystem::current_path().string();
     terminalCacheUserInput = std::vector<std::string>();
     terminalCacheTerminalOutput = std::vector<std::string>();
-    lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10); // Initialize to expired
+    lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     isGitStatusCheckRunning = false;
         std::string terminalID= "dtt";
         char buffer[256];
@@ -14,10 +14,24 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
             if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
                 terminalID = std::string(buffer);
                 terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
+                // Remove any special characters from terminal name
+                terminalID = removeSpecialCharacters(terminalID);
             }
             pclose(pipe);
         }
     terminalName = terminalID;
+}
+
+// Helper function to remove special characters
+std::string TerminalPassthrough::removeSpecialCharacters(const std::string& input) {
+    std::string result;
+    for (char c : input) {
+        // Keep only alphanumeric characters, underscore, and hyphen
+        if (isalnum(c) || c == '_' || c == '-') {
+            result += c;
+        }
+    }
+    return result;
 }
 
 std::string TerminalPassthrough::getTerminalName(){

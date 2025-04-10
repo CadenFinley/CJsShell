@@ -76,6 +76,7 @@ private:
 
     std::string getCurrentFileName();
     bool isRootPath(const std::filesystem::path& path);
+    std::string removeSpecialCharacters(const std::string& input);
 };
 
 #endif // TERMINALPASSTHROUGH_H
