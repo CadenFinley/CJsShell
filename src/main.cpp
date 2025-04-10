@@ -28,6 +28,7 @@ bool rawModeEnabled = false;
 bool saveLoop = false;
 bool saveOnExit = false;
 bool updateFromGithub = false;
+bool executablesCacheInitialized = false;
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -51,7 +52,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.5.1";
+const std::string currentVersion = "1.8.5.2";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -71,6 +72,7 @@ std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
 std::vector<std::string> commandLines;
+std::vector<std::string> executablesCache;  // Cache for executable commands
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
 
@@ -139,6 +141,7 @@ void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
+void refreshExecutablesCache();  // Add this new function declaration
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
@@ -225,6 +228,8 @@ int main(int argc, char* argv[]) {
         applyColorToStrings();
     }
 
+    refreshExecutablesCache();
+
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
         std::cout << "Running startup commands..." << std::endl;
@@ -274,9 +279,7 @@ void mainProcessLoop() {
         if (defaultTextEntryOnAI) {
             std::string modelInfo = c_assistant.getModel();
             std::string modeInfo = c_assistant.getAssistantType();
-            terminalSetting = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
-                              GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
-                              GREEN_COLOR_BOLD + "] > " + RESET_COLOR;
+            terminalSetting = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + GREEN_COLOR_BOLD + "] > " + RESET_COLOR;
             terminalSettingLength = 10 + modelInfo.length() + modeInfo.length();
         } else {
             terminalSetting = terminal.returnCurrentTerminalPosition();
@@ -354,7 +357,6 @@ void mainProcessLoop() {
                     }
                 }
             } else if (c == '\n') {
-                // Clear any suggestion when pressing enter
                 if (hasSuggestion) {
                     std::cout << "\033[K";
                     hasSuggestion = false;
@@ -363,7 +365,6 @@ void mainProcessLoop() {
                 std::cout << std::endl;
                 break;
             } else if (c == 127) {
-                // Clear any suggestion when pressing backspace
                 if (hasSuggestion) {
                     std::cout << "\033[K";
                     hasSuggestion = false;
@@ -386,11 +387,9 @@ void mainProcessLoop() {
                 currentCompletions.clear();
                 originalInput = "";
                 
-                // Show suggestion for the new input
                 showInlineSuggestion(commandLines[cursorPositionY]);
             } else if (c == '\t') {
                 if (!commandLines[cursorPositionY].empty()) {
-                    // If we have an active suggestion, accept it
                     if (hasSuggestion && !currentSuggestion.empty()) {
                         clearLines(commandLines);
                         commandLines[cursorPositionY] += currentSuggestion;
@@ -402,7 +401,6 @@ void mainProcessLoop() {
                         reprintCommandLines(commandLines, terminalSetting);
                         placeCursor(cursorPositionX, cursorPositionY);
                         
-                        // After accepting, reset completion state
                         tabCompletionIndex = 0;
                         currentCompletions.clear();
                         originalInput = "";
@@ -425,7 +423,6 @@ void mainProcessLoop() {
                     }
                 }
             } else {
-                // Clear any suggestion when typing a new character
                 if (hasSuggestion) {
                     std::cout << "\033[K";
                     hasSuggestion = false;
@@ -454,7 +451,6 @@ void mainProcessLoop() {
                 currentCompletions.clear();
                 originalInput = "";
                 
-                // Show suggestion for the new input
                 showInlineSuggestion(commandLines[cursorPositionY]);
             }
         }
@@ -515,7 +511,6 @@ void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
 }
 
 std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
-    // Clear any suggestion when navigating with arrow keys
     if (hasSuggestion) {
         std::cout << "\033[K";
         hasSuggestion = false;
@@ -935,6 +930,7 @@ void commandProcesser(const std::string& command) {
         std::cout << " plugin: Manage plugins" << std::endl;
         std::cout << " env: Manage environment variables" << std::endl;
         std::cout << " uninstall: Uninstall the application" << std::endl;
+        std::cout << " refresh-commands: Refresh the executable commands cache" << std::endl;
         return;
     } else if (lastCommandParsed == "uninstall") {
         if (pluginManager->getEnabledPlugins().size() > 0) {
@@ -955,6 +951,11 @@ void commandProcesser(const std::string& command) {
         } else {
             std::cout << "Uninstall cancelled." << std::endl;
         }
+        return;
+    } else if (lastCommandParsed == "refresh-commands" || lastCommandParsed == "refresh-executables") {
+        std::cout << "Refreshing executable commands cache..." << std::endl;
+        refreshExecutablesCache();
+        std::cout << "Discovered " << executablesCache.size() << " executable commands." << std::endl;
         return;
     } else {
         std::queue<std::string> tempQueue;
@@ -1245,7 +1246,7 @@ void userSettingsCommands() {
     if (lastCommandParsed == "updatepath") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Update path is currently " << (updateFromGithub ? "from GitHub." : "from my personal website CadenFinley.com.") << std::endl;
+            std::cout << "Update path is currently " << (updateFromGithub ? "from GitHub." : "from my personal website Cadenfinley.com.") << std::endl;
             std::cout << "To change the update path, use 'user updatepath github' or 'user updatepath cadenfinley'" << std::endl;
             return;
         }
@@ -1688,8 +1689,7 @@ void textCommands() {
     }
     
     if (lastCommandParsed == "displayfullpath") {
-        handleToggleCommand("Display whole path", displayWholePath, 
-                          [&](bool value) { terminal.setDisplayWholePath(value); });
+        handleToggleCommand("Display whole path", displayWholePath, [&](bool value) { terminal.setDisplayWholePath(value); });
         return;
     }
     
@@ -2223,7 +2223,6 @@ bool downloadLatestRelease_Github() {
                 return false;
             }
 
-            // Display changelog directly instead of saving to file
             if (!changeLog.empty()) {
                 displayChangeLog(changeLog);
             }
@@ -2243,7 +2242,6 @@ bool downloadLatestRelease_Github() {
 
 bool downloadLatestRelease_CadenFinley() {
     std::cout << "Downloading latest release from CadenFinley.com..." << std::endl;
-    // Retrieve version info to get the changelog
     std::string versionInfoJson;
     std::string versionCmd = "curl -s " + versionURL_CadenFinley;
     FILE* versionPipe = popen(versionCmd.c_str(), "r");
@@ -2266,42 +2264,34 @@ bool downloadLatestRelease_CadenFinley() {
         }
     } catch (std::exception &e) {
         std::cerr << "Warning: Could not parse version info JSON: " << e.what() << std::endl;
-        // Continue anyway as we can still download the binary
     }
     
-    // Make sure data directory exists
     if (!std::filesystem::exists(DATA_DIRECTORY)) {
         std::filesystem::create_directory(DATA_DIRECTORY);
     }
     
-    // Prepare file paths
     std::string downloadPath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal_latest").string();
     std::string exePath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal").string();
     
-    // Download the binary
     std::string downloadCmd = "curl -L -o \"" + downloadPath + "\" " + updateURL_CadenFinley;
     std::cout << "Downloading latest release from CadenFinley.com..." << std::endl;
     
     int ret = system(downloadCmd.c_str());
     if (ret == 0) {
-        // Make executable
         std::string chmodCmd = "chmod +x \"" + downloadPath + "\"";
         system(chmodCmd.c_str());
         std::cout << "Downloaded latest release to " << downloadPath << std::endl;
         std::cout << "Replacing current running program with updated version..." << std::endl;
         
-        // Replace current executable
         if (std::rename(downloadPath.c_str(), exePath.c_str()) != 0) {
             std::cerr << "Error: Failed to rename the downloaded executable." << std::endl;
             return false;
         }
         
-        // Display changelog if available
         if (!changeLog.empty()) {
             displayChangeLog(changeLog);
         }
         
-        // Execute new version
         execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
         std::cerr << "Error: Failed to execute the updated program." << std::endl;
         return false;
@@ -2321,7 +2311,6 @@ void displayChangeLog(const std::string& changeLog) {
     std::cout << "Change Log: View full details at " << BLUE_COLOR_BOLD << githubRepoURL << RESET_COLOR << std::endl;
     std::cout << "Key changes in this version:" << std::endl;
     
-    // Show first few lines of the changelog as a summary
     std::istringstream iss(changeLog);
     std::string line;
     int lineCount = 0;
@@ -2333,7 +2322,6 @@ void displayChangeLog(const std::string& changeLog) {
     }
     
     if (lineCount == 5 && std::getline(iss, line)) {
-        // If there are more lines, indicate that
         std::cout << "... (see complete changelog on GitHub)" << std::endl;
     }
 }
@@ -2401,7 +2389,7 @@ void themeCommands() {
         std::cerr << "Unknown theme command. Use 'load' or 'save'." << std::endl;
     }
 }
-   
+
 std::string generateUninstallScript() {
     std::filesystem::path uninstallPath = DATA_DIRECTORY / "dtt-uninstall.sh";
     std::ofstream uninstallScript(uninstallPath);
@@ -2526,6 +2514,26 @@ std::string generateUninstallScript() {
         uninstallScript << "    echo \"  - $SYSTEM_APP_PATH (legacy)\"\n";
         uninstallScript << "    echo \"  - $USER_APP_PATH (legacy)\"\n";
         uninstallScript << "else\n";
+        uninstallScript << "    \n";
+        uninstallScript << "    # Also remove the user uninstall script if it exists\n";
+        uninstallScript << "    if [ -f \"$LEGACY_USER_UNINSTALL_SCRIPT\" ]; then\n";
+        uninstallScript << "        rm \"$LEGACY_USER_UNINSTALL_SCRIPT\"\n";
+        uninstallScript << "    fi\n";
+        uninstallScript << "    \n";
+        uninstallScript << "    # Clean up the directory if it's empty\n";
+        uninstallScript << "    if [ -d \"$USER_INSTALL_DIR\" ] && [ -z \"$(ls -A \"$USER_INSTALL_DIR\")\" ]; then\n";
+        uninstallScript << "        echo \"Removing empty directory $USER_INSTALL_DIR...\"\n";
+        uninstallScript << "        rmdir \"$USER_INSTALL_DIR\"\n";
+        uninstallScript << "    fi\n";
+        uninstallScript << "fi\n\n";
+        
+        uninstallScript << "if [ \"$APP_FOUND\" = false ]; then\n";
+        uninstallScript << "    echo \"Error: DevToolsTerminal installation not found.\"\n";
+        uninstallScript << "    echo \"Checked locations:\"\n";
+        uninstallScript << "    echo \"  - $APP_PATH (current)\"\n";
+        uninstallScript << "    echo \"  - $SYSTEM_APP_PATH (legacy)\"\n";
+        uninstallScript << "    echo \"  - $USER_APP_PATH (legacy)\"\n";
+        uninstallScript << "else\n";
         uninstallScript << "    # Remove from .zshrc regardless of which installation was found\n";
         uninstallScript << "    remove_from_zshrc\n";
         uninstallScript << "    \n";
@@ -2581,13 +2589,11 @@ bool startsWith(const std::string& str, const std::string& prefix) {
 std::vector<std::string> getTabCompletions(const std::string& input) {
     std::vector<std::string> completions;
     
-    // Handle file path completions
     if (input.find(' ') != std::string::npos) {
         size_t spacePos = input.find_first_of(' ');
         std::string command = input.substr(0, spacePos);
         std::string argument = input.substr(spacePos + 1);
         
-        // Handle file-related commands
         if (command == "cd" || command == "ls" || command == "mkdir" || command == "rmdir" ||
             command == "cat" || command == "cp" || command == "mv" || command == "rm" ||
             command == "touch" || command == "less" || command == "nano" || command == "vim") {
@@ -2604,7 +2610,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 for (const auto& entry : std::filesystem::directory_iterator(dir)) {
                     std::string entryName = entry.path().filename().string();
                     if (startsWithCaseInsensitive(entryName, argument)) {
-                        // For directory-only commands, only suggest directories
                         if ((command == "cd" || command == "rmdir") && !entry.is_directory()) {
                             continue;
                         }
@@ -2612,7 +2617,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
-                // Handle exception silently
+                //do nothing
             }
             
             return completions;
@@ -2631,7 +2636,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 }
             }
             
-            // Subcommand completions for 'user' commands
             if (argument.find(' ') != std::string::npos) {
                 size_t subCmdPos = argument.find_first_of(' ');
                 std::string subCommand = argument.substr(0, subCmdPos);
@@ -2660,7 +2664,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                     }
                 }
                 
-                // Third-level completions
                 if (subCommand == "data" && subArg.find(' ') != std::string::npos) {
                     size_t thirdCmdPos = subArg.find_first_of(' ');
                     std::string thirdCmd = subArg.substr(0, thirdCmdPos);
@@ -2692,7 +2695,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 }
             }
             
-            // Subcommand completions for 'ai' commands
             if (argument.find(' ') != std::string::npos) {
                 size_t subCmdPos = argument.find_first_of(' ');
                 std::string subCommand = argument.substr(0, subCmdPos);
@@ -2716,7 +2718,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                     }
                 }
                 
-                // Additional completions for specific subcommands
                 if (subCommand == "chat" && subArg.find(' ') != std::string::npos) {
                     size_t thirdCmdPos = subArg.find_first_of(' ');
                     std::string thirdCmd = subArg.substr(0, thirdCmdPos);
@@ -2759,7 +2760,9 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                                     completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + entryName);
                                 }
                             }
-                        } catch (const std::filesystem::filesystem_error& e) {}
+                        } catch (const std::filesystem::filesystem_error& e) {
+                            //do nothing
+                        }
                     }
                 }
             }
@@ -2779,27 +2782,20 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 }
             }
             
-            // Add plugin-specific completions
-            if (pluginManager && (argument == "enable" || argument == "disable" || 
-                                 argument == "info" || argument == "commands" || 
-                                 argument == "settings" || argument == "uninstall")) {
+            if (pluginManager && (argument == "enable" || argument == "disable" || argument == "info" || argument == "commands" || argument == "settings" || argument == "uninstall")) {
                 std::vector<std::string> availPlugins = pluginManager->getAvailablePlugins();
                 std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
                 
                 std::vector<std::string> pluginList;
                 if (argument == "enable") {
-                    // For enable, show available but not yet enabled plugins
                     for (const auto& plugin : availPlugins) {
                         if (std::find(enabledPlugins.begin(), enabledPlugins.end(), plugin) == enabledPlugins.end()) {
                             pluginList.push_back(plugin);
                         }
                     }
-                } else if (argument == "disable" || argument == "info" || 
-                          argument == "commands" || argument == "settings") {
-                    // For these commands, show only enabled plugins
+                } else if (argument == "disable" || argument == "info" || argument == "commands" || argument == "settings") {
                     pluginList = enabledPlugins;
                 } else if (argument == "uninstall") {
-                    // For uninstall, show all available plugins
                     pluginList = availPlugins;
                 }
                 
@@ -2808,7 +2804,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 }
             }
             
-            // Third-level completions for plugin settings
             if (argument.find(' ') != std::string::npos) {
                 size_t subCmdPos = argument.find_first_of(' ');
                 std::string subCommand = argument.substr(0, subCmdPos);
@@ -2828,7 +2823,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                             completions.push_back(command + " " + subCommand + " " + pluginName + " set [SETTING]");
                         }
                     } else {
-                        // Suggest enabled plugins for settings
                         for (const auto& plugin : pluginManager->getEnabledPlugins()) {
                             if (subArg.empty() || startsWithCaseInsensitive(plugin, subArg)) {
                                 completions.push_back(command + " " + subCommand + " " + plugin);
@@ -2850,7 +2844,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 }
             }
             
-            // Add theme-specific completions
             if (themeManager && argument == "load") {
                 std::vector<std::string> availableThemes;
                 for (const auto& theme : themeManager->getAvailableThemes()) {
@@ -2864,9 +2857,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
             return completions;
         }
         
-        // Handle terminal command completions
         if (command == commandPrefix + "terminal") {
-            // Let the system handle terminal command completions via the normal file path system
             std::string completedPath = completeFilePath(input);
             if (!completedPath.empty()) {
                 completions.push_back(completedPath);
@@ -2875,10 +2866,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         }
     }
     
-    // Handle direct file path completions
-    if (input.find('/') != std::string::npos || 
-        (input.size() >= 2 && input.substr(0, 2) == "./") || 
-        (input.size() >= 1 && input[0] == '/')) {
+    if (input.find('/') != std::string::npos || (input.size() >= 2 && input.substr(0, 2) == "./") || (input.size() >= 1 && input[0] == '/')) {
         std::string completedPath = completeFilePath(input);
         if (!completedPath.empty()) {
             completions.push_back(completedPath);
@@ -2886,7 +2874,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         return completions;
     }
     
-    // Top-level terminal command completions
     std::vector<std::string> commonCommands = {
         "cd", "ls", "mkdir", "rmdir", "touch", "cp", "mv", "rm", "cat", "grep", "find",
         "git", "python", "python3", "node", "npm", "yarn", "docker", "make", "gcc",
@@ -2899,18 +2886,26 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
             completions.push_back(cmd);
         }
     }
+
+    if (!executablesCacheInitialized) {
+        refreshExecutablesCache();
+    }
     
-    // Add command history completions with higher priority (add recent commands that match)
-    std::vector<std::string> recentCommands = terminal.getCommandHistory(10); // Get last 10 commands
+    for (const auto& exec : executablesCache) {
+        if (startsWith(exec, input) && 
+            std::find(completions.begin(), completions.end(), exec) == completions.end()) {
+            completions.push_back(exec);
+        }
+    }
+    
+    std::vector<std::string> recentCommands = terminal.getCommandHistory(10);
     for (const auto& cmd : recentCommands) {
         if (startsWith(cmd, input) && 
             std::find(completions.begin(), completions.end(), cmd) == completions.end()) {
-            // Insert at the beginning to give higher priority
             completions.insert(completions.begin(), cmd);
         }
     }
     
-    // Command prefix completions - for DTT commands
     if (input.size() >= commandPrefix.size() && 
         input.substr(0, commandPrefix.size()) == commandPrefix) {
         std::string cmdInput = input.substr(commandPrefix.length());
@@ -2926,7 +2921,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
             }
         }
         
-        // Plugin command completions
         if (pluginManager) {
             for (const auto& pluginName : pluginManager->getEnabledPlugins()) {
                 std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(pluginName);
@@ -2941,7 +2935,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         return completions;
     }
     
-    // Shortcut prefix completions
     if (input.size() >= shortcutsPrefix.size() && 
         input.substr(0, shortcutsPrefix.size()) == shortcutsPrefix) {
         std::string shortcutInput = input.substr(shortcutsPrefix.length());
@@ -2955,7 +2948,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         return completions;
     }
     
-    // If nothing else matches, try file path completion
     std::string completedPath = completeFilePath(input);
     if (!completedPath.empty()) {
         completions.push_back(completedPath);
@@ -3011,7 +3003,7 @@ std::string completeFilePath(const std::string& input) {
             }
         }
     } catch (const std::filesystem::filesystem_error& e) {
-        return "";
+        //do nothing
     }
     
     if (matches.size() == 1) {
@@ -3107,18 +3099,58 @@ void showInlineSuggestion(const std::string& input) {
         std::string completion = completions[0];
         
         if (completion.length() > input.length()) {
-            // Check if the suggestion is a direct extension of current input
             if (startsWith(completion, input)) {
                 currentSuggestion = completion.substr(input.length());
                 
-                // Format the suggestion with a dim color
-                std::cout << "\033[2m" << currentSuggestion << "\033[0m";
-                
-                // Move cursor back to original position
-                std::cout << "\033[" << currentSuggestion.length() << "D";
-                
-                hasSuggestion = true;
+                if (!currentSuggestion.empty()) {
+                    std::cout << "\033[97m" << currentSuggestion[0] << "\033[0m";
+                    if (currentSuggestion.length() > 1) {
+                        std::cout << "\033[38;5;249m" << currentSuggestion.substr(1) << "\033[0m";
+                    }
+                    
+                    std::cout << "\033[" << currentSuggestion.length() << "D";
+                    
+                    hasSuggestion = true;
+                }
             }
         }
     }
+}
+
+void refreshExecutablesCache() {
+    executablesCache.clear();
+    
+    char* pathEnv = getenv("PATH");
+    if (!pathEnv) {
+        return;
+    }
+    
+    std::string path(pathEnv);
+    std::stringstream pathStream(path);
+    std::string directory;
+    
+    while (std::getline(pathStream, directory, ':')) {
+        try {
+            if (!std::filesystem::exists(directory)) {
+                continue;
+            }
+            
+            for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+                if (entry.is_regular_file()) {
+                    std::error_code ec;
+                    auto perms = std::filesystem::status(entry.path(), ec).permissions();
+                    
+                    if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none) {
+                        std::string execName = entry.path().filename().string();
+                        if (std::find(executablesCache.begin(), executablesCache.end(), execName) == executablesCache.end()) {
+                            executablesCache.push_back(execName);
+                        }
+                    }
+                }
+            }
+        } catch (const std::filesystem::filesystem_error& e) {
+            //do nothing
+        }
+    }
+    executablesCacheInitialized = true;
 }

@@ -59,6 +59,6 @@ public:
     
     PluginInterface* getPluginInstance(const std::string& name) const;
     
-    void clearPluginCache(); // Force rediscovery of plugins
+    void clearPluginCache();
     bool isPluginLoaded(const std::string& name) const;
 };

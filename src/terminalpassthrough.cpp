@@ -14,7 +14,6 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
             if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
                 terminalID = std::string(buffer);
                 terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
-                // Remove any special characters from terminal name
                 terminalID = removeSpecialCharacters(terminalID);
             }
             pclose(pipe);
@@ -22,11 +21,9 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     terminalName = terminalID;
 }
 
-// Helper function to remove special characters
 std::string TerminalPassthrough::removeSpecialCharacters(const std::string& input) {
     std::string result;
     for (char c : input) {
-        // Keep only alphanumeric characters, underscore, and hyphen
         if (isalnum(c)) {
             result += c;
         }
@@ -236,12 +233,10 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 std::string cdCommand = processedCommand;
                 std::string subsequentCommand;
                 
-                // Check for && and split the command
                 size_t andPos = processedCommand.find("&&");
                 if (andPos != std::string::npos) {
                     cdCommand = processedCommand.substr(0, andPos);
                     subsequentCommand = processedCommand.substr(andPos + 2);
-                    // Trim whitespace
                     cdCommand = cdCommand.substr(0, cdCommand.find_last_not_of(" \t") + 1);
                     subsequentCommand = subsequentCommand.substr(subsequentCommand.find_first_not_of(" \t"));
                 }
@@ -286,7 +281,6 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 if (cdSuccess) {
                     result = "Changed directory to: " + currentDirectory;
                     
-                    // Execute subsequent command if it exists
                     if (!subsequentCommand.empty()) {
                         int cmdResult = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + subsequentCommand + " 2>&1\"").c_str());
                         if (cmdResult != 0) {
@@ -428,11 +422,8 @@ std::string TerminalPassthrough::getGitColor() const {
 std::vector<std::string> TerminalPassthrough::getCommandHistory(size_t count) {
     std::vector<std::string> recentCommands;
     size_t historySize = terminalCacheUserInput.size();
-    
-    // Calculate how many commands to return (limited by available history)
     size_t numCommands = std::min(count, historySize);
     
-    // Add the most recent commands to the result vector
     for (size_t i = 0; i < numCommands; i++) {
         size_t index = historySize - 1 - i;
         recentCommands.push_back(terminalCacheUserInput[index]);
