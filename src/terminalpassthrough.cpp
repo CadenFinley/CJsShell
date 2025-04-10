@@ -6,14 +6,22 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     terminalCacheTerminalOutput = std::vector<std::string>();
     lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10); // Initialize to expired
     isGitStatusCheckRunning = false;
+        std::string terminalID= "dtt";
+        char buffer[256];
+        std::string command = "ps -p " + std::to_string(getppid()) + " -o comm=";
+        FILE* pipe = popen(command.c_str(), "r");
+        if (pipe) {
+            if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                terminalID = std::string(buffer);
+                terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
+            }
+            pclose(pipe);
+        }
+    terminalName = terminalID;
 }
 
 std::string TerminalPassthrough::getTerminalName(){
-    #ifdef __linux__
-        return "bash";
-    #else
-        return "sh";
-    #endif
+    return terminalName;
 }
 
 std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(const bool& includeHidden, const bool& fullFilePath, const bool& includeDirectories){

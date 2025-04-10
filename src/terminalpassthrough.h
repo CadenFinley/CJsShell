@@ -12,6 +12,7 @@
 #include <map>
 #include <chrono>
 #include <mutex>
+#include <unistd.h>
 
 class TerminalPassthrough {
 public:
@@ -63,6 +64,7 @@ private:
     std::string GIT_COLOR = "\033[1;32m";
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
+    std::string terminalName;
 
     std::chrono::steady_clock::time_point lastGitStatusCheck;
     std::string cachedGitDir;
