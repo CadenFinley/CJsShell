@@ -145,8 +145,7 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
             }
             
             gitInfoLength = repoName.length() + branchName.length() + statusInfo.length() + 9;
-            gitInfo = GIT_COLOR + repoName + RESET_COLOR + DIRECTORY_COLOR + " git:(" + RESET_COLOR + 
-                      BRANCH_COLOR + branchName + RESET_COLOR;
+            gitInfo = GIT_COLOR + repoName + RESET_COLOR + DIRECTORY_COLOR + " git:(" + RESET_COLOR + BRANCH_COLOR + branchName + RESET_COLOR;
             
             if (isCleanRepo) {
                 gitInfo += DIRECTORY_COLOR + statusInfo + RESET_COLOR;
