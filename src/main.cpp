@@ -9,10 +9,8 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <limits>
-#include <streambuf>
 #include <ostream>
-
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 #include "terminalpassthrough.h"
 #include "openaipromptengine.h"
