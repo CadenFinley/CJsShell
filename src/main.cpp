@@ -89,7 +89,6 @@ ThemeManager* themeManager = nullptr;
 std::mutex rawModeMutex;
 
 std::vector<std::string> getTabCompletions(const std::string& input);
-std::string completeCommand(const std::string& input);
 std::string completeFilePath(const std::string& input);
 std::string getCommonPrefix(const std::vector<std::string>& strings);
 void displayCompletionOptions(const std::vector<std::string>& completions);
@@ -104,7 +103,6 @@ void disableRawMode();
 bool isRawModeEnabled();
 void createNewUSER_DATAFile();
 void createNewUSER_HISTORYfile();
-void loadUserData();
 void writeUserData();
 void goToApplicationDirectory();
 void commandParser(const std::string& command);
@@ -634,67 +632,6 @@ void createNewUSER_HISTORYfile() {
     std::ofstream file(USER_COMMAND_HISTORY);
     if (!file.is_open()) {
         return;
-    }
-}
-
-void loadUserData() {
-    std::ifstream file(USER_DATA);
-    if (file.is_open()) {
-        if (file.peek() == std::ifstream::traits_type::eof()) {
-            file.close();
-            createNewUSER_DATAFile();
-            return;
-        }
-        try {
-            json userData;
-            file >> userData;
-            if(userData.contains("OpenAI_API_KEY")){
-                c_assistant.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
-            }
-            if(userData.contains("Chat_Cache")) {
-                savedChatCache = userData["Chat_Cache"].get<std::vector<std::string> >();
-                c_assistant.setChatCache(savedChatCache);
-            }
-            if(userData.contains("Startup_Commands")){
-                startupCommands = userData["Startup_Commands"].get<std::vector<std::string> >();
-            }
-            if(userData.contains("Shortcuts_Enabled")){
-                shortcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
-            }
-            if(userData.contains("Text_Entry")){
-                defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();
-            }
-            if(userData.contains("Command_Prefix")){
-                commandPrefix = userData["Command_Prefix"].get<std::string>();
-            }
-            if(userData.contains("Shortcuts_Prefix")){
-                shortcutsPrefix = userData["Shortcuts_Prefix"].get<std::string>();
-            }
-            if(userData.contains("Multi_Script_Shortcuts")){
-                multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();
-            }
-            if(userData.contains("Last_Updated")){
-                lastUpdated = userData["Last_Updated"].get<std::string>();
-            }
-            if(userData.contains("Current_Theme")) {
-                currentTheme = userData["Current_Theme"].get<std::string>();
-            }
-            if(userData.contains("Auto_Update_Check")) {
-                checkForUpdates = userData["Auto_Update_Check"].get<bool>();
-            }
-            if(userData.contains("Aliases")) {
-                aliases = userData["Aliases"].get<std::map<std::string, std::string>>();
-            }
-            if(userData.contains("Update_From_Github")) {
-                updateFromGithub = userData["Update_From_Github"].get<bool>();
-            }
-            file.close();
-        }
-        catch(const json::parse_error& e) {
-            file.close();
-            createNewUSER_DATAFile();
-            return;
-        }
     }
 }
 
@@ -2292,7 +2229,6 @@ bool downloadLatestRelease_CadenFinley() {
     std::string exePath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal").string();
     
     std::string downloadCmd = "curl -L -o \"" + downloadPath + "\" " + updateURL_CadenFinley;
-    std::cout << "Downloading latest release from CadenFinley.com..." << std::endl;
     
     int ret = system(downloadCmd.c_str());
     if (ret == 0) {
