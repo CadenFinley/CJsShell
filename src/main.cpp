@@ -2087,6 +2087,7 @@ bool checkForUpdate() {
 }
 
 bool downloadLatestRelease_Github() {
+    std::cout << "Downloading latest release from GitHub..." << std::endl;
     std::string releaseJson;
     std::string curlCmd = "curl -s " + updateURL_Github;
     FILE* pipe = popen(curlCmd.c_str(), "r");
@@ -2170,6 +2171,7 @@ bool downloadLatestRelease_Github() {
 }
 
 bool downloadLatestRelease_CadenFinley() {
+    std::cout << "Downloading latest release from CadenFinley.com..." << std::endl;
     // Retrieve version info to get the changelog
     std::string versionInfoJson;
     std::string versionCmd = "curl -s " + versionURL_CadenFinley;
@@ -2487,9 +2489,22 @@ std::string generateUninstallScript() {
     return uninstallPath.string();
 }
 
+bool startsWithCaseInsensitive(const std::string& str, const std::string& prefix) {
+    if (str.size() < prefix.size()) {
+        return false;
+    }
+    
+    for (size_t i = 0; i < prefix.size(); ++i) {
+        if (tolower(str[i]) != tolower(prefix[i])) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 bool startsWith(const std::string& str, const std::string& prefix) {
-    return str.size() >= prefix.size() && 
-           str.compare(0, prefix.size(), prefix) == 0;
+    return startsWithCaseInsensitive(str, prefix);
 }
 
 std::vector<std::string> getTabCompletions(const std::string& input) {
@@ -2506,7 +2521,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 for (const auto& entry : std::filesystem::directory_iterator(dir)) {
                     if (entry.is_directory()) {
                         std::string entryName = entry.path().filename().string();
-                        if (startsWith(entryName, argument)) {
+                        if (startsWithCaseInsensitive(entryName, argument)) {
                             completions.push_back(command + " " + entryName);
                         }
                     }
@@ -2636,7 +2651,7 @@ std::string completeFilePath(const std::string& input) {
     try {
         for (const auto& entry : std::filesystem::directory_iterator(completionPath)) {
             std::string entryName = entry.path().filename().string();
-            if (startsWith(entryName, filenamePart)) {
+            if (startsWithCaseInsensitive(entryName, filenamePart)) {
                 std::string completion = directoryPart + entryName;
                 if (entry.is_directory()) {
                     completion += "/";
