@@ -62,23 +62,39 @@ DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems wi
 
 1. Use the one-line installation command:
    ```sh
+   # Default installation (from GitHub)
    curl -sL https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh | bash
+   
+   # Specify download source (GitHub)
+   curl -sL https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh | bash -s gh
+   
+   # Specify download source (cadenfinley.com)
+   curl -sL https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh | bash -s cjf
    ```
 
    Or download and run the installation script manually:
    ```sh
    curl -O https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh
    chmod +x dtt-install.sh
-   ./dtt-install.sh
+   ./dtt-install.sh  # or use ./dtt-install.sh gh or ./dtt-install.sh cjf to specify source
    ```
 
-2. The script will:
-   - Download the latest release from GitHub
+2. You can specify the download source when running the installer:
+   ```sh
+   # Download from GitHub (default)
+   ./dtt-install.sh gh
+   
+   # Download from cadenfinley.com
+   ./dtt-install.sh cjf
+   ```
+
+3. The script will:
+   - Download the latest release from the specified source
    - Install to `~/.DTT-Data` directory
    - Configure auto-launch with zsh
    - Make the application executable
 
-3. Restart your terminal or run:
+4. Restart your terminal or run:
    ```sh
    source ~/.zshrc
    ```
@@ -87,7 +103,7 @@ DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems wi
 
 To uninstall DevToolsTerminal:
 
-1. Use the uninstall script with the command: "<command_prefix>uninstall"
+1. Use the uninstall command inside the app: `!uninstall`
    
 2. The uninstaller will:
    - Remove the DevToolsTerminal executable

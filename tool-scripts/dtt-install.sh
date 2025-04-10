@@ -10,7 +10,7 @@ GITHUB_API_URL="https://api.github.com/repos/cadenfinley/DevToolsTerminal/releas
 CJF_DOWNLOAD_URL="https://cadenfinley.com/devtoolsterminal/download.php"
 
 # Process command line arguments
-SOURCE="gh"  # Default to GitHub
+SOURCE="gh"  # Default to GitHub (gh)
 if [ $# -gt 0 ]; then
     if [ "$1" = "gh" ] || [ "$1" = "cjf" ]; then
         SOURCE="$1"
@@ -26,7 +26,7 @@ fi
 echo "DevToolsTerminal Installer"
 echo "-------------------------"
 echo "This will install DevToolsTerminal to $DATA_DIR and set it to auto-launch with zsh."
-echo "Download source: ${SOURCE}"
+echo "Download source: ${SOURCE} (GitHub is default)"
 
 # Create data directory if it doesn't exist
 if [ ! -d "$DATA_DIR" ]; then
