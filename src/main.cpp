@@ -2117,7 +2117,7 @@ bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const st
 }
 
 bool checkForUpdate() {
-    std::cout << "Checking for updates...";
+    std::cout << "Checking for updates from " << (updateFromGithub ? "GitHub" : "CadenFinley.com") << "..." << std::endl;
     auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
         auto splitVersion = [](const std::string &ver) {
             std::vector<int> parts;
