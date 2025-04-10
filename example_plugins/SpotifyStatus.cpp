@@ -727,7 +727,7 @@ public:
     }
 
     int getInterfaceVersion() const override {
-        return 1;
+        return 2;
     }
     
     bool handleCommand(std::queue<std::string>& args) override {

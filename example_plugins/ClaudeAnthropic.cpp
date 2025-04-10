@@ -179,7 +179,7 @@ public:
     }
 
     int getInterfaceVersion() const{
-        return 1;
+        return 2;
     }
     
     std::map<std::string, std::string> getDefaultSettings() const { 

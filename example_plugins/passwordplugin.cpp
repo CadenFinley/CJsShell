@@ -297,7 +297,7 @@ public:
     }
 
     virtual int getInterfaceVersion() const override {
-        return 1;
+        return 2;
     }
     
     virtual std::map<std::string, std::string> getDefaultSettings() const override {

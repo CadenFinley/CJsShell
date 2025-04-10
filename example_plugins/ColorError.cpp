@@ -96,7 +96,7 @@ public:
         return {};
     }
     int getInterfaceVersion() const override {
-        return 1;
+        return 2;
     }
     
     std::map<std::string, std::string> getDefaultSettings() const override {
