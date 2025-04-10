@@ -7,7 +7,7 @@ APP_NAME="DevToolsTerminal"
 APP_PATH="$DATA_DIR/$APP_NAME"
 ZSHRC_PATH="$HOME/.zshrc"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest"
-CJF_DOWNLOAD_URL="https://cadenfinley.com/devtoolsterminal/download.php"
+CJF_DOWNLOAD_URL="https://cadenfinley.com/DevToolsTerminal/download.php"
 
 # Process command line arguments
 SOURCE="gh"  # Default to GitHub (gh)
