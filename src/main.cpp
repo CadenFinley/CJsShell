@@ -21,10 +21,6 @@
 
 using json = nlohmann::json;
 
-//create install script from website
-//implement updating from website
-//implement better changelog system all together, likely will be easier from website
-
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
@@ -57,7 +53,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.4.1";
+const std::string currentVersion = "1.8.4.2";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -2090,7 +2086,7 @@ bool checkForUpdate() {
     return false;
 }
 
-bool downloadLatestRelease(){
+bool downloadLatestRelease_Github() {
     std::string releaseJson;
     std::string curlCmd = "curl -s " + updateURL_Github;
     FILE* pipe = popen(curlCmd.c_str(), "r");
@@ -2171,6 +2167,81 @@ bool downloadLatestRelease(){
         std::cerr << "Error parsing release JSON: " << e.what() << std::endl;
         return false;
     }
+}
+
+bool downloadLatestRelease_CadenFinley() {
+    // Retrieve version info to get the changelog
+    std::string versionInfoJson;
+    std::string versionCmd = "curl -s " + versionURL_CadenFinley;
+    FILE* versionPipe = popen(versionCmd.c_str(), "r");
+    if (!versionPipe) {
+        std::cerr << "Error: Unable to fetch version information." << std::endl;
+        return false;
+    }
+    
+    char buffer[128];
+    while (fgets(buffer, 128, versionPipe) != nullptr) {
+        versionInfoJson += buffer;
+    }
+    pclose(versionPipe);
+    
+    std::string changeLog;
+    try {
+        json versionData = json::parse(versionInfoJson);
+        if (versionData.contains("changelog")) {
+            changeLog = versionData["changelog"].get<std::string>();
+        }
+    } catch (std::exception &e) {
+        std::cerr << "Warning: Could not parse version info JSON: " << e.what() << std::endl;
+        // Continue anyway as we can still download the binary
+    }
+    
+    // Make sure data directory exists
+    if (!std::filesystem::exists(DATA_DIRECTORY)) {
+        std::filesystem::create_directory(DATA_DIRECTORY);
+    }
+    
+    // Prepare file paths
+    std::string downloadPath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal_latest").string();
+    std::string exePath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal").string();
+    
+    // Download the binary
+    std::string downloadCmd = "curl -L -o \"" + downloadPath + "\" " + updateURL_CadenFinley;
+    std::cout << "Downloading latest release from CadenFinley.com..." << std::endl;
+    
+    int ret = system(downloadCmd.c_str());
+    if (ret == 0) {
+        // Make executable
+        std::string chmodCmd = "chmod +x \"" + downloadPath + "\"";
+        system(chmodCmd.c_str());
+        std::cout << "Downloaded latest release to " << downloadPath << std::endl;
+        std::cout << "Replacing current running program with updated version..." << std::endl;
+        
+        // Replace current executable
+        if (std::rename(downloadPath.c_str(), exePath.c_str()) != 0) {
+            std::cerr << "Error: Failed to rename the downloaded executable." << std::endl;
+            return false;
+        }
+        
+        // Display changelog if available
+        if (!changeLog.empty()) {
+            displayChangeLog(changeLog);
+        }
+        
+        // Execute new version
+        execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
+        std::cerr << "Error: Failed to execute the updated program." << std::endl;
+        return false;
+    } else {
+        std::cerr << "Error: Download command failed." << std::endl;
+        return false;
+    }
+}
+
+bool downloadLatestRelease(){
+    return updateFromGithub ? downloadLatestRelease_Github() : downloadLatestRelease_CadenFinley();
+    std::cerr << "Something went wrong." << std::endl;
+    return false;
 }
 
 void displayChangeLog(const std::string& changeLog) {
