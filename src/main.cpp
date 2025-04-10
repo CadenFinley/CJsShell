@@ -90,10 +90,7 @@ std::string completeCommand(const std::string& input);
 std::string completeFilePath(const std::string& input);
 std::string getCommonPrefix(const std::vector<std::string>& strings);
 void displayCompletionOptions(const std::vector<std::string>& completions);;
-
-
 void applyCompletion(size_t index, std::string& command, size_t& cursorPositionX, size_t& cursorPositionY);
-
 std::string readAndReturnUserDataFile();
 std::vector<std::string> commandSplicer(const std::string& command);
 void mainProcessLoop();
@@ -139,13 +136,12 @@ void applyColorToStrings();
 std::string generateUninstallScript();
 void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
-
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 
 int main(int argc, char* argv[]) {
 
-    std::cout << argc << " arguments passed." << std::endl;
+    std::cout << argc << std::endl;
     std::cout << argv << std::endl;
 
     startupCommands = {};
