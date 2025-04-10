@@ -969,6 +969,24 @@ void commandProcesser(const std::string& command) {
 
 void pluginCommands(){
     getNextCommand();
+    if(lastCommandParsed.empty()) {
+        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+        return;
+    }
+    if(lastCommandParsed == "help") {
+        std::cout << "Plugin commands:" << std::endl;
+        std::cout << " available: List available plugins" << std::endl;
+        std::cout << " enabled: List enabled plugins" << std::endl;
+        std::cout << " enable [NAME]: Enable a plugin" << std::endl;
+        std::cout << " disable [NAME]: Disable a plugin" << std::endl;
+        std::cout << " info [NAME]: Show plugin information" << std::endl;
+        std::cout << " commands [NAME]: List commands for a plugin" << std::endl;
+        std::cout << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting" << std::endl;
+        std::cout << " help: Show this help message" << std::endl;
+        std::cout << " install [PATH]: Install a new plugin" << std::endl;
+        std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
+        return;
+    }
     if(lastCommandParsed == "install") {
         getNextCommand();
         if(lastCommandParsed.empty()) {
@@ -1089,20 +1107,6 @@ void pluginCommands(){
                     return;
                 }
             }
-        }
-        if(lastCommandParsed == "help") {
-            std::cout << "Plugin commands:" << std::endl;
-            std::cout << " available: List available plugins" << std::endl;
-            std::cout << " enabled: List enabled plugins" << std::endl;
-            std::cout << " enable [NAME]: Enable a plugin" << std::endl;
-            std::cout << " disable [NAME]: Disable a plugin" << std::endl;
-            std::cout << " info [NAME]: Show plugin information" << std::endl;
-            std::cout << " commands [NAME]: List commands for a plugin" << std::endl;
-            std::cout << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting" << std::endl;
-            std::cout << " help: Show this help message" << std::endl;
-            std::cout << " install [PATH]: Install a new plugin" << std::endl;
-            std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
-            return;
         }
         std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
