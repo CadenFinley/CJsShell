@@ -21,6 +21,11 @@
 
 using json = nlohmann::json;
 
+//create install script from website
+//implement updating from website
+//implement better changelog system all together, likely will be easier from website
+//not related but to site stats,health, and other things in an api implementaition for my website
+
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
