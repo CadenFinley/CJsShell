@@ -14,10 +14,19 @@ std::string TerminalPassthrough::getTerminalName(){
     #endif
 }
 
-std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(){
+std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(const bool& includeHidden, const bool& fullFilePath, const bool& includeDirectories){
     std::vector<std::string> files;
     for (const auto& entry : std::filesystem::directory_iterator(getCurrentFilePath())) {
-        files.push_back(entry.path().string());
+        if (includeHidden || entry.path().filename().string()[0] != '.') {
+            if (includeDirectories || !std::filesystem::is_directory(entry.path())) {
+                std::string fileName = entry.path().filename().string();
+                if (fullFilePath) {
+                    fileName = entry.path().string();
+                } else {
+                    fileName = entry.path().filename().string();
+                }
+            }
+        }
     }
     return files;
 }

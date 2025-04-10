@@ -20,7 +20,7 @@ public:
     int getTerminalCurrentPositionRawLength();
     void printCurrentTerminalPosition();
 
-    std::vector<std::string> getFilesAtCurrentPath();
+    std::vector<std::string> getFilesAtCurrentPath(const bool& includeHidden, const bool& fullFilePath, const bool& includeDirectories);
     std::string getFullPathOfFile(const std::string& file);
     std::string getCurrentFilePath();
     void setDisplayWholePath(bool displayWholePath);

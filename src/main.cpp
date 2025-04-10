@@ -1644,7 +1644,7 @@ void aiSettingsCommands() {
     }
     if (lastCommandParsed == "file") {
         getNextCommand();
-        std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath();
+        std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath(true, true, false);
         if (lastCommandParsed.empty()) {
             std::vector<std::string> activeFiles = c_assistant.getFiles();
             std::cout << "Active Files: " << std::endl;
