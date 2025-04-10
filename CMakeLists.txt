@@ -32,14 +32,37 @@ add_executable(DevToolsTerminal ${SOURCE_FILES})
 if(WIN32)
     # On Windows, nlohmann_json is handled by vcpkg
 else()
-    # On Linux, try to find json library (using pkg-config or direct include)
-    include_directories("/usr/include/nlohmann")
+    # On Linux, try multiple common locations for the nlohmann/json.hpp file
+    find_path(JSON_INCLUDE_DIR NAMES nlohmann/json.hpp
+        PATHS
+        /usr/include
+        /usr/local/include
+        /opt/include
+        /opt/local/include
+        ${CMAKE_SOURCE_DIR}/external
+    )
+    
+    if(JSON_INCLUDE_DIR)
+        include_directories(${JSON_INCLUDE_DIR})
+    else()
+        message(WARNING "nlohmann/json.hpp not found, using fallback include location")
+        include_directories("/usr/include/nlohmann")
+    endif()
 endif()
 
-# Link the CURL library
+# Find dl library on Unix-like systems (needed for dynamic loading in pluginmanager)
+if(UNIX)
+    find_library(DL_LIBRARY dl)
+    if(NOT DL_LIBRARY)
+        message(FATAL_ERROR "dl library not found")
+    endif()
+endif()
+
+# Link the libraries
 target_link_libraries(DevToolsTerminal 
     ${CURL_LIBRARIES}
     Threads::Threads  # Add this to link against pthread
+    $<$<PLATFORM_ID:Linux,Darwin>:${DL_LIBRARY}>  # Conditionally link dl library on Linux/macOS
 )
 
 # Set install locations
