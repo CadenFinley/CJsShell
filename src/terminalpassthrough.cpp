@@ -80,15 +80,82 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
                     break;
                 }
             }
+
+            std::string statusSymbols = "";
+            std::string gitDir = currentPath.string();
+            bool isCleanRepo = true;
+            std::string modifiedCmd = getTerminalName() + " -c \"cd " + gitDir + " && git diff --quiet || echo modified\"";
+            FILE* modifiedPipe = popen(modifiedCmd.c_str(), "r");
+            char modifiedBuffer[128];
+            std::string modifiedOutput = "";
+            if (modifiedPipe) {
+                while (fgets(modifiedBuffer, sizeof(modifiedBuffer), modifiedPipe) != nullptr) {
+                    modifiedOutput += modifiedBuffer;
+                }
+                pclose(modifiedPipe);
+                if (modifiedOutput.find("modified") != std::string::npos) {
+                    statusSymbols += "*"; // * for uncommitted changes
+                    isCleanRepo = false;
+                }
+            }
+            
+            std::string stagedCmd = getTerminalName() + " -c \"cd " + gitDir + " && git diff --cached --quiet || echo staged\"";
+            FILE* stagedPipe = popen(stagedCmd.c_str(), "r");
+            char stagedBuffer[128];
+            std::string stagedOutput = "";
+            if (stagedPipe) {
+                while (fgets(stagedBuffer, sizeof(stagedBuffer), stagedPipe) != nullptr) {
+                    stagedOutput += stagedBuffer;
+                }
+                pclose(stagedPipe);
+                if (stagedOutput.find("staged") != std::string::npos) {
+                    statusSymbols += "+"; // + for staged changes
+                    isCleanRepo = false;
+                }
+            }
+            
+            std::string untrackedCmd = getTerminalName() + " -c \"cd " + gitDir + " && git ls-files --others --exclude-standard | head -1\"";
+            FILE* untrackedPipe = popen(untrackedCmd.c_str(), "r");
+            char untrackedBuffer[128];
+            std::string untrackedOutput = "";
+            if (untrackedPipe) {
+                while (fgets(untrackedBuffer, sizeof(untrackedBuffer), untrackedPipe) != nullptr) {
+                    untrackedOutput += untrackedBuffer;
+                }
+                pclose(untrackedPipe);
+                if (!untrackedOutput.empty()) {
+                    statusSymbols += "?"; // ? for untracked files
+                    isCleanRepo = false;
+                }
+            }
+            
             std::string repoName = displayWholePath ? getCurrentFilePath() : getCurrentFileName();
-            gitInfoLength = repoName.length() + branchName.length() + 9;
-            gitInfo = GIT_COLOR + repoName + RESET_COLOR+DIRECTORY_COLOR+" git:("+RESET_COLOR+BRANCH_COLOR + branchName +RESET_COLOR+DIRECTORY_COLOR+ ")"+RESET_COLOR;
+            std::string statusInfo;
+            
+            if (isCleanRepo) {
+                statusInfo = " ✓"; // Check mark for clean repository
+            } else {
+                statusInfo = " " + statusSymbols;
+            }
+            
+            gitInfoLength = repoName.length() + branchName.length() + statusInfo.length() + 9;
+            gitInfo = GIT_COLOR + repoName + RESET_COLOR + DIRECTORY_COLOR + " git:(" + RESET_COLOR + 
+                      BRANCH_COLOR + branchName + RESET_COLOR;
+            
+            if (isCleanRepo) {
+                gitInfo += DIRECTORY_COLOR + statusInfo + RESET_COLOR;
+            } else if (!statusSymbols.empty()) {
+                gitInfo += DIRECTORY_COLOR + statusInfo + RESET_COLOR;
+            }
+            
+            gitInfo += DIRECTORY_COLOR + ")" + RESET_COLOR;
         } catch (const std::exception& e) {
             std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
         }
         terminalCurrentPositionRawLength = getTerminalName().length() + 2 + gitInfoLength;
-        return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + gitInfo + " ";
+        return SHELL_COLOR + getTerminalName() + RESET_COLOR + " " + gitInfo + " ";
     }
+    
     if (displayWholePath) {
         terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2;
         return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR + " ";
