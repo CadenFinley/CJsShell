@@ -38,8 +38,11 @@ install:
         git clone https://github.com/Microsoft/vcpkg.git C:\tools\vcpkg
         cd C:\tools\vcpkg
         .\bootstrap-vcpkg.bat
+      ) else (
+        echo vcpkg already installed
       )
       C:\tools\vcpkg\vcpkg install nlohmann-json
+      if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
   
   # Linux-specific setup
   - sh: |
@@ -55,12 +58,14 @@ before_build:
       mkdir build
       cd build
       cmake .. -G "%CMAKE_GENERATOR%" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\tools\vcpkg\scripts\buildsystems\vcpkg.cmake
+      if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
   
   # Linux build preparation
   - sh: |
       mkdir build
       cd build
       cmake .. -DCMAKE_BUILD_TYPE=$configuration
+      if [ $? -ne 0 ]; then exit 1; fi
 
 build_script:
   # Windows build

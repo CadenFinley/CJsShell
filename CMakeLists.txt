@@ -11,18 +11,36 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(src)
 
 find_package(CURL REQUIRED)
+find_package(Threads REQUIRED)  # Add this to find pthread library
+
+# Source files
+set(SOURCE_FILES
+    src/main.cpp
+    src/terminalpassthrough.cpp
+    src/openaipromptengine.cpp
+    src/pluginmanager.cpp
+    src/thememanager.cpp
+)
 
 # Add the include directories for CURL
 include_directories(${CURL_INCLUDE_DIRS})
 
 # Add the executable
-add_executable(DevToolsTerminal
-    src/main.cpp
-    src/openaipromptengine.cpp
-    src/terminalpassthrough.cpp
-    src/pluginmanager.cpp
-    src/thememanager.cpp
-)
+add_executable(DevToolsTerminal ${SOURCE_FILES})
+
+# Find nlohmann_json package (different methods for different platforms)
+if(WIN32)
+    # On Windows, nlohmann_json is handled by vcpkg
+else()
+    # On Linux, try to find json library (using pkg-config or direct include)
+    include_directories("/usr/include/nlohmann")
+endif()
 
 # Link the CURL library
-target_link_libraries(DevToolsTerminal ${CURL_LIBRARIES})
+target_link_libraries(DevToolsTerminal 
+    ${CURL_LIBRARIES}
+    Threads::Threads  # Add this to link against pthread
+)
+
+# Set install locations
+install(TARGETS DevToolsTerminal DESTINATION bin)
