@@ -24,7 +24,6 @@ using json = nlohmann::json;
 //create install script from website
 //implement updating from website
 //implement better changelog system all together, likely will be easier from website
-//not related but to site stats,health, and other things in an api implementaition for my website
 
 bool TESTING = false;
 bool runningStartup = false;
@@ -34,6 +33,7 @@ bool displayWholePath = false;
 bool rawModeEnabled = false;
 bool saveLoop = false;
 bool saveOnExit = false;
+bool updateFromGithub = false;
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -53,9 +53,11 @@ std::string currentTheme = "default";
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string processId = std::to_string(getpid());
-const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
+const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
+const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
+const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.3.2";
+const std::string currentVersion = "1.8.4.0";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -143,6 +145,9 @@ void applyColorToStrings();
 std::string generateUninstallScript();
 void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
+
+bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
+bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 
 int main(int argc, char* argv[]) {
 
@@ -608,6 +613,9 @@ void loadUserData() {
             if(userData.contains("Aliases")) {
                 aliases = userData["Aliases"].get<std::map<std::string, std::string>>();
             }
+            if(userData.contains("Update_From_Github")) {
+                updateFromGithub = userData["Update_From_Github"].get<bool>();
+            }
             file.close();
         }
         catch(const json::parse_error& e) {
@@ -635,6 +643,7 @@ void writeUserData() {
         userData["Current_Theme"] = currentTheme;
         userData["Auto_Update_Check"] = checkForUpdates;
         userData["Aliases"] = aliases;
+        userData["Update_From_Github"] = updateFromGithub;
         file << userData.dump(4);
         file.close();
     } else {
@@ -1166,6 +1175,24 @@ void userSettingsCommands() {
             return;
         }
     }
+    if (lastCommandParsed == "updatepath") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Update path is currently " << (updateFromGithub ? "from GitHub." : "from my personal website CadenFinley.com.") << std::endl;
+            std::cout << "To change the update path, use 'user updatepath github' or 'user updatepath cadenfinley'" << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "github") {
+            updateFromGithub = true;
+            std::cout << "Update path set to GitHub." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "cadenfinley") {
+            updateFromGithub = false;
+            std::cout << "Update path set to CadenFinley.com." << std::endl;
+            return;
+        }
+    }
     if (lastCommandParsed == "help") {
         std::cout << "User settings commands:" << std::endl;
         std::cout << " startup: Manage startup commands (add, remove, clear, enable, disable, list, runall)" << std::endl;
@@ -1177,6 +1204,7 @@ void userSettingsCommands() {
         std::cout << " saveloop: Toggle auto-save loop (enable/disable)" << std::endl;
         std::cout << " saveonexit: Toggle save on exit (enable/disable)" << std::endl;
         std::cout << " checkforupdates: Toggle update checking (enable/disable)" << std::endl;
+        std::cout << " updatepath: Set update path (github/cadenfinley)" << std::endl;
         return;
     }
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -1959,31 +1987,8 @@ void showChatHistory() {
     }
 }
 
-bool checkForUpdate() {
-    std::cout << "Checking for updates...";
-    auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
-        auto splitVersion = [](const std::string &ver) {
-            std::vector<int> parts;
-            std::istringstream iss(ver);
-            std::string token;
-            while (std::getline(iss, token, '.')) {
-                parts.push_back(std::stoi(token));
-            }
-            return parts;
-        };
-        std::vector<int> latestParts = splitVersion(latest);
-        std::vector<int> currentParts = splitVersion(current);
-        size_t len = std::max(latestParts.size(), currentParts.size());
-        latestParts.resize(len, 0);
-        currentParts.resize(len, 0);
-        for (size_t i = 0; i < len; i++) {
-            if (latestParts[i] > currentParts[i]) return true;
-            if (latestParts[i] < currentParts[i]) return false;
-        }
-        return false;
-    };
-
-    std::string command = "curl -s " + updateURL;
+bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion) {
+    std::string command = "curl -s " + updateURL_Github;
     std::string result;
     FILE *pipe = popen(command.c_str(), "r");
     if (!pipe) {
@@ -2019,9 +2024,75 @@ bool checkForUpdate() {
     return false;
 }
 
+bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion) {
+    std::string command = "curl -s " + versionURL_CadenFinley;
+    std::string result;
+    FILE *pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::cerr << "Error: Unable to execute update check or no internet connection." << std::endl;
+        return false;
+    }
+    char buffer[128];
+    while (fgets(buffer, 128, pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    try {
+        json jsonData = json::parse(result);
+        if (jsonData.contains("version")) {
+            std::string latestTag = jsonData["version"].get<std::string>();
+            if (!latestTag.empty() && latestTag[0] == 'v') {
+                latestTag = latestTag.substr(1);
+            }
+            std::string currentVer = currentVersion;
+            if (!currentVer.empty() && currentVer[0] == 'v') {
+                currentVer = currentVer.substr(1);
+            }
+            if (isNewerVersion(latestTag, currentVer)) {
+                std::cout << "\nLast Updated: " << lastUpdated << std::endl;
+                std::cout << currentVersion << " -> " << latestTag << std::endl;
+                return true;
+            }
+        }
+    } catch (std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    return false;
+}
+
+bool checkForUpdate() {
+    std::cout << "Checking for updates...";
+    auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
+        auto splitVersion = [](const std::string &ver) {
+            std::vector<int> parts;
+            std::istringstream iss(ver);
+            std::string token;
+            while (std::getline(iss, token, '.')) {
+                parts.push_back(std::stoi(token));
+            }
+            return parts;
+        };
+        std::vector<int> latestParts = splitVersion(latest);
+        std::vector<int> currentParts = splitVersion(current);
+        size_t len = std::max(latestParts.size(), currentParts.size());
+        latestParts.resize(len, 0);
+        currentParts.resize(len, 0);
+        for (size_t i = 0; i < len; i++) {
+            if (latestParts[i] > currentParts[i]) return true;
+            if (latestParts[i] < currentParts[i]) return false;
+        }
+        return false;
+    };
+
+    return updateFromGithub ? checkFromUpdate_Github(isNewerVersion) : checkFromUpdate_CadenFinley(isNewerVersion);
+    std::cerr << "Something went wrong." << std::endl;
+    return false;
+}
+
 bool downloadLatestRelease(){
     std::string releaseJson;
-    std::string curlCmd = "curl -s " + updateURL;
+    std::string curlCmd = "curl -s " + updateURL_Github;
     FILE* pipe = popen(curlCmd.c_str(), "r");
     if(!pipe){
         std::cerr << "Error: Unable to fetch release information." << std::endl;
@@ -2084,10 +2155,9 @@ bool downloadLatestRelease(){
                 return false;
             }
 
-            std::ofstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
-            if (changelogFile.is_open()) {
-                changelogFile << changeLog;
-                changelogFile.close();
+            // Display changelog directly instead of saving to file
+            if (!changeLog.empty()) {
+                displayChangeLog(changeLog);
             }
             
             execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
@@ -2104,18 +2174,24 @@ bool downloadLatestRelease(){
 }
 
 void displayChangeLog(const std::string& changeLog) {
-    std::string clickableChangeLog = changeLog;
-    size_t pos = 0;
-    while ((pos = clickableChangeLog.find("http", pos)) != std::string::npos) {
-        size_t end = clickableChangeLog.find_first_of(" \n", pos);
-        if (end == std::string::npos) end = clickableChangeLog.length();
-        std::string url = clickableChangeLog.substr(pos, end - pos);
-        std::string clickableUrl = "\033]8;;" + url + "\033\\" + url + "\033]8;;\033\\";
-        clickableChangeLog.replace(pos, url.length(), clickableUrl);
-        pos += clickableUrl.length();
+    std::cout << "Change Log: View full details at " << BLUE_COLOR_BOLD << githubRepoURL << RESET_COLOR << std::endl;
+    std::cout << "Key changes in this version:" << std::endl;
+    
+    // Show first few lines of the changelog as a summary
+    std::istringstream iss(changeLog);
+    std::string line;
+    int lineCount = 0;
+    while (std::getline(iss, line) && lineCount < 5) {
+        if (!line.empty()) {
+            std::cout << "• " << line << std::endl;
+            lineCount++;
+        }
     }
-    std::cout << "Change Log:" << std::endl;
-    std::cout << clickableChangeLog << std::endl;
+    
+    if (lineCount == 5 && std::getline(iss, line)) {
+        // If there are more lines, indicate that
+        std::cout << "... (see complete changelog on GitHub)" << std::endl;
+    }
 }
 
 void applyColorToStrings() {
