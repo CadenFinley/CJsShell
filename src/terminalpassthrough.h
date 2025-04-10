@@ -41,6 +41,9 @@ public:
     void clearTerminalCache();
     std::string returnMostRecentUserInput();
     std::string returnMostRecentTerminalOutput();
+    
+    // Add new function to retrieve a specified number of recent commands
+    std::vector<std::string> getCommandHistory(size_t count);
 
     void setShellColor(const std::string& color);
     void setDirectoryColor(const std::string& color);

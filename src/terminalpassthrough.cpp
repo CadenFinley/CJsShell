@@ -425,3 +425,19 @@ std::string TerminalPassthrough::getGitColor() const {
     return GIT_COLOR;
 }
 
+std::vector<std::string> TerminalPassthrough::getCommandHistory(size_t count) {
+    std::vector<std::string> recentCommands;
+    size_t historySize = terminalCacheUserInput.size();
+    
+    // Calculate how many commands to return (limited by available history)
+    size_t numCommands = std::min(count, historySize);
+    
+    // Add the most recent commands to the result vector
+    for (size_t i = 0; i < numCommands; i++) {
+        size_t index = historySize - 1 - i;
+        recentCommands.push_back(terminalCacheUserInput[index]);
+    }
+    
+    return recentCommands;
+}
+

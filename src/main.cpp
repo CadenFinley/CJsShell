@@ -51,7 +51,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.4.6";
+const std::string currentVersion = "1.8.4.7";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -2573,12 +2573,16 @@ bool startsWith(const std::string& str, const std::string& prefix) {
 std::vector<std::string> getTabCompletions(const std::string& input) {
     std::vector<std::string> completions;
     
+    // Handle file path completions
     if (input.find(' ') != std::string::npos) {
         size_t spacePos = input.find_first_of(' ');
         std::string command = input.substr(0, spacePos);
         std::string argument = input.substr(spacePos + 1);
         
-        if (command == "cd" || command == "ls" || command == "mkdir" || command == "rmdir") {
+        // Handle file-related commands
+        if (command == "cd" || command == "ls" || command == "mkdir" || command == "rmdir" ||
+            command == "cat" || command == "cp" || command == "mv" || command == "rm" ||
+            command == "touch" || command == "less" || command == "nano" || command == "vim") {
             if (argument.find('/') != std::string::npos) {
                 std::string completedPath = completeFilePath(input);
                 if (!completedPath.empty()) {
@@ -2590,20 +2594,280 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
             std::string dir = terminal.getCurrentFilePath();
             try {
                 for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-                    if (entry.is_directory()) {
-                        std::string entryName = entry.path().filename().string();
-                        if (startsWithCaseInsensitive(entryName, argument)) {
-                            completions.push_back(command + " " + entryName);
+                    std::string entryName = entry.path().filename().string();
+                    if (startsWithCaseInsensitive(entryName, argument)) {
+                        // For directory-only commands, only suggest directories
+                        if ((command == "cd" || command == "rmdir") && !entry.is_directory()) {
+                            continue;
                         }
+                        completions.push_back(command + " " + entryName);
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
+                // Handle exception silently
             }
             
             return completions;
         }
+        
+        // Context-sensitive command-specific completions
+        if (command == commandPrefix + "user") {
+            std::vector<std::string> userCommands = {
+                "startup", "text", "shortcut", "alias", "testing", "data", 
+                "saveloop", "saveonexit", "checkforupdates", "updatepath", "help"
+            };
+            
+            for (const auto& cmd : userCommands) {
+                if (startsWith(cmd, argument)) {
+                    completions.push_back(command + " " + cmd);
+                }
+            }
+            
+            // Subcommand completions for 'user' commands
+            if (argument.find(' ') != std::string::npos) {
+                size_t subCmdPos = argument.find_first_of(' ');
+                std::string subCommand = argument.substr(0, subCmdPos);
+                std::string subArg = argument.substr(subCmdPos + 1);
+                
+                std::vector<std::pair<std::string, std::vector<std::string>>> userSubCommands = {
+                    {"startup", {"add", "remove", "clear", "enable", "disable", "list", "runall", "help"}},
+                    {"text", {"commandprefix", "shortcutprefix", "displayfullpath", "defaultentry", "help"}},
+                    {"shortcut", {"enable", "disable", "list", "add", "remove", "help"}},
+                    {"alias", {"enable", "disable", "add", "remove", "list", "help"}},
+                    {"testing", {"enable", "disable"}},
+                    {"saveloop", {"enable", "disable"}},
+                    {"saveonexit", {"enable", "disable"}},
+                    {"checkforupdates", {"enable", "disable"}},
+                    {"updatepath", {"github", "cadenfinley"}},
+                    {"data", {"get", "clear", "help"}}
+                };
+                
+                for (const auto& [cmd, subCmds] : userSubCommands) {
+                    if (subCommand == cmd) {
+                        for (const auto& subcmd : subCmds) {
+                            if (subArg.empty() || startsWith(subcmd, subArg)) {
+                                completions.push_back(command + " " + subCommand + " " + subcmd);
+                            }
+                        }
+                    }
+                }
+                
+                // Third-level completions
+                if (subCommand == "data" && subArg.find(' ') != std::string::npos) {
+                    size_t thirdCmdPos = subArg.find_first_of(' ');
+                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
+                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
+                    
+                    if (thirdCmd == "get") {
+                        std::vector<std::string> getOpts = {"userdata", "userhistory", "all"};
+                        for (const auto& opt : getOpts) {
+                            if (thirdArg.empty() || startsWith(opt, thirdArg)) {
+                                completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + opt);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return completions;
+        }
+        
+        if (command == commandPrefix + "ai") {
+            std::vector<std::string> aiCommands = {
+                "log", "apikey", "chat", "get", "dump", "mode", "file",
+                "directory", "model", "rejectchanges", "timeoutflag", "help"
+            };
+            
+            for (const auto& cmd : aiCommands) {
+                if (startsWith(cmd, argument)) {
+                    completions.push_back(command + " " + cmd);
+                }
+            }
+            
+            // Subcommand completions for 'ai' commands
+            if (argument.find(' ') != std::string::npos) {
+                size_t subCmdPos = argument.find_first_of(' ');
+                std::string subCommand = argument.substr(0, subCmdPos);
+                std::string subArg = argument.substr(subCmdPos + 1);
+                
+                std::vector<std::pair<std::string, std::vector<std::string>>> aiSubCommands = {
+                    {"apikey", {"set", "get"}},
+                    {"chat", {"history", "cache", "help"}},
+                    {"file", {"add", "remove", "active", "available", "refresh", "clear"}},
+                    {"directory", {"set", "clear"}},
+                    {"mode", {"chat", "code", "document", "creative", "assistant"}}
+                };
+                
+                for (const auto& [cmd, subCmds] : aiSubCommands) {
+                    if (subCommand == cmd) {
+                        for (const auto& subcmd : subCmds) {
+                            if (subArg.empty() || startsWith(subcmd, subArg)) {
+                                completions.push_back(command + " " + subCommand + " " + subcmd);
+                            }
+                        }
+                    }
+                }
+                
+                // Additional completions for specific subcommands
+                if (subCommand == "chat" && subArg.find(' ') != std::string::npos) {
+                    size_t thirdCmdPos = subArg.find_first_of(' ');
+                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
+                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
+                    
+                    if (thirdCmd == "cache") {
+                        std::vector<std::string> cacheOpts = {"enable", "disable", "clear"};
+                        for (const auto& opt : cacheOpts) {
+                            if (thirdArg.empty() || startsWith(opt, thirdArg)) {
+                                completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + opt);
+                            }
+                        }
+                    }
+                    
+                    if (thirdCmd == "history") {
+                        std::vector<std::string> historyOpts = {"clear"};
+                        for (const auto& opt : historyOpts) {
+                            if (thirdArg.empty() || startsWith(opt, thirdArg)) {
+                                completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + opt);
+                            }
+                        }
+                    }
+                }
+                
+                if (subCommand == "file" && subArg.find(' ') != std::string::npos) {
+                    size_t thirdCmdPos = subArg.find_first_of(' ');
+                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
+                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
+                    
+                    if (thirdCmd == "add" || thirdCmd == "remove") {
+                        if (thirdArg.empty() || thirdArg == "a") {
+                            completions.push_back(command + " " + subCommand + " " + thirdCmd + " all");
+                        }
+                        
+                        std::string dir = terminal.getCurrentFilePath();
+                        try {
+                            for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+                                std::string entryName = entry.path().filename().string();
+                                if (thirdArg.empty() || startsWithCaseInsensitive(entryName, thirdArg)) {
+                                    completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + entryName);
+                                }
+                            }
+                        } catch (const std::filesystem::filesystem_error& e) {}
+                    }
+                }
+            }
+            
+            return completions;
+        }
+        
+        if (command == commandPrefix + "plugin") {
+            std::vector<std::string> pluginCommands = {
+                "help", "available", "enabled", "enable", "disable", "info", "commands", "settings",
+                "enableall", "disableall", "install", "uninstall"
+            };
+            
+            for (const auto& cmd : pluginCommands) {
+                if (startsWith(cmd, argument)) {
+                    completions.push_back(command + " " + cmd);
+                }
+            }
+            
+            // Add plugin-specific completions
+            if (pluginManager && (argument == "enable" || argument == "disable" || 
+                                 argument == "info" || argument == "commands" || 
+                                 argument == "settings" || argument == "uninstall")) {
+                std::vector<std::string> availPlugins = pluginManager->getAvailablePlugins();
+                std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
+                
+                std::vector<std::string> pluginList;
+                if (argument == "enable") {
+                    // For enable, show available but not yet enabled plugins
+                    for (const auto& plugin : availPlugins) {
+                        if (std::find(enabledPlugins.begin(), enabledPlugins.end(), plugin) == enabledPlugins.end()) {
+                            pluginList.push_back(plugin);
+                        }
+                    }
+                } else if (argument == "disable" || argument == "info" || 
+                          argument == "commands" || argument == "settings") {
+                    // For these commands, show only enabled plugins
+                    pluginList = enabledPlugins;
+                } else if (argument == "uninstall") {
+                    // For uninstall, show all available plugins
+                    pluginList = availPlugins;
+                }
+                
+                for (const auto& plugin : pluginList) {
+                    completions.push_back(command + " " + argument + " " + plugin);
+                }
+            }
+            
+            // Third-level completions for plugin settings
+            if (argument.find(' ') != std::string::npos) {
+                size_t subCmdPos = argument.find_first_of(' ');
+                std::string subCommand = argument.substr(0, subCmdPos);
+                std::string subArg = argument.substr(subCmdPos + 1);
+                
+                if (subCommand == "settings" && pluginManager) {
+                    if (subArg.find(' ') != std::string::npos) {
+                        size_t pluginPos = subArg.find_first_of(' ');
+                        std::string pluginName = subArg.substr(0, pluginPos);
+                        std::string settingArg = subArg.substr(pluginPos + 1);
+                        
+                        if (startsWith(settingArg, "s")) {
+                            completions.push_back(command + " " + subCommand + " " + pluginName + " set");
+                        }
+                        
+                        if (settingArg == "set") {
+                            completions.push_back(command + " " + subCommand + " " + pluginName + " set [SETTING]");
+                        }
+                    } else {
+                        // Suggest enabled plugins for settings
+                        for (const auto& plugin : pluginManager->getEnabledPlugins()) {
+                            if (subArg.empty() || startsWithCaseInsensitive(plugin, subArg)) {
+                                completions.push_back(command + " " + subCommand + " " + plugin);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return completions;
+        }
+        
+        if (command == commandPrefix + "theme") {
+            std::vector<std::string> themeCommands = {"load", "save"};
+            
+            for (const auto& cmd : themeCommands) {
+                if (startsWith(cmd, argument)) {
+                    completions.push_back(command + " " + cmd);
+                }
+            }
+            
+            // Add theme-specific completions
+            if (themeManager && argument == "load") {
+                std::vector<std::string> availableThemes;
+                for (const auto& theme : themeManager->getAvailableThemes()) {
+                    availableThemes.push_back(theme.first);
+                }
+                for (const auto& theme : availableThemes) {
+                    completions.push_back(command + " load " + theme);
+                }
+            }
+            
+            return completions;
+        }
+        
+        // Handle terminal command completions
+        if (command == commandPrefix + "terminal") {
+            // Let the system handle terminal command completions via the normal file path system
+            std::string completedPath = completeFilePath(input);
+            if (!completedPath.empty()) {
+                completions.push_back(completedPath);
+            }
+            return completions;
+        }
     }
     
+    // Handle direct file path completions
     if (input.find('/') != std::string::npos || 
         (input.size() >= 2 && input.substr(0, 2) == "./") || 
         (input.size() >= 1 && input[0] == '/')) {
@@ -2614,8 +2878,12 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         return completions;
     }
     
+    // Top-level terminal command completions
     std::vector<std::string> commonCommands = {
-        "cd", "ls", "mkdir", "rmdir", "touch", "cp", "mv", "rm", "cat", "grep", "find"
+        "cd", "ls", "mkdir", "rmdir", "touch", "cp", "mv", "rm", "cat", "grep", "find",
+        "git", "python", "python3", "node", "npm", "yarn", "docker", "make", "gcc",
+        "clear", "echo", "exit", "pwd", "less", "nano", "vim", "ssh", "scp", "tar",
+        "curl", "wget", "ping", "ifconfig", "netstat", "top", "htop", "ps"
     };
     
     for (const auto& cmd : commonCommands) {
@@ -2624,13 +2892,24 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         }
     }
     
+    // Add command history completions with higher priority (add recent commands that match)
+    std::vector<std::string> recentCommands = terminal.getCommandHistory(10); // Get last 10 commands
+    for (const auto& cmd : recentCommands) {
+        if (startsWith(cmd, input) && 
+            std::find(completions.begin(), completions.end(), cmd) == completions.end()) {
+            // Insert at the beginning to give higher priority
+            completions.insert(completions.begin(), cmd);
+        }
+    }
+    
+    // Command prefix completions - for DTT commands
     if (input.size() >= commandPrefix.size() && 
         input.substr(0, commandPrefix.size()) == commandPrefix) {
         std::string cmdInput = input.substr(commandPrefix.length());
         
         std::vector<std::string> builtInCommands = {
             "ai", "approot", "clear", "terminal", "user", "aihelp", 
-            "version", "plugin", "theme", "help", "uninstall"
+            "version", "plugin", "theme", "help", "uninstall", "env"
         };
         
         for (const auto& cmd : builtInCommands) {
@@ -2639,24 +2918,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
             }
         }
         
-        if (startsWith(cmdInput, "ai ") || cmdInput == "ai") {
-            std::string aiCmdInput;
-            if (cmdInput.length() > 3) {
-                aiCmdInput = cmdInput.substr(cmdInput.find_first_of(' ') + 1);
-            }
-            
-            std::vector<std::string> aiCommands = {
-                "log", "apikey", "chat", "get", "dump", "mode", "file", 
-                "directory", "model", "rejectchanges", "timeoutflag", "help"
-            };
-            
-            for (const auto& cmd : aiCommands) {
-                if (aiCmdInput.empty() || startsWith(cmd, aiCmdInput)) {
-                    completions.push_back(commandPrefix + "ai " + cmd);
-                }
-            }
-        }
-        
+        // Plugin command completions
         if (pluginManager) {
             for (const auto& pluginName : pluginManager->getEnabledPlugins()) {
                 std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(pluginName);
@@ -2671,6 +2933,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         return completions;
     }
     
+    // Shortcut prefix completions
     if (input.size() >= shortcutsPrefix.size() && 
         input.substr(0, shortcutsPrefix.size()) == shortcutsPrefix) {
         std::string shortcutInput = input.substr(shortcutsPrefix.length());
@@ -2684,6 +2947,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
         return completions;
     }
     
+    // If nothing else matches, try file path completion
     std::string completedPath = completeFilePath(input);
     if (!completedPath.empty()) {
         completions.push_back(completedPath);
@@ -2835,13 +3099,18 @@ void showInlineSuggestion(const std::string& input) {
         std::string completion = completions[0];
         
         if (completion.length() > input.length()) {
-            currentSuggestion = completion.substr(input.length());
-            
-            std::cout << "\033[2m" << currentSuggestion << "\033[0m";
-            
-            std::cout << "\033[" << currentSuggestion.length() << "D";
-            
-            hasSuggestion = true;
+            // Check if the suggestion is a direct extension of current input
+            if (startsWith(completion, input)) {
+                currentSuggestion = completion.substr(input.length());
+                
+                // Format the suggestion with a dim color
+                std::cout << "\033[2m" << currentSuggestion << "\033[0m";
+                
+                // Move cursor back to original position
+                std::cout << "\033[" << currentSuggestion.length() << "D";
+                
+                hasSuggestion = true;
+            }
         }
     }
 }
