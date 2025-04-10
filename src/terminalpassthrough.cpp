@@ -4,6 +4,8 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     currentDirectory = std::filesystem::current_path().string();
     terminalCacheUserInput = std::vector<std::string>();
     terminalCacheTerminalOutput = std::vector<std::string>();
+    lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10); // Initialize to expired
+    isGitStatusCheckRunning = false;
 }
 
 std::string TerminalPassthrough::getTerminalName(){
@@ -84,56 +86,60 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
             std::string statusSymbols = "";
             std::string gitDir = currentPath.string();
             bool isCleanRepo = true;
-            std::string modifiedCmd = getTerminalName() + " -c \"cd " + gitDir + " && git diff --quiet || echo modified\"";
-            FILE* modifiedPipe = popen(modifiedCmd.c_str(), "r");
-            char modifiedBuffer[128];
-            std::string modifiedOutput = "";
-            if (modifiedPipe) {
-                while (fgets(modifiedBuffer, sizeof(modifiedBuffer), modifiedPipe) != nullptr) {
-                    modifiedOutput += modifiedBuffer;
-                }
-                pclose(modifiedPipe);
-                if (modifiedOutput.find("modified") != std::string::npos) {
-                    statusSymbols += "*"; // * for uncommitted changes
-                    isCleanRepo = false;
-                }
-            }
             
-            std::string stagedCmd = getTerminalName() + " -c \"cd " + gitDir + " && git diff --cached --quiet || echo staged\"";
-            FILE* stagedPipe = popen(stagedCmd.c_str(), "r");
-            char stagedBuffer[128];
-            std::string stagedOutput = "";
-            if (stagedPipe) {
-                while (fgets(stagedBuffer, sizeof(stagedBuffer), stagedPipe) != nullptr) {
-                    stagedOutput += stagedBuffer;
-                }
-                pclose(stagedPipe);
-                if (stagedOutput.find("staged") != std::string::npos) {
-                    statusSymbols += "+"; // + for staged changes
-                    isCleanRepo = false;
-                }
-            }
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastGitStatusCheck).count();
             
-            std::string untrackedCmd = getTerminalName() + " -c \"cd " + gitDir + " && git ls-files --others --exclude-standard | head -1\"";
-            FILE* untrackedPipe = popen(untrackedCmd.c_str(), "r");
-            char untrackedBuffer[128];
-            std::string untrackedOutput = "";
-            if (untrackedPipe) {
-                while (fgets(untrackedBuffer, sizeof(untrackedBuffer), untrackedPipe) != nullptr) {
-                    untrackedOutput += untrackedBuffer;
-                }
-                pclose(untrackedPipe);
-                if (!untrackedOutput.empty()) {
-                    statusSymbols += "?"; // ? for untracked files
-                    isCleanRepo = false;
-                }
+            if ((elapsed > 10 || cachedGitDir != gitDir) && !isGitStatusCheckRunning) {
+                isGitStatusCheckRunning = true;
+                std::thread statusThread([this, gitDir]() {
+                    std::string gitStatusCmd = getTerminalName() + 
+                        " -c \"cd " + gitDir + 
+                        " && git status --porcelain -z\"";
+                    
+                    FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
+                    char statusBuffer[1024];
+                    std::string statusOutput = "";
+                    
+                    if (statusPipe) {
+                        while (fgets(statusBuffer, sizeof(statusBuffer), statusPipe) != nullptr) {
+                            statusOutput += statusBuffer;
+                        }
+                        pclose(statusPipe);
+                        
+                        bool isClean = statusOutput.empty();
+                        std::string symbols = "";
+                        
+                        if (!isClean) {
+                            symbols = "*";
+                        }
+                        
+                        std::lock_guard<std::mutex> lock(gitStatusMutex);
+                        cachedGitDir = gitDir;
+                        cachedStatusSymbols = symbols;
+                        cachedIsCleanRepo = isClean;
+                        lastGitStatusCheck = std::chrono::steady_clock::now();
+                        isGitStatusCheckRunning = false;
+                    } else {
+                        std::lock_guard<std::mutex> lock(gitStatusMutex);
+                        isGitStatusCheckRunning = false;
+                    }
+                });
+                statusThread.detach();
+                
+                statusSymbols = cachedStatusSymbols;
+                isCleanRepo = cachedIsCleanRepo;
+            } else {
+                std::lock_guard<std::mutex> lock(gitStatusMutex);
+                statusSymbols = cachedStatusSymbols;
+                isCleanRepo = cachedIsCleanRepo;
             }
             
             std::string repoName = displayWholePath ? getCurrentFilePath() : getCurrentFileName();
             std::string statusInfo;
             
             if (isCleanRepo) {
-                statusInfo = " ✓"; // Check mark for clean repository
+                statusInfo = " ✓";
             } else {
                 statusInfo = " " + statusSymbols;
             }

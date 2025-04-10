@@ -50,7 +50,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.3.1";
+const std::string currentVersion = "1.8.3.2";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -147,7 +147,6 @@ int main(int argc, char* argv[]) {
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
-    terminal = TerminalPassthrough();
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
     //sendTerminalCommand("clear");

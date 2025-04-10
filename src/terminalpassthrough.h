@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <array>
 #include <map>
+#include <chrono>
+#include <mutex>
 
 class TerminalPassthrough {
 public:
@@ -61,6 +63,14 @@ private:
     std::string GIT_COLOR = "\033[1;32m";
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
+
+    std::chrono::steady_clock::time_point lastGitStatusCheck;
+    std::string cachedGitDir;
+    std::string cachedStatusSymbols;
+    bool cachedIsCleanRepo;
+
+    std::mutex gitStatusMutex;
+    bool isGitStatusCheckRunning;
 
     std::string getCurrentFileName();
     bool isRootPath(const std::filesystem::path& path);
