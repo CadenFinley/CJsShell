@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Check for Unix platform - fail on Windows
+if(WIN32)
+    message(FATAL_ERROR "DevToolsTerminal is currently only supported on Unix-based systems (Linux/macOS)")
+endif()
+
 # Set the project name
 project(DevToolsTerminal)
 
@@ -28,41 +33,34 @@ include_directories(${CURL_INCLUDE_DIRS})
 # Add the executable
 add_executable(DevToolsTerminal ${SOURCE_FILES})
 
-# Find nlohmann_json package (different methods for different platforms)
-if(WIN32)
-    # On Windows, nlohmann_json is handled by vcpkg
+# Find nlohmann_json package (Unix systems only)
+find_path(JSON_INCLUDE_DIR NAMES nlohmann/json.hpp
+    PATHS
+    /usr/include
+    /usr/local/include
+    /opt/include
+    /opt/local/include
+    ${CMAKE_SOURCE_DIR}/external
+)
+
+if(JSON_INCLUDE_DIR)
+    include_directories(${JSON_INCLUDE_DIR})
 else()
-    # On Linux, try multiple common locations for the nlohmann/json.hpp file
-    find_path(JSON_INCLUDE_DIR NAMES nlohmann/json.hpp
-        PATHS
-        /usr/include
-        /usr/local/include
-        /opt/include
-        /opt/local/include
-        ${CMAKE_SOURCE_DIR}/external
-    )
-    
-    if(JSON_INCLUDE_DIR)
-        include_directories(${JSON_INCLUDE_DIR})
-    else()
-        message(WARNING "nlohmann/json.hpp not found, using fallback include location")
-        include_directories("/usr/include/nlohmann")
-    endif()
+    message(WARNING "nlohmann/json.hpp not found, using fallback include location")
+    include_directories("/usr/include/nlohmann")
 endif()
 
-# Find dl library on Unix-like systems (needed for dynamic loading in pluginmanager)
-if(UNIX)
-    find_library(DL_LIBRARY dl)
-    if(NOT DL_LIBRARY)
-        message(FATAL_ERROR "dl library not found")
-    endif()
+# Find dl library (needed for dynamic loading in pluginmanager)
+find_library(DL_LIBRARY dl)
+if(NOT DL_LIBRARY)
+    message(FATAL_ERROR "dl library not found")
 endif()
 
 # Link the libraries
 target_link_libraries(DevToolsTerminal 
     ${CURL_LIBRARIES}
-    Threads::Threads  # Add this to link against pthread
-    $<$<PLATFORM_ID:Linux,Darwin>:${DL_LIBRARY}>  # Conditionally link dl library on Linux/macOS
+    Threads::Threads
+    ${DL_LIBRARY}
 )
 
 # Set install locations

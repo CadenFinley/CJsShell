@@ -1,8 +1,7 @@
 version: '{build}'
 
-# Build matrix to test both Windows and Linux
+# Build only on Linux (Unix-only support)
 image:
-  - Visual Studio 2022
   - Ubuntu
 
 # Only build the master branch
@@ -15,35 +14,14 @@ clone_depth: 5
 
 # Cache to speed up builds
 cache:
-  - C:\tools\vcpkg\installed\
   - '$HOME/.ccache'
 
 environment:
   matrix:
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2022
-      platform: x64
-      configuration: Release
-      CMAKE_GENERATOR: "Visual Studio 17 2022"
-      VCPKG_DEFAULT_TRIPLET: x64-windows
-      
-    - APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu
-      platform: x64
+    - platform: x64
       configuration: Release
 
 install:
-  # Windows-specific setup
-  - cmd: |
-      echo Installing Windows dependencies...
-      if not exist C:\tools\vcpkg (
-        git clone https://github.com/Microsoft/vcpkg.git C:\tools\vcpkg
-        cd C:\tools\vcpkg
-        .\bootstrap-vcpkg.bat
-      ) else (
-        echo vcpkg already installed
-      )
-      C:\tools\vcpkg\vcpkg install nlohmann-json
-      if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
-  
   # Linux-specific setup
   - sh: |
       echo Installing Linux dependencies...
@@ -57,13 +35,6 @@ install:
       sudo apt-get install -y libdl-dev || echo "libdl is part of glibc-dev, continuing..."
 
 before_build:
-  # Windows build preparation
-  - cmd: |
-      mkdir build
-      cd build
-      cmake .. -G "%CMAKE_GENERATOR%" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\tools\vcpkg\scripts\buildsystems\vcpkg.cmake
-      if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
-  
   # Linux build preparation
   - sh: |
       mkdir build
@@ -72,44 +43,27 @@ before_build:
       if [ $? -ne 0 ]; then exit 1; fi
 
 build_script:
-  # Windows build
-  - cmd: |
-      cmake --build . --config %configuration%
-  
   # Linux build
   - sh: |
       cmake --build . --config $configuration -- -j $(nproc)
 
 after_build:
-  # Windows packaging
-  - cmd: |
-      cd %APPVEYOR_BUILD_FOLDER%\build\%configuration%
-      7z a DevToolsTerminal-Windows.zip DevToolsTerminal.exe
-      appveyor PushArtifact DevToolsTerminal-Windows.zip
-  
   # Linux packaging
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER/build
-      tar -czf DevToolsTerminal-Linux.tar.gz DevToolsTerminal
-      appveyor PushArtifact DevToolsTerminal-Linux.tar.gz
+      tar -czf DevToolsTerminal-Unix.tar.gz DevToolsTerminal
+      appveyor PushArtifact DevToolsTerminal-Unix.tar.gz
 
 # Run the tests if you have them
 test_script:
-  - cmd: |
-      cd %APPVEYOR_BUILD_FOLDER%\build
-      ctest -C %configuration% -VV
-  
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER/build
       ctest -C $configuration -VV
 
 # Artifacts to save
 artifacts:
-  - path: build\Release\DevToolsTerminal-Windows.zip
-    name: DevToolsTerminal-Windows
-  
-  - path: build\DevToolsTerminal-Linux.tar.gz
-    name: DevToolsTerminal-Linux
+  - path: build\DevToolsTerminal-Unix.tar.gz
+    name: DevToolsTerminal-Unix
 
 # Notifications
 notifications:
