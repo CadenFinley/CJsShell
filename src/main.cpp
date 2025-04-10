@@ -36,6 +36,7 @@ bool aliasesEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
+bool silentCheckForUpdates = true;
 
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
 std::string RESET_COLOR = "\033[0m";
@@ -53,7 +54,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.5.2";
+const std::string currentVersion = "1.8.5.3";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -235,7 +236,9 @@ int main(int argc, char* argv[]) {
                 if (updateAvailable) {
                     executeUpdateIfAvailable(updateAvailable);
                 } else {
-                    std::cout << " ->  You are up to date!" << std::endl;
+                    if(!silentCheckForUpdates){
+                        std::cout << " -> You are up to date!" << std::endl;
+                    }
                 }
             });
         });
@@ -653,6 +656,7 @@ void writeUserData() {
         userData["Auto_Update_Check"] = checkForUpdates;
         userData["Aliases"] = aliases;
         userData["Update_From_Github"] = updateFromGithub;
+        userData["Silent_Update_Check"] = silentCheckForUpdates;
         file << userData.dump(4);
         file.close();
     } else {
@@ -1198,6 +1202,23 @@ void userSettingsCommands() {
             return;
         }
     }
+    if(lastCommandParsed == "silentupdatecheck") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Silent update check is currently " << (silentCheckForUpdates ? "enabled." : "disabled.") << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "enable") {
+            silentCheckForUpdates = true;
+            std::cout << "Silent update check enabled." << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "disable") {
+            silentCheckForUpdates = false;
+            std::cout << "Silent update check disabled." << std::endl;
+            return;
+        }
+    }
     if (lastCommandParsed == "updatepath") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
@@ -1228,6 +1249,7 @@ void userSettingsCommands() {
         std::cout << " saveonexit: Toggle save on exit (enable/disable)" << std::endl;
         std::cout << " checkforupdates: Toggle update checking (enable/disable)" << std::endl;
         std::cout << " updatepath: Set update path (github/cadenfinley)" << std::endl;
+        std::cout << " silentupdatecheck: Toggle silent update check (enable/disable)" << std::endl;
         return;
     }
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
@@ -2084,7 +2106,9 @@ bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const st
 }
 
 bool checkForUpdate() {
-    std::cout << "Checking for updates from " << (updateFromGithub ? "GitHub" : "CadenFinley.com") << "..." << std::endl;
+    if(!silentCheckForUpdates){
+        std::cout << "Checking for updates from " << (updateFromGithub ? "GitHub" : "CadenFinley.com") << "...";
+    }
     auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
         auto splitVersion = [](const std::string &ver) {
             std::vector<int> parts;
@@ -3270,6 +3294,9 @@ void loadUserDataAsync(std::function<void()> callback) {
                 }
                 if(userData.contains("Update_From_Github")) {
                     updateFromGithub = userData["Update_From_Github"].get<bool>();
+                }
+                if(userData.contains("Silent_Update_Check")) {
+                    silentCheckForUpdates = userData["Silent_Update_Check"].get<bool>();
                 }
                 file.close();
             }

@@ -32,6 +32,7 @@ private:
 
     bool running = false;
     bool visible = true;
+    bool disabled = false;  // New flag to track disabled state
     std::thread update_thread;
     std::mutex mutex;
     std::string currentStatus;
@@ -67,7 +68,7 @@ private:
     
     void displayStatus() {
         std::lock_guard<std::mutex> lock(mutex);
-        if (!visible || currentStatus.empty()) return;
+        if (!visible || currentStatus.empty() || disabled) return;
         
         // Set the terminal title to the current status
         setTerminalTitle(currentStatus);
@@ -187,6 +188,12 @@ private:
     void updateSpotifyStatus() {
         while (running) {
             try {
+                // Skip processing if plugin is disabled
+                if (disabled) {
+                    std::this_thread::sleep_for(std::chrono::seconds(updateInterval));
+                    continue;
+                }
+                
                 if (!accessToken.empty()) {
                     // Check if we need to handle potential system sleep
                     auto now = std::chrono::system_clock::now();
@@ -284,6 +291,7 @@ private:
         userData["refresh_token"] = refreshToken;
         userData["update_interval"] = updateInterval;
         userData["visible"] = visible;
+        userData["disabled"] = disabled;  // Save disabled state
         
         std::ofstream file(userDataPath / "user-data.json");
         if (file.is_open()) {
@@ -305,6 +313,7 @@ private:
                     refreshToken = userData.value("refresh_token", "");
                     updateInterval = userData.value("update_interval", 10);
                     visible = userData.value("visible", true);
+                    disabled = userData.value("disabled", false);  // Load disabled state
                     
                     file.close();
                 } catch (const std::exception& e) {
@@ -743,6 +752,8 @@ public:
                 std::cout << "  spotify interval [SECONDS] - Set update interval" << std::endl;
                 std::cout << "  spotify show - Show status in terminal title" << std::endl;
                 std::cout << "  spotify hide - Hide status from terminal title" << std::endl;
+                std::cout << "  spotify enable - Enable the plugin" << std::endl;
+                std::cout << "  spotify disable - Disable the plugin" << std::endl;
                 std::cout << "  spotify auth - Start Spotify authorization flow (required first step)" << std::endl;
                 std::cout << "  spotify logout - Clear authentication data" << std::endl;
                 return true;
@@ -756,6 +767,7 @@ public:
                 std::cout << "Current Spotify status: " << (currentStatus.empty() ? "Not playing" : currentStatus) << std::endl;
                 std::cout << "Update interval: " << updateInterval << " seconds" << std::endl;
                 std::cout << "Status visible: " << (visible ? "Yes" : "No") << std::endl;
+                std::cout << "Plugin enabled: " << (disabled ? "No" : "Yes") << std::endl;
                 std::cout << "Authenticated: " << (!refreshToken.empty() ? "Yes" : "No") << std::endl;
                 if (refreshToken.empty()) {
                     std::cout << "\nTo use this plugin, you need to authenticate with Spotify first:" << std::endl;
@@ -832,6 +844,22 @@ public:
                 saveUserData();
                 return true;
             }
+            else if (subcommand == "enable") {
+                disabled = false;
+                std::cout << "Spotify status plugin is now enabled" << std::endl;
+                if (visible) {
+                    displayStatus();
+                }
+                saveUserData();
+                return true;
+            }
+            else if (subcommand == "disable") {
+                disabled = true;
+                resetTerminalTitle();
+                std::cout << "Spotify status plugin is now disabled" << std::endl;
+                saveUserData();
+                return true;
+            }
         }
         
         return false;
@@ -840,7 +868,8 @@ public:
     std::map<std::string, std::string> getDefaultSettings() const override {
         return {
             {"update_interval", std::to_string(updateInterval)},
-            {"visible", visible ? "true" : "false"}
+            {"visible", visible ? "true" : "false"},
+            {"disabled", disabled ? "true" : "false"}
         };
     }
     
@@ -854,10 +883,18 @@ public:
         }
         else if (key == "visible") {
             visible = (value == "true" || value == "1");
-            if (visible) {
+            if (visible && !disabled) {
                 displayStatus();
             } else {
                 resetTerminalTitle();
+            }
+        }
+        else if (key == "disabled") {
+            disabled = (value == "true" || value == "1");
+            if (disabled) {
+                resetTerminalTitle();
+            } else if (visible) {
+                displayStatus();
             }
         }
         
