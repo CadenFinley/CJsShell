@@ -51,7 +51,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.5.0";
+const std::string currentVersion = "1.8.5.1";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -908,6 +908,10 @@ void commandProcesser(const std::string& command) {
                 } else {
                     remainingCommands += " " + command;
                 }
+            }
+            if (remainingCommands.empty()) {
+                defaultTextEntryOnAI = false;
+                return;
             }
             sendTerminalCommand(remainingCommands);
         } catch (std::out_of_range& e) {
