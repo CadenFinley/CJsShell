@@ -51,7 +51,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.4.7";
+const std::string currentVersion = "1.8.5.0";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -272,8 +272,12 @@ void mainProcessLoop() {
             std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
         }
         if (defaultTextEntryOnAI) {
-            terminalSetting = GREEN_COLOR_BOLD + "AI Menu: " + RESET_COLOR;
-            terminalSettingLength = 9;
+            std::string modelInfo = c_assistant.getModel();
+            std::string modeInfo = c_assistant.getAssistantType();
+            terminalSetting = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
+                              GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
+                              GREEN_COLOR_BOLD + "] > " + RESET_COLOR;
+            terminalSettingLength = 10 + modelInfo.length() + modeInfo.length();
         } else {
             terminalSetting = terminal.returnCurrentTerminalPosition();
             terminalSettingLength = terminal.getTerminalCurrentPositionRawLength();
