@@ -1072,7 +1072,7 @@ void pluginCommands(){
             std::cout << pluginManager->getPluginInfo(pluginToModify) << std::endl;
             return;
         }
-        if(lastCommandParsed == "commands") {
+        if(lastCommandParsed == "commands" || lastCommandParsed == "cmds" || lastCommandParsed == "help") {
             std::cout << "Commands for " << pluginToModify << ":" << std::endl;
             std::vector<std::string> listOfPluginCommands = pluginManager->getPluginCommands(pluginToModify);
             for (const auto& cmd : listOfPluginCommands) {
