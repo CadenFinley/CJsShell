@@ -89,8 +89,9 @@ std::vector<std::string> getTabCompletions(const std::string& input);
 std::string completeCommand(const std::string& input);
 std::string completeFilePath(const std::string& input);
 std::string getCommonPrefix(const std::vector<std::string>& strings);
-void displayCompletionOptions(const std::vector<std::string>& completions);;
+void displayCompletionOptions(const std::vector<std::string>& completions);
 void applyCompletion(size_t index, std::string& command, size_t& cursorPositionX, size_t& cursorPositionY);
+void showInlineSuggestion(const std::string& input);
 std::string readAndReturnUserDataFile();
 std::vector<std::string> commandSplicer(const std::string& command);
 void mainProcessLoop();
@@ -138,6 +139,9 @@ void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
+
+std::string currentSuggestion = "";
+bool hasSuggestion = false;
 
 int main(int argc, char* argv[]) {
 
@@ -336,9 +340,22 @@ void mainProcessLoop() {
                     }
                 }
             } else if (c == '\n') {
+                // Clear any suggestion when pressing enter
+                if (hasSuggestion) {
+                    std::cout << "\033[K";
+                    hasSuggestion = false;
+                    currentSuggestion = "";
+                }
                 std::cout << std::endl;
                 break;
             } else if (c == 127) {
+                // Clear any suggestion when pressing backspace
+                if (hasSuggestion) {
+                    std::cout << "\033[K";
+                    hasSuggestion = false;
+                    currentSuggestion = "";
+                }
+                
                 clearLines(commandLines);
                 if (commandLines[cursorPositionY].length() > 0 && cursorPositionX > 0) {
                     commandLines[cursorPositionY].erase(cursorPositionX - 1, 1);
@@ -354,25 +371,53 @@ void mainProcessLoop() {
                 tabCompletionIndex = 0;
                 currentCompletions.clear();
                 originalInput = "";
+                
+                // Show suggestion for the new input
+                showInlineSuggestion(commandLines[cursorPositionY]);
             } else if (c == '\t') {
                 if (!commandLines[cursorPositionY].empty()) {
-                    if (currentCompletions.empty()) {
-                        originalInput = commandLines[cursorPositionY];
-                        currentCompletions = getTabCompletions(originalInput);
-                    }
-                    
-                    if (!currentCompletions.empty()) {
+                    // If we have an active suggestion, accept it
+                    if (hasSuggestion && !currentSuggestion.empty()) {
                         clearLines(commandLines);
+                        commandLines[cursorPositionY] += currentSuggestion;
+                        cursorPositionX += currentSuggestion.length();
                         
-                        tabCompletionIndex = (tabCompletionIndex + 1) % currentCompletions.size();
-                        
-                        applyCompletion(tabCompletionIndex, commandLines[cursorPositionY], cursorPositionX, cursorPositionY);
+                        hasSuggestion = false;
+                        currentSuggestion = "";
                         
                         reprintCommandLines(commandLines, terminalSetting);
                         placeCursor(cursorPositionX, cursorPositionY);
+                        
+                        // After accepting, reset completion state
+                        tabCompletionIndex = 0;
+                        currentCompletions.clear();
+                        originalInput = "";
+                    } else {
+                        if (currentCompletions.empty()) {
+                            originalInput = commandLines[cursorPositionY];
+                            currentCompletions = getTabCompletions(originalInput);
+                        }
+                        
+                        if (!currentCompletions.empty()) {
+                            clearLines(commandLines);
+                            
+                            tabCompletionIndex = (tabCompletionIndex + 1) % currentCompletions.size();
+                            
+                            applyCompletion(tabCompletionIndex, commandLines[cursorPositionY], cursorPositionX, cursorPositionY);
+                            
+                            reprintCommandLines(commandLines, terminalSetting);
+                            placeCursor(cursorPositionX, cursorPositionY);
+                        }
                     }
                 }
             } else {
+                // Clear any suggestion when typing a new character
+                if (hasSuggestion) {
+                    std::cout << "\033[K";
+                    hasSuggestion = false;
+                    currentSuggestion = "";
+                }
+                
                 clearLines(commandLines);
                 commandLines[cursorPositionY].insert(cursorPositionX, 1, c);
                 int currentLineLength;
@@ -394,6 +439,9 @@ void mainProcessLoop() {
                 tabCompletionIndex = 0;
                 currentCompletions.clear();
                 originalInput = "";
+                
+                // Show suggestion for the new input
+                showInlineSuggestion(commandLines[cursorPositionY]);
             }
         }
         disableRawMode();
@@ -453,6 +501,13 @@ void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
 }
 
 std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
+    // Clear any suggestion when navigating with arrow keys
+    if (hasSuggestion) {
+        std::cout << "\033[K";
+        hasSuggestion = false;
+        currentSuggestion = "";
+    }
+    
     switch (arrow) {
         case 'A':
             return terminal.getPreviousCommand();
@@ -2504,14 +2559,12 @@ bool startsWith(const std::string& str, const std::string& prefix) {
 std::vector<std::string> getTabCompletions(const std::string& input) {
     std::vector<std::string> completions;
     
-    // Handle commands with paths like "cd Documents/Git"
     if (input.find(' ') != std::string::npos) {
         size_t spacePos = input.find_first_of(' ');
         std::string command = input.substr(0, spacePos);
         std::string argument = input.substr(spacePos + 1);
         
         if (command == "cd" || command == "ls" || command == "mkdir" || command == "rmdir") {
-            // Handle relative paths that contain slashes
             if (argument.find('/') != std::string::npos) {
                 std::string completedPath = completeFilePath(input);
                 if (!completedPath.empty()) {
@@ -2520,7 +2573,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                 return completions;
             }
             
-            // Handle simple directory completion
             std::string dir = terminal.getCurrentFilePath();
             try {
                 for (const auto& entry : std::filesystem::directory_iterator(dir)) {
@@ -2532,7 +2584,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
-                // Ignore filesystem errors
             }
             
             return completions;
@@ -2628,7 +2679,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
 }
 
 std::string completeFilePath(const std::string& input) {
-    // Parse the input into command and path parts if it contains a space
     std::string prefix = "";
     std::string pathToComplete = input;
     
@@ -2638,10 +2688,8 @@ std::string completeFilePath(const std::string& input) {
         pathToComplete = input.substr(spacePos + 1);
     }
     
-    // Determine the base directory to search in
     std::filesystem::path basePath = terminal.getCurrentFilePath();
     
-    // Split the path into directory part and filename part
     std::string directoryPart;
     std::string filenamePart;
     
@@ -2654,21 +2702,16 @@ std::string completeFilePath(const std::string& input) {
         filenamePart = pathToComplete;
     }
     
-    // Determine the full path to search in
     std::filesystem::path searchPath;
     
     if (directoryPart.empty()) {
-        // Just filename, search in current directory
         searchPath = basePath;
     } else if (directoryPart[0] == '/') {
-        // Absolute path
         searchPath = directoryPart;
     } else {
-        // Relative path
         searchPath = basePath / directoryPart;
     }
     
-    // Find matching entries
     std::vector<std::string> matches;
     try {
         for (const auto& entry : std::filesystem::directory_iterator(searchPath)) {
@@ -2685,11 +2728,9 @@ std::string completeFilePath(const std::string& input) {
         return "";
     }
     
-    // Return appropriate completion
     if (matches.size() == 1) {
         return matches[0];
     } else if (matches.size() > 1) {
-        // For multiple matches, find the common prefix
         std::vector<std::string> strippedMatches;
         for (const auto& match : matches) {
             strippedMatches.push_back(match.substr(prefix.length()));
@@ -2760,5 +2801,33 @@ void applyCompletion(size_t index, std::string& command, size_t& cursorPositionX
     if (index < currentCompletions.size()) {
         command = currentCompletions[index];
         cursorPositionX = command.length();
+    }
+}
+
+void showInlineSuggestion(const std::string& input) {
+    if (hasSuggestion) {
+        std::cout << "\033[K";
+        hasSuggestion = false;
+        currentSuggestion = "";
+    }
+    
+    if (input.empty()) {
+        return;
+    }
+    
+    std::vector<std::string> completions = getTabCompletions(input);
+    
+    if (!completions.empty()) {
+        std::string completion = completions[0];
+        
+        if (completion.length() > input.length()) {
+            currentSuggestion = completion.substr(input.length());
+            
+            std::cout << "\033[2m" << currentSuggestion << "\033[0m";
+            
+            std::cout << "\033[" << currentSuggestion.length() << "D";
+            
+            hasSuggestion = true;
+        }
     }
 }
