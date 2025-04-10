@@ -11,6 +11,7 @@
 #include <limits>
 #include <ostream>
 #include <nlohmann/json.hpp>
+#include <future>
 
 #include "terminalpassthrough.h"
 #include "openaipromptengine.h"
@@ -72,7 +73,7 @@ std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
 std::vector<std::string> commandLines;
-std::vector<std::string> executablesCache;  // Cache for executable commands
+std::vector<std::string> executablesCache;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
 
@@ -141,12 +142,24 @@ void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
-void refreshExecutablesCache();  // Add this new function declaration
+void refreshExecutablesCache();
+void initializeDataDirectories();
+void asyncCheckForUpdates(std::function<void(bool)> callback);
+void loadPluginsAsync(std::function<void()> callback);
+void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback);
+void processChangelogAsync();
+void loadUserDataAsync(std::function<void()> callback);
+bool hasPathChanged();
+void loadExecutableCacheFromDisk();
+void saveExecutableCacheToDisk();
+bool executeUpdateIfAvailable(bool updateAvailable);
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
 
 int main(int argc, char* argv[]) {
+
+    //capture and clear old lines
     std::string startupInput;
     struct timeval tv;
     fd_set fds;
@@ -157,78 +170,83 @@ int main(int argc, char* argv[]) {
     if (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv) > 0) {
         std::getline(std::cin, startupInput);
         if(startupInput != ""){
+            //run them
             sendTerminalCommand(startupInput);
         }
     }
     
+    //init startup variables
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
+    //clear screen, not really needed if auto loading when booting terminal as screen is already clean
     //sendTerminalCommand("clear");
 
-    if (!std::filesystem::exists(DATA_DIRECTORY)) {
-        std::string applicationDirectory = std::filesystem::current_path().string();
-        if (applicationDirectory.find(":") != std::string::npos) {
-            applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
-        }
-        std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
-    }
-
-    if (!std::filesystem::exists(USER_DATA)) {
-        createNewUSER_DATAFile();
-    } else {
-        loadUserData();
-    }
-
-    if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
-        createNewUSER_HISTORYfile();
-    }
-
-    if(checkForUpdates){
-        if (checkForUpdate()) {
-            std::cout << "\nAn update is available. Would you like to download it? (Y/N)" << std::endl;
-            char response;
-            std::cin >> response;
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            if (response == 'Y' || response == 'y') {
-                if (!downloadLatestRelease()) {
-                    std::cout << "Failed to download the update. Please try again later." << std::endl;
-                }
-            }
+    //init and check directories !required
+    initializeDataDirectories();
+    
+    //start async threads
+    std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
+        if (std::filesystem::exists(USER_DATA)) {
+            loadUserDataAsync([]() {});
         } else {
-            std::cout << " ->  You are up to date!" << std::endl;
+            createNewUSER_DATAFile();
         }
+        
+        if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
+            createNewUSER_HISTORYfile();
+        }
+    });
+    
+    //check and process changelog after an update
+    std::future<void> changelogFuture;
+    if (std::filesystem::exists(DATA_DIRECTORY / "CHANGELOG.txt")) {
+        changelogFuture = std::async(std::launch::async, processChangelogAsync);
     }
-
-    std::ifstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
-    if (changelogFile.is_open()) {
-        std::time_t now = std::time(nullptr);
-        std::tm* now_tm = std::localtime(&now);
-        char buffer[100];
-        std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
-        std::cout << "Thanks for downloading the latest version of DevToolsTerminal Version: " << currentVersion << std::endl;
-        std::cout << "Check out the github repo for more information:\n" << githubRepoURL << std::endl;
-        std::cout << "And check me out at CadenFinley.com" << std::endl;
-        std::string changeLog((std::istreambuf_iterator<char>(changelogFile)), std::istreambuf_iterator<char>());
-        changelogFile.close();
-        displayChangeLog(changeLog);
-        lastUpdated = buffer;
-        std::cout << "Press enter to continue..." << std::endl;
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::filesystem::remove(DATA_DIRECTORY / "CHANGELOG.txt");
+    
+    //async plugin load
+    std::future<void> pluginFuture = std::async(std::launch::async, [&]() {
+        pluginManager = new PluginManager(PLUGINS_DIRECTORY);
+        loadPluginsAsync([]() {});
+    });
+    
+    //async theme load
+    std::future<void> themeFuture = std::async(std::launch::async, [&]() {
+        themeManager = new ThemeManager(THEMES_DIRECTORY);
+        loadThemeAsync(currentTheme, [&](bool success) {
+            if (success) {
+                applyColorToStrings();
+            }
+        });
+    });
+    
+    //async load cached executables for autocomplete
+    std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
+        if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
+            loadExecutableCacheFromDisk();
+            executablesCacheInitialized = true;
+        }
+    });
+    
+    //async check for updates
+    if (checkForUpdates) {
+        auto updateFuture = std::async(std::launch::async, [&]() {
+            asyncCheckForUpdates([](bool updateAvailable) {
+                if (updateAvailable) {
+                    executeUpdateIfAvailable(updateAvailable);
+                } else {
+                    std::cout << " ->  You are up to date!" << std::endl;
+                }
+            });
+        });
     }
+    
+    //wait for data to load should be fast so not a huge time waster
+    userDataFuture.wait();
 
-    pluginManager = new PluginManager(PLUGINS_DIRECTORY);
-    pluginManager->discoverPlugins();
-
-    themeManager = new ThemeManager(THEMES_DIRECTORY);
-    if (themeManager->loadTheme(currentTheme)) {
-        applyColorToStrings();
-    }
-
-    refreshExecutablesCache();
+    //finish startup and run startup commands
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
@@ -3118,10 +3136,15 @@ void showInlineSuggestion(const std::string& input) {
 }
 
 void refreshExecutablesCache() {
+    if (executablesCacheInitialized && !hasPathChanged()) {
+        return;
+    }
+    
     executablesCache.clear();
     
     char* pathEnv = getenv("PATH");
     if (!pathEnv) {
+        executablesCacheInitialized = true;
         return;
     }
     
@@ -3129,28 +3152,250 @@ void refreshExecutablesCache() {
     std::stringstream pathStream(path);
     std::string directory;
     
+    std::vector<std::thread> scanThreads;
+    std::mutex cacheMutex;
+
     while (std::getline(pathStream, directory, ':')) {
-        try {
-            if (!std::filesystem::exists(directory)) {
-                continue;
-            }
-            
-            for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-                if (entry.is_regular_file()) {
-                    std::error_code ec;
-                    auto perms = std::filesystem::status(entry.path(), ec).permissions();
-                    
-                    if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none) {
-                        std::string execName = entry.path().filename().string();
-                        if (std::find(executablesCache.begin(), executablesCache.end(), execName) == executablesCache.end()) {
-                            executablesCache.push_back(execName);
+
+        scanThreads.emplace_back([directory, &cacheMutex]() {
+            try {
+                if (!std::filesystem::exists(directory)) {
+                    return;
+                }
+                
+                std::vector<std::string> localCache;
+                for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+                    if (entry.is_regular_file()) {
+                        std::error_code ec;
+                        auto perms = std::filesystem::status(entry.path(), ec).permissions();
+                        
+                        if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none) {
+                            std::string execName = entry.path().filename().string();
+                            localCache.push_back(execName);
                         }
                     }
                 }
+                
+                std::lock_guard<std::mutex> lock(cacheMutex);
+                for (const auto& name : localCache) {
+                    if (std::find(executablesCache.begin(), executablesCache.end(), name) == executablesCache.end()) {
+                        executablesCache.push_back(name);
+                    }
+                }
+            } catch (const std::filesystem::filesystem_error& e) {
+                // do nothing
             }
-        } catch (const std::filesystem::filesystem_error& e) {
-            //do nothing
+        });
+    }
+
+    for (auto& thread : scanThreads) {
+        if (thread.joinable()) {
+            thread.join();
         }
     }
+
+    std::sort(executablesCache.begin(), executablesCache.end());
+    
     executablesCacheInitialized = true;
+    
+    saveExecutableCacheToDisk();
+}
+
+void initializeDataDirectories() {
+    if (!std::filesystem::exists(DATA_DIRECTORY)) {
+        std::string applicationDirectory = std::filesystem::current_path().string();
+        if (applicationDirectory.find(":") != std::string::npos) {
+            applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
+        }
+        std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
+    }
+    
+    if (!std::filesystem::exists(THEMES_DIRECTORY)) {
+        std::filesystem::create_directory(THEMES_DIRECTORY);
+    }
+    
+    if (!std::filesystem::exists(PLUGINS_DIRECTORY)) {
+        std::filesystem::create_directory(PLUGINS_DIRECTORY);
+    }
+}
+
+void asyncCheckForUpdates(std::function<void(bool)> callback) {
+    bool updateAvailable = checkForUpdate();
+    callback(updateAvailable);
+}
+
+bool executeUpdateIfAvailable(bool updateAvailable) {
+    if (!updateAvailable) return false;
+    
+    std::cout << "\nAn update is available. Would you like to download it? (Y/N)" << std::endl;
+    char response;
+    std::cin >> response;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if (response != 'Y' && response != 'y') return false;
+    
+    if (!downloadLatestRelease()) {
+        std::cout << "Failed to download the update. Please try again later." << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void loadPluginsAsync(std::function<void()> callback) {
+    if (pluginManager) {
+        pluginManager->discoverPlugins();
+    }
+    callback();
+}
+
+void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback) {
+    bool success = false;
+    if (themeManager) {
+        success = themeManager->loadTheme(themeName);
+    }
+    callback(success);
+}
+
+void processChangelogAsync() {
+    std::ifstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
+    if (!changelogFile.is_open()) return;
+    
+    std::time_t now = std::time(nullptr);
+    std::tm* now_tm = std::localtime(&now);
+    char buffer[100];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
+    
+    std::string changeLog((std::istreambuf_iterator<char>(changelogFile)), std::istreambuf_iterator<char>());
+    changelogFile.close();
+    
+    std::ofstream savedChangelogFile(DATA_DIRECTORY / "latest_changelog.txt");
+    if (savedChangelogFile.is_open()) {
+        savedChangelogFile << changeLog;
+        savedChangelogFile.close();
+    }
+    
+    lastUpdated = buffer;
+    
+    std::filesystem::remove(DATA_DIRECTORY / "CHANGELOG.txt");
+    
+    std::ofstream flagFile(DATA_DIRECTORY / ".new_changelog");
+    if (flagFile.is_open()) {
+        flagFile << "1";
+        flagFile.close();
+    }
+}
+
+void loadUserDataAsync(std::function<void()> callback) {
+    std::ifstream file(USER_DATA);
+    if (file.is_open()) {
+        if (file.peek() == std::ifstream::traits_type::eof()) {
+            file.close();
+            createNewUSER_DATAFile();
+        } else {
+            try {
+                json userData;
+                file >> userData;
+                if(userData.contains("OpenAI_API_KEY")) {
+                    c_assistant.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
+                }
+                if(userData.contains("Chat_Cache")) {
+                    savedChatCache = userData["Chat_Cache"].get<std::vector<std::string> >();
+                    c_assistant.setChatCache(savedChatCache);
+                }
+                if(userData.contains("Startup_Commands")) {
+                    startupCommands = userData["Startup_Commands"].get<std::vector<std::string> >();
+                }
+                if(userData.contains("Shortcuts_Enabled")) {
+                    shortcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
+                }
+                if(userData.contains("Text_Entry")) {
+                    defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();
+                }
+                if(userData.contains("Command_Prefix")) {
+                    commandPrefix = userData["Command_Prefix"].get<std::string>();
+                }
+                if(userData.contains("Shortcuts_Prefix")) {
+                    shortcutsPrefix = userData["Shortcuts_Prefix"].get<std::string>();
+                }
+                if(userData.contains("Multi_Script_Shortcuts")) {
+                    multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();
+                }
+                if(userData.contains("Last_Updated")) {
+                    lastUpdated = userData["Last_Updated"].get<std::string>();
+                }
+                if(userData.contains("Current_Theme")) {
+                    currentTheme = userData["Current_Theme"].get<std::string>();
+                }
+                if(userData.contains("Auto_Update_Check")) {
+                    checkForUpdates = userData["Auto_Update_Check"].get<bool>();
+                }
+                if(userData.contains("Aliases")) {
+                    aliases = userData["Aliases"].get<std::map<std::string, std::string>>();
+                }
+                if(userData.contains("Update_From_Github")) {
+                    updateFromGithub = userData["Update_From_Github"].get<bool>();
+                }
+                file.close();
+            }
+            catch(const json::parse_error& e) {
+                file.close();
+                createNewUSER_DATAFile();
+            }
+        }
+    }
+    callback();
+}
+
+bool hasPathChanged() {
+    static std::string lastPathValue;
+    std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
+    
+    if (lastPathValue.empty()) {
+        lastPathValue = currentPath;
+        return true;
+    }
+    
+    if (lastPathValue != currentPath) {
+        lastPathValue = currentPath;
+        return true;
+    }
+    
+    return false;
+}
+
+void loadExecutableCacheFromDisk() {
+    std::ifstream cacheFile(DATA_DIRECTORY / "executables_cache.json");
+    if (!cacheFile.is_open()) return;
+    
+    try {
+        json cacheData;
+        cacheFile >> cacheData;
+        cacheFile.close();
+        
+        std::string cachedPathValue = cacheData["path_value"].get<std::string>();
+        std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
+        
+        if (cachedPathValue == currentPath) {
+            executablesCache = cacheData["executables"].get<std::vector<std::string>>();
+            executablesCacheInitialized = true;
+        } else {
+            refreshExecutablesCache();
+            saveExecutableCacheToDisk();
+        }
+    } catch (const std::exception& e) {
+        refreshExecutablesCache();
+        saveExecutableCacheToDisk();
+    }
+}
+
+void saveExecutableCacheToDisk() {
+    json cacheData;
+    cacheData["executables"] = executablesCache;
+    cacheData["path_value"] = getenv("PATH") ? getenv("PATH") : "";
+    
+    std::ofstream cacheFile(DATA_DIRECTORY / "executables_cache.json");
+    if (cacheFile.is_open()) {
+        cacheFile << cacheData.dump();
+        cacheFile.close();
+    }
 }
