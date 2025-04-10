@@ -144,10 +144,20 @@ std::string currentSuggestion = "";
 bool hasSuggestion = false;
 
 int main(int argc, char* argv[]) {
-
-    std::cout << argc << std::endl;
-    std::cout << argv << std::endl;
-
+    std::string startupInput;
+    struct timeval tv;
+    fd_set fds;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    FD_ZERO(&fds);
+    FD_SET(STDIN_FILENO, &fds);
+    if (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv) > 0) {
+        std::getline(std::cin, startupInput);
+        if(startupInput != ""){
+            sendTerminalCommand(startupInput);
+        }
+    }
+    
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
