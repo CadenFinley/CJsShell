@@ -1525,88 +1525,108 @@ void shortcutCommands() {
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
+bool validatePrefix(const std::string& prefix) {
+    if (prefix.length() > 1) {
+        std::cerr << "Invalid prefix. Must be a single character." << std::endl;
+        return false;
+    } else if (prefix == " ") {
+        std::cerr << "Invalid prefix. Must not be a space." << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void handleToggleCommand(const std::string& name, bool& setting, 
+                        std::function<void(bool)> setter = nullptr) {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << name << " is currently " << (setting ? "enabled." : "disabled.") << std::endl;
+        return;
+    }
+    
+    if (lastCommandParsed == "enable") {
+        setting = true;
+        if (setter) setter(true);
+        std::cout << name << " enabled." << std::endl;
+    } else if (lastCommandParsed == "disable") {
+        setting = false;
+        if (setter) setter(false);
+        std::cout << name << " disabled." << std::endl;
+    } else {
+        std::cerr << "Unknown option. Use 'enable' or 'disable'." << std::endl;
+    }
+}
+
 void textCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
         std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
+
     if (lastCommandParsed == "commandprefix") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
             std::cout << "Command prefix is currently " + commandPrefix << std::endl;
             return;
         }
-        if (lastCommandParsed.length() > 1) {
-            std::cerr << "Invalid command prefix. Must be a single character." << std::endl;
-            return;
-        } else if (lastCommandParsed == " ") {
-            std::cerr << "Invalid command prefix. Must not be a space." << std::endl;
-            return;
+        
+        if (validatePrefix(lastCommandParsed)) {
+            commandPrefix = lastCommandParsed;
+            std::cout << "Command prefix set to " + commandPrefix << std::endl;
         }
-        commandPrefix = lastCommandParsed;
-        std::cout << "Command prefix set to " + commandPrefix << std::endl;
         return;
     }
+    
     if (lastCommandParsed == "shortcutprefix") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
             std::cout << "Shortcut prefix is currently " + shortcutsPrefix << std::endl;
             return;
         }
-        if (lastCommandParsed.length() > 1) {
-            std::cerr << "Invalid shortcut prefix. Must be a single character." << std::endl;
-            return;
-        } else if (lastCommandParsed == " ") {
-            std::cerr << "Invalid shortcut prefix. Must not be a space." << std::endl;
-            return;
+        
+        if (validatePrefix(lastCommandParsed)) {
+            shortcutsPrefix = lastCommandParsed;
+            std::cout << "Shortcut prefix set to " + shortcutsPrefix << std::endl;
         }
-        shortcutsPrefix = lastCommandParsed;
-        std::cout << "Shortcut prefix set to " + shortcutsPrefix << std::endl;
         return;
     }
-    if(lastCommandParsed == "displayfullpath"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Display whole path is currently " << (terminal.isDisplayWholePath() ? "enabled." : "disabled.") << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "enable"){
-            terminal.setDisplayWholePath(true);
-            std::cout << "Display whole path enabled." << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "disable"){
-            terminal.setDisplayWholePath(false);
-            std::cout << "Display whole path disabled." << std::endl;
-            return;
-        }
+    
+    if (lastCommandParsed == "displayfullpath") {
+        handleToggleCommand("Display whole path", displayWholePath, 
+                          [&](bool value) { terminal.setDisplayWholePath(value); });
+        return;
     }
-    if(lastCommandParsed == "defaultentry"){
+    
+    if (lastCommandParsed == "defaultentry") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
             std::cout << "Default text entry is currently " << (defaultTextEntryOnAI ? "AI." : "terminal.") << std::endl;
             return;
         }
-        if(lastCommandParsed == "ai"){
+        
+        if (lastCommandParsed == "ai") {
             defaultTextEntryOnAI = true;
             std::cout << "Default text entry set to AI." << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "terminal"){
+        } else if (lastCommandParsed == "terminal") {
             defaultTextEntryOnAI = false;
             std::cout << "Default text entry set to terminal." << std::endl;
-            return;
+        } else {
+            std::cerr << "Unknown option. Use 'ai' or 'terminal'." << std::endl;
         }
+        return;
     }
+    
     if (lastCommandParsed == "help") {
         std::cout << "Text commands:" << std::endl;
         std::cout << " commandprefix [CHAR]: Set the command prefix" << std::endl;
+        std::cout << " shortcutprefix [CHAR]: Set the shortcut prefix" << std::endl;
         std::cout << " displayfullpath enable/disable: Toggle full path display" << std::endl;
         std::cout << " defaultentry ai/terminal: Set default text entry mode" << std::endl;
         return;
     }
-    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+    
+    std::cerr << "Unknown command. Use 'help' for available commands." << std::endl;
 }
 
 void getNextCommand() {
