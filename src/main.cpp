@@ -142,13 +142,16 @@ void aliasCommands();
 // Modify the main function to accept command line arguments
 int main(int argc, char* argv[]) {
 
+    std::cout << argc << " arguments passed." << std::endl;
+    std::cout << argv << std::endl;
+
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
     terminal = TerminalPassthrough();
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
-    sendTerminalCommand("clear");
+    //sendTerminalCommand("clear");
 
     if (!std::filesystem::exists(DATA_DIRECTORY)) {
         std::string applicationDirectory = std::filesystem::current_path().string();
