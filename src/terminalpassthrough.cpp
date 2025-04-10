@@ -27,7 +27,7 @@ std::string TerminalPassthrough::removeSpecialCharacters(const std::string& inpu
     std::string result;
     for (char c : input) {
         // Keep only alphanumeric characters, underscore, and hyphen
-        if (isalnum(c) || c == '_' || c == '-') {
+        if (isalnum(c)) {
             result += c;
         }
     }
