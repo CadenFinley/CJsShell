@@ -50,7 +50,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.3.0";
+const std::string currentVersion = "1.8.3.1";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
