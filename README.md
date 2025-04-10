@@ -6,55 +6,6 @@
 
 DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems with integrated OpenAI capabilities. It allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
 
-## Table of Contents
-- [Features](#features)
-- [Installation](#installation)
-- [Command Format](#command-format)
-- [Commands Reference](#commands-reference)
-  - [Basic Commands](#basic-commands)
-  - [Update Management](#update-management)
-  - [Shortcuts](#shortcuts)
-  - [User Settings](#user-settings)
-    - [Startup Commands](#startup-commands)
-    - [Shortcuts Management](#shortcuts-management)
-    - [Multi-Command Shortcuts](#multi-command-shortcuts)
-    - [Text and Display Settings](#text-and-display-settings)
-    - [Data Management](#data-management)
-    - [Testing](#testing)
-  - [Theme Management](#theme-management)
-  - [Environment Variables](#environment-variables)
-- [AI Integration](#ai-integration)
-  - [Core AI Commands](#core-ai-commands)
-  - [AI Configuration](#ai-configuration)
-  - [AI File Integration](#ai-file-integration)
-  - [AI Chat Management](#ai-chat-management)
-  - [OpenAI Integration Details](#openai-integration-details)
-- [Plugin System](#plugin-system)
-  - [Plugin Lifecycle](#plugin-lifecycle)
-  - [Plugin Events](#plugin-events)
-  - [Plugin Development Notes](#plugin-development-notes)
-  - [Safety Considerations](#safety-considerations)
-- [Terminal Features](#terminal-features)
-  - [Color Interface](#color-interface)
-  - [Git Integration](#git-integration)
-  - [Multi-line Editing](#multi-line-editing)
-  - [Cross-Platform Support](#cross-platform-support)
-- [Data Storage](#data-storage)
-- [Contributing](#contributing)
-- [License](#license)
-- [Author](#author)
-
-## Features
-
-- **Terminal Integration**: Execute terminal commands directly within the application with proper directory tracking
-- **Shortcut Management**: Create, edit, and execute single and multi-command shortcuts for repetitive tasks
-- **AI Integration**: Connect with OpenAI's GPT models for AI-assisted development with multiple modes and models
-- **Customization**: Configure settings, command prefixes, and startup behaviors
-- **Theme Management**: Customize terminal colors and save/load themes
-- **Multi-line Input**: Support for entering multi-line commands with full cursor navigation
-- **Git Integration**: Automatic Git repository detection with branch display in prompt
-- **Data Persistence**: Save and load user preferences, command history, and chat contexts
-
 ## Installation
 
 ### Option 1: Using the Installation Script (macOS/Linux)
@@ -93,10 +44,27 @@ DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems wi
    - Configure auto-launch with zsh
    - Make the application executable
 
-4. Restart your terminal or run:
-   ```sh
-   source ~/.zshrc
-   ```
+4. Restart your terminal
+
+### File Structure
+
+DevToolsTerminal creates the following directory structure in your home folder:
+
+```
+~/.DTT-Data/                          # Main data directory
+├── DevToolsTerminal                  # Main executable
+├── .USER_DATA.json                   # User settings and preferences
+├── .USER_COMMAND_HISTORY.txt         # History of executed commands
+├── executables_cache.json            # Cache of available system executables
+├── dtt-uninstall.sh                  # Uninstall script
+├── latest_changelog.txt              # Most recent changelog (after updates)
+├── themes/                           # Themes directory
+│   ├── default.json                  # Default color theme
+│   └── [user-themes].json            # User-created themes
+└── plugins/                          # Plugins directory
+    ├── example-plugin.so             # Example plugin (Unix/Linux)
+    └── another-plugin.dylib          # Example plugin (macOS)
+```
 
 ### Uninstallation
 
@@ -109,6 +77,7 @@ To uninstall DevToolsTerminal:
    - Remove auto-launch entries from your .zshrc file
    - Optionally remove all stored data in the ~/.DTT-Data directory
    - Clean up any legacy installations from previous versions
+
 
 ### Option 2: Manual build Installation
 
@@ -131,339 +100,267 @@ To uninstall DevToolsTerminal:
    ./DevToolsTerminal
    ```
 
-## Command Format
+## Features
 
-Commands in DevToolsTerminal follow a consistent format:
+### Plugins
 
-1. **Command Prefix**: By default, commands start with `!` (customizable via `!user text commandprefix [char]`)
-2. **Command Structure**: `!category subcategory action [arguments]`
-   - Example: `!user shortcut add myshortcut ls -la`
-3. **Direct Terminal Commands**: Any input without the command prefix is sent directly to the terminal
-4. **AI Mode**: When in AI mode (toggled via `!user text defaultentry ai`), input without command prefix is sent to ChatGPT
+DevToolsTerminal supports a plugin system that allows for extending functionality.
 
-### Command Types
-- **Simple Commands**: Single word commands like `!help`, `!exit`, `!clear`
-- **Category Commands**: Multi-level commands like `!user startup add [command]`
-- **Shortcut Commands**: Execute defined shortcuts via `!ss [shortcut]` or `!mm [shortcut]`
+#### Managing Plugins
 
-## Commands Reference
+```sh
+# List available plugins
+!plugin available
 
-### Basic Commands
+# List enabled plugins
+!plugin enabled
 
-| Command | Description |
-|---------|-------------|
-| `!help` | Display available commands |
-| `!exit` | Exit the application and save data |
-| `!clear` | Clear screen and terminal cache |
-| `!approot` | Navigate to application data directory |
-| `!terminal [command]` | Execute terminal command directly |
-| `!version` | Display application version information |
+# Enable a plugin
+!plugin enable [PLUGIN_NAME]
 
-### Update Management
+# Disable a plugin
+!plugin disable [PLUGIN_NAME]
 
-| Command | Description |
-|---------|-------------|
-| `!version` | Display current application version |
-| `!checkforupdates` | Manually check for available updates |
-| `!user checkforupdates enable` | Enable automatic update checking on startup |
-| `!user checkforupdates disable` | Disable automatic update checking on startup |
+# View plugin information
+!plugin info [PLUGIN_NAME]
 
-The application automatically checks for updates on startup (if enabled) and will:
-1. Compare local version with latest GitHub release
-2. Prompt to download if an update is available
-3. Display changelog after installing update
+# List commands for a plugin
+!plugin commands [PLUGIN_NAME]
 
-### Shortcuts
+# Install a new plugin
+!plugin install [PATH_TO_PLUGIN_FILE]
 
-| Command | Description |
-|---------|-------------|
-| `!ss [shortcut]` | Execute a single-command shortcut |
-| `!mm [shortcut]` | Execute a multi-command shortcut |
+# Uninstall a plugin
+!plugin uninstall [PLUGIN_NAME]
 
-### User Settings
+# Update plugin settings
+!plugin settings [PLUGIN_NAME] set [SETTING_NAME] [VALUE]
+```
 
-#### Startup Commands
-| Command | Description |
-|---------|-------------|
-| `!user startup add [command]` | Add command to startup |
-| `!user startup remove [command]` | Remove command from startup |
-| `!user startup clear` | Clear all startup commands |
-| `!user startup enable` | Enable startup commands |
-| `!user startup disable` | Disable startup commands |
-| `!user startup list` | List all startup commands |
-| `!user startup runall` | Run all startup commands now |
+#### Creating Plugins
 
-#### Shortcuts Management
-| Command | Description |
-|---------|-------------|
-| `!user shortcut add [shortcut] [command]` | Add a shortcut |
-| `!user shortcut remove [shortcut]` | Remove a shortcut |
-| `!user shortcut clear` | Clear all shortcuts |
-| `!user shortcut enable` | Enable shortcuts |
-| `!user shortcut disable` | Disable shortcuts |
-| `!user shortcut list` | List all shortcuts |
+Plugins are shared libraries (`.so` or `.dylib` files) that implement the `PluginInterface`. They must export `createPlugin` and `destroyPlugin` functions and follow the required interface version. Please refer to the plugin interface when creating plugins.
+
+### Themes
+
+DevToolsTerminal supports customizable color themes for terminal display.
+
+#### Managing Themes
+
+```sh
+# Load a theme
+!theme load [THEME_NAME]
+
+# Save current colors as a theme
+!theme save [THEME_NAME]
+```
+
+#### Theme Components
+
+Themes are stored as JSON files in the `~/.DTT-Data/themes` directory.
+
+### Startup Sequence
+
+When DevToolsTerminal starts, it performs the following operations:
+
+1. Initialize and verify data directories (`~/.DTT-Data`)
+2. Load user data asynchronously
+3. Load plugins asynchronously
+4. Load themes asynchronously
+5. Check for updates (if enabled)
+6. Execute startup commands (if configured)
+
+#### Managing Startup Commands
+
+```sh
+# List startup commands
+!user startup list
+
+# Add a startup command
+!user startup add [COMMAND]
+
+# Remove a startup command
+!user startup remove [COMMAND]
+
+# Clear all startup commands
+!user startup clear
+
+# Enable/disable startup commands
+!user startup enable
+!user startup disable
+
+# Execute all startup commands
+!user startup runall
+```
+
+### Shortcuts and Aliases
 
 #### Multi-Command Shortcuts
-| Command | Description |
-|---------|-------------|
-| `!user shortcut mm add [name] [cmd1] [cmd2]...` | Add multi-command shortcut |
-| `!user shortcut mm remove [name]` | Remove multi-command shortcut |
 
-#### Text and Display Settings
-| Command | Description |
-|---------|-------------|
-| `!user text commandprefix [char]` | Set command prefix character (default: !) |
-| `!user text displayfullpath enable` | Show full directory path |
-| `!user text displayfullpath disable` | Show shortened directory path |
-| `!user text defaultentry ai` | Set default input mode to AI |
-| `!user text defaultentry terminal` | Set default input mode to terminal |
+Create shortcuts that execute multiple commands in sequence:
 
-#### Data Management
-| Command | Description |
-|---------|-------------|
-| `!user data get userdata` | View user settings data |
-| `!user data get userhistory` | View command history |
-| `!user data get all` | View all user data |
-| `!user data clear` | Clear all user data |
-| `!user data saveloop enable` | Enable automatic data saving |
-| `!user data saveloop disable` | Disable automatic data saving |
-| `!user saveonexit enable` | Enable saving data on exit |
-| `!user saveonexit disable` | Disable saving data on exit |
-| `!user checkforupdates enable` | Enable automatic update checking |
-| `!user checkforupdates disable` | Disable automatic update checking |
+```sh
+# Add a shortcut
+!user shortcut add [NAME] [COMMAND1] [COMMAND2]...
 
-#### Testing
-| Command | Description |
-|---------|-------------|
-| `!user testing enable` | Enable testing mode |
-| `!user testing disable` | Disable testing mode |
+# Use a shortcut
+-[NAME]
 
-### Theme Management
+# List shortcuts
+!user shortcut list
 
-| Command | Description |
-|---------|-------------|
-| `!theme list` | List all available themes |
-| `!theme load [name]` | Load a saved color theme |
-| `!theme save [name]` | Save current colors as a theme |
-| `!theme delete [name]` | Delete a saved theme |
-| `!theme set [color] [value]` | Set a specific color in the current theme |
-| `!theme current` | Display the name of the current theme |
+# Remove a shortcut
+!user shortcut remove [NAME]
+```
 
-The theme system allows you to customize and persist terminal color schemes:
-- Themes are stored in the `.DTT-Data/themes` directory as JSON files
-- Each theme includes settings for all terminal color variables
-- The default theme is always available and cannot be deleted
-- Colors affect various UI elements including prompts, messages, and highlights
+#### Aliases
 
-#### Available Color Variables
-The following color variables can be customized:
-- `GREEN_COLOR_BOLD`: Used for success messages and AI interactions
-- `RED_COLOR_BOLD`: Used for error messages and critical information
-- `PURPLE_COLOR_BOLD`: Used for application branding and highlights
-- `BLUE_COLOR_BOLD`: Used for directory names and information sections
-- `YELLOW_COLOR_BOLD`: Used for warnings and branch names
-- `CYAN_COLOR_BOLD`: Used for system messages and notifications
-- `SHELL_COLOR`: Used for shell name in the prompt
-- `DIRECTORY_COLOR`: Used for directory path in the prompt
-- `BRANCH_COLOR`: Used for Git branch name in the prompt
-- `GIT_COLOR`: Used for Git indicators in the prompt
+Create command aliases:
 
-Color values use standard ANSI escape codes (e.g., `\033[1;32m` for bold green).
+```sh
+# Add an alias
+!user alias add [NAME] [COMMAND]
 
-### Environment Variables
+# List aliases
+!user alias list
 
-| Command | Description |
-|---------|-------------|
-| `!env` | List all environment variables |
-| `!env set NAME VALUE` | Set an environment variable |
-| `!env get NAME` | Get value of an environment variable |
-| `!env remove NAME` | Remove an environment variable |
-| `!env unset NAME` | Alternative to remove |
-| `!env clear` | Remove all environment variables |
-| `!env expand STRING` | Show expansion of variables in a string |
+# Remove an alias
+!user alias remove [NAME]
+```
 
-Environment variables can be:
-- Used in terminal commands with standard `$VAR` syntax
-- Referenced with ${NAME} syntax for variables with special characters
-- Persisted across sessions
-- Used in shortcuts and startup commands
-- Referenced in AI conversations for context
-- Automatically expanded in commands before execution
+### OpenAI Integration
 
-## AI Integration
+DevToolsTerminal integrates with OpenAI's API for AI-assisted terminal usage:
 
-### Core AI Commands
-| Command | Description |
-|---------|-------------|
-| `!ai` | Enter AI chat mode |
-| `!ai help` | Display AI command help |
-| `!ai chat [message]` | Send message to ChatGPT |
-| `!aihelp` | Get AI help for recent terminal errors |
+```sh
+# Set API key
+!ai apikey set [YOUR_API_KEY]
 
-### AI Configuration
-| Command | Description |
-|---------|-------------|
-| `!ai apikey set [KEY]` | Set OpenAI API key |
-| `!ai apikey get` | Display current API key |
-| `!ai model [model]` | Set AI model (default: gpt-3.5-turbo) |
-| `!ai mode [mode]` | Set assistant type (chat, file-search, or code-interpreter) |
-| `!ai timeoutflag [seconds]` | Set timeout for AI responses |
-| `!ai directory set` | Set directory for AI-generated files to current directory |
-| `!ai directory clear` | Reset directory to default (.DTT-Data) |
+# Switch to AI chat mode
+!ai
 
-### AI File Integration
-| Command | Description |
-|---------|-------------|
-| `!ai file add [file]` | Add file to AI context |
-| `!ai file add all` | Add all files in directory to AI context |
-| `!ai file remove [file]` | Remove file from AI context |
-| `!ai file remove all` | Remove all files from AI context |
-| `!ai file active` | List active files in AI context |
-| `!ai file available` | List files available in current directory |
-| `!ai file refresh` | Refresh active file contents |
-| `!ai file clear` | Clear all files from context |
+# Get help with errors
+!aihelp
 
-### AI Chat Management
-| Command | Description |
-|---------|-------------|
-| `!ai chat history clear` | Clear chat history |
-| `!ai chat cache enable` | Enable chat cache |
-| `!ai chat cache disable` | Disable chat cache |
-| `!ai chat cache clear` | Clear chat cache |
-| `!ai log` | Log last AI conversation to file |
-| `!ai get [key]` | Get specific response data |
-| `!ai dump` | Dump complete response data |
-| `!ai rejectchanges` | Reject AI-suggested changes |
+# Configure AI settings
+!ai mode [chat|file-search|code-interpreter]
+!ai model [MODEL_NAME]
+```
 
-### OpenAI Integration Details
+#### AI Assistant Types
 
-#### Assistant Types
-The application supports three OpenAI assistant modes:
+- **chat**: General conversation mode for assistance
+- **file-search**: Analyze files and respond based on their contents
+- **code-interpreter**: Edit and modify files directly with AI assistance
 
-1. **chat**: Standard conversational assistant
-2. **file-search**: Assistant that analyzes provided files to help with related queries
-3. **code-interpreter**: Advanced mode that can receive, modify, and create code files
+#### File Context Management
 
-#### Code Interpreter Mode
-When using the code-interpreter mode, the assistant can:
-- Read existing code files
-- Suggest changes to code files and automatically apply them (similar to Github Copilot)
-- Create new files in the specified save directory (defaults to .DTT-Data)
-- Generate automatic diffs showing changes made to files
-- Process and intelligently merge changes with existing file content
-- Format code blocks appropriately based on language
-- Create nested directory structures for new files when paths contain "/"
-- Allow rejecting changes via `!ai rejectchanges` command to restore original file state
-- Track file changes with colored diff output (red for deletions, green for additions)
-- Handle new file creation automatically when referenced in code blocks
+```sh
+# Add a file to AI context
+!ai file add [FILENAME]
 
-#### File Context
-Adding files to the AI context allows the assistant to:
-- Reference specific code during conversations
-- Understand project structure and dependencies
-- Provide more relevant and accurate answers to code-related questions
-- Refresh file content with `!ai file refresh` to ensure latest changes are included
+# Add all files in current directory
+!ai file add all
 
-## Plugin System
+# Remove a file from context
+!ai file remove [FILENAME]
 
-| Command | Description |
-|---------|-------------|
-| `!plugin available` | List all available plugins |
-| `!plugin enabled` | List all enabled plugins |
-| `!plugin enableall` | Enable all available plugins |
-| `!plugin disableall` | Disable all installed plugins |
-| `!plugin settings` | Show settings for all plugins |
-| `!plugin [name] enable` | Enable specific plugin |
-| `!plugin [name] disable` | Disable specific plugin |
-| `!plugin [name] info` | Get information about a plugin |
-| `!plugin [name] commands` | List commands provided by a plugin |
-| `!plugin [name] settings set [key] [value]` | Change plugin setting |
-| `!plugin install [path]` | Install a new plugin from file |
-| `!plugin uninstall [name]` | Remove an installed plugin |
+# Show active context files
+!ai file active
 
-Plugins provide extended functionality to DevToolsTerminal:
-- Plugins are stored in the `.DTT-Data/plugins` directory
-- Each plugin can define its own commands and settings
-- Plugin state (enabled/disabled) persists across sessions
-- Settings are managed per-plugin and saved with user data
+# Show available files in current directory
+!ai file available
 
-### Plugin Lifecycle
+# Update file contents in context
+!ai file refresh
 
-Plugins follow a specific lifecycle:
-1. **Discovery**: On startup, the application scans the plugins directory for compatible files (.so/.dylib)
-2. **Loading**: Plugin files are dynamically loaded but remain inactive
-3. **Initialization**: When enabled, the plugin's `initialize()` method is called
-4. **Execution**: The plugin can handle commands and respond to events
-5. **Shutdown**: When disabled, the plugin's `shutdown()` method is called
-6. **Unloading**: On application exit or plugin uninstallation, resources are released
+# Clear all files from context
+!ai file clear
+```
 
-### Plugin Events
+#### Chat History Management
 
-Plugins can respond to various system events:
-- `event main_process pre_run`: Before the main process loop starts
-- `event main_process start`: When the main process loop begins
-- `event main_process took_input`: When user input is received
-- `event main_process command_processed`: After a command is processed
-- `event main_process end`: When the main process loop ends
-- `event plugin_enabled [name]`: When a plugin is enabled
-- `event plugin_disabled [name]`: When a plugin is disabled
+```sh
+# View chat history
+!ai chat history
 
-### Plugin Development Notes
+# Clear chat history
+!ai chat history clear
 
-For developers interested in creating plugins:
-- Plugins must implement the `PluginInterface` class
-- Required methods include getName(), getVersion(), getDescription(), getAuthor()
-- Plugins should properly handle initialization and shutdown
-- Command handling is done through the handleCommand() method with a queue of arguments
-- Plugins can define their own settings with default values
-- Ensure plugins are compiled as shared libraries (.so on Linux, .dylib on macOS)
-- Use the IMPLEMENT_PLUGIN macro to define required entry points
+# Enable token caching for better context retention
+!ai chat cache enable
 
-### Safety Considerations
+# Disable token caching
+!ai chat cache disable
 
-When working with plugins:
-- Only install plugins from trusted sources
-- Plugins have full access to the terminal and system
-- Disable or uninstall plugins that exhibit unexpected behavior
-- The terminal will display a safety reminder when plugins are loaded
+# Clear all cached tokens
+!ai chat cache clear
+```
 
-## Terminal Features
+#### Code Interpreter Features
 
-### Color Interface
-The terminal features color-coded interface elements:
-- Green: AI interactions and successful operations
-- Red: Error messages and development mode indicators
-- Purple: Application branding and highlights
-- Default: Standard command input and output
+The code-interpreter mode allows AI to directly modify files:
 
-### Git Integration
-The terminal prompt automatically detects Git repositories and shows:
-- Current directory name (or full path if enabled)
-- Git branch name when inside a repository
-- Color-coded repository and branch information
-- Automatically traverses parent directories to find Git repositories
-- Visual distinction between Git and non-Git directories in prompt
+```sh
+# Set working directory for file operations
+!ai directory set
 
-### Multi-line Editing
-The terminal supports full multi-line editing capabilities:
-- Arrow key navigation (up, down, left, right)
-- Command history navigation
-- Backspace handling across lines
-- Proper cursor positioning
+# Reset to default directory
+!ai directory clear
 
-## Data Storage
+# Reject recent AI changes to files
+!ai rejectchanges
+```
 
-User settings, command history, AI chat history, theme files, and code-interpreter generated files are stored in the `.DTT-Data` directory within your application directory:
+#### Advanced AI Settings
 
-- `.USER_DATA.json`: Contains user settings, shortcuts, API keys, and chat cache
-- `.USER_COMMAND_HISTORY.txt`: Stores the history of all commands entered
-- `themes/`: Directory containing saved color theme files
-- `plugins/`: Directory containing user plugins
-- Additional directories created by code-interpreter for generated files
+```sh
+# Set timeout duration for API calls
+!ai timeoutflag [SECONDS]
 
-## Contributing
+# Save recent AI exchanges to file
+!ai log
 
-Contributions are welcome! Please fork the repository and submit a pull request with your enhancements.
+# View raw AI response data
+!ai dump
+
+# Extract specific data from response
+!ai get [KEY]
+```
+
+### Built-in Commands
+
+DevToolsTerminal includes many built-in commands for terminal operation and customization:
+
+#### Core Commands
+- `!help` - Display available commands
+- `!version` - Display application version
+- `!terminal [COMMAND]` - Execute system terminal commands or switch back to the terminal menu
+- `!uninstall` - Uninstall the application
+- `!refresh-commands` - Refresh the executable commands cache
+- `!ai` - Switch to the ai menu
+
+#### User Settings
+- `!user text commandprefix [CHAR]` - Change command prefix (default: !)
+- `!user text shortcutprefix [CHAR]` - Change shortcut prefix (default: -)
+- `!user text displayfullpath enable/disable` - Toggle full path display
+- `!user text defaultentry ai/terminal` - Set default input mode
+- `!user testing enable/disable` - Toggle testing mode
+- `!user saveloop enable/disable` - Toggle auto-save loop
+- `!user saveonexit enable/disable` - Toggle save on exit
+- `!user checkforupdates enable/disable` - Toggle update checking
+- `!user updatepath github/cadenfinley` - Set update source
+
+#### AI Commands
+- `!ai log` - Save chat log to file
+- `!ai chat history` - Show chat history
+- `!ai chat history clear` - Clear chat history
+- `!ai file add/remove/active/available/refresh/clear` - Manage context files
+- `!ai directory set/clear` - Configure save directory
+
+#### Navigation
+- `!approot` - Go to application directory
+- `!clear` - Clear terminal screen
 
 ## License
 
