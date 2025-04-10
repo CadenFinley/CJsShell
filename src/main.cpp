@@ -139,7 +139,6 @@ std::string generateUninstallScript();
 void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 
-// Modify the main function to accept command line arguments
 int main(int argc, char* argv[]) {
 
     std::cout << argc << " arguments passed." << std::endl;
