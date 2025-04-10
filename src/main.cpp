@@ -53,7 +53,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.4.4";
+const std::string currentVersion = "1.8.4.5";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -2510,12 +2510,23 @@ bool startsWith(const std::string& str, const std::string& prefix) {
 std::vector<std::string> getTabCompletions(const std::string& input) {
     std::vector<std::string> completions;
     
+    // Handle commands with paths like "cd Documents/Git"
     if (input.find(' ') != std::string::npos) {
         size_t spacePos = input.find_first_of(' ');
         std::string command = input.substr(0, spacePos);
         std::string argument = input.substr(spacePos + 1);
         
         if (command == "cd" || command == "ls" || command == "mkdir" || command == "rmdir") {
+            // Handle relative paths that contain slashes
+            if (argument.find('/') != std::string::npos) {
+                std::string completedPath = completeFilePath(input);
+                if (!completedPath.empty()) {
+                    completions.push_back(completedPath);
+                }
+                return completions;
+            }
+            
+            // Handle simple directory completion
             std::string dir = terminal.getCurrentFilePath();
             try {
                 for (const auto& entry : std::filesystem::directory_iterator(dir)) {
@@ -2527,6 +2538,7 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
+                // Ignore filesystem errors
             }
             
             return completions;
@@ -2622,52 +2634,75 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
 }
 
 std::string completeFilePath(const std::string& input) {
-    std::filesystem::path basePath = terminal.getCurrentFilePath();
-    std::filesystem::path inputPath(input);
+    // Parse the input into command and path parts if it contains a space
+    std::string prefix = "";
+    std::string pathToComplete = input;
     
+    if (input.find(' ') != std::string::npos) {
+        size_t spacePos = input.find_first_of(' ');
+        prefix = input.substr(0, spacePos + 1);
+        pathToComplete = input.substr(spacePos + 1);
+    }
+    
+    // Determine the base directory to search in
+    std::filesystem::path basePath = terminal.getCurrentFilePath();
+    
+    // Split the path into directory part and filename part
     std::string directoryPart;
     std::string filenamePart;
     
-    if (input.find('/') != std::string::npos) {
-        size_t lastSlash = input.find_last_of('/');
-        directoryPart = input.substr(0, lastSlash + 1);
-        filenamePart = input.substr(lastSlash + 1);
+    if (pathToComplete.find('/') != std::string::npos) {
+        size_t lastSlash = pathToComplete.find_last_of('/');
+        directoryPart = pathToComplete.substr(0, lastSlash + 1);
+        filenamePart = pathToComplete.substr(lastSlash + 1);
     } else {
         directoryPart = "";
-        filenamePart = input;
+        filenamePart = pathToComplete;
     }
     
-    std::string completionPath;
+    // Determine the full path to search in
+    std::filesystem::path searchPath;
     
     if (directoryPart.empty()) {
-        completionPath = terminal.getCurrentFilePath();
-    } else if (directoryPart.size() >= 1 && directoryPart[0] == '/') {
-        completionPath = directoryPart;
+        // Just filename, search in current directory
+        searchPath = basePath;
+    } else if (directoryPart[0] == '/') {
+        // Absolute path
+        searchPath = directoryPart;
     } else {
-        completionPath = (std::filesystem::path(terminal.getCurrentFilePath()) / directoryPart).string();
+        // Relative path
+        searchPath = basePath / directoryPart;
     }
     
+    // Find matching entries
     std::vector<std::string> matches;
     try {
-        for (const auto& entry : std::filesystem::directory_iterator(completionPath)) {
+        for (const auto& entry : std::filesystem::directory_iterator(searchPath)) {
             std::string entryName = entry.path().filename().string();
             if (startsWithCaseInsensitive(entryName, filenamePart)) {
                 std::string completion = directoryPart + entryName;
                 if (entry.is_directory()) {
                     completion += "/";
                 }
-                matches.push_back(completion);
+                matches.push_back(prefix + completion);
             }
         }
     } catch (const std::filesystem::filesystem_error& e) {
         return "";
     }
     
+    // Return appropriate completion
     if (matches.size() == 1) {
         return matches[0];
     } else if (matches.size() > 1) {
-        std::string commonPrefix = getCommonPrefix(matches);
-        return commonPrefix;
+        // For multiple matches, find the common prefix
+        std::vector<std::string> strippedMatches;
+        for (const auto& match : matches) {
+            strippedMatches.push_back(match.substr(prefix.length()));
+        }
+        
+        std::string commonPrefix = getCommonPrefix(strippedMatches);
+        return prefix + commonPrefix;
     }
     
     return "";
