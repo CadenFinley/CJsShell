@@ -19,9 +19,8 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
 
 class ClaudeAnthropic : public PluginInterface {
 private:
-    std::string DATA_DIRECTORY = ".DTT-Data";
-    std::string SETTINGS_DIRECTORY = DATA_DIRECTORY + "/claude-anthropic-settings";
-    std::string USER_DATA = SETTINGS_DIRECTORY + "/claude-anthropic-settings.json";
+    std::string SETTINGS_DIRECTORY;
+    std::string USER_DATA;
     CURL* curl;
     std::string apiKey;
     int maxTokens;
@@ -53,7 +52,10 @@ private:
     }
 
 public:
-    ClaudeAnthropic() : curl(nullptr), maxTokens(1000) {}
+    ClaudeAnthropic() : curl(nullptr), maxTokens(1000) {
+        SETTINGS_DIRECTORY = getPluginDirectory();
+        USER_DATA = (std::filesystem::path(SETTINGS_DIRECTORY) / "claude-anthropic-settings.json").string();
+    }
     ~ClaudeAnthropic() throw() {
         if (curl) curl_easy_cleanup(curl);
     }
@@ -75,10 +77,8 @@ public:
     }
     
     bool initialize() { 
-        std::ifstream checkDir(SETTINGS_DIRECTORY + "/.exists");
-        if (!checkDir.good()) {
-            std::string mkdirCmd = "mkdir -p \"" + SETTINGS_DIRECTORY + "\"";
-            system(mkdirCmd.c_str());
+        if (!std::filesystem::exists(SETTINGS_DIRECTORY)) {
+            std::filesystem::create_directories(SETTINGS_DIRECTORY);
             
             std::ifstream checkFile(USER_DATA);
             if (!checkFile.good()) {

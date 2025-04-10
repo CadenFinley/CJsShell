@@ -42,11 +42,15 @@ class ColorError : public PluginInterface {
 private:
     ColoredErrorBuffer colorBuffer;
     std::streambuf* originalBuffer;
-    std::string DATA_DIRECTORY = ".DTT-Data";
-    std::string SETTINGS_DIRECTORY = DATA_DIRECTORY + "/color-error-setting";
-    std::string USER_DATA = SETTINGS_DIRECTORY + "/color-error-settings.json";
+    std::string SETTINGS_DIRECTORY;
+    std::string USER_DATA;
 
 public:
+    ColorError() {
+        SETTINGS_DIRECTORY = getPluginDirectory();
+        USER_DATA = (std::filesystem::path(SETTINGS_DIRECTORY) / "color-error-settings.json").string();
+    }
+    
     std::string getName() const override { return "ColorError"; }
     std::string getVersion() const override { return "1.0"; }
     std::string getDescription() const override { 

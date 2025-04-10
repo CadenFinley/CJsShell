@@ -74,7 +74,7 @@ private:
     
     // Create password directory and file if they don't exist
     void ensurePasswordDirectoryExists() {
-        std::filesystem::path pwDir = ".DTT-Data/pw";
+        std::filesystem::path pwDir = std::filesystem::path(getPluginsHomeDirectory()) / "pw";
         if (!std::filesystem::exists(pwDir)) {
             std::filesystem::create_directories(pwDir);
         }

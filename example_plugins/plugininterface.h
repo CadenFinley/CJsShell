@@ -5,11 +5,18 @@
 #include <vector>
 #include <queue>
 #include <functional>
+#include <filesystem>
 
 class PluginInterface {
 public:
     // Plugin interface version for compatibility checking
-    static constexpr int INTERFACE_VERSION = 1;
+    static constexpr int INTERFACE_VERSION = 2;
+    
+    // Static method to get the shared home directory for all plugins
+    static std::string getPluginsHomeDirectory() {
+        std::string homeDir = std::getenv("HOME");
+        return (std::filesystem::path(homeDir) / ".DTT-Data").string();
+    }
     
     //plugin has its own default constructor
     virtual ~PluginInterface() {}
@@ -26,12 +33,17 @@ public:
     virtual bool initialize() = 0; //enable plugin
     virtual void shutdown() = 0; //disable plugin
     
+    // Get plugin-specific directory (subdirectory in the shared home)
+    virtual std::string getPluginDirectory() const {
+        return (std::filesystem::path(getPluginsHomeDirectory()) / getName()).string();
+    }
+    
     //an "event main_process <phase>" command will be sent to all plugins via the handleCommand method during all phases of the mainProcessLoop (pre_run, start, took_input: <char>, command_processed: <command>, and end)
     //an "event plugin_enabled <plugin_name>" command will be sent to all plugins via the handleCommand method when a plugin is enabled
     //an "event plugin_disabled <plugin_name>" command will be sent to all plugins via the handleCommand method when a plugin is disabled
     virtual bool handleCommand(std::queue<std::string>& args) = 0;
     virtual std::vector<std::string> getCommands() const = 0; //the vector of immeadiatly availble commands
-    virtual std::vector<std::string> getSubscribedEvents() const = 0; //the vector of events that can be triggered
+    virtual std::vector<std::string> getSubscribedEvents() const = 0; //the vector of events that the plugin is subscribed to
     
     //plugin settings
     virtual std::map<std::string, std::string> getDefaultSettings() const = 0;

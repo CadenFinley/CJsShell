@@ -277,7 +277,7 @@ private:
     }
     
     void saveUserData() {
-        std::filesystem::path userDataPath = dataDirectory + "/spotify";
+        std::filesystem::path userDataPath = std::filesystem::path(getPluginDirectory()) / "spotify";
         std::filesystem::create_directories(userDataPath);
         
         json userData;
@@ -293,7 +293,7 @@ private:
     }
     
     void loadUserData() {
-        std::filesystem::path userDataPath = dataDirectory + "/spotify/user-data.json";
+        std::filesystem::path userDataPath = std::filesystem::path(getPluginDirectory()) / "spotify/user-data.json";
         
         if (std::filesystem::exists(userDataPath)) {
             std::ifstream file(userDataPath);
@@ -662,10 +662,11 @@ private:
     const int MAX_CONSECUTIVE_FAILURES = 5;
 
 public:
-    SpotifyStatusPlugin() : dataDirectory(".DTT-Data") {
+    SpotifyStatusPlugin() {
         curl = curl_easy_init();
         // Initialize lastSuccessfulConnection to epoch (0)
         lastSuccessfulConnection = std::chrono::system_clock::time_point();
+        dataDirectory = getPluginsHomeDirectory();
     }
 
     ~SpotifyStatusPlugin() {
