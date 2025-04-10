@@ -689,6 +689,14 @@ void commandParser(const std::string& command) {
     if (command.empty()) {
         return;
     }
+    if (command == "exit" || command == "quit") {
+        exitFlag = true;
+        return;
+    }
+    if (command == "clear") {
+        sendTerminalCommand("clear");
+        return;
+    }
     if (!runningStartup) {
         addUserInputToHistory(command);
     }
@@ -796,7 +804,10 @@ void commandProcesser(const std::string& command) {
         goToApplicationDirectory();
     } else if (lastCommandParsed == "clear") {
         sendTerminalCommand("clear");
-    }else if (lastCommandParsed == "ai") {
+    } else if (lastCommandParsed == "exit" || lastCommandParsed == "quit") {
+        exitFlag = true;
+        return;
+    } else if (lastCommandParsed == "ai") {
         aiSettingsCommands();
     } else if (lastCommandParsed == "user") {
         userSettingsCommands();
