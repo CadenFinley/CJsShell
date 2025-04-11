@@ -18,6 +18,26 @@
 #include "pluginmanager.h"
 #include "thememanager.h"
 
+//dtt daemon idea
+//is alwyas running, keeps track of sessions, plugins, and themes so we dont have to load them everytime. also checks for updates
+//and anything else that could be heavy
+
+// what boot life cycle looks like
+
+//clean boot:
+
+//user launches terminal, check for running daemon, if not running it should check if daemon exists and initialize it
+// if not exists download from github
+// if exists daemon should do this
+
+// DevToolsTerminal_Daemon
+//check for updates on launch, load plugins and themes and give them to terminal sessions
+//constatly keeps track of terminal sessions andd stores them sessions should be able to be able to be renamed and restored
+//custom cron jobs should be able to be created by the user and the daemon executes them in the background
+//somehhow daemon notifications need to be handled need to figure that out later
+//daemon commands need to be accessible from all terminal sessions which can control and keep track of the daemon
+//also a terminal command that restarts daemon and one that closes daemon and all sessions
+
 using json = nlohmann::json;
 
 bool TESTING = false;
@@ -30,7 +50,7 @@ bool saveLoop = false;
 bool saveOnExit = false;
 bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
-bool completionBrowsingMode = false;  // Add this variable to track browsing state
+bool completionBrowsingMode = false;
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -52,8 +72,6 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 const std::string processId = std::to_string(getpid());
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
-const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
-const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string currentVersion = "1.8.6.0";
 
@@ -141,7 +159,6 @@ std::string generateUninstallScript();
 void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
-bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 void refreshExecutablesCache();
 void initializeDataDirectories();
 void asyncCheckForUpdates(std::function<void(bool)> callback);
@@ -315,7 +332,7 @@ void mainProcessLoop() {
         tabCompletionIndex = 0;
         currentCompletions.clear();
         originalInput = "";
-        completionBrowsingMode = false;  // Reset browsing mode at start of input
+        completionBrowsingMode = false;
         enableRawMode();
         while (true) {
             std::cin.get(c);
@@ -352,7 +369,7 @@ void mainProcessLoop() {
                 std::cin.get(c);
                 if (c == '[') {
                     std::cin.get(c);
-                    if (c == 'Z') {  // This is shift+tab
+                    if (c == 'Z') {
                         if (!commandLines[cursorPositionY].empty()) {
                             if (currentCompletions.empty()) {
                                 originalInput = commandLines[cursorPositionY];
@@ -370,7 +387,6 @@ void mainProcessLoop() {
                                 
                                 completionBrowsingMode = true;
                                 
-                                // Show the completion as an inline suggestion
                                 std::string completion = currentCompletions[tabCompletionIndex];
                                 if (completion.length() > originalInput.length() && startsWith(completion, originalInput)) {
                                     std::string suggestion = completion.substr(originalInput.length());
@@ -379,9 +395,8 @@ void mainProcessLoop() {
                                 }
                                 
                                 reprintCommandLines(commandLines, terminalSetting);
-                                // Show the suggestion with highlighting to indicate it's selected
                                 if (hasSuggestion && !currentSuggestion.empty()) {
-                                    std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";  // Inverted and bright white
+                                    std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";
                                     std::cout << "\033[" << currentSuggestion.length() << "D";
                                 }
                                 placeCursor(cursorPositionX, cursorPositionY);
@@ -464,7 +479,6 @@ void mainProcessLoop() {
                         currentCompletions.clear();
                         originalInput = "";
                     } else if (completionBrowsingMode && !currentCompletions.empty()) {
-                        // Apply the currently selected completion when Tab is pressed again
                         clearLines(commandLines);
                         applyCompletion(tabCompletionIndex, commandLines[cursorPositionY], cursorPositionX, cursorPositionY);
                         completionBrowsingMode = false;
@@ -487,7 +501,6 @@ void mainProcessLoop() {
                             tabCompletionIndex = (tabCompletionIndex + 1) % currentCompletions.size();
                             completionBrowsingMode = true;
                             
-                            // Show the completion as an inline suggestion
                             std::string completion = currentCompletions[tabCompletionIndex];
                             if (completion.length() > originalInput.length() && startsWith(completion, originalInput)) {
                                 std::string suggestion = completion.substr(originalInput.length());
@@ -496,9 +509,8 @@ void mainProcessLoop() {
                             }
                             
                             reprintCommandLines(commandLines, terminalSetting);
-                            // Show the suggestion with highlighting to indicate it's selected
                             if (hasSuggestion && !currentSuggestion.empty()) {
-                                std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";  // Inverted and bright white
+                                std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";
                                 std::cout << "\033[" << currentSuggestion.length() << "D";
                             }
                             placeCursor(cursorPositionX, cursorPositionY);
@@ -1287,20 +1299,11 @@ void userSettingsCommands() {
     if (lastCommandParsed == "updatepath") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
-            std::cout << "Update path is currently " << (updateFromGithub ? "from GitHub." : "from my personal website Cadenfinley.com.") << std::endl;
-            std::cout << "To change the update path, use 'user updatepath github' or 'user updatepath cadenfinley'" << std::endl;
+            std::cout << "Updates are fetched from GitHub." << std::endl;
             return;
         }
-        if (lastCommandParsed == "github") {
-            updateFromGithub = true;
-            std::cout << "Update path set to GitHub." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "cadenfinley") {
-            updateFromGithub = false;
-            std::cout << "Update path set to CadenFinley.com." << std::endl;
-            return;
-        }
+        std::cerr << "Updates are only available from GitHub." << std::endl;
+        return;
     }
     if (lastCommandParsed == "help") {
         std::cout << "User settings commands:" << std::endl;
@@ -2133,46 +2136,9 @@ bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::st
     return false;
 }
 
-bool checkFromUpdate_CadenFinley(std::function<bool(const std::string&, const std::string&)> isNewerVersion) {
-    std::string command = "curl -s " + versionURL_CadenFinley;
-    std::string result;
-    FILE *pipe = popen(command.c_str(), "r");
-    if (!pipe) {
-        std::cerr << "Error: Unable to execute update check or no internet connection." << std::endl;
-        return false;
-    }
-    char buffer[128];
-    while (fgets(buffer, 128, pipe) != nullptr) {
-        result += buffer;
-    }
-    pclose(pipe);
-
-    try {
-        json jsonData = json::parse(result);
-        if (jsonData.contains("version")) {
-            std::string latestTag = jsonData["version"].get<std::string>();
-            if (!latestTag.empty() && latestTag[0] == 'v') {
-                latestTag = latestTag.substr(1);
-            }
-            std::string currentVer = currentVersion;
-            if (!currentVer.empty() && currentVer[0] == 'v') {
-                currentVer = currentVer.substr(1);
-            }
-            if (isNewerVersion(latestTag, currentVer)) {
-                std::cout << "\nLast Updated: " << lastUpdated << std::endl;
-                std::cout << currentVersion << " -> " << latestTag << std::endl;
-                return true;
-            }
-        }
-    } catch (std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-    return false;
-}
-
 bool checkForUpdate() {
     if(!silentCheckForUpdates){
-        std::cout << "Checking for updates from " << (updateFromGithub ? "GitHub" : "CadenFinley.com") << "...";
+        std::cout << "Checking for updates from GitHub...";
     }
     auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
         auto splitVersion = [](const std::string &ver) {
@@ -2196,7 +2162,7 @@ bool checkForUpdate() {
         return false;
     };
 
-    return updateFromGithub ? checkFromUpdate_Github(isNewerVersion) : checkFromUpdate_CadenFinley(isNewerVersion);
+    return checkFromUpdate_Github(isNewerVersion);
     std::cerr << "Something went wrong." << std::endl;
     return false;
 }
@@ -2284,68 +2250,8 @@ bool downloadLatestRelease_Github() {
     }
 }
 
-bool downloadLatestRelease_CadenFinley() {
-    std::cout << "Downloading latest release from CadenFinley.com..." << std::endl;
-    std::string versionInfoJson;
-    std::string versionCmd = "curl -s " + versionURL_CadenFinley;
-    FILE* versionPipe = popen(versionCmd.c_str(), "r");
-    if (!versionPipe) {
-        std::cerr << "Error: Unable to fetch version information." << std::endl;
-        return false;
-    }
-    
-    char buffer[128];
-    while (fgets(buffer, 128, versionPipe) != nullptr) {
-        versionInfoJson += buffer;
-    }
-    pclose(versionPipe);
-    
-    std::string changeLog;
-    try {
-        json versionData = json::parse(versionInfoJson);
-        if (versionData.contains("changelog")) {
-            changeLog = versionData["changelog"].get<std::string>();
-        }
-    } catch (std::exception &e) {
-        std::cerr << "Warning: Could not parse version info JSON: " << e.what() << std::endl;
-    }
-    
-    if (!std::filesystem::exists(DATA_DIRECTORY)) {
-        std::filesystem::create_directory(DATA_DIRECTORY);
-    }
-    
-    std::string downloadPath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal_latest").string();
-    std::string exePath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal").string();
-    
-    std::string downloadCmd = "curl -L -o \"" + downloadPath + "\" " + updateURL_CadenFinley;
-    
-    int ret = system(downloadCmd.c_str());
-    if (ret == 0) {
-        std::string chmodCmd = "chmod +x \"" + downloadPath + "\"";
-        system(chmodCmd.c_str());
-        std::cout << "Downloaded latest release to " << downloadPath << std::endl;
-        std::cout << "Replacing current running program with updated version..." << std::endl;
-        
-        if (std::rename(downloadPath.c_str(), exePath.c_str()) != 0) {
-            std::cerr << "Error: Failed to rename the downloaded executable." << std::endl;
-            return false;
-        }
-        
-        if (!changeLog.empty()) {
-            displayChangeLog(changeLog);
-        }
-        
-        execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
-        std::cerr << "Error: Failed to execute the updated program." << std::endl;
-        return false;
-    } else {
-        std::cerr << "Error: Download command failed." << std::endl;
-        return false;
-    }
-}
-
 bool downloadLatestRelease(){
-    return updateFromGithub ? downloadLatestRelease_Github() : downloadLatestRelease_CadenFinley();
+    return downloadLatestRelease_Github();
     std::cerr << "Something went wrong." << std::endl;
     return false;
 }

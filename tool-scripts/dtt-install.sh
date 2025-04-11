@@ -7,26 +7,10 @@ APP_NAME="DevToolsTerminal"
 APP_PATH="$DATA_DIR/$APP_NAME"
 ZSHRC_PATH="$HOME/.zshrc"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest"
-CJF_DOWNLOAD_URL="https://cadenfinley.com/DevToolsTerminal/download.php"
-
-# Process command line arguments
-SOURCE="gh"  # Default to GitHub (gh)
-if [ $# -gt 0 ]; then
-    if [ "$1" = "gh" ] || [ "$1" = "cjf" ]; then
-        SOURCE="$1"
-    else
-        echo "Invalid argument: $1"
-        echo "Usage: $0 [gh|cjf]"
-        echo "  gh  - Download from GitHub (default)"
-        echo "  cjf - Download from cadenfinley.com"
-        exit 1
-    fi
-fi
 
 echo "DevToolsTerminal Installer"
 echo "-------------------------"
 echo "This will install DevToolsTerminal to $DATA_DIR and set it to auto-launch with zsh."
-echo "Download source: ${SOURCE} (GitHub is default)"
 
 # Create data directory if it doesn't exist
 if [ ! -d "$DATA_DIR" ]; then
@@ -46,22 +30,16 @@ check_permissions() {
 # Check for latest version
 echo "Checking for latest version..."
 if command -v curl &> /dev/null; then
-    if [ "$SOURCE" = "gh" ]; then
-        RELEASE_DATA=$(curl -s "$GITHUB_API_URL")
-        DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -o '"browser_download_url": "[^"]*' | grep -v '.exe' | head -1 | cut -d'"' -f4)
-        LATEST_VERSION=$(echo "$RELEASE_DATA" | grep -o '"tag_name": "[^"]*' | head -1 | cut -d'"' -f4)
-        
-        if [ -n "$DOWNLOAD_URL" ]; then
-            echo "Found latest version: $LATEST_VERSION"
-            echo "Downloading from GitHub: $DOWNLOAD_URL"
-        else
-            echo "Error: Couldn't find download URL on GitHub."
-            exit 1
-        fi
+    RELEASE_DATA=$(curl -s "$GITHUB_API_URL")
+    DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -o '"browser_download_url": "[^"]*' | grep -v '.exe' | head -1 | cut -d'"' -f4)
+    LATEST_VERSION=$(echo "$RELEASE_DATA" | grep -o '"tag_name": "[^"]*' | head -1 | cut -d'"' -f4)
+    
+    if [ -n "$DOWNLOAD_URL" ]; then
+        echo "Found latest version: $LATEST_VERSION"
+        echo "Downloading from GitHub: $DOWNLOAD_URL"
     else
-        # Using cadenfinley.com
-        DOWNLOAD_URL="$CJF_DOWNLOAD_URL"
-        echo "Downloading from cadenfinley.com"
+        echo "Error: Couldn't find download URL on GitHub."
+        exit 1
     fi
     
     # Download to data directory

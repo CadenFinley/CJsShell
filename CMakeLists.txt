@@ -8,6 +8,19 @@ endif()
 # Set the project name
 project(DevToolsTerminal)
 
+# Set output directories
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+# Platform-specific configurations
+if(APPLE)
+    set(MACOS_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/macos)
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build architectures for macOS")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment version")
+endif()
+
+# Linux build configuration
+set(LINUX_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/linux)
+
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 17) # Ensure C++17 standard is used
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -59,9 +72,6 @@ set(SOURCE_FILES
 # Add the include directories for CURL
 include_directories(${CURL_INCLUDE_DIRS})
 
-# Add the executable
-add_executable(DevToolsTerminal ${SOURCE_FILES})
-
 # Find nlohmann_json package (Unix systems only)
 find_path(JSON_INCLUDE_DIR NAMES nlohmann/json.hpp
     PATHS
@@ -88,8 +98,27 @@ endif()
 # Option for static linking (better portability across Linux distributions)
 option(STATIC_LINKING "Link libraries statically for better portability" OFF)
 
-# Modify the target_link_libraries to handle both system and downloaded CURL
-target_link_libraries(DevToolsTerminal 
+# Modify the executable target to create platform-specific builds
+if(APPLE)
+    # macOS build
+    add_executable(DevToolsTerminal_macOS ${SOURCE_FILES})
+    set_target_properties(DevToolsTerminal_macOS PROPERTIES
+        OUTPUT_NAME "DevToolsTerminal"
+        RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
+    )
+    target_link_libraries(DevToolsTerminal_macOS 
+        $<IF:$<TARGET_EXISTS:CURL::libcurl>,CURL::libcurl,${CURL_LIBRARIES}>
+        Threads::Threads
+    )
+endif()
+
+# Linux build
+add_executable(DevToolsTerminal_Linux ${SOURCE_FILES})
+set_target_properties(DevToolsTerminal_Linux PROPERTIES
+    OUTPUT_NAME "DevToolsTerminal"
+    RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
+)
+target_link_libraries(DevToolsTerminal_Linux 
     $<IF:$<TARGET_EXISTS:CURL::libcurl>,CURL::libcurl,${CURL_LIBRARIES}>
     Threads::Threads
     ${DL_LIBRARY}
@@ -97,7 +126,7 @@ target_link_libraries(DevToolsTerminal
 
 # Set rpath for Linux builds
 if(UNIX AND NOT APPLE)
-    set_target_properties(DevToolsTerminal PROPERTIES
+    set_target_properties(DevToolsTerminal_Linux PROPERTIES
         INSTALL_RPATH "$ORIGIN/../lib"
         BUILD_WITH_INSTALL_RPATH TRUE
     )
@@ -121,5 +150,15 @@ set(CPACK_PACKAGE_VENDOR "DevToolsTerminal")
 # Include CPack to enable packaging
 include(CPack)
 
-# Set install locations
-install(TARGETS DevToolsTerminal DESTINATION bin)
+# Update install locations
+install(TARGETS DevToolsTerminal_Linux
+    RUNTIME DESTINATION bin/linux
+    CONFIGURATIONS Release
+)
+
+if(APPLE)
+    install(TARGETS DevToolsTerminal_macOS
+        RUNTIME DESTINATION bin/macos
+        CONFIGURATIONS Release
+    )
+endif()
