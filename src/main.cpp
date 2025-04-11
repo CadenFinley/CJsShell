@@ -18,6 +18,8 @@
 #include "pluginmanager.h"
 #include "thememanager.h"
 
+//do claude implementation in custom assistant
+
 //dtt daemon idea
 //is alwyas running, keeps track of sessions, plugins, and themes so we dont have to load them everytime. also checks for updates
 //and anything else that could be heavy
