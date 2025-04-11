@@ -30,6 +30,7 @@ bool saveLoop = false;
 bool saveOnExit = false;
 bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
+bool completionBrowsingMode = false;  // Add this variable to track browsing state
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -54,7 +55,7 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/D
 const std::string updateURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/download.php";
 const std::string versionURL_CadenFinley = "https://cadenfinley.com/DevToolsTerminal/latest_version.php";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.5.3";
+const std::string currentVersion = "1.8.6.0";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -152,6 +153,7 @@ bool hasPathChanged();
 void loadExecutableCacheFromDisk();
 void saveExecutableCacheToDisk();
 bool executeUpdateIfAvailable(bool updateAvailable);
+bool startsWith(const std::string& str, const std::string& prefix);
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
@@ -313,6 +315,7 @@ void mainProcessLoop() {
         tabCompletionIndex = 0;
         currentCompletions.clear();
         originalInput = "";
+        completionBrowsingMode = false;  // Reset browsing mode at start of input
         enableRawMode();
         while (true) {
             std::cin.get(c);
@@ -349,30 +352,67 @@ void mainProcessLoop() {
                 std::cin.get(c);
                 if (c == '[') {
                     std::cin.get(c);
-                    std::string returnedArrowContent = handleArrowKey(c, cursorPositionX, cursorPositionY, commandLines, commandLines[cursorPositionY], terminalSetting);
-                    if(returnedArrowContent != ""){
-                        clearLines(commandLines);
-                        commandLines.clear();
-                        commandLines.push_back("");
-                        cursorPositionX = 0;
-                        cursorPositionY = 0;
-                        
-                        std::istringstream stream(returnedArrowContent);
-                        std::string line;
-                        bool isFirstLine = true;
-                        while (std::getline(stream, line)) {
-                            if (isFirstLine) {
-                                commandLines[0] = line;
-                                cursorPositionX = line.length();
-                                isFirstLine = false;
-                            } else {
-                                cursorPositionY++;
-                                commandLines.push_back(line);
-                                cursorPositionX = line.length();
+                    if (c == 'Z') {  // This is shift+tab
+                        if (!commandLines[cursorPositionY].empty()) {
+                            if (currentCompletions.empty()) {
+                                originalInput = commandLines[cursorPositionY];
+                                currentCompletions = getTabCompletions(originalInput);
+                            }
+                            
+                            if (!currentCompletions.empty()) {
+                                clearLines(commandLines);
+                                
+                                if (tabCompletionIndex == 0) {
+                                    tabCompletionIndex = currentCompletions.size() - 1;
+                                } else {
+                                    tabCompletionIndex = (tabCompletionIndex - 1) % currentCompletions.size();
+                                }
+                                
+                                completionBrowsingMode = true;
+                                
+                                // Show the completion as an inline suggestion
+                                std::string completion = currentCompletions[tabCompletionIndex];
+                                if (completion.length() > originalInput.length() && startsWith(completion, originalInput)) {
+                                    std::string suggestion = completion.substr(originalInput.length());
+                                    hasSuggestion = true;
+                                    currentSuggestion = suggestion;
+                                }
+                                
+                                reprintCommandLines(commandLines, terminalSetting);
+                                // Show the suggestion with highlighting to indicate it's selected
+                                if (hasSuggestion && !currentSuggestion.empty()) {
+                                    std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";  // Inverted and bright white
+                                    std::cout << "\033[" << currentSuggestion.length() << "D";
+                                }
+                                placeCursor(cursorPositionX, cursorPositionY);
                             }
                         }
-                        reprintCommandLines(commandLines, terminalSetting);
-                        placeCursor(cursorPositionX, cursorPositionY);
+                    } else {
+                        std::string returnedArrowContent = handleArrowKey(c, cursorPositionX, cursorPositionY, commandLines, commandLines[cursorPositionY], terminalSetting);
+                        if(returnedArrowContent != ""){
+                            clearLines(commandLines);
+                            commandLines.clear();
+                            commandLines.push_back("");
+                            cursorPositionX = 0;
+                            cursorPositionY = 0;
+                            
+                            std::istringstream stream(returnedArrowContent);
+                            std::string line;
+                            bool isFirstLine = true;
+                            while (std::getline(stream, line)) {
+                                if (isFirstLine) {
+                                    commandLines[0] = line;
+                                    cursorPositionX = line.length();
+                                    isFirstLine = false;
+                                } else {
+                                    cursorPositionY++;
+                                    commandLines.push_back(line);
+                                    cursorPositionX = line.length();
+                                }
+                            }
+                            reprintCommandLines(commandLines, terminalSetting);
+                            placeCursor(cursorPositionX, cursorPositionY);
+                        }
                     }
                 }
             } else if (c == '\n') {
@@ -409,13 +449,25 @@ void mainProcessLoop() {
                 showInlineSuggestion(commandLines[cursorPositionY]);
             } else if (c == '\t') {
                 if (!commandLines[cursorPositionY].empty()) {
-                    if (hasSuggestion && !currentSuggestion.empty()) {
+                    if (hasSuggestion && !currentSuggestion.empty() && !completionBrowsingMode) {
                         clearLines(commandLines);
                         commandLines[cursorPositionY] += currentSuggestion;
                         cursorPositionX += currentSuggestion.length();
                         
                         hasSuggestion = false;
                         currentSuggestion = "";
+                        
+                        reprintCommandLines(commandLines, terminalSetting);
+                        placeCursor(cursorPositionX, cursorPositionY);
+                        
+                        tabCompletionIndex = 0;
+                        currentCompletions.clear();
+                        originalInput = "";
+                    } else if (completionBrowsingMode && !currentCompletions.empty()) {
+                        // Apply the currently selected completion when Tab is pressed again
+                        clearLines(commandLines);
+                        applyCompletion(tabCompletionIndex, commandLines[cursorPositionY], cursorPositionX, cursorPositionY);
+                        completionBrowsingMode = false;
                         
                         reprintCommandLines(commandLines, terminalSetting);
                         placeCursor(cursorPositionX, cursorPositionY);
@@ -433,10 +485,22 @@ void mainProcessLoop() {
                             clearLines(commandLines);
                             
                             tabCompletionIndex = (tabCompletionIndex + 1) % currentCompletions.size();
+                            completionBrowsingMode = true;
                             
-                            applyCompletion(tabCompletionIndex, commandLines[cursorPositionY], cursorPositionX, cursorPositionY);
+                            // Show the completion as an inline suggestion
+                            std::string completion = currentCompletions[tabCompletionIndex];
+                            if (completion.length() > originalInput.length() && startsWith(completion, originalInput)) {
+                                std::string suggestion = completion.substr(originalInput.length());
+                                hasSuggestion = true;
+                                currentSuggestion = suggestion;
+                            }
                             
                             reprintCommandLines(commandLines, terminalSetting);
+                            // Show the suggestion with highlighting to indicate it's selected
+                            if (hasSuggestion && !currentSuggestion.empty()) {
+                                std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";  // Inverted and bright white
+                                std::cout << "\033[" << currentSuggestion.length() << "D";
+                            }
                             placeCursor(cursorPositionX, cursorPositionY);
                         }
                     }
@@ -657,6 +721,7 @@ void writeUserData() {
         userData["Aliases"] = aliases;
         userData["Update_From_Github"] = updateFromGithub;
         userData["Silent_Update_Check"] = silentCheckForUpdates;
+        userData["Startup_Commands_Enabled"] = startCommandsOn;
         file << userData.dump(4);
         file.close();
     } else {
@@ -3297,6 +3362,9 @@ void loadUserDataAsync(std::function<void()> callback) {
                 }
                 if(userData.contains("Silent_Update_Check")) {
                     silentCheckForUpdates = userData["Silent_Update_Check"].get<bool>();
+                }
+                if(userData.contains("Startup_Commands_Enabled")) {
+                    startCommandsOn = userData["Startup_Commands_Enabled"].get<bool>();
                 }
                 file.close();
             }
