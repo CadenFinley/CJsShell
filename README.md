@@ -2,7 +2,6 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/dqk13klgh9d22bu5?svg=true)](https://ci.appveyor.com/project/CadenFinley/devtoolsterminal)
 ![Version](https://img.shields.io/github/v/release/CadenFinley/DevToolsTerminal?label=version&color=blue)
-![Code Size](https://img.shields.io/github/languages/code-size/CadenFinley/DevToolsTerminal?label=code%20size&color=green)
 ![Lines of Code](https://img.shields.io/badge/lines%20of%20code-8987calculating-yellow)
 
 
