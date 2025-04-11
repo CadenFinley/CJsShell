@@ -7,6 +7,10 @@ on:
     branches: [ master ]
   workflow_dispatch:  # Allow manual triggering
 
+# Add explicit permissions
+permissions:
+  contents: write
+
 jobs:
   update-loc-badge:
     runs-on: ubuntu-latest
@@ -53,4 +57,4 @@ jobs:
           git config --global user.email 'actions@github.com'
           git add README.md
           git commit -m "Update lines of code count in README badge" || echo "No changes to commit"
-          git push "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push
