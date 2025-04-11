@@ -43,9 +43,10 @@ before_build:
       if [ $? -ne 0 ]; then exit 1; fi
 
 build_script:
-  # Linux build
-  - sh: |
-      cmake --build . --config $configuration -- -j $(nproc)
+  - cmake -E make_directory build
+  - cd build
+  - cmake ..
+  - cmake --build .
 
 after_build:
   # Linux packaging
@@ -56,14 +57,13 @@ after_build:
 
 # Run the tests if you have them
 test_script:
-  - sh: |
-      cd $APPVEYOR_BUILD_FOLDER/build
-      ctest -C $configuration -VV
+  - cd build
+  - ctest -C Debug --verbose
 
 # Artifacts to save
 artifacts:
-  - path: build\DevToolsTerminal-Unix.tar.gz
-    name: DevToolsTerminal-Unix
+  - path: build/DevToolsTerminal-Unix.tar.gz
+    name: DevToolsTerminal
 
 # Notifications
 notifications:

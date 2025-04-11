@@ -63,5 +63,11 @@ target_link_libraries(DevToolsTerminal
     ${DL_LIBRARY}
 )
 
+# Enable testing with CTest
+enable_testing()
+
+# Add the tests subdirectory
+add_subdirectory(tests)
+
 # Set install locations
 install(TARGETS DevToolsTerminal DESTINATION bin)
