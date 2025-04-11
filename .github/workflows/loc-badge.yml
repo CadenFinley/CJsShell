@@ -46,9 +46,8 @@ jobs:
           
           echo "Updating README badge with $TOTAL_LINES lines of code"
           
-          # Update both the count and replace "calculating-yellow" with "code-green"
-          sed -i "s|lines%20of%20code-[0-9]*-yellow|lines%20of%20code-${TOTAL_LINES}-green|g" README.md
-          sed -i "s|lines%20of%20code-calculating-yellow|lines%20of%20code-${TOTAL_LINES}-green|g" README.md
+          # Simpler pattern match that's less prone to errors
+          sed -i "s|lines%20of%20code-[0-9]*|lines%20of%20code-${TOTAL_LINES}|g" README.md
           
           echo "README badge update completed"
 
