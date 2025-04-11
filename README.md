@@ -2,7 +2,7 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/dqk13klgh9d22bu5?svg=true)](https://ci.appveyor.com/project/CadenFinley/devtoolsterminal)
 ![Version](https://img.shields.io/github/v/release/CadenFinley/DevToolsTerminal?label=version&color=blue)
-![Lines of Code](https://img.shields.io/tokei/lines/github/CadenFinley/DevToolsTerminal?label=lines&color=green)
+![Code Size](https://img.shields.io/github/languages/code-size/CadenFinley/DevToolsTerminal?label=code%20size&color=green)
 
 
 DevToolsTerminal is a lightweight terminal emulator designed for UNIX systems with integrated OpenAI capabilities. It allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
