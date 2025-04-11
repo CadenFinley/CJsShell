@@ -35,8 +35,8 @@ jobs:
           # Get the current lines of code count
           TOTAL_LINES="${{ steps.loc.outputs.total }}"
           
-          # Update the badge URL in the README
-          sed -i "s|!\[Lines of Code\](https://img.shields.io/badge/lines%20of%20code-[0-9]*+-brightgreen)|![Lines of Code](https://img.shields.io/badge/lines%20of%20code-${TOTAL_LINES}+-brightgreen)|g" README.md
+          # Update the badge URL in the README with exact count
+          sed -i "s|!\[Lines of Code\](https://img.shields.io/badge/lines%20of%20code-[0-9]*+-brightgreen)|![Lines of Code](https://img.shields.io/badge/lines%20of%20code-${TOTAL_LINES}-brightgreen)|g" README.md
 
       - name: Commit and push changes
         run: |
