@@ -7,7 +7,7 @@ image:
 # Only build the master branch
 branches:
   only:
-    - main
+    - master
 
 # Clone depth
 clone_depth: 5
