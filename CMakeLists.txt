@@ -15,7 +15,36 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Include the header files directory
 include_directories(src)
 
-find_package(CURL REQUIRED)
+# Add ExternalProject support
+include(ExternalProject)
+
+# Function to set up CURL download and build
+function(setup_curl_download)
+    message(STATUS "CURL not found - will download and build from source")
+    ExternalProject_Add(curl_external
+        URL https://curl.se/download/curl-8.1.2.tar.gz
+        PREFIX ${CMAKE_BINARY_DIR}/external/curl
+        CMAKE_ARGS
+            -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external/curl/install
+            -DBUILD_SHARED_LIBS=OFF
+            -DCMAKE_USE_OPENSSL=ON
+            -DBUILD_TESTING=OFF
+        )
+    set(CURL_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/external/curl/install/include PARENT_SCOPE)
+    set(CURL_LIBRARIES ${CMAKE_BINARY_DIR}/external/curl/install/lib/${CMAKE_STATIC_LIBRARY_PREFIX}curl${CMAKE_STATIC_LIBRARY_SUFFIX} PARENT_SCOPE)
+    add_library(CURL::libcurl UNKNOWN IMPORTED)
+    set_target_properties(CURL::libcurl PROPERTIES
+        IMPORTED_LOCATION ${CURL_LIBRARIES}
+        INTERFACE_INCLUDE_DIRECTORIES ${CURL_INCLUDE_DIRS})
+    add_dependencies(CURL::libcurl curl_external)
+endfunction()
+
+# Try to find CURL, download if not found
+find_package(CURL QUIET)
+if(NOT CURL_FOUND)
+    setup_curl_download()
+endif()
+
 find_package(Threads REQUIRED)  # Add this to find pthread library
 
 # Source files
@@ -56,12 +85,41 @@ if(NOT DL_LIBRARY)
     message(FATAL_ERROR "dl library not found")
 endif()
 
-# Link the libraries
+# Option for static linking (better portability across Linux distributions)
+option(STATIC_LINKING "Link libraries statically for better portability" OFF)
+
+# Modify the target_link_libraries to handle both system and downloaded CURL
 target_link_libraries(DevToolsTerminal 
-    ${CURL_LIBRARIES}
+    $<IF:$<TARGET_EXISTS:CURL::libcurl>,CURL::libcurl,${CURL_LIBRARIES}>
     Threads::Threads
     ${DL_LIBRARY}
 )
+
+# Set rpath for Linux builds
+if(UNIX AND NOT APPLE)
+    set_target_properties(DevToolsTerminal PROPERTIES
+        INSTALL_RPATH "$ORIGIN/../lib"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+endif()
+
+# If static linking is enabled, try to find static versions of libraries
+if(STATIC_LINKING)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+endif()
+
+# Package configuration
+include(InstallRequiredSystemLibraries)
+set(CPACK_GENERATOR "DEB;RPM;TGZ")
+set(CPACK_PACKAGE_VERSION_MAJOR "1")
+set(CPACK_PACKAGE_VERSION_MINOR "0")
+set(CPACK_PACKAGE_VERSION_PATCH "0")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Developer Tools Terminal")
+set(CPACK_PACKAGE_VENDOR "DevToolsTerminal")
+
+# Include CPack to enable packaging
+include(CPack)
 
 # Set install locations
 install(TARGETS DevToolsTerminal DESTINATION bin)
