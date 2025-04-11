@@ -10,10 +10,11 @@ on:
 jobs:
   update-loc-badge:
     runs-on: ubuntu-latest
+    timeout-minutes: 5  # Set a timeout to prevent hanging
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1  # Only fetch the latest commit to speed up checkout
 
       - name: Count lines of code
         id: loc
@@ -21,22 +22,30 @@ jobs:
           # Install cloc tool
           sudo apt-get install -y cloc
           
-          # Count lines excluding .git, .github, and other non-code directories
-          TOTAL_LINES=$(cloc . --exclude-dir=.git,.github,build --json | jq -r '.SUM.code')
+          # Print start time for debugging
+          echo "Starting cloc calculation at $(date)"
+          
+          # Count lines with more exclusions for better performance
+          TOTAL_LINES=$(cloc . --exclude-dir=.git,.github,build,node_modules,dist,coverage --exclude-ext=json,lock --json | jq -r '.SUM.code')
           
           # Set output for later steps
           echo "total=$TOTAL_LINES" >> $GITHUB_OUTPUT
           
           # Display for debugging
           echo "Total lines of code: $TOTAL_LINES"
+          echo "Finished cloc calculation at $(date)"
 
       - name: Update README badge
         run: |
           # Get the current lines of code count
           TOTAL_LINES="${{ steps.loc.outputs.total }}"
           
-          # Update the badge URL in the README with exact count
-          sed -i "s|!\[Lines of Code\](https://img.shields.io/badge/lines%20of%20code-[0-9]*+-brightgreen)|![Lines of Code](https://img.shields.io/badge/lines%20of%20code-${TOTAL_LINES}-brightgreen)|g" README.md
+          echo "Updating README badge with $TOTAL_LINES lines of code"
+          
+          # Simpler pattern match that's less prone to errors
+          sed -i "s|lines%20of%20code-[0-9]*|lines%20of%20code-${TOTAL_LINES}|g" README.md
+          
+          echo "README badge update completed"
 
       - name: Commit and push changes
         run: |
