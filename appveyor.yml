@@ -27,9 +27,9 @@ install:
       echo Installing Linux dependencies...
       sudo apt-get update
       sudo apt-get install -y build-essential cmake
-      # Try different package names for nlohmann-json as it varies between distributions
-      sudo apt-get install -y nlohmann-json3-dev || sudo apt-get install -y nlohmann-json-dev || \
-      (mkdir -p external/nlohmann && wget -O external/nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp)
+      # Always use the latest version of nlohmann/json from GitHub
+      mkdir -p external/nlohmann
+      wget -O external/nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
       sudo apt-get install -y libcurl4-openssl-dev
       # Make sure we have the dynamic loading library
       sudo apt-get install -y libdl-dev || echo "libdl is part of glibc-dev, continuing..."
