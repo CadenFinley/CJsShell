@@ -73,7 +73,7 @@ std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
-std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / ".update_cache.json";
+std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
 
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
@@ -160,9 +160,13 @@ bool startsWith(const std::string& str, const std::string& prefix);
 void updateCommands();
 void manualUpdateCheck();
 void setUpdateInterval(int intervalHours);
+bool shouldCheckForUpdates();
+bool loadUpdateCache();
+void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
+
 
 int main(int argc, char* argv[]) {
 

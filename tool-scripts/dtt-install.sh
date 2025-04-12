@@ -31,7 +31,12 @@ check_permissions() {
 echo "Checking for latest version..."
 if command -v curl &> /dev/null; then
     RELEASE_DATA=$(curl -s "$GITHUB_API_URL")
-    DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -o '"browser_download_url": "[^"]*' | grep -v '.exe' | head -1 | cut -d'"' -f4)
+    UNAME_STR=$(uname)
+    if [ "$UNAME_STR" = "Darwin" ]; then
+        DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -E -o '"browser_download_url": "[^"]*macOS[^"]*' | head -1 | cut -d'"' -f4)
+    else
+        DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -E -o '"browser_download_url": "[^"]*Linux[^"]*' | head -1 | cut -d'"' -f4)
+    fi
     LATEST_VERSION=$(echo "$RELEASE_DATA" | grep -o '"tag_name": "[^"]*' | head -1 | cut -d'"' -f4)
     
     if [ -n "$DOWNLOAD_URL" ]; then
