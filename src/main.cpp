@@ -18,28 +18,6 @@
 #include "pluginmanager.h"
 #include "thememanager.h"
 
-//do claude implementation in custom assistant
-
-//dtt daemon idea
-//is alwyas running, keeps track of sessions, plugins, and themes so we dont have to load them everytime. also checks for updates
-//and anything else that could be heavy
-
-// what boot life cycle looks like
-
-//clean boot:
-
-//user launches terminal, check for running daemon, if not running it should check if daemon exists and initialize it
-// if not exists download from github
-// if exists daemon should do this
-
-// DevToolsTerminal_Daemon
-//check for updates on launch, load plugins and themes and give them to terminal sessions
-//constatly keeps track of terminal sessions andd stores them sessions should be able to be able to be renamed and restored
-//custom cron jobs should be able to be created by the user and the daemon executes them in the background
-//somehhow daemon notifications need to be handled need to figure that out later
-//daemon commands need to be accessible from all terminal sessions which can control and keep track of the daemon
-//also a terminal command that restarts daemon and one that closes daemon and all sessions
-
 using json = nlohmann::json;
 
 bool TESTING = false;
@@ -60,6 +38,11 @@ bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
+
+time_t lastUpdateCheckTime = 0;
+int UPDATE_CHECK_INTERVAL = 86400;
+bool cachedUpdateAvailable = false;
+std::string cachedLatestVersion = "";
 
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
 std::string RESET_COLOR = "\033[0m";
@@ -90,6 +73,7 @@ std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
+std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / ".update_cache.json";
 
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
@@ -173,13 +157,15 @@ void loadExecutableCacheFromDisk();
 void saveExecutableCacheToDisk();
 bool executeUpdateIfAvailable(bool updateAvailable);
 bool startsWith(const std::string& str, const std::string& prefix);
+void updateCommands();
+void manualUpdateCheck();
+void setUpdateInterval(int intervalHours);
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
 
 int main(int argc, char* argv[]) {
 
-    //capture and clear old lines
     std::string startupInput;
     struct timeval tv;
     fd_set fds;
@@ -190,24 +176,17 @@ int main(int argc, char* argv[]) {
     if (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv) > 0) {
         std::getline(std::cin, startupInput);
         if(startupInput != ""){
-            //run them
             sendTerminalCommand(startupInput);
         }
     }
     
-    //init startup variables
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
-    //clear screen, not really needed if auto loading when booting terminal as screen is already clean
-    //sendTerminalCommand("clear");
-
-    //init and check directories !required
     initializeDataDirectories();
     
-    //start async threads
     std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(USER_DATA)) {
             loadUserDataAsync([]() {});
@@ -220,19 +199,16 @@ int main(int argc, char* argv[]) {
         }
     });
     
-    //check and process changelog after an update
     std::future<void> changelogFuture;
     if (std::filesystem::exists(DATA_DIRECTORY / "CHANGELOG.txt")) {
         changelogFuture = std::async(std::launch::async, processChangelogAsync);
     }
     
-    //async plugin load
     std::future<void> pluginFuture = std::async(std::launch::async, [&]() {
         pluginManager = new PluginManager(PLUGINS_DIRECTORY);
         loadPluginsAsync([]() {});
     });
     
-    //async theme load
     std::future<void> themeFuture = std::async(std::launch::async, [&]() {
         themeManager = new ThemeManager(THEMES_DIRECTORY);
         loadThemeAsync(currentTheme, [&](bool success) {
@@ -242,7 +218,6 @@ int main(int argc, char* argv[]) {
         });
     });
     
-    //async load cached executables for autocomplete
     std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
             loadExecutableCacheFromDisk();
@@ -250,25 +225,30 @@ int main(int argc, char* argv[]) {
         }
     });
     
-    //async check for updates
     if (checkForUpdates) {
         auto updateFuture = std::async(std::launch::async, [&]() {
-            asyncCheckForUpdates([](bool updateAvailable) {
-                if (updateAvailable) {
-                    executeUpdateIfAvailable(updateAvailable);
-                } else {
-                    if(!silentCheckForUpdates){
-                        std::cout << " -> You are up to date!" << std::endl;
+            if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
+                asyncCheckForUpdates([](bool updateAvailable) {
+                    if (updateAvailable) {
+                        executeUpdateIfAvailable(updateAvailable);
+                    } else {
+                        if(!silentCheckForUpdates){
+                            std::cout << " -> You are up to date!" << std::endl;
+                        }
                     }
+                });
+            } else {
+                if (loadUpdateCache() && cachedUpdateAvailable) {
+                    if (!silentCheckForUpdates) {
+                        std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
+                    }
+                    executeUpdateIfAvailable(true);
                 }
-            });
+            }
         });
     }
     
-    //wait for data to load should be fast so not a huge time waster
     userDataFuture.wait();
-
-    //finish startup and run startup commands
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
@@ -736,6 +716,8 @@ void writeUserData() {
         userData["Update_From_Github"] = updateFromGithub;
         userData["Silent_Update_Check"] = silentCheckForUpdates;
         userData["Startup_Commands_Enabled"] = startCommandsOn;
+        userData["Last_Update_Check_Time"] = lastUpdateCheckTime;
+        userData["Update_Check_Interval"] = UPDATE_CHECK_INTERVAL;
         file << userData.dump(4);
         file.close();
     } else {
@@ -1307,6 +1289,10 @@ void userSettingsCommands() {
         std::cerr << "Updates are only available from GitHub." << std::endl;
         return;
     }
+    if(lastCommandParsed == "update") {
+        updateCommands();
+        return;
+    }
     if (lastCommandParsed == "help") {
         std::cout << "User settings commands:" << std::endl;
         std::cout << " startup: Manage startup commands (add, remove, clear, enable, disable, list, runall)" << std::endl;
@@ -1320,9 +1306,105 @@ void userSettingsCommands() {
         std::cout << " checkforupdates: Toggle update checking (enable/disable)" << std::endl;
         std::cout << " updatepath: Set update path (github/cadenfinley)" << std::endl;
         std::cout << " silentupdatecheck: Toggle silent update check (enable/disable)" << std::endl;
+        std::cout << " update: Manage update settings and perform manual update checks" << std::endl;
         return;
     }
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
+}
+
+void updateCommands() {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << "Update settings:" << std::endl;
+        std::cout << " Auto-check for updates: " << (checkForUpdates ? "Enabled" : "Disabled") << std::endl;
+        std::cout << " Silent update check: " << (silentCheckForUpdates ? "Enabled" : "Disabled") << std::endl;
+        std::cout << " Update check interval: " << (UPDATE_CHECK_INTERVAL / 3600) << " hours" << std::endl;
+        std::cout << " Last update check: " << (lastUpdateCheckTime > 0 ? 
+            std::string(ctime(&lastUpdateCheckTime)) : "Never") << std::endl;
+        if (cachedUpdateAvailable) {
+            std::cout << " Update available: " << cachedLatestVersion << std::endl;
+        }
+        return;
+    }
+    
+    if (lastCommandParsed == "check") {
+        manualUpdateCheck();
+        return;
+    }
+    
+    if (lastCommandParsed == "interval") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Current update check interval: " << (UPDATE_CHECK_INTERVAL / 3600) << " hours" << std::endl;
+            return;
+        }
+        
+        try {
+            int hours = std::stoi(lastCommandParsed);
+            if (hours < 1) {
+                std::cerr << "Interval must be at least 1 hour" << std::endl;
+                return;
+            }
+            setUpdateInterval(hours);
+            std::cout << "Update check interval set to " << hours << " hours" << std::endl;
+            return;
+        } catch (const std::exception& e) {
+            std::cerr << "Invalid interval value. Please specify hours as a number" << std::endl;
+            return;
+        }
+    }
+    
+    if (lastCommandParsed == "help") {
+        std::cout << "Update commands:" << std::endl;
+        std::cout << " check: Manually check for updates now" << std::endl;
+        std::cout << " interval [HOURS]: Set update check interval in hours" << std::endl;
+        std::cout << " help: Show this help message" << std::endl;
+        return;
+    }
+    
+    std::cerr << "Unknown update command. Try 'help' for available commands." << std::endl;
+}
+
+void manualUpdateCheck() {
+    std::cout << "Checking for updates now..." << std::endl;
+    bool updateAvailable = checkForUpdate();
+    
+    if (updateAvailable) {
+        std::cout << "An update is available!" << std::endl;
+        executeUpdateIfAvailable(true);
+    } else {
+        std::cout << "You are up to date." << std::endl;
+    }
+    
+    std::string latestVersion = "";
+    try {
+        std::string command = "curl -s " + updateURL_Github;
+        std::string result;
+        FILE *pipe = popen(command.c_str(), "r");
+        if (pipe) {
+            char buffer[128];
+            while (fgets(buffer, 128, pipe) != nullptr) {
+                result += buffer;
+            }
+            pclose(pipe);
+            
+            json jsonData = json::parse(result);
+            if (jsonData.contains("tag_name")) {
+                latestVersion = jsonData["tag_name"].get<std::string>();
+                if (!latestVersion.empty() && latestVersion[0] == 'v') {
+                    latestVersion = latestVersion.substr(1);
+                }
+            }
+        }
+    } catch (std::exception &e) {
+    }
+    
+    saveUpdateCache(updateAvailable, latestVersion);
+}
+
+void setUpdateInterval(int intervalHours) {
+    UPDATE_CHECK_INTERVAL = intervalHours * 3600;
+    writeUserData();
 }
 
 void aliasCommands() {
@@ -2423,7 +2505,7 @@ std::string generateUninstallScript() {
         uninstallScript << "        if [ -f \"$LEGACY_UNINSTALL_SCRIPT\" ] && [ \"$LEGACY_UNINSTALL_SCRIPT\" != \"$0\" ]; then\n";
         uninstallScript << "            rm \"$LEGACY_UNINSTALL_SCRIPT\"\n";
         uninstallScript << "        fi\n";
-        uninstallScript << "    elif sudo -n true 2>/dev/null; then\n";
+        uninstallScript << "    } else if sudo -n true 2>/dev/null; then\n";
         uninstallScript << "        echo \"Removing legacy installation with sudo...\"\n";
         uninstallScript << "        sudo rm \"$SYSTEM_APP_PATH\"\n";
         uninstallScript << "        # Also remove the uninstall script if it exists\n";
@@ -2568,13 +2650,11 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
-                //do nothing
             }
             
             return completions;
         }
         
-        // Context-sensitive command-specific completions
         if (command == commandPrefix + "user") {
             std::vector<std::string> userCommands = {
                 "startup", "text", "shortcut", "alias", "testing", "data", 
@@ -2602,7 +2682,8 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                     {"saveonexit", {"enable", "disable"}},
                     {"checkforupdates", {"enable", "disable"}},
                     {"updatepath", {"github", "cadenfinley"}},
-                    {"data", {"get", "clear", "help"}}
+                    {"data", {"get", "clear", "help"}},
+                    {"update", {"check", "interval", "help"}}
                 };
                 
                 for (const auto& [cmd, subCmds] : userSubCommands) {
@@ -2626,6 +2707,18 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                             if (thirdArg.empty() || startsWith(opt, thirdArg)) {
                                 completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + opt);
                             }
+                        }
+                    }
+                }
+                
+                if (subCommand == "update" && subArg.find(' ') != std::string::npos) {
+                    size_t thirdCmdPos = subArg.find_first_of(' ');
+                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
+                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
+                    
+                    if (thirdCmd == "interval") {
+                        if (thirdArg.empty()) {
+                            completions.push_back(command + " " + subCommand + " " + thirdCmd + " [HOURS]");
                         }
                     }
                 }
@@ -2712,7 +2805,6 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
                                 }
                             }
                         } catch (const std::filesystem::filesystem_error& e) {
-                            //do nothing
                         }
                     }
                 }
@@ -2954,7 +3046,6 @@ std::string completeFilePath(const std::string& input) {
             }
         }
     } catch (const std::filesystem::filesystem_error& e) {
-        //do nothing
     }
     
     if (matches.size() == 1) {
@@ -3116,7 +3207,6 @@ void refreshExecutablesCache() {
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
-                // do nothing
             }
         });
     }
@@ -3153,7 +3243,41 @@ void initializeDataDirectories() {
 }
 
 void asyncCheckForUpdates(std::function<void(bool)> callback) {
+    if (loadUpdateCache() && !shouldCheckForUpdates()) {
+        if (!silentCheckForUpdates && cachedUpdateAvailable) {
+            std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
+        }
+        callback(cachedUpdateAvailable);
+        return;
+    }
+    
     bool updateAvailable = checkForUpdate();
+    
+    std::string latestVersion = "";
+    try {
+        std::string command = "curl -s " + updateURL_Github;
+        std::string result;
+        FILE *pipe = popen(command.c_str(), "r");
+        if (pipe) {
+            char buffer[128];
+            while (fgets(buffer, 128, pipe) != nullptr) {
+                result += buffer;
+            }
+            pclose(pipe);
+            
+            json jsonData = json::parse(result);
+            if (jsonData.contains("tag_name")) {
+                latestVersion = jsonData["tag_name"].get<std::string>();
+                if (!latestVersion.empty() && latestVersion[0] == 'v') {
+                    latestVersion = latestVersion.substr(1);
+                }
+            }
+        }
+    } catch (std::exception &e) {
+    }
+    
+    saveUpdateCache(updateAvailable, latestVersion);
+    
     callback(updateAvailable);
 }
 
@@ -3274,6 +3398,12 @@ void loadUserDataAsync(std::function<void()> callback) {
                 if(userData.contains("Startup_Commands_Enabled")) {
                     startCommandsOn = userData["Startup_Commands_Enabled"].get<bool>();
                 }
+                if(userData.contains("Last_Update_Check_Time")) {
+                    lastUpdateCheckTime = userData["Last_Update_Check_Time"].get<time_t>();
+                }
+                if(userData.contains("Update_Check_Interval")) {
+                    UPDATE_CHECK_INTERVAL = userData["Update_Check_Interval"].get<int>();
+                }
                 file.close();
             }
             catch(const json::parse_error& e) {
@@ -3337,4 +3467,47 @@ void saveExecutableCacheToDisk() {
         cacheFile << cacheData.dump();
         cacheFile.close();
     }
+}
+
+void saveUpdateCache(bool updateAvailable, const std::string& latestVersion) {
+    json cacheData;
+    cacheData["update_available"] = updateAvailable;
+    cacheData["latest_version"] = latestVersion;
+    cacheData["check_time"] = std::time(nullptr);
+    
+    std::ofstream cacheFile(UPDATE_CACHE_FILE);
+    if (cacheFile.is_open()) {
+        cacheFile << cacheData.dump();
+        cacheFile.close();
+        
+        cachedUpdateAvailable = updateAvailable;
+        cachedLatestVersion = latestVersion;
+        lastUpdateCheckTime = std::time(nullptr);
+        
+        writeUserData();
+    }
+}
+
+bool loadUpdateCache() {
+    std::ifstream cacheFile(UPDATE_CACHE_FILE);
+    if (!cacheFile.is_open()) return false;
+    
+    try {
+        json cacheData;
+        cacheFile >> cacheData;
+        cacheFile.close();
+        
+        cachedUpdateAvailable = cacheData["update_available"].get<bool>();
+        cachedLatestVersion = cacheData["latest_version"].get<std::string>();
+        lastUpdateCheckTime = cacheData["check_time"].get<time_t>();
+        
+        return true;
+    } catch (const std::exception& e) {
+        return false;
+    }
+}
+
+bool shouldCheckForUpdates() {
+    time_t currentTime = std::time(nullptr);
+    return (currentTime - lastUpdateCheckTime) > UPDATE_CHECK_INTERVAL;
 }
