@@ -190,6 +190,29 @@ int main(int argc, char* argv[]) {
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
     initializeDataDirectories();
+
+    if (checkForUpdates) {
+        auto updateFuture = std::async(std::launch::async, [&]() {
+            if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
+                asyncCheckForUpdates([](bool updateAvailable) {
+                    if (updateAvailable) {
+                        executeUpdateIfAvailable(updateAvailable);
+                    } else {
+                        if(!silentCheckForUpdates){
+                            std::cout << " -> You are up to date!" << std::endl;
+                        }
+                    }
+                });
+            } else {
+                if (loadUpdateCache() && cachedUpdateAvailable) {
+                    if (!silentCheckForUpdates) {
+                        std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
+                    }
+                    executeUpdateIfAvailable(true);
+                }
+            }
+        });
+    }
     
     std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(USER_DATA)) {
@@ -228,29 +251,6 @@ int main(int argc, char* argv[]) {
             executablesCacheInitialized = true;
         }
     });
-    
-    if (checkForUpdates) {
-        auto updateFuture = std::async(std::launch::async, [&]() {
-            if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
-                asyncCheckForUpdates([](bool updateAvailable) {
-                    if (updateAvailable) {
-                        executeUpdateIfAvailable(updateAvailable);
-                    } else {
-                        if(!silentCheckForUpdates){
-                            std::cout << " -> You are up to date!" << std::endl;
-                        }
-                    }
-                });
-            } else {
-                if (loadUpdateCache() && cachedUpdateAvailable) {
-                    if (!silentCheckForUpdates) {
-                        std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
-                    }
-                    executeUpdateIfAvailable(true);
-                }
-            }
-        });
-    }
     
     userDataFuture.wait();
 
