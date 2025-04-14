@@ -31,6 +31,7 @@ bool saveOnExit = false;
 bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
+bool daemonRunning = false;
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -38,6 +39,7 @@ bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
+bool usingDaemon = true;
 
 time_t lastUpdateCheckTime = 0;
 int UPDATE_CHECK_INTERVAL = 86400;
@@ -58,7 +60,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.6.0";
+const std::string currentVersion = "1.8.6.1";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -179,40 +181,18 @@ int main(int argc, char* argv[]) {
     FD_SET(STDIN_FILENO, &fds);
     if (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv) > 0) {
         std::getline(std::cin, startupInput);
-        if(startupInput != ""){
-            sendTerminalCommand(startupInput);
-        }
     }
-    
+
+    //if usingDaemon is true
+    // check if daemon is running, if not check if exists if exists then run it, if not exists do nothing
+    daemonRunning = false;
+
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
 
     initializeDataDirectories();
-
-    if (checkForUpdates) {
-        auto updateFuture = std::async(std::launch::async, [&]() {
-            if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
-                asyncCheckForUpdates([](bool updateAvailable) {
-                    if (updateAvailable) {
-                        executeUpdateIfAvailable(updateAvailable);
-                    } else {
-                        if(!silentCheckForUpdates){
-                            std::cout << " -> You are up to date!" << std::endl;
-                        }
-                    }
-                });
-            } else {
-                if (loadUpdateCache() && cachedUpdateAvailable) {
-                    if (!silentCheckForUpdates) {
-                        std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
-                    }
-                    executeUpdateIfAvailable(true);
-                }
-            }
-        });
-    }
     
     std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(USER_DATA)) {
@@ -236,6 +216,16 @@ int main(int argc, char* argv[]) {
         loadPluginsAsync([]() {});
     });
     
+    // the daemon will handle this so the program will just need to load 
+    std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
+        if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
+            loadExecutableCacheFromDisk();
+            executablesCacheInitialized = true;
+        }
+    });
+
+    userDataFuture.wait();
+
     std::future<void> themeFuture = std::async(std::launch::async, [&]() {
         themeManager = new ThemeManager(THEMES_DIRECTORY);
         loadThemeAsync(currentTheme, [&](bool success) {
@@ -244,21 +234,46 @@ int main(int argc, char* argv[]) {
             }
         });
     });
-    
-    std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
-        if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
-            loadExecutableCacheFromDisk();
-            executablesCacheInitialized = true;
-        }
-    });
-    
-    userDataFuture.wait();
+
+    std::future<void> updateFuture;
+    if (checkForUpdates) {
+        //if daemon is running ask daemon if there is a needed update instead of checking for updates in session
+        updateFuture = std::async(std::launch::async, [&]() {
+            if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
+                asyncCheckForUpdates([](bool updateAvailable) {
+                    if (updateAvailable) {
+                        executeUpdateIfAvailable(updateAvailable);
+                    } else {
+                        if(!silentCheckForUpdates){
+                            std::cout << " -> You are up to date!" << std::endl;
+                        }
+                    }
+                });
+            } else {
+                if (loadUpdateCache() && cachedUpdateAvailable) {
+                    if (!silentCheckForUpdates) {
+                        std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
+                    }
+                    executeUpdateIfAvailable(true);
+                }
+            }
+        });
+    }
+
+    if (changelogFuture.valid()) changelogFuture.wait();
+    pluginFuture.wait();
+    execCacheFuture.wait();
+    themeFuture.wait();
+    if (updateFuture.valid()) updateFuture.wait();
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
         std::cout << "Running startup commands..." << std::endl;
         for (const auto& command : startupCommands) {
             commandParser(commandPrefix + command);
+        }
+        if(startupInput != ""){
+            commandParser(startupInput);
         }
         runningStartup = false;
     }
