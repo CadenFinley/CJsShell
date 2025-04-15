@@ -6,16 +6,125 @@
 #include <thread>
 #include <chrono>
 #include <nlohmann/json.hpp>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <fcntl.h>
 
 using json = nlohmann::json;
 
 DaemonManager::DaemonManager(const std::filesystem::path& dataDirectory)
-    : dataDir(dataDirectory) {
-    daemonPidFile = dataDir / "daemon.pid";
-    daemonStatusFile = dataDir / "daemon_status.json";
-    daemonConfigFile = dataDir / "daemon_config.json";
+    : dataDir(dataDirectory), socketFd(-1), socketConnected(false) {
+    daemonDir = dataDir / "DTT-Daemon";
+    daemonPidFile = daemonDir / ".daemon.pid";
+    daemonLogFile = daemonDir / "daemon.log";
+    socketPath = daemonDir / ".daemon.sock";
+    daemonConfigFile = daemonDir / "daemon_config.json";
+
     daemonPath = dataDir / "DevToolsTerminal-Daemon";
     updateCacheFile = dataDir / "update_cache.json";
+    
+    cronDir = dataDir / "dtt-cron";
+    cronScriptsDir = cronDir / "cron_scripts";
+    cronJobsFile = cronDir / "cron_jobs.json";
+    cronLogFile = cronDir / "cron_log.txt";
+}
+
+DaemonManager::~DaemonManager() {
+    disconnectFromSocket();
+}
+
+bool DaemonManager::connectToSocket() {
+    if (socketConnected) return true;
+    
+    socketFd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (socketFd < 0) {
+        return false;
+    }
+    
+    int flags = fcntl(socketFd, F_GETFL, 0);
+    fcntl(socketFd, F_SETFL, flags | O_NONBLOCK);
+    
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
+    
+    int result = connect(socketFd, (struct sockaddr*)&addr, sizeof(addr));
+    if (result < 0 && errno != EINPROGRESS) {
+        close(socketFd);
+        socketFd = -1;
+        return false;
+    }
+    
+    fd_set writefds;
+    FD_ZERO(&writefds);
+    FD_SET(socketFd, &writefds);
+    
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    
+    if (select(socketFd + 1, nullptr, &writefds, nullptr, &timeout) <= 0) {
+        close(socketFd);
+        socketFd = -1;
+        return false;
+    }
+    
+    fcntl(socketFd, F_SETFL, flags);
+    
+    socketConnected = true;
+    return true;
+}
+
+void DaemonManager::disconnectFromSocket() {
+    if (socketFd >= 0) {
+        close(socketFd);
+        socketFd = -1;
+        socketConnected = false;
+    }
+}
+
+std::string DaemonManager::sendCommand(const std::string& command) {
+    if (!isDaemonRunning()) {
+        return "{\"error\": \"Daemon not running\"}";
+    }
+    
+    if (!connectToSocket()) {
+        return "{\"error\": \"Could not connect to daemon socket\"}";
+    }
+    
+    std::string cmdWithNewline = command + "\n";
+    if (write(socketFd, cmdWithNewline.c_str(), cmdWithNewline.size()) <= 0) {
+        disconnectFromSocket();
+        return "{\"error\": \"Failed to send command\"}";
+    }
+    
+    char buffer[4096];
+    std::string response;
+    
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(socketFd, &readfds);
+    
+    struct timeval timeout;
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    
+    if (select(socketFd + 1, &readfds, nullptr, nullptr, &timeout) <= 0) {
+        disconnectFromSocket();
+        return "{\"error\": \"Response timeout\"}";
+    }
+    
+    ssize_t bytesRead = read(socketFd, buffer, sizeof(buffer) - 1);
+    if (bytesRead <= 0) {
+        disconnectFromSocket();
+        return "{\"error\": \"Failed to read response\"}";
+    }
+    
+    buffer[bytesRead] = '\0';
+    response = buffer;
+    
+    return response;
 }
 
 bool DaemonManager::startDaemon() {
@@ -29,6 +138,12 @@ bool DaemonManager::startDaemon() {
         return false;
     }
     
+    if (!std::filesystem::exists(daemonDir)) {
+        std::filesystem::create_directories(daemonDir);
+    }
+    
+    ensureCronDirectoriesExist();
+    
     updateDaemonConfig();
     
     std::string command = daemonPath.string() + " &";
@@ -37,35 +152,23 @@ bool DaemonManager::startDaemon() {
         std::cerr << "Daemon started successfully." << std::endl;
     }
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
     return isDaemonRunning();
 }
 
 bool DaemonManager::stopDaemon() {
-    int pid = getDaemonPid();
-    if (pid <= 0) {
-        return true;
-    }
+    json command = {
+        {"action", "stop"}
+    };
     
-    if (kill(pid, SIGTERM) == 0) {
-        int retries = 10;
-        while (retries-- > 0 && kill(pid, 0) == 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        
-        if (retries <= 0 && kill(pid, 0) == 0) {
-            kill(pid, SIGKILL);
-        }
-        
-        if (std::filesystem::exists(daemonPidFile)) {
-            std::filesystem::remove(daemonPidFile);
-        }
-        
-        return true;
+    std::string response = sendCommand(command.dump());
+    try {
+        json responseJson = json::parse(response);
+        return responseJson.contains("success") && responseJson["success"].get<bool>();
+    } catch (std::exception &e) {
+        return false;
     }
-    
-    return false;
 }
 
 bool DaemonManager::restartDaemon() {
@@ -94,104 +197,65 @@ bool DaemonManager::isDaemonRunning() {
 }
 
 bool DaemonManager::forceUpdateCheck() {
-    json cacheData;
-    if (std::filesystem::exists(updateCacheFile)) {
-        try {
-            std::ifstream cacheFile(updateCacheFile);
-            if (cacheFile.is_open()) {
-                cacheFile >> cacheData;
-                cacheFile.close();
-            }
-        } catch (std::exception &e) {
-            cacheData = json::object();
-        }
-    } else {
-        cacheData = json::object();
+    json command = {
+        {"action", "force_update_check"}
+    };
+    
+    std::string response = sendCommand(command.dump());
+    try {
+        json responseJson = json::parse(response);
+        return responseJson.contains("success") && responseJson["success"].get<bool>();
+    } catch (std::exception &e) {
+        return false;
     }
-    
-    cacheData["check_time"] = std::time(nullptr) - 86400;
-    
-    std::ofstream cacheFile(updateCacheFile);
-    if (cacheFile.is_open()) {
-        cacheFile << cacheData.dump();
-        cacheFile.close();
-        return true;
-    }
-    
-    return false;
 }
 
 bool DaemonManager::refreshExecutablesCache() {
-    if (std::filesystem::exists(dataDir / "executables_cache.json")) {
-        std::filesystem::remove(dataDir / "executables_cache.json");
-    }
+    json command = {
+        {"action", "refresh_executables"}
+    };
     
-    return true;
+    std::string response = sendCommand(command.dump());
+    try {
+        json responseJson = json::parse(response);
+        return responseJson.contains("success") && responseJson["success"].get<bool>();
+    } catch (std::exception &e) {
+        return false;
+    }
 }
 
 std::string DaemonManager::getDaemonStatus() {
-    if (!isDaemonRunning()) {
-        return "{\"running\": false}";
-    }
+    json command = {
+        {"action", "status"}
+    };
     
-    if (std::filesystem::exists(daemonStatusFile)) {
-        try {
-            std::ifstream statusFile(daemonStatusFile);
-            if (statusFile.is_open()) {
-                std::string status((std::istreambuf_iterator<char>(statusFile)), std::istreambuf_iterator<char>());
-                statusFile.close();
-                return status;
-            }
-        } catch (std::exception &e) {
-        }
-    }
-    
-    return "{\"running\": true, \"status\": \"unknown\"}";
+    return sendCommand(command.dump());
 }
 
 std::string DaemonManager::getDaemonVersion() {
-    if (std::filesystem::exists(daemonStatusFile)) {
-        try {
-            std::ifstream statusFile(daemonStatusFile);
-            if (statusFile.is_open()) {
-                json statusData;
-                statusFile >> statusData;
-                statusFile.close();
-                
-                if (statusData.contains("daemon_version")) {
-                    return statusData["daemon_version"].get<std::string>();
-                }
-            }
-        } catch (std::exception &e) {
+    json command = {
+        {"action", "status"}
+    };
+    
+    std::string response = sendCommand(command.dump());
+    try {
+        json responseJson = json::parse(response);
+        if (responseJson.contains("daemon_version")) {
+            return responseJson["daemon_version"].get<std::string>();
         }
+    } catch (std::exception &e) {
     }
     
     return "";
 }
 
 void DaemonManager::setUpdateCheckInterval(int intervalSeconds) {
-    json config;
-    if (std::filesystem::exists(daemonConfigFile)) {
-        try {
-            std::ifstream configFile(daemonConfigFile);
-            if (configFile.is_open()) {
-                configFile >> config;
-                configFile.close();
-            }
-        } catch (std::exception &e) {
-            config = json::object();
-        }
-    } else {
-        config = json::object();
-    }
+    json command = {
+        {"action", "set_update_interval"},
+        {"interval", intervalSeconds}
+    };
     
-    config["update_check_interval"] = intervalSeconds;
-    
-    std::ofstream configFile(daemonConfigFile);
-    if (configFile.is_open()) {
-        configFile << config.dump();
-        configFile.close();
-    }
+    sendCommand(command.dump());
 }
 
 int DaemonManager::getUpdateCheckInterval() {
@@ -316,4 +380,30 @@ int DaemonManager::getDaemonPid() {
     pidFile.close();
     
     return pid;
+}
+
+void DaemonManager::ensureCronDirectoriesExist() {
+    if (!std::filesystem::exists(cronDir)) {
+        std::filesystem::create_directories(cronDir);
+    }
+    
+    if (!std::filesystem::exists(cronScriptsDir)) {
+        std::filesystem::create_directories(cronScriptsDir);
+    }
+    
+    if (!std::filesystem::exists(cronJobsFile)) {
+        std::ofstream jobsFile(cronJobsFile);
+        if (jobsFile.is_open()) {
+            jobsFile << "[]";
+            jobsFile.close();
+        }
+    }
+    
+    if (!std::filesystem::exists(cronLogFile)) {
+        std::ofstream logFile(cronLogFile);
+        if (logFile.is_open()) {
+            logFile << "# Cron job log file\n";
+            logFile.close();
+        }
+    }
 }

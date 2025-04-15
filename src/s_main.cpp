@@ -213,10 +213,17 @@ int main(int argc, char* argv[]) {
     
     std::future<void> daemonFuture = std::async(std::launch::async, [&]() {
         daemonManager = new DaemonManager(DATA_DIRECTORY);
-        if (usingDaemon && !daemonManager->isDaemonRunning()) {
-            daemonManager->startDaemon();
+        daemonRunning = daemonManager->isDaemonRunning();
+
+        if (usingDaemon && !daemonRunning) {
+            if (daemonManager->startDaemon()) {
+                daemonRunning = daemonManager->isDaemonRunning();
+                
+                if (!daemonRunning && !silentCheckForUpdates) {
+                    std::cout << "Warning: Daemon startup was attempted but daemon is not running." << std::endl;
+                }
+            }
         }
-        daemonRunning = usingDaemon && daemonManager->isDaemonRunning();
     });
 
     std::future<void> changelogFuture;

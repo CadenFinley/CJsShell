@@ -1,44 +1,60 @@
-#ifndef DAEMONMANAGER_H
-#define DAEMONMANAGER_H
+#pragma once
 
-#include <string>
 #include <filesystem>
+#include <string>
+#include <ctime>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 class DaemonManager {
 public:
     DaemonManager(const std::filesystem::path& dataDirectory);
+    ~DaemonManager();
     
-    // Daemon lifecycle management
     bool startDaemon();
     bool stopDaemon();
     bool restartDaemon();
     bool isDaemonRunning();
-    
-    // Daemon communication
     bool forceUpdateCheck();
     bool refreshExecutablesCache();
     std::string getDaemonStatus();
     std::string getDaemonVersion();
-    
-    // Configuration
     void setUpdateCheckInterval(int intervalSeconds);
     int getUpdateCheckInterval();
-    
-    // Update status
     bool isUpdateAvailable();
     std::string getLatestVersion();
     time_t getLastUpdateCheckTime();
-
+    
+    bool addCronJob(const std::string& id, const std::string& name, 
+                   const std::string& description, const std::string& scriptPath, 
+                   const std::string& schedule, bool enabled);
+    bool removeCronJob(const std::string& id);
+    bool enableCronJob(const std::string& id, bool enable);
+    std::string listCronJobs();
+    
 private:
     std::filesystem::path dataDir;
+    std::filesystem::path daemonDir;
     std::filesystem::path daemonPidFile;
     std::filesystem::path daemonStatusFile;
     std::filesystem::path daemonConfigFile;
     std::filesystem::path daemonPath;
     std::filesystem::path updateCacheFile;
+    std::filesystem::path daemonLogFile;
+    std::filesystem::path socketPath;
+    std::filesystem::path cronDir;
+    std::filesystem::path cronScriptsDir;
+    std::filesystem::path cronJobsFile;
+    std::filesystem::path cronLogFile;
     
     void updateDaemonConfig();
     int getDaemonPid();
+    
+    void ensureCronDirectoriesExist();
+    
+    bool connectToSocket();
+    void disconnectFromSocket();
+    std::string sendCommand(const std::string& command);
+    int socketFd;
+    bool socketConnected;
 };
-
-#endif // DAEMONMANAGER_H
