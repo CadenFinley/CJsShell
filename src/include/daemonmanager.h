@@ -25,13 +25,6 @@ public:
     std::string getLatestVersion();
     time_t getLastUpdateCheckTime();
     
-    bool addCronJob(const std::string& id, const std::string& name, 
-                   const std::string& description, const std::string& scriptPath, 
-                   const std::string& schedule, bool enabled);
-    bool removeCronJob(const std::string& id);
-    bool enableCronJob(const std::string& id, bool enable);
-    std::string listCronJobs();
-    
 private:
     std::filesystem::path dataDir;
     std::filesystem::path daemonDir;

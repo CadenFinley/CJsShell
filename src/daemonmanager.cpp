@@ -137,8 +137,6 @@ bool DaemonManager::startDaemon() {
         std::filesystem::create_directories(daemonDir);
     }
     
-    ensureCronDirectoriesExist();
-    
     updateDaemonConfig();
     
     std::string command = daemonPath.string() + " &";
