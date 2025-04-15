@@ -42,15 +42,9 @@ private:
     std::filesystem::path updateCacheFile;
     std::filesystem::path daemonLogFile;
     std::filesystem::path socketPath;
-    std::filesystem::path cronDir;
-    std::filesystem::path cronScriptsDir;
-    std::filesystem::path cronJobsFile;
-    std::filesystem::path cronLogFile;
     
     void updateDaemonConfig();
     int getDaemonPid();
-    
-    void ensureCronDirectoriesExist();
     
     bool connectToSocket();
     void disconnectFromSocket();
