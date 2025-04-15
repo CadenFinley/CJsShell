@@ -18,6 +18,7 @@ public:
     bool forceUpdateCheck();
     bool refreshExecutablesCache();
     std::string getDaemonStatus();
+    std::string getDaemonVersion();
     
     // Configuration
     void setUpdateCheckInterval(int intervalSeconds);

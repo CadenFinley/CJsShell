@@ -62,7 +62,7 @@ find_package(Threads REQUIRED)  # Add this to find pthread library
 
 # Source files
 set(SOURCE_FILES
-    src/main.cpp
+    src/s_main.cpp
     src/terminalpassthrough.cpp
     src/openaipromptengine.cpp
     src/pluginmanager.cpp

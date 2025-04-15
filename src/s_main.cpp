@@ -61,7 +61,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.6.1";
+const std::string currentVersion = "1.9.0.0";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -171,6 +171,8 @@ bool startDaemon();
 bool stopDaemon();
 bool restartDaemon();
 std::string getDaemonStatus();
+void daemonCommands();
+std::string getDaemonVersion();
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
@@ -190,7 +192,6 @@ int main(int argc, char* argv[]) {
     }
 
     daemonRunning = false;
-
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
@@ -297,6 +298,9 @@ int main(int argc, char* argv[]) {
             commandParser(commandPrefix + command);
         }
         if(startupInput != ""){
+            if(TESTING) {
+                std::cout << "Startup input: " << startupInput << std::endl;
+            }
             commandParser(startupInput);
         }
         runningStartup = false;
@@ -747,6 +751,7 @@ void writeUserData() {
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
         json userData;
+        userData["Version"] = currentVersion;
         userData["OpenAI_API_KEY"] = c_assistant.getAPIKey();
         userData["Chat_Cache"] = savedChatCache;
         userData["Startup_Commands"] = startupCommands;
@@ -765,6 +770,7 @@ void writeUserData() {
         userData["Startup_Commands_Enabled"] = startCommandsOn;
         userData["Last_Update_Check_Time"] = lastUpdateCheckTime;
         userData["Update_Check_Interval"] = UPDATE_CHECK_INTERVAL;
+        userData["Using_Daemon"] = usingDaemon;
         file << userData.dump(4);
         file.close();
     } else {
@@ -998,6 +1004,15 @@ void commandProcesser(const std::string& command) {
         std::cout << " env: Manage environment variables" << std::endl;
         std::cout << " uninstall: Uninstall the application" << std::endl;
         std::cout << " refresh-commands: Refresh the executable commands cache" << std::endl;
+        std::cout << " daemon: Manage the DevToolsTerminal daemon" << std::endl;
+        return;
+    } else if (lastCommandParsed == "refresh-commands" || lastCommandParsed == "refresh-executables") {
+        std::cout << "Refreshing executable commands cache..." << std::endl;
+        refreshExecutablesCache();
+        std::cout << "Discovered " << executablesCache.size() << " executable commands." << std::endl;
+        return;
+    } else if (lastCommandParsed == "daemon") {
+        daemonCommands();
         return;
     } else if (lastCommandParsed == "uninstall") {
         if (pluginManager->getEnabledPlugins().size() > 0) {
@@ -1019,11 +1034,6 @@ void commandProcesser(const std::string& command) {
             std::cout << "Uninstall cancelled." << std::endl;
         }
         return;
-    } else if (lastCommandParsed == "refresh-commands" || lastCommandParsed == "refresh-executables") {
-        std::cout << "Refreshing executable commands cache..." << std::endl;
-        refreshExecutablesCache();
-        std::cout << "Discovered " << executablesCache.size() << " executable commands." << std::endl;
-        return;
     } else {
         std::queue<std::string> tempQueue;
         tempQueue.push(lastCommandParsed);
@@ -1041,6 +1051,76 @@ void commandProcesser(const std::string& command) {
         }
         std::cerr << "Unknown command. Please try again." << std::endl;
     }
+}
+
+void daemonCommands() {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << "Daemon status: " << (daemonRunning ? "Running" : "Not running") << std::endl;
+        std::cout << "Daemon usage: " << (usingDaemon ? "Enabled" : "Disabled") << std::endl;
+        std::cout << "Use 'daemon help' for available commands." << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "enable") {
+        usingDaemon = true;
+        std::cout << "Daemon usage enabled." << std::endl;
+        if (!daemonRunning) {
+            std::cout << "Daemon is not currently running. Use 'daemon start' to start it." << std::endl;
+        }
+        writeUserData();
+        return;
+    }
+    if (lastCommandParsed == "disable") {
+        usingDaemon = false;
+        std::cout << "Daemon usage disabled." << std::endl;
+        if (daemonRunning) {
+            std::cout << "Note: Daemon is still running. Use 'daemon stop' to stop it." << std::endl;
+        }
+        writeUserData();
+        return;
+    }
+    if (lastCommandParsed == "start") {
+        if (daemonRunning) {
+            std::cout << "Daemon is already running." << std::endl;
+            return;
+        }
+        startDaemon();
+        return;
+    }
+    if (lastCommandParsed == "stop") {
+        if (!daemonRunning) {
+            std::cout << "Daemon is not running." << std::endl;
+            return;
+        }
+        stopDaemon();
+        return;
+    }
+    if (lastCommandParsed == "restart") {
+        restartDaemon();
+        return;
+    }
+    if (lastCommandParsed == "status") {
+        std::string status = getDaemonStatus();
+        std::cout << status << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "version") {
+        std::cout << "Daemon version: " << getDaemonVersion() << std::endl;
+        return;
+    }
+    if (lastCommandParsed == "help") {
+        std::cout << "Daemon commands:" << std::endl;
+        std::cout << " enable: Enable daemon usage" << std::endl;
+        std::cout << " disable: Disable daemon usage" << std::endl;
+        std::cout << " start: Start the daemon" << std::endl;
+        std::cout << " stop: Stop the daemon" << std::endl;
+        std::cout << " restart: Restart the daemon" << std::endl;
+        std::cout << " status: Show daemon status" << std::endl;
+        std::cout << " version: Show daemon version" << std::endl;
+        return;
+    }
+    
+    std::cerr << "Unknown daemon command. Use 'daemon help' for available commands." << std::endl;
 }
 
 void pluginCommands(){
@@ -2850,6 +2930,20 @@ std::vector<std::string> getTabCompletions(const std::string& input) {
             }
             return completions;
         }
+        
+        if (command == commandPrefix + "daemon") {
+            std::vector<std::string> daemonCommands = {
+                "enable", "disable", "start", "stop", "restart", "status", "help"
+            };
+            
+            for (const auto& cmd : daemonCommands) {
+                if (startsWith(cmd, argument)) {
+                    completions.push_back(command + " " + cmd);
+                }
+            }
+            
+            return completions;
+        }
     }
     
     if (input.find('/') != std::string::npos || (input.size() >= 2 && input.substr(0, 2) == "./") || (input.size() >= 1 && input[0] == '/')) {
@@ -3355,6 +3449,9 @@ void loadUserDataAsync(std::function<void()> callback) {
                 if(userData.contains("Update_Check_Interval")) {
                     UPDATE_CHECK_INTERVAL = userData["Update_Check_Interval"].get<int>();
                 }
+                if(userData.contains("Using_Daemon")) {
+                    usingDaemon = userData["Using_Daemon"].get<bool>();
+                }
                 file.close();
             }
             catch(const json::parse_error& e) {
@@ -3518,4 +3615,12 @@ std::string getDaemonStatus() {
     }
     
     return daemonManager->getDaemonStatus();
+}
+
+std::string getDaemonVersion() {
+    if (!daemonManager) {
+        daemonManager = new DaemonManager(DATA_DIRECTORY);
+    }
+    
+    return daemonManager->getDaemonVersion();
 }
