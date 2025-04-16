@@ -13,10 +13,10 @@
 #include <nlohmann/json.hpp>
 #include <future>
 
-#include "terminalpassthrough.h"
-#include "openaipromptengine.h"
-#include "pluginmanager.h"
-#include "thememanager.h"
+#include "include/terminalpassthrough.h"
+#include "include/openaipromptengine.h"
+#include "include/pluginmanager.h"
+#include "include/thememanager.h"
 
 using json = nlohmann::json;
 

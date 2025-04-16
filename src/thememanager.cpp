@@ -1,4 +1,4 @@
-#include "thememanager.h"
+#include "include/thememanager.h"
 
 namespace {
     std::string parseAnsiCodes(const std::string &input) {

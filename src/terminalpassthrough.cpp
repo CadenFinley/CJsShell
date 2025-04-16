@@ -1,4 +1,4 @@
-#include "terminalpassthrough.h"
+#include "include/terminalpassthrough.h"
 
 TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     currentDirectory = std::filesystem::current_path().string();

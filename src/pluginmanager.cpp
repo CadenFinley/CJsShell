@@ -1,4 +1,4 @@
-#include "pluginmanager.h"
+#include "include/pluginmanager.h"
 
 PluginManager::PluginManager(const std::filesystem::path& pluginsDir) 
     : pluginsDirectory(pluginsDir), pluginsDiscovered(false) {

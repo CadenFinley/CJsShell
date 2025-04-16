@@ -1,4 +1,4 @@
-#include "openaipromptengine.h"
+#include "include/openaipromptengine.h"
 
 OpenAIPromptEngine::OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction) {
     initialize(apiKey, assistantType, initialInstruction, {});
