@@ -61,7 +61,7 @@ bool hasSuggestion = false;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.6.2";
+const std::string currentVersion = "1.8.6.3";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -236,9 +236,11 @@ int main(int argc, char* argv[]) {
 
     std::future<void> updateFuture;
     if (checkForUpdates) {
-        //if daemon is running ask daemon if there is a needed update instead of checking for updates in session
         updateFuture = std::async(std::launch::async, [&]() {
-            if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
+            // First try to load the cache
+            bool cacheLoaded = loadUpdateCache();
+            
+            if (!cacheLoaded || shouldCheckForUpdates()) {
                 asyncCheckForUpdates([](bool updateAvailable) {
                     if (updateAvailable) {
                         executeUpdateIfAvailable(updateAvailable);
@@ -248,13 +250,11 @@ int main(int argc, char* argv[]) {
                         }
                     }
                 });
-            } else {
-                if (loadUpdateCache() && cachedUpdateAvailable) {
-                    if (!silentCheckForUpdates) {
-                        std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
-                    }
-                    executeUpdateIfAvailable(true);
+            } else if (cachedUpdateAvailable) {
+                if (!silentCheckForUpdates) {
+                    std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
                 }
+                executeUpdateIfAvailable(true);
             }
         });
     }
@@ -1415,8 +1415,10 @@ void manualUpdateCheck() {
             }
         }
     } catch (std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
     }
     
+    // Ensure we update the cache and timestamp even for manual checks
     saveUpdateCache(updateAvailable, latestVersion);
 }
 
@@ -3164,6 +3166,7 @@ void initializeDataDirectories() {
 }
 
 void asyncCheckForUpdates(std::function<void(bool)> callback) {
+    // If we have a valid cache and shouldn't check yet, use cached value
     if (loadUpdateCache() && !shouldCheckForUpdates()) {
         if (!silentCheckForUpdates && cachedUpdateAvailable) {
             std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
@@ -3195,8 +3198,10 @@ void asyncCheckForUpdates(std::function<void(bool)> callback) {
             }
         }
     } catch (std::exception &e) {
+        std::cerr << "Error getting latest version: " << e.what() << std::endl;
     }
     
+    // Always update the cache with fresh data
     saveUpdateCache(updateAvailable, latestVersion);
     
     callback(updateAvailable);
@@ -3405,11 +3410,18 @@ void saveUpdateCache(bool updateAvailable, const std::string& latestVersion) {
         cachedLatestVersion = latestVersion;
         lastUpdateCheckTime = std::time(nullptr);
         
+        // Make sure to save this to user data for persistence
         writeUserData();
+    } else {
+        std::cerr << "Warning: Could not open update cache file for writing." << std::endl;
     }
 }
 
 bool loadUpdateCache() {
+    if (!std::filesystem::exists(UPDATE_CACHE_FILE)) {
+        return false;
+    }
+    
     std::ifstream cacheFile(UPDATE_CACHE_FILE);
     if (!cacheFile.is_open()) return false;
     
@@ -3418,17 +3430,36 @@ bool loadUpdateCache() {
         cacheFile >> cacheData;
         cacheFile.close();
         
-        cachedUpdateAvailable = cacheData["update_available"].get<bool>();
-        cachedLatestVersion = cacheData["latest_version"].get<std::string>();
-        lastUpdateCheckTime = cacheData["check_time"].get<time_t>();
-        
-        return true;
+        if (cacheData.contains("update_available") && 
+            cacheData.contains("latest_version") && 
+            cacheData.contains("check_time")) {
+            
+            cachedUpdateAvailable = cacheData["update_available"].get<bool>();
+            cachedLatestVersion = cacheData["latest_version"].get<std::string>();
+            lastUpdateCheckTime = cacheData["check_time"].get<time_t>();
+            
+            return true;
+        }
+        return false;
     } catch (const std::exception& e) {
+        std::cerr << "Error loading update cache: " << e.what() << std::endl;
         return false;
     }
 }
 
 bool shouldCheckForUpdates() {
+    if (lastUpdateCheckTime == 0) {
+        return true;
+    }
+    
     time_t currentTime = std::time(nullptr);
-    return (currentTime - lastUpdateCheckTime) > UPDATE_CHECK_INTERVAL;
+    time_t elapsedTime = currentTime - lastUpdateCheckTime;
+    
+    // Debug output if in testing mode
+    if (TESTING) {
+        std::cout << "Time since last update check: " << elapsedTime 
+                  << " seconds (interval: " << UPDATE_CHECK_INTERVAL << " seconds)" << std::endl;
+    }
+    
+    return elapsedTime > UPDATE_CHECK_INTERVAL;
 }
