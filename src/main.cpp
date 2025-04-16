@@ -61,7 +61,7 @@ bool hasSuggestion = false;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.6.3";
+const std::string currentVersion = "1.8.6.4";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
