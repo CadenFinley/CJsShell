@@ -99,16 +99,6 @@ endif()
 # Option for static linking (better portability across Linux distributions)
 option(STATIC_LINKING "Link libraries statically for better portability" OFF)
 
-# Modified target linking approach that works with older CMake
-# Create a helper function to handle CURL linking safely
-function(link_curl_to_target target_name)
-    if(TARGET CURL::libcurl)
-        target_link_libraries(${target_name} CURL::libcurl)
-    else()
-        target_link_libraries(${target_name} ${CURL_LIBRARIES})
-    endif()
-endfunction()
-
 # Modify the executable target to create platform-specific builds
 if(APPLE)
     # macOS build
@@ -117,8 +107,10 @@ if(APPLE)
         OUTPUT_NAME "DevToolsTerminal"
         RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
     )
-    link_curl_to_target(DevToolsTerminal_macOS)
-    target_link_libraries(DevToolsTerminal_macOS Threads::Threads)
+    target_link_libraries(DevToolsTerminal_macOS 
+        $<IF:$<TARGET_EXISTS:CURL::libcurl>,CURL::libcurl,${CURL_LIBRARIES}>
+        Threads::Threads
+    )
 endif()
 
 # Linux build
@@ -127,8 +119,8 @@ set_target_properties(DevToolsTerminal_Linux PROPERTIES
     OUTPUT_NAME "DevToolsTerminal"
     RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
 )
-link_curl_to_target(DevToolsTerminal_Linux)
 target_link_libraries(DevToolsTerminal_Linux 
+    $<IF:$<TARGET_EXISTS:CURL::libcurl>,CURL::libcurl,${CURL_LIBRARIES}>
     Threads::Threads
     ${DL_LIBRARY}
 )
