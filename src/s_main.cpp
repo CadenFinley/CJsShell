@@ -63,7 +63,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 const std::string processId = std::to_string(getpid());
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.9.0.0";
+const std::string currentVersion = "1.9.0.1";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -175,6 +175,10 @@ bool restartDaemon();
 std::string getDaemonStatus();
 void daemonCommands();
 std::string getDaemonVersion();
+void sessionCommands();
+bool saveCurrentSession(const std::string& sessionName);
+bool restoreSession(const std::string& sessionName);
+std::string getCurrentSessionData();
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
@@ -1014,6 +1018,7 @@ void commandProcesser(const std::string& command) {
         std::cout << " uninstall: Uninstall the application" << std::endl;
         std::cout << " refresh-commands: Refresh the executable commands cache" << std::endl;
         std::cout << " daemon: Manage the DevToolsTerminal daemon" << std::endl;
+        std::cout << " session: Manage terminal sessions (save/restore)" << std::endl;
         return;
     } else if (lastCommandParsed == "refresh-commands" || lastCommandParsed == "refresh-executables") {
         std::cout << "Refreshing executable commands cache..." << std::endl;
@@ -1022,6 +1027,9 @@ void commandProcesser(const std::string& command) {
         return;
     } else if (lastCommandParsed == "daemon") {
         daemonCommands();
+        return;
+    } else if (lastCommandParsed == "session") {
+        sessionCommands();
         return;
     } else if (lastCommandParsed == "uninstall") {
         if (pluginManager->getEnabledPlugins().size() > 0) {
@@ -3632,4 +3640,169 @@ std::string getDaemonVersion() {
     }
     
     return daemonManager->getDaemonVersion();
+}
+
+void sessionCommands() {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        std::cout << "Session Management Commands:" << std::endl;
+        std::cout << "  save [NAME]: Save current session" << std::endl;
+        std::cout << "  restore [NAME]: Restore a saved session" << std::endl;
+        std::cout << "  list: Show all saved sessions" << std::endl;
+        std::cout << "  delete [NAME]: Delete a saved session" << std::endl;
+        return;
+    }
+    
+    if (lastCommandParsed == "save") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No session name provided." << std::endl;
+            return;
+        }
+        
+        std::string sessionName = lastCommandParsed;
+        if (saveCurrentSession(sessionName)) {
+            std::cout << "Session '" << sessionName << "' saved successfully." << std::endl;
+        } else {
+            std::cerr << "Error: Failed to save session." << std::endl;
+        }
+        return;
+    }
+    
+    if (lastCommandParsed == "restore") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No session name provided." << std::endl;
+            return;
+        }
+        
+        std::string sessionName = lastCommandParsed;
+        if (restoreSession(sessionName)) {
+            std::cout << "Session '" << sessionName << "' restored successfully." << std::endl;
+        } else {
+            std::cerr << "Error: Failed to restore session." << std::endl;
+        }
+        return;
+    }
+    
+    if (lastCommandParsed == "list") {
+        if (!daemonRunning) {
+            std::cerr << "Error: Daemon not running. Cannot list sessions." << std::endl;
+            return;
+        }
+        
+        std::vector<std::string> sessions = daemonManager->listSessions();
+        if (sessions.empty()) {
+            std::cout << "No saved sessions found." << std::endl;
+            return;
+        }
+        
+        std::cout << "Available sessions:" << std::endl;
+        for (const auto& session : sessions) {
+            std::cout << "  " << session << std::endl;
+        }
+        return;
+    }
+    
+    if (lastCommandParsed == "delete") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cerr << "Error: No session name provided." << std::endl;
+            return;
+        }
+        
+        std::string sessionName = lastCommandParsed;
+        if (!daemonRunning) {
+            std::cerr << "Error: Daemon not running. Cannot delete session." << std::endl;
+            return;
+        }
+        
+        if (daemonManager->deleteSession(sessionName)) {
+            std::cout << "Session '" << sessionName << "' deleted successfully." << std::endl;
+        } else {
+            std::cerr << "Error: Failed to delete session." << std::endl;
+        }
+        return;
+    }
+    
+    std::cerr << "Unknown session command. Try 'session' for available commands." << std::endl;
+}
+
+bool saveCurrentSession(const std::string& sessionName) {
+    if (!daemonRunning) {
+        std::cerr << "Error: Daemon not running. Cannot save session." << std::endl;
+        return false;
+    }
+    
+    std::string sessionData = getCurrentSessionData();
+    return daemonManager->saveSession(sessionName, sessionData);
+}
+
+bool restoreSession(const std::string& sessionName) {
+    if (!daemonRunning) {
+        std::cerr << "Error: Daemon not running. Cannot restore session." << std::endl;
+        return false;
+    }
+    
+    std::string sessionData = daemonManager->loadSession(sessionName);
+    if (sessionData.empty()) {
+        std::cerr << "Error: Session not found or empty." << std::endl;
+        return false;
+    }
+    
+    try {
+        json sessionJson = json::parse(sessionData);
+        
+        // Restore working directory
+        if (sessionJson.contains("working_directory")) {
+            std::string workingDir = sessionJson["working_directory"].get<std::string>();
+            sendTerminalCommand("cd " + workingDir);
+        }
+        
+        // Restore command history
+        if (sessionJson.contains("command_history") && sessionJson["command_history"].is_array()) {
+            terminal.clearCommandHistory();
+            for (const auto& cmd : sessionJson["command_history"]) {
+                terminal.addCommandToHistory(cmd.get<std::string>());
+            }
+        }
+        
+        // Restore AI chat history if needed
+        if (sessionJson.contains("chat_history") && sessionJson["chat_history"].is_array()) {
+            c_assistant.clearChatCache();
+            std::vector<std::string> chatHistory;
+            for (const auto& msg : sessionJson["chat_history"]) {
+                chatHistory.push_back(msg.get<std::string>());
+            }
+            c_assistant.setChatCache(chatHistory);
+            savedChatCache = chatHistory;
+        }
+        
+        return true;
+    } catch (std::exception& e) {
+        std::cerr << "Error parsing session data: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+std::string getCurrentSessionData() {
+    json sessionData;
+    
+    // Save working directory
+    sessionData["working_directory"] = terminal.getCurrentFilePath();
+    
+    // Save command history (last 50 commands)
+    std::vector<std::string> commandHistory = terminal.getCommandHistory(50);
+    sessionData["command_history"] = commandHistory;
+    
+    // Save AI chat history
+    std::vector<std::string> chatHistory = c_assistant.getChatCache();
+    sessionData["chat_history"] = chatHistory;
+    
+    // Save timestamp
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    sessionData["timestamp"] = now_time;
+    
+    return sessionData.dump();
 }
