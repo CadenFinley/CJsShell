@@ -173,6 +173,7 @@ bool restartDaemon();
 std::string getDaemonStatus();
 void daemonCommands();
 std::string getDaemonVersion();
+void daemonCronCommands();
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
@@ -1115,6 +1116,9 @@ void daemonCommands() {
         std::cout << "Daemon version: " << getDaemonVersion() << std::endl;
         return;
     }
+    if( lastCommandParsed == "cron") {
+        daemonCronCommands();
+    }
     if (lastCommandParsed == "help") {
         std::cout << "Daemon commands:" << std::endl;
         std::cout << " enable: Enable daemon usage" << std::endl;
@@ -1128,6 +1132,13 @@ void daemonCommands() {
     }
     
     std::cerr << "Unknown daemon command. Use 'daemon help' for available commands." << std::endl;
+}
+
+void daemonCronCommands() {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+
+    }
 }
 
 void pluginCommands(){
