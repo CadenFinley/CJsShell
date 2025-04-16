@@ -5,7 +5,6 @@
 #include <ctime>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <vector>
 
 class DaemonManager {
 public:
@@ -25,12 +24,6 @@ public:
     bool isUpdateAvailable();
     std::string getLatestVersion();
     time_t getLastUpdateCheckTime();
-    
-    // Session management functions
-    bool saveSession(const std::string& sessionName, const std::string& sessionData);
-    std::string loadSession(const std::string& sessionName);
-    std::vector<std::string> listSessions();
-    bool deleteSession(const std::string& sessionName);
     
 private:
     std::filesystem::path dataDir;

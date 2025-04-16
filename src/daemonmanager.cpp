@@ -264,7 +264,7 @@ std::string DaemonManager::getDaemonVersion() {
     } catch (std::exception &e) {
     }
     
-    return "No Version Found.";
+    return "";
 }
 
 void DaemonManager::setUpdateCheckInterval(int intervalSeconds) {
@@ -355,84 +355,6 @@ time_t DaemonManager::getLastUpdateCheckTime() {
     }
     
     return 0;
-}
-
-bool DaemonManager::saveSession(const std::string& sessionName, const std::string& sessionData) {
-    json command = {
-        {"action", "save_session"},
-        {"pid", std::to_string(getpid())},
-        {"name", sessionName},
-        {"data", sessionData}
-    };
-    
-    std::string response = sendCommand(command.dump());
-    
-    try {
-        json responseJson = json::parse(response);
-        return responseJson.contains("success") && responseJson["success"].get<bool>();
-    } catch (std::exception &e) {
-        return false;
-    }
-}
-
-std::string DaemonManager::loadSession(const std::string& sessionName) {
-    json command = {
-        {"action", "load_session"},
-        {"pid", std::to_string(getpid())},
-        {"name", sessionName}
-    };
-    
-    std::string response = sendCommand(command.dump());
-    
-    try {
-        json responseJson = json::parse(response);
-        if (responseJson.contains("session_data")) {
-            return responseJson["session_data"].get<std::string>();
-        }
-        return "";
-    } catch (std::exception &e) {
-        return "";
-    }
-}
-
-std::vector<std::string> DaemonManager::listSessions() {
-    json command = {
-        {"action", "list_sessions"},
-        {"pid", std::to_string(getpid())}
-    };
-    
-    std::string response = sendCommand(command.dump());
-    std::vector<std::string> sessions;
-    
-    try {
-        json responseJson = json::parse(response);
-        if (responseJson.contains("sessions") && responseJson["sessions"].is_array()) {
-            for (const auto& session : responseJson["sessions"]) {
-                sessions.push_back(session.get<std::string>());
-            }
-        }
-    } catch (std::exception &e) {
-        // Handle exception
-    }
-    
-    return sessions;
-}
-
-bool DaemonManager::deleteSession(const std::string& sessionName) {
-    json command = {
-        {"action", "delete_session"},
-        {"pid", std::to_string(getpid())},
-        {"name", sessionName}
-    };
-    
-    std::string response = sendCommand(command.dump());
-    
-    try {
-        json responseJson = json::parse(response);
-        return responseJson.contains("success") && responseJson["success"].get<bool>();
-    } catch (std::exception &e) {
-        return false;
-    }
 }
 
 void DaemonManager::updateDaemonConfig() {

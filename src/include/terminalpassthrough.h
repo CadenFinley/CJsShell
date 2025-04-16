@@ -43,7 +43,6 @@ public:
     std::string returnMostRecentTerminalOutput();
     
     std::vector<std::string> getCommandHistory(size_t count);
-    void clearCommandHistory();
 
     void setShellColor(const std::string& color);
     void setDirectoryColor(const std::string& color);

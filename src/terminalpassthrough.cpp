@@ -356,11 +356,6 @@ std::string TerminalPassthrough::getNextCommand() {
     return terminalCacheUserInput[commandHistoryIndex];
 }
 
-void TerminalPassthrough::clearCommandHistory() {
-    terminalCacheUserInput.clear();
-    commandHistoryIndex = -1;
-}
-
 std::string TerminalPassthrough::getCurrentFilePath(){
     if (currentDirectory.empty()) {
         return std::filesystem::current_path().string();
