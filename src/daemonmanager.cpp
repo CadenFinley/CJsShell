@@ -23,7 +23,7 @@ DaemonManager::DaemonManager(const std::filesystem::path& dataDirectory)
     daemonPath = dataDir / "DevToolsTerminal-Daemon";
     updateCacheFile = dataDir / "update_cache.json";
     
-    cronDir = dataDir / "DTT-Cron";
+    cronDir = dataDir / "dtt-cron";
     cronScriptsDir = cronDir / "cron_scripts";
     cronJobsFile = cronDir / "cron_jobs.json";
     cronLogFile = cronDir / "cron_log.txt";
