@@ -22,6 +22,11 @@ DaemonManager::DaemonManager(const std::filesystem::path& dataDirectory)
 
     daemonPath = dataDir / "DevToolsTerminal-Daemon";
     updateCacheFile = dataDir / "update_cache.json";
+    
+    cronDir = dataDir / "DTT-Cron";
+    cronScriptsDir = cronDir / "cron_scripts";
+    cronJobsFile = cronDir / "cron_jobs.json";
+    cronLogFile = cronDir / "cron_log.txt";
 }
 
 DaemonManager::~DaemonManager() {
@@ -375,4 +380,30 @@ int DaemonManager::getDaemonPid() {
     pidFile.close();
     
     return pid;
+}
+
+void DaemonManager::ensureCronDirectoriesExist() {
+    if (!std::filesystem::exists(cronDir)) {
+        std::filesystem::create_directories(cronDir);
+    }
+    
+    if (!std::filesystem::exists(cronScriptsDir)) {
+        std::filesystem::create_directories(cronScriptsDir);
+    }
+    
+    if (!std::filesystem::exists(cronJobsFile)) {
+        std::ofstream jobsFile(cronJobsFile);
+        if (jobsFile.is_open()) {
+            jobsFile << "[]";
+            jobsFile.close();
+        }
+    }
+    
+    if (!std::filesystem::exists(cronLogFile)) {
+        std::ofstream logFile(cronLogFile);
+        if (logFile.is_open()) {
+            logFile << "# Cron job log file\n";
+            logFile.close();
+        }
+    }
 }
