@@ -3217,8 +3217,13 @@ bool executeUpdateIfAvailable(bool updateAvailable) {
     
     if (response != 'Y' && response != 'y') return false;
     
+    // Immediately mark the update as no longer available in the cache
+    saveUpdateCache(false, cachedLatestVersion);
+    
     if (!downloadLatestRelease()) {
         std::cout << "Failed to download the update. Please try again later." << std::endl;
+        // If download fails, restore the update available status
+        saveUpdateCache(true, cachedLatestVersion);
         return false;
     }
     return true;
