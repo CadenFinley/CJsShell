@@ -55,12 +55,13 @@ std::string YELLOW_COLOR_BOLD = "\033[1;33m";
 std::string CYAN_COLOR_BOLD = "\033[1;36m";
 
 std::string currentTheme = "default";
-std::map<std::string, std::map<std::string, std::string>> availableThemes;
+std::string currentSuggestion = "";
+bool hasSuggestion = false;
 
 const std::string processId = std::to_string(getpid());
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.6.1";
+const std::string currentVersion = "1.8.6.2";
 
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
@@ -84,6 +85,7 @@ std::vector<std::string> commandLines;
 std::vector<std::string> executablesCache;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
+std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 size_t tabCompletionIndex = 0;
 std::vector<std::string> currentCompletions;
@@ -165,9 +167,6 @@ void setUpdateInterval(int intervalHours);
 bool shouldCheckForUpdates();
 bool loadUpdateCache();
 void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
-
-std::string currentSuggestion = "";
-bool hasSuggestion = false;
 
 
 int main(int argc, char* argv[]) {
@@ -1435,11 +1434,13 @@ void aliasCommands() {
     if (lastCommandParsed == "enable") {
         aliasesEnabled = true;
         std::cout << "Aliases enabled." << std::endl;
+        writeUserData();
         return;
     }
     if (lastCommandParsed == "disable") {
         aliasesEnabled = false;
         std::cout << "Aliases disabled." << std::endl;
+        writeUserData();
         return;
     }
     if (lastCommandParsed == "add") {
@@ -2427,6 +2428,7 @@ void themeCommands() {
         getNextCommand();
         if (!lastCommandParsed.empty()) {
             loadTheme(lastCommandParsed);
+            writeUserData();
         } else {
             std::cerr << "No theme name provided to load." << std::endl;
         }

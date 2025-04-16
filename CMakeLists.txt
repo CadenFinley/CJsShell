@@ -22,7 +22,7 @@ endif()
 set(LINUX_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/linux)
 
 # Specify the C++ standard
-set(CMAKE_CXX_STANDARD 17) # Ensure C++17 standard is used
+set(CMAKE_CXX_STANDARD 20) # Ensure C++17 standard is used
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include the header files directory
