@@ -14,29 +14,29 @@ DaemonManager::DaemonManager(const std::filesystem::path& dataDirectory)
     daemonPidFile = dataDir / "daemon.pid";
     daemonStatusFile = dataDir / "daemon_status.json";
     daemonConfigFile = dataDir / "daemon_config.json";
-    daemonPath = dataDir / "DevToolsTerminal-Daemon";
+    daemonPath = dataDir / "dttdaemon";
     updateCacheFile = dataDir / "update_cache.json";
 }
 
 bool DaemonManager::startDaemon() {
     if (isDaemonRunning()) {
-        std::cerr << "Daemon is found and already running." << std::endl;
-        return true;
+        return true;  // Daemon already running
     }
     
+    // Check if daemon executable exists
     if (!std::filesystem::exists(daemonPath)) {
-        std::cerr << "Daemon executable not found at: " << daemonPath << " You can install it at github.com/CadenFinley/repos/DevToolsTerminal-Daemon"<< std::endl;
+        std::cerr << "Daemon executable not found at: " << daemonPath << std::endl;
         return false;
     }
     
+    // Ensure the config file exists
     updateDaemonConfig();
     
+    // Start the daemon
     std::string command = daemonPath.string() + " &";
     int result = system(command.c_str());
-    if (result == 0) {
-        std::cerr << "Daemon started successfully." << std::endl;
-    }
     
+    // Wait a moment for the daemon to start
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
     return isDaemonRunning();
@@ -45,19 +45,23 @@ bool DaemonManager::startDaemon() {
 bool DaemonManager::stopDaemon() {
     int pid = getDaemonPid();
     if (pid <= 0) {
-        return true;
+        return true;  // Daemon not running
     }
     
+    // Send SIGTERM to the daemon
     if (kill(pid, SIGTERM) == 0) {
+        // Wait for the daemon to exit
         int retries = 10;
         while (retries-- > 0 && kill(pid, 0) == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         
+        // Force kill if still running
         if (retries <= 0 && kill(pid, 0) == 0) {
             kill(pid, SIGKILL);
         }
         
+        // Clean up PID file
         if (std::filesystem::exists(daemonPidFile)) {
             std::filesystem::remove(daemonPidFile);
         }
@@ -82,10 +86,12 @@ bool DaemonManager::isDaemonRunning() {
         return false;
     }
     
+    // Check if process exists
     if (kill(pid, 0) == 0) {
         return true;
     }
     
+    // PID file exists but process doesn't, clean up
     if (std::filesystem::exists(daemonPidFile)) {
         std::filesystem::remove(daemonPidFile);
     }
@@ -94,6 +100,10 @@ bool DaemonManager::isDaemonRunning() {
 }
 
 bool DaemonManager::forceUpdateCheck() {
+    // Not implemented in this version - would use IPC to communicate with daemon
+    // For now, we'll just touch the update cache file with an old timestamp
+    // to force the daemon to check on its next cycle
+    
     json cacheData;
     if (std::filesystem::exists(updateCacheFile)) {
         try {
@@ -103,12 +113,14 @@ bool DaemonManager::forceUpdateCheck() {
                 cacheFile.close();
             }
         } catch (std::exception &e) {
+            // Create new cache data
             cacheData = json::object();
         }
     } else {
         cacheData = json::object();
     }
     
+    // Set the check time to a day ago
     cacheData["check_time"] = std::time(nullptr) - 86400;
     
     std::ofstream cacheFile(updateCacheFile);
@@ -122,6 +134,10 @@ bool DaemonManager::forceUpdateCheck() {
 }
 
 bool DaemonManager::refreshExecutablesCache() {
+    // Similar to force update check, we'll use a simple approach for now
+    // In a more sophisticated implementation, we'd use IPC to communicate with the daemon
+    
+    // Touch the executables cache file to trigger a refresh
     if (std::filesystem::exists(dataDir / "executables_cache.json")) {
         std::filesystem::remove(dataDir / "executables_cache.json");
     }
@@ -143,30 +159,11 @@ std::string DaemonManager::getDaemonStatus() {
                 return status;
             }
         } catch (std::exception &e) {
+            // Return minimal status on error
         }
     }
     
     return "{\"running\": true, \"status\": \"unknown\"}";
-}
-
-std::string DaemonManager::getDaemonVersion() {
-    if (std::filesystem::exists(daemonStatusFile)) {
-        try {
-            std::ifstream statusFile(daemonStatusFile);
-            if (statusFile.is_open()) {
-                json statusData;
-                statusFile >> statusData;
-                statusFile.close();
-                
-                if (statusData.contains("daemon_version")) {
-                    return statusData["daemon_version"].get<std::string>();
-                }
-            }
-        } catch (std::exception &e) {
-        }
-    }
-    
-    return "";
 }
 
 void DaemonManager::setUpdateCheckInterval(int intervalSeconds) {
@@ -179,6 +176,7 @@ void DaemonManager::setUpdateCheckInterval(int intervalSeconds) {
                 configFile.close();
             }
         } catch (std::exception &e) {
+            // Create new config
             config = json::object();
         }
     } else {
@@ -208,10 +206,11 @@ int DaemonManager::getUpdateCheckInterval() {
                 }
             }
         } catch (std::exception &e) {
+            // Return default on error
         }
     }
     
-    return 86400;
+    return 86400;  // Default to 24 hours
 }
 
 bool DaemonManager::isUpdateAvailable() {
@@ -228,6 +227,7 @@ bool DaemonManager::isUpdateAvailable() {
                 }
             }
         } catch (std::exception &e) {
+            // Return false on error
         }
     }
     
@@ -248,6 +248,7 @@ std::string DaemonManager::getLatestVersion() {
                 }
             }
         } catch (std::exception &e) {
+            // Return empty string on error
         }
     }
     
@@ -268,6 +269,7 @@ time_t DaemonManager::getLastUpdateCheckTime() {
                 }
             }
         } catch (std::exception &e) {
+            // Return 0 on error
         }
     }
     
@@ -284,12 +286,14 @@ void DaemonManager::updateDaemonConfig() {
                 configFile.close();
             }
         } catch (std::exception &e) {
+            // Create new config
             config = json::object();
         }
     } else {
         config = json::object();
     }
     
+    // Set default values if not present
     if (!config.contains("update_check_interval")) {
         config["update_check_interval"] = 86400;
     }
