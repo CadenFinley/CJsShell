@@ -144,7 +144,7 @@ bool DaemonManager::startDaemon() {
     std::string command = daemonPath.string() + " &";
     int result = system(command.c_str());
     if (result == 0) {
-        std::cerr << "Daemon started successfully." << std::endl;
+        std::cerr << "Daemon started successfully. v" << getDaemonVersion() << std::endl;
     }
     
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
