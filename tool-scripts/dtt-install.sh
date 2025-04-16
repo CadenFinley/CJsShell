@@ -1,5 +1,10 @@
 #!/bin/bash
 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 HOME_DIR="$HOME"
 DATA_DIR="$HOME_DIR/.DTT-Data"
@@ -8,17 +13,17 @@ APP_PATH="$DATA_DIR/$APP_NAME"
 ZSHRC_PATH="$HOME/.zshrc"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest"
 
-echo "DevToolsTerminal Installer"
-echo "-------------------------"
-echo "This will install DevToolsTerminal to $DATA_DIR and set it to auto-launch with zsh."
+echo -e "${GREEN}=======================================${NC}"
+echo -e "${GREEN} DevToolsTerminal Installer            ${NC}"
+echo -e "${GREEN}=======================================${NC}"
+echo -e "${YELLOW}This will install DevToolsTerminal to $DATA_DIR and set it to auto-launch with zsh.${NC}"
 
-# Create data directory if it doesn't exist
 if [ ! -d "$DATA_DIR" ]; then
-    echo "Creating directory $DATA_DIR..."
+    echo -e "${YELLOW}Creating directory $DATA_DIR...${NC}"
     mkdir -p "$DATA_DIR"
+    echo -e "${GREEN}Created data directory${NC}"
 fi
 
-# Check for sudo permissions - not needed anymore but kept for compatibility
 check_permissions() {
     if [ -w "$DATA_DIR" ]; then
         return 0
@@ -27,8 +32,7 @@ check_permissions() {
     fi
 }
 
-# Check for latest version
-echo "Checking for latest version..."
+echo -e "${YELLOW}Checking for latest version...${NC}"
 if command -v curl &> /dev/null; then
     RELEASE_DATA=$(curl -s "$GITHUB_API_URL")
     UNAME_STR=$(uname)
@@ -36,58 +40,52 @@ if command -v curl &> /dev/null; then
     LATEST_VERSION=$(echo "$RELEASE_DATA" | grep -o '"tag_name": "[^"]*' | head -1 | cut -d'"' -f4)
     
     if [ -n "$DOWNLOAD_URL" ]; then
-        echo "Found latest version: $LATEST_VERSION"
-        echo "Downloading from GitHub: $DOWNLOAD_URL"
+        echo -e "${GREEN}Found latest version: $LATEST_VERSION${NC}"
+        echo -e "${YELLOW}Downloading from GitHub: $DOWNLOAD_URL${NC}"
     else
-        echo "Error: Couldn't find download URL on GitHub."
+        echo -e "${RED}Error: Couldn't find download URL on GitHub.${NC}"
         exit 1
     fi
     
-    # Download to data directory
     curl -L -o "$APP_PATH" "$DOWNLOAD_URL"
     
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to download DevToolsTerminal."
+        echo -e "${RED}Error: Failed to download DevToolsTerminal.${NC}"
         exit 1
     fi
 else
-    echo "Error: curl is not installed. Cannot download the application."
+    echo -e "${RED}Error: curl is not installed. Cannot download the application.${NC}"
     exit 1
 fi
 
-# Make sure the application is executable
 chmod +x "$APP_PATH"
 
 if [ ! -x "$APP_PATH" ]; then
-    echo "Error: Could not make DevToolsTerminal executable."
+    echo -e "${RED}Error: Could not make DevToolsTerminal executable.${NC}"
     exit 1
 fi
 
-echo "Application path: $APP_PATH"
+echo -e "${GREEN}Application path: $APP_PATH${NC}"
 
-# Check if .zshrc exists
 if [ ! -f "$ZSHRC_PATH" ]; then
-    echo "Creating new .zshrc file..."
+    echo -e "${YELLOW}Creating new .zshrc file...${NC}"
     touch "$ZSHRC_PATH"
 fi
 
-# Check if the auto-start entry already exists
 if grep -q "# DevToolsTerminal Auto-Launch" "$ZSHRC_PATH"; then
-    # Update the existing path in case it has changed
     sed -i.bak "s|\".*DevToolsTerminal\"|\"$APP_PATH\"|g" "$ZSHRC_PATH" && rm "$ZSHRC_PATH.bak"
-    echo "Updated auto-start configuration in .zshrc."
+    echo -e "${GREEN}Updated auto-start configuration in .zshrc.${NC}"
 else
-    echo "Adding auto-start to .zshrc..."
+    echo -e "${YELLOW}Adding auto-start to .zshrc...${NC}"
     echo "" >> "$ZSHRC_PATH"
     echo "# DevToolsTerminal Auto-Launch" >> "$ZSHRC_PATH"
     echo "if [ -x \"$APP_PATH\" ]; then" >> "$ZSHRC_PATH"
     echo "    \"$APP_PATH\"" >> "$ZSHRC_PATH"
     echo "fi" >> "$ZSHRC_PATH"
     
-    echo "Auto-start configuration added to .zshrc."
+    echo -e "${GREEN}Auto-start configuration added to .zshrc.${NC}"
 fi
 
-# Make uninstall script executable (if we have it)
 UNINSTALL_SCRIPT="$SCRIPT_DIR/dtt-uninstall.sh"
 if [ -f "$UNINSTALL_SCRIPT" ]; then
     chmod +x "$UNINSTALL_SCRIPT"
@@ -95,22 +93,19 @@ if [ -f "$UNINSTALL_SCRIPT" ]; then
     chmod +x "$DATA_DIR/uninstall-$APP_NAME.sh"
 fi
 
-echo "Installation complete!"
-echo "To uninstall later, run: !uninstall"
-
-# Instead of launching, tell the user to restart their terminal
+echo -e "${GREEN}=======================================${NC}"
+echo -e "${GREEN} Installation Complete                 ${NC}"
+echo -e "${GREEN}=======================================${NC}"
 echo ""
-echo "Please restart your terminal to start using DevToolsTerminal."
+echo -e "${YELLOW}Please restart your terminal to start using DevToolsTerminal.${NC}"
 
-# Ask about deleting the installer
 echo ""
 read -p "Would you like to delete this installer script? (y/n): " delete_choice
 
-# Delete installer if requested
 if [[ "$delete_choice" =~ ^[Yy]$ ]]; then
     SELF_PATH="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
-    echo "Removing installer script..."
+    echo -e "${YELLOW}Removing installer script...${NC}"
     rm "$SELF_PATH"
-    echo "Installer deleted."
+    echo -e "${GREEN}Installer deleted.${NC}"
 fi
 

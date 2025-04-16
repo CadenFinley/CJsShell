@@ -1,6 +1,10 @@
 #!/bin/bash
 
-# Installation locations to check
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
 HOME_DIR="$HOME"
 DATA_DIR="$HOME_DIR/.DTT-Data"
 APP_NAME="DevToolsTerminal"
@@ -8,7 +12,6 @@ APP_PATH="$DATA_DIR/$APP_NAME"
 ZSHRC_PATH="$HOME/.zshrc"
 UNINSTALL_SCRIPT="$DATA_DIR/uninstall-$APP_NAME.sh"
 
-# Legacy installation locations to check for backward compatibility
 SYSTEM_INSTALL_DIR="/usr/local/bin"
 USER_INSTALL_DIR="$HOME/.local/bin"
 SYSTEM_APP_PATH="$SYSTEM_INSTALL_DIR/$APP_NAME"
@@ -16,124 +19,112 @@ USER_APP_PATH="$USER_INSTALL_DIR/$APP_NAME"
 LEGACY_UNINSTALL_SCRIPT="$SYSTEM_INSTALL_DIR/uninstall-$APP_NAME.sh"
 LEGACY_USER_UNINSTALL_SCRIPT="$USER_INSTALL_DIR/uninstall-$APP_NAME.sh"
 
-echo "DevToolsTerminal Uninstaller"
-echo "---------------------------"
-echo "This will uninstall DevToolsTerminal and remove auto-launch from zsh."
+echo -e "${GREEN}=======================================${NC}"
+echo -e "${GREEN} DevToolsTerminal Uninstaller          ${NC}"
+echo -e "${GREEN}=======================================${NC}"
+echo -e "${YELLOW}This will uninstall DevToolsTerminal and remove auto-launch from zsh.${NC}"
 
-# Function to remove auto-launch entries from .zshrc
 remove_from_zshrc() {
     if [ -f "$ZSHRC_PATH" ]; then
-        echo "Removing auto-launch configuration from .zshrc..."
-        # Create a temporary file
+        echo -e "${YELLOW}Removing auto-launch configuration from .zshrc...${NC}"
         TEMP_FILE=$(mktemp)
         
-        # Filter out the DevToolsTerminal auto-launch block
         sed '/# DevToolsTerminal Auto-Launch/,+3d' "$ZSHRC_PATH" > "$TEMP_FILE"
         
-        # Also remove any PATH additions for legacy user installation
         if [ -d "$USER_INSTALL_DIR" ]; then
             sed "/export PATH=\"\$PATH:$USER_INSTALL_DIR\"/d" "$TEMP_FILE" > "${TEMP_FILE}.2"
             mv "${TEMP_FILE}.2" "$TEMP_FILE"
         fi
         
-        # Replace the original file
         cat "$TEMP_FILE" > "$ZSHRC_PATH"
         rm "$TEMP_FILE"
         
-        echo "Auto-launch configuration removed from .zshrc."
+        echo -e "${GREEN}Auto-launch configuration removed from .zshrc.${NC}"
     else
-        echo "No .zshrc file found."
+        echo -e "${YELLOW}No .zshrc file found.${NC}"
     fi
 }
 
-# Try to find the installed application
 APP_FOUND=false
 
-# First check the new location in .DTT-Data
 if [ -f "$APP_PATH" ]; then
-    echo "Found DevToolsTerminal at $APP_PATH"
+    echo -e "${GREEN}Found DevToolsTerminal at $APP_PATH${NC}"
     APP_FOUND=true
     
-    echo "Removing executable from $APP_PATH..."
+    echo -e "${YELLOW}Removing executable from $APP_PATH...${NC}"
     rm "$APP_PATH"
     
-    # Also remove the uninstall script from the data directory if it exists
     if [ -f "$UNINSTALL_SCRIPT" ] && [ "$UNINSTALL_SCRIPT" != "$0" ]; then
         rm "$UNINSTALL_SCRIPT"
     fi
 fi
 
-# Check for legacy installations and remove them if found
 if [ -f "$SYSTEM_APP_PATH" ]; then
-    echo "Found legacy installation at $SYSTEM_APP_PATH"
+    echo -e "${YELLOW}Found legacy installation at $SYSTEM_APP_PATH${NC}"
     APP_FOUND=true
     
-    # Check if we have permission to remove it
     if [ -w "$SYSTEM_INSTALL_DIR" ]; then
-        echo "Removing legacy installation from $SYSTEM_APP_PATH..."
+        echo -e "${YELLOW}Removing legacy installation from $SYSTEM_APP_PATH...${NC}"
         rm "$SYSTEM_APP_PATH"
-        # Also remove the uninstall script if it exists
         if [ -f "$LEGACY_UNINSTALL_SCRIPT" ]; then
             rm "$LEGACY_UNINSTALL_SCRIPT"
         fi
     elif sudo -n true 2>/dev/null; then
-        echo "Removing legacy installation with sudo..."
+        echo -e "${YELLOW}Removing legacy installation with sudo...${NC}"
         sudo rm "$SYSTEM_APP_PATH"
-        # Also remove the uninstall script if it exists
         if [ -f "$LEGACY_UNINSTALL_SCRIPT" ]; then
             sudo rm "$LEGACY_UNINSTALL_SCRIPT"
         fi
     else
-        echo "Warning: You need root privileges to remove legacy installation at $SYSTEM_APP_PATH"
-        echo "Please run: sudo rm $SYSTEM_APP_PATH"
+        echo -e "${RED}Warning: You need root privileges to remove legacy installation at $SYSTEM_APP_PATH${NC}"
+        echo -e "${YELLOW}Please run: sudo rm $SYSTEM_APP_PATH${NC}"
         if [ -f "$LEGACY_UNINSTALL_SCRIPT" ]; then
-            echo "And also run: sudo rm $LEGACY_UNINSTALL_SCRIPT"
+            echo -e "${YELLOW}And also run: sudo rm $LEGACY_UNINSTALL_SCRIPT${NC}"
         fi
     fi
 fi
 
 if [ -f "$USER_APP_PATH" ]; then
-    echo "Found legacy user installation at $USER_APP_PATH"
+    echo -e "${YELLOW}Found legacy user installation at $USER_APP_PATH${NC}"
     APP_FOUND=true
     
-    echo "Removing legacy user installation..."
+    echo -e "${YELLOW}Removing legacy user installation...${NC}"
     rm "$USER_APP_PATH"
     
-    # Also remove the user uninstall script if it exists
     if [ -f "$LEGACY_USER_UNINSTALL_SCRIPT" ]; then
         rm "$LEGACY_USER_UNINSTALL_SCRIPT"
     fi
     
-    # Clean up the directory if it's empty
     if [ -d "$USER_INSTALL_DIR" ] && [ -z "$(ls -A "$USER_INSTALL_DIR")" ]; then
-        echo "Removing empty directory $USER_INSTALL_DIR..."
+        echo -e "${YELLOW}Removing empty directory $USER_INSTALL_DIR...${NC}"
         rmdir "$USER_INSTALL_DIR"
     fi
 fi
 
 if [ "$APP_FOUND" = false ]; then
-    echo "Error: DevToolsTerminal installation not found."
-    echo "Checked locations:"
-    echo "  - $APP_PATH (current)"
-    echo "  - $SYSTEM_APP_PATH (legacy)"
-    echo "  - $USER_APP_PATH (legacy)"
+    echo -e "${RED}Error: DevToolsTerminal installation not found.${NC}"
+    echo -e "${YELLOW}Checked locations:${NC}"
+    echo -e "${YELLOW}  - $APP_PATH (current)${NC}"
+    echo -e "${YELLOW}  - $SYSTEM_APP_PATH (legacy)${NC}"
+    echo -e "${YELLOW}  - $USER_APP_PATH (legacy)${NC}"
 else
-    # Remove from .zshrc regardless of which installation was found
     remove_from_zshrc
     
-    echo "Uninstallation complete!"
-    echo "Note: Your personal data in $DATA_DIR has not been removed."
+    echo -e "${GREEN}=======================================${NC}"
+    echo -e "${GREEN} Uninstallation Complete               ${NC}"
+    echo -e "${GREEN}=======================================${NC}"
+    
+    echo -e "${YELLOW}Note: Your personal data in $DATA_DIR has not been removed.${NC}"
     read -p "Would you like to remove all data? (y/n): " remove_data
     if [[ "$remove_data" =~ ^[Yy]$ ]]; then
-        echo "Removing all data from $DATA_DIR..."
+        echo -e "${YELLOW}Removing all data from $DATA_DIR...${NC}"
         rm -rf "$DATA_DIR"
-        echo "All data removed."
+        echo -e "${GREEN}All data removed.${NC}"
     else
-        echo "Data directory preserved. To manually remove it later, run: rm -rf $DATA_DIR"
+        echo -e "${YELLOW}Data directory preserved. To manually remove it later, run: rm -rf $DATA_DIR${NC}"
     fi
 fi
 
-# Self-delete if this script was executed directly
 SCRIPT_PATH=$(realpath "$0")
 if [[ "$SCRIPT_PATH" != "$UNINSTALL_SCRIPT" && "$SCRIPT_PATH" != "$LEGACY_UNINSTALL_SCRIPT" && "$SCRIPT_PATH" != "$LEGACY_USER_UNINSTALL_SCRIPT" ]]; then
     rm "$SCRIPT_PATH"
