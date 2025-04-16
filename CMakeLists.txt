@@ -26,7 +26,7 @@ set(CMAKE_CXX_STANDARD 17) # Ensure C++17 standard is used
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include the header files directory
-include_directories(src/include)
+include_directories(src)
 
 # Add ExternalProject support
 include(ExternalProject)
@@ -67,7 +67,6 @@ set(SOURCE_FILES
     src/openaipromptengine.cpp
     src/pluginmanager.cpp
     src/thememanager.cpp
-    src/daemonmanager.cpp
 )
 
 # Add the include directories for CURL

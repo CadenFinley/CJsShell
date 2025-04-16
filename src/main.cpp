@@ -13,11 +13,10 @@
 #include <nlohmann/json.hpp>
 #include <future>
 
-#include "include/terminalpassthrough.h"
-#include "include/openaipromptengine.h"
-#include "include/pluginmanager.h"
-#include "include/thememanager.h"
-#include "include/daemonmanager.h"
+#include "terminalpassthrough.h"
+#include "openaipromptengine.h"
+#include "pluginmanager.h"
+#include "thememanager.h"
 
 using json = nlohmann::json;
 
@@ -94,7 +93,6 @@ OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
 ThemeManager* themeManager = nullptr;
-DaemonManager* daemonManager = nullptr;
 
 std::mutex rawModeMutex;
 
@@ -167,10 +165,6 @@ void setUpdateInterval(int intervalHours);
 bool shouldCheckForUpdates();
 bool loadUpdateCache();
 void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
-bool startDaemon();
-bool stopDaemon();
-bool restartDaemon();
-std::string getDaemonStatus();
 
 std::string currentSuggestion = "";
 bool hasSuggestion = false;
@@ -189,6 +183,8 @@ int main(int argc, char* argv[]) {
         std::getline(std::cin, startupInput);
     }
 
+    //if usingDaemon is true
+    // check if daemon is running, if not check if exists if exists then run it, if not exists do nothing
     daemonRunning = false;
 
     startupCommands = {};
@@ -210,14 +206,6 @@ int main(int argc, char* argv[]) {
         }
     });
     
-    std::future<void> daemonFuture = std::async(std::launch::async, [&]() {
-        daemonManager = new DaemonManager(DATA_DIRECTORY);
-        if (usingDaemon && !daemonManager->isDaemonRunning()) {
-            daemonManager->startDaemon();
-        }
-        daemonRunning = usingDaemon && daemonManager->isDaemonRunning();
-    });
-
     std::future<void> changelogFuture;
     if (std::filesystem::exists(DATA_DIRECTORY / "CHANGELOG.txt")) {
         changelogFuture = std::async(std::launch::async, processChangelogAsync);
@@ -228,6 +216,7 @@ int main(int argc, char* argv[]) {
         loadPluginsAsync([]() {});
     });
     
+    // the daemon will handle this so the program will just need to load 
     std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
             loadExecutableCacheFromDisk();
@@ -236,7 +225,6 @@ int main(int argc, char* argv[]) {
     });
 
     userDataFuture.wait();
-    daemonFuture.wait();
 
     std::future<void> themeFuture = std::async(std::launch::async, [&]() {
         themeManager = new ThemeManager(THEMES_DIRECTORY);
@@ -249,36 +237,24 @@ int main(int argc, char* argv[]) {
 
     std::future<void> updateFuture;
     if (checkForUpdates) {
+        //if daemon is running ask daemon if there is a needed update instead of checking for updates in session
         updateFuture = std::async(std::launch::async, [&]() {
-            bool updateAvailable = false;
-            
-            if (daemonRunning) {
-                updateAvailable = daemonManager->isUpdateAvailable();
-                cachedLatestVersion = daemonManager->getLatestVersion();
-                lastUpdateCheckTime = daemonManager->getLastUpdateCheckTime();
-                cachedUpdateAvailable = updateAvailable;
-                
-                if (updateAvailable && !silentCheckForUpdates) {
-                    std::cout << "\nUpdate available: " << cachedLatestVersion << " (reported by daemon)" << std::endl;
-                }
-            } else {
-                if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
-                    asyncCheckForUpdates([](bool updateAvailable) {
-                        if (updateAvailable) {
-                            executeUpdateIfAvailable(updateAvailable);
-                        } else {
-                            if (!silentCheckForUpdates) {
-                                std::cout << " -> You are up to date!" << std::endl;
-                            }
+            if (shouldCheckForUpdates() || !std::filesystem::exists(UPDATE_CACHE_FILE)) {
+                asyncCheckForUpdates([](bool updateAvailable) {
+                    if (updateAvailable) {
+                        executeUpdateIfAvailable(updateAvailable);
+                    } else {
+                        if(!silentCheckForUpdates){
+                            std::cout << " -> You are up to date!" << std::endl;
                         }
-                    });
-                } else {
-                    if (loadUpdateCache() && cachedUpdateAvailable) {
-                        if (!silentCheckForUpdates) {
-                            std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
-                        }
-                        executeUpdateIfAvailable(true);
                     }
+                });
+            } else {
+                if (loadUpdateCache() && cachedUpdateAvailable) {
+                    if (!silentCheckForUpdates) {
+                        std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
+                    }
+                    executeUpdateIfAvailable(true);
                 }
             }
         });
@@ -314,10 +290,6 @@ int main(int argc, char* argv[]) {
     
     delete pluginManager;
     delete themeManager;
-    if (daemonManager) {
-        delete daemonManager;
-        daemonManager = nullptr;
-    }
     return 0;
 }
 
@@ -1414,24 +1386,7 @@ void updateCommands() {
 
 void manualUpdateCheck() {
     std::cout << "Checking for updates now..." << std::endl;
-    
-    bool updateAvailable = false;
-    if (daemonRunning) {
-        daemonManager->forceUpdateCheck();
-        
-        for (int i = 0; i < 5; i++) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            if (daemonManager->isUpdateAvailable()) {
-                updateAvailable = true;
-                cachedLatestVersion = daemonManager->getLatestVersion();
-                lastUpdateCheckTime = daemonManager->getLastUpdateCheckTime();
-                cachedUpdateAvailable = updateAvailable;
-                break;
-            }
-        }
-    } else {
-        updateAvailable = checkForUpdate();
-    }
+    bool updateAvailable = checkForUpdate();
     
     if (updateAvailable) {
         std::cout << "An update is available!" << std::endl;
@@ -1439,15 +1394,36 @@ void manualUpdateCheck() {
     } else {
         std::cout << "You are up to date." << std::endl;
     }
+    
+    std::string latestVersion = "";
+    try {
+        std::string command = "curl -s " + updateURL_Github;
+        std::string result;
+        FILE *pipe = popen(command.c_str(), "r");
+        if (pipe) {
+            char buffer[128];
+            while (fgets(buffer, 128, pipe) != nullptr) {
+                result += buffer;
+            }
+            pclose(pipe);
+            
+            json jsonData = json::parse(result);
+            if (jsonData.contains("tag_name")) {
+                latestVersion = jsonData["tag_name"].get<std::string>();
+                if (!latestVersion.empty() && latestVersion[0] == 'v') {
+                    latestVersion = latestVersion.substr(1);
+                }
+            }
+        }
+    } catch (std::exception &e) {
+    }
+    
+    saveUpdateCache(updateAvailable, latestVersion);
 }
 
 void setUpdateInterval(int intervalHours) {
     UPDATE_CHECK_INTERVAL = intervalHours * 3600;
     writeUserData();
-    
-    if (daemonRunning) {
-        daemonManager->setUpdateCheckInterval(UPDATE_CHECK_INTERVAL);
-    }
 }
 
 void aliasCommands() {
@@ -3103,14 +3079,6 @@ void showInlineSuggestion(const std::string& input) {
 }
 
 void refreshExecutablesCache() {
-    if (daemonRunning) {
-        if (daemonManager->refreshExecutablesCache()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            loadExecutableCacheFromDisk();
-            return;
-        }
-    }
-    
     if (executablesCacheInitialized && !hasPathChanged()) {
         return;
     }
@@ -3461,61 +3429,4 @@ bool loadUpdateCache() {
 bool shouldCheckForUpdates() {
     time_t currentTime = std::time(nullptr);
     return (currentTime - lastUpdateCheckTime) > UPDATE_CHECK_INTERVAL;
-}
-
-bool startDaemon() {
-    if (!daemonManager) {
-        daemonManager = new DaemonManager(DATA_DIRECTORY);
-    }
-    
-    bool success = daemonManager->startDaemon();
-    if (success) {
-        daemonRunning = true;
-        usingDaemon = true;
-        std::cout << "DevTools Terminal daemon started." << std::endl;
-    } else {
-        std::cerr << "Failed to start DevTools Terminal daemon." << std::endl;
-    }
-    
-    return success;
-}
-
-bool stopDaemon() {
-    if (!daemonManager) {
-        daemonManager = new DaemonManager(DATA_DIRECTORY);
-    }
-    
-    bool success = daemonManager->stopDaemon();
-    if (success) {
-        daemonRunning = false;
-        std::cout << "DevTools Terminal daemon stopped." << std::endl;
-    } else {
-        std::cerr << "Failed to stop DevTools Terminal daemon." << std::endl;
-    }
-    
-    return success;
-}
-
-bool restartDaemon() {
-    if (!daemonManager) {
-        daemonManager = new DaemonManager(DATA_DIRECTORY);
-    }
-    
-    bool success = daemonManager->restartDaemon();
-    if (success) {
-        daemonRunning = true;
-        std::cout << "DevTools Terminal daemon restarted." << std::endl;
-    } else {
-        std::cerr << "Failed to restart DevTools Terminal daemon." << std::endl;
-    }
-    
-    return success;
-}
-
-std::string getDaemonStatus() {
-    if (!daemonManager) {
-        daemonManager = new DaemonManager(DATA_DIRECTORY);
-    }
-    
-    return daemonManager->getDaemonStatus();
 }
