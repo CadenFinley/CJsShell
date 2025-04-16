@@ -13,8 +13,6 @@
 #include <nlohmann/json.hpp>
 #include <future>
 
-//include clay.h in the future for personal ui
-
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
 #include "include/pluginmanager.h"

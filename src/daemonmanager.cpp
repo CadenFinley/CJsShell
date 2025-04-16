@@ -119,8 +119,6 @@ std::string DaemonManager::sendCommand(const std::string& command) {
     buffer[bytesRead] = '\0';
     response = buffer;
     
-    disconnectFromSocket();
-    
     return response;
 }
 
@@ -154,13 +152,10 @@ bool DaemonManager::startDaemon() {
 
 bool DaemonManager::stopDaemon() {
     json command = {
-        {"action", "stop"},
-        {"pid", std::to_string(getpid())}
+        {"action", "stop"}
     };
     
     std::string response = sendCommand(command.dump());
-    disconnectFromSocket();
-    
     try {
         json responseJson = json::parse(response);
         return responseJson.contains("success") && responseJson["success"].get<bool>();
@@ -171,21 +166,7 @@ bool DaemonManager::stopDaemon() {
 
 bool DaemonManager::restartDaemon() {
     if (stopDaemon()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        disconnectFromSocket();
-        
-        int maxRetries = 10;
-        for (int i = 0; i < maxRetries; i++) {
-            if (!isDaemonRunning()) {
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        }
-        
-        if (isDaemonRunning()) {
-            return false;
-        }
-        
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
         return startDaemon();
     }
     return false;
@@ -210,12 +191,10 @@ bool DaemonManager::isDaemonRunning() {
 
 bool DaemonManager::forceUpdateCheck() {
     json command = {
-        {"action", "force_update_check"},
-        {"pid", std::to_string(getpid())}
+        {"action", "force_update_check"}
     };
     
     std::string response = sendCommand(command.dump());
-    
     try {
         json responseJson = json::parse(response);
         return responseJson.contains("success") && responseJson["success"].get<bool>();
@@ -226,12 +205,10 @@ bool DaemonManager::forceUpdateCheck() {
 
 bool DaemonManager::refreshExecutablesCache() {
     json command = {
-        {"action", "refresh_executables"},
-        {"pid", std::to_string(getpid())}
+        {"action", "refresh_executables"}
     };
     
     std::string response = sendCommand(command.dump());
-    
     try {
         json responseJson = json::parse(response);
         return responseJson.contains("success") && responseJson["success"].get<bool>();
@@ -242,8 +219,7 @@ bool DaemonManager::refreshExecutablesCache() {
 
 std::string DaemonManager::getDaemonStatus() {
     json command = {
-        {"action", "status"},
-        {"pid", std::to_string(getpid())}
+        {"action", "status"}
     };
     
     return sendCommand(command.dump());
@@ -251,8 +227,7 @@ std::string DaemonManager::getDaemonStatus() {
 
 std::string DaemonManager::getDaemonVersion() {
     json command = {
-        {"action", "status"},
-        {"pid", std::to_string(getpid())}
+        {"action", "status"}
     };
     
     std::string response = sendCommand(command.dump());
@@ -270,8 +245,7 @@ std::string DaemonManager::getDaemonVersion() {
 void DaemonManager::setUpdateCheckInterval(int intervalSeconds) {
     json command = {
         {"action", "set_update_interval"},
-        {"interval", intervalSeconds},
-        {"pid", std::to_string(getpid())}
+        {"interval", intervalSeconds}
     };
     
     sendCommand(command.dump());
