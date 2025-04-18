@@ -31,6 +31,7 @@ bool saveOnExit = false;
 bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
+bool cachedUpdateAvailable = false;
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -41,7 +42,6 @@ bool silentCheckForUpdates = true;
 
 time_t lastUpdateCheckTime = 0;
 int UPDATE_CHECK_INTERVAL = 86400;
-bool cachedUpdateAvailable = false;
 std::string cachedLatestVersion = "";
 
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
