@@ -20,6 +20,18 @@
 
 using json = nlohmann::json;
 
+//------------------------------------------------------------------------------
+// Application Constants
+//------------------------------------------------------------------------------
+const std::string processId = std::to_string(getpid());
+const std::string currentVersion = "1.8.6.4";
+const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
+const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
+
+//------------------------------------------------------------------------------
+// Feature Flags & State
+//------------------------------------------------------------------------------
+// Settings flags
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
@@ -33,6 +45,7 @@ bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
 bool cachedUpdateAvailable = false;
 
+// Feature toggles
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
 bool startCommandsOn = true;
@@ -40,10 +53,22 @@ bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
 
+// UI state
+bool hasSuggestion = false;
+std::string currentSuggestion = "";
+
+//------------------------------------------------------------------------------
+// Update Management
+//------------------------------------------------------------------------------
 time_t lastUpdateCheckTime = 0;
-int UPDATE_CHECK_INTERVAL = 86400;
+int UPDATE_CHECK_INTERVAL = 86400; // Default: 24 hours in seconds
 std::string cachedLatestVersion = "";
 
+//------------------------------------------------------------------------------
+// Theme & UI Configuration
+//------------------------------------------------------------------------------
+std::string currentTheme = "default";
+// ANSI color codes
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
 std::string RESET_COLOR = "\033[0m";
 std::string RED_COLOR_BOLD = "\033[1;31m";
@@ -52,15 +77,9 @@ std::string BLUE_COLOR_BOLD = "\033[1;34m";
 std::string YELLOW_COLOR_BOLD = "\033[1;33m";
 std::string CYAN_COLOR_BOLD = "\033[1;36m";
 
-std::string currentTheme = "default";
-std::string currentSuggestion = "";
-bool hasSuggestion = false;
-
-const std::string processId = std::to_string(getpid());
-const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
-const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string currentVersion = "1.8.6.4";
-
+//------------------------------------------------------------------------------
+// Application Text & UI Content
+//------------------------------------------------------------------------------
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
 std::string lastCommandParsed;
@@ -68,6 +87,9 @@ std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
 
+//------------------------------------------------------------------------------
+// File System Paths
+//------------------------------------------------------------------------------
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
@@ -76,6 +98,9 @@ std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
 std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
 
+//------------------------------------------------------------------------------
+// Data Collections
+//------------------------------------------------------------------------------
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
@@ -85,10 +110,16 @@ std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
+//------------------------------------------------------------------------------
+// Tab Completion State
+//------------------------------------------------------------------------------
 size_t tabCompletionIndex = 0;
 std::vector<std::string> currentCompletions;
 std::string originalInput;
 
+//------------------------------------------------------------------------------
+// External Objects & Resources
+//------------------------------------------------------------------------------
 OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
@@ -96,6 +127,9 @@ ThemeManager* themeManager = nullptr;
 
 std::mutex rawModeMutex;
 
+//------------------------------------------------------------------------------
+// Forward Declarations
+//------------------------------------------------------------------------------
 std::vector<std::string> getTabCompletions(const std::string& input);
 std::string completeFilePath(const std::string& input);
 std::string getCommonPrefix(const std::vector<std::string>& strings);
