@@ -31,7 +31,6 @@ bool saveOnExit = false;
 bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
-bool daemonRunning = false;
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -39,7 +38,6 @@ bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
-bool usingDaemon = true;
 
 time_t lastUpdateCheckTime = 0;
 int UPDATE_CHECK_INTERVAL = 86400;
@@ -181,10 +179,6 @@ int main(int argc, char* argv[]) {
     if (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv) > 0) {
         std::getline(std::cin, startupInput);
     }
-
-    //if usingDaemon is true
-    // check if daemon is running, if not check if exists if exists then run it, if not exists do nothing
-    daemonRunning = false;
 
     startupCommands = {};
     multiScriptShortcuts = {};
