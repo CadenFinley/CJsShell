@@ -12,6 +12,10 @@
 #include <ostream>
 #include <nlohmann/json.hpp>
 #include <future>
+#include <sys/types.h>
+#include <pwd.h>
+#include <signal.h>
+#include <grp.h>
 
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
@@ -44,6 +48,7 @@ bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
 bool cachedUpdateAvailable = false;
+bool isLoginShell = false; // Add this with other global booleans
 
 // Feature toggles
 bool shortcutsEnabled = true;
@@ -200,20 +205,251 @@ bool shouldCheckForUpdates();
 bool loadUpdateCache();
 void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
 
+bool isRunningAsLoginShell(char* argv0) {
+    // Check if first character of program name is '-' indicating login shell
+    if (argv0 && argv0[0] == '-') {
+        return true;
+    }
+    return false;
+}
+
+// Forward declarations for new functions
+void setupEnvironmentVariables();
+void initializeLoginEnvironment();
+void setupSignalHandlers();
+bool authenticateUser();
+void handleLoginSession();
+void setupJobControl();
+void resetTerminalOnExit();
+void processProfileFile(const std::string& filePath);
+
+// Signal handler functions
+void handleSIGHUP(int sig);
+void handleSIGTERM(int sig);
+void handleSIGINT(int sig);
+void handleSIGCHLD(int sig);
+
+// Global session variables
+pid_t shell_pgid = 0;
+struct termios shell_tmodes;
+int shell_terminal;
+bool jobControlEnabled = false;
+
+void setupLoginShell() {
+    std::cout << "Setting up login shell environment..." << std::endl;
+    
+    // Initialize login environment (setting terminal as a controlling terminal)
+    initializeLoginEnvironment();
+    
+    // Set essential environment variables
+    setupEnvironmentVariables();
+    
+    // Setup signal handlers
+    setupSignalHandlers();
+    
+    // Setup job control
+    setupJobControl();
+    
+    // Process profile files directly instead of using system()
+    processProfileFile("/etc/profile");
+    
+    // Process system-wide shell profile files
+    std::vector<std::string> systemProfiles = {
+        "/etc/profile.d",
+        "/etc/bash.bashrc", 
+        "/etc/zshrc"
+    };
+    
+    for (const auto& profile : systemProfiles) {
+        processProfileFile(profile);
+    }
+    
+    // Process user's profile files
+    std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
+    if (!homeDir.empty()) {
+        // List of profile files to try, in order
+        std::vector<std::string> profileFiles = {
+            homeDir + "/.bash_profile",
+            homeDir + "/.bash_login",
+            homeDir + "/.profile",
+            homeDir + "/.zprofile",
+            homeDir + "/.zshrc"
+        };
+        
+        for (const auto& profile : profileFiles) {
+            if (std::filesystem::exists(profile)) {
+                processProfileFile(profile);
+                break; // Process only the first one found
+            }
+        }
+    }
+}
+
+void cleanupLoginShell() {
+    // Reset terminal settings
+    try {
+        resetTerminalOnExit();
+    } catch (const std::exception& e) {
+        std::cerr << "Error cleaning up terminal: " << e.what() << std::endl;
+    }
+    
+    // Process logout files
+    std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
+    if (!homeDir.empty()) {
+        std::vector<std::string> logoutFiles = {
+            homeDir + "/.bash_logout",
+            homeDir + "/.zlogout"
+        };
+        
+        for (const auto& logout : logoutFiles) {
+            if (std::filesystem::exists(logout)) {
+                processProfileFile(logout);
+                break;
+            }
+        }
+    }
+}
+
+// Add this new function to process shell scripts directly
+void processProfileFile(const std::string& filePath) {
+    if (!std::filesystem::exists(filePath)) {
+        return;
+    }
+    
+    if (std::filesystem::is_directory(filePath)) {
+        // For directories like /etc/profile.d, process all .sh files
+        for (const auto& entry : std::filesystem::directory_iterator(filePath)) {
+            if (entry.path().extension() == ".sh") {
+                processProfileFile(entry.path().string());
+            }
+        }
+        return;
+    }
+    
+    std::cout << "Processing profile: " << filePath << std::endl;
+    std::ifstream file(filePath);
+    if (!file) {
+        return;
+    }
+    
+    std::string line;
+    while (std::getline(file, line)) {
+        // Skip comments and empty lines
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        
+        // Process export commands
+        if (line.find("export ") == 0) {
+            line = line.substr(7); // Remove "export "
+            
+            // Handle multiple export variables on one line
+            std::istringstream iss(line);
+            std::string varAssignment;
+            while (iss >> varAssignment) {
+                size_t pos = varAssignment.find('=');
+                if (pos != std::string::npos) {
+                    std::string name = varAssignment.substr(0, pos);
+                    std::string value = varAssignment.substr(pos + 1);
+                    
+                    // Remove quotes if present
+                    if (value.size() >= 2 && 
+                        ((value.front() == '"' && value.back() == '"') || 
+                         (value.front() == '\'' && value.back() == '\''))) {
+                        value = value.substr(1, value.size() - 2);
+                    }
+                    
+                    setenv(name.c_str(), value.c_str(), 1);
+                }
+            }
+        }
+        
+        // Process regular variable assignments
+        else if (line.find('=') != std::string::npos) {
+            size_t pos = line.find('=');
+            std::string name = line.substr(0, pos);
+            std::string value = line.substr(pos + 1);
+            
+            // Remove quotes if present
+            if (value.size() >= 2 && 
+                ((value.front() == '"' && value.back() == '"') || 
+                 (value.front() == '\'' && value.back() == '\''))) {
+                value = value.substr(1, value.size() - 2);
+            }
+            
+            // Only set if not already an export command (handled above)
+            if (name.find("export") != 0) {
+                setenv(name.c_str(), value.c_str(), 0); // Don't overwrite existing
+            }
+        }
+        
+        // Process PATH modifications
+        else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
+            // Replace variables in the path string
+            std::string pathValue = line.substr(line.find('=') + 1);
+            
+            // Replace $PATH with current PATH value
+            std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
+            size_t pathVarPos = pathValue.find("$PATH");
+            while (pathVarPos != std::string::npos) {
+                pathValue.replace(pathVarPos, 5, currentPath);
+                pathVarPos = pathValue.find("$PATH", pathVarPos + currentPath.length());
+            }
+            
+            // Replace $HOME with home directory
+            std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+            size_t homeVarPos = pathValue.find("$HOME");
+            while (homeVarPos != std::string::npos) {
+                pathValue.replace(homeVarPos, 5, homeDir);
+                homeVarPos = pathValue.find("$HOME", homeVarPos + homeDir.length());
+            }
+            
+            setenv("PATH", pathValue.c_str(), 1);
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
-
-    std::string startupInput;
-    struct timeval tv;
-    fd_set fds;
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
-    if (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv) > 0) {
-        std::getline(std::cin, startupInput);
+    // Check if running as a login shell
+    isLoginShell = isRunningAsLoginShell(argv[0]);
+    
+    // Initialize early to handle signals properly
+    setupSignalHandlers();
+    
+    if (isLoginShell) {
+        try {
+            setupLoginShell();
+        } catch (const std::exception& e) {
+            std::cerr << "Error in login shell setup: " << e.what() << std::endl;
+            // Continue anyway, don't exit
+        }
     }
 
+    // Process command line arguments
+    bool executeCommand = false;
+    std::string cmdToExecute;
+    
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "-c" && i + 1 < argc) {
+            executeCommand = true;
+            cmdToExecute = argv[i + 1];
+            i++; // Skip the next argument since we've used it
+        } else if (arg == "-l" || arg == "--login") {
+            isLoginShell = true;
+            setupLoginShell();
+        }
+    }
+    
+    if (executeCommand) {
+        sendTerminalCommand(cmdToExecute);
+        if (isLoginShell) {
+            cleanupLoginShell();
+        }
+        return 0;
+    }
+
+    // Continue with existing initialization
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
@@ -299,9 +535,9 @@ int main(int argc, char* argv[]) {
         for (const auto& command : startupCommands) {
             commandParser(commandPrefix + command);
         }
-        if(startupInput != ""){
-            commandParser(startupInput);
-        }
+        // if(startupInput != ""){
+        //     commandParser(startupInput);
+        // }
         runningStartup = false;
     }
 
@@ -313,6 +549,10 @@ int main(int argc, char* argv[]) {
     if(saveOnExit){
         savedChatCache = c_assistant.getChatCache();
         writeUserData();
+    }
+    
+    if (isLoginShell) {
+        cleanupLoginShell();
     }
     
     delete pluginManager;
@@ -2537,7 +2777,6 @@ std::string generateUninstallScript() {
         uninstallScript << "if [[ \"$SELF_PATH\" != \"$DATA_DIR/uninstall-$APP_NAME.sh\" && \"$SELF_PATH\" != \"$DATA_DIR/dtt-uninstall.sh\" ]]; then\n";
         uninstallScript << "    echo \"Removing uninstall script...\"\n";
         uninstallScript << "    rm \"$SELF_PATH\"\n";
-        uninstallScript << "fi\n";
         
         uninstallScript.close();
         
@@ -3495,4 +3734,158 @@ bool shouldCheckForUpdates() {
     }
     
     return elapsedTime > UPDATE_CHECK_INTERVAL;
+}
+
+void setupEnvironmentVariables() {
+    // Get user info
+    uid_t uid = getuid();
+    struct passwd* pw = getpwuid(uid);
+    
+    if (pw != nullptr) {
+        // Set basic environment variables
+        setenv("USER", pw->pw_name, 1);
+        setenv("LOGNAME", pw->pw_name, 1);
+        setenv("HOME", pw->pw_dir, 1);
+        setenv("SHELL", (DATA_DIRECTORY / "DevToolsTerminal").c_str(), 1);
+        
+        // Set PATH if not set
+        if (getenv("PATH") == nullptr) {
+            setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+        }
+        
+        // Set additional variables
+        char hostname[256];
+        if (gethostname(hostname, sizeof(hostname)) == 0) {
+            setenv("HOSTNAME", hostname, 1);
+        }
+        
+        // Set terminal type
+        setenv("TERM", "xterm-256color", 0); // Don't override if already set
+        
+        // Set standard directories - use std::filesystem instead of get_current_dir_name
+        setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+        
+        // Set timezone if not already set
+        if (getenv("TZ") == nullptr) {
+            std::string tzFile = "/etc/localtime";
+            if (std::filesystem::exists(tzFile)) {
+                setenv("TZ", tzFile.c_str(), 1);
+            }
+        }
+    }
+}
+
+void initializeLoginEnvironment() {
+    // Set process as session leader if we're a login shell
+    if (isLoginShell) {
+        pid_t pid = getpid();
+        
+        // Try to make this shell the session leader
+        if (setsid() < 0) {
+            // If we're already a session leader, this is normal for a standalone shell
+            if (errno != EPERM) {
+                perror("Failed to become session leader");
+            }
+        }
+        
+        // Get the terminal name
+        shell_terminal = STDIN_FILENO;
+        
+        // Check if this shell is a controlling terminal
+        if (!isatty(shell_terminal)) {
+            std::cerr << "Warning: Not running on a terminal device" << std::endl;
+        }
+    }
+}
+
+void handleSIGHUP(int sig) {
+    std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
+    exitFlag = true;
+    signal(SIGHUP, handleSIGHUP); // Re-establish handler
+}
+
+void handleSIGTERM(int sig) {
+    std::cerr << "Received SIGTERM, exiting" << std::endl;
+    exitFlag = true;
+    signal(SIGTERM, handleSIGTERM); // Re-establish handler
+}
+
+void handleSIGINT(int sig) {
+    std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
+    signal(SIGINT, handleSIGINT); // Re-establish handler
+}
+
+void handleSIGCHLD(int sig) {
+    // Let TerminalPassthrough handle job status updates
+    signal(SIGCHLD, handleSIGCHLD);
+}
+
+void setupSignalHandlers() {
+    // Set up handlers for important signals
+    signal(SIGHUP, handleSIGHUP);
+    signal(SIGTERM, handleSIGTERM);
+    signal(SIGINT, handleSIGINT);
+    signal(SIGCHLD, handleSIGCHLD);
+    
+    // Ignore SIGQUIT and SIGTSTP by default
+    signal(SIGQUIT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+}
+
+void setupJobControl() {
+    // Only try to setup job control for interactive shells
+    if (!isatty(STDIN_FILENO)) {
+        jobControlEnabled = false;
+        return;
+    }
+    
+    // Put ourselves in our own process group
+    shell_pgid = getpid();
+    
+    // Try to ensure we're in our own process group
+    if (setpgid(shell_pgid, shell_pgid) < 0) {
+        if (errno != EPERM) { // Ignore EPERM which is normal if we're already process group leader
+            perror("Couldn't put the shell in its own process group");
+            // Don't exit, just log the error and continue
+        }
+    }
+    
+    // Try to grab control of the terminal 
+    try {
+        // Get terminal status first to see if we can control it
+        int tpgrp = tcgetpgrp(shell_terminal);
+        if (tpgrp != -1) {
+            if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+                perror("Couldn't grab terminal control");
+                // Not fatal, just continue
+            }
+        }
+        
+        // Save default terminal attributes
+        if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
+            perror("Couldn't get terminal attributes");
+            // Not fatal, just continue
+        }
+        
+        jobControlEnabled = true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error setting up terminal: " << e.what() << std::endl;
+        jobControlEnabled = false;
+    }
+}
+
+void resetTerminalOnExit() {
+    if (jobControlEnabled) {
+        // Make sure we handle this safely
+        try {
+            // Reset the terminal to its original state
+            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+                perror("Could not restore terminal settings");
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error restoring terminal: " << e.what() << std::endl;
+        }
+    }
 }

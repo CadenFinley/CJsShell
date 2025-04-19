@@ -95,6 +95,33 @@ if [ -f "$UNINSTALL_SCRIPT" ]; then
     chmod +x "$DATA_DIR/uninstall-$APP_NAME.sh"
 fi
 
+# Copy the update-shells script
+UPDATE_SHELLS_SCRIPT="$SCRIPT_DIR/update-shells.sh"
+if [ -f "$UPDATE_SHELLS_SCRIPT" ]; then
+    chmod +x "$UPDATE_SHELLS_SCRIPT"
+    cp "$UPDATE_SHELLS_SCRIPT" "$DATA_DIR/update-shells.sh"
+    chmod +x "$DATA_DIR/update-shells.sh"
+    
+    # Ask if user wants to register as login shell
+    echo ""
+    read -p "Would you like to register DevToolsTerminal as a login shell? (y/n): " register_shell
+    if [[ "$register_shell" =~ ^[Yy]$ ]]; then
+        bash "$DATA_DIR/update-shells.sh"
+        if [ $? -eq 0 ]; then
+            echo "Would you like to set DevToolsTerminal as your default login shell?"
+            read -p "This will change your shell to DevToolsTerminal (y/n): " change_shell
+            if [[ "$change_shell" =~ ^[Yy]$ ]]; then
+                chsh -s "$APP_PATH" $(whoami)
+                if [ $? -eq 0 ]; then
+                    echo "Shell changed successfully. It will take effect after you log out and log back in."
+                else
+                    echo "Failed to change shell. You can do it manually with: chsh -s $APP_PATH"
+                fi
+            fi
+        fi
+    fi
+fi
+
 echo "Installation complete!"
 echo "To uninstall later, run: !uninstall"
 

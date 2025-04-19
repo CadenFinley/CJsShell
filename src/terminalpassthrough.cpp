@@ -6,19 +6,24 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     terminalCacheTerminalOutput = std::vector<std::string>();
     lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     isGitStatusCheckRunning = false;
-        std::string terminalID= "dtt";
-        char buffer[256];
-        std::string command = "ps -p " + std::to_string(getppid()) + " -o comm=";
-        FILE* pipe = popen(command.c_str(), "r");
-        if (pipe) {
-            if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                terminalID = std::string(buffer);
-                terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
-                terminalID = removeSpecialCharacters(terminalID);
-            }
-            pclose(pipe);
-        }
-    terminalName = terminalID;
+    //     std::string terminalID= "dtt";
+    //     char buffer[256];
+    //     std::string command = "ps -p " + std::to_string(getppid()) + " -o comm=";
+    //     FILE* pipe = popen(command.c_str(), "r");
+    //     if (pipe) {
+    //         if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+    //             terminalID = std::string(buffer);
+    //             terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
+    //             terminalID = removeSpecialCharacters(terminalID);
+    //         }
+    //         pclose(pipe);
+    //     }
+    // terminalName = terminalID;
+    terminalName = "dtt";
+    
+    // Ignore SIGTTOU to prevent "suspended (tty output)" errors
+    signal(SIGTTOU, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
 }
 
 std::string TerminalPassthrough::removeSpecialCharacters(const std::string& input) {
@@ -112,8 +117,7 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
             if ((elapsed > 10 || cachedGitDir != gitDir) && !isGitStatusCheckRunning) {
                 isGitStatusCheckRunning = true;
                 std::thread statusThread([this, gitDir]() {
-                    std::string gitStatusCmd = getTerminalName() + 
-                        " -c \"cd " + gitDir + 
+                    std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
                         " && git status --porcelain -z\"";
                     
                     FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
@@ -200,6 +204,7 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
             std::string commandName;
             iss >> commandName;
             
+            // Handle aliases
             if (commandName == "cd") {
                 std::string dirArg;
                 iss >> dirArg;
@@ -229,78 +234,492 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 }
             }
             
-            if (processedCommand.compare(0, 3, "cd ") == 0) {
-                std::string cdCommand = processedCommand;
-                std::string subsequentCommand;
-                
-                size_t andPos = processedCommand.find("&&");
-                if (andPos != std::string::npos) {
-                    cdCommand = processedCommand.substr(0, andPos);
-                    subsequentCommand = processedCommand.substr(andPos + 2);
-                    cdCommand = cdCommand.substr(0, cdCommand.find_last_not_of(" \t") + 1);
-                    subsequentCommand = subsequentCommand.substr(subsequentCommand.find_first_not_of(" \t"));
-                }
-                
-                std::string newDir = cdCommand.substr(3);
-                bool cdSuccess = true;
-                
-                if (newDir == "/") {
-                    currentDirectory = "/";
-                } else if (newDir == "..") {
-                    std::filesystem::path dir = std::filesystem::path(currentDirectory).parent_path();
-                    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
-                        currentDirectory = dir.string();
-                    } else {
-                        result = "Cannot go up from root directory";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    }
-                } else {
-                    std::filesystem::path dir = std::filesystem::path(currentDirectory) / newDir;
-                    if (!std::filesystem::exists(dir)) {
-                        result = "cd: " + newDir + ": No such file or directory";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    } else if (!std::filesystem::is_directory(dir)) {
-                        result = "cd: " + newDir + ": Not a directory";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    } else if ((std::filesystem::status(dir).permissions() & std::filesystem::perms::owner_exec) == std::filesystem::perms::none) {
-                        result = "cd: " + newDir + ": Permission denied";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    } else {
-                        currentDirectory = std::filesystem::canonical(dir).string();
-                    }
-                }
-                
-                if (cdSuccess) {
-                    result = "Changed directory to: " + currentDirectory;
-                    
-                    if (!subsequentCommand.empty()) {
-                        int cmdResult = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + subsequentCommand + " 2>&1\"").c_str());
-                        if (cmdResult != 0) {
-                            result += "\nError executing subsequent command: '" + subsequentCommand + "'";
-                        }
-                    }
-                }
-            } else {
-                result = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + processedCommand + " 2>&1\"").c_str());
-                if(result != "0"){
-                    result = "Error executing command: '" + processedCommand + "'";
-                }
-                terminalCacheTerminalOutput.push_back(result);
-            }
+            // Parse and execute the command
+            parseAndExecuteCommand(processedCommand, result);
+            terminalCacheTerminalOutput.push_back(result);
+            
         } catch (const std::exception& e) {
             std::string errorMsg = "Error executing command: '" + command + "' " + e.what();
             std::cerr << errorMsg << std::endl;
             terminalCacheTerminalOutput.push_back(std::move(errorMsg));
         }
     });
+}
+
+void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std::string& result) {
+    std::istringstream iss(command);
+    std::string cmd;
+    iss >> cmd;
+    
+    if (cmd == "cd") {
+        std::string dir;
+        std::getline(iss >> std::ws, dir);
+        changeDirectory(dir, result);
+    } 
+    else if (cmd == "jobs") {
+        std::stringstream jobOutput;
+        updateJobStatus();
+        
+        if (jobs.empty()) {
+            jobOutput << "No active jobs";
+        } else {
+            for (size_t i = 0; i < jobs.size(); i++) {
+                const auto& job = jobs[i];
+                jobOutput << "[" << (i+1) << "] " 
+                          << (job.foreground ? "Running " : "Stopped ")
+                          << job.command << " (PID: " << job.pid << ")\n";
+            }
+        }
+        result = jobOutput.str();
+    }
+    else if (cmd == "fg") {
+        int jobId = 0;
+        iss >> jobId;
+        if (jobId <= 0) jobId = 1; // Default to first job
+        
+        if (bringJobToForeground(jobId)) {
+            result = "Job brought to foreground";
+        } else {
+            result = "No such job";
+        }
+    }
+    else if (cmd == "bg") {
+        int jobId = 0;
+        iss >> jobId;
+        if (jobId <= 0) jobId = 1; // Default to first job
+        
+        if (sendJobToBackground(jobId)) {
+            result = "Job sent to background";
+        } else {
+            result = "No such job";
+        }
+    }
+    else if (cmd == "kill") {
+        int jobId = 0;
+        iss >> jobId;
+        
+        if (killJob(jobId)) {
+            result = "Job killed";
+        } else {
+            result = "No such job";
+        }
+    }
+    else {
+        // Regular command execution
+        bool background = false;
+        
+        // Check if this is a background command (ends with &)
+        std::string fullCommand = command;
+        if (!fullCommand.empty() && fullCommand.back() == '&') {
+            background = true;
+            fullCommand.pop_back(); // Remove the &
+            
+            // Also remove any trailing whitespace
+            size_t lastNonSpace = fullCommand.find_last_not_of(" \t");
+            if (lastNonSpace != std::string::npos) {
+                fullCommand = fullCommand.substr(0, lastNonSpace + 1);
+            }
+        }
+        
+        if (background) {
+            // Run in background
+            pid_t pid = executeChildProcess(fullCommand, false);
+            jobs.push_back(Job(pid, fullCommand, false));
+            result = "Started background process [" + std::to_string(jobs.size()) + "] (PID: " + std::to_string(pid) + ")";
+        } else {
+            // For interactive commands like ls, clear, or executables, run them directly
+            // in the foreground without capturing output
+            pid_t pid = executeChildProcess(fullCommand, true);
+            
+            // Make sure no jobs were left suspended
+            updateJobStatus();
+            result = "Command completed";
+        }
+    }
+}
+
+pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool foreground) {
+    pid_t pid = fork();
+    
+    if (pid == -1) {
+        // Fork failed
+        throw std::runtime_error("Failed to fork process");
+    } 
+    else if (pid == 0) {
+        // Child process
+        
+        // Ignore terminal I/O signals in the child process
+        signal(SIGTTOU, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+        
+        // Set up process group
+        pid_t childPid = getpid();
+        setpgid(childPid, childPid);
+        
+        // If foreground, give terminal control to the process group
+        if (foreground) {
+            tcsetpgrp(STDIN_FILENO, childPid);
+        }
+        
+        // Set up a new session for background processes to detach them from terminal
+        if (!foreground) {
+            setsid();
+        }
+        
+        // Set current directory in the child process
+        chdir(currentDirectory.c_str());
+        
+        // Create a new environment array that includes all current environment variables
+        extern char **environ;
+        
+        // Execute the command with the full environment
+        execle("/bin/sh", "sh", "-c", command.c_str(), nullptr, environ);
+        
+        // If exec fails, exit the child
+        std::cerr << "Failed to execute: " << command << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    // Parent process
+    
+    // Put the child in its own process group
+    setpgid(pid, pid);
+    
+    // If foreground, wait for it
+    if (foreground) {
+        // Give terminal control to the child process group
+        tcsetpgrp(STDIN_FILENO, pid);
+        
+        waitForForegroundJob(pid);
+        
+        // Take back terminal control
+        tcsetpgrp(STDIN_FILENO, getpgid(0));
+    }
+    
+    return pid;
+}
+
+std::string TerminalPassthrough::captureCommandOutput(const std::string& command) {
+    std::array<int, 2> pipe_fd;
+    if (pipe(pipe_fd.data()) == -1) {
+        return "Error: Failed to create pipe";
+    }
+    
+    // Temporarily save terminal settings
+    struct termios term_settings;
+    tcgetattr(STDIN_FILENO, &term_settings);
+    
+    pid_t pid = fork();
+    
+    if (pid == -1) {
+        // Fork failed
+        close(pipe_fd[0]);
+        close(pipe_fd[1]);
+        return "Error: Failed to fork process";
+    } 
+    else if (pid == 0) {
+        // Child process
+        
+        // Ignore terminal I/O signals in the child process
+        signal(SIGTTOU, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+        
+        // Redirect stdout/stderr to pipe
+        close(pipe_fd[0]);  // Close reading end
+        dup2(pipe_fd[1], STDOUT_FILENO);
+        dup2(pipe_fd[1], STDERR_FILENO);
+        close(pipe_fd[1]);
+        
+        // Set current directory
+        chdir(currentDirectory.c_str());
+        
+        // Create a new process group
+        setpgid(0, 0);
+        
+        // Pass all environment variables to the command
+        extern char **environ;
+        
+        // Ensure the child process doesn't try to access the terminal directly
+        // by redirecting stderr to the same pipe as stdout
+        dup2(pipe_fd[1], STDOUT_FILENO);
+        dup2(pipe_fd[1], STDERR_FILENO);
+        
+        // Create a new process group and detach from terminal
+        setpgid(0, 0);
+        
+        // Execute the command
+        execle("/bin/sh", "sh", "-c", command.c_str(), nullptr, environ);
+        
+        // If exec fails, exit the child
+        std::cerr << "Failed to execute: " << command << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    // Parent process
+    close(pipe_fd[1]);  // Close writing end
+    
+    // Read output from pipe
+    std::string output;
+    char buffer[4096];
+    ssize_t count;
+    
+    // Use non-blocking I/O to prevent hanging
+    fcntl(pipe_fd[0], F_SETFL, O_NONBLOCK);
+    
+    // Read with timeout to avoid indefinite blocking
+    fd_set read_fds;
+    struct timeval timeout;
+    int ready;
+    
+    while (true) {
+        FD_ZERO(&read_fds);
+        FD_SET(pipe_fd[0], &read_fds);
+        
+        timeout.tv_sec = 1;  // 1 second timeout
+        timeout.tv_usec = 0;
+        
+        ready = select(pipe_fd[0] + 1, &read_fds, nullptr, nullptr, &timeout);
+        
+        if (ready == -1) {
+            // Error in select
+            if (errno != EINTR) break;  // Break on errors other than interrupts
+        } else if (ready == 0) {
+            // Timeout - check if process is still running
+            int status;
+            pid_t result = waitpid(pid, &status, WNOHANG);
+            if (result == pid) {
+                // Process finished
+                break;
+            }
+            // Process still running, continue waiting
+        } else {
+            // Data available to read
+            count = read(pipe_fd[0], buffer, sizeof(buffer) - 1);
+            if (count <= 0) {
+                if (errno != EAGAIN && errno != EWOULDBLOCK) break;
+            } else {
+                buffer[count] = '\0';
+                output += buffer;
+            }
+        }
+    }
+    
+    close(pipe_fd[0]);
+    
+    // Wait for child process to finish
+    int status;
+    waitpid(pid, &status, 0);
+    
+    // Restore terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
+    
+    return output;
+}
+
+bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& result) {
+    std::string targetDir = dir;
+    
+    if (targetDir.empty() || targetDir == "~") {
+        // Go to home directory
+        const char* homeDir = getenv("HOME");
+        if (homeDir) {
+            targetDir = homeDir;
+        } else {
+            result = "Could not determine home directory";
+            return false;
+        }
+    }
+    
+    if (targetDir == "/") {
+        currentDirectory = "/";
+    } else if (targetDir == "..") {
+        std::filesystem::path dirPath = std::filesystem::path(currentDirectory).parent_path();
+        if (std::filesystem::exists(dirPath) && std::filesystem::is_directory(dirPath)) {
+            currentDirectory = dirPath.string();
+        } else {
+            result = "Cannot go up from root directory";
+            return false;
+        }
+    } else {
+        std::filesystem::path dirPath;
+        
+        // Handle absolute and relative paths
+        if (targetDir[0] == '/') {
+            dirPath = targetDir;
+        } else {
+            dirPath = std::filesystem::path(currentDirectory) / targetDir;
+        }
+        
+        if (!std::filesystem::exists(dirPath)) {
+            result = "cd: " + targetDir + ": No such file or directory";
+            return false;
+        }
+        
+        if (!std::filesystem::is_directory(dirPath)) {
+            result = "cd: " + targetDir + ": Not a directory";
+            return false;
+        }
+        
+        try {
+            currentDirectory = std::filesystem::canonical(dirPath).string();
+        } catch (const std::filesystem::filesystem_error& e) {
+            result = "cd: " + targetDir + ": " + e.what();
+            return false;
+        }
+    }
+    
+    // Actually change the working directory of the process
+    if (chdir(currentDirectory.c_str()) != 0) {
+        // Store the error message
+        std::string errorMsg = "cd: " + std::string(strerror(errno));
+        result = errorMsg;
+        return false;
+    }
+    
+    result = "Changed directory to: " + currentDirectory;
+    return true;
+}
+
+void TerminalPassthrough::waitForForegroundJob(pid_t pid) {
+    // Temporarily save terminal settings
+    struct termios term_settings;
+    tcgetattr(STDIN_FILENO, &term_settings);
+    
+    int status;
+    waitpid(pid, &status, WUNTRACED);
+    
+    // If job was stopped (e.g., with Ctrl+Z), add it to jobs list
+    if (WIFSTOPPED(status)) {
+        for (auto& job : jobs) {
+            if (job.pid == pid) {
+                job.foreground = false;
+                job.status = status;
+                
+                // Restore terminal control to shell
+                tcsetpgrp(STDIN_FILENO, getpgid(0));
+                return;
+            }
+        }
+        
+        // If we didn't find the job, add it
+        jobs.push_back(Job(pid, "Unknown command", false));
+        jobs.back().status = status;
+    }
+    
+    // Restore terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
+}
+
+void TerminalPassthrough::updateJobStatus() {
+    for (auto it = jobs.begin(); it != jobs.end(); ) {
+        int status;
+        pid_t result = waitpid(it->pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+        
+        if (result == 0) {
+            // Process still running
+            ++it;
+        } else if (result == it->pid) {
+            // Process status changed
+            if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                // Process completed or terminated
+                it = jobs.erase(it);
+            } else {
+                // Process stopped or continued
+                it->status = status;
+                it->foreground = false;
+                ++it;
+            }
+        } else {
+            // Process doesn't exist anymore
+            it = jobs.erase(it);
+        }
+    }
+}
+
+void TerminalPassthrough::listJobs() {
+    updateJobStatus();
+    
+    if (jobs.empty()) {
+        std::cout << "No active jobs" << std::endl;
+        return;
+    }
+    
+    for (size_t i = 0; i < jobs.size(); i++) {
+        const auto& job = jobs[i];
+        std::cout << "[" << (i+1) << "] " 
+                  << (WIFSTOPPED(job.status) ? "Stopped " : "Running ")
+                  << job.command << " (PID: " << job.pid << ")" << std::endl;
+    }
+}
+
+bool TerminalPassthrough::bringJobToForeground(int jobId) {
+    updateJobStatus();
+    
+    if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
+        return false;
+    }
+    
+    // Save terminal settings
+    struct termios term_settings;
+    tcgetattr(STDIN_FILENO, &term_settings);
+    
+    // Adjust for 1-based indexing
+    Job& job = jobs[jobId - 1];
+    job.foreground = true;
+    
+    // Continue if stopped
+    if (WIFSTOPPED(job.status)) {
+        kill(-job.pid, SIGCONT);
+    }
+    
+    // Give terminal control to the job
+    tcsetpgrp(STDIN_FILENO, job.pid);
+    
+    // Wait for it to complete or stop
+    waitForForegroundJob(job.pid);
+    
+    // Take back terminal control
+    tcsetpgrp(STDIN_FILENO, getpgid(0));
+    
+    // Restore terminal settings
+    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
+    
+    return true;
+}
+
+bool TerminalPassthrough::sendJobToBackground(int jobId) {
+    updateJobStatus();
+    
+    if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
+        return false;
+    }
+    
+    // Adjust for 1-based indexing
+    Job& job = jobs[jobId - 1];
+    job.foreground = false;
+    
+    // Continue if stopped
+    if (WIFSTOPPED(job.status)) {
+        kill(-job.pid, SIGCONT);
+    }
+    
+    return true;
+}
+
+bool TerminalPassthrough::killJob(int jobId) {
+    updateJobStatus();
+    
+    if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
+        return false;
+    }
+    
+    // Adjust for 1-based indexing
+    Job& job = jobs[jobId - 1];
+    
+    // Send SIGTERM
+    kill(-job.pid, SIGTERM);
+    
+    return true;
 }
 
 void TerminalPassthrough::toggleDisplayWholePath(){
