@@ -18,10 +18,22 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
+#include <atomic>
 
 class TerminalPassthrough {
 public:
+    struct Job {
+        pid_t pid;
+        std::string command;
+        bool foreground;
+        int status;
+        
+        Job(pid_t p, const std::string& cmd, bool fg = true) 
+            : pid(p), command(cmd), foreground(fg), status(0) {}
+    };
+
     TerminalPassthrough();
+    ~TerminalPassthrough();
 
     std::string getTerminalName();
     std::string returnCurrentTerminalPosition();
@@ -67,6 +79,10 @@ public:
     void cleanupTerminalAfterShellMode();
     bool isStandaloneShell() const;
 
+    const std::vector<Job>& getActiveJobs() const { return jobs; }
+    void setTerminationFlag(bool terminate) { shouldTerminate = terminate; }
+    void terminateAllChildProcesses();
+
 private:
     std::string currentDirectory;
     bool displayWholePath;
@@ -82,28 +98,23 @@ private:
     int terminalCurrentPositionRawLength = 0;
     std::string terminalName;
 
-    std::chrono::steady_clock::time_point lastGitStatusCheck;
+    std::chrono::steady_clock::time_point lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(30);
     std::string cachedGitDir;
     std::string cachedStatusSymbols;
     bool cachedIsCleanRepo;
 
     std::mutex gitStatusMutex;
+    std::mutex jobsMutex;
     bool isGitStatusCheckRunning;
+    std::atomic<bool> shouldTerminate;
 
     std::string getCurrentFileName();
     bool isRootPath(const std::filesystem::path& path);
     std::string removeSpecialCharacters(const std::string& input);
 
-    struct Job {
-        pid_t pid;
-        std::string command;
-        bool foreground;
-        int status;
-        
-        Job(pid_t p, const std::string& cmd, bool fg = true) 
-            : pid(p), command(cmd), foreground(fg), status(0) {}
-    };
-    
+    std::vector<std::string> parseCommandIntoArgs(const std::string& command);
+    std::string findExecutableInPath(const std::string& command);
+
     std::vector<Job> jobs;
     
     struct termios original_termios;

@@ -6,6 +6,7 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     terminalCacheTerminalOutput = std::vector<std::string>();
     lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     isGitStatusCheckRunning = false;
+    shouldTerminate = false; // Initialize termination flag
     //     std::string terminalID= "dtt";
     //     char buffer[256];
     //     std::string command = "ps -p " + std::to_string(getppid()) + " -o comm=";
@@ -23,6 +24,11 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     
     signal(SIGTTOU, SIG_IGN);
     signal(SIGTTIN, SIG_IGN);
+}
+
+TerminalPassthrough::~TerminalPassthrough() {
+    shouldTerminate = true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 std::string TerminalPassthrough::removeSpecialCharacters(const std::string& input) {
@@ -113,41 +119,113 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
             auto now = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastGitStatusCheck).count();
             
-            if ((elapsed > 10 || cachedGitDir != gitDir) && !isGitStatusCheckRunning) {
+            if ((elapsed > 30 || cachedGitDir != gitDir) && !isGitStatusCheckRunning) {
                 isGitStatusCheckRunning = true;
-                std::thread statusThread([this, gitDir]() {
-                    std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
-                        " && git status --porcelain -z\"";
-                    
-                    FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
-                    char statusBuffer[1024];
-                    std::string statusOutput = "";
-                    
-                    if (statusPipe) {
-                        while (fgets(statusBuffer, sizeof(statusBuffer), statusPipe) != nullptr) {
-                            statusOutput += statusBuffer;
-                        }
-                        pclose(statusPipe);
-                        
-                        bool isClean = statusOutput.empty();
-                        std::string symbols = "";
-                        
-                        if (!isClean) {
-                            symbols = "*";
+                if (cachedGitDir != gitDir) {
+                    std::thread statusThread([this, gitDir]() {
+                        if (shouldTerminate) {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                            return;
                         }
                         
-                        std::lock_guard<std::mutex> lock(gitStatusMutex);
-                        cachedGitDir = gitDir;
-                        cachedStatusSymbols = symbols;
-                        cachedIsCleanRepo = isClean;
-                        lastGitStatusCheck = std::chrono::steady_clock::now();
-                        isGitStatusCheckRunning = false;
-                    } else {
-                        std::lock_guard<std::mutex> lock(gitStatusMutex);
-                        isGitStatusCheckRunning = false;
-                    }
-                });
-                statusThread.detach();
+                        std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
+                            " && git status --porcelain | head -1\"";
+                        
+                        FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
+                        char statusBuffer[1024];
+                        std::string statusOutput = "";
+                        
+                        if (statusPipe) {
+                            while (fgets(statusBuffer, sizeof(statusBuffer), statusPipe) != nullptr) {
+                                statusOutput += statusBuffer;
+                                if (shouldTerminate) {
+                                    pclose(statusPipe);
+                                    std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                    isGitStatusCheckRunning = false;
+                                    return;
+                                }
+                            }
+                            pclose(statusPipe);
+                            
+                            if (shouldTerminate) {
+                                std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                isGitStatusCheckRunning = false;
+                                return;
+                            }
+                            
+                            bool isClean = statusOutput.empty();
+                            std::string symbols = "";
+                            
+                            if (!isClean) {
+                                symbols = "*";
+                            }
+                            
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            cachedGitDir = gitDir;
+                            cachedStatusSymbols = symbols;
+                            cachedIsCleanRepo = isClean;
+                            lastGitStatusCheck = std::chrono::steady_clock::now();
+                            isGitStatusCheckRunning = false;
+                        } else {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                        }
+                    });
+                    statusThread.detach();
+                } else {
+                    std::thread statusThread([this, gitDir]() {
+                        if (shouldTerminate) {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                            return;
+                        }
+                        
+                        std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
+                            " && git status --porcelain | head -1\"";
+                        
+                        FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
+                        char statusBuffer[1024];
+                        std::string statusOutput = "";
+                        
+                        if (statusPipe) {
+                            while (fgets(statusBuffer, sizeof(statusBuffer), statusPipe) != nullptr) {
+                                statusOutput += statusBuffer;
+                                if (shouldTerminate) {
+                                    pclose(statusPipe);
+                                    std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                    isGitStatusCheckRunning = false;
+                                    return;
+                                }
+                            }
+                            pclose(statusPipe);
+                            
+                            if (shouldTerminate) {
+                                std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                isGitStatusCheckRunning = false;
+                                return;
+                            }
+                            
+                            bool isClean = statusOutput.empty();
+                            std::string symbols = "";
+                            
+                            if (!isClean) {
+                                symbols = "*";
+                            }
+                            
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            cachedGitDir = gitDir;
+                            cachedStatusSymbols = symbols;
+                            cachedIsCleanRepo = isClean;
+                            lastGitStatusCheck = std::chrono::steady_clock::now();
+                            isGitStatusCheckRunning = false;
+                        } else {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                        }
+                    });
+                    statusThread.detach();
+                }
                 
                 statusSymbols = cachedStatusSymbols;
                 isCleanRepo = cachedIsCleanRepo;
@@ -351,11 +429,21 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
 
         chdir(currentDirectory.c_str());
         
-        extern char **environ;
+        std::vector<std::string> args = parseCommandIntoArgs(command);
+        if (!args.empty()) {
+            std::vector<char*> argv;
+            for (auto& arg : args) {
+                argv.push_back(arg.data());
+            }
+            argv.push_back(nullptr);
+            
+            std::string executable = findExecutableInPath(args[0]);
+            if (!executable.empty()) {
+                execvp(executable.c_str(), argv.data());
+            }
+        }
         
-        execle("/bin/sh", "sh", "-c", command.c_str(), nullptr, environ);
-        
-        std::cerr << "Failed to execute: " << command << std::endl;
+        std::cerr << "dtt: command not found: " << args[0] << std::endl;
         exit(EXIT_FAILURE);
     }
     
@@ -772,5 +860,88 @@ std::vector<std::string> TerminalPassthrough::getCommandHistory(size_t count) {
     }
     
     return recentCommands;
+}
+
+void TerminalPassthrough::terminateAllChildProcesses() {
+    std::lock_guard<std::mutex> lock(jobsMutex);
+    for (const auto& job : jobs) {
+        kill(-job.pid, SIGKILL);
+    }
+    jobs.clear();
+    
+    system("pkill -P $$ 2>/dev/null || true");
+}
+
+std::vector<std::string> TerminalPassthrough::parseCommandIntoArgs(const std::string& command) {
+    std::vector<std::string> args;
+    std::istringstream iss(command);
+    std::string arg;
+    bool inQuotes = false;
+    char quoteChar = 0;
+    std::string currentArg;
+    
+    for (size_t i = 0; i < command.length(); i++) {
+        char c = command[i];
+        
+        if ((c == '"' || c == '\'') && (i == 0 || command[i-1] != '\\')) {
+            if (!inQuotes) {
+                inQuotes = true;
+                quoteChar = c;
+            } else if (c == quoteChar) {
+                inQuotes = false;
+                quoteChar = 0;
+            } else {
+                currentArg += c;
+            }
+        } else if ((c == ' ' || c == '\t') && !inQuotes) {
+            if (!currentArg.empty()) {
+                args.push_back(currentArg);
+                currentArg.clear();
+            }
+        } else {
+            currentArg += c;
+        }
+    }
+    
+    if (!currentArg.empty()) {
+        args.push_back(currentArg);
+    }
+    
+    return args;
+}
+
+std::string TerminalPassthrough::findExecutableInPath(const std::string& command) {
+    if (command[0] == '/' || command[0] == '.') {
+        if (access(command.c_str(), X_OK) == 0) {
+            return command;
+        }
+        return "";
+    }
+    
+    const char* pathEnv = getenv("PATH");
+    if (!pathEnv) return "";
+    
+    std::string path(pathEnv);
+    std::string delimiter = ":";
+    size_t pos = 0;
+    std::string token;
+    
+    while ((pos = path.find(delimiter)) != std::string::npos) {
+        token = path.substr(0, pos);
+        std::string candidatePath = token + "/" + command;
+        
+        if (access(candidatePath.c_str(), X_OK) == 0) {
+            return candidatePath;
+        }
+        
+        path.erase(0, pos + delimiter.length());
+    }
+    
+    std::string candidatePath = path + "/" + command;
+    if (access(candidatePath.c_str(), X_OK) == 0) {
+        return candidatePath;
+    }
+    
+    return "";
 }
 

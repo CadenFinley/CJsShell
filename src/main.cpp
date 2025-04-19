@@ -24,18 +24,11 @@
 
 using json = nlohmann::json;
 
-//------------------------------------------------------------------------------
-// Application Constants
-//------------------------------------------------------------------------------
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "1.8.6.5";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 
-//------------------------------------------------------------------------------
-// Feature Flags & State
-//------------------------------------------------------------------------------
-// Settings flags
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
@@ -48,9 +41,8 @@ bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
 bool cachedUpdateAvailable = false;
-bool isLoginShell = false; // Add this with other global booleans
+bool isLoginShell = false;
 
-// Feature toggles
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
 bool startCommandsOn = true;
@@ -58,22 +50,14 @@ bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
 
-// UI state
 bool hasSuggestion = false;
 std::string currentSuggestion = "";
 
-//------------------------------------------------------------------------------
-// Update Management
-//------------------------------------------------------------------------------
 time_t lastUpdateCheckTime = 0;
-int UPDATE_CHECK_INTERVAL = 86400; // Default: 24 hours in seconds
+int UPDATE_CHECK_INTERVAL = 86400;
 std::string cachedLatestVersion = "";
 
-//------------------------------------------------------------------------------
-// Theme & UI Configuration
-//------------------------------------------------------------------------------
 std::string currentTheme = "default";
-// ANSI color codes
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
 std::string RESET_COLOR = "\033[0m";
 std::string RED_COLOR_BOLD = "\033[1;31m";
@@ -82,9 +66,6 @@ std::string BLUE_COLOR_BOLD = "\033[1;34m";
 std::string YELLOW_COLOR_BOLD = "\033[1;33m";
 std::string CYAN_COLOR_BOLD = "\033[1;36m";
 
-//------------------------------------------------------------------------------
-// Application Text & UI Content
-//------------------------------------------------------------------------------
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
 std::string lastCommandParsed;
@@ -92,9 +73,6 @@ std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
 
-//------------------------------------------------------------------------------
-// File System Paths
-//------------------------------------------------------------------------------
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".DTT-Data";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
@@ -103,9 +81,6 @@ std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
 std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
 
-//------------------------------------------------------------------------------
-// Data Collections
-//------------------------------------------------------------------------------
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
@@ -115,16 +90,10 @@ std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
-//------------------------------------------------------------------------------
-// Tab Completion State
-//------------------------------------------------------------------------------
 size_t tabCompletionIndex = 0;
 std::vector<std::string> currentCompletions;
 std::string originalInput;
 
-//------------------------------------------------------------------------------
-// External Objects & Resources
-//------------------------------------------------------------------------------
 OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
@@ -132,17 +101,11 @@ ThemeManager* themeManager = nullptr;
 
 std::mutex rawModeMutex;
 
-//------------------------------------------------------------------------------
-// Job Control Variables
-//------------------------------------------------------------------------------
 pid_t shell_pgid = 0;
 struct termios shell_tmodes;
 int shell_terminal;
 bool jobControlEnabled = false;
 
-//------------------------------------------------------------------------------
-// Forward Declarations
-//------------------------------------------------------------------------------
 std::vector<std::string> getTabCompletions(const std::string& input);
 std::string completeFilePath(const std::string& input);
 std::string getCommonPrefix(const std::vector<std::string>& strings);
@@ -233,43 +196,44 @@ bool isRunningAsLoginShell(char* argv0) {
 }
 
 void setupLoginShell() {
-    
     initializeLoginEnvironment();
-    
     setupEnvironmentVariables();
-    
     setupSignalHandlers();
-    
     setupJobControl();
     
     processProfileFile("/etc/profile");
     
-    std::vector<std::string> systemProfiles = {
-        "/etc/profile.d",
-        "/etc/bash.bashrc", 
-        "/etc/zshrc"
-    };
-    
-    for (const auto& profile : systemProfiles) {
-        processProfileFile(profile);
-    }
-    
     std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
     if (!homeDir.empty()) {
         std::vector<std::string> profileFiles = {
-            homeDir + "/.bash_profile",
-            homeDir + "/.bash_login",
             homeDir + "/.profile",
-            homeDir + "/.zprofile",
-            homeDir + "/.zshrc"
+            homeDir + "/.bash_profile",
+            homeDir + "/.zshrc",
+            homeDir + "/.bashrc"
         };
         
         for (const auto& profile : profileFiles) {
             if (std::filesystem::exists(profile)) {
                 processProfileFile(profile);
-                break;
             }
         }
+        
+        std::vector<std::string> brewPaths = {
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            homeDir + "/.homebrew/bin",
+            "/opt/homebrew/sbin",
+            "/usr/local/sbin"
+        };
+        
+        std::string currentPath = std::getenv("PATH") ? std::getenv("PATH") : "";
+        for (const auto& brewPath : brewPaths) {
+            if (std::filesystem::exists(brewPath) && 
+                currentPath.find(brewPath) == std::string::npos) {
+                currentPath = brewPath + ":" + currentPath;
+            }
+        }
+        setenv("PATH", currentPath.c_str(), 1);
     }
 }
 
@@ -278,21 +242,6 @@ void cleanupLoginShell() {
         resetTerminalOnExit();
     } catch (const std::exception& e) {
         std::cerr << "Error cleaning up terminal: " << e.what() << std::endl;
-    }
-    
-    std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
-    if (!homeDir.empty()) {
-        std::vector<std::string> logoutFiles = {
-            homeDir + "/.bash_logout",
-            homeDir + "/.zlogout"
-        };
-        
-        for (const auto& logout : logoutFiles) {
-            if (std::filesystem::exists(logout)) {
-                processProfileFile(logout);
-                break;
-            }
-        }
     }
 }
 
@@ -310,15 +259,99 @@ void processProfileFile(const std::string& filePath) {
         return;
     }
     
-    //std::cout << "Processing profile: " << filePath << std::endl;
     std::ifstream file(filePath);
     if (!file) {
         return;
     }
     
     std::string line;
+    std::string currentConditionalBlock = "";
+    bool inConditionalBlock = false;
+    bool conditionMet = false;
+    
     while (std::getline(file, line)) {
         if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        
+        line.erase(0, line.find_first_not_of(" \t"));
+        line.erase(line.find_last_not_of(" \t") + 1);
+        
+        if (line.find("if ") == 0 || line.find("if(") == 0) {
+            inConditionalBlock = true;
+            currentConditionalBlock = "if";
+            if (line.find("[ -d ") != std::string::npos || line.find(" -d ") != std::string::npos) {
+                size_t startPos = line.find("-d ") + 3;
+                size_t endPos = line.find("]", startPos);
+                if (endPos != std::string::npos) {
+                    std::string path = line.substr(startPos, endPos - startPos);
+                    path.erase(0, path.find_first_not_of(" \t\"'"));
+                    path.erase(path.find_last_not_of(" \t\"'") + 1);
+                    
+                    if (path.find("$HOME") != std::string::npos) {
+                        std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+                        size_t pos = path.find("$HOME");
+                        path.replace(pos, 5, homeDir);
+                    }
+                    
+                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_directory(path);
+                }
+            } else if (line.find("[ -f ") != std::string::npos || line.find(" -f ") != std::string::npos) {
+                size_t startPos = line.find("-f ") + 3;
+                size_t endPos = line.find("]", startPos);
+                if (endPos != std::string::npos) {
+                    std::string path = line.substr(startPos, endPos - startPos);
+                    path.erase(0, path.find_first_not_of(" \t\"'"));
+                    path.erase(path.find_last_not_of(" \t\"'") + 1);
+                    
+                    if (path.find("$HOME") != std::string::npos) {
+                        std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+                        size_t pos = path.find("$HOME");
+                        path.replace(pos, 5, homeDir);
+                    }
+                    
+                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
+                }
+            } else if (line.find("command -v") != std::string::npos) {
+                size_t startPos = line.find("command -v") + 10;
+                size_t endPos = line.find(">", startPos);
+                if (endPos == std::string::npos) endPos = line.length();
+                
+                std::string cmd = line.substr(startPos, endPos - startPos);
+                cmd.erase(0, cmd.find_first_not_of(" \t"));
+                cmd.erase(cmd.find_last_not_of(" \t") + 1);
+                
+                char* pathEnv = getenv("PATH");
+                if (pathEnv) {
+                    std::string path(pathEnv);
+                    std::stringstream ss(path);
+                    std::string dir;
+                    conditionMet = false;
+                    
+                    while (std::getline(ss, dir, ':')) {
+                        std::string fullPath = dir + "/" + cmd;
+                        if (access(fullPath.c_str(), X_OK) == 0) {
+                            conditionMet = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+        
+        if (line == "else" && inConditionalBlock) {
+            conditionMet = !conditionMet;
+            continue;
+        }
+        
+        if (line == "fi" && inConditionalBlock) {
+            inConditionalBlock = false;
+            conditionMet = false;
+            continue;
+        }
+        
+        if (inConditionalBlock && !conditionMet) {
             continue;
         }
         
@@ -339,15 +372,34 @@ void processProfileFile(const std::string& filePath) {
                         value = value.substr(1, value.size() - 2);
                     }
                     
+                    size_t varPos = value.find('$');
+                    while (varPos != std::string::npos) {
+                        size_t endPos = value.find_first_of(" \t/\"'", varPos + 1);
+                        if (endPos == std::string::npos) endPos = value.size();
+                        
+                        std::string varName = value.substr(varPos + 1, endPos - varPos - 1);
+                        if (varName.front() == '{' && varName.back() == '}') {
+                            varName = varName.substr(1, varName.size() - 2);
+                        }
+                        
+                        const char* envValue = getenv(varName.c_str());
+                        value.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                        
+                        varPos = value.find('$', varPos + 1);
+                    }
+                    
                     setenv(name.c_str(), value.c_str(), 1);
                 }
             }
-        }
-
-        else if (line.find('=') != std::string::npos) {
+        } else if (line.find('=') != std::string::npos && line.find("let ") != 0) {
             size_t pos = line.find('=');
             std::string name = line.substr(0, pos);
             std::string value = line.substr(pos + 1);
+            
+            name.erase(0, name.find_first_not_of(" \t"));
+            name.erase(name.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
             
             if (value.size() >= 2 && 
                 ((value.front() == '"' && value.back() == '"') || 
@@ -355,12 +407,26 @@ void processProfileFile(const std::string& filePath) {
                 value = value.substr(1, value.size() - 2);
             }
             
-            if (name.find("export") != 0) {
-                setenv(name.c_str(), value.c_str(), 0);
+            size_t varPos = value.find('$');
+            while (varPos != std::string::npos) {
+                size_t endPos = value.find_first_of(" \t/\"'", varPos + 1);
+                if (endPos == std::string::npos) endPos = value.size();
+                
+                std::string varName = value.substr(varPos + 1, endPos - varPos - 1);
+                if (varName.front() == '{' && varName.back() == '}') {
+                    varName = varName.substr(1, varName.size() - 2);
+                }
+                
+                const char* envValue = getenv(varName.c_str());
+                value.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                
+                varPos = value.find('$', varPos + 1);
             }
-        }
-        
-        else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
+            
+            if (!name.empty() && isalpha(name[0])) {
+                setenv(name.c_str(), value.c_str(), 1);
+            }
+        } else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
             std::string pathValue = line.substr(line.find('=') + 1);
             
             std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
@@ -377,7 +443,80 @@ void processProfileFile(const std::string& filePath) {
                 homeVarPos = pathValue.find("$HOME", homeVarPos + homeDir.length());
             }
             
+            size_t varPos = pathValue.find('$');
+            while (varPos != std::string::npos) {
+                size_t endPos = pathValue.find_first_of(" \t:/\"'", varPos + 1);
+                if (endPos == std::string::npos) endPos = pathValue.size();
+                
+                std::string varName = pathValue.substr(varPos + 1, endPos - varPos - 1);
+                if (varName.front() == '{' && varName.back() == '}') {
+                    varName = varName.substr(1, varName.size() - 2);
+                }
+                
+                const char* envValue = getenv(varName.c_str());
+                pathValue.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                
+                varPos = pathValue.find('$', varPos + 1);
+            }
+            
             setenv("PATH", pathValue.c_str(), 1);
+        } else if (line.find("alias ") == 0) {
+            line = line.substr(6);
+            size_t eqPos = line.find('=');
+            if (eqPos != std::string::npos) {
+                std::string aliasName = line.substr(0, eqPos);
+                std::string aliasValue = line.substr(eqPos + 1);
+                
+                aliasName.erase(0, aliasName.find_first_not_of(" \t"));
+                aliasName.erase(aliasName.find_last_not_of(" \t") + 1);
+                aliasValue.erase(0, aliasValue.find_first_not_of(" \t"));
+                aliasValue.erase(aliasValue.find_last_not_of(" \t") + 1);
+                
+                if (aliasValue.size() >= 2 && 
+                    ((aliasValue.front() == '"' && aliasValue.back() == '"') || 
+                     (aliasValue.front() == '\'' && aliasValue.back() == '\''))) {
+                    aliasValue = aliasValue.substr(1, aliasValue.size() - 2);
+                }
+                
+                if (aliasesEnabled) {
+                    aliases[aliasName] = aliasValue;
+                }
+            }
+        } else if (line.find("source ") == 0 || line.find(". ") == 0) {
+            size_t startPos = line.find(' ') + 1;
+            std::string sourcePath = line.substr(startPos);
+            sourcePath.erase(0, sourcePath.find_first_not_of(" \t"));
+            sourcePath.erase(sourcePath.find_last_not_of(" \t") + 1);
+            
+            if (sourcePath.find('$') != std::string::npos) {
+                size_t varPos = sourcePath.find('$');
+                while (varPos != std::string::npos) {
+                    size_t endPos = sourcePath.find_first_of(" \t/\"'", varPos + 1);
+                    if (endPos == std::string::npos) endPos = sourcePath.size();
+                    
+                    std::string varName = sourcePath.substr(varPos + 1, endPos - varPos - 1);
+                    if (varName.front() == '{' && varName.back() == '}') {
+                        varName = varName.substr(1, varName.size() - 2);
+                    }
+                    
+                    const char* envValue = getenv(varName.c_str());
+                    sourcePath.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                    
+                    varPos = sourcePath.find('$', varPos + 1);
+                }
+            }
+            
+            if (sourcePath[0] != '/' && sourcePath[0] != '~') {
+                std::filesystem::path baseDir = std::filesystem::path(filePath).parent_path();
+                sourcePath = (baseDir / sourcePath).string();
+            } else if (sourcePath[0] == '~') {
+                std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+                sourcePath.replace(0, 1, homeDir);
+            }
+            
+            if (std::filesystem::exists(sourcePath)) {
+                processProfileFile(sourcePath);
+            }
         }
     }
 }
@@ -497,7 +636,6 @@ int main(int argc, char* argv[]) {
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
-        //std::cout << "Running startup commands..." << std::endl;
         for (const auto& command : startupCommands) {
             commandParser(commandPrefix + command);
         }
@@ -530,6 +668,13 @@ int getTerminalWidth(){
 }
 
 void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
+    if (pluginManager == nullptr) {
+        std::cerr << "PluginManager is not initialized." << std::endl;
+        return;
+    }
+    if (pluginManager->getEnabledPlugins().empty()) {
+        return;
+    }
     pluginManager->triggerSubscribedGlobalEvent("main_process_" + trigger, data);
 }
 
@@ -537,11 +682,13 @@ void mainProcessLoop() {
     std::string terminalSetting;
     int terminalSettingLength;
     notifyPluginsTriggerMainProcess("pre_run", processId);
+    
     while (true) {
         notifyPluginsTriggerMainProcess("start", processId);
         if (saveLoop) {
             writeUserData();
         }
+        
         if (TESTING) {
             std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
         }
@@ -566,6 +713,9 @@ void mainProcessLoop() {
         completionBrowsingMode = false;
         enableRawMode();
         while (true) {
+            if (!std::cin.rdbuf()->in_avail()) {
+                usleep(10000);
+            }
             std::cin.get(c);
             notifyPluginsTriggerMainProcess("took_input" , std::string(1, c));
             if (c == 22) {
@@ -1211,7 +1361,7 @@ void commandProcesser(const std::string& command) {
         std::cin >> confirmation;
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         
-        if (confirmation == 'y' || confirmation == 'Y') {
+        if (confirmation == 'y' || 'Y') {
             std::string uninstallScriptPath = generateUninstallScript();
             std::string uninstallCommand = "bash \"" + uninstallScriptPath + "\"";
             std::cout << "Running uninstall script..." << std::endl;
@@ -1649,7 +1799,6 @@ void manualUpdateCheck() {
         std::cerr << "Error: " << e.what() << std::endl;
     }
     
-    // Ensure we update the cache and timestamp even for manual checks
     saveUpdateCache(updateAvailable, latestVersion);
 }
 
@@ -1737,6 +1886,14 @@ void aliasCommands() {
         std::cout << " list: List all aliases" << std::endl;
         return;
     }
+    if (lastCommandParsed == "help") {
+        std::cout << "Alias commands:" << std::endl;
+        std::cout << " add [NAME] [VALUE]: Add a new alias" << std::endl;
+        std::cout << " remove [NAME]: Remove an existing alias" << std::endl;
+        std::cout << " list: List all aliases" << std::endl;
+        return;
+    }
+    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void userDataCommands(){
@@ -2694,26 +2851,20 @@ std::string generateUninstallScript() {
         uninstallScript << "echo \"-------------------------\"\n";
         uninstallScript << "echo \"This will uninstall DevToolsTerminal and remove it from auto-launch in zsh.\"\n\n";
         
-        uninstallScript << "# Check if the application exists\n";
         uninstallScript << "if [ ! -f \"$APP_PATH\" ]; then\n";
         uninstallScript << "    echo \"Error: DevToolsTerminal not found at $APP_PATH\"\n";
         uninstallScript << "    exit 1\n";
         uninstallScript << "fi\n\n";
         
-        uninstallScript << "# Remove the application\n";
         uninstallScript << "echo \"Removing DevToolsTerminal executable...\"\n";
         uninstallScript << "rm -f \"$APP_PATH\"\n\n";
         
-        uninstallScript << "# Remove the auto-launch entry from .zshrc\n";
         uninstallScript << "if [ -f \"$ZSHRC_PATH\" ]; then\n";
         uninstallScript << "    echo \"Removing auto-launch configuration from .zshrc...\"\n";
-        uninstallScript << "    # Create a temporary file\n";
         uninstallScript << "    TEMP_FILE=\"$(mktemp)\"\n\n";
         
-        uninstallScript << "    # Filter out the DevToolsTerminal auto-launch block\n";
         uninstallScript << "    sed '/# DevToolsTerminal Auto-Launch/,+3d' \"$ZSHRC_PATH\" > \"$TEMP_FILE\"\n\n";
         
-        uninstallScript << "    # Replace the original file\n";
         uninstallScript << "    cat \"$TEMP_FILE\" > \"$ZSHRC_PATH\"\n";
         uninstallScript << "    rm \"$TEMP_FILE\"\n\n";
         
@@ -2722,7 +2873,6 @@ std::string generateUninstallScript() {
         uninstallScript << "    echo \"No .zshrc file found.\"\n";
         uninstallScript << "fi\n\n";
         
-        uninstallScript << "# Ask if user wants to remove data directory\n";
         uninstallScript << "echo \"Uninstallation complete!\"\n";
         uninstallScript << "echo \"Note: Your personal data in $DATA_DIR has not been removed.\"\n";
         uninstallScript << "read -p \"Would you like to remove all data? (y/n): \" remove_data\n\n";
@@ -2735,7 +2885,6 @@ std::string generateUninstallScript() {
         uninstallScript << "    echo \"Data directory preserved. To manually remove it later, run: rm -rf $DATA_DIR\"\n";
         uninstallScript << "fi\n\n";
         
-        uninstallScript << "# Self-delete if this script was not run from the data directory\n";
         uninstallScript << "SELF_PATH=\"$(realpath \"$0\")\"\n";
         uninstallScript << "if [[ \"$SELF_PATH\" != \"$DATA_DIR/uninstall-$APP_NAME.sh\" && \"$SELF_PATH\" != \"$DATA_DIR/dtt-uninstall.sh\" ]]; then\n";
         uninstallScript << "    echo \"Removing uninstall script...\"\n";
@@ -3396,7 +3545,6 @@ void initializeDataDirectories() {
 }
 
 void asyncCheckForUpdates(std::function<void(bool)> callback) {
-    // If we have a valid cache and shouldn't check yet, use cached value
     if (loadUpdateCache() && !shouldCheckForUpdates()) {
         if (!silentCheckForUpdates && cachedUpdateAvailable) {
             std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
@@ -3431,7 +3579,6 @@ void asyncCheckForUpdates(std::function<void(bool)> callback) {
         std::cerr << "Error getting latest version: " << e.what() << std::endl;
     }
     
-    // Always update the cache with fresh data
     saveUpdateCache(updateAvailable, latestVersion);
     
     callback(updateAvailable);
@@ -3447,12 +3594,10 @@ bool executeUpdateIfAvailable(bool updateAvailable) {
     
     if (response != 'Y' && response != 'y') return false;
     
-    // Immediately mark the update as no longer available in the cache
     saveUpdateCache(false, cachedLatestVersion);
     
     if (!downloadLatestRelease()) {
         std::cout << "Failed to download the update. Please try again later." << std::endl;
-        // If download fails, restore the update available status
         saveUpdateCache(true, cachedLatestVersion);
         return false;
     }
@@ -3645,7 +3790,6 @@ void saveUpdateCache(bool updateAvailable, const std::string& latestVersion) {
         cachedLatestVersion = latestVersion;
         lastUpdateCheckTime = std::time(nullptr);
         
-        // Make sure to save this to user data for persistence
         writeUserData();
     } else {
         std::cerr << "Warning: Could not open update cache file for writing." << std::endl;
@@ -3690,7 +3834,6 @@ bool shouldCheckForUpdates() {
     time_t currentTime = std::time(nullptr);
     time_t elapsedTime = currentTime - lastUpdateCheckTime;
     
-    // Debug output if in testing mode
     if (TESTING) {
         std::cout << "Time since last update check: " << elapsedTime 
                   << " seconds (interval: " << UPDATE_CHECK_INTERVAL << " seconds)" << std::endl;
@@ -3700,35 +3843,28 @@ bool shouldCheckForUpdates() {
 }
 
 void setupEnvironmentVariables() {
-    // Get user info
     uid_t uid = getuid();
     struct passwd* pw = getpwuid(uid);
     
     if (pw != nullptr) {
-        // Set basic environment variables
         setenv("USER", pw->pw_name, 1);
         setenv("LOGNAME", pw->pw_name, 1);
         setenv("HOME", pw->pw_dir, 1);
         setenv("SHELL", (DATA_DIRECTORY / "DevToolsTerminal").c_str(), 1);
         
-        // Set PATH if not set
         if (getenv("PATH") == nullptr) {
             setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
         }
         
-        // Set additional variables
         char hostname[256];
         if (gethostname(hostname, sizeof(hostname)) == 0) {
             setenv("HOSTNAME", hostname, 1);
         }
         
-        // Set terminal type
-        setenv("TERM", "xterm-256color", 0); // Don't override if already set
+        setenv("TERM", "xterm-256color", 0);
         
-        // Set standard directories - use std::filesystem instead of get_current_dir_name
         setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
         
-        // Set timezone if not already set
         if (getenv("TZ") == nullptr) {
             std::string tzFile = "/etc/localtime";
             if (std::filesystem::exists(tzFile)) {
@@ -3739,22 +3875,17 @@ void setupEnvironmentVariables() {
 }
 
 void initializeLoginEnvironment() {
-    // Set process as session leader if we're a login shell
     if (isLoginShell) {
         pid_t pid = getpid();
         
-        // Try to make this shell the session leader
         if (setsid() < 0) {
-            // If we're already a session leader, this is normal for a standalone shell
             if (errno != EPERM) {
                 perror("Failed to become session leader");
             }
         }
         
-        // Get the terminal name
         shell_terminal = STDIN_FILENO;
         
-        // Check if this shell is a controlling terminal
         if (!isatty(shell_terminal)) {
             std::cerr << "Warning: Not running on a terminal device" << std::endl;
         }
@@ -3764,33 +3895,59 @@ void initializeLoginEnvironment() {
 void handleSIGHUP(int sig) {
     std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
     exitFlag = true;
-    signal(SIGHUP, handleSIGHUP); // Re-establish handler
+    
+    if (pluginManager != nullptr) {
+        delete pluginManager;
+        pluginManager = nullptr;
+    }
+    
+    if (themeManager != nullptr) {
+        delete themeManager;
+        themeManager = nullptr;
+    }
+    
+    terminal.terminateAllChildProcesses();
+    
+    if (jobControlEnabled) {
+        try {
+            tcsetattr(shell_terminal, TCSANOW, &shell_tmodes);
+        } catch (...) {
+        }
+    }
+    
+    _exit(0);
 }
 
 void handleSIGTERM(int sig) {
     std::cerr << "Received SIGTERM, exiting" << std::endl;
     exitFlag = true;
-    signal(SIGTERM, handleSIGTERM); // Re-establish handler
+    
+    terminal.terminateAllChildProcesses();
+    
+    _exit(0);
 }
 
 void handleSIGINT(int sig) {
     std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
-    signal(SIGINT, handleSIGINT); // Re-establish handler
+    signal(SIGINT, handleSIGINT);
 }
 
 void handleSIGCHLD(int sig) {
-    // Let TerminalPassthrough handle job status updates
     signal(SIGCHLD, handleSIGCHLD);
 }
 
 void setupSignalHandlers() {
-    // Set up handlers for important signals
     signal(SIGHUP, handleSIGHUP);
     signal(SIGTERM, handleSIGTERM);
     signal(SIGINT, handleSIGINT);
     signal(SIGCHLD, handleSIGCHLD);
     
-    // Ignore SIGQUIT and SIGTSTP by default
+    struct sigaction sa;
+    sa.sa_handler = handleSIGHUP;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGHUP, &sa, NULL);
+    
     signal(SIGQUIT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     signal(SIGTTIN, SIG_IGN);
@@ -3798,38 +3955,29 @@ void setupSignalHandlers() {
 }
 
 void setupJobControl() {
-    // Only try to setup job control for interactive shells
     if (!isatty(STDIN_FILENO)) {
         jobControlEnabled = false;
         return;
     }
     
-    // Put ourselves in our own process group
     shell_pgid = getpid();
     
-    // Try to ensure we're in our own process group
     if (setpgid(shell_pgid, shell_pgid) < 0) {
-        if (errno != EPERM) { // Ignore EPERM which is normal if we're already process group leader
+        if (errno != EPERM) {
             perror("Couldn't put the shell in its own process group");
-            // Don't exit, just log the error and continue
         }
     }
     
-    // Try to grab control of the terminal 
     try {
-        // Get terminal status first to see if we can control it
         int tpgrp = tcgetpgrp(shell_terminal);
         if (tpgrp != -1) {
             if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
                 perror("Couldn't grab terminal control");
-                // Not fatal, just continue
             }
         }
         
-        // Save default terminal attributes
         if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
             perror("Couldn't get terminal attributes");
-            // Not fatal, just continue
         }
         
         jobControlEnabled = true;
@@ -3841,14 +3989,18 @@ void setupJobControl() {
 
 void resetTerminalOnExit() {
     if (jobControlEnabled) {
-        // Make sure we handle this safely
         try {
-            // Reset the terminal to its original state
             if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
                 perror("Could not restore terminal settings");
             }
         } catch (const std::exception& e) {
             std::cerr << "Error restoring terminal: " << e.what() << std::endl;
         }
+    }
+    
+    terminal.setTerminationFlag(true);
+    
+    for (const auto& job : terminal.getActiveJobs()) {
+        kill(-job.pid, SIGTERM);
     }
 }
