@@ -491,6 +491,10 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             return false;
         }
     }
+    // Add special handling for sudo and other interactive commands
+    else if (cmd == "sudo" || cmd == "ssh" || cmd == "su" || cmd == "login" || cmd == "passwd") {
+        return executeInteractiveCommand(command, result);
+    }
     else {
         bool background = false;
         
@@ -520,6 +524,120 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             result = "Command completed";
             return true;
         }
+    }
+}
+
+// Add new method to handle interactive commands
+bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, std::string& result) {
+    // Save terminal attributes
+    struct termios term_attr;
+    tcgetattr(STDIN_FILENO, &term_attr);
+    
+    // Create a child process
+    pid_t pid = fork();
+    
+    if (pid == -1) {
+        result = "Failed to fork process: " + std::string(strerror(errno));
+        return false;
+    }
+    
+    if (pid == 0) {
+        // Child process
+        
+        // Put child in its own process group and give it control of the terminal
+        pid_t child_pid = getpid();
+        setpgid(child_pid, child_pid);
+        tcsetpgrp(STDIN_FILENO, child_pid);
+        
+        // Reset signal handlers to defaults for the child process
+        signal(SIGINT, SIG_DFL);
+        signal(SIGQUIT, SIG_DFL);
+        signal(SIGTSTP, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
+        signal(SIGCHLD, SIG_DFL);
+        
+        // Change to the correct directory
+        if (chdir(currentDirectory.c_str()) != 0) {
+            std::cerr << "Failed to change directory: " << strerror(errno) << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        // Set environment variable
+        setenv("PWD", currentDirectory.c_str(), 1);
+        
+        // Parse the command into arguments
+        std::vector<std::string> args = parseCommandIntoArgs(command);
+        if (args.empty()) {
+            exit(EXIT_FAILURE);
+        }
+        
+        // Convert to array of C-strings for execvp
+        std::vector<char*> argv;
+        for (auto& arg : args) {
+            argv.push_back(arg.data());
+        }
+        argv.push_back(nullptr); // NULL-terminate the array
+        
+        // Find the full path of the command
+        std::string executable = findExecutableInPath(args[0]);
+        if (executable.empty()) {
+            std::cerr << "Command not found: " << args[0] << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        // Execute the command
+        execvp(executable.c_str(), argv.data());
+        
+        // If we get here, execvp failed
+        std::cerr << "Failed to execute " << args[0] << ": " << strerror(errno) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // Parent process
+        int status;
+        
+        // Let the child process take control of the terminal
+        tcsetpgrp(STDIN_FILENO, pid);
+        
+        // Wait for the child to complete
+        if (waitpid(pid, &status, WUNTRACED) == -1) {
+            result = "Error waiting for process: " + std::string(strerror(errno));
+            tcsetpgrp(STDIN_FILENO, getpgid(0));
+            tcsetattr(STDIN_FILENO, TCSADRAIN, &term_attr);
+            return false;
+        }
+        
+        // Restore terminal control to the shell
+        tcsetpgrp(STDIN_FILENO, getpgid(0));
+        
+        // Restore terminal attributes
+        tcsetattr(STDIN_FILENO, TCSADRAIN, &term_attr);
+        
+        // Check exit status
+        if (WIFEXITED(status)) {
+            int exit_status = WEXITSTATUS(status);
+            if (exit_status == 0) {
+                result = "Command completed successfully";
+                return true;
+            } else {
+                result = "Command failed with exit status " + std::to_string(exit_status);
+                return false;
+            }
+        } else if (WIFSIGNALED(status)) {
+            result = "Command terminated by signal " + std::to_string(WTERMSIG(status));
+            return false;
+        } else if (WIFSTOPPED(status)) {
+            // Process was stopped, add it to our job control
+            std::lock_guard<std::mutex> lock(jobsMutex);
+            jobs.push_back(Job(pid, command, false));
+            jobs.back().status = status;
+            result = "Process stopped";
+            return true;
+        }
+        
+        result = "Command completed with unknown status";
+        return false;
     }
 }
 

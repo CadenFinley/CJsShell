@@ -87,6 +87,7 @@ public:
 private:
     std::string currentDirectory;
     bool displayWholePath;
+    bool sudoAutoSFlag;  // Add this line to declare the member variable
     std::vector<std::string> terminalCacheUserInput;
     std::vector<std::string> terminalCacheTerminalOutput;
     std::map<std::string, std::string> aliases;
@@ -131,6 +132,9 @@ private:
     bool saveTerminalState();
     bool restoreTerminalState();
     void setStandaloneMode(bool standalone);
+    
+    // Add new method for interactive commands
+    bool executeInteractiveCommand(const std::string& command, std::string& result);
 };
 
 void processProfileFile(const std::string& filePath);
