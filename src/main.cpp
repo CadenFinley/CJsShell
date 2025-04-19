@@ -12,6 +12,10 @@
 #include <ostream>
 #include <nlohmann/json.hpp>
 #include <future>
+#include <sys/types.h>
+#include <pwd.h>
+#include <signal.h>
+#include <grp.h>
 
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
@@ -20,18 +24,11 @@
 
 using json = nlohmann::json;
 
-//------------------------------------------------------------------------------
-// Application Constants
-//------------------------------------------------------------------------------
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "1.8.6.5";
+const std::string currentVersion = "1.9.0.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 
-//------------------------------------------------------------------------------
-// Feature Flags & State
-//------------------------------------------------------------------------------
-// Settings flags
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
@@ -44,8 +41,8 @@ bool updateFromGithub = false;
 bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
 bool cachedUpdateAvailable = false;
+bool isLoginShell = false;
 
-// Feature toggles
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
 bool startCommandsOn = true;
@@ -53,22 +50,14 @@ bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
 
-// UI state
 bool hasSuggestion = false;
 std::string currentSuggestion = "";
 
-//------------------------------------------------------------------------------
-// Update Management
-//------------------------------------------------------------------------------
 time_t lastUpdateCheckTime = 0;
-int UPDATE_CHECK_INTERVAL = 86400; // Default: 24 hours in seconds
+int UPDATE_CHECK_INTERVAL = 86400;
 std::string cachedLatestVersion = "";
 
-//------------------------------------------------------------------------------
-// Theme & UI Configuration
-//------------------------------------------------------------------------------
 std::string currentTheme = "default";
-// ANSI color codes
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
 std::string RESET_COLOR = "\033[0m";
 std::string RED_COLOR_BOLD = "\033[1;31m";
@@ -77,9 +66,6 @@ std::string BLUE_COLOR_BOLD = "\033[1;34m";
 std::string YELLOW_COLOR_BOLD = "\033[1;33m";
 std::string CYAN_COLOR_BOLD = "\033[1;36m";
 
-//------------------------------------------------------------------------------
-// Application Text & UI Content
-//------------------------------------------------------------------------------
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
 std::string lastCommandParsed;
@@ -87,20 +73,16 @@ std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
 
-//------------------------------------------------------------------------------
-// File System Paths
-//------------------------------------------------------------------------------
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".DTT-Data";
+std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "dtt-uninstall.sh";
+std::filesystem::path UPDATE_SCRIPT_PATH = DATA_DIRECTORY / "dtt-update.sh";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
 std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
 
-//------------------------------------------------------------------------------
-// Data Collections
-//------------------------------------------------------------------------------
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
@@ -110,16 +92,10 @@ std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
-//------------------------------------------------------------------------------
-// Tab Completion State
-//------------------------------------------------------------------------------
 size_t tabCompletionIndex = 0;
 std::vector<std::string> currentCompletions;
 std::string originalInput;
 
-//------------------------------------------------------------------------------
-// External Objects & Resources
-//------------------------------------------------------------------------------
 OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
@@ -127,9 +103,11 @@ ThemeManager* themeManager = nullptr;
 
 std::mutex rawModeMutex;
 
-//------------------------------------------------------------------------------
-// Forward Declarations
-//------------------------------------------------------------------------------
+pid_t shell_pgid = 0;
+struct termios shell_tmodes;
+int shell_terminal;
+bool jobControlEnabled = false;
+
 std::vector<std::string> getTabCompletions(const std::string& input);
 std::string completeFilePath(const std::string& input);
 std::string getCommonPrefix(const std::vector<std::string>& strings);
@@ -177,7 +155,6 @@ void saveTheme(const std::string& themeName);
 void createDefaultTheme();
 void discoverAvailableThemes();
 void applyColorToStrings();
-std::string generateUninstallScript();
 void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
@@ -199,19 +176,387 @@ void setUpdateInterval(int intervalHours);
 bool shouldCheckForUpdates();
 bool loadUpdateCache();
 void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
+void setupEnvironmentVariables();
+void initializeLoginEnvironment();
+void setupSignalHandlers();
+bool authenticateUser();
+void handleLoginSession();
+void setupJobControl();
+void resetTerminalOnExit();
+void processProfileFile(const std::string& filePath);
+void handleSIGHUP(int sig);
+void handleSIGTERM(int sig);
+void handleSIGINT(int sig);
+void handleSIGCHLD(int sig);
+void parentProcessWatchdog();
 
+bool isRunningAsLoginShell(char* argv0) {
+    if (argv0 && argv0[0] == '-') {
+        return true;
+    }
+    return false;
+}
+
+void setupLoginShell() {
+    initializeLoginEnvironment();
+    setupEnvironmentVariables();
+    setupSignalHandlers();
+    setupJobControl();
+    
+    processProfileFile("/etc/profile");
+    
+    std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
+    if (!homeDir.empty()) {
+        std::vector<std::string> profileFiles = {
+            homeDir + "/.profile",
+            homeDir + "/.bash_profile",
+            homeDir + "/.zshrc",
+            homeDir + "/.bashrc"
+        };
+        
+        for (const auto& profile : profileFiles) {
+            if (std::filesystem::exists(profile)) {
+                processProfileFile(profile);
+            }
+        }
+        
+        std::vector<std::string> brewPaths = {
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            homeDir + "/.homebrew/bin",
+            "/opt/homebrew/sbin",
+            "/usr/local/sbin"
+        };
+        
+        std::string currentPath = std::getenv("PATH") ? std::getenv("PATH") : "";
+        for (const auto& brewPath : brewPaths) {
+            if (std::filesystem::exists(brewPath) && 
+                currentPath.find(brewPath) == std::string::npos) {
+                currentPath = brewPath + ":" + currentPath;
+            }
+        }
+        setenv("PATH", currentPath.c_str(), 1);
+    }
+}
+
+void cleanupLoginShell() {
+    try {
+        resetTerminalOnExit();
+    } catch (const std::exception& e) {
+        std::cerr << "Error cleaning up terminal: " << e.what() << std::endl;
+    }
+}
+
+void processProfileFile(const std::string& filePath) {
+    if (!std::filesystem::exists(filePath)) {
+        return;
+    }
+    
+    if (std::filesystem::is_directory(filePath)) {
+        for (const auto& entry : std::filesystem::directory_iterator(filePath)) {
+            if (entry.path().extension() == ".sh") {
+                processProfileFile(entry.path().string());
+            }
+        }
+        return;
+    }
+    
+    std::ifstream file(filePath);
+    if (!file) {
+        return;
+    }
+    
+    std::string line;
+    std::string currentConditionalBlock = "";
+    bool inConditionalBlock = false;
+    bool conditionMet = false;
+    
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        
+        line.erase(0, line.find_first_not_of(" \t"));
+        line.erase(line.find_last_not_of(" \t") + 1);
+        
+        if (line.find("if ") == 0 || line.find("if(") == 0) {
+            inConditionalBlock = true;
+            currentConditionalBlock = "if";
+            if (line.find("[ -d ") != std::string::npos || line.find(" -d ") != std::string::npos) {
+                size_t startPos = line.find("-d ") + 3;
+                size_t endPos = line.find("]", startPos);
+                if (endPos != std::string::npos) {
+                    std::string path = line.substr(startPos, endPos - startPos);
+                    path.erase(0, path.find_first_not_of(" \t\"'"));
+                    path.erase(path.find_last_not_of(" \t\"'") + 1);
+                    
+                    if (path.find("$HOME") != std::string::npos) {
+                        std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+                        size_t pos = path.find("$HOME");
+                        path.replace(pos, 5, homeDir);
+                    }
+                    
+                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_directory(path);
+                }
+            } else if (line.find("[ -f ") != std::string::npos || line.find(" -f ") != std::string::npos) {
+                size_t startPos = line.find("-f ") + 3;
+                size_t endPos = line.find("]", startPos);
+                if (endPos != std::string::npos) {
+                    std::string path = line.substr(startPos, endPos - startPos);
+                    path.erase(0, path.find_first_not_of(" \t\"'"));
+                    path.erase(path.find_last_not_of(" \t\"'") + 1);
+                    
+                    if (path.find("$HOME") != std::string::npos) {
+                        std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+                        size_t pos = path.find("$HOME");
+                        path.replace(pos, 5, homeDir);
+                    }
+                    
+                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
+                }
+            } else if (line.find("command -v") != std::string::npos) {
+                size_t startPos = line.find("command -v") + 10;
+                size_t endPos = line.find(">", startPos);
+                if (endPos == std::string::npos) endPos = line.length();
+                
+                std::string cmd = line.substr(startPos, endPos - startPos);
+                cmd.erase(0, cmd.find_first_not_of(" \t"));
+                cmd.erase(cmd.find_last_not_of(" \t") + 1);
+                
+                char* pathEnv = getenv("PATH");
+                if (pathEnv) {
+                    std::string path(pathEnv);
+                    std::stringstream ss(path);
+                    std::string dir;
+                    conditionMet = false;
+                    
+                    while (std::getline(ss, dir, ':')) {
+                        std::string fullPath = dir + "/" + cmd;
+                        if (access(fullPath.c_str(), X_OK) == 0) {
+                            conditionMet = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+        
+        if (line == "else" && inConditionalBlock) {
+            conditionMet = !conditionMet;
+            continue;
+        }
+        
+        if (line == "fi" && inConditionalBlock) {
+            inConditionalBlock = false;
+            conditionMet = false;
+            continue;
+        }
+        
+        if (inConditionalBlock && !conditionMet) {
+            continue;
+        }
+        
+        if (line.find("export ") == 0) {
+            line = line.substr(7);
+        
+            std::istringstream iss(line);
+            std::string varAssignment;
+            while (iss >> varAssignment) {
+                size_t pos = varAssignment.find('=');
+                if (pos != std::string::npos) {
+                    std::string name = varAssignment.substr(0, pos);
+                    std::string value = varAssignment.substr(pos + 1);
+                    
+                    if (value.size() >= 2 && 
+                        ((value.front() == '"' && value.back() == '"') || 
+                         (value.front() == '\'' && value.back() == '\''))) {
+                        value = value.substr(1, value.size() - 2);
+                    }
+                    
+                    size_t varPos = value.find('$');
+                    while (varPos != std::string::npos) {
+                        size_t endPos = value.find_first_of(" \t/\"'", varPos + 1);
+                        if (endPos == std::string::npos) endPos = value.size();
+                        
+                        std::string varName = value.substr(varPos + 1, endPos - varPos - 1);
+                        if (varName.front() == '{' && varName.back() == '}') {
+                            varName = varName.substr(1, varName.size() - 2);
+                        }
+                        
+                        const char* envValue = getenv(varName.c_str());
+                        value.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                        
+                        varPos = value.find('$', varPos + 1);
+                    }
+                    
+                    setenv(name.c_str(), value.c_str(), 1);
+                }
+            }
+        } else if (line.find('=') != std::string::npos && line.find("let ") != 0) {
+            size_t pos = line.find('=');
+            std::string name = line.substr(0, pos);
+            std::string value = line.substr(pos + 1);
+            
+            name.erase(0, name.find_first_not_of(" \t"));
+            name.erase(name.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            
+            if (value.size() >= 2 && 
+                ((value.front() == '"' && value.back() == '"') || 
+                 (value.front() == '\'' && value.back() == '\''))) {
+                value = value.substr(1, value.size() - 2);
+            }
+            
+            size_t varPos = value.find('$');
+            while (varPos != std::string::npos) {
+                size_t endPos = value.find_first_of(" \t/\"'", varPos + 1);
+                if (endPos == std::string::npos) endPos = value.size();
+                
+                std::string varName = value.substr(varPos + 1, endPos - varPos - 1);
+                if (varName.front() == '{' && varName.back() == '}') {
+                    varName = varName.substr(1, varName.size() - 2);
+                }
+                
+                const char* envValue = getenv(varName.c_str());
+                value.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                
+                varPos = value.find('$', varPos + 1);
+            }
+            
+            if (!name.empty() && isalpha(name[0])) {
+                setenv(name.c_str(), value.c_str(), 1);
+            }
+        } else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
+            std::string pathValue = line.substr(line.find('=') + 1);
+            
+            std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
+            size_t pathVarPos = pathValue.find("$PATH");
+            while (pathVarPos != std::string::npos) {
+                pathValue.replace(pathVarPos, 5, currentPath);
+                pathVarPos = pathValue.find("$PATH", pathVarPos + currentPath.length());
+            }
+            
+            std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+            size_t homeVarPos = pathValue.find("$HOME");
+            while (homeVarPos != std::string::npos) {
+                pathValue.replace(homeVarPos, 5, homeDir);
+                homeVarPos = pathValue.find("$HOME", homeVarPos + homeDir.length());
+            }
+            
+            size_t varPos = pathValue.find('$');
+            while (varPos != std::string::npos) {
+                size_t endPos = pathValue.find_first_of(" \t:/\"'", varPos + 1);
+                if (endPos == std::string::npos) endPos = pathValue.size();
+                
+                std::string varName = pathValue.substr(varPos + 1, endPos - varPos - 1);
+                if (varName.front() == '{' && varName.back() == '}') {
+                    varName = varName.substr(1, varName.size() - 2);
+                }
+                
+                const char* envValue = getenv(varName.c_str());
+                pathValue.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                
+                varPos = pathValue.find('$', varPos + 1);
+            }
+            
+            setenv("PATH", pathValue.c_str(), 1);
+        } else if (line.find("alias ") == 0) {
+            line = line.substr(6);
+            size_t eqPos = line.find('=');
+            if (eqPos != std::string::npos) {
+                std::string aliasName = line.substr(0, eqPos);
+                std::string aliasValue = line.substr(eqPos + 1);
+                
+                aliasName.erase(0, aliasName.find_first_not_of(" \t"));
+                aliasName.erase(aliasName.find_last_not_of(" \t") + 1);
+                aliasValue.erase(0, aliasValue.find_first_not_of(" \t"));
+                aliasValue.erase(aliasValue.find_last_not_of(" \t") + 1);
+                
+                if (aliasValue.size() >= 2 && 
+                    ((aliasValue.front() == '"' && aliasValue.back() == '"') || 
+                     (aliasValue.front() == '\'' && aliasValue.back() == '\''))) {
+                    aliasValue = aliasValue.substr(1, aliasValue.size() - 2);
+                }
+                
+                if (aliasesEnabled) {
+                    aliases[aliasName] = aliasValue;
+                }
+            }
+        } else if (line.find("source ") == 0 || line.find(". ") == 0) {
+            size_t startPos = line.find(' ') + 1;
+            std::string sourcePath = line.substr(startPos);
+            sourcePath.erase(0, sourcePath.find_first_not_of(" \t"));
+            sourcePath.erase(sourcePath.find_last_not_of(" \t") + 1);
+            
+            if (sourcePath.find('$') != std::string::npos) {
+                size_t varPos = sourcePath.find('$');
+                while (varPos != std::string::npos) {
+                    size_t endPos = sourcePath.find_first_of(" \t/\"'", varPos + 1);
+                    if (endPos == std::string::npos) endPos = sourcePath.size();
+                    
+                    std::string varName = sourcePath.substr(varPos + 1, endPos - varPos - 1);
+                    if (varName.front() == '{' && varName.back() == '}') {
+                        varName = varName.substr(1, varName.size() - 2);
+                    }
+                    
+                    const char* envValue = getenv(varName.c_str());
+                    sourcePath.replace(varPos, endPos - varPos, envValue ? envValue : "");
+                    
+                    varPos = sourcePath.find('$', varPos + 1);
+                }
+            }
+            
+            if (sourcePath[0] != '/' && sourcePath[0] != '~') {
+                std::filesystem::path baseDir = std::filesystem::path(filePath).parent_path();
+                sourcePath = (baseDir / sourcePath).string();
+            } else if (sourcePath[0] == '~') {
+                std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+                sourcePath.replace(0, 1, homeDir);
+            }
+            
+            if (std::filesystem::exists(sourcePath)) {
+                processProfileFile(sourcePath);
+            }
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
+    isLoginShell = isRunningAsLoginShell(argv[0]);
 
-    std::string startupInput;
-    struct timeval tv;
-    fd_set fds;
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
-    if (select(STDIN_FILENO+1, &fds, NULL, NULL, &tv) > 0) {
-        std::getline(std::cin, startupInput);
+    setupSignalHandlers();
+    
+    if (isLoginShell) {
+        try {
+            setupLoginShell();
+        } catch (const std::exception& e) {
+            std::cerr << "Error in login shell setup: " << e.what() << std::endl;
+        }
+    }
+
+    bool executeCommand = false;
+    std::string cmdToExecute;
+    
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "-c" && i + 1 < argc) {
+            executeCommand = true;
+            cmdToExecute = argv[i + 1];
+            i++;
+        } else if (arg == "-l" || arg == "--login") {
+            isLoginShell = true;
+            setupLoginShell();
+        }
+    }
+    
+    if (executeCommand) {
+        sendTerminalCommand(cmdToExecute);
+        if (isLoginShell) {
+            cleanupLoginShell();
+        }
+        return 0;
     }
 
     startupCommands = {};
@@ -243,7 +588,6 @@ int main(int argc, char* argv[]) {
         loadPluginsAsync([]() {});
     });
     
-    // the daemon will handle this so the program will just need to load 
     std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
             loadExecutableCacheFromDisk();
@@ -265,7 +609,6 @@ int main(int argc, char* argv[]) {
     std::future<void> updateFuture;
     if (checkForUpdates) {
         updateFuture = std::async(std::launch::async, [&]() {
-            // First try to load the cache
             bool cacheLoaded = loadUpdateCache();
             
             if (!cacheLoaded || shouldCheckForUpdates()) {
@@ -293,26 +636,31 @@ int main(int argc, char* argv[]) {
     themeFuture.wait();
     if (updateFuture.valid()) updateFuture.wait();
 
+    std::thread watchdogThread(parentProcessWatchdog);
+    watchdogThread.detach();
+
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
-        std::cout << "Running startup commands..." << std::endl;
         for (const auto& command : startupCommands) {
             commandParser(commandPrefix + command);
-        }
-        if(startupInput != ""){
-            commandParser(startupInput);
         }
         runningStartup = false;
     }
 
-    std::cout << titleLine << std::endl;
-    std::cout << createdLine << std::endl;
-
-    mainProcessLoop();
+    if(!exitFlag){
+        std::cout << titleLine << std::endl;
+        std::cout << createdLine << std::endl;
+    
+        mainProcessLoop();
+    }
 
     if(saveOnExit){
         savedChatCache = c_assistant.getChatCache();
         writeUserData();
+    }
+    
+    if (isLoginShell) {
+        cleanupLoginShell();
     }
     
     delete pluginManager;
@@ -327,6 +675,13 @@ int getTerminalWidth(){
 }
 
 void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
+    if (pluginManager == nullptr) {
+        std::cerr << "PluginManager is not initialized." << std::endl;
+        return;
+    }
+    if (pluginManager->getEnabledPlugins().empty()) {
+        return;
+    }
     pluginManager->triggerSubscribedGlobalEvent("main_process_" + trigger, data);
 }
 
@@ -334,11 +689,13 @@ void mainProcessLoop() {
     std::string terminalSetting;
     int terminalSettingLength;
     notifyPluginsTriggerMainProcess("pre_run", processId);
+    
     while (true) {
         notifyPluginsTriggerMainProcess("start", processId);
         if (saveLoop) {
             writeUserData();
         }
+        
         if (TESTING) {
             std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
         }
@@ -363,6 +720,9 @@ void mainProcessLoop() {
         completionBrowsingMode = false;
         enableRawMode();
         while (true) {
+            if (!std::cin.rdbuf()->in_avail()) {
+                usleep(10000);
+            }
             std::cin.get(c);
             notifyPluginsTriggerMainProcess("took_input" , std::string(1, c));
             if (c == 22) {
@@ -1008,11 +1368,21 @@ void commandProcesser(const std::string& command) {
         std::cin >> confirmation;
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         
-        if (confirmation == 'y' || confirmation == 'Y') {
-            std::string uninstallScriptPath = generateUninstallScript();
-            std::string uninstallCommand = "bash \"" + uninstallScriptPath + "\"";
+        if (confirmation == 'y' || 'Y') {
+            if(!std::filesystem::exists(UNINSTALL_SCRIPT_PATH)){
+                std::cerr << "Uninstall script not found." << std::endl;
+                return;
+            }
+            std::cout << "Do you want to remove all user data? (y/n): ";
+            char removeUserData;
+            std::cin >> removeUserData;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::string uninstallCommand = UNINSTALL_SCRIPT_PATH;
+            if (removeUserData == 'y' || removeUserData == 'Y') {
+                uninstallCommand += " --all";
+            }
             std::cout << "Running uninstall script..." << std::endl;
-            system(uninstallCommand.c_str());
+            sendTerminalCommand(UNINSTALL_SCRIPT_PATH);
             exitFlag = true;
         } else {
             std::cout << "Uninstall cancelled." << std::endl;
@@ -1446,7 +1816,6 @@ void manualUpdateCheck() {
         std::cerr << "Error: " << e.what() << std::endl;
     }
     
-    // Ensure we update the cache and timestamp even for manual checks
     saveUpdateCache(updateAvailable, latestVersion);
 }
 
@@ -1534,6 +1903,14 @@ void aliasCommands() {
         std::cout << " list: List all aliases" << std::endl;
         return;
     }
+    if (lastCommandParsed == "help") {
+        std::cout << "Alias commands:" << std::endl;
+        std::cout << " add [NAME] [VALUE]: Add a new alias" << std::endl;
+        std::cout << " remove [NAME]: Remove an existing alias" << std::endl;
+        std::cout << " list: List all aliases" << std::endl;
+        return;
+    }
+    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void userDataCommands(){
@@ -2301,93 +2678,16 @@ bool checkForUpdate() {
     return false;
 }
 
-bool downloadLatestRelease_Github() {
-    std::cout << "Downloading latest release from GitHub..." << std::endl;
-    std::string releaseJson;
-    std::string curlCmd = "curl -s " + updateURL_Github;
-    FILE* pipe = popen(curlCmd.c_str(), "r");
-    if(!pipe){
-        std::cerr << "Error: Unable to fetch release information." << std::endl;
-        return false;
-    }
-    char buffer[128];
-    while(fgets(buffer, 128, pipe) != nullptr){
-        releaseJson += buffer;
-    }
-    pclose(pipe);
-    if(releaseJson.empty()){
-        std::cerr << "Error: Empty response when fetching release info." << std::endl;
-        return false;
-    }
-    try {
-        json releaseData = json::parse(releaseJson);
-        if(!releaseData.contains("assets") || !releaseData["assets"].is_array() || releaseData["assets"].empty()){
-            std::cerr << "Error: No assets found in the latest release." << std::endl;
-            return false;
-        }
-        std::string downloadUrl;
-        std::string changeLog;
-        if(releaseData.contains("body")) {
-            changeLog = releaseData["body"].get<std::string>();
-        }
-        #ifdef _WIN32
-        for (const auto& asset : releaseData["assets"]) {
-            if (asset["browser_download_url"].get<std::string>().find(".exe") != std::string::npos) {
-                downloadUrl = asset["browser_download_url"].get<std::string>();
-                break;
-            }
-        }
-        #else
-        downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
-        #endif
-
-        if (!std::filesystem::exists(DATA_DIRECTORY)) {
-            std::filesystem::create_directory(DATA_DIRECTORY);
-        }
-        
-        size_t pos = downloadUrl.find_last_of('/');
-        std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
-        std::string downloadPath = (std::filesystem::path(DATA_DIRECTORY) / filename).string();
-        std::string downloadCmd = "curl -L -o \"" + downloadPath + "\" " + downloadUrl;
-        
-        int ret = system(downloadCmd.c_str());
-        if(ret == 0){
-            std::string chmodCmd = "chmod +x \"" + downloadPath + "\"";
-            system(chmodCmd.c_str());
-            std::cout << "Downloaded latest release asset to " << downloadPath << std::endl;
-            std::cout << "Replacing current running program with updated version..." << std::endl;
-            
-            std::string exePath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal").string();
-            #ifdef _WIN32
-            exePath += ".exe";
-            #endif
-            
-            if(std::rename(downloadPath.c_str(), exePath.c_str()) != 0){
-                std::cerr << "Error: Failed to rename the downloaded executable." << std::endl;
-                return false;
-            }
-
-            if (!changeLog.empty()) {
-                displayChangeLog(changeLog);
-            }
-            
-            execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
-            std::cerr << "Error: Failed to execute the updated program." << std::endl;
-            return false;
-        } else {
-            std::cerr << "Error: Download command failed." << std::endl;
-            return false;
-        }
-    } catch(std::exception &e) {
-        std::cerr << "Error parsing release JSON: " << e.what() << std::endl;
-        return false;
-    }
-}
-
 bool downloadLatestRelease(){
-    return downloadLatestRelease_Github();
-    std::cerr << "Something went wrong." << std::endl;
-    return false;
+    if(std::filesystem::exists(DATA_DIRECTORY / "dtt-update.sh")){
+        sendTerminalCommand((DATA_DIRECTORY / "dtt-update.sh").string());
+        std::cout << "Update script executed." << std::endl;
+        exitFlag = true;
+        return true;
+    } else {
+        std::cerr << "Error: Update script not found." << std::endl;
+        return false;
+    }
 }
 
 void displayChangeLog(const std::string& changeLog) {
@@ -2472,84 +2772,6 @@ void themeCommands() {
     } else {
         std::cerr << "Unknown theme command. Use 'load' or 'save'." << std::endl;
     }
-}
-
-std::string generateUninstallScript() {
-    std::filesystem::path uninstallPath = DATA_DIRECTORY / "dtt-uninstall.sh";
-    std::ofstream uninstallScript(uninstallPath);
-    
-    if (uninstallScript.is_open()) {
-        uninstallScript << "#!/bin/bash\n\n";
-        uninstallScript << "SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" &> /dev/null && pwd)\"\n";
-        uninstallScript << "HOME_DIR=\"$HOME\"\n";
-        uninstallScript << "DATA_DIR=\"$HOME_DIR/.DTT-Data\"\n";
-        uninstallScript << "APP_NAME=\"DevToolsTerminal\"\n";
-        uninstallScript << "APP_PATH=\"$DATA_DIR/$APP_NAME\"\n";
-        uninstallScript << "ZSHRC_PATH=\"$HOME/.zshrc\"\n\n";
-        
-        uninstallScript << "echo \"DevToolsTerminal Uninstaller\"\n";
-        uninstallScript << "echo \"-------------------------\"\n";
-        uninstallScript << "echo \"This will uninstall DevToolsTerminal and remove it from auto-launch in zsh.\"\n\n";
-        
-        uninstallScript << "# Check if the application exists\n";
-        uninstallScript << "if [ ! -f \"$APP_PATH\" ]; then\n";
-        uninstallScript << "    echo \"Error: DevToolsTerminal not found at $APP_PATH\"\n";
-        uninstallScript << "    exit 1\n";
-        uninstallScript << "fi\n\n";
-        
-        uninstallScript << "# Remove the application\n";
-        uninstallScript << "echo \"Removing DevToolsTerminal executable...\"\n";
-        uninstallScript << "rm -f \"$APP_PATH\"\n\n";
-        
-        uninstallScript << "# Remove the auto-launch entry from .zshrc\n";
-        uninstallScript << "if [ -f \"$ZSHRC_PATH\" ]; then\n";
-        uninstallScript << "    echo \"Removing auto-launch configuration from .zshrc...\"\n";
-        uninstallScript << "    # Create a temporary file\n";
-        uninstallScript << "    TEMP_FILE=\"$(mktemp)\"\n\n";
-        
-        uninstallScript << "    # Filter out the DevToolsTerminal auto-launch block\n";
-        uninstallScript << "    sed '/# DevToolsTerminal Auto-Launch/,+3d' \"$ZSHRC_PATH\" > \"$TEMP_FILE\"\n\n";
-        
-        uninstallScript << "    # Replace the original file\n";
-        uninstallScript << "    cat \"$TEMP_FILE\" > \"$ZSHRC_PATH\"\n";
-        uninstallScript << "    rm \"$TEMP_FILE\"\n\n";
-        
-        uninstallScript << "    echo \"Auto-launch configuration removed from .zshrc.\"\n";
-        uninstallScript << "else\n";
-        uninstallScript << "    echo \"No .zshrc file found.\"\n";
-        uninstallScript << "fi\n\n";
-        
-        uninstallScript << "# Ask if user wants to remove data directory\n";
-        uninstallScript << "echo \"Uninstallation complete!\"\n";
-        uninstallScript << "echo \"Note: Your personal data in $DATA_DIR has not been removed.\"\n";
-        uninstallScript << "read -p \"Would you like to remove all data? (y/n): \" remove_data\n\n";
-        
-        uninstallScript << "if [[ \"$remove_data\" =~ ^[Yy]$ ]]; then\n";
-        uninstallScript << "    echo \"Removing all data from $DATA_DIR...\"\n";
-        uninstallScript << "    rm -rf \"$DATA_DIR\"\n";
-        uninstallScript << "    echo \"All data removed.\"\n";
-        uninstallScript << "else\n";
-        uninstallScript << "    echo \"Data directory preserved. To manually remove it later, run: rm -rf $DATA_DIR\"\n";
-        uninstallScript << "fi\n\n";
-        
-        uninstallScript << "# Self-delete if this script was not run from the data directory\n";
-        uninstallScript << "SELF_PATH=\"$(realpath \"$0\")\"\n";
-        uninstallScript << "if [[ \"$SELF_PATH\" != \"$DATA_DIR/uninstall-$APP_NAME.sh\" && \"$SELF_PATH\" != \"$DATA_DIR/dtt-uninstall.sh\" ]]; then\n";
-        uninstallScript << "    echo \"Removing uninstall script...\"\n";
-        uninstallScript << "    rm \"$SELF_PATH\"\n";
-        uninstallScript << "fi\n";
-        
-        uninstallScript.close();
-        
-        std::string chmodCmd = "chmod +x " + uninstallPath.string();
-        system(chmodCmd.c_str());
-        
-        std::cout << "Generated uninstall script at " << uninstallPath.string() << std::endl;
-    } else {
-        std::cerr << "Error: Could not create uninstall script." << std::endl;
-    }
-    
-    return uninstallPath.string();
 }
 
 bool startsWithCaseInsensitive(const std::string& str, const std::string& prefix) {
@@ -2980,6 +3202,15 @@ std::string completeFilePath(const std::string& input) {
         searchPath = basePath;
     } else if (directoryPart[0] == '/') {
         searchPath = directoryPart;
+    } else if (directoryPart[0] == '~' && directoryPart.length() > 1 && directoryPart[1] == '/') {
+        // Handle ~ expansion for home directory
+        std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
+        if (!homeDir.empty()) {
+            directoryPart.replace(0, 1, homeDir);
+            searchPath = directoryPart;
+        } else {
+            searchPath = basePath / directoryPart;
+        }
     } else {
         searchPath = basePath / directoryPart;
     }
@@ -3129,10 +3360,12 @@ void refreshExecutablesCache() {
     
     std::vector<std::thread> scanThreads;
     std::mutex cacheMutex;
+    std::atomic<int> discoveredCount(0);
 
     while (std::getline(pathStream, directory, ':')) {
+        if (directory.empty()) continue;
 
-        scanThreads.emplace_back([directory, &cacheMutex]() {
+        scanThreads.emplace_back([directory, &cacheMutex, &discoveredCount]() {
             try {
                 if (!std::filesystem::exists(directory)) {
                     return;
@@ -3140,13 +3373,22 @@ void refreshExecutablesCache() {
                 
                 std::vector<std::string> localCache;
                 for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-                    if (entry.is_regular_file()) {
-                        std::error_code ec;
-                        auto perms = std::filesystem::status(entry.path(), ec).permissions();
-                        
-                        if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none) {
-                            std::string execName = entry.path().filename().string();
-                            localCache.push_back(execName);
+                    if (entry.is_regular_file() || entry.is_symlink()) {
+                        try {
+                            std::error_code ec;
+                            auto perms = std::filesystem::status(entry.path(), ec).permissions();
+                            
+                            if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
+                                (perms & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
+                                (perms & std::filesystem::perms::others_exec) != std::filesystem::perms::none) {
+                                
+                                std::string execName = entry.path().filename().string();
+                                if (!execName.empty() && execName[0] != '.') {
+                                    localCache.push_back(execName);
+                                }
+                            }
+                        } catch (const std::exception& e) {
+                            continue;
                         }
                     }
                 }
@@ -3155,9 +3397,11 @@ void refreshExecutablesCache() {
                 for (const auto& name : localCache) {
                     if (std::find(executablesCache.begin(), executablesCache.end(), name) == executablesCache.end()) {
                         executablesCache.push_back(name);
+                        discoveredCount++;
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
+            } catch (const std::exception& e) {
             }
         });
     }
@@ -3171,6 +3415,10 @@ void refreshExecutablesCache() {
     std::sort(executablesCache.begin(), executablesCache.end());
     
     executablesCacheInitialized = true;
+    
+    if (TESTING) {
+        std::cout << "Discovered " << discoveredCount << " executable commands." << std::endl;
+    }
     
     saveExecutableCacheToDisk();
 }
@@ -3194,7 +3442,6 @@ void initializeDataDirectories() {
 }
 
 void asyncCheckForUpdates(std::function<void(bool)> callback) {
-    // If we have a valid cache and shouldn't check yet, use cached value
     if (loadUpdateCache() && !shouldCheckForUpdates()) {
         if (!silentCheckForUpdates && cachedUpdateAvailable) {
             std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
@@ -3229,7 +3476,6 @@ void asyncCheckForUpdates(std::function<void(bool)> callback) {
         std::cerr << "Error getting latest version: " << e.what() << std::endl;
     }
     
-    // Always update the cache with fresh data
     saveUpdateCache(updateAvailable, latestVersion);
     
     callback(updateAvailable);
@@ -3245,12 +3491,10 @@ bool executeUpdateIfAvailable(bool updateAvailable) {
     
     if (response != 'Y' && response != 'y') return false;
     
-    // Immediately mark the update as no longer available in the cache
     saveUpdateCache(false, cachedLatestVersion);
     
     if (!downloadLatestRelease()) {
         std::cout << "Failed to download the update. Please try again later." << std::endl;
-        // If download fails, restore the update available status
         saveUpdateCache(true, cachedLatestVersion);
         return false;
     }
@@ -3443,7 +3687,6 @@ void saveUpdateCache(bool updateAvailable, const std::string& latestVersion) {
         cachedLatestVersion = latestVersion;
         lastUpdateCheckTime = std::time(nullptr);
         
-        // Make sure to save this to user data for persistence
         writeUserData();
     } else {
         std::cerr << "Warning: Could not open update cache file for writing." << std::endl;
@@ -3488,11 +3731,201 @@ bool shouldCheckForUpdates() {
     time_t currentTime = std::time(nullptr);
     time_t elapsedTime = currentTime - lastUpdateCheckTime;
     
-    // Debug output if in testing mode
     if (TESTING) {
         std::cout << "Time since last update check: " << elapsedTime 
                   << " seconds (interval: " << UPDATE_CHECK_INTERVAL << " seconds)" << std::endl;
     }
     
     return elapsedTime > UPDATE_CHECK_INTERVAL;
+}
+
+void setupEnvironmentVariables() {
+    uid_t uid = getuid();
+    struct passwd* pw = getpwuid(uid);
+    
+    if (pw != nullptr) {
+        setenv("USER", pw->pw_name, 1);
+        setenv("LOGNAME", pw->pw_name, 1);
+        setenv("HOME", pw->pw_dir, 1);
+        setenv("SHELL", (DATA_DIRECTORY / "DevToolsTerminal").c_str(), 1);
+        
+        if (getenv("PATH") == nullptr) {
+            setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+        }
+        
+        char hostname[256];
+        if (gethostname(hostname, sizeof(hostname)) == 0) {
+            setenv("HOSTNAME", hostname, 1);
+        }
+        
+        setenv("TERM", "xterm-256color", 0);
+        
+        setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+        
+        if (getenv("TZ") == nullptr) {
+            std::string tzFile = "/etc/localtime";
+            if (std::filesystem::exists(tzFile)) {
+                setenv("TZ", tzFile.c_str(), 1);
+            }
+        }
+    }
+}
+
+void initializeLoginEnvironment() {
+    if (isLoginShell) {
+        pid_t pid = getpid();
+        
+        if (setsid() < 0) {
+            if (errno != EPERM) {
+                perror("Failed to become session leader");
+            }
+        }
+        
+        shell_terminal = STDIN_FILENO;
+        
+        if (!isatty(shell_terminal)) {
+            std::cerr << "Warning: Not running on a terminal device" << std::endl;
+        }
+    }
+}
+
+void handleSIGHUP(int sig) {
+    std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
+    exitFlag = true;
+    
+    if (pluginManager != nullptr) {
+        delete pluginManager;
+        pluginManager = nullptr;
+    }
+    
+    if (themeManager != nullptr) {
+        delete themeManager;
+        themeManager = nullptr;
+    }
+    
+    terminal.terminateAllChildProcesses();
+    
+    if (jobControlEnabled) {
+        try {
+            tcsetattr(shell_terminal, TCSANOW, &shell_tmodes);
+        } catch (...) {
+        }
+    }
+    
+    _exit(0);
+}
+
+void handleSIGTERM(int sig) {
+    std::cerr << "Received SIGTERM, exiting" << std::endl;
+    exitFlag = true;
+    
+    terminal.terminateAllChildProcesses();
+    
+    _exit(0);
+}
+
+void handleSIGINT(int sig) {
+    std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
+    signal(SIGINT, handleSIGINT);
+}
+
+void handleSIGCHLD(int sig) {
+    signal(SIGCHLD, handleSIGCHLD);
+}
+
+void setupSignalHandlers() {
+    signal(SIGHUP, handleSIGHUP);
+    signal(SIGTERM, handleSIGTERM);
+    signal(SIGINT, handleSIGINT);
+    signal(SIGCHLD, handleSIGCHLD);
+    
+    struct sigaction sa;
+    sa.sa_handler = handleSIGHUP;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGHUP, &sa, NULL);
+    
+    signal(SIGQUIT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+}
+
+void setupJobControl() {
+    if (!isatty(STDIN_FILENO)) {
+        jobControlEnabled = false;
+        return;
+    }
+    
+    shell_pgid = getpid();
+    
+    if (setpgid(shell_pgid, shell_pgid) < 0) {
+        if (errno != EPERM) {
+            perror("Couldn't put the shell in its own process group");
+        }
+    }
+    
+    try {
+        int tpgrp = tcgetpgrp(shell_terminal);
+        if (tpgrp != -1) {
+            if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+                perror("Couldn't grab terminal control");
+            }
+        }
+        
+        if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
+            perror("Couldn't get terminal attributes");
+        }
+        
+        jobControlEnabled = true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error setting up terminal: " << e.what() << std::endl;
+        jobControlEnabled = false;
+    }
+}
+
+void resetTerminalOnExit() {
+    if (jobControlEnabled) {
+        try {
+            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+                perror("Could not restore terminal settings");
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error restoring terminal: " << e.what() << std::endl;
+        }
+    }
+    
+    terminal.setTerminationFlag(true);
+    
+    for (const auto& job : terminal.getActiveJobs()) {
+        kill(-job.pid, SIGTERM);
+    }
+}
+
+bool isParentProcessAlive() {
+    pid_t ppid = getppid();
+    return ppid != 1;
+}
+
+void parentProcessWatchdog() {
+    while (!exitFlag) {
+        if (!isParentProcessAlive()) {
+            std::cerr << "Parent process terminated, shutting down..." << std::endl;
+            exitFlag = true;
+            
+            if (pluginManager != nullptr) {
+                delete pluginManager;
+                pluginManager = nullptr;
+            }
+            
+            if (themeManager != nullptr) {
+                delete themeManager;
+                themeManager = nullptr;
+            }
+            
+            terminal.terminateAllChildProcesses();
+            exit(0);
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
 }

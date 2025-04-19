@@ -6,19 +6,29 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     terminalCacheTerminalOutput = std::vector<std::string>();
     lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     isGitStatusCheckRunning = false;
-        std::string terminalID= "dtt";
-        char buffer[256];
-        std::string command = "ps -p " + std::to_string(getppid()) + " -o comm=";
-        FILE* pipe = popen(command.c_str(), "r");
-        if (pipe) {
-            if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                terminalID = std::string(buffer);
-                terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
-                terminalID = removeSpecialCharacters(terminalID);
-            }
-            pclose(pipe);
-        }
-    terminalName = terminalID;
+    shouldTerminate = false; // Initialize termination flag
+    //     std::string terminalID= "dtt";
+    //     char buffer[256];
+    //     std::string command = "ps -p " + std::to_string(getppid()) + " -o comm=";
+    //     FILE* pipe = popen(command.c_str(), "r");
+    //     if (pipe) {
+    //         if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+    //             terminalID = std::string(buffer);
+    //             terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
+    //             terminalID = removeSpecialCharacters(terminalID);
+    //         }
+    //         pclose(pipe);
+    //     }
+    // terminalName = terminalID;
+    terminalName = "dtt";
+    
+    signal(SIGTTOU, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+}
+
+TerminalPassthrough::~TerminalPassthrough() {
+    shouldTerminate = true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 std::string TerminalPassthrough::removeSpecialCharacters(const std::string& input) {
@@ -109,42 +119,113 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
             auto now = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastGitStatusCheck).count();
             
-            if ((elapsed > 10 || cachedGitDir != gitDir) && !isGitStatusCheckRunning) {
+            if ((elapsed > 30 || cachedGitDir != gitDir) && !isGitStatusCheckRunning) {
                 isGitStatusCheckRunning = true;
-                std::thread statusThread([this, gitDir]() {
-                    std::string gitStatusCmd = getTerminalName() + 
-                        " -c \"cd " + gitDir + 
-                        " && git status --porcelain -z\"";
-                    
-                    FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
-                    char statusBuffer[1024];
-                    std::string statusOutput = "";
-                    
-                    if (statusPipe) {
-                        while (fgets(statusBuffer, sizeof(statusBuffer), statusPipe) != nullptr) {
-                            statusOutput += statusBuffer;
-                        }
-                        pclose(statusPipe);
-                        
-                        bool isClean = statusOutput.empty();
-                        std::string symbols = "";
-                        
-                        if (!isClean) {
-                            symbols = "*";
+                if (cachedGitDir != gitDir) {
+                    std::thread statusThread([this, gitDir]() {
+                        if (shouldTerminate) {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                            return;
                         }
                         
-                        std::lock_guard<std::mutex> lock(gitStatusMutex);
-                        cachedGitDir = gitDir;
-                        cachedStatusSymbols = symbols;
-                        cachedIsCleanRepo = isClean;
-                        lastGitStatusCheck = std::chrono::steady_clock::now();
-                        isGitStatusCheckRunning = false;
-                    } else {
-                        std::lock_guard<std::mutex> lock(gitStatusMutex);
-                        isGitStatusCheckRunning = false;
-                    }
-                });
-                statusThread.detach();
+                        std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
+                            " && git status --porcelain | head -1\"";
+                        
+                        FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
+                        char statusBuffer[1024];
+                        std::string statusOutput = "";
+                        
+                        if (statusPipe) {
+                            while (fgets(statusBuffer, sizeof(statusBuffer), statusPipe) != nullptr) {
+                                statusOutput += statusBuffer;
+                                if (shouldTerminate) {
+                                    pclose(statusPipe);
+                                    std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                    isGitStatusCheckRunning = false;
+                                    return;
+                                }
+                            }
+                            pclose(statusPipe);
+                            
+                            if (shouldTerminate) {
+                                std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                isGitStatusCheckRunning = false;
+                                return;
+                            }
+                            
+                            bool isClean = statusOutput.empty();
+                            std::string symbols = "";
+                            
+                            if (!isClean) {
+                                symbols = "*";
+                            }
+                            
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            cachedGitDir = gitDir;
+                            cachedStatusSymbols = symbols;
+                            cachedIsCleanRepo = isClean;
+                            lastGitStatusCheck = std::chrono::steady_clock::now();
+                            isGitStatusCheckRunning = false;
+                        } else {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                        }
+                    });
+                    statusThread.detach();
+                } else {
+                    std::thread statusThread([this, gitDir]() {
+                        if (shouldTerminate) {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                            return;
+                        }
+                        
+                        std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
+                            " && git status --porcelain | head -1\"";
+                        
+                        FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
+                        char statusBuffer[1024];
+                        std::string statusOutput = "";
+                        
+                        if (statusPipe) {
+                            while (fgets(statusBuffer, sizeof(statusBuffer), statusPipe) != nullptr) {
+                                statusOutput += statusBuffer;
+                                if (shouldTerminate) {
+                                    pclose(statusPipe);
+                                    std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                    isGitStatusCheckRunning = false;
+                                    return;
+                                }
+                            }
+                            pclose(statusPipe);
+                            
+                            if (shouldTerminate) {
+                                std::lock_guard<std::mutex> lock(gitStatusMutex);
+                                isGitStatusCheckRunning = false;
+                                return;
+                            }
+                            
+                            bool isClean = statusOutput.empty();
+                            std::string symbols = "";
+                            
+                            if (!isClean) {
+                                symbols = "*";
+                            }
+                            
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            cachedGitDir = gitDir;
+                            cachedStatusSymbols = symbols;
+                            cachedIsCleanRepo = isClean;
+                            lastGitStatusCheck = std::chrono::steady_clock::now();
+                            isGitStatusCheckRunning = false;
+                        } else {
+                            std::lock_guard<std::mutex> lock(gitStatusMutex);
+                            isGitStatusCheckRunning = false;
+                        }
+                    });
+                    statusThread.detach();
+                }
                 
                 statusSymbols = cachedStatusSymbols;
                 isCleanRepo = cachedIsCleanRepo;
@@ -229,78 +310,335 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
                 }
             }
             
-            if (processedCommand.compare(0, 3, "cd ") == 0) {
-                std::string cdCommand = processedCommand;
-                std::string subsequentCommand;
-                
-                size_t andPos = processedCommand.find("&&");
-                if (andPos != std::string::npos) {
-                    cdCommand = processedCommand.substr(0, andPos);
-                    subsequentCommand = processedCommand.substr(andPos + 2);
-                    cdCommand = cdCommand.substr(0, cdCommand.find_last_not_of(" \t") + 1);
-                    subsequentCommand = subsequentCommand.substr(subsequentCommand.find_first_not_of(" \t"));
-                }
-                
-                std::string newDir = cdCommand.substr(3);
-                bool cdSuccess = true;
-                
-                if (newDir == "/") {
-                    currentDirectory = "/";
-                } else if (newDir == "..") {
-                    std::filesystem::path dir = std::filesystem::path(currentDirectory).parent_path();
-                    if (std::filesystem::exists(dir) && std::filesystem::is_directory(dir)) {
-                        currentDirectory = dir.string();
-                    } else {
-                        result = "Cannot go up from root directory";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    }
-                } else {
-                    std::filesystem::path dir = std::filesystem::path(currentDirectory) / newDir;
-                    if (!std::filesystem::exists(dir)) {
-                        result = "cd: " + newDir + ": No such file or directory";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    } else if (!std::filesystem::is_directory(dir)) {
-                        result = "cd: " + newDir + ": Not a directory";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    } else if ((std::filesystem::status(dir).permissions() & std::filesystem::perms::owner_exec) == std::filesystem::perms::none) {
-                        result = "cd: " + newDir + ": Permission denied";
-                        std::cerr << result << std::endl;
-                        terminalCacheTerminalOutput.push_back(result);
-                        cdSuccess = false;
-                    } else {
-                        currentDirectory = std::filesystem::canonical(dir).string();
-                    }
-                }
-                
-                if (cdSuccess) {
-                    result = "Changed directory to: " + currentDirectory;
-                    
-                    if (!subsequentCommand.empty()) {
-                        int cmdResult = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + subsequentCommand + " 2>&1\"").c_str());
-                        if (cmdResult != 0) {
-                            result += "\nError executing subsequent command: '" + subsequentCommand + "'";
-                        }
-                    }
-                }
-            } else {
-                result = std::system((getTerminalName() + " -c \"cd " + currentDirectory + " && " + processedCommand + " 2>&1\"").c_str());
-                if(result != "0"){
-                    result = "Error executing command: '" + processedCommand + "'";
-                }
-                terminalCacheTerminalOutput.push_back(result);
-            }
+            parseAndExecuteCommand(processedCommand, result);
+            terminalCacheTerminalOutput.push_back(result);
+            
         } catch (const std::exception& e) {
             std::string errorMsg = "Error executing command: '" + command + "' " + e.what();
             std::cerr << errorMsg << std::endl;
             terminalCacheTerminalOutput.push_back(std::move(errorMsg));
         }
     });
+}
+
+void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std::string& result) {
+    std::istringstream iss(command);
+    std::string cmd;
+    iss >> cmd;
+    
+    if (cmd == "cd") {
+        std::string dir;
+        std::getline(iss >> std::ws, dir);
+        changeDirectory(dir, result);
+    } 
+    else if (cmd == "jobs") {
+        std::stringstream jobOutput;
+        updateJobStatus();
+        
+        if (jobs.empty()) {
+            jobOutput << "No active jobs";
+        } else {
+            for (size_t i = 0; i < jobs.size(); i++) {
+                const auto& job = jobs[i];
+                jobOutput << "[" << (i+1) << "] " 
+                          << (job.foreground ? "Running " : "Stopped ")
+                          << job.command << " (PID: " << job.pid << ")\n";
+            }
+        }
+        result = jobOutput.str();
+    }
+    else if (cmd == "fg") {
+        int jobId = 0;
+        iss >> jobId;
+        if (jobId <= 0) jobId = 1;
+        
+        if (bringJobToForeground(jobId)) {
+            result = "Job brought to foreground";
+        } else {
+            result = "No such job";
+        }
+    }
+    else if (cmd == "bg") {
+        int jobId = 0;
+        iss >> jobId;
+        if (jobId <= 0) jobId = 1;
+        
+        if (sendJobToBackground(jobId)) {
+            result = "Job sent to background";
+        } else {
+            result = "No such job";
+        }
+    }
+    else if (cmd == "kill") {
+        int jobId = 0;
+        iss >> jobId;
+        
+        if (killJob(jobId)) {
+            result = "Job killed";
+        } else {
+            result = "No such job";
+        }
+    }
+    else {
+        bool background = false;
+        
+        std::string fullCommand = command;
+        if (!fullCommand.empty() && fullCommand.back() == '&') {
+            background = true;
+            fullCommand.pop_back();
+
+            size_t lastNonSpace = fullCommand.find_last_not_of(" \t");
+            if (lastNonSpace != std::string::npos) {
+                fullCommand = fullCommand.substr(0, lastNonSpace + 1);
+            }
+        }
+        
+        if (background) {
+            pid_t pid = executeChildProcess(fullCommand, false);
+            jobs.push_back(Job(pid, fullCommand, false));
+            result = "Started background process [" + std::to_string(jobs.size()) + "] (PID: " + std::to_string(pid) + ")";
+        } else {
+            pid_t pid = executeChildProcess(fullCommand, true);
+            
+            updateJobStatus();
+            result = "Command completed";
+        }
+    }
+}
+
+pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool foreground) {
+    pid_t pid = fork();
+    
+    if (pid == -1) {
+        throw std::runtime_error("Failed to fork process");
+    }
+    else if (pid == 0) {
+        signal(SIGTTOU, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+        
+        pid_t childPid = getpid();
+        setpgid(childPid, childPid);
+
+        if (foreground) {
+            tcsetpgrp(STDIN_FILENO, childPid);
+        }
+
+        if (!foreground) {
+            setsid();
+        }
+
+        chdir(currentDirectory.c_str());
+        
+        std::vector<std::string> args = parseCommandIntoArgs(command);
+        if (!args.empty()) {
+            std::vector<char*> argv;
+            for (auto& arg : args) {
+                argv.push_back(arg.data());
+            }
+            argv.push_back(nullptr);
+            
+            std::string executable = findExecutableInPath(args[0]);
+            if (!executable.empty()) {
+                execvp(executable.c_str(), argv.data());
+            }
+        }
+        
+        std::cerr << "dtt: command not found: " << args[0] << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    setpgid(pid, pid);
+    
+    if (foreground) {
+        tcsetpgrp(STDIN_FILENO, pid);
+        
+        waitForForegroundJob(pid);
+        
+        tcsetpgrp(STDIN_FILENO, getpgid(0));
+    }
+    
+    return pid;
+}
+
+bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& result) {
+    std::string targetDir = dir;
+    
+    if (targetDir.empty() || targetDir == "~") {
+        const char* homeDir = getenv("HOME");
+        if (homeDir) {
+            targetDir = homeDir;
+        } else {
+            result = "Could not determine home directory";
+            return false;
+        }
+    }
+    
+    if (targetDir == "/") {
+        currentDirectory = "/";
+    } else if (targetDir == "..") {
+        std::filesystem::path dirPath = std::filesystem::path(currentDirectory).parent_path();
+        if (std::filesystem::exists(dirPath) && std::filesystem::is_directory(dirPath)) {
+            currentDirectory = dirPath.string();
+        } else {
+            result = "Cannot go up from root directory";
+            return false;
+        }
+    } else {
+        std::filesystem::path dirPath;
+        
+        if (targetDir[0] == '/') {
+            dirPath = targetDir;
+        } else {
+            dirPath = std::filesystem::path(currentDirectory) / targetDir;
+        }
+        
+        if (!std::filesystem::exists(dirPath)) {
+            result = "cd: " + targetDir + ": No such file or directory";
+            return false;
+        }
+        
+        if (!std::filesystem::is_directory(dirPath)) {
+            result = "cd: " + targetDir + ": Not a directory";
+            return false;
+        }
+        
+        try {
+            currentDirectory = std::filesystem::canonical(dirPath).string();
+        } catch (const std::filesystem::filesystem_error& e) {
+            result = "cd: " + targetDir + ": " + e.what();
+            return false;
+        }
+    }
+    
+    if (chdir(currentDirectory.c_str()) != 0) {
+        std::string errorMsg = "cd: " + std::string(strerror(errno));
+        result = errorMsg;
+        return false;
+    }
+    
+    result = "Changed directory to: " + currentDirectory;
+    return true;
+}
+
+void TerminalPassthrough::waitForForegroundJob(pid_t pid) {
+    struct termios term_settings;
+    tcgetattr(STDIN_FILENO, &term_settings);
+    
+    int status;
+    waitpid(pid, &status, WUNTRACED);
+    
+    if (WIFSTOPPED(status)) {
+        for (auto& job : jobs) {
+            if (job.pid == pid) {
+                job.foreground = false;
+                job.status = status;
+                
+                tcsetpgrp(STDIN_FILENO, getpgid(0));
+                return;
+            }
+        }
+        
+        jobs.push_back(Job(pid, "Unknown command", false));
+        jobs.back().status = status;
+    }
+    
+    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
+}
+
+void TerminalPassthrough::updateJobStatus() {
+    for (auto it = jobs.begin(); it != jobs.end(); ) {
+        int status;
+        pid_t result = waitpid(it->pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+        
+        if (result == 0) {
+            ++it;
+        } else if (result == it->pid) {
+            if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                it = jobs.erase(it);
+            } else {
+                it->status = status;
+                it->foreground = false;
+                ++it;
+            }
+        } else {
+            it = jobs.erase(it);
+        }
+    }
+}
+
+void TerminalPassthrough::listJobs() {
+    updateJobStatus();
+    
+    if (jobs.empty()) {
+        std::cout << "No active jobs" << std::endl;
+        return;
+    }
+    
+    for (size_t i = 0; i < jobs.size(); i++) {
+        const auto& job = jobs[i];
+        std::cout << "[" << (i+1) << "] " 
+                  << (WIFSTOPPED(job.status) ? "Stopped " : "Running ")
+                  << job.command << " (PID: " << job.pid << ")" << std::endl;
+    }
+}
+
+bool TerminalPassthrough::bringJobToForeground(int jobId) {
+    updateJobStatus();
+    
+    if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
+        return false;
+    }
+    
+    struct termios term_settings;
+    tcgetattr(STDIN_FILENO, &term_settings);
+    
+    Job& job = jobs[jobId - 1];
+    job.foreground = true;
+    
+    if (WIFSTOPPED(job.status)) {
+        kill(-job.pid, SIGCONT);
+    }
+    
+    tcsetpgrp(STDIN_FILENO, job.pid);
+    
+    waitForForegroundJob(job.pid);
+    
+    tcsetpgrp(STDIN_FILENO, getpgid(0));
+    
+    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
+    
+    return true;
+}
+
+bool TerminalPassthrough::sendJobToBackground(int jobId) {
+    updateJobStatus();
+    
+    if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
+        return false;
+    }
+    
+    Job& job = jobs[jobId - 1];
+    job.foreground = false;
+    
+    if (WIFSTOPPED(job.status)) {
+        kill(-job.pid, SIGCONT);
+    }
+    
+    return true;
+}
+
+bool TerminalPassthrough::killJob(int jobId) {
+    updateJobStatus();
+    
+    if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
+        return false;
+    }
+    
+    Job& job = jobs[jobId - 1];
+    
+    kill(-job.pid, SIGTERM);
+    
+    return true;
 }
 
 void TerminalPassthrough::toggleDisplayWholePath(){
@@ -430,5 +768,88 @@ std::vector<std::string> TerminalPassthrough::getCommandHistory(size_t count) {
     }
     
     return recentCommands;
+}
+
+void TerminalPassthrough::terminateAllChildProcesses() {
+    std::lock_guard<std::mutex> lock(jobsMutex);
+    for (const auto& job : jobs) {
+        kill(-job.pid, SIGKILL);
+    }
+    jobs.clear();
+    
+    system("pkill -P $$ 2>/dev/null || true");
+}
+
+std::vector<std::string> TerminalPassthrough::parseCommandIntoArgs(const std::string& command) {
+    std::vector<std::string> args;
+    std::istringstream iss(command);
+    std::string arg;
+    bool inQuotes = false;
+    char quoteChar = 0;
+    std::string currentArg;
+    
+    for (size_t i = 0; i < command.length(); i++) {
+        char c = command[i];
+        
+        if ((c == '"' || c == '\'') && (i == 0 || command[i-1] != '\\')) {
+            if (!inQuotes) {
+                inQuotes = true;
+                quoteChar = c;
+            } else if (c == quoteChar) {
+                inQuotes = false;
+                quoteChar = 0;
+            } else {
+                currentArg += c;
+            }
+        } else if ((c == ' ' || c == '\t') && !inQuotes) {
+            if (!currentArg.empty()) {
+                args.push_back(currentArg);
+                currentArg.clear();
+            }
+        } else {
+            currentArg += c;
+        }
+    }
+    
+    if (!currentArg.empty()) {
+        args.push_back(currentArg);
+    }
+    
+    return args;
+}
+
+std::string TerminalPassthrough::findExecutableInPath(const std::string& command) {
+    if (command[0] == '/' || command[0] == '.') {
+        if (access(command.c_str(), X_OK) == 0) {
+            return command;
+        }
+        return "";
+    }
+    
+    const char* pathEnv = getenv("PATH");
+    if (!pathEnv) return "";
+    
+    std::string path(pathEnv);
+    std::string delimiter = ":";
+    size_t pos = 0;
+    std::string token;
+    
+    while ((pos = path.find(delimiter)) != std::string::npos) {
+        token = path.substr(0, pos);
+        std::string candidatePath = token + "/" + command;
+        
+        if (access(candidatePath.c_str(), X_OK) == 0) {
+            return candidatePath;
+        }
+        
+        path.erase(0, pos + delimiter.length());
+    }
+    
+    std::string candidatePath = path + "/" + command;
+    if (access(candidatePath.c_str(), X_OK) == 0) {
+        return candidatePath;
+    }
+    
+    return "";
 }
 
