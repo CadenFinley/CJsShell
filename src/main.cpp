@@ -25,7 +25,7 @@
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "1.9.0.3";
+const std::string currentVersion = "1.9.0.4";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 

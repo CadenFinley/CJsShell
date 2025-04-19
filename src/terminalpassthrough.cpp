@@ -322,46 +322,104 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
 }
 
 void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std::string& result) {
-    // Split the command by "&&" and execute each part sequentially
-    std::string remainingCommand = command;
-    bool success = true;
-    std::string commandResults;
+
+    std::vector<std::string> semicolonCommands;
+    std::string tempCmd = command;
     
-    while (!remainingCommand.empty() && success) {
-        size_t andPos = remainingCommand.find("&&");
-        std::string currentCommand;
+    bool inQuotes = false;
+    char quoteChar = 0;
+    std::string currentCommand;
+    
+    for (size_t i = 0; i < tempCmd.length(); i++) {
+        char c = tempCmd[i];
         
-        if (andPos != std::string::npos) {
-            currentCommand = remainingCommand.substr(0, andPos);
-            // Trim whitespace
-            size_t lastNonSpace = currentCommand.find_last_not_of(" \t");
-            if (lastNonSpace != std::string::npos) {
-                currentCommand = currentCommand.substr(0, lastNonSpace + 1);
-            }
-            remainingCommand = remainingCommand.substr(andPos + 2);
-            // Trim leading whitespace from remaining command
-            size_t firstNonSpace = remainingCommand.find_first_not_of(" \t");
-            if (firstNonSpace != std::string::npos) {
-                remainingCommand = remainingCommand.substr(firstNonSpace);
+        if ((c == '"' || c == '\'') && (i == 0 || tempCmd[i-1] != '\\')) {
+            if (!inQuotes) {
+                inQuotes = true;
+                quoteChar = c;
+                currentCommand += c;
+            } else if (c == quoteChar) {
+                inQuotes = false;
+                quoteChar = 0;
+                currentCommand += c;
             } else {
-                remainingCommand.clear();
+                currentCommand += c;
+            }
+        }
+        else if (c == ';' && !inQuotes) {
+            if (!currentCommand.empty()) {
+                size_t lastNonSpace = currentCommand.find_last_not_of(" \t");
+                if (lastNonSpace != std::string::npos) {
+                    currentCommand = currentCommand.substr(0, lastNonSpace + 1);
+                }
+                semicolonCommands.push_back(currentCommand);
+                currentCommand.clear();
             }
         } else {
-            currentCommand = remainingCommand;
-            remainingCommand.clear();
+            currentCommand += c;
         }
+    }
+
+    if (!currentCommand.empty()) {
+        size_t lastNonSpace = currentCommand.find_last_not_of(" \t");
+        if (lastNonSpace != std::string::npos) {
+            currentCommand = currentCommand.substr(0, lastNonSpace + 1);
+        }
+        semicolonCommands.push_back(currentCommand);
+    }
+
+    if (semicolonCommands.empty()) {
+        semicolonCommands.push_back(tempCmd);
+    }
+    
+    std::string commandResults;
+    bool overall_success = true;
+    
+    for (const auto& semicolonCmd : semicolonCommands) {
+        std::string remainingCommand = semicolonCmd;
+        bool success = true;
+        std::string partialResults;
         
-        std::string partialResult;
-        success = executeIndividualCommand(currentCommand, partialResult);
+        while (!remainingCommand.empty() && success) {
+            size_t andPos = remainingCommand.find("&&");
+            std::string currentCmd;
+            
+            if (andPos != std::string::npos) {
+                currentCmd = remainingCommand.substr(0, andPos);
+                size_t lastNonSpace = currentCmd.find_last_not_of(" \t");
+                if (lastNonSpace != std::string::npos) {
+                    currentCmd = currentCmd.substr(0, lastNonSpace + 1);
+                }
+                remainingCommand = remainingCommand.substr(andPos + 2);
+                size_t firstNonSpace = remainingCommand.find_first_not_of(" \t");
+                if (firstNonSpace != std::string::npos) {
+                    remainingCommand = remainingCommand.substr(firstNonSpace);
+                } else {
+                    remainingCommand.clear();
+                }
+            } else {
+                currentCmd = remainingCommand;
+                remainingCommand.clear();
+            }
+            
+            std::string singleCmdResult;
+            success = executeIndividualCommand(currentCmd, singleCmdResult);
+            
+            if (!partialResults.empty()) {
+                partialResults += "\n";
+            }
+            partialResults += singleCmdResult;
+            
+            if (!success) {
+                overall_success = false;
+                break;
+            }
+        }
         
         if (!commandResults.empty()) {
             commandResults += "\n";
         }
-        commandResults += partialResult;
-        
-        if (!success) {
-            break;
-        }
+        commandResults += partialResults;
     }
     
     result = commandResults;
