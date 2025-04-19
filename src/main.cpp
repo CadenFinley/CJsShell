@@ -1368,7 +1368,7 @@ void commandProcesser(const std::string& command) {
         std::cin >> confirmation;
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         
-        if (confirmation == 'y' || 'Y') {
+        if (confirmation == 'y' || confirmation == 'Y') {
             if(!std::filesystem::exists(UNINSTALL_SCRIPT_PATH)){
                 std::cerr << "Uninstall script not found." << std::endl;
                 return;
@@ -1382,7 +1382,7 @@ void commandProcesser(const std::string& command) {
                 uninstallCommand += " --all";
             }
             std::cout << "Running uninstall script..." << std::endl;
-            sendTerminalCommand(UNINSTALL_SCRIPT_PATH);
+            sendTerminalCommand(uninstallCommand);
             exitFlag = true;
         } else {
             std::cout << "Uninstall cancelled." << std::endl;

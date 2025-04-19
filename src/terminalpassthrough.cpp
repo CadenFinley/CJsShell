@@ -335,6 +335,7 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
         std::stringstream jobOutput;
         updateJobStatus();
         
+        std::lock_guard<std::mutex> lock(jobsMutex);
         if (jobs.empty()) {
             jobOutput << "No active jobs";
         } else {
@@ -395,8 +396,11 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
         
         if (background) {
             pid_t pid = executeChildProcess(fullCommand, false);
-            jobs.push_back(Job(pid, fullCommand, false));
-            result = "Started background process [" + std::to_string(jobs.size()) + "] (PID: " + std::to_string(pid) + ")";
+            {
+                std::lock_guard<std::mutex> lock(jobsMutex);
+                jobs.push_back(Job(pid, fullCommand, false));
+                result = "Started background process [" + std::to_string(jobs.size()) + "] (PID: " + std::to_string(pid) + ")";
+            }
         } else {
             pid_t pid = executeChildProcess(fullCommand, true);
             
@@ -546,6 +550,7 @@ void TerminalPassthrough::waitForForegroundJob(pid_t pid) {
 }
 
 void TerminalPassthrough::updateJobStatus() {
+    std::lock_guard<std::mutex> lock(jobsMutex);
     for (auto it = jobs.begin(); it != jobs.end(); ) {
         int status;
         pid_t result = waitpid(it->pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
@@ -569,6 +574,7 @@ void TerminalPassthrough::updateJobStatus() {
 void TerminalPassthrough::listJobs() {
     updateJobStatus();
     
+    std::lock_guard<std::mutex> lock(jobsMutex);
     if (jobs.empty()) {
         std::cout << "No active jobs" << std::endl;
         return;
@@ -585,6 +591,7 @@ void TerminalPassthrough::listJobs() {
 bool TerminalPassthrough::bringJobToForeground(int jobId) {
     updateJobStatus();
     
+    std::lock_guard<std::mutex> lock(jobsMutex);
     if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
         return false;
     }
@@ -613,6 +620,7 @@ bool TerminalPassthrough::bringJobToForeground(int jobId) {
 bool TerminalPassthrough::sendJobToBackground(int jobId) {
     updateJobStatus();
     
+    std::lock_guard<std::mutex> lock(jobsMutex);
     if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
         return false;
     }
@@ -630,6 +638,7 @@ bool TerminalPassthrough::sendJobToBackground(int jobId) {
 bool TerminalPassthrough::killJob(int jobId) {
     updateJobStatus();
     
+    std::lock_guard<std::mutex> lock(jobsMutex);
     if (jobId <= 0 || jobId > static_cast<int>(jobs.size())) {
         return false;
     }
@@ -776,8 +785,6 @@ void TerminalPassthrough::terminateAllChildProcesses() {
         kill(-job.pid, SIGKILL);
     }
     jobs.clear();
-    
-    system("pkill -P $$ 2>/dev/null || true");
 }
 
 std::vector<std::string> TerminalPassthrough::parseCommandIntoArgs(const std::string& command) {

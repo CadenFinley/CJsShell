@@ -105,7 +105,7 @@ private:
 
     std::mutex gitStatusMutex;
     std::mutex jobsMutex;
-    bool isGitStatusCheckRunning;
+    std::atomic<bool> isGitStatusCheckRunning{false};
     std::atomic<bool> shouldTerminate;
 
     std::string getCurrentFileName();
