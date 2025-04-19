@@ -42,19 +42,32 @@ fi
 # Extract download URL for the appropriate platform
 if [[ "$(uname)" == "Darwin" ]]; then
     # macOS
-    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/.*/DevToolsTerminal-macos" | head -n 1)
+    PLATFORM_PATTERN="macos"
 elif [[ "$(uname)" == "Linux" ]]; then
     # Linux
-    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/.*/DevToolsTerminal-linux" | head -n 1)
+    PLATFORM_PATTERN="linux"
 else
     echo "Error: Unsupported operating system. This updater supports macOS and Linux only."
     exit 1
 fi
 
+# Try to use jq if available, otherwise fall back to grep/sed
+if command -v jq &> /dev/null; then
+    echo "Using jq to parse release information..."
+    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r ".assets[] | select(.name | contains(\"$PLATFORM_PATTERN\")) | .browser_download_url" | head -n 1)
+else
+    echo "Using grep to parse release information..."
+    # More robust pattern matching
+    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "\"browser_download_url\":\"[^\"]*$PLATFORM_PATTERN[^\"]*\"" | sed -E 's/"browser_download_url":"([^"]+)"/\1/' | head -n 1)
+fi
+
 if [ -z "$DOWNLOAD_URL" ]; then
-    echo "Error: Could not find download URL for your platform in the latest release."
+    echo "Error: Could not find download URL for your platform ($PLATFORM_PATTERN) in the latest release."
     exit 1
 fi
+
+BINARY_NAME=$(basename "$DOWNLOAD_URL")
+echo "Found download URL: $DOWNLOAD_URL"
 
 # Download the binary to temp location
 echo "Downloading latest DevToolsTerminal binary..."
