@@ -21,18 +21,6 @@ for arg in "$@"; do
     esac
 done
 
-echo "DevToolsTerminal Uninstaller"
-echo "----------------------------"
-echo "This will uninstall DevToolsTerminal and remove all associated configurations."
-echo "Note: This script requires sudo privileges for some operations."
-echo "If you're not running with sudo, you may need to enter your password."
-
-# Check sudo access
-if ! sudo -n true 2>/dev/null; then
-    echo "Sudo access will be required during uninstallation."
-    echo "You may be prompted for your password later."
-fi
-
 # Get current user info for shell restoration
 CURRENT_USER=$(whoami)
 USER_ENTRY=$(dscl . -read /Users/$CURRENT_USER UserShell 2>/dev/null)
@@ -86,6 +74,18 @@ else
             fi
         done
     fi
+fi
+
+echo "DevToolsTerminal Uninstaller"
+echo "----------------------------"
+echo "This will uninstall DevToolsTerminal and remove all associated configurations."
+echo "Note: This script requires sudo privileges for some operations."
+echo "If you're not running with sudo, you may need to enter your password."
+
+# Check sudo access
+if ! sudo -n true 2>/dev/null; then
+    echo "Sudo access will be required during uninstallation."
+    echo "You may be prompted for your password later."
 fi
 
 # Remove from /etc/shells
