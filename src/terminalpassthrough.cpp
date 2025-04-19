@@ -322,6 +322,52 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
 }
 
 void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std::string& result) {
+    // Split the command by "&&" and execute each part sequentially
+    std::string remainingCommand = command;
+    bool success = true;
+    std::string commandResults;
+    
+    while (!remainingCommand.empty() && success) {
+        size_t andPos = remainingCommand.find("&&");
+        std::string currentCommand;
+        
+        if (andPos != std::string::npos) {
+            currentCommand = remainingCommand.substr(0, andPos);
+            // Trim whitespace
+            size_t lastNonSpace = currentCommand.find_last_not_of(" \t");
+            if (lastNonSpace != std::string::npos) {
+                currentCommand = currentCommand.substr(0, lastNonSpace + 1);
+            }
+            remainingCommand = remainingCommand.substr(andPos + 2);
+            // Trim leading whitespace from remaining command
+            size_t firstNonSpace = remainingCommand.find_first_not_of(" \t");
+            if (firstNonSpace != std::string::npos) {
+                remainingCommand = remainingCommand.substr(firstNonSpace);
+            } else {
+                remainingCommand.clear();
+            }
+        } else {
+            currentCommand = remainingCommand;
+            remainingCommand.clear();
+        }
+        
+        std::string partialResult;
+        success = executeIndividualCommand(currentCommand, partialResult);
+        
+        if (!commandResults.empty()) {
+            commandResults += "\n";
+        }
+        commandResults += partialResult;
+        
+        if (!success) {
+            break;
+        }
+    }
+    
+    result = commandResults;
+}
+
+bool TerminalPassthrough::executeIndividualCommand(const std::string& command, std::string& result) {
     std::istringstream iss(command);
     std::string cmd;
     iss >> cmd;
@@ -329,7 +375,7 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
     if (cmd == "cd") {
         std::string dir;
         std::getline(iss >> std::ws, dir);
-        changeDirectory(dir, result);
+        return changeDirectory(dir, result);
     } 
     else if (cmd == "jobs") {
         std::stringstream jobOutput;
@@ -347,6 +393,7 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
             }
         }
         result = jobOutput.str();
+        return true;
     }
     else if (cmd == "fg") {
         int jobId = 0;
@@ -355,8 +402,10 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
         
         if (bringJobToForeground(jobId)) {
             result = "Job brought to foreground";
+            return true;
         } else {
             result = "No such job";
+            return false;
         }
     }
     else if (cmd == "bg") {
@@ -366,8 +415,10 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
         
         if (sendJobToBackground(jobId)) {
             result = "Job sent to background";
+            return true;
         } else {
             result = "No such job";
+            return false;
         }
     }
     else if (cmd == "kill") {
@@ -376,8 +427,10 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
         
         if (killJob(jobId)) {
             result = "Job killed";
+            return true;
         } else {
             result = "No such job";
+            return false;
         }
     }
     else {
@@ -401,11 +454,13 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
                 jobs.push_back(Job(pid, fullCommand, false));
                 result = "Started background process [" + std::to_string(jobs.size()) + "] (PID: " + std::to_string(pid) + ")";
             }
+            return true;
         } else {
             pid_t pid = executeChildProcess(fullCommand, true);
             
             updateJobStatus();
             result = "Command completed";
+            return true;
         }
     }
 }
