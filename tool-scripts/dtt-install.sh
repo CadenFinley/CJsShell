@@ -36,7 +36,7 @@ fi
 # Fetch the latest release from GitHub
 echo "Fetching latest release information..."
 RELEASE_JSON=$(curl -s "$GITHUB_API_URL")
-if [ $? -ne 0 ]; then
+if [ $? -ne 0; then
     echo "Error: Failed to fetch release information from GitHub."
     exit 1
 fi
@@ -44,10 +44,12 @@ fi
 # Extract download URL for the appropriate platform
 if [[ "$(uname)" == "Darwin" ]]; then
     # macOS
-    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/.*/DevToolsTerminal-macos" | head -n 1)
+    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/[^\"]*DevToolsTerminal-macos[^\"]*" | head -n 1)
+    BINARY_NAME=$(basename "$DOWNLOAD_URL")
 elif [[ "$(uname)" == "Linux" ]]; then
     # Linux
-    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/.*/DevToolsTerminal-linux" | head -n 1)
+    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/[^\"]*DevToolsTerminal-linux[^\"]*" | head -n 1)
+    BINARY_NAME=$(basename "$DOWNLOAD_URL")
 else
     echo "Error: Unsupported operating system. This installer supports macOS and Linux only."
     exit 1
@@ -58,21 +60,21 @@ if [ -z "$DOWNLOAD_URL" ]; then
     exit 1
 fi
 
-# Download the binary
-echo "Downloading DevToolsTerminal binary..."
-curl -L "$DOWNLOAD_URL" -o "$DATA_DIR/$APP_NAME"
-if [ $? -ne 0 ]; then
+# Download the binary with the correct filename
+echo "Downloading DevToolsTerminal binary ($BINARY_NAME)..."
+curl -L "$DOWNLOAD_URL" -o "$DATA_DIR/$BINARY_NAME"
+if [ $? -ne 0; then
     echo "Error: Failed to download DevToolsTerminal binary."
     exit 1
 fi
 
 # Make it executable
-chmod +x "$DATA_DIR/$APP_NAME"
+chmod +x "$DATA_DIR/$BINARY_NAME"
 
 # Install to system path (requires sudo)
 echo "Installing DevToolsTerminal to $APP_PATH (requires sudo)..."
-sudo cp "$DATA_DIR/$APP_NAME" "$APP_PATH"
-if [ $? -ne 0 ]; then
+sudo cp "$DATA_DIR/$BINARY_NAME" "$APP_PATH"
+if [ $? -ne 0; then
     echo "Error: Failed to install DevToolsTerminal to $APP_PATH. Please check your permissions."
     exit 1
 fi
@@ -80,7 +82,7 @@ fi
 # Download uninstall script
 echo "Downloading uninstall script..."
 curl -L "$UNINSTALL_SCRIPT_URL" -o "$DATA_DIR/dtt-uninstall.sh"
-if [ $? -ne 0 ]; then
+if [ $? -ne 0; then
     echo "Warning: Failed to download uninstall script."
 else
     chmod +x "$DATA_DIR/dtt-uninstall.sh"
@@ -89,7 +91,7 @@ fi
 # Download update script
 echo "Downloading update script..."
 curl -L "$UPDATE_SCRIPT_URL" -o "$DATA_DIR/dtt-update.sh"
-if [ $? -ne 0 ]; then
+if [ $? -ne 0; then
     echo "Warning: Failed to download update script."
 else
     chmod +x "$DATA_DIR/dtt-update.sh"
@@ -99,7 +101,7 @@ fi
 if ! grep -q "^$APP_PATH$" "$SHELLS_FILE"; then
     echo "Adding DevToolsTerminal to $SHELLS_FILE (requires sudo)..."
     echo "$APP_PATH" | sudo tee -a "$SHELLS_FILE" > /dev/null
-    if [ $? -ne 0 ]; then
+    if [ $? -ne 0; then
         echo "Warning: Failed to add DevToolsTerminal to $SHELLS_FILE. You may need to do this manually."
     fi
 fi
