@@ -133,6 +133,14 @@ ThemeManager* themeManager = nullptr;
 std::mutex rawModeMutex;
 
 //------------------------------------------------------------------------------
+// Job Control Variables
+//------------------------------------------------------------------------------
+pid_t shell_pgid = 0;
+struct termios shell_tmodes;
+int shell_terminal;
+bool jobControlEnabled = false;
+
+//------------------------------------------------------------------------------
 // Forward Declarations
 //------------------------------------------------------------------------------
 std::vector<std::string> getTabCompletions(const std::string& input);
@@ -204,14 +212,6 @@ void setUpdateInterval(int intervalHours);
 bool shouldCheckForUpdates();
 bool loadUpdateCache();
 void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
-
-bool isRunningAsLoginShell(char* argv0) {
-    if (argv0 && argv0[0] == '-') {
-        return true;
-    }
-    return false;
-}
-
 void setupEnvironmentVariables();
 void initializeLoginEnvironment();
 void setupSignalHandlers();
@@ -220,19 +220,19 @@ void handleLoginSession();
 void setupJobControl();
 void resetTerminalOnExit();
 void processProfileFile(const std::string& filePath);
-
 void handleSIGHUP(int sig);
 void handleSIGTERM(int sig);
 void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
 
-pid_t shell_pgid = 0;
-struct termios shell_tmodes;
-int shell_terminal;
-bool jobControlEnabled = false;
+bool isRunningAsLoginShell(char* argv0) {
+    if (argv0 && argv0[0] == '-') {
+        return true;
+    }
+    return false;
+}
 
 void setupLoginShell() {
-    std::cout << "Setting up login shell environment..." << std::endl;
     
     initializeLoginEnvironment();
     
@@ -310,7 +310,7 @@ void processProfileFile(const std::string& filePath) {
         return;
     }
     
-    std::cout << "Processing profile: " << filePath << std::endl;
+    //std::cout << "Processing profile: " << filePath << std::endl;
     std::ifstream file(filePath);
     if (!file) {
         return;
@@ -497,7 +497,7 @@ int main(int argc, char* argv[]) {
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
-        std::cout << "Running startup commands..." << std::endl;
+        //std::cout << "Running startup commands..." << std::endl;
         for (const auto& command : startupCommands) {
             commandParser(commandPrefix + command);
         }
