@@ -411,7 +411,7 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
     
     if (pid == -1) {
         throw std::runtime_error("Failed to fork process");
-    } 
+    }
     else if (pid == 0) {
         signal(SIGTTOU, SIG_IGN);
         signal(SIGTTIN, SIG_IGN);
@@ -458,98 +458,6 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
     }
     
     return pid;
-}
-
-std::string TerminalPassthrough::captureCommandOutput(const std::string& command) {
-    std::array<int, 2> pipe_fd;
-    if (pipe(pipe_fd.data()) == -1) {
-        return "Error: Failed to create pipe";
-    }
-    
-    struct termios term_settings;
-    tcgetattr(STDIN_FILENO, &term_settings);
-    
-    pid_t pid = fork();
-    
-    if (pid == -1) {
-        close(pipe_fd[0]);
-        close(pipe_fd[1]);
-        return "Error: Failed to fork process";
-    } 
-    else if (pid == 0) {
-        signal(SIGTTOU, SIG_IGN);
-        signal(SIGTTIN, SIG_IGN);
-        
-        close(pipe_fd[0]);
-        dup2(pipe_fd[1], STDOUT_FILENO);
-        dup2(pipe_fd[1], STDERR_FILENO);
-        close(pipe_fd[1]);
-        
-        chdir(currentDirectory.c_str());
-        
-        setpgid(0, 0);
-        
-        extern char **environ;
-        
-        dup2(pipe_fd[1], STDOUT_FILENO);
-        dup2(pipe_fd[1], STDERR_FILENO);
-        
-        setpgid(0, 0);
-        
-        execle("/bin/sh", "sh", "-c", command.c_str(), nullptr, environ);
-        
-        std::cerr << "Failed to execute: " << command << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    
-    close(pipe_fd[1]);
-    
-    std::string output;
-    char buffer[4096];
-    ssize_t count;
-    
-    fcntl(pipe_fd[0], F_SETFL, O_NONBLOCK);
-    
-    fd_set read_fds;
-    struct timeval timeout;
-    int ready;
-    
-    while (true) {
-        FD_ZERO(&read_fds);
-        FD_SET(pipe_fd[0], &read_fds);
-        
-        timeout.tv_sec = 1;
-        timeout.tv_usec = 0;
-        
-        ready = select(pipe_fd[0] + 1, &read_fds, nullptr, nullptr, &timeout);
-        
-        if (ready == -1) {
-            if (errno != EINTR) break;
-        } else if (ready == 0) {
-            int status;
-            pid_t result = waitpid(pid, &status, WNOHANG);
-            if (result == pid) {
-                break;
-            }
-        } else {
-            count = read(pipe_fd[0], buffer, sizeof(buffer) - 1);
-            if (count <= 0) {
-                if (errno != EAGAIN && errno != EWOULDBLOCK) break;
-            } else {
-                buffer[count] = '\0';
-                output += buffer;
-            }
-        }
-    }
-    
-    close(pipe_fd[0]);
-    
-    int status;
-    waitpid(pid, &status, 0);
-    
-    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
-    
-    return output;
 }
 
 bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& result) {

@@ -122,7 +122,6 @@ private:
     bool is_standalone_shell;
     
     pid_t executeChildProcess(const std::string& command, bool foreground = true);
-    std::string captureCommandOutput(const std::string& command);
     bool changeDirectory(const std::string& dir, std::string& result);
     void waitForForegroundJob(pid_t pid);
     void updateJobStatus();

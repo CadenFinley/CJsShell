@@ -187,6 +187,7 @@ void handleSIGHUP(int sig);
 void handleSIGTERM(int sig);
 void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
+void parentProcessWatchdog();
 
 bool isRunningAsLoginShell(char* argv0) {
     if (argv0 && argv0[0] == '-') {
@@ -633,6 +634,10 @@ int main(int argc, char* argv[]) {
     execCacheFuture.wait();
     themeFuture.wait();
     if (updateFuture.valid()) updateFuture.wait();
+
+    // Add watchdog thread for parent process after other async tasks
+    std::thread watchdogThread(parentProcessWatchdog);
+    watchdogThread.detach(); // Allow the thread to run independently
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
@@ -3331,6 +3336,15 @@ std::string completeFilePath(const std::string& input) {
         searchPath = basePath;
     } else if (directoryPart[0] == '/') {
         searchPath = directoryPart;
+    } else if (directoryPart[0] == '~' && directoryPart.length() > 1 && directoryPart[1] == '/') {
+        // Handle ~ expansion for home directory
+        std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
+        if (!homeDir.empty()) {
+            directoryPart.replace(0, 1, homeDir);
+            searchPath = directoryPart;
+        } else {
+            searchPath = basePath / directoryPart;
+        }
     } else {
         searchPath = basePath / directoryPart;
     }
@@ -3480,10 +3494,12 @@ void refreshExecutablesCache() {
     
     std::vector<std::thread> scanThreads;
     std::mutex cacheMutex;
+    std::atomic<int> discoveredCount(0);
 
     while (std::getline(pathStream, directory, ':')) {
+        if (directory.empty()) continue;
 
-        scanThreads.emplace_back([directory, &cacheMutex]() {
+        scanThreads.emplace_back([directory, &cacheMutex, &discoveredCount]() {
             try {
                 if (!std::filesystem::exists(directory)) {
                     return;
@@ -3491,13 +3507,22 @@ void refreshExecutablesCache() {
                 
                 std::vector<std::string> localCache;
                 for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-                    if (entry.is_regular_file()) {
-                        std::error_code ec;
-                        auto perms = std::filesystem::status(entry.path(), ec).permissions();
-                        
-                        if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none) {
-                            std::string execName = entry.path().filename().string();
-                            localCache.push_back(execName);
+                    if (entry.is_regular_file() || entry.is_symlink()) {
+                        try {
+                            std::error_code ec;
+                            auto perms = std::filesystem::status(entry.path(), ec).permissions();
+                            
+                            if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
+                                (perms & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
+                                (perms & std::filesystem::perms::others_exec) != std::filesystem::perms::none) {
+                                
+                                std::string execName = entry.path().filename().string();
+                                if (!execName.empty() && execName[0] != '.') {
+                                    localCache.push_back(execName);
+                                }
+                            }
+                        } catch (const std::exception& e) {
+                            continue;
                         }
                     }
                 }
@@ -3506,9 +3531,11 @@ void refreshExecutablesCache() {
                 for (const auto& name : localCache) {
                     if (std::find(executablesCache.begin(), executablesCache.end(), name) == executablesCache.end()) {
                         executablesCache.push_back(name);
+                        discoveredCount++;
                     }
                 }
             } catch (const std::filesystem::filesystem_error& e) {
+            } catch (const std::exception& e) {
             }
         });
     }
@@ -3522,6 +3549,10 @@ void refreshExecutablesCache() {
     std::sort(executablesCache.begin(), executablesCache.end());
     
     executablesCacheInitialized = true;
+    
+    if (TESTING) {
+        std::cout << "Discovered " << discoveredCount << " executable commands." << std::endl;
+    }
     
     saveExecutableCacheToDisk();
 }
@@ -4002,5 +4033,33 @@ void resetTerminalOnExit() {
     
     for (const auto& job : terminal.getActiveJobs()) {
         kill(-job.pid, SIGTERM);
+    }
+}
+
+bool isParentProcessAlive() {
+    pid_t ppid = getppid();
+    return ppid != 1;
+}
+
+void parentProcessWatchdog() {
+    while (!exitFlag) {
+        if (!isParentProcessAlive()) {
+            std::cerr << "Parent process terminated, shutting down..." << std::endl;
+            exitFlag = true;
+            
+            if (pluginManager != nullptr) {
+                delete pluginManager;
+                pluginManager = nullptr;
+            }
+            
+            if (themeManager != nullptr) {
+                delete themeManager;
+                themeManager = nullptr;
+            }
+            
+            terminal.terminateAllChildProcesses();
+            exit(0);
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(10));
     }
 }
