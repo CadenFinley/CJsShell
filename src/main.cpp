@@ -25,7 +25,7 @@
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "1.8.6.5";
+const std::string currentVersion = "1.9.0.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 
@@ -75,6 +75,8 @@ std::string lastUpdated = "N/A";
 
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".DTT-Data";
+std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "dtt-uninstall.sh";
+std::filesystem::path UPDATE_SCRIPT_PATH = DATA_DIRECTORY / "dtt-update.sh";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
 std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
 std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
@@ -153,7 +155,6 @@ void saveTheme(const std::string& themeName);
 void createDefaultTheme();
 void discoverAvailableThemes();
 void applyColorToStrings();
-std::string generateUninstallScript();
 void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
@@ -635,9 +636,8 @@ int main(int argc, char* argv[]) {
     themeFuture.wait();
     if (updateFuture.valid()) updateFuture.wait();
 
-    // Add watchdog thread for parent process after other async tasks
     std::thread watchdogThread(parentProcessWatchdog);
-    watchdogThread.detach(); // Allow the thread to run independently
+    watchdogThread.detach();
 
     if (!startupCommands.empty() && startCommandsOn) {
         runningStartup = true;
@@ -647,10 +647,12 @@ int main(int argc, char* argv[]) {
         runningStartup = false;
     }
 
-    std::cout << titleLine << std::endl;
-    std::cout << createdLine << std::endl;
-
-    mainProcessLoop();
+    if(!exitFlag){
+        std::cout << titleLine << std::endl;
+        std::cout << createdLine << std::endl;
+    
+        mainProcessLoop();
+    }
 
     if(saveOnExit){
         savedChatCache = c_assistant.getChatCache();
@@ -1367,10 +1369,20 @@ void commandProcesser(const std::string& command) {
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         
         if (confirmation == 'y' || 'Y') {
-            std::string uninstallScriptPath = generateUninstallScript();
-            std::string uninstallCommand = "bash \"" + uninstallScriptPath + "\"";
+            if(!std::filesystem::exists(UNINSTALL_SCRIPT_PATH)){
+                std::cerr << "Uninstall script not found." << std::endl;
+                return;
+            }
+            std::cout << "Do you want to remove all user data? (y/n): ";
+            char removeUserData;
+            std::cin >> removeUserData;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::string uninstallCommand = UNINSTALL_SCRIPT_PATH;
+            if (removeUserData == 'y' || removeUserData == 'Y') {
+                uninstallCommand += " --all";
+            }
             std::cout << "Running uninstall script..." << std::endl;
-            system(uninstallCommand.c_str());
+            sendTerminalCommand(UNINSTALL_SCRIPT_PATH);
             exitFlag = true;
         } else {
             std::cout << "Uninstall cancelled." << std::endl;
@@ -2666,93 +2678,16 @@ bool checkForUpdate() {
     return false;
 }
 
-bool downloadLatestRelease_Github() {
-    std::cout << "Downloading latest release from GitHub..." << std::endl;
-    std::string releaseJson;
-    std::string curlCmd = "curl -s " + updateURL_Github;
-    FILE* pipe = popen(curlCmd.c_str(), "r");
-    if(!pipe){
-        std::cerr << "Error: Unable to fetch release information." << std::endl;
-        return false;
-    }
-    char buffer[128];
-    while(fgets(buffer, 128, pipe) != nullptr){
-        releaseJson += buffer;
-    }
-    pclose(pipe);
-    if(releaseJson.empty()){
-        std::cerr << "Error: Empty response when fetching release info." << std::endl;
-        return false;
-    }
-    try {
-        json releaseData = json::parse(releaseJson);
-        if(!releaseData.contains("assets") || !releaseData["assets"].is_array() || releaseData["assets"].empty()){
-            std::cerr << "Error: No assets found in the latest release." << std::endl;
-            return false;
-        }
-        std::string downloadUrl;
-        std::string changeLog;
-        if(releaseData.contains("body")) {
-            changeLog = releaseData["body"].get<std::string>();
-        }
-        #ifdef _WIN32
-        for (const auto& asset : releaseData["assets"]) {
-            if (asset["browser_download_url"].get<std::string>().find(".exe") != std::string::npos) {
-                downloadUrl = asset["browser_download_url"].get<std::string>();
-                break;
-            }
-        }
-        #else
-        downloadUrl = releaseData["assets"][0]["browser_download_url"].get<std::string>();
-        #endif
-
-        if (!std::filesystem::exists(DATA_DIRECTORY)) {
-            std::filesystem::create_directory(DATA_DIRECTORY);
-        }
-        
-        size_t pos = downloadUrl.find_last_of('/');
-        std::string filename = (pos != std::string::npos) ? downloadUrl.substr(pos+1) : "latest_release";
-        std::string downloadPath = (std::filesystem::path(DATA_DIRECTORY) / filename).string();
-        std::string downloadCmd = "curl -L -o \"" + downloadPath + "\" " + downloadUrl;
-        
-        int ret = system(downloadCmd.c_str());
-        if(ret == 0){
-            std::string chmodCmd = "chmod +x \"" + downloadPath + "\"";
-            system(chmodCmd.c_str());
-            std::cout << "Downloaded latest release asset to " << downloadPath << std::endl;
-            std::cout << "Replacing current running program with updated version..." << std::endl;
-            
-            std::string exePath = (std::filesystem::path(DATA_DIRECTORY) / "DevToolsTerminal").string();
-            #ifdef _WIN32
-            exePath += ".exe";
-            #endif
-            
-            if(std::rename(downloadPath.c_str(), exePath.c_str()) != 0){
-                std::cerr << "Error: Failed to rename the downloaded executable." << std::endl;
-                return false;
-            }
-
-            if (!changeLog.empty()) {
-                displayChangeLog(changeLog);
-            }
-            
-            execl(exePath.c_str(), exePath.c_str(), (char*)NULL);
-            std::cerr << "Error: Failed to execute the updated program." << std::endl;
-            return false;
-        } else {
-            std::cerr << "Error: Download command failed." << std::endl;
-            return false;
-        }
-    } catch(std::exception &e) {
-        std::cerr << "Error parsing release JSON: " << e.what() << std::endl;
-        return false;
-    }
-}
-
 bool downloadLatestRelease(){
-    return downloadLatestRelease_Github();
-    std::cerr << "Something went wrong." << std::endl;
-    return false;
+    if(std::filesystem::exists(DATA_DIRECTORY / "dtt-update.sh")){
+        sendTerminalCommand((DATA_DIRECTORY / "dtt-update.sh").string());
+        std::cout << "Update script executed." << std::endl;
+        exitFlag = true;
+        return true;
+    } else {
+        std::cerr << "Error: Update script not found." << std::endl;
+        return false;
+    }
 }
 
 void displayChangeLog(const std::string& changeLog) {
@@ -2837,75 +2772,6 @@ void themeCommands() {
     } else {
         std::cerr << "Unknown theme command. Use 'load' or 'save'." << std::endl;
     }
-}
-
-std::string generateUninstallScript() {
-    std::filesystem::path uninstallPath = DATA_DIRECTORY / "dtt-uninstall.sh";
-    std::ofstream uninstallScript(uninstallPath);
-    
-    if (uninstallScript.is_open()) {
-        uninstallScript << "#!/bin/bash\n\n";
-        uninstallScript << "SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" &> /dev/null && pwd)\"\n";
-        uninstallScript << "HOME_DIR=\"$HOME\"\n";
-        uninstallScript << "DATA_DIR=\"$HOME_DIR/.DTT-Data\"\n";
-        uninstallScript << "APP_NAME=\"DevToolsTerminal\"\n";
-        uninstallScript << "APP_PATH=\"$DATA_DIR/$APP_NAME\"\n";
-        uninstallScript << "ZSHRC_PATH=\"$HOME/.zshrc\"\n\n";
-        
-        uninstallScript << "echo \"DevToolsTerminal Uninstaller\"\n";
-        uninstallScript << "echo \"-------------------------\"\n";
-        uninstallScript << "echo \"This will uninstall DevToolsTerminal and remove it from auto-launch in zsh.\"\n\n";
-        
-        uninstallScript << "if [ ! -f \"$APP_PATH\" ]; then\n";
-        uninstallScript << "    echo \"Error: DevToolsTerminal not found at $APP_PATH\"\n";
-        uninstallScript << "    exit 1\n";
-        uninstallScript << "fi\n\n";
-        
-        uninstallScript << "echo \"Removing DevToolsTerminal executable...\"\n";
-        uninstallScript << "rm -f \"$APP_PATH\"\n\n";
-        
-        uninstallScript << "if [ -f \"$ZSHRC_PATH\" ]; then\n";
-        uninstallScript << "    echo \"Removing auto-launch configuration from .zshrc...\"\n";
-        uninstallScript << "    TEMP_FILE=\"$(mktemp)\"\n\n";
-        
-        uninstallScript << "    sed '/# DevToolsTerminal Auto-Launch/,+3d' \"$ZSHRC_PATH\" > \"$TEMP_FILE\"\n\n";
-        
-        uninstallScript << "    cat \"$TEMP_FILE\" > \"$ZSHRC_PATH\"\n";
-        uninstallScript << "    rm \"$TEMP_FILE\"\n\n";
-        
-        uninstallScript << "    echo \"Auto-launch configuration removed from .zshrc.\"\n";
-        uninstallScript << "else\n";
-        uninstallScript << "    echo \"No .zshrc file found.\"\n";
-        uninstallScript << "fi\n\n";
-        
-        uninstallScript << "echo \"Uninstallation complete!\"\n";
-        uninstallScript << "echo \"Note: Your personal data in $DATA_DIR has not been removed.\"\n";
-        uninstallScript << "read -p \"Would you like to remove all data? (y/n): \" remove_data\n\n";
-        
-        uninstallScript << "if [[ \"$remove_data\" =~ ^[Yy]$ ]]; then\n";
-        uninstallScript << "    echo \"Removing all data from $DATA_DIR...\"\n";
-        uninstallScript << "    rm -rf \"$DATA_DIR\"\n";
-        uninstallScript << "    echo \"All data removed.\"\n";
-        uninstallScript << "else\n";
-        uninstallScript << "    echo \"Data directory preserved. To manually remove it later, run: rm -rf $DATA_DIR\"\n";
-        uninstallScript << "fi\n\n";
-        
-        uninstallScript << "SELF_PATH=\"$(realpath \"$0\")\"\n";
-        uninstallScript << "if [[ \"$SELF_PATH\" != \"$DATA_DIR/uninstall-$APP_NAME.sh\" && \"$SELF_PATH\" != \"$DATA_DIR/dtt-uninstall.sh\" ]]; then\n";
-        uninstallScript << "    echo \"Removing uninstall script...\"\n";
-        uninstallScript << "    rm \"$SELF_PATH\"\n";
-        
-        uninstallScript.close();
-        
-        std::string chmodCmd = "chmod +x " + uninstallPath.string();
-        system(chmodCmd.c_str());
-        
-        std::cout << "Generated uninstall script at " << uninstallPath.string() << std::endl;
-    } else {
-        std::cerr << "Error: Could not create uninstall script." << std::endl;
-    }
-    
-    return uninstallPath.string();
 }
 
 bool startsWithCaseInsensitive(const std::string& str, const std::string& prefix) {

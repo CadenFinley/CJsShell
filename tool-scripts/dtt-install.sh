@@ -4,13 +4,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 HOME_DIR="$HOME"
 DATA_DIR="$HOME_DIR/.DTT-Data"
 APP_NAME="DevToolsTerminal"
-APP_PATH="$DATA_DIR/$APP_NAME"
-ZSHRC_PATH="$HOME/.zshrc"
+INSTALL_PATH="/usr/local/bin"
+APP_PATH="$INSTALL_PATH/$APP_NAME"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest"
+UNINSTALL_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/master/tool-scripts/dtt-uninstall.sh"
+UPDATE_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/master/tool-scripts/dtt-update.sh"
+SET_AS_DEFAULT_SHELL=false
+SHELLS_FILE="/etc/shells"
+
+# Simple argument handling for set-as-shell option
+if [[ "$1" == "-s" || "$1" == "--set-as-shell" ]]; then
+    SET_AS_DEFAULT_SHELL=true
+fi
 
 echo "DevToolsTerminal Installer"
 echo "-------------------------"
-echo "This will install DevToolsTerminal to $DATA_DIR and set it to auto-launch with zsh."
+echo "This will install DevToolsTerminal to $DATA_DIR."
 
 # Create data directory if it doesn't exist
 if [ ! -d "$DATA_DIR" ]; then
@@ -18,126 +27,103 @@ if [ ! -d "$DATA_DIR" ]; then
     mkdir -p "$DATA_DIR"
 fi
 
-# Check for sudo permissions - not needed anymore but kept for compatibility
-check_permissions() {
-    if [ -w "$DATA_DIR" ]; then
-        return 0
-    else
-        return 1
-    fi
-}
+# Check for curl
+if ! command -v curl &> /dev/null; then
+    echo "Error: curl is required but not installed. Please install curl and try again."
+    exit 1
+fi
 
-# Check for latest version
-echo "Checking for latest version..."
-if command -v curl &> /dev/null; then
-    RELEASE_DATA=$(curl -s "$GITHUB_API_URL")
-    UNAME_STR=$(uname)
-    DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -o '"browser_download_url": "[^"]*' | grep -v '.exe' | head -1 | cut -d'"' -f4)
-    LATEST_VERSION=$(echo "$RELEASE_DATA" | grep -o '"tag_name": "[^"]*' | head -1 | cut -d'"' -f4)
-    
-    if [ -n "$DOWNLOAD_URL" ]; then
-        echo "Found latest version: $LATEST_VERSION"
-        echo "Downloading from GitHub: $DOWNLOAD_URL"
-    else
-        echo "Error: Couldn't find download URL on GitHub."
-        exit 1
-    fi
-    
-    # Download to data directory
-    curl -L -o "$APP_PATH" "$DOWNLOAD_URL"
-    
+# Fetch the latest release from GitHub
+echo "Fetching latest release information..."
+RELEASE_JSON=$(curl -s "$GITHUB_API_URL")
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to fetch release information from GitHub."
+    exit 1
+fi
+
+# Extract download URL for the appropriate platform
+if [[ "$(uname)" == "Darwin" ]]; then
+    # macOS
+    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/.*/DevToolsTerminal-macos" | head -n 1)
+elif [[ "$(uname)" == "Linux" ]]; then
+    # Linux
+    DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "https://github.com/cadenfinley/DevToolsTerminal/releases/download/.*/DevToolsTerminal-linux" | head -n 1)
+else
+    echo "Error: Unsupported operating system. This installer supports macOS and Linux only."
+    exit 1
+fi
+
+if [ -z "$DOWNLOAD_URL" ]; then
+    echo "Error: Could not find download URL for your platform in the latest release."
+    exit 1
+fi
+
+# Download the binary
+echo "Downloading DevToolsTerminal binary..."
+curl -L "$DOWNLOAD_URL" -o "$DATA_DIR/$APP_NAME"
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to download DevToolsTerminal binary."
+    exit 1
+fi
+
+# Make it executable
+chmod +x "$DATA_DIR/$APP_NAME"
+
+# Install to system path (requires sudo)
+echo "Installing DevToolsTerminal to $APP_PATH (requires sudo)..."
+sudo cp "$DATA_DIR/$APP_NAME" "$APP_PATH"
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to install DevToolsTerminal to $APP_PATH. Please check your permissions."
+    exit 1
+fi
+
+# Download uninstall script
+echo "Downloading uninstall script..."
+curl -L "$UNINSTALL_SCRIPT_URL" -o "$DATA_DIR/dtt-uninstall.sh"
+if [ $? -ne 0 ]; then
+    echo "Warning: Failed to download uninstall script."
+else
+    chmod +x "$DATA_DIR/dtt-uninstall.sh"
+fi
+
+# Download update script
+echo "Downloading update script..."
+curl -L "$UPDATE_SCRIPT_URL" -o "$DATA_DIR/dtt-update.sh"
+if [ $? -ne 0 ]; then
+    echo "Warning: Failed to download update script."
+else
+    chmod +x "$DATA_DIR/dtt-update.sh"
+fi
+
+# Add to /etc/shells if not already there
+if ! grep -q "^$APP_PATH$" "$SHELLS_FILE"; then
+    echo "Adding DevToolsTerminal to $SHELLS_FILE (requires sudo)..."
+    echo "$APP_PATH" | sudo tee -a "$SHELLS_FILE" > /dev/null
     if [ $? -ne 0 ]; then
-        echo "Error: Failed to download DevToolsTerminal."
-        exit 1
-    fi
-else
-    echo "Error: curl is not installed. Cannot download the application."
-    exit 1
-fi
-
-# Make sure the application is executable
-chmod +x "$APP_PATH"
-
-if [ ! -x "$APP_PATH" ]; then
-    echo "Error: Could not make DevToolsTerminal executable."
-    exit 1
-fi
-
-echo "Application path: $APP_PATH"
-
-# Check if .zshrc exists
-if [ ! -f "$ZSHRC_PATH" ]; then
-    echo "Creating new .zshrc file..."
-    touch "$ZSHRC_PATH"
-fi
-
-# Check if the auto-start entry already exists
-if grep -q "# DevToolsTerminal Auto-Launch" "$ZSHRC_PATH"; then
-    # Update the existing path in case it has changed
-    sed -i.bak "s|\".*DevToolsTerminal\"|\"$APP_PATH\"|g" "$ZSHRC_PATH" && rm "$ZSHRC_PATH.bak"
-    echo "Updated auto-start configuration in .zshrc."
-else
-    echo "Adding auto-start to .zshrc..."
-    echo "" >> "$ZSHRC_PATH"
-    echo "# DevToolsTerminal Auto-Launch" >> "$ZSHRC_PATH"
-    echo "if [ -x \"$APP_PATH\" ]; then" >> "$ZSHRC_PATH"
-    echo "    \"$APP_PATH\"" >> "$ZSHRC_PATH"
-    echo "fi" >> "$ZSHRC_PATH"
-    
-    echo "Auto-start configuration added to .zshrc."
-fi
-
-# Make uninstall script executable (if we have it)
-UNINSTALL_SCRIPT="$SCRIPT_DIR/dtt-uninstall.sh"
-if [ -f "$UNINSTALL_SCRIPT" ]; then
-    chmod +x "$UNINSTALL_SCRIPT"
-    cp "$UNINSTALL_SCRIPT" "$DATA_DIR/uninstall-$APP_NAME.sh"
-    chmod +x "$DATA_DIR/uninstall-$APP_NAME.sh"
-fi
-
-# Copy the update-shells script
-UPDATE_SHELLS_SCRIPT="$SCRIPT_DIR/update-shells.sh"
-if [ -f "$UPDATE_SHELLS_SCRIPT" ]; then
-    chmod +x "$UPDATE_SHELLS_SCRIPT"
-    cp "$UPDATE_SHELLS_SCRIPT" "$DATA_DIR/update-shells.sh"
-    chmod +x "$DATA_DIR/update-shells.sh"
-    
-    # Ask if user wants to register as login shell
-    echo ""
-    read -p "Would you like to register DevToolsTerminal as a login shell? (y/n): " register_shell
-    if [[ "$register_shell" =~ ^[Yy]$ ]]; then
-        bash "$DATA_DIR/update-shells.sh"
-        if [ $? -eq 0 ]; then
-            echo "Would you like to set DevToolsTerminal as your default login shell?"
-            read -p "This will change your shell to DevToolsTerminal (y/n): " change_shell
-            if [[ "$change_shell" =~ ^[Yy]$ ]]; then
-                chsh -s "$APP_PATH" $(whoami)
-                if [ $? -eq 0 ]; then
-                    echo "Shell changed successfully. It will take effect after you log out and log back in."
-                else
-                    echo "Failed to change shell. You can do it manually with: chsh -s $APP_PATH"
-                fi
-            fi
-        fi
+        echo "Warning: Failed to add DevToolsTerminal to $SHELLS_FILE. You may need to do this manually."
     fi
 fi
 
-echo "Installation complete!"
-echo "To uninstall later, run: !uninstall"
-
-# Instead of launching, tell the user to restart their terminal
-echo ""
-echo "Please restart your terminal to start using DevToolsTerminal."
-
-# Ask about deleting the installer
-echo ""
-read -p "Would you like to delete this installer script? (y/n): " delete_choice
-
-# Delete installer if requested
-if [[ "$delete_choice" =~ ^[Yy]$ ]]; then
-    SELF_PATH="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
-    echo "Removing installer script..."
-    rm "$SELF_PATH"
-    echo "Installer deleted."
+# Set as default shell if requested
+if $SET_AS_DEFAULT_SHELL; then
+    # Save the original shell
+    echo "Saving your original shell..."
+    echo "$SHELL" > "$DATA_DIR/original_shell.txt"
+    
+    echo "Setting DevToolsTerminal as your default shell..."
+    chsh -s "$APP_PATH"
+    if [ $? -ne 0 ]; then
+        echo "Warning: Failed to set DevToolsTerminal as default shell. You may need to run 'chsh -s $APP_PATH' manually."
+    else
+        echo "DevToolsTerminal set as your default shell!"
+        echo "Your previous shell ($SHELL) was saved to $DATA_DIR/original_shell.txt"
+    fi
 fi
+
+echo "Installation complete! DevToolsTerminal has been installed to $APP_PATH"
+echo "Uninstall script saved to $DATA_DIR/dtt-uninstall.sh"
+echo "Update script saved to $DATA_DIR/dtt-update.sh"
+echo "To use DevToolsTerminal, run: $APP_NAME"
+echo "To update DevToolsTerminal, run: $DATA_DIR/dtt-update.sh"
+echo "To set as your default shell, run: chsh -s $APP_PATH"
 

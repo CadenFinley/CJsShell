@@ -103,7 +103,7 @@ if(APPLE)
     # macOS build
     add_executable(DevToolsTerminal_macOS ${SOURCE_FILES})
     set_target_properties(DevToolsTerminal_macOS PROPERTIES
-        OUTPUT_NAME "DevToolsTerminal"
+        OUTPUT_NAME "DevToolsTerminal-macos"
         RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
     )
     target_link_libraries(DevToolsTerminal_macOS 
@@ -115,7 +115,7 @@ endif()
 # Linux build
 add_executable(DevToolsTerminal_Linux ${SOURCE_FILES})
 set_target_properties(DevToolsTerminal_Linux PROPERTIES
-    OUTPUT_NAME "DevToolsTerminal"
+    OUTPUT_NAME "DevToolsTerminal-linux"
     RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
 )
 target_link_libraries(DevToolsTerminal_Linux 
