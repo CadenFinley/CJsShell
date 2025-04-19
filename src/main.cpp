@@ -206,14 +206,12 @@ bool loadUpdateCache();
 void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
 
 bool isRunningAsLoginShell(char* argv0) {
-    // Check if first character of program name is '-' indicating login shell
     if (argv0 && argv0[0] == '-') {
         return true;
     }
     return false;
 }
 
-// Forward declarations for new functions
 void setupEnvironmentVariables();
 void initializeLoginEnvironment();
 void setupSignalHandlers();
@@ -223,13 +221,11 @@ void setupJobControl();
 void resetTerminalOnExit();
 void processProfileFile(const std::string& filePath);
 
-// Signal handler functions
 void handleSIGHUP(int sig);
 void handleSIGTERM(int sig);
 void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
 
-// Global session variables
 pid_t shell_pgid = 0;
 struct termios shell_tmodes;
 int shell_terminal;
@@ -238,22 +234,16 @@ bool jobControlEnabled = false;
 void setupLoginShell() {
     std::cout << "Setting up login shell environment..." << std::endl;
     
-    // Initialize login environment (setting terminal as a controlling terminal)
     initializeLoginEnvironment();
     
-    // Set essential environment variables
     setupEnvironmentVariables();
     
-    // Setup signal handlers
     setupSignalHandlers();
     
-    // Setup job control
     setupJobControl();
     
-    // Process profile files directly instead of using system()
     processProfileFile("/etc/profile");
     
-    // Process system-wide shell profile files
     std::vector<std::string> systemProfiles = {
         "/etc/profile.d",
         "/etc/bash.bashrc", 
@@ -264,10 +254,8 @@ void setupLoginShell() {
         processProfileFile(profile);
     }
     
-    // Process user's profile files
     std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
     if (!homeDir.empty()) {
-        // List of profile files to try, in order
         std::vector<std::string> profileFiles = {
             homeDir + "/.bash_profile",
             homeDir + "/.bash_login",
@@ -279,21 +267,19 @@ void setupLoginShell() {
         for (const auto& profile : profileFiles) {
             if (std::filesystem::exists(profile)) {
                 processProfileFile(profile);
-                break; // Process only the first one found
+                break;
             }
         }
     }
 }
 
 void cleanupLoginShell() {
-    // Reset terminal settings
     try {
         resetTerminalOnExit();
     } catch (const std::exception& e) {
         std::cerr << "Error cleaning up terminal: " << e.what() << std::endl;
     }
     
-    // Process logout files
     std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
     if (!homeDir.empty()) {
         std::vector<std::string> logoutFiles = {
@@ -310,14 +296,12 @@ void cleanupLoginShell() {
     }
 }
 
-// Add this new function to process shell scripts directly
 void processProfileFile(const std::string& filePath) {
     if (!std::filesystem::exists(filePath)) {
         return;
     }
     
     if (std::filesystem::is_directory(filePath)) {
-        // For directories like /etc/profile.d, process all .sh files
         for (const auto& entry : std::filesystem::directory_iterator(filePath)) {
             if (entry.path().extension() == ".sh") {
                 processProfileFile(entry.path().string());
@@ -334,16 +318,13 @@ void processProfileFile(const std::string& filePath) {
     
     std::string line;
     while (std::getline(file, line)) {
-        // Skip comments and empty lines
         if (line.empty() || line[0] == '#') {
             continue;
         }
         
-        // Process export commands
         if (line.find("export ") == 0) {
-            line = line.substr(7); // Remove "export "
-            
-            // Handle multiple export variables on one line
+            line = line.substr(7);
+        
             std::istringstream iss(line);
             std::string varAssignment;
             while (iss >> varAssignment) {
@@ -352,7 +333,6 @@ void processProfileFile(const std::string& filePath) {
                     std::string name = varAssignment.substr(0, pos);
                     std::string value = varAssignment.substr(pos + 1);
                     
-                    // Remove quotes if present
                     if (value.size() >= 2 && 
                         ((value.front() == '"' && value.back() == '"') || 
                          (value.front() == '\'' && value.back() == '\''))) {
@@ -363,32 +343,26 @@ void processProfileFile(const std::string& filePath) {
                 }
             }
         }
-        
-        // Process regular variable assignments
+
         else if (line.find('=') != std::string::npos) {
             size_t pos = line.find('=');
             std::string name = line.substr(0, pos);
             std::string value = line.substr(pos + 1);
             
-            // Remove quotes if present
             if (value.size() >= 2 && 
                 ((value.front() == '"' && value.back() == '"') || 
                  (value.front() == '\'' && value.back() == '\''))) {
                 value = value.substr(1, value.size() - 2);
             }
             
-            // Only set if not already an export command (handled above)
             if (name.find("export") != 0) {
-                setenv(name.c_str(), value.c_str(), 0); // Don't overwrite existing
+                setenv(name.c_str(), value.c_str(), 0);
             }
         }
         
-        // Process PATH modifications
         else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
-            // Replace variables in the path string
             std::string pathValue = line.substr(line.find('=') + 1);
             
-            // Replace $PATH with current PATH value
             std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
             size_t pathVarPos = pathValue.find("$PATH");
             while (pathVarPos != std::string::npos) {
@@ -396,7 +370,6 @@ void processProfileFile(const std::string& filePath) {
                 pathVarPos = pathValue.find("$PATH", pathVarPos + currentPath.length());
             }
             
-            // Replace $HOME with home directory
             std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
             size_t homeVarPos = pathValue.find("$HOME");
             while (homeVarPos != std::string::npos) {
@@ -410,10 +383,8 @@ void processProfileFile(const std::string& filePath) {
 }
 
 int main(int argc, char* argv[]) {
-    // Check if running as a login shell
     isLoginShell = isRunningAsLoginShell(argv[0]);
-    
-    // Initialize early to handle signals properly
+
     setupSignalHandlers();
     
     if (isLoginShell) {
@@ -421,11 +392,9 @@ int main(int argc, char* argv[]) {
             setupLoginShell();
         } catch (const std::exception& e) {
             std::cerr << "Error in login shell setup: " << e.what() << std::endl;
-            // Continue anyway, don't exit
         }
     }
 
-    // Process command line arguments
     bool executeCommand = false;
     std::string cmdToExecute;
     
@@ -434,7 +403,7 @@ int main(int argc, char* argv[]) {
         if (arg == "-c" && i + 1 < argc) {
             executeCommand = true;
             cmdToExecute = argv[i + 1];
-            i++; // Skip the next argument since we've used it
+            i++;
         } else if (arg == "-l" || arg == "--login") {
             isLoginShell = true;
             setupLoginShell();
@@ -449,7 +418,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Continue with existing initialization
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
@@ -479,7 +447,6 @@ int main(int argc, char* argv[]) {
         loadPluginsAsync([]() {});
     });
     
-    // the daemon will handle this so the program will just need to load 
     std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
             loadExecutableCacheFromDisk();
@@ -501,7 +468,6 @@ int main(int argc, char* argv[]) {
     std::future<void> updateFuture;
     if (checkForUpdates) {
         updateFuture = std::async(std::launch::async, [&]() {
-            // First try to load the cache
             bool cacheLoaded = loadUpdateCache();
             
             if (!cacheLoaded || shouldCheckForUpdates()) {
@@ -535,9 +501,6 @@ int main(int argc, char* argv[]) {
         for (const auto& command : startupCommands) {
             commandParser(commandPrefix + command);
         }
-        // if(startupInput != ""){
-        //     commandParser(startupInput);
-        // }
         runningStartup = false;
     }
 
