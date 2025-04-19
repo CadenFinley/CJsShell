@@ -198,6 +198,46 @@ bool isRunningAsLoginShell(char* argv0) {
     return false;
 }
 
+bool checkIsFileHandler(int argc, char* argv[]) {
+    if (argc == 2) {
+        std::string arg = argv[1];
+        if (arg[0] != '-' && std::filesystem::exists(arg)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void handleFileExecution(const std::string& filePath) {
+    std::filesystem::path path(filePath);
+    std::string extension = path.extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    
+    // Check if file is executable
+    if (access(filePath.c_str(), X_OK) == 0) {
+        std::cout << "Executing file: " << filePath << std::endl;
+        terminal.executeCommand(filePath).join();
+        return;
+    }
+    
+    // Handle specific file types
+    if (extension == ".sh") {
+        terminal.executeCommand("sh \"" + filePath + "\"").join();
+    } else if (extension == ".py") {
+        terminal.executeCommand("python3 \"" + filePath + "\"").join();
+    } else if (extension == ".js") {
+        terminal.executeCommand("node \"" + filePath + "\"").join();
+    } else if (extension == ".html") {
+        terminal.executeCommand("open \"" + filePath + "\"").join();
+    } else if (extension == ".txt" || extension == ".md" || extension == ".json" || extension == ".xml") {
+        // Try to open with default editor
+        terminal.executeCommand("open \"" + filePath + "\"").join();
+    } else {
+        std::cout << "Opening file with system default application" << std::endl;
+        terminal.executeCommand("open \"" + filePath + "\"").join();
+    }
+}
+
 void setupLoginShell() {
     initializeLoginEnvironment();
     setupEnvironmentVariables();
@@ -526,6 +566,7 @@ void processProfileFile(const std::string& filePath) {
 
 int main(int argc, char* argv[]) {
     isLoginShell = isRunningAsLoginShell(argv[0]);
+    isFileHandler = checkIsFileHandler(argc, argv);
 
     setupSignalHandlers();
     
@@ -542,7 +583,6 @@ int main(int argc, char* argv[]) {
     std::string cmdToExecute;
     
     for (int i = 1; i < argc; i++) {
-
         std::string arg = argv[i];
         if (arg == "-c" && i + 1 < argc) {
             executeCommand = true;
@@ -554,6 +594,32 @@ int main(int argc, char* argv[]) {
         }
     }
     
+    // Initialize terminal and other components
+    startupCommands = {};
+    multiScriptShortcuts = {};
+    aliases = {};
+    c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
+
+    initializeDataDirectories();
+    
+    // Handle file execution mode (e.g., launched from file manager)
+    if (isFileHandler) {
+        std::string filePath = argv[1];
+        // Convert to absolute path if necessary
+        if (!std::filesystem::path(filePath).is_absolute()) {
+            filePath = (std::filesystem::current_path() / filePath).string();
+        }
+        
+        std::cout << "DevToolsTerminal launched as file handler for: " << filePath << std::endl;
+        handleFileExecution(filePath);
+        
+        // Exit after handling the file
+        if (isLoginShell) {
+            cleanupLoginShell();
+        }
+        return 0;
+    }
+    
     if (executeCommand) {
         sendTerminalCommand(cmdToExecute);
         if (isLoginShell) {
@@ -562,13 +628,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    startupCommands = {};
-    multiScriptShortcuts = {};
-    aliases = {};
-    c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
-
-    initializeDataDirectories();
-    
+    // Continue with normal shell initialization
     std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(USER_DATA)) {
             loadUserDataAsync([]() {});

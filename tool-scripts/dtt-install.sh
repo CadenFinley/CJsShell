@@ -10,12 +10,32 @@ GITHUB_API_URL="https://api.github.com/repos/cadenfinley/DevToolsTerminal/releas
 UNINSTALL_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/master/tool-scripts/dtt-uninstall.sh"
 UPDATE_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/master/tool-scripts/dtt-update.sh"
 SET_AS_DEFAULT_SHELL=false
+REGISTER_AS_FILE_HANDLER=false
 SHELLS_FILE="/etc/shells"
 
-# Simple argument handling for set-as-shell option
-if [[ "$1" == "-s" || "$1" == "--set-as-shell" ]]; then
-    SET_AS_DEFAULT_SHELL=true
-fi
+# Argument handling
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -s|--set-as-shell)
+      SET_AS_DEFAULT_SHELL=true
+      shift
+      ;;
+    -f|--register-file-handler)
+      REGISTER_AS_FILE_HANDLER=true
+      shift
+      ;;
+    -a|--all)
+      SET_AS_DEFAULT_SHELL=true
+      REGISTER_AS_FILE_HANDLER=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [-s|--set-as-shell] [-f|--register-file-handler] [-a|--all]"
+      exit 1
+      ;;
+  esac
+done
 
 echo "DevToolsTerminal Installer"
 echo "-------------------------"
@@ -133,10 +153,88 @@ if $SET_AS_DEFAULT_SHELL; then
     fi
 fi
 
+# Register as file handler if requested or if set as default shell
+if $REGISTER_AS_FILE_HANDLER || $SET_AS_DEFAULT_SHELL; then
+    echo "Registering DevToolsTerminal as a file handler..."
+    
+    # For macOS
+    if [ "$(uname)" == "Darwin" ]; then
+        # Create Info.plist for the app
+        mkdir -p ~/Library/Application\ Support/DevToolsTerminal
+        cat > ~/Library/Application\ Support/DevToolsTerminal/launcher.plist <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.cadenfinley.devtoolsterminal</string>
+    <key>CFBundleName</key>
+    <string>DevToolsTerminal</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
+    <key>CFBundleExecutable</key>
+    <string>$APP_PATH</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>*</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+        </dict>
+    </array>
+</dict>
+</plist>
+EOF
+
+        echo "DevToolsTerminal registered as a file handler on macOS"
+        echo "To set as default for specific file types, right-click a file, select 'Get Info', change 'Open with' and click 'Change All'"
+
+    # For Linux
+    elif [ "$(uname)" == "Linux" ]; then
+        # Create .desktop file
+        mkdir -p ~/.local/share/applications
+        cat > ~/.local/share/applications/devtoolsterminal.desktop <<EOF
+[Desktop Entry]
+Type=Application
+Name=DevToolsTerminal
+GenericName=Terminal
+Comment=Developer Tools Terminal
+Exec=$APP_PATH %f
+Icon=utilities-terminal
+Terminal=false
+Categories=System;TerminalEmulator;Utility;
+MimeType=text/plain;text/x-shellscript;application/x-executable;
+EOF
+
+        # Update desktop database
+        update-desktop-database ~/.local/share/applications &>/dev/null || true
+        
+        echo "DevToolsTerminal registered as a file handler on Linux"
+        echo "To set as default for specific file types, right-click a file, select 'Open With' and choose DevToolsTerminal"
+    fi
+fi
+
 echo "Installation complete! DevToolsTerminal has been installed to $APP_PATH"
 echo "Uninstall script saved to $DATA_DIR/dtt-uninstall.sh"
 echo "Update script saved to $DATA_DIR/dtt-update.sh"
 echo "To use DevToolsTerminal, run: $APP_NAME"
 echo "To update DevToolsTerminal, run: $DATA_DIR/dtt-update.sh"
-echo "To set as your default shell, run: chsh -s $APP_PATH"
+
+if ! $SET_AS_DEFAULT_SHELL; then
+    echo "To set as your default shell, run: chsh -s $APP_PATH"
+fi
+
+if ! $REGISTER_AS_FILE_HANDLER && ! $SET_AS_DEFAULT_SHELL; then
+    echo "To register as a file handler, run: $0 --register-file-handler"
+fi
+
+echo "Usage information:"
+echo "  $APP_NAME               - Start DevToolsTerminal"
+echo "  $APP_NAME file.sh       - Open and execute the specified file"
+echo "  $APP_NAME -c \"command\" - Execute command and exit"
 
