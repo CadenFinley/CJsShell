@@ -25,7 +25,7 @@
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "1.9.0.2";
+const std::string currentVersion = "1.9.0.3";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 
@@ -42,7 +42,7 @@ bool executablesCacheInitialized = false;
 bool completionBrowsingMode = false;
 bool cachedUpdateAvailable = false;
 bool isLoginShell = false;
-bool isFileHandler = false;  // New variable to track if we're handling a file open request
+bool isFileHandler = false;
 
 bool shortcutsEnabled = true;
 bool aliasesEnabled = true;
@@ -190,11 +190,6 @@ void handleSIGTERM(int sig);
 void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
 void parentProcessWatchdog();
-bool isExecutableFile(const std::string& path);
-void openFile(const std::string& path);
-std::string getFileExtension(const std::string& path);
-std::string getMimeType(const std::string& path);
-bool launchAppForFile(const std::string& filePath);
 
 bool isRunningAsLoginShell(char* argv0) {
     if (argv0 && argv0[0] == '-') {
@@ -534,21 +529,12 @@ int main(int argc, char* argv[]) {
 
     setupSignalHandlers();
     
-    // Check if a file path was provided as an argument
-    if (argc > 1 && argv[1][0] != '-') {
-        std::string filePath = argv[1];
-        // Check if it's a valid file path
-        if (std::filesystem::exists(filePath)) {
-            isFileHandler = true;
-            launchAppForFile(filePath);
-        }
-    }
-    
     if (isLoginShell) {
         try {
             setupLoginShell();
         } catch (const std::exception& e) {
             std::cerr << "Error in login shell setup: " << e.what() << std::endl;
+            isLoginShell = false;
         }
     }
 
@@ -556,12 +542,13 @@ int main(int argc, char* argv[]) {
     std::string cmdToExecute;
     
     for (int i = 1; i < argc; i++) {
+
         std::string arg = argv[i];
         if (arg == "-c" && i + 1 < argc) {
             executeCommand = true;
             cmdToExecute = argv[i + 1];
             i++;
-        } else if (arg == "-l" || arg == "--login") {
+        } else if ((arg == "-l" || arg == "--login") && !isLoginShell) {
             isLoginShell = true;
             setupLoginShell();
         }
@@ -3944,128 +3931,4 @@ void parentProcessWatchdog() {
         }
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
-}
-
-bool isExecutableFile(const std::string& path) {
-    try {
-        std::filesystem::perms permissions = std::filesystem::status(path).permissions();
-        return (permissions & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
-               (permissions & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
-               (permissions & std::filesystem::perms::others_exec) != std::filesystem::perms::none;
-    } catch (const std::exception& e) {
-        return false;
-    }
-}
-
-std::string getFileExtension(const std::string& path) {
-    size_t dotPos = path.find_last_of('.');
-    if (dotPos != std::string::npos) {
-        return path.substr(dotPos + 1);
-    }
-    return "";
-}
-
-std::string getMimeType(const std::string& path) {
-    std::string ext = getFileExtension(path);
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    
-    // Common MIME type mappings
-    std::map<std::string, std::string> mimeTypes = {
-        {"txt", "text/plain"},
-        {"html", "text/html"},
-        {"htm", "text/html"},
-        {"pdf", "application/pdf"},
-        {"doc", "application/msword"},
-        {"docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-        {"xls", "application/vnd.ms-excel"},
-        {"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-        {"ppt", "application/vnd.ms-powerpoint"},
-        {"pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
-        {"jpg", "image/jpeg"},
-        {"jpeg", "image/jpeg"},
-        {"png", "image/png"},
-        {"gif", "image/gif"},
-        {"svg", "image/svg+xml"},
-        {"mp3", "audio/mpeg"},
-        {"mp4", "video/mp4"},
-        {"mov", "video/quicktime"},
-        {"zip", "application/zip"},
-        {"tar", "application/x-tar"},
-        {"gz", "application/gzip"},
-        {"json", "application/json"},
-        {"js", "text/javascript"},
-        {"css", "text/css"},
-        {"py", "text/x-python"},
-        {"java", "text/x-java-source"},
-        {"c", "text/x-c"},
-        {"cpp", "text/x-c++src"},
-        {"h", "text/x-c"},
-        {"hpp", "text/x-c++hdr"},
-        {"sh", "application/x-shellscript"},
-        {"bash", "application/x-shellscript"},
-        {"xml", "application/xml"},
-        {"csv", "text/csv"}
-    };
-    
-    if (mimeTypes.find(ext) != mimeTypes.end()) {
-        return mimeTypes[ext];
-    }
-    
-    // Use file command to determine MIME type for unknown extensions
-    std::string command = "file --mime-type -b \"" + path + "\"";
-    std::string result;
-    FILE* pipe = popen(command.c_str(), "r");
-    if (pipe) {
-        char buffer[128];
-        while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-            result += buffer;
-        }
-        pclose(pipe);
-        // Trim newline character at the end
-        if (!result.empty() && result[result.length() - 1] == '\n') {
-            result.erase(result.length() - 1);
-        }
-        return result;
-    }
-    
-    return "application/octet-stream";  // Default binary type
-}
-
-bool launchAppForFile(const std::string& filePath) {
-    // Resolve the absolute path
-    std::filesystem::path absPath = std::filesystem::absolute(filePath);
-    std::string absolutePath = absPath.string();
-    
-    // If it's an executable file, directly execute it
-    if (isExecutableFile(absolutePath)) {
-        std::string command = "\"" + absolutePath + "\"";
-        return system(command.c_str()) == 0;
-    }
-    
-    // On macOS, use 'open' command which automatically selects the appropriate application
-    std::string command = "open \"" + absolutePath + "\"";
-    int result = system(command.c_str());
-    
-    if (result != 0) {
-        // If 'open' fails, try alternative approaches
-        std::string mimeType = getMimeType(absolutePath);
-        
-        // For text files, try to open with common text editors
-        if (mimeType.find("text/") == 0) {
-            std::vector<std::string> editors = {"open -a TextEdit", "open -a Visual\\ Studio\\ Code", "nano", "vim", "emacs"};
-            
-            for (const auto& editor : editors) {
-                command = editor + " \"" + absolutePath + "\"";
-                if (system(command.c_str()) == 0) {
-                    return true;
-                }
-            }
-        }
-        
-        // For other file types, try with xdg-open (Linux) as a fallback
-        command = "xdg-open \"" + absolutePath + "\"";
-        return system(command.c_str()) == 0;
-    }
-    
-    return true;
 }

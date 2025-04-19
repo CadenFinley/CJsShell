@@ -46,7 +46,8 @@ public:
     void setDisplayWholePath(bool displayWholePath);
     void toggleDisplayWholePath();
     bool isDisplayWholePath();
-
+    bool isRootPath(const std::filesystem::path& path);
+    
     std::thread executeCommand(std::string command);
     void addCommandToHistory(const std::string& command);
     void setAliases(const std::map<std::string, std::string>& aliases);
@@ -82,7 +83,7 @@ public:
     const std::vector<Job>& getActiveJobs() const { return jobs; }
     void setTerminationFlag(bool terminate) { shouldTerminate = terminate; }
     void terminateAllChildProcesses();
-
+    
 private:
     std::string currentDirectory;
     bool displayWholePath;
@@ -109,7 +110,6 @@ private:
     std::atomic<bool> shouldTerminate;
 
     std::string getCurrentFileName();
-    bool isRootPath(const std::filesystem::path& path);
     std::string removeSpecialCharacters(const std::string& input);
 
     std::vector<std::string> parseCommandIntoArgs(const std::string& command);

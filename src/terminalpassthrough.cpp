@@ -887,35 +887,24 @@ std::vector<std::string> TerminalPassthrough::parseCommandIntoArgs(const std::st
 }
 
 std::string TerminalPassthrough::findExecutableInPath(const std::string& command) {
-    // If command has path separators or is an absolute path, check directly
     if (command.find('/') != std::string::npos) {
-        // Check if the file exists and is executable in the context of current directory
         std::string fullPath;
         if (command[0] == '/') {
-            // Absolute path
             fullPath = command;
         } else {
-            // Relative path from current directory
             fullPath = (std::filesystem::path(currentDirectory) / command).string();
         }
-        
-        // Check if file exists first
+
         if (access(fullPath.c_str(), F_OK) == 0) {
-            // Then check if it's executable
             if (access(fullPath.c_str(), X_OK) == 0) {
                 return fullPath;
             } else {
-                // File exists but isn't executable - return it anyway
-                // We'll let the exec call fail with the appropriate error
                 return fullPath;
             }
         }
-        
-        // If we can't find the file, don't look in PATH
         return "";
     }
-    
-    // For simple commands with no path separators, search in PATH
+
     const char* pathEnv = getenv("PATH");
     if (!pathEnv) return "";
     
@@ -924,7 +913,6 @@ std::string TerminalPassthrough::findExecutableInPath(const std::string& command
     size_t pos = 0;
     std::string token;
     
-    // First check in current directory
     std::string currentDirPath = (std::filesystem::path(currentDirectory) / command).string();
     if (access(currentDirPath.c_str(), X_OK) == 0) {
         return currentDirPath;
@@ -942,17 +930,14 @@ std::string TerminalPassthrough::findExecutableInPath(const std::string& command
         
         path.erase(0, pos + delimiter.length());
     }
-    
-    // Check the last PATH entry after the loop
+
     if (!path.empty()) {
         std::string candidatePath = path + "/" + command;
         if (access(candidatePath.c_str(), X_OK) == 0) {
             return candidatePath;
         }
     }
-    
-    // If command is not found in PATH, just return the command name
-    // This allows the shell to get the proper "command not found" error
+
     return command;
 }
 
