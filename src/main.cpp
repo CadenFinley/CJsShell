@@ -1445,6 +1445,7 @@ void commandProcesser(const std::string& command) {
                 uninstallCommand += " --all";
             }
             std::cout << "Running uninstall script..." << std::endl;
+            uninstallCommand += " -S";
             sendTerminalCommand(uninstallCommand);
             exitFlag = true;
         } else {
