@@ -58,13 +58,11 @@ public:
     std::string getBranchColor() const;
     std::string getGitColor() const;
 
-    // Improved job control methods
     void listJobs();
     bool bringJobToForeground(int jobId);
     bool sendJobToBackground(int jobId);
     bool killJob(int jobId);
     
-    // New methods for standalone shell mode
     bool setupTerminalForShellMode();
     void cleanupTerminalAfterShellMode();
     bool isStandaloneShell() const;
@@ -96,7 +94,6 @@ private:
     bool isRootPath(const std::filesystem::path& path);
     std::string removeSpecialCharacters(const std::string& input);
 
-    // Job control structures
     struct Job {
         pid_t pid;
         std::string command;
@@ -109,12 +106,10 @@ private:
     
     std::vector<Job> jobs;
     
-    // Terminal state variables
     struct termios original_termios;
     bool terminal_state_saved;
     bool is_standalone_shell;
     
-    // Process execution methods
     pid_t executeChildProcess(const std::string& command, bool foreground = true);
     std::string captureCommandOutput(const std::string& command);
     bool changeDirectory(const std::string& dir, std::string& result);
@@ -122,13 +117,11 @@ private:
     void updateJobStatus();
     void parseAndExecuteCommand(const std::string& command, std::string& result);
     
-    // New helper methods for terminal handling
     bool saveTerminalState();
     bool restoreTerminalState();
     void setStandaloneMode(bool standalone);
 };
 
-// Add this to the forward declarations in main.cpp
 void processProfileFile(const std::string& filePath);
 
 #endif // TERMINALPASSTHROUGH_H

@@ -7,7 +7,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-// Process state enumeration
 enum class ProcessState {
     RUNNING,
     STOPPED,
@@ -15,7 +14,6 @@ enum class ProcessState {
     TERMINATED
 };
 
-// Process representation
 struct Process {
     pid_t pid;
     int status;
@@ -26,7 +24,6 @@ struct Process {
         pid(p), status(0), state(ProcessState::RUNNING), command(cmd) {}
 };
 
-// Job representation (process group)
 class Job {
 private:
     pid_t pgid;
@@ -52,7 +49,6 @@ public:
     const std::string& getCommandLine() const { return commandLine; }
 };
 
-// JobControl class for managing jobs
 class JobControl {
 private:
     std::vector<Job> jobs;
