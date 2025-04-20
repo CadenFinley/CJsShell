@@ -37,7 +37,6 @@ public:
 
     std::string getTerminalName();
     std::string returnCurrentTerminalPosition();
-    int getTerminalCurrentPositionRawLength();
     void printCurrentTerminalPosition();
 
     std::vector<std::string> getFilesAtCurrentPath(const bool& includeHidden, const bool& fullFilePath, const bool& includeDirectories);
@@ -96,7 +95,6 @@ private:
     std::string BRANCH_COLOR = "\033[1;33m";
     std::string GIT_COLOR = "\033[1;32m";
     int commandHistoryIndex = -1;
-    int terminalCurrentPositionRawLength = 0;
     std::string terminalName;
 
     std::chrono::steady_clock::time_point lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(30);
