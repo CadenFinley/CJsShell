@@ -2,7 +2,7 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/dqk13klgh9d22bu5?svg=true)](https://ci.appveyor.com/project/CadenFinley/devtoolsterminal)
 ![Version](https://img.shields.io/github/v/release/CadenFinley/DevToolsTerminal?label=version&color=blue)
-![Lines of Code](https://img.shields.io/badge/lines%20of%20code-8986-green)
+![Lines of Code](https://img.shields.io/badge/lines%20of%20code-10175-green)
 
 
 DevToolsTerminal is a lightweight custom login shell designed for UNIX systems with integrated OpenAI capabilities. It can function as a complete login shell replacement or as a regular application. Beyond standard terminal functions, it allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
