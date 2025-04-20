@@ -1,0 +1,64 @@
+#!/usr/bin/expect -f
+
+# Test user settings commands
+
+set timeout 10
+set terminal_bin [lindex $argv 0]
+
+# Start the terminal application
+spawn $terminal_bin
+expect "DevToolsTerminal*"
+
+# Test user help
+send "!user help\r"
+expect {
+  "User settings commands:" {
+    puts "User help command works"
+  }
+  timeout {
+    puts "ERROR: User help command timed out"
+    exit 1
+  }
+}
+
+# Test get text settings
+send "!user text commandprefix\r"
+expect {
+  "Command prefix is currently*" {
+    puts "Command prefix command works"
+  }
+  timeout {
+    puts "ERROR: Command prefix command timed out"
+    exit 1
+  }
+}
+
+# Test get startup commands
+send "!user startup list\r"
+expect {
+  "*commands*" {
+    puts "Startup list command works"
+  }
+  timeout {
+    puts "ERROR: Startup list command timed out"
+    exit 1
+  }
+}
+
+# Test check for updates
+send "!user checkforupdates\r"
+expect {
+  "Check for updates is currently*" {
+    puts "Check for updates command works"
+  }
+  timeout {
+    puts "ERROR: Check for updates command timed out"
+    exit 1
+  }
+}
+
+# Exit the application
+send "exit\r"
+expect eof
+
+exit 0

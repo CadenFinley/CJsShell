@@ -1,0 +1,54 @@
+#!/usr/bin/expect -f
+
+# Test basic terminal commands
+
+set timeout 10
+set terminal_bin [lindex $argv 0]
+
+# Start the terminal application
+spawn $terminal_bin -c "exit"
+
+# Basic version check
+spawn $terminal_bin --version
+expect {
+  "DevToolsTerminal version:" {
+    puts "Version check passed"
+  }
+  timeout {
+    puts "ERROR: Version check timed out"
+    exit 1
+  }
+}
+expect eof
+
+# Test help command
+spawn $terminal_bin
+expect "DevToolsTerminal*"
+send "!help\r"
+expect {
+  "commandprefix:" {
+    puts "Help command works"
+  }
+  timeout {
+    puts "ERROR: Help command timed out"
+    exit 1
+  }
+}
+
+# Test basic terminal commands
+send "pwd\r"
+expect {
+  "*" {
+    puts "pwd command executed"
+  }
+  timeout {
+    puts "ERROR: pwd command timed out"
+    exit 1
+  }
+}
+
+# Test exit command
+send "exit\r"
+expect eof
+
+exit 0
