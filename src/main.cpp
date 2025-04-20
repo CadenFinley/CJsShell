@@ -25,7 +25,7 @@
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "1.9.0.5";
+const std::string currentVersion = "1.9.0.6";
 const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
 
@@ -1445,7 +1445,6 @@ void commandProcesser(const std::string& command) {
                 uninstallCommand += " --all";
             }
             std::cout << "Running uninstall script..." << std::endl;
-            uninstallCommand += " -S";
             sendTerminalCommand(uninstallCommand);
             exitFlag = true;
         } else {

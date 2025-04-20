@@ -493,6 +493,15 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
     }
     // Add special handling for sudo and other interactive commands
     else if (cmd == "sudo" || cmd == "ssh" || cmd == "su" || cmd == "login" || cmd == "passwd") {
+        if (cmd == "sudo") {
+            // check for -S flag
+            if (command.find("-S") == std::string::npos) {
+                std::string sudoCommand = "sudo -S " + command.substr(5);
+                return executeInteractiveCommand(sudoCommand, result);
+            } else {
+                // it's already using -S so dont need to do anything
+            }
+        }
         return executeInteractiveCommand(command, result);
     }
     else {
