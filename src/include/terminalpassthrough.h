@@ -87,7 +87,6 @@ public:
 private:
     std::string currentDirectory;
     bool displayWholePath;
-    bool sudoAutoSFlag;  // Add this line to declare the member variable
     std::vector<std::string> terminalCacheUserInput;
     std::vector<std::string> terminalCacheTerminalOutput;
     std::map<std::string, std::string> aliases;
