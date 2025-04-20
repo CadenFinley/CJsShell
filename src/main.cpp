@@ -27,7 +27,7 @@
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "1.9.1.0";
+const std::string currentVersion = "2.0.0.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 

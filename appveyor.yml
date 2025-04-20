@@ -51,8 +51,8 @@ after_build:
   # Linux packaging
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER/build
-      tar -czf DevToolsTerminal-Unix.tar.gz DevToolsTerminal
-      appveyor PushArtifact DevToolsTerminal-Unix.tar.gz
+      tar -czf CJsShell-Unix.tar.gz cjsh
+      appveyor PushArtifact CJsShell-Unix.tar.gz
 
 # Run the tests if you have them
 test_script:
@@ -62,8 +62,8 @@ test_script:
 
 # Artifacts to save
 artifacts:
-  - path: build\DevToolsTerminal-Unix.tar.gz
-    name: DevToolsTerminal-Unix
+  - path: build\CJsShell-Unix.tar.gz
+    name: CJsShell-Unix
 
 # Notifications
 notifications:
