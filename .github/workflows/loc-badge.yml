@@ -46,8 +46,12 @@ jobs:
           
           echo "Updating README badge with $TOTAL_LINES lines of code"
           
-          # Update the badge with more flexible pattern matching to handle "calculating" text
-          sed -i "s|lines%20of%20code-[0-9]*[a-z]*-yellow|lines%20of%20code-${TOTAL_LINES}-green|g" README.md
+          # Update the badge using a more precise pattern that matches the actual badge format
+          # This matches the pattern "lines%20of%20code-ANY_NUMBER-ANY_COLOR" in the badge URL
+          sed -i "s|lines%20of%20code-[0-9]\+-[a-z]\+|lines%20of%20code-${TOTAL_LINES}-green|g" README.md
+          
+          # Alternative approach using a more specific pattern for img.shields.io badge
+          # sed -i "s|https://img.shields.io/badge/lines%20of%20code-[0-9]\+-[a-z]\+|https://img.shields.io/badge/lines%20of%20code-${TOTAL_LINES}-green|g" README.md
           
           echo "README badge update completed"
 
