@@ -129,7 +129,7 @@ DevToolsTerminal stores configuration in `~/.DTT-Data/.USER_DATA.json`. You can 
 
 DevToolsTerminal supports a plugin system for extending functionality. To develop plugins:
 
-1. Use the C++ plugin API in the `src/include/pluginapi.h` file
+1. Use the C++ plugin API in the `src/include/plugininterface.h` file
 2. Compile your plugin as a shared library (.so/.dylib)
 3. Place in the `~/.DTT-Data/plugins` directory
 4. Enable with `!plugin enable [plugin-name]`
