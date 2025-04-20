@@ -126,13 +126,12 @@ private:
     void waitForForegroundJob(pid_t pid);
     void updateJobStatus();
     void parseAndExecuteCommand(const std::string& command, std::string& result);
-    bool executeIndividualCommand(const std::string& command, std::string& result); // New method
+    bool executeIndividualCommand(const std::string& command, std::string& result);
     
     bool saveTerminalState();
     bool restoreTerminalState();
     void setStandaloneMode(bool standalone);
     
-    // Add new method for interactive commands
     bool executeInteractiveCommand(const std::string& command, std::string& result);
 };
 
