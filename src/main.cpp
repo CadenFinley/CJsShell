@@ -29,7 +29,7 @@ using json = nlohmann::json;
 //rename repo to cjsh maybe idk
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "3.0.0.0";
+const std::string currentVersion = "2.0.0.1";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
