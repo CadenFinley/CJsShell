@@ -190,6 +190,7 @@ void handleSIGTERM(int sig);
 void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
 void parentProcessWatchdog();
+void printHelp();
 
 bool isRunningAsLoginShell(char* argv0) {
     if (argv0 && argv0[0] == '-') {
@@ -591,6 +592,17 @@ int main(int argc, char* argv[]) {
         } else if ((arg == "-l" || arg == "--login") && !isLoginShell) {
             isLoginShell = true;
             setupLoginShell();
+        } else if (arg == "-h" || arg == "--help") {
+            printHelp();
+            return 0;
+        } else if (arg == "--no-update") {
+            checkForUpdates = false;
+        } else if (arg == "--silent-update") {
+            silentCheckForUpdates = true;
+        } else if (arg == "-v" || arg == "--version") {
+            std::cout << "DevToolsTerminal version: " << currentVersion << std::endl;
+            std::cout << "Data directory at: " << DATA_DIRECTORY << std::endl;
+            return 0;
         }
     }
     
@@ -1407,19 +1419,7 @@ void commandProcesser(const std::string& command) {
     } else if (lastCommandParsed == "theme") {
         themeCommands();
     } else if (lastCommandParsed == "help") {
-        std::cout << "Commands:" << std::endl;
-        std::cout << " commandprefix: Change the command prefix (" << commandPrefix << ")" << std::endl;
-        std::cout << " ai: Access AI command settings and chat" << std::endl;
-        std::cout << " approot: Switch to the application directory" << std::endl;
-        std::cout << " terminal [ARGS]: Run terminal commands" << std::endl;
-        std::cout << " user: Access user settings" << std::endl;
-        std::cout << " aihelp: Get AI troubleshooting help" << std::endl;
-        std::cout << " theme: Manage themes (load/save)" << std::endl;
-        std::cout << " version: Display application version" << std::endl;
-        std::cout << " plugin: Manage plugins" << std::endl;
-        std::cout << " env: Manage environment variables" << std::endl;
-        std::cout << " uninstall: Uninstall the application" << std::endl;
-        std::cout << " refresh-commands: Refresh the executable commands cache" << std::endl;
+        printHelp();
         return;
     } else if (lastCommandParsed == "uninstall") {
         if (pluginManager->getEnabledPlugins().size() > 0) {
@@ -1473,6 +1473,21 @@ void commandProcesser(const std::string& command) {
         }
         std::cerr << "Unknown command. Please try again." << std::endl;
     }
+}
+
+void printHelp() {
+    std::cout << " commandprefix: Change the command prefix (" << commandPrefix << ")" << std::endl;
+    std::cout << " ai: Access AI command settings and chat" << std::endl;
+    std::cout << " approot: Switch to the application directory" << std::endl;
+    std::cout << " terminal [ARGS]: Run terminal commands" << std::endl;
+    std::cout << " user: Access user settings" << std::endl;
+    std::cout << " aihelp: Get AI troubleshooting help" << std::endl;
+    std::cout << " theme: Manage themes (load/save)" << std::endl;
+    std::cout << " version: Display application version" << std::endl;
+    std::cout << " plugin: Manage plugins" << std::endl;
+    std::cout << " env: Manage environment variables" << std::endl;
+    std::cout << " uninstall: Uninstall the application" << std::endl;
+    std::cout << " refresh-commands: Refresh the executable commands cache" << std::endl;
 }
 
 void pluginCommands(){
