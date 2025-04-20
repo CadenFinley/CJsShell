@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.10)
 
 # Check for Unix platform - fail on Windows
 if(WIN32)
-    message(FATAL_ERROR "DevToolsTerminal is currently only supported on Unix-based systems (Linux/macOS)")
+    message(FATAL_ERROR "CJsShell is currently only supported on Unix-based systems (Linux/macOS)")
 endif()
 
 # Set the project name
-project(DevToolsTerminal)
+project(CJsShell)
 
 # Set output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -101,37 +101,37 @@ option(STATIC_LINKING "Link libraries statically for better portability" OFF)
 # Modify the executable target to create platform-specific builds
 if(APPLE)
     # macOS build
-    add_executable(DevToolsTerminal_macOS ${SOURCE_FILES})
-    set_target_properties(DevToolsTerminal_macOS PROPERTIES
-        OUTPUT_NAME "DevToolsTerminal-macos"
+    add_executable(CJsShell_macOS ${SOURCE_FILES})
+    set_target_properties(CJsShell_macOS PROPERTIES
+        OUTPUT_NAME "cjsh-macos"
         RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
     )
     
     # Fixed target_link_libraries call to properly handle CURL dependency
     if(TARGET CURL::libcurl)
-        target_link_libraries(DevToolsTerminal_macOS CURL::libcurl Threads::Threads)
+        target_link_libraries(CJsShell_macOS CURL::libcurl Threads::Threads)
     else()
-        target_link_libraries(DevToolsTerminal_macOS ${CURL_LIBRARIES} Threads::Threads)
+        target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads)
     endif()
 endif()
 
 # Linux build
-add_executable(DevToolsTerminal_Linux ${SOURCE_FILES})
-set_target_properties(DevToolsTerminal_Linux PROPERTIES
-    OUTPUT_NAME "DevToolsTerminal-linux"
+add_executable(CJsShell_Linux ${SOURCE_FILES})
+set_target_properties(CJsShell_Linux PROPERTIES
+    OUTPUT_NAME "cjsh-linux"
     RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
 )
 
 # Fixed target_link_libraries call to properly handle CURL dependency
 if(TARGET CURL::libcurl)
-    target_link_libraries(DevToolsTerminal_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY})
+    target_link_libraries(CJsShell_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY})
 else()
-    target_link_libraries(DevToolsTerminal_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY})
+    target_link_libraries(CJsShell_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY})
 endif()
 
 # Set rpath for Linux builds
 if(UNIX AND NOT APPLE)
-    set_target_properties(DevToolsTerminal_Linux PROPERTIES
+    set_target_properties(CJsShell_Linux PROPERTIES
         INSTALL_RPATH "$ORIGIN/../lib"
         BUILD_WITH_INSTALL_RPATH TRUE
     )
@@ -149,20 +149,20 @@ set(CPACK_GENERATOR "DEB;RPM;TGZ")
 set(CPACK_PACKAGE_VERSION_MAJOR "1")
 set(CPACK_PACKAGE_VERSION_MINOR "0")
 set(CPACK_PACKAGE_VERSION_PATCH "0")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Developer Tools Terminal")
-set(CPACK_PACKAGE_VENDOR "DevToolsTerminal")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "CJ's Shell - A developer tools terminal")
+set(CPACK_PACKAGE_VENDOR "CJsShell")
 
 # Include CPack to enable packaging
 include(CPack)
 
 # Update install locations
-install(TARGETS DevToolsTerminal_Linux
+install(TARGETS CJsShell_Linux
     RUNTIME DESTINATION bin/linux
     CONFIGURATIONS Release
 )
 
 if(APPLE)
-    install(TARGETS DevToolsTerminal_macOS
+    install(TARGETS CJsShell_macOS
         RUNTIME DESTINATION bin/macos
         CONFIGURATIONS Release
     )

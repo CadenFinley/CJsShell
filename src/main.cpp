@@ -22,14 +22,14 @@
 #include "include/pluginmanager.h"
 #include "include/thememanager.h"
 
-//start work on renaming project to cjsh "caden joshua's shell"
+//start work on renaming project to cjsh "caden joshua's shell" "cj's shell"
 
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "1.9.1.0";
-const std::string githubRepoURL = "https://github.com/CadenFinley/DevToolsTerminal";
-const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/DevToolsTerminal/releases/latest";
+const std::string currentVersion = "2.0.0.0";
+const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
+const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
 bool TESTING = false;
 bool runningStartup = false;
@@ -72,16 +72,16 @@ std::string CYAN_COLOR_BOLD = "\033[1;36m";
 std::string commandPrefix = "!";
 std::string shortcutsPrefix = "-";
 std::string lastCommandParsed;
-std::string titleLine = "DevToolsTerminal v" + currentVersion + " - Caden Finley (c) 2025";
+std::string titleLine = "CJ's Shell v" + currentVersion + " - Caden J Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
 
 std::string homeDir = std::getenv("HOME");
-std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".DTT-Data";
-std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "dtt-uninstall.sh";
-std::filesystem::path UPDATE_SCRIPT_PATH = DATA_DIRECTORY / "dtt-update.sh";
-std::filesystem::path USER_DATA = DATA_DIRECTORY / ".USER_DATA.json";
-std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / ".USER_COMMAND_HISTORY.txt";
+std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".cjsh_data";
+std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_uninstall.sh";
+std::filesystem::path UPDATE_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_update.sh";
+std::filesystem::path USER_DATA = DATA_DIRECTORY / "USER_DATA.json";
+std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / "USER_COMMAND_HISTORY.txt";
 std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
 std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
@@ -599,7 +599,8 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--silent-update") {
             silentCheckForUpdates = true;
         } else if (arg == "-v" || arg == "--version") {
-            std::cout << "DevToolsTerminal version: " << currentVersion << std::endl;
+            std::cout << titleLine << std::endl;
+            std::cout << createdLine << std::endl;
             std::cout << "Data directory at: " << DATA_DIRECTORY << std::endl;
             return 0;
         }
@@ -608,7 +609,7 @@ int main(int argc, char* argv[]) {
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
-    c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a terminal application.", {}, ".DTT-Data");
+    c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a shell.", {}, DATA_DIRECTORY);
 
     initializeDataDirectories();
     
@@ -618,7 +619,7 @@ int main(int argc, char* argv[]) {
             filePath = (std::filesystem::current_path() / filePath).string();
         }
         
-        std::cout << "DevToolsTerminal launched as file handler for: " << filePath << std::endl;
+        std::cout << "cjsh launched as file handler for: " << filePath << std::endl;
         handleFileExecution(filePath);
         
         if (isLoginShell) {
@@ -1386,7 +1387,7 @@ void commandProcesser(const std::string& command) {
             return;
         }
     } else if(lastCommandParsed == "version") {
-        std::cout << "DevToolsTerminal v" + currentVersion << std::endl;
+        std::cout << "CJ's Shell v" + currentVersion << std::endl;
     } else if (lastCommandParsed == "terminal") {
         try {
             std::string remainingCommands;
@@ -1420,7 +1421,7 @@ void commandProcesser(const std::string& command) {
             std::cerr << "Please disable all plugins before uninstalling." << std::endl;
             return;
         }
-        std::cout << "Are you sure you want to uninstall DevToolsTerminal? (y/n): ";
+        std::cout << "Are you sure you want to uninstall cjsh? (y/n): ";
         char confirmation;
         std::cin >> confirmation;
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -2544,7 +2545,7 @@ void aiSettingsCommands() {
             return;
         }
         if(lastCommandParsed == "clear") {
-            c_assistant.setSaveDirectory(".DTT-Data");
+            c_assistant.setSaveDirectory(DATA_DIRECTORY);
             std::cout << "Directory set to default." << std::endl;
             return;
         }
@@ -2751,8 +2752,8 @@ bool checkForUpdate() {
 }
 
 bool downloadLatestRelease(){
-    if(std::filesystem::exists(DATA_DIRECTORY / "dtt-update.sh")){
-        sendTerminalCommand((DATA_DIRECTORY / "dtt-update.sh").string());
+    if(std::filesystem::exists(UPDATE_SCRIPT_PATH)){
+        sendTerminalCommand((UPDATE_SCRIPT_PATH).string());
         std::cout << "Update script executed." << std::endl;
         exitFlag = true;
         return true;
@@ -3818,7 +3819,7 @@ void setupEnvironmentVariables() {
         setenv("USER", pw->pw_name, 1);
         setenv("LOGNAME", pw->pw_name, 1);
         setenv("HOME", pw->pw_dir, 1);
-        setenv("SHELL", (DATA_DIRECTORY / "DevToolsTerminal").c_str(), 1);
+        setenv("SHELL", (DATA_DIRECTORY / "cjsh").c_str(), 1);
         
         if (getenv("PATH") == nullptr) {
             setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
