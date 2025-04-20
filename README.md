@@ -4,6 +4,7 @@
 ![Version](https://img.shields.io/github/v/release/CadenFinley/CJsShell?label=version&color=blue)
 ![Lines of Code](https://img.shields.io/badge/lines%20of%20code-10228-green)
 
+
 CJ's Shell (cjsh) is a powerful terminal environment for developers that combines traditional shell functionality with AI assistance. It can function as a complete login shell replacement or as a regular application. Beyond standard terminal capabilities, it provides enhanced productivity features including custom shortcuts, AI-powered assistance, plugin support, and theme customization.
 
 ## Key Features
