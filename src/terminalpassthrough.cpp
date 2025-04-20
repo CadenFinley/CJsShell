@@ -6,20 +6,7 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     terminalCacheTerminalOutput = std::vector<std::string>();
     lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     isGitStatusCheckRunning = false;
-    shouldTerminate = false; // Initialize termination flag
-    //     std::string terminalID= "dtt";
-    //     char buffer[256];
-    //     std::string command = "ps -p " + std::to_string(getppid()) + " -o comm=";
-    //     FILE* pipe = popen(command.c_str(), "r");
-    //     if (pipe) {
-    //         if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    //             terminalID = std::string(buffer);
-    //             terminalID.erase(std::remove(terminalID.begin(), terminalID.end(), '\n'), terminalID.end());
-    //             terminalID = removeSpecialCharacters(terminalID);
-    //         }
-    //         pclose(pipe);
-    //     }
-    // terminalName = terminalID;
+    shouldTerminate = false;
     terminalName = "dtt";
     
     signal(SIGTTOU, SIG_IGN);
@@ -491,15 +478,12 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             return false;
         }
     }
-    // Add special handling for sudo and other interactive commands
     else if (cmd == "sudo" || cmd == "ssh" || cmd == "su" || cmd == "login" || cmd == "passwd") {
         if (cmd == "sudo") {
-            // check for -S flag
             if (command.find("-S") == std::string::npos) {
                 std::string sudoCommand = "sudo -S " + command.substr(5);
                 return executeInteractiveCommand(sudoCommand, result);
             } else {
-                // it's already using -S so dont need to do anything
             }
         }
         return executeInteractiveCommand(command, result);
@@ -536,13 +520,10 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
     }
 }
 
-// Add new method to handle interactive commands
 bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, std::string& result) {
-    // Save terminal attributes
     struct termios term_attr;
     tcgetattr(STDIN_FILENO, &term_attr);
     
-    // Create a child process
     pid_t pid = fork();
     
     if (pid == -1) {
@@ -551,14 +532,10 @@ bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, 
     }
     
     if (pid == 0) {
-        // Child process
-        
-        // Put child in its own process group and give it control of the terminal
         pid_t child_pid = getpid();
         setpgid(child_pid, child_pid);
         tcsetpgrp(STDIN_FILENO, child_pid);
         
-        // Reset signal handlers to defaults for the child process
         signal(SIGINT, SIG_DFL);
         signal(SIGQUIT, SIG_DFL);
         signal(SIGTSTP, SIG_DFL);
@@ -566,50 +543,40 @@ bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, 
         signal(SIGTTOU, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         
-        // Change to the correct directory
         if (chdir(currentDirectory.c_str()) != 0) {
             std::cerr << "Failed to change directory: " << strerror(errno) << std::endl;
             exit(EXIT_FAILURE);
         }
         
-        // Set environment variable
         setenv("PWD", currentDirectory.c_str(), 1);
         
-        // Parse the command into arguments
         std::vector<std::string> args = parseCommandIntoArgs(command);
         if (args.empty()) {
             exit(EXIT_FAILURE);
         }
         
-        // Convert to array of C-strings for execvp
         std::vector<char*> argv;
         for (auto& arg : args) {
             argv.push_back(arg.data());
         }
-        argv.push_back(nullptr); // NULL-terminate the array
+        argv.push_back(nullptr);
         
-        // Find the full path of the command
         std::string executable = findExecutableInPath(args[0]);
         if (executable.empty()) {
             std::cerr << "Command not found: " << args[0] << std::endl;
             exit(EXIT_FAILURE);
         }
         
-        // Execute the command
         execvp(executable.c_str(), argv.data());
         
-        // If we get here, execvp failed
         std::cerr << "Failed to execute " << args[0] << ": " << strerror(errno) << std::endl;
         exit(EXIT_FAILURE);
     }
     else {
-        // Parent process
         int status;
         
-        // Let the child process take control of the terminal
         tcsetpgrp(STDIN_FILENO, pid);
         
-        // Wait for the child to complete
         if (waitpid(pid, &status, WUNTRACED) == -1) {
             result = "Error waiting for process: " + std::string(strerror(errno));
             tcsetpgrp(STDIN_FILENO, getpgid(0));
@@ -617,13 +584,10 @@ bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, 
             return false;
         }
         
-        // Restore terminal control to the shell
         tcsetpgrp(STDIN_FILENO, getpgid(0));
         
-        // Restore terminal attributes
         tcsetattr(STDIN_FILENO, TCSADRAIN, &term_attr);
         
-        // Check exit status
         if (WIFEXITED(status)) {
             int exit_status = WEXITSTATUS(status);
             if (exit_status == 0) {
@@ -637,7 +601,6 @@ bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, 
             result = "Command terminated by signal " + std::to_string(WTERMSIG(status));
             return false;
         } else if (WIFSTOPPED(status)) {
-            // Process was stopped, add it to our job control
             std::lock_guard<std::mutex> lock(jobsMutex);
             jobs.push_back(Job(pid, command, false));
             jobs.back().status = status;
@@ -661,15 +624,26 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
         signal(SIGTTIN, SIG_IGN);
         
         pid_t childPid = getpid();
-        setpgid(childPid, childPid);
+        if (setpgid(childPid, childPid) < 0) {
+            std::cerr << "Failed to set process group: " << strerror(errno) << std::endl;
+        }
 
         if (foreground) {
             tcsetpgrp(STDIN_FILENO, childPid);
         }
 
         if (!foreground) {
-            setsid();
+            if (setsid() < 0) {
+                std::cerr << "Failed to create new session: " << strerror(errno) << std::endl;
+            }
         }
+        
+        signal(SIGINT, SIG_DFL);
+        signal(SIGQUIT, SIG_DFL);
+        signal(SIGTSTP, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
+        signal(SIGCHLD, SIG_DFL);
         
         if (chdir(currentDirectory.c_str()) != 0) {
             std::cerr << "dtt: failed to change directory to " << currentDirectory << ": " 
@@ -697,7 +671,9 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
         exit(EXIT_FAILURE);
     }
     
-    setpgid(pid, pid);
+    if (setpgid(pid, pid) < 0 && errno != EACCES) {
+        std::cerr << "Parent: Failed to set process group: " << strerror(errno) << std::endl;
+    }
     
     if (foreground) {
         tcsetpgrp(STDIN_FILENO, pid);
@@ -891,7 +867,19 @@ bool TerminalPassthrough::killJob(int jobId) {
     
     Job& job = jobs[jobId - 1];
     
-    kill(-job.pid, SIGTERM);
+    if (kill(-job.pid, SIGTERM) < 0) {
+        kill(job.pid, SIGTERM);
+    }
+    
+    usleep(100000);
+    
+    if (kill(job.pid, 0) == 0) {
+        if (kill(-job.pid, SIGKILL) < 0) {
+            kill(job.pid, SIGKILL);
+        }
+    }
+    
+    jobs.erase(jobs.begin() + (jobId - 1));
     
     return true;
 }
@@ -1028,7 +1016,17 @@ std::vector<std::string> TerminalPassthrough::getCommandHistory(size_t count) {
 void TerminalPassthrough::terminateAllChildProcesses() {
     std::lock_guard<std::mutex> lock(jobsMutex);
     for (const auto& job : jobs) {
-        kill(-job.pid, SIGKILL);
+        if (kill(-job.pid, SIGTERM) < 0) {
+            kill(job.pid, SIGTERM);
+        }
+        
+        usleep(100000);
+        
+        if (kill(job.pid, 0) == 0) {
+            if (kill(-job.pid, SIGKILL) < 0) {
+                kill(job.pid, SIGKILL);
+            }
+        }
     }
     jobs.clear();
 }

@@ -214,14 +214,12 @@ void handleFileExecution(const std::string& filePath) {
     std::string extension = path.extension().string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
     
-    // Check if file is executable
     if (access(filePath.c_str(), X_OK) == 0) {
         std::cout << "Executing file: " << filePath << std::endl;
         terminal.executeCommand(filePath).join();
         return;
     }
     
-    // Handle specific file types
     if (extension == ".sh") {
         terminal.executeCommand("sh \"" + filePath + "\"").join();
     } else if (extension == ".py") {
@@ -231,7 +229,6 @@ void handleFileExecution(const std::string& filePath) {
     } else if (extension == ".html") {
         terminal.executeCommand("open \"" + filePath + "\"").join();
     } else if (extension == ".txt" || extension == ".md" || extension == ".json" || extension == ".xml") {
-        // Try to open with default editor
         terminal.executeCommand("open \"" + filePath + "\"").join();
     } else {
         std::cout << "Opening file with system default application" << std::endl;
@@ -606,7 +603,6 @@ int main(int argc, char* argv[]) {
         }
     }
     
-    // Initialize terminal and other components
     startupCommands = {};
     multiScriptShortcuts = {};
     aliases = {};
@@ -614,10 +610,8 @@ int main(int argc, char* argv[]) {
 
     initializeDataDirectories();
     
-    // Handle file execution mode (e.g., launched from file manager)
     if (isFileHandler) {
         std::string filePath = argv[1];
-        // Convert to absolute path if necessary
         if (!std::filesystem::path(filePath).is_absolute()) {
             filePath = (std::filesystem::current_path() / filePath).string();
         }
@@ -625,7 +619,6 @@ int main(int argc, char* argv[]) {
         std::cout << "DevToolsTerminal launched as file handler for: " << filePath << std::endl;
         handleFileExecution(filePath);
         
-        // Exit after handling the file
         if (isLoginShell) {
             cleanupLoginShell();
         }
@@ -640,7 +633,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Continue with normal shell initialization
     std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
         if (std::filesystem::exists(USER_DATA)) {
             loadUserDataAsync([]() {});
@@ -3281,7 +3273,6 @@ std::string completeFilePath(const std::string& input) {
     } else if (directoryPart[0] == '/') {
         searchPath = directoryPart;
     } else if (directoryPart[0] == '~' && directoryPart.length() > 1 && directoryPart[1] == '/') {
-        // Handle ~ expansion for home directory
         std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
         if (!homeDir.empty()) {
             directoryPart.replace(0, 1, homeDir);
