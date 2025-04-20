@@ -222,8 +222,6 @@ fi
 echo "Installation complete! DevToolsTerminal has been installed to $APP_PATH"
 echo "Uninstall script saved to $DATA_DIR/dtt-uninstall.sh"
 echo "Update script saved to $DATA_DIR/dtt-update.sh"
-echo "To use DevToolsTerminal, run: $APP_NAME"
-echo "To update DevToolsTerminal, run: $DATA_DIR/dtt-update.sh"
 
 if ! $SET_AS_DEFAULT_SHELL; then
     echo "To set as your default shell, run: chsh -s $APP_PATH"
@@ -233,8 +231,5 @@ if ! $REGISTER_AS_FILE_HANDLER && ! $SET_AS_DEFAULT_SHELL; then
     echo "To register as a file handler, run: $0 --register-file-handler"
 fi
 
-echo "Usage information:"
-echo "  $APP_NAME               - Start DevToolsTerminal"
-echo "  $APP_NAME file.sh       - Open and execute the specified file"
-echo "  $APP_NAME -c \"command\" - Execute command and exit"
+echo "\nStart a new terminal session to begin using DevToolsTerminal."
 

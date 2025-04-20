@@ -2,127 +2,165 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/dqk13klgh9d22bu5?svg=true)](https://ci.appveyor.com/project/CadenFinley/devtoolsterminal)
 ![Version](https://img.shields.io/github/v/release/CadenFinley/DevToolsTerminal?label=version&color=blue)
-![Lines of Code](https://img.shields.io/badge/lines%20of%20code-8986-green)
+![Lines of Code](https://img.shields.io/badge/lines%20of%20code-10500%2B-green)
 
+DevToolsTerminal is a powerful terminal environment for developers that combines traditional shell functionality with AI assistance. It can function as a complete login shell replacement or as a regular application. Beyond standard terminal capabilities, it provides enhanced productivity features including custom shortcuts, AI-powered assistance, plugin support, and theme customization.
 
-DevToolsTerminal is a lightweight custom login shell designed for UNIX systems with integrated OpenAI capabilities. It can function as a complete login shell replacement or as a regular application. Beyond standard terminal functions, it allows users to execute terminal commands, create and manage shortcuts and multi-command scripts, configure startup commands, and interact with OpenAI's GPT models for enhanced productivity, syntax assistance, and error resolution.
+## Key Features
+
+- **Versatile Shell Environment**: Works as both a standalone application and a complete login shell replacement
+- **OpenAI Integration**: Direct access to GPT models for code explanations, problem-solving, and documentation
+- **Workflow Automation**: Create multi-command shortcuts and custom aliases to streamline repetitive tasks
+- **Plugin System**: Extend functionality with plugins for specialized development tasks
+- **Theme Customization**: Personalize your terminal appearance with custom themes
+- **Smart Tab Completion**: Context-aware command and file completion
+- **Automatic Updates**: Stay current with automatic update checks and easy installation
+- **Job Control**: Full support for background processes and job management
 
 ## Using as a Login Shell
 
-DevToolsTerminal can replace your system's default shell (bash, zsh, etc.) and function as a complete login environment. When used as a login shell, DevToolsTerminal:
+DevToolsTerminal can replace your system's default shell (bash, zsh, etc.) for a seamless experience. When used as a login shell, it:
 
-- Initializes your environment by processing standard profile files (like /etc/profile and ~/.profile)
-- Sets up proper PATH variables including Homebrew paths automatically
-- Handles proper job control for background processes
-- Manages signals and terminal settings appropriately
-- Provides all standard shell functionality plus AI-powered assistance
-
-This gives you a seamless experience where DevToolsTerminal launches automatically when you open your terminal or log in to your system.
+- Processes standard profile files (/etc/profile, ~/.profile, ~/.bashrc, etc.)
+- Configures PATH variables with automatic Homebrew path detection
+- Manages proper job control and signal handling
+- Handles interactive commands requiring password input (sudo, ssh, etc.)
+- Preserves all standard shell functionality while adding AI capabilities
 
 ## Installation
 
-### Option 1: Using the Installation Script (macOS/Linux)
-
-1. Use the one-line installation command:
-   ```sh
-   # Default installation
-   curl -sL https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh | bash
-   
-   # Install AND set as default shell
-   curl -sL https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh | bash -s -- --set-as-shell
-   ```
-
-   Or download and run the installation script manually:
-   ```sh
-   curl -O https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh
-   chmod +x dtt-install.sh
-   
-   # Standard installation
-   ./dtt-install.sh
-   
-   # Install and set as default shell
-   ./dtt-install.sh --set-as-shell
-   ```
-
-2. The script will:
-   - Download the latest release from the specified source
-   - Install to `~/.DTT-Data` directory and create a system-wide link in `/usr/local/bin`
-   - Add DevToolsTerminal to `/etc/shells` as a valid login shell
-   - Optionally set DevToolsTerminal as your default shell (with the `--set-as-shell` flag)
-   - Make the application executable and install helper scripts
-
-3. If you didn't set it as your default shell during installation, you can do so later with:
-   ```sh
-   chsh -s /usr/local/bin/DevToolsTerminal
-   ```
-
-4. Your original shell preference is automatically backed up to `~/.DTT-Data/original_shell.txt` when you switch
-
-### Setting Back to Your Original Shell
-
-If you want to revert to your previous shell:
+### Quick Install (macOS/Linux)
 
 ```sh
-# If you know your original shell
-chsh -s /bin/zsh  # or /bin/bash, etc.
+# Default installation
+curl -sL https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh | bash
+```
 
-# Or use the backed-up shell path
+```sh
+# Install AND set as default shell
+curl -sL https://raw.githubusercontent.com/cadenfinley/DevToolsTerminal/main/tool-scripts/dtt-install.sh | bash -s -- --set-as-shell
+```
+
+### Manual Installation
+
+1. Download the latest release from the [GitHub Releases page](https://github.com/cadenfinley/DevToolsTerminal/releases)
+2. Extract the package and run the installer:
+   ```sh
+   chmod +x dtt-install.sh
+   ./dtt-install.sh [--set-as-shell]
+   ```
+
+3. The installer will:
+   - Create the necessary directory structure in `~/.DTT-Data`
+   - Install the executable and create a system-wide link
+   - Register DevToolsTerminal as a valid login shell
+   - Optionally set it as your default shell
+   - Configure your environment for optimal use
+
+### Switching Between Shells
+
+To set DevToolsTerminal as your default shell:
+```sh
+chsh -s /usr/local/bin/DevToolsTerminal
+```
+
+To revert to your previous shell:
+```sh
+# Use your backed-up shell preference
 chsh -s $(cat ~/.DTT-Data/original_shell.txt)
 ```
 
-### File Structure
+## Usage
 
-DevToolsTerminal creates the following directory structure in your home folder:
+### Basic Commands
 
-```
-~/.DTT-Data/                          # Main data directory
-├── DevToolsTerminal                  # Main executable
-├── .USER_DATA.json                   # User settings and preferences
-├── .USER_COMMAND_HISTORY.txt         # History of executed commands
-├── executables_cache.json            # Cache of available system executables
-├── dtt-uninstall.sh                  # Uninstall script
-├── latest_changelog.txt              # Most recent changelog (after updates)
-├── themes/                           # Themes directory
-│   ├── default.json                  # Default color theme
-│   └── [user-themes].json            # User-created themes
-└── plugins/                          # Plugins directory
-    ├── example-plugin.so             # Example plugin (Unix/Linux)
-    └── another-plugin.dylib          # Example plugin (macOS)
+- `!help` - Display help information
+- `!terminal [command]` - Execute terminal commands
+- `!ai [message]` - Interact with the AI assistant
+- `!user` - Access user settings
+- `!theme` - Manage themes
+- `!plugin` - Manage plugins
+
+### AI Integration
+
+Set up OpenAI integration:
+```sh
+!ai apikey set YOUR_API_KEY
 ```
 
-### Uninstallation
+Ask for AI assistance:
+```sh
+!ai How do I implement a binary search in C++?
+```
 
-To uninstall DevToolsTerminal:
+Get AI troubleshooting help:
+```sh
+!aihelp
+```
 
-1. Use the uninstall command inside the app: `!uninstall`
-   
-2. The uninstaller will:
-   - Remove the DevToolsTerminal executable
-   - Remove auto-launch entries from your .zshrc file
-   - Optionally remove all stored data in the ~/.DTT-Data directory
-   - Clean up any legacy installations from previous versions
+### Workflow Automation
 
+Create shortcuts for multiple commands:
+```sh
+!user shortcut add gs git status; git diff --stat
+```
 
-### Option 2: Manual build Installation
+Use the shortcut:
+```
+-gs
+```
 
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/cadenfinley/DevToolsTerminal.git
-   cd DevToolsTerminal
-   ```
+Create aliases:
+```sh
+!user alias add ll ls -la
+```
 
-2. Build the project:
-   ```sh
-   mkdir build
-   cd build
-   cmake ..
-   make
-   ```
+## Configuration
 
-3. Run the application:
-   ```sh
-   ./DevToolsTerminal
-   ```
+DevToolsTerminal stores configuration in `~/.DTT-Data/.USER_DATA.json`. You can customize:
+
+- Startup commands
+- Default theme
+- AI settings
+- Update preferences
+- Input/output behavior
+
+## Plugin Development
+
+DevToolsTerminal supports a plugin system for extending functionality. To develop plugins:
+
+1. Use the C++ plugin API in the `src/include/pluginapi.h` file
+2. Compile your plugin as a shared library (.so/.dylib)
+3. Place in the `~/.DTT-Data/plugins` directory
+4. Enable with `!plugin enable [plugin-name]`
+
+## Building from Source
+
+Requirements:
+- CMake 3.10+
+- C++17 compatible compiler
+- nlohmann/json library
+
+Build steps:
+```sh
+git clone https://github.com/cadenfinley/DevToolsTerminal.git
+cd DevToolsTerminal
+mkdir build && cd build
+cmake ..
+make
+```
+
+## Uninstallation
+
+```sh
+# From within DevToolsTerminal
+!uninstall
+
+# Or run the uninstaller directly
+~/.DTT-Data/dtt-uninstall.sh [--all]
+```
+
+The `--all` flag removes all user data including settings, history, and plugins.
 
 ## License
 
