@@ -18,16 +18,6 @@ TerminalPassthrough::~TerminalPassthrough() {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
-std::string TerminalPassthrough::removeSpecialCharacters(const std::string& input) {
-    std::string result;
-    for (char c : input) {
-        if (isalnum(c)) {
-            result += c;
-        }
-    }
-    return result;
-}
-
 std::string TerminalPassthrough::getTerminalName(){
     return terminalName;
 }

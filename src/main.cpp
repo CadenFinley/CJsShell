@@ -22,6 +22,8 @@
 #include "include/pluginmanager.h"
 #include "include/thememanager.h"
 
+//start work on renaming project to cjsh "caden joshua's shell"
+
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
