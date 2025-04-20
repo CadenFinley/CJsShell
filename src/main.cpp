@@ -16,6 +16,8 @@
 #include <pwd.h>
 #include <signal.h>
 #include <grp.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
@@ -24,8 +26,10 @@
 
 using json = nlohmann::json;
 
+//rename repo to cjsh maybe idk
+
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.0.0";
+const std::string currentVersion = "3.0.0.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -34,13 +38,9 @@ bool runningStartup = false;
 bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
 bool displayWholePath = false;
-bool rawModeEnabled = false;
 bool saveLoop = false;
 bool saveOnExit = false;
 bool updateFromGithub = false;
-bool executablesCacheInitialized = false;
-bool completionBrowsingMode = false;
-bool cachedUpdateAvailable = false;
 bool isLoginShell = false;
 bool isFileHandler = false;
 
@@ -50,9 +50,7 @@ bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
-
-bool hasSuggestion = false;
-std::string currentSuggestion = "";
+bool cachedUpdateAvailable = false;
 
 time_t lastUpdateCheckTime = 0;
 int UPDATE_CHECK_INTERVAL = 86400;
@@ -89,14 +87,9 @@ std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
 std::vector<std::string> commandLines;
-std::vector<std::string> executablesCache;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
-
-size_t tabCompletionIndex = 0;
-std::vector<std::string> currentCompletions;
-std::string originalInput;
 
 OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
@@ -110,19 +103,24 @@ struct termios shell_tmodes;
 int shell_terminal;
 bool jobControlEnabled = false;
 
-std::vector<std::string> getTabCompletions(const std::string& input);
-std::string completeFilePath(const std::string& input);
-std::string getCommonPrefix(const std::vector<std::string>& strings);
-void displayCompletionOptions(const std::vector<std::string>& completions);
-void applyCompletion(size_t index, std::string& command, size_t& cursorPositionX, size_t& cursorPositionY);
-void showInlineSuggestion(const std::string& input);
-std::string readAndReturnUserDataFile();
+char* custom_completion_function(const char* text, int state) {
+    // Return NULL to let readline use its default completion
+    return NULL;
+}
+
+void initialize_readline() {
+    // Disable automatic space after completion
+    rl_completion_append_character = '\0';
+    
+    // Use custom completion function
+    rl_attempted_completion_function = [](const char* text, int start, int end) -> char** {
+        //rl_completion_append_character = 1;
+        return rl_completion_matches(text, custom_completion_function);
+    };
+}
+
 std::vector<std::string> commandSplicer(const std::string& command);
 void mainProcessLoop();
-void setRawMode(bool enable);
-void enableRawMode();
-void disableRawMode();
-bool isRawModeEnabled();
 void createNewUSER_DATAFile();
 void createNewUSER_HISTORYfile();
 void writeUserData();
@@ -160,16 +158,13 @@ void applyColorToStrings();
 void multiScriptShortcutProcesser(const std::string& command);
 void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
-void refreshExecutablesCache();
 void initializeDataDirectories();
 void asyncCheckForUpdates(std::function<void(bool)> callback);
 void loadPluginsAsync(std::function<void()> callback);
 void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback);
 void processChangelogAsync();
 void loadUserDataAsync(std::function<void()> callback);
-bool hasPathChanged();
-void loadExecutableCacheFromDisk();
-void saveExecutableCacheToDisk();
+void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
 bool executeUpdateIfAvailable(bool updateAvailable);
 bool startsWith(const std::string& str, const std::string& prefix);
 void updateCommands();
@@ -177,7 +172,6 @@ void manualUpdateCheck();
 void setUpdateInterval(int intervalHours);
 bool shouldCheckForUpdates();
 bool loadUpdateCache();
-void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
 void setupEnvironmentVariables();
 void initializeLoginEnvironment();
 void setupSignalHandlers();
@@ -636,13 +630,6 @@ int main(int argc, char* argv[]) {
         pluginManager = new PluginManager(PLUGINS_DIRECTORY);
         loadPluginsAsync([]() {});
     });
-    
-    std::future<void> execCacheFuture = std::async(std::launch::async, [&]() {
-        if (std::filesystem::exists(DATA_DIRECTORY / "executables_cache.json")) {
-            loadExecutableCacheFromDisk();
-            executablesCacheInitialized = true;
-        }
-    });
 
     userDataFuture.wait();
 
@@ -681,7 +668,6 @@ int main(int argc, char* argv[]) {
 
     if (changelogFuture.valid()) changelogFuture.wait();
     pluginFuture.wait();
-    execCacheFuture.wait();
     themeFuture.wait();
     if (updateFuture.valid()) updateFuture.wait();
 
@@ -735,9 +721,8 @@ void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "")
 }
 
 void mainProcessLoop() {
-    std::string terminalSetting;
-    int terminalSettingLength;
     notifyPluginsTriggerMainProcess("pre_run", processId);
+    initialize_readline();
     
     while (true) {
         notifyPluginsTriggerMainProcess("start", processId);
@@ -748,251 +733,34 @@ void mainProcessLoop() {
         if (TESTING) {
             std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
         }
+
+        std::string prompt;
         if (defaultTextEntryOnAI) {
             std::string modelInfo = c_assistant.getModel();
             std::string modeInfo = c_assistant.getAssistantType();
-            terminalSetting = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + GREEN_COLOR_BOLD + "] > " + RESET_COLOR;
-            terminalSettingLength = 10 + modelInfo.length() + modeInfo.length();
+            prompt = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
+                    GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
+                    GREEN_COLOR_BOLD + "] > " + RESET_COLOR;
         } else {
-            terminalSetting = terminal.returnCurrentTerminalPosition();
-            terminalSettingLength = terminal.getTerminalCurrentPositionRawLength();
+            prompt = terminal.returnCurrentTerminalPosition();
         }
-        std::cout << terminalSetting;
-        char c;
-        size_t cursorPositionX = 0;
-        size_t cursorPositionY = 0;
-        commandLines.clear();
-        commandLines.push_back("");
-        tabCompletionIndex = 0;
-        currentCompletions.clear();
-        originalInput = "";
-        completionBrowsingMode = false;
-        enableRawMode();
-        while (true) {
-            if (!std::cin.rdbuf()->in_avail()) {
-                usleep(10000);
-            }
-            std::cin.get(c);
-            notifyPluginsTriggerMainProcess("took_input" , std::string(1, c));
-            if (c == 22) {
-                std::string clipboardContent = getClipboardContent();
-                if (!clipboardContent.empty()) {
-                    clearLines(commandLines);
-                    
-                    std::istringstream stream(clipboardContent);
-                    std::string line;
-                    bool isFirstLine = true;
-                    
-                    while (std::getline(stream, line)) {
-                        if (isFirstLine) {
-                            commandLines[cursorPositionY].insert(cursorPositionX, line);
-                            cursorPositionX += line.length();
-                            isFirstLine = false;
-                        } else {
-                            cursorPositionY++;
-                            if (cursorPositionY >= commandLines.size()) {
-                                commandLines.push_back(line);
-                            } else {
-                                commandLines.insert(commandLines.begin() + cursorPositionY, line);
-                            }
-                            cursorPositionX = line.length();
-                        }
-                    }
-                    
-                    reprintCommandLines(commandLines, terminalSetting);
-                    placeCursor(cursorPositionX, cursorPositionY);
-                }
-            } else if (c == '\033') {
-                std::cin.get(c);
-                if (c == '[') {
-                    std::cin.get(c);
-                    if (c == 'Z') {
-                        if (!commandLines[cursorPositionY].empty()) {
-                            if (currentCompletions.empty()) {
-                                originalInput = commandLines[cursorPositionY];
-                                currentCompletions = getTabCompletions(originalInput);
-                            }
-                            
-                            if (!currentCompletions.empty()) {
-                                clearLines(commandLines);
-                                
-                                if (tabCompletionIndex == 0) {
-                                    tabCompletionIndex = currentCompletions.size() - 1;
-                                } else {
-                                    tabCompletionIndex = (tabCompletionIndex - 1) % currentCompletions.size();
-                                }
-                                
-                                completionBrowsingMode = true;
-                                
-                                std::string completion = currentCompletions[tabCompletionIndex];
-                                if (completion.length() > originalInput.length() && startsWith(completion, originalInput)) {
-                                    std::string suggestion = completion.substr(originalInput.length());
-                                    hasSuggestion = true;
-                                    currentSuggestion = suggestion;
-                                }
-                                
-                                reprintCommandLines(commandLines, terminalSetting);
-                                if (hasSuggestion && !currentSuggestion.empty()) {
-                                    std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";
-                                    std::cout << "\033[" << currentSuggestion.length() << "D";
-                                }
-                                placeCursor(cursorPositionX, cursorPositionY);
-                            }
-                        }
-                    } else {
-                        std::string returnedArrowContent = handleArrowKey(c, cursorPositionX, cursorPositionY, commandLines, commandLines[cursorPositionY], terminalSetting);
-                        if(returnedArrowContent != ""){
-                            clearLines(commandLines);
-                            commandLines.clear();
-                            commandLines.push_back("");
-                            cursorPositionX = 0;
-                            cursorPositionY = 0;
-                            
-                            std::istringstream stream(returnedArrowContent);
-                            std::string line;
-                            bool isFirstLine = true;
-                            while (std::getline(stream, line)) {
-                                if (isFirstLine) {
-                                    commandLines[0] = line;
-                                    cursorPositionX = line.length();
-                                    isFirstLine = false;
-                                } else {
-                                    cursorPositionY++;
-                                    commandLines.push_back(line);
-                                    cursorPositionX = line.length();
-                                }
-                            }
-                            reprintCommandLines(commandLines, terminalSetting);
-                            placeCursor(cursorPositionX, cursorPositionY);
-                        }
-                    }
-                }
-            } else if (c == '\n') {
-                if (hasSuggestion) {
-                    std::cout << "\033[K";
-                    hasSuggestion = false;
-                    currentSuggestion = "";
-                }
-                std::cout << std::endl;
-                break;
-            } else if (c == 127) {
-                if (hasSuggestion) {
-                    std::cout << "\033[K";
-                    hasSuggestion = false;
-                    currentSuggestion = "";
-                }
-                
-                clearLines(commandLines);
-                if (commandLines[cursorPositionY].length() > 0 && cursorPositionX > 0) {
-                    commandLines[cursorPositionY].erase(cursorPositionX - 1, 1);
-                    cursorPositionX--;
-                } else if (cursorPositionX == 0 && cursorPositionY > 0) {
-                    cursorPositionX = commandLines[cursorPositionY - 1].length();
-                    commandLines[cursorPositionY - 1] += commandLines[cursorPositionY];
-                    commandLines.erase(commandLines.begin() + cursorPositionY);
-                    cursorPositionY--;
-                }
-                reprintCommandLines(commandLines, terminalSetting);
-                placeCursor(cursorPositionX, cursorPositionY);
-                tabCompletionIndex = 0;
-                currentCompletions.clear();
-                originalInput = "";
-                
-                showInlineSuggestion(commandLines[cursorPositionY]);
-            } else if (c == '\t') {
-                if (!commandLines[cursorPositionY].empty()) {
-                    if (hasSuggestion && !currentSuggestion.empty() && !completionBrowsingMode) {
-                        clearLines(commandLines);
-                        commandLines[cursorPositionY] += currentSuggestion;
-                        cursorPositionX += currentSuggestion.length();
-                        
-                        hasSuggestion = false;
-                        currentSuggestion = "";
-                        
-                        reprintCommandLines(commandLines, terminalSetting);
-                        placeCursor(cursorPositionX, cursorPositionY);
-                        
-                        tabCompletionIndex = 0;
-                        currentCompletions.clear();
-                        originalInput = "";
-                    } else if (completionBrowsingMode && !currentCompletions.empty()) {
-                        clearLines(commandLines);
-                        applyCompletion(tabCompletionIndex, commandLines[cursorPositionY], cursorPositionX, cursorPositionY);
-                        completionBrowsingMode = false;
-                        
-                        reprintCommandLines(commandLines, terminalSetting);
-                        placeCursor(cursorPositionX, cursorPositionY);
-                        
-                        tabCompletionIndex = 0;
-                        currentCompletions.clear();
-                        originalInput = "";
-                    } else {
-                        if (currentCompletions.empty()) {
-                            originalInput = commandLines[cursorPositionY];
-                            currentCompletions = getTabCompletions(originalInput);
-                        }
-                        
-                        if (!currentCompletions.empty()) {
-                            clearLines(commandLines);
-                            
-                            tabCompletionIndex = (tabCompletionIndex + 1) % currentCompletions.size();
-                            completionBrowsingMode = true;
-                            
-                            std::string completion = currentCompletions[tabCompletionIndex];
-                            if (completion.length() > originalInput.length() && startsWith(completion, originalInput)) {
-                                std::string suggestion = completion.substr(originalInput.length());
-                                hasSuggestion = true;
-                                currentSuggestion = suggestion;
-                            }
-                            
-                            reprintCommandLines(commandLines, terminalSetting);
-                            if (hasSuggestion && !currentSuggestion.empty()) {
-                                std::cout << "\033[7m\033[97m" << currentSuggestion << "\033[0m";
-                                std::cout << "\033[" << currentSuggestion.length() << "D";
-                            }
-                            placeCursor(cursorPositionX, cursorPositionY);
-                        }
-                    }
-                }
-            } else {
-                if (hasSuggestion) {
-                    std::cout << "\033[K";
-                    hasSuggestion = false;
-                    currentSuggestion = "";
-                }
-                
-                clearLines(commandLines);
-                commandLines[cursorPositionY].insert(cursorPositionX, 1, c);
-                int currentLineLength;
-                if(cursorPositionY == 0){
-                    currentLineLength = commandLines[cursorPositionY].length() + terminalSettingLength;
-                } else {
-                    currentLineLength = commandLines[cursorPositionY].length();
-                }
-                if (currentLineLength < getTerminalWidth()) {
-                    cursorPositionX++;
-                } else {
-                    cursorPositionY++;
-                    commandLines.push_back("");
-                    cursorPositionX = 0;
-                }
-                reprintCommandLines(commandLines, terminalSetting);
-                placeCursor(cursorPositionX, cursorPositionY);
-                
-                tabCompletionIndex = 0;
-                currentCompletions.clear();
-                originalInput = "";
-                
-                showInlineSuggestion(commandLines[cursorPositionY]);
-            }
+
+        char* line = readline(prompt.c_str());
+        if (line == nullptr) {
+            // Handle EOF (Ctrl+D)
+            std::cout << std::endl;
+            exitFlag = true;
+            break;
         }
-        disableRawMode();
-        std::string finalCommand;
-        for (const auto& line : commandLines) {
-            finalCommand += line;
+
+        std::string command(line);
+        if (!command.empty()) {
+            add_history(line);
+            notifyPluginsTriggerMainProcess("command_processed", command);
+            commandParser(command);
         }
-        notifyPluginsTriggerMainProcess("command_processed" , finalCommand);
-        commandParser(finalCommand);
+        free(line);
+
         notifyPluginsTriggerMainProcess("end", processId);
         if (exitFlag) {
             break;
@@ -1043,12 +811,6 @@ void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
 }
 
 std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
-    if (hasSuggestion) {
-        std::cout << "\033[K";
-        hasSuggestion = false;
-        currentSuggestion = "";
-    }
-    
     switch (arrow) {
         case 'A':
             return terminal.getPreviousCommand();
@@ -1104,36 +866,6 @@ std::string getClipboardContent() {
     }
     
     return result;
-}
-
-void setRawMode(bool enable) {
-    std::lock_guard<std::mutex> lock(rawModeMutex);
-    if (rawModeEnabled == enable) {
-        return;
-    }
-    static struct termios oldt, newt;
-    if (enable) {
-        tcgetattr(STDIN_FILENO, &oldt);
-        newt = oldt;
-        newt.c_lflag &= ~(ICANON | ECHO);
-        tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    } else {
-        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    }
-    rawModeEnabled = enable;
-}
-
-void enableRawMode() {
-    setRawMode(true);
-}
-
-void disableRawMode() {
-    setRawMode(false);
-}
-
-bool isRawModeEnabled() {
-    std::lock_guard<std::mutex> lock(rawModeMutex);
-    return rawModeEnabled;
 }
 
 void createNewUSER_DATAFile() {
@@ -1425,11 +1157,6 @@ void commandProcesser(const std::string& command) {
             std::cout << "Uninstall cancelled." << std::endl;
         }
         return;
-    } else if (lastCommandParsed == "refresh-commands" || lastCommandParsed == "refresh-executables") {
-        std::cout << "Refreshing executable commands cache..." << std::endl;
-        refreshExecutablesCache();
-        std::cout << "Discovered " << executablesCache.size() << " executable commands." << std::endl;
-        return;
     } else {
         std::queue<std::string> tempQueue;
         tempQueue.push(lastCommandParsed);
@@ -1461,7 +1188,6 @@ void printHelp() {
     std::cout << " plugin: Manage plugins" << std::endl;
     std::cout << " env: Manage environment variables" << std::endl;
     std::cout << " uninstall: Uninstall the application" << std::endl;
-    std::cout << " refresh-commands: Refresh the executable commands cache" << std::endl;
 }
 
 void pluginCommands(){
@@ -2759,6 +2485,10 @@ void displayChangeLog(const std::string& changeLog) {
     if (lineCount == 5 && std::getline(iss, line)) {
         std::cout << "... (see complete changelog on GitHub)" << std::endl;
     }
+    
+    if (lineCount == 0) {
+        std::cout << "No key changes listed." << std::endl;
+    }
 }
 
 void applyColorToStrings() {
@@ -2842,636 +2572,6 @@ bool startsWithCaseInsensitive(const std::string& str, const std::string& prefix
 
 bool startsWith(const std::string& str, const std::string& prefix) {
     return startsWithCaseInsensitive(str, prefix);
-}
-
-std::vector<std::string> getTabCompletions(const std::string& input) {
-    std::vector<std::string> completions;
-    
-    if (input.find(' ') != std::string::npos) {
-        size_t spacePos = input.find_first_of(' ');
-        std::string command = input.substr(0, spacePos);
-        std::string argument = input.substr(spacePos + 1);
-        
-        if (command == "cd" || command == "ls" || command == "mkdir" || command == "rmdir" ||
-            command == "cat" || command == "cp" || command == "mv" || command == "rm" ||
-            command == "touch" || command == "less" || command == "nano" || command == "vim") {
-            if (argument.find('/') != std::string::npos) {
-                std::string completedPath = completeFilePath(input);
-                if (!completedPath.empty()) {
-                    completions.push_back(completedPath);
-                }
-                return completions;
-            }
-            
-            std::string dir = terminal.getCurrentFilePath();
-            try {
-                for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-                    std::string entryName = entry.path().filename().string();
-                    if (startsWithCaseInsensitive(entryName, argument)) {
-                        if ((command == "cd" || command == "rmdir") && !entry.is_directory()) {
-                            continue;
-                        }
-                        completions.push_back(command + " " + entryName);
-                    }
-                }
-            } catch (const std::filesystem::filesystem_error& e) {
-            }
-            
-            return completions;
-        }
-        
-        if (command == commandPrefix + "user") {
-            std::vector<std::string> userCommands = {
-                "startup", "text", "shortcut", "alias", "testing", "data", 
-                "saveloop", "saveonexit", "checkforupdates", "updatepath", "help"
-            };
-            
-            for (const auto& cmd : userCommands) {
-                if (startsWith(cmd, argument)) {
-                    completions.push_back(command + " " + cmd);
-                }
-            }
-            
-            if (argument.find(' ') != std::string::npos) {
-                size_t subCmdPos = argument.find_first_of(' ');
-                std::string subCommand = argument.substr(0, subCmdPos);
-                std::string subArg = argument.substr(subCmdPos + 1);
-                
-                std::vector<std::pair<std::string, std::vector<std::string>>> userSubCommands = {
-                    {"startup", {"add", "remove", "clear", "enable", "disable", "list", "runall", "help"}},
-                    {"text", {"commandprefix", "shortcutprefix", "displayfullpath", "defaultentry", "help"}},
-                    {"shortcut", {"enable", "disable", "list", "add", "remove", "help"}},
-                    {"alias", {"enable", "disable", "add", "remove", "list", "help"}},
-                    {"testing", {"enable", "disable"}},
-                    {"saveloop", {"enable", "disable"}},
-                    {"saveonexit", {"enable", "disable"}},
-                    {"checkforupdates", {"enable", "disable"}},
-                    {"updatepath", {"github", "cadenfinley"}},
-                    {"data", {"get", "clear", "help"}},
-                    {"update", {"check", "interval", "help"}}
-                };
-                
-                for (const auto& [cmd, subCmds] : userSubCommands) {
-                    if (subCommand == cmd) {
-                        for (const auto& subcmd : subCmds) {
-                            if (subArg.empty() || startsWith(subcmd, subArg)) {
-                                completions.push_back(command + " " + subCommand + " " + subcmd);
-                            }
-                        }
-                    }
-                }
-                
-                if (subCommand == "data" && subArg.find(' ') != std::string::npos) {
-                    size_t thirdCmdPos = subArg.find_first_of(' ');
-                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
-                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
-                    
-                    if (thirdCmd == "get") {
-                        std::vector<std::string> getOpts = {"userdata", "userhistory", "all"};
-                        for (const auto& opt : getOpts) {
-                            if (thirdArg.empty() || startsWith(opt, thirdArg)) {
-                                completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + opt);
-                            }
-                        }
-                    }
-                }
-                
-                if (subCommand == "update" && subArg.find(' ') != std::string::npos) {
-                    size_t thirdCmdPos = subArg.find_first_of(' ');
-                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
-                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
-                    
-                    if (thirdCmd == "interval") {
-                        if (thirdArg.empty()) {
-                            completions.push_back(command + " " + subCommand + " " + thirdCmd + " [HOURS]");
-                        }
-                    }
-                }
-            }
-            
-            return completions;
-        }
-        
-        if (command == commandPrefix + "ai") {
-            std::vector<std::string> aiCommands = {
-                "log", "apikey", "chat", "get", "dump", "mode", "file",
-                "directory", "model", "rejectchanges", "timeoutflag", "help"
-            };
-            
-            for (const auto& cmd : aiCommands) {
-                if (startsWith(cmd, argument)) {
-                    completions.push_back(command + " " + cmd);
-                }
-            }
-            
-            if (argument.find(' ') != std::string::npos) {
-                size_t subCmdPos = argument.find_first_of(' ');
-                std::string subCommand = argument.substr(0, subCmdPos);
-                std::string subArg = argument.substr(subCmdPos + 1);
-                
-                std::vector<std::pair<std::string, std::vector<std::string>>> aiSubCommands = {
-                    {"apikey", {"set", "get"}},
-                    {"chat", {"history", "cache", "help"}},
-                    {"file", {"add", "remove", "active", "available", "refresh", "clear"}},
-                    {"directory", {"set", "clear"}},
-                    {"mode", {"chat", "code", "document", "creative", "assistant"}}
-                };
-                
-                for (const auto& [cmd, subCmds] : aiSubCommands) {
-                    if (subCommand == cmd) {
-                        for (const auto& subcmd : subCmds) {
-                            if (subArg.empty() || startsWith(subcmd, subArg)) {
-                                completions.push_back(command + " " + subCommand + " " + subcmd);
-                            }
-                        }
-                    }
-                }
-                
-                if (subCommand == "chat" && subArg.find(' ') != std::string::npos) {
-                    size_t thirdCmdPos = subArg.find_first_of(' ');
-                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
-                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
-                    
-                    if (thirdCmd == "cache") {
-                        std::vector<std::string> cacheOpts = {"enable", "disable", "clear"};
-                        for (const auto& opt : cacheOpts) {
-                            if (thirdArg.empty() || startsWith(opt, thirdArg)) {
-                                completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + opt);
-                            }
-                        }
-                    }
-                    
-                    if (thirdCmd == "history") {
-                        std::vector<std::string> historyOpts = {"clear"};
-                        for (const auto& opt : historyOpts) {
-                            if (thirdArg.empty() || startsWith(opt, thirdArg)) {
-                                completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + opt);
-                            }
-                        }
-                    }
-                }
-                
-                if (subCommand == "file" && subArg.find(' ') != std::string::npos) {
-                    size_t thirdCmdPos = subArg.find_first_of(' ');
-                    std::string thirdCmd = subArg.substr(0, thirdCmdPos);
-                    std::string thirdArg = subArg.substr(thirdCmdPos + 1);
-                    
-                    if (thirdCmd == "add" || thirdCmd == "remove") {
-                        if (thirdArg.empty() || thirdArg == "a") {
-                            completions.push_back(command + " " + subCommand + " " + thirdCmd + " all");
-                        }
-                        
-                        std::string dir = terminal.getCurrentFilePath();
-                        try {
-                            for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-                                std::string entryName = entry.path().filename().string();
-                                if (thirdArg.empty() || startsWithCaseInsensitive(entryName, thirdArg)) {
-                                    completions.push_back(command + " " + subCommand + " " + thirdCmd + " " + entryName);
-                                }
-                            }
-                        } catch (const std::filesystem::filesystem_error& e) {
-                        }
-                    }
-                }
-            }
-            
-            return completions;
-        }
-        
-        if (command == commandPrefix + "plugin") {
-            std::vector<std::string> pluginCommands = {
-                "help", "available", "enabled", "enable", "disable", "info", "commands", "settings",
-                "enableall", "disableall", "install", "uninstall"
-            };
-            
-            for (const auto& cmd : pluginCommands) {
-                if (startsWith(cmd, argument)) {
-                    completions.push_back(command + " " + cmd);
-                }
-            }
-            
-            if (pluginManager && (argument == "enable" || argument == "disable" || argument == "info" || argument == "commands" || argument == "settings" || argument == "uninstall")) {
-                std::vector<std::string> availPlugins = pluginManager->getAvailablePlugins();
-                std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
-                
-                std::vector<std::string> pluginList;
-                if (argument == "enable") {
-                    for (const auto& plugin : availPlugins) {
-                        if (std::find(enabledPlugins.begin(), enabledPlugins.end(), plugin) == enabledPlugins.end()) {
-                            pluginList.push_back(plugin);
-                        }
-                    }
-                } else if (argument == "disable" || argument == "info" || argument == "commands" || argument == "settings") {
-                    pluginList = enabledPlugins;
-                } else if (argument == "uninstall") {
-                    pluginList = availPlugins;
-                }
-                
-                for (const auto& plugin : pluginList) {
-                    completions.push_back(command + " " + argument + " " + plugin);
-                }
-            }
-            
-            if (argument.find(' ') != std::string::npos) {
-                size_t subCmdPos = argument.find_first_of(' ');
-                std::string subCommand = argument.substr(0, subCmdPos);
-                std::string subArg = argument.substr(subCmdPos + 1);
-                
-                if (subCommand == "settings" && pluginManager) {
-                    if (subArg.find(' ') != std::string::npos) {
-                        size_t pluginPos = subArg.find_first_of(' ');
-                        std::string pluginName = subArg.substr(0, pluginPos);
-                        std::string settingArg = subArg.substr(pluginPos + 1);
-                        
-                        if (startsWith(settingArg, "s")) {
-                            completions.push_back(command + " " + subCommand + " " + pluginName + " set");
-                        }
-                        
-                        if (settingArg == "set") {
-                            completions.push_back(command + " " + subCommand + " " + pluginName + " set [SETTING]");
-                        }
-                    } else {
-                        for (const auto& plugin : pluginManager->getEnabledPlugins()) {
-                            if (subArg.empty() || startsWithCaseInsensitive(plugin, subArg)) {
-                                completions.push_back(command + " " + subCommand + " " + plugin);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            return completions;
-        }
-        
-        if (command == commandPrefix + "theme") {
-            std::vector<std::string> themeCommands = {"load", "save"};
-            
-            for (const auto& cmd : themeCommands) {
-                if (startsWith(cmd, argument)) {
-                    completions.push_back(command + " " + cmd);
-                }
-            }
-            
-            if (themeManager && argument == "load") {
-                std::vector<std::string> availableThemes;
-                for (const auto& theme : themeManager->getAvailableThemes()) {
-                    availableThemes.push_back(theme.first);
-                }
-                for (const auto& theme : availableThemes) {
-                    completions.push_back(command + " load " + theme);
-                }
-            }
-            
-            return completions;
-        }
-        
-        if (command == commandPrefix + "terminal") {
-            std::string completedPath = completeFilePath(input);
-            if (!completedPath.empty()) {
-                completions.push_back(completedPath);
-            }
-            return completions;
-        }
-    }
-    
-    if (input.find('/') != std::string::npos || (input.size() >= 2 && input.substr(0, 2) == "./") || (input.size() >= 1 && input[0] == '/')) {
-        std::string completedPath = completeFilePath(input);
-        if (!completedPath.empty()) {
-            completions.push_back(completedPath);
-        }
-        return completions;
-    }
-    
-    std::vector<std::string> commonCommands = {
-        "cd", "ls", "mkdir", "rmdir", "touch", "cp", "mv", "rm", "cat", "grep", "find",
-        "git", "python", "python3", "node", "npm", "yarn", "docker", "make", "gcc",
-        "clear", "echo", "exit", "pwd", "less", "nano", "vim", "ssh", "scp", "tar",
-        "curl", "wget", "ping", "ifconfig", "netstat", "top", "htop", "ps"
-    };
-    
-    for (const auto& cmd : commonCommands) {
-        if (startsWith(cmd, input)) {
-            completions.push_back(cmd);
-        }
-    }
-
-    if (!executablesCacheInitialized) {
-        refreshExecutablesCache();
-    }
-    
-    for (const auto& exec : executablesCache) {
-        if (startsWith(exec, input) && 
-            std::find(completions.begin(), completions.end(), exec) == completions.end()) {
-            completions.push_back(exec);
-        }
-    }
-    
-    std::vector<std::string> recentCommands = terminal.getCommandHistory(10);
-    for (const auto& cmd : recentCommands) {
-        if (startsWith(cmd, input) && 
-            std::find(completions.begin(), completions.end(), cmd) == completions.end()) {
-            completions.insert(completions.begin(), cmd);
-        }
-    }
-    
-    if (input.size() >= commandPrefix.size() && 
-        input.substr(0, commandPrefix.size()) == commandPrefix) {
-        std::string cmdInput = input.substr(commandPrefix.length());
-        
-        std::vector<std::string> builtInCommands = {
-            "ai", "approot", "clear", "terminal", "user", "aihelp", 
-            "version", "plugin", "theme", "help", "uninstall", "env"
-        };
-        
-        for (const auto& cmd : builtInCommands) {
-            if (startsWith(cmd, cmdInput)) {
-                completions.push_back(commandPrefix + cmd);
-            }
-        }
-        
-        if (pluginManager) {
-            for (const auto& pluginName : pluginManager->getEnabledPlugins()) {
-                std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(pluginName);
-                for (const auto& pluginCmd : pluginCommands) {
-                    if (startsWith(pluginCmd, cmdInput)) {
-                        completions.push_back(commandPrefix + pluginCmd);
-                    }
-                }
-            }
-        }
-        
-        return completions;
-    }
-    
-    if (input.size() >= shortcutsPrefix.size() && 
-        input.substr(0, shortcutsPrefix.size()) == shortcutsPrefix) {
-        std::string shortcutInput = input.substr(shortcutsPrefix.length());
-        
-        for (const auto& [key, _] : multiScriptShortcuts) {
-            if (startsWith(key, shortcutInput)) {
-                completions.push_back(shortcutsPrefix + key);
-            }
-        }
-        
-        return completions;
-    }
-    
-    std::string completedPath = completeFilePath(input);
-    if (!completedPath.empty()) {
-        completions.push_back(completedPath);
-    }
-    
-    return completions;
-}
-
-std::string completeFilePath(const std::string& input) {
-    std::string prefix = "";
-    std::string pathToComplete = input;
-    
-    if (input.find(' ') != std::string::npos) {
-        size_t spacePos = input.find_first_of(' ');
-        prefix = input.substr(0, spacePos + 1);
-        pathToComplete = input.substr(spacePos + 1);
-    }
-    
-    std::filesystem::path basePath = terminal.getCurrentFilePath();
-    
-    std::string directoryPart;
-    std::string filenamePart;
-    
-    if (pathToComplete.find('/') != std::string::npos) {
-        size_t lastSlash = pathToComplete.find_last_of('/');
-        directoryPart = pathToComplete.substr(0, lastSlash + 1);
-        filenamePart = pathToComplete.substr(lastSlash + 1);
-    } else {
-        directoryPart = "";
-        filenamePart = pathToComplete;
-    }
-    
-    std::filesystem::path searchPath;
-    
-    if (directoryPart.empty()) {
-        searchPath = basePath;
-    } else if (directoryPart[0] == '/') {
-        searchPath = directoryPart;
-    } else if (directoryPart[0] == '~' && directoryPart.length() > 1 && directoryPart[1] == '/') {
-        std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
-        if (!homeDir.empty()) {
-            directoryPart.replace(0, 1, homeDir);
-            searchPath = directoryPart;
-        } else {
-            searchPath = basePath / directoryPart;
-        }
-    } else {
-        searchPath = basePath / directoryPart;
-    }
-    
-    std::vector<std::string> matches;
-    try {
-        for (const auto& entry : std::filesystem::directory_iterator(searchPath)) {
-            std::string entryName = entry.path().filename().string();
-            if (startsWithCaseInsensitive(entryName, filenamePart)) {
-                std::string completion = directoryPart + entryName;
-                if (entry.is_directory()) {
-                    completion += "/";
-                }
-                matches.push_back(prefix + completion);
-            }
-        }
-    } catch (const std::filesystem::filesystem_error& e) {
-    }
-    
-    if (matches.size() == 1) {
-        return matches[0];
-    } else if (matches.size() > 1) {
-        std::vector<std::string> strippedMatches;
-        for (const auto& match : matches) {
-            strippedMatches.push_back(match.substr(prefix.length()));
-        }
-        
-        std::string commonPrefix = getCommonPrefix(strippedMatches);
-        return prefix + commonPrefix;
-    }
-    
-    return "";
-}
-
-std::string getCommonPrefix(const std::vector<std::string>& strings) {
-    if (strings.empty()) {
-        return "";
-    }
-    
-    if (strings.size() == 1) {
-        return strings[0];
-    }
-    
-    std::string prefix = strings[0];
-    for (size_t i = 1; i < strings.size(); ++i) {
-        size_t j = 0;
-        while (j < prefix.length() && j < strings[i].length() && prefix[j] == strings[i][j]) {
-            j++;
-        }
-        prefix = prefix.substr(0, j);
-    }
-    
-    return prefix;
-}
-
-void displayCompletionOptions(const std::vector<std::string>& completions) {
-    if (completions.empty()) {
-        return;
-    }
-    
-    const int termWidth = getTerminalWidth();
-    int maxLength = 0;
-    
-    for (const auto& comp : completions) {
-        maxLength = std::max(maxLength, static_cast<int>(comp.length()));
-    }
-    
-    maxLength += 2;
-    
-    int numColumns = std::max(1, termWidth / maxLength);
-    int numRows = (completions.size() + numColumns - 1) / numColumns;
-    
-    for (int row = 0; row < numRows; ++row) {
-        for (int col = 0; col < numColumns; ++col) {
-            int index = col * numRows + row;
-            if (index < completions.size()) {
-                std::cout << completions[index];
-                
-                int padding = maxLength - completions[index].length();
-                for (int i = 0; i < padding; ++i) {
-                    std::cout << " ";
-                }
-            }
-        }
-        std::cout << std::endl;
-    }
-}
-
-void applyCompletion(size_t index, std::string& command, size_t& cursorPositionX, size_t& cursorPositionY) {
-    if (index < currentCompletions.size()) {
-        command = currentCompletions[index];
-        cursorPositionX = command.length();
-    }
-}
-
-void showInlineSuggestion(const std::string& input) {
-    if (hasSuggestion) {
-        std::cout << "\033[K";
-        hasSuggestion = false;
-        currentSuggestion = "";
-    }
-    
-    if (input.empty()) {
-        return;
-    }
-    
-    std::vector<std::string> completions = getTabCompletions(input);
-    
-    if (!completions.empty()) {
-        std::string completion = completions[0];
-        
-        if (completion.length() > input.length()) {
-            if (startsWith(completion, input)) {
-                currentSuggestion = completion.substr(input.length());
-                
-                if (!currentSuggestion.empty()) {
-                    std::cout << "\033[97m" << currentSuggestion[0] << "\033[0m";
-                    if (currentSuggestion.length() > 1) {
-                        std::cout << "\033[38;5;249m" << currentSuggestion.substr(1) << "\033[0m";
-                    }
-                    
-                    std::cout << "\033[" << currentSuggestion.length() << "D";
-                    
-                    hasSuggestion = true;
-                }
-            }
-        }
-    }
-}
-
-void refreshExecutablesCache() {
-    if (executablesCacheInitialized && !hasPathChanged()) {
-        return;
-    }
-    
-    executablesCache.clear();
-    
-    char* pathEnv = getenv("PATH");
-    if (!pathEnv) {
-        executablesCacheInitialized = true;
-        return;
-    }
-    
-    std::string path(pathEnv);
-    std::stringstream pathStream(path);
-    std::string directory;
-    
-    std::vector<std::thread> scanThreads;
-    std::mutex cacheMutex;
-    std::atomic<int> discoveredCount(0);
-
-    while (std::getline(pathStream, directory, ':')) {
-        if (directory.empty()) continue;
-
-        scanThreads.emplace_back([directory, &cacheMutex, &discoveredCount]() {
-            try {
-                if (!std::filesystem::exists(directory)) {
-                    return;
-                }
-                
-                std::vector<std::string> localCache;
-                for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-                    if (entry.is_regular_file() || entry.is_symlink()) {
-                        try {
-                            std::error_code ec;
-                            auto perms = std::filesystem::status(entry.path(), ec).permissions();
-                            
-                            if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
-                                (perms & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
-                                (perms & std::filesystem::perms::others_exec) != std::filesystem::perms::none) {
-                                
-                                std::string execName = entry.path().filename().string();
-                                if (!execName.empty() && execName[0] != '.') {
-                                    localCache.push_back(execName);
-                                }
-                            }
-                        } catch (const std::exception& e) {
-                            continue;
-                        }
-                    }
-                }
-                
-                std::lock_guard<std::mutex> lock(cacheMutex);
-                for (const auto& name : localCache) {
-                    if (std::find(executablesCache.begin(), executablesCache.end(), name) == executablesCache.end()) {
-                        executablesCache.push_back(name);
-                        discoveredCount++;
-                    }
-                }
-            } catch (const std::filesystem::filesystem_error& e) {
-            } catch (const std::exception& e) {
-            }
-        });
-    }
-
-    for (auto& thread : scanThreads) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-
-    std::sort(executablesCache.begin(), executablesCache.end());
-    
-    executablesCacheInitialized = true;
-    
-    if (TESTING) {
-        std::cout << "Discovered " << discoveredCount << " executable commands." << std::endl;
-    }
-    
-    saveExecutableCacheToDisk();
 }
 
 void initializeDataDirectories() {
@@ -3667,60 +2767,6 @@ void loadUserDataAsync(std::function<void()> callback) {
         }
     }
     callback();
-}
-
-bool hasPathChanged() {
-    static std::string lastPathValue;
-    std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
-    
-    if (lastPathValue.empty()) {
-        lastPathValue = currentPath;
-        return true;
-    }
-    
-    if (lastPathValue != currentPath) {
-        lastPathValue = currentPath;
-        return true;
-    }
-    
-    return false;
-}
-
-void loadExecutableCacheFromDisk() {
-    std::ifstream cacheFile(DATA_DIRECTORY / "executables_cache.json");
-    if (!cacheFile.is_open()) return;
-    
-    try {
-        json cacheData;
-        cacheFile >> cacheData;
-        cacheFile.close();
-        
-        std::string cachedPathValue = cacheData["path_value"].get<std::string>();
-        std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
-        
-        if (cachedPathValue == currentPath) {
-            executablesCache = cacheData["executables"].get<std::vector<std::string>>();
-            executablesCacheInitialized = true;
-        } else {
-            refreshExecutablesCache();
-            saveExecutableCacheToDisk();
-        }
-    } catch (const std::exception& e) {
-        refreshExecutablesCache();
-        saveExecutableCacheToDisk();
-    }
-}
-
-void saveExecutableCacheToDisk() {
-    json cacheData;
-    cacheData["executables"] = executablesCache;
-    cacheData["path_value"] = getenv("PATH") ? getenv("PATH") : "";
-    
-    std::ofstream cacheFile(DATA_DIRECTORY / "executables_cache.json");
-    if (cacheFile.is_open()) {
-        cacheFile << cacheData.dump();
-        cacheFile.close();
-    }
 }
 
 void saveUpdateCache(bool updateAvailable, const std::string& latestVersion) {

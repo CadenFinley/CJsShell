@@ -60,6 +60,25 @@ endif()
 
 find_package(Threads REQUIRED)  # Add this to find pthread library
 
+# Find the readline library
+find_package(Readline QUIET)
+if(NOT Readline_FOUND)
+    # Try to find it manually
+    find_path(Readline_INCLUDE_DIR readline/readline.h
+        PATHS /usr/include /usr/local/include /opt/include /opt/local/include)
+    find_library(Readline_LIBRARY NAMES readline
+        PATHS /usr/lib /usr/local/lib /opt/lib /opt/local/lib)
+    
+    if(Readline_INCLUDE_DIR AND Readline_LIBRARY)
+        set(Readline_FOUND TRUE)
+        message(STATUS "Found readline: ${Readline_LIBRARY}")
+    else()
+        message(FATAL_ERROR "readline library not found")
+    endif()
+endif()
+
+include_directories(${Readline_INCLUDE_DIR})
+
 # Source files
 set(SOURCE_FILES
     src/main.cpp
@@ -109,9 +128,9 @@ if(APPLE)
     
     # Fixed target_link_libraries call to properly handle CURL dependency
     if(TARGET CURL::libcurl)
-        target_link_libraries(CJsShell_macOS CURL::libcurl Threads::Threads)
+        target_link_libraries(CJsShell_macOS CURL::libcurl Threads::Threads ${Readline_LIBRARY})
     else()
-        target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads)
+        target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads ${Readline_LIBRARY})
     endif()
 endif()
 
@@ -124,9 +143,9 @@ set_target_properties(CJsShell_Linux PROPERTIES
 
 # Fixed target_link_libraries call to properly handle CURL dependency
 if(TARGET CURL::libcurl)
-    target_link_libraries(CJsShell_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY})
+    target_link_libraries(CJsShell_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY} ${Readline_LIBRARY})
 else()
-    target_link_libraries(CJsShell_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY})
+    target_link_libraries(CJsShell_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY} ${Readline_LIBRARY})
 endif()
 
 # Set rpath for Linux builds
