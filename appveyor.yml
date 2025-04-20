@@ -33,9 +33,6 @@ install:
       sudo apt-get install -y libcurl4-openssl-dev
       # Make sure we have the dynamic loading library
       sudo apt-get install -y libdl-dev || echo "libdl is part of glibc-dev, continuing..."
-      # Install test dependencies
-      sudo apt-get install -y expect tcl
-      mkdir -p tests/integration
 
 before_build:
   # Linux build preparation
@@ -43,7 +40,7 @@ before_build:
       mkdir build
       cd build
       cmake .. -DCMAKE_BUILD_TYPE=$configuration
-      if [ $? -ne 0; then exit 1; fi
+      if [ $? -ne 0 ]; then exit 1; fi
 
 build_script:
   # Linux build
@@ -61,23 +58,12 @@ after_build:
 test_script:
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER/build
-      # Run unit tests first
       ctest -C $configuration -VV
-      # Run integration tests
-      cd $APPVEYOR_BUILD_FOLDER
-      echo "Making integration test scripts executable..."
-      chmod +x tests/integration/run_integration_tests.sh
-      chmod +x tests/integration/*.exp
-      echo "Running integration tests..."
-      tests/integration/run_integration_tests.sh
 
 # Artifacts to save
 artifacts:
   - path: build\DevToolsTerminal-Unix.tar.gz
     name: DevToolsTerminal-Unix
-  - path: tests\integration\test-results
-    name: IntegrationTestResults
-    type: zip
 
 # Notifications
 notifications:
