@@ -22,7 +22,7 @@ endif()
 set(LINUX_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/linux)
 
 # Specify the C++ standard
-set(CMAKE_CXX_STANDARD 20) # Ensure C++17 standard is used
+set(CMAKE_CXX_STANDARD 17) # Changed from 20 to 17 for better compatibility with CMake 3.10
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include the header files directory
@@ -106,10 +106,13 @@ if(APPLE)
         OUTPUT_NAME "DevToolsTerminal-macos"
         RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
     )
-    target_link_libraries(DevToolsTerminal_macOS 
-        $<IF:$<TARGET_EXISTS:CURL::libcurl>,CURL::libcurl,${CURL_LIBRARIES}>
-        Threads::Threads
-    )
+    
+    # Fixed target_link_libraries call to properly handle CURL dependency
+    if(TARGET CURL::libcurl)
+        target_link_libraries(DevToolsTerminal_macOS CURL::libcurl Threads::Threads)
+    else()
+        target_link_libraries(DevToolsTerminal_macOS ${CURL_LIBRARIES} Threads::Threads)
+    endif()
 endif()
 
 # Linux build
@@ -118,11 +121,13 @@ set_target_properties(DevToolsTerminal_Linux PROPERTIES
     OUTPUT_NAME "DevToolsTerminal-linux"
     RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
 )
-target_link_libraries(DevToolsTerminal_Linux 
-    $<IF:$<TARGET_EXISTS:CURL::libcurl>,CURL::libcurl,${CURL_LIBRARIES}>
-    Threads::Threads
-    ${DL_LIBRARY}
-)
+
+# Fixed target_link_libraries call to properly handle CURL dependency
+if(TARGET CURL::libcurl)
+    target_link_libraries(DevToolsTerminal_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY})
+else()
+    target_link_libraries(DevToolsTerminal_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY})
+endif()
 
 # Set rpath for Linux builds
 if(UNIX AND NOT APPLE)
