@@ -7,7 +7,7 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     lastGitStatusCheck = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     isGitStatusCheckRunning = false;
     shouldTerminate = false;
-    terminalName = "dtt";
+    terminalName = "cjsh";
     
     signal(SIGTTOU, SIG_IGN);
     signal(SIGTTIN, SIG_IGN);
@@ -636,7 +636,7 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
         signal(SIGCHLD, SIG_DFL);
         
         if (chdir(currentDirectory.c_str()) != 0) {
-            std::cerr << "dtt: failed to change directory to " << currentDirectory << ": " 
+            std::cerr << "cjsh: failed to change directory to " << currentDirectory << ": " 
                       << strerror(errno) << std::endl;
             exit(EXIT_FAILURE);
         }
@@ -657,7 +657,7 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
             }
         }
         
-        std::cerr << "dtt: command not found: " << args[0] << std::endl;
+        std::cerr << "cjsh: command not found: " << args[0] << std::endl;
         exit(EXIT_FAILURE);
     }
     

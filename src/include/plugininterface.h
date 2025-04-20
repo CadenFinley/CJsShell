@@ -15,7 +15,7 @@ public:
     // Static method to get the shared home directory for all plugins
     static std::string getPluginsHomeDirectory() {
         std::string homeDir = std::getenv("HOME");
-        return (std::filesystem::path(homeDir) / ".DTT-Data").string();
+        return (std::filesystem::path(homeDir) / ".cjsh_data").string();
     }
     
     //plugin has its own default constructor

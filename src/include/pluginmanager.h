@@ -47,7 +47,7 @@ public:
 
     int getInterfaceVersion() const { return PluginInterface::INTERFACE_VERSION; }
     
-    bool handlePluginCommand(const std::string& targetedPlugin, std::queue<std::string>& args); // Fixed parameter to use reference
+    bool handlePluginCommand(const std::string& targetedPlugin, std::queue<std::string>& args);
     std::vector<std::string> getPluginCommands(const std::string& name) const;
     std::string getPluginInfo(const std::string& name) const;
     

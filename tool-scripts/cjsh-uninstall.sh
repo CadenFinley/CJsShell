@@ -1,8 +1,8 @@
 #!/bin/bash
 
 HOME_DIR="$HOME"
-DATA_DIR="$HOME_DIR/.DTT-Data"
-APP_NAME="DevToolsTerminal"
+DATA_DIR="$HOME_DIR/.cjsh_data"
+APP_NAME="cjsh"
 INSTALL_PATH="/usr/local/bin"
 APP_PATH="$INSTALL_PATH/$APP_NAME"
 SHELLS_FILE="/etc/shells"
@@ -31,7 +31,7 @@ if [ -f "$DATA_DIR/original_shell.txt" ]; then
     ORIGINAL_SHELL=$(cat "$DATA_DIR/original_shell.txt")
     if [ -x "$ORIGINAL_SHELL" ]; then
         echo "Restoring your original shell ($ORIGINAL_SHELL)..."
-        # If current shell is DTT or we're explicitly trying to restore
+        # If current shell is CJsShell or we're explicitly trying to restore
         if [[ "$CURRENT_SHELL" == "$APP_PATH" || "$SHELL" == "$APP_PATH" ]]; then
             if ! chsh -s "$ORIGINAL_SHELL" 2>/dev/null; then
                 echo "Attempting with sudo..."
@@ -46,7 +46,7 @@ if [ -f "$DATA_DIR/original_shell.txt" ]; then
                 echo "Successfully restored original shell."
             fi
         else
-            echo "Current shell is not DevToolsTerminal. No need to restore."
+            echo "Current shell is not CJ's Shell. No need to restore."
         fi
     else
         echo "Warning: Original shell ($ORIGINAL_SHELL) no longer exists or is not executable."
@@ -63,7 +63,7 @@ if [ -f "$DATA_DIR/original_shell.txt" ]; then
 else
     echo "No record of original shell found."
     if [[ "$CURRENT_SHELL" == "$APP_PATH" || "$SHELL" == "$APP_PATH" ]]; then
-        echo "Your current shell appears to be DevToolsTerminal."
+        echo "Your current shell appears to be CJ's Shell."
         echo "Attempting to set a default shell..."
         for default_shell in /bin/bash /bin/zsh /bin/sh; do
             if [ -x "$default_shell" ]; then
@@ -76,9 +76,9 @@ else
     fi
 fi
 
-echo "DevToolsTerminal Uninstaller"
+echo "CJ's Shell Uninstaller"
 echo "----------------------------"
-echo "This will uninstall DevToolsTerminal and remove all associated configurations."
+echo "This will uninstall CJ's Shell and remove all associated configurations."
 echo "Note: This script requires sudo privileges for some operations."
 echo "If you're not running with sudo, you may need to enter your password."
 
@@ -90,20 +90,20 @@ fi
 
 # Remove from /etc/shells
 if grep -q "^$APP_PATH$" "$SHELLS_FILE"; then
-    echo "Removing DevToolsTerminal from $SHELLS_FILE (requires sudo)..."
+    echo "Removing CJ's Shell from $SHELLS_FILE (requires sudo)..."
     if sudo $SUDO_OPTS sed -i.bak "\|^$APP_PATH$|d" "$SHELLS_FILE" 2>/dev/null; then
-        echo "Successfully removed DevToolsTerminal from $SHELLS_FILE."
+        echo "Successfully removed CJ's Shell from $SHELLS_FILE."
     else
-        echo "Manual action required: Please run the following command to remove DevToolsTerminal from $SHELLS_FILE:"
+        echo "Manual action required: Please run the following command to remove CJ's Shell from $SHELLS_FILE:"
         echo "    sudo sed -i.bak '\|^$APP_PATH$|d' $SHELLS_FILE"
     fi
 fi
 
 # Remove binary from install path
 if [ -f "$APP_PATH" ]; then
-    echo "Removing DevToolsTerminal binary from $APP_PATH (requires sudo)..."
+    echo "Removing CJ's Shell binary from $APP_PATH (requires sudo)..."
     if sudo $SUDO_OPTS rm "$APP_PATH" 2>/dev/null; then
-        echo "Successfully removed DevToolsTerminal binary."
+        echo "Successfully removed CJ's Shell binary."
     else
         echo "Manual action required: Please run the following command to remove the binary:"
         echo "    sudo rm $APP_PATH"
@@ -123,5 +123,4 @@ else
     echo "To remove it manually, run: rm -rf $DATA_DIR"
 fi
 
-echo "DevToolsTerminal has been uninstalled successfully."
-
+echo "CJ's Shell has been uninstalled successfully."
