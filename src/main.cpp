@@ -695,53 +695,6 @@ void loadAliasesFromFile(const std::string& filePath) {
     file.close();
 }
 
-void aliasCommand() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        if (aliases.empty()) {
-            std::cout << "No aliases defined" << std::endl;
-        } else {
-            for (const auto& [name, value] : aliases) {
-                std::cout << "alias " << name << "='" << value << "'" << std::endl;
-            }
-        }
-        return;
-    }
-    
-    size_t eqPos = lastCommandParsed.find('=');
-    if (eqPos != std::string::npos) {
-        std::string name = lastCommandParsed.substr(0, eqPos);
-        std::string value = lastCommandParsed.substr(eqPos + 1);
-        
-        name.erase(0, name.find_first_not_of(" \t"));
-        name.erase(name.find_last_not_of(" \t") + 1);
-        value.erase(0, value.find_first_not_of(" \t"));
-        value.erase(value.find_last_not_of(" \t") + 1);
-        
-        if (value.size() >= 2 && 
-            ((value.front() == '"' && value.back() == '"') || 
-             (value.front() == '\'' && value.back() == '\''))) {
-            value = value.substr(1, value.size() - 2);
-        }
-        
-        aliases[name] = value;
-        
-        std::string aliasCmd = "alias " + name + "='" + value + "'";
-        system(aliasCmd.c_str());
-        
-        saveAliasToCJSHRC(name, value);
-        
-        std::cout << "Alias defined: " << name << "='" << value << "'" << std::endl;
-    } else {
-        // Check for a specific alias
-        if (aliases.find(lastCommandParsed) != aliases.end()) {
-            std::cout << "alias " << lastCommandParsed << "='" << aliases[lastCommandParsed] << "'" << std::endl;
-        } else {
-            std::cout << "No alias defined for " << lastCommandParsed << std::endl;
-        }
-    }
-}
-
 void saveAliasToCJSHRC(const std::string& name, const std::string& value) {
     std::filesystem::path cjshrcPath = CJSHRC_FILE;
 
@@ -996,6 +949,22 @@ void commandParser(const std::string& command) {
         terminal.addCommandToHistory(expandedCommand);
     } else {
         sendTerminalCommand(expandedCommand);
+        
+        // Check if we need to save an alias after command execution
+        const char* saveAlias = getenv("CJSH_SAVE_ALIAS");
+        if (saveAlias && strcmp(saveAlias, "1") == 0) {
+            const char* aliasName = getenv("CJSH_SAVE_ALIAS_NAME");
+            const char* aliasValue = getenv("CJSH_SAVE_ALIAS_VALUE");
+            
+            if (aliasName && aliasValue) {
+                saveAliasToCJSHRC(aliasName, aliasValue);
+                
+                // Clear the environment variables
+                unsetenv("CJSH_SAVE_ALIAS");
+                unsetenv("CJSH_SAVE_ALIAS_NAME");
+                unsetenv("CJSH_SAVE_ALIAS_VALUE");
+            }
+        }
     }
 }
 
@@ -1118,9 +1087,6 @@ void commandProcesser(const std::string& command) {
         pluginCommands();
     } else if (lastCommandParsed == "theme") {
         themeCommands();
-    } else if (lastCommandParsed == "alias") {
-        aliasCommand();
-        return;
     } else if (lastCommandParsed == "history") {
         // Add history command
         auto history = terminal.getTerminalCacheUserInput();

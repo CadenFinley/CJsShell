@@ -33,7 +33,7 @@ std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(const bool& 
                 } else {
                     fileName = entry.path().filename().string();
                 }
-                files.push_back(fileName); // Add the filename to the result vector
+                files.push_back(fileName);
             }
         }
     }
@@ -262,10 +262,8 @@ std::string TerminalPassthrough::expandAliases(const std::string& command) {
         std::string remaining;
         std::getline(iss >> std::ws, remaining);
         
-        // Get the alias value
         std::string aliasValue = aliasIt->second;
         
-        // Handle special case where alias value contains $1, $2, etc. for argument substitution
         if (aliasValue.find("$") != std::string::npos) {
             std::vector<std::string> args;
             std::istringstream argStream(remaining);
@@ -274,7 +272,6 @@ std::string TerminalPassthrough::expandAliases(const std::string& command) {
                 args.push_back(arg);
             }
             
-            // Replace $1, $2, etc. with corresponding arguments
             size_t pos = 0;
             while ((pos = aliasValue.find('$', pos)) != std::string::npos) {
                 if (pos + 1 < aliasValue.size() && isdigit(aliasValue[pos + 1])) {
@@ -292,7 +289,6 @@ std::string TerminalPassthrough::expandAliases(const std::string& command) {
             return aliasValue;
         }
         
-        // For regular aliases, just append any remaining arguments
         return aliasValue + (remaining.empty() ? "" : " " + remaining);
     }
     
@@ -303,7 +299,6 @@ std::string TerminalPassthrough::processCommandSubstitution(const std::string& c
     std::string result = command;
     std::string::size_type pos = 0;
     
-    // Handle $(command) substitution
     while ((pos = result.find("$(", pos)) != std::string::npos) {
         int depth = 1;
         std::string::size_type end = pos + 2;
@@ -317,7 +312,6 @@ std::string TerminalPassthrough::processCommandSubstitution(const std::string& c
         if (depth == 0) {
             std::string subCommand = result.substr(pos + 2, end - pos - 3);
             
-            // Execute the subcommand and capture output
             FILE* pipe = popen(subCommand.c_str(), "r");
             if (!pipe) {
                 std::cerr << "Error executing command substitution" << std::endl;
@@ -332,28 +326,23 @@ std::string TerminalPassthrough::processCommandSubstitution(const std::string& c
             }
             pclose(pipe);
             
-            // Trim trailing newlines
             while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
                 output.pop_back();
             }
             
-            // Replace the command substitution with its output
             result.replace(pos, end - pos, output);
             pos += output.length();
         } else {
-            // Unmatched parentheses, skip
             pos = end;
         }
     }
     
-    // Handle backtick substitution
     pos = 0;
     while ((pos = result.find('`', pos)) != std::string::npos) {
         std::string::size_type end = result.find('`', pos + 1);
         if (end != std::string::npos) {
             std::string subCommand = result.substr(pos + 1, end - pos - 1);
             
-            // Execute the subcommand and capture output
             FILE* pipe = popen(subCommand.c_str(), "r");
             if (!pipe) {
                 std::cerr << "Error executing command substitution" << std::endl;
@@ -368,12 +357,10 @@ std::string TerminalPassthrough::processCommandSubstitution(const std::string& c
             }
             pclose(pipe);
             
-            // Trim trailing newlines
             while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
                 output.pop_back();
             }
             
-            // Replace the command substitution with its output
             result.replace(pos, end - pos + 1, output);
             pos += output.length();
         } else {
@@ -390,10 +377,8 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
         try {
             std::string result;
             
-            // Apply alias substitution to command
             std::string processedCommand = expandAliases(command);
             
-            // Apply command substitution
             processedCommand = processCommandSubstitution(processedCommand);
             
             parseAndExecuteCommand(processedCommand, result);
@@ -824,7 +809,6 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
         std::string envVar;
         iss >> envVar;
         if (envVar.empty()) {
-            // Print all environment variables
             extern char **environ;
             std::stringstream ss;
             for (char **env = environ; *env != nullptr; env++) {
@@ -832,7 +816,6 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             }
             result = ss.str();
         } else {
-            // Print specific environment variable
             const char* value = getenv(envVar.c_str());
             result = value ? value : "Error: Environment variable '" + envVar + "' is not set";
         }
@@ -854,6 +837,7 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             }
         }
         result = jobOutput.str();
+        std::cout << result << std::endl;
         return true;
     }
     else if (cmd == "fg") {
@@ -863,9 +847,11 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
         
         if (bringJobToForeground(jobId)) {
             result = "Job brought to foreground";
+            std::cout << result << std::endl;
             return true;
         } else {
             result = "Error: No job with ID " + std::to_string(jobId) + " found";
+            std::cout << result << std::endl;
             return false;
         }
     }
@@ -876,9 +862,11 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
         
         if (sendJobToBackground(jobId)) {
             result = "Job sent to background";
+            std::cout << result << std::endl;
             return true;
         } else {
             result = "Error: No job with ID " + std::to_string(jobId) + " found";
+            std::cout << result << std::endl;
             return false;
         }
     }
@@ -888,11 +876,80 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
         
         if (killJob(jobId)) {
             result = "Job killed";
+            std::cout << result << std::endl;
             return true;
         } else {
             result = "Error: No job with ID " + std::to_string(jobId) + " found";
+            std::cout << result << std::endl;
             return false;
         }
+    }
+    else if (cmd == "alias") {
+        std::string aliasLine;
+        std::getline(iss >> std::ws, aliasLine);
+        
+        if (aliasLine.empty()) {
+            // Display all aliases
+            if (aliases.empty()) {
+                result = "No aliases defined";
+            } else {
+                std::stringstream ss;
+                for (const auto& [name, value] : aliases) {
+                    ss << "alias " << name << "='" << value << "'\n";
+                }
+                result = ss.str();
+            }
+            std::cout << result << std::endl;
+            return true;
+        }
+        
+        // Check if it's an alias definition (contains =)
+        size_t eqPos = aliasLine.find('=');
+        if (eqPos != std::string::npos) {
+            std::string name = aliasLine.substr(0, eqPos);
+            std::string value = aliasLine.substr(eqPos + 1);
+            
+            // Trim whitespace
+            name.erase(0, name.find_first_not_of(" \t"));
+            name.erase(name.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            
+            // Remove quotes if present
+            if (value.size() >= 2 && 
+                ((value.front() == '"' && value.back() == '"') || 
+                 (value.front() == '\'' && value.back() == '\''))) {
+                value = value.substr(1, value.size() - 2);
+            }
+            
+            aliases[name] = value;
+            
+            // Save alias to .cjshrc file (this will call back to a function in main.cpp)
+            std::string saveAliasCommand = "sh -c \"saveAliasToCJSHRC " + name + " '" + value + "'\"";
+            result = "Alias '" + name + "' defined";
+            
+            // Signal to the main program to save this alias
+            // This is done through a special environment variable that main.cpp checks
+            setenv("CJSH_SAVE_ALIAS_NAME", name.c_str(), 1);
+            setenv("CJSH_SAVE_ALIAS_VALUE", value.c_str(), 1);
+            setenv("CJSH_SAVE_ALIAS", "1", 1);
+            
+            std::cout << result << std::endl;
+        } else {
+            // Just the alias name - show the specific alias
+            std::string name = aliasLine;
+            name.erase(0, name.find_first_not_of(" \t"));
+            name.erase(name.find_last_not_of(" \t") + 1);
+            
+            auto it = aliases.find(name);
+            if (it != aliases.end()) {
+                result = "alias " + name + "='" + it->second + "'";
+            } else {
+                result = "No alias named '" + name + "' defined";
+            }
+            std::cout << result << std::endl;
+        }
+        return true;
     }
     else if (cmd == "sudo" || cmd == "ssh" || cmd == "su" || cmd == "login" || cmd == "passwd") {
         if (cmd == "sudo") {
@@ -1047,14 +1104,12 @@ void TerminalPassthrough::processExportCommand(const std::string& exportLine, st
             std::string name = assignment.substr(0, eqPos);
             std::string value = assignment.substr(eqPos + 1);
             
-            // Remove quotes if present
             if (value.size() >= 2 && 
                 ((value.front() == '"' && value.back() == '"') || 
                  (value.front() == '\'' && value.back() == '\''))) {
                 value = value.substr(1, value.size() - 2);
             }
             
-            // Expand environment variables
             value = expandEnvironmentVariables(value);
             
             if (setenv(name.c_str(), value.c_str(), 1) == 0) {
@@ -1087,7 +1142,6 @@ std::string TerminalPassthrough::expandEnvironmentVariables(const std::string& i
     size_t pos = 0;
     
     while ((pos = result.find('$', pos)) != std::string::npos) {
-        // Handle ${VAR} format
         if (pos + 1 < result.size() && result[pos + 1] == '{') {
             size_t closeBrace = result.find('}', pos + 2);
             if (closeBrace != std::string::npos) {
@@ -1098,7 +1152,6 @@ std::string TerminalPassthrough::expandEnvironmentVariables(const std::string& i
                 pos++;
             }
         }
-        // Handle $VAR format
         else if (pos + 1 < result.size() && (isalpha(result[pos + 1]) || result[pos + 1] == '_')) {
             size_t endPos = pos + 1;
             while (endPos < result.size() && (isalnum(result[endPos]) || result[endPos] == '_')) {
@@ -1480,7 +1533,6 @@ bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& r
         return false;
     }
     
-    // Update PWD environment variable
     setenv("PWD", currentDirectory.c_str(), 1);
     
     result = "Changed directory to: " + currentDirectory;
@@ -1787,7 +1839,7 @@ std::string TerminalPassthrough::findExecutableInPath(const std::string& command
                 return fullPath;
             } else {
                 std::cerr << "Error: '" << fullPath << "' exists but is not executable" << std::endl;
-                return fullPath; // Return it anyway to let the system handle the error
+                return fullPath;
             }
         }
         std::cerr << "Error: '" << fullPath << "' not found" << std::endl;
@@ -1830,6 +1882,6 @@ std::string TerminalPassthrough::findExecutableInPath(const std::string& command
         }
     }
 
-    return command; // Let the system handle "command not found" errors
+    return command;
 }
 
