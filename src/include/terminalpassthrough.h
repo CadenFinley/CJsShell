@@ -34,7 +34,7 @@ public:
 
     struct RedirectionInfo {
         int type;          // 1: >, 2: >>, 3: <, 4: 2>
-        std::string file;  // Target file
+        std::string file;
     };
 
     TerminalPassthrough();
@@ -96,13 +96,11 @@ public:
                          std::vector<int>& savedFds);
     void restoreRedirection(const std::vector<int>& savedFds);
     
-    // Wildcard related methods
     bool hasWildcard(const std::string& arg);
     bool matchPattern(const std::string& pattern, const std::string& str);
     std::vector<std::string> expandWildcards(const std::string& pattern);
     std::vector<std::string> expandWildcardsInArgs(const std::vector<std::string>& args);
     
-    // Environment variable processing
     void processExportCommand(const std::string& exportLine, std::string& result);
     std::string expandEnvironmentVariables(const std::string& input);
 
