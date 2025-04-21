@@ -40,11 +40,13 @@ using json = nlohmann::json;
 
 // Process Substitution: Features like <(command) and >(command).
 
+// Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.0.1";
+const std::string currentVersion = "2.0.0.2";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
+// Flags
 bool TESTING = false;
 bool runningStartup = false;
 bool exitFlag = false;
@@ -55,50 +57,30 @@ bool saveOnExit = false;
 bool updateFromGithub = false;
 bool isLoginShell = false;
 bool isFileHandler = false;
-
 bool shortcutsEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
 bool cachedUpdateAvailable = false;
-
-// Add history expansion support
 bool historyExpansionEnabled = true;
-int lastCommandNumber = 0;
+
+// Update-related variables
+time_t lastUpdateCheckTime = 0;
+int UPDATE_CHECK_INTERVAL = 86400;
+std::string cachedLatestVersion = "";
 
 // Tab completion variables
 std::vector<std::string> cachedCompletions;
 int currentCompletionIndex = 0;
 std::string currentCompletionPrefix;
 
-time_t lastUpdateCheckTime = 0;
-int UPDATE_CHECK_INTERVAL = 86400;
-std::string cachedLatestVersion = "";
-
+// Paths
 std::filesystem::path ACTUAL_SHELL_PATH = std::filesystem::path("/usr/local/bin/cjsh");
-
-std::string currentTheme = "default";
-std::string GREEN_COLOR_BOLD = "\033[1;32m";
-std::string RESET_COLOR = "\033[0m";
-std::string RED_COLOR_BOLD = "\033[1;31m";
-std::string PURPLE_COLOR_BOLD = "\033[1;35m";
-std::string BLUE_COLOR_BOLD = "\033[1;34m";
-std::string YELLOW_COLOR_BOLD = "\033[1;33m";
-std::string CYAN_COLOR_BOLD = "\033[1;36m";
-
-std::string commandPrefix = "!";
-std::string shortcutsPrefix = "-";
-std::string lastCommandParsed;
-std::string titleLine = "CJ's Shell v" + currentVersion + " - Caden J Finley (c) 2025";
-std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
-std::string lastUpdated = "N/A";
-
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path INSTALL_PATH = std::getenv("CJSH_INSTALL_PATH") ? 
     std::filesystem::path(std::getenv("CJSH_INSTALL_PATH")) : 
     std::filesystem::path("/usr/local/bin") / "cjsh";
-
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".cjsh_data";
 std::filesystem::path CJSHRC_FILE = DATA_DIRECTORY / ".cjshrc";
 std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_uninstall.sh";
@@ -109,6 +91,25 @@ std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
 std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
 
+// Theming
+std::string currentTheme = "default";
+std::string GREEN_COLOR_BOLD = "\033[1;32m";
+std::string RESET_COLOR = "\033[0m";
+std::string RED_COLOR_BOLD = "\033[1;31m";
+std::string PURPLE_COLOR_BOLD = "\033[1;35m";
+std::string BLUE_COLOR_BOLD = "\033[1;34m";
+std::string YELLOW_COLOR_BOLD = "\033[1;33m";
+std::string CYAN_COLOR_BOLD = "\033[1;36m";
+
+// Command-related variables
+std::string commandPrefix = "!";
+std::string shortcutsPrefix = "-";
+std::string lastCommandParsed;
+std::string titleLine = "CJ's Shell v" + currentVersion + " - Caden J Finley (c) 2025";
+std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
+std::string lastUpdated = "N/A";
+
+// Data structures
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
@@ -117,95 +118,116 @@ std::map<std::string, std::string> aliases;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
+// Objects
 OpenAIPromptEngine c_assistant;
 TerminalPassthrough terminal;
 PluginManager* pluginManager = nullptr;
 ThemeManager* themeManager = nullptr;
 
+// Terminal and job control
 std::mutex rawModeMutex;
-
 pid_t shell_pgid = 0;
 struct termios shell_tmodes;
 int shell_terminal;
 bool jobControlEnabled = false;
 
-std::vector<std::string> commandSplicer(const std::string& command);
+// Command Parsing and Execution
 void mainProcessLoop();
-void createNewUSER_DATAFile();
+void startupCommandsHandler();
+void commandParser(const std::string& command);
+void commandProcesser(const std::string& command);
+void multiScriptShortcutProcesser(const std::string& command);
+void sendTerminalCommand(const std::string& command);
+void getNextCommand();
+std::vector<std::string> commandSplicer(const std::string& command);
+
+// User Input and History
+void addUserInputToHistory(const std::string& input);
 void createNewUSER_HISTORYfile();
 void writeUserData();
-void goToApplicationDirectory();
-void commandParser(const std::string& command);
-void addUserInputToHistory(const std::string& input);
-void shortcutProcesser(const std::string& command);
-void commandProcesser(const std::string& command);
-void sendTerminalCommand(const std::string& command);
-void userSettingsCommands();
-void startupCommandsHandler();
-void shortcutCommands();
-void textCommands();
-void getNextCommand();
-void aiSettingsCommands();
-void aiChatCommands();
+void createNewUSER_DATAFile();
+std::string readAndReturnUserDataFile();
+
+// AI Process
 void chatProcess(const std::string& message);
 void showChatHistory();
-void userDataCommands();
-std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag);
-void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
-void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
-void clearLines(const std::vector<std::string>& commandLines);
-void displayChangeLog(const std::string& changeLog);
-bool checkForUpdate();
-bool downloadLatestRelease();
+
+// Plugin Management
 void pluginCommands();
-std::string getClipboardContent();
+void loadPluginsAsync(std::function<void()> callback);
+
+// Theme Management
 void themeCommands();
 void loadTheme(const std::string& themeName);
 void saveTheme(const std::string& themeName);
-void createDefaultTheme();
-void discoverAvailableThemes();
 void applyColorToStrings();
-void multiScriptShortcutProcesser(const std::string& command);
-bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
-void initializeDataDirectories();
-void asyncCheckForUpdates(std::function<void(bool)> callback);
-void loadPluginsAsync(std::function<void()> callback);
 void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback);
-void processChangelogAsync();
-void loadUserDataAsync(std::function<void()> callback);
-void saveUpdateCache(bool updateAvailable, const std::string &latestVersion);
-bool executeUpdateIfAvailable(bool updateAvailable);
-bool startsWith(const std::string& str, const std::string& prefix);
-void updateCommands();
+
+// Update Management
+bool checkForUpdate();
 void manualUpdateCheck();
 void setUpdateInterval(int intervalHours);
 bool shouldCheckForUpdates();
 bool loadUpdateCache();
+void saveUpdateCache(bool updateAvailable, const std::string& latestVersion);
+bool executeUpdateIfAvailable(bool updateAvailable);
+void asyncCheckForUpdates(std::function<void(bool)> callback);
+bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
+bool downloadLatestRelease();
+void processChangelogAsync();
+
+// Environment and Initialization
 void setupEnvironmentVariables();
 void initializeLoginEnvironment();
+void initializeDataDirectories();
 void setupSignalHandlers();
-bool authenticateUser();
-void handleLoginSession();
 void setupJobControl();
 void resetTerminalOnExit();
-void processProfileFile(const std::string& filePath);
-void handleSIGHUP(int sig);
-void handleSIGTERM(int sig);
-void handleSIGINT(int sig);
-void handleSIGCHLD(int sig);
-void parentProcessWatchdog();
-void printHelp();
+void initialize_readline();
 void createDefaultCJSHRC();
-void loadAliasesFromFile(const std::string& filePath);
-void saveAliasToCJSHRC(const std::string& name, const std::string& value);
+void processProfileFile(const std::string& filePath);
+
+// Login and File Handling
 bool isRunningAsLoginShell(char* argv0);
 bool checkIsFileHandler(int argc, char* argv[]);
 void setupLoginShell();
 void cleanupLoginShell();
 void handleFileExecution(const std::string& filePath);
+void loadUserDataAsync(std::function<void()> callback);
+
+// Signal Handling
+void handleSIGHUP(int sig);
+void handleSIGTERM(int sig);
+void handleSIGINT(int sig);
+void handleSIGCHLD(int sig);
+
+// Utility Functions
+bool authenticateUser();
+bool startsWith(const std::string& str, const std::string& prefix);
+std::string expandEnvVariables(const std::string& input);
+std::string expandHistoryCommand(const std::string& command);
+std::string performCommandSubstitution(const std::string& command);
+void parentProcessWatchdog();
+bool isParentProcessAlive();
+void printHelp();
+
+// Alias Management
+void loadAliasesFromFile(const std::string& filePath);
+void saveAliasToCJSHRC(const std::string& name, const std::string& value);
+
+// Tab Completion
 char* command_generator(const char* text, int state);
 char** command_completion(const char* text, int start, int end);
 std::vector<std::string> get_completion_matches(const std::string& prefix);
+
+// Command Handlers
+void updateCommands();
+void aiSettingsCommands();
+void aiChatCommands();
+void userSettingsCommands();
+void textCommands();
+void shortcutCommands();
+void userDataCommands();
 
 int main(int argc, char* argv[]) {
     
