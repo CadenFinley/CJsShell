@@ -33,6 +33,7 @@ std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(const bool& 
                 } else {
                     fileName = entry.path().filename().string();
                 }
+                files.push_back(fileName); // Add the filename to the result vector
             }
         }
     }
@@ -597,7 +598,7 @@ bool TerminalPassthrough::executeCommandWithPipes(const std::vector<std::string>
         pids[i] = fork();
         
         if (pids[i] == -1) {
-            result = "Error forking process: " + std::string(strerror(errno));
+            result = "Error forking process for pipe command: " + std::string(strerror(errno));
             return false;
         }
         
@@ -652,19 +653,25 @@ bool TerminalPassthrough::executeCommandWithPipes(const std::vector<std::string>
     int status;
     bool success = true;
     std::string output;
+    std::string errorMsg;
     
     for (int i = 0; i < numCommands; i++) {
         waitpid(pids[i], &status, 0);
         
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
             success = false;
+            if (WIFEXITED(status)) {
+                errorMsg += "Command '" + commands[i] + "' failed with exit code " + std::to_string(WEXITSTATUS(status)) + ". ";
+            } else if (WIFSIGNALED(status)) {
+                errorMsg += "Command '" + commands[i] + "' terminated by signal " + std::to_string(WTERMSIG(status)) + ". ";
+            }
         }
     }
     
     if (success) {
         result = "Piped commands completed successfully";
     } else {
-        result = "One or more piped commands failed";
+        result = "Pipe execution failed: " + errorMsg;
     }
     
     return success;
@@ -685,7 +692,7 @@ bool TerminalPassthrough::handleRedirection(const std::string& command, std::vec
                 redirections.push_back(redir);
                 i++;
             } else {
-                std::cerr << "Syntax error: Missing filename after >" << std::endl;
+                std::cerr << "Error: Missing filename after > redirection" << std::endl;
                 return false;
             }
         } else if (arg == ">>") {
@@ -696,7 +703,7 @@ bool TerminalPassthrough::handleRedirection(const std::string& command, std::vec
                 redirections.push_back(redir);
                 i++;
             } else {
-                std::cerr << "Syntax error: Missing filename after >>" << std::endl;
+                std::cerr << "Error: Missing filename after >> redirection" << std::endl;
                 return false;
             }
         } else if (arg == "<") {
@@ -707,7 +714,7 @@ bool TerminalPassthrough::handleRedirection(const std::string& command, std::vec
                 redirections.push_back(redir);
                 i++;
             } else {
-                std::cerr << "Syntax error: Missing filename after <" << std::endl;
+                std::cerr << "Error: Missing filename after < redirection" << std::endl;
                 return false;
             }
         } else if (arg == "2>") {
@@ -718,7 +725,7 @@ bool TerminalPassthrough::handleRedirection(const std::string& command, std::vec
                 redirections.push_back(redir);
                 i++;
             } else {
-                std::cerr << "Syntax error: Missing filename after 2>" << std::endl;
+                std::cerr << "Error: Missing filename after 2> redirection" << std::endl;
                 return false;
             }
         } else {
@@ -741,7 +748,7 @@ bool TerminalPassthrough::setupRedirection(const std::vector<RedirectionInfo>& r
                 flags = O_WRONLY | O_CREAT | O_TRUNC;
                 fd = open(redir.file.c_str(), flags, 0666);
                 if (fd == -1) {
-                    std::cerr << "Error opening file for output: " << strerror(errno) << std::endl;
+                    std::cerr << "Error opening file for output redirection: " << redir.file << ": " << strerror(errno) << std::endl;
                     return false;
                 }
                 dup2(fd, STDOUT_FILENO);
@@ -753,7 +760,7 @@ bool TerminalPassthrough::setupRedirection(const std::vector<RedirectionInfo>& r
                 flags = O_WRONLY | O_CREAT | O_APPEND;
                 fd = open(redir.file.c_str(), flags, 0666);
                 if (fd == -1) {
-                    std::cerr << "Error opening file for append: " << strerror(errno) << std::endl;
+                    std::cerr << "Error opening file for append redirection: " << redir.file << ": " << strerror(errno) << std::endl;
                     return false;
                 }
                 dup2(fd, STDOUT_FILENO);
@@ -765,7 +772,7 @@ bool TerminalPassthrough::setupRedirection(const std::vector<RedirectionInfo>& r
                 flags = O_RDONLY;
                 fd = open(redir.file.c_str(), flags);
                 if (fd == -1) {
-                    std::cerr << "Error opening file for input: " << strerror(errno) << std::endl;
+                    std::cerr << "Error opening file for input redirection: " << redir.file << ": " << strerror(errno) << std::endl;
                     return false;
                 }
                 dup2(fd, STDIN_FILENO);
@@ -777,7 +784,7 @@ bool TerminalPassthrough::setupRedirection(const std::vector<RedirectionInfo>& r
                 flags = O_WRONLY | O_CREAT | O_TRUNC;
                 fd = open(redir.file.c_str(), flags, 0666);
                 if (fd == -1) {
-                    std::cerr << "Error opening file for error output: " << strerror(errno) << std::endl;
+                    std::cerr << "Error opening file for error redirection: " << redir.file << ": " << strerror(errno) << std::endl;
                     return false;
                 }
                 dup2(fd, STDERR_FILENO);
@@ -827,7 +834,7 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
         } else {
             // Print specific environment variable
             const char* value = getenv(envVar.c_str());
-            result = value ? value : "Environment variable not set";
+            result = value ? value : "Error: Environment variable '" + envVar + "' is not set";
         }
         return true;
     }
@@ -858,7 +865,7 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             result = "Job brought to foreground";
             return true;
         } else {
-            result = "No such job";
+            result = "Error: No job with ID " + std::to_string(jobId) + " found";
             return false;
         }
     }
@@ -871,7 +878,7 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             result = "Job sent to background";
             return true;
         } else {
-            result = "No such job";
+            result = "Error: No job with ID " + std::to_string(jobId) + " found";
             return false;
         }
     }
@@ -883,7 +890,7 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             result = "Job killed";
             return true;
         } else {
-            result = "No such job";
+            result = "Error: No job with ID " + std::to_string(jobId) + " found";
             return false;
         }
     }
@@ -913,6 +920,11 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
         
         std::vector<std::string> args = parseCommandIntoArgs(fullCommand);
         std::vector<RedirectionInfo> redirections;
+        
+        if (args.empty()) {
+            result = "Error: Empty command";
+            return false;
+        }
         
         if (handleRedirection(fullCommand, args, redirections)) {
             if (background) {
@@ -989,18 +1001,37 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
                 
                 tcsetpgrp(STDIN_FILENO, pid);
                 
-                waitForForegroundJob(pid);
+                int status;
+                waitpid(pid, &status, WUNTRACED);
                 
                 tcsetpgrp(STDIN_FILENO, getpgid(0));
                 
                 updateJobStatus();
-                result = "Command completed";
-                return true;
+                
+                if (WIFEXITED(status)) {
+                    int exitStatus = WEXITSTATUS(status);
+                    if (exitStatus != 0) {
+                        result = "Command failed with exit code " + std::to_string(exitStatus);
+                        return false;
+                    } else {
+                        result = "Command completed successfully";
+                        return true;
+                    }
+                } else if (WIFSIGNALED(status)) {
+                    result = "Command terminated by signal " + std::to_string(WTERMSIG(status));
+                    return false;
+                } else {
+                    result = "Command completed";
+                    return true;
+                }
             }
+        } else {
+            result = "Error in command syntax or redirection";
+            return false;
         }
     }
     
-    result = "Command failed to execute";
+    result = "Error: Failed to execute command";
     return false;
 }
 
@@ -1008,6 +1039,7 @@ void TerminalPassthrough::processExportCommand(const std::string& exportLine, st
     std::istringstream iss(exportLine);
     std::string assignment;
     bool success = false;
+    std::vector<std::string> failures;
     
     while (iss >> assignment) {
         size_t eqPos = assignment.find('=');
@@ -1027,11 +1059,27 @@ void TerminalPassthrough::processExportCommand(const std::string& exportLine, st
             
             if (setenv(name.c_str(), value.c_str(), 1) == 0) {
                 success = true;
+            } else {
+                failures.push_back(name + "=" + value + " (" + strerror(errno) + ")");
             }
+        } else {
+            failures.push_back(assignment + " (missing '=' operator)");
         }
     }
     
-    result = success ? "Environment variable(s) exported" : "Failed to export environment variable(s)";
+    if (success && failures.empty()) {
+        result = "Environment variable(s) exported successfully";
+    } else if (success) {
+        result = "Some environment variables were exported, but the following failed:\n";
+        for (const auto& fail : failures) {
+            result += "- " + fail + "\n";
+        }
+    } else {
+        result = "Failed to export environment variable(s):\n";
+        for (const auto& fail : failures) {
+            result += "- " + fail + "\n";
+        }
+    }
 }
 
 std::string TerminalPassthrough::expandEnvironmentVariables(const std::string& input) {
@@ -1381,7 +1429,7 @@ bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& r
         if (homeDir) {
             targetDir = homeDir;
         } else {
-            result = "Could not determine home directory";
+            result = "Error: Could not determine home directory - HOME environment variable is not set";
             return false;
         }
     }
@@ -1393,7 +1441,7 @@ bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& r
         if (std::filesystem::exists(dirPath) && std::filesystem::is_directory(dirPath)) {
             currentDirectory = dirPath.string();
         } else {
-            result = "Cannot go up from root directory";
+            result = "Error: Cannot go up from root directory";
             return false;
         }
     } else {
@@ -1407,11 +1455,13 @@ bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& r
         
         if (!std::filesystem::exists(dirPath)) {
             result = "cd: " + targetDir + ": No such file or directory";
+            std::cerr << result << std::endl;
             return false;
         }
         
         if (!std::filesystem::is_directory(dirPath)) {
             result = "cd: " + targetDir + ": Not a directory";
+            std::cerr << result << std::endl;
             return false;
         }
         
@@ -1419,6 +1469,7 @@ bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& r
             currentDirectory = std::filesystem::canonical(dirPath).string();
         } catch (const std::filesystem::filesystem_error& e) {
             result = "cd: " + targetDir + ": " + e.what();
+            std::cerr << result << std::endl;
             return false;
         }
     }
@@ -1428,6 +1479,9 @@ bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& r
         result = errorMsg;
         return false;
     }
+    
+    // Update PWD environment variable
+    setenv("PWD", currentDirectory.c_str(), 1);
     
     result = "Changed directory to: " + currentDirectory;
     return true;
@@ -1732,14 +1786,19 @@ std::string TerminalPassthrough::findExecutableInPath(const std::string& command
             if (access(fullPath.c_str(), X_OK) == 0) {
                 return fullPath;
             } else {
-                return fullPath;
+                std::cerr << "Error: '" << fullPath << "' exists but is not executable" << std::endl;
+                return fullPath; // Return it anyway to let the system handle the error
             }
         }
+        std::cerr << "Error: '" << fullPath << "' not found" << std::endl;
         return "";
     }
 
     const char* pathEnv = getenv("PATH");
-    if (!pathEnv) return "";
+    if (!pathEnv) {
+        std::cerr << "Error: PATH environment variable is not set" << std::endl;
+        return "";
+    }
     
     std::string path(pathEnv);
     std::string delimiter = ":";
@@ -1771,6 +1830,6 @@ std::string TerminalPassthrough::findExecutableInPath(const std::string& command
         }
     }
 
-    return command;
+    return command; // Let the system handle "command not found" errors
 }
 
