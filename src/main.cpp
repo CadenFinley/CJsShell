@@ -74,7 +74,6 @@ std::string lastUpdated = "N/A";
 
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".cjsh_data";
-std::filesystem::path CJSH_PROFILE_FILE_PATH = DATA_DIRECTORY / ".cjshrc";
 std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_uninstall.sh";
 std::filesystem::path UPDATE_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_update.sh";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / "USER_DATA.json";
@@ -237,19 +236,39 @@ void setupLoginShell() {
     setupSignalHandlers();
     setupJobControl();
     
-    // Process only system profile and cjshrc
-    if (std::filesystem::exists("/etc/profile")) {
-        processProfileFile("/etc/profile");
-    }
+    processProfileFile("/etc/profile");
     
-    if (std::filesystem::exists(CJSH_PROFILE_FILE_PATH)) {
-        processProfileFile(CJSH_PROFILE_FILE_PATH.string());
-    }
-    
-    // Set up basic PATH only if not already set
-    std::string currentPath = std::getenv("PATH") ? std::getenv("PATH") : "";
-    if (currentPath.empty()) {
-        setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+    std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
+    if (!homeDir.empty()) {
+        std::vector<std::string> profileFiles = {
+            homeDir + "/.profile",
+            homeDir + "/.bash_profile",
+            homeDir + "/.zshrc",
+            homeDir + "/.bashrc"
+        };
+        
+        for (const auto& profile : profileFiles) {
+            if (std::filesystem::exists(profile)) {
+                processProfileFile(profile);
+            }
+        }
+        
+        std::vector<std::string> brewPaths = {
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            homeDir + "/.homebrew/bin",
+            "/opt/homebrew/sbin",
+            "/usr/local/sbin"
+        };
+        
+        std::string currentPath = std::getenv("PATH") ? std::getenv("PATH") : "";
+        for (const auto& brewPath : brewPaths) {
+            if (std::filesystem::exists(brewPath) && 
+                currentPath.find(brewPath) == std::string::npos) {
+                currentPath = brewPath + ":" + currentPath;
+            }
+        }
+        setenv("PATH", currentPath.c_str(), 1);
     }
 }
 
