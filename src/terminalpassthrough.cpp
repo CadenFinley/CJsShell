@@ -58,6 +58,10 @@ void TerminalPassthrough::printCurrentTerminalPosition(){
     std::cout << returnCurrentTerminalPosition();
 }
 
+int TerminalPassthrough::getTerminalCurrentPositionRawLength(){
+    return terminalCurrentPositionRawLength;
+}
+
 std::string TerminalPassthrough::returnCurrentTerminalPosition(){
     int gitInfoLength = 0;
     std::string gitInfo;
@@ -230,13 +234,16 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
         } catch (const std::exception& e) {
             std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
         }
-        return SHELL_COLOR + getTerminalName() + RESET_COLOR + " " + gitInfo + "";
+        terminalCurrentPositionRawLength = getTerminalName().length() + 2 + gitInfoLength;
+        return SHELL_COLOR + getTerminalName() + RESET_COLOR + " " + gitInfo + " ";
     }
     
     if (displayWholePath) {
-        return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR + "";
+        terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2;
+        return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR + " ";
     } else {
-        return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFileName() + RESET_COLOR + "";
+        terminalCurrentPositionRawLength = getCurrentFileName().length() + getTerminalName().length() + 2;
+        return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFileName() + RESET_COLOR + " ";
     }
 }
 

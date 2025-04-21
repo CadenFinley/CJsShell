@@ -103,6 +103,22 @@ struct termios shell_tmodes;
 int shell_terminal;
 bool jobControlEnabled = false;
 
+char* custom_completion_function(const char* text, int state) {
+    // Return NULL to let readline use its default completion
+    return NULL;
+}
+
+void initialize_readline() {
+    // Disable automatic space after completion
+    rl_completion_append_character = '\0';
+    
+    // Use custom completion function
+    rl_attempted_completion_function = [](const char* text, int start, int end) -> char** {
+        //rl_completion_append_character = 1;
+        return rl_completion_matches(text, custom_completion_function);
+    };
+}
+
 std::vector<std::string> commandSplicer(const std::string& command);
 void mainProcessLoop();
 void createNewUSER_DATAFile();
@@ -124,10 +140,15 @@ void aiChatCommands();
 void chatProcess(const std::string& message);
 void showChatHistory();
 void userDataCommands();
+std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag);
+void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY);
+void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting);
+void clearLines(const std::vector<std::string>& commandLines);
 void displayChangeLog(const std::string& changeLog);
 bool checkForUpdate();
 bool downloadLatestRelease();
 void pluginCommands();
+std::string getClipboardContent();
 void themeCommands();
 void loadTheme(const std::string& themeName);
 void saveTheme(const std::string& themeName);
@@ -682,17 +703,10 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-char* custom_completion_function(const char* text, int state) {
-    return NULL;
-}
-
-void initialize_readline() {
-
-    rl_completion_append_character = '\0';
-
-    rl_attempted_completion_function = [](const char* text, int start, int end) -> char** {
-        return rl_completion_matches(text, custom_completion_function);
-    };
+int getTerminalWidth(){
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    return w.ws_col;
 }
 
 void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
@@ -731,8 +745,7 @@ void mainProcessLoop() {
             prompt = terminal.returnCurrentTerminalPosition();
         }
 
-        std::cout << prompt;
-        char* line = readline(" ");
+        char* line = readline(prompt.c_str());
         if (line == nullptr) {
             // Handle EOF (Ctrl+D)
             std::cout << std::endl;
@@ -753,6 +766,106 @@ void mainProcessLoop() {
             break;
         }
     }
+}
+
+void clearLines(const std::vector<std::string>& commandLines){
+    std::cout << "\033[2K\r";
+    if(commandLines.size() > 1){
+        for (int i = 0; i < commandLines.size(); i++) {
+            if (i > 0) {
+                std::cout << "\033[A";
+            }
+            std::cout << "\033[2K\r";
+        }
+    }
+}
+
+void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting) {
+    for (int i = 0; i < commandLines.size(); i++) {
+        if (i == 0) {
+            std::cout << terminalSetting << commandLines[i];
+        } else {
+            std::cout << commandLines[i];
+        }
+        if (i < commandLines.size() - 1) {
+            std::cout << std::endl;
+        }
+    }
+}
+
+void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
+    int columnsBehind = commandLines[cursorPositionY].length() - cursorPositionX;
+    int rowsBehind = commandLines.size() - cursorPositionY - 1;
+    if (columnsBehind > 0) {
+        while (columnsBehind > 0) {
+            std::cout << "\033[D";
+            columnsBehind--;
+        }
+    }
+    if(rowsBehind > 0){
+        while (rowsBehind > 0) {
+            std::cout << "\033[A";
+            rowsBehind--;
+        }
+    }
+}
+
+std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
+    switch (arrow) {
+        case 'A':
+            return terminal.getPreviousCommand();
+        case 'B':
+            return terminal.getNextCommand();
+        case 'C':
+            if (cursorPositionX < command.length()) {
+                cursorPositionX++;
+                std::cout << "\033[C";
+            } else if (cursorPositionY < commandLines.size() - 1) {
+                cursorPositionY++;
+                cursorPositionX = 0;
+                std::cout << "\033[B";
+            }
+            return "";
+        case 'D':
+            if (cursorPositionX > 0) {
+                cursorPositionX--;
+                std::cout << "\033[D";
+            } else if (cursorPositionY > 0) {
+                cursorPositionY--;
+                cursorPositionX = commandLines[cursorPositionY].length();
+                std::cout << "\033[A";
+            }
+            return "";
+    }
+    return "";
+}
+
+std::string getClipboardContent() {
+    std::string result;
+    usleep(10000);
+    
+    FILE* pipe = popen("pbpaste", "r");
+    if (!pipe) {
+        std::cerr << "Failed to access clipboard" << std::endl;
+        return "";
+    }
+    
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+    
+    int status = pclose(pipe);
+    if (status != 0) {
+        std::cerr << "Clipboard command failed with status: " << status << std::endl;
+        return "";
+    }
+
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+    
+    return result;
 }
 
 void createNewUSER_DATAFile() {
