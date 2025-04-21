@@ -26,7 +26,7 @@
 
 using json = nlohmann::json;
 
-// Shell Features Support: Automatic support for all shell features like pipes (|), redirections (>, >>), wildcards (*, ?), environment variables, etc.
+//rename repo to cjsh maybe idk
 
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.0.1";
