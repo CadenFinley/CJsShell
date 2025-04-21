@@ -14,7 +14,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Platform-specific configurations
 if(APPLE)
     set(MACOS_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/macos)
-    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build architectures for macOS")
+    # Build for the native architecture by default instead of universal binary
+    # This addresses the architecture mismatch issue
+    if(NOT DEFINED CMAKE_OSX_ARCHITECTURES)
+        set(CMAKE_OSX_ARCHITECTURES "${CMAKE_HOST_SYSTEM_PROCESSOR}" CACHE STRING "Build architecture for macOS")
+    endif()
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment version")
 endif()
 
@@ -119,12 +123,15 @@ option(STATIC_LINKING "Link libraries statically for better portability" OFF)
 
 # Modify the executable target to create platform-specific builds
 if(APPLE)
-    # macOS build
+    # macOS build - now building for native architecture only
     add_executable(CJsShell_macOS ${SOURCE_FILES})
     set_target_properties(CJsShell_macOS PROPERTIES
         OUTPUT_NAME "cjsh-macos"
         RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
     )
+    
+    # Add architecture info to build output for debugging
+    message(STATUS "Building for macOS with architecture: ${CMAKE_OSX_ARCHITECTURES}")
     
     # Fixed target_link_libraries call to properly handle CURL dependency
     if(TARGET CURL::libcurl)
@@ -132,6 +139,12 @@ if(APPLE)
     else()
         target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads ${Readline_LIBRARY})
     endif()
+    
+    # Add post-build message to show architecture info
+    add_custom_command(TARGET CJsShell_macOS POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Built macOS binary with architecture: ${CMAKE_OSX_ARCHITECTURES}"
+        COMMAND file ${MACOS_OUTPUT_DIR}/cjsh-macos
+    )
 endif()
 
 # Linux build

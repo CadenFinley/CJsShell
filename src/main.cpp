@@ -26,6 +26,26 @@
 
 using json = nlohmann::json;
 
+// Command Line Redirection: There doesn't seem to be implementation for I/O redirection operators like >, >>, <, 2>, etc.
+
+// Command Piping: The implementation doesn't handle piping commands with the | operator.
+
+// Wildcard/Globbing Support: No handling for file globbing patterns (*, ?, [...]).
+
+// Robust Tab Completion: While there's a placeholder completion function, it returns NULL instead of implementing actual completion logic.
+
+// Command Substitution: Support for $(command) or backtick substitution.
+
+// Shell Scripting Constructs: Missing implementation for control structures like if/then/else, for/while loops, etc.
+
+// Environment Variable Expansion: Need more robust support for $HOME, ${VAR}, etc. in commands.
+
+// Process Substitution: Features like <(command) and >(command).
+
+// History Expansion: Shortcuts like !! for previous command or !n for specific command.
+
+// Shell Prompt Customization: More flexible PS1/PS2 environment variables for prompt customization.
+
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.0.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
@@ -43,7 +63,6 @@ bool isLoginShell = false;
 bool isFileHandler = false;
 
 bool shortcutsEnabled = true;
-bool aliasesEnabled = true;
 bool startCommandsOn = true;
 bool usingChatCache = true;
 bool checkForUpdates = true;
@@ -72,6 +91,7 @@ std::string lastUpdated = "N/A";
 
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".cjsh_data";
+std::filesystem::path CJSHRC_FILE = DATA_DIRECTORY / ".cjshrc";
 std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_uninstall.sh";
 std::filesystem::path UPDATE_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_update.sh";
 std::filesystem::path USER_DATA = DATA_DIRECTORY / "USER_DATA.json";
@@ -84,8 +104,8 @@ std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
 std::vector<std::string> commandLines;
-std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::string> aliases;
+std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 OpenAIPromptEngine c_assistant;
@@ -99,22 +119,6 @@ pid_t shell_pgid = 0;
 struct termios shell_tmodes;
 int shell_terminal;
 bool jobControlEnabled = false;
-
-char* custom_completion_function(const char* text, int state) {
-    // Return NULL to let readline use its default completion
-    return NULL;
-}
-
-void initialize_readline() {
-    // Disable automatic space after completion
-    rl_completion_append_character = '\0';
-    
-    // Use custom completion function
-    rl_attempted_completion_function = [](const char* text, int start, int end) -> char** {
-        //rl_completion_append_character = 1;
-        return rl_completion_matches(text, custom_completion_function);
-    };
-}
 
 std::vector<std::string> commandSplicer(const std::string& command);
 void mainProcessLoop();
@@ -153,7 +157,6 @@ void createDefaultTheme();
 void discoverAvailableThemes();
 void applyColorToStrings();
 void multiScriptShortcutProcesser(const std::string& command);
-void aliasCommands();
 bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
 void initializeDataDirectories();
 void asyncCheckForUpdates(std::function<void(bool)> callback);
@@ -183,6 +186,26 @@ void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
 void parentProcessWatchdog();
 void printHelp();
+
+bool authenticateUser(){
+    return true;
+}
+
+char* custom_completion_function(const char* text, int state) {
+    // Return NULL to let readline use its default completion
+    return NULL;
+}
+
+void initialize_readline() {
+    // Disable automatic space after completion
+    rl_completion_append_character = '/';
+    
+    // Use custom completion function
+    rl_attempted_completion_function = [](const char* text, int start, int end) -> char** {
+        //rl_completion_append_character = 1;
+        return rl_completion_matches(text, custom_completion_function);
+    };
+}
 
 bool isRunningAsLoginShell(char* argv0) {
     if (argv0 && argv0[0] == '-') {
@@ -239,10 +262,7 @@ void setupLoginShell() {
     std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
     if (!homeDir.empty()) {
         std::vector<std::string> profileFiles = {
-            homeDir + "/.profile",
-            homeDir + "/.bash_profile",
-            homeDir + "/.zshrc",
-            homeDir + "/.bashrc"
+            homeDir + "/.profile"
         };
         
         for (const auto& profile : profileFiles) {
@@ -511,9 +531,7 @@ void processProfileFile(const std::string& filePath) {
                     aliasValue = aliasValue.substr(1, aliasValue.size() - 2);
                 }
                 
-                if (aliasesEnabled) {
-                    aliases[aliasName] = aliasValue;
-                }
+                aliases[aliasName] = aliasValue;
             }
         } else if (line.find("source ") == 0 || line.find(". ") == 0) {
             size_t startPos = line.find(' ') + 1;
@@ -598,7 +616,6 @@ int main(int argc, char* argv[]) {
     
     startupCommands = {};
     multiScriptShortcuts = {};
-    aliases = {};
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a shell.", {}, DATA_DIRECTORY);
 
     initializeDataDirectories();
@@ -910,7 +927,6 @@ void writeUserData() {
         userData["Last_Updated"] = lastUpdated;
         userData["Current_Theme"] = currentTheme;
         userData["Auto_Update_Check"] = checkForUpdates;
-        userData["Aliases"] = aliases;
         userData["Update_From_Github"] = updateFromGithub;
         userData["Silent_Update_Check"] = silentCheckForUpdates;
         userData["Startup_Commands_Enabled"] = startCommandsOn;
@@ -1059,23 +1075,11 @@ void multiScriptShortcutProcesser(const std::string& command){
 void commandProcesser(const std::string& command) {
     commandsQueue = std::queue<std::string>();
     auto commands = commandSplicer(command);
-    if(aliasesEnabled){
-        for (const auto& cmd : commands) {
-            if (aliases.find(cmd) != aliases.end()) {
-                std::string aliasCommand = aliases[cmd];
-                std::vector<std::string> aliasCommands = commandSplicer(aliasCommand);
-                for (const auto& aliasCmd : aliasCommands) {
-                    commandsQueue.push(aliasCmd);
-                }
-            } else {
-                commandsQueue.push(cmd);
-            }
-        }
-    } else {
-        for (const auto& cmd : commands) {
-            commandsQueue.push(cmd);
-        }
+
+    for (const auto& cmd : commands) {
+        commandsQueue.push(cmd);
     }
+    
     if (TESTING) {
         std::cout << "Commands Queue: ";
         for (const auto& cmd : commands) {
@@ -1390,10 +1394,6 @@ void userSettingsCommands() {
         shortcutCommands();
         return;
     }
-    if (lastCommandParsed == "alias") {
-        aliasCommands();
-        return;
-    }
     if (lastCommandParsed == "testing") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
@@ -1503,7 +1503,6 @@ void userSettingsCommands() {
         std::cout << " startup: Manage startup commands (add, remove, clear, enable, disable, list, runall)" << std::endl;
         std::cout << " text: Configure text settings (commandprefix, displayfullpath, defaultentry)" << std::endl;
         std::cout << " shortcut: Manage shortcuts (add, remove, list)" << std::endl;
-        std::cout << " alias: Manage aliases (add, remove, list)" << std::endl;
         std::cout << " testing: Toggle testing mode (enable/disable)" << std::endl;
         std::cout << " data: Manage user data (get userdata/userhistory/all, clear)" << std::endl;
         std::cout << " saveloop: Toggle auto-save loop (enable/disable)" << std::endl;
@@ -1611,95 +1610,6 @@ void manualUpdateCheck() {
 void setUpdateInterval(int intervalHours) {
     UPDATE_CHECK_INTERVAL = intervalHours * 3600;
     writeUserData();
-}
-
-void aliasCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cout << "Aliases are currently " << (aliasesEnabled ? "enabled." : "disabled.") << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "enable") {
-        aliasesEnabled = true;
-        std::cout << "Aliases enabled." << std::endl;
-        writeUserData();
-        return;
-    }
-    if (lastCommandParsed == "disable") {
-        aliasesEnabled = false;
-        std::cout << "Aliases disabled." << std::endl;
-        writeUserData();
-        return;
-    }
-    if (lastCommandParsed == "add") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::string aliasName = lastCommandParsed;
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::string aliasValue = lastCommandParsed;
-        aliases[aliasName] = aliasValue;
-        writeUserData();
-        std::cout << "Alias added: " << aliasName << " -> " << aliasValue << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "remove") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        if (aliases.empty()) {
-            std::cerr << "No aliases found." << std::endl;
-            return;
-        }
-        if (aliases.find(lastCommandParsed) == aliases.end()) {
-            std::cerr << "Alias not found: " << lastCommandParsed << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "all") {
-            aliases.clear();
-            writeUserData();
-            std::cout << "All aliases removed." << std::endl;
-            return;
-        }
-        std::string aliasName = lastCommandParsed;
-        aliases.erase(aliasName);
-        writeUserData();
-        std::cout << "Alias removed: " << aliasName << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "list") {
-        if (!aliases.empty()) {
-            for (const auto& [key, value] : aliases) {
-                std::cout << key << ": " << value << std::endl;
-            }
-        } else {
-            std::cerr << "No aliases found." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "Alias commands:" << std::endl;
-        std::cout << " add [NAME] [VALUE]: Add a new alias" << std::endl;
-        std::cout << " remove [NAME]: Remove an existing alias" << std::endl;
-        std::cout << " list: List all aliases" << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "Alias commands:" << std::endl;
-        std::cout << " add [NAME] [VALUE]: Add a new alias" << std::endl;
-        std::cout << " remove [NAME]: Remove an existing alias" << std::endl;
-        std::cout << " list: List all aliases" << std::endl;
-        return;
-    }
-    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
 }
 
 void userDataCommands(){
@@ -2750,9 +2660,6 @@ void loadUserDataAsync(std::function<void()> callback) {
                 }
                 if(userData.contains("Auto_Update_Check")) {
                     checkForUpdates = userData["Auto_Update_Check"].get<bool>();
-                }
-                if(userData.contains("Aliases")) {
-                    aliases = userData["Aliases"].get<std::map<std::string, std::string>>();
                 }
                 if(userData.contains("Update_From_Github")) {
                     updateFromGithub = userData["Update_From_Github"].get<bool>();
