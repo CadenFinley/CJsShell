@@ -26,10 +26,8 @@
 
 using json = nlohmann::json;
 
-//rename repo to cjsh maybe idk
-
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "3.0.0.0";
+const std::string currentVersion = "2.0.0.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -720,12 +718,6 @@ int main(int argc, char* argv[]) {
     delete pluginManager;
     delete themeManager;
     return 0;
-}
-
-int getTerminalWidth(){
-    struct winsize w;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-    return w.ws_col;
 }
 
 void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
