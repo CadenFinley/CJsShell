@@ -1826,6 +1826,10 @@ std::vector<std::string> TerminalPassthrough::parseCommandIntoArgs(const std::st
 }
 
 std::string TerminalPassthrough::findExecutableInPath(const std::string& command) {
+    if (aliases.find(command) != aliases.end()) {
+        return command;
+    }
+
     if (command.find('/') != std::string::npos) {
         std::string fullPath;
         if (command[0] == '/') {
