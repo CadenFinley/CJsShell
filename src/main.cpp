@@ -389,7 +389,7 @@ void initialize_readline() {
     stifle_history(1000);
     
     rl_attempted_completion_function = command_completion;
-    rl_completion_append_character = '\0'; // We'll handle this based on whether it's a directory
+    rl_completion_append_character = '/';
     rl_basic_word_break_characters = (char *)" \t\n\"\\'`@$><=;|&{(";
 }
 
@@ -3189,17 +3189,7 @@ char* command_generator(const char* text, int state) {
     }
     
     if (list_index < matches.size()) {
-        std::string match = matches[list_index++];
-        
-        // Directory entries should already have a trailing slash from get_completion_matches
-        // Set append character based on whether it ends with a slash
-        if (!match.empty() && match.back() == '/') {
-            rl_completion_append_character = '\0'; // No space after directory
-        } else {
-            rl_completion_append_character = ' ';  // Space after regular completion
-        }
-        
-        return strdup(match.c_str());
+        return strdup(matches[list_index++].c_str());
     }
     
     return nullptr;
@@ -3260,16 +3250,13 @@ std::vector<std::string> get_completion_matches(const std::string& prefix) {
                 std::string filename = entry.path().filename().string();
                 if (startsWith(filename, searchPrefix)) {
                     std::string completion = prefix.substr(0, lastSlash != std::string::npos ? lastSlash + 1 : 0) + filename;
-                    
-                    // Always add a slash for directories
-                    if (entry.is_directory() && completion.back() != '/') {
-                        completion += '/';
+                    if (entry.is_directory()) {
+                        completion += "/";
                     }
                     matches.push_back(completion);
                 }
             }
         } catch (const std::filesystem::filesystem_error& e) {
-            // Handle filesystem errors silently
         }
     }
     
