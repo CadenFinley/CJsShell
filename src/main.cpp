@@ -27,6 +27,39 @@
 using json = nlohmann::json;
 
 // Shell Features Support: Automatic support for all shell features like pipes (|), redirections (>, >>), wildcards (*, ?), environment variables, etc.
+// User Authentication System
+
+// There's an authenticateUser() function declaration but no implementation
+// Missing proper PAM (Pluggable Authentication Modules) integration
+// Comprehensive Tab Completion
+
+// The custom_completion_function() returns NULL and doesn't actually implement completion
+// No context-aware completion for files, commands, or arguments
+// Advanced I/O Redirection
+
+// While mentioned in comments, there's no explicit implementation for handling redirections (>, >>, <)
+// No file descriptor management for redirection operations
+// Shell Scripting Capabilities
+
+// Missing built-in variables, conditionals, loops within the shell itself
+// No function definition support
+// Limited parameter expansion functionality
+// Standard Shell Built-ins
+
+// Lacks many standard built-ins like export, unset, set, etc.
+// The core commands (cd, jobs, fg, bg) exist but many others are missing
+// Wildcard Expansion
+
+// No explicit implementation for handling * and ? patterns in file paths
+// Login Shell Specifics
+
+// Missing reading of system-wide login profiles (/etc/profile.d/*)
+// No handling of /etc/motd (message of the day)
+// Limited handling of login-specific environment setup
+// More Robust History Management
+
+// Limited history search capabilities
+// No history substitution (like !!, !$, etc.)
 
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.0.1";
@@ -165,6 +198,10 @@ void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
 void parentProcessWatchdog();
 void printHelp();
+
+bool authenticateUser() {
+    //implement
+}
 
 bool isRunningAsLoginShell(char* argv0) {
     if (argv0 && argv0[0] == '-') {
@@ -682,6 +719,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
+//remove custom as we will use our own custom readline library
 char* custom_completion_function(const char* text, int state) {
     return NULL;
 }
