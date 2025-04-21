@@ -198,7 +198,7 @@ void parentProcessWatchdog();
 void printHelp();
 
 bool authenticateUser() {
-    //implement
+    return true; // Placeholder for user authentication logic
 }
 
 bool isRunningAsLoginShell(char* argv0) {
