@@ -18,7 +18,7 @@
 #include <grp.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#include <set> // Add missing include for std::set
+#include <set>
 
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
