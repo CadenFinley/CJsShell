@@ -110,6 +110,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Clean up the downloaded binary file
+echo "Cleaning up temporary files..."
+rm -f "$DATA_DIR/$BINARY_NAME"
+if [ $? -ne 0 ]; then
+    echo "Warning: Could not remove temporary file $DATA_DIR/$BINARY_NAME"
+fi
+
 # Download uninstall script
 echo "Downloading uninstall script..."
 curl -L "$UNINSTALL_SCRIPT_URL" -o "$DATA_DIR/cjsh-uninstall.sh"
