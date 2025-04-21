@@ -12,6 +12,49 @@ TEMP_DIR="$DATA_DIR/temp"
 echo "CJ's Shell Updater"
 echo "-------------------------"
 echo "This will update CJ's Shell to the latest version."
+echo "Note: This script requires sudo privileges."
+
+# Request sudo upfront
+if sudo -n true 2>/dev/null; then
+    echo "Sudo access verified."
+else
+    echo "Please enter your password to proceed with update:"
+    if sudo -v; then
+        echo "Sudo access granted."
+    else
+        echo "Failed to get sudo access. Update will likely fail."
+        echo "Please run this script again with sudo privileges."
+        exit 1
+    fi
+fi
+
+# Determine original shell for running commands
+if [ -f "$DATA_DIR/original_shell.txt" ]; then
+    ORIGINAL_SHELL=$(cat "$DATA_DIR/original_shell.txt")
+    if [ ! -x "$ORIGINAL_SHELL" ]; then
+        echo "Warning: Original shell ($ORIGINAL_SHELL) is not executable."
+        ORIGINAL_SHELL="/bin/bash"  # Fallback to bash
+    fi
+else
+    echo "No record of original shell found, using /bin/bash as fallback."
+    ORIGINAL_SHELL="/bin/bash"
+fi
+
+# Create a temporary script to execute with the original shell
+TMP_SCRIPT=$(mktemp)
+cat > "$TMP_SCRIPT" << 'EOF'
+#!/bin/bash
+
+# This script will run the actual update steps using the user's original shell
+
+SCRIPT_DIR="$1"
+HOME_DIR="$2"
+DATA_DIR="$3"
+APP_NAME="$4"
+INSTALL_PATH="$5"
+APP_PATH="$6"
+GITHUB_API_URL="$7"
+TEMP_DIR="$8"
 
 # Create temp directory if it doesn't exist
 if [ ! -d "$TEMP_DIR" ]; then
@@ -99,3 +142,13 @@ rm -rf "$TEMP_DIR"
 
 echo "Update complete! CJ's Shell has been updated to the latest version."
 echo "To use CJ's Shell, run: $APP_NAME"
+EOF
+
+# Make the temporary script executable
+chmod +x "$TMP_SCRIPT"
+
+# Execute the update with the original shell
+"$ORIGINAL_SHELL" "$TMP_SCRIPT" "$SCRIPT_DIR" "$HOME_DIR" "$DATA_DIR" "$APP_NAME" "$INSTALL_PATH" "$APP_PATH" "$GITHUB_API_URL" "$TEMP_DIR"
+
+# Clean up the temporary script
+rm -f "$TMP_SCRIPT"

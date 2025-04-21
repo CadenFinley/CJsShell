@@ -18,6 +18,7 @@
 #include <grp.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <set> // Add missing include for std::set
 
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
@@ -40,7 +41,7 @@ using json = nlohmann::json;
 // Process Substitution: Features like <(command) and >(command).
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.0.0";
+const std::string currentVersion = "2.0.0.1";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -65,6 +66,11 @@ bool cachedUpdateAvailable = false;
 // Add history expansion support
 bool historyExpansionEnabled = true;
 int lastCommandNumber = 0;
+
+// Tab completion variables
+std::vector<std::string> cachedCompletions;
+int currentCompletionIndex = 0;
+std::string currentCompletionPrefix;
 
 time_t lastUpdateCheckTime = 0;
 int UPDATE_CHECK_INTERVAL = 86400;
@@ -197,6 +203,9 @@ bool checkIsFileHandler(int argc, char* argv[]);
 void setupLoginShell();
 void cleanupLoginShell();
 void handleFileExecution(const std::string& filePath);
+char* command_generator(const char* text, int state);
+char** command_completion(const char* text, int start, int end);
+std::vector<std::string> get_completion_matches(const std::string& prefix);
 
 int main(int argc, char* argv[]) {
     
@@ -375,23 +384,13 @@ bool authenticateUser(){
     return true;
 }
 
-char* custom_completion_function(const char* text, int state) {
-    return NULL;
-}
-
 void initialize_readline() {
-    rl_completion_append_character = ' ';
-
-    const char* word_break_chars = " \t\n\"\\'`@$><=;|&{(";
-    rl_basic_word_break_characters = const_cast<char*>(word_break_chars);
-    
-    rl_attempted_completion_function = [](const char* text, int start, int end) -> char** {
-        rl_attempted_completion_over = 1;
-        return rl_completion_matches(text, custom_completion_function);
-    };
-    
     using_history();
     stifle_history(1000);
+    
+    rl_attempted_completion_function = command_completion;
+    rl_completion_append_character = '\0'; // We'll handle this based on whether it's a directory
+    rl_basic_word_break_characters = (char *)" \t\n\"\\'`@$><=;|&{(";
 }
 
 bool isRunningAsLoginShell(char* argv0) {
@@ -533,6 +532,11 @@ std::string expandEnvVariables(const std::string& input) {
 
 std::string expandHistoryCommand(const std::string& command) {
     if (!historyExpansionEnabled || command.empty()) {
+        return command;
+    }
+    
+    if (command.length() >= commandPrefix.length() && 
+        command.substr(0, commandPrefix.length()) == commandPrefix) {
         return command;
     }
     
@@ -774,9 +778,9 @@ void mainProcessLoop() {
             prompt = terminal.returnCurrentTerminalPosition();
         }
 
-        char* line = readline(prompt.c_str());
+        std::cout << prompt;
+        char* line = readline(" ");
         if (line == nullptr) {
-            // EOF
             std::cout << std::endl;
             exitFlag = true;
             break;
@@ -950,7 +954,6 @@ void commandParser(const std::string& command) {
     } else {
         sendTerminalCommand(expandedCommand);
         
-        // Check if we need to save an alias after command execution
         const char* saveAlias = getenv("CJSH_SAVE_ALIAS");
         if (saveAlias && strcmp(saveAlias, "1") == 0) {
             const char* aliasName = getenv("CJSH_SAVE_ALIAS_NAME");
@@ -959,7 +962,6 @@ void commandParser(const std::string& command) {
             if (aliasName && aliasValue) {
                 saveAliasToCJSHRC(aliasName, aliasValue);
                 
-                // Clear the environment variables
                 unsetenv("CJSH_SAVE_ALIAS");
                 unsetenv("CJSH_SAVE_ALIAS_NAME");
                 unsetenv("CJSH_SAVE_ALIAS_VALUE");
@@ -1088,7 +1090,6 @@ void commandProcesser(const std::string& command) {
     } else if (lastCommandParsed == "theme") {
         themeCommands();
     } else if (lastCommandParsed == "history") {
-        // Add history command
         auto history = terminal.getTerminalCacheUserInput();
         if (history.empty()) {
             std::cout << "No command history" << std::endl;
@@ -1162,7 +1163,6 @@ void printHelp() {
     std::cout << " plugin: Manage plugins" << std::endl;
     std::cout << " env: Manage environment variables" << std::endl;
     std::cout << " uninstall: Uninstall the application" << std::endl;
-    std::cout << " alias [NAME=VALUE]: Define or display aliases" << std::endl;
     std::cout << " history: Display command history" << std::endl;
 }
 
@@ -3169,4 +3169,109 @@ void processProfileFile(const std::string& filePath) {
     }
     
     loadAliasesFromFile(filePath);
+}
+
+char** command_completion(const char* text, int start, int end) {
+    if (start == 0) {
+        return rl_completion_matches(text, command_generator);
+    }
+    
+    return nullptr;
+}
+
+char* command_generator(const char* text, int state) {
+    static size_t list_index;
+    static std::vector<std::string> matches;
+    
+    if (state == 0) {
+        list_index = 0;
+        matches = get_completion_matches(text);
+    }
+    
+    if (list_index < matches.size()) {
+        std::string match = matches[list_index++];
+        
+        // Directory entries should already have a trailing slash from get_completion_matches
+        // Set append character based on whether it ends with a slash
+        if (!match.empty() && match.back() == '/') {
+            rl_completion_append_character = '\0'; // No space after directory
+        } else {
+            rl_completion_append_character = ' ';  // Space after regular completion
+        }
+        
+        return strdup(match.c_str());
+    }
+    
+    return nullptr;
+}
+
+std::vector<std::string> get_completion_matches(const std::string& prefix) {
+    std::vector<std::string> matches;
+    
+    std::vector<std::string> builtins = {
+        "exit", "quit", "clear", "help", "version", "history",
+        "ai", "user", "plugin", "theme", "terminal", "approot", "aihelp"
+    };
+    
+    for (const auto& cmd : builtins) {
+        if (startsWith(cmd, prefix)) {
+            matches.push_back(cmd);
+        }
+    }
+    
+    if (pluginManager != nullptr) {
+        for (const auto& plugin : pluginManager->getEnabledPlugins()) {
+            for (const auto& cmd : pluginManager->getPluginCommands(plugin)) {
+                if (startsWith(cmd, prefix)) {
+                    matches.push_back(cmd);
+                }
+            }
+        }
+    }
+    
+    for (const auto& [alias, _] : aliases) {
+        if (startsWith(alias, prefix)) {
+            matches.push_back(alias);
+        }
+    }
+    
+    if (prefix.length() > 0 && prefix[0] == commandPrefix[0]) {
+        std::string strippedPrefix = prefix.substr(1);
+        for (const auto& cmd : builtins) {
+            if (startsWith(cmd, strippedPrefix)) {
+                matches.push_back(commandPrefix + cmd);
+            }
+        }
+    }
+    
+    if (matches.empty()) {
+        std::string currentPath = terminal.getCurrentFilePath();
+        std::string searchPrefix = prefix;
+        std::string searchPath = currentPath;
+        
+        size_t lastSlash = prefix.find_last_of("/\\");
+        if (lastSlash != std::string::npos) {
+            searchPath = currentPath + "/" + prefix.substr(0, lastSlash + 1);
+            searchPrefix = prefix.substr(lastSlash + 1);
+        }
+        
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(searchPath)) {
+                std::string filename = entry.path().filename().string();
+                if (startsWith(filename, searchPrefix)) {
+                    std::string completion = prefix.substr(0, lastSlash != std::string::npos ? lastSlash + 1 : 0) + filename;
+                    
+                    // Always add a slash for directories
+                    if (entry.is_directory() && completion.back() != '/') {
+                        completion += '/';
+                    }
+                    matches.push_back(completion);
+                }
+            }
+        } catch (const std::filesystem::filesystem_error& e) {
+            // Handle filesystem errors silently
+        }
+    }
+    
+    return matches;
 }
