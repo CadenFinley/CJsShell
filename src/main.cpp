@@ -26,25 +26,19 @@
 
 using json = nlohmann::json;
 
-// Command Line Redirection: There doesn't seem to be implementation for I/O redirection operators like >, >>, <, 2>, etc.
-
-// Command Piping: The implementation doesn't handle piping commands with the | operator.
-
-// Wildcard/Globbing Support: No handling for file globbing patterns (*, ?, [...]).
-
 // Robust Tab Completion: While there's a placeholder completion function, it returns NULL instead of implementing actual completion logic.
+// will handle this with custom realine library in the future
 
 // Command Substitution: Support for $(command) or backtick substitution.
 
 // Shell Scripting Constructs: Missing implementation for control structures like if/then/else, for/while loops, etc.
 
-// Environment Variable Expansion: Need more robust support for $HOME, ${VAR}, etc. in commands.
-
 // Process Substitution: Features like <(command) and >(command).
 
 // History Expansion: Shortcuts like !! for previous command or !n for specific command.
 
-// Shell Prompt Customization: More flexible PS1/PS2 environment variables for prompt customization.
+// Shell Prompt Customization: More flexible PS1/PS2 environment variables for prompt customization
+// will handle this with some theming in the future
 
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.0.0";
@@ -69,9 +63,15 @@ bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
 bool cachedUpdateAvailable = false;
 
+// Add history expansion support
+bool historyExpansionEnabled = true;
+int lastCommandNumber = 0;
+
 time_t lastUpdateCheckTime = 0;
 int UPDATE_CHECK_INTERVAL = 86400;
 std::string cachedLatestVersion = "";
+
+std::filesystem::path ACTUAL_SHELL_PATH = std::filesystem::path("/usr/local/bin/cjsh");
 
 std::string currentTheme = "default";
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
@@ -90,6 +90,10 @@ std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Chris
 std::string lastUpdated = "N/A";
 
 std::string homeDir = std::getenv("HOME");
+std::filesystem::path INSTALL_PATH = std::getenv("CJSH_INSTALL_PATH") ? 
+    std::filesystem::path(std::getenv("CJSH_INSTALL_PATH")) : 
+    std::filesystem::path("/usr/local/bin") / "cjsh";
+
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".cjsh_data";
 std::filesystem::path CJSHRC_FILE = DATA_DIRECTORY / ".cjshrc";
 std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_uninstall.sh";
@@ -186,25 +190,157 @@ void handleSIGINT(int sig);
 void handleSIGCHLD(int sig);
 void parentProcessWatchdog();
 void printHelp();
+void createDefaultCJSHRC();
+void loadAliasesFromFile(const std::string& filePath);
+void saveAliasToCJSHRC(const std::string& name, const std::string& value);
 
 bool authenticateUser(){
     return true;
 }
 
 char* custom_completion_function(const char* text, int state) {
-    // Return NULL to let readline use its default completion
-    return NULL;
+    static std::vector<std::string> matches;
+    static size_t match_index = 0;
+    
+    if (state == 0) {
+        // New completion, initialize matches
+        matches.clear();
+        match_index = 0;
+        
+        std::string prefix(text);
+        std::string currentPath = terminal.getCurrentFilePath();
+        
+        // Check if we're completing a command at the start of the line
+        int start = rl_point - strlen(text);
+        if (start == 0) {
+            // Check for aliases first
+            for (const auto& [name, _] : aliases) {
+                if (startsWith(name, prefix)) {
+                    matches.push_back(name);
+                }
+            }
+            
+            // Check for shell built-in commands
+            std::vector<std::string> builtins = {
+                "cd", "exit", "quit", "alias", "history", "jobs", "fg", "bg",
+                "export", "env", "help", "clear", "source", "echo"
+            };
+            
+            for (const auto& builtin : builtins) {
+                if (startsWith(builtin, prefix)) {
+                    matches.push_back(builtin);
+                }
+            }
+            
+            // Check PATH for executables
+            const char* pathEnv = getenv("PATH");
+            if (pathEnv) {
+                std::string path(pathEnv);
+                std::istringstream pathStream(path);
+                std::string dir;
+                
+                while (std::getline(pathStream, dir, ':')) {
+                    if (dir.empty()) continue;
+                    
+                    try {
+                        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+                            if (std::filesystem::is_regular_file(entry) && 
+                                (access(entry.path().string().c_str(), X_OK) == 0)) {
+                                std::string filename = entry.path().filename().string();
+                                if (startsWith(filename, prefix)) {
+                                    matches.push_back(filename);
+                                }
+                            }
+                        }
+                    } catch (const std::filesystem::filesystem_error&) {
+                        // Skip inaccessible directories
+                    }
+                }
+            }
+        } else {
+            // File completion for arguments
+            std::string path_prefix;
+            std::string file_prefix;
+            
+            // Parse the prefix to separate path from file
+            size_t slash_pos = prefix.find_last_of('/');
+            if (slash_pos != std::string::npos) {
+                path_prefix = prefix.substr(0, slash_pos + 1);
+                file_prefix = prefix.substr(slash_pos + 1);
+                
+                // Determine the directory to search
+                std::filesystem::path search_dir;
+                if (path_prefix[0] == '/') {
+                    search_dir = std::filesystem::path(path_prefix); // Absolute path
+                } else {
+                    search_dir = std::filesystem::path(currentPath) / std::filesystem::path(path_prefix); // Relative path
+                }
+                
+                try {
+                    for (const auto& entry : std::filesystem::directory_iterator(search_dir)) {
+                        std::string filename = entry.path().filename().string();
+                        if (startsWith(filename, file_prefix)) {
+                            std::string completion = path_prefix + filename;
+                            if (std::filesystem::is_directory(entry)) {
+                                completion += "/";
+                            }
+                            matches.push_back(completion);
+                        }
+                    }
+                } catch (const std::filesystem::filesystem_error&) {
+                    // Handle directory access error
+                }
+            } else {
+                file_prefix = prefix;
+            }
+            
+            // If no path prefix, search current directory
+            if (path_prefix.empty()) {
+                try {
+                    for (const auto& entry : std::filesystem::directory_iterator(currentPath)) {
+                        std::string filename = entry.path().filename().string();
+                        if (startsWith(filename, file_prefix)) {
+                            if (std::filesystem::is_directory(entry)) {
+                                matches.push_back(filename + "/");
+                            } else {
+                                matches.push_back(filename);
+                            }
+                        }
+                    }
+                } catch (const std::filesystem::filesystem_error&) {
+                    // Handle directory access error
+                }
+            }
+        }
+        
+        // Sort and remove duplicates
+        std::sort(matches.begin(), matches.end());
+        matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
+    }
+    
+    if (match_index < matches.size()) {
+        return strdup(matches[match_index++].c_str());
+    } else {
+        return nullptr;
+    }
 }
 
 void initialize_readline() {
-    // Disable automatic space after completion
-    rl_completion_append_character = '/';
+    rl_completion_append_character = ' ';
     
-    // Use custom completion function
+    // Set up custom word break characters to handle more completion scenarios
+    const char* word_break_chars = " \t\n\"\\'`@$><=;|&{(";
+    rl_basic_word_break_characters = const_cast<char*>(word_break_chars);
+    
     rl_attempted_completion_function = [](const char* text, int start, int end) -> char** {
-        //rl_completion_append_character = 1;
+        // Don't use default filename completion when our generator returns NULL
+        rl_attempted_completion_over = 1;
         return rl_completion_matches(text, custom_completion_function);
     };
+    
+    // Enable history expansion with !
+    using_history();
+    stifle_history(1000); // Limit history to 1000 entries
 }
 
 bool isRunningAsLoginShell(char* argv0) {
@@ -261,8 +397,17 @@ void setupLoginShell() {
     
     std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
     if (!homeDir.empty()) {
+        createDefaultCJSHRC();
+        
         std::vector<std::string> profileFiles = {
-            homeDir + "/.profile"
+            homeDir + "/.profile",
+            homeDir + "/.bash_profile",
+            homeDir + "/.bash_login",
+            homeDir + "/.bashrc",
+            homeDir + "/.zprofile",
+            homeDir + "/.zshrc",
+            homeDir + "/.cjshrc",
+            CJSHRC_FILE.string()
         };
         
         for (const auto& profile : profileFiles) {
@@ -288,6 +433,9 @@ void setupLoginShell() {
         }
         setenv("PATH", currentPath.c_str(), 1);
     }
+    
+    // Load aliases from .cjshrc
+    loadAliasesFromFile(CJSHRC_FILE.string());
 }
 
 void cleanupLoginShell() {
@@ -298,281 +446,336 @@ void cleanupLoginShell() {
     }
 }
 
-void processProfileFile(const std::string& filePath) {
+std::string expandEnvVariables(const std::string& input) {
+    std::string result = input;
+    size_t varPos = result.find('$');
+    
+    while (varPos != std::string::npos) {
+        // Handle ${VAR} format
+        if (varPos + 1 < result.size() && result[varPos + 1] == '{') {
+            size_t closeBrace = result.find('}', varPos + 2);
+            if (closeBrace != std::string::npos) {
+                std::string varName = result.substr(varPos + 2, closeBrace - varPos - 2);
+                const char* envValue = getenv(varName.c_str());
+                result.replace(varPos, closeBrace - varPos + 1, envValue ? envValue : "");
+            } else {
+                // Malformed ${VAR} - move past the $
+                varPos++;
+            }
+        }
+        // Handle $VAR format
+        else {
+            size_t endPos = varPos + 1;
+            while (endPos < result.size() && 
+                  (isalnum(result[endPos]) || result[endPos] == '_')) {
+                endPos++;
+            }
+            
+            if (endPos > varPos + 1) {
+                std::string varName = result.substr(varPos + 1, endPos - varPos - 1);
+                const char* envValue = getenv(varName.c_str());
+                result.replace(varPos, endPos - varPos, envValue ? envValue : "");
+            } else {
+                // Just a $ character - move past it
+                varPos++;
+            }
+        }
+        
+        varPos = result.find('$', varPos);
+    }
+    
+    return result;
+}
+
+std::string expandHistoryCommand(const std::string& command) {
+    if (!historyExpansionEnabled || command.empty()) {
+        return command;
+    }
+    
+    if (command == "!!") {
+        // Execute previous command
+        if (terminal.getTerminalCacheUserInput().empty()) {
+            std::cerr << "No previous command in history" << std::endl;
+            return "";
+        }
+        return terminal.getTerminalCacheUserInput().back();
+    } 
+    else if (command[0] == '!') {
+        if (command.length() > 1 && isdigit(command[1])) {
+            // Execute command by history number
+            try {
+                int cmdNum = std::stoi(command.substr(1));
+                auto history = terminal.getTerminalCacheUserInput();
+                if (cmdNum > 0 && cmdNum <= static_cast<int>(history.size())) {
+                    return history[cmdNum - 1];
+                } else {
+                    std::cerr << "Invalid history number: " << cmdNum << std::endl;
+                    return "";
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing history number: " << e.what() << std::endl;
+                return "";
+            }
+        } 
+        else if (command.length() > 1) {
+            // Execute last command starting with string
+            std::string prefix = command.substr(1);
+            auto history = terminal.getTerminalCacheUserInput();
+            for (auto it = history.rbegin(); it != history.rend(); ++it) {
+                if (startsWith(*it, prefix)) {
+                    return *it;
+                }
+            }
+            std::cerr << "No matching command in history for: " << prefix << std::endl;
+            return "";
+        }
+    }
+    
+    return command;
+}
+
+// Improved command substitution
+std::string performCommandSubstitution(const std::string& command) {
+    std::string result = command;
+    std::string::size_type pos = 0;
+    
+    // Handle $(command) substitution
+    while ((pos = result.find("$(", pos)) != std::string::npos) {
+        int depth = 1;
+        std::string::size_type end = pos + 2;
+        
+        while (end < result.length() && depth > 0) {
+            if (result[end] == '(') depth++;
+            else if (result[end] == ')') depth--;
+            end++;
+        }
+        
+        if (depth == 0) {
+            std::string subCommand = result.substr(pos + 2, end - pos - 3);
+            
+            // Execute the subcommand and capture output
+            FILE* pipe = popen(subCommand.c_str(), "r");
+            if (!pipe) {
+                std::cerr << "Error executing command substitution" << std::endl;
+                continue;
+            }
+            
+            std::string output;
+            char buffer[128];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+            pclose(pipe);
+            
+            // Trim trailing newlines
+            while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
+                output.pop_back();
+            }
+            
+            // Replace the command substitution with its output
+            result.replace(pos, end - pos, output);
+            pos += output.length();
+        } else {
+            // Unmatched parentheses, skip
+            pos = end;
+        }
+    }
+    
+    // Handle backtick substitution
+    pos = 0;
+    while ((pos = result.find('`', pos)) != std::string::npos) {
+        std::string::size_type end = result.find('`', pos + 1);
+        if (end != std::string::npos) {
+            std::string subCommand = result.substr(pos + 1, end - pos - 1);
+            
+            // Execute the subcommand and capture output
+            FILE* pipe = popen(subCommand.c_str(), "r");
+            if (!pipe) {
+                std::cerr << "Error executing command substitution" << std::endl;
+                pos = end + 1;
+                continue;
+            }
+            
+            std::string output;
+            char buffer[128];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+            pclose(pipe);
+            
+            // Trim trailing newlines
+            while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
+                output.pop_back();
+            }
+            
+            // Replace the command substitution with its output
+            result.replace(pos, end - pos + 1, output);
+            pos += output.length();
+        } else {
+            break;
+        }
+    }
+    
+    return result;
+}
+
+void loadAliasesFromFile(const std::string& filePath) {
     if (!std::filesystem::exists(filePath)) {
         return;
     }
     
-    if (std::filesystem::is_directory(filePath)) {
-        for (const auto& entry : std::filesystem::directory_iterator(filePath)) {
-            if (entry.path().extension() == ".sh") {
-                processProfileFile(entry.path().string());
-            }
-        }
-        return;
-    }
-    
     std::ifstream file(filePath);
-    if (!file) {
+    if (!file.is_open()) {
         return;
     }
     
     std::string line;
-    std::string currentConditionalBlock = "";
-    bool inConditionalBlock = false;
-    bool conditionMet = false;
-    
     while (std::getline(file, line)) {
+        // Skip comments and empty lines
         if (line.empty() || line[0] == '#') {
             continue;
         }
         
-        line.erase(0, line.find_first_not_of(" \t"));
-        line.erase(line.find_last_not_of(" \t") + 1);
-        
-        if (line.find("if ") == 0 || line.find("if(") == 0) {
-            inConditionalBlock = true;
-            currentConditionalBlock = "if";
-            if (line.find("[ -d ") != std::string::npos || line.find(" -d ") != std::string::npos) {
-                size_t startPos = line.find("-d ") + 3;
-                size_t endPos = line.find("]", startPos);
-                if (endPos != std::string::npos) {
-                    std::string path = line.substr(startPos, endPos - startPos);
-                    path.erase(0, path.find_first_not_of(" \t\"'"));
-                    path.erase(path.find_last_not_of(" \t\"'") + 1);
-                    
-                    if (path.find("$HOME") != std::string::npos) {
-                        std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
-                        size_t pos = path.find("$HOME");
-                        path.replace(pos, 5, homeDir);
-                    }
-                    
-                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_directory(path);
-                }
-            } else if (line.find("[ -f ") != std::string::npos || line.find(" -f ") != std::string::npos) {
-                size_t startPos = line.find("-f ") + 3;
-                size_t endPos = line.find("]", startPos);
-                if (endPos != std::string::npos) {
-                    std::string path = line.substr(startPos, endPos - startPos);
-                    path.erase(0, path.find_first_not_of(" \t\"'"));
-                    path.erase(path.find_last_not_of(" \t\"'") + 1);
-                    
-                    if (path.find("$HOME") != std::string::npos) {
-                        std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
-                        size_t pos = path.find("$HOME");
-                        path.replace(pos, 5, homeDir);
-                    }
-                    
-                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
-                }
-            } else if (line.find("command -v") != std::string::npos) {
-                size_t startPos = line.find("command -v") + 10;
-                size_t endPos = line.find(">", startPos);
-                if (endPos == std::string::npos) endPos = line.length();
-                
-                std::string cmd = line.substr(startPos, endPos - startPos);
-                cmd.erase(0, cmd.find_first_not_of(" \t"));
-                cmd.erase(cmd.find_last_not_of(" \t") + 1);
-                
-                char* pathEnv = getenv("PATH");
-                if (pathEnv) {
-                    std::string path(pathEnv);
-                    std::stringstream ss(path);
-                    std::string dir;
-                    conditionMet = false;
-                    
-                    while (std::getline(ss, dir, ':')) {
-                        std::string fullPath = dir + "/" + cmd;
-                        if (access(fullPath.c_str(), X_OK) == 0) {
-                            conditionMet = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            continue;
-        }
-        
-        if (line == "else" && inConditionalBlock) {
-            conditionMet = !conditionMet;
-            continue;
-        }
-        
-        if (line == "fi" && inConditionalBlock) {
-            inConditionalBlock = false;
-            conditionMet = false;
-            continue;
-        }
-        
-        if (inConditionalBlock && !conditionMet) {
-            continue;
-        }
-        
-        if (line.find("export ") == 0) {
-            line = line.substr(7);
-        
-            std::istringstream iss(line);
-            std::string varAssignment;
-            while (iss >> varAssignment) {
-                size_t pos = varAssignment.find('=');
-                if (pos != std::string::npos) {
-                    std::string name = varAssignment.substr(0, pos);
-                    std::string value = varAssignment.substr(pos + 1);
-                    
-                    if (value.size() >= 2 && 
-                        ((value.front() == '"' && value.back() == '"') || 
-                         (value.front() == '\'' && value.back() == '\''))) {
-                        value = value.substr(1, value.size() - 2);
-                    }
-                    
-                    size_t varPos = value.find('$');
-                    while (varPos != std::string::npos) {
-                        size_t endPos = value.find_first_of(" \t/\"'", varPos + 1);
-                        if (endPos == std::string::npos) endPos = value.size();
-                        
-                        std::string varName = value.substr(varPos + 1, endPos - varPos - 1);
-                        if (varName.front() == '{' && varName.back() == '}') {
-                            varName = varName.substr(1, varName.size() - 2);
-                        }
-                        
-                        const char* envValue = getenv(varName.c_str());
-                        value.replace(varPos, endPos - varPos, envValue ? envValue : "");
-                        
-                        varPos = value.find('$', varPos + 1);
-                    }
-                    
-                    setenv(name.c_str(), value.c_str(), 1);
-                }
-            }
-        } else if (line.find('=') != std::string::npos && line.find("let ") != 0) {
-            size_t pos = line.find('=');
-            std::string name = line.substr(0, pos);
-            std::string value = line.substr(pos + 1);
-            
-            name.erase(0, name.find_first_not_of(" \t"));
-            name.erase(name.find_last_not_of(" \t") + 1);
-            value.erase(0, value.find_first_not_of(" \t"));
-            value.erase(value.find_last_not_of(" \t") + 1);
-            
-            if (value.size() >= 2 && 
-                ((value.front() == '"' && value.back() == '"') || 
-                 (value.front() == '\'' && value.back() == '\''))) {
-                value = value.substr(1, value.size() - 2);
-            }
-            
-            size_t varPos = value.find('$');
-            while (varPos != std::string::npos) {
-                size_t endPos = value.find_first_of(" \t/\"'", varPos + 1);
-                if (endPos == std::string::npos) endPos = value.size();
-                
-                std::string varName = value.substr(varPos + 1, endPos - varPos - 1);
-                if (varName.front() == '{' && varName.back() == '}') {
-                    varName = varName.substr(1, varName.size() - 2);
-                }
-                
-                const char* envValue = getenv(varName.c_str());
-                value.replace(varPos, endPos - varPos, envValue ? envValue : "");
-                
-                varPos = value.find('$', varPos + 1);
-            }
-            
-            if (!name.empty() && isalpha(name[0])) {
-                setenv(name.c_str(), value.c_str(), 1);
-            }
-        } else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
-            std::string pathValue = line.substr(line.find('=') + 1);
-            
-            std::string currentPath = getenv("PATH") ? getenv("PATH") : "";
-            size_t pathVarPos = pathValue.find("$PATH");
-            while (pathVarPos != std::string::npos) {
-                pathValue.replace(pathVarPos, 5, currentPath);
-                pathVarPos = pathValue.find("$PATH", pathVarPos + currentPath.length());
-            }
-            
-            std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
-            size_t homeVarPos = pathValue.find("$HOME");
-            while (homeVarPos != std::string::npos) {
-                pathValue.replace(homeVarPos, 5, homeDir);
-                homeVarPos = pathValue.find("$HOME", homeVarPos + homeDir.length());
-            }
-            
-            size_t varPos = pathValue.find('$');
-            while (varPos != std::string::npos) {
-                size_t endPos = pathValue.find_first_of(" \t:/\"'", varPos + 1);
-                if (endPos == std::string::npos) endPos = pathValue.size();
-                
-                std::string varName = pathValue.substr(varPos + 1, endPos - varPos - 1);
-                if (varName.front() == '{' && varName.back() == '}') {
-                    varName = varName.substr(1, varName.size() - 2);
-                }
-                
-                const char* envValue = getenv(varName.c_str());
-                pathValue.replace(varPos, endPos - varPos, envValue ? envValue : "");
-                
-                varPos = pathValue.find('$', varPos + 1);
-            }
-            
-            setenv("PATH", pathValue.c_str(), 1);
-        } else if (line.find("alias ") == 0) {
-            line = line.substr(6);
+        // Look for alias definitions
+        if (line.find("alias ") == 0) {
+            line = line.substr(6); // Remove "alias " prefix
             size_t eqPos = line.find('=');
             if (eqPos != std::string::npos) {
-                std::string aliasName = line.substr(0, eqPos);
-                std::string aliasValue = line.substr(eqPos + 1);
+                std::string name = line.substr(0, eqPos);
+                std::string value = line.substr(eqPos + 1);
                 
-                aliasName.erase(0, aliasName.find_first_not_of(" \t"));
-                aliasName.erase(aliasName.find_last_not_of(" \t") + 1);
-                aliasValue.erase(0, aliasValue.find_first_not_of(" \t"));
-                aliasValue.erase(aliasValue.find_last_not_of(" \t") + 1);
+                // Trim whitespace
+                name.erase(0, name.find_first_not_of(" \t"));
+                name.erase(name.find_last_not_of(" \t") + 1);
+                value.erase(0, value.find_first_not_of(" \t"));
+                value.erase(value.find_last_not_of(" \t") + 1);
                 
-                if (aliasValue.size() >= 2 && 
-                    ((aliasValue.front() == '"' && aliasValue.back() == '"') || 
-                     (aliasValue.front() == '\'' && aliasValue.back() == '\''))) {
-                    aliasValue = aliasValue.substr(1, aliasValue.size() - 2);
+                // Remove surrounding quotes if present
+                if (value.size() >= 2 && 
+                    ((value.front() == '"' && value.back() == '"') || 
+                     (value.front() == '\'' && value.back() == '\''))) {
+                    value = value.substr(1, value.size() - 2);
                 }
                 
-                aliases[aliasName] = aliasValue;
+                aliases[name] = value;
+                
+                // Also set in the environment for child processes
+                std::string aliasCmd = "alias " + name + "='" + value + "'";
+                system(aliasCmd.c_str());
             }
-        } else if (line.find("source ") == 0 || line.find(". ") == 0) {
-            size_t startPos = line.find(' ') + 1;
-            std::string sourcePath = line.substr(startPos);
-            sourcePath.erase(0, sourcePath.find_first_not_of(" \t"));
-            sourcePath.erase(sourcePath.find_last_not_of(" \t") + 1);
-            
-            if (sourcePath.find('$') != std::string::npos) {
-                size_t varPos = sourcePath.find('$');
-                while (varPos != std::string::npos) {
-                    size_t endPos = sourcePath.find_first_of(" \t/\"'", varPos + 1);
-                    if (endPos == std::string::npos) endPos = sourcePath.size();
-                    
-                    std::string varName = sourcePath.substr(varPos + 1, endPos - varPos - 1);
-                    if (varName.front() == '{' && varName.back() == '}') {
-                        varName = varName.substr(1, varName.size() - 2);
-                    }
-                    
-                    const char* envValue = getenv(varName.c_str());
-                    sourcePath.replace(varPos, endPos - varPos, envValue ? envValue : "");
-                    
-                    varPos = sourcePath.find('$', varPos + 1);
-                }
+        }
+    }
+    
+    file.close();
+}
+
+// Enhanced alias command
+void aliasCommand() {
+    getNextCommand();
+    if (lastCommandParsed.empty()) {
+        // Print all aliases
+        if (aliases.empty()) {
+            std::cout << "No aliases defined" << std::endl;
+        } else {
+            for (const auto& [name, value] : aliases) {
+                std::cout << "alias " << name << "='" << value << "'" << std::endl;
             }
-            
-            if (sourcePath[0] != '/' && sourcePath[0] != '~') {
-                std::filesystem::path baseDir = std::filesystem::path(filePath).parent_path();
-                sourcePath = (baseDir / sourcePath).string();
-            } else if (sourcePath[0] == '~') {
-                std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
-                sourcePath.replace(0, 1, homeDir);
-            }
-            
-            if (std::filesystem::exists(sourcePath)) {
-                processProfileFile(sourcePath);
-            }
+        }
+        return;
+    }
+    
+    size_t eqPos = lastCommandParsed.find('=');
+    if (eqPos != std::string::npos) {
+        // Define a new alias
+        std::string name = lastCommandParsed.substr(0, eqPos);
+        std::string value = lastCommandParsed.substr(eqPos + 1);
+        
+        // Trim whitespace
+        name.erase(0, name.find_first_not_of(" \t"));
+        name.erase(name.find_last_not_of(" \t") + 1);
+        value.erase(0, value.find_first_not_of(" \t"));
+        value.erase(value.find_last_not_of(" \t") + 1);
+        
+        // Remove surrounding quotes if present
+        if (value.size() >= 2 && 
+            ((value.front() == '"' && value.back() == '"') || 
+             (value.front() == '\'' && value.back() == '\''))) {
+            value = value.substr(1, value.size() - 2);
+        }
+        
+        aliases[name] = value;
+        
+        // Also add to environment for child processes
+        std::string aliasCmd = "alias " + name + "='" + value + "'";
+        system(aliasCmd.c_str());
+        
+        // Save alias to .cjshrc for persistence
+        saveAliasToCJSHRC(name, value);
+        
+        std::cout << "Alias defined: " << name << "='" << value << "'" << std::endl;
+    } else {
+        // Check for a specific alias
+        if (aliases.find(lastCommandParsed) != aliases.end()) {
+            std::cout << "alias " << lastCommandParsed << "='" << aliases[lastCommandParsed] << "'" << std::endl;
+        } else {
+            std::cout << "No alias defined for " << lastCommandParsed << std::endl;
         }
     }
 }
 
+// Add new function to save aliases to .cjshrc file for persistence
+void saveAliasToCJSHRC(const std::string& name, const std::string& value) {
+    std::filesystem::path cjshrcPath = CJSHRC_FILE;
+    
+    // Create file if it doesn't exist
+    if (!std::filesystem::exists(cjshrcPath)) {
+        createDefaultCJSHRC();
+    }
+    
+    // Read existing content
+    std::ifstream inFile(cjshrcPath);
+    std::string content;
+    if (inFile.is_open()) {
+        std::string line;
+        bool aliasExists = false;
+        std::stringstream newContent;
+        
+        while (std::getline(inFile, line)) {
+            // Check if this line defines the same alias
+            if (line.find("alias " + name + "=") == 0) {
+                // Replace with new definition
+                newContent << "alias " << name << "='" << value << "'" << std::endl;
+                aliasExists = true;
+            } else {
+                newContent << line << std::endl;
+            }
+        }
+        
+        if (!aliasExists) {
+            // Add new alias definition at the end
+            newContent << "alias " << name << "='" << value << "'" << std::endl;
+        }
+        
+        content = newContent.str();
+        inFile.close();
+    } else {
+        // File couldn't be opened, create minimal content
+        content = "# CJ's Shell RC File\n\n";
+        content += "alias " + name + "='" + value + "'\n";
+    }
+    
+    // Write back to file
+    std::ofstream outFile(cjshrcPath, std::ios::trunc);
+    if (outFile.is_open()) {
+        outFile << content;
+        outFile.close();
+    } else {
+        std::cerr << "Error: Could not save alias to " << cjshrcPath << std::endl;
+    }
+}
+
 int main(int argc, char* argv[]) {
+    
     isLoginShell = isRunningAsLoginShell(argv[0]);
     isFileHandler = checkIsFileHandler(argc, argv);
 
@@ -619,6 +822,7 @@ int main(int argc, char* argv[]) {
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a shell.", {}, DATA_DIRECTORY);
 
     initializeDataDirectories();
+    setupEnvironmentVariables();  // Add this line to ensure environment variables are set early
     
     if (isFileHandler) {
         std::string filePath = argv[1];
@@ -796,106 +1000,6 @@ void mainProcessLoop() {
     }
 }
 
-void clearLines(const std::vector<std::string>& commandLines){
-    std::cout << "\033[2K\r";
-    if(commandLines.size() > 1){
-        for (int i = 0; i < commandLines.size(); i++) {
-            if (i > 0) {
-                std::cout << "\033[A";
-            }
-            std::cout << "\033[2K\r";
-        }
-    }
-}
-
-void reprintCommandLines(const std::vector<std::string>& commandLines, const std::string& terminalSetting) {
-    for (int i = 0; i < commandLines.size(); i++) {
-        if (i == 0) {
-            std::cout << terminalSetting << commandLines[i];
-        } else {
-            std::cout << commandLines[i];
-        }
-        if (i < commandLines.size() - 1) {
-            std::cout << std::endl;
-        }
-    }
-}
-
-void placeCursor(size_t& cursorPositionX, size_t& cursorPositionY){
-    int columnsBehind = commandLines[cursorPositionY].length() - cursorPositionX;
-    int rowsBehind = commandLines.size() - cursorPositionY - 1;
-    if (columnsBehind > 0) {
-        while (columnsBehind > 0) {
-            std::cout << "\033[D";
-            columnsBehind--;
-        }
-    }
-    if(rowsBehind > 0){
-        while (rowsBehind > 0) {
-            std::cout << "\033[A";
-            rowsBehind--;
-        }
-    }
-}
-
-std::string handleArrowKey(char arrow, size_t& cursorPositionX, size_t& cursorPositionY, std::vector<std::string>& commandLines, std::string& command, const std::string& terminalTag) {
-    switch (arrow) {
-        case 'A':
-            return terminal.getPreviousCommand();
-        case 'B':
-            return terminal.getNextCommand();
-        case 'C':
-            if (cursorPositionX < command.length()) {
-                cursorPositionX++;
-                std::cout << "\033[C";
-            } else if (cursorPositionY < commandLines.size() - 1) {
-                cursorPositionY++;
-                cursorPositionX = 0;
-                std::cout << "\033[B";
-            }
-            return "";
-        case 'D':
-            if (cursorPositionX > 0) {
-                cursorPositionX--;
-                std::cout << "\033[D";
-            } else if (cursorPositionY > 0) {
-                cursorPositionY--;
-                cursorPositionX = commandLines[cursorPositionY].length();
-                std::cout << "\033[A";
-            }
-            return "";
-    }
-    return "";
-}
-
-std::string getClipboardContent() {
-    std::string result;
-    usleep(10000);
-    
-    FILE* pipe = popen("pbpaste", "r");
-    if (!pipe) {
-        std::cerr << "Failed to access clipboard" << std::endl;
-        return "";
-    }
-    
-    char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        result += buffer;
-    }
-    
-    int status = pclose(pipe);
-    if (status != 0) {
-        std::cerr << "Clipboard command failed with status: " << status << std::endl;
-        return "";
-    }
-
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-    
-    return result;
-}
-
 void createNewUSER_DATAFile() {
     std::ofstream file(USER_DATA);
     if (file.is_open()) {
@@ -1000,23 +1104,59 @@ void commandParser(const std::string& command) {
         sendTerminalCommand("clear");
         return;
     }
-    if (!runningStartup) {
-        addUserInputToHistory(command);
+    
+    // Handle history expansion
+    std::string expandedCommand = expandHistoryCommand(command);
+    if (expandedCommand.empty()) {
+        return; // Invalid history expansion
     }
-    if (command.rfind(commandPrefix, 0) == 0) {
-        commandProcesser(command.substr(1));
-        terminal.addCommandToHistory(command);
+    
+    // Handle command substitution
+    expandedCommand = performCommandSubstitution(expandedCommand);
+    
+    // Handle environment variable expansion for non-AI commands
+    if (!defaultTextEntryOnAI || expandedCommand.rfind(commandPrefix, 0) == 0) {
+        expandedCommand = expandEnvVariables(expandedCommand);
+    }
+    
+    if (!runningStartup) {
+        addUserInputToHistory(expandedCommand);
+    }
+    
+    // Check for alias if not a special command
+    if (expandedCommand.rfind(commandPrefix, 0) != 0 && 
+        expandedCommand.rfind(shortcutsPrefix, 0) != 0 && 
+        !defaultTextEntryOnAI) {
+        
+        std::istringstream iss(expandedCommand);
+        std::string firstWord;
+        iss >> firstWord;
+        std::string remaining;
+        std::getline(iss >> std::ws, remaining);
+        
+        if (!firstWord.empty() && aliases.find(firstWord) != aliases.end()) {
+            std::string aliasValue = aliases[firstWord];
+            expandedCommand = aliasValue + remaining;
+            
+            // Add to history for immediate use
+            add_history(expandedCommand.c_str());
+        }
+    }
+    
+    if (expandedCommand.rfind(commandPrefix, 0) == 0) {
+        commandProcesser(expandedCommand.substr(1));
+        terminal.addCommandToHistory(expandedCommand);
         return;
     }
-    if (command.rfind(shortcutsPrefix, 0) == 0) {
-        multiScriptShortcutProcesser(command);
+    if (expandedCommand.rfind(shortcutsPrefix, 0) == 0) {
+        multiScriptShortcutProcesser(expandedCommand);
         return;
     }
     if (defaultTextEntryOnAI) {
-        chatProcess(command);
-        terminal.addCommandToHistory(command);
+        chatProcess(expandedCommand);
+        terminal.addCommandToHistory(expandedCommand);
     } else {
-        sendTerminalCommand(command);
+        sendTerminalCommand(expandedCommand);
     }
 }
 
@@ -1139,6 +1279,20 @@ void commandProcesser(const std::string& command) {
         pluginCommands();
     } else if (lastCommandParsed == "theme") {
         themeCommands();
+    } else if (lastCommandParsed == "alias") {
+        aliasCommand();
+        return;
+    } else if (lastCommandParsed == "history") {
+        // Add history command
+        auto history = terminal.getTerminalCacheUserInput();
+        if (history.empty()) {
+            std::cout << "No command history" << std::endl;
+        } else {
+            for (size_t i = 0; i < history.size(); i++) {
+                std::cout << (i + 1) << "  " << history[i] << std::endl;
+            }
+        }
+        return;
     } else if (lastCommandParsed == "help") {
         printHelp();
         return;
@@ -1203,6 +1357,8 @@ void printHelp() {
     std::cout << " plugin: Manage plugins" << std::endl;
     std::cout << " env: Manage environment variables" << std::endl;
     std::cout << " uninstall: Uninstall the application" << std::endl;
+    std::cout << " alias [NAME=VALUE]: Define or display aliases" << std::endl;
+    std::cout << " history: Display command history" << std::endl;
 }
 
 void pluginCommands(){
@@ -1369,8 +1525,16 @@ void sendTerminalCommand(const std::string& command) {
     if (TESTING) {
         std::cout << "Sending Command: " << command << std::endl;
     }
+    
+    // Expand environment variables in the command
+    std::string expandedCommand = expandEnvVariables(command);
+    
+    if (TESTING && expandedCommand != command) {
+        std::cout << "Expanded Command: " << expandedCommand << std::endl;
+    }
+    
     terminal.setAliases(aliases);
-    std::thread commandThread = terminal.executeCommand(command);
+    std::thread commandThread = terminal.executeCommand(expandedCommand);
     if (commandThread.joinable()) {
         commandThread.join();
     }
@@ -2759,29 +2923,46 @@ void setupEnvironmentVariables() {
     struct passwd* pw = getpwuid(uid);
     
     if (pw != nullptr) {
+        // Set essential environment variables
         setenv("USER", pw->pw_name, 1);
         setenv("LOGNAME", pw->pw_name, 1);
         setenv("HOME", pw->pw_dir, 1);
-        setenv("SHELL", (DATA_DIRECTORY / "cjsh").c_str(), 1);
+        setenv("SHELL", ACTUAL_SHELL_PATH.string().c_str(), 1);
         
+        // Ensure PATH is set
         if (getenv("PATH") == nullptr) {
             setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
         }
         
+        // Add CJSH-specific environment variables
+        setenv("CJSH_INSTALL_PATH", INSTALL_PATH.string().c_str(), 1);
+        setenv("CJSH_DATA_DIR", DATA_DIRECTORY.string().c_str(), 1);
+        setenv("CJSH_VERSION", currentVersion.c_str(), 1);
+        
+        // Set hostname
         char hostname[256];
         if (gethostname(hostname, sizeof(hostname)) == 0) {
             setenv("HOSTNAME", hostname, 1);
         }
         
+        // Set terminal type
         setenv("TERM", "xterm-256color", 0);
         
+        // Set working directory
         setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
         
+        // Set timezone
         if (getenv("TZ") == nullptr) {
             std::string tzFile = "/etc/localtime";
             if (std::filesystem::exists(tzFile)) {
                 setenv("TZ", tzFile.c_str(), 1);
             }
+        }
+        
+        if (TESTING) {
+            std::cout << "Environment setup: USER=" << getenv("USER") 
+                      << " HOME=" << getenv("HOME")
+                      << " SHELL=" << getenv("SHELL") << std::endl;
         }
     }
 }
@@ -2943,4 +3124,269 @@ void parentProcessWatchdog() {
         }
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
+}
+
+void createDefaultCJSHRC() {
+    if (std::filesystem::exists(CJSHRC_FILE)) {
+        return; // File already exists, no need to create it
+    }
+
+    std::ofstream file(CJSHRC_FILE);
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to create " << CJSHRC_FILE << std::endl;
+        return;
+    }
+
+    // Write default content to the .cjshrc file
+    file << "# CJ's Shell RC File\n";
+    file << "# This file is sourced when CJ's Shell starts as a login shell\n\n";
+    
+    // Set some default aliases that might be useful
+    file << "# Default aliases\n";
+    file << "alias ll='ls -la'\n";
+    file << "alias la='ls -a'\n";
+    file << "alias l='ls'\n";
+    file << "alias c='clear'\n\n";
+    
+    // Add some environment variables
+    file << "# Environment variables\n";
+    file << "export CJSH_INITIALIZED=true\n\n";
+    
+    file.close();
+    std::cout << "Created default .cjshrc file at " << CJSHRC_FILE << std::endl;
+}
+
+void processProfileFile(const std::string& filePath) {
+    if (!std::filesystem::exists(filePath)) {
+        return;
+    }
+    
+    if (std::filesystem::is_directory(filePath)) {
+        for (const auto& entry : std::filesystem::directory_iterator(filePath)) {
+            if (entry.path().extension() == ".sh") {
+                processProfileFile(entry.path().string());
+            }
+        }
+        return;
+    }
+    
+    std::ifstream file(filePath);
+    if (!file) {
+        return;
+    }
+    
+    std::string line;
+    std::vector<std::string> conditionalStack;
+    std::vector<bool> conditionMetStack;
+    
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        
+        line.erase(0, line.find_first_not_of(" \t"));
+        line.erase(line.find_last_not_of(" \t") + 1);
+        
+        // Check if we're in a conditional block whose condition wasn't met
+        bool skipDueToConditional = false;
+        for (size_t i = 0; i < conditionalStack.size(); i++) {
+            if (!conditionMetStack[i]) {
+                skipDueToConditional = true;
+                break;
+            }
+        }
+        
+        // Process conditionals
+        if (line.find("if ") == 0 || line.find("if(") == 0) {
+            conditionalStack.push_back("if");
+            bool conditionMet = false;
+            
+            // Handle directory existence condition
+            if (line.find("[ -d ") != std::string::npos || line.find(" -d ") != std::string::npos) {
+                size_t startPos = line.find("-d ") + 3;
+                size_t endPos = line.find("]", startPos);
+                if (endPos != std::string::npos) {
+                    std::string path = line.substr(startPos, endPos - startPos);
+                    path.erase(0, path.find_first_not_of(" \t\"'"));
+                    path.erase(path.find_last_not_of(" \t\"'") + 1);
+                    
+                    path = expandEnvVariables(path);
+                    
+                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_directory(path);
+                }
+            } 
+            // Handle file existence condition
+            else if (line.find("[ -f ") != std::string::npos || line.find(" -f ") != std::string::npos) {
+                size_t startPos = line.find("-f ") + 3;
+                size_t endPos = line.find("]", startPos);
+                if (endPos != std::string::npos) {
+                    std::string path = line.substr(startPos, endPos - startPos);
+                    path.erase(0, path.find_first_not_of(" \t\"'"));
+                    path.erase(path.find_last_not_of(" \t\"'") + 1);
+                    
+                    path = expandEnvVariables(path);
+                    
+                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
+                }
+            } 
+            // Handle command existence condition
+            else if (line.find("command -v") != std::string::npos || line.find("which") != std::string::npos) {
+                size_t cmdStartPos = 0;
+                if (line.find("command -v") != std::string::npos) {
+                    cmdStartPos = line.find("command -v") + 10;
+                } else {
+                    cmdStartPos = line.find("which") + 5;
+                }
+                
+                size_t cmdEndPos = line.find(">", cmdStartPos);
+                if (cmdEndPos == std::string::npos) {
+                    cmdEndPos = line.find(" ", cmdStartPos);
+                }
+                if (cmdEndPos == std::string::npos) {
+                    cmdEndPos = line.length();
+                }
+                
+                std::string cmd = line.substr(cmdStartPos, cmdEndPos - cmdStartPos);
+                cmd.erase(0, cmd.find_first_not_of(" \t"));
+                cmd.erase(cmd.find_last_not_of(" \t") + 1);
+                
+                std::string pathEnv = getenv("PATH") ? getenv("PATH") : "";
+                std::istringstream pathStream(pathEnv);
+                std::string dir;
+                conditionMet = false;
+                
+                while (std::getline(pathStream, dir, ':')) {
+                    if (dir.empty()) continue;
+                    std::string fullPath = dir + "/" + cmd;
+                    if (access(fullPath.c_str(), X_OK) == 0) {
+                        conditionMet = true;
+                        break;
+                    }
+                }
+            }
+            
+            conditionMetStack.push_back(conditionMet);
+            continue;
+        }
+        
+        if (line == "else" && !conditionalStack.empty()) {
+            if (conditionalStack.back() == "if") {
+                conditionMetStack.back() = !conditionMetStack.back();
+            }
+            continue;
+        }
+        
+        if ((line == "fi" || line == "endif") && !conditionalStack.empty()) {
+            conditionalStack.pop_back();
+            conditionMetStack.pop_back();
+            continue;
+        }
+        
+        if (skipDueToConditional) {
+            continue;
+        }
+        
+        // Process variable assignments and exports
+        if (line.find("export ") == 0) {
+            std::string assignments = line.substr(7);
+            std::istringstream iss(assignments);
+            std::string assignment;
+            
+            while (iss >> assignment) {
+                size_t eqPos = assignment.find('=');
+                if (eqPos != std::string::npos) {
+                    std::string name = assignment.substr(0, eqPos);
+                    std::string value = assignment.substr(eqPos + 1);
+                    
+                    // Remove quotes if present
+                    if (value.size() >= 2 && 
+                        ((value.front() == '"' && value.back() == '"') || 
+                         (value.front() == '\'' && value.back() == '\''))) {
+                        value = value.substr(1, value.size() - 2);
+                    }
+                    
+                    value = expandEnvVariables(value);
+                    setenv(name.c_str(), value.c_str(), 1);
+                }
+            }
+        } 
+        else if (line.find('=') != std::string::npos && line.find("let ") != 0 && 
+                 line.find(" = ") == std::string::npos) { // Looks like variable assignment
+            size_t eqPos = line.find('=');
+            std::string name = line.substr(0, eqPos);
+            std::string value = line.substr(eqPos + 1);
+            
+            name.erase(0, name.find_first_not_of(" \t"));
+            name.erase(name.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            
+            // Remove quotes if present
+            if (value.size() >= 2 && 
+                ((value.front() == '"' && value.back() == '"') || 
+                 (value.front() == '\'' && value.back() == '\''))) {
+                value = value.substr(1, value.size() - 2);
+            }
+            
+            value = expandEnvVariables(value);
+            
+            if (!name.empty() && isalpha(name[0])) {
+                setenv(name.c_str(), value.c_str(), 1);
+            }
+        } 
+        // Handle PATH assignments specially
+        else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
+            std::string pathValue = line.substr(line.find('=') + 1);
+            pathValue = expandEnvVariables(pathValue);
+            setenv("PATH", pathValue.c_str(), 1);
+        } 
+        // Handle alias commands
+        else if (line.find("alias ") == 0) {
+            line = line.substr(6);
+            size_t eqPos = line.find('=');
+            if (eqPos != std::string::npos) {
+                std::string aliasName = line.substr(0, eqPos);
+                std::string aliasValue = line.substr(eqPos + 1);
+                
+                aliasName.erase(0, aliasName.find_first_not_of(" \t"));
+                aliasName.erase(aliasName.find_last_not_of(" \t") + 1);
+                aliasValue.erase(0, aliasValue.find_first_not_of(" \t"));
+                aliasValue.erase(aliasValue.find_last_not_of(" \t") + 1);
+                
+                // Remove quotes if present
+                if (aliasValue.size() >= 2 && 
+                    ((aliasValue.front() == '"' && aliasValue.back() == '"') || 
+                     (aliasValue.front() == '\'' && aliasValue.back() == '\''))) {
+                    aliasValue = aliasValue.substr(1, aliasValue.size() - 2);
+                }
+                
+                aliases[aliasName] = aliasValue;
+            }
+        } 
+        // Handle source or . commands
+        else if (line.find("source ") == 0 || line.find(". ") == 0) {
+            size_t startPos = line.find(' ') + 1;
+            std::string sourcePath = line.substr(startPos);
+            sourcePath.erase(0, sourcePath.find_first_not_of(" \t"));
+            sourcePath.erase(sourcePath.find_last_not_of(" \t") + 1);
+            
+            sourcePath = expandEnvVariables(sourcePath);
+            
+            // Convert relative paths to absolute
+            if (sourcePath[0] != '/' && sourcePath[0] != '~') {
+                std::filesystem::path baseDir = std::filesystem::path(filePath).parent_path();
+                sourcePath = (baseDir / sourcePath).string();
+            } else if (sourcePath[0] == '~') {
+                std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
+                sourcePath.replace(0, 1, homeDir);
+            }
+            
+            if (std::filesystem::exists(sourcePath)) {
+                processProfileFile(sourcePath);
+            }
+        }
+    }
+    
+    // After processing the profile file, update aliases
+    loadAliasesFromFile(filePath);
 }

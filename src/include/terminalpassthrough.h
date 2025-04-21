@@ -32,6 +32,11 @@ public:
             : pid(p), command(cmd), foreground(fg), status(0) {}
     };
 
+    struct RedirectionInfo {
+        int type;          // 1: >, 2: >>, 3: <, 4: 2>
+        std::string file;  // Target file
+    };
+
     TerminalPassthrough();
     ~TerminalPassthrough();
 
@@ -51,16 +56,12 @@ public:
     std::thread executeCommand(std::string command);
     void addCommandToHistory(const std::string& command);
     void setAliases(const std::map<std::string, std::string>& aliases);
-    std::string getPreviousCommand();
-    std::string getNextCommand();
 
     std::vector<std::string> getTerminalCacheUserInput();
     std::vector<std::string> getTerminalCacheTerminalOutput();
     void clearTerminalCache();
     std::string returnMostRecentUserInput();
     std::string returnMostRecentTerminalOutput();
-    
-    std::vector<std::string> getCommandHistory(size_t count);
 
     void setShellColor(const std::string& color);
     void setDirectoryColor(const std::string& color);
@@ -84,6 +85,27 @@ public:
     void setTerminationFlag(bool terminate) { shouldTerminate = terminate; }
     void terminateAllChildProcesses();
     
+    // Add these method declarations
+    std::string expandAliases(const std::string& command);
+    std::string processCommandSubstitution(const std::string& command);
+    std::vector<std::string> splitByPipes(const std::string& command);
+    bool executeCommandWithPipes(const std::vector<std::string>& commands, std::string& result);
+    bool handleRedirection(const std::string& command, std::vector<std::string>& args, 
+                          std::vector<RedirectionInfo>& redirections);
+    bool setupRedirection(const std::vector<RedirectionInfo>& redirections, 
+                         std::vector<int>& savedFds);
+    void restoreRedirection(const std::vector<int>& savedFds);
+    
+    // Wildcard related methods
+    bool hasWildcard(const std::string& arg);
+    bool matchPattern(const std::string& pattern, const std::string& str);
+    std::vector<std::string> expandWildcards(const std::string& pattern);
+    std::vector<std::string> expandWildcardsInArgs(const std::vector<std::string>& args);
+    
+    // Environment variable processing
+    void processExportCommand(const std::string& exportLine, std::string& result);
+    std::string expandEnvironmentVariables(const std::string& input);
+
 private:
     std::string currentDirectory;
     bool displayWholePath;
@@ -128,13 +150,7 @@ private:
     void parseAndExecuteCommand(const std::string& command, std::string& result);
     bool executeIndividualCommand(const std::string& command, std::string& result);
     
-    bool saveTerminalState();
-    bool restoreTerminalState();
-    void setStandaloneMode(bool standalone);
-    
     bool executeInteractiveCommand(const std::string& command, std::string& result);
 };
-
-void processProfileFile(const std::string& filePath);
 
 #endif // TERMINALPASSTHROUGH_H

@@ -247,45 +247,153 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
     }
 }
 
+std::string TerminalPassthrough::expandAliases(const std::string& command) {
+    std::istringstream iss(command);
+    std::string commandName;
+    iss >> commandName;
+    
+    if (commandName.empty()) {
+        return command;
+    }
+    
+    auto aliasIt = aliases.find(commandName);
+    if (aliasIt != aliases.end()) {
+        std::string remaining;
+        std::getline(iss >> std::ws, remaining);
+        
+        // Get the alias value
+        std::string aliasValue = aliasIt->second;
+        
+        // Handle special case where alias value contains $1, $2, etc. for argument substitution
+        if (aliasValue.find("$") != std::string::npos) {
+            std::vector<std::string> args;
+            std::istringstream argStream(remaining);
+            std::string arg;
+            while (argStream >> arg) {
+                args.push_back(arg);
+            }
+            
+            // Replace $1, $2, etc. with corresponding arguments
+            size_t pos = 0;
+            while ((pos = aliasValue.find('$', pos)) != std::string::npos) {
+                if (pos + 1 < aliasValue.size() && isdigit(aliasValue[pos + 1])) {
+                    int argNum = aliasValue[pos + 1] - '0';
+                    if (argNum >= 0 && argNum < static_cast<int>(args.size())) {
+                        aliasValue.replace(pos, 2, args[argNum]);
+                    } else {
+                        aliasValue.replace(pos, 2, "");
+                    }
+                } else {
+                    pos++;
+                }
+            }
+            
+            return aliasValue;
+        }
+        
+        // For regular aliases, just append any remaining arguments
+        return aliasValue + (remaining.empty() ? "" : " " + remaining);
+    }
+    
+    return command;
+}
+
+std::string TerminalPassthrough::processCommandSubstitution(const std::string& command) {
+    std::string result = command;
+    std::string::size_type pos = 0;
+    
+    // Handle $(command) substitution
+    while ((pos = result.find("$(", pos)) != std::string::npos) {
+        int depth = 1;
+        std::string::size_type end = pos + 2;
+        
+        while (end < result.length() && depth > 0) {
+            if (result[end] == '(') depth++;
+            else if (result[end] == ')') depth--;
+            end++;
+        }
+        
+        if (depth == 0) {
+            std::string subCommand = result.substr(pos + 2, end - pos - 3);
+            
+            // Execute the subcommand and capture output
+            FILE* pipe = popen(subCommand.c_str(), "r");
+            if (!pipe) {
+                std::cerr << "Error executing command substitution" << std::endl;
+                pos = end;
+                continue;
+            }
+            
+            std::string output;
+            char buffer[128];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+            pclose(pipe);
+            
+            // Trim trailing newlines
+            while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
+                output.pop_back();
+            }
+            
+            // Replace the command substitution with its output
+            result.replace(pos, end - pos, output);
+            pos += output.length();
+        } else {
+            // Unmatched parentheses, skip
+            pos = end;
+        }
+    }
+    
+    // Handle backtick substitution
+    pos = 0;
+    while ((pos = result.find('`', pos)) != std::string::npos) {
+        std::string::size_type end = result.find('`', pos + 1);
+        if (end != std::string::npos) {
+            std::string subCommand = result.substr(pos + 1, end - pos - 1);
+            
+            // Execute the subcommand and capture output
+            FILE* pipe = popen(subCommand.c_str(), "r");
+            if (!pipe) {
+                std::cerr << "Error executing command substitution" << std::endl;
+                pos = end + 1;
+                continue;
+            }
+            
+            std::string output;
+            char buffer[128];
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                output += buffer;
+            }
+            pclose(pipe);
+            
+            // Trim trailing newlines
+            while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
+                output.pop_back();
+            }
+            
+            // Replace the command substitution with its output
+            result.replace(pos, end - pos + 1, output);
+            pos += output.length();
+        } else {
+            break;
+        }
+    }
+    
+    return result;
+}
+
 std::thread TerminalPassthrough::executeCommand(std::string command) {
     addCommandToHistory(command);
     return std::thread([this, command = std::move(command)]() {
         try {
             std::string result;
             
-            std::string processedCommand = command;
-            std::istringstream iss(command);
-            std::string commandName;
-            iss >> commandName;
+            // Apply alias substitution to command
+            std::string processedCommand = expandAliases(command);
             
-            if (commandName == "cd") {
-                std::string dirArg;
-                iss >> dirArg;
-                
-                if (!dirArg.empty() && aliases.find(dirArg) != aliases.end()) {
-                    std::string aliasDef = aliases[dirArg];
-                    std::filesystem::path potentialDir = std::filesystem::path(currentDirectory) / aliasDef;
-                    
-                    if (std::filesystem::exists(potentialDir) && std::filesystem::is_directory(potentialDir)) {
-                        std::string remainingArgs;
-                        std::getline(iss >> std::ws, remainingArgs);
-                        
-                        processedCommand = "cd " + aliasDef;
-                        if (!remainingArgs.empty()) {
-                            processedCommand += " " + remainingArgs;
-                        }
-                    }
-                }
-            }
-            else if (!commandName.empty() && aliases.find(commandName) != aliases.end()) {
-                std::string args;
-                std::getline(iss >> std::ws, args);
-                
-                processedCommand = aliases[commandName];
-                if (!args.empty()) {
-                    processedCommand += " " + args;
-                }
-            }
+            // Apply command substitution
+            processedCommand = processCommandSubstitution(processedCommand);
             
             parseAndExecuteCommand(processedCommand, result);
             terminalCacheTerminalOutput.push_back(result);
@@ -379,13 +487,28 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
                 remainingCommand.clear();
             }
             
-            std::string singleCmdResult;
-            success = executeIndividualCommand(currentCmd, singleCmdResult);
-            
-            if (!partialResults.empty()) {
-                partialResults += "\n";
+            if (currentCmd.find('|') != std::string::npos) {
+                std::vector<std::string> pipeCommands = splitByPipes(currentCmd);
+                if (!pipeCommands.empty()) {
+                    std::string pipeResult;
+                    success = executeCommandWithPipes(pipeCommands, pipeResult);
+                    
+                    if (!partialResults.empty()) {
+                        partialResults += "\n";
+                    }
+                    partialResults += pipeResult;
+                } else {
+                    success = executeIndividualCommand(currentCmd, partialResults);
+                }
+            } else {
+                std::string singleCmdResult;
+                success = executeIndividualCommand(currentCmd, singleCmdResult);
+                
+                if (!partialResults.empty()) {
+                    partialResults += "\n";
+                }
+                partialResults += singleCmdResult;
             }
-            partialResults += singleCmdResult;
             
             if (!success) {
                 overall_success = false;
@@ -402,6 +525,278 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
     result = commandResults;
 }
 
+std::vector<std::string> TerminalPassthrough::splitByPipes(const std::string& command) {
+    std::vector<std::string> result;
+    std::string currentCommand;
+    bool inQuotes = false;
+    char quoteChar = 0;
+    
+    for (size_t i = 0; i < command.length(); i++) {
+        char c = command[i];
+        
+        if ((c == '"' || c == '\'') && (i == 0 || command[i-1] != '\\')) {
+            if (!inQuotes) {
+                inQuotes = true;
+                quoteChar = c;
+                currentCommand += c;
+            } else if (c == quoteChar) {
+                inQuotes = false;
+                quoteChar = 0;
+                currentCommand += c;
+            } else {
+                currentCommand += c;
+            }
+        } else if (c == '|' && !inQuotes) {
+            if (!currentCommand.empty()) {
+                size_t lastNonSpace = currentCommand.find_last_not_of(" \t");
+                if (lastNonSpace != std::string::npos) {
+                    currentCommand = currentCommand.substr(0, lastNonSpace + 1);
+                }
+                result.push_back(currentCommand);
+                currentCommand.clear();
+            }
+        } else {
+            currentCommand += c;
+        }
+    }
+    
+    if (!currentCommand.empty()) {
+        size_t lastNonSpace = currentCommand.find_last_not_of(" \t");
+        if (lastNonSpace != std::string::npos) {
+            currentCommand = currentCommand.substr(0, lastNonSpace + 1);
+        }
+        result.push_back(currentCommand);
+    }
+    
+    return result;
+}
+
+bool TerminalPassthrough::executeCommandWithPipes(const std::vector<std::string>& commands, std::string& result) {
+    if (commands.empty()) {
+        result = "Error: No commands to pipe";
+        return false;
+    }
+    
+    if (commands.size() == 1) {
+        return executeIndividualCommand(commands[0], result);
+    }
+    
+    int numCommands = commands.size();
+    std::vector<int> pipefds(2 * (numCommands - 1));
+    
+    for (int i = 0; i < numCommands - 1; i++) {
+        if (pipe(pipefds.data() + i * 2) < 0) {
+            result = "Error creating pipe: " + std::string(strerror(errno));
+            return false;
+        }
+    }
+    
+    std::vector<pid_t> pids(numCommands);
+    
+    for (int i = 0; i < numCommands; i++) {
+        pids[i] = fork();
+        
+        if (pids[i] == -1) {
+            result = "Error forking process: " + std::string(strerror(errno));
+            return false;
+        }
+        
+        if (pids[i] == 0) {
+            setpgid(0, 0);
+            
+            if (i > 0) {
+                dup2(pipefds[(i-1)*2], STDIN_FILENO);
+            }
+            
+            if (i < numCommands - 1) {
+                dup2(pipefds[i*2+1], STDOUT_FILENO);
+            }
+            
+            for (int j = 0; j < 2 * (numCommands - 1); j++) {
+                close(pipefds[j]);
+            }
+            
+            std::vector<std::string> args = parseCommandIntoArgs(commands[i]);
+            std::vector<RedirectionInfo> redirections;
+            
+            if (handleRedirection(commands[i], args, redirections)) {
+                std::vector<int> savedFds;
+                if (setupRedirection(redirections, savedFds)) {
+                    std::string executable = findExecutableInPath(args[0]);
+                    
+                    if (!executable.empty()) {
+                        std::vector<std::string> expandedArgs = expandWildcardsInArgs(args);
+                        
+                        std::vector<char*> argv;
+                        for (auto& arg : expandedArgs) {
+                            argv.push_back(arg.data());
+                        }
+                        argv.push_back(nullptr);
+                        
+                        execvp(executable.c_str(), argv.data());
+                    }
+                    
+                    std::cerr << "cjsh: command not found: " << args[0] << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            }
+            
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    for (int j = 0; j < 2 * (numCommands - 1); j++) {
+        close(pipefds[j]);
+    }
+    
+    int status;
+    bool success = true;
+    std::string output;
+    
+    for (int i = 0; i < numCommands; i++) {
+        waitpid(pids[i], &status, 0);
+        
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            success = false;
+        }
+    }
+    
+    if (success) {
+        result = "Piped commands completed successfully";
+    } else {
+        result = "One or more piped commands failed";
+    }
+    
+    return success;
+}
+
+bool TerminalPassthrough::handleRedirection(const std::string& command, std::vector<std::string>& args, 
+                                           std::vector<RedirectionInfo>& redirections) {
+    std::vector<std::string> cleanArgs;
+    
+    for (size_t i = 0; i < args.size(); i++) {
+        const std::string& arg = args[i];
+        
+        if (arg == ">") {
+            if (i + 1 < args.size()) {
+                RedirectionInfo redir;
+                redir.type = 1;
+                redir.file = args[i + 1];
+                redirections.push_back(redir);
+                i++;
+            } else {
+                std::cerr << "Syntax error: Missing filename after >" << std::endl;
+                return false;
+            }
+        } else if (arg == ">>") {
+            if (i + 1 < args.size()) {
+                RedirectionInfo redir;
+                redir.type = 2;
+                redir.file = args[i + 1];
+                redirections.push_back(redir);
+                i++;
+            } else {
+                std::cerr << "Syntax error: Missing filename after >>" << std::endl;
+                return false;
+            }
+        } else if (arg == "<") {
+            if (i + 1 < args.size()) {
+                RedirectionInfo redir;
+                redir.type = 3;
+                redir.file = args[i + 1];
+                redirections.push_back(redir);
+                i++;
+            } else {
+                std::cerr << "Syntax error: Missing filename after <" << std::endl;
+                return false;
+            }
+        } else if (arg == "2>") {
+            if (i + 1 < args.size()) {
+                RedirectionInfo redir;
+                redir.type = 4;
+                redir.file = args[i + 1];
+                redirections.push_back(redir);
+                i++;
+            } else {
+                std::cerr << "Syntax error: Missing filename after 2>" << std::endl;
+                return false;
+            }
+        } else {
+            cleanArgs.push_back(arg);
+        }
+    }
+    
+    args = cleanArgs;
+    return true;
+}
+
+bool TerminalPassthrough::setupRedirection(const std::vector<RedirectionInfo>& redirections, 
+                                         std::vector<int>& savedFds) {
+    for (const auto& redir : redirections) {
+        int flags, fd;
+        
+        switch (redir.type) {
+            case 1:
+                savedFds.push_back(dup(STDOUT_FILENO));
+                flags = O_WRONLY | O_CREAT | O_TRUNC;
+                fd = open(redir.file.c_str(), flags, 0666);
+                if (fd == -1) {
+                    std::cerr << "Error opening file for output: " << strerror(errno) << std::endl;
+                    return false;
+                }
+                dup2(fd, STDOUT_FILENO);
+                close(fd);
+                break;
+                
+            case 2:
+                savedFds.push_back(dup(STDOUT_FILENO));
+                flags = O_WRONLY | O_CREAT | O_APPEND;
+                fd = open(redir.file.c_str(), flags, 0666);
+                if (fd == -1) {
+                    std::cerr << "Error opening file for append: " << strerror(errno) << std::endl;
+                    return false;
+                }
+                dup2(fd, STDOUT_FILENO);
+                close(fd);
+                break;
+                
+            case 3:
+                savedFds.push_back(dup(STDIN_FILENO));
+                flags = O_RDONLY;
+                fd = open(redir.file.c_str(), flags);
+                if (fd == -1) {
+                    std::cerr << "Error opening file for input: " << strerror(errno) << std::endl;
+                    return false;
+                }
+                dup2(fd, STDIN_FILENO);
+                close(fd);
+                break;
+                
+            case 4:
+                savedFds.push_back(dup(STDERR_FILENO));
+                flags = O_WRONLY | O_CREAT | O_TRUNC;
+                fd = open(redir.file.c_str(), flags, 0666);
+                if (fd == -1) {
+                    std::cerr << "Error opening file for error output: " << strerror(errno) << std::endl;
+                    return false;
+                }
+                dup2(fd, STDERR_FILENO);
+                close(fd);
+                break;
+        }
+    }
+    
+    return true;
+}
+
+void TerminalPassthrough::restoreRedirection(const std::vector<int>& savedFds) {
+    for (int fd : savedFds) {
+        if (fd >= 0) {
+            close(fd);
+        }
+    }
+}
+
 bool TerminalPassthrough::executeIndividualCommand(const std::string& command, std::string& result) {
     std::istringstream iss(command);
     std::string cmd;
@@ -412,6 +807,30 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
         std::getline(iss >> std::ws, dir);
         return changeDirectory(dir, result);
     } 
+    else if (cmd == "export") {
+        std::string envLine;
+        std::getline(iss >> std::ws, envLine);
+        processExportCommand(envLine, result);
+        return true;
+    }
+    else if (cmd == "env" || cmd == "printenv") {
+        std::string envVar;
+        iss >> envVar;
+        if (envVar.empty()) {
+            // Print all environment variables
+            extern char **environ;
+            std::stringstream ss;
+            for (char **env = environ; *env != nullptr; env++) {
+                ss << *env << std::endl;
+            }
+            result = ss.str();
+        } else {
+            // Print specific environment variable
+            const char* value = getenv(envVar.c_str());
+            result = value ? value : "Environment variable not set";
+        }
+        return true;
+    }
     else if (cmd == "jobs") {
         std::stringstream jobOutput;
         updateJobStatus();
@@ -492,22 +911,300 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             }
         }
         
-        if (background) {
-            pid_t pid = executeChildProcess(fullCommand, false);
-            {
-                std::lock_guard<std::mutex> lock(jobsMutex);
-                jobs.push_back(Job(pid, fullCommand, false));
-                result = "Started background process [" + std::to_string(jobs.size()) + "] (PID: " + std::to_string(pid) + ")";
+        std::vector<std::string> args = parseCommandIntoArgs(fullCommand);
+        std::vector<RedirectionInfo> redirections;
+        
+        if (handleRedirection(fullCommand, args, redirections)) {
+            if (background) {
+                pid_t pid = fork();
+                
+                if (pid == -1) {
+                    result = "Error forking process: " + std::string(strerror(errno));
+                    return false;
+                }
+                
+                if (pid == 0) {
+                    setpgid(0, 0);
+                    
+                    std::vector<int> savedFds;
+                    if (setupRedirection(redirections, savedFds)) {
+                        std::vector<std::string> expandedArgs = expandWildcardsInArgs(args);
+                        
+                        std::vector<char*> argv;
+                        for (auto& arg : expandedArgs) {
+                            argv.push_back(arg.data());
+                        }
+                        argv.push_back(nullptr);
+                        
+                        std::string executable = findExecutableInPath(expandedArgs[0]);
+                        if (!executable.empty()) {
+                            execvp(executable.c_str(), argv.data());
+                        }
+                        
+                        std::cerr << "cjsh: command not found: " << expandedArgs[0] << std::endl;
+                    }
+                    
+                    exit(EXIT_FAILURE);
+                }
+                
+                {
+                    std::lock_guard<std::mutex> lock(jobsMutex);
+                    jobs.push_back(Job(pid, fullCommand, false));
+                    result = "Started background process [" + std::to_string(jobs.size()) + "] (PID: " + std::to_string(pid) + ")";
+                }
+                return true;
+            } else {
+                pid_t pid = fork();
+                
+                if (pid == -1) {
+                    result = "Error forking process: " + std::string(strerror(errno));
+                    return false;
+                }
+                
+                if (pid == 0) {
+                    setpgid(0, 0);
+                    
+                    tcsetpgrp(STDIN_FILENO, getpid());
+                    
+                    std::vector<int> savedFds;
+                    if (setupRedirection(redirections, savedFds)) {
+                        std::vector<std::string> expandedArgs = expandWildcardsInArgs(args);
+                        
+                        std::vector<char*> argv;
+                        for (auto& arg : expandedArgs) {
+                            argv.push_back(arg.data());
+                        }
+                        argv.push_back(nullptr);
+                        
+                        std::string executable = findExecutableInPath(expandedArgs[0]);
+                        if (!executable.empty()) {
+                            execvp(executable.c_str(), argv.data());
+                        }
+                        
+                        std::cerr << "cjsh: command not found: " << expandedArgs[0] << std::endl;
+                    }
+                    
+                    exit(EXIT_FAILURE);
+                }
+                
+                tcsetpgrp(STDIN_FILENO, pid);
+                
+                waitForForegroundJob(pid);
+                
+                tcsetpgrp(STDIN_FILENO, getpgid(0));
+                
+                updateJobStatus();
+                result = "Command completed";
+                return true;
             }
-            return true;
-        } else {
-            pid_t pid = executeChildProcess(fullCommand, true);
-            
-            updateJobStatus();
-            result = "Command completed";
-            return true;
         }
     }
+    
+    result = "Command failed to execute";
+    return false;
+}
+
+void TerminalPassthrough::processExportCommand(const std::string& exportLine, std::string& result) {
+    std::istringstream iss(exportLine);
+    std::string assignment;
+    bool success = false;
+    
+    while (iss >> assignment) {
+        size_t eqPos = assignment.find('=');
+        if (eqPos != std::string::npos) {
+            std::string name = assignment.substr(0, eqPos);
+            std::string value = assignment.substr(eqPos + 1);
+            
+            // Remove quotes if present
+            if (value.size() >= 2 && 
+                ((value.front() == '"' && value.back() == '"') || 
+                 (value.front() == '\'' && value.back() == '\''))) {
+                value = value.substr(1, value.size() - 2);
+            }
+            
+            // Expand environment variables
+            value = expandEnvironmentVariables(value);
+            
+            if (setenv(name.c_str(), value.c_str(), 1) == 0) {
+                success = true;
+            }
+        }
+    }
+    
+    result = success ? "Environment variable(s) exported" : "Failed to export environment variable(s)";
+}
+
+std::string TerminalPassthrough::expandEnvironmentVariables(const std::string& input) {
+    std::string result = input;
+    size_t pos = 0;
+    
+    while ((pos = result.find('$', pos)) != std::string::npos) {
+        // Handle ${VAR} format
+        if (pos + 1 < result.size() && result[pos + 1] == '{') {
+            size_t closeBrace = result.find('}', pos + 2);
+            if (closeBrace != std::string::npos) {
+                std::string varName = result.substr(pos + 2, closeBrace - pos - 2);
+                const char* envValue = getenv(varName.c_str());
+                result.replace(pos, closeBrace - pos + 1, envValue ? envValue : "");
+            } else {
+                pos++;
+            }
+        }
+        // Handle $VAR format
+        else if (pos + 1 < result.size() && (isalpha(result[pos + 1]) || result[pos + 1] == '_')) {
+            size_t endPos = pos + 1;
+            while (endPos < result.size() && (isalnum(result[endPos]) || result[endPos] == '_')) {
+                endPos++;
+            }
+            
+            std::string varName = result.substr(pos + 1, endPos - pos - 1);
+            const char* envValue = getenv(varName.c_str());
+            result.replace(pos, endPos - pos, envValue ? envValue : "");
+        } else {
+            pos++;
+        }
+    }
+    
+    return result;
+}
+
+bool TerminalPassthrough::hasWildcard(const std::string& arg) {
+    return arg.find('*') != std::string::npos || 
+           arg.find('?') != std::string::npos || 
+           (arg.find('[') != std::string::npos && arg.find(']') != std::string::npos);
+}
+
+bool TerminalPassthrough::matchPattern(const std::string& pattern, const std::string& str) {
+    size_t patIdx = 0;
+    size_t strIdx = 0;
+    size_t patLen = pattern.length();
+    size_t strLen = str.length();
+    
+    while (patIdx < patLen && strIdx < strLen) {
+        if (pattern[patIdx] == '?') {
+            patIdx++;
+            strIdx++;
+        } else if (pattern[patIdx] == '*') {
+            patIdx++;
+            if (patIdx == patLen) return true;
+            
+            for (size_t i = strIdx; i <= strLen; i++) {
+                if (matchPattern(pattern.substr(patIdx), str.substr(i))) 
+                    return true;
+            }
+            return false;
+        } else if (pattern[patIdx] == '[') {
+            bool match = false;
+            patIdx++;
+            bool negate = false;
+            
+            if (patIdx < patLen && pattern[patIdx] == '!') {
+                negate = true;
+                patIdx++;
+            }
+            
+            bool charMatched = false;
+            for (; patIdx < patLen && pattern[patIdx] != ']'; patIdx++) {
+                if (patIdx + 2 < patLen && pattern[patIdx + 1] == '-') {
+                    char rangeStart = pattern[patIdx];
+                    char rangeEnd = pattern[patIdx + 2];
+                    if (str[strIdx] >= rangeStart && str[strIdx] <= rangeEnd) {
+                        charMatched = true;
+                    }
+                    patIdx += 2;
+                } else if (pattern[patIdx] == str[strIdx]) {
+                    charMatched = true;
+                }
+            }
+            
+            if (negate) charMatched = !charMatched;
+            
+            if (!charMatched) return false;
+            
+            patIdx++;
+            strIdx++;
+        } else if (pattern[patIdx] == str[strIdx]) {
+            patIdx++;
+            strIdx++;
+        } else {
+            return false;
+        }
+    }
+    
+    while (patIdx < patLen && pattern[patIdx] == '*') {
+        patIdx++;
+    }
+    
+    return patIdx == patLen && strIdx == strLen;
+}
+
+std::vector<std::string> TerminalPassthrough::expandWildcards(const std::string& pattern) {
+    std::vector<std::string> result;
+    
+    if (!hasWildcard(pattern)) {
+        result.push_back(pattern);
+        return result;
+    }
+    
+    std::filesystem::path dirPath;
+    std::string filePattern;
+    
+    size_t lastSlash = pattern.find_last_of('/');
+    if (lastSlash != std::string::npos) {
+        dirPath = pattern.substr(0, lastSlash);
+        filePattern = pattern.substr(lastSlash + 1);
+    } else {
+        dirPath = ".";
+        filePattern = pattern;
+    }
+    
+    if (filePattern.empty()) {
+        result.push_back(pattern);
+        return result;
+    }
+    
+    if (!std::filesystem::exists(dirPath) || !std::filesystem::is_directory(dirPath)) {
+        result.push_back(pattern);
+        return result;
+    }
+    
+    for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
+        std::string filename = entry.path().filename().string();
+        if (matchPattern(filePattern, filename)) {
+            std::string path;
+            if (dirPath == ".") {
+                path = filename;
+            } else {
+                path = (std::filesystem::path(dirPath) / filename).string();
+            }
+            result.push_back(path);
+        }
+    }
+    
+    if (result.empty()) {
+        result.push_back(pattern);
+    }
+    
+    return result;
+}
+
+std::vector<std::string> TerminalPassthrough::expandWildcardsInArgs(const std::vector<std::string>& args) {
+    if (args.empty()) return args;
+    
+    std::vector<std::string> result;
+    
+    result.push_back(args[0]);
+    
+    for (size_t i = 1; i < args.size(); i++) {
+        if (hasWildcard(args[i])) {
+            std::vector<std::string> expanded = expandWildcards(args[i]);
+            result.insert(result.end(), expanded.begin(), expanded.end());
+        } else {
+            result.push_back(args[i]);
+        }
+    }
+    
+    return result;
 }
 
 bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, std::string& result) {
@@ -903,30 +1600,6 @@ std::string TerminalPassthrough::returnMostRecentTerminalOutput(){
     return terminalCacheTerminalOutput.back();
 }
 
-std::string TerminalPassthrough::getPreviousCommand() {
-    if (terminalCacheUserInput.empty()) {
-        return "";
-    }
-    if (commandHistoryIndex < terminalCacheUserInput.size() - 1) {
-        commandHistoryIndex++;
-    } else {
-        commandHistoryIndex = 0;
-    }
-    return terminalCacheUserInput[commandHistoryIndex];
-}
-
-std::string TerminalPassthrough::getNextCommand() {
-    if (terminalCacheUserInput.empty()) {
-        return "";
-    }
-    if (commandHistoryIndex > 0) {
-        commandHistoryIndex--;
-    } else {
-        commandHistoryIndex = terminalCacheUserInput.size() - 1;
-    }
-    return terminalCacheUserInput[commandHistoryIndex];
-}
-
 std::string TerminalPassthrough::getCurrentFilePath(){
     if (currentDirectory.empty()) {
         return std::filesystem::current_path().string();
@@ -988,19 +1661,6 @@ std::string TerminalPassthrough::getBranchColor() const {
 
 std::string TerminalPassthrough::getGitColor() const {
     return GIT_COLOR;
-}
-
-std::vector<std::string> TerminalPassthrough::getCommandHistory(size_t count) {
-    std::vector<std::string> recentCommands;
-    size_t historySize = terminalCacheUserInput.size();
-    size_t numCommands = std::min(count, historySize);
-    
-    for (size_t i = 0; i < numCommands; i++) {
-        size_t index = historySize - 1 - i;
-        recentCommands.push_back(terminalCacheUserInput[index]);
-    }
-    
-    return recentCommands;
 }
 
 void TerminalPassthrough::terminateAllChildProcesses() {
