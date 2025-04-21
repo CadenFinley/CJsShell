@@ -16,6 +16,8 @@
 #include <pwd.h>
 #include <signal.h>
 #include <grp.h>
+
+//later these will be replaced iwth my custom readline library
 #include <readline/readline.h>
 #include <readline/history.h>
 
