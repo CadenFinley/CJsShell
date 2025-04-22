@@ -2333,16 +2333,196 @@ bool checkForUpdate() {
     return false;
 }
 
-bool downloadLatestRelease(){
-    if(std::filesystem::exists(UPDATE_SCRIPT_PATH)){
-        sendTerminalCommand((UPDATE_SCRIPT_PATH).string());
-        std::cout << "Update script executed." << std::endl;
-        exitFlag = true;
-        return true;
-    } else {
-        std::cerr << "Error: Update script not found." << std::endl;
+bool downloadLatestRelease() {
+    std::cout << "Downloading latest release..." << std::endl;
+    
+    // Create temporary directory for the download
+    std::filesystem::path tempDir = DATA_DIRECTORY / "temp_update";
+    if (std::filesystem::exists(tempDir)) {
+        std::filesystem::remove_all(tempDir);
+    }
+    std::filesystem::create_directory(tempDir);
+    
+    // Download the latest release using fork/exec instead of system()
+    std::string outputPath = (tempDir / "cjsh").string();
+    
+    pid_t downloadPid = fork();
+    if (downloadPid == -1) {
+        std::cerr << "Error: Failed to fork process for download." << std::endl;
         return false;
     }
+    
+    if (downloadPid == 0) {
+        // Child process
+        // Redirect stdout to the output file
+        int fdOut = open(outputPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755);
+        if (fdOut == -1) {
+            std::cerr << "Error: Failed to create output file." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        dup2(fdOut, STDOUT_FILENO);
+        close(fdOut);
+        
+        // Execute curl
+        execlp("curl", "curl", "-L", "-s", 
+               "https://github.com/CadenFinley/CJsShell/releases/latest/download/cjsh", 
+               (char*)NULL);
+        
+        // If we get here, exec failed
+        std::cerr << "Error: Failed to execute curl: " << strerror(errno) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    // Parent process
+    int status;
+    waitpid(downloadPid, &status, 0);
+    
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        std::cerr << "Error: Download failed with status " << WEXITSTATUS(status) << std::endl;
+        return false;
+    }
+    
+    // Make the downloaded file executable (already set when created with mode 0755)
+    if (chmod(outputPath.c_str(), 0755) != 0) {
+        std::cerr << "Error: Failed to make file executable." << std::endl;
+        return false;
+    }
+    
+    // Check if we have write permission to the install location
+    bool hasPermission = (access(INSTALL_PATH.parent_path().c_str(), W_OK) == 0);
+    
+    if (hasPermission) {
+        // Copy the file directly
+        std::ifstream src(outputPath, std::ios::binary);
+        std::ofstream dst(INSTALL_PATH, std::ios::binary | std::ios::trunc);
+        
+        if (!src || !dst) {
+            std::cerr << "Error: Failed to open files for copying." << std::endl;
+            return false;
+        }
+        
+        dst << src.rdbuf();
+        
+        if (!dst) {
+            std::cerr << "Error: Failed to write to destination file." << std::endl;
+            return false;
+        }
+        
+        // Set permissions
+        if (chmod(INSTALL_PATH.c_str(), 0755) != 0) {
+            std::cerr << "Error: Failed to set permissions on installed file." << std::endl;
+            return false;
+        }
+    } else {
+        // Need to use sudo
+        std::cout << "Administrator privileges required to complete the update." << std::endl;
+        
+        pid_t copyPid = fork();
+        if (copyPid == -1) {
+            std::cerr << "Error: Failed to fork process for installation." << std::endl;
+            return false;
+        }
+        
+        if (copyPid == 0) {
+            // Child process
+            execlp("sudo", "sudo", "cp", outputPath.c_str(), INSTALL_PATH.c_str(), (char*)NULL);
+            
+            // If we get here, exec failed
+            std::cerr << "Error: Failed to execute sudo cp: " << strerror(errno) << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        // Parent process
+        waitpid(copyPid, &status, 0);
+        
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            std::cerr << "Error: Installation failed with status " << WEXITSTATUS(status) << std::endl;
+            return false;
+        }
+        
+        // Set permissions with sudo
+        pid_t chmodPid = fork();
+        if (chmodPid == -1) {
+            std::cerr << "Error: Failed to fork process for setting permissions." << std::endl;
+            return false;
+        }
+        
+        if (chmodPid == 0) {
+            // Child process
+            execlp("sudo", "sudo", "chmod", "755", INSTALL_PATH.c_str(), (char*)NULL);
+            
+            // If we get here, exec failed
+            std::cerr << "Error: Failed to execute sudo chmod: " << strerror(errno) << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        
+        // Parent process
+        waitpid(chmodPid, &status, 0);
+        
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            std::cerr << "Error: Setting permissions failed with status " << WEXITSTATUS(status) << std::endl;
+            return false;
+        }
+    }
+    
+    // Clean up
+    std::filesystem::remove_all(tempDir);
+    
+    std::cout << "Update successfully installed!" << std::endl;
+    return true;
+}
+
+bool executeUpdateIfAvailable(bool updateAvailable) {
+    if (!updateAvailable) return false;
+    
+    std::cout << "\nAn update is available. Would you like to download it? (Y/N): ";
+    char response;
+    std::cin >> response;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if (response != 'Y' && response != 'y') return false;
+    
+    saveUpdateCache(false, cachedLatestVersion);
+    
+    if (!downloadLatestRelease()) {
+        std::cout << "Failed to download the update. Please try again later." << std::endl;
+        saveUpdateCache(true, cachedLatestVersion);
+        return false;
+    }
+    
+    std::cout << "Update installed successfully! Would you like to restart now? (Y/N): ";
+    std::cin >> response;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if (response == 'Y' || response == 'y') {
+        std::cout << "Restarting application..." << std::endl;
+        
+        // Save any necessary data before exit
+        if (saveOnExit) {
+            savedChatCache = c_assistant.getChatCache();
+            writeUserData();
+        }
+        
+        // Clean up resources
+        if (isLoginShell) {
+            cleanupLoginShell();
+        }
+        
+        delete pluginManager;
+        delete themeManager;
+        
+        // Execute the updated binary (restart the application)
+        execl(INSTALL_PATH.c_str(), INSTALL_PATH.c_str(), NULL);
+        
+        // If execl fails
+        std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
+        exit(0);
+    } else {
+        std::cout << "Please restart the application to use the new version." << std::endl;
+    }
+    
+    return true;
 }
 
 void displayChangeLog(const std::string& changeLog) {
@@ -2486,26 +2666,6 @@ void asyncCheckForUpdates(std::function<void(bool)> callback) {
     saveUpdateCache(updateAvailable, latestVersion);
     
     callback(updateAvailable);
-}
-
-bool executeUpdateIfAvailable(bool updateAvailable) {
-    if (!updateAvailable) return false;
-    
-    std::cout << "\nAn update is available. Would you like to download it? (Y/N)" << std::endl;
-    char response;
-    std::cin >> response;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    
-    if (response != 'Y' && response != 'y') return false;
-    
-    saveUpdateCache(false, cachedLatestVersion);
-    
-    if (!downloadLatestRelease()) {
-        std::cout << "Failed to download the update. Please try again later." << std::endl;
-        saveUpdateCache(true, cachedLatestVersion);
-        return false;
-    }
-    return true;
 }
 
 void loadPluginsAsync(std::function<void()> callback) {

@@ -1,146 +1,119 @@
 #!/bin/bash
 
+# Set up variables to match the install script
 HOME_DIR="$HOME"
 DATA_DIR="$HOME_DIR/.cjsh_data"
 APP_NAME="cjsh"
 INSTALL_PATH="/usr/local/bin"
 APP_PATH="$INSTALL_PATH/$APP_NAME"
 SHELLS_FILE="/etc/shells"
-REMOVE_DATA=false
-SUDO_OPTS="-n" # Default to non-interactive mode
-INITIAL_SUDO=false
 
-# Enhanced argument handling
+# Check for --all flag
+REMOVE_USER_DATA=false
 for arg in "$@"; do
-    case $arg in
-        "-a"|"--all")
-            REMOVE_DATA=true
-            ;;
-        "-S")
-            SUDO_OPTS="-S" # Use -S to read password from stdin
-            ;;
-    esac
+    if [ "$arg" = "--all" ]; then
+        REMOVE_USER_DATA=true
+    fi
 done
 
-# Request sudo upfront
 echo "CJ's Shell Uninstaller"
-echo "----------------------------"
-echo "This will uninstall CJ's Shell and remove all associated configurations."
-echo "Note: This script requires sudo privileges for some operations."
-
-if sudo $SUDO_OPTS true 2>/dev/null; then
-    INITIAL_SUDO=true
-    echo "Sudo access verified."
+echo "-------------------------"
+echo "This will completely remove CJ's Shell from your system."
+if [ "$REMOVE_USER_DATA" = true ]; then
+    echo "WARNING: All user data in $DATA_DIR will be removed!"
 else
-    echo "Please enter your password to proceed with uninstallation:"
-    if sudo $SUDO_OPTS -v; then
-        INITIAL_SUDO=true
-        echo "Sudo access granted."
-    else
-        echo "Failed to get sudo access. Some operations may fail."
-    fi
+    echo "Note: Your user data in $DATA_DIR will be preserved."
+    echo "To remove all data, run with the --all flag."
 fi
+echo "Press ENTER to continue or CTRL+C to cancel..."
+read
 
-# Get current user info for shell restoration
-CURRENT_USER=$(whoami)
-USER_ENTRY=$(dscl . -read /Users/$CURRENT_USER UserShell 2>/dev/null)
-CURRENT_SHELL=$(echo "$USER_ENTRY" | sed 's/UserShell: //')
-
-# Determine the original shell to use for running commands
-if [ -f "$DATA_DIR/original_shell.txt" ]; then
-    ORIGINAL_SHELL=$(cat "$DATA_DIR/original_shell.txt")
-    if [ ! -x "$ORIGINAL_SHELL" ]; then
-        echo "Warning: Original shell ($ORIGINAL_SHELL) is not executable."
-        ORIGINAL_SHELL="/bin/bash"  # Fallback to bash
-    fi
-else
-    echo "No record of original shell found, using /bin/bash as fallback."
-    ORIGINAL_SHELL="/bin/bash"
-fi
-
-# Create a temporary script to execute with the original shell
-TMP_SCRIPT=$(mktemp)
-cat > "$TMP_SCRIPT" << 'EOF'
-#!/bin/bash
-
-# This script will run the actual uninstallation steps using the user's original shell
-
-HOME_DIR="$HOME"
-DATA_DIR="$HOME_DIR/.cjsh_data"
-APP_NAME="$1"
-INSTALL_PATH="$2"
-APP_PATH="$3"
-SHELLS_FILE="$4"
-REMOVE_DATA="$5"
-CURRENT_USER="$6"
-ORIGINAL_SHELL="$7"
-CURRENT_SHELL="$8"
-SUDO_OPTS="$9"
-
-echo "Executing uninstallation with $ORIGINAL_SHELL"
-
-# Restore original shell if current shell is CJsShell
-if [[ "$CURRENT_SHELL" == "$APP_PATH" || "$SHELL" == "$APP_PATH" ]]; then
-    echo "Restoring your original shell ($ORIGINAL_SHELL)..."
-    if ! chsh -s "$ORIGINAL_SHELL" 2>/dev/null; then
-        echo "Attempting with sudo..."
-        if sudo $SUDO_OPTS chsh -s "$ORIGINAL_SHELL" "$CURRENT_USER" 2>/dev/null; then
-            echo "Successfully restored original shell."
-        else
-            echo "Warning: Failed to restore original shell."
-            echo "Please run this command manually to restore your shell:"
-            echo "    sudo chsh -s $ORIGINAL_SHELL $CURRENT_USER"
-        fi
+# Check if the binary exists
+if [ -f "$APP_PATH" ]; then
+    echo "Removing CJ's Shell binary from $APP_PATH (requires sudo)..."
+    sudo rm -f "$APP_PATH"
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to remove CJ's Shell binary. Please check your permissions."
     else
-        echo "Successfully restored original shell."
+        echo "Binary removed successfully."
     fi
 else
-    echo "Current shell is not CJ's Shell. No need to restore."
+    echo "CJ's Shell binary not found at $APP_PATH. Skipping removal."
 fi
 
 # Remove from /etc/shells
 if grep -q "^$APP_PATH$" "$SHELLS_FILE"; then
     echo "Removing CJ's Shell from $SHELLS_FILE (requires sudo)..."
-    if sudo $SUDO_OPTS sed -i.bak "\|^$APP_PATH$|d" "$SHELLS_FILE" 2>/dev/null; then
-        echo "Successfully removed CJ's Shell from $SHELLS_FILE."
-    else
-        echo "Manual action required: Please run the following command to remove CJ's Shell from $SHELLS_FILE:"
-        echo "    sudo sed -i.bak '\|^$APP_PATH$|d' $SHELLS_FILE"
-    fi
-fi
-
-# Remove binary from install path
-if [ -f "$APP_PATH" ]; then
-    echo "Removing CJ's Shell binary from $APP_PATH (requires sudo)..."
-    if sudo $SUDO_OPTS rm "$APP_PATH" 2>/dev/null; then
-        echo "Successfully removed CJ's Shell binary."
-    else
-        echo "Manual action required: Please run the following command to remove the binary:"
-        echo "    sudo rm $APP_PATH"
-        echo "Continuing with uninstallation..."
-    fi
-fi
-
-# Remove data directory if requested
-if [ "$REMOVE_DATA" = "true" ]; then
-    echo "Removing data directory at $DATA_DIR..."
-    rm -rf "$DATA_DIR"
+    sudo sed -i.bak "\|^$APP_PATH$|d" "$SHELLS_FILE"
     if [ $? -ne 0 ]; then
-        echo "Warning: Failed to remove data directory. You may need to remove it manually."
+        echo "Warning: Failed to remove CJ's Shell from $SHELLS_FILE."
+    else
+        echo "Entry removed from $SHELLS_FILE successfully."
+        # Remove backup file created by sed on macOS
+        if [ -f "${SHELLS_FILE}.bak" ]; then
+            sudo rm -f "${SHELLS_FILE}.bak"
+        fi
+    fi
+fi
+
+# Restore original shell if we changed it
+if [ -f "$DATA_DIR/original_shell.txt" ]; then
+    ORIGINAL_SHELL=$(cat "$DATA_DIR/original_shell.txt")
+    if [ -n "$ORIGINAL_SHELL" ] && [ -x "$ORIGINAL_SHELL" ]; then
+        echo "Restoring your original shell ($ORIGINAL_SHELL)..."
+        chsh -s "$ORIGINAL_SHELL"
+        if [ $? -ne 0 ]; then
+            echo "Warning: Failed to restore original shell. You may need to run 'chsh -s $ORIGINAL_SHELL' manually."
+        else
+            echo "Original shell restored successfully."
+        fi
+    else
+        echo "Original shell information found but appears invalid. You may need to set your shell manually."
+    fi
+fi
+
+# Clean up file handler registrations
+if [ "$(uname)" == "Darwin" ]; then
+    # macOS cleanup
+    if [ -d ~/Library/Application\ Support/CJsShell ]; then
+        echo "Removing macOS application support files..."
+        rm -rf ~/Library/Application\ Support/CJsShell
+        if [ $? -ne 0 ]; then
+            echo "Warning: Failed to remove application support files."
+        else
+            echo "macOS application support files removed successfully."
+        fi
+    fi
+elif [ "$(uname)" == "Linux" ]; then
+    # Linux cleanup
+    if [ -f ~/.local/share/applications/cjshell.desktop ]; then
+        echo "Removing Linux desktop integration..."
+        rm -f ~/.local/share/applications/cjshell.desktop
+        if [ $? -ne 0 ]; then
+            echo "Warning: Failed to remove desktop integration."
+        else
+            echo "Linux desktop integration removed successfully."
+            # Update desktop database
+            update-desktop-database ~/.local/share/applications &>/dev/null || true
+        fi
+    fi
+fi
+
+# Remove data directory
+if [ "$REMOVE_USER_DATA" = true ]; then
+    if [ -d "$DATA_DIR" ]; then
+        echo "Removing data directory at $DATA_DIR..."
+        rm -rf "$DATA_DIR"
+        if [ $? -ne 0 ]; then
+            echo "Warning: Failed to remove data directory. You may need to remove it manually."
+        else
+            echo "Data directory removed successfully."
+        fi
     fi
 else
-    echo "Data directory at $DATA_DIR has been preserved."
-    echo "To remove it manually, run: rm -rf $DATA_DIR"
+    echo "Preserving user data in $DATA_DIR."
+    echo "If you want to remove it later, you can manually delete this directory."
 fi
 
-echo "CJ's Shell has been uninstalled successfully."
-EOF
-
-# Make the temporary script executable
-chmod +x "$TMP_SCRIPT"
-
-# Execute the uninstallation with the original shell
-"$ORIGINAL_SHELL" "$TMP_SCRIPT" "$APP_NAME" "$INSTALL_PATH" "$APP_PATH" "$SHELLS_FILE" "$REMOVE_DATA" "$CURRENT_USER" "$ORIGINAL_SHELL" "$CURRENT_SHELL" "$SUDO_OPTS"
-
-# Clean up the temporary script
-rm -f "$TMP_SCRIPT"
+echo "Uninstallation complete! CJ's Shell has been removed from your system."
+echo "You may need to restart your terminal for all changes to take effect."
