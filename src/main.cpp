@@ -149,7 +149,6 @@ void loadPluginsAsync(std::function<void()> callback);
 // Theme Management
 void themeCommands();
 void loadTheme(const std::string& themeName);
-void saveTheme(const std::string& themeName);
 void applyColorToStrings();
 void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback);
 
@@ -420,9 +419,18 @@ void mainProcessLoop() {
         if (defaultTextEntryOnAI) {
             std::string modelInfo = c_assistant.getModel();
             std::string modeInfo = c_assistant.getAssistantType();
+            
+            if (modelInfo.empty()) modelInfo = "Unknown";
+            if (modeInfo.empty()) modeInfo = "Chat";
+            
             prompt = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
                     GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
                     GREEN_COLOR_BOLD + "] >" + RESET_COLOR;
+            
+            if (TESTING) {
+                std::cout << "AI Prompt: " << prompt << std::endl;
+                std::cout << "Model: '" << modelInfo << "', Mode: '" << modeInfo << "'" << std::endl;
+            }
         } else {
             prompt = terminal.returnCurrentTerminalPosition();
         }
@@ -908,7 +916,7 @@ void commandParser(const std::string& command) {
     }
 
     // ai mode
-    if (defaultTextEntryOnAI) {
+    if (defaultTextEntryOnAI && command != "terminal") {
         chatProcess(command);
         terminal.addCommandToHistory(command);
         return; // Add return to prevent processing as a shell command
@@ -1030,6 +1038,9 @@ void commandProcesser(const std::string& originalPassedCommand) {
         return;
     } else if(lastCommandParsed == "version") {
         std::cout << "CJ's Shell v" + currentVersion << std::endl;
+        return;
+    } else if (lastCommandParsed == "terminal") {
+        defaultTextEntryOnAI = false;
         return;
     } else if(lastCommandParsed == "plugin") {
         pluginCommands();
@@ -2372,34 +2383,13 @@ void applyColorToStrings() {
     terminal.setDirectoryColor(themeManager->getColor("DIRECTORY_COLOR"));
     terminal.setBranchColor(themeManager->getColor("BRANCH_COLOR"));
     terminal.setGitColor(themeManager->getColor("GIT_COLOR"));
+    terminal.setPromptFormat(themeManager->getColor("PROMPT_FORMAT"));
 }
 
 void loadTheme(const std::string& themeName) {
     if (themeManager->loadTheme(themeName)) {
         currentTheme = themeName;
         applyColorToStrings();
-    }
-}
-
-void saveTheme(const std::string& themeName) {
-    std::map<std::string, std::string> colors = {
-        {"GREEN_COLOR_BOLD", GREEN_COLOR_BOLD},
-        {"RESET_COLOR", RESET_COLOR},
-        {"RED_COLOR_BOLD", RED_COLOR_BOLD},
-        {"PURPLE_COLOR_BOLD", PURPLE_COLOR_BOLD},
-        {"BLUE_COLOR_BOLD", BLUE_COLOR_BOLD},
-        {"YELLOW_COLOR_BOLD", YELLOW_COLOR_BOLD},
-        {"CYAN_COLOR_BOLD", CYAN_COLOR_BOLD},
-        {"SHELL_COLOR", terminal.getShellColor()},
-        {"DIRECTORY_COLOR", terminal.getDirectoryColor()},
-        {"BRANCH_COLOR", terminal.getBranchColor()},
-        {"GIT_COLOR", terminal.getGitColor()}
-
-    };
-    if (themeManager->saveTheme(themeName, colors)) {
-        std::cout << "Theme saved: " << themeName << std::endl;
-    } else {
-        std::cerr << "Failed to save theme: " << themeName << std::endl;
     }
 }
 
@@ -2413,15 +2403,15 @@ void themeCommands() {
         } else {
             std::cerr << "No theme name provided to load." << std::endl;
         }
-    } else if (lastCommandParsed == "save") {
-        getNextCommand();
-        if (!lastCommandParsed.empty()) {
-            saveTheme(lastCommandParsed);
-        } else {
-            std::cerr << "No theme name provided to save." << std::endl;
-        }
+    } else if (!lastCommandParsed.empty()) {
+        loadTheme(lastCommandParsed);
+        writeUserData();
     } else {
-        std::cerr << "Unknown theme command. Use 'load' or 'save'." << std::endl;
+        std::cout << "Current theme: " << currentTheme << std::endl;
+        std::cout << "Available themes: " << std::endl;
+        for (const auto& theme : themeManager->getAvailableThemes()) {
+            std::cout << "  " << theme.first << std::endl;
+        }
     }
 }
 
@@ -2587,9 +2577,6 @@ void loadUserDataAsync(std::function<void()> callback) {
                 }
                 if(userData.contains("Shortcuts_Enabled")) {
                     shortcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
-                }
-                if(userData.contains("Text_Entry")) {
-                    defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();
                 }
                 if(userData.contains("Shortcuts_Prefix")) {
                     shortcutsPrefix = userData["Shortcuts_Prefix"].get<std::string>();

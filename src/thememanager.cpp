@@ -39,11 +39,39 @@ void ThemeManager::createDefaultTheme() {
         {"SHELL_COLOR", "\033[1;31m"},
         {"DIRECTORY_COLOR", "\033[1;34m"},
         {"BRANCH_COLOR", "\033[1;33m"},
-        {"GIT_COLOR", "\033[1;32m"}
+        {"GIT_COLOR", "\033[1;32m"},
+        {"RESET_COLOR", "\033[0m"},
+        {"PROMPT_FORMAT", "cjsh \\w"}
     };
     
     saveTheme("default", defaultColors);
     availableThemes["default"] = defaultColors;
+    
+    // Create additional themes with different prompt formats
+    
+    // Minimal theme
+    auto minimalTheme = defaultColors;
+    minimalTheme["PROMPT_FORMAT"] = "> ";
+    saveTheme("minimal", minimalTheme);
+    availableThemes["minimal"] = minimalTheme;
+    
+    // Time-based theme
+    auto timeTheme = defaultColors;
+    timeTheme["PROMPT_FORMAT"] = "[\\t] cjsh \\w";
+    saveTheme("time", timeTheme);
+    availableThemes["time"] = timeTheme;
+    
+    // User and host theme
+    auto userHostTheme = defaultColors;
+    userHostTheme["PROMPT_FORMAT"] = "\\u@\\h \\w";
+    saveTheme("userhost", userHostTheme);
+    availableThemes["userhost"] = userHostTheme;
+    
+    // Full path theme
+    auto fullPathTheme = defaultColors;
+    fullPathTheme["PROMPT_FORMAT"] = "cjsh \\W";
+    saveTheme("fullpath", fullPathTheme);
+    availableThemes["fullpath"] = fullPathTheme;
 }
 
 void ThemeManager::discoverAvailableThemes() {
@@ -181,8 +209,7 @@ std::string ThemeManager::getColor(const std::string& colorName) const {
     if (currentThemeColors.find("RESET_COLOR") != currentThemeColors.end()) {
         return currentThemeColors.at("RESET_COLOR");
     }
-    
-    return "\033[0m";
+    return "";
 }
 
 void ThemeManager::setColor(const std::string& colorName, const std::string& colorValue) {

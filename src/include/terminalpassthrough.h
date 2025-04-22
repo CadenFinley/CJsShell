@@ -42,6 +42,7 @@ public:
 
     std::string getTerminalName();
     std::string returnCurrentTerminalPosition();
+    std::string expandPromptFormat(const std::string& format);
     int getTerminalCurrentPositionRawLength();
     void printCurrentTerminalPosition();
 
@@ -67,10 +68,12 @@ public:
     void setDirectoryColor(const std::string& color);
     void setBranchColor(const std::string& color);
     void setGitColor(const std::string& color);
+    void setPromptFormat(const std::string& format);
     std::string getShellColor() const;
     std::string getDirectoryColor() const;
     std::string getBranchColor() const;
     std::string getGitColor() const;
+    std::string getPromptFormat() const;
 
     void listJobs();
     bool bringJobToForeground(int jobId);
@@ -115,6 +118,7 @@ private:
     std::string DIRECTORY_COLOR = "\033[1;34m";
     std::string BRANCH_COLOR = "\033[1;33m";
     std::string GIT_COLOR = "\033[1;32m";
+    std::string PROMPT_FORMAT = "cjsh \\w";
     int commandHistoryIndex = -1;
     int terminalCurrentPositionRawLength = 0;
     std::string terminalName;

@@ -235,17 +235,58 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
         } catch (const std::exception& e) {
             std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
         }
-        terminalCurrentPositionRawLength = getTerminalName().length() + 2 + gitInfoLength;
+        
         return SHELL_COLOR + getTerminalName() + RESET_COLOR + " " + gitInfo;
     }
+
+    // Apply prompt formatting for non-git repos
+    if (!PROMPT_FORMAT.empty()) {
+        return expandPromptFormat(PROMPT_FORMAT);
+    }
     
+    // Fallback to original format if no prompt format is set
     if (displayWholePath) {
-        terminalCurrentPositionRawLength = getCurrentFilePath().length() + getTerminalName().length() + 2;
         return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR;
     } else {
-        terminalCurrentPositionRawLength = getCurrentFileName().length() + getTerminalName().length() + 2;
         return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFileName() + RESET_COLOR;
     }
+}
+
+std::string TerminalPassthrough::expandPromptFormat(const std::string& format) {
+    std::string result = format;
+    
+    // Get user info for prompt expansion
+    char hostname[256];
+    gethostname(hostname, sizeof(hostname));
+    const char* username = getenv("USER");
+    if (!username) username = getenv("LOGNAME");
+    if (!username) username = "user";
+    
+    // Get current time
+    auto now = std::chrono::system_clock::now();
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+    char timeBuffer[20];
+    std::strftime(timeBuffer, sizeof(timeBuffer), "%H:%M:%S", std::localtime(&currentTime));
+    
+    // Replace format specifiers
+    result = std::regex_replace(result, std::regex("\\\\W"), DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR);
+    result = std::regex_replace(result, std::regex("\\\\w"), DIRECTORY_COLOR + getCurrentFileName() + RESET_COLOR);
+    result = std::regex_replace(result, std::regex("\\\\u"), SHELL_COLOR + std::string(username) + RESET_COLOR);
+    result = std::regex_replace(result, std::regex("\\\\h"), BRANCH_COLOR + std::string(hostname) + RESET_COLOR);
+    result = std::regex_replace(result, std::regex("\\\\t"), GIT_COLOR + std::string(timeBuffer) + RESET_COLOR);
+    result = std::regex_replace(result, std::regex("\\\\\\$"), "$");
+    
+    // Replace color variables
+    result = std::regex_replace(result, std::regex("\\$\\{SHELL_COLOR\\}"), SHELL_COLOR);
+    result = std::regex_replace(result, std::regex("\\$\\{DIRECTORY_COLOR\\}"), DIRECTORY_COLOR);
+    result = std::regex_replace(result, std::regex("\\$\\{BRANCH_COLOR\\}"), BRANCH_COLOR);
+    result = std::regex_replace(result, std::regex("\\$\\{GIT_COLOR\\}"), GIT_COLOR);
+    result = std::regex_replace(result, std::regex("\\$\\{RESET_COLOR\\}"), RESET_COLOR);
+    
+    // Replace the shell name
+    result = std::regex_replace(result, std::regex("cjsh"), SHELL_COLOR + getTerminalName() + RESET_COLOR);
+    
+    return result;
 }
 
 std::string TerminalPassthrough::expandAliases(const std::string& command) {
@@ -1749,6 +1790,10 @@ void TerminalPassthrough::setGitColor(const std::string& color){
     this->GIT_COLOR = color;
 }
 
+void TerminalPassthrough::setPromptFormat(const std::string& format){
+    this->PROMPT_FORMAT = format;
+}
+
 std::string TerminalPassthrough::getShellColor() const {
     return SHELL_COLOR;
 }
@@ -1763,6 +1808,10 @@ std::string TerminalPassthrough::getBranchColor() const {
 
 std::string TerminalPassthrough::getGitColor() const {
     return GIT_COLOR;
+}
+
+std::string TerminalPassthrough::getPromptFormat() const {
+    return PROMPT_FORMAT;
 }
 
 void TerminalPassthrough::terminateAllChildProcesses() {
