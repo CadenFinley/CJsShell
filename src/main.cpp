@@ -200,6 +200,7 @@ std::string performCommandSubstitution(const std::string& command);
 void parentProcessWatchdog();
 bool isParentProcessAlive();
 void printHelp();
+void ensureScriptIsExecutable(const std::filesystem::path& scriptPath);
 
 // Alias Management
 void loadAliasesFromFile(const std::string& filePath);
@@ -1065,6 +1066,7 @@ void commandProcesser(const std::string& originalPassedCommand) {
                 std::cerr << "Uninstall script not found." << std::endl;
                 return;
             }
+            ensureScriptIsExecutable(UNINSTALL_SCRIPT_PATH);  // Ensure it's executable before running
             std::cout << "Do you want to remove all user data? (y/n): ";
             char removeUserData;
             std::cin >> removeUserData;
@@ -2327,6 +2329,7 @@ bool checkForUpdate() {
 
 bool downloadLatestRelease(){
     if(std::filesystem::exists(UPDATE_SCRIPT_PATH)){
+        ensureScriptIsExecutable(UPDATE_SCRIPT_PATH);  // Ensure it's executable before running
         sendTerminalCommand((UPDATE_SCRIPT_PATH).string());
         std::cout << "Update script executed." << std::endl;
         exitFlag = true;
@@ -2458,6 +2461,15 @@ void initializeDataDirectories() {
     
     if (!std::filesystem::exists(PLUGINS_DIRECTORY)) {
         std::filesystem::create_directory(PLUGINS_DIRECTORY);
+    }
+    
+    // Ensure scripts are executable
+    if (std::filesystem::exists(UPDATE_SCRIPT_PATH)) {
+        ensureScriptIsExecutable(UPDATE_SCRIPT_PATH);
+    }
+    
+    if (std::filesystem::exists(UNINSTALL_SCRIPT_PATH)) {
+        ensureScriptIsExecutable(UNINSTALL_SCRIPT_PATH);
     }
 }
 
@@ -3229,4 +3241,21 @@ std::vector<std::string> get_completion_matches(const std::string& prefix) {
     }
     
     return matches;
+}
+
+void ensureScriptIsExecutable(const std::filesystem::path& scriptPath) {
+    struct stat st;
+    if (stat(scriptPath.c_str(), &st) == 0) {
+        if (!(st.st_mode & S_IXUSR)) {
+            if (chmod(scriptPath.c_str(), st.st_mode | S_IXUSR) != 0) {
+                std::cerr << "Warning: Could not set executable permission on " 
+                          << scriptPath.string() << ": " << strerror(errno) << std::endl;
+            } else if (TESTING) {
+                std::cout << "Added executable permission to " << scriptPath.string() << std::endl;
+            }
+        }
+    } else {
+        std::cerr << "Warning: Could not check permissions for " 
+                  << scriptPath.string() << ": " << strerror(errno) << std::endl;
+    }
 }

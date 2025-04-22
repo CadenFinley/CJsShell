@@ -11,13 +11,13 @@
 ### Quick Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool-scripts/cjsh_install.sh | bash
 ```
 
 To install and set as your default shell:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/main/install.sh | bash -s -- --set-as-shell
+curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool-scripts/cjsh_install.sh | bash -s -- --set-as-shell
 ```
 
 ### Manual Installation
