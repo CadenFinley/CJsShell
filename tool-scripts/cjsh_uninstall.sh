@@ -28,12 +28,12 @@ echo "----------------------------"
 echo "This will uninstall CJ's Shell and remove all associated configurations."
 echo "Note: This script requires sudo privileges for some operations."
 
-if sudo -n true 2>/dev/null; then
+if sudo $SUDO_OPTS true 2>/dev/null; then
     INITIAL_SUDO=true
     echo "Sudo access verified."
 else
     echo "Please enter your password to proceed with uninstallation:"
-    if sudo -v; then
+    if sudo $SUDO_OPTS -v; then
         INITIAL_SUDO=true
         echo "Sudo access granted."
     else
@@ -75,6 +75,7 @@ REMOVE_DATA="$5"
 CURRENT_USER="$6"
 ORIGINAL_SHELL="$7"
 CURRENT_SHELL="$8"
+SUDO_OPTS="$9"
 
 echo "Executing uninstallation with $ORIGINAL_SHELL"
 
@@ -83,7 +84,7 @@ if [[ "$CURRENT_SHELL" == "$APP_PATH" || "$SHELL" == "$APP_PATH" ]]; then
     echo "Restoring your original shell ($ORIGINAL_SHELL)..."
     if ! chsh -s "$ORIGINAL_SHELL" 2>/dev/null; then
         echo "Attempting with sudo..."
-        if sudo chsh -s "$ORIGINAL_SHELL" "$CURRENT_USER" 2>/dev/null; then
+        if sudo $SUDO_OPTS chsh -s "$ORIGINAL_SHELL" "$CURRENT_USER" 2>/dev/null; then
             echo "Successfully restored original shell."
         else
             echo "Warning: Failed to restore original shell."
@@ -100,7 +101,7 @@ fi
 # Remove from /etc/shells
 if grep -q "^$APP_PATH$" "$SHELLS_FILE"; then
     echo "Removing CJ's Shell from $SHELLS_FILE (requires sudo)..."
-    if sudo sed -i.bak "\|^$APP_PATH$|d" "$SHELLS_FILE" 2>/dev/null; then
+    if sudo $SUDO_OPTS sed -i.bak "\|^$APP_PATH$|d" "$SHELLS_FILE" 2>/dev/null; then
         echo "Successfully removed CJ's Shell from $SHELLS_FILE."
     else
         echo "Manual action required: Please run the following command to remove CJ's Shell from $SHELLS_FILE:"
@@ -111,7 +112,7 @@ fi
 # Remove binary from install path
 if [ -f "$APP_PATH" ]; then
     echo "Removing CJ's Shell binary from $APP_PATH (requires sudo)..."
-    if sudo rm "$APP_PATH" 2>/dev/null; then
+    if sudo $SUDO_OPTS rm "$APP_PATH" 2>/dev/null; then
         echo "Successfully removed CJ's Shell binary."
     else
         echo "Manual action required: Please run the following command to remove the binary:"
@@ -139,7 +140,7 @@ EOF
 chmod +x "$TMP_SCRIPT"
 
 # Execute the uninstallation with the original shell
-"$ORIGINAL_SHELL" "$TMP_SCRIPT" "$APP_NAME" "$INSTALL_PATH" "$APP_PATH" "$SHELLS_FILE" "$REMOVE_DATA" "$CURRENT_USER" "$ORIGINAL_SHELL" "$CURRENT_SHELL"
+"$ORIGINAL_SHELL" "$TMP_SCRIPT" "$APP_NAME" "$INSTALL_PATH" "$APP_PATH" "$SHELLS_FILE" "$REMOVE_DATA" "$CURRENT_USER" "$ORIGINAL_SHELL" "$CURRENT_SHELL" "$SUDO_OPTS"
 
 # Clean up the temporary script
 rm -f "$TMP_SCRIPT"
