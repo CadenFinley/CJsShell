@@ -5,7 +5,7 @@
     "DIRECTORY_COLOR": "\u001b[1;34m",
     "GIT_COLOR": "\u001b[1;32m",
     "GREEN_COLOR_BOLD": "\u001b[1;32m",
-    "PROMPT_FORMAT": "cjsh \\w",
+    "PROMPT_FORMAT": "> ",
     "PURPLE_COLOR_BOLD": "\u001b[1;35m",
     "RED_COLOR_BOLD": "\u001b[1;31m",
     "RESET_COLOR": "\u001b[0m",
