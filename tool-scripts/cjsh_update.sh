@@ -141,18 +141,11 @@ fi
 echo "Updating local copy at $DATA_DIR/$APP_NAME..."
 cp "$TEMP_DIR/$APP_NAME" "$DATA_DIR/$APP_NAME"
 
-# Update the cache file after successful update
-if [ -n "$TAG_NAME" ]; then
-    echo "Updating cache file to indicate successful update to version $TAG_NAME..."
-    # Create a JSON object with updated information
-    cat > "$UPDATE_CACHE_FILE" << EOL
-{
-    "update_available": false,
-    "latest_version": "$TAG_NAME",
-    "check_time": $(date +%s)
-}
-EOL
-    echo "Cache file updated."
+# Delete the update cache file after successful update
+if [ -f "$UPDATE_CACHE_FILE" ]; then
+    echo "Deleting update cache file..."
+    rm "$UPDATE_CACHE_FILE"
+    echo "Update cache file deleted."
 fi
 
 # Create or update the CHANGELOG.txt file with release notes
