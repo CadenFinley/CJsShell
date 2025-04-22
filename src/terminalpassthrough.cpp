@@ -931,8 +931,6 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             setenv("CJSH_SAVE_ALIAS_NAME", name.c_str(), 1);
             setenv("CJSH_SAVE_ALIAS_VALUE", value.c_str(), 1);
             setenv("CJSH_SAVE_ALIAS", "1", 1);
-            
-            std::cout << result << std::endl;
         } else {
             // Just the alias name - show the specific alias
             std::string name = aliasLine;

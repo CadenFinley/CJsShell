@@ -27,9 +27,6 @@
 
 using json = nlohmann::json;
 
-// Robust Tab Completion: While there's a placeholder completion function, it returns NULL instead of implementing actual completion logic.
-// will handle this with custom realine library in the future
-
 // Shell Prompt Customization: More flexible PS1/PS2 environment variables for prompt customization
 // will handle this with some theming in the future
 
@@ -754,7 +751,7 @@ void loadAliasesFromFile(const std::string& filePath) {
                 aliases[name] = value;
 
                 std::string aliasCmd = "alias " + name + "='" + value + "'";
-                system(aliasCmd.c_str());
+                sendTerminalCommand(aliasCmd);
             }
         }
     }
