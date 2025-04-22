@@ -19,7 +19,7 @@ if sudo -n true 2>/dev/null; then
     echo "Sudo access verified."
 else
     echo "Please enter your password to proceed with update:"
-    if sudo -v; then
+    if sudo -S -v; then
         echo "Sudo access granted."
     else
         echo "Failed to get sudo access. Update will likely fail."
@@ -126,7 +126,7 @@ chmod +x "$TEMP_DIR/$APP_NAME"
 
 # Replace the existing binary (requires sudo)
 echo "Updating CJ's Shell at $APP_PATH (requires sudo)..."
-sudo cp "$TEMP_DIR/$APP_NAME" "$APP_PATH"
+sudo -S cp "$TEMP_DIR/$APP_NAME" "$APP_PATH"
 if [ $? -ne 0 ]; then
     echo "Error: Failed to update CJ's Shell at $APP_PATH. Please check your permissions."
     rm -rf "$TEMP_DIR"
