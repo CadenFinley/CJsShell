@@ -39,10 +39,6 @@ using json = nlohmann::json;
 
 // add launch args to printHelp()
 
-
-
-
-
 // Constants
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.0.2";
@@ -51,7 +47,6 @@ const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/C
 
 // Flags
 bool TESTING = false;
-bool runningStartup = false;
 bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
 bool displayWholePath = false;
@@ -105,8 +100,7 @@ std::string YELLOW_COLOR_BOLD = "\033[1;33m";
 std::string CYAN_COLOR_BOLD = "\033[1;36m";
 
 // Command-related variables
-std::string commandPrefix = "!";
-std::string shortcutsPrefix = "-";
+std::string shortcutsPrefix = "@";
 std::string lastCommandParsed;
 std::string titleLine = "CJ's Shell v" + currentVersion + " - Caden J Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
@@ -272,6 +266,8 @@ int main(int argc, char* argv[]) {
             std::cout << createdLine << std::endl;
             std::cout << "Data directory at: " << DATA_DIRECTORY << std::endl;
             return 0;
+        } else if (arg == "-d" || arg == "--debug") {
+            TESTING = true;
         }
     }
     
@@ -371,11 +367,9 @@ int main(int argc, char* argv[]) {
     watchdogThread.detach();
 
     if (!startupCommands.empty() && startCommandsOn) {
-        runningStartup = true;
         for (const auto& command : startupCommands) {
-            commandParser(commandPrefix + command);
+            commandParser(command);
         }
-        runningStartup = false;
     }
 
     if(!exitFlag){
@@ -613,11 +607,6 @@ std::string expandHistoryCommand(const std::string& command) {
         return command;
     }
     
-    if (command.length() >= commandPrefix.length() && 
-        command.substr(0, commandPrefix.length()) == commandPrefix) {
-        return command;
-    }
-    
     if (command == "!!") {
         if (terminal.getTerminalCacheUserInput().empty()) {
             std::cerr << "No previous command in history" << std::endl;
@@ -845,7 +834,6 @@ void writeUserData() {
         userData["Shortcuts_Enabled"] = shortcutsEnabled;
         userData["Text_Buffer"] = false;
         userData["Text_Entry"] = defaultTextEntryOnAI;
-        userData["Command_Prefix"] = commandPrefix;
         userData["Shortcuts_Prefix"] = shortcutsPrefix;
         userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
         userData["Last_Updated"] = lastUpdated;
@@ -913,6 +901,7 @@ std::vector<std::string> commandSplicer(const std::string& command) {
 }
 
 void commandParser(const std::string& command) {
+    // easy early breaks
     if (command.empty()) {
         return;
     }
@@ -924,69 +913,32 @@ void commandParser(const std::string& command) {
         sendTerminalCommand("clear");
         return;
     }
+
+    // ai mode
+    if (defaultTextEntryOnAI) {
+        chatProcess(command);
+        terminal.addCommandToHistory(command);
+        return; // Add return to prevent processing as a shell command
+    }
+
+    // check if the command is a multi-script shortcut
+    if (command.rfind(shortcutsPrefix, 0) == 0) {
+        multiScriptShortcutProcesser(command);
+        return;
+    }
     
+    // check if the command has history expansion
     std::string expandedCommand = expandHistoryCommand(command);
     if (expandedCommand.empty()) {
         return;
     }
     
+    // do command substitution and environment variable expansion
     expandedCommand = performCommandSubstitution(expandedCommand);
+    expandedCommand = expandEnvVariables(expandedCommand);
     
-    if (!defaultTextEntryOnAI || expandedCommand.rfind(commandPrefix, 0) == 0) {
-        expandedCommand = expandEnvVariables(expandedCommand);
-    }
-    
-    if (!runningStartup) {
-        addUserInputToHistory(expandedCommand);
-    }
-    
-    if (expandedCommand.rfind(commandPrefix, 0) != 0 && 
-        expandedCommand.rfind(shortcutsPrefix, 0) != 0 && 
-        !defaultTextEntryOnAI) {
-        
-        std::istringstream iss(expandedCommand);
-        std::string firstWord;
-        iss >> firstWord;
-        std::string remaining;
-        std::getline(iss >> std::ws, remaining);
-        
-        if (!firstWord.empty() && aliases.find(firstWord) != aliases.end()) {
-            std::string aliasValue = aliases[firstWord];
-            expandedCommand = aliasValue + remaining;
-            
-            add_history(expandedCommand.c_str());
-        }
-    }
-    
-    if (expandedCommand.rfind(commandPrefix, 0) == 0) {
-        commandProcesser(expandedCommand.substr(1));
-        terminal.addCommandToHistory(expandedCommand);
-        return;
-    }
-    if (expandedCommand.rfind(shortcutsPrefix, 0) == 0) {
-        multiScriptShortcutProcesser(expandedCommand);
-        return;
-    }
-    if (defaultTextEntryOnAI) {
-        chatProcess(expandedCommand);
-        terminal.addCommandToHistory(expandedCommand);
-    } else {
-        sendTerminalCommand(expandedCommand);
-        
-        const char* saveAlias = getenv("CJSH_SAVE_ALIAS");
-        if (saveAlias && strcmp(saveAlias, "1") == 0) {
-            const char* aliasName = getenv("CJSH_SAVE_ALIAS_NAME");
-            const char* aliasValue = getenv("CJSH_SAVE_ALIAS_VALUE");
-            
-            if (aliasName && aliasValue) {
-                saveAliasToCJSHRC(aliasName, aliasValue);
-                
-                unsetenv("CJSH_SAVE_ALIAS");
-                unsetenv("CJSH_SAVE_ALIAS_NAME");
-                unsetenv("CJSH_SAVE_ALIAS_VALUE");
-            }
-        }
-    }
+    // If we get here, process the command directly
+    commandProcesser(command);
 }
 
 void addUserInputToHistory(const std::string& input) {
@@ -1031,7 +983,7 @@ void multiScriptShortcutProcesser(const std::string& command){
         if (multiScriptShortcuts.find(strippedCommand) != multiScriptShortcuts.end()) {
             std::vector<std::string> commands = multiScriptShortcuts[strippedCommand];
             for (const auto& cmd : commands) {
-                commandParser(commandPrefix + cmd);
+                commandParser(cmd);
             }
         } else {
             std::cerr << "No command for given shortcut: " << strippedCommand << std::endl;
@@ -1041,9 +993,9 @@ void multiScriptShortcutProcesser(const std::string& command){
     }
 }
 
-void commandProcesser(const std::string& command) {
+void commandProcesser(const std::string& originalPassedCommand) {
     commandsQueue = std::queue<std::string>();
-    auto commands = commandSplicer(command);
+    auto commands = commandSplicer(originalPassedCommand);
 
     for (const auto& cmd : commands) {
         commandsQueue.push(cmd);
@@ -1059,19 +1011,19 @@ void commandProcesser(const std::string& command) {
     if (commandsQueue.empty()) {
         std::cerr << "Unknown command. Please try again." << std::endl;
     }
+
     getNextCommand();
     if (lastCommandParsed == "approot") {
         goToApplicationDirectory();
-    } else if (lastCommandParsed == "clear") {
-        sendTerminalCommand("clear");
-    } else if (lastCommandParsed == "exit" || lastCommandParsed == "quit") {
-        exitFlag = true;
         return;
     } else if (lastCommandParsed == "ai") {
         aiSettingsCommands();
+        writeUserData();
+        return;
     } else if (lastCommandParsed == "user") {
         userSettingsCommands();
         writeUserData();
+        return;
     } else if (lastCommandParsed == "aihelp"){
         if (!defaultTextEntryOnAI && !c_assistant.getAPIKey().empty() ){
             std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. I entered: " + terminal.returnMostRecentUserInput() + " and got this " + terminal.returnMostRecentTerminalOutput());
@@ -1081,33 +1033,17 @@ void commandProcesser(const std::string& command) {
             std::cout << c_assistant.forceDirectChatGPT(message, false) << std::endl;
             return;
         }
+        std::cout << "AI help is only available in AI mode." << std::endl;
+        return;
     } else if(lastCommandParsed == "version") {
         std::cout << "CJ's Shell v" + currentVersion << std::endl;
-    } else if (lastCommandParsed == "terminal") {
-        try {
-            std::string remainingCommands;
-            while (!commandsQueue.empty()) {
-                std::string command = commandsQueue.front();
-                commandsQueue.pop();
-                if (remainingCommands.empty()) {
-                    remainingCommands = command;
-                } else {
-                    remainingCommands += " " + command;
-                }
-            }
-            if (remainingCommands.empty()) {
-                defaultTextEntryOnAI = false;
-                return;
-            }
-            sendTerminalCommand(remainingCommands);
-        } catch (std::out_of_range& e) {
-            defaultTextEntryOnAI = false;
-            return;
-        }
+        return;
     } else if(lastCommandParsed == "plugin") {
         pluginCommands();
+        return;
     } else if (lastCommandParsed == "theme") {
         themeCommands();
+        return;
     } else if (lastCommandParsed == "history") {
         auto history = terminal.getTerminalCacheUserInput();
         if (history.empty()) {
@@ -1152,29 +1088,57 @@ void commandProcesser(const std::string& command) {
         }
         return;
     } else {
-        std::queue<std::string> tempQueue;
-        tempQueue.push(lastCommandParsed);
-        while (!commandsQueue.empty()) {
-            tempQueue.push(commandsQueue.front());
-            commandsQueue.pop();
-        }
+
+        // send to plugins
         std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
-        for(const auto& plugin : enabledPlugins){
-            std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(plugin);
-            if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
-                pluginManager->handlePluginCommand(plugin, tempQueue);
-                return;
+        if (!enabledPlugins.empty()) {
+            std::queue<std::string> tempQueue;
+            tempQueue.push(lastCommandParsed);
+            while (!commandsQueue.empty()) {
+                tempQueue.push(commandsQueue.front());
+                commandsQueue.pop();
+            }
+            for(const auto& plugin : enabledPlugins){
+                std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(plugin);
+                if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
+                    pluginManager->handlePluginCommand(plugin, tempQueue);
+                    return;
+                }
             }
         }
-        std::cerr << "Unknown command. Please try again." << std::endl;
+
+        //send to terminal
+        sendTerminalCommand(originalPassedCommand);
+        
+        const char* saveAlias = getenv("CJSH_SAVE_ALIAS");
+        if (saveAlias && strcmp(saveAlias, "1") == 0) {
+            const char* aliasName = getenv("CJSH_SAVE_ALIAS_NAME");
+            const char* aliasValue = getenv("CJSH_SAVE_ALIAS_VALUE");
+                
+            if (aliasName && aliasValue) {
+                saveAliasToCJSHRC(aliasName, aliasValue);
+                    
+                unsetenv("CJSH_SAVE_ALIAS");
+                unsetenv("CJSH_SAVE_ALIAS_NAME");
+                unsetenv("CJSH_SAVE_ALIAS_VALUE");
+            }
+        }
     }
 }
 
 void printHelp() {
-    std::cout << " commandprefix: Change the command prefix (" << commandPrefix << ")" << std::endl;
-    std::cout << " ai: Access AI command settings and chat" << std::endl;
+    // print available startup arguements
+    std::cout << "Available startup arguments:" << std::endl;
+    std::cout << " -h, --help: Show this help message" << std::endl;
+    std::cout << " -v, --version: Show the version of the application" << std::endl;
+    std::cout << " -d, --debug: Enable debug mode" << std::endl;
+    std::cout << " -c, --command: Specify a command to execute" << std::endl;
+    std::cout << " -l, --login: Run as a login shell" << std::endl;
+
+    // print available interactive session commands
+    std::cout << " Available interactive session commands:" << std::endl;
+    std::cout << " ai: Access AI command settings and chat or switch to the ai menu" << std::endl;
     std::cout << " approot: Switch to the application directory" << std::endl;
-    std::cout << " terminal [ARGS]: Run terminal commands" << std::endl;
     std::cout << " user: Access user settings" << std::endl;
     std::cout << " aihelp: Get AI troubleshooting help" << std::endl;
     std::cout << " theme: Manage themes (load/save)" << std::endl;
@@ -1183,6 +1147,25 @@ void printHelp() {
     std::cout << " env: Manage environment variables" << std::endl;
     std::cout << " uninstall: Uninstall the application" << std::endl;
     std::cout << " history: Display command history" << std::endl;
+
+    //print unix executable commands
+    std::cout << " Unix executable commands:" << std::endl;
+    std::cout << " clear: Clear the terminal screen" << std::endl;
+    std::cout << " exit: Exit the application" << std::endl;
+    std::cout << " quit: Exit the application" << std::endl;
+    std::cout << " help: Show this help message" << std::endl;
+    std::cout << " <command>: Execute a command in the terminal" << std::endl;
+    std::cout << " !!: Repeat the last command" << std::endl;
+    std::cout << " !<number>: Repeat the command at the specified history number" << std::endl;
+    std::cout << " !<string>: Repeat the last command that starts with the specified string" << std::endl;
+    std::cout << " $<variable>: Expand the specified environment variable" << std::endl;
+    std::cout << " $(<command>): Execute the specified command and replace it with its output" << std::endl;
+    std::cout << " `command`: Execute the specified command and replace it with its output" << std::endl;
+    std::cout << " <alias>: Execute the specified alias" << std::endl;
+    std::cout << " <shortcut>: Execute the specified multi-script shortcut" << std::endl;
+    std::cout << " <file>: Execute the specified file (if executable)" << std::endl;
+    std::cout << " <file>.sh: Execute the specified shell script" << std::endl;
+    std::cout << " <file>.py: Execute the specified Python script" << std::endl;
 }
 
 void pluginCommands(){
@@ -1488,7 +1471,7 @@ void userSettingsCommands() {
     if (lastCommandParsed == "help") {
         std::cout << "User settings commands:" << std::endl;
         std::cout << " startup: Manage startup commands (add, remove, clear, enable, disable, list, runall)" << std::endl;
-        std::cout << " text: Configure text settings (commandprefix, displayfullpath, defaultentry)" << std::endl;
+        std::cout << " text: Configure text settings (displayfullpath, defaultentry, shortcutsprefix)" << std::endl;
         std::cout << " shortcut: Manage shortcuts (add, remove, list)" << std::endl;
         std::cout << " testing: Toggle testing mode (enable/disable)" << std::endl;
         std::cout << " data: Manage user data (get userdata/userhistory/all, clear)" << std::endl;
@@ -1735,7 +1718,7 @@ void startupCommandsHandler() {
         if (!startupCommands.empty()) {
             std::cout << "Running startup commands..." << std::endl;
             for (const auto& command : startupCommands) {
-                commandParser(commandPrefix + command);
+                commandParser(command);
             }
         } else {
             std::cerr << "No startup commands." << std::endl;
@@ -1901,22 +1884,8 @@ void textCommands() {
         std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
-
-    if (lastCommandParsed == "commandprefix") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Command prefix is currently " + commandPrefix << std::endl;
-            return;
-        }
-        
-        if (validatePrefix(lastCommandParsed)) {
-            commandPrefix = lastCommandParsed;
-            std::cout << "Command prefix set to " + commandPrefix << std::endl;
-        }
-        return;
-    }
     
-    if (lastCommandParsed == "shortcutprefix") {
+    if (lastCommandParsed == "shortcutsprefix") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
             std::cout << "Shortcut prefix is currently " + shortcutsPrefix << std::endl;
@@ -1956,8 +1925,7 @@ void textCommands() {
     
     if (lastCommandParsed == "help") {
         std::cout << "Text commands:" << std::endl;
-        std::cout << " commandprefix [CHAR]: Set the command prefix" << std::endl;
-        std::cout << " shortcutprefix [CHAR]: Set the shortcut prefix" << std::endl;
+        std::cout << " shortcutsprefix [CHAR]: Set the shortcut prefix" << std::endl;
         std::cout << " displayfullpath enable/disable: Toggle full path display" << std::endl;
         std::cout << " defaultentry ai/terminal: Set default text entry mode" << std::endl;
         return;
@@ -2630,9 +2598,6 @@ void loadUserDataAsync(std::function<void()> callback) {
                 if(userData.contains("Text_Entry")) {
                     defaultTextEntryOnAI = userData["Text_Entry"].get<bool>();
                 }
-                if(userData.contains("Command_Prefix")) {
-                    commandPrefix = userData["Command_Prefix"].get<std::string>();
-                }
                 if(userData.contains("Shortcuts_Prefix")) {
                     shortcutsPrefix = userData["Shortcuts_Prefix"].get<std::string>();
                 }
@@ -3241,15 +3206,6 @@ std::vector<std::string> get_completion_matches(const std::string& prefix) {
     for (const auto& [alias, _] : aliases) {
         if (startsWith(alias, prefix)) {
             matches.push_back(alias);
-        }
-    }
-    
-    if (prefix.length() > 0 && prefix[0] == commandPrefix[0]) {
-        std::string strippedPrefix = prefix.substr(1);
-        for (const auto& cmd : builtins) {
-            if (startsWith(cmd, strippedPrefix)) {
-                matches.push_back(commandPrefix + cmd);
-            }
         }
     }
     
