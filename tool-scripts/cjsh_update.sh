@@ -8,6 +8,7 @@ INSTALL_PATH="/usr/local/bin"
 APP_PATH="$INSTALL_PATH/$APP_NAME"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/CJsShell/releases/latest"
 TEMP_DIR="$DATA_DIR/temp"
+UPDATE_CACHE_FILE="$DATA_DIR/update_cache.json"
 
 echo "CJ's Shell Updater"
 echo "-------------------------"
@@ -55,6 +56,7 @@ INSTALL_PATH="$5"
 APP_PATH="$6"
 GITHUB_API_URL="$7"
 TEMP_DIR="$8"
+UPDATE_CACHE_FILE="$9"
 
 # Create temp directory if it doesn't exist
 if [ ! -d "$TEMP_DIR" ]; then
@@ -98,10 +100,12 @@ fi
 if command -v jq &> /dev/null; then
     echo "Using jq to parse release information..."
     DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r ".assets[] | select(.name | contains(\"$PLATFORM_PATTERN\")) | .browser_download_url" | head -n 1)
+    TAG_NAME=$(echo "$RELEASE_JSON" | jq -r '.tag_name' | sed 's/^v//')
 else
     echo "Using grep to parse release information..."
     # More robust pattern matching
     DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "\"browser_download_url\":\"[^\"]*$PLATFORM_PATTERN[^\"]*\"" | sed -E 's/"browser_download_url":"([^"]+)"/\1/' | head -n 1)
+    TAG_NAME=$(echo "$RELEASE_JSON" | grep -o '"tag_name":"[^"]*"' | sed -E 's/"tag_name":"([^"]*)"/\1/' | sed 's/^v//')
 fi
 
 if [ -z "$DOWNLOAD_URL" ]; then
@@ -137,6 +141,28 @@ fi
 echo "Updating local copy at $DATA_DIR/$APP_NAME..."
 cp "$TEMP_DIR/$APP_NAME" "$DATA_DIR/$APP_NAME"
 
+# Update the cache file after successful update
+if [ -n "$TAG_NAME" ]; then
+    echo "Updating cache file to indicate successful update to version $TAG_NAME..."
+    # Create a JSON object with updated information
+    cat > "$UPDATE_CACHE_FILE" << EOL
+{
+    "update_available": false,
+    "latest_version": "$TAG_NAME",
+    "check_time": $(date +%s)
+}
+EOL
+    echo "Cache file updated."
+fi
+
+# Create or update the CHANGELOG.txt file with release notes
+if command -v jq &> /dev/null; then
+    echo "Extracting release notes..."
+    RELEASE_NOTES=$(echo "$RELEASE_JSON" | jq -r '.body')
+    echo "$RELEASE_NOTES" > "$DATA_DIR/CHANGELOG.txt"
+    echo "Release notes saved to $DATA_DIR/CHANGELOG.txt"
+fi
+
 # Clean up
 rm -rf "$TEMP_DIR"
 
@@ -148,7 +174,7 @@ EOF
 chmod +x "$TMP_SCRIPT"
 
 # Execute the update with the original shell
-"$ORIGINAL_SHELL" "$TMP_SCRIPT" "$SCRIPT_DIR" "$HOME_DIR" "$DATA_DIR" "$APP_NAME" "$INSTALL_PATH" "$APP_PATH" "$GITHUB_API_URL" "$TEMP_DIR"
+"$ORIGINAL_SHELL" "$TMP_SCRIPT" "$SCRIPT_DIR" "$HOME_DIR" "$DATA_DIR" "$APP_NAME" "$INSTALL_PATH" "$APP_PATH" "$GITHUB_API_URL" "$TEMP_DIR" "$UPDATE_CACHE_FILE"
 
 # Clean up the temporary script
 rm -f "$TMP_SCRIPT"
