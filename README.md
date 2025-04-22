@@ -4,7 +4,7 @@
 ![Version](https://img.shields.io/github/v/release/CadenFinley/CJsShell?label=version&color=blue)
 ![Lines of Code](https://img.shields.io/badge/lines%20of%20code-10107-green)
 
-> ⚠️ **WARNING**: This project is still in active development. There are known bugs and issues that are being addressed. Use at your own risk in production environments.
+> ⚠️ **WARNING**: This project is still in active development. There are known bugs and issues that are being addressed. Use at your own risk.
 
 ## Installation
 
