@@ -35,10 +35,6 @@ using json = nlohmann::json;
 
 // Shell Scripting Constructs: Missing implementation for control structures like if/then/else, for/while loops, etc.
 
-// I dont like command prefixes and change default shortcut to @
-
-// add launch args to printHelp()
-
 // Constants
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.0.2";
