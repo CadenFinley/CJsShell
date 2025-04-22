@@ -30,48 +30,22 @@ ThemeManager::~ThemeManager() {
 
 void ThemeManager::createDefaultTheme() {
     std::map<std::string, std::string> defaultColors = {
-        {"GREEN_COLOR_BOLD", "\033[1;32m"},
-        {"RED_COLOR_BOLD", "\033[1;31m"},
-        {"PURPLE_COLOR_BOLD", "\033[1;35m"},
-        {"BLUE_COLOR_BOLD", "\033[1;34m"},
-        {"YELLOW_COLOR_BOLD", "\033[1;33m"},
-        {"CYAN_COLOR_BOLD", "\033[1;36m"},
-        {"SHELL_COLOR", "\033[1;31m"},
-        {"DIRECTORY_COLOR", "\033[1;34m"},
-        {"BRANCH_COLOR", "\033[1;33m"},
-        {"GIT_COLOR", "\033[1;32m"},
-        {"RESET_COLOR", "\033[0m"},
+        {"GREEN_COLOR_BOLD", ""},
+        {"RED_COLOR_BOLD", ""},
+        {"PURPLE_COLOR_BOLD", ""},
+        {"BLUE_COLOR_BOLD", ""},
+        {"YELLOW_COLOR_BOLD", ""},
+        {"CYAN_COLOR_BOLD", ""},
+        {"SHELL_COLOR", ""},
+        {"DIRECTORY_COLOR", ""},
+        {"BRANCH_COLOR", ""},
+        {"GIT_COLOR", ""},
+        {"RESET_COLOR", ""},
         {"PROMPT_FORMAT", "cjsh \\w"}
     };
     
     saveTheme("default", defaultColors);
     availableThemes["default"] = defaultColors;
-    
-    // Create additional themes with different prompt formats
-    
-    // Minimal theme
-    auto minimalTheme = defaultColors;
-    minimalTheme["PROMPT_FORMAT"] = "> ";
-    saveTheme("minimal", minimalTheme);
-    availableThemes["minimal"] = minimalTheme;
-    
-    // Time-based theme
-    auto timeTheme = defaultColors;
-    timeTheme["PROMPT_FORMAT"] = "[\\t] cjsh \\w";
-    saveTheme("time", timeTheme);
-    availableThemes["time"] = timeTheme;
-    
-    // User and host theme
-    auto userHostTheme = defaultColors;
-    userHostTheme["PROMPT_FORMAT"] = "\\u@\\h \\w";
-    saveTheme("userhost", userHostTheme);
-    availableThemes["userhost"] = userHostTheme;
-    
-    // Full path theme
-    auto fullPathTheme = defaultColors;
-    fullPathTheme["PROMPT_FORMAT"] = "cjsh \\W";
-    saveTheme("fullpath", fullPathTheme);
-    availableThemes["fullpath"] = fullPathTheme;
 }
 
 void ThemeManager::discoverAvailableThemes() {
