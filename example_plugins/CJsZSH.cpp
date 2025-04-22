@@ -32,7 +32,7 @@ public:
     }
 
     bool initialize() {
-        std::cout << "ZSH Executor Plugin initialized" << std::endl;
+        //std::cout << "ZSH Executor Plugin initialized" << std::endl;
         isInitialized = true;
         
         if (system("which zsh > /dev/null 2>&1") != 0) {
@@ -45,7 +45,7 @@ public:
     }
 
     void shutdown() {
-        std::cout << "ZSH Executor Plugin shutting down" << std::endl;
+        //std::cout << "ZSH Executor Plugin shutting down" << std::endl;
         isInitialized = false;
     }
 
