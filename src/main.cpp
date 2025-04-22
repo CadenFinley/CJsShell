@@ -16,14 +16,13 @@
 #include <pwd.h>
 #include <signal.h>
 #include <grp.h>
-#include <readline/readline.h>
-#include <readline/history.h>
 #include <set>
 
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
 #include "include/pluginmanager.h"
 #include "include/thememanager.h"
+#include "../isocline/include/isocline.h"
 
 using json = nlohmann::json;
 
@@ -173,7 +172,6 @@ void initializeDataDirectories();
 void setupSignalHandlers();
 void setupJobControl();
 void resetTerminalOnExit();
-void initialize_readline();
 void createDefaultCJSHRC();
 void processProfileFile(const std::string& filePath);
 
@@ -399,7 +397,6 @@ void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "")
 
 void mainProcessLoop() {
     notifyPluginsTriggerMainProcess("pre_run", processId);
-    initialize_readline();
     
     while (true) {
         notifyPluginsTriggerMainProcess("start", processId);
@@ -423,20 +420,17 @@ void mainProcessLoop() {
         }
 
         std::string fullPrompt = prompt + " ";
-        char* line = readline(fullPrompt.c_str());
-        if (line == nullptr) {
-            std::cout << std::endl;
-            exitFlag = true;
-            break;
+        char* input;
+        while( (input = ic_readline(fullPrompt)) != NULL ) {
+            std::string command(input);
+            free(input);
         }
-
-        std::string command(line);
+        
         if (!command.empty()) {
             add_history(line);
             notifyPluginsTriggerMainProcess("command_processed", command);
             commandParser(command);
         }
-        free(line);
 
         notifyPluginsTriggerMainProcess("end", processId);
         if (exitFlag) {
@@ -447,15 +441,6 @@ void mainProcessLoop() {
 
 bool authenticateUser(){
     return true;
-}
-
-void initialize_readline() {
-    using_history();
-    stifle_history(1000);
-    
-    rl_attempted_completion_function = command_completion;
-    rl_completion_append_character = '/';
-    rl_basic_word_break_characters = (char *)" \t\n\"\\'`@$><=;|&{(";
 }
 
 bool isRunningAsLoginShell(char* argv0) {
