@@ -392,11 +392,64 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
+void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
+    if (pluginManager == nullptr) {
+        std::cerr << "PluginManager is not initialized." << std::endl;
+        return;
+    }
+    if (pluginManager->getEnabledPlugins().empty()) {
+        return;
+    }
+    pluginManager->triggerSubscribedGlobalEvent("main_process_" + trigger, data);
+}
 
+void mainProcessLoop() {
+    notifyPluginsTriggerMainProcess("pre_run", processId);
+    initialize_readline();
+    
+    while (true) {
+        notifyPluginsTriggerMainProcess("start", processId);
+        if (saveLoop) {
+            writeUserData();
+        }
+        
+        if (TESTING) {
+            std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
+        }
 
+        std::string prompt;
+        if (defaultTextEntryOnAI) {
+            std::string modelInfo = c_assistant.getModel();
+            std::string modeInfo = c_assistant.getAssistantType();
+            prompt = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
+                    GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
+                    GREEN_COLOR_BOLD + "] >" + RESET_COLOR;
+        } else {
+            prompt = terminal.returnCurrentTerminalPosition();
+        }
 
+        std::string fullPrompt = prompt + " ";
+        char* line = readline(fullPrompt.c_str());
+        if (line == nullptr) {
+            std::cout << std::endl;
+            exitFlag = true;
+            break;
+        }
 
+        std::string command(line);
+        if (!command.empty()) {
+            add_history(line);
+            notifyPluginsTriggerMainProcess("command_processed", command);
+            commandParser(command);
+        }
+        free(line);
 
+        notifyPluginsTriggerMainProcess("end", processId);
+        if (exitFlag) {
+            break;
+        }
+    }
+}
 
 bool authenticateUser(){
     return true;
@@ -757,65 +810,6 @@ void saveAliasToCJSHRC(const std::string& name, const std::string& value) {
         outFile.close();
     } else {
         std::cerr << "Error: Could not save alias to " << cjshrcPath << std::endl;
-    }
-}
-
-void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
-    if (pluginManager == nullptr) {
-        std::cerr << "PluginManager is not initialized." << std::endl;
-        return;
-    }
-    if (pluginManager->getEnabledPlugins().empty()) {
-        return;
-    }
-    pluginManager->triggerSubscribedGlobalEvent("main_process_" + trigger, data);
-}
-
-void mainProcessLoop() {
-    notifyPluginsTriggerMainProcess("pre_run", processId);
-    initialize_readline();
-    
-    while (true) {
-        notifyPluginsTriggerMainProcess("start", processId);
-        if (saveLoop) {
-            writeUserData();
-        }
-        
-        if (TESTING) {
-            std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
-        }
-
-        std::string prompt;
-        if (defaultTextEntryOnAI) {
-            std::string modelInfo = c_assistant.getModel();
-            std::string modeInfo = c_assistant.getAssistantType();
-            prompt = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
-                    GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
-                    GREEN_COLOR_BOLD + "] > " + RESET_COLOR;
-        } else {
-            prompt = terminal.returnCurrentTerminalPosition();
-        }
-
-        std::cout << prompt;
-        char* line = readline(" ");
-        if (line == nullptr) {
-            std::cout << std::endl;
-            exitFlag = true;
-            break;
-        }
-
-        std::string command(line);
-        if (!command.empty()) {
-            add_history(line);
-            notifyPluginsTriggerMainProcess("command_processed", command);
-            commandParser(command);
-        }
-        free(line);
-
-        notifyPluginsTriggerMainProcess("end", processId);
-        if (exitFlag) {
-            break;
-        }
     }
 }
 

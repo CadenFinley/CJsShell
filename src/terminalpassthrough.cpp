@@ -107,7 +107,7 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
                             return;
                         }
                         
-                        std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
+                        std::string gitStatusCmd = "cjsh -c \"cd " + gitDir + 
                             " && git status --porcelain | head -1\"";
                         
                         FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
@@ -159,7 +159,7 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
                             return;
                         }
                         
-                        std::string gitStatusCmd = "sh -c \"cd " + gitDir + 
+                        std::string gitStatusCmd = "cjsh -c \"cd " + gitDir + 
                             " && git status --porcelain | head -1\"";
                         
                         FILE* statusPipe = popen(gitStatusCmd.c_str(), "r");
@@ -924,8 +924,6 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
             
             aliases[name] = value;
             
-            // Save alias to .cjshrc file (this will call back to a function in main.cpp)
-            std::string saveAliasCommand = "sh -c \"saveAliasToCJSHRC " + name + " '" + value + "'\"";
             result = "Alias '" + name + "' defined";
             
             // Signal to the main program to save this alias
