@@ -32,6 +32,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Include the header files directory
 include_directories(src/include)
 
+# Build isocline as a subdirectory
+add_subdirectory(isocline)
+
 # Add ExternalProject support
 include(ExternalProject)
 
@@ -77,11 +80,14 @@ if(NOT Readline_FOUND)
         set(Readline_FOUND TRUE)
         message(STATUS "Found readline: ${Readline_LIBRARY}")
     else()
-        message(FATAL_ERROR "readline library not found")
+        message(STATUS "Readline library not found - using isocline instead")
+        set(Readline_FOUND FALSE)
     endif()
 endif()
 
-include_directories(${Readline_INCLUDE_DIR})
+if(Readline_FOUND)
+    include_directories(${Readline_INCLUDE_DIR})
+endif()
 
 # Source files
 set(SOURCE_FILES
@@ -133,11 +139,16 @@ if(APPLE)
     # Add architecture info to build output for debugging
     message(STATUS "Building for macOS with architecture: ${CMAKE_OSX_ARCHITECTURES}")
     
-    # Fixed target_link_libraries call to properly handle CURL dependency
+    # Fixed target_link_libraries call to properly handle CURL and isocline dependencies
     if(TARGET CURL::libcurl)
-        target_link_libraries(CJsShell_macOS CURL::libcurl Threads::Threads ${Readline_LIBRARY})
+        target_link_libraries(CJsShell_macOS CURL::libcurl Threads::Threads isocline)
     else()
-        target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads ${Readline_LIBRARY})
+        target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads isocline)
+    endif()
+    
+    # Only link readline if found, otherwise isocline is already linked
+    if(Readline_FOUND)
+        target_link_libraries(CJsShell_macOS ${Readline_LIBRARY})
     endif()
     
     # Add post-build message to show architecture info
@@ -154,11 +165,16 @@ set_target_properties(CJsShell_Linux PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
 )
 
-# Fixed target_link_libraries call to properly handle CURL dependency
+# Fixed target_link_libraries call to properly handle CURL and isocline dependencies
 if(TARGET CURL::libcurl)
-    target_link_libraries(CJsShell_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY} ${Readline_LIBRARY})
+    target_link_libraries(CJsShell_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY} isocline)
 else()
-    target_link_libraries(CJsShell_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY} ${Readline_LIBRARY})
+    target_link_libraries(CJsShell_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY} isocline)
+endif()
+
+# Only link readline if found, otherwise isocline is already linked
+if(Readline_FOUND)
+    target_link_libraries(CJsShell_Linux ${Readline_LIBRARY})
 endif()
 
 # Set rpath for Linux builds

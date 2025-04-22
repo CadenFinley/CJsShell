@@ -33,7 +33,7 @@ using json = nlohmann::json;
 
 // Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.0.2";
+const std::string currentVersion = "2.0.0.3";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -370,6 +370,8 @@ int main(int argc, char* argv[]) {
         mainProcessLoop();
     }
 
+    std::cout << "CJ's Shell Exiting..." << std::endl;
+
     if(saveOnExit){
         savedChatCache = c_assistant.getChatCache();
         writeUserData();
@@ -398,6 +400,11 @@ void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "")
 void mainProcessLoop() {
     notifyPluginsTriggerMainProcess("pre_run", processId);
     
+    ic_set_prompt_marker("", NULL);
+    ic_enable_hint(true);
+    ic_set_hint_delay(100);
+    ic_enable_completion_preview(true);
+    
     while (true) {
         notifyPluginsTriggerMainProcess("start", processId);
         if (saveLoop) {
@@ -420,16 +427,24 @@ void mainProcessLoop() {
         }
 
         std::string fullPrompt = prompt + " ";
-        char* input;
-        while( (input = ic_readline(fullPrompt)) != NULL ) {
-            std::string command(input);
-            free(input);
-        }
+        char* input = ic_readline(fullPrompt.c_str());
         
-        if (!command.empty()) {
-            add_history(line);
-            notifyPluginsTriggerMainProcess("command_processed", command);
-            commandParser(command);
+        if (input != nullptr) {
+            std::string command(input);
+            if (!command.empty()) {
+                notifyPluginsTriggerMainProcess("command_processed", command);
+                commandParser(command);
+
+                ic_history_add(command.c_str());
+            }
+            ic_free(input);
+            if (exitFlag) {
+                break;
+            }
+        } else {
+            // Handle Ctrl+C or Ctrl+D (EOF)
+            std::cout << std::endl;
+            exitFlag = true;
         }
 
         notifyPluginsTriggerMainProcess("end", processId);
@@ -3131,87 +3146,4 @@ void processProfileFile(const std::string& filePath) {
     }
     
     loadAliasesFromFile(filePath);
-}
-
-char** command_completion(const char* text, int start, int end) {
-    if (start == 0) {
-        return rl_completion_matches(text, command_generator);
-    }
-    
-    return nullptr;
-}
-
-char* command_generator(const char* text, int state) {
-    static size_t list_index;
-    static std::vector<std::string> matches;
-    
-    if (state == 0) {
-        list_index = 0;
-        matches = get_completion_matches(text);
-    }
-    
-    if (list_index < matches.size()) {
-        return strdup(matches[list_index++].c_str());
-    }
-    
-    return nullptr;
-}
-
-std::vector<std::string> get_completion_matches(const std::string& prefix) {
-    std::vector<std::string> matches;
-    
-    std::vector<std::string> builtins = {
-        "exit", "quit", "clear", "help", "version", "history",
-        "ai", "user", "plugin", "theme", "terminal", "approot", "aihelp"
-    };
-    
-    for (const auto& cmd : builtins) {
-        if (startsWith(cmd, prefix)) {
-            matches.push_back(cmd);
-        }
-    }
-    
-    if (pluginManager != nullptr) {
-        for (const auto& plugin : pluginManager->getEnabledPlugins()) {
-            for (const auto& cmd : pluginManager->getPluginCommands(plugin)) {
-                if (startsWith(cmd, prefix)) {
-                    matches.push_back(cmd);
-                }
-            }
-        }
-    }
-    
-    for (const auto& [alias, _] : aliases) {
-        if (startsWith(alias, prefix)) {
-            matches.push_back(alias);
-        }
-    }
-    
-    if (matches.empty()) {
-        std::string currentPath = terminal.getCurrentFilePath();
-        std::string searchPrefix = prefix;
-        std::string searchPath = currentPath;
-        
-        size_t lastSlash = prefix.find_last_of("/\\");
-        if (lastSlash != std::string::npos) {
-            searchPath = currentPath + "/" + prefix.substr(0, lastSlash + 1);
-            searchPrefix = prefix.substr(lastSlash + 1);
-        }
-        
-        try {
-            for (const auto& entry : std::filesystem::directory_iterator(searchPath)) {
-                std::string filename = entry.path().filename().string();
-                if (startsWith(filename, searchPrefix)) {
-                    std::string completion = prefix.substr(0, lastSlash != std::string::npos ? lastSlash + 1 : 0) + filename;
-                    if (entry.is_directory()) {
-                        completion += "/";
-                    }
-                    matches.push_back(completion);
-                }
-            }
-        } catch (const std::filesystem::filesystem_error& e) {
-        }
-    }
-    
-    return matches;
 }
