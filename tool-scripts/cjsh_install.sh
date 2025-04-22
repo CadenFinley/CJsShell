@@ -7,8 +7,8 @@ APP_NAME="cjsh"
 INSTALL_PATH="/usr/local/bin"
 APP_PATH="$INSTALL_PATH/$APP_NAME"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/CJsShell/releases/latest"
-UNINSTALL_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/CJsShell/master/tool-scripts/cjsh-uninstall.sh"
-UPDATE_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/CJsShell/master/tool-scripts/cjsh-update.sh"
+UNINSTALL_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/CJsShell/master/tool-scripts/cjsh_uninstall.sh"
+UPDATE_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/CJsShell/master/tool-scripts/cjsh_update.sh"
 SET_AS_DEFAULT_SHELL=false
 REGISTER_AS_FILE_HANDLER=false
 SHELLS_FILE="/etc/shells"
@@ -119,7 +119,7 @@ fi
 
 # Download uninstall script
 echo "Downloading uninstall script..."
-curl -L "$UNINSTALL_SCRIPT_URL" -o "$DATA_DIR/cjsh-uninstall.sh"
+curl -L "$UNINSTALL_SCRIPT_URL" -o "$DATA_DIR/cjsh_uninstall.sh"
 if [ $? -ne 0 ]; then
     echo "Warning: Failed to download uninstall script."
 else
@@ -128,11 +128,11 @@ fi
 
 # Download update script
 echo "Downloading update script..."
-curl -L "$UPDATE_SCRIPT_URL" -o "$DATA_DIR/cjsh-update.sh"
+curl -L "$UPDATE_SCRIPT_URL" -o "$DATA_DIR/cjsh_update.sh"
 if [ $? -ne 0 ]; then
     echo "Warning: Failed to download update script."
 else
-    chmod +x "$DATA_DIR/cjsh-update.sh"
+    chmod +x "$DATA_DIR/cjsh_update.sh"
 fi
 
 # Add to /etc/shells if not already there
