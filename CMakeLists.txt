@@ -8,11 +8,39 @@ project(CJsShell)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# Architecture handling
 if(APPLE)
+    # Determine host architecture
+    execute_process(
+        COMMAND uname -m
+        OUTPUT_VARIABLE HOST_ARCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    
+    # Set macOS specific directories and options
     set(MACOS_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/macos)
-    if(NOT DEFINED CMAKE_OSX_ARCHITECTURES)
-        set(CMAKE_OSX_ARCHITECTURES "${CMAKE_HOST_SYSTEM_PROCESSOR}" CACHE STRING "Build architecture for macOS")
+    
+    # Architecture options
+    option(BUILD_UNIVERSAL "Build universal binary for macOS (both arm64 and x86_64)" OFF)
+    set(TARGET_ARCH "${HOST_ARCH}" CACHE STRING "Target architecture (arm64, x86_64, or both for universal)")
+    
+    # Configure architecture settings based on options
+    if(BUILD_UNIVERSAL)
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build universal binary with both architectures" FORCE)
+        message(STATUS "Building universal binary for macOS with architectures: arm64;x86_64")
+    elseif(TARGET_ARCH STREQUAL "both")
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build universal binary with both architectures" FORCE)
+        message(STATUS "Building universal binary for macOS with architectures: arm64;x86_64")
+    elseif(TARGET_ARCH STREQUAL "arm64" OR TARGET_ARCH STREQUAL "x86_64")
+        set(CMAKE_OSX_ARCHITECTURES "${TARGET_ARCH}" CACHE STRING "Build architecture for macOS" FORCE)
+        message(STATUS "Building for macOS with architecture: ${TARGET_ARCH}")
+    else()
+        # Default to host architecture if no valid option is provided
+        set(CMAKE_OSX_ARCHITECTURES "${HOST_ARCH}" CACHE STRING "Build architecture for macOS" FORCE)
+        message(STATUS "Building for macOS with host architecture: ${HOST_ARCH}")
     endif()
+    
+    # Set minimum deployment target
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment version")
 endif()
 
@@ -20,6 +48,13 @@ set(LINUX_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/linux)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Display architecture info for debugging
+if(APPLE)
+    message(STATUS "macOS build configuration:")
+    message(STATUS "  Target architecture(s): ${CMAKE_OSX_ARCHITECTURES}")
+    message(STATUS "  Deployment target: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+endif()
 
 include_directories(src/include)
 

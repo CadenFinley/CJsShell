@@ -31,7 +31,7 @@ using json = nlohmann::json;
 
 // Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.0.3";
+const std::string currentVersion = "2.0.1.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -2343,133 +2343,64 @@ bool downloadLatestRelease() {
     }
     std::filesystem::create_directory(tempDir);
     
-    // Download the latest release using fork/exec instead of system()
+    // Download the latest release using TerminalPassthrough
     std::string outputPath = (tempDir / "cjsh").string();
+    std::string curlCommand = "curl -L -s https://github.com/CadenFinley/CJsShell/releases/latest/download/cjsh -o " + outputPath;
     
-    pid_t downloadPid = fork();
-    if (downloadPid == -1) {
-        std::cerr << "Error: Failed to fork process for download." << std::endl;
+    std::thread downloadThread = terminal.executeCommand(curlCommand);
+    downloadThread.join();
+    
+    if (!std::filesystem::exists(outputPath)) {
+        std::cerr << "Error: Download failed - output file not created." << std::endl;
         return false;
     }
     
-    if (downloadPid == 0) {
-        // Child process
-        // Redirect stdout to the output file
-        int fdOut = open(outputPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755);
-        if (fdOut == -1) {
-            std::cerr << "Error: Failed to create output file." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        
-        dup2(fdOut, STDOUT_FILENO);
-        close(fdOut);
-        
-        // Execute curl
-        execlp("curl", "curl", "-L", "-s", 
-               "https://github.com/CadenFinley/CJsShell/releases/latest/download/cjsh", 
-               (char*)NULL);
-        
-        // If we get here, exec failed
-        std::cerr << "Error: Failed to execute curl: " << strerror(errno) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    
-    // Parent process
-    int status;
-    waitpid(downloadPid, &status, 0);
-    
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        std::cerr << "Error: Download failed with status " << WEXITSTATUS(status) << std::endl;
-        return false;
-    }
-    
-    // Make the downloaded file executable (already set when created with mode 0755)
-    if (chmod(outputPath.c_str(), 0755) != 0) {
-        std::cerr << "Error: Failed to make file executable." << std::endl;
-        return false;
-    }
+    // Make the downloaded file executable
+    std::string chmodCommand = "chmod 755 " + outputPath;
+    std::thread chmodThread = terminal.executeCommand(chmodCommand);
+    chmodThread.join();
     
     // Check if we have write permission to the install location
     bool hasPermission = (access(INSTALL_PATH.parent_path().c_str(), W_OK) == 0);
     
     if (hasPermission) {
-        // Copy the file directly
-        std::ifstream src(outputPath, std::ios::binary);
-        std::ofstream dst(INSTALL_PATH, std::ios::binary | std::ios::trunc);
-        
-        if (!src || !dst) {
-            std::cerr << "Error: Failed to open files for copying." << std::endl;
-            return false;
-        }
-        
-        dst << src.rdbuf();
-        
-        if (!dst) {
-            std::cerr << "Error: Failed to write to destination file." << std::endl;
-            return false;
-        }
+        // Use terminalpassthrough to copy the file
+        std::string cpCommand = "cp " + outputPath + " " + INSTALL_PATH.string();
+        std::thread cpThread = terminal.executeCommand(cpCommand);
+        cpThread.join();
         
         // Set permissions
-        if (chmod(INSTALL_PATH.c_str(), 0755) != 0) {
-            std::cerr << "Error: Failed to set permissions on installed file." << std::endl;
-            return false;
-        }
+        std::string finalChmodCommand = "chmod 755 " + INSTALL_PATH.string();
+        std::thread finalChmodThread = terminal.executeCommand(finalChmodCommand);
+        finalChmodThread.join();
     } else {
         // Need to use sudo
         std::cout << "Administrator privileges required to complete the update." << std::endl;
         
-        pid_t copyPid = fork();
-        if (copyPid == -1) {
-            std::cerr << "Error: Failed to fork process for installation." << std::endl;
-            return false;
-        }
-        
-        if (copyPid == 0) {
-            // Child process
-            execlp("sudo", "sudo", "cp", outputPath.c_str(), INSTALL_PATH.c_str(), (char*)NULL);
-            
-            // If we get here, exec failed
-            std::cerr << "Error: Failed to execute sudo cp: " << strerror(errno) << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        
-        // Parent process
-        waitpid(copyPid, &status, 0);
-        
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            std::cerr << "Error: Installation failed with status " << WEXITSTATUS(status) << std::endl;
-            return false;
-        }
+        // Use terminalpassthrough for sudo operations
+        std::string sudoCpCommand = "sudo cp " + outputPath + " " + INSTALL_PATH.string();
+        std::thread sudoCpThread = terminal.executeCommand(sudoCpCommand);
+        sudoCpThread.join();
         
         // Set permissions with sudo
-        pid_t chmodPid = fork();
-        if (chmodPid == -1) {
-            std::cerr << "Error: Failed to fork process for setting permissions." << std::endl;
-            return false;
-        }
-        
-        if (chmodPid == 0) {
-            // Child process
-            execlp("sudo", "sudo", "chmod", "755", INSTALL_PATH.c_str(), (char*)NULL);
-            
-            // If we get here, exec failed
-            std::cerr << "Error: Failed to execute sudo chmod: " << strerror(errno) << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        
-        // Parent process
-        waitpid(chmodPid, &status, 0);
-        
-        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-            std::cerr << "Error: Setting permissions failed with status " << WEXITSTATUS(status) << std::endl;
-            return false;
-        }
+        std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
+        std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
+        sudoChmodThread.join();
     }
     
     // Clean up
-    std::filesystem::remove_all(tempDir);
-    
-    std::cout << "Update successfully installed!" << std::endl;
+    std::string cleanupCommand = "rm -rf " + tempDir.string();
+    std::thread cleanupThread = terminal.executeCommand(cleanupCommand);
+    cleanupThread.join();
+
+    // Remove old update cache
+    if (std::filesystem::exists(UPDATE_CACHE_FILE)) {
+        std::filesystem::remove(UPDATE_CACHE_FILE);
+        if (TESTING) {
+            std::cout << "Removed old update cache file: " << UPDATE_CACHE_FILE << std::endl;
+        }
+    }
+
     return true;
 }
 
