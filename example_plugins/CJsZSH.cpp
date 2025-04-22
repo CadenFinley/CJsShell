@@ -16,7 +16,7 @@ public:
     ZSHExecutorPlugin() : isInitialized(false) {}
 
     std::string getName() const {
-        return "CJsZSH";
+        return "CJsZsh";
     }
 
     std::string getVersion() const {

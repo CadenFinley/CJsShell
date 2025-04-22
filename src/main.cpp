@@ -27,9 +27,6 @@
 
 using json = nlohmann::json;
 
-// Shell Prompt Customization: More flexible PS1/PS2 environment variables for prompt customization
-// will handle this with some theming in the future
-
 // Shell Scripting Constructs: Missing implementation for control structures like if/then/else, for/while loops, etc.
 
 // Constants
