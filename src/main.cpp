@@ -442,7 +442,6 @@ void mainProcessLoop() {
                 break;
             }
         } else {
-            // Handle Ctrl+C or Ctrl+D (EOF)
             std::cout << std::endl;
             exitFlag = true;
         }
