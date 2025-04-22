@@ -1,44 +1,32 @@
 cmake_minimum_required(VERSION 3.10)
 
-# Check for Unix platform - fail on Windows
 if(WIN32)
     message(FATAL_ERROR "CJsShell is currently only supported on Unix-based systems (Linux/macOS)")
 endif()
 
-# Set the project name
 project(CJsShell)
 
-# Set output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Platform-specific configurations
 if(APPLE)
     set(MACOS_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/macos)
-    # Build for the native architecture by default instead of universal binary
-    # This addresses the architecture mismatch issue
     if(NOT DEFINED CMAKE_OSX_ARCHITECTURES)
         set(CMAKE_OSX_ARCHITECTURES "${CMAKE_HOST_SYSTEM_PROCESSOR}" CACHE STRING "Build architecture for macOS")
     endif()
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment version")
 endif()
 
-# Linux build configuration
 set(LINUX_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/linux)
 
-# Specify the C++ standard
-set(CMAKE_CXX_STANDARD 17) # Changed from 20 to 17 for better compatibility with CMake 3.10
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Include the header files directory
 include_directories(src/include)
 
-# Build isocline as a subdirectory
 add_subdirectory(isocline)
 
-# Add ExternalProject support
 include(ExternalProject)
 
-# Function to set up CURL download and build
 function(setup_curl_download)
     message(STATUS "CURL not found - will download and build from source")
     ExternalProject_Add(curl_external
@@ -59,18 +47,15 @@ function(setup_curl_download)
     add_dependencies(CURL::libcurl curl_external)
 endfunction()
 
-# Try to find CURL, download if not found
 find_package(CURL QUIET)
 if(NOT CURL_FOUND)
     setup_curl_download()
 endif()
 
-find_package(Threads REQUIRED)  # Add this to find pthread library
+find_package(Threads REQUIRED)
 
-# Find the readline library
 find_package(Readline QUIET)
 if(NOT Readline_FOUND)
-    # Try to find it manually
     find_path(Readline_INCLUDE_DIR readline/readline.h
         PATHS /usr/include /usr/local/include /opt/include /opt/local/include)
     find_library(Readline_LIBRARY NAMES readline
@@ -89,7 +74,6 @@ if(Readline_FOUND)
     include_directories(${Readline_INCLUDE_DIR})
 endif()
 
-# Source files
 set(SOURCE_FILES
     src/main.cpp
     src/terminalpassthrough.cpp
@@ -98,10 +82,8 @@ set(SOURCE_FILES
     src/thememanager.cpp
 )
 
-# Add the include directories for CURL
 include_directories(${CURL_INCLUDE_DIRS})
 
-# Find nlohmann_json package (Unix systems only)
 find_path(JSON_INCLUDE_DIR NAMES nlohmann/json.hpp
     PATHS
     /usr/include
@@ -118,66 +100,54 @@ else()
     include_directories("/usr/include/nlohmann")
 endif()
 
-# Find dl library (needed for dynamic loading in pluginmanager)
 find_library(DL_LIBRARY dl)
 if(NOT DL_LIBRARY)
     message(FATAL_ERROR "dl library not found")
 endif()
 
-# Option for static linking (better portability across Linux distributions)
 option(STATIC_LINKING "Link libraries statically for better portability" OFF)
 
-# Modify the executable target to create platform-specific builds
 if(APPLE)
-    # macOS build - now building for native architecture only
     add_executable(CJsShell_macOS ${SOURCE_FILES})
     set_target_properties(CJsShell_macOS PROPERTIES
         OUTPUT_NAME "cjsh-macos"
         RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
     )
     
-    # Add architecture info to build output for debugging
     message(STATUS "Building for macOS with architecture: ${CMAKE_OSX_ARCHITECTURES}")
     
-    # Fixed target_link_libraries call to properly handle CURL and isocline dependencies
     if(TARGET CURL::libcurl)
         target_link_libraries(CJsShell_macOS CURL::libcurl Threads::Threads isocline)
     else()
         target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads isocline)
     endif()
     
-    # Only link readline if found, otherwise isocline is already linked
     if(Readline_FOUND)
         target_link_libraries(CJsShell_macOS ${Readline_LIBRARY})
     endif()
     
-    # Add post-build message to show architecture info
     add_custom_command(TARGET CJsShell_macOS POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E echo "Built macOS binary with architecture: ${CMAKE_OSX_ARCHITECTURES}"
         COMMAND file ${MACOS_OUTPUT_DIR}/cjsh-macos
     )
 endif()
 
-# Linux build
 add_executable(CJsShell_Linux ${SOURCE_FILES})
 set_target_properties(CJsShell_Linux PROPERTIES
     OUTPUT_NAME "cjsh-linux"
     RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
 )
 
-# Fixed target_link_libraries call to properly handle CURL and isocline dependencies
 if(TARGET CURL::libcurl)
     target_link_libraries(CJsShell_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY} isocline)
 else()
     target_link_libraries(CJsShell_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY} isocline)
 endif()
 
-# Only link readline if found, otherwise isocline is already linked
 if(Readline_FOUND)
     target_link_libraries(CJsShell_Linux ${Readline_LIBRARY})
 endif()
 
-# Set rpath for Linux builds
 if(UNIX AND NOT APPLE)
     set_target_properties(CJsShell_Linux PROPERTIES
         INSTALL_RPATH "$ORIGIN/../lib"
@@ -185,13 +155,11 @@ if(UNIX AND NOT APPLE)
     )
 endif()
 
-# If static linking is enabled, try to find static versions of libraries
 if(STATIC_LINKING)
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
-# Package configuration
 include(InstallRequiredSystemLibraries)
 set(CPACK_GENERATOR "DEB;RPM;TGZ")
 set(CPACK_PACKAGE_VERSION_MAJOR "1")
@@ -200,10 +168,8 @@ set(CPACK_PACKAGE_VERSION_PATCH "0")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "CJ's Shell - A developer tools terminal")
 set(CPACK_PACKAGE_VENDOR "CJsShell")
 
-# Include CPack to enable packaging
 include(CPack)
 
-# Update install locations
 install(TARGETS CJsShell_Linux
     RUNTIME DESTINATION bin/linux
     CONFIGURATIONS Release

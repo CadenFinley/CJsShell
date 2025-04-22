@@ -16,12 +16,13 @@
 #include <pwd.h>
 #include <signal.h>
 #include <grp.h>
-#include <set>
 
 #include "include/terminalpassthrough.h"
 #include "include/openaipromptengine.h"
 #include "include/pluginmanager.h"
 #include "include/thememanager.h"
+
+// using isocline instead of custom implementation or GNU readline
 #include "../isocline/include/isocline.h"
 
 using json = nlohmann::json;
