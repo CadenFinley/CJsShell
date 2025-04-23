@@ -420,8 +420,6 @@ std::thread Terminal::executeCommand(std::string command) {
             
             std::string processedCommand = expandAliases(command);
             
-            processedCommand = processCommandSubstitution(processedCommand);
-            
             parseAndExecuteCommand(processedCommand, result);
             terminalCacheTerminalOutput.push_back(result);
             

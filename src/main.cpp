@@ -21,17 +21,14 @@
 #include "include/openaipromptengine.h"
 #include "include/pluginmanager.h"
 #include "include/thememanager.h"
-
-// using isocline instead of custom implementation or GNU readline
 #include "../isocline/include/isocline.h"
 
 using json = nlohmann::json;
 
-// Shell Scripting Constructs: Missing implementation for control structures like if/then/else, for/while loops, etc.
 
 // Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.1.0";
+const std::string currentVersion = "2.0.1.1";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -66,9 +63,7 @@ std::string currentCompletionPrefix;
 // Paths
 std::filesystem::path ACTUAL_SHELL_PATH = std::filesystem::path("/usr/local/bin/cjsh");
 std::string homeDir = std::getenv("HOME");
-std::filesystem::path INSTALL_PATH = std::getenv("CJSH_INSTALL_PATH") ? 
-    std::filesystem::path(std::getenv("CJSH_INSTALL_PATH")) : 
-    std::filesystem::path("/usr/local/bin") / "cjsh";
+std::filesystem::path INSTALL_PATH = std::getenv("CJSH_INSTALL_PATH") ? std::filesystem::path(std::getenv("CJSH_INSTALL_PATH")) : std::filesystem::path("/usr/local/bin") / "cjsh";
 std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".cjsh_data";
 std::filesystem::path CJSHRC_FILE = DATA_DIRECTORY / ".cjshrc";
 std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_uninstall.sh";
@@ -958,7 +953,7 @@ void commandParser(const std::string& command) {
     expandedCommand = expandEnvVariables(expandedCommand);
     
     // If we get here, process the command directly
-    commandProcesser(command);
+    commandProcesser(expandedCommand); // Use expandedCommand instead of original command
 }
 
 void addUserInputToHistory(const std::string& input) {
