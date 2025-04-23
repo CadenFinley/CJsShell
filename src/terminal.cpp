@@ -1,6 +1,6 @@
-#include "include/terminalpassthrough.h"
+#include "include/terminal.h"
 
-TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
+Terminal::Terminal() : displayWholePath(false) {
     currentDirectory = std::filesystem::current_path().string();
     terminalCacheUserInput = std::vector<std::string>();
     terminalCacheTerminalOutput = std::vector<std::string>();
@@ -13,16 +13,16 @@ TerminalPassthrough::TerminalPassthrough() : displayWholePath(false) {
     signal(SIGTTIN, SIG_IGN);
 }
 
-TerminalPassthrough::~TerminalPassthrough() {
+Terminal::~Terminal() {
     shouldTerminate = true;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
-std::string TerminalPassthrough::getTerminalName(){
+std::string Terminal::getTerminalName(){
     return terminalName;
 }
 
-std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(const bool& includeHidden, const bool& fullFilePath, const bool& includeDirectories){
+std::vector<std::string> Terminal::getFilesAtCurrentPath(const bool& includeHidden, const bool& fullFilePath, const bool& includeDirectories){
     std::vector<std::string> files;
     for (const auto& entry : std::filesystem::directory_iterator(getCurrentFilePath())) {
         if (includeHidden || entry.path().filename().string()[0] != '.') {
@@ -40,30 +40,30 @@ std::vector<std::string> TerminalPassthrough::getFilesAtCurrentPath(const bool& 
     return files;
 }
 
-void TerminalPassthrough::setDisplayWholePath(bool displayWholePath){
+void Terminal::setDisplayWholePath(bool displayWholePath){
     this->displayWholePath = displayWholePath;
 }
 
-void TerminalPassthrough::setAliases(const std::map<std::string, std::string>& aliases){
+void Terminal::setAliases(const std::map<std::string, std::string>& aliases){
     this->aliases = aliases;
 }
 
-std::string TerminalPassthrough::getFullPathOfFile(const std::string& file){
+std::string Terminal::getFullPathOfFile(const std::string& file){
     if (std::filesystem::exists (std::filesystem::path(getCurrentFilePath()) / file)) {
         return (std::filesystem::path(getCurrentFilePath()) / file).string();
     }
     return "";
 }
 
-void TerminalPassthrough::printCurrentTerminalPosition(){
+void Terminal::printCurrentTerminalPosition(){
     std::cout << returnCurrentTerminalPosition();
 }
 
-int TerminalPassthrough::getTerminalCurrentPositionRawLength(){
+int Terminal::getTerminalCurrentPositionRawLength(){
     return terminalCurrentPositionRawLength;
 }
 
-std::string TerminalPassthrough::returnCurrentTerminalPosition(){
+std::string Terminal::returnCurrentTerminalPosition(){
     int gitInfoLength = 0;
     std::string gitInfo;
     std::filesystem::path currentPath = std::filesystem::path(getCurrentFilePath());
@@ -252,7 +252,7 @@ std::string TerminalPassthrough::returnCurrentTerminalPosition(){
     }
 }
 
-std::string TerminalPassthrough::expandPromptFormat(const std::string& format) {
+std::string Terminal::expandPromptFormat(const std::string& format) {
     std::string result = format;
     
     // Get user info for prompt expansion
@@ -289,7 +289,7 @@ std::string TerminalPassthrough::expandPromptFormat(const std::string& format) {
     return result;
 }
 
-std::string TerminalPassthrough::expandAliases(const std::string& command) {
+std::string Terminal::expandAliases(const std::string& command) {
     std::istringstream iss(command);
     std::string commandName;
     iss >> commandName;
@@ -336,7 +336,7 @@ std::string TerminalPassthrough::expandAliases(const std::string& command) {
     return command;
 }
 
-std::string TerminalPassthrough::processCommandSubstitution(const std::string& command) {
+std::string Terminal::processCommandSubstitution(const std::string& command) {
     std::string result = command;
     std::string::size_type pos = 0;
     
@@ -412,7 +412,7 @@ std::string TerminalPassthrough::processCommandSubstitution(const std::string& c
     return result;
 }
 
-std::thread TerminalPassthrough::executeCommand(std::string command) {
+std::thread Terminal::executeCommand(std::string command) {
     addCommandToHistory(command);
     return std::thread([this, command = std::move(command)]() {
         try {
@@ -433,7 +433,7 @@ std::thread TerminalPassthrough::executeCommand(std::string command) {
     });
 }
 
-void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std::string& result) {
+void Terminal::parseAndExecuteCommand(const std::string& command, std::string& result) {
 
     std::vector<std::string> semicolonCommands;
     std::string tempCmd = command;
@@ -552,7 +552,7 @@ void TerminalPassthrough::parseAndExecuteCommand(const std::string& command, std
     result = commandResults;
 }
 
-std::vector<std::string> TerminalPassthrough::splitByPipes(const std::string& command) {
+std::vector<std::string> Terminal::splitByPipes(const std::string& command) {
     std::vector<std::string> result;
     std::string currentCommand;
     bool inQuotes = false;
@@ -598,7 +598,7 @@ std::vector<std::string> TerminalPassthrough::splitByPipes(const std::string& co
     return result;
 }
 
-bool TerminalPassthrough::executeCommandWithPipes(const std::vector<std::string>& commands, std::string& result) {
+bool Terminal::executeCommandWithPipes(const std::vector<std::string>& commands, std::string& result) {
     if (commands.empty()) {
         result = "Error: No commands to pipe";
         return false;
@@ -703,7 +703,7 @@ bool TerminalPassthrough::executeCommandWithPipes(const std::vector<std::string>
     return success;
 }
 
-bool TerminalPassthrough::handleRedirection(const std::string& command, std::vector<std::string>& args, 
+bool Terminal::handleRedirection(const std::string& command, std::vector<std::string>& args, 
                                            std::vector<RedirectionInfo>& redirections) {
     std::vector<std::string> cleanArgs;
     
@@ -763,7 +763,7 @@ bool TerminalPassthrough::handleRedirection(const std::string& command, std::vec
     return true;
 }
 
-bool TerminalPassthrough::setupRedirection(const std::vector<RedirectionInfo>& redirections, 
+bool Terminal::setupRedirection(const std::vector<RedirectionInfo>& redirections, 
                                          std::vector<int>& savedFds) {
     for (const auto& redir : redirections) {
         int flags, fd;
@@ -822,7 +822,7 @@ bool TerminalPassthrough::setupRedirection(const std::vector<RedirectionInfo>& r
     return true;
 }
 
-void TerminalPassthrough::restoreRedirection(const std::vector<int>& savedFds) {
+void Terminal::restoreRedirection(const std::vector<int>& savedFds) {
     for (int fd : savedFds) {
         if (fd >= 0) {
             close(fd);
@@ -830,7 +830,7 @@ void TerminalPassthrough::restoreRedirection(const std::vector<int>& savedFds) {
     }
 }
 
-bool TerminalPassthrough::executeIndividualCommand(const std::string& command, std::string& result) {
+bool Terminal::executeIndividualCommand(const std::string& command, std::string& result) {
     std::istringstream iss(command);
     std::string cmd;
     iss >> cmd;
@@ -1129,7 +1129,7 @@ bool TerminalPassthrough::executeIndividualCommand(const std::string& command, s
     return false;
 }
 
-void TerminalPassthrough::processExportCommand(const std::string& exportLine, std::string& result) {
+void Terminal::processExportCommand(const std::string& exportLine, std::string& result) {
     std::istringstream iss(exportLine);
     std::string assignment;
     bool success = false;
@@ -1174,7 +1174,7 @@ void TerminalPassthrough::processExportCommand(const std::string& exportLine, st
     }
 }
 
-std::string TerminalPassthrough::expandEnvironmentVariables(const std::string& input) {
+std::string Terminal::expandEnvironmentVariables(const std::string& input) {
     std::string result = input;
     size_t pos = 0;
     
@@ -1206,13 +1206,13 @@ std::string TerminalPassthrough::expandEnvironmentVariables(const std::string& i
     return result;
 }
 
-bool TerminalPassthrough::hasWildcard(const std::string& arg) {
+bool Terminal::hasWildcard(const std::string& arg) {
     return arg.find('*') != std::string::npos || 
            arg.find('?') != std::string::npos || 
            (arg.find('[') != std::string::npos && arg.find(']') != std::string::npos);
 }
 
-bool TerminalPassthrough::matchPattern(const std::string& pattern, const std::string& str) {
+bool Terminal::matchPattern(const std::string& pattern, const std::string& str) {
     size_t patIdx = 0;
     size_t strIdx = 0;
     size_t patLen = pattern.length();
@@ -1276,7 +1276,7 @@ bool TerminalPassthrough::matchPattern(const std::string& pattern, const std::st
     return patIdx == patLen && strIdx == strLen;
 }
 
-std::vector<std::string> TerminalPassthrough::expandWildcards(const std::string& pattern) {
+std::vector<std::string> Terminal::expandWildcards(const std::string& pattern) {
     std::vector<std::string> result;
     
     if (!hasWildcard(pattern)) {
@@ -1326,7 +1326,7 @@ std::vector<std::string> TerminalPassthrough::expandWildcards(const std::string&
     return result;
 }
 
-std::vector<std::string> TerminalPassthrough::expandWildcardsInArgs(const std::vector<std::string>& args) {
+std::vector<std::string> Terminal::expandWildcardsInArgs(const std::vector<std::string>& args) {
     if (args.empty()) return args;
     
     std::vector<std::string> result;
@@ -1345,7 +1345,7 @@ std::vector<std::string> TerminalPassthrough::expandWildcardsInArgs(const std::v
     return result;
 }
 
-bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, std::string& result) {
+bool Terminal::executeInteractiveCommand(const std::string& command, std::string& result) {
     struct termios term_attr;
     tcgetattr(STDIN_FILENO, &term_attr);
     
@@ -1438,7 +1438,7 @@ bool TerminalPassthrough::executeInteractiveCommand(const std::string& command, 
     }
 }
 
-pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool foreground) {
+pid_t Terminal::executeChildProcess(const std::string& command, bool foreground) {
     pid_t pid = fork();
     
     if (pid == -1) {
@@ -1511,7 +1511,7 @@ pid_t TerminalPassthrough::executeChildProcess(const std::string& command, bool 
     return pid;
 }
 
-bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& result) {
+bool Terminal::changeDirectory(const std::string& dir, std::string& result) {
     std::string targetDir = dir;
     
     if (targetDir.empty() || targetDir == "~") {
@@ -1576,7 +1576,7 @@ bool TerminalPassthrough::changeDirectory(const std::string& dir, std::string& r
     return true;
 }
 
-void TerminalPassthrough::waitForForegroundJob(pid_t pid) {
+void Terminal::waitForForegroundJob(pid_t pid) {
     struct termios term_settings;
     tcgetattr(STDIN_FILENO, &term_settings);
     
@@ -1601,7 +1601,7 @@ void TerminalPassthrough::waitForForegroundJob(pid_t pid) {
     tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
 }
 
-void TerminalPassthrough::updateJobStatus() {
+void Terminal::updateJobStatus() {
     std::lock_guard<std::mutex> lock(jobsMutex);
     for (auto it = jobs.begin(); it != jobs.end(); ) {
         int status;
@@ -1623,7 +1623,7 @@ void TerminalPassthrough::updateJobStatus() {
     }
 }
 
-void TerminalPassthrough::listJobs() {
+void Terminal::listJobs() {
     updateJobStatus();
     
     std::lock_guard<std::mutex> lock(jobsMutex);
@@ -1640,7 +1640,7 @@ void TerminalPassthrough::listJobs() {
     }
 }
 
-bool TerminalPassthrough::bringJobToForeground(int jobId) {
+bool Terminal::bringJobToForeground(int jobId) {
     updateJobStatus();
     
     std::lock_guard<std::mutex> lock(jobsMutex);
@@ -1669,7 +1669,7 @@ bool TerminalPassthrough::bringJobToForeground(int jobId) {
     return true;
 }
 
-bool TerminalPassthrough::sendJobToBackground(int jobId) {
+bool Terminal::sendJobToBackground(int jobId) {
     updateJobStatus();
     
     std::lock_guard<std::mutex> lock(jobsMutex);
@@ -1687,7 +1687,7 @@ bool TerminalPassthrough::sendJobToBackground(int jobId) {
     return true;
 }
 
-bool TerminalPassthrough::killJob(int jobId) {
+bool Terminal::killJob(int jobId) {
     updateJobStatus();
     
     std::lock_guard<std::mutex> lock(jobsMutex);
@@ -1714,43 +1714,43 @@ bool TerminalPassthrough::killJob(int jobId) {
     return true;
 }
 
-void TerminalPassthrough::toggleDisplayWholePath(){
+void Terminal::toggleDisplayWholePath(){
     setDisplayWholePath(!displayWholePath);
 }
 
-bool TerminalPassthrough::isDisplayWholePath(){
+bool Terminal::isDisplayWholePath(){
     return displayWholePath;
 }
 
-std::vector<std::string> TerminalPassthrough::getTerminalCacheUserInput(){
+std::vector<std::string> Terminal::getTerminalCacheUserInput(){
     return terminalCacheUserInput;
 }
 
-std::vector<std::string> TerminalPassthrough::getTerminalCacheTerminalOutput(){
+std::vector<std::string> Terminal::getTerminalCacheTerminalOutput(){
     return terminalCacheTerminalOutput;
 }
 
-void TerminalPassthrough::clearTerminalCache(){
+void Terminal::clearTerminalCache(){
     terminalCacheUserInput.clear();
     terminalCacheTerminalOutput.clear();
 }
 
-std::string TerminalPassthrough::returnMostRecentUserInput(){
+std::string Terminal::returnMostRecentUserInput(){
     return terminalCacheUserInput.back();
 }
 
-std::string TerminalPassthrough::returnMostRecentTerminalOutput(){
+std::string Terminal::returnMostRecentTerminalOutput(){
     return terminalCacheTerminalOutput.back();
 }
 
-std::string TerminalPassthrough::getCurrentFilePath(){
+std::string Terminal::getCurrentFilePath(){
     if (currentDirectory.empty()) {
         return std::filesystem::current_path().string();
     }
     return currentDirectory;
 }
 
-std::string TerminalPassthrough::getCurrentFileName(){
+std::string Terminal::getCurrentFileName(){
     std::string currentDirectory = getCurrentFilePath();
     std::string currentFileName = std::filesystem::path(currentDirectory).filename().string();
     if (currentFileName.empty()) {
@@ -1759,11 +1759,11 @@ std::string TerminalPassthrough::getCurrentFileName(){
     return currentFileName;
 }
 
-bool TerminalPassthrough::isRootPath(const std::filesystem::path& path){
+bool Terminal::isRootPath(const std::filesystem::path& path){
     return path == path.root_path();
 }
 
-void TerminalPassthrough::addCommandToHistory(const std::string& command) {
+void Terminal::addCommandToHistory(const std::string& command) {
     if (command.empty()) {
         return;
     }
@@ -1774,90 +1774,78 @@ void TerminalPassthrough::addCommandToHistory(const std::string& command) {
     terminalCacheUserInput.push_back(command);
 }
 
-void TerminalPassthrough::setShellColor(const std::string& color){
+void Terminal::setShellColor(const std::string& color){
     this->SHELL_COLOR = color;
 }
 
-void TerminalPassthrough::setDirectoryColor(const std::string& color){
+void Terminal::setDirectoryColor(const std::string& color){
     this->DIRECTORY_COLOR = color;
 }
 
-void TerminalPassthrough::setBranchColor(const std::string& color){
+void Terminal::setBranchColor(const std::string& color){
     this->BRANCH_COLOR = color;
 }
 
-void TerminalPassthrough::setGitColor(const std::string& color){
+void Terminal::setGitColor(const std::string& color){
     this->GIT_COLOR = color;
 }
 
-void TerminalPassthrough::setPromptFormat(const std::string& format){
+void Terminal::setPromptFormat(const std::string& format){
     this->PROMPT_FORMAT = format;
 }
 
-std::string TerminalPassthrough::getShellColor() const {
+std::string Terminal::getShellColor() const {
     return SHELL_COLOR;
 }
 
-std::string TerminalPassthrough::getDirectoryColor() const {
+std::string Terminal::getDirectoryColor() const {
     return DIRECTORY_COLOR;
 }
 
-std::string TerminalPassthrough::getBranchColor() const {
+std::string Terminal::getBranchColor() const {
     return BRANCH_COLOR;
 }
 
-std::string TerminalPassthrough::getGitColor() const {
+std::string Terminal::getGitColor() const {
     return GIT_COLOR;
 }
 
-std::string TerminalPassthrough::getPromptFormat() const {
+std::string Terminal::getPromptFormat() const {
     return PROMPT_FORMAT;
 }
 
-void TerminalPassthrough::terminateAllChildProcesses() {
+void Terminal::terminateAllChildProcesses() {
     std::lock_guard<std::mutex> lock(jobsMutex);
     
     if (jobs.empty()) {
         return;
     }
-    
-    // First pass: Try to terminate all jobs with SIGTERM
+
     for (const auto& job : jobs) {
-        // Try to kill the entire process group first
         if (kill(-job.pid, SIGTERM) < 0) {
-            // If that fails, try to kill just the process
             kill(job.pid, SIGTERM);
         }
     }
     
-    // Very brief grace period (reduced from 100ms to 10ms)
     usleep(10000);
     
-    // Second pass: Check if processes still exist and kill with SIGKILL
     for (const auto& job : jobs) {
-        if (kill(job.pid, 0) == 0) { // Process still exists
-            // Try to kill the entire process group first
+        if (kill(job.pid, 0) == 0) {
             if (kill(-job.pid, SIGKILL) < 0) {
-                // If that fails, kill just the process
                 kill(job.pid, SIGKILL);
             }
-            
-            // Don't wait for confirmation, just assume it worked
         }
     }
-    
-    // Final pass: One more SIGKILL to any survivors (paranoid approach)
-    usleep(5000); // Just 5ms wait
+    usleep(5000);
     for (const auto& job : jobs) {
         kill(-job.pid, SIGKILL);
         kill(job.pid, SIGKILL);
     }
     
-    // Clear the jobs list
     jobs.clear();
 }
 
-std::vector<std::string> TerminalPassthrough::parseCommandIntoArgs(const std::string& command) {
+std::vector<std::string> Terminal::parseCommandIntoArgs(const std::string& command) {
     std::vector<std::string> args;
     std::istringstream iss(command);
     std::string arg;
@@ -1895,7 +1883,7 @@ std::vector<std::string> TerminalPassthrough::parseCommandIntoArgs(const std::st
     return args;
 }
 
-std::string TerminalPassthrough::findExecutableInPath(const std::string& command) {
+std::string Terminal::findExecutableInPath(const std::string& command) {
     if (aliases.find(command) != aliases.end()) {
         return command;
     }

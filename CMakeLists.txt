@@ -111,7 +111,7 @@ endif()
 
 set(SOURCE_FILES
     src/main.cpp
-    src/terminalpassthrough.cpp
+    src/terminal.cpp
     src/openaipromptengine.cpp
     src/pluginmanager.cpp
     src/thememanager.cpp

@@ -1,5 +1,5 @@
-#ifndef TERMINALPASSTHROUGH_H
-#define TERMINALPASSTHROUGH_H
+#ifndef TERMINAL_H
+#define TERMINAL_H
 #include <string>
 #include <thread>
 #include <vector>
@@ -20,7 +20,7 @@
 #include <termios.h>
 #include <atomic>
 
-class TerminalPassthrough {
+class Terminal {
 public:
     struct Job {
         pid_t pid;
@@ -37,8 +37,8 @@ public:
         std::string file;
     };
 
-    TerminalPassthrough();
-    ~TerminalPassthrough();
+    Terminal();
+    ~Terminal();
 
     std::string getTerminalName();
     std::string returnCurrentTerminalPosition();
@@ -155,4 +155,4 @@ private:
     bool executeInteractiveCommand(const std::string& command, std::string& result);
 };
 
-#endif // TERMINALPASSTHROUGH_H
+#endif // Terminal_H

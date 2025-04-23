@@ -17,7 +17,7 @@
 #include <signal.h>
 #include <grp.h>
 
-#include "include/terminalpassthrough.h"
+#include "include/terminal.h"
 #include "include/openaipromptengine.h"
 #include "include/pluginmanager.h"
 #include "include/thememanager.h"
@@ -107,7 +107,7 @@ std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
 // Objects
 OpenAIPromptEngine c_assistant;
-TerminalPassthrough terminal;
+Terminal terminal;
 PluginManager* pluginManager = nullptr;
 ThemeManager* themeManager = nullptr;
 
