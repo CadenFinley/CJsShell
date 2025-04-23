@@ -448,7 +448,6 @@ void mainProcessLoop() {
                 break;
             }
         } else {
-            std::cout << std::endl;
             exitFlag = true;
         }
 
@@ -2942,8 +2941,21 @@ void resetTerminalOnExit() {
     
     terminal.setTerminationFlag(true);
     
+    // Be more aggressive in terminating all child processes
+    terminal.terminateAllChildProcesses();
+    
+    // Secondary failsafe: Kill any remaining processes in our process group
+    pid_t pgid = getpgid(0);
+    if (pgid > 0 && pgid != 1) {
+        killpg(pgid, SIGTERM);
+        usleep(10000); // Brief 10ms grace period
+        killpg(pgid, SIGKILL); // Force kill any remaining processes
+    }
+    
+    // Final sweep of remaining jobs as last resort
     for (const auto& job : terminal.getActiveJobs()) {
-        kill(-job.pid, SIGTERM);
+        kill(-job.pid, SIGKILL);
+        kill(job.pid, SIGKILL);
     }
 }
 

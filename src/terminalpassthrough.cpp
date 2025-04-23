@@ -1816,19 +1816,44 @@ std::string TerminalPassthrough::getPromptFormat() const {
 
 void TerminalPassthrough::terminateAllChildProcesses() {
     std::lock_guard<std::mutex> lock(jobsMutex);
+    
+    if (jobs.empty()) {
+        return;
+    }
+    
+    // First pass: Try to terminate all jobs with SIGTERM
     for (const auto& job : jobs) {
+        // Try to kill the entire process group first
         if (kill(-job.pid, SIGTERM) < 0) {
+            // If that fails, try to kill just the process
             kill(job.pid, SIGTERM);
         }
-        
-        usleep(100000);
-        
-        if (kill(job.pid, 0) == 0) {
+    }
+    
+    // Very brief grace period (reduced from 100ms to 10ms)
+    usleep(10000);
+    
+    // Second pass: Check if processes still exist and kill with SIGKILL
+    for (const auto& job : jobs) {
+        if (kill(job.pid, 0) == 0) { // Process still exists
+            // Try to kill the entire process group first
             if (kill(-job.pid, SIGKILL) < 0) {
+                // If that fails, kill just the process
                 kill(job.pid, SIGKILL);
             }
+            
+            // Don't wait for confirmation, just assume it worked
         }
     }
+    
+    // Final pass: One more SIGKILL to any survivors (paranoid approach)
+    usleep(5000); // Just 5ms wait
+    for (const auto& job : jobs) {
+        kill(-job.pid, SIGKILL);
+        kill(job.pid, SIGKILL);
+    }
+    
+    // Clear the jobs list
     jobs.clear();
 }
 
