@@ -8,7 +8,6 @@ INSTALL_PATH="/usr/local/bin"
 APP_PATH="$INSTALL_PATH/$APP_NAME"
 GITHUB_API_URL="https://api.github.com/repos/cadenfinley/CJsShell/releases/latest"
 UNINSTALL_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/CJsShell/master/tool-scripts/cjsh_uninstall.sh"
-UPDATE_SCRIPT_URL="https://raw.githubusercontent.com/cadenfinley/CJsShell/master/tool-scripts/cjsh_update.sh"
 SET_AS_DEFAULT_SHELL=false
 REGISTER_AS_FILE_HANDLER=false
 SHELLS_FILE="/etc/shells"
@@ -218,8 +217,7 @@ EOF
 fi
 
 echo "Installation complete! CJ's Shell has been installed to $APP_PATH"
-echo "Uninstall script saved to $DATA_DIR/cjsh-uninstall.sh"
-echo "Update script saved to $DATA_DIR/cjsh-update.sh"
+echo "Uninstall script saved to $DATA_DIR/cjsh_uninstall.sh"
 
 if ! $SET_AS_DEFAULT_SHELL; then
     echo "To set as your default shell, run: chsh -s $APP_PATH"
