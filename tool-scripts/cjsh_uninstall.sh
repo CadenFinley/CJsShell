@@ -12,7 +12,7 @@ SHELLS_FILE="/etc/shells"
 REMOVE_USER_DATA=false
 for arg in "$@"; do
     if [ "$arg" = "--all" ]; then
-        REMOVE_USER_DATA=true
+        REMOVE_USER_DATA=true;
     fi
 done
 
@@ -31,7 +31,7 @@ read
 # Check if the binary exists
 if [ -f "$APP_PATH" ]; then
     echo "Removing CJ's Shell binary from $APP_PATH (requires sudo)..."
-    sudo rm -f "$APP_PATH"
+    sudo -S rm -f "$APP_PATH"
     if [ $? -ne 0 ]; then
         echo "Error: Failed to remove CJ's Shell binary. Please check your permissions."
     else
@@ -44,14 +44,14 @@ fi
 # Remove from /etc/shells
 if grep -q "^$APP_PATH$" "$SHELLS_FILE"; then
     echo "Removing CJ's Shell from $SHELLS_FILE (requires sudo)..."
-    sudo sed -i.bak "\|^$APP_PATH$|d" "$SHELLS_FILE"
+    sudo -S sed -i.bak "\|^$APP_PATH$|d" "$SHELLS_FILE"
     if [ $? -ne 0 ]; then
         echo "Warning: Failed to remove CJ's Shell from $SHELLS_FILE."
     else
         echo "Entry removed from $SHELLS_FILE successfully."
         # Remove backup file created by sed on macOS
         if [ -f "${SHELLS_FILE}.bak" ]; then
-            sudo rm -f "${SHELLS_FILE}.bak"
+            sudo -S rm -f "${SHELLS_FILE}.bak"
         fi
     fi
 fi
