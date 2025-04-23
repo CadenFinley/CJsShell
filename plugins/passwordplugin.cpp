@@ -1,4 +1,4 @@
-#include "plugininterface.h"
+#include "../src/include/plugininterface.h"
 #include <iostream>
 #include <string>
 #include <map>
@@ -13,7 +13,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <filesystem>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 

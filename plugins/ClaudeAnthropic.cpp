@@ -1,4 +1,4 @@
-#include "plugininterface.h"
+#include "../src/include/plugininterface.h"
 #include <iostream>
 #include <map>
 #include <vector>
@@ -8,7 +8,7 @@
 #include <fstream>
 #include <filesystem>
 #include <queue>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 // clang++ -dynamiclib -fPIC -O2 -std=c++11 -o ClaudeAnthropic.dylib ClaudeAnthropic.cpp -lcurl
 

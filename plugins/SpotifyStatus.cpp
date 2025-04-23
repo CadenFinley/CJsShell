@@ -1,10 +1,10 @@
-#include "plugininterface.h"
+#include "../src/include/plugininterface.h"
 #include <iostream>
 #include <fstream>
 #include <chrono>
 #include <thread>
 #include <mutex>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <filesystem>
 #include <cstdio>
 #include <memory>

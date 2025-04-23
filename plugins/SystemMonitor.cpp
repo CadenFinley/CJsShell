@@ -1,4 +1,4 @@
-#include "plugininterface.h"
+#include "../src/include/plugininterface.h"
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 #include <sys/statvfs.h>
