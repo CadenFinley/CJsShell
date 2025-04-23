@@ -28,7 +28,7 @@ using json = nlohmann::json;
 
 // Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.1.2";
+const std::string currentVersion = "2.0.1.3";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -541,7 +541,6 @@ void setupLoginShell() {
             homeDir + "/.bashrc",
             homeDir + "/.zprofile",
             homeDir + "/.zshrc",
-            homeDir + "/.cjshrc",
             CJSHRC_FILE.string()
         };
         
@@ -821,6 +820,49 @@ void saveAliasToCJSHRC(const std::string& name, const std::string& value) {
         outFile.close();
     } else {
         std::cerr << "Error: Could not save alias to " << cjshrcPath << std::endl;
+    }
+}
+
+void saveEnvironmentVariableToCJSHRC(const std::string& name, const std::string& value) {
+    std::filesystem::path cjshrcPath = CJSHRC_FILE;
+
+    if (!std::filesystem::exists(cjshrcPath)) {
+        createDefaultCJSHRC();
+    }
+    
+    std::ifstream inFile(cjshrcPath);
+    std::string content;
+    if (inFile.is_open()) {
+        std::string line;
+        bool exportExists = false;
+        std::stringstream newContent;
+        
+        while (std::getline(inFile, line)) {
+            if (line.find("export " + name + "=") == 0) {
+                newContent << "export " << name << "='" << value << "'" << std::endl;
+                exportExists = true;
+            } else {
+                newContent << line << std::endl;
+            }
+        }
+        
+        if (!exportExists) {
+            newContent << "export " << name << "='" << value << "'" << std::endl;
+        }
+        
+        content = newContent.str();
+        inFile.close();
+    } else {
+        content = "# CJ's Shell RC File\n\n";
+        content += "export " + name + "='" + value + "'\n";
+    }
+    
+    std::ofstream outFile(cjshrcPath, std::ios::trunc);
+    if (outFile.is_open()) {
+        outFile << content;
+        outFile.close();
+    } else {
+        std::cerr << "Error: Could not save environment variable to " << cjshrcPath << std::endl;
     }
 }
 
@@ -1107,7 +1149,6 @@ void commandProcesser(const std::string& originalPassedCommand) {
         return;
     } else {
 
-        // send to plugins
         std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
         if (!enabledPlugins.empty()) {
             std::queue<std::string> tempQueue;
@@ -1139,6 +1180,20 @@ void commandProcesser(const std::string& originalPassedCommand) {
                 unsetenv("CJSH_SAVE_ALIAS");
                 unsetenv("CJSH_SAVE_ALIAS_NAME");
                 unsetenv("CJSH_SAVE_ALIAS_VALUE");
+            }
+        }
+
+        const char* saveEnv = getenv("CJSH_SAVE_ENV");
+        if (saveEnv && strcmp(saveEnv, "1") == 0) {
+            const char* envName = getenv("CJSH_SAVE_ENV_NAME");
+            const char* envValue = getenv("CJSH_SAVE_ENV_VALUE");
+                
+            if (envName && envValue) {
+                saveEnvironmentVariableToCJSHRC(envName, envValue);
+                    
+                unsetenv("CJSH_SAVE_ENV");
+                unsetenv("CJSH_SAVE_ENV_NAME");
+                unsetenv("CJSH_SAVE_ENV_VALUE");
             }
         }
     }

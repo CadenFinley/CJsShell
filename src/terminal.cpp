@@ -1149,6 +1149,11 @@ void Terminal::processExportCommand(const std::string& exportLine, std::string& 
             
             if (setenv(name.c_str(), value.c_str(), 1) == 0) {
                 success = true;
+                
+                // Signal to the main program to save this environment variable
+                setenv("CJSH_SAVE_ENV_NAME", name.c_str(), 1);
+                setenv("CJSH_SAVE_ENV_VALUE", value.c_str(), 1);
+                setenv("CJSH_SAVE_ENV", "1", 1);
             } else {
                 failures.push_back(name + "=" + value + " (" + strerror(errno) + ")");
             }
