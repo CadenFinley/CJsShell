@@ -28,7 +28,7 @@ using json = nlohmann::json;
 
 // Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.1.3";
+const std::string currentVersion = "2.0.1.4";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -2445,13 +2445,18 @@ bool downloadLatestRelease() {
         std::thread cpThread = terminal.executeCommand(cpCommand);
         cpThread.join();
         
-        // Verify the copy succeeded
+        // Verify the copy succeeded by checking timestamps
         if (std::filesystem::exists(INSTALL_PATH)) {
-            // Set permissions on the installed file
-            std::string finalChmodCommand = "chmod 755 " + INSTALL_PATH.string();
-            std::thread finalChmodThread = terminal.executeCommand(finalChmodCommand);
-            finalChmodThread.join();
-            updateSuccess = true;
+            auto newFileTime = std::filesystem::last_write_time(outputPath);
+            auto destFileTime = std::filesystem::last_write_time(INSTALL_PATH);
+            
+            if (newFileTime == destFileTime) {
+                // Set permissions on the installed file
+                std::string finalChmodCommand = "chmod 755 " + INSTALL_PATH.string();
+                std::thread finalChmodThread = terminal.executeCommand(finalChmodCommand);
+                finalChmodThread.join();
+                updateSuccess = true;
+            }
         }
     }
     
@@ -2465,13 +2470,26 @@ bool downloadLatestRelease() {
         std::thread sudoThread = terminal.executeCommand(sudoCommand);
         sudoThread.join();
         
-        // Verify sudo copy worked
+        // Add a small delay to ensure file system updates are registered
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        
+        // Verify sudo copy worked by checking timestamps
         if (std::filesystem::exists(INSTALL_PATH)) {
-            // Set permissions with sudo
-            std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
-            std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
-            sudoChmodThread.join();
-            updateSuccess = true;
+            // Compare file sizes as a fallback verification method since sudo might change timestamp
+            auto newFileSize = std::filesystem::file_size(outputPath);
+            auto destFileSize = std::filesystem::file_size(INSTALL_PATH);
+            
+            if (newFileSize == destFileSize) {
+                // Set permissions with sudo
+                std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
+                std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
+                sudoChmodThread.join();
+                updateSuccess = true;
+            } else {
+                std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
+            }
+        } else {
+            std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
         }
     }
     
@@ -2479,6 +2497,7 @@ bool downloadLatestRelease() {
     if (!updateSuccess) {
         std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
         std::cout << "sudo cp " << outputPath << " " << INSTALL_PATH.string() << std::endl;
+        std::cout << "sudo chmod 755 " << INSTALL_PATH.string() << std::endl;
         std::cout << "Please ensure you have the necessary permissions." << std::endl;
     }
     

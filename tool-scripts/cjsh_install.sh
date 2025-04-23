@@ -123,16 +123,7 @@ curl -L "$UNINSTALL_SCRIPT_URL" -o "$DATA_DIR/cjsh_uninstall.sh"
 if [ $? -ne 0 ]; then
     echo "Warning: Failed to download uninstall script."
 else
-    chmod +x "$DATA_DIR/cjsh-uninstall.sh"
-fi
-
-# Download update script
-echo "Downloading update script..."
-curl -L "$UPDATE_SCRIPT_URL" -o "$DATA_DIR/cjsh_update.sh"
-if [ $? -ne 0 ]; then
-    echo "Warning: Failed to download update script."
-else
-    chmod +x "$DATA_DIR/cjsh_update.sh"
+    chmod +x "$DATA_DIR/cjsh_uninstall.sh"
 fi
 
 # Add to /etc/shells if not already there
