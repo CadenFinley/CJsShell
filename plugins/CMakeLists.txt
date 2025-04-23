@@ -37,6 +37,10 @@ FetchContent_MakeAvailable(json)
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
 
+# Find OpenSSL for plugins that need cryptographic functionality
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
 # Build plugins directly from this directory
 file(GLOB PLUGIN_SOURCES "*.cpp")
 message(STATUS "Found plugin source files: ${PLUGIN_SOURCES}")
@@ -71,6 +75,13 @@ if(PLUGIN_SOURCES)
         if(NOT ${curl_dependency_pos} EQUAL -1)
             message(STATUS "Plugin ${plugin_name} uses libcurl, linking library")
             target_link_libraries(${plugin_name} PRIVATE ${CURL_LIBRARIES})
+        endif()
+        
+        # Check if this plugin uses OpenSSL
+        string(FIND "${plugin_content}" "<openssl/" openssl_dependency_pos)
+        if(NOT ${openssl_dependency_pos} EQUAL -1)
+            message(STATUS "Plugin ${plugin_name} uses OpenSSL, linking library")
+            target_link_libraries(${plugin_name} PRIVATE ${OPENSSL_LIBRARIES})
         endif()
     endforeach()
 else()
