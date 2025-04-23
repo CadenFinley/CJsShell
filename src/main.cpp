@@ -483,11 +483,34 @@ void handleFileExecution(const std::string& filePath) {
     std::filesystem::path path(filePath);
     std::string extension = path.extension().string();
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    
+
     if (access(filePath.c_str(), X_OK) == 0) {
         std::cout << "Executing file: " << filePath << std::endl;
         terminal.executeCommand(filePath).join();
         return;
+    }
+    
+    std::ifstream file(filePath);
+    if (file.is_open()) {
+        std::string firstLine;
+        std::getline(file, firstLine);
+        file.close();
+        
+        if (firstLine.size() > 2 && firstLine[0] == '#' && firstLine[1] == '!') {
+            std::string interpreter = firstLine.substr(2);
+            interpreter.erase(0, interpreter.find_first_not_of(" \t"));
+            
+            std::string interpreterCmd;
+            size_t spacePos = interpreter.find(' ');
+            if (spacePos != std::string::npos) {
+                interpreterCmd = interpreter.substr(0, spacePos);
+                std::string args = interpreter.substr(spacePos + 1);
+                terminal.executeCommand(interpreterCmd + " " + args + " \"" + filePath + "\"").join();
+            } else {
+                terminal.executeCommand(interpreter + " \"" + filePath + "\"").join();
+            }
+            return;
+        }
     }
     
     if (extension == ".sh") {
