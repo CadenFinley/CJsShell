@@ -2377,32 +2377,54 @@ bool downloadLatestRelease() {
     std::thread chmodThread = terminal.executeCommand(chmodCommand);
     chmodThread.join();
     
-    // Check if we have write permission to the install location
-    bool hasPermission = (access(INSTALL_PATH.parent_path().c_str(), W_OK) == 0);
+    // Try direct copy first
+    bool updateSuccess = false;
+    std::string installDir = INSTALL_PATH.parent_path().string();
     
-    if (hasPermission) {
-        // Use terminalpassthrough to copy the file
+    // Check if we can write to the install directory
+    bool hasDirectWriteAccess = (access(installDir.c_str(), W_OK) == 0);
+    
+    if (hasDirectWriteAccess) {
+        std::cout << "Installing update..." << std::endl;
         std::string cpCommand = "cp " + outputPath + " " + INSTALL_PATH.string();
         std::thread cpThread = terminal.executeCommand(cpCommand);
         cpThread.join();
         
-        // Set permissions
-        std::string finalChmodCommand = "chmod 755 " + INSTALL_PATH.string();
-        std::thread finalChmodThread = terminal.executeCommand(finalChmodCommand);
-        finalChmodThread.join();
-    } else {
-        // Need to use sudo
-        std::cout << "Administrator privileges required to complete the update." << std::endl;
+        // Verify the copy succeeded
+        if (std::filesystem::exists(INSTALL_PATH)) {
+            // Set permissions on the installed file
+            std::string finalChmodCommand = "chmod 755 " + INSTALL_PATH.string();
+            std::thread finalChmodThread = terminal.executeCommand(finalChmodCommand);
+            finalChmodThread.join();
+            updateSuccess = true;
+        }
+    }
+    
+    // If direct copy failed, try with sudo
+    if (!updateSuccess) {
+        std::cout << "Administrator privileges required to install the update." << std::endl;
+        std::cout << "Please enter your password if prompted." << std::endl;
         
-        // Use terminalpassthrough for sudo operations
-        std::string sudoCpCommand = "sudo cp " + outputPath + " " + INSTALL_PATH.string();
-        std::thread sudoCpThread = terminal.executeCommand(sudoCpCommand);
-        sudoCpThread.join();
+        // Try with sudo
+        std::string sudoCommand = "sudo cp " + outputPath + " " + INSTALL_PATH.string();
+        std::thread sudoThread = terminal.executeCommand(sudoCommand);
+        sudoThread.join();
         
-        // Set permissions with sudo
-        std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
-        std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
-        sudoChmodThread.join();
+        // Verify sudo copy worked
+        if (std::filesystem::exists(INSTALL_PATH)) {
+            // Set permissions with sudo
+            std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
+            std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
+            sudoChmodThread.join();
+            updateSuccess = true;
+        }
+    }
+    
+    // If sudo also failed, offer alternative installation
+    if (!updateSuccess) {
+        std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
+        std::cout << "sudo cp " << outputPath << " " << INSTALL_PATH.string() << std::endl;
+        std::cout << "Please ensure you have the necessary permissions." << std::endl;
     }
     
     // Clean up
@@ -2418,7 +2440,7 @@ bool downloadLatestRelease() {
         }
     }
 
-    return true;
+    return updateSuccess;
 }
 
 bool executeUpdateIfAvailable(bool updateAvailable) {
@@ -2434,7 +2456,8 @@ bool executeUpdateIfAvailable(bool updateAvailable) {
     saveUpdateCache(false, cachedLatestVersion);
     
     if (!downloadLatestRelease()) {
-        std::cout << "Failed to download the update. Please try again later." << std::endl;
+        std::cout << "Failed to download or install the update. Please try again later or manually update." << std::endl;
+        std::cout << "You can download the latest version from: " << githubRepoURL << "/releases/latest" << std::endl;
         saveUpdateCache(true, cachedLatestVersion);
         return false;
     }
