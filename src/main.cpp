@@ -400,7 +400,7 @@ void mainProcessLoop() {
     ic_set_history("", -1);
     ic_set_prompt_marker("", NULL);
     ic_enable_hint(true);
-    ic_set_hint_delay(100);
+    ic_set_hint_delay(50);
     ic_enable_completion_preview(true);
     
     while (true) {
@@ -3314,8 +3314,7 @@ void processProfileFile(const std::string& filePath) {
                 
                 std::string cmd = line.substr(cmdStartPos, cmdEndPos - cmdStartPos);
                 cmd.erase(0, cmd.find_first_not_of(" \t"));
-                cmd.erase(0, cmd.find_first_not_of(" \t\"'"));
-                cmd.erase(cmd.find_last_not_of(" \t\"'") + 1);
+                cmd.erase(cmd.find_last_not_of(" \t") + 1);
                 
                 std::string pathEnv = getenv("PATH") ? getenv("PATH") : "";
                 std::istringstream pathStream(pathEnv);
