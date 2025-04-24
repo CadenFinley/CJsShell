@@ -29,7 +29,7 @@ using json = nlohmann::json;
 // user auth
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.6";
+const std::string currentVersion = "2.0.2.7";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -578,13 +578,20 @@ void setupLoginShell() {
 
 void setAsShell() {
     std::string shellPath = INSTALL_PATH.string();
-    if (!terminal.executeCommandSync( "grep -Fxq \"" + shellPath + "\" /etc/shells")) {
-        terminal.executeCommandSync( "echo \"" + shellPath + "\" | sudo tee -a /etc/shells");
+    {
+        std::string checkCmd = "grep -Fxq \"" + shellPath + "\" /etc/shells";
+        if (system(checkCmd.c_str()) != 0) {
+            std::string addCmd = "echo \"" + shellPath + "\" | sudo tee -a /etc/shells";
+            system(addCmd.c_str());
+        }
     }
-    if (terminal.executeCommandSync("sudo chsh -s \"" + shellPath + "\"")) {
-        std::cout << "Default shell set to " << shellPath << "\n";
-    } else {
-        std::cerr << "Error: Failed to change default shell.\n";
+    {
+        std::string chshCmd = "sudo chsh -s \"" + shellPath + "\"";
+        if (system(chshCmd.c_str()) == 0) {
+            std::cout << "Default shell set to " << shellPath << "\n";
+        } else {
+            std::cerr << "Error: Failed to change default shell.\n";
+        }
     }
 }
 
