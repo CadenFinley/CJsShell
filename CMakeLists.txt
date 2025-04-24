@@ -99,3 +99,8 @@ endif()
 if(JSON_USE_FETCHCONTENT)
     target_link_libraries(cjsh PRIVATE nlohmann_json::nlohmann_json)
 endif()
+
+# install the cjsh executable so `cmake --install` actually places it into bin/
+install(TARGETS cjsh
+    RUNTIME DESTINATION bin
+)
