@@ -29,7 +29,7 @@ using json = nlohmann::json;
 // user auth
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.3.0";
+const std::string currentVersion = "2.0.2.4";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -336,6 +336,9 @@ int main(int argc, char* argv[]) {
                     }
                 });
             } else if (cachedUpdateAvailable) {
+                if (!silentCheckForUpdates) {
+                    std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
+                }
                 executeUpdateIfAvailable(true);
             }
         });
@@ -1222,7 +1225,6 @@ void printHelp() {
     std::cout << " -d, --debug: Enable debug mode" << std::endl;
     std::cout << " -c, --command: Specify a command to execute" << std::endl;
     std::cout << " -l, --login: Run as a login shell" << std::endl;
-    std::cout << " --set-as-shell: Set cjsh as your default login shell" << std::endl;
     std::cout << std::endl;
     
     std::cout << " Available interactive session commands:" << std::endl;
@@ -1653,6 +1655,7 @@ void manualUpdateCheck() {
     bool updateAvailable = checkFromUpdate_Github(isNewerVersion);
     
     if (updateAvailable) {
+        std::cout << "An update is available!" << std::endl;
         executeUpdateIfAvailable(updateAvailable);
     } else {
         std::cout << "You are up to date." << std::endl;
@@ -2564,8 +2567,54 @@ bool downloadLatestRelease() {
 
 bool executeUpdateIfAvailable(bool updateAvailable) {
     if (!updateAvailable) return false;
-    std::cout << "There is a new version available.\nRun the following command to update:" << std::endl;
-    std::cout << " 'brew upgrade cjsh'" << std::endl;
+    
+    std::cout << "\nAn update is available. Would you like to download it? (Y/N): ";
+    char response;
+    std::cin >> response;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if (response != 'Y' && response != 'y') return false;
+    
+    saveUpdateCache(false, cachedLatestVersion);
+    
+    if (!downloadLatestRelease()) {
+        std::cout << "Failed to download or install the update. Please try again later or manually update." << std::endl;
+        std::cout << "You can download the latest version from: " << githubRepoURL << "/releases/latest" << std::endl;
+        saveUpdateCache(true, cachedLatestVersion);
+        return false;
+    }
+    
+    std::cout << "Update installed successfully! Would you like to restart now? (Y/N): ";
+    std::cin >> response;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if (response == 'Y' || response == 'y') {
+        std::cout << "Restarting application..." << std::endl;
+        
+        
+        if (saveOnExit) {
+            savedChatCache = c_assistant.getChatCache();
+            writeUserData();
+        }
+        
+        
+        if (isLoginShell) {
+            cleanupLoginShell();
+        }
+        
+        delete pluginManager;
+        delete themeManager;
+        
+        
+        execl(INSTALL_PATH.c_str(), INSTALL_PATH.c_str(), NULL);
+        
+        
+        std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
+        exit(0);
+    } else {
+        std::cout << "Please restart the application to use the new version." << std::endl;
+    }
+    
     return true;
 }
 
