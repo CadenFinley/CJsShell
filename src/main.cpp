@@ -29,7 +29,7 @@ using json = nlohmann::json;
 // user auth
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.9";
+const std::string currentVersion = "2.0.2.8";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -2416,27 +2416,176 @@ bool checkForUpdate() {
 }
 
 bool downloadLatestRelease() {
-    std::cout << "CJ's Shell was installed using Homebrew." << std::endl;
-    std::cout << "To update to the latest version, please run:" << std::endl;
-    std::cout << BLUE_COLOR_BOLD << "brew upgrade cjsh" << RESET_COLOR << std::endl;
-    std::cout << "After updating, restart CJ's Shell to use the new version." << std::endl;
+    std::cout << "Downloading latest release..." << std::endl;
     
-    // Save the update as acknowledged
+    std::filesystem::path tempDir = DATA_DIRECTORY / "temp_update";
+    if (std::filesystem::exists(tempDir)) {
+        std::filesystem::remove_all(tempDir);
+    }
+    std::filesystem::create_directory(tempDir);
+
+    std::string downloadUrl;
+    // Fetch actual asset URL from GitHub API
+    {
+        std::string apiCmd = "curl -s " + updateURL_Github;
+        std::string apiResult;
+        FILE* apiPipe = popen(apiCmd.c_str(), "r");
+        if (apiPipe) {
+            char buf[128];
+            while (fgets(buf, sizeof(buf), apiPipe)) apiResult += buf;
+            pclose(apiPipe);
+            try {
+                auto apiJson = json::parse(apiResult);
+
+                // determine expected asset name by OS
+                std::string osSuffix;
+    #if defined(__APPLE__)
+                osSuffix = "macos";
+    #elif defined(__linux__)
+                osSuffix = "linux";
+    #else
+                osSuffix = "";
+    #endif
+                std::string expected = "cjsh" + (osSuffix.empty() ? "" : "-" + osSuffix);
+
+                // find matching asset
+                for (const auto& asset : apiJson["assets"]) {
+                    std::string name = asset.value("name", "");
+                    if (name == expected || (downloadUrl.empty() && name == "cjsh")) {
+                        downloadUrl = asset.value("browser_download_url", "");
+                        if (name == expected) break;
+                    }
+                }
+            } catch (...) {}
+        }
+    }
+    if (downloadUrl.empty()) {
+        std::cerr << "Error: Unable to determine download URL." << std::endl;
+        return false;
+    }
+
+    // save into temp with original asset filename, then rename to "cjsh"
+    std::string assetName = downloadUrl.substr(downloadUrl.find_last_of('/') + 1);
+    std::filesystem::path assetPath = tempDir / assetName;
+    std::string curlCommand = "curl -L -s " + downloadUrl + " -o " + assetPath.string();
+    std::thread downloadThread = terminal.executeCommand(curlCommand);
+    downloadThread.join();
+
+    if (!std::filesystem::exists(assetPath)) {
+        std::cerr << "Error: Download failed - output file not created." << std::endl;
+        return false;
+    }
+
+    // rename for consistency
+    std::filesystem::path outputPath = tempDir / "cjsh";
+    std::filesystem::rename(assetPath, outputPath);
+
+    std::string chmodCommand = "chmod 755 " + outputPath.string();
+    std::thread chmodThread = terminal.executeCommand(chmodCommand);
+    chmodThread.join();
+
+    bool updateSuccess = false;
+    std::cout << "Administrator privileges required to install the update." << std::endl;
+    std::cout << "Please enter your password if prompted." << std::endl;
+
+    std::string sudoCommand = "sudo cp " + outputPath.string() + " " + INSTALL_PATH.string();
+    std::thread sudoThread = terminal.executeCommand(sudoCommand);
+    sudoThread.join();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    if (std::filesystem::exists(INSTALL_PATH)) {
+        
+        auto newFileSize = std::filesystem::file_size(outputPath);
+        auto destFileSize = std::filesystem::file_size(INSTALL_PATH);
+        
+        if (newFileSize == destFileSize) {
+            
+            std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
+            std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
+            sudoChmodThread.join();
+            updateSuccess = true;
+            std::cout << "Update installed successfully with administrator privileges." << std::endl;
+        } else {
+            std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
+        }
+    } else {
+        std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
+    }
+
+    if (!updateSuccess) {
+        std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
+        std::cout << "sudo cp " << outputPath.string() << " " << INSTALL_PATH.string() << std::endl;
+        std::cout << "sudo chmod 755 " << INSTALL_PATH.string() << std::endl;
+        std::cout << "Please ensure you have the necessary permissions." << std::endl;
+    }
+
+    std::string cleanupCommand = "rm -rf " + tempDir.string();
+    std::thread cleanupThread = terminal.executeCommand(cleanupCommand);
+    cleanupThread.join();
+
+    
     if (std::filesystem::exists(UPDATE_CACHE_FILE)) {
         std::filesystem::remove(UPDATE_CACHE_FILE);
         if (TESTING) {
             std::cout << "Removed old update cache file: " << UPDATE_CACHE_FILE << std::endl;
         }
     }
-    
-    return true;
+
+    return updateSuccess;
 }
 
 bool executeUpdateIfAvailable(bool updateAvailable) {
     if (!updateAvailable) return false;
+    
+    std::cout << "\nAn update is available. Would you like to download it? (Y/N): ";
+    char response;
+    std::cin >> response;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if (response != 'Y' && response != 'y') return false;
+    
     saveUpdateCache(false, cachedLatestVersion);
-    // Just show the instructions - no download/install
-    return downloadLatestRelease();
+    
+    if (!downloadLatestRelease()) {
+        std::cout << "Failed to download or install the update. Please try again later or manually update." << std::endl;
+        std::cout << "You can download the latest version from: " << githubRepoURL << "/releases/latest" << std::endl;
+        saveUpdateCache(true, cachedLatestVersion);
+        return false;
+    }
+    
+    std::cout << "Update installed successfully! Would you like to restart now? (Y/N): ";
+    std::cin >> response;
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    
+    if (response == 'Y' || response == 'y') {
+        std::cout << "Restarting application..." << std::endl;
+        
+        
+        if (saveOnExit) {
+            savedChatCache = c_assistant.getChatCache();
+            writeUserData();
+        }
+        
+        
+        if (isLoginShell) {
+            cleanupLoginShell();
+        }
+        
+        delete pluginManager;
+        delete themeManager;
+        
+        
+        execl(INSTALL_PATH.c_str(), INSTALL_PATH.c_str(), NULL);
+        
+        
+        std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
+        exit(0);
+    } else {
+        std::cout << "Please restart the application to use the new version." << std::endl;
+    }
+    
+    return true;
 }
 
 void displayChangeLog(const std::string& changeLog) {
