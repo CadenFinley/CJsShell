@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="resources/cjsh_logo.png" alt="CJ's Shell Logo" width="300" height="150">
+  <div style="width: 300px; height: 150px; overflow: hidden; margin: 0 auto;">
+    <img src="resources/cjsh_logo.png" alt="CJ's Shell Logo" width="300">
+  </div>
 </p>
 
 [![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
