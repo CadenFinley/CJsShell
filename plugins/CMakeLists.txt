@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(CJsShell_Plugins)
 
+# ensure sub‑projects see at least our CMake version
+cmake_policy(VERSION 3.10)
+
 # Set output directories
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins)
 
@@ -26,12 +29,28 @@ include_directories(
 
 # Add nlohmann/json library using FetchContent
 include(FetchContent)
+# allow the old Populate call without dev‑warning
+cmake_policy(SET CMP0169 OLD)
+
 FetchContent_Declare(
     json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.2  # Use a specific version for stability
+    GIT_TAG        v3.11.2  # Use a specific version for stability
 )
-FetchContent_MakeAvailable(json)
+FetchContent_GetProperties(json)
+if(NOT json_POPULATED)
+    FetchContent_Populate(json)
+    file(READ "${json_SOURCE_DIR}/CMakeLists.txt" _json_cmake)
+    # replace any first cmake_minimum_required(...) with our 3.5 threshold
+    string(REGEX REPLACE
+        "^cmake_minimum_required\\([^\\)]*\\)"
+        "cmake_minimum_required(VERSION 3.5)"
+        _json_cmake
+        "${_json_cmake}"
+    )
+    file(WRITE "${json_SOURCE_DIR}/CMakeLists.txt" "${_json_cmake}")
+endif()
+add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
 
 # Find libcurl for plugins that need HTTP functionality
 find_package(CURL REQUIRED)
