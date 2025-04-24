@@ -246,7 +246,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--silent-update") {
             silentCheckForUpdates = true;
         } else if (arg == "-v" || arg == "--version") {
-            std::cout << titleLine << std::endl;
+            std::cout << currentVersion << std::endl;
             return 0;
         } else if (arg == "-d" || arg == "--debug") {
             TESTING = true;
@@ -1209,7 +1209,7 @@ void printHelp() {
     std::cout << " -d, --debug: Enable debug mode" << std::endl;
     std::cout << " -c, --command: Specify a command to execute" << std::endl;
     std::cout << " -l, --login: Run as a login shell" << std::endl;
-
+    std::cout << std::endl;
     
     std::cout << " Available interactive session commands:" << std::endl;
     std::cout << " ai: Access AI command settings and chat or switch to the ai menu" << std::endl;
@@ -1222,7 +1222,7 @@ void printHelp() {
     std::cout << " env: Manage environment variables" << std::endl;
     std::cout << " uninstall: Uninstall the application" << std::endl;
     std::cout << " history: Display command history" << std::endl;
-
+    std::cout << std::endl;
     
     std::cout << " Unix executable commands:" << std::endl;
     std::cout << " clear: Clear the terminal screen" << std::endl;
