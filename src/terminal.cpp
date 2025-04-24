@@ -920,7 +920,36 @@ void Terminal::restoreRedirection(const std::vector<int>& savedFds) {
 }
 
 bool Terminal::executeIndividualCommand(const std::string& command, std::string& result) {
-    std::istringstream iss(command);
+    // handle VAR=VALUE prefixes
+    std::map<std::string, std::string> cmdEnvs;
+    std::vector<std::string> splitArgs = parseCommandIntoArgs(command);
+    size_t idx = 0;
+    while (idx < splitArgs.size()
+           && splitArgs[idx].find('=') != std::string::npos
+           && std::isalpha(splitArgs[idx][0])) {
+        auto pos = splitArgs[idx].find('=');
+        cmdEnvs[splitArgs[idx].substr(0, pos)] = splitArgs[idx].substr(pos + 1);
+        idx++;
+    }
+    // if only assignments, apply to shell ENV
+    if (idx > 0 && idx == splitArgs.size()) {
+        for (auto& kv : cmdEnvs) {
+            setenv(kv.first.c_str(), kv.second.c_str(), 1);
+        }
+        result.clear();
+        return true;
+    }
+    // rebuild command without the VAR=VALUE tokens
+    std::string fullCommand = command;
+    if (idx > 0) {
+        fullCommand.clear();
+        for (size_t i = idx; i < splitArgs.size(); i++) {
+            fullCommand += splitArgs[i];
+            if (i + 1 < splitArgs.size()) fullCommand += " ";
+        }
+    }
+
+    std::istringstream iss(fullCommand);
     std::string cmd;
     iss >> cmd;
     
@@ -1089,59 +1118,36 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
     }
     else {
         bool background = false;
-        
-        std::string fullCommand = command;
+        // handle trailing &
         if (!fullCommand.empty() && fullCommand.back() == '&') {
             background = true;
             fullCommand.pop_back();
-
             size_t lastNonSpace = fullCommand.find_last_not_of(" \t");
-            if (lastNonSpace != std::string::npos) {
+            if (lastNonSpace != std::string::npos)
                 fullCommand = fullCommand.substr(0, lastNonSpace + 1);
-            }
         }
-        
-        std::vector<std::string> args = parseCommandIntoArgs(fullCommand);
+        auto args = parseCommandIntoArgs(fullCommand);
         std::vector<RedirectionInfo> redirections;
-        
-        if (args.empty()) {
-            result = "Error: Empty command";
-            return false;
-        }
-        
         if (handleRedirection(fullCommand, args, redirections)) {
             if (background) {
                 pid_t pid = fork();
-                
-                if (pid == -1) {
-                    result = "Error forking process: " + std::string(strerror(errno));
-                    return false;
-                }
-                
                 if (pid == 0) {
                     setpgid(0, 0);
-                    
+                    // set per-command env
+                    for (auto& kv : cmdEnvs) {
+                        setenv(kv.first.c_str(), kv.second.c_str(), 1);
+                    }
                     std::vector<int> savedFds;
                     if (setupRedirection(redirections, savedFds)) {
-                        std::vector<std::string> expandedArgs = expandWildcardsInArgs(args);
-                        
+                        auto expandedArgs = expandWildcardsInArgs(args);
                         std::vector<char*> argv;
-                        for (auto& arg : expandedArgs) {
-                            argv.push_back(arg.data());
-                        }
+                        for (auto& a : expandedArgs) argv.push_back(a.data());
                         argv.push_back(nullptr);
-                        
-                        std::string executable = findExecutableInPath(expandedArgs[0]);
-                        if (!executable.empty()) {
-                            execvp(executable.c_str(), argv.data());
-                        }
-                        
-                        std::cerr << "cjsh: command not found: " << expandedArgs[0] << std::endl;
+                        std::string exe = findExecutableInPath(expandedArgs[0]);
+                        if (!exe.empty()) execvp(exe.c_str(), argv.data());
                     }
-                    
                     exit(EXIT_FAILURE);
                 }
-                
                 {
                     std::lock_guard<std::mutex> lock(jobsMutex);
                     jobs.push_back(Job(pid, fullCommand, false));
@@ -1150,35 +1156,22 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
                 return true;
             } else {
                 pid_t pid = fork();
-                
-                if (pid == -1) {
-                    result = "Error forking process: " + std::string(strerror(errno));
-                    return false;
-                }
-                
                 if (pid == 0) {
                     setpgid(0, 0);
-                    
                     tcsetpgrp(STDIN_FILENO, getpid());
-                    
                     std::vector<int> savedFds;
                     if (setupRedirection(redirections, savedFds)) {
-                        std::vector<std::string> expandedArgs = expandWildcardsInArgs(args);
-                        
+                        // apply per-command environment
+                        for (auto& kv : cmdEnvs) {
+                            setenv(kv.first.c_str(), kv.second.c_str(), 1);
+                        }
+                        auto expandedArgs = expandWildcardsInArgs(args);
                         std::vector<char*> argv;
-                        for (auto& arg : expandedArgs) {
-                            argv.push_back(arg.data());
-                        }
+                        for (auto& a : expandedArgs) argv.push_back(a.data());
                         argv.push_back(nullptr);
-                        
-                        std::string executable = findExecutableInPath(expandedArgs[0]);
-                        if (!executable.empty()) {
-                            execvp(executable.c_str(), argv.data());
-                        }
-                        
-                        std::cerr << "cjsh: command not found: " << expandedArgs[0] << std::endl;
+                        std::string exe = findExecutableInPath(expandedArgs[0]);
+                        if (!exe.empty()) execvp(exe.c_str(), argv.data());
                     }
-                    
                     exit(EXIT_FAILURE);
                 }
                 
