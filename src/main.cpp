@@ -2419,8 +2419,6 @@ bool downloadLatestRelease() {
     std::cout << "CJ's Shell was installed using Homebrew." << std::endl;
     std::cout << "To update to the latest version, please run:" << std::endl;
     std::cout << BLUE_COLOR_BOLD << "brew upgrade cjsh" << RESET_COLOR << std::endl;
-    std::cout << "If that does not work run:" << std::endl;
-    std::cout << BLUE_COLOR_BOLD << "brew reinstall cjsh" << RESET_COLOR << std::endl;
     std::cout << "After updating, restart CJ's Shell to use the new version." << std::endl;
     
     // Save the update as acknowledged
