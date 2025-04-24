@@ -25,8 +25,9 @@
 
 using json = nlohmann::json;
 
-// TODO
+// TODO 
 // user auth
+// upload to package managers
 
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.2.3";
