@@ -11,10 +11,16 @@
 
 ## Installation
 
-### Homebrew Installation
+### Quick Installation
 
 ```bash
-brew install cadenfinley/cjsh/cjsh
+curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool-scripts/cjsh_install.sh | bash
+```
+
+To install and set as your default shell:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool-scripts/cjsh_install.sh | bash -s -- --set-as-shell
 ```
 
 ### Manual Installation
