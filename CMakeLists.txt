@@ -145,8 +145,7 @@ if(APPLE)
     add_executable(cjsh ${SOURCE_FILES})
     set_target_properties(cjsh PROPERTIES
         OUTPUT_NAME "cjsh"
-        # place binary in top‑level bin directory
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
     )
     if(TARGET CURL::libcurl)
         target_link_libraries(cjsh CURL::libcurl Threads::Threads isocline)
@@ -158,16 +157,15 @@ if(APPLE)
     endif()
     add_custom_command(TARGET cjsh POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E echo "Built macOS binary with architectures: ${CMAKE_OSX_ARCHITECTURES}"
-        COMMAND file $<TARGET_FILE:cjsh>
+        COMMAND file ${MACOS_OUTPUT_DIR}/cjsh
     )
-    install(TARGETS cjsh RUNTIME DESTINATION bin CONFIGURATIONS Release)
+    install(TARGETS cjsh RUNTIME DESTINATION bin/macos CONFIGURATIONS Release)
 
 elseif(UNIX)
     add_executable(cjsh ${SOURCE_FILES})
     set_target_properties(cjsh PROPERTIES
         OUTPUT_NAME "cjsh"
-        # place binary in top‑level bin directory
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
     )
     if(TARGET CURL::libcurl)
         target_link_libraries(cjsh CURL::libcurl Threads::Threads ${DL_LIBRARY} isocline)
@@ -183,7 +181,7 @@ elseif(UNIX)
             BUILD_WITH_INSTALL_RPATH TRUE
         )
     endif()
-    install(TARGETS cjsh RUNTIME DESTINATION bin CONFIGURATIONS Release)
+    install(TARGETS cjsh RUNTIME DESTINATION bin/linux CONFIGURATIONS Release)
 
 else()
     message(FATAL_ERROR "CJsShell is only supported on Unix-based systems")
