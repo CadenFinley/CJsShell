@@ -1640,7 +1640,7 @@ void manualUpdateCheck() {
     
     if (updateAvailable) {
         std::cout << "An update is available!" << std::endl;
-        executeUpdateIfAvailable(true);
+        executeUpdateIfAvailable(updateAvailable);
     } else {
         std::cout << "You are up to date." << std::endl;
     }
@@ -1952,27 +1952,6 @@ bool validatePrefix(const std::string& prefix) {
     return true;
 }
 
-void handleToggleCommand(const std::string& name, bool& setting, 
-                        std::function<void(bool)> setter = nullptr) {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cout << name << " is currently " << (setting ? "enabled." : "disabled.")        << std::endl;
-        return;
-    }
-    
-    if (lastCommandParsed == "enable") {
-        setting = true;
-        if (setter) setter(true);
-        std::cout << name << " enabled." << std::endl;
-    } else if (lastCommandParsed == "disable") {
-        setting = false;
-        if (setter) setter(false);
-        std::cout << name << " disabled." << std::endl;
-    } else {
-        std::cerr << "Unknown option. Use 'enable' or 'disable'." << std::endl;
-    }
-}
-
 void textCommands() {
     getNextCommand();
     if (lastCommandParsed.empty()) {
@@ -2010,7 +1989,20 @@ void textCommands() {
         return;
     }
     if (lastCommandParsed == "displayfullpath") {
-        handleToggleCommand("Display whole path", displayWholePath, [&](bool value) { terminal.setDisplayWholePath(value); });
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Full path display is currently " << (displayWholePath ? "enabled." : "disabled.") << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "enable") {
+            displayWholePath = true;
+            std::cout << "Full path display enabled." << std::endl;
+        } else if (lastCommandParsed == "disable") {
+            displayWholePath = false;
+            std::cout << "Full path display disabled." << std::endl;
+        } else {
+            std::cerr << "Unknown option. Use 'enable' or 'disable'." << std::endl;
+        }
         return;
     }
     if (lastCommandParsed == "defaultentry") {
@@ -2402,9 +2394,7 @@ bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::st
                 return true;
             }
         }
-    } catch (std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
+    } catch (...) {}
     return false;
 }
 
@@ -2442,44 +2432,82 @@ bool checkForUpdate() {
 bool downloadLatestRelease() {
     std::cout << "Downloading latest release..." << std::endl;
     
-    
     std::filesystem::path tempDir = DATA_DIRECTORY / "temp_update";
     if (std::filesystem::exists(tempDir)) {
         std::filesystem::remove_all(tempDir);
     }
     std::filesystem::create_directory(tempDir);
-    
-    
-    std::string outputPath = (tempDir / "cjsh").string();
-    std::string curlCommand = "curl -L -s https://github.com/CadenFinley/CJsShell/releases/latest/download/cjsh -o " + outputPath;
-    
+
+    std::string downloadUrl;
+    // Fetch actual asset URL from GitHub API
+    {
+        std::string apiCmd = "curl -s " + updateURL_Github;
+        std::string apiResult;
+        FILE* apiPipe = popen(apiCmd.c_str(), "r");
+        if (apiPipe) {
+            char buf[128];
+            while (fgets(buf, sizeof(buf), apiPipe)) apiResult += buf;
+            pclose(apiPipe);
+            try {
+                auto apiJson = json::parse(apiResult);
+
+                // determine expected asset name by OS
+                std::string osSuffix;
+    #if defined(__APPLE__)
+                osSuffix = "macos";
+    #elif defined(__linux__)
+                osSuffix = "linux";
+    #else
+                osSuffix = "";
+    #endif
+                std::string expected = "cjsh" + (osSuffix.empty() ? "" : "-" + osSuffix);
+
+                // find matching asset
+                for (const auto& asset : apiJson["assets"]) {
+                    std::string name = asset.value("name", "");
+                    if (name == expected || (downloadUrl.empty() && name == "cjsh")) {
+                        downloadUrl = asset.value("browser_download_url", "");
+                        if (name == expected) break;
+                    }
+                }
+            } catch (...) {}
+        }
+    }
+    if (downloadUrl.empty()) {
+        std::cerr << "Error: Unable to determine download URL." << std::endl;
+        return false;
+    }
+
+    // save into temp with original asset filename, then rename to "cjsh"
+    std::string assetName = downloadUrl.substr(downloadUrl.find_last_of('/') + 1);
+    std::filesystem::path assetPath = tempDir / assetName;
+    std::string curlCommand = "curl -L -s " + downloadUrl + " -o " + assetPath.string();
     std::thread downloadThread = terminal.executeCommand(curlCommand);
     downloadThread.join();
-    
-    if (!std::filesystem::exists(outputPath)) {
+
+    if (!std::filesystem::exists(assetPath)) {
         std::cerr << "Error: Download failed - output file not created." << std::endl;
         return false;
     }
-    
-    
-    std::string chmodCommand = "chmod 755 " + outputPath;
+
+    // rename for consistency
+    std::filesystem::path outputPath = tempDir / "cjsh";
+    std::filesystem::rename(assetPath, outputPath);
+
+    std::string chmodCommand = "chmod 755 " + outputPath.string();
     std::thread chmodThread = terminal.executeCommand(chmodCommand);
     chmodThread.join();
-    
-    
+
     bool updateSuccess = false;
     std::cout << "Administrator privileges required to install the update." << std::endl;
     std::cout << "Please enter your password if prompted." << std::endl;
-    
-    
-    std::string sudoCommand = "sudo cp " + outputPath + " " + INSTALL_PATH.string();
+
+    std::string sudoCommand = "sudo cp " + outputPath.string() + " " + INSTALL_PATH.string();
     std::thread sudoThread = terminal.executeCommand(sudoCommand);
     sudoThread.join();
-    
-    
+
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    
-    
+
     if (std::filesystem::exists(INSTALL_PATH)) {
         
         auto newFileSize = std::filesystem::file_size(outputPath);
@@ -2498,16 +2526,14 @@ bool downloadLatestRelease() {
     } else {
         std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
     }
-    
-    
+
     if (!updateSuccess) {
         std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
-        std::cout << "sudo cp " << outputPath << " " << INSTALL_PATH.string() << std::endl;
+        std::cout << "sudo cp " << outputPath.string() << " " << INSTALL_PATH.string() << std::endl;
         std::cout << "sudo chmod 755 " << INSTALL_PATH.string() << std::endl;
         std::cout << "Please ensure you have the necessary permissions." << std::endl;
     }
-    
-    
+
     std::string cleanupCommand = "rm -rf " + tempDir.string();
     std::thread cleanupThread = terminal.executeCommand(cleanupCommand);
     cleanupThread.join();
@@ -3384,7 +3410,8 @@ void processProfileFile(const std::string& filePath) {
             size_t startPos = line.find(' ') + 1;
             std::string sourcePath = line.substr(startPos);
             sourcePath.erase(0, sourcePath.find_first_not_of(" \t"));
-            sourcePath.erase(sourcePath.find_last_not_of(" \t") + 1);
+            sourcePath.erase(0, sourcePath.find_first_not_of(" \t\"'"));
+            sourcePath.erase(sourcePath.find_last_not_of(" \t\"'") + 1);
             
             sourcePath = expandEnvVariables(sourcePath);
             
