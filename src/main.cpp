@@ -29,7 +29,7 @@ using json = nlohmann::json;
 // user auth
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.8";
+const std::string currentVersion = "2.0.2.7";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -577,9 +577,22 @@ void setupLoginShell() {
 }
 
 void setAsShell() {
-    std::cout << "To set CJ's shell as the default shell, run the command:" << std::endl;
-    std::cout << "chsh -s " << ACTUAL_SHELL_PATH.string() << std::endl;
-    std::cout << "You may need to restart your terminal for the changes to take effect." << std::endl;
+    std::string shellPath = INSTALL_PATH.string();
+    {
+        std::string checkCmd = "grep -Fxq \"" + shellPath + "\" /etc/shells";
+        if (system(checkCmd.c_str()) != 0) {
+            std::string addCmd = "echo \"" + shellPath + "\" | sudo tee -a /etc/shells";
+            system(addCmd.c_str());
+        }
+    }
+    {
+        std::string chshCmd = "sudo chsh -s \"" + shellPath + "\"";
+        if (system(chshCmd.c_str()) == 0) {
+            std::cout << "Default shell set to " << shellPath << "\n";
+        } else {
+            std::cerr << "Error: Failed to change default shell.\n";
+        }
+    }
 }
 
 void cleanupLoginShell() {
@@ -1130,10 +1143,34 @@ void commandProcesser(const std::string& originalPassedCommand) {
         printHelp();
         return;
     } else if (lastCommandParsed == "uninstall") {
-        std::cout << "To uninstall CJ's Shell, please run the following command:" << std::endl;
-        std::cout << "  brew uninstall cjsh" << std::endl;
-        std::cout << "You may also want to remove the CJ's Shell configuration files located at:" << std::endl;
-        std::cout << " " << USER_DATA << std::endl;
+        if (pluginManager->getEnabledPlugins().size() > 0) {
+            std::cerr << "Please disable all plugins before uninstalling." << std::endl;
+            return;
+        }
+        std::cout << "Are you sure you want to uninstall cjsh? (y/n): ";
+        char confirmation;
+        std::cin >> confirmation;
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        
+        if (confirmation == 'y' || confirmation == 'Y') {
+            if(!std::filesystem::exists(UNINSTALL_SCRIPT_PATH)){
+                std::cerr << "Uninstall script not found." << std::endl;
+                return;
+            }
+            std::cout << "Do you want to remove all user data? (y/n): ";
+            char removeUserData;
+            std::cin >> removeUserData;
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::string uninstallCommand = UNINSTALL_SCRIPT_PATH;
+            if (removeUserData == 'y' || removeUserData == 'Y') {
+                uninstallCommand += " --all";
+            }
+            std::cout << "Running uninstall script..." << std::endl;
+            sendTerminalCommand(uninstallCommand);
+            exitFlag = true;
+        } else {
+            std::cout << "Uninstall cancelled." << std::endl;
+        }
         return;
     } else {
 
