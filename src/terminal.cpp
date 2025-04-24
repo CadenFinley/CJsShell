@@ -9,13 +9,82 @@ Terminal::Terminal() : displayWholePath(false) {
     shouldTerminate = false;
     terminalName = "cjsh";
     
-    signal(SIGTTOU, SIG_IGN);
-    signal(SIGTTIN, SIG_IGN);
+    // Set up signal handling with sigaction instead of signal()
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    
+    // Block all signals during handler execution
+    sigset_t block_mask;
+    sigfillset(&block_mask);
+    
+    // Handler for SIGTTOU
+    sa.sa_handler = SIG_IGN;
+    sa.sa_flags = 0;
+    sa.sa_mask = block_mask;
+    sigaction(SIGTTOU, &sa, nullptr);
+    
+    // Handler for SIGTTIN
+    sa.sa_handler = SIG_IGN;
+    sa.sa_flags = 0;
+    sa.sa_mask = block_mask;
+    sigaction(SIGTTIN, &sa, nullptr);
+    
+    // Handler for SIGCHLD - will be used to reap zombie processes
+    sa.sa_sigaction = &Terminal::signalHandlerWrapper;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sa.sa_mask = block_mask;
+    sigaction(SIGCHLD, &sa, nullptr);
+    
+    // Save original terminal attributes for restoration
+    tcgetattr(STDIN_FILENO, &original_termios);
+    terminal_state_saved = true;
 }
 
 Terminal::~Terminal() {
     shouldTerminate = true;
+    
+    // Send signal to all child processes to terminate
+    terminateAllChildProcesses();
+    
+    // Restore terminal attributes if we saved them
+    if (terminal_state_saved) {
+        tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+    }
+    
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+}
+
+// Static wrapper for signal handler (required because signal handlers must be static functions)
+void Terminal::signalHandlerWrapper(int signum, siginfo_t* info, void* context) {
+    // Safely handle the SIGCHLD signal to reap zombie processes
+    if (signum == SIGCHLD) {
+        pid_t child_pid;
+        int status;
+        
+        // Use waitpid with WNOHANG to avoid blocking
+        while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
+            // Process the terminated child if needed
+            // We're just reaping zombies here, but you could store the status
+            // or update job control data structures if needed
+        }
+    }
+}
+
+// Method to help set up terminal for emergency restoration
+void Terminal::saveTerminalState() {
+    if (isatty(STDIN_FILENO)) {
+        if (tcgetattr(STDIN_FILENO, &original_termios) == 0) {
+            terminal_state_saved = true;
+        }
+    }
+}
+
+// Emergency terminal restoration - use in signal handlers
+void Terminal::restoreTerminalState() {
+    if (terminal_state_saved) {
+        // Use the async-signal-safe version for signal handlers
+        tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+    }
 }
 
 std::string Terminal::getTerminalName(){
@@ -498,7 +567,7 @@ void Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
                 currentCmd = remainingCommand.substr(0, andPos);
                 size_t lastNonSpace = currentCmd.find_last_not_of(" \t");
                 if (lastNonSpace != std::string::npos) {
-                    currentCmd = currentCmd.substr(0, lastNonSpace + 1);
+                    currentCmd = currentCommand.substr(0, lastNonSpace + 1);
                 }
                 remainingCommand = remainingCommand.substr(andPos + 2);
                 size_t firstNonSpace = remainingCommand.find_first_not_of(" \t");

@@ -107,6 +107,11 @@ public:
     void processExportCommand(const std::string& exportLine, std::string& result);
     std::string expandEnvironmentVariables(const std::string& input);
 
+    // Signal handling methods
+    static void signalHandlerWrapper(int signum, siginfo_t* info, void* context);
+    void saveTerminalState();
+    void restoreTerminalState();
+
 private:
     std::string currentDirectory;
     bool displayWholePath;
@@ -143,7 +148,6 @@ private:
     
     struct termios original_termios;
     bool terminal_state_saved;
-    bool is_standalone_shell;
     
     pid_t executeChildProcess(const std::string& command, bool foreground = true);
     bool changeDirectory(const std::string& dir, std::string& result);

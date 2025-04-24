@@ -28,7 +28,7 @@ using json = nlohmann::json;
 
 // Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.1.5";
+const std::string currentVersion = "2.0.2.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -177,10 +177,11 @@ void handleFileExecution(const std::string& filePath);
 void loadUserDataAsync(std::function<void()> callback);
 
 // Signal Handling
-void handleSIGHUP(int sig);
-void handleSIGTERM(int sig);
-void handleSIGINT(int sig);
-void handleSIGCHLD(int sig);
+static void signalHandlerWrapper(int signum, siginfo_t* info, void* context);
+void saveTerminalState();
+void restoreTerminalState();
+struct termios original_termios;
+bool terminal_state_saved = false;
 
 // Utility Functions
 bool authenticateUser();
@@ -574,7 +575,7 @@ void setupLoginShell() {
 
 void cleanupLoginShell() {
     try {
-        resetTerminalOnExit();
+        restoreTerminalState();
     } catch (const std::exception& e) {
         std::cerr << "Error cleaning up terminal: " << e.what() << std::endl;
     }
@@ -1613,8 +1614,30 @@ void updateCommands() {
 }
 
 void manualUpdateCheck() {
-    std::cout << "Checking for updates now..." << std::endl;
-    bool updateAvailable = checkForUpdate();
+    std::cout << "Checking for updates from GitHub...";
+    auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
+        auto splitVersion = [](const std::string &ver) {
+            std::vector<int> parts;
+            std::istringstream iss(ver);
+            std::string token;
+            while (std::getline(iss, token, '.')) {
+                parts.push_back(std::stoi(token));
+            }
+            return parts;
+        };
+        std::vector<int> latestParts = splitVersion(latest);
+        std::vector<int> currentParts = splitVersion(current);
+        size_t len = std::max(latestParts.size(), currentParts.size());
+        latestParts.resize(len, 0);
+        currentParts.resize(len, 0);
+        for (size_t i = 0; i < len; i++) {
+            if (latestParts[i] > currentParts[i]) return true;
+            if (latestParts[i] < currentParts[i]) return false;
+        }
+        return false;
+    };
+
+    bool updateAvailable = checkFromUpdate_Github(isNewerVersion);
     
     if (updateAvailable) {
         std::cout << "An update is available!" << std::endl;
@@ -1630,7 +1653,7 @@ void manualUpdateCheck() {
         FILE *pipe = popen(command.c_str(), "r");
         if (pipe) {
             char buffer[128];
-            while (fgets(buffer, 128, pipe) != nullptr) {
+            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
                 result += buffer;
             }
             pclose(pipe);
@@ -2935,66 +2958,122 @@ void initializeLoginEnvironment() {
     }
 }
 
-void handleSIGHUP(int sig) {
-    std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
-    exitFlag = true;
-    
-    if (pluginManager != nullptr) {
-        delete pluginManager;
-        pluginManager = nullptr;
-    }
-    
-    if (themeManager != nullptr) {
-        delete themeManager;
-        themeManager = nullptr;
-    }
-    
-    terminal.terminateAllChildProcesses();
-    
-    if (jobControlEnabled) {
-        try {
-            tcsetattr(shell_terminal, TCSANOW, &shell_tmodes);
-        } catch (...) {
+void saveTerminalState() {
+    if (isatty(STDIN_FILENO)) {
+        if (tcgetattr(STDIN_FILENO, &original_termios) == 0) {
+            terminal_state_saved = true;
         }
     }
-    
-    _exit(0);
 }
 
-void handleSIGTERM(int sig) {
-    std::cerr << "Received SIGTERM, exiting" << std::endl;
-    exitFlag = true;
-    
-    terminal.terminateAllChildProcesses();
-    
-    _exit(0);
-}
-
-void handleSIGINT(int sig) {
-    std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
-    signal(SIGINT, handleSIGINT);
-}
-
-void handleSIGCHLD(int sig) {
-    signal(SIGCHLD, handleSIGCHLD);
+void restoreTerminalState() {
+    if (terminal_state_saved) {
+        // Use the async-signal-safe version for signal handlers
+        tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+    }
 }
 
 void setupSignalHandlers() {
-    signal(SIGHUP, handleSIGHUP);
-    signal(SIGTERM, handleSIGTERM);
-    signal(SIGINT, handleSIGINT);
-    signal(SIGCHLD, handleSIGCHLD);
-    
+    // Set up signal handling with sigaction instead of signal()
     struct sigaction sa;
-    sa.sa_handler = handleSIGHUP;
-    sa.sa_flags = 0;
     sigemptyset(&sa.sa_mask);
-    sigaction(SIGHUP, &sa, NULL);
     
-    signal(SIGQUIT, SIG_IGN);
-    signal(SIGTSTP, SIG_IGN);
-    signal(SIGTTIN, SIG_IGN);
-    signal(SIGTTOU, SIG_IGN);
+    // Block all signals during handler execution
+    sigset_t block_mask;
+    sigfillset(&block_mask);
+    
+    // Handler for SIGHUP
+    sa.sa_sigaction = signalHandlerWrapper;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sa.sa_mask = block_mask;
+    sigaction(SIGHUP, &sa, nullptr);
+    
+    // Handler for SIGTERM
+    sa.sa_sigaction = signalHandlerWrapper;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sa.sa_mask = block_mask;
+    sigaction(SIGTERM, &sa, nullptr);
+    
+    // Handler for SIGINT
+    sa.sa_sigaction = signalHandlerWrapper;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sa.sa_mask = block_mask;
+    sigaction(SIGINT, &sa, nullptr);
+    
+    // Handler for SIGCHLD - will be used to reap zombie processes
+    sa.sa_sigaction = signalHandlerWrapper;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sa.sa_mask = block_mask;
+    sigaction(SIGCHLD, &sa, nullptr);
+    
+    // Ignore these signals
+    sa.sa_handler = SIG_IGN;
+    sa.sa_flags = 0;
+    sa.sa_mask = block_mask;
+    sigaction(SIGQUIT, &sa, nullptr);
+    sigaction(SIGTSTP, &sa, nullptr);
+    sigaction(SIGTTIN, &sa, nullptr);
+    sigaction(SIGTTOU, &sa, nullptr);
+    
+    // Save original terminal attributes for restoration
+    saveTerminalState();
+}
+
+// Static wrapper for signal handler (required because signal handlers must be static)
+static void signalHandlerWrapper(int signum, siginfo_t* info, void* context) {
+    // Safely handle different signals
+    switch (signum) {
+        case SIGHUP:
+            std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
+            exitFlag = true;
+            
+            if (pluginManager != nullptr) {
+                delete pluginManager;
+                pluginManager = nullptr;
+            }
+            
+            if (themeManager != nullptr) {
+                delete themeManager;
+                themeManager = nullptr;
+            }
+            
+            terminal.terminateAllChildProcesses();
+            
+            if (jobControlEnabled) {
+                try {
+                    restoreTerminalState();
+                } catch (...) {}
+            }
+            
+            _exit(0);
+            break;
+            
+        case SIGTERM:
+            std::cerr << "Received SIGTERM, exiting" << std::endl;
+            exitFlag = true;
+            
+            terminal.terminateAllChildProcesses();
+            
+            _exit(0);
+            break;
+            
+        case SIGINT:
+            std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
+            // We don't exit on SIGINT, just interrupt current operation
+            break;
+            
+        case SIGCHLD:
+            // Safely handle the SIGCHLD signal to reap zombie processes
+            pid_t child_pid;
+            int status;
+            
+            // Use waitpid with WNOHANG to avoid blocking
+            while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
+                // Process the terminated child if needed
+                // We're just reaping zombies here
+            }
+            break;
+    }
 }
 
 void setupJobControl() {
@@ -3033,9 +3112,7 @@ void setupJobControl() {
 void resetTerminalOnExit() {
     if (jobControlEnabled) {
         try {
-            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
-                perror("Could not restore terminal settings");
-            }
+            restoreTerminalState();
         } catch (const std::exception& e) {
             std::cerr << "Error restoring terminal: " << e.what() << std::endl;
         }
