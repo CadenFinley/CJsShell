@@ -28,7 +28,7 @@ using json = nlohmann::json;
 
 // Constants
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.1.4";
+const std::string currentVersion = "2.0.1.5";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -49,6 +49,7 @@ bool checkForUpdates = true;
 bool silentCheckForUpdates = true;
 bool cachedUpdateAvailable = false;
 bool historyExpansionEnabled = true;
+bool showTitleLine = true;
 
 // Update-related variables
 time_t lastUpdateCheckTime = 0;
@@ -246,8 +247,6 @@ int main(int argc, char* argv[]) {
             silentCheckForUpdates = true;
         } else if (arg == "-v" || arg == "--version") {
             std::cout << titleLine << std::endl;
-            std::cout << createdLine << std::endl;
-            std::cout << "Data directory at: " << DATA_DIRECTORY << std::endl;
             return 0;
         } else if (arg == "-d" || arg == "--debug") {
             TESTING = true;
@@ -356,8 +355,10 @@ int main(int argc, char* argv[]) {
     }
 
     if(!exitFlag){
-        std::cout << titleLine << std::endl;
-        std::cout << createdLine << std::endl;
+        if (showTitleLine) {
+            std::cout << titleLine << std::endl;
+            std::cout << createdLine << std::endl;
+        }
     
         mainProcessLoop();
     }
@@ -901,6 +902,7 @@ void writeUserData() {
         userData["Startup_Commands_Enabled"] = startCommandsOn;
         userData["Last_Update_Check_Time"] = lastUpdateCheckTime;
         userData["Update_Check_Interval"] = UPDATE_CHECK_INTERVAL;
+        userData["Title_Line"] = showTitleLine;
         file << userData.dump(4);
         file.close();
     } else {
@@ -1237,8 +1239,6 @@ void printHelp() {
     std::cout << " <alias>: Execute the specified alias" << std::endl;
     std::cout << " <shortcut>: Execute the specified multi-script shortcut" << std::endl;
     std::cout << " <file>: Execute the specified file (if executable)" << std::endl;
-    std::cout << " <file>.sh: Execute the specified shell script" << std::endl;
-    std::cout << " <file>.py: Execute the specified Python script" << std::endl;
 }
 
 void pluginCommands(){
@@ -1957,7 +1957,6 @@ void textCommands() {
         std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
         return;
     }
-    
     if (lastCommandParsed == "shortcutsprefix") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
@@ -1971,12 +1970,27 @@ void textCommands() {
         }
         return;
     }
-    
+    if (lastCommandParsed == "titleline") {
+        getNextCommand();
+        if (lastCommandParsed.empty()) {
+            std::cout << "Title line is currently " << (showTitleLine ? "showing." : "hidden.") << std::endl;
+            return;
+        }
+        if (lastCommandParsed == "enable") {
+            showTitleLine = true;
+            std::cout << "Title line enabled." << std::endl;
+        } else if (lastCommandParsed == "disable") {
+            showTitleLine = false;
+            std::cout << "Title line disabled." << std::endl;
+        } else {
+            std::cerr << "Unknown option. Use 'enable' or 'disable'." << std::endl;
+        }
+        return;
+    }
     if (lastCommandParsed == "displayfullpath") {
         handleToggleCommand("Display whole path", displayWholePath, [&](bool value) { terminal.setDisplayWholePath(value); });
         return;
     }
-    
     if (lastCommandParsed == "defaultentry") {
         getNextCommand();
         if (lastCommandParsed.empty()) {
@@ -1995,7 +2009,6 @@ void textCommands() {
         }
         return;
     }
-    
     if (lastCommandParsed == "help") {
         std::cout << "Text commands:" << std::endl;
         std::cout << " shortcutsprefix [CHAR]: Set the shortcut prefix" << std::endl;
@@ -2003,7 +2016,6 @@ void textCommands() {
         std::cout << " defaultentry ai/terminal: Set default text entry mode" << std::endl;
         return;
     }
-    
     std::cerr << "Unknown command. Use 'help' for available commands." << std::endl;
 }
 
@@ -2432,68 +2444,40 @@ bool downloadLatestRelease() {
     std::thread chmodThread = terminal.executeCommand(chmodCommand);
     chmodThread.join();
     
-    // Try direct copy first
+    // Always use sudo for installation regardless of permissions
     bool updateSuccess = false;
-    std::string installDir = INSTALL_PATH.parent_path().string();
+    std::cout << "Administrator privileges required to install the update." << std::endl;
+    std::cout << "Please enter your password if prompted." << std::endl;
     
-    // Check if we can write to the install directory
-    bool hasDirectWriteAccess = (access(installDir.c_str(), W_OK) == 0);
+    // Install with sudo
+    std::string sudoCommand = "sudo cp " + outputPath + " " + INSTALL_PATH.string();
+    std::thread sudoThread = terminal.executeCommand(sudoCommand);
+    sudoThread.join();
     
-    if (hasDirectWriteAccess) {
-        std::cout << "Installing update..." << std::endl;
-        std::string cpCommand = "cp " + outputPath + " " + INSTALL_PATH.string();
-        std::thread cpThread = terminal.executeCommand(cpCommand);
-        cpThread.join();
-        
-        // Verify the copy succeeded by checking timestamps
-        if (std::filesystem::exists(INSTALL_PATH)) {
-            auto newFileTime = std::filesystem::last_write_time(outputPath);
-            auto destFileTime = std::filesystem::last_write_time(INSTALL_PATH);
-            
-            if (newFileTime == destFileTime) {
-                // Set permissions on the installed file
-                std::string finalChmodCommand = "chmod 755 " + INSTALL_PATH.string();
-                std::thread finalChmodThread = terminal.executeCommand(finalChmodCommand);
-                finalChmodThread.join();
-                updateSuccess = true;
-            }
-        }
-    }
+    // Add a small delay to ensure file system updates are registered
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
-    // If direct copy failed, try with sudo
-    if (!updateSuccess) {
-        std::cout << "Administrator privileges required to install the update." << std::endl;
-        std::cout << "Please enter your password if prompted." << std::endl;
+    // Verify sudo copy worked
+    if (std::filesystem::exists(INSTALL_PATH)) {
+        // Compare file sizes for verification
+        auto newFileSize = std::filesystem::file_size(outputPath);
+        auto destFileSize = std::filesystem::file_size(INSTALL_PATH);
         
-        // Try with sudo
-        std::string sudoCommand = "sudo cp " + outputPath + " " + INSTALL_PATH.string();
-        std::thread sudoThread = terminal.executeCommand(sudoCommand);
-        sudoThread.join();
-        
-        // Add a small delay to ensure file system updates are registered
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        
-        // Verify sudo copy worked by checking timestamps
-        if (std::filesystem::exists(INSTALL_PATH)) {
-            // Compare file sizes as a fallback verification method since sudo might change timestamp
-            auto newFileSize = std::filesystem::file_size(outputPath);
-            auto destFileSize = std::filesystem::file_size(INSTALL_PATH);
-            
-            if (newFileSize == destFileSize) {
-                // Set permissions with sudo
-                std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
-                std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
-                sudoChmodThread.join();
-                updateSuccess = true;
-            } else {
-                std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
-            }
+        if (newFileSize == destFileSize) {
+            // Set permissions with sudo
+            std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
+            std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
+            sudoChmodThread.join();
+            updateSuccess = true;
+            std::cout << "Update installed successfully with administrator privileges." << std::endl;
         } else {
-            std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
+            std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
         }
+    } else {
+        std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
     }
     
-    // If sudo also failed, offer alternative installation
+    // If installation failed, offer manual installation instructions
     if (!updateSuccess) {
         std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
         std::cout << "sudo cp " << outputPath << " " << INSTALL_PATH.string() << std::endl;
@@ -2809,6 +2793,9 @@ void loadUserDataAsync(std::function<void()> callback) {
                 }
                 if(userData.contains("Update_Check_Interval")) {
                     UPDATE_CHECK_INTERVAL = userData["Update_Check_Interval"].get<int>();
+                }
+                if(userData.contains("Title_Line")) {
+                    showTitleLine = userData["Title_Line"].get<bool>();
                 }
                 file.close();
             }
