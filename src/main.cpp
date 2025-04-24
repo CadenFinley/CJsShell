@@ -26,7 +26,7 @@
 using json = nlohmann::json;
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.1";
+const std::string currentVersion = "2.0.2.2";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -1082,7 +1082,7 @@ void commandProcesser(const std::string& originalPassedCommand) {
         writeUserData();
         return;
     } else if (lastCommandParsed == "aihelp"){
-        if (!defaultTextEntryOnAI && !c_assistant.getAPIKey().empty() ){
+        if (!c_assistant.getAPIKey().empty() ){
             std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. I entered: " + terminal.returnMostRecentUserInput() + " and got this " + terminal.returnMostRecentTerminalOutput());
             if (TESTING) {
                 std::cout << message << std::endl;
@@ -1090,7 +1090,7 @@ void commandProcesser(const std::string& originalPassedCommand) {
             std::cout << c_assistant.forceDirectChatGPT(message, false) << std::endl;
             return;
         }
-        std::cout << "AI help is only available in AI mode." << std::endl;
+        std::cout << "Please set your OpenAI API key first." << std::endl;
         return;
     } else if(lastCommandParsed == "version") {
         std::cout << "CJ's Shell v" + currentVersion << std::endl;
