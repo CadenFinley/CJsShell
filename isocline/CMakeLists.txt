@@ -151,12 +151,10 @@ target_include_directories(isocline PUBLIC
     $<INSTALL_INTERFACE:${ic_install_dir}/include>
 )
 
-add_executable(example test/example.c)
-target_compile_options(example PRIVATE ${ic_cflags})
-target_include_directories(example PRIVATE include)
-target_link_libraries(example PRIVATE isocline)
+# --- remove example executable ---
+# add_executable(example example.cpp)
+# target_link_libraries(example isocline)
 
-add_executable(test_colors test/test_colors.c)
-target_compile_options(test_colors PRIVATE ${ic_cflags})
-target_include_directories(test_colors PRIVATE include)
-target_link_libraries(test_colors PRIVATE isocline)
+# --- remove colors executable ---
+# add_executable(colors colors.cpp)
+# target_link_libraries(colors isocline)
