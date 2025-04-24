@@ -4,7 +4,7 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
 ![Version](https://img.shields.io/github/v/release/CadenFinley/CJsShell?label=version&color=blue)
-![Lines of Code](https://img.shields.io/badge/lines%20of%20code-20213-green)
+![Lines of Code](https://img.shields.io/badge/lines%20of%20code-19924-green)
 
 
 > ⚠️ **WARNING**: This project is still in active development. There are known bugs and issues that are being addressed. Use at your own risk.
