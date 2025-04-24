@@ -6,8 +6,6 @@ endif()
 
 project(CJsShell)
 
-option(BUILD_FOR_BREW "Enable build configuration for Homebrew" OFF)
-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Architecture handling
@@ -142,8 +140,33 @@ if(NOT DL_LIBRARY)
     message(FATAL_ERROR "dl library not found")
 endif()
 
-if(BUILD_FOR_BREW)
+# Host‑specific single executable
+if(APPLE)
     add_executable(cjsh ${SOURCE_FILES})
+    set_target_properties(cjsh PROPERTIES
+        OUTPUT_NAME "cjsh"
+        RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
+    )
+    if(TARGET CURL::libcurl)
+        target_link_libraries(cjsh CURL::libcurl Threads::Threads isocline)
+    else()
+        target_link_libraries(cjsh ${CURL_LIBRARIES} Threads::Threads isocline)
+    endif()
+    if(Readline_FOUND)
+        target_link_libraries(cjsh ${Readline_LIBRARY})
+    endif()
+    add_custom_command(TARGET cjsh POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Built macOS binary with architectures: ${CMAKE_OSX_ARCHITECTURES}"
+        COMMAND file ${MACOS_OUTPUT_DIR}/cjsh
+    )
+    install(TARGETS cjsh RUNTIME DESTINATION bin/macos CONFIGURATIONS Release)
+
+elseif(UNIX)
+    add_executable(cjsh ${SOURCE_FILES})
+    set_target_properties(cjsh PROPERTIES
+        OUTPUT_NAME "cjsh"
+        RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
+    )
     if(TARGET CURL::libcurl)
         target_link_libraries(cjsh CURL::libcurl Threads::Threads ${DL_LIBRARY} isocline)
     else()
@@ -152,80 +175,14 @@ if(BUILD_FOR_BREW)
     if(Readline_FOUND)
         target_link_libraries(cjsh ${Readline_LIBRARY})
     endif()
-    install(TARGETS cjsh RUNTIME DESTINATION bin)
-else()
-    if(APPLE)
-        add_executable(CJsShell_macOS ${SOURCE_FILES})
-        set_target_properties(CJsShell_macOS PROPERTIES
-            OUTPUT_NAME "cjsh-macos"
-            RUNTIME_OUTPUT_DIRECTORY ${MACOS_OUTPUT_DIR}
-        )
-        
-        message(STATUS "Building for macOS with architecture: ${CMAKE_OSX_ARCHITECTURES}")
-        
-        if(TARGET CURL::libcurl)
-            target_link_libraries(CJsShell_macOS CURL::libcurl Threads::Threads isocline)
-        else()
-            target_link_libraries(CJsShell_macOS ${CURL_LIBRARIES} Threads::Threads isocline)
-        endif()
-        
-        if(Readline_FOUND)
-            target_link_libraries(CJsShell_macOS ${Readline_LIBRARY})
-        endif()
-        
-        add_custom_command(TARGET CJsShell_macOS POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E echo "Built macOS binary with architecture: ${CMAKE_OSX_ARCHITECTURES}"
-            COMMAND file ${MACOS_OUTPUT_DIR}/cjsh-macos
-        )
-    endif()
-
-    add_executable(CJsShell_Linux ${SOURCE_FILES})
-    set_target_properties(CJsShell_Linux PROPERTIES
-        OUTPUT_NAME "cjsh-linux"
-        RUNTIME_OUTPUT_DIRECTORY ${LINUX_OUTPUT_DIR}
-    )
-
-    if(TARGET CURL::libcurl)
-        target_link_libraries(CJsShell_Linux CURL::libcurl Threads::Threads ${DL_LIBRARY} isocline)
-    else()
-        target_link_libraries(CJsShell_Linux ${CURL_LIBRARIES} Threads::Threads ${DL_LIBRARY} isocline)
-    endif()
-
-    if(Readline_FOUND)
-        target_link_libraries(CJsShell_Linux ${Readline_LIBRARY})
-    endif()
-
-    if(UNIX AND NOT APPLE)
-        set_target_properties(CJsShell_Linux PROPERTIES
+    if(NOT APPLE)
+        set_target_properties(cjsh PROPERTIES
             INSTALL_RPATH "$ORIGIN/../lib"
             BUILD_WITH_INSTALL_RPATH TRUE
         )
     endif()
+    install(TARGETS cjsh RUNTIME DESTINATION bin/linux CONFIGURATIONS Release)
 
-    if(STATIC_LINKING)
-        set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so)
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-    endif()
-
-    include(InstallRequiredSystemLibraries)
-    set(CPACK_GENERATOR "DEB;RPM;TGZ")
-    set(CPACK_PACKAGE_VERSION_MAJOR "1")
-    set(CPACK_PACKAGE_VERSION_MINOR "0")
-    set(CPACK_PACKAGE_VERSION_PATCH "0")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "CJ's Shell - A developer tools terminal")
-    set(CPACK_PACKAGE_VENDOR "CJsShell")
-
-    include(CPack)
-
-    install(TARGETS CJsShell_Linux
-        RUNTIME DESTINATION bin/linux
-        CONFIGURATIONS Release
-    )
-
-    if(APPLE)
-        install(TARGETS CJsShell_macOS
-            RUNTIME DESTINATION bin/macos
-            CONFIGURATIONS Release
-        )
-    endif()
+else()
+    message(FATAL_ERROR "CJsShell is only supported on Unix-based systems")
 endif()
