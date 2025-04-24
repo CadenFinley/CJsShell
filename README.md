@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img src="resources/cjsh_logo.png" alt="CJ's Shell Logo" width="200">
 </p>
 
