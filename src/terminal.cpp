@@ -500,7 +500,28 @@ std::thread Terminal::executeCommand(std::string command) {
     });
 }
 
-void Terminal::parseAndExecuteCommand(const std::string& command, std::string& result) {
+bool Terminal::executeCommandSync(const std::string& command) {
+    addCommandToHistory(command);
+    std::string result;
+    bool success = true;
+    
+    try {
+        std::string processedCommand = expandAliases(command);
+        
+        success = parseAndExecuteCommand(processedCommand, result);
+        terminalCacheTerminalOutput.push_back(result);
+        
+    } catch (const std::exception& e) {
+        std::string errorMsg = "Error executing command: '" + command + "' " + e.what();
+        std::cerr << errorMsg << std::endl;
+        terminalCacheTerminalOutput.push_back(std::move(errorMsg));
+        return false;
+    }
+    
+    return success;
+}
+
+bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& result) {
 
     std::vector<std::string> semicolonCommands;
     std::string tempCmd = command;
@@ -617,6 +638,7 @@ void Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
     }
     
     result = commandResults;
+    return overall_success;
 }
 
 std::vector<std::string> Terminal::splitByPipes(const std::string& command) {

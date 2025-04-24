@@ -55,6 +55,7 @@ public:
     bool isRootPath(const std::filesystem::path& path);
     
     std::thread executeCommand(std::string command);
+    bool executeCommandSync(const std::string& command);
     void addCommandToHistory(const std::string& command);
     void setAliases(const std::map<std::string, std::string>& aliases);
 
@@ -153,10 +154,10 @@ private:
     bool changeDirectory(const std::string& dir, std::string& result);
     void waitForForegroundJob(pid_t pid);
     void updateJobStatus();
-    void parseAndExecuteCommand(const std::string& command, std::string& result);
+    bool parseAndExecuteCommand(const std::string& command, std::string& result);
     bool executeIndividualCommand(const std::string& command, std::string& result);
     
     bool executeInteractiveCommand(const std::string& command, std::string& result);
 };
 
-#endif 
+#endif

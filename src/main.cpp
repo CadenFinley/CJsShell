@@ -25,8 +25,12 @@
 
 using json = nlohmann::json;
 
+// TODO 
+// user auth
+// upload to package managers
+
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.2";
+const std::string currentVersion = "2.0.2.3";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -164,6 +168,7 @@ void setupJobControl();
 void resetTerminalOnExit();
 void createDefaultCJSHRC();
 void processProfileFile(const std::string& filePath);
+void setAsShell();
 
 
 bool isRunningAsLoginShell(char* argv0);
@@ -207,21 +212,6 @@ void userSettingsCommands();
 void textCommands();
 void shortcutCommands();
 void userDataCommands();
-
-void setAsShell() {
-    std::string shellPath = INSTALL_PATH.string();
-    std::string cmdResult;
-    // ensure shell is listed in /etc/shells
-    if (!terminal.executeInteractiveCommand( "grep -Fxq \"" + shellPath + "\" /etc/shells", cmdResult)) {
-        terminal.executeInteractiveCommand( "echo \"" + shellPath + "\" | sudo tee -a /etc/shells", cmdResult);
-    }
-    // change default shell
-    if (terminal.executeInteractiveCommand("sudo chsh -s \"" + shellPath + "\"", cmdResult)) {
-        std::cout << "Default shell set to " << shellPath << "\n";
-    } else {
-        std::cerr << "Error: Failed to change default shell.\n";
-    }
-}
 
 int main(int argc, char* argv[]) {
     
@@ -274,7 +264,6 @@ int main(int argc, char* argv[]) {
     c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a shell.", {}, DATA_DIRECTORY);
 
     initializeDataDirectories();
-    setupEnvironmentVariables();
     
     if (isFileHandler) {
         std::string filePath = argv[1];
@@ -586,6 +575,18 @@ void setupLoginShell() {
     }
     
     loadAliasesFromFile(CJSHRC_FILE.string());
+}
+
+void setAsShell() {
+    std::string shellPath = INSTALL_PATH.string();
+    if (!terminal.executeCommandSync( "grep -Fxq \"" + shellPath + "\" /etc/shells")) {
+        terminal.executeCommandSync( "echo \"" + shellPath + "\" | sudo tee -a /etc/shells");
+    }
+    if (terminal.executeCommandSync("sudo chsh -s \"" + shellPath + "\"")) {
+        std::cout << "Default shell set to " << shellPath << "\n";
+    } else {
+        std::cerr << "Error: Failed to change default shell.\n";
+    }
 }
 
 void cleanupLoginShell() {
@@ -2962,7 +2963,7 @@ void setupEnvironmentVariables() {
             setenv("HOSTNAME", hostname, 1);
         }
         
-        setenv("TERM", "xterm-256color", 0);
+        // setenv("TERM", "xterm-256color", 0);
         
         setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
         
