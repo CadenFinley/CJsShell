@@ -208,6 +208,21 @@ void textCommands();
 void shortcutCommands();
 void userDataCommands();
 
+void setAsShell() {
+    std::string shellPath = INSTALL_PATH.string();
+    std::string cmdResult;
+    // ensure shell is listed in /etc/shells
+    if (!terminal.executeInteractiveCommand( "grep -Fxq \"" + shellPath + "\" /etc/shells", cmdResult)) {
+        terminal.executeInteractiveCommand( "echo \"" + shellPath + "\" | sudo tee -a /etc/shells", cmdResult);
+    }
+    // change default shell
+    if (terminal.executeInteractiveCommand("sudo chsh -s \"" + shellPath + "\"", cmdResult)) {
+        std::cout << "Default shell set to " << shellPath << "\n";
+    } else {
+        std::cerr << "Error: Failed to change default shell.\n";
+    }
+}
+
 int main(int argc, char* argv[]) {
     
     isLoginShell = isRunningAsLoginShell(argv[0]);
@@ -248,6 +263,9 @@ int main(int argc, char* argv[]) {
             return 0;
         } else if (arg == "-d" || arg == "--debug") {
             TESTING = true;
+        } else if (arg == "--set-as-shell") {
+            setAsShell();
+            return 0;
         }
     }
     
