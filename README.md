@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/cjsh_logo.png" alt="CJ's Shell Logo" width="200">
+</p>
+
 # CJ's Shell (cjsh)
 
 [![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
