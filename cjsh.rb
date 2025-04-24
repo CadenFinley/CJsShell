@@ -1,11 +1,8 @@
 class Cjsh < Formula
   desc "CJ's Shell"
   homepage "https://github.com/CadenFinley/CJsShell"
-  url "https://github.com/CadenFinley/CJsShell.git",
-      tag:      "v2.0.2.3",
-      revision: "INSERT_COMMIT_SHA"
-  version "2.0.2.3"
-
+  url "https://github.com/CadenFinley/CJsShell/archive/refs/tags/v2.0.2.3.tar.gz"
+  sha256 "8316487785961b25ca58e868fcbfc83dfe3babf6456320db6de1634ba637fe92"
   license "MIT"
 
   depends_on "cmake" => :build
