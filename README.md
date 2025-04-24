@@ -7,6 +7,7 @@
 ![Lines of Code](https://img.shields.io/badge/lines%20of%20code-20262-green)
 
 
+
 > ⚠️ **WARNING**: This project is still in active development. There are known bugs and issues that are being addressed. Use at your own risk.
 
 ## Installation
