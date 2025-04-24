@@ -133,7 +133,6 @@ int Terminal::getTerminalCurrentPositionRawLength(){
 }
 
 std::string Terminal::returnCurrentTerminalPosition(){
-    std::cout << "\033]0;" << getCurrentFilePath() << "\007";
     int gitInfoLength = 0;
     std::string gitInfo;
     std::filesystem::path currentPath = std::filesystem::path(getCurrentFilePath());
