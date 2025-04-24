@@ -38,4 +38,4 @@ public:
     void setColor(const std::string& colorName, const std::string& colorValue);
 };
 
-#endif // THEMEMANAGER_H
+#endif 

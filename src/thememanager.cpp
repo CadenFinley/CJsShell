@@ -25,7 +25,7 @@ ThemeManager::ThemeManager(const std::filesystem::path& themesDir) : themesDirec
 }
 
 ThemeManager::~ThemeManager() {
-    // No dynamic memory to clean up
+    
 }
 
 void ThemeManager::createDefaultTheme() {
@@ -77,19 +77,19 @@ void ThemeManager::discoverAvailableThemes() {
             }
         }
     }
-    // std::vector<std::string> themeNames = getAvailableThemeNames();
-    // if (themeNames.size() > 1) {
-    //     std::cout << "Available themes: ";
-    //     for (const auto& [name, _] : availableThemes) {
-    //         if(name != "default"){
-    //             std::cout << name;
-    //             if (name != themeNames.back()) {
-    //                 std::cout << ", ";
-    //             }
-    //         }
-    //     }
-    //     std::cout << std::endl;
-    // }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 }
 
 bool ThemeManager::loadTheme(const std::string& themeName) {

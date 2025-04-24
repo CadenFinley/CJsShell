@@ -26,13 +26,12 @@
 using json = nlohmann::json;
 
 
-// Constants
+
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.2.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
-// Flags
 bool TESTING = false;
 bool exitFlag = false;
 bool defaultTextEntryOnAI = false;
@@ -51,17 +50,17 @@ bool cachedUpdateAvailable = false;
 bool historyExpansionEnabled = true;
 bool showTitleLine = true;
 
-// Update-related variables
+
 time_t lastUpdateCheckTime = 0;
 int UPDATE_CHECK_INTERVAL = 86400;
 std::string cachedLatestVersion = "";
 
-// Tab completion variables
+
 std::vector<std::string> cachedCompletions;
 int currentCompletionIndex = 0;
 std::string currentCompletionPrefix;
 
-// Paths
+
 std::filesystem::path ACTUAL_SHELL_PATH = std::filesystem::path("/usr/local/bin/cjsh");
 std::string homeDir = std::getenv("HOME");
 std::filesystem::path INSTALL_PATH = std::getenv("CJSH_INSTALL_PATH") ? std::filesystem::path(std::getenv("CJSH_INSTALL_PATH")) : std::filesystem::path("/usr/local/bin") / "cjsh";
@@ -75,7 +74,7 @@ std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
 std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
 std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
 
-// Theming
+
 std::string currentTheme = "default";
 std::string GREEN_COLOR_BOLD = "\033[1;32m";
 std::string RESET_COLOR = "\033[0m";
@@ -85,14 +84,14 @@ std::string BLUE_COLOR_BOLD = "\033[1;34m";
 std::string YELLOW_COLOR_BOLD = "\033[1;33m";
 std::string CYAN_COLOR_BOLD = "\033[1;36m";
 
-// Command-related variables
+
 std::string shortcutsPrefix = "@";
 std::string lastCommandParsed;
 std::string titleLine = "CJ's Shell v" + currentVersion + " - Caden J Finley (c) 2025";
 std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
 std::string lastUpdated = "N/A";
 
-// Data structures
+
 std::queue<std::string> commandsQueue;
 std::vector<std::string> startupCommands;
 std::vector<std::string> savedChatCache;
@@ -101,20 +100,20 @@ std::map<std::string, std::string> aliases;
 std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
 std::map<std::string, std::map<std::string, std::string>> availableThemes;
 
-// Objects
+
 OpenAIPromptEngine c_assistant;
 Terminal terminal;
 PluginManager* pluginManager = nullptr;
 ThemeManager* themeManager = nullptr;
 
-// Terminal and job control
+
 std::mutex rawModeMutex;
 pid_t shell_pgid = 0;
 struct termios shell_tmodes;
 int shell_terminal;
 bool jobControlEnabled = false;
 
-// Command Parsing and Execution
+
 void mainProcessLoop();
 void startupCommandsHandler();
 void commandParser(const std::string& command);
@@ -124,28 +123,28 @@ void sendTerminalCommand(const std::string& command);
 void getNextCommand();
 std::vector<std::string> commandSplicer(const std::string& command);
 
-// User Input and History
+
 void addUserInputToHistory(const std::string& input);
 void createNewUSER_HISTORYfile();
 void writeUserData();
 void createNewUSER_DATAFile();
 std::string readAndReturnUserDataFile();
 
-// AI Process
+
 void chatProcess(const std::string& message);
 void showChatHistory();
 
-// Plugin Management
+
 void pluginCommands();
 void loadPluginsAsync(std::function<void()> callback);
 
-// Theme Management
+
 void themeCommands();
 void loadTheme(const std::string& themeName);
 void applyColorToStrings();
 void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback);
 
-// Update Management
+
 bool checkForUpdate();
 void manualUpdateCheck();
 void setUpdateInterval(int intervalHours);
@@ -158,7 +157,7 @@ bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::st
 bool downloadLatestRelease();
 void processChangelogAsync();
 
-// Environment and Initialization
+
 void setupEnvironmentVariables();
 void initializeLoginEnvironment();
 void initializeDataDirectories();
@@ -168,7 +167,7 @@ void resetTerminalOnExit();
 void createDefaultCJSHRC();
 void processProfileFile(const std::string& filePath);
 
-// Login and File Handling
+
 bool isRunningAsLoginShell(char* argv0);
 bool checkIsFileHandler(int argc, char* argv[]);
 void setupLoginShell();
@@ -176,14 +175,14 @@ void cleanupLoginShell();
 void handleFileExecution(const std::string& filePath);
 void loadUserDataAsync(std::function<void()> callback);
 
-// Signal Handling
+
 static void signalHandlerWrapper(int signum, siginfo_t* info, void* context);
 void saveTerminalState();
 void restoreTerminalState();
 struct termios original_termios;
 bool terminal_state_saved = false;
 
-// Utility Functions
+
 bool authenticateUser();
 bool startsWith(const std::string& str, const std::string& prefix);
 std::string expandEnvVariables(const std::string& input);
@@ -193,16 +192,16 @@ void parentProcessWatchdog();
 bool isParentProcessAlive();
 void printHelp();
 
-// Alias Management
+
 void loadAliasesFromFile(const std::string& filePath);
 void saveAliasToCJSHRC(const std::string& name, const std::string& value);
 
-// Tab Completion
+
 char* command_generator(const char* text, int state);
 char** command_completion(const char* text, int start, int end);
 std::vector<std::string> get_completion_matches(const std::string& prefix);
 
-// Command Handlers
+
 void updateCommands();
 void aiSettingsCommands();
 void aiChatCommands();
@@ -961,7 +960,7 @@ std::vector<std::string> commandSplicer(const std::string& command) {
 }
 
 void commandParser(const std::string& command) {
-    // easy early breaks
+    
     if (command.empty()) {
         return;
     }
@@ -1203,7 +1202,7 @@ void commandProcesser(const std::string& originalPassedCommand) {
 }
 
 void printHelp() {
-    // print available startup arguements
+    
     std::cout << "Available startup arguments:" << std::endl;
     std::cout << " -h, --help: Show this help message" << std::endl;
     std::cout << " -v, --version: Show the version of the application" << std::endl;
@@ -1211,7 +1210,7 @@ void printHelp() {
     std::cout << " -c, --command: Specify a command to execute" << std::endl;
     std::cout << " -l, --login: Run as a login shell" << std::endl;
 
-    // print available interactive session commands
+    
     std::cout << " Available interactive session commands:" << std::endl;
     std::cout << " ai: Access AI command settings and chat or switch to the ai menu" << std::endl;
     std::cout << " approot: Switch to the application directory" << std::endl;
@@ -1224,7 +1223,7 @@ void printHelp() {
     std::cout << " uninstall: Uninstall the application" << std::endl;
     std::cout << " history: Display command history" << std::endl;
 
-    //print unix executable commands
+    
     std::cout << " Unix executable commands:" << std::endl;
     std::cout << " clear: Clear the terminal screen" << std::endl;
     std::cout << " exit: Exit the application" << std::endl;
@@ -1957,7 +1956,7 @@ void handleToggleCommand(const std::string& name, bool& setting,
                         std::function<void(bool)> setter = nullptr) {
     getNextCommand();
     if (lastCommandParsed.empty()) {
-        std::cout << name << " is currently " << (setting ? "enabled." : "disabled.") << std::endl;
+        std::cout << name << " is currently " << (setting ? "enabled." : "disabled.")        << std::endl;
         return;
     }
     
@@ -2443,14 +2442,14 @@ bool checkForUpdate() {
 bool downloadLatestRelease() {
     std::cout << "Downloading latest release..." << std::endl;
     
-    // Create temporary directory for the download
+    
     std::filesystem::path tempDir = DATA_DIRECTORY / "temp_update";
     if (std::filesystem::exists(tempDir)) {
         std::filesystem::remove_all(tempDir);
     }
     std::filesystem::create_directory(tempDir);
     
-    // Download the latest release using TerminalPassthrough
+    
     std::string outputPath = (tempDir / "cjsh").string();
     std::string curlCommand = "curl -L -s https://github.com/CadenFinley/CJsShell/releases/latest/download/cjsh -o " + outputPath;
     
@@ -2462,32 +2461,32 @@ bool downloadLatestRelease() {
         return false;
     }
     
-    // Make the downloaded file executable
+    
     std::string chmodCommand = "chmod 755 " + outputPath;
     std::thread chmodThread = terminal.executeCommand(chmodCommand);
     chmodThread.join();
     
-    // Always use sudo for installation regardless of permissions
+    
     bool updateSuccess = false;
     std::cout << "Administrator privileges required to install the update." << std::endl;
     std::cout << "Please enter your password if prompted." << std::endl;
     
-    // Install with sudo
+    
     std::string sudoCommand = "sudo cp " + outputPath + " " + INSTALL_PATH.string();
     std::thread sudoThread = terminal.executeCommand(sudoCommand);
     sudoThread.join();
     
-    // Add a small delay to ensure file system updates are registered
+    
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
-    // Verify sudo copy worked
+    
     if (std::filesystem::exists(INSTALL_PATH)) {
-        // Compare file sizes for verification
+        
         auto newFileSize = std::filesystem::file_size(outputPath);
         auto destFileSize = std::filesystem::file_size(INSTALL_PATH);
         
         if (newFileSize == destFileSize) {
-            // Set permissions with sudo
+            
             std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
             std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
             sudoChmodThread.join();
@@ -2500,7 +2499,7 @@ bool downloadLatestRelease() {
         std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
     }
     
-    // If installation failed, offer manual installation instructions
+    
     if (!updateSuccess) {
         std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
         std::cout << "sudo cp " << outputPath << " " << INSTALL_PATH.string() << std::endl;
@@ -2508,12 +2507,12 @@ bool downloadLatestRelease() {
         std::cout << "Please ensure you have the necessary permissions." << std::endl;
     }
     
-    // Clean up
+    
     std::string cleanupCommand = "rm -rf " + tempDir.string();
     std::thread cleanupThread = terminal.executeCommand(cleanupCommand);
     cleanupThread.join();
 
-    // Remove old update cache
+    
     if (std::filesystem::exists(UPDATE_CACHE_FILE)) {
         std::filesystem::remove(UPDATE_CACHE_FILE);
         if (TESTING) {
@@ -2550,13 +2549,13 @@ bool executeUpdateIfAvailable(bool updateAvailable) {
     if (response == 'Y' || response == 'y') {
         std::cout << "Restarting application..." << std::endl;
         
-        // Save any necessary data before exit
+        
         if (saveOnExit) {
             savedChatCache = c_assistant.getChatCache();
             writeUserData();
         }
         
-        // Clean up resources
+        
         if (isLoginShell) {
             cleanupLoginShell();
         }
@@ -2564,10 +2563,10 @@ bool executeUpdateIfAvailable(bool updateAvailable) {
         delete pluginManager;
         delete themeManager;
         
-        // Execute the updated binary (restart the application)
+        
         execl(INSTALL_PATH.c_str(), INSTALL_PATH.c_str(), NULL);
         
-        // If execl fails
+        
         std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
         exit(0);
     } else {
@@ -2968,60 +2967,52 @@ void saveTerminalState() {
 
 void restoreTerminalState() {
     if (terminal_state_saved) {
-        // Use the async-signal-safe version for signal handlers
+        
         tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
     }
 }
 
 void setupSignalHandlers() {
-    // Set up signal handling with sigaction instead of signal()
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
-    
-    // Block all signals during handler execution
     sigset_t block_mask;
     sigfillset(&block_mask);
+
     
-    // Handler for SIGHUP
     sa.sa_sigaction = signalHandlerWrapper;
-    sa.sa_flags = SA_SIGINFO | SA_RESTART;
-    sa.sa_mask = block_mask;
+    sa.sa_mask    = block_mask;
+
+    
+    sa.sa_flags   = SA_SIGINFO | SA_RESTART;
     sigaction(SIGHUP, &sa, nullptr);
+
     
-    // Handler for SIGTERM
-    sa.sa_sigaction = signalHandlerWrapper;
-    sa.sa_flags = SA_SIGINFO | SA_RESTART;
-    sa.sa_mask = block_mask;
+    sa.sa_flags   = SA_SIGINFO | SA_RESTART;
     sigaction(SIGTERM, &sa, nullptr);
+
     
-    // Handler for SIGINT
-    sa.sa_sigaction = signalHandlerWrapper;
-    sa.sa_flags = SA_SIGINFO | SA_RESTART;
-    sa.sa_mask = block_mask;
-    sigaction(SIGINT, &sa, nullptr);
-    
-    // Handler for SIGCHLD - will be used to reap zombie processes
-    sa.sa_sigaction = signalHandlerWrapper;
-    sa.sa_flags = SA_SIGINFO | SA_RESTART;
-    sa.sa_mask = block_mask;
+    sa.sa_flags   = SA_SIGINFO | SA_RESTART;
     sigaction(SIGCHLD, &sa, nullptr);
+
     
-    // Ignore these signals
+    sa.sa_flags   = SA_SIGINFO;    
+    sigaction(SIGINT, &sa, nullptr);
+
+    
     sa.sa_handler = SIG_IGN;
-    sa.sa_flags = 0;
-    sa.sa_mask = block_mask;
+    sa.sa_flags   = 0;
+    sa.sa_mask    = block_mask;
     sigaction(SIGQUIT, &sa, nullptr);
     sigaction(SIGTSTP, &sa, nullptr);
     sigaction(SIGTTIN, &sa, nullptr);
     sigaction(SIGTTOU, &sa, nullptr);
-    
-    // Save original terminal attributes for restoration
+
     saveTerminalState();
 }
 
-// Static wrapper for signal handler (required because signal handlers must be static)
+
 static void signalHandlerWrapper(int signum, siginfo_t* info, void* context) {
-    // Safely handle different signals
+    
     switch (signum) {
         case SIGHUP:
             std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
@@ -3059,18 +3050,18 @@ static void signalHandlerWrapper(int signum, siginfo_t* info, void* context) {
             
         case SIGINT:
             std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
-            // We don't exit on SIGINT, just interrupt current operation
+            
             break;
             
         case SIGCHLD:
-            // Safely handle the SIGCHLD signal to reap zombie processes
+            
             pid_t child_pid;
             int status;
             
-            // Use waitpid with WNOHANG to avoid blocking
+            
             while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
-                // Process the terminated child if needed
-                // We're just reaping zombies here
+                
+                
             }
             break;
     }
@@ -3120,18 +3111,18 @@ void resetTerminalOnExit() {
     
     terminal.setTerminationFlag(true);
     
-    // Be more aggressive in terminating all child processes
+    
     terminal.terminateAllChildProcesses();
     
-    // Secondary failsafe: Kill any remaining processes in our process group
+    
     pid_t pgid = getpgid(0);
     if (pgid > 0 && pgid != 1) {
         killpg(pgid, SIGTERM);
-        usleep(10000); // Brief 10ms grace period
-        killpg(pgid, SIGKILL); // Force kill any remaining processes
+        usleep(10000); 
+        killpg(pgid, SIGKILL); 
     }
     
-    // Final sweep of remaining jobs as last resort
+    
     for (const auto& job : terminal.getActiveJobs()) {
         kill(-job.pid, SIGKILL);
         kill(job.pid, SIGKILL);

@@ -9,33 +9,33 @@ Terminal::Terminal() : displayWholePath(false) {
     shouldTerminate = false;
     terminalName = "cjsh";
     
-    // Set up signal handling with sigaction instead of signal()
+    
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
     
-    // Block all signals during handler execution
+    
     sigset_t block_mask;
     sigfillset(&block_mask);
     
-    // Handler for SIGTTOU
+    
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
     sigaction(SIGTTOU, &sa, nullptr);
     
-    // Handler for SIGTTIN
+    
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
     sigaction(SIGTTIN, &sa, nullptr);
     
-    // Handler for SIGCHLD - will be used to reap zombie processes
+    
     sa.sa_sigaction = &Terminal::signalHandlerWrapper;
     sa.sa_flags = SA_SIGINFO | SA_RESTART;
     sa.sa_mask = block_mask;
     sigaction(SIGCHLD, &sa, nullptr);
     
-    // Save original terminal attributes for restoration
+    
     tcgetattr(STDIN_FILENO, &original_termios);
     terminal_state_saved = true;
 }
@@ -43,10 +43,10 @@ Terminal::Terminal() : displayWholePath(false) {
 Terminal::~Terminal() {
     shouldTerminate = true;
     
-    // Send signal to all child processes to terminate
+    
     terminateAllChildProcesses();
     
-    // Restore terminal attributes if we saved them
+    
     if (terminal_state_saved) {
         tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
     }
@@ -54,23 +54,23 @@ Terminal::~Terminal() {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
-// Static wrapper for signal handler (required because signal handlers must be static functions)
+
 void Terminal::signalHandlerWrapper(int signum, siginfo_t* info, void* context) {
-    // Safely handle the SIGCHLD signal to reap zombie processes
+    
     if (signum == SIGCHLD) {
         pid_t child_pid;
         int status;
         
-        // Use waitpid with WNOHANG to avoid blocking
+        
         while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
-            // Process the terminated child if needed
-            // We're just reaping zombies here, but you could store the status
-            // or update job control data structures if needed
+            
+            
+            
         }
     }
 }
 
-// Method to help set up terminal for emergency restoration
+
 void Terminal::saveTerminalState() {
     if (isatty(STDIN_FILENO)) {
         if (tcgetattr(STDIN_FILENO, &original_termios) == 0) {
@@ -79,10 +79,10 @@ void Terminal::saveTerminalState() {
     }
 }
 
-// Emergency terminal restoration - use in signal handlers
+
 void Terminal::restoreTerminalState() {
     if (terminal_state_saved) {
-        // Use the async-signal-safe version for signal handlers
+        
         tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
     }
 }
@@ -308,12 +308,12 @@ std::string Terminal::returnCurrentTerminalPosition(){
         return SHELL_COLOR + getTerminalName() + RESET_COLOR + " " + gitInfo;
     }
 
-    // Apply prompt formatting for non-git repos
+    
     if (!PROMPT_FORMAT.empty()) {
         return expandPromptFormat(PROMPT_FORMAT);
     }
     
-    // Fallback to original format if no prompt format is set
+    
     if (displayWholePath) {
         return SHELL_COLOR+getTerminalName()+RESET_COLOR + " " + DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR;
     } else {
@@ -324,20 +324,20 @@ std::string Terminal::returnCurrentTerminalPosition(){
 std::string Terminal::expandPromptFormat(const std::string& format) {
     std::string result = format;
     
-    // Get user info for prompt expansion
+    
     char hostname[256];
     gethostname(hostname, sizeof(hostname));
     const char* username = getenv("USER");
     if (!username) username = getenv("LOGNAME");
     if (!username) username = "user";
     
-    // Get current time
+    
     auto now = std::chrono::system_clock::now();
     std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
     char timeBuffer[20];
     std::strftime(timeBuffer, sizeof(timeBuffer), "%H:%M:%S", std::localtime(&currentTime));
     
-    // Replace format specifiers
+    
     result = std::regex_replace(result, std::regex("\\\\W"), DIRECTORY_COLOR + getCurrentFilePath() + RESET_COLOR);
     result = std::regex_replace(result, std::regex("\\\\w"), DIRECTORY_COLOR + getCurrentFileName() + RESET_COLOR);
     result = std::regex_replace(result, std::regex("\\\\u"), SHELL_COLOR + std::string(username) + RESET_COLOR);
@@ -345,14 +345,14 @@ std::string Terminal::expandPromptFormat(const std::string& format) {
     result = std::regex_replace(result, std::regex("\\\\t"), GIT_COLOR + std::string(timeBuffer) + RESET_COLOR);
     result = std::regex_replace(result, std::regex("\\\\\\$"), "$");
     
-    // Replace color variables
+    
     result = std::regex_replace(result, std::regex("\\$\\{SHELL_COLOR\\}"), SHELL_COLOR);
     result = std::regex_replace(result, std::regex("\\$\\{DIRECTORY_COLOR\\}"), DIRECTORY_COLOR);
     result = std::regex_replace(result, std::regex("\\$\\{BRANCH_COLOR\\}"), BRANCH_COLOR);
     result = std::regex_replace(result, std::regex("\\$\\{GIT_COLOR\\}"), GIT_COLOR);
     result = std::regex_replace(result, std::regex("\\$\\{RESET_COLOR\\}"), RESET_COLOR);
     
-    // Replace the shell name
+    
     result = std::regex_replace(result, std::regex("cjsh"), SHELL_COLOR + getTerminalName() + RESET_COLOR);
     
     return result;
@@ -997,7 +997,7 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
         std::getline(iss >> std::ws, aliasLine);
         
         if (aliasLine.empty()) {
-            // Display all aliases
+            
             if (aliases.empty()) {
                 result = "No aliases defined";
             } else {
@@ -1011,19 +1011,19 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
             return true;
         }
         
-        // Check if it's an alias definition (contains =)
+        
         size_t eqPos = aliasLine.find('=');
         if (eqPos != std::string::npos) {
             std::string name = aliasLine.substr(0, eqPos);
             std::string value = aliasLine.substr(eqPos + 1);
             
-            // Trim whitespace
+            
             name.erase(0, name.find_first_not_of(" \t"));
             name.erase(name.find_last_not_of(" \t") + 1);
             value.erase(0, value.find_first_not_of(" \t"));
             value.erase(value.find_last_not_of(" \t") + 1);
             
-            // Remove quotes if present
+            
             if (value.size() >= 2 && 
                 ((value.front() == '"' && value.back() == '"') || 
                  (value.front() == '\'' && value.back() == '\''))) {
@@ -1034,13 +1034,13 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
             
             result = "Alias '" + name + "' defined";
             
-            // Signal to the main program to save this alias
-            // This is done through a special environment variable that main.cpp checks
+            
+            
             setenv("CJSH_SAVE_ALIAS_NAME", name.c_str(), 1);
             setenv("CJSH_SAVE_ALIAS_VALUE", value.c_str(), 1);
             setenv("CJSH_SAVE_ALIAS", "1", 1);
         } else {
-            // Just the alias name - show the specific alias
+            
             std::string name = aliasLine;
             name.erase(0, name.find_first_not_of(" \t"));
             name.erase(name.find_last_not_of(" \t") + 1);
@@ -1219,7 +1219,7 @@ void Terminal::processExportCommand(const std::string& exportLine, std::string& 
             if (setenv(name.c_str(), value.c_str(), 1) == 0) {
                 success = true;
                 
-                // Signal to the main program to save this environment variable
+                
                 setenv("CJSH_SAVE_ENV_NAME", name.c_str(), 1);
                 setenv("CJSH_SAVE_ENV_VALUE", value.c_str(), 1);
                 setenv("CJSH_SAVE_ENV", "1", 1);

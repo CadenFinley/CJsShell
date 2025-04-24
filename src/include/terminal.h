@@ -33,7 +33,7 @@ public:
     };
 
     struct RedirectionInfo {
-        int type;          // 1: >, 2: >>, 3: <, 4: 2>
+        int type;          
         std::string file;
     };
 
@@ -88,7 +88,7 @@ public:
     void setTerminationFlag(bool terminate) { shouldTerminate = terminate; }
     void terminateAllChildProcesses();
     
-    // Add these method declarations
+    
     std::string expandAliases(const std::string& command);
     std::string processCommandSubstitution(const std::string& command);
     std::vector<std::string> splitByPipes(const std::string& command);
@@ -107,7 +107,7 @@ public:
     void processExportCommand(const std::string& exportLine, std::string& result);
     std::string expandEnvironmentVariables(const std::string& input);
 
-    // Signal handling methods
+    
     static void signalHandlerWrapper(int signum, siginfo_t* info, void* context);
     void saveTerminalState();
     void restoreTerminalState();
@@ -159,4 +159,4 @@ private:
     bool executeInteractiveCommand(const std::string& command, std::string& result);
 };
 
-#endif // Terminal_H
+#endif 
