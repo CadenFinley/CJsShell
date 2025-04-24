@@ -25,10 +25,8 @@
 
 using json = nlohmann::json;
 
-
-
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.0";
+const std::string currentVersion = "2.0.2.1";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -246,7 +244,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--silent-update") {
             silentCheckForUpdates = true;
         } else if (arg == "-v" || arg == "--version") {
-            std::cout << currentVersion << std::endl;
+            std::cout << "v" << currentVersion << std::endl;
             return 0;
         } else if (arg == "-d" || arg == "--debug") {
             TESTING = true;
