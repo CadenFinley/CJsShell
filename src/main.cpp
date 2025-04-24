@@ -29,7 +29,7 @@ using json = nlohmann::json;
 // user auth
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.3";
+const std::string currentVersion = "2.0.3.0";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -397,6 +397,7 @@ void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "")
 void mainProcessLoop() {
     notifyPluginsTriggerMainProcess("pre_run", processId);
     
+    ic_set_history("", -1);
     ic_set_prompt_marker("", NULL);
     ic_enable_hint(true);
     ic_set_hint_delay(100);
@@ -3313,7 +3314,8 @@ void processProfileFile(const std::string& filePath) {
                 
                 std::string cmd = line.substr(cmdStartPos, cmdEndPos - cmdStartPos);
                 cmd.erase(0, cmd.find_first_not_of(" \t"));
-                cmd.erase(cmd.find_last_not_of(" \t") + 1);
+                cmd.erase(0, cmd.find_first_not_of(" \t\"'"));
+                cmd.erase(cmd.find_last_not_of(" \t\"'") + 1);
                 
                 std::string pathEnv = getenv("PATH") ? getenv("PATH") : "";
                 std::istringstream pathStream(pathEnv);

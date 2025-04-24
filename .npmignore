@@ -1,0 +1,11 @@
+src/
+include/
+../isocline/
+node_modules/
+.git/
+.vscode/
+*.cpp
+*.h
+Makefile
+CMakeLists.txt
+README.md

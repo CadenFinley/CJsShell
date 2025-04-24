@@ -1,0 +1,23 @@
+{
+  "name": "cjsh",
+  "version": "2.0.2.3",
+  "description": "CJ's Shell: A modern shell with AI integration",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CadenFinley/CJsShell.git"
+  },
+  "keywords": ["shell","cli","ai","cjsh"],
+  "bin": {
+    "cjsh": "install.js"
+  },
+  "scripts": {
+    "install": "node install.js install",
+    "postinstall": "echo 'cjsh installed'",
+    "uninstall": "node install.js uninstall",
+    "update": "node install.js update"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^2"
+  }
+}
