@@ -1,6 +1,4 @@
 #include "include/terminal.h"
-#include <string.h>
-#include <errno.h>
 
 Terminal::Terminal() : displayWholePath(false) {
     currentDirectory = std::filesystem::current_path().string();
@@ -620,7 +618,7 @@ bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
                 currentCmd = remainingCommand.substr(0, andPos);
                 size_t lastNonSpace = currentCmd.find_last_not_of(" \t");
                 if (lastNonSpace != std::string::npos) {
-                    currentCmd = currentCommand.substr(0, lastNonSpace + 1);
+                    currentCmd = currentCmd.substr(0, lastNonSpace + 1);
                 }
                 remainingCommand = remainingCommand.substr(andPos + 2);
                 size_t firstNonSpace = remainingCommand.find_first_not_of(" \t");
