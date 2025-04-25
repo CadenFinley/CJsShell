@@ -214,10 +214,6 @@ void shortcutCommands();
 void userDataCommands();
 
 int main(int argc, char* argv[]) {
-
-    // when shell boots check if there is already text in the terminal
-    
-
     
     isLoginShell = isRunningAsLoginShell(argv[0]);
     isFileHandler = checkIsFileHandler(argc, argv);
@@ -286,9 +282,10 @@ int main(int argc, char* argv[]) {
     
     if (executeCommand) {
         sendTerminalCommand(cmdToExecute);
-        if (!isLoginShell) {
-            return 0;
+        if (isLoginShell) {
+            cleanupLoginShell();
         }
+        return 0;
     }
 
     std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
