@@ -29,6 +29,7 @@ using json = nlohmann::json;
 // user auth
 // laod history from file
 // prolly hould add command to history lol
+// only in ghosty it lauches executables by double clicking
 
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.2.4";
