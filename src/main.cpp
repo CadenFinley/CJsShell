@@ -928,8 +928,8 @@ void writeUserData() {
 }
 
 void goToApplicationDirectory() {
-    commandProcesser("terminal cd /");
-    commandProcesser("terminal cd " + DATA_DIRECTORY.string());
+    sendTerminalCommand("cd /");
+    sendTerminalCommand("cd " + DATA_DIRECTORY.string());
 }
 
 std::string readAndReturnUserDataFile() {
