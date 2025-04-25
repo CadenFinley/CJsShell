@@ -27,6 +27,8 @@ using json = nlohmann::json;
 
 // TODO
 // user auth
+// laod history from file
+// prolly hould add command to history lol
 
 const std::string processId = std::to_string(getpid());
 const std::string currentVersion = "2.0.2.4";
