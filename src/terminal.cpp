@@ -642,8 +642,15 @@ bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
                         partialResults += "\n";
                     }
                     partialResults += pipeResult;
+                    
+                    if (!success) {
+                        std::cerr << "cjsh: " << pipeResult << std::endl;
+                    }
                 } else {
                     success = executeIndividualCommand(currentCmd, partialResults);
+                    if (!success) {
+                        std::cerr << "cjsh: " << partialResults << std::endl;
+                    }
                 }
             } else {
                 std::string singleCmdResult;
@@ -653,6 +660,10 @@ bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
                     partialResults += "\n";
                 }
                 partialResults += singleCmdResult;
+                
+                if (!success) {
+                    std::cerr << "cjsh: " << singleCmdResult << std::endl;
+                }
             }
             
             if (!success) {
@@ -1158,6 +1169,24 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
                 fullCommand = fullCommand.substr(0, lastNonSpace + 1);
         }
         auto args = parseCommandIntoArgs(fullCommand);
+        
+        // Add check for empty args
+        if (args.empty()) {
+            result = "Error: Empty command";
+            return false;
+        }
+        
+        // Check if command exists before proceeding
+        std::string executable = findExecutableInPath(args[0]);
+        if (executable.empty() || executable == args[0]) {
+            // If findExecutableInPath returns empty or the original command,
+            // it means the command was not found
+            if (access(args[0].c_str(), F_OK) != 0) {
+                result = "Error: command not found: " + args[0];
+                return false;
+            }
+        }
+        
         std::vector<RedirectionInfo> redirections;
         if (handleRedirection(fullCommand, args, redirections)) {
             if (background) {
@@ -1716,7 +1745,7 @@ void Terminal::waitForForegroundJob(pid_t pid) {
         jobs.back().status = status;
     }
     
-    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
+    tcsetattr(STDIN_FILENO, TCSADRAIN, &term_settings);
 }
 
 void Terminal::updateJobStatus() {
@@ -1782,7 +1811,7 @@ bool Terminal::bringJobToForeground(int jobId) {
     
     tcsetpgrp(STDIN_FILENO, getpgid(0));
     
-    tcsetattr(STDIN_FILENO, TCSANOW, &term_settings);
+    tcsetattr(STDIN_FILENO, TCSADRAIN, &term_settings);
     
     return true;
 }
