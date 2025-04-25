@@ -29,7 +29,7 @@ using json = nlohmann::json;
 // user auth
 
 const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.4";
+const std::string currentVersion = "2.0.2.2";
 const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
 const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 
@@ -197,6 +197,7 @@ void printHelp();
 
 void loadAliasesFromFile(const std::string& filePath);
 void saveAliasToCJSHRC(const std::string& name, const std::string& value);
+void saveEnvironmentVariableToCJSHRC(const std::string& name, const std::string& value);
 
 
 char* command_generator(const char* text, int state);
@@ -577,15 +578,9 @@ void setupLoginShell() {
 }
 
 void setAsShell() {
-    std::string shellPath = INSTALL_PATH.string();
-    if (!terminal.executeCommandSync( "grep -Fxq \"" + shellPath + "\" /etc/shells")) {
-        terminal.executeCommandSync( "echo \"" + shellPath + "\" | sudo tee -a /etc/shells");
-    }
-    if (terminal.executeCommandSync("sudo chsh -s \"" + shellPath + "\"")) {
-        std::cout << "Default shell set to " << shellPath << "\n";
-    } else {
-        std::cerr << "Error: Failed to change default shell.\n";
-    }
+    std::cout << "To set CJ's Shell as your default shell, run the following command:" << std::endl;
+    std::cout << "sudo chsh -s " << ACTUAL_SHELL_PATH.string() << std::endl;
+    std::cout << "You may need to restart your terminal for the changes to take effect." << std::endl;
 }
 
 void cleanupLoginShell() {
@@ -835,6 +830,14 @@ void saveAliasToCJSHRC(const std::string& name, const std::string& value) {
     if (outFile.is_open()) {
         outFile << content;
         outFile.close();
+        
+        // Apply the alias to the current session
+        aliases[name] = value;
+        
+        // Source the updated file to apply changes
+        processProfileFile(cjshrcPath.string());
+        
+        std::cout << "Alias '" << name << "' saved and applied to current session." << std::endl;
     } else {
         std::cerr << "Error: Could not save alias to " << cjshrcPath << std::endl;
     }
@@ -878,6 +881,14 @@ void saveEnvironmentVariableToCJSHRC(const std::string& name, const std::string&
     if (outFile.is_open()) {
         outFile << content;
         outFile.close();
+        
+        // Apply the environment variable to the current session
+        setenv(name.c_str(), value.c_str(), 1);
+        
+        // Source the updated file to apply changes
+        processProfileFile(cjshrcPath.string());
+        
+        std::cout << "Environment variable '" << name << "' saved and applied to current session." << std::endl;
     } else {
         std::cerr << "Error: Could not save environment variable to " << cjshrcPath << std::endl;
     }

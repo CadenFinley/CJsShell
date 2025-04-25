@@ -522,9 +522,10 @@ bool Terminal::executeCommandSync(const std::string& command) {
 }
 
 bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& result) {
-
+    std::string processedCmd = processCommandSubstitution(command);
+    
     std::vector<std::string> semicolonCommands;
-    std::string tempCmd = command;
+    std::string tempCmd = processedCmd;
     
     bool inQuotes = false;
     char quoteChar = 0;
@@ -575,10 +576,39 @@ bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
     std::string commandResults;
     bool overall_success = true;
     
+    std::map<std::string, std::string> globalEnvVars;
+    
     for (const auto& semicolonCmd : semicolonCommands) {
         std::string remainingCommand = semicolonCmd;
         bool success = true;
         std::string partialResults;
+        
+        std::map<std::string, std::string> localEnvVars;
+        std::vector<std::string> cmdArgs = parseCommandIntoArgs(remainingCommand);
+        size_t envVarEnd = 0;
+        
+        while (envVarEnd < cmdArgs.size() && 
+               cmdArgs[envVarEnd].find('=') != std::string::npos && 
+               isalpha(cmdArgs[envVarEnd][0])) {
+            size_t eqPos = cmdArgs[envVarEnd].find('=');
+            localEnvVars[cmdArgs[envVarEnd].substr(0, eqPos)] = cmdArgs[envVarEnd].substr(eqPos + 1);
+            envVarEnd++;
+        }
+        
+        if (envVarEnd > 0) {
+            remainingCommand.clear();
+            for (size_t i = envVarEnd; i < cmdArgs.size(); i++) {
+                remainingCommand += cmdArgs[i];
+                if (i + 1 < cmdArgs.size()) {
+                    remainingCommand += " ";
+                }
+            }
+        }
+        
+        for (const auto& env : localEnvVars) {
+            setenv(env.first.c_str(), env.second.c_str(), 1);
+            globalEnvVars[env.first] = env.second;
+        }
         
         while (!remainingCommand.empty() && success) {
             size_t andPos = remainingCommand.find("&&");
@@ -588,7 +618,7 @@ bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
                 currentCmd = remainingCommand.substr(0, andPos);
                 size_t lastNonSpace = currentCmd.find_last_not_of(" \t");
                 if (lastNonSpace != std::string::npos) {
-                    currentCmd = currentCommand.substr(0, lastNonSpace + 1);
+                    currentCmd = currentCmd.substr(0, lastNonSpace + 1);
                 }
                 remainingCommand = remainingCommand.substr(andPos + 2);
                 size_t firstNonSpace = remainingCommand.find_first_not_of(" \t");
@@ -635,6 +665,11 @@ bool Terminal::parseAndExecuteCommand(const std::string& command, std::string& r
             commandResults += "\n";
         }
         commandResults += partialResults;
+    }
+    for (const auto& env : globalEnvVars) {
+        if (getenv(env.first.c_str()) != nullptr) {
+            // nothing
+        }
     }
     
     result = commandResults;
@@ -920,7 +955,6 @@ void Terminal::restoreRedirection(const std::vector<int>& savedFds) {
 }
 
 bool Terminal::executeIndividualCommand(const std::string& command, std::string& result) {
-    // handle VAR=VALUE prefixes
     std::map<std::string, std::string> cmdEnvs;
     std::vector<std::string> splitArgs = parseCommandIntoArgs(command);
     size_t idx = 0;
@@ -931,7 +965,6 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
         cmdEnvs[splitArgs[idx].substr(0, pos)] = splitArgs[idx].substr(pos + 1);
         idx++;
     }
-    // if only assignments, apply to shell ENV
     if (idx > 0 && idx == splitArgs.size()) {
         for (auto& kv : cmdEnvs) {
             setenv(kv.first.c_str(), kv.second.c_str(), 1);
@@ -939,7 +972,6 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
         result.clear();
         return true;
     }
-    // rebuild command without the VAR=VALUE tokens
     std::string fullCommand = command;
     if (idx > 0) {
         fullCommand.clear();
@@ -1115,8 +1147,7 @@ bool Terminal::executeIndividualCommand(const std::string& command, std::string&
             }
         }
         return executeInteractiveCommand(command, result);
-    }
-    else {
+    } else {
         bool background = false;
         // handle trailing &
         if (!fullCommand.empty() && fullCommand.back() == '&') {
