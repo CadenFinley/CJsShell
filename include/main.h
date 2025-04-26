@@ -4,18 +4,11 @@
 #include "shell.h"
 #include "theme.h"
 #include "plugin.h"
-#include "cjsh_filesystem.h"
-#include "../isocline/include/isocline.h"
-#include <signal.h>
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <errno.h>
-#include <fstream>
-#include <sstream>
-#include <chrono>
 #include <ctime>
 
 // constants
@@ -44,6 +37,7 @@ extern int g_shell_terminal;
 extern pid_t g_shell_pgid;
 extern struct termios g_shell_tmodes;
 extern bool g_job_control_enabled;
+extern bool g_exit_flag;
 
 extern time_t g_last_update_check;
 extern int g_update_check_interval; // 24 hours

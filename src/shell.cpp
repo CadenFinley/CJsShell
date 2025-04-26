@@ -2,7 +2,7 @@
 
 Shell::Shell(pid_t pid, char *argv[]) {
   shell_prompt = std::make_unique<Prompt>();
-  shell_exec = std::make_unique<Exec>(this);
+  shell_exec = std::make_unique<Exec>();
   shell_parser = new Parser();
 
   this->pid = pid;

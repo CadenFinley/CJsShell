@@ -1,8 +1,13 @@
 #include "main.h"
+#include "../isocline/include/isocline.h"
+#include "cjsh_filesystem.h"
+#include <signal.h>
+
 
 //TODO
 // by order of importance
 
+// it is currently checking for updates every boot (NEEDS TO BE FIXED)
 // built-ins
 // need to match command lifecycle with how zsh and bash do it
 // handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
@@ -51,7 +56,6 @@ int main(int argc, char *argv[]) {
   
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
-    
     if (arg == "-c" || arg == "--command") {
       if (i + 1 < argc) {
         l_execute_command = true;
@@ -148,6 +152,8 @@ int main(int argc, char *argv[]) {
     }
     else if (arg == "--no-ai") {
       l_load_ai = false;
+    } else if (arg.length() > 0 && arg[0] == '-') {
+      std::cerr << "Warning: Unknown argument: " << arg << std::endl;
     }
   }
 
@@ -189,7 +195,6 @@ int main(int argc, char *argv[]) {
           }
         }
       } else {
-        update_available = check_for_update();
         save_update_cache(update_available, g_cached_version);
       }
       
@@ -201,7 +206,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if(!g_shell->get_exit_flag()) {
+  if(!g_exit_flag) {
     if (g_title_line) {
       std::cout << title_line << std::endl;
       std::cout << created_line  << std::endl;
@@ -259,14 +264,14 @@ void main_process_loop() {
         ic_history_add(command.c_str());
         g_shell->execute_command(command, true);
       }
-      if (g_shell->get_exit_flag()) {
+      if (g_exit_flag) {
         break;
       }
     } else {
-      g_shell->set_exit_flag(true);
+      g_exit_flag = true;
     }
     notify_plugins("main_process_end", c_pid_str);
-    if (g_shell->get_exit_flag()) {
+    if (g_exit_flag) {
       break;
     }
   }
@@ -280,7 +285,7 @@ static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
   switch (signum) {
     case SIGHUP:
       std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
-      g_shell->set_exit_flag(true);
+      g_exit_flag = true;
       
       // Clean up and exit immediately
       if (g_job_control_enabled) {
@@ -294,7 +299,7 @@ static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
       
     case SIGTERM:
       std::cerr << "Received SIGTERM, exiting" << std::endl;
-      g_shell->set_exit_flag(true);
+      g_exit_flag = true;
       _exit(0);
       break;
       
@@ -441,7 +446,7 @@ void initialize_login_environment() {
 
 void notify_plugins(std::string trigger, std::string data) {
   if (g_plugin == nullptr) {
-    g_shell->set_exit_flag(true);
+    g_exit_flag = true;
     std::cerr << "Error: Plugin system not initialized." << std::endl;
     return;
   }
@@ -696,13 +701,13 @@ void create_source_file() {
 }
 
 void parent_process_watchdog() {
-  while (!g_shell->get_exit_flag()) {
+  while (!g_exit_flag) {
     if (!is_parent_process_alive()) {
       std::cerr << "Parent process terminated, shutting down..." << std::endl;
-        g_shell->set_exit_flag(true);
-        break;
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(10));
+      g_exit_flag = true;
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(10));
   }
 }
 

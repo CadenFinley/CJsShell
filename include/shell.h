@@ -4,7 +4,6 @@
 #include "exec.h"
 #include "parser.h"
 #include <termios.h>
-#include <signal.h>
 #include <unistd.h>
 #include <string>
 #include <sys/types.h>
@@ -31,14 +30,6 @@ class Shell {
       return shell_prompt->get_ai_prompt();
     }
 
-    void set_exit_flag(bool flag) {
-      exit_flag = flag;
-    }
-
-    bool get_exit_flag() {
-      return exit_flag;
-    }
-
     void set_interactive_mode(bool flag) {
       interactive_mode = flag;
     }
@@ -60,7 +51,6 @@ class Shell {
     }
 
   private:
-    bool exit_flag = false;
     bool interactive_mode = false;
     bool login_mode = false;
     int shell_terminal;
