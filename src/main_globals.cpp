@@ -8,7 +8,7 @@ bool g_source = true;
 bool g_check_updates = true;
 bool g_title_line = true;
 bool g_menu_terminal = true;
-bool g_silent_update_check = false;
+bool g_silent_update_check = true;
 struct termios g_original_termios;
 bool g_terminal_state_saved = false;
 int g_shell_terminal;

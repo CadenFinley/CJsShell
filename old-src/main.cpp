@@ -421,9 +421,7 @@ void mainProcessLoop() {
             if (modelInfo.empty()) modelInfo = "Unknown";
             if (modeInfo.empty()) modeInfo = "Chat";
             
-            prompt = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
-                    GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
-                    GREEN_COLOR_BOLD + "] >" + RESET_COLOR;
+            prompt = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + GREEN_COLOR_BOLD + "] >" + RESET_COLOR;
             
             if (TESTING) {
                 std::cout << "AI Prompt: " << prompt << std::endl;

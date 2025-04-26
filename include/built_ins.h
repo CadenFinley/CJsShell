@@ -5,6 +5,9 @@
 #include <filesystem>
 #include <unistd.h>
 #include <unordered_map>
+#include <fstream>
+#include <vector>
+#include <string>
 
 class Built_ins {
 
@@ -17,12 +20,14 @@ Built_ins(): builtins({
       {"source", [](const std::vector<std::string>&) { /* Handle source command */ return true; }},
       {"unalias", [](const std::vector<std::string>&) { /* Handle unalias command */ return true; }},
       {"ai", [this](const std::vector<std::string>& args) { ai_commands(args); return true; }},
-      {"user", [](const std::vector<std::string>&) { /* Handle user command */ return true; }},
-      {"theme", [](const std::vector<std::string>&) { /* Handle theme command */ return true; }},
-      {"plugin", [](const std::vector<std::string>&) { /* Handle plugin command */ return true; }},
-     {"help", [](const std::vector<std::string>&) { /* Handle help command */ return true; }},
-
-
+      {"user", [this](const std::vector<std::string>& args) { user_commands(args); return true; }},
+      {"theme", [this](const std::vector<std::string>& args) { theme_commands(args); return true; }},
+      {"plugin", [this](const std::vector<std::string>& args) { plugin_commands(args); return true; }},
+      {"help", [this](const std::vector<std::string>&) { help_command(); return true; }},
+      {"approot", [this](const std::vector<std::string>&) { approot_command(); return true; }},
+      {"aihelp", [this](const std::vector<std::string>& args) { aihelp_command(args); return true; }},
+      {"version", [this](const std::vector<std::string>&) { version_command(); return true; }},
+      {"uninstall", [this](const std::vector<std::string>&) { uninstall_command(); return true; }},
   }) {}
   ~Built_ins() = default;
 
@@ -44,10 +49,21 @@ Built_ins(): builtins({
   }
 
   void ai_commands(const std::vector<std::string>& args);
+  void ai_chat_commands(const std::vector<std::string>& args, int command_index);
+  void handle_ai_file_commands(const std::vector<std::string>& args, int command_index);
   void do_ai_request(const std::string& prompt);
+  
+  // New command handlers
+  void plugin_commands(const std::vector<std::string>& args);
+  void theme_commands(const std::vector<std::string>& args);
+  void approot_command();
+  void version_command();
+  void uninstall_command();
+  void user_commands(const std::vector<std::string>& args);
+  void help_command();
+  void aihelp_command(const std::vector<std::string>& args);
 
 private:
   std::string current_directory;
-  Built_ins* built_ins;
   std::unordered_map<std::string, std::function<bool(const std::vector<std::string>&)>> builtins;
 };

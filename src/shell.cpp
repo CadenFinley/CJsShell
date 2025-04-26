@@ -60,12 +60,28 @@ void Shell::execute_command(std::string command, bool sync) {
     built_ins->do_ai_request(command);
   }
 
-
-  
   // check if command is a built-in command
   if (built_ins->builtin_command(args)) {
     return;
   }
+
+  //check if command is a plugin command
+      // std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
+      //   if (!enabledPlugins.empty()) {
+      //     std::queue<std::string> tempQueue;
+      //     tempQueue.push(lastCommandParsed);
+      //     while (!commandsQueue.empty()) {
+      //         tempQueue.push(commandsQueue.front());
+      //         commandsQueue.pop();
+      //     }
+      //     for(const auto& plugin : enabledPlugins){
+      //         std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(plugin);
+      //         if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
+      //             pluginManager->handlePluginCommand(plugin, tempQueue);
+      //             return;
+      //         }
+      //     }
+      // }
 
   // process all other commands
   if (sync) {
@@ -73,4 +89,6 @@ void Shell::execute_command(std::string command, bool sync) {
   } else {
     shell_exec->execute_command_async(args);
   }
+  last_command = command;
+  last_terminal_output_error = shell_exec->last_terminal_output_error;
 }

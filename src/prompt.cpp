@@ -1,4 +1,5 @@
 #include "prompt.h"
+#include "main.h"
 
 Prompt::Prompt() {
   last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
@@ -101,7 +102,13 @@ std::string Prompt::get_prompt() {
 
 std::string Prompt::get_ai_prompt() {
   // TODO
-  return "AI> ";
+  std::string modelInfo = g_ai -> getModel();
+  std::string modeInfo = g_ai -> getAssistantType();
+            
+  if (modelInfo.empty()) modelInfo = "Unknown";
+  if (modeInfo.empty()) modeInfo = "Chat";
+  //return g_theme -> ai_prompt_divider_color + "[" + g_theme -> ai_prompt_model_color + modelInfo + g_theme -> ai_prompt_divider_color + " | " + g_theme -> ai_prompt_info + modeInfo + g_theme -> ai_prompt_divider_color + "] >" + c_reset_color;
+  return "AI >";
 }
 
 bool Prompt::is_root_path(const std::filesystem::path& path) {

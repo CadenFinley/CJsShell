@@ -51,6 +51,9 @@ class Shell {
       shell_parser->set_env_vars(env_vars);
     }
 
+    std::string last_terminal_output_error;
+    std::string last_command;
+
   private:
     bool interactive_mode = false;
     bool login_mode = false;

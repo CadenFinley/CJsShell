@@ -18,5 +18,5 @@ public:
   void execute_command_sync(const std::vector<std::string>& args);
   void execute_command_async(const std::vector<std::string>& args);
 
-  std::string result;
+  std::string last_terminal_output_error;
 };

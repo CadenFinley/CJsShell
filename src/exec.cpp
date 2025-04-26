@@ -2,6 +2,7 @@
 #include <vector>
 
 Exec::Exec(){
+  last_terminal_output_error = "";
 }
 
 Exec::~Exec() {
@@ -11,14 +12,16 @@ Exec::~Exec() {
 void Exec::execute_command_sync(const std::vector<std::string>& args) {
 
   if (args.empty()) {
-    std::cerr << "cjsh: Failed to parse command" << std::endl;
+    last_terminal_output_error = "cjsh: Failed to parse command";
+    std::cerr << last_terminal_output_error << std::endl;
     return;
   }
   
   pid_t pid = fork();
   
   if (pid == -1) {
-    std::cerr << "cjsh: Failed to fork process: " << strerror(errno) << std::endl;
+    last_terminal_output_error = "cjsh: Failed to fork process: " + std::string(strerror(errno));
+    std::cerr << last_terminal_output_error << std::endl;
     return;
   }
   
@@ -36,7 +39,8 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     execvp(args[0].c_str(), c_args.data());
     
     // If we get here, execvp failed
-    std::cerr << "cjsh: Failed to execute command: " << strerror(errno) << std::endl;
+    std::string error_msg = "cjsh: Failed to execute command: " + std::string(strerror(errno));
+    std::cerr << error_msg << std::endl;
     exit(EXIT_FAILURE);
   }
   
@@ -52,14 +56,16 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
 void Exec::execute_command_async(const std::vector<std::string>& args) {
 
   if (args.empty()) {
-    std::cerr << "cjsh: Failed to parse command" << std::endl;
+    last_terminal_output_error = "cjsh: Failed to parse command";
+    std::cerr << last_terminal_output_error << std::endl;
     return;
   }
   
   pid_t pid = fork();
   
   if (pid == -1) {
-    std::cerr << "cjsh: Failed to fork process: " << strerror(errno) << std::endl;
+    last_terminal_output_error = "cjsh: Failed to fork process: " + std::string(strerror(errno));
+    std::cerr << last_terminal_output_error << std::endl;
     return;
   }
   
@@ -98,5 +104,9 @@ void Exec::execute_command_async(const std::vector<std::string>& args) {
     
     // If we get here, execvp failed
     exit(EXIT_FAILURE);
+  }
+  else {
+    // Parent process
+    last_terminal_output_error = "no error encountered";
   }
 }
