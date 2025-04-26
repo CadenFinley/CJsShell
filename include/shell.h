@@ -1,7 +1,6 @@
 #pragma once
 
 #include "prompt.h"
-#include "exec.h"
 #include <termios.h>
 #include <signal.h>
 #include <unistd.h>
@@ -9,9 +8,10 @@
 #include <map>
 #include <sys/types.h>
 
-//this will take input from main.cpp and will handle prompting and executing the command
+// Forward declaration
+class Exec;
 
-// will also do signal handling
+//this will take input from main.cpp and will handle prompting and executing the command
 
 class Shell {
   public:
@@ -48,10 +48,6 @@ class Shell {
       return login_mode;
     }
 
-    void set_current_working_directory(std::string cwd) {
-      current_working_directory = cwd;
-    }
-
     void set_aliases(std::map<std::string, std::string> aliases) {
       this->aliases = aliases;
     }
@@ -62,7 +58,6 @@ class Shell {
     bool login_mode = false;
     int shell_terminal;
     pid_t pid;
-    std::string current_working_directory;
 
     std::map<std::string, std::string> aliases;
 

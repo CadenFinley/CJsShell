@@ -3,9 +3,8 @@
 int main(int argc, char *argv[]) {
   // cjsh
 
+  // verify installation
   initialize_cjsh_path();
-  std::cout << cjsh_filesystem::g_user_home_path << std::endl;
-  std::cout << cjsh_filesystem::g_cjsh_path << std::endl;
 
   // this handles the prompting and executing of commands
   g_shell = new Shell(c_pid, argv);
@@ -30,6 +29,7 @@ int main(int argc, char *argv[]) {
   // -h, --help
   // --set-as-shell
   // --update
+  // --silent-updates
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
   
@@ -64,6 +64,9 @@ int main(int argc, char *argv[]) {
     else if (arg == "--update") {
       execute_update_if_available(check_for_update());
       return 0;
+    }
+    else if (arg == "--silent-updates") {
+      g_silent_update_check = true;
     }
   }
 
@@ -217,19 +220,11 @@ void main_process_loop() {
   ic_enable_hint(true);
   ic_set_hint_delay(100);
   ic_enable_completion_preview(true);
-  
-  std::string cached_pwd = getenv("PWD") ? getenv("PWD") : "";
 
   while(true) {
     notify_plugins("main_process_start", c_pid_str);
     if (g_debug_mode) {
       std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
-    }
-
-    const char* current_pwd = getenv("PWD");
-    if (current_pwd && cached_pwd != current_pwd) {
-      cached_pwd = current_pwd;
-      g_shell->set_current_working_directory(cached_pwd);
     }
     
     std::string prompt;
@@ -958,7 +953,11 @@ bool download_latest_release() {
 }
 
 bool execute_update_if_available(bool update_available) {
-  if (!update_available) return false;
+  if (!update_available) {
+    std::cout << "\nYou are up to date!." << std::endl;
+    return false;
+  }
+
   
   std::cout << "\nAn update is available. Would you like to download it? (Y/N): ";
   char response;

@@ -1,8 +1,9 @@
 #include "shell.h"
+#include "exec.h"
 
 Shell::Shell(pid_t pid, char *argv[]) {
   shell_prompt = new Prompt();
-  shell_exec = new Exec();
+  shell_exec = new Exec(this);
 
   this->pid = pid;
 
