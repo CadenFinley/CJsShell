@@ -1,13 +1,18 @@
 #include "main.h"
 
 //TODO
+// by order of importance
 
+// built-ins
+// need to match command lifecycle with how zsh and bash do it
+// handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
+
+// good history management and implementation
 // theming application and overhaul
 // prompt customization through themes
-// handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
-// good history management and implementation
-// need to match command lifecycle with how zsh and bash do it
+
 // need a good splash screen maybe with some ascii art or something
+// create example plugins using rust, go, and anything else that can tap into the C runtime API
 
 int main(int argc, char *argv[]) {
   // cjsh
