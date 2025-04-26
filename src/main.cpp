@@ -1,5 +1,11 @@
 #include "main.h"
 
+//TODO
+
+// theming application and overhaul
+// prompt customization through themes
+// handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
+
 int main(int argc, char *argv[]) {
   // cjsh
 
