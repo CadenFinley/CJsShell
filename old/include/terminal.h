@@ -28,12 +28,11 @@ public:
         bool foreground;
         int status;
         
-        Job(pid_t p, const std::string& cmd, bool fg = true) 
-            : pid(p), command(cmd), foreground(fg), status(0) {}
+        Job(pid_t p, const std::string& cmd, bool fg = true) : pid(p), command(cmd), foreground(fg), status(0) {}
     };
 
     struct RedirectionInfo {
-        int type;          
+        int type;
         std::string file;
     };
 
