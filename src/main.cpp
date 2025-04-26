@@ -1,3450 +1,1084 @@
-#include <iostream>
-#include <string>
-#include <thread>
-#include <vector>
-#include <fstream>
-#include <map>
-#include <queue>
-#include <termios.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <limits>
-#include <ostream>
-#include <nlohmann/json.hpp>
-#include <future>
-#include <sys/types.h>
-#include <pwd.h>
-#include <signal.h>
-#include <grp.h>
+#include "main.h"
 
-#include "include/terminal.h"
-#include "include/openaipromptengine.h"
-#include "include/pluginmanager.h"
-#include "include/thememanager.h"
-#include "../isocline/include/isocline.h"
+//TODO
 
-using json = nlohmann::json;
+// theming application and overhaul
+// prompt customization through themes
+// handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
+// good history management and implementation
+// need to match command lifecycle with how zsh and bash do it
+// need a good splash screen maybe with some ascii art or something
 
-// TODO
-// user auth
+int main(int argc, char *argv[]) {
+  // cjsh
 
-const std::string processId = std::to_string(getpid());
-const std::string currentVersion = "2.0.2.4";
-const std::string githubRepoURL = "https://github.com/CadenFinley/CJsShell";
-const std::string updateURL_Github = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
+  // verify installation
+  if (!initialize_cjsh_path()){
+    std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
+  }
 
-bool TESTING = false;
-bool exitFlag = false;
-bool defaultTextEntryOnAI = false;
-bool displayWholePath = false;
-bool saveLoop = false;
-bool saveOnExit = false;
-bool updateFromGithub = false;
-bool isLoginShell = false;
-bool isFileHandler = false;
-bool shortcutsEnabled = true;
-bool startCommandsOn = true;
-bool usingChatCache = true;
-bool checkForUpdates = true;
-bool silentCheckForUpdates = true;
-bool cachedUpdateAvailable = false;
-bool historyExpansionEnabled = true;
-bool showTitleLine = true;
+  // this handles the prompting and executing of commands
+  g_shell = new Shell(c_pid, argv);
 
-
-time_t lastUpdateCheckTime = 0;
-int UPDATE_CHECK_INTERVAL = 86400;
-std::string cachedLatestVersion = "";
-
-
-std::vector<std::string> cachedCompletions;
-int currentCompletionIndex = 0;
-std::string currentCompletionPrefix;
-
-
-std::filesystem::path ACTUAL_SHELL_PATH = std::filesystem::path("/usr/local/bin/cjsh");
-std::string homeDir = std::getenv("HOME");
-std::filesystem::path INSTALL_PATH = std::getenv("CJSH_INSTALL_PATH") ? std::filesystem::path(std::getenv("CJSH_INSTALL_PATH")) : std::filesystem::path("/usr/local/bin") / "cjsh";
-std::filesystem::path DATA_DIRECTORY = std::filesystem::path(homeDir) / ".cjsh_data";
-std::filesystem::path CJSHRC_FILE = DATA_DIRECTORY / ".cjshrc";
-std::filesystem::path UNINSTALL_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_uninstall.sh";
-std::filesystem::path UPDATE_SCRIPT_PATH = DATA_DIRECTORY / "cjsh_update.sh";
-std::filesystem::path USER_DATA = DATA_DIRECTORY / "USER_DATA.json";
-std::filesystem::path USER_COMMAND_HISTORY = DATA_DIRECTORY / "USER_COMMAND_HISTORY.txt";
-std::filesystem::path THEMES_DIRECTORY = DATA_DIRECTORY / "themes";
-std::filesystem::path PLUGINS_DIRECTORY = DATA_DIRECTORY / "plugins";
-std::filesystem::path UPDATE_CACHE_FILE = DATA_DIRECTORY / "update_cache.json";
-
-
-std::string currentTheme = "default";
-std::string GREEN_COLOR_BOLD = "\033[1;32m";
-std::string RESET_COLOR = "\033[0m";
-std::string RED_COLOR_BOLD = "\033[1;31m";
-std::string PURPLE_COLOR_BOLD = "\033[1;35m";
-std::string BLUE_COLOR_BOLD = "\033[1;34m";
-std::string YELLOW_COLOR_BOLD = "\033[1;33m";
-std::string CYAN_COLOR_BOLD = "\033[1;36m";
-
-
-std::string shortcutsPrefix = "@";
-std::string lastCommandParsed;
-std::string titleLine = "CJ's Shell v" + currentVersion + " - Caden J Finley (c) 2025";
-std::string createdLine = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
-std::string lastUpdated = "N/A";
-
-
-std::queue<std::string> commandsQueue;
-std::vector<std::string> startupCommands;
-std::vector<std::string> savedChatCache;
-std::vector<std::string> commandLines;
-std::map<std::string, std::string> aliases;
-std::map<std::string, std::vector<std::string>> multiScriptShortcuts;
-std::map<std::string, std::map<std::string, std::string>> availableThemes;
-
-
-OpenAIPromptEngine c_assistant;
-Terminal terminal;
-PluginManager* pluginManager = nullptr;
-ThemeManager* themeManager = nullptr;
-
-
-std::mutex rawModeMutex;
-pid_t shell_pgid = 0;
-struct termios shell_tmodes;
-int shell_terminal;
-bool jobControlEnabled = false;
-
-
-void mainProcessLoop();
-void startupCommandsHandler();
-void commandParser(const std::string& command);
-void commandProcesser(const std::string& command);
-void multiScriptShortcutProcesser(const std::string& command);
-void sendTerminalCommand(const std::string& command);
-void getNextCommand();
-std::vector<std::string> commandSplicer(const std::string& command);
-
-
-void addUserInputToHistory(const std::string& input);
-void createNewUSER_HISTORYfile();
-void writeUserData();
-void createNewUSER_DATAFile();
-std::string readAndReturnUserDataFile();
-
-
-void chatProcess(const std::string& message);
-void showChatHistory();
-
-
-void pluginCommands();
-void loadPluginsAsync(std::function<void()> callback);
-
-
-void themeCommands();
-void loadTheme(const std::string& themeName);
-void applyColorToStrings();
-void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback);
-
-
-bool checkForUpdate();
-void manualUpdateCheck();
-void setUpdateInterval(int intervalHours);
-bool shouldCheckForUpdates();
-bool loadUpdateCache();
-void saveUpdateCache(bool updateAvailable, const std::string& latestVersion);
-bool executeUpdateIfAvailable(bool updateAvailable);
-void asyncCheckForUpdates(std::function<void(bool)> callback);
-bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion);
-bool downloadLatestRelease();
-void processChangelogAsync();
-
-
-void setupEnvironmentVariables();
-void initializeLoginEnvironment();
-void initializeDataDirectories();
-void setupSignalHandlers();
-void setupJobControl();
-void resetTerminalOnExit();
-void createDefaultCJSHRC();
-void processProfileFile(const std::string& filePath);
-void setAsShell();
-
-
-bool isRunningAsLoginShell(char* argv0);
-bool checkIsFileHandler(int argc, char* argv[]);
-void setupLoginShell();
-void cleanupLoginShell();
-void handleFileExecution(const std::string& filePath);
-void loadUserDataAsync(std::function<void()> callback);
-
-
-static void signalHandlerWrapper(int signum, siginfo_t* info, void* context);
-void saveTerminalState();
-void restoreTerminalState();
-struct termios original_termios;
-bool terminal_state_saved = false;
-
-
-bool authenticateUser();
-bool startsWith(const std::string& str, const std::string& prefix);
-std::string expandEnvVariables(const std::string& input);
-std::string expandHistoryCommand(const std::string& command);
-std::string performCommandSubstitution(const std::string& command);
-void parentProcessWatchdog();
-bool isParentProcessAlive();
-void printHelp();
-
-
-void loadAliasesFromFile(const std::string& filePath);
-void saveAliasToCJSHRC(const std::string& name, const std::string& value);
-void saveEnvironmentVariableToCJSHRC(const std::string& name, const std::string& value);
-
-
-char* command_generator(const char* text, int state);
-char** command_completion(const char* text, int start, int end);
-std::vector<std::string> get_completion_matches(const std::string& prefix);
-
-
-void updateCommands();
-void aiSettingsCommands();
-void aiChatCommands();
-void userSettingsCommands();
-void textCommands();
-void shortcutCommands();
-void userDataCommands();
-
-int main(int argc, char* argv[]) {
-    
-    isLoginShell = isRunningAsLoginShell(argv[0]);
-    isFileHandler = checkIsFileHandler(argc, argv);
-
-    setupSignalHandlers();
-    
-    if (isLoginShell) {
-        try {
-            setupLoginShell();
-        } catch (const std::exception& e) {
-            std::cerr << "Error in login shell setup: " << e.what() << std::endl;
-            isLoginShell = false;
-        }
+  // setup signal handlers before anything else
+  setup_signal_handlers();
+  
+  // Initialize login environment if necessary
+  if (g_shell->get_login_mode()) {
+    if (!init_login_filesystem()) {
+      std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
+      return 1;
     }
+    initialize_login_environment();
+    setup_environment_variables();
+    setup_job_control();
+  }
 
-    bool executeCommand = false;
-    std::string cmdToExecute;
+  // check for non interactive command line arguments
+  // -c, --command
+  // -v, --version
+  // -h, --help
+  // --set-as-shell
+  // --update
+  // --silent-updates
+  bool l_execute_command = false;
+  std::string l_cmd_to_execute = "";
+  
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
     
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-        if (arg == "-c" && i + 1 < argc) {
-            executeCommand = true;
-            cmdToExecute = argv[i + 1];
-            i++;
-        } else if ((arg == "-l" || arg == "--login") && !isLoginShell) {
-            isLoginShell = true;
-            setupLoginShell();
-        } else if (arg == "-h" || arg == "--help") {
-            printHelp();
-            return 0;
-        } else if (arg == "--no-update") {
-            checkForUpdates = false;
-        } else if (arg == "--silent-update") {
-            silentCheckForUpdates = true;
-        } else if (arg == "-v" || arg == "--version") {
-            std::cout << "v" << currentVersion << std::endl;
-            return 0;
-        } else if (arg == "-d" || arg == "--debug") {
-            TESTING = true;
-        } else if (arg == "--set-as-shell") {
-            setAsShell();
-            return 0;
-        }
+    if (arg == "-c" || arg == "--command") {
+      if (i + 1 < argc) {
+        l_execute_command = true;
+        l_cmd_to_execute = argv[i + 1];
+        i++;
+      }
     }
-    
-    startupCommands = {};
-    multiScriptShortcuts = {};
-    c_assistant = OpenAIPromptEngine("", "chat", "You are an AI personal assistant within a shell.", {}, DATA_DIRECTORY);
-
-    initializeDataDirectories();
-    
-    if (isFileHandler) {
-        std::string filePath = argv[1];
-        if (!std::filesystem::path(filePath).is_absolute()) {
-            filePath = (std::filesystem::current_path() / filePath).string();
-        }
-        
-        std::cout << "cjsh launched as file handler for: " << filePath << std::endl;
-        handleFileExecution(filePath);
-        
-        if (isLoginShell) {
-            cleanupLoginShell();
-        }
-        return 0;
+    else if (arg == "-v" || arg == "--version") {
+      std::cout << c_version << std::endl;
+      return 0;
     }
-    
-    if (executeCommand) {
-        sendTerminalCommand(cmdToExecute);
-        if (isLoginShell) {
-            cleanupLoginShell();
-        }
-        return 0;
+    else if (arg == "-h" || arg == "--help") {
+      g_shell ->execute_command("help", true);
+      return 0;
     }
-
-    std::future<void> userDataFuture = std::async(std::launch::async, [&]() {
-        if (std::filesystem::exists(USER_DATA)) {
-            loadUserDataAsync([]() {});
-        } else {
-            createNewUSER_DATAFile();
-        }
-        
-        if (!std::filesystem::exists(USER_COMMAND_HISTORY)) {
-            createNewUSER_HISTORYfile();
-        }
-    });
-    
-    std::future<void> changelogFuture;
-    if (std::filesystem::exists(DATA_DIRECTORY / "CHANGELOG.txt")) {
-        changelogFuture = std::async(std::launch::async, processChangelogAsync);
+    else if (arg == "--set-as-shell") {
+      std::cout << "Setting CJ's Shell as the default shell..." << std::endl;
+      std::cerr << "Please run the following command to set CJ's Shell as your default shell:\n";
+      std::cerr << "chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+      return 0;
     }
-    
-    std::future<void> pluginFuture = std::async(std::launch::async, [&]() {
-        pluginManager = new PluginManager(PLUGINS_DIRECTORY);
-        loadPluginsAsync([]() {});
-    });
-
-    userDataFuture.wait();
-
-    std::future<void> themeFuture = std::async(std::launch::async, [&]() {
-        themeManager = new ThemeManager(THEMES_DIRECTORY);
-        loadThemeAsync(currentTheme, [&](bool success) {
-            if (success) {
-                applyColorToStrings();
-            }
-        });
-    });
-
-    std::future<void> updateFuture;
-    if (checkForUpdates) {
-        updateFuture = std::async(std::launch::async, [&]() {
-            bool cacheLoaded = loadUpdateCache();
-            
-            if (!cacheLoaded || shouldCheckForUpdates()) {
-                asyncCheckForUpdates([](bool updateAvailable) {
-                    if (updateAvailable) {
-                        executeUpdateIfAvailable(updateAvailable);
-                    } else {
-                        if(!silentCheckForUpdates){
-                            std::cout << " -> You are up to date!" << std::endl;
-                        }
-                    }
-                });
-            } else if (cachedUpdateAvailable) {
-                if (!silentCheckForUpdates) {
-                    std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
-                }
-                executeUpdateIfAvailable(true);
-            }
-        });
+    else if (arg == "--force-update") {
+      download_latest_release();
+      return 0;
     }
-
-    if (changelogFuture.valid()) changelogFuture.wait();
-    pluginFuture.wait();
-    themeFuture.wait();
-    if (updateFuture.valid()) updateFuture.wait();
-
-    std::thread watchdogThread(parentProcessWatchdog);
-    watchdogThread.detach();
-
-    if (!startupCommands.empty() && startCommandsOn) {
-        for (const auto& command : startupCommands) {
-            commandParser(command);
-        }
+    else if (arg == "--update") {
+      execute_update_if_available(check_for_update());
+      return 0;
     }
-
-    if(!exitFlag){
-        if (showTitleLine) {
-            std::cout << titleLine << std::endl;
-            std::cout << createdLine << std::endl;
-        }
-    
-        mainProcessLoop();
+    else if (arg == "--silent-updates") {
+      g_silent_update_check = true;
     }
+  }
 
-    std::cout << "CJ's Shell Exiting..." << std::endl;
-
-    if(saveOnExit){
-        savedChatCache = c_assistant.getChatCache();
-        writeUserData();
-    }
-    
-    if (isLoginShell) {
-        cleanupLoginShell();
-    }
-    
-    delete pluginManager;
-    delete themeManager;
+  // execute the command passed in the startup arg and exit
+  if (l_execute_command) {
+    g_shell->execute_command(l_cmd_to_execute, true);
+    delete g_shell;
+    g_shell = nullptr;
     return 0;
-}
+  }
 
-void notifyPluginsTriggerMainProcess(std::string trigger, std::string data = "") {
-    if (pluginManager == nullptr) {
-        std::cerr << "PluginManager is not initialized." << std::endl;
-        return;
+  // now we know we are in interactive mode
+  g_shell->set_interactive_mode(true);
+
+  // set process watchdog
+  std::thread watchdog_thread(parent_process_watchdog);
+  watchdog_thread.detach();
+
+  // set initial working directory
+  setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+
+  // initialize and verify the file system
+  if (!init_interactive_filesystem()) {
+    std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
+    return 1;
+  }
+
+  // check for interactive command line arguments
+  // --no-update
+  // -d, --debug
+  // --check-update
+  // --no-source
+  // --no-titleline
+  // --no-plugin
+  // --no-theme
+  // --no-ai
+
+  bool l_load_plugin = true;
+  bool l_load_theme = true;
+  bool l_load_ai = true;
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg == "--no-update") {
+      g_check_updates = false;
     }
-    if (pluginManager->getEnabledPlugins().empty()) {
-        return;
+    else if (arg == "-d" || arg == "--debug") {
+      g_debug_mode = true;
     }
-    pluginManager->triggerSubscribedGlobalEvent("main_process_" + trigger, data);
-}
-
-void mainProcessLoop() {
-    notifyPluginsTriggerMainProcess("pre_run", processId);
-    
-    ic_set_prompt_marker("", NULL);
-    ic_enable_hint(true);
-    ic_set_hint_delay(100);
-    ic_enable_completion_preview(true);
-    
-    while (true) {
-        notifyPluginsTriggerMainProcess("start", processId);
-        if (saveLoop) {
-            writeUserData();
-        }
-        
-        if (TESTING) {
-            std::cout << RED_COLOR_BOLD << "DEV MODE ENABLED" << RESET_COLOR << std::endl;
-        }
-
-        std::string prompt;
-        if (defaultTextEntryOnAI) {
-            std::string modelInfo = c_assistant.getModel();
-            std::string modeInfo = c_assistant.getAssistantType();
-            
-            if (modelInfo.empty()) modelInfo = "Unknown";
-            if (modeInfo.empty()) modeInfo = "Chat";
-            
-            prompt = GREEN_COLOR_BOLD + "[" + YELLOW_COLOR_BOLD + modelInfo + 
-                    GREEN_COLOR_BOLD + " | " + BLUE_COLOR_BOLD + modeInfo + 
-                    GREEN_COLOR_BOLD + "] >" + RESET_COLOR;
-            
-            if (TESTING) {
-                std::cout << "AI Prompt: " << prompt << std::endl;
-                std::cout << "Model: '" << modelInfo << "', Mode: '" << modeInfo << "'" << std::endl;
-            }
-        } else {
-            prompt = terminal.returnCurrentTerminalPosition();
-        }
-
-        std::string fullPrompt = prompt + " ";
-        char* input = ic_readline(fullPrompt.c_str());
-        
-        if (input != nullptr) {
-            std::string command(input);
-            if (!command.empty()) {
-                notifyPluginsTriggerMainProcess("command_processed", command);
-                commandParser(command);
-
-                ic_history_add(command.c_str());
-            }
-            ic_free(input);
-            if (exitFlag) {
-                break;
-            }
-        } else {
-            exitFlag = true;
-        }
-
-        notifyPluginsTriggerMainProcess("end", processId);
-        if (exitFlag) {
-            break;
-        }
+    else if (arg == "--check-update") {
+      g_check_updates = true;
     }
-}
-
-bool authenticateUser(){
-    return true;
-}
-
-bool isRunningAsLoginShell(char* argv0) {
-    if (argv0 && argv0[0] == '-') {
-        return true;
+    else if (arg == "--no-source") {
+      g_source = false;
     }
-    return false;
-}
-
-bool checkIsFileHandler(int argc, char* argv[]) {
-    if (argc == 2) {
-        std::string arg = argv[1];
-        if (arg[0] != '-' && std::filesystem::exists(arg)) {
-            return true;
-        }
+    else if (arg == "--no-titleline") {
+      g_title_line = false;
     }
-    return false;
-}
-
-void handleFileExecution(const std::string& filePath) {
-    std::filesystem::path path(filePath);
-    std::string extension = path.extension().string();
-    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-
-    if (access(filePath.c_str(), X_OK) == 0) {
-        std::cout << "Executing file: " << filePath << std::endl;
-        terminal.executeCommand(filePath).join();
-        return;
+    else if (arg == "--no-plugin") {
+      l_load_plugin = false;
     }
-    
-    std::ifstream file(filePath);
-    if (file.is_open()) {
-        std::string firstLine;
-        std::getline(file, firstLine);
-        file.close();
-        
-        if (firstLine.size() > 2 && firstLine[0] == '#' && firstLine[1] == '!') {
-            std::string interpreter = firstLine.substr(2);
-            interpreter.erase(0, interpreter.find_first_not_of(" \t"));
-            
-            std::string interpreterCmd;
-            size_t spacePos = interpreter.find(' ');
-            if (spacePos != std::string::npos) {
-                interpreterCmd = interpreter.substr(0, spacePos);
-                std::string args = interpreter.substr(spacePos + 1);
-                terminal.executeCommand(interpreterCmd + " " + args + " \"" + filePath + "\"").join();
-            } else {
-                terminal.executeCommand(interpreter + " \"" + filePath + "\"").join();
-            }
-            return;
-        }
+    else if (arg == "--no-theme") {
+      l_load_theme = false;
     }
-    
-    if (extension == ".sh") {
-        terminal.executeCommand("sh \"" + filePath + "\"").join();
-    } else if (extension == ".py") {
-        terminal.executeCommand("python3 \"" + filePath + "\"").join();
-    } else if (extension == ".js") {
-        terminal.executeCommand("node \"" + filePath + "\"").join();
-    } else if (extension == ".html") {
-        terminal.executeCommand("open \"" + filePath + "\"").join();
-    } else if (extension == ".txt" || extension == ".md" || extension == ".json" || extension == ".xml") {
-        terminal.executeCommand("open \"" + filePath + "\"").join();
-    } else {
-        std::cout << "Opening file with system default application" << std::endl;
-        terminal.executeCommand("open \"" + filePath + "\"").join();
+    else if (arg == "--no-ai") {
+      l_load_ai = false;
     }
-}
+  }
 
-void setupLoginShell() {
-    initializeLoginEnvironment();
-    setupEnvironmentVariables();
-    setupSignalHandlers();
-    setupJobControl();
-    
-    processProfileFile("/etc/profile");
-    
-    std::string homeDir = std::getenv("HOME") ? std::getenv("HOME") : "";
-    if (!homeDir.empty()) {
-        createDefaultCJSHRC();
-        
-        std::vector<std::string> profileFiles = {
-            homeDir + "/.profile",
-            homeDir + "/.bashrc",
-            homeDir + "/.zprofile",
-            homeDir + "/.zshrc",
-            CJSHRC_FILE.string()
-        };
-        
-        for (const auto& profile : profileFiles) {
-            if (std::filesystem::exists(profile)) {
-                processProfileFile(profile);
-            }
-        }
-        
-        std::vector<std::string> brewPaths = {
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            homeDir + "/.homebrew/bin",
-            "/opt/homebrew/sbin",
-            "/usr/local/sbin"
-        };
-        
-        std::string currentPath = std::getenv("PATH") ? std::getenv("PATH") : "";
-        for (const auto& brewPath : brewPaths) {
-            if (std::filesystem::exists(brewPath) && 
-                currentPath.find(brewPath) == std::string::npos) {
-                currentPath = brewPath + ":" + currentPath;
-            }
-        }
-        setenv("PATH", currentPath.c_str(), 1);
-    }
-    
-    loadAliasesFromFile(CJSHRC_FILE.string());
-}
+  // initalize objects
+  if (l_load_plugin) {
+    // this will load the users plugins from .cjsh_data/plugins
+    g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path); //doesnt need to verify filesys
+  }
+  if (l_load_theme) {
+    // this will load the users selected theme from .cjshrc
+    g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
+  }
+  if (l_load_ai) {
+    g_ai = new Ai("", "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
+  }
 
-void setAsShell() {
-    std::cout << "To set CJ's Shell as your default shell, run the following command:" << std::endl;
-    std::cout << "sudo chsh -s " << ACTUAL_SHELL_PATH.string() << std::endl;
-    std::cout << "You may need to restart your terminal for the changes to take effect." << std::endl;
-}
-
-void cleanupLoginShell() {
+  std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
+  if (std::filesystem::exists(changelog_path)) {
+    display_changelog(changelog_path);
+    std::string saved_changelog_path = (cjsh_filesystem::g_cjsh_data_path / "latest_changelog.txt").string();
     try {
-        restoreTerminalState();
+      std::filesystem::rename(changelog_path, saved_changelog_path);
+      g_last_updated = get_current_time_string();
     } catch (const std::exception& e) {
-        std::cerr << "Error cleaning up terminal: " << e.what() << std::endl;
+      std::cerr << "Error handling changelog: " << e.what() << std::endl;
     }
+  } else {
+    if (g_check_updates) {
+      bool update_available = false;
+      
+      if (load_update_cache()) {
+        if (should_check_for_updates()) {
+          update_available = check_for_update();
+          save_update_cache(update_available, g_cached_version);
+        } else if (g_cached_update) {
+          update_available = true;
+          if (!g_silent_update_check) {
+            std::cout << "\nUpdate available: " << g_cached_version << " (cached)" << std::endl;
+          }
+        }
+      } else {
+        update_available = check_for_update();
+        save_update_cache(update_available, g_cached_version);
+      }
+      
+      if (update_available) {
+        execute_update_if_available(update_available);
+      } else if (!g_silent_update_check) {
+        std::cout << " You are up to date!" << std::endl;
+      }
+    }
+  }
+
+  if(!g_shell->get_exit_flag()) {
+    if (g_title_line) {
+      std::cout << title_line << std::endl;
+      std::cout << created_line  << std::endl;
+    }
+
+    main_process_loop();
+  }
+
+  std::cout << "CJ's Shell Exiting..." << std::endl;
+
+  if (g_shell->get_login_mode()) {
+    restore_terminal_state();
+  }
+
+  delete g_shell;
+  g_shell = nullptr;
+  delete g_ai;
+  g_ai = nullptr;
+  delete g_theme;
+  g_theme = nullptr;
+  delete g_plugin;
+  g_plugin = nullptr;
+
+  // clean up main
+  return 0;
 }
 
-std::string expandEnvVariables(const std::string& input) {
-    std::string result = input;
-    size_t varPos = result.find('$');
-    
-    while (varPos != std::string::npos) {
-        if (varPos + 1 < result.size() && result[varPos + 1] == '{') {
-            size_t closeBrace = result.find('}', varPos + 2);
-            if (closeBrace != std::string::npos) {
-                std::string varName = result.substr(varPos + 2, closeBrace - varPos - 2);
-                const char* envValue = getenv(varName.c_str());
-                result.replace(varPos, closeBrace - varPos + 1, envValue ? envValue : "");
-            } else {
-                varPos++;
-            }
-        }
-        else {
-            size_t endPos = varPos + 1;
-            while (endPos < result.size() && 
-                  (isalnum(result[endPos]) || result[endPos] == '_')) {
-                endPos++;
-            }
-            
-            if (endPos > varPos + 1) {
-                std::string varName = result.substr(varPos + 1, endPos - varPos - 1);
-                const char* envValue = getenv(varName.c_str());
-                result.replace(varPos, endPos - varPos, envValue ? envValue : "");
-            } else {
-                varPos++;
-            }
-        }
-        
-        varPos = result.find('$', varPos);
-    }
-    
-    return result;
-}
+void main_process_loop() {
+  notify_plugins("main_process_pre_run", c_pid_str);
 
-std::string expandHistoryCommand(const std::string& command) {
-    if (!historyExpansionEnabled || command.empty()) {
-        return command;
-    }
-    
-    if (command == "!!") {
-        if (terminal.getTerminalCacheUserInput().empty()) {
-            std::cerr << "No previous command in history" << std::endl;
-            return "";
-        }
-        return terminal.getTerminalCacheUserInput().back();
-    } 
-    else if (command[0] == '!') {
-        if (command.length() > 1 && isdigit(command[1])) {
-            try {
-                int cmdNum = std::stoi(command.substr(1));
-                auto history = terminal.getTerminalCacheUserInput();
-                if (cmdNum > 0 && cmdNum <= static_cast<int>(history.size())) {
-                    return history[cmdNum - 1];
-                } else {
-                    std::cerr << "Invalid history number: " << cmdNum << std::endl;
-                    return "";
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "Error parsing history number: " << e.what() << std::endl;
-                return "";
-            }
-        } 
-        else if (command.length() > 1) {
-            std::string prefix = command.substr(1);
-            auto history = terminal.getTerminalCacheUserInput();
-            for (auto it = history.rbegin(); it != history.rend(); ++it) {
-                if (startsWith(*it, prefix)) {
-                    return *it;
-                }
-            }
-            std::cerr << "No matching command in history for: " << prefix << std::endl;
-            return "";
-        }
-    }
-    
-    return command;
-}
+  ic_set_prompt_marker("", NULL);
+  ic_enable_hint(true);
+  ic_set_hint_delay(100);
+  ic_enable_completion_preview(true);
 
-std::string performCommandSubstitution(const std::string& command) {
-    std::string result = command;
-    std::string::size_type pos = 0;
-    
-    while ((pos = result.find("$(", pos)) != std::string::npos) {
-        int depth = 1;
-        std::string::size_type end = pos + 2;
-        
-        while (end < result.length() && depth > 0) {
-            if (result[end] == '(') depth++;
-            else if (result[end] == ')') depth--;
-            end++;
-        }
-        
-        if (depth == 0) {
-            std::string subCommand = result.substr(pos + 2, end - pos - 3);
-            
-            FILE* pipe = popen(subCommand.c_str(), "r");
-            if (!pipe) {
-                std::cerr << "Error executing command substitution" << std::endl;
-                continue;
-            }
-            
-            std::string output;
-            char buffer[128];
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                output += buffer;
-            }
-            pclose(pipe);
-            
-            while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
-                output.pop_back();
-            }
-
-            result.replace(pos, end - pos, output);
-            pos += output.length();
-        } else {
-            pos = end;
-        }
+  while(true) {
+    notify_plugins("main_process_start", c_pid_str);
+    if (g_debug_mode) {
+      std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
     }
     
-    pos = 0;
-    while ((pos = result.find('`', pos)) != std::string::npos) {
-        std::string::size_type end = result.find('`', pos + 1);
-        if (end != std::string::npos) {
-            std::string subCommand = result.substr(pos + 1, end - pos - 1);
-            
-            FILE* pipe = popen(subCommand.c_str(), "r");
-            if (!pipe) {
-                std::cerr << "Error executing command substitution" << std::endl;
-                pos = end + 1;
-                continue;
-            }
-            
-            std::string output;
-            char buffer[128];
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                output += buffer;
-            }
-            pclose(pipe);
-            
-            while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
-                output.pop_back();
-            }
-            
-            result.replace(pos, end - pos + 1, output);
-            pos += output.length();
-        } else {
-            break;
-        }
-    }
-    
-    return result;
-}
-
-void loadAliasesFromFile(const std::string& filePath) {
-    if (!std::filesystem::exists(filePath)) {
-        return;
-    }
-    
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        return;
-    }
-    
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') {
-            continue;
-        }
-        
-        if (line.find("alias ") == 0) {
-            line = line.substr(6);
-            size_t eqPos = line.find('=');
-            if (eqPos != std::string::npos) {
-                std::string name = line.substr(0, eqPos);
-                std::string value = line.substr(eqPos + 1);
-                
-                name.erase(0, name.find_first_not_of(" \t"));
-                name.erase(name.find_last_not_of(" \t") + 1);
-                value.erase(0, value.find_first_not_of(" \t"));
-                value.erase(value.find_last_not_of(" \t") + 1);
-                
-                if (value.size() >= 2 && 
-                    ((value.front() == '"' && value.back() == '"') || 
-                     (value.front() == '\'' && value.back() == '\''))) {
-                    value = value.substr(1, value.size() - 2);
-                }
-                
-                aliases[name] = value;
-
-                std::string aliasCmd = "alias " + name + "='" + value + "'";
-                sendTerminalCommand(aliasCmd);
-            }
-        }
-    }
-    
-    file.close();
-}
-
-void saveAliasToCJSHRC(const std::string& name, const std::string& value) {
-    std::filesystem::path cjshrcPath = CJSHRC_FILE;
-
-    if (!std::filesystem::exists(cjshrcPath)) {
-        createDefaultCJSHRC();
-    }
-    
-    std::ifstream inFile(cjshrcPath);
-    std::string content;
-    if (inFile.is_open()) {
-        std::string line;
-        bool aliasExists = false;
-        std::stringstream newContent;
-        
-        while (std::getline(inFile, line)) {
-            if (line.find("alias " + name + "=") == 0) {
-                newContent << "alias " << name << "='" << value << "'" << std::endl;
-                aliasExists = true;
-            } else {
-                newContent << line << std::endl;
-            }
-        }
-        
-        if (!aliasExists) {
-            newContent << "alias " << name << "='" << value << "'" << std::endl;
-        }
-        
-        content = newContent.str();
-        inFile.close();
+    std::string prompt;
+    if (g_menu_terminal) {
+      prompt = g_shell->get_prompt();
     } else {
-        content = "# CJ's Shell RC File\n\n";
-        content += "alias " + name + "='" + value + "'\n";
+      prompt = g_shell->get_ai_prompt();
     }
-    
-    std::ofstream outFile(cjshrcPath, std::ios::trunc);
-    if (outFile.is_open()) {
-        outFile << content;
-        outFile.close();
-        
-        // Apply the alias to the current session
-        aliases[name] = value;
+    prompt += " ";
+    char* input = ic_readline(prompt.c_str());
+    if (input != nullptr) {
+      std::string command(input);
+      ic_free(input);
+      if (!command.empty()) {
+        notify_plugins("main_process_command_processed", command);
+        ic_history_add(command.c_str());
+        g_shell->execute_command(command, true);
+      }
+      if (g_shell->get_exit_flag()) {
+        break;
+      }
     } else {
-        std::cerr << "Error: Could not save alias to " << cjshrcPath << std::endl;
+      g_shell->set_exit_flag(true);
     }
+    notify_plugins("main_process_end", c_pid_str);
+    if (g_shell->get_exit_flag()) {
+      break;
+    }
+  }
 }
 
-void saveEnvironmentVariableToCJSHRC(const std::string& name, const std::string& value) {
-    std::filesystem::path cjshrcPath = CJSHRC_FILE;
-
-    if (!std::filesystem::exists(cjshrcPath)) {
-        createDefaultCJSHRC();
-    }
-    
-    std::ifstream inFile(cjshrcPath);
-    std::string content;
-    if (inFile.is_open()) {
-        std::string line;
-        bool exportExists = false;
-        std::stringstream newContent;
-        
-        while (std::getline(inFile, line)) {
-            if (line.find("export " + name + "=") == 0) {
-                newContent << "export " << name << "='" << value << "'" << std::endl;
-                exportExists = true;
-            } else {
-                newContent << line << std::endl;
-            }
-        }
-        
-        if (!exportExists) {
-            newContent << "export " << name << "='" << value << "'" << std::endl;
-        }
-        
-        content = newContent.str();
-        inFile.close();
-    } else {
-        content = "# CJ's Shell RC File\n\n";
-        content += "export " + name + "='" + value + "'\n";
-    }
-    
-    std::ofstream outFile(cjshrcPath, std::ios::trunc);
-    if (outFile.is_open()) {
-        outFile << content;
-        outFile.close();
-        setenv(name.c_str(), value.c_str(), 1);
-        
-        std::cout << "Environment variable '" << name << "' saved and applied to current session." << std::endl;
-    } else {
-        std::cerr << "Error: Could not save environment variable to " << cjshrcPath << std::endl;
-    }
-}
-
-void createNewUSER_DATAFile() {
-    std::ofstream file(USER_DATA);
-    if (file.is_open()) {
-        writeUserData();
-        file.close();
-    }
-}
-
-void createNewUSER_HISTORYfile() {
-    std::ofstream file(USER_COMMAND_HISTORY);
-    if (!file.is_open()) {
-        return;
-    }
-}
-
-void writeUserData() {
-    std::ofstream file(USER_DATA);
-    if (file.is_open()) {
-        json userData;
-        userData["OpenAI_API_KEY"] = c_assistant.getAPIKey();
-        userData["Chat_Cache"] = savedChatCache;
-        userData["Startup_Commands"] = startupCommands;
-        userData["Shortcuts_Enabled"] = shortcutsEnabled;
-        userData["Text_Buffer"] = false;
-        userData["Text_Entry"] = defaultTextEntryOnAI;
-        userData["Shortcuts_Prefix"] = shortcutsPrefix;
-        userData["Multi_Script_Shortcuts"] = multiScriptShortcuts;
-        userData["Last_Updated"] = lastUpdated;
-        userData["Current_Theme"] = currentTheme;
-        userData["Auto_Update_Check"] = checkForUpdates;
-        userData["Update_From_Github"] = updateFromGithub;
-        userData["Silent_Update_Check"] = silentCheckForUpdates;
-        userData["Startup_Commands_Enabled"] = startCommandsOn;
-        userData["Last_Update_Check_Time"] = lastUpdateCheckTime;
-        userData["Update_Check_Interval"] = UPDATE_CHECK_INTERVAL;
-        userData["Title_Line"] = showTitleLine;
-        file << userData.dump(4);
-        file.close();
-    } else {
-        std::cerr << "Error: Unable to write to the user data file at " << USER_DATA << std::endl;
-    }
-}
-
-void goToApplicationDirectory() {
-    commandProcesser("terminal cd /");
-    commandProcesser("terminal cd " + DATA_DIRECTORY.string());
-}
-
-std::string readAndReturnUserDataFile() {
-    std::ifstream file(USER_DATA);
-    if (file.is_open()) {
-        std::string userData((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        file.close();
-        return userData.empty() ? "No data found." : userData;
-    } else {
-        std::cerr << "Error: Unable to read the user data file at " << USER_DATA << std::endl;
-        return "";
-    }
-}
-
-std::vector<std::string> commandSplicer(const std::string& command) {
-    std::vector<std::string> commands;
-    std::istringstream iss(command);
-    std::string word;
-    std::string combined;
-    bool inQuotes = false;
-    char quoteChar = '\0';
-
-    while (iss >> word) {
-        if (!inQuotes && (word.front() == '\'' || word.front() == '"' || word.front() == '(' || word.front() == '[')) {
-            inQuotes = true;
-            quoteChar = word.front();
-            combined = word.substr(1);
-        } else if (inQuotes && word.back() == quoteChar) {
-            combined += " " + word.substr(0, word.size() - 1);
-            commands.push_back(combined);
-            inQuotes = false;
-            quoteChar = '\0';
-        } else if (inQuotes) {
-            combined += " " + word;
-        } else {
-            commands.push_back(word);
-        }
-    }
-
-    if (inQuotes) {
-        commands.push_back(combined);
-    }
-
-    return commands;
-}
-
-void commandParser(const std::string& command) {
-    
-    if (command.empty()) {
-        return;
-    }
-    if (command == "exit" || command == "quit") {
-        exitFlag = true;
-        return;
-    }
-    if (command == "clear") {
-        sendTerminalCommand("clear");
-        return;
-    }
-
-    // ai mode
-    if (defaultTextEntryOnAI && command != "terminal") {
-        chatProcess(command);
-        terminal.addCommandToHistory(command);
-        return; // Add return to prevent processing as a shell command
-    }
-
-    // check if the command is a multi-script shortcut
-    if (command.rfind(shortcutsPrefix, 0) == 0) {
-        multiScriptShortcutProcesser(command);
-        return;
-    }
-    
-    // check if the command has history expansion
-    std::string expandedCommand = expandHistoryCommand(command);
-    if (expandedCommand.empty()) {
-        return;
-    }
-    
-    // do command substitution and environment variable expansion
-    expandedCommand = performCommandSubstitution(expandedCommand);
-    expandedCommand = expandEnvVariables(expandedCommand);
-    
-    // If we get here, process the command directly
-    commandProcesser(expandedCommand); // Use expandedCommand instead of original command
-}
-
-void addUserInputToHistory(const std::string& input) {
-    std::ofstream file(USER_COMMAND_HISTORY, std::ios_base::app);
-    if (file.is_open()) {
-        file << std::to_string(time(nullptr)) << " " << input << "\n";
-        file.close();
-    } else {
-        std::cerr << "Error: Unable to write to the user input history file at " << USER_COMMAND_HISTORY << std::endl;
-    }
-}
-
-inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }));
-}
-
-inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }).base(), s.end());
-}
-
-inline void trim(std::string &s) {
-    rtrim(s);
-    ltrim(s);
-}
-
-void multiScriptShortcutProcesser(const std::string& command){
-    if (!shortcutsEnabled) {
-        std::cerr << "Shortcuts are disabled." << std::endl;
-        return;
-    }
-    if (!multiScriptShortcuts.empty()) {
-        std::string strippedCommand = command.substr(1);
-        trim(strippedCommand);
-        if (strippedCommand.empty()) {
-            std::cerr << "No shortcut given." << std::endl;
-            return;
-        }
-        if (multiScriptShortcuts.find(strippedCommand) != multiScriptShortcuts.end()) {
-            std::vector<std::string> commands = multiScriptShortcuts[strippedCommand];
-            for (const auto& cmd : commands) {
-                commandParser(cmd);
-            }
-        } else {
-            std::cerr << "No command for given shortcut: " << strippedCommand << std::endl;
-        }
-    } else {
-        std::cerr << "No shortcuts have been created." << std::endl;
-    }
-}
-
-void commandProcesser(const std::string& originalPassedCommand) {
-    commandsQueue = std::queue<std::string>();
-    auto commands = commandSplicer(originalPassedCommand);
-
-    for (const auto& cmd : commands) {
-        commandsQueue.push(cmd);
-    }
-    
-    if (TESTING) {
-        std::cout << "Commands Queue: ";
-        for (const auto& cmd : commands) {
-            std::cout << cmd << " ";
-        }
-        std::cout << std::endl;
-    }
-    if (commandsQueue.empty()) {
-        std::cerr << "Unknown command. Please try again." << std::endl;
-    }
-
-    getNextCommand();
-    if (lastCommandParsed == "approot") {
-        goToApplicationDirectory();
-        return;
-    } else if (lastCommandParsed == "ai") {
-        aiSettingsCommands();
-        writeUserData();
-        return;
-    } else if (lastCommandParsed == "user") {
-        userSettingsCommands();
-        writeUserData();
-        return;
-    } else if (lastCommandParsed == "aihelp"){
-        if (!c_assistant.getAPIKey().empty() ){
-            std::string message = ("I am encountering these errors in the " + terminal.getTerminalName() + " and would like some help solving these issues. I entered: " + terminal.returnMostRecentUserInput() + " and got this " + terminal.returnMostRecentTerminalOutput());
-            if (TESTING) {
-                std::cout << message << std::endl;
-            }
-            std::cout << c_assistant.forceDirectChatGPT(message, false) << std::endl;
-            return;
-        }
-        std::cout << "Please set your OpenAI API key first." << std::endl;
-        return;
-    } else if(lastCommandParsed == "version") {
-        std::cout << "CJ's Shell v" + currentVersion << std::endl;
-        return;
-    } else if (lastCommandParsed == "terminal") {
-        defaultTextEntryOnAI = false;
-        return;
-    } else if(lastCommandParsed == "plugin") {
-        pluginCommands();
-        return;
-    } else if (lastCommandParsed == "theme") {
-        themeCommands();
-        return;
-    } else if (lastCommandParsed == "history") {
-        auto history = terminal.getTerminalCacheUserInput();
-        if (history.empty()) {
-            std::cout << "No command history" << std::endl;
-        } else {
-            for (size_t i = 0; i < history.size(); i++) {
-                std::cout << (i + 1) << "  " << history[i] << std::endl;
-            }
-        }
-        return;
-    } else if (lastCommandParsed == "help") {
-        printHelp();
-        return;
-    } else if (lastCommandParsed == "uninstall") {
-        if (pluginManager->getEnabledPlugins().size() > 0) {
-            std::cerr << "Please disable all plugins before uninstalling." << std::endl;
-            return;
-        }
-        std::cout << "Are you sure you want to uninstall cjsh? (y/n): ";
-        char confirmation;
-        std::cin >> confirmation;
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        
-        if (confirmation == 'y' || confirmation == 'Y') {
-            if(!std::filesystem::exists(UNINSTALL_SCRIPT_PATH)){
-                std::cerr << "Uninstall script not found." << std::endl;
-                return;
-            }
-            std::cout << "Do you want to remove all user data? (y/n): ";
-            char removeUserData;
-            std::cin >> removeUserData;
-            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            std::string uninstallCommand = UNINSTALL_SCRIPT_PATH;
-            if (removeUserData == 'y' || removeUserData == 'Y') {
-                uninstallCommand += " --all";
-            }
-            std::cout << "Running uninstall script..." << std::endl;
-            sendTerminalCommand(uninstallCommand);
-            exitFlag = true;
-        } else {
-            std::cout << "Uninstall cancelled." << std::endl;
-        }
-        return;
-    } else {
-
-        std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
-        if (!enabledPlugins.empty()) {
-            std::queue<std::string> tempQueue;
-            tempQueue.push(lastCommandParsed);
-            while (!commandsQueue.empty()) {
-                tempQueue.push(commandsQueue.front());
-                commandsQueue.pop();
-            }
-            for(const auto& plugin : enabledPlugins){
-                std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(plugin);
-                if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
-                    pluginManager->handlePluginCommand(plugin, tempQueue);
-                    return;
-                }
-            }
-        }
-
-        //send to terminal
-        sendTerminalCommand(originalPassedCommand);
-        
-        const char* saveAlias = getenv("CJSH_SAVE_ALIAS");
-        if (saveAlias && strcmp(saveAlias, "1") == 0) {
-            const char* aliasName = getenv("CJSH_SAVE_ALIAS_NAME");
-            const char* aliasValue = getenv("CJSH_SAVE_ALIAS_VALUE");
-                
-            if (aliasName && aliasValue) {
-                saveAliasToCJSHRC(aliasName, aliasValue);
-                    
-                unsetenv("CJSH_SAVE_ALIAS");
-                unsetenv("CJSH_SAVE_ALIAS_NAME");
-                unsetenv("CJSH_SAVE_ALIAS_VALUE");
-            }
-        }
-
-        const char* saveEnv = getenv("CJSH_SAVE_ENV");
-        if (saveEnv && strcmp(saveEnv, "1") == 0) {
-            const char* envName = getenv("CJSH_SAVE_ENV_NAME");
-            const char* envValue = getenv("CJSH_SAVE_ENV_VALUE");
-                
-            if (envName && envValue) {
-                saveEnvironmentVariableToCJSHRC(envName, envValue);
-                    
-                unsetenv("CJSH_SAVE_ENV");
-                unsetenv("CJSH_SAVE_ENV_NAME");
-                unsetenv("CJSH_SAVE_ENV_VALUE");
-            }
-        }
-    }
-}
-
-void printHelp() {
-    
-    std::cout << "Available startup arguments:" << std::endl;
-    std::cout << " -h, --help: Show this help message" << std::endl;
-    std::cout << " -v, --version: Show the version of the application" << std::endl;
-    std::cout << " -d, --debug: Enable debug mode" << std::endl;
-    std::cout << " -c, --command: Specify a command to execute" << std::endl;
-    std::cout << " -l, --login: Run as a login shell" << std::endl;
-    std::cout << std::endl;
-    
-    std::cout << " Available interactive session commands:" << std::endl;
-    std::cout << " ai: Access AI command settings and chat or switch to the ai menu" << std::endl;
-    std::cout << " approot: Switch to the application directory" << std::endl;
-    std::cout << " user: Access user settings" << std::endl;
-    std::cout << " aihelp: Get AI troubleshooting help" << std::endl;
-    std::cout << " theme: Manage themes (load/save)" << std::endl;
-    std::cout << " version: Display application version" << std::endl;
-    std::cout << " plugin: Manage plugins" << std::endl;
-    std::cout << " env: Manage environment variables" << std::endl;
-    std::cout << " uninstall: Uninstall the application" << std::endl;
-    std::cout << " history: Display command history" << std::endl;
-    std::cout << std::endl;
-    
-    std::cout << " Unix executable commands:" << std::endl;
-    std::cout << " clear: Clear the terminal screen" << std::endl;
-    std::cout << " exit: Exit the application" << std::endl;
-    std::cout << " quit: Exit the application" << std::endl;
-    std::cout << " help: Show this help message" << std::endl;
-    std::cout << " <command>: Execute a command in the terminal" << std::endl;
-    std::cout << " !!: Repeat the last command" << std::endl;
-    std::cout << " !<number>: Repeat the command at the specified history number" << std::endl;
-    std::cout << " !<string>: Repeat the last command that starts with the specified string" << std::endl;
-    std::cout << " $<variable>: Expand the specified environment variable" << std::endl;
-    std::cout << " $(<command>): Execute the specified command and replace it with its output" << std::endl;
-    std::cout << " `command`: Execute the specified command and replace it with its output" << std::endl;
-    std::cout << " <alias>: Execute the specified alias" << std::endl;
-    std::cout << " <shortcut>: Execute the specified multi-script shortcut" << std::endl;
-    std::cout << " <file>: Execute the specified file (if executable)" << std::endl;
-}
-
-void pluginCommands(){
-    getNextCommand();
-    if(lastCommandParsed.empty()) {
-        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "help") {
-        std::cout << "Plugin commands:" << std::endl;
-        std::cout << " available: List available plugins" << std::endl;
-        std::cout << " enabled: List enabled plugins" << std::endl;
-        std::cout << " enable [NAME]: Enable a plugin" << std::endl;
-        std::cout << " disable [NAME]: Disable a plugin" << std::endl;
-        std::cout << " info [NAME]: Show plugin information" << std::endl;
-        std::cout << " commands [NAME]: List commands for a plugin" << std::endl;
-        std::cout << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting" << std::endl;
-        std::cout << " help: Show this help message" << std::endl;
-        std::cout << " install [PATH]: Install a new plugin" << std::endl;
-        std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "install") {
-        getNextCommand();
-        if(lastCommandParsed.empty()) {
-            std::cerr << "Error: No plugin file path provided." << std::endl;
-            return;
-        }
-        std::string pluginPath = terminal.getFullPathOfFile(lastCommandParsed);
-        pluginManager->installPlugin(pluginPath);
-        return;
-    }
-    if(lastCommandParsed == "uninstall") {
-        getNextCommand();
-        if(lastCommandParsed.empty()) {
-            std::cerr << "Error: No plugin name provided." << std::endl;
-            return;
-        }
-        std::string pluginName = lastCommandParsed;
-        pluginManager->uninstallPlugin(pluginName);
-        return;
-    }
-    if(lastCommandParsed == "info") {
-        getNextCommand();
-        if(lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::string pluginToGetInfo = lastCommandParsed;
-        std::cout << pluginManager->getPluginInfo(pluginToGetInfo) << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "available") {
-        auto plugins = pluginManager->getAvailablePlugins();
-        std::cout << "Available plugins:" << std::endl;
-        for(const auto& name : plugins) {
-            std::cout << name << std::endl;
-        }
-        return;
-    }
-    if(lastCommandParsed == "enabled") {
-        auto plugins = pluginManager->getEnabledPlugins();
-        std::cout << "Enabled plugins:" << std::endl;
-        for(const auto& name : plugins) {
-            std::cout << name << std::endl;
-        }
-        return;
-    }
-    if(lastCommandParsed == "settings") {
-        std::cout << "Settings for plugins:" << std::endl;
-        auto settings = pluginManager->getAllPluginSettings();
-        for (const auto& [plugin, settingMap] : settings) {
-            std::cout << plugin << ":" << std::endl;
-            for (const auto& [key, value] : settingMap) {
-                std::cout << "  " << key << " = " << value << std::endl;
-            }
-        }
-        return;
-    }
-    if(lastCommandParsed == "enableall") {
-        for(const auto& plugin : pluginManager->getAvailablePlugins()){
-            pluginManager->enablePlugin(plugin);
-        }
-        return;
-    }
-    if(lastCommandParsed == "disableall") {
-        for(const auto& plugin : pluginManager->getEnabledPlugins()){
-            pluginManager->disablePlugin(plugin);
-        }
-        return;
-    }
-    std::string pluginToModify = lastCommandParsed;
-    std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
-    if (std::find(enabledPlugins.begin(), enabledPlugins.end(), pluginToModify) != enabledPlugins.end()) {
-        getNextCommand();
-        if(lastCommandParsed == "enable") {
-            pluginManager->enablePlugin(pluginToModify);
-            return;
-        }
-        if(lastCommandParsed == "disable") {
-            pluginManager->disablePlugin(pluginToModify);
-            return;
-        }
-        if(lastCommandParsed == "info") {
-            std::cout << pluginManager->getPluginInfo(pluginToModify) << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "commands" || lastCommandParsed == "cmds" || lastCommandParsed == "help") {
-            std::cout << "Commands for " << pluginToModify << ":" << std::endl;
-            std::vector<std::string> listOfPluginCommands = pluginManager->getPluginCommands(pluginToModify);
-            for (const auto& cmd : listOfPluginCommands) {
-                std::cout << "  " << cmd << std::endl;
-            }
-            return;
-        }
-        if(lastCommandParsed == "settings") {
-            getNextCommand();
-            if(lastCommandParsed.empty()) {
-                std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-                return;
-            }
-            if(lastCommandParsed == "set") {
-                getNextCommand();
-                if(lastCommandParsed.empty()) {
-                    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-                    return;
-                }
-                std::string settingToModify = lastCommandParsed;
-                getNextCommand();
-                if(lastCommandParsed.empty()) {
-                    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-                    return;
-                }
-                std::string settingValue = lastCommandParsed;
-                if(pluginManager->updatePluginSetting(pluginToModify, settingToModify, settingValue)){
-                    std::cout << "Setting " << settingToModify << " set to " << settingValue << " for plugin " << pluginToModify << std::endl;
-                    return;
-                } else {
-                    std::cout << "Setting " << settingToModify << " not found for plugin " << pluginToModify << std::endl;
-                    return;
-                }
-            }
-        }
-        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
-    } else {
-        std::vector<std::string> availablePlugins = pluginManager->getAvailablePlugins();
-        if(std::find(availablePlugins.begin(), availablePlugins.end(), pluginToModify) != availablePlugins.end()){
-            getNextCommand();
-            if(lastCommandParsed == "enable") {
-                pluginManager->enablePlugin(pluginToModify);
-                return;
-            }
-            std::cerr << "Plugin: "<< pluginToModify << " is disabled." << std::endl;
-            return;
-        } else {
-            std::cerr << "Plugin " << pluginToModify << " does not exist." << std::endl;
-            return;
-        }
-    }
-}
-
-void sendTerminalCommand(const std::string& command) {
-    if (TESTING) {
-        std::cout << "Sending Command: " << command << std::endl;
-    }
-
-    std::string expandedCommand = expandEnvVariables(command);
-    
-    if (TESTING && expandedCommand != command) {
-        std::cout << "Expanded Command: " << expandedCommand << std::endl;
-    }
-    
-    terminal.setAliases(aliases);
-    std::thread commandThread = terminal.executeCommand(expandedCommand);
-    if (commandThread.joinable()) {
-        commandThread.join();
-    }
-}
-
-void userSettingsCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "startup") {
-        startupCommandsHandler();
-        return;
-    }
-    if (lastCommandParsed == "text") {
-        textCommands();
-        return;
-    }
-    if (lastCommandParsed == "shortcut") {
-        shortcutCommands();
-        return;
-    }
-    if (lastCommandParsed == "testing") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            TESTING = true;
-            std::cout << "Testing mode enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            TESTING = false;
-            std::cout << "Testing mode disabled." << std::endl;
-            return;
-        }
-        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "data") {
-        userDataCommands();
-        return;
-    }
-    if(lastCommandParsed == "saveloop"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Save loop is currently " << (saveLoop ? "enabled." : "disabled.") << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            saveLoop = true;
-            std::cout << "Save loop enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            saveLoop = false;
-            std::cout << "Save loop disabled." << std::endl;
-            return;
-        }
-    }
-    if(lastCommandParsed == "saveonexit"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Save on exit is currently " << (saveOnExit ? "enabled." : "disabled.") << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            saveOnExit = true;
-            std::cout << "Save on exit enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            saveOnExit = false;
-            std::cout << "Save on exit disabled." << std::endl;
-            return;
-        }
-    }
-    if(lastCommandParsed == "checkforupdates"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Check for updates is currently " << (checkForUpdates ? "enabled." : "disabled.") << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            checkForUpdates = true;
-            std::cout << "Check for updates enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            checkForUpdates = false;
-            std::cout << "Check for updates disabled." << std::endl;
-            return;
-        }
-    }
-    if(lastCommandParsed == "silentupdatecheck") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Silent update check is currently " << (silentCheckForUpdates ? "enabled." : "disabled.") << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            silentCheckForUpdates = true;
-            std::cout << "Silent update check enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            silentCheckForUpdates = false;
-            std::cout << "Silent update check disabled." << std::endl;
-            return;
-        }
-    }
-    if (lastCommandParsed == "updatepath") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Updates are fetched from GitHub." << std::endl;
-            return;
-        }
-        std::cerr << "Updates are only available from GitHub." << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "update") {
-        updateCommands();
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "User settings commands:" << std::endl;
-        std::cout << " startup: Manage startup commands (add, remove, clear, enable, disable, list, runall)" << std::endl;
-        std::cout << " text: Configure text settings (displayfullpath, defaultentry, shortcutsprefix)" << std::endl;
-        std::cout << " shortcut: Manage shortcuts (add, remove, list)" << std::endl;
-        std::cout << " testing: Toggle testing mode (enable/disable)" << std::endl;
-        std::cout << " data: Manage user data (get userdata/userhistory/all, clear)" << std::endl;
-        std::cout << " saveloop: Toggle auto-save loop (enable/disable)" << std::endl;
-        std::cout << " saveonexit: Toggle save on exit (enable/disable)" << std::endl;
-        std::cout << " checkforupdates: Toggle update checking (enable/disable)" << std::endl;
-        std::cout << " updatepath: Set update path (github/cadenfinley)" << std::endl;
-        std::cout << " silentupdatecheck: Toggle silent update check (enable/disable)" << std::endl;
-        std::cout << " update: Manage update settings and perform manual update checks" << std::endl;
-        return;
-    }
-    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-}
-
-void updateCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cout << "Update settings:" << std::endl;
-        std::cout << " Auto-check for updates: " << (checkForUpdates ? "Enabled" : "Disabled") << std::endl;
-        std::cout << " Silent update check: " << (silentCheckForUpdates ? "Enabled" : "Disabled") << std::endl;
-        std::cout << " Update check interval: " << (UPDATE_CHECK_INTERVAL / 3600) << " hours" << std::endl;
-        std::cout << " Last update check: " << (lastUpdateCheckTime > 0 ? 
-            std::string(ctime(&lastUpdateCheckTime)) : "Never") << std::endl;
-        if (cachedUpdateAvailable) {
-            std::cout << " Update available: " << cachedLatestVersion << std::endl;
-        }
-        return;
-    }
-    
-    if (lastCommandParsed == "check") {
-        manualUpdateCheck();
-        return;
-    }
-    
-    if (lastCommandParsed == "interval") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Current update check interval: " << (UPDATE_CHECK_INTERVAL / 3600) << " hours" << std::endl;
-            return;
-        }
-        
+static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
+  // Mark unused parameters to avoid compiler warnings
+  (void)info;
+  (void)context;
+  
+  switch (signum) {
+    case SIGHUP:
+      std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
+      g_shell->set_exit_flag(true);
+      
+      // Clean up and exit immediately
+      if (g_job_control_enabled) {
         try {
-            int hours = std::stoi(lastCommandParsed);
-            if (hours < 1) {
-                std::cerr << "Interval must be at least 1 hour" << std::endl;
-                return;
-            }
-            setUpdateInterval(hours);
-            std::cout << "Update check interval set to " << hours << " hours" << std::endl;
-            return;
-        } catch (const std::exception& e) {
-            std::cerr << "Invalid interval value. Please specify hours as a number" << std::endl;
-            return;
-        }
-    }
-    
-    if (lastCommandParsed == "help") {
-        std::cout << "Update commands:" << std::endl;
-        std::cout << " check: Manually check for updates now" << std::endl;
-        std::cout << " interval [HOURS]: Set update check interval in hours" << std::endl;
-        std::cout << " help: Show this help message" << std::endl;
-        return;
-    }
-    
-    std::cerr << "Unknown update command. Try 'help' for available commands." << std::endl;
+          restore_terminal_state();
+        } catch (...) {}
+      }
+      
+      _exit(0);
+      break;
+      
+    case SIGTERM:
+      std::cerr << "Received SIGTERM, exiting" << std::endl;
+      g_shell->set_exit_flag(true);
+      _exit(0);
+      break;
+      
+    case SIGINT:
+      std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
+      break;
+      
+    case SIGCHLD:
+      // Reap zombie processes
+      pid_t child_pid;
+      int status;
+      while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
+        // Child process terminated
+      }
+      break;
+  }
 }
 
-void manualUpdateCheck() {
-    std::cout << "Checking for updates from GitHub...";
-    auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
-        auto splitVersion = [](const std::string &ver) {
-            std::vector<int> parts;
-            std::istringstream iss(ver);
-            std::string token;
-            while (std::getline(iss, token, '.')) {
-                parts.push_back(std::stoi(token));
-            }
-            return parts;
-        };
-        std::vector<int> latestParts = splitVersion(latest);
-        std::vector<int> currentParts = splitVersion(current);
-        size_t len = std::max(latestParts.size(), currentParts.size());
-        latestParts.resize(len, 0);
-        currentParts.resize(len, 0);
-        for (size_t i = 0; i < len; i++) {
-            if (latestParts[i] > currentParts[i]) return true;
-            if (latestParts[i] < currentParts[i]) return false;
-        }
-        return false;
-    };
+void setup_signal_handlers() {
+  struct sigaction sa;
+  sigemptyset(&sa.sa_mask);
+  sigset_t block_mask;
+  sigfillset(&block_mask);
 
-    bool updateAvailable = checkFromUpdate_Github(isNewerVersion);
-    
-    if (updateAvailable) {
-        std::cout << "An update is available!" << std::endl;
-        executeUpdateIfAvailable(updateAvailable);
-    } else {
-        std::cout << "You are up to date." << std::endl;
-    }
-    
-    std::string latestVersion = "";
-    try {
-        std::string command = "curl -s " + updateURL_Github;
-        std::string result;
-        FILE *pipe = popen(command.c_str(), "r");
-        if (pipe) {
-            char buffer[128];
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                result += buffer;
-            }
-            pclose(pipe);
-            
-            json jsonData = json::parse(result);
-            if (jsonData.contains("tag_name")) {
-                latestVersion = jsonData["tag_name"].get<std::string>();
-                if (!latestVersion.empty() && latestVersion[0] == 'v') {
-                    latestVersion = latestVersion.substr(1);
-                }
-            }
-        }
-    } catch (std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-    
-    saveUpdateCache(updateAvailable, latestVersion);
+  // Setup SIGHUP handler (terminal disconnect)
+  sa.sa_sigaction = signal_handler_wrapper;
+  sa.sa_mask = block_mask;
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGHUP, &sa, nullptr);
+
+  // Setup SIGTERM handler
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGTERM, &sa, nullptr);
+
+  // Setup SIGCHLD handler (child process state changes)
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGCHLD, &sa, nullptr);
+
+  // Setup SIGINT handler (Ctrl+C)
+  sa.sa_flags = SA_SIGINFO;
+  sigaction(SIGINT, &sa, nullptr);
+
+  // Ignore certain signals
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  sa.sa_mask = block_mask;
+  sigaction(SIGQUIT, &sa, nullptr);
+  sigaction(SIGTSTP, &sa, nullptr);
+  sigaction(SIGTTIN, &sa, nullptr);
+  sigaction(SIGTTOU, &sa, nullptr);
+
+  save_terminal_state();
 }
 
-void setUpdateInterval(int intervalHours) {
-    UPDATE_CHECK_INTERVAL = intervalHours * 3600;
-    writeUserData();
+void save_terminal_state() {
+  if (isatty(STDIN_FILENO)) {
+    if (tcgetattr(STDIN_FILENO, &g_original_termios) == 0) {
+      g_terminal_state_saved = true;
+    }
+  }
 }
 
-void userDataCommands(){
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "get") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "userdata") {
-            std::cout << readAndReturnUserDataFile() << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "userhistory") {
-            std::ifstream file(USER_COMMAND_HISTORY);
-            if (file.is_open()) {
-                std::string history((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-                file.close();
-                std::cout << history << std::endl;
-            } else {
-                std::cerr << "Error: Unable to read the user history file at " << USER_COMMAND_HISTORY << std::endl;
-            }
-            return;
-        }
-        if (lastCommandParsed == "all") {
-            std::cout << readAndReturnUserDataFile() << std::endl;
-            std::ifstream file(USER_COMMAND_HISTORY);
-            if (file.is_open()) {
-                std::string history((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-                file.close();
-                std::cout << history << std::endl;
-            } else {
-                std::cerr << "Error: Unable to read the user history file at " << USER_COMMAND_HISTORY << std::endl;
-            }
-            return;
-        }
-    }
-    if (lastCommandParsed == "clear") {
-        std::filesystem::remove(USER_DATA);
-        createNewUSER_DATAFile();
-        std::cout << "User data file cleared." << std::endl;
-        std::filesystem::remove(USER_COMMAND_HISTORY);
-        createNewUSER_HISTORYfile();
-        std::cout << "User history file cleared." << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "help") {
-        std::cout << "User data commands: " << std::endl;
-        std::cout << " get: View user data" << std::endl;
-        std::cout << "  userdata: View JSON user data file" << std::endl;
-        std::cout << "  userhistory: View command history" << std::endl;
-        std::cout << "  all: View all user data" << std::endl;
-        std::cout << " clear: Clear all user data files" << std::endl;
-        return;
-    }
-    std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
+void restore_terminal_state() {
+  if (g_terminal_state_saved) {
+    tcsetattr(STDIN_FILENO, TCSANOW, &g_original_termios);
+  }
 }
 
-void startupCommandsHandler() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        if (!startupCommands.empty()) {
-            std::cout << "Startup commands:" << std::endl;
-            for (const auto& command : startupCommands) {
-                std::cout << command << std::endl;
-            }
-        } else {
-            std::cerr << "No startup commands." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "add") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        startupCommands.push_back(lastCommandParsed);
-        std::cout << "Command added to startup commands." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "remove") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::vector<std::string> newStartupCommands;
-        bool removed = false;
-        for (const auto& command : startupCommands) {
-            if (command != lastCommandParsed) {
-                newStartupCommands.push_back(command);
-            } else {
-                removed = true;
-                std::cout << "Command removed from startup commands." << std::endl;
-            }
-        }
-        if (!removed) {
-            std::cerr << "Command not found in startup commands." << std::endl;
-        }
-        startupCommands = newStartupCommands;
-        return;
-    }
-    if (lastCommandParsed == "clear") {
-        startupCommands.clear();
-        std::cout << "Startup commands cleared." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "enable") {
-        startCommandsOn = true;
-        std::cout << "Startup commands enabled." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "disable") {
-        startCommandsOn = false;
-        std::cout << "Startup commands disabled." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "list") {
-        if (!startupCommands.empty()) {
-            std::cout << "Startup commands:" << std::endl;
-            for (const auto& command : startupCommands) {
-                std::cout << command << std::endl;
-            }
-        } else {
-            std::cerr << "No startup commands." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "runall") {
-        if (!startupCommands.empty()) {
-            std::cout << "Running startup commands..." << std::endl;
-            for (const auto& command : startupCommands) {
-                commandParser(command);
-            }
-        } else {
-            std::cerr << "No startup commands." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "Startup commands:" << std::endl;
-        std::cout << " add [CMD]: Add a startup command" << std::endl;
-        std::cout << " remove [CMD]: Remove a startup command" << std::endl;
-        std::cout << " clear: Remove all startup commands" << std::endl;
-        std::cout << " enable: Enable startup commands" << std::endl;
-        std::cout << " disable: Disable startup commands" << std::endl;
-        std::cout << " list: Show all startup commands" << std::endl;
-        std::cout << " runall: Execute all startup commands now" << std::endl;
-        return;
-    }
-    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-}
-
-void shortcutCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        if(!multiScriptShortcuts.empty()){
-            std::cout << "Shortcuts:" << std::endl;
-            for (const auto& [key, value] : multiScriptShortcuts) {
-                std::cout << key + " = ";
-                for(const auto& command : value){
-                    std::cout << "'"+command + "' ";
-                }
-                std::cout << std::endl;
-            }
-        } else {
-            std::cerr << "No shortcuts." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "enable") {
-        shortcutsEnabled = true;
-        std::cout << "Shortcuts enabled." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "disable") {
-        shortcutsEnabled = false;
-        std::cout << "Shortcuts disabled." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "list") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            if(!multiScriptShortcuts.empty()){
-                std::cout << "Shortcuts:" << std::endl;
-                for (const auto& [key, value] : multiScriptShortcuts) {
-                    std::cout << key + " = ";
-                    for(const auto& command : value){
-                        std::cout << "'"+command + "' ";
-                    }
-                    std::cout << std::endl;
-                }
-            } else {
-                std::cerr << "No shortcuts." << std::endl;
-            }
-            return;
-        }
-        if (multiScriptShortcuts.find(lastCommandParsed) != multiScriptShortcuts.end()) {
-            std::cout << lastCommandParsed + " = ";
-            for(const auto& command : multiScriptShortcuts[lastCommandParsed]){
-                std::cout << "'"+command + "' ";
-            }
-            std::cout << std::endl;
-        } else {
-            std::cerr << "Shortcut not found." << std::endl;
-        }
-        return;
-    }
-    if(lastCommandParsed == "add"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        std::string shortcut = lastCommandParsed;
-        std::vector<std::string> commands;
-        getNextCommand();
-        while(!lastCommandParsed.empty()){
-            commands.push_back(lastCommandParsed);
-            getNextCommand();
-        }
-        if(commands.empty()){
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        multiScriptShortcuts[shortcut] = commands;
-        std::cout << "Shortcut added." << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "remove"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "all") {
-            multiScriptShortcuts.clear();
-            std::cout << "All shortcuts removed." << std::endl;
-            return;
-        }
-        if(multiScriptShortcuts.find(lastCommandParsed) == multiScriptShortcuts.end()){
-            std::cerr << "Shortcut not found." << std::endl;
-            return;
-        }
-        multiScriptShortcuts.erase(lastCommandParsed);
-        std::cout << "Shortcut removed." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "Shortcut commands:" << std::endl;
-        std::cout << " enable: Enable shortcuts" << std::endl;
-        std::cout << " disable: Disable shortcuts" << std::endl;
-        std::cout << " list: List all shortcuts" << std::endl;
-        std::cout << " add [NAME] [CMD1] [CMD2] ... : Add a shortcut" << std::endl;
-        std::cout << " remove [NAME]: Remove a shortcut" << std::endl;
-        return;
-    }
-    std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-}
-
-bool validatePrefix(const std::string& prefix) {
-    if (prefix.length() > 1) {
-        std::cerr << "Invalid prefix. Must be a single character." << std::endl;
-        return false;
-    } else if (prefix == " ") {
-        std::cerr << "Invalid prefix. Must not be a space." << std::endl;
-        return false;
-    }
-    return true;
-}
-
-void textCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "shortcutsprefix") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Shortcut prefix is currently " + shortcutsPrefix << std::endl;
-            return;
-        }
-        
-        if (validatePrefix(lastCommandParsed)) {
-            shortcutsPrefix = lastCommandParsed;
-            std::cout << "Shortcut prefix set to " + shortcutsPrefix << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "titleline") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Title line is currently " << (showTitleLine ? "showing." : "hidden.") << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            showTitleLine = true;
-            std::cout << "Title line enabled." << std::endl;
-        } else if (lastCommandParsed == "disable") {
-            showTitleLine = false;
-            std::cout << "Title line disabled." << std::endl;
-        } else {
-            std::cerr << "Unknown option. Use 'enable' or 'disable'." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "displayfullpath") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Full path display is currently " << (displayWholePath ? "enabled." : "disabled.") << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            displayWholePath = true;
-            std::cout << "Full path display enabled." << std::endl;
-        } else if (lastCommandParsed == "disable") {
-            displayWholePath = false;
-            std::cout << "Full path display disabled." << std::endl;
-        } else {
-            std::cerr << "Unknown option. Use 'enable' or 'disable'." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "defaultentry") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "Default text entry is currently " << (defaultTextEntryOnAI ? "AI." : "terminal.") << std::endl;
-            return;
-        }
-        
-        if (lastCommandParsed == "ai") {
-            defaultTextEntryOnAI = true;
-            std::cout << "Default text entry set to AI." << std::endl;
-        } else if (lastCommandParsed == "terminal") {
-            defaultTextEntryOnAI = false;
-            std::cout << "Default text entry set to terminal." << std::endl;
-        } else {
-            std::cerr << "Unknown option. Use 'ai' or 'terminal'." << std::endl;
-        }
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "Text commands:" << std::endl;
-        std::cout << " shortcutsprefix [CHAR]: Set the shortcut prefix" << std::endl;
-        std::cout << " displayfullpath enable/disable: Toggle full path display" << std::endl;
-        std::cout << " defaultentry ai/terminal: Set default text entry mode" << std::endl;
-        return;
-    }
-    std::cerr << "Unknown command. Use 'help' for available commands." << std::endl;
-}
-
-void getNextCommand() {
-    if (!commandsQueue.empty()) {
-        lastCommandParsed = commandsQueue.front();
-        commandsQueue.pop();
-        if (TESTING) {
-            std::cout << "Processed Command: " << lastCommandParsed << std::endl;
-        }
-    } else {
-        lastCommandParsed = "";
-    }
-}
-
-void aiSettingsCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        defaultTextEntryOnAI = true;
-        showChatHistory();
-        return;
-    }
-    if (lastCommandParsed == "log") {
-        std::string lastChatSent = c_assistant.getLastPromptUsed();
-        std::string lastChatReceived = c_assistant.getLastResponseReceived();
-        std::string fileName = (DATA_DIRECTORY / ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt")).string();
-        std::ofstream file(fileName);
-        if (file.is_open()) {
-            file << "Chat Sent: " << lastChatSent << "\n";
-            file << "Chat Received: " << lastChatReceived << "\n";
-            file.close();
-            std::cout << "Chat log saved to " << fileName << std::endl;
-        } else {
-            std::cerr << "Error: Unable to create the chat log file at " << fileName << std::endl;
-            return;
-        }
-    }
-    if (lastCommandParsed == "apikey") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << c_assistant.getAPIKey() << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "set") {
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                std::cerr << "Error: No API key provided. Try 'help' for a list of commands." << std::endl;
-                return;
-            }
-            c_assistant.setAPIKey(lastCommandParsed);
-            if (c_assistant.testAPIKey(c_assistant.getAPIKey())) {
-                std::cout << "OpenAI API key set successfully." << std::endl;
-                writeUserData();
-                return;
-            } else {
-                std::cerr << "Error: Invalid API key." << std::endl;
-                return;
-            }
-        }
-        if (lastCommandParsed == "get") {
-            std::cout << c_assistant.getAPIKey() << std::endl;
-            return;
-        }
-        std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "chat") {
-        aiChatCommands();
-        return;
-    }
-    if (lastCommandParsed == "get") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-            return;
-        }
-        std::cout << c_assistant.getResponseData(lastCommandParsed) << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "dump") {
-        std::cout << c_assistant.getResponseData("all") << std::endl;
-        std::cout << c_assistant.getLastPromptUsed() << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "mode") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "The current assistant mode is " << c_assistant.getAssistantType() << std::endl;
-            return;
-        }
-        c_assistant.setAssistantType(lastCommandParsed);
-        std::cout << "Assistant mode set to " << lastCommandParsed << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "file") {
-        getNextCommand();
-        std::vector<std::string> filesAtPath = terminal.getFilesAtCurrentPath(true, true, false);
-        if (lastCommandParsed.empty()) {
-            std::vector<std::string> activeFiles = c_assistant.getFiles();
-            std::cout << "Active Files: " << std::endl;
-            for(const auto& file : activeFiles){
-                std::cout << file << std::endl;
-            }
-            std::cout << "Total characters processed: " << c_assistant.getFileContents().length() << std::endl;
-            std::cout << "Files at current path: " << std::endl;
-            for(const auto& file : filesAtPath){
-                std::cout << file << std::endl;
-            }
-            return;
-        }
-        if (lastCommandParsed == "add"){
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
-                return;
-            }
-            if (lastCommandParsed == "all"){
-                int charsProcessed = c_assistant.addFiles(filesAtPath);
-                std::cout << "Processed " << charsProcessed <<  " characters from " << filesAtPath.size() << " files."  << std::endl;
-                return;
-            }
-            std::string fileToAdd = terminal.getFullPathOfFile(lastCommandParsed);
-            if(fileToAdd.empty()){
-                std::cerr << "Error: File not found: " << lastCommandParsed << std::endl;
-                return;
-            }
-            int charsProcessed = c_assistant.addFile(fileToAdd);
-            std::cout << "Processed " << charsProcessed << " characters from file: " << lastCommandParsed << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "remove"){
-            getNextCommand();
-            if (lastCommandParsed.empty()) {
-                std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
-                return;
-            }
-            if (lastCommandParsed == "all"){
-                int fileCount = c_assistant.getFiles().size();
-                c_assistant.clearFiles();
-                std::cout << "Removed all " << fileCount << " files from context." << std::endl;
-                return;
-            }
-            std::string fileToRemove = terminal.getFullPathOfFile(lastCommandParsed);
-            if(fileToRemove.empty()){
-                std::cerr << "Error: File not found: " << lastCommandParsed << std::endl;
-                return;
-            }
-            c_assistant.removeFile(fileToRemove);
-            return;
-        }
-        if (lastCommandParsed == "active"){
-            std::vector<std::string> activeFiles = c_assistant.getFiles();
-            std::cout << "Active Files: " << std::endl;
-            if(activeFiles.empty()) {
-                std::cout << "  No active files." << std::endl;
-            } else {
-                for(const auto& file : activeFiles){
-                    std::cout << "  " << file << std::endl;
-                }
-                std::cout << "Total characters processed: " << c_assistant.getFileContents().length() << std::endl;
-            }
-            return;
-        }
-        if (lastCommandParsed == "available"){
-            std::cout << "Files at current path: " << std::endl;
-            for(const auto& file : filesAtPath){
-                std::cout << file << std::endl;
-            }
-            return;
-        }
-        if(lastCommandParsed == "refresh"){
-            c_assistant.refreshFiles();
-            std::cout << "Files refreshed." << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "clear"){
-            c_assistant.clearFiles();
-            std::cout << "Files cleared." << std::endl;
-            return;
-        }
-        std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "directory"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "The current directory is " << c_assistant.getSaveDirectory() << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "set") {
-            c_assistant.setSaveDirectory(terminal.getCurrentFilePath());
-            std::cout << "Directory set to " << terminal.getCurrentFilePath() << std::endl;
-            return;
-        }
-        if(lastCommandParsed == "clear") {
-            c_assistant.setSaveDirectory(DATA_DIRECTORY);
-            std::cout << "Directory set to default." << std::endl;
-            return;
-        }
-    }
-    if(lastCommandParsed == "model"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "The current model is " << c_assistant.getModel() << std::endl;
-            return;
-        }
-        c_assistant.setModel(lastCommandParsed);
-        std::cout << "Model set to " << lastCommandParsed << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "rejectchanges"){
-        c_assistant.rejectChanges();
-        std::cout << "Changes rejected." << std::endl;
-        return;
-    }
-    if(lastCommandParsed == "timeoutflag"){
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cout << "The current timeout flag is " << c_assistant.getTimeoutFlagSeconds() << std::endl;
-            return;
-        }
-        c_assistant.setTimeoutFlagSeconds(std::stoi(lastCommandParsed));
-        std::cout << "Timeout flag set to " << lastCommandParsed << " seconds."<< std::endl;
-        return;
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "AI settings commands:" << std::endl;
-        std::cout << " log: Save recent chat exchange to a file" << std::endl;
-        std::cout << " apikey: Manage OpenAI API key (set/get)" << std::endl;
-        std::cout << " chat: Access AI chat commands" << std::endl;
-        std::cout << " get [KEY]: Retrieve specific response data" << std::endl;
-        std::cout << " dump: Display all response data and last prompt" << std::endl;
-        std::cout << " mode [TYPE]: Set the assistant mode" << std::endl;
-        std::cout << " file: Manage files for context (add, remove, active, available, refresh, clear)" << std::endl;
-        std::cout << " directory: Manage save directory (set, clear)" << std::endl;
-        std::cout << " model [MODEL]: Set the AI model" << std::endl;
-        std::cout << " rejectchanges: Reject AI suggested changes" << std::endl;
-        std::cout << " timeoutflag [SECONDS]: Set the timeout duration" << std::endl;
-        return;
-    }
-    std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-}
-
-void aiChatCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "history") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            showChatHistory();
-            return;
-        }
-        if (lastCommandParsed == "clear") {
-            c_assistant.clearChatCache();
-            savedChatCache.clear();
-            writeUserData();
-            std::cout << "Chat history cleared." << std::endl;
-            return;
-        }
-    }
-    if (lastCommandParsed == "cache") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            c_assistant.setCacheTokens(true);
-            std::cout << "Cache tokens enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            c_assistant.setCacheTokens(false);
-            std::cout << "Cache tokens disabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "clear") {
-            c_assistant.clearAllCachedTokens();
-            std::cout << "Chat history cleared." << std::endl;
-            return;
-        }
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "AI chat commands:" << std::endl;
-        std::cout << " history: Show chat history" << std::endl;
-        std::cout << " history clear: Clear chat history" << std::endl;
-        std::cout << " cache enable: Enable token caching" << std::endl;
-        std::cout << " cache disable: Disable token caching" << std::endl;
-        std::cout << " cache clear: Clear all cached tokens" << std::endl;
-        std::cout << " [MESSAGE]: Send a direct message to AI" << std::endl;
-        return;
-    }
-    for(int i = 0; i < commandsQueue.size(); i++){
-        lastCommandParsed += " " + commandsQueue.front();
-        commandsQueue.pop();
-    }
-    std::cout << "Sent message to GPT: " << lastCommandParsed << std::endl;
-    chatProcess(lastCommandParsed);
+void setup_job_control() {
+  if (!isatty(STDIN_FILENO)) {
+    g_job_control_enabled = false;
     return;
+  }
+  
+  g_shell_pgid = getpid();
+  
+  if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
+    if (errno != EPERM) {
+      perror("Couldn't put the shell in its own process group");
+    }
+  }
+  
+  try {
+    g_shell_terminal = STDIN_FILENO;
+    int tpgrp = tcgetpgrp(g_shell_terminal);
+    if (tpgrp != -1) {
+      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
+        perror("Couldn't grab terminal control");
+      }
+    }
+    
+    if (tcgetattr(g_shell_terminal, &g_shell_tmodes) < 0) {
+      perror("Couldn't get terminal attributes");
+    }
+    
+    g_job_control_enabled = true;
+  } catch (const std::exception& e) {
+    std::cerr << "Error setting up terminal: " << e.what() << std::endl;
+    g_job_control_enabled = false;
+  }
 }
 
-void chatProcess(const std::string& message) {
-    if (message.empty()) {
-        return;
+void setup_environment_variables() {
+  uid_t uid = getuid();
+  struct passwd* pw = getpwuid(uid);
+  
+  if (pw != nullptr) {
+    setenv("USER", pw->pw_name, 1);
+    setenv("LOGNAME", pw->pw_name, 1);
+    setenv("HOME", pw->pw_dir, 1);
+    setenv("SHELL", cjsh_filesystem::g_cjsh_path.c_str(), 1);
+    
+    setenv("CJSH_VERSION", c_version.c_str(), 1);
+    
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+      setenv("HOSTNAME", hostname, 1);
     }
-    if(message == "exit"){
-        exitFlag = true;
-        return;
+    
+    setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+    
+    if (getenv("TZ") == nullptr) {
+      std::string tz_file = "/etc/localtime";
+      if (std::filesystem::exists(tz_file)) {
+        setenv("TZ", tz_file.c_str(), 1);
+      }
     }
-    if(message == "clear"){
-        sendTerminalCommand("clear");
-        return;
-    }
-    if (c_assistant.getAPIKey().empty()) {
-        std::cerr << "Error: No OpenAPI key set. Please set the API key using 'ai apikey set [KEY]'." << std::endl;
-        return;
-    }
-    std::string response = c_assistant.chatGPT(message,false);
-    std::cout << "ChatGPT:\n" << response << std::endl;
+  }
 }
 
-void showChatHistory() {
-    if (!c_assistant.getChatCache().empty()) {
-        std::cout << "Chat history:" << std::endl;
-        for (const auto& message : c_assistant.getChatCache()) {
-            std::cout << message << std::endl;
-        }
+void initialize_login_environment() {
+  if (setsid() < 0) {
+    if (errno != EPERM) {
+      perror("Failed to become session leader");
     }
+  }
+  
+  g_shell_terminal = STDIN_FILENO;
+  
+  if (!isatty(g_shell_terminal)) {
+    std::cerr << "Warning: Not running on a terminal device" << std::endl;
+  }
 }
 
-bool checkFromUpdate_Github(std::function<bool(const std::string&, const std::string&)> isNewerVersion) {
-    std::string command = "curl -s " + updateURL_Github;
-    std::string result;
-    FILE *pipe = popen(command.c_str(), "r");
-    if (!pipe) {
-        std::cerr << "Error: Unable to execute update check or no internet connection." << std::endl;
-        return false;
-    }
-    char buffer[128];
-    while (fgets(buffer, 128, pipe) != nullptr) {
-        result += buffer;
-    }
-    pclose(pipe);
+void notify_plugins(std::string trigger, std::string data) {
+  if (g_plugin == nullptr) {
+    g_shell->set_exit_flag(true);
+    std::cerr << "Error: Plugin system not initialized." << std::endl;
+    return;
+  }
+  if (g_plugin->get_enabled_plugins().empty()) {
+    return;
+  }
+  if (g_debug_mode) {
+    std::cout << "DEBUG: Notifying plugins of trigger: " << trigger << std::endl;
+  }
+  g_plugin->trigger_subscribed_global_event(trigger, data);
+}
 
-    try {
-        json jsonData = json::parse(result);
-        if (jsonData.contains("tag_name")) {
-            std::string latestTag = jsonData["tag_name"].get<std::string>();
-            if (!latestTag.empty() && latestTag[0] == 'v') {
-                latestTag = latestTag.substr(1);
-            }
-            std::string currentVer = currentVersion;
-            if (!currentVer.empty() && currentVer[0] == 'v') {
-                currentVer = currentVer.substr(1);
-            }
-            if (isNewerVersion(latestTag, currentVer)) {
-                std::cout << "\nLast Updated: " << lastUpdated << std::endl;
-                std::cout << currentVersion << " -> " << latestTag << std::endl;
-                return true;
-            }
-        }
-    } catch (...) {}
+bool init_login_filesystem() {
+  try {
+    if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
+      std::cerr << "cjsh: the users home path could not be determined." << std::endl;
+      return false;
+    }
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
+      create_config_file();
+    }
+    process_config_file();
+  } catch (const std::exception& e) {
+    std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: " << e.what() << std::endl;
     return false;
+  }
+  return true;
 }
 
-bool checkForUpdate() {
-    if(!silentCheckForUpdates){
-        std::cout << "Checking for updates from GitHub...";
+bool init_interactive_filesystem() {
+  try {
+    if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
+      std::cerr << "cjsh: the users home path could not be determined." << std::endl;
+      return false;
     }
-    auto isNewerVersion = [](const std::string &latest, const std::string &current) -> bool {
-        auto splitVersion = [](const std::string &ver) {
-            std::vector<int> parts;
-            std::istringstream iss(ver);
-            std::string token;
-            while (std::getline(iss, token, '.')) {
-                parts.push_back(std::stoi(token));
-            }
-            return parts;
-        };
-        std::vector<int> latestParts = splitVersion(latest);
-        std::vector<int> currentParts = splitVersion(current);
-        size_t len = std::max(latestParts.size(), currentParts.size());
-        latestParts.resize(len, 0);
-        currentParts.resize(len, 0);
-        for (size_t i = 0; i < len; i++) {
-            if (latestParts[i] > currentParts[i]) return true;
-            if (latestParts[i] < currentParts[i]) return false;
-        }
-        return false;
-    };
-
-    return checkFromUpdate_Github(isNewerVersion);
-    std::cerr << "Something went wrong." << std::endl;
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_data_path)) {
+      std::filesystem::create_directories(cjsh_filesystem::g_cjsh_data_path);
+    }
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_plugin_path)) {
+      std::filesystem::create_directories(cjsh_filesystem::g_cjsh_plugin_path);
+    }
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_theme_path)) {
+      std::filesystem::create_directories(cjsh_filesystem::g_cjsh_theme_path);
+    }
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path)) {
+      std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
+      history_file.close();
+    }
+  } catch (const std::exception& e) {
+    std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: " << e.what() << std::endl;
     return false;
+  }
+  return true;
 }
 
-bool downloadLatestRelease() {
-    std::cout << "Downloading latest release..." << std::endl;
-    
-    std::filesystem::path tempDir = DATA_DIRECTORY / "temp_update";
-    if (std::filesystem::exists(tempDir)) {
-        std::filesystem::remove_all(tempDir);
+void process_config_file() {
+  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
+    create_config_file();
+    return;
+  }
+
+  std::ifstream config_file(cjsh_filesystem::g_cjsh_config_path);
+  if (!config_file.is_open()) {
+    std::cerr << "cjsh: Failed to open the configuration file for reading." << std::endl;
+    return;
+  }
+
+  std::unordered_map<std::string, std::string> env_vars;
+  
+  std::string line;
+  while (std::getline(config_file, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
     }
-    std::filesystem::create_directory(tempDir);
-
-    std::string downloadUrl;
-    // Fetch actual asset URL from GitHub API
-    {
-        std::string apiCmd = "curl -s " + updateURL_Github;
-        std::string apiResult;
-        FILE* apiPipe = popen(apiCmd.c_str(), "r");
-        if (apiPipe) {
-            char buf[128];
-            while (fgets(buf, sizeof(buf), apiPipe)) apiResult += buf;
-            pclose(apiPipe);
-            try {
-                auto apiJson = json::parse(apiResult);
-
-                // determine expected asset name by OS
-                std::string osSuffix;
-    #if defined(__APPLE__)
-                osSuffix = "macos";
-    #elif defined(__linux__)
-                osSuffix = "linux";
-    #else
-                osSuffix = "";
-    #endif
-                std::string expected = "cjsh" + (osSuffix.empty() ? "" : "-" + osSuffix);
-
-                // find matching asset
-                for (const auto& asset : apiJson["assets"]) {
-                    std::string name = asset.value("name", "");
-                    if (name == expected || (downloadUrl.empty() && name == "cjsh")) {
-                        downloadUrl = asset.value("browser_download_url", "");
-                        if (name == expected) break;
-                    }
-                }
-            } catch (...) {}
-        }
-    }
-    if (downloadUrl.empty()) {
-        std::cerr << "Error: Unable to determine download URL." << std::endl;
-        return false;
-    }
-
-    // save into temp with original asset filename, then rename to "cjsh"
-    std::string assetName = downloadUrl.substr(downloadUrl.find_last_of('/') + 1);
-    std::filesystem::path assetPath = tempDir / assetName;
-    std::string curlCommand = "curl -L -s " + downloadUrl + " -o " + assetPath.string();
-    std::thread downloadThread = terminal.executeCommand(curlCommand);
-    downloadThread.join();
-
-    if (!std::filesystem::exists(assetPath)) {
-        std::cerr << "Error: Download failed - output file not created." << std::endl;
-        return false;
-    }
-
-    // rename for consistency
-    std::filesystem::path outputPath = tempDir / "cjsh";
-    std::filesystem::rename(assetPath, outputPath);
-
-    std::string chmodCommand = "chmod 755 " + outputPath.string();
-    std::thread chmodThread = terminal.executeCommand(chmodCommand);
-    chmodThread.join();
-
-    bool updateSuccess = false;
-    std::cout << "Administrator privileges required to install the update." << std::endl;
-    std::cout << "Please enter your password if prompted." << std::endl;
-
-    std::string sudoCommand = "sudo cp " + outputPath.string() + " " + INSTALL_PATH.string();
-    std::thread sudoThread = terminal.executeCommand(sudoCommand);
-    sudoThread.join();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    if (std::filesystem::exists(INSTALL_PATH)) {
+    if (line.find("export ") == 0 || line.find('=') != std::string::npos) {
+      size_t equal_pos = line.find('=');
+      if (equal_pos != std::string::npos) {
+        std::string var_name = line.substr(0, equal_pos);
+        std::string var_value = line.substr(equal_pos + 1);
         
-        auto newFileSize = std::filesystem::file_size(outputPath);
-        auto destFileSize = std::filesystem::file_size(INSTALL_PATH);
+        if (var_name.find("export ") == 0) {
+          var_name = var_name.substr(7);
+        }
         
-        if (newFileSize == destFileSize) {
-            
-            std::string sudoChmodCommand = "sudo chmod 755 " + INSTALL_PATH.string();
-            std::thread sudoChmodThread = terminal.executeCommand(sudoChmodCommand);
-            sudoChmodThread.join();
-            updateSuccess = true;
-            std::cout << "Update installed successfully with administrator privileges." << std::endl;
-        } else {
-            std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
+        var_name.erase(0, var_name.find_first_not_of(" \t"));
+        var_name.erase(var_name.find_last_not_of(" \t") + 1);
+        var_value.erase(0, var_value.find_first_not_of(" \t"));
+        var_value.erase(var_value.find_last_not_of(" \t") + 1);
+        
+        if ((var_value.front() == '"' && var_value.back() == '"') || 
+            (var_value.front() == '\'' && var_value.back() == '\'')) {
+          var_value = var_value.substr(1, var_value.length() - 2);
         }
-    } else {
-        std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
+        
+        env_vars[var_name] = var_value;
+        // Still need to set in environment as well for immediate effect
+        setenv(var_name.c_str(), var_value.c_str(), 1);
+      }
     }
-
-    if (!updateSuccess) {
-        std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
-        std::cout << "sudo cp " << outputPath.string() << " " << INSTALL_PATH.string() << std::endl;
-        std::cout << "sudo chmod 755 " << INSTALL_PATH.string() << std::endl;
-        std::cout << "Please ensure you have the necessary permissions." << std::endl;
+    else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
+      g_shell->execute_command(line, true);
     }
-
-    std::string cleanupCommand = "rm -rf " + tempDir.string();
-    std::thread cleanupThread = terminal.executeCommand(cleanupCommand);
-    cleanupThread.join();
-
-    
-    if (std::filesystem::exists(UPDATE_CACHE_FILE)) {
-        std::filesystem::remove(UPDATE_CACHE_FILE);
-        if (TESTING) {
-            std::cout << "Removed old update cache file: " << UPDATE_CACHE_FILE << std::endl;
-        }
+    else {
+      g_shell->execute_command(line, true);
     }
-
-    return updateSuccess;
+  }
+  
+  config_file.close();
+  
+  // Set all collected environment variables at once in the shell
+  if (!env_vars.empty()) {
+    g_shell->set_env_vars(env_vars);
+  }
 }
 
-bool executeUpdateIfAvailable(bool updateAvailable) {
-    if (!updateAvailable) return false;
-    
-    std::cout << "\nAn update is available. Would you like to download it? (Y/N): ";
-    char response;
-    std::cin >> response;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    
-    if (response != 'Y' && response != 'y') return false;
-    
-    saveUpdateCache(false, cachedLatestVersion);
-    
-    if (!downloadLatestRelease()) {
-        std::cout << "Failed to download or install the update. Please try again later or manually update." << std::endl;
-        std::cout << "You can download the latest version from: " << githubRepoURL << "/releases/latest" << std::endl;
-        saveUpdateCache(true, cachedLatestVersion);
-        return false;
+void process_source_file() {
+  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path)) {
+    create_source_file();
+    return;
+  }
+
+  std::ifstream source_file(cjsh_filesystem::g_cjsh_source_path);
+  if (!source_file.is_open()) {
+    std::cerr << "cjsh: Failed to open the source file for reading." << std::endl;
+    return;
+  }
+
+  std::unordered_map<std::string, std::string> aliases;
+  std::unordered_map<std::string, std::string> env_vars;
+  
+  std::string line;
+  while (std::getline(source_file, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
     }
-    
-    std::cout << "Update installed successfully! Would you like to restart now? (Y/N): ";
-    std::cin >> response;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    
-    if (response == 'Y' || response == 'y') {
-        std::cout << "Restarting application..." << std::endl;
+
+    if (line.find("alias ") == 0) {
+      // Parse and collect alias definitions
+      std::string alias_def = line.substr(6);
+      size_t equal_pos = alias_def.find('=');
+      if (equal_pos != std::string::npos) {
+        std::string alias_name = alias_def.substr(0, equal_pos);
+        std::string alias_value = alias_def.substr(equal_pos + 1);
         
+        // Trim whitespace
+        alias_name.erase(0, alias_name.find_first_not_of(" \t"));
+        alias_name.erase(alias_name.find_last_not_of(" \t") + 1);
         
-        if (saveOnExit) {
-            savedChatCache = c_assistant.getChatCache();
-            writeUserData();
+        // Remove quotes if present
+        if ((alias_value.front() == '\'' && alias_value.back() == '\'') ||
+            (alias_value.front() == '"' && alias_value.back() == '"')) {
+          alias_value = alias_value.substr(1, alias_value.length() - 2);
         }
         
+        aliases[alias_name] = alias_value;
+      }
+    }
+    else if (line.find("export ") == 0) {
+      // Parse and collect environment variable definitions
+      std::string env_def = line.substr(7);
+      size_t equal_pos = env_def.find('=');
+      if (equal_pos != std::string::npos) {
+        std::string env_name = env_def.substr(0, equal_pos);
+        std::string env_value = env_def.substr(equal_pos + 1);
         
-        if (isLoginShell) {
-            cleanupLoginShell();
+        // Trim whitespace
+        env_name.erase(0, env_name.find_first_not_of(" \t"));
+        env_name.erase(env_name.find_last_not_of(" \t") + 1);
+        
+        // Remove quotes if present
+        if ((env_value.front() == '\'' && env_value.back() == '\'') ||
+            (env_value.front() == '"' && env_value.back() == '"')) {
+          env_value = env_value.substr(1, env_value.length() - 2);
         }
         
-        delete pluginManager;
-        delete themeManager;
-        
-        
-        execl(INSTALL_PATH.c_str(), INSTALL_PATH.c_str(), NULL);
-        
-        
-        std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
-        exit(0);
-    } else {
-        std::cout << "Please restart the application to use the new version." << std::endl;
+        env_vars[env_name] = env_value;
+        // Also set in the environment
+        setenv(env_name.c_str(), env_value.c_str(), 1);
+      }
     }
-    
-    return true;
+    else if (line.find("theme ") == 0) {
+      g_current_theme = line.substr(6);
+      g_current_theme.erase(0, g_current_theme.find_first_not_of(" \t"));
+      g_current_theme.erase(g_current_theme.find_last_not_of(" \t") + 1);
+    }
+    else if (line.find("plugin ") == 0) {
+      if (g_plugin != nullptr) {
+        std::string plugin_cmd = line.substr(7);
+        std::stringstream ss(plugin_cmd);
+        std::string plugin_name, plugin_action;
+        ss >> plugin_name >> plugin_action;
+        
+        if (plugin_action == "enable" || plugin_action == "on") {
+          g_plugin->enable_plugin(plugin_name);
+        } else if (plugin_action == "disable" || plugin_action == "off") {
+          g_plugin->disable_plugin(plugin_name);
+        }
+      }
+    }
+    else {
+      g_shell->execute_command(line, true);
+    }
+  }
+  
+  source_file.close();
+  if (!aliases.empty()) {
+    g_shell->set_aliases(aliases);
+  }
 }
 
-void displayChangeLog(const std::string& changeLog) {
-    std::cout << "Change Log: View full details at " << BLUE_COLOR_BOLD << githubRepoURL << RESET_COLOR << std::endl;
-    std::cout << "Key changes in this version:" << std::endl;
-    
-    std::istringstream iss(changeLog);
-    std::string line;
-    int lineCount = 0;
-    while (std::getline(iss, line) && lineCount < 5) {
-        if (!line.empty()) {
-            std::cout << "• " << line << std::endl;
-            lineCount++;
-        }
-    }
-    
-    if (lineCount == 5 && std::getline(iss, line)) {
-        std::cout << "... (see complete changelog on GitHub)" << std::endl;
-    }
-    
-    if (lineCount == 0) {
-        std::cout << "No key changes listed." << std::endl;
-    }
+void create_config_file() {
+  std::ofstream config_file(cjsh_filesystem::g_cjsh_config_path);
+  if (config_file.is_open()) {
+    config_file << "# CJ's Shell Configuration File\n";
+    config_file << "# This file is sourced when the shell starts in login mode\n";
+    config_file << "# This file is used to configure the shell PATH and set environment variables.\n";
+    config_file << "# Do not edit this file unless you know what you are doing.\n";
+
+    config_file << "if [ -x /usr/libexec/path_helper ]; then\n";
+    config_file << "eval /usr/libexec/path_helper -s\n";
+    config_file << "fi\n\n";
+
+    config_file << "# Any environment variables will be set here.\n";
+    config_file.close();
+  } else {
+    std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
+  }
 }
 
-void applyColorToStrings() {
-    GREEN_COLOR_BOLD = themeManager->getColor("GREEN_COLOR_BOLD");
-    RESET_COLOR = themeManager->getColor("RESET_COLOR");
-    RED_COLOR_BOLD = themeManager->getColor("RED_COLOR_BOLD");
-    PURPLE_COLOR_BOLD = themeManager->getColor("PURPLE_COLOR_BOLD");
-    BLUE_COLOR_BOLD = themeManager->getColor("BLUE_COLOR_BOLD");
-    YELLOW_COLOR_BOLD = themeManager->getColor("YELLOW_COLOR_BOLD");
-    CYAN_COLOR_BOLD = themeManager->getColor("CYAN_COLOR_BOLD");
-    terminal.setShellColor(themeManager->getColor("SHELL_COLOR"));
-    terminal.setDirectoryColor(themeManager->getColor("DIRECTORY_COLOR"));
-    terminal.setBranchColor(themeManager->getColor("BRANCH_COLOR"));
-    terminal.setGitColor(themeManager->getColor("GIT_COLOR"));
-    terminal.setPromptFormat(themeManager->getColor("PROMPT_FORMAT"));
+void create_source_file() {
+  std::ofstream source_file(cjsh_filesystem::g_cjsh_source_path);
+  if (source_file.is_open()) {
+    source_file << "# CJ's Shell Source File\n";
+    source_file << "# This file is sourced when the shell starts in interactive mode\n";
+    source_file << "# This is where your aliases, theme setup, enabled plugins, startup commands, functions etc.";
+    source_file << "# are stored.\n";
+
+    source_file << "# Do not edit this file unless you know what you are doing.\n";
+    source_file << "# Alias examples\n";
+    source_file << "alias ll='ls -la'\n";
+    source_file << "alias gs='git status'\n";
+
+    source_file << "# Theme examples\n";
+    source_file << "theme default\n";
+
+    source_file << "# Plugin examples\n";
+    source_file << "# plugin example_plugin enable\n";
+    source_file.close();
+  } else {
+    std::cerr << "cjsh: Failed to create the source file." << std::endl;
+  }
 }
 
-void loadTheme(const std::string& themeName) {
-    if (themeManager->loadTheme(themeName)) {
-        currentTheme = themeName;
-        applyColorToStrings();
-    }
+void parent_process_watchdog() {
+  while (!g_shell->get_exit_flag()) {
+    if (!is_parent_process_alive()) {
+      std::cerr << "Parent process terminated, shutting down..." << std::endl;
+        g_shell->set_exit_flag(true);
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+  }
 }
 
-void themeCommands() {
-    getNextCommand();
-    if (lastCommandParsed == "load") {
-        getNextCommand();
-        if (!lastCommandParsed.empty()) {
-            loadTheme(lastCommandParsed);
-            writeUserData();
-        } else {
-            std::cerr << "No theme name provided to load." << std::endl;
-        }
-    } else if (!lastCommandParsed.empty()) {
-        loadTheme(lastCommandParsed);
-        writeUserData();
-    } else {
-        std::cout << "Current theme: " << currentTheme << std::endl;
-        std::cout << "Available themes: " << std::endl;
-        for (const auto& theme : themeManager->getAvailableThemes()) {
-            std::cout << "  " << theme.first << std::endl;
-        }
-    }
+bool is_parent_process_alive() {
+  pid_t ppid = getppid();
+  return ppid != 1;
 }
 
-bool startsWithCaseInsensitive(const std::string& str, const std::string& prefix) {
-    if (str.size() < prefix.size()) {
-        return false;
-    }
-    
-    for (size_t i = 0; i < prefix.size(); ++i) {
-        if (tolower(str[i]) != tolower(prefix[i])) {
-            return false;
-        }
-    }
-    
-    return true;
+std::string get_current_time_string() {
+  std::time_t now = std::time(nullptr);
+  std::tm* now_tm = std::localtime(&now);
+  char buffer[100];
+  std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
+  return std::string(buffer);
 }
 
-bool startsWith(const std::string& str, const std::string& prefix) {
-    return startsWithCaseInsensitive(str, prefix);
+bool is_newer_version(const std::string& latest, const std::string& current) {
+  std::vector<int> splitVersion = [](const std::string &ver) {
+      std::vector<int> parts;
+      std::istringstream iss(ver);
+      std::string token;
+      while (std::getline(iss, token, '.')) {
+          parts.push_back(std::stoi(token));
+      }
+      return parts;
+  }(latest);
+  
+  std::vector<int> currentParts = [](const std::string &ver) {
+      std::vector<int> parts;
+      std::istringstream iss(ver);
+      std::string token;
+      while (std::getline(iss, token, '.')) {
+          parts.push_back(std::stoi(token));
+      }
+      return parts;
+  }(current);
+  
+  size_t len = std::max(splitVersion.size(), currentParts.size());
+  splitVersion.resize(len, 0);
+  currentParts.resize(len, 0);
+  
+  for (size_t i = 0; i < len; i++) {
+      if (splitVersion[i] > currentParts[i]) return true;
+      if (splitVersion[i] < currentParts[i]) return false;
+  }
+  
+  return false;
 }
 
-void initializeDataDirectories() {
-    if (!std::filesystem::exists(DATA_DIRECTORY)) {
-        std::string applicationDirectory = std::filesystem::current_path().string();
-        if (applicationDirectory.find(":") != std::string::npos) {
-            applicationDirectory = applicationDirectory.substr(applicationDirectory.find(":") + 1);
-        }
-        std::filesystem::create_directory(applicationDirectory / DATA_DIRECTORY);
-    }
-    
-    if (!std::filesystem::exists(THEMES_DIRECTORY)) {
-        std::filesystem::create_directory(THEMES_DIRECTORY);
-    }
-    
-    if (!std::filesystem::exists(PLUGINS_DIRECTORY)) {
-        std::filesystem::create_directory(PLUGINS_DIRECTORY);
-    }
+bool check_for_update() {
+  if (!g_silent_update_check) {
+      std::cout << "Checking for updates from GitHub...";
+  }
+  
+  std::string command = "curl -s " + c_update_url;
+  std::string result;
+  FILE *pipe = popen(command.c_str(), "r");
+  
+  if (!pipe) {
+      std::cerr << "Error: Unable to execute update check or no internet connection." << std::endl;
+      return false;
+  }
+  
+  char buffer[128];
+  while (fgets(buffer, 128, pipe) != nullptr) {
+      result += buffer;
+  }
+  pclose(pipe);
+
+  try {
+      json jsonData = json::parse(result);
+      if (jsonData.contains("tag_name")) {
+          std::string latestTag = jsonData["tag_name"].get<std::string>();
+          if (!latestTag.empty() && latestTag[0] == 'v') {
+              latestTag = latestTag.substr(1);
+          }
+          
+          std::string currentVer = c_version;
+          if (!currentVer.empty() && currentVer[0] == 'v') {
+              currentVer = currentVer.substr(1);
+          }
+          
+          g_cached_version = latestTag;
+          
+          if (is_newer_version(latestTag, currentVer)) {
+              std::cout << "\nLast Updated: " << g_last_updated << std::endl;
+              std::cout << c_version << " -> " << latestTag << std::endl;
+              return true;
+          }
+      }
+  } catch (const std::exception& e) {
+      std::cerr << "Error parsing update data: " << e.what() << std::endl;
+  }
+  
+  return false;
 }
 
-void asyncCheckForUpdates(std::function<void(bool)> callback) {
-    if (loadUpdateCache() && !shouldCheckForUpdates()) {
-        if (!silentCheckForUpdates && cachedUpdateAvailable) {
-            std::cout << "\nUpdate available: " << cachedLatestVersion << " (cached)" << std::endl;
-        }
-        callback(cachedUpdateAvailable);
-        return;
-    }
-    
-    bool updateAvailable = checkForUpdate();
-    
-    std::string latestVersion = "";
-    try {
-        std::string command = "curl -s " + updateURL_Github;
-        std::string result;
-        FILE *pipe = popen(command.c_str(), "r");
-        if (pipe) {
-            char buffer[128];
-            while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-                result += buffer;
-            }
-            pclose(pipe);
-            
-            json jsonData = json::parse(result);
-            if (jsonData.contains("tag_name")) {
-                latestVersion = jsonData["tag_name"].get<std::string>();
-                if (!latestVersion.empty() && latestVersion[0] == 'v') {
-                    latestVersion = latestVersion.substr(1);
-                }
-            }
-        }
-    } catch (std::exception &e) {
-        std::cerr << "Error getting latest version: " << e.what() << std::endl;
-    }
-    
-    saveUpdateCache(updateAvailable, latestVersion);
-    
-    callback(updateAvailable);
+bool load_update_cache() {
+  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path)) {
+      return false;
+  }
+  
+  std::ifstream cacheFile(cjsh_filesystem::g_cjsh_update_cache_path);
+  if (!cacheFile.is_open()) return false;
+  
+  try {
+      json cacheData;
+      cacheFile >> cacheData;
+      cacheFile.close();
+      
+      if (cacheData.contains("update_available") && 
+          cacheData.contains("latest_version") && 
+          cacheData.contains("check_time")) {
+          
+          g_cached_update = cacheData["update_available"].get<bool>();
+          g_cached_version = cacheData["latest_version"].get<std::string>();
+          g_last_update_check = cacheData["check_time"].get<time_t>();
+          
+          return true;
+      }
+      return false;
+  } catch (const std::exception& e) {
+      std::cerr << "Error loading update cache: " << e.what() << std::endl;
+      return false;
+  }
 }
 
-void loadPluginsAsync(std::function<void()> callback) {
-    if (pluginManager) {
-        pluginManager->discoverPlugins();
-    }
-    callback();
+void save_update_cache(bool update_available, const std::string& latest_version) {
+  json cacheData;
+  cacheData["update_available"] = update_available;
+  cacheData["latest_version"] = latest_version;
+  cacheData["check_time"] = std::time(nullptr);
+  
+  std::ofstream cacheFile(cjsh_filesystem::g_cjsh_update_cache_path);
+  if (cacheFile.is_open()) {
+      cacheFile << cacheData.dump();
+      cacheFile.close();
+      
+      g_cached_update = update_available;
+      g_cached_version = latest_version;
+      g_last_update_check = std::time(nullptr);
+  } else {
+      std::cerr << "Warning: Could not open update cache file for writing." << std::endl;
+  }
 }
 
-void loadThemeAsync(const std::string& themeName, std::function<void(bool)> callback) {
-    bool success = false;
-    if (themeManager) {
-        success = themeManager->loadTheme(themeName);
-    }
-    callback(success);
+bool should_check_for_updates() {
+  if (g_last_update_check == 0) {
+      return true;
+  }
+  
+  time_t current_time = std::time(nullptr);
+  time_t elapsed_time = current_time - g_last_update_check;
+  
+  if (g_debug_mode) {
+      std::cout << "Time since last update check: " << elapsed_time 
+                << " seconds (interval: " << g_update_check_interval << " seconds)" << std::endl;
+  }
+  
+  return elapsed_time > g_update_check_interval;
 }
 
-void processChangelogAsync() {
-    std::ifstream changelogFile(DATA_DIRECTORY / "CHANGELOG.txt");
-    if (!changelogFile.is_open()) return;
-    
-    std::time_t now = std::time(nullptr);
-    std::tm* now_tm = std::localtime(&now);
-    char buffer[100];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
-    
-    std::string changeLog((std::istreambuf_iterator<char>(changelogFile)), std::istreambuf_iterator<char>());
-    changelogFile.close();
-    
-    std::ofstream savedChangelogFile(DATA_DIRECTORY / "latest_changelog.txt");
-    if (savedChangelogFile.is_open()) {
-        savedChangelogFile << changeLog;
-        savedChangelogFile.close();
-    }
-    
-    lastUpdated = buffer;
-    
-    std::filesystem::remove(DATA_DIRECTORY / "CHANGELOG.txt");
-    
-    std::ofstream flagFile(DATA_DIRECTORY / ".new_changelog");
-    if (flagFile.is_open()) {
-        flagFile << "1";
-        flagFile.close();
-    }
+bool download_latest_release() {
+  std::cout << "Downloading latest release..." << std::endl;
+  
+  std::filesystem::path temp_dir = cjsh_filesystem::g_cjsh_data_path / "temp_update";
+  if (std::filesystem::exists(temp_dir)) {
+      std::filesystem::remove_all(temp_dir);
+  }
+  std::filesystem::create_directory(temp_dir);
+
+  std::string download_url;
+  // Fetch actual asset URL from GitHub API
+  {
+      std::string api_cmd = "curl -s " + c_update_url;
+      std::string api_result;
+      FILE* api_pipe = popen(api_cmd.c_str(), "r");
+      if (api_pipe) {
+          char buf[128];
+          while (fgets(buf, sizeof(buf), api_pipe)) api_result += buf;
+          pclose(api_pipe);
+          try {
+              auto api_json = json::parse(api_result);
+
+              // determine expected asset name by OS
+              std::string os_suffix;
+              #if defined(__APPLE__)
+              os_suffix = "macos";
+              #elif defined(__linux__)
+              os_suffix = "linux";
+              #else
+              os_suffix = "";
+              #endif
+              std::string expected = "cjsh" + (os_suffix.empty() ? "" : "-" + os_suffix);
+
+              // find matching asset
+              for (const auto& asset : api_json["assets"]) {
+                  std::string name = asset.value("name", "");
+                  if (name == expected || (download_url.empty() && name == "cjsh")) {
+                      download_url = asset.value("browser_download_url", "");
+                      if (name == expected) break;
+                  }
+              }
+          } catch (const std::exception& e) {
+              std::cerr << "Error parsing asset data: " << e.what() << std::endl;
+          }
+      }
+  }
+  
+  if (download_url.empty()) {
+      std::cerr << "Error: Unable to determine download URL." << std::endl;
+      return false;
+  }
+
+  // save into temp with original asset filename
+  std::string asset_name = download_url.substr(download_url.find_last_of('/') + 1);
+  std::filesystem::path asset_path = temp_dir / asset_name;
+  std::string curl_command = "curl -L -s " + download_url + " -o " + asset_path.string();
+  
+  // Execute the download command using popen instead of system
+  FILE* download_pipe = popen(curl_command.c_str(), "r");
+  if (!download_pipe) {
+      std::cerr << "Error: Failed to execute download command." << std::endl;
+      return false;
+  }
+  pclose(download_pipe);
+
+  if (!std::filesystem::exists(asset_path)) {
+      std::cerr << "Error: Download failed - output file not created." << std::endl;
+      return false;
+  }
+
+  // rename for consistency
+  std::filesystem::path output_path = temp_dir / "cjsh";
+  std::filesystem::rename(asset_path, output_path);
+
+  // Use filesystem to set permissions instead of chmod
+  try {
+      std::filesystem::permissions(output_path, 
+          std::filesystem::perms::owner_read | 
+          std::filesystem::perms::owner_write | 
+          std::filesystem::perms::owner_exec |
+          std::filesystem::perms::group_read |
+          std::filesystem::perms::group_exec |
+          std::filesystem::perms::others_read |
+          std::filesystem::perms::others_exec);
+  } catch (const std::exception& e) {
+      std::cerr << "Error setting file permissions: " << e.what() << std::endl;
+  }
+
+  bool update_success = false;
+  std::cout << "Administrator privileges required to install the update." << std::endl;
+  std::cout << "Please enter your password if prompted." << std::endl;
+
+  // We still need sudo for copying to system locations, but use popen to capture output
+  std::string sudo_command = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path.string();
+  FILE* sudo_pipe = popen(sudo_command.c_str(), "r");
+  int sudo_result = sudo_pipe ? pclose(sudo_pipe) : -1;
+  
+  if (sudo_result != 0) {
+      std::cerr << "Error executing sudo command." << std::endl;
+  }
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  if (std::filesystem::exists(cjsh_filesystem::g_cjsh_path)) {
+      auto new_file_size = std::filesystem::file_size(output_path);
+      auto dest_file_size = std::filesystem::file_size(cjsh_filesystem::g_cjsh_path);
+      
+      if (new_file_size == dest_file_size) {
+          // Still need sudo for chmod on system files
+          std::string sudo_chmod_command = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path.string();
+          FILE* chmod_pipe = popen(sudo_chmod_command.c_str(), "r");
+          pclose(chmod_pipe);
+          
+          update_success = true;
+          std::cout << "Update installed successfully with administrator privileges." << std::endl;
+          
+          // Create changelog file
+          std::ofstream changelog((cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string());
+          if (changelog.is_open()) {
+              changelog << "Updated to version " << g_cached_version << " on " << get_current_time_string() << std::endl;
+              changelog << "See GitHub for full release notes: " << c_github_url << "/releases/tag/v" << g_cached_version << std::endl;
+              changelog.close();
+          }
+      } else {
+          std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
+      }
+  } else {
+      std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
+  }
+
+  if (!update_success) {
+      std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
+      std::cout << "sudo cp " << output_path.string() << " " << cjsh_filesystem::g_cjsh_path.string() << std::endl;
+      std::cout << "sudo chmod 755 " << cjsh_filesystem::g_cjsh_path.string() << std::endl;
+      std::cout << "Please ensure you have the necessary permissions." << std::endl;
+  }
+
+  // Clean up temporary files using filesystem functions
+  try {
+      std::filesystem::remove_all(temp_dir);
+  } catch (const std::exception& e) {
+      std::cerr << "Error cleaning up temporary files: " << e.what() << std::endl;
+  }
+
+  // Remove update cache file if it exists
+  if (std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path)) {
+      try {
+          std::filesystem::remove(cjsh_filesystem::g_cjsh_update_cache_path);
+          if (g_debug_mode) {
+              std::cout << "Removed old update cache file: " << cjsh_filesystem::g_cjsh_update_cache_path << std::endl;
+          }
+      } catch (const std::exception& e) {
+          std::cerr << "Error removing update cache: " << e.what() << std::endl;
+      }
+  }
+
+  return update_success;
 }
 
-void loadUserDataAsync(std::function<void()> callback) {
-    std::ifstream file(USER_DATA);
-    if (file.is_open()) {
-        if (file.peek() == std::ifstream::traits_type::eof()) {
-            file.close();
-            createNewUSER_DATAFile();
-        } else {
-            try {
-                json userData;
-                file >> userData;
-                if(userData.contains("OpenAI_API_KEY")) {
-                    c_assistant.setAPIKey(userData["OpenAI_API_KEY"].get<std::string>());
-                }
-                if(userData.contains("Chat_Cache")) {
-                    savedChatCache = userData["Chat_Cache"].get<std::vector<std::string> >();
-                    c_assistant.setChatCache(savedChatCache);
-                }
-                if(userData.contains("Startup_Commands")) {
-                    startupCommands = userData["Startup_Commands"].get<std::vector<std::string> >();
-                }
-                if(userData.contains("Shortcuts_Enabled")) {
-                    shortcutsEnabled = userData["Shortcuts_Enabled"].get<bool>();
-                }
-                if(userData.contains("Shortcuts_Prefix")) {
-                    shortcutsPrefix = userData["Shortcuts_Prefix"].get<std::string>();
-                }
-                if(userData.contains("Multi_Script_Shortcuts")) {
-                    multiScriptShortcuts = userData["Multi_Script_Shortcuts"].get<std::map<std::string, std::vector<std::string>>>();
-                }
-                if(userData.contains("Last_Updated")) {
-                    lastUpdated = userData["Last_Updated"].get<std::string>();
-                }
-                if(userData.contains("Current_Theme")) {
-                    currentTheme = userData["Current_Theme"].get<std::string>();
-                }
-                if(userData.contains("Auto_Update_Check")) {
-                    checkForUpdates = userData["Auto_Update_Check"].get<bool>();
-                }
-                if(userData.contains("Update_From_Github")) {
-                    updateFromGithub = userData["Update_From_Github"].get<bool>();
-                }
-                if(userData.contains("Silent_Update_Check")) {
-                    silentCheckForUpdates = userData["Silent_Update_Check"].get<bool>();
-                }
-                if(userData.contains("Startup_Commands_Enabled")) {
-                    startCommandsOn = userData["Startup_Commands_Enabled"].get<bool>();
-                }
-                if(userData.contains("Last_Update_Check_Time")) {
-                    lastUpdateCheckTime = userData["Last_Update_Check_Time"].get<time_t>();
-                }
-                if(userData.contains("Update_Check_Interval")) {
-                    UPDATE_CHECK_INTERVAL = userData["Update_Check_Interval"].get<int>();
-                }
-                if(userData.contains("Title_Line")) {
-                    showTitleLine = userData["Title_Line"].get<bool>();
-                }
-                file.close();
-            }
-            catch(const json::parse_error& e) {
-                file.close();
-                createNewUSER_DATAFile();
-            }
-        }
-    }
-    callback();
+bool execute_update_if_available(bool update_available) {
+  if (!update_available) {
+    std::cout << "\nYou are up to date!." << std::endl;
+    return false;
+  }
+
+  
+  std::cout << "\nAn update is available. Would you like to download it? (Y/N): ";
+  char response;
+  std::cin >> response;
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  
+  if (response != 'Y' && response != 'y') return false;
+  
+  save_update_cache(false, g_cached_version);
+  
+  if (!download_latest_release()) {
+      std::cout << "Failed to download or install the update. Please try again later or manually update." << std::endl;
+      std::cout << "You can download the latest version from: " << c_github_url << "/releases/latest" << std::endl;
+      save_update_cache(true, g_cached_version);
+      return false;
+  }
+  
+  std::cout << "Update installed successfully! Would you like to restart now? (Y/N): ";
+  std::cin >> response;
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  
+  if (response == 'Y' || response == 'y') {
+      std::cout << "Restarting application..." << std::endl;
+      
+      if (g_shell->get_login_mode()) {
+          restore_terminal_state();
+      }
+      
+      delete g_shell;
+      delete g_ai;
+      delete g_theme;
+      delete g_plugin;
+      
+      // Execute the new version
+      execl(cjsh_filesystem::g_cjsh_path.c_str(), cjsh_filesystem::g_cjsh_path.c_str(), NULL);
+      
+      // If execl fails
+      std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
+      exit(0);
+  } else {
+      std::cout << "Please restart the application to use the new version." << std::endl;
+  }
+  
+  return true;
 }
 
-void saveUpdateCache(bool updateAvailable, const std::string& latestVersion) {
-    json cacheData;
-    cacheData["update_available"] = updateAvailable;
-    cacheData["latest_version"] = latestVersion;
-    cacheData["check_time"] = std::time(nullptr);
-    
-    std::ofstream cacheFile(UPDATE_CACHE_FILE);
-    if (cacheFile.is_open()) {
-        cacheFile << cacheData.dump();
-        cacheFile.close();
-        
-        cachedUpdateAvailable = updateAvailable;
-        cachedLatestVersion = latestVersion;
-        lastUpdateCheckTime = std::time(nullptr);
-        
-        writeUserData();
-    } else {
-        std::cerr << "Warning: Could not open update cache file for writing." << std::endl;
-    }
-}
-
-bool loadUpdateCache() {
-    if (!std::filesystem::exists(UPDATE_CACHE_FILE)) {
-        return false;
-    }
-    
-    std::ifstream cacheFile(UPDATE_CACHE_FILE);
-    if (!cacheFile.is_open()) return false;
-    
-    try {
-        json cacheData;
-        cacheFile >> cacheData;
-        cacheFile.close();
-        
-        if (cacheData.contains("update_available") && 
-            cacheData.contains("latest_version") && 
-            cacheData.contains("check_time")) {
-            
-            cachedUpdateAvailable = cacheData["update_available"].get<bool>();
-            cachedLatestVersion = cacheData["latest_version"].get<std::string>();
-            lastUpdateCheckTime = cacheData["check_time"].get<time_t>();
-            
-            return true;
-        }
-        return false;
-    } catch (const std::exception& e) {
-        std::cerr << "Error loading update cache: " << e.what() << std::endl;
-        return false;
-    }
-}
-
-bool shouldCheckForUpdates() {
-    if (lastUpdateCheckTime == 0) {
-        return true;
-    }
-    
-    time_t currentTime = std::time(nullptr);
-    time_t elapsedTime = currentTime - lastUpdateCheckTime;
-    
-    if (TESTING) {
-        std::cout << "Time since last update check: " << elapsedTime 
-                  << " seconds (interval: " << UPDATE_CHECK_INTERVAL << " seconds)" << std::endl;
-    }
-    
-    return elapsedTime > UPDATE_CHECK_INTERVAL;
-}
-
-void setupEnvironmentVariables() {
-    uid_t uid = getuid();
-    struct passwd* pw = getpwuid(uid);
-    
-    if (pw != nullptr) {
-        setenv("USER", pw->pw_name, 1);
-        setenv("LOGNAME", pw->pw_name, 1);
-        setenv("HOME", pw->pw_dir, 1);
-        setenv("SHELL", ACTUAL_SHELL_PATH.string().c_str(), 1);
-        
-        if (getenv("PATH") == nullptr) {
-            setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
-        }
-        
-        setenv("CJSH_INSTALL_PATH", INSTALL_PATH.string().c_str(), 1);
-        setenv("CJSH_DATA_DIR", DATA_DIRECTORY.string().c_str(), 1);
-        setenv("CJSH_VERSION", currentVersion.c_str(), 1);
-        
-        char hostname[256];
-        if (gethostname(hostname, sizeof(hostname)) == 0) {
-            setenv("HOSTNAME", hostname, 1);
-        }
-        
-        // setenv("TERM", "xterm-256color", 0);
-        
-        setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
-        
-        if (getenv("TZ") == nullptr) {
-            std::string tzFile = "/etc/localtime";
-            if (std::filesystem::exists(tzFile)) {
-                setenv("TZ", tzFile.c_str(), 1);
-            }
-        }
-        
-        if (TESTING) {
-            std::cout << "Environment setup: USER=" << getenv("USER") 
-                      << " HOME=" << getenv("HOME")
-                      << " SHELL=" << getenv("SHELL") << std::endl;
-        }
-    }
-}
-
-void initializeLoginEnvironment() {
-    if (isLoginShell) {
-        pid_t pid = getpid();
-        
-        if (setsid() < 0) {
-            if (errno != EPERM) {
-                perror("Failed to become session leader");
-            }
-        }
-        
-        shell_terminal = STDIN_FILENO;
-        
-        if (!isatty(shell_terminal)) {
-            std::cerr << "Warning: Not running on a terminal device" << std::endl;
-        }
-    }
-}
-
-void saveTerminalState() {
-    if (isatty(STDIN_FILENO)) {
-        if (tcgetattr(STDIN_FILENO, &original_termios) == 0) {
-            terminal_state_saved = true;
-        }
-    }
-}
-
-void restoreTerminalState() {
-    if (terminal_state_saved) {
-        
-        tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-    }
-}
-
-void setupSignalHandlers() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sigset_t block_mask;
-    sigfillset(&block_mask);
-
-    
-    sa.sa_sigaction = signalHandlerWrapper;
-    sa.sa_mask    = block_mask;
-
-    
-    sa.sa_flags   = SA_SIGINFO | SA_RESTART;
-    sigaction(SIGHUP, &sa, nullptr);
-
-    
-    sa.sa_flags   = SA_SIGINFO | SA_RESTART;
-    sigaction(SIGTERM, &sa, nullptr);
-
-    
-    sa.sa_flags   = SA_SIGINFO | SA_RESTART;
-    sigaction(SIGCHLD, &sa, nullptr);
-
-    
-    sa.sa_flags   = SA_SIGINFO;    
-    sigaction(SIGINT, &sa, nullptr);
-
-    
-    sa.sa_handler = SIG_IGN;
-    sa.sa_flags   = 0;
-    sa.sa_mask    = block_mask;
-    sigaction(SIGQUIT, &sa, nullptr);
-    sigaction(SIGTSTP, &sa, nullptr);
-    sigaction(SIGTTIN, &sa, nullptr);
-    sigaction(SIGTTOU, &sa, nullptr);
-
-    saveTerminalState();
-}
-
-
-static void signalHandlerWrapper(int signum, siginfo_t* info, void* context) {
-    
-    switch (signum) {
-        case SIGHUP:
-            std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
-            exitFlag = true;
-            
-            if (pluginManager != nullptr) {
-                delete pluginManager;
-                pluginManager = nullptr;
-            }
-            
-            if (themeManager != nullptr) {
-                delete themeManager;
-                themeManager = nullptr;
-            }
-            
-            terminal.terminateAllChildProcesses();
-            
-            if (jobControlEnabled) {
-                try {
-                    restoreTerminalState();
-                } catch (...) {}
-            }
-            
-            _exit(0);
-            break;
-            
-        case SIGTERM:
-            std::cerr << "Received SIGTERM, exiting" << std::endl;
-            exitFlag = true;
-            
-            terminal.terminateAllChildProcesses();
-            
-            _exit(0);
-            break;
-            
-        case SIGINT:
-            std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
-            
-            break;
-            
-        case SIGCHLD:
-            
-            pid_t child_pid;
-            int status;
-            
-            
-            while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
-                
-                
-            }
-            break;
-    }
-}
-
-void setupJobControl() {
-    if (!isatty(STDIN_FILENO)) {
-        jobControlEnabled = false;
-        return;
-    }
-    
-    shell_pgid = getpid();
-    
-    if (setpgid(shell_pgid, shell_pgid) < 0) {
-        if (errno != EPERM) {
-            perror("Couldn't put the shell in its own process group");
-        }
-    }
-    
-    try {
-        int tpgrp = tcgetpgrp(shell_terminal);
-        if (tpgrp != -1) {
-            if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-                perror("Couldn't grab terminal control");
-            }
-        }
-        
-        if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
-            perror("Couldn't get terminal attributes");
-        }
-        
-        jobControlEnabled = true;
-    } catch (const std::exception& e) {
-        std::cerr << "Error setting up terminal: " << e.what() << std::endl;
-        jobControlEnabled = false;
-    }
-}
-
-void resetTerminalOnExit() {
-    if (jobControlEnabled) {
-        try {
-            restoreTerminalState();
-        } catch (const std::exception& e) {
-            std::cerr << "Error restoring terminal: " << e.what() << std::endl;
-        }
-    }
-    
-    terminal.setTerminationFlag(true);
-    
-    
-    terminal.terminateAllChildProcesses();
-    
-    
-    pid_t pgid = getpgid(0);
-    if (pgid > 0 && pgid != 1) {
-        killpg(pgid, SIGTERM);
-        usleep(10000); 
-        killpg(pgid, SIGKILL); 
-    }
-    
-    
-    for (const auto& job : terminal.getActiveJobs()) {
-        kill(-job.pid, SIGKILL);
-        kill(job.pid, SIGKILL);
-    }
-}
-
-bool isParentProcessAlive() {
-    pid_t ppid = getppid();
-    return ppid != 1;
-}
-
-void parentProcessWatchdog() {
-    while (!exitFlag) {
-        if (!isParentProcessAlive()) {
-            std::cerr << "Parent process terminated, shutting down..." << std::endl;
-            exitFlag = true;
-            
-            if (pluginManager != nullptr) {
-                delete pluginManager;
-                pluginManager = nullptr;
-            }
-            
-            if (themeManager != nullptr) {
-                delete themeManager;
-                themeManager = nullptr;
-            }
-            
-            terminal.terminateAllChildProcesses();
-            exit(0);
-        }
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-    }
-}
-
-void createDefaultCJSHRC() {
-    if (std::filesystem::exists(CJSHRC_FILE)) {
-        return;
-    }
-
-    std::ofstream file(CJSHRC_FILE);
-    if (!file.is_open()) {
-        std::cerr << "Error: Unable to create " << CJSHRC_FILE << std::endl;
-        return;
-    }
-
-    file << "# CJ's Shell RC File\n";
-    file << "# This file is sourced when CJ's Shell starts as a login shell\n\n";
-    
-    file << "# Default aliases\n";
-    file << "alias ll='ls -la'\n";
-    file << "alias la='ls -a'\n";
-    file << "alias l='ls'\n";
-    file << "alias c='clear'\n\n";
-    
-    file << "# Environment variables\n";
-    file << "export CJSH_INITIALIZED=true\n\n";
-    
-    file.close();
-    std::cout << "Created default .cjshrc file at " << CJSHRC_FILE << std::endl;
-}
-
-void processProfileFile(const std::string& filePath) {
-    if (!std::filesystem::exists(filePath)) {
-        return;
-    }
-    
-    if (std::filesystem::is_directory(filePath)) {
-        for (const auto& entry : std::filesystem::directory_iterator(filePath)) {
-            if (entry.path().extension() == ".sh") {
-                processProfileFile(entry.path().string());
-            }
-        }
-        return;
-    }
-    
-    std::ifstream file(filePath);
-    if (!file) {
-        return;
-    }
-    
-    std::string line;
-    std::vector<std::string> conditionalStack;
-    std::vector<bool> conditionMetStack;
-    
-    while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') {
-            continue;
-        }
-        
-        line.erase(0, line.find_first_not_of(" \t"));
-        line.erase(line.find_last_not_of(" \t") + 1);
-        
-        bool skipDueToConditional = false;
-        for (size_t i = 0; i < conditionalStack.size(); i++) {
-            if (!conditionMetStack[i]) {
-                skipDueToConditional = true;
-                break;
-            }
-        }
-
-        if (line.find("if ") == 0 || line.find("if(") == 0) {
-            conditionalStack.push_back("if");
-            bool conditionMet = false;
-
-            if (line.find("[ -d ") != std::string::npos || line.find(" -d ") != std::string::npos) {
-                size_t startPos = line.find("-d ") + 3;
-                size_t endPos = line.find("]", startPos);
-                if (endPos != std::string::npos) {
-                    std::string path = line.substr(startPos, endPos - startPos);
-                    path.erase(0, path.find_first_not_of(" \t\"'"));
-                    path.erase(path.find_last_not_of(" \t\"'") + 1);
-                    
-                    path = expandEnvVariables(path);
-                    
-                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_directory(path);
-                }
-            } 
-            else if (line.find("[ -f ") != std::string::npos || line.find(" -f ") != std::string::npos) {
-                size_t startPos = line.find("-f ") + 3;
-                size_t endPos = line.find("]", startPos);
-                if (endPos != std::string::npos) {
-                    std::string path = line.substr(startPos, endPos - startPos);
-                    path.erase(0, path.find_first_not_of(" \t\"'"));
-                    path.erase(path.find_last_not_of(" \t\"'") + 1);
-                    
-                    path = expandEnvVariables(path);
-                    
-                    conditionMet = std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
-                }
-            } 
-            else if (line.find("command -v") != std::string::npos || line.find("which") != std::string::npos) {
-                size_t cmdStartPos = 0;
-                if (line.find("command -v") != std::string::npos) {
-                    cmdStartPos = line.find("command -v") + 10;
-                } else {
-                    cmdStartPos = line.find("which") + 5;
-                }
-                
-                size_t cmdEndPos = line.find(">", cmdStartPos);
-                if (cmdEndPos == std::string::npos) {
-                    cmdEndPos = line.find(" ", cmdStartPos);
-                }
-                if (cmdEndPos == std::string::npos) {
-                    cmdEndPos = line.length();
-                }
-                
-                std::string cmd = line.substr(cmdStartPos, cmdEndPos - cmdStartPos);
-                cmd.erase(0, cmd.find_first_not_of(" \t"));
-                cmd.erase(cmd.find_last_not_of(" \t") + 1);
-                
-                std::string pathEnv = getenv("PATH") ? getenv("PATH") : "";
-                std::istringstream pathStream(pathEnv);
-                std::string dir;
-                conditionMet = false;
-                
-                while (std::getline(pathStream, dir, ':')) {
-                    if (dir.empty()) continue;
-                    std::string fullPath = dir + "/" + cmd;
-                    if (access(fullPath.c_str(), X_OK) == 0) {
-                        conditionMet = true;
-                        break;
-                    }
-                }
-            }
-            
-            conditionMetStack.push_back(conditionMet);
-            continue;
-        }
-        
-        if (line == "else" && !conditionalStack.empty()) {
-            if (conditionalStack.back() == "if") {
-                conditionMetStack.back() = !conditionMetStack.back();
-            }
-            continue;
-        }
-        
-        if ((line == "fi" || line == "endif") && !conditionalStack.empty()) {
-            conditionalStack.pop_back();
-            conditionMetStack.pop_back();
-            continue;
-        }
-        
-        if (skipDueToConditional) {
-            continue;
-        }
-        
-        if (line.find("export ") == 0) {
-            std::string assignments = line.substr(7);
-            std::istringstream iss(assignments);
-            std::string assignment;
-            
-            while (iss >> assignment) {
-                size_t eqPos = assignment.find('=');
-                if (eqPos != std::string::npos) {
-                    std::string name = assignment.substr(0, eqPos);
-                    std::string value = assignment.substr(eqPos + 1);
-                    
-                    if (value.size() >= 2 && 
-                        ((value.front() == '"' && value.back() == '"') || 
-                         (value.front() == '\'' && value.back() == '\''))) {
-                        value = value.substr(1, value.size() - 2);
-                    }
-                    
-                    value = expandEnvVariables(value);
-                    setenv(name.c_str(), value.c_str(), 1);
-                }
-            }
-        } 
-        else if (line.find('=') != std::string::npos && line.find("let ") != 0 && 
-                 line.find(" = ") == std::string::npos) {
-            size_t eqPos = line.find('=');
-            std::string name = line.substr(0, eqPos);
-            std::string value = line.substr(eqPos + 1);
-            
-            name.erase(0, name.find_first_not_of(" \t"));
-            name.erase(name.find_last_not_of(" \t") + 1);
-            value.erase(0, value.find_first_not_of(" \t"));
-            value.erase(value.find_last_not_of(" \t") + 1);
-            
-            if (value.size() >= 2 && 
-                ((value.front() == '"' && value.back() == '"') || 
-                 (value.front() == '\'' && value.back() == '\''))) {
-                value = value.substr(1, value.size() - 2);
-            }
-            
-            value = expandEnvVariables(value);
-            
-            if (!name.empty() && isalpha(name[0])) {
-                setenv(name.c_str(), value.c_str(), 1);
-            }
-        } 
-        else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
-            std::string pathValue = line.substr(line.find('=') + 1);
-            pathValue = expandEnvVariables(pathValue);
-            setenv("PATH", pathValue.c_str(), 1);
-        } 
-        else if (line.find("alias ") == 0) {
-            line = line.substr(6);
-            size_t eqPos = line.find('=');
-            if (eqPos != std::string::npos) {
-                std::string aliasName = line.substr(0, eqPos);
-                std::string aliasValue = line.substr(eqPos + 1);
-                
-                aliasName.erase(0, aliasName.find_first_not_of(" \t"));
-                aliasName.erase(aliasName.find_last_not_of(" \t") + 1);
-                aliasValue.erase(0, aliasValue.find_first_not_of(" \t"));
-                aliasValue.erase(aliasValue.find_last_not_of(" \t") + 1);
-                
-                if (aliasValue.size() >= 2 && 
-                    ((aliasValue.front() == '"' && aliasValue.back() == '"') || 
-                     (aliasValue.front() == '\'' && aliasValue.back() == '\''))) {
-                    aliasValue = aliasValue.substr(1, aliasValue.size() - 2);
-                }
-                
-                aliases[aliasName] = aliasValue;
-            }
-        } 
-        else if (line.find("source ") == 0 || line.find(". ") == 0) {
-            size_t startPos = line.find(' ') + 1;
-            std::string sourcePath = line.substr(startPos);
-            sourcePath.erase(0, sourcePath.find_first_not_of(" \t"));
-            sourcePath.erase(0, sourcePath.find_first_not_of(" \t\"'"));
-            sourcePath.erase(sourcePath.find_last_not_of(" \t\"'") + 1);
-            
-            sourcePath = expandEnvVariables(sourcePath);
-            
-            if (sourcePath[0] != '/' && sourcePath[0] != '~') {
-                std::filesystem::path baseDir = std::filesystem::path(filePath).parent_path();
-                sourcePath = (baseDir / sourcePath).string();
-            } else if (sourcePath[0] == '~') {
-                std::string homeDir = getenv("HOME") ? getenv("HOME") : "";
-                sourcePath.replace(0, 1, homeDir);
-            }
-            
-            if (std::filesystem::exists(sourcePath)) {
-                processProfileFile(sourcePath);
-            }
-        }
-    }
-    
-    loadAliasesFromFile(filePath);
+void display_changelog(const std::string& changelog_path) {
+  std::ifstream file(changelog_path);
+  if (!file.is_open()) {
+      return;
+  }
+  
+  std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  file.close();
+  
+  std::cout << "\n===== CHANGELOG =====\n" << content << "\n=====================\n" << std::endl;
 }
