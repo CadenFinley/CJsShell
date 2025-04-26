@@ -1,5 +1,4 @@
 #include "exec.h"
-#include "shell.h" // Include shell.h here to avoid circular dependency
 
 Exec::Exec(Shell* shell_instance) : parser(), shell(shell_instance) {
   // Initialize current directory to the current working directory
@@ -83,14 +82,20 @@ void Exec::execute_command_async(const std::string& command) {
     // Child process
     
     // Create a new session to detach from terminal
-    setsid();
+    if (setsid() == -1) {
+      std::perror("cjsh (async): setsid");
+      _exit(EXIT_FAILURE);
+    }
     
     // Redirect standard file descriptors to /dev/null
     int dev_null = open("/dev/null", O_RDWR);
     if (dev_null != -1) {
-      dup2(dev_null, STDIN_FILENO);
-      dup2(dev_null, STDOUT_FILENO);
-      dup2(dev_null, STDERR_FILENO);
+      if (dup2(dev_null, STDIN_FILENO)  == -1 ||
+          dup2(dev_null, STDOUT_FILENO) == -1 ||
+          dup2(dev_null, STDERR_FILENO) == -1) {
+          std::perror("cjsh (async): dup2");
+          _exit(EXIT_FAILURE);
+      }
       if (dev_null > 2) {
         close(dev_null);
       }
@@ -132,15 +137,18 @@ bool Exec::builtin_command(const std::vector<std::string>& args) {
     }
     case hash("alias"):
       // Handle alias command
+      // add to the aliases map and then add to .cjshrc
       return true;
     case hash("export"):
       // Handle export command
+      // setenv and then add to the env_vars map and then add it to .cjshrc
       return true;
     case hash("unset"):
       // Handle unset command
       return true;
     case hash("source"):
       // Handle source command
+      // reloads passed arg <filename>
       return true;
     case hash("unalias"):
       // Handle unalias command
@@ -149,6 +157,14 @@ bool Exec::builtin_command(const std::vector<std::string>& args) {
       return false;
   }
 }
+
+// static const std::unordered_map<std::string, BuiltinHandler> builtins = {
+//   {"exit",   [this](auto& a){ shell->set_exit_flag(true); return true; }},
+//   {"cd",     [this](auto& a){ /* … */ }},
+//   …
+// };
+// auto it = builtins.find(args[0]);
+// return it != builtins.end() ? it->second(args) : false;
 
 bool Exec::change_directory(const std::string& dir, std::string& result) {
   std::string target_dir = dir;

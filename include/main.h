@@ -22,49 +22,49 @@
 const std::string c_version = "2.1.0.0";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
-const pid_t c_pid = getpid();  // Fixed: removed std::to_string
-const std::string c_pid_str = std::to_string(getpid());  // String version if needed
+const pid_t c_pid = getpid();
+const std::string c_pid_str = std::to_string(getpid());
 
 // constant colors
 const std::string c_reset_color = "\033[0m";
 const std::string c_title_color = "\033[1;35m";
 
 // globals
-bool g_debug_mode = false;
-bool g_silent_startup = false;
-bool g_cached_update = false;
-bool g_source = true;
-bool g_check_updates = true;
-bool g_title_line = true;
-bool g_menu_terminal = true;
-bool g_silent_update_check = false;
-struct termios g_original_termios;
-bool g_terminal_state_saved = false;
-int g_shell_terminal;
-pid_t g_shell_pgid = 0;
-struct termios g_shell_tmodes;
-bool g_job_control_enabled = false;
+extern bool g_debug_mode;
+extern bool g_silent_startup;
+extern bool g_cached_update;
+extern bool g_source;
+extern bool g_check_updates;
+extern bool g_title_line;
+extern bool g_menu_terminal;
+extern bool g_silent_update_check;
+extern struct termios g_original_termios;
+extern bool g_terminal_state_saved;
+extern int g_shell_terminal;
+extern pid_t g_shell_pgid;
+extern struct termios g_shell_tmodes;
+extern bool g_job_control_enabled;
 
-time_t g_last_update_check = 0;
-int g_update_check_interval = 86400; // 24 hours
-std::string g_cached_version = "";
-std::string g_last_updated = "";
+extern time_t g_last_update_check;
+extern int g_update_check_interval; // 24 hours
+extern std::string g_cached_version;
+extern std::string g_last_updated;
 
-std::vector<std::string> g_startup_commands;
+extern std::vector<std::string> g_startup_commands;
 
 // theme name the theme manger will load this
-std::string g_current_theme = "default";
+extern std::string g_current_theme;
 
 // misc
-std::string g_shortcut_prefix = "@";
-std::string title_line = "CJ's Shell v" + c_version + " - Caden J Finley (c) 2025";
-std::string created_line = "Created 2025 @ " + c_title_color + "Abilene Christian University" + c_reset_color;
+extern std::string g_shortcut_prefix;
+extern std::string title_line;
+extern std::string created_line;
 
 // objects
-Ai* g_ai = nullptr;
-Shell* g_shell = nullptr;
-Theme* g_theme = nullptr;
-Plugin* g_plugin = nullptr;
+extern Ai* g_ai;
+extern Shell* g_shell;
+extern Theme* g_theme;
+extern Plugin* g_plugin;
 
 
 int main(int argc, char *argv[]);

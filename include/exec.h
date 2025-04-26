@@ -1,5 +1,6 @@
 #pragma once
 #include "parser.h"
+#include "shell.h"
 #include <string>
 #include <iostream>
 #include <vector>
@@ -19,6 +20,9 @@ private:
   Parser parser;
   std::string result;
   std::string current_directory;
+
+  /// Non-owning observer pointer to the Shell instance.
+  /// Exec does not manage shell lifetime.
   Shell* shell; // Reference to the shell instance
 
 public:

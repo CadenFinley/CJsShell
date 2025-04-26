@@ -1,6 +1,4 @@
 #include "prompt.h"
-#include <pwd.h>
-#include <unistd.h>
 
 Prompt::Prompt() {
   last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
@@ -57,6 +55,8 @@ std::string Prompt::get_prompt() {
         cached_status_symbols = "*";
         cached_is_clean_repo = false;
         last_git_status_check = std::chrono::steady_clock::now();
+        status_symbols = cached_status_symbols;
+        is_clean_repo = cached_is_clean_repo;
       } else {
         std::lock_guard<std::mutex> lock(git_status_mutex);
         status_symbols = cached_status_symbols;

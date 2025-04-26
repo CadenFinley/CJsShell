@@ -5,12 +5,17 @@
 // theming application and overhaul
 // prompt customization through themes
 // handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
+// good history management and implementation
+// need to match command lifecycle with how zsh and bash do it
+// need a good splash screen maybe with some ascii art or something
 
 int main(int argc, char *argv[]) {
   // cjsh
 
   // verify installation
-  initialize_cjsh_path();
+  if (!initialize_cjsh_path()){
+    std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
+  }
 
   // this handles the prompting and executing of commands
   g_shell = new Shell(c_pid, argv);
@@ -154,10 +159,10 @@ int main(int argc, char *argv[]) {
     g_ai = new Ai("", "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
 
-  std::string changelog_path = cjsh_filesystem::g_cjsh_data_path + "/CHANGELOG.txt";
+  std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
   if (std::filesystem::exists(changelog_path)) {
     display_changelog(changelog_path);
-    std::string saved_changelog_path = cjsh_filesystem::g_cjsh_data_path + "/latest_changelog.txt";
+    std::string saved_changelog_path = (cjsh_filesystem::g_cjsh_data_path / "latest_changelog.txt").string();
     try {
       std::filesystem::rename(changelog_path, saved_changelog_path);
       g_last_updated = get_current_time_string();
@@ -186,7 +191,7 @@ int main(int argc, char *argv[]) {
       if (update_available) {
         execute_update_if_available(update_available);
       } else if (!g_silent_update_check) {
-        std::cout << " -> You are up to date!" << std::endl;
+        std::cout << " You are up to date!" << std::endl;
       }
     }
   }
@@ -499,6 +504,8 @@ void process_config_file() {
     return;
   }
 
+  std::unordered_map<std::string, std::string> env_vars;
+  
   std::string line;
   while (std::getline(config_file, line)) {
     if (line.empty() || line[0] == '#') {
@@ -524,6 +531,8 @@ void process_config_file() {
           var_value = var_value.substr(1, var_value.length() - 2);
         }
         
+        env_vars[var_name] = var_value;
+        // Still need to set in environment as well for immediate effect
         setenv(var_name.c_str(), var_value.c_str(), 1);
       }
     }
@@ -536,6 +545,11 @@ void process_config_file() {
   }
   
   config_file.close();
+  
+  // Set all collected environment variables at once in the shell
+  if (!env_vars.empty()) {
+    g_shell->set_env_vars(env_vars);
+  }
 }
 
 void process_source_file() {
@@ -550,6 +564,9 @@ void process_source_file() {
     return;
   }
 
+  std::unordered_map<std::string, std::string> aliases;
+  std::unordered_map<std::string, std::string> env_vars;
+  
   std::string line;
   while (std::getline(source_file, line)) {
     if (line.empty() || line[0] == '#') {
@@ -557,7 +574,48 @@ void process_source_file() {
     }
 
     if (line.find("alias ") == 0) {
-      g_shell->execute_command(line, false);
+      // Parse and collect alias definitions
+      std::string alias_def = line.substr(6);
+      size_t equal_pos = alias_def.find('=');
+      if (equal_pos != std::string::npos) {
+        std::string alias_name = alias_def.substr(0, equal_pos);
+        std::string alias_value = alias_def.substr(equal_pos + 1);
+        
+        // Trim whitespace
+        alias_name.erase(0, alias_name.find_first_not_of(" \t"));
+        alias_name.erase(alias_name.find_last_not_of(" \t") + 1);
+        
+        // Remove quotes if present
+        if ((alias_value.front() == '\'' && alias_value.back() == '\'') ||
+            (alias_value.front() == '"' && alias_value.back() == '"')) {
+          alias_value = alias_value.substr(1, alias_value.length() - 2);
+        }
+        
+        aliases[alias_name] = alias_value;
+      }
+    }
+    else if (line.find("export ") == 0) {
+      // Parse and collect environment variable definitions
+      std::string env_def = line.substr(7);
+      size_t equal_pos = env_def.find('=');
+      if (equal_pos != std::string::npos) {
+        std::string env_name = env_def.substr(0, equal_pos);
+        std::string env_value = env_def.substr(equal_pos + 1);
+        
+        // Trim whitespace
+        env_name.erase(0, env_name.find_first_not_of(" \t"));
+        env_name.erase(env_name.find_last_not_of(" \t") + 1);
+        
+        // Remove quotes if present
+        if ((env_value.front() == '\'' && env_value.back() == '\'') ||
+            (env_value.front() == '"' && env_value.back() == '"')) {
+          env_value = env_value.substr(1, env_value.length() - 2);
+        }
+        
+        env_vars[env_name] = env_value;
+        // Also set in the environment
+        setenv(env_name.c_str(), env_value.c_str(), 1);
+      }
     }
     else if (line.find("theme ") == 0) {
       g_current_theme = line.substr(6);
@@ -584,6 +642,9 @@ void process_source_file() {
   }
   
   source_file.close();
+  if (!aliases.empty()) {
+    g_shell->set_aliases(aliases);
+  }
 }
 
 void create_config_file() {
@@ -802,7 +863,7 @@ bool should_check_for_updates() {
 bool download_latest_release() {
   std::cout << "Downloading latest release..." << std::endl;
   
-  std::filesystem::path temp_dir = cjsh_filesystem::g_cjsh_data_path + "/temp_update";
+  std::filesystem::path temp_dir = cjsh_filesystem::g_cjsh_data_path / "temp_update";
   if (std::filesystem::exists(temp_dir)) {
       std::filesystem::remove_all(temp_dir);
   }
@@ -892,7 +953,7 @@ bool download_latest_release() {
   std::cout << "Please enter your password if prompted." << std::endl;
 
   // We still need sudo for copying to system locations, but use popen to capture output
-  std::string sudo_command = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path;
+  std::string sudo_command = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path.string();
   FILE* sudo_pipe = popen(sudo_command.c_str(), "r");
   int sudo_result = sudo_pipe ? pclose(sudo_pipe) : -1;
   
@@ -908,7 +969,7 @@ bool download_latest_release() {
       
       if (new_file_size == dest_file_size) {
           // Still need sudo for chmod on system files
-          std::string sudo_chmod_command = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path;
+          std::string sudo_chmod_command = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path.string();
           FILE* chmod_pipe = popen(sudo_chmod_command.c_str(), "r");
           pclose(chmod_pipe);
           
@@ -916,7 +977,7 @@ bool download_latest_release() {
           std::cout << "Update installed successfully with administrator privileges." << std::endl;
           
           // Create changelog file
-          std::ofstream changelog(cjsh_filesystem::g_cjsh_data_path + "/CHANGELOG.txt");
+          std::ofstream changelog((cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string());
           if (changelog.is_open()) {
               changelog << "Updated to version " << g_cached_version << " on " << get_current_time_string() << std::endl;
               changelog << "See GitHub for full release notes: " << c_github_url << "/releases/tag/v" << g_cached_version << std::endl;
@@ -931,8 +992,8 @@ bool download_latest_release() {
 
   if (!update_success) {
       std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
-      std::cout << "sudo cp " << output_path.string() << " " << cjsh_filesystem::g_cjsh_path << std::endl;
-      std::cout << "sudo chmod 755 " << cjsh_filesystem::g_cjsh_path << std::endl;
+      std::cout << "sudo cp " << output_path.string() << " " << cjsh_filesystem::g_cjsh_path.string() << std::endl;
+      std::cout << "sudo chmod 755 " << cjsh_filesystem::g_cjsh_path.string() << std::endl;
       std::cout << "Please ensure you have the necessary permissions." << std::endl;
   }
 

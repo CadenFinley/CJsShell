@@ -1,9 +1,9 @@
 #include "shell.h"
-#include "exec.h"
 
 Shell::Shell(pid_t pid, char *argv[]) {
-  shell_prompt = new Prompt();
-  shell_exec = new Exec(this);
+  shell_prompt = std::make_unique<Prompt>();
+  shell_exec = std::make_unique<Exec>(this);
+  shell_parser = new Parser();
 
   this->pid = pid;
 
@@ -18,16 +18,15 @@ Shell::Shell(pid_t pid, char *argv[]) {
 }
 
 Shell::~Shell() {
-  if (shell_prompt) {
-    delete shell_prompt;
-  }
-  if (shell_exec) {
-    delete shell_exec;
-  }
+  // unique_ptr automatically handles deletion, no need for manual cleanup
 }
 
 void Shell::execute_command(std::string command, bool sync) {
+  //since this is a custom shell be dont return bool we handle errors and error messages in the command execution process
   if (command.empty()) {
+    return;
+  }
+  if (!shell_exec) {
     return;
   }
   if (sync) {

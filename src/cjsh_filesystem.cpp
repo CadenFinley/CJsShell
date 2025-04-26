@@ -12,17 +12,17 @@ extern char *program_invocation_name;
 #endif
 
 // Define the global variable
-std::string cjsh_filesystem::g_cjsh_path;
+cjsh_filesystem::fs::path cjsh_filesystem::g_cjsh_path;
 
 // This function can be called during initialization to set the path
 // to the current executable
-void initialize_cjsh_path() {
+bool initialize_cjsh_path() {
     char path[PATH_MAX];
     // Linux-specific code
     #ifdef __linux__
     if (readlink("/proc/self/exe", path, PATH_MAX) != -1) {
         cjsh_filesystem::g_cjsh_path = path;
-        return;
+        return true;
     }
     #endif
     
@@ -33,10 +33,10 @@ void initialize_cjsh_path() {
         char real_path[PATH_MAX];
         if (realpath(path, real_path) != nullptr) {
             cjsh_filesystem::g_cjsh_path = real_path;
-            return;
+            return true;
         } else {
             cjsh_filesystem::g_cjsh_path = path;
-            return;
+            return true;
         }
     }
     #endif
@@ -48,18 +48,18 @@ void initialize_cjsh_path() {
         if (exePath) {
             cjsh_filesystem::g_cjsh_path = exePath;
             free(exePath);
-            return;
+            return true;
         } else {
             // Default to a common location
             cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
-            return;
+            return true;
         }
         #else
         // Default to a common location on non-Linux systems
         cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
-        return;
+        return true;
         #endif
     }
     cjsh_filesystem::g_cjsh_path = "No path found";
-    std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
+    return false;
 }

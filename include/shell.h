@@ -1,11 +1,12 @@
 #pragma once
 
 #include "prompt.h"
+#include "exec.h"
+#include "parser.h"
 #include <termios.h>
 #include <signal.h>
 #include <unistd.h>
 #include <string>
-#include <map>
 #include <sys/types.h>
 
 // Forward declaration
@@ -21,10 +22,12 @@ class Shell {
     void execute_command(std::string command, bool sync = false);
 
     std::string get_prompt() {
+      // prompt fallback built-in inside fuction return
       return shell_prompt->get_prompt();
     }
 
     std::string get_ai_prompt() {
+      // prompt fallback built-in inside fuction return
       return shell_prompt->get_ai_prompt();
     }
 
@@ -48,8 +51,12 @@ class Shell {
       return login_mode;
     }
 
-    void set_aliases(std::map<std::string, std::string> aliases) {
-      this->aliases = aliases;
+    void set_aliases(std::unordered_map<std::string, std::string> aliases) {
+      shell_parser->set_aliases(aliases);
+    }
+
+    void set_env_vars(std::unordered_map<std::string, std::string> env_vars) {
+      shell_parser->set_env_vars(env_vars);
     }
 
   private:
@@ -59,8 +66,7 @@ class Shell {
     int shell_terminal;
     pid_t pid;
 
-    std::map<std::string, std::string> aliases;
-
-    Prompt* shell_prompt = nullptr;
-    Exec* shell_exec = nullptr;
+    std::unique_ptr<Prompt> shell_prompt;
+    std::unique_ptr<Exec> shell_exec;
+    Parser* shell_parser = nullptr;
 };

@@ -6,6 +6,9 @@
 #include <regex>
 #include <chrono>
 #include <mutex>
+#include <cstdlib>
+#include <pwd.h>
+#include <unistd.h>
 
 // this returns the prompt for the user
 class Prompt {

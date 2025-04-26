@@ -15,6 +15,7 @@ namespace {
 }
 
 Theme::Theme(const std::filesystem::path& themes_dir) {
+    // file setup for cjsh was already verified in startup so no need to check again
     themes_directory = themes_dir;
     create_default_theme();
     discover_available_themes();
@@ -52,27 +53,36 @@ void Theme::discover_available_themes() {
         create_default_theme();
     }
     
-    for (const auto& entry : std::filesystem::directory_iterator(themes_directory)) {
-        if (entry.path().extension() == ".json") {
-            std::string theme_name = entry.path().stem().string();
-            try {
-                std::ifstream theme_file(entry.path());
-                json theme_data;
-                theme_file >> theme_data;
-                
-                std::map<std::string, std::string> theme_colors;
-                for (auto& [key, value] : theme_data.items()) {
-                    if (value.is_string()) {
-                        theme_colors[key] = parse_ansi_codes(value.get<std::string>());
+    if (!std::filesystem::exists(themes_directory) || !std::filesystem::is_directory(themes_directory)) {
+        std::cerr << "Themes directory does not exist or is not accessible: " << themes_directory << std::endl;
+        return;
+    }
+    
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(themes_directory)) {
+            if (entry.path().extension() == ".json") {
+                std::string theme_name = entry.path().stem().string();
+                try {
+                    std::ifstream theme_file(entry.path());
+                    json theme_data;
+                    theme_file >> theme_data;
+                    
+                    std::map<std::string, std::string> theme_colors;
+                    for (auto& [key, value] : theme_data.items()) {
+                        if (value.is_string()) {
+                            theme_colors[key] = parse_ansi_codes(value.get<std::string>());
+                        }
                     }
+                    
+                    available_themes[theme_name] = theme_colors;
+                    
+                } catch (const std::exception& e) {
+                    std::cerr << "Error loading theme " << theme_name << ": " << e.what() << std::endl;
                 }
-                
-                available_themes[theme_name] = theme_colors;
-                
-            } catch (const std::exception& e) {
-                std::cerr << "Error loading theme " << theme_name << ": " << e.what() << std::endl;
             }
         }
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Filesystem error while reading themes directory: " << e.what() << std::endl;
     }
 }
 

@@ -9,6 +9,9 @@
 #include <algorithm>
 #include <unordered_map>
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <queue>
 
 #include "pluginapi.h"
 
@@ -21,12 +24,18 @@ struct plugin_data {
     std::map<std::string, std::string> settings;
 };
 
+// Thread-safe plugin management class
 class Plugin {
 private:
     std::filesystem::path plugins_directory;
     std::unordered_map<std::string, plugin_data> loaded_plugins;
     std::unordered_map<std::string, std::vector<std::string>> subscribed_events;
     bool plugins_discovered;
+    
+    // Mutexes for thread safety
+    mutable std::shared_mutex plugins_mutex;      // Protects loaded_plugins
+    mutable std::shared_mutex events_mutex;       // Protects subscribed_events
+    std::mutex discovery_mutex;                   // Protects discover operations
 
     void unload_plugin(const std::string& name);
 
