@@ -21,6 +21,11 @@ struct plugin_data {
     std::map<std::string, std::string> settings;
 };
 
+/**
+ * @brief Manages the discovery, loading, configuration, and lifecycle of dynamic plugins.
+ *
+ * The Plugin class provides an interface for discovering plugins in a specified directory, loading and unloading them, enabling or disabling them, managing plugin-specific settings, handling plugin commands, and triggering global events for subscribed plugins. It maintains internal structures for loaded plugins and event subscriptions, and allows querying plugin information and status.
+ */
 class Plugin {
 private:
     std::filesystem::path plugins_directory;

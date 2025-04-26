@@ -13,6 +13,11 @@
 
 using json = nlohmann::json;
 
+/**
+ * @brief Encapsulates configuration, file management, and interaction with an AI assistant.
+ *
+ * The Ai class provides a configurable interface for communicating with an AI assistant, supporting prompt customization, file integration, chat history caching, and response parsing. It allows management of assistant parameters, user files, and advanced prompt controls, and can send messages to the AI assistant and retrieve responses.
+ */
 class Ai {
 public:
     Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction);

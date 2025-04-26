@@ -278,7 +278,14 @@ ic_private void term_write(term_t* term, const char* s) {
   term_write_n(term,s,n);
 }
 
-// Primitive terminal write; all writes go through here
+/**
+ * @brief Writes a buffer of specified length to the terminal, processing escape sequences and buffering output.
+ *
+ * If the input string is NULL or the length is non-positive, no action is taken.
+ *
+ * @param s Pointer to the character buffer to write.
+ * @param n Number of bytes to write from the buffer.
+ */
 ic_private void term_write_n(term_t* term, const char* s, ssize_t n) {
   if (s == NULL || n <= 0) return;
   // write to buffer to reduce flicker and to process escape sequences (this may flush too)
@@ -428,6 +435,11 @@ ic_private bool term_enable_color(term_t* term, bool enable) {
   return prev;
 }
 
+/**
+ * @brief Releases resources associated with a terminal instance.
+ *
+ * Flushes any buffered output, ends raw mode, and frees the terminal's output buffer. Does nothing if the terminal pointer is NULL.
+ */
 ic_private void term_free(term_t* term) {
   if (term == NULL) return;
   term_flush(term);
@@ -973,6 +985,13 @@ ic_private void term_start_raw(term_t* term) {
   term->raw_enabled++;
 }
 
+/**
+ * @brief Decrements or resets the terminal's raw mode reference count.
+ *
+ * If `force` is true, raw mode is fully disabled by resetting the counter to zero. Otherwise, the counter is decremented by one if it is greater than zero.
+ *
+ * @param force If true, disables raw mode regardless of the current count.
+ */
 ic_private void term_end_raw(term_t* term, bool force) {
   if (term->raw_enabled <= 0) return;
   if (!force) {
@@ -983,6 +1002,15 @@ ic_private void term_end_raw(term_t* term, bool force) {
   }
 }
 
+/**
+ * @brief Queries the terminal for the RGB value of a specific color index using an OSC 4 escape sequence.
+ *
+ * Sends an OSC 4 query for the given color index and parses the terminal's response to extract the RGB color value.
+ *
+ * @param color_idx The color index to query.
+ * @param color Pointer to a uint32_t where the resulting RGB value will be stored (in 0xRRGGBB format).
+ * @return true if the color was successfully queried and parsed; false otherwise.
+ */
 static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* color ) {
   char buf[128+1];
   snprintf(buf,128,"\x1B]4;%zd;?\x1B\\", color_idx);

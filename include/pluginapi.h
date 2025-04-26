@@ -7,6 +7,13 @@
 #include <functional>
 #include <filesystem>
 
+/**
+ * @brief Abstract interface for plugins to integrate with the host application.
+ *
+ * The PluginApi class defines the required interface for all plugins, including metadata retrieval, lifecycle management, command/event handling, and settings management. Plugins must implement all pure virtual methods to be compatible with the host.
+ *
+ * Static members provide versioning and shared directory access for plugin data. The interface supports dynamic loading via C-style factory functions.
+ */
 class PluginApi {
 public:
     // Plugin interface version for compatibility checking

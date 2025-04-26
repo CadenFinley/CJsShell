@@ -6,7 +6,11 @@
 #include <filesystem>
 #include <iostream>
 
-// the cjsh file system
+/**
+ * @brief Initializes the path to the cjsh executable.
+ *
+ * Sets the global variable representing the location of the cjsh executable. This should be called before accessing `g_cjsh_path`.
+ */
 namespace cjsh_filesystem {
   // ALL STORED IN FULL PATHS
   const std::string g_user_home_path = std::getenv("HOME") ? std::getenv("HOME") : "";

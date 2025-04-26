@@ -1,10 +1,22 @@
 #include "plugin.h"
 
+/**
+ * @brief Constructs a Plugin manager for dynamic plugin handling.
+ *
+ * Initializes the plugin manager with the specified plugins directory and immediately discovers available plugins.
+ *
+ * @param plugins_dir Path to the directory containing plugin shared libraries.
+ */
 Plugin::Plugin(const std::filesystem::path& plugins_dir) {
     plugins_directory = plugins_dir;
     plugins_discovered = discover_plugins();
 }
 
+/**
+ * @brief Destructor that cleans up all loaded plugins and associated resources.
+ *
+ * Shuts down enabled plugins, destroys plugin instances, closes dynamic library handles, and clears the loaded plugins map.
+ */
 Plugin::~Plugin() {
     for (auto& [name, data] : loaded_plugins) {
         if (data.enabled && data.instance) {
@@ -20,6 +32,13 @@ Plugin::~Plugin() {
     loaded_plugins.clear();
 }
 
+/**
+ * @brief Discovers and loads all plugins from the plugins directory.
+ *
+ * Scans the configured plugins directory for shared library files, unloads any currently loaded plugins, and loads all valid plugin files found. Marks plugins as discovered to avoid redundant loading.
+ *
+ * @return true if the plugins directory exists and discovery completes; false if the directory does not exist.
+ */
 bool Plugin::discover_plugins() {
     if (plugins_discovered && !loaded_plugins.empty()) {
         return true;
@@ -54,6 +73,14 @@ bool Plugin::discover_plugins() {
     return true;
 }
 
+/**
+ * @brief Loads a plugin shared library from the specified path and registers it if valid.
+ *
+ * Attempts to dynamically load a plugin from the given file path, verifies required symbols and interface version, creates an instance, and adds it to the loaded plugins map if not already present.
+ *
+ * @param path Filesystem path to the plugin shared library.
+ * @return true if the plugin was successfully loaded and registered; false otherwise.
+ */
 bool Plugin::load_plugin(const std::filesystem::path& path) {
     void* handle = dlopen(path.c_str(), RTLD_LAZY);
     if (!handle) {
@@ -115,6 +142,14 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     return true;
 }
 
+/**
+ * @brief Uninstalls a plugin by name, removing its file from the plugins directory.
+ *
+ * The plugin must be disabled before uninstallation. Searches for the plugin's shared library file, unloads the plugin, and deletes the file from disk.
+ *
+ * @param name The name of the plugin to uninstall.
+ * @return true if the plugin was successfully uninstalled; false otherwise.
+ */
 bool Plugin::uninstall_plugin(const std::string& name) {
     auto it = loaded_plugins.find(name);
     if (it == loaded_plugins.end()) {
@@ -169,6 +204,11 @@ bool Plugin::uninstall_plugin(const std::string& name) {
     }
 }
 
+/**
+ * @brief Unloads a plugin by name, shutting it down if enabled and releasing all associated resources.
+ *
+ * If the plugin is enabled, it is first shut down. The plugin instance is destroyed, the dynamic library handle is closed, and the plugin is removed from the loaded plugins map. No action is taken if the plugin is not found.
+ */
 void Plugin::unload_plugin(const std::string& name) {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
@@ -188,6 +228,11 @@ void Plugin::unload_plugin(const std::string& name) {
     }
 }
 
+/**
+ * @brief Returns the names of all currently loaded plugins.
+ *
+ * @return std::vector<std::string> List of loaded plugin names.
+ */
 std::vector<std::string> Plugin::get_available_plugins() const {
     std::vector<std::string> plugins;
     for (const auto& [name, _] : loaded_plugins) {
@@ -196,6 +241,11 @@ std::vector<std::string> Plugin::get_available_plugins() const {
     return plugins;
 }
 
+/**
+ * @brief Returns a list of currently enabled plugin names.
+ *
+ * @return std::vector<std::string> Names of all enabled plugins.
+ */
 std::vector<std::string> Plugin::get_enabled_plugins() const {
     std::vector<std::string> plugins;
     for (const auto& [name, data] : loaded_plugins) {
@@ -206,6 +256,14 @@ std::vector<std::string> Plugin::get_enabled_plugins() const {
     return plugins;
 }
 
+/**
+ * @brief Enables a loaded plugin by name.
+ *
+ * Initializes the specified plugin if it is not already enabled, marks it as enabled, triggers the "plugin_enabled" global event, and subscribes the plugin to its declared events.
+ *
+ * @param name The name of the plugin to enable.
+ * @return true if the plugin was successfully enabled or was already enabled; false otherwise.
+ */
 bool Plugin::enable_plugin(const std::string& name) {
     auto it = loaded_plugins.find(name);
     if(it != loaded_plugins.end() && it->second.enabled){
@@ -231,6 +289,14 @@ bool Plugin::enable_plugin(const std::string& name) {
     return false;
 }
 
+/**
+ * @brief Disables an enabled plugin by name.
+ *
+ * Shuts down the specified plugin if it is currently enabled, updates its status, triggers the "plugin_disabled" global event, and unsubscribes it from all events.
+ *
+ * @param name The name of the plugin to disable.
+ * @return true if the plugin was successfully disabled; false if the plugin was not found or was already disabled.
+ */
 bool Plugin::disable_plugin(const std::string& name) {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end() && it->second.enabled) {
@@ -250,6 +316,15 @@ bool Plugin::disable_plugin(const std::string& name) {
     return false;
 }
 
+/**
+ * @brief Forwards a command and its arguments to the specified enabled plugin.
+ *
+ * If the targeted plugin is loaded and enabled, passes the argument queue to the plugin's command handler and returns the result. Returns false if the plugin is not found or not enabled.
+ *
+ * @param targetedPlugin Name of the plugin to receive the command.
+ * @param args Queue of command arguments to be processed by the plugin.
+ * @return true if the plugin handled the command successfully; false otherwise.
+ */
 bool Plugin::handle_plugin_command(const std::string& targetedPlugin, std::queue<std::string>& args) {
     auto it = loaded_plugins.find(targetedPlugin);
     if (it != loaded_plugins.end() && it->second.enabled) {
@@ -258,6 +333,12 @@ bool Plugin::handle_plugin_command(const std::string& targetedPlugin, std::queue
     return false;
 }
 
+/**
+ * @brief Retrieves the list of commands supported by a specified plugin.
+ *
+ * @param name The name of the plugin.
+ * @return std::vector<std::string> A list of command names, or an empty list if the plugin is not found.
+ */
 std::vector<std::string> Plugin::get_plugin_commands(const std::string& name) const {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
@@ -266,6 +347,14 @@ std::vector<std::string> Plugin::get_plugin_commands(const std::string& name) co
     return {};
 }
 
+/**
+ * @brief Retrieves detailed information about a loaded plugin.
+ *
+ * Returns a formatted string containing the plugin's name, version, author, description, and enabled status. If the plugin is not found, returns a not found message.
+ *
+ * @param name The name of the plugin to query.
+ * @return std::string Formatted plugin information or a not found message.
+ */
 std::string Plugin::get_plugin_info(const std::string& name) const {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
@@ -279,6 +368,16 @@ std::string Plugin::get_plugin_info(const std::string& name) const {
     return "Plugin not found: " + name;
 }
 
+/**
+ * @brief Updates a specific setting for a loaded plugin.
+ *
+ * Modifies the internal settings map for the specified plugin and notifies the plugin instance of the updated setting.
+ *
+ * @param pluginName Name of the plugin to update.
+ * @param key Setting key to update.
+ * @param value New value for the setting.
+ * @return true if the plugin was found and the setting was updated; false otherwise.
+ */
 bool Plugin::update_plugin_setting(const std::string& pluginName, const std::string& key, const std::string& value) {
     auto it = loaded_plugins.find(pluginName);
     if (it != loaded_plugins.end()) {
@@ -289,6 +388,11 @@ bool Plugin::update_plugin_setting(const std::string& pluginName, const std::str
     return false;
 }
 
+/**
+ * @brief Retrieves the settings for all loaded plugins.
+ *
+ * @return A map where each key is a plugin name and the value is a map of that plugin's settings.
+ */
 std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin_settings() const {
     std::map<std::string, std::map<std::string, std::string>> allSettings;
     for (const auto& [name, data] : loaded_plugins) {
@@ -297,6 +401,14 @@ std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin
     return allSettings;
 }
 
+/**
+ * @brief Triggers a global event for all subscribed and enabled plugins.
+ *
+ * Invokes the command handler of each enabled plugin subscribed to the specified event, passing the event name and data as arguments.
+ *
+ * @param event Name of the global event to trigger.
+ * @param eventData Data associated with the event.
+ */
 void Plugin::trigger_subscribed_global_event(const std::string& event, const std::string& eventData) {
     auto it = subscribed_events.find(event);
     if (it == subscribed_events.end() || it->second.empty()) {
@@ -317,6 +429,12 @@ void Plugin::trigger_subscribed_global_event(const std::string& event, const std
     }
 }
 
+/**
+ * @brief Retrieves the instance pointer for a loaded plugin by name.
+ *
+ * @param name The name of the plugin.
+ * @return PluginApi* Pointer to the plugin instance, or nullptr if the plugin is not loaded.
+ */
 PluginApi* Plugin::get_plugin_instance(const std::string& name) const {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
@@ -325,6 +443,14 @@ PluginApi* Plugin::get_plugin_instance(const std::string& name) const {
     return nullptr;
 }
 
+/**
+ * @brief Installs a new plugin from the specified file path.
+ *
+ * Validates the plugin file, checks for interface compatibility and duplicate installation, copies the plugin to the plugins directory, and loads it into the system. Cleans up and reports errors if installation fails at any step.
+ *
+ * @param sourcePath Path to the plugin shared library file (.so or .dylib) to install.
+ * @return true if the plugin was successfully installed and loaded; false otherwise.
+ */
 bool Plugin::install_plugin(const std::filesystem::path& sourcePath) {
     if (!std::filesystem::exists(sourcePath)) {
         std::cerr << "Source plugin file does not exist: " << sourcePath << std::endl;
@@ -418,10 +544,21 @@ bool Plugin::install_plugin(const std::filesystem::path& sourcePath) {
     }
 }
 
+/**
+ * @brief Resets the plugin discovery state to force rediscovery on the next operation.
+ *
+ * Marks the internal flag so that plugins will be rediscovered and reloaded when required.
+ */
 void Plugin::clear_plugin_cache() {
     plugins_discovered = false;
 }
 
+/**
+ * @brief Checks if a plugin with the given name is currently loaded.
+ *
+ * @param name The name of the plugin to check.
+ * @return true if the plugin is loaded, false otherwise.
+ */
 bool Plugin::is_plugin_loaded(const std::string& name) const {
     return loaded_plugins.find(name) != loaded_plugins.end();
 }

@@ -11,6 +11,16 @@
 
 using json = nlohmann::json;
 
+/**
+ * @brief Manages color themes stored as JSON files in a specified directory.
+ *
+ * The Theme class provides functionality to discover, load, save, and delete color themes.
+ * Each theme consists of a mapping from color names to color values. The class maintains
+ * the currently loaded theme and allows querying and updating individual color values.
+ *
+ * Themes are stored as JSON files in the provided directory, and the class uses the
+ * nlohmann::json library for serialization and parsing.
+ */
 class Theme {
 private:
     std::string current_theme_name;

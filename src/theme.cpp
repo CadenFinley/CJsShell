@@ -1,6 +1,12 @@
 #include "theme.h"
 
 namespace {
+    /**
+     * @brief Converts all occurrences of the string literal "\033" in the input to the ASCII escape character.
+     *
+     * @param input The input string potentially containing "\033" sequences.
+     * @return std::string The input string with all "\033" sequences replaced by the escape character (0x1B).
+     */
     std::string parse_ansi_codes(const std::string &input) {
         std::string output = input;
         std::string pattern = "\\033";
@@ -14,6 +20,13 @@ namespace {
     }
 }
 
+/**
+ * @brief Initializes the Theme manager with a specified themes directory.
+ *
+ * Sets the directory for theme storage, ensures a default theme exists, discovers all available themes in the directory, and loads the default theme as the current theme.
+ *
+ * @param themes_dir Path to the directory containing theme JSON files.
+ */
 Theme::Theme(const std::filesystem::path& themes_dir) {
     themes_directory = themes_dir;
     create_default_theme();
@@ -21,10 +34,20 @@ Theme::Theme(const std::filesystem::path& themes_dir) {
     load_theme("default");
 }
 
+/**
+ * @brief Destroys the Theme object.
+ *
+ * Default destructor. No special cleanup is performed.
+ */
 Theme::~Theme() {
     
 }
 
+/**
+ * @brief Creates and saves the default theme with predefined color keys and prompt format.
+ *
+ * Initializes a default theme with empty color values and a standard prompt format, saves it as "default", and adds it to the available themes.
+ */
 void Theme::create_default_theme() {
     std::map<std::string, std::string> default_colors = {
         {"GREEN_COLOR_BOLD", ""},
@@ -45,6 +68,11 @@ void Theme::create_default_theme() {
     available_themes["default"] = default_colors;
 }
 
+/**
+ * @brief Scans the themes directory for JSON files and loads available themes into memory.
+ *
+ * Clears the current list of available themes, ensures the default theme exists, and then iterates through all JSON files in the themes directory. Each valid theme file is parsed, ANSI escape codes are normalized, and the resulting theme is added to the available themes map. Errors during loading are logged to standard error.
+ */
 void Theme::discover_available_themes() {
     available_themes.clear();
     
@@ -76,6 +104,14 @@ void Theme::discover_available_themes() {
     }
 }
 
+/**
+ * @brief Loads a theme by name from the available themes or from disk.
+ *
+ * If the theme is already loaded, sets it as the current theme. Otherwise, attempts to read and parse the theme's JSON file from the themes directory, normalizing any ANSI escape sequences. On success, updates the current theme and caches it. Returns true if the theme was successfully loaded, false if the theme does not exist or an error occurs during loading.
+ *
+ * @param theme_name Name of the theme to load.
+ * @return true if the theme was loaded successfully, false otherwise.
+ */
 bool Theme::load_theme(const std::string& theme_name) {
     if (available_themes.find(theme_name) != available_themes.end()) {
         current_theme_name = theme_name;
@@ -112,6 +148,13 @@ bool Theme::load_theme(const std::string& theme_name) {
     return false;
 }
 
+/**
+ * @brief Saves a theme's color definitions to a JSON file in the themes directory.
+ *
+ * @param theme_name Name of the theme to save.
+ * @param colors Map of color keys to their string values for the theme.
+ * @return true if the theme was saved successfully, false if an error occurred.
+ */
 bool Theme::save_theme(const std::string& theme_name, const std::map<std::string, std::string>& colors) {
     try {
         std::filesystem::path theme_path = themes_directory / (theme_name + ".json");
@@ -130,6 +173,14 @@ bool Theme::save_theme(const std::string& theme_name, const std::map<std::string
     }
 }
 
+/**
+ * @brief Deletes a theme by name from the themes directory.
+ *
+ * Prevents deletion of the "default" theme. Removes the theme file and its entry from the available themes. If the deleted theme is currently loaded, reverts to the default theme.
+ *
+ * @param theme_name Name of the theme to delete.
+ * @return true if the theme was successfully deleted; false if the theme does not exist or is "default".
+ */
 bool Theme::delete_theme(const std::string& theme_name) {
     if (theme_name == "default") {
         std::cerr << "Cannot delete default theme." << std::endl;
@@ -151,6 +202,11 @@ bool Theme::delete_theme(const std::string& theme_name) {
     return false;
 }
 
+/**
+ * @brief Returns the names of all available themes.
+ *
+ * @return A vector containing the names of themes currently loaded in memory.
+ */
 std::vector<std::string> Theme::get_available_theme_names() const {
     std::vector<std::string> theme_names;
     for (const auto& [name, _] : available_themes) {
@@ -159,6 +215,14 @@ std::vector<std::string> Theme::get_available_theme_names() const {
     return theme_names;
 }
 
+/**
+ * @brief Retrieves the color value for a given color name from the current theme.
+ *
+ * If the specified color name is not found, returns the value for "RESET_COLOR" if available; otherwise, returns an empty string.
+ *
+ * @param color_name The key representing the desired color.
+ * @return The color value as a string, or a fallback/reset value, or an empty string if not found.
+ */
 std::string Theme::get_color(const std::string& color_name) const {
     if (current_theme_colors.find(color_name) != current_theme_colors.end()) {
         return current_theme_colors.at(color_name);
@@ -170,6 +234,12 @@ std::string Theme::get_color(const std::string& color_name) const {
     return "";
 }
 
+/**
+ * @brief Sets or updates the color value for a specified color key in the current theme.
+ *
+ * @param color_name The name of the color key to set.
+ * @param color_value The color value to assign to the key.
+ */
 void Theme::set_color(const std::string& color_name, const std::string& color_value) {
     current_theme_colors[color_name] = color_value;
 }

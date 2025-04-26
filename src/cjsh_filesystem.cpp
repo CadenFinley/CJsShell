@@ -15,7 +15,11 @@ extern char *program_invocation_name;
 std::string cjsh_filesystem::g_cjsh_path;
 
 // This function can be called during initialization to set the path
-// to the current executable
+/**
+ * @brief Determines and sets the absolute path of the current executable.
+ *
+ * Attempts to resolve the executable's absolute path using platform-specific methods and stores it in `cjsh_filesystem::g_cjsh_path`. Falls back to a default path or a warning message if resolution fails.
+ */
 void initialize_cjsh_path() {
     char path[PATH_MAX];
     // Linux-specific code

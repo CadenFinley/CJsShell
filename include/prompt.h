@@ -7,7 +7,14 @@
 #include <chrono>
 #include <mutex>
 
-// this returns the prompt for the user
+/**
+ * @brief Returns the formatted shell prompt string for the user.
+ *
+ * The prompt includes styling, current directory, and Git status information as applicable.
+ * The format and content may vary based on internal settings such as whether to display the full path.
+ *
+ * @return std::string The generated prompt string to display to the user.
+ */
 class Prompt {
   private:
     const std::string SHELL_COLOR = "\033[1;31m";

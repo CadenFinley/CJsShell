@@ -2,16 +2,33 @@
 #include <pwd.h>
 #include <unistd.h>
 
+/**
+ * @brief Constructs a Prompt object and initializes internal state.
+ *
+ * Sets the last Git status check time to 30 seconds ago, marks that no Git status check is running, and disables whole path display by default.
+ */
 Prompt::Prompt() {
   last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
   is_git_status_check_running = false;
   display_whole_path = false;
 }
 
+/**
+ * @brief Destroys the Prompt object.
+ *
+ * No special cleanup is performed.
+ */
 Prompt::~Prompt() {
   // nuthin
 }
 
+/**
+ * @brief Generates the shell prompt string with user, directory, and Git repository information.
+ *
+ * Constructs a color-coded prompt displaying the current username and either the full path or the current directory name, depending on configuration. If the current directory is inside a Git repository, the prompt includes the current branch name and cached Git status symbols. Falls back to a simple prompt if not in a Git repository or if an error occurs while retrieving Git information.
+ *
+ * @return std::string The formatted shell prompt string.
+ */
 std::string Prompt::get_prompt() {
   // Get current username
   struct passwd *pw = getpwuid(getuid());
@@ -99,15 +116,33 @@ std::string Prompt::get_prompt() {
   }
 }
 
+/**
+ * @brief Returns a fixed prompt string for AI input mode.
+ *
+ * @return std::string The AI prompt string "AI> ".
+ */
 std::string Prompt::get_ai_prompt() {
   // TODO
   return "AI> ";
 }
 
+/**
+ * @brief Checks if the given path is the root directory of the filesystem.
+ *
+ * @param path The filesystem path to check.
+ * @return true if the path is the root directory, false otherwise.
+ */
 bool Prompt::is_root_path(const std::filesystem::path& path) {
   return path == path.root_path();
 }
 
+/**
+ * @brief Returns the current working directory path, abbreviating the home directory as '~'.
+ *
+ * If the current directory is the root ('/'), returns '/'. If the directory is the user's home, returns '~'. If the directory is inside the home directory, replaces the home directory prefix with '~'. Otherwise, returns the absolute path.
+ *
+ * @return std::string The formatted current working directory path for prompt display.
+ */
 std::string Prompt::get_current_file_path() {
   std::string path = std::filesystem::current_path().string();
   
@@ -130,6 +165,15 @@ std::string Prompt::get_current_file_path() {
   return path;
 }
 
+/**
+ * @brief Returns a concise name for the current directory for prompt display.
+ *
+ * If the current directory is root, returns "/". If it is the home directory, returns "~".
+ * For paths under the home directory (starting with "~/"), returns the last component after "~/". 
+ * Otherwise, returns the last component of the current directory path. If the name is empty, returns "/".
+ *
+ * @return std::string The display name of the current directory for use in the shell prompt.
+ */
 std::string Prompt::get_current_file_name() {
   std::string current_directory = get_current_file_path();
   

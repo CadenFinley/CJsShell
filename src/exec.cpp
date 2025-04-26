@@ -1,6 +1,11 @@
 #include "exec.h"
 #include "shell.h" // Include shell.h here to avoid circular dependency
 
+/**
+ * @brief Constructs an Exec object and initializes the current working directory.
+ *
+ * Sets the current directory to the process's working directory if available; otherwise, defaults to the root directory.
+ */
 Exec::Exec(Shell* shell_instance) : parser(), shell(shell_instance) {
   // Initialize current directory to the current working directory
   char cwd[PATH_MAX];
@@ -11,10 +16,22 @@ Exec::Exec(Shell* shell_instance) : parser(), shell(shell_instance) {
   }
 }
 
+/**
+ * @brief Destroys the Exec object.
+ *
+ * No special cleanup is performed.
+ */
 Exec::~Exec() {
   // Destructor
 }
 
+/**
+ * @brief Executes a shell command synchronously in a child process.
+ *
+ * Parses the input command string, checks for and handles built-in commands, and executes external commands by forking a child process. Waits for the child process to complete before returning. Prints error messages to standard error if parsing, forking, or execution fails.
+ *
+ * @param command The command line string to execute.
+ */
 void Exec::execute_command_sync(const std::string& command) {
   if (command.empty()) return;
   
@@ -63,6 +80,15 @@ void Exec::execute_command_sync(const std::string& command) {
   } while (wait_result == -1 && errno == EINTR);
 }
 
+/**
+ * @brief Executes a shell command asynchronously in a detached child process.
+ *
+ * Parses the input command string, forks a new process, detaches it from the terminal, redirects its standard input/output/error to `/dev/null`, and executes the command using `execvp`. The parent process does not wait for the child to complete.
+ *
+ * If the command string is empty or parsing fails, the function returns immediately. Errors during forking are reported to standard error.
+ *
+ * @param command The shell command to execute asynchronously.
+ */
 void Exec::execute_command_async(const std::string& command) {
   if (command.empty()) return;
   
@@ -111,6 +137,16 @@ void Exec::execute_command_async(const std::string& command) {
   }
 }
 
+/**
+ * @brief Handles built-in shell commands if the given arguments match a supported command.
+ *
+ * Checks if the first argument corresponds to a built-in command such as "exit", "cd", "alias", "export", "unset", "source", or "unalias". Executes the appropriate action for recognized commands and returns true. Returns false if the command is not a built-in.
+ *
+ * For "exit", sets the shell's exit flag. For "cd", attempts to change the current directory and prints an error message if the operation fails. Other supported built-ins are recognized but not implemented.
+ *
+ * @param args Command arguments, where the first element is the command name.
+ * @return true if a built-in command was handled; false otherwise.
+ */
 bool Exec::builtin_command(const std::vector<std::string>& args) {
   switch (hash(args[0].c_str())) {
     case hash("exit"):
@@ -150,6 +186,15 @@ bool Exec::builtin_command(const std::vector<std::string>& args) {
   }
 }
 
+/**
+ * @brief Changes the current working directory for the shell environment.
+ *
+ * Expands `~` to the user's home directory, resolves absolute and relative paths, verifies the target exists and is a directory, updates the process's working directory, and sets the `PWD` environment variable. On failure, provides an error message in `result`.
+ *
+ * @param dir The target directory path. If empty or `"~"`, the user's home directory is used.
+ * @param result On failure, contains an error message describing the reason.
+ * @return true if the directory was changed successfully; false otherwise.
+ */
 bool Exec::change_directory(const std::string& dir, std::string& result) {
   std::string target_dir = dir;
   

@@ -14,6 +14,15 @@
 // Forward declaration
 class Shell;
 
+/**
+ * @brief Attempts to change the current working directory.
+ *
+ * Updates the current directory to the specified path and sets the result string with a status or error message.
+ *
+ * @param dir The target directory path.
+ * @param result Reference to a string where the status or error message will be stored.
+ * @return true if the directory was changed successfully, false otherwise.
+ */
 class Exec {
 private:
   Parser parser;

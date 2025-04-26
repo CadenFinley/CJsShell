@@ -4,7 +4,14 @@
 #include <vector>
 #include <sstream>
 
-// this will handle the parsing of the input, splitting args, applying envvars and aliases
+/**
+ * @brief Parses a command string into its constituent arguments.
+ *
+ * Splits the input command into a vector of arguments, applying environment variable substitutions and resolving aliases as needed.
+ *
+ * @param command The input command string to parse.
+ * @return std::vector<std::string> The parsed arguments.
+ */
 
 class Parser {
 public:

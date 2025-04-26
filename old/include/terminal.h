@@ -20,7 +20,12 @@
 #include <termios.h>
 #include <atomic>
 
-class Terminal {
+/**
+     * @brief Represents a terminal environment for command execution and job control.
+     *
+     * The Terminal class provides an interface for managing a shell-like terminal, including command parsing and execution, job management, prompt customization, terminal state handling, and support for features such as aliases, environment variable expansion, wildcard handling, and I/O redirection.
+     */
+    class Terminal {
 public:
     struct Job {
         pid_t pid;
