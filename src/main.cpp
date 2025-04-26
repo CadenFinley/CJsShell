@@ -4,33 +4,21 @@ int main(int argc, char *argv[]) {
   // cjsh
 
   // this handles the prompting and executing of commands
-  g_shell = new Shell(c_pid);
+  g_shell = new Shell(c_pid, argv);
 
   // Setup signal handlers before anything else
   setup_signal_handlers();
   
   // Initialize login environment if necessary
   if (g_shell->get_login_mode()) {
-    initialize_login_environment();
-    setup_environment_variables();
-    setup_job_control();
-  }
-
-  g_cjsh_path = ""; // need to determine where cjsh is installed at TODO
-  if (g_cjsh_path.empty()) {
-    std::cerr << "cjsh: Failed to determine the cjsh installation path." << std::endl;
-    return 1;
-  }
-
-  if (g_shell->get_login_mode()) {
     if (!init_login_filesystem()) {
       std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
       return 1;
     }
+    initialize_login_environment();
+    setup_environment_variables();
+    setup_job_control();
   }
-
-  // check if this is getting used to run a executable
-  // if so then we need to run the executable and exit
 
   // check for non interactive command line arguments
   // -c, --command
@@ -40,29 +28,32 @@ int main(int argc, char *argv[]) {
   // --update
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
-  for (int i = 0; i < argc; i++) {
+  
+  for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
-    switch (arg) {
-      case "-c","--command":
+    
+    if (arg == "-c" || arg == "--command") {
+      if (i + 1 < argc) {
         l_execute_command = true;
         l_cmd_to_execute = argv[i + 1];
         i++;
-        break;
-      case "-v","--version":
-        std::cout << c_version << std::endl;
-        return 0;
-        break;
-      case "-h","--help":
-        return 0;
-        break;
-      case "--set-as-shell": //TODO
-        // somehow handle setting this as the default shell
-        return 0;
-        break;
-      case "--update": //TODO
-        // somehow handle updating the shell
-        return 0;
-        break;
+      }
+    }
+    else if (arg == "-v" || arg == "--version") {
+      std::cout << c_version << std::endl;
+      return 0;
+    }
+    else if (arg == "-h" || arg == "--help") {
+      // Display help message
+      return 0;
+    }
+    else if (arg == "--set-as-shell") {
+      // somehow handle setting this as the default shell
+      return 0;
+    }
+    else if (arg == "--update") {
+      // somehow handle updating the shell
+      return 0;
     }
   }
 
@@ -100,61 +91,86 @@ int main(int argc, char *argv[]) {
   bool l_load_ai = true;
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
-    switch (arg) {
-      case "--no-update":
-        g_check_updates = false;
-        break;
-      case "-d","--debug":
-        g_debug_mode = true;
-        break;
-      case "--check-update":
-        g_check_updates = true;
-        break;
-      case "--no-source":
-        g_source = false;
-        break;
-      case "--no-titleline":
-        g_title_line = false;
-        break;
-      case "--no-plugin":
-        l_load_plugin = false;
-        break;
-      case "--no-theme":
-        l_load_theme = false;
-        break;
-      case "--no-ai":
-        l_load_ai = false;
-        break;
+    if (arg == "--no-update") {
+      g_check_updates = false;
+    }
+    else if (arg == "-d" || arg == "--debug") {
+      g_debug_mode = true;
+    }
+    else if (arg == "--check-update") {
+      g_check_updates = true;
+    }
+    else if (arg == "--no-source") {
+      g_source = false;
+    }
+    else if (arg == "--no-titleline") {
+      g_title_line = false;
+    }
+    else if (arg == "--no-plugin") {
+      l_load_plugin = false;
+    }
+    else if (arg == "--no-theme") {
+      l_load_theme = false;
+    }
+    else if (arg == "--no-ai") {
+      l_load_ai = false;
     }
   }
 
   // initalize objects
   if (l_load_plugin) {
     // this will load the users plugins from .cjsh_data/plugins
-    g_plugin = new Plugin(); //doesnt need to verify filesys
+    g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path); //doesnt need to verify filesys
   }
   if (l_load_theme) {
     // this will load the users selected theme from .cjshrc
-    g_theme = new Theme(); //doesnt need to verify filesys
+    g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
   }
   if (l_load_ai) {
-    g_ai = new AI("", "chat", "You are an AI personal assistant within a users login shell.", {}, g_cjsh_data_path);
+    g_ai = new Ai("", "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
 
-  // TODO
-  // check if a changelog file exists
-  // if so then a update was just installed so no need to check for updates
-  // and then display changelog
-
-  // check for updates if enabled
-  // if enabled check update cache
-  // if not cached, check for updates
-  // if update available, prompt user to update
+  std::string changelog_path = cjsh_filesystem::g_cjsh_data_path + "/CHANGELOG.txt";
+  if (std::filesystem::exists(changelog_path)) {
+    display_changelog(changelog_path);
+    std::string saved_changelog_path = cjsh_filesystem::g_cjsh_data_path + "/latest_changelog.txt";
+    try {
+      std::filesystem::rename(changelog_path, saved_changelog_path);
+      g_last_updated = get_current_time_string();
+    } catch (const std::exception& e) {
+      std::cerr << "Error handling changelog: " << e.what() << std::endl;
+    }
+  } else {
+    if (g_check_updates) {
+      bool update_available = false;
+      
+      if (load_update_cache()) {
+        if (should_check_for_updates()) {
+          update_available = check_for_update();
+          save_update_cache(update_available, g_cached_version);
+        } else if (g_cached_update) {
+          update_available = true;
+          if (!g_silent_update_check) {
+            std::cout << "\nUpdate available: " << g_cached_version << " (cached)" << std::endl;
+          }
+        }
+      } else {
+        update_available = check_for_update();
+        save_update_cache(update_available, g_cached_version);
+      }
+      
+      if (update_available) {
+        execute_update_if_available(update_available);
+      } else if (!g_silent_update_check) {
+        std::cout << " -> You are up to date!" << std::endl;
+      }
+    }
+  }
 
   if(!g_shell->get_exit_flag()) {
     if (g_title_line) {
-      std::cout << c_title_color << title_line << c_reset_color << std::endl;
-      std::cout << c_title_color << created_line << c_reset_color << std::endl;
+      std::cout << title_line << std::endl;
+      std::cout << created_line  << std::endl;
     }
 
     main_process_loop();
@@ -179,44 +195,54 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-// Signal handling functions
-void setup_signal_handlers() {
-  struct sigaction sa;
-  sigemptyset(&sa.sa_mask);
-  sigset_t block_mask;
-  sigfillset(&block_mask);
+void main_process_loop() {
+  notify_plugins("main_process_pre_run", c_pid_str);
 
-  // Setup SIGHUP handler (terminal disconnect)
-  sa.sa_sigaction = signal_handler_wrapper;
-  sa.sa_mask = block_mask;
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGHUP, &sa, nullptr);
+  ic_set_prompt_marker("", NULL);
+  ic_enable_hint(true);
+  ic_set_hint_delay(100);
+  ic_enable_completion_preview(true);
 
-  // Setup SIGTERM handler
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGTERM, &sa, nullptr);
+  while(true) {
+    notify_plugins("main_process_start", c_pid_str);
+    if (g_debug_mode) {
+      std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
+    }
 
-  // Setup SIGCHLD handler (child process state changes)
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGCHLD, &sa, nullptr);
-
-  // Setup SIGINT handler (Ctrl+C)
-  sa.sa_flags = SA_SIGINFO;
-  sigaction(SIGINT, &sa, nullptr);
-
-  // Ignore certain signals
-  sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
-  sa.sa_mask = block_mask;
-  sigaction(SIGQUIT, &sa, nullptr);
-  sigaction(SIGTSTP, &sa, nullptr);
-  sigaction(SIGTTIN, &sa, nullptr);
-  sigaction(SIGTTOU, &sa, nullptr);
-
-  save_terminal_state();
+    std::string prompt;
+    if (g_menu_terminal) {
+      prompt = g_shell->get_prompt();
+    } else {
+      prompt = g_shell->get_ai_prompt();
+    }
+    prompt += " ";
+    char* input = ic_readline(prompt.c_str());
+    if (input != nullptr) {
+      std::string command(input);
+      ic_free(input);
+      if (!command.empty()) {
+        notify_plugins("main_process_command_processed", command);
+        ic_history_add(command.c_str());
+        g_shell->execute_command(command, true);
+      }
+      if (g_shell->get_exit_flag()) {
+        break;
+      }
+    } else {
+      g_shell->set_exit_flag(true);
+    }
+    notify_plugins("main_process_end", c_pid_str);
+    if (g_shell->get_exit_flag()) {
+      break;
+    }
+  }
 }
 
 static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
+  // Mark unused parameters to avoid compiler warnings
+  (void)info;
+  (void)context;
+  
   switch (signum) {
     case SIGHUP:
       std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
@@ -251,6 +277,42 @@ static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
       }
       break;
   }
+}
+
+void setup_signal_handlers() {
+  struct sigaction sa;
+  sigemptyset(&sa.sa_mask);
+  sigset_t block_mask;
+  sigfillset(&block_mask);
+
+  // Setup SIGHUP handler (terminal disconnect)
+  sa.sa_sigaction = signal_handler_wrapper;
+  sa.sa_mask = block_mask;
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGHUP, &sa, nullptr);
+
+  // Setup SIGTERM handler
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGTERM, &sa, nullptr);
+
+  // Setup SIGCHLD handler (child process state changes)
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGCHLD, &sa, nullptr);
+
+  // Setup SIGINT handler (Ctrl+C)
+  sa.sa_flags = SA_SIGINFO;
+  sigaction(SIGINT, &sa, nullptr);
+
+  // Ignore certain signals
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  sa.sa_mask = block_mask;
+  sigaction(SIGQUIT, &sa, nullptr);
+  sigaction(SIGTSTP, &sa, nullptr);
+  sigaction(SIGTTIN, &sa, nullptr);
+  sigaction(SIGTTOU, &sa, nullptr);
+
+  save_terminal_state();
 }
 
 void save_terminal_state() {
@@ -330,8 +392,6 @@ void setup_environment_variables() {
 }
 
 void initialize_login_environment() {
-  pid_t pid = getpid();
-  
   if (setsid() < 0) {
     if (errno != EPERM) {
       perror("Failed to become session leader");
@@ -342,49 +402,6 @@ void initialize_login_environment() {
   
   if (!isatty(g_shell_terminal)) {
     std::cerr << "Warning: Not running on a terminal device" << std::endl;
-  }
-}
-
-void main_process_loop() {
-  notify_plugins("main_process_pre_run", g_pid);
-
-  ic_set_prompt_marker("", NULL);
-  ic_enable_hint(true);
-  ic_set_hint_delay(100);
-  ic_enable_completion_preview(true);
-
-  while(true) {
-    notify_plugins("main_process_start", g_pid);
-    if (g_debug_mode) {
-      std::cout << g_theme->debug_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
-    }
-
-    std::string prompt;
-    if (g_menu_terminal) {
-      prompt = g_shell->get_prompt();
-    } else {
-      prompt = g_theme->get_ai_prompt();
-    }
-    prompt += " ";
-    char* input = ic_readline(prompt.c_str());
-    if (input != nullptr || *input == 'exit') {
-      std::string command(input);
-      ic_free(input);
-      if (!command.empty()) {
-        notify_plugins("main_process_command_processed", input);
-        ic_add_history(input);
-        g_shell->execute_command(input, true);
-      }
-      if (g_shell->get_exit_flag()) {
-        break;
-      }
-    } else {
-      g_shell->set_exit_flag(true);
-    }
-    notify_plugins("main_process_end", g_pid);
-    if (g_shell->get_exit_flag()) {
-      break;
-    }
   }
 }
 
@@ -414,7 +431,7 @@ bool init_login_filesystem() {
     }
     process_config_file();
   } catch (const std::exception& e) {
-    std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: " + e.what() << std::endl;
+    std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: " << e.what() << std::endl;
     return false;
   }
   return true;
@@ -440,7 +457,7 @@ bool init_interactive_filesystem() {
       history_file.close();
     }
   } catch (const std::exception& e) {
-    std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: " + e.what() << std::endl;
+    std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: " << e.what() << std::endl;
     return false;
   }
   return true;
@@ -602,4 +619,353 @@ void parent_process_watchdog() {
 bool is_parent_process_alive() {
   pid_t ppid = getppid();
   return ppid != 1;
+}
+
+std::string get_current_time_string() {
+  std::time_t now = std::time(nullptr);
+  std::tm* now_tm = std::localtime(&now);
+  char buffer[100];
+  std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
+  return std::string(buffer);
+}
+
+bool is_newer_version(const std::string& latest, const std::string& current) {
+  std::vector<int> splitVersion = [](const std::string &ver) {
+      std::vector<int> parts;
+      std::istringstream iss(ver);
+      std::string token;
+      while (std::getline(iss, token, '.')) {
+          parts.push_back(std::stoi(token));
+      }
+      return parts;
+  }(latest);
+  
+  std::vector<int> currentParts = [](const std::string &ver) {
+      std::vector<int> parts;
+      std::istringstream iss(ver);
+      std::string token;
+      while (std::getline(iss, token, '.')) {
+          parts.push_back(std::stoi(token));
+      }
+      return parts;
+  }(current);
+  
+  size_t len = std::max(splitVersion.size(), currentParts.size());
+  splitVersion.resize(len, 0);
+  currentParts.resize(len, 0);
+  
+  for (size_t i = 0; i < len; i++) {
+      if (splitVersion[i] > currentParts[i]) return true;
+      if (splitVersion[i] < currentParts[i]) return false;
+  }
+  
+  return false;
+}
+
+bool check_for_update() {
+  if (!g_silent_update_check) {
+      std::cout << "Checking for updates from GitHub...";
+  }
+  
+  std::string command = "curl -s " + c_update_url;
+  std::string result;
+  FILE *pipe = popen(command.c_str(), "r");
+  
+  if (!pipe) {
+      std::cerr << "Error: Unable to execute update check or no internet connection." << std::endl;
+      return false;
+  }
+  
+  char buffer[128];
+  while (fgets(buffer, 128, pipe) != nullptr) {
+      result += buffer;
+  }
+  pclose(pipe);
+
+  try {
+      json jsonData = json::parse(result);
+      if (jsonData.contains("tag_name")) {
+          std::string latestTag = jsonData["tag_name"].get<std::string>();
+          if (!latestTag.empty() && latestTag[0] == 'v') {
+              latestTag = latestTag.substr(1);
+          }
+          
+          std::string currentVer = c_version;
+          if (!currentVer.empty() && currentVer[0] == 'v') {
+              currentVer = currentVer.substr(1);
+          }
+          
+          g_cached_version = latestTag;
+          
+          if (is_newer_version(latestTag, currentVer)) {
+              std::cout << "\nLast Updated: " << g_last_updated << std::endl;
+              std::cout << c_version << " -> " << latestTag << std::endl;
+              return true;
+          }
+      }
+  } catch (const std::exception& e) {
+      std::cerr << "Error parsing update data: " << e.what() << std::endl;
+  }
+  
+  return false;
+}
+
+bool load_update_cache() {
+  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path)) {
+      return false;
+  }
+  
+  std::ifstream cacheFile(cjsh_filesystem::g_cjsh_update_cache_path);
+  if (!cacheFile.is_open()) return false;
+  
+  try {
+      json cacheData;
+      cacheFile >> cacheData;
+      cacheFile.close();
+      
+      if (cacheData.contains("update_available") && 
+          cacheData.contains("latest_version") && 
+          cacheData.contains("check_time")) {
+          
+          g_cached_update = cacheData["update_available"].get<bool>();
+          g_cached_version = cacheData["latest_version"].get<std::string>();
+          g_last_update_check = cacheData["check_time"].get<time_t>();
+          
+          return true;
+      }
+      return false;
+  } catch (const std::exception& e) {
+      std::cerr << "Error loading update cache: " << e.what() << std::endl;
+      return false;
+  }
+}
+
+void save_update_cache(bool update_available, const std::string& latest_version) {
+  json cacheData;
+  cacheData["update_available"] = update_available;
+  cacheData["latest_version"] = latest_version;
+  cacheData["check_time"] = std::time(nullptr);
+  
+  std::ofstream cacheFile(cjsh_filesystem::g_cjsh_update_cache_path);
+  if (cacheFile.is_open()) {
+      cacheFile << cacheData.dump();
+      cacheFile.close();
+      
+      g_cached_update = update_available;
+      g_cached_version = latest_version;
+      g_last_update_check = std::time(nullptr);
+  } else {
+      std::cerr << "Warning: Could not open update cache file for writing." << std::endl;
+  }
+}
+
+bool should_check_for_updates() {
+  if (g_last_update_check == 0) {
+      return true;
+  }
+  
+  time_t current_time = std::time(nullptr);
+  time_t elapsed_time = current_time - g_last_update_check;
+  
+  if (g_debug_mode) {
+      std::cout << "Time since last update check: " << elapsed_time 
+                << " seconds (interval: " << g_update_check_interval << " seconds)" << std::endl;
+  }
+  
+  return elapsed_time > g_update_check_interval;
+}
+
+bool download_latest_release() {
+  std::cout << "Downloading latest release..." << std::endl;
+  
+  std::filesystem::path temp_dir = cjsh_filesystem::g_cjsh_data_path + "/temp_update";
+  if (std::filesystem::exists(temp_dir)) {
+      std::filesystem::remove_all(temp_dir);
+  }
+  std::filesystem::create_directory(temp_dir);
+
+  std::string download_url;
+  // Fetch actual asset URL from GitHub API
+  {
+      std::string api_cmd = "curl -s " + c_update_url;
+      std::string api_result;
+      FILE* api_pipe = popen(api_cmd.c_str(), "r");
+      if (api_pipe) {
+          char buf[128];
+          while (fgets(buf, sizeof(buf), api_pipe)) api_result += buf;
+          pclose(api_pipe);
+          try {
+              auto api_json = json::parse(api_result);
+
+              // determine expected asset name by OS
+              std::string os_suffix;
+              #if defined(__APPLE__)
+              os_suffix = "macos";
+              #elif defined(__linux__)
+              os_suffix = "linux";
+              #else
+              os_suffix = "";
+              #endif
+              std::string expected = "cjsh" + (os_suffix.empty() ? "" : "-" + os_suffix);
+
+              // find matching asset
+              for (const auto& asset : api_json["assets"]) {
+                  std::string name = asset.value("name", "");
+                  if (name == expected || (download_url.empty() && name == "cjsh")) {
+                      download_url = asset.value("browser_download_url", "");
+                      if (name == expected) break;
+                  }
+              }
+          } catch (const std::exception& e) {
+              std::cerr << "Error parsing asset data: " << e.what() << std::endl;
+          }
+      }
+  }
+  
+  if (download_url.empty()) {
+      std::cerr << "Error: Unable to determine download URL." << std::endl;
+      return false;
+  }
+
+  // save into temp with original asset filename, then rename to "cjsh"
+  std::string asset_name = download_url.substr(download_url.find_last_of('/') + 1);
+  std::filesystem::path asset_path = temp_dir / asset_name;
+  std::string curl_command = "curl -L -s " + download_url + " -o " + asset_path.string();
+  
+  // Execute the download command
+  int download_result = system(curl_command.c_str());
+  if (download_result != 0) {
+      std::cerr << "Error executing download command." << std::endl;
+      return false;
+  }
+
+  if (!std::filesystem::exists(asset_path)) {
+      std::cerr << "Error: Download failed - output file not created." << std::endl;
+      return false;
+  }
+
+  // rename for consistency
+  std::filesystem::path output_path = temp_dir / "cjsh";
+  std::filesystem::rename(asset_path, output_path);
+
+  std::string chmod_command = "chmod 755 " + output_path.string();
+  system(chmod_command.c_str());
+
+  bool update_success = false;
+  std::cout << "Administrator privileges required to install the update." << std::endl;
+  std::cout << "Please enter your password if prompted." << std::endl;
+
+  std::string sudo_command = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path;
+  int sudo_result = system(sudo_command.c_str());
+  
+  if (sudo_result != 0) {
+      std::cerr << "Error executing sudo command." << std::endl;
+  }
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  if (std::filesystem::exists(cjsh_filesystem::g_cjsh_path)) {
+      auto new_file_size = std::filesystem::file_size(output_path);
+      auto dest_file_size = std::filesystem::file_size(cjsh_filesystem::g_cjsh_path);
+      
+      if (new_file_size == dest_file_size) {
+          std::string sudo_chmod_command = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path;
+          system(sudo_chmod_command.c_str());
+          update_success = true;
+          std::cout << "Update installed successfully with administrator privileges." << std::endl;
+          
+          // Create changelog file
+          std::ofstream changelog(cjsh_filesystem::g_cjsh_data_path + "/CHANGELOG.txt");
+          if (changelog.is_open()) {
+              changelog << "Updated to version " << g_cached_version << " on " << get_current_time_string() << std::endl;
+              changelog << "See GitHub for full release notes: " << c_github_url << "/releases/tag/v" << g_cached_version << std::endl;
+              changelog.close();
+          }
+      } else {
+          std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
+      }
+  } else {
+      std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
+  }
+
+  if (!update_success) {
+      std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
+      std::cout << "sudo cp " << output_path.string() << " " << cjsh_filesystem::g_cjsh_path << std::endl;
+      std::cout << "sudo chmod 755 " << cjsh_filesystem::g_cjsh_path << std::endl;
+      std::cout << "Please ensure you have the necessary permissions." << std::endl;
+  }
+
+  // Clean up temporary files
+  std::string cleanup_command = "rm -rf " + temp_dir.string();
+  system(cleanup_command.c_str());
+
+  // Remove update cache file if it exists
+  if (std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path)) {
+      std::filesystem::remove(cjsh_filesystem::g_cjsh_update_cache_path);
+      if (g_debug_mode) {
+          std::cout << "Removed old update cache file: " << cjsh_filesystem::g_cjsh_update_cache_path << std::endl;
+      }
+  }
+
+  return update_success;
+}
+
+bool execute_update_if_available(bool update_available) {
+  if (!update_available) return false;
+  
+  std::cout << "\nAn update is available. Would you like to download it? (Y/N): ";
+  char response;
+  std::cin >> response;
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  
+  if (response != 'Y' && response != 'y') return false;
+  
+  save_update_cache(false, g_cached_version);
+  
+  if (!download_latest_release()) {
+      std::cout << "Failed to download or install the update. Please try again later or manually update." << std::endl;
+      std::cout << "You can download the latest version from: " << c_github_url << "/releases/latest" << std::endl;
+      save_update_cache(true, g_cached_version);
+      return false;
+  }
+  
+  std::cout << "Update installed successfully! Would you like to restart now? (Y/N): ";
+  std::cin >> response;
+  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  
+  if (response == 'Y' || response == 'y') {
+      std::cout << "Restarting application..." << std::endl;
+      
+      if (g_shell->get_login_mode()) {
+          restore_terminal_state();
+      }
+      
+      delete g_shell;
+      delete g_ai;
+      delete g_theme;
+      delete g_plugin;
+      
+      // Execute the new version
+      execl(cjsh_filesystem::g_cjsh_path.c_str(), cjsh_filesystem::g_cjsh_path.c_str(), NULL);
+      
+      // If execl fails
+      std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
+      exit(0);
+  } else {
+      std::cout << "Please restart the application to use the new version." << std::endl;
+  }
+  
+  return true;
+}
+
+void display_changelog(const std::string& changelog_path) {
+  std::ifstream file(changelog_path);
+  if (!file.is_open()) {
+      return;
+  }
+  
+  std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  file.close();
+  
+  std::cout << "\n===== CHANGELOG =====\n" << content << "\n=====================\n" << std::endl;
 }

@@ -1,75 +1,60 @@
 #include "plugin.h"
 
-PluginManager::PluginManager(const std::filesystem::path& pluginsDir) 
-    : pluginsDirectory(pluginsDir), pluginsDiscovered(false) {
-
-    if (!std::filesystem::exists(pluginsDirectory)) {
-        std::filesystem::create_directories(pluginsDirectory);
-    }
+Plugin::Plugin(const std::filesystem::path& plugins_dir) {
+    plugins_directory = plugins_dir;
+    plugins_discovered = discover_plugins();
 }
 
-PluginManager::~PluginManager() {
-    for (auto& [name, data] : loadedPlugins) {
+Plugin::~Plugin() {
+    for (auto& [name, data] : loaded_plugins) {
         if (data.enabled && data.instance) {
             data.instance->shutdown();
         }
-        if (data.instance && data.destroyFunc) {
-            data.destroyFunc(data.instance);
+        if (data.instance && data.destroy_func) {
+            data.destroy_func(data.instance);
         }
         if (data.handle) {
             dlclose(data.handle);
         }
     }
-    loadedPlugins.clear();
+    loaded_plugins.clear();
 }
 
-bool PluginManager::discoverPlugins() {
-    if (pluginsDiscovered && !loadedPlugins.empty()) {
+bool Plugin::discover_plugins() {
+    if (plugins_discovered && !loaded_plugins.empty()) {
         return true;
     }
 
-    if (!std::filesystem::exists(pluginsDirectory)) {
-        std::cerr << "Plugins directory does not exist: " << pluginsDirectory << std::endl;
+    if (!std::filesystem::exists(plugins_directory)) {
+        std::cerr << "Plugins directory does not exist: " << plugins_directory << std::endl;
         return false;
     }
-    for (auto& [name, data] : loadedPlugins) {
+    for (auto& [name, data] : loaded_plugins) {
         if (data.enabled && data.instance) {
             data.instance->shutdown();
         }
-        if (data.instance && data.destroyFunc) {
-            data.destroyFunc(data.instance);
+        if (data.instance && data.destroy_func) {
+            data.destroy_func(data.instance);
         }
         if (data.handle) {
             dlclose(data.handle);
         }
     }
-    loadedPlugins.clear();
+    loaded_plugins.clear();
     
-    for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
-        std::string fileName = entry.path().filename().string();
+    for (const auto& entry : std::filesystem::directory_iterator(plugins_directory)) {
+        std::string file_name = entry.path().filename().string();
         if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
-            loadPlugin(entry.path());
+            load_plugin(entry.path());
         }
     }
     
-    pluginsDiscovered = true;
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    plugins_discovered = true;
     
     return true;
 }
 
-bool PluginManager::loadPlugin(const std::filesystem::path& path) {
+bool Plugin::load_plugin(const std::filesystem::path& path) {
     void* handle = dlopen(path.c_str(), RTLD_LAZY);
     if (!handle) {
         std::cerr << "Failed to load plugin: " << path << " - " << dlerror() << std::endl;
@@ -78,7 +63,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
     
     dlerror();
     
-    CreatePluginFunc createFunc = reinterpret_cast<CreatePluginFunc>(dlsym(handle, "createPlugin"));
+    create_plugin_func create_func = reinterpret_cast<create_plugin_func>(dlsym(handle, "createPlugin"));
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
         std::cerr << "Cannot load symbol 'createPlugin': " << dlsym_error << std::endl;
@@ -86,7 +71,7 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
 
-    DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(handle, "destroyPlugin"));
+    destroy_plugin_func destroy_func = reinterpret_cast<destroy_plugin_func>(dlsym(handle, "destroyPlugin"));
     dlsym_error = dlerror();
     if (dlsym_error) {
         std::cerr << "Cannot load symbol 'destroyPlugin': " << dlsym_error << std::endl;
@@ -94,45 +79,45 @@ bool PluginManager::loadPlugin(const std::filesystem::path& path) {
         return false;
     }
     
-    PluginInterface* instance = createFunc();
+    PluginApi* instance = create_func();
     if (!instance) {
         std::cerr << "Failed to create plugin instance" << std::endl;
         dlclose(handle);
         return false;
     }
     
-    if (instance->getInterfaceVersion() != PluginInterface::INTERFACE_VERSION) {
-        std::cerr << "Plugin interface version mismatch for " << instance->getName() << ". Expected: " << PluginInterface::INTERFACE_VERSION << ", Got: " << instance->getInterfaceVersion() << std::endl;
-        destroyFunc(instance);
+    if (instance->get_interface_version() != PluginApi::INTERFACE_VERSION) {
+        std::cerr << "Plugin interface version mismatch for " << instance->get_name() << ". Expected: " << PluginApi::INTERFACE_VERSION << ", Got: " << instance->get_interface_version() << std::endl;
+        destroy_func(instance);
         dlclose(handle);
         return false;
     }
     
-    std::string name = instance->getName();
+    std::string name = instance->get_name();
     
-    if (loadedPlugins.find(name) != loadedPlugins.end()) {
+    if (loaded_plugins.find(name) != loaded_plugins.end()) {
         std::cerr << "Plugin '" << name << "' is already loaded. Ignoring duplicate." << std::endl;
-        destroyFunc(instance);
+        destroy_func(instance);
         dlclose(handle);
         return false;
     }
     
-    PluginData data;
+    plugin_data data;
     data.handle = handle;
     data.instance = instance;
-    data.createFunc = createFunc;
-    data.destroyFunc = destroyFunc;
+    data.create_func = create_func;
+    data.destroy_func = destroy_func;
     data.enabled = false;
-    data.settings = instance->getDefaultSettings();
+    data.settings = instance->get_default_settings();
     
-    loadedPlugins[name] = std::move(data);
+    loaded_plugins[name] = std::move(data);
     
     return true;
 }
 
-bool PluginManager::uninstallPlugin(const std::string& name) {
-    auto it = loadedPlugins.find(name);
-    if (it == loadedPlugins.end()) {
+bool Plugin::uninstall_plugin(const std::string& name) {
+    auto it = loaded_plugins.find(name);
+    if (it == loaded_plugins.end()) {
         std::cerr << "Plugin not found: " << name << std::endl;
         return false;
     }
@@ -142,40 +127,40 @@ bool PluginManager::uninstallPlugin(const std::string& name) {
         return false;
     }
 
-    std::filesystem::path pluginPath;
-    for (const auto& entry : std::filesystem::directory_iterator(pluginsDirectory)) {
+    std::filesystem::path plugin_path;
+    for (const auto& entry : std::filesystem::directory_iterator(plugins_directory)) {
         if (entry.path().extension() != ".so" && entry.path().extension() != ".dylib") {
             continue;
         }
         
-        void* tempHandle = dlopen(entry.path().c_str(), RTLD_LAZY);
-        if (!tempHandle) {
+        void* temp_handle = dlopen(entry.path().c_str(), RTLD_LAZY);
+        if (!temp_handle) {
             continue;
         }
 
-        CreatePluginFunc createFunc = (CreatePluginFunc)dlsym(tempHandle, "createPlugin");
-        if (!createFunc) {
-            dlclose(tempHandle);
+        create_plugin_func create_func = (create_plugin_func)dlsym(temp_handle, "createPlugin");
+        if (!create_func) {
+            dlclose(temp_handle);
             continue;
         }
 
-        PluginInterface* tempInstance = createFunc();
-        if (tempInstance && tempInstance->getName() == name) {
-            pluginPath = entry.path();
-            dlclose(tempHandle);
+        PluginApi* temp_instance = create_func();
+        if (temp_instance && temp_instance->get_name() == name) {
+            plugin_path = entry.path();
+            dlclose(temp_handle);
             break;
         }
-        dlclose(tempHandle);
+        dlclose(temp_handle);
     }
 
-    if (pluginPath.empty()) {
+    if (plugin_path.empty()) {
         std::cerr << "Could not find plugin file for: " << name << std::endl;
         return false;
     }
 
     try {
-        unloadPlugin(name);
-        std::filesystem::remove(pluginPath);
+        unload_plugin(name);
+        std::filesystem::remove(plugin_path);
         std::cout << "Successfully uninstalled plugin: " << name << std::endl;
         return true;
     } catch (const std::filesystem::filesystem_error& e) {
@@ -184,36 +169,36 @@ bool PluginManager::uninstallPlugin(const std::string& name) {
     }
 }
 
-void PluginManager::unloadPlugin(const std::string& name) {
-    auto it = loadedPlugins.find(name);
-    if (it != loadedPlugins.end()) {
+void Plugin::unload_plugin(const std::string& name) {
+    auto it = loaded_plugins.find(name);
+    if (it != loaded_plugins.end()) {
         if (it->second.enabled) {
             it->second.instance->shutdown();
         }
         
-        if (it->second.instance && it->second.destroyFunc) {
-            it->second.destroyFunc(it->second.instance);
+        if (it->second.instance && it->second.destroy_func) {
+            it->second.destroy_func(it->second.instance);
         }
         
         if (it->second.handle) {
             dlclose(it->second.handle);
         }
         
-        loadedPlugins.erase(it);
+        loaded_plugins.erase(it);
     }
 }
 
-std::vector<std::string> PluginManager::getAvailablePlugins() const {
+std::vector<std::string> Plugin::get_available_plugins() const {
     std::vector<std::string> plugins;
-    for (const auto& [name, _] : loadedPlugins) {
+    for (const auto& [name, _] : loaded_plugins) {
         plugins.push_back(name);
     }
     return plugins;
 }
 
-std::vector<std::string> PluginManager::getEnabledPlugins() const {
+std::vector<std::string> Plugin::get_enabled_plugins() const {
     std::vector<std::string> plugins;
-    for (const auto& [name, data] : loadedPlugins) {
+    for (const auto& [name, data] : loaded_plugins) {
         if (data.enabled) {
             plugins.push_back(name);
         }
@@ -221,21 +206,21 @@ std::vector<std::string> PluginManager::getEnabledPlugins() const {
     return plugins;
 }
 
-bool PluginManager::enablePlugin(const std::string& name) {
-    auto it = loadedPlugins.find(name);
-    if(it != loadedPlugins.end() && it->second.enabled){
+bool Plugin::enable_plugin(const std::string& name) {
+    auto it = loaded_plugins.find(name);
+    if(it != loaded_plugins.end() && it->second.enabled){
         std::cout << "Plugin already enabled: " << name << std::endl;
         return true;
     }
-    if (it != loadedPlugins.end() && !it->second.enabled) {
+    if (it != loaded_plugins.end() && !it->second.enabled) {
         if (it->second.instance->initialize()) {
             it->second.enabled = true;
             std::cout << "Enabled plugin: " << name << std::endl;
-            triggerSubscribedGlobalEvent("plugin_enabled", name);
-            std::vector<std::string> events = it->second.instance->getSubscribedEvents();
+            trigger_subscribed_global_event("plugin_enabled", name);
+            std::vector<std::string> events = it->second.instance->get_subscribed_events();
             if(!events.empty()){
                 for (const auto& event : events) {
-                    subscribedEvents[event].push_back(name);
+                    subscribed_events[event].push_back(name);
                 }
             }
             return true;
@@ -246,17 +231,17 @@ bool PluginManager::enablePlugin(const std::string& name) {
     return false;
 }
 
-bool PluginManager::disablePlugin(const std::string& name) {
-    auto it = loadedPlugins.find(name);
-    if (it != loadedPlugins.end() && it->second.enabled) {
+bool Plugin::disable_plugin(const std::string& name) {
+    auto it = loaded_plugins.find(name);
+    if (it != loaded_plugins.end() && it->second.enabled) {
         it->second.instance->shutdown();
         it->second.enabled = false;
         std::cout << "Disabled plugin: " << name << std::endl;
-        triggerSubscribedGlobalEvent("plugin_disabled", name);
-        std::vector<std::string> events = it->second.instance->getSubscribedEvents();
+        trigger_subscribed_global_event("plugin_disabled", name);
+        std::vector<std::string> events = it->second.instance->get_subscribed_events();
         for (const auto& event : events) {
-            auto eventIt = subscribedEvents.find(event);
-            if (eventIt != subscribedEvents.end()) {
+            auto eventIt = subscribed_events.find(event);
+            if (eventIt != subscribed_events.end()) {
                 eventIt->second.erase(std::remove(eventIt->second.begin(), eventIt->second.end(), name), eventIt->second.end());
             }
         }
@@ -265,56 +250,56 @@ bool PluginManager::disablePlugin(const std::string& name) {
     return false;
 }
 
-bool PluginManager::handlePluginCommand(const std::string& targetedPlugin, std::queue<std::string>& args) {
-    auto it = loadedPlugins.find(targetedPlugin);
-    if (it != loadedPlugins.end() && it->second.enabled) {
-        return it->second.instance->handleCommand(args);
+bool Plugin::handle_plugin_command(const std::string& targetedPlugin, std::queue<std::string>& args) {
+    auto it = loaded_plugins.find(targetedPlugin);
+    if (it != loaded_plugins.end() && it->second.enabled) {
+        return it->second.instance->handle_command(args);
     }
     return false;
 }
 
-std::vector<std::string> PluginManager::getPluginCommands(const std::string& name) const {
-    auto it = loadedPlugins.find(name);
-    if (it != loadedPlugins.end()) {
-        return it->second.instance->getCommands();
+std::vector<std::string> Plugin::get_plugin_commands(const std::string& name) const {
+    auto it = loaded_plugins.find(name);
+    if (it != loaded_plugins.end()) {
+        return it->second.instance->get_commands();
     }
     return {};
 }
 
-std::string PluginManager::getPluginInfo(const std::string& name) const {
-    auto it = loadedPlugins.find(name);
-    if (it != loadedPlugins.end()) {
+std::string Plugin::get_plugin_info(const std::string& name) const {
+    auto it = loaded_plugins.find(name);
+    if (it != loaded_plugins.end()) {
         const auto& data = it->second;
         return "Name: " + name + "\n" +
-               "Version: " + data.instance->getVersion() + "\n" +
-               "Author: " + data.instance->getAuthor() + "\n" +
-               "Description: " + data.instance->getDescription() + "\n" +
+               "Version: " + data.instance->get_version() + "\n" +
+               "Author: " + data.instance->get_author() + "\n" +
+               "Description: " + data.instance->get_description() + "\n" +
                "Status: " + (data.enabled ? "Enabled" : "Disabled");
     }
     return "Plugin not found: " + name;
 }
 
-bool PluginManager::updatePluginSetting(const std::string& pluginName, const std::string& key, const std::string& value) {
-    auto it = loadedPlugins.find(pluginName);
-    if (it != loadedPlugins.end()) {
+bool Plugin::update_plugin_setting(const std::string& pluginName, const std::string& key, const std::string& value) {
+    auto it = loaded_plugins.find(pluginName);
+    if (it != loaded_plugins.end()) {
         it->second.settings[key] = value;
-        it->second.instance->updateSetting(key, value);
+        it->second.instance->update_setting(key, value);
         return true;
     }
     return false;
 }
 
-std::map<std::string, std::map<std::string, std::string>> PluginManager::getAllPluginSettings() const {
+std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin_settings() const {
     std::map<std::string, std::map<std::string, std::string>> allSettings;
-    for (const auto& [name, data] : loadedPlugins) {
+    for (const auto& [name, data] : loaded_plugins) {
         allSettings[name] = data.settings;
     }
     return allSettings;
 }
 
-void PluginManager::triggerSubscribedGlobalEvent(const std::string& event, const std::string& eventData) {
-    auto it = subscribedEvents.find(event);
-    if (it == subscribedEvents.end() || it->second.empty()) {
+void Plugin::trigger_subscribed_global_event(const std::string& event, const std::string& eventData) {
+    auto it = subscribed_events.find(event);
+    if (it == subscribed_events.end() || it->second.empty()) {
         return;
     }
     std::queue<std::string> args;
@@ -324,23 +309,23 @@ void PluginManager::triggerSubscribedGlobalEvent(const std::string& event, const
 
     auto subscribedPlugins = it->second;
     for (const auto& pluginName : subscribedPlugins) {
-        auto pluginIt = loadedPlugins.find(pluginName);
-        if (pluginIt != loadedPlugins.end() && pluginIt->second.enabled) {
+        auto pluginIt = loaded_plugins.find(pluginName);
+        if (pluginIt != loaded_plugins.end() && pluginIt->second.enabled) {
             std::queue<std::string> argsCopy = args;
-            pluginIt->second.instance->handleCommand(argsCopy);
+            pluginIt->second.instance->handle_command(argsCopy);
         }
     }
 }
 
-PluginInterface* PluginManager::getPluginInstance(const std::string& name) const {
-    auto it = loadedPlugins.find(name);
-    if (it != loadedPlugins.end()) {
+PluginApi* Plugin::get_plugin_instance(const std::string& name) const {
+    auto it = loaded_plugins.find(name);
+    if (it != loaded_plugins.end()) {
         return it->second.instance;
     }
     return nullptr;
 }
 
-bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
+bool Plugin::install_plugin(const std::filesystem::path& sourcePath) {
     if (!std::filesystem::exists(sourcePath)) {
         std::cerr << "Source plugin file does not exist: " << sourcePath << std::endl;
         return false;
@@ -360,7 +345,7 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
 
     dlerror();
     
-    CreatePluginFunc createFunc = reinterpret_cast<CreatePluginFunc>(dlsym(tempHandle, "createPlugin"));
+    create_plugin_func createFunc = reinterpret_cast<create_plugin_func>(dlsym(tempHandle, "createPlugin"));
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
         std::cerr << "Invalid plugin file: missing createPlugin symbol: " << dlsym_error << std::endl;
@@ -368,7 +353,7 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
-    PluginInterface* tempInstance = nullptr;
+    PluginApi* tempInstance = nullptr;
     try {
         tempInstance = createFunc();
     } catch (const std::exception& e) {
@@ -383,11 +368,11 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
-    if (tempInstance->getInterfaceVersion() != PluginInterface::INTERFACE_VERSION) {
-        std::cerr << "Plugin interface version mismatch for " << tempInstance->getName() 
-                  << ". Expected: " << PluginInterface::INTERFACE_VERSION 
-                  << ", Got: " << tempInstance->getInterfaceVersion() << std::endl;
-        DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
+    if (tempInstance->get_interface_version() != PluginApi::INTERFACE_VERSION) {
+        std::cerr << "Plugin interface version mismatch for " << tempInstance->get_name() 
+                  << ". Expected: " << PluginApi::INTERFACE_VERSION 
+                  << ", Got: " << tempInstance->get_interface_version() << std::endl;
+        destroy_plugin_func destroyFunc = reinterpret_cast<destroy_plugin_func>(dlsym(tempHandle, "destroyPlugin"));
         if (destroyFunc) {
             destroyFunc(tempInstance);
         }
@@ -395,12 +380,12 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
-    std::string pluginName = tempInstance->getName();
-    std::string version = tempInstance->getVersion();
+    std::string pluginName = tempInstance->get_name();
+    std::string version = tempInstance->get_version();
     
-    if (isPluginLoaded(pluginName)) {
+    if (is_plugin_loaded(pluginName)) {
         std::cerr << "Plugin already installed: " << pluginName << std::endl;
-        DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
+        destroy_plugin_func destroyFunc = reinterpret_cast<destroy_plugin_func>(dlsym(tempHandle, "destroyPlugin"));
         if (destroyFunc) {
             destroyFunc(tempInstance);
         }
@@ -408,18 +393,18 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
         return false;
     }
 
-    DestroyPluginFunc destroyFunc = reinterpret_cast<DestroyPluginFunc>(dlsym(tempHandle, "destroyPlugin"));
+    destroy_plugin_func destroyFunc = reinterpret_cast<destroy_plugin_func>(dlsym(tempHandle, "destroyPlugin"));
     if (destroyFunc) {
         destroyFunc(tempInstance);
     }
     dlclose(tempHandle);
 
-    std::filesystem::path destPath = pluginsDirectory / sourcePath.filename();
+    std::filesystem::path destPath = plugins_directory / sourcePath.filename();
 
     try {
         std::filesystem::copy(sourcePath, destPath, std::filesystem::copy_options::overwrite_existing);
         
-        if (loadPlugin(destPath)) {
+        if (load_plugin(destPath)) {
             std::cout << "Successfully installed plugin: " << pluginName << " v" << version << std::endl;
             return true;
         } else {
@@ -433,10 +418,10 @@ bool PluginManager::installPlugin(const std::filesystem::path& sourcePath) {
     }
 }
 
-void PluginManager::clearPluginCache() {
-    pluginsDiscovered = false;
+void Plugin::clear_plugin_cache() {
+    plugins_discovered = false;
 }
 
-bool PluginManager::isPluginLoaded(const std::string& name) const {
-    return loadedPlugins.find(name) != loadedPlugins.end();
+bool Plugin::is_plugin_loaded(const std::string& name) const {
+    return loaded_plugins.find(name) != loaded_plugins.end();
 }

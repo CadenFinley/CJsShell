@@ -1,7 +1,7 @@
 #include "theme.h"
 
 namespace {
-    std::string parseAnsiCodes(const std::string &input) {
+    std::string parse_ansi_codes(const std::string &input) {
         std::string output = input;
         std::string pattern = "\\033";
         std::string replacement(1, '\x1B');
@@ -14,22 +14,19 @@ namespace {
     }
 }
 
-ThemeManager::ThemeManager(const std::filesystem::path& themesDir) : themesDirectory(themesDir), currentThemeName("default") {
-    if (!std::filesystem::exists(themesDirectory)) {
-        std::filesystem::create_directory(themesDirectory);
-    }
-    
-    createDefaultTheme();
-    discoverAvailableThemes();
-    loadTheme("default");
+Theme::Theme(const std::filesystem::path& themes_dir) {
+    themes_directory = themes_dir;
+    create_default_theme();
+    discover_available_themes();
+    load_theme("default");
 }
 
-ThemeManager::~ThemeManager() {
+Theme::~Theme() {
     
 }
 
-void ThemeManager::createDefaultTheme() {
-    std::map<std::string, std::string> defaultColors = {
+void Theme::create_default_theme() {
+    std::map<std::string, std::string> default_colors = {
         {"GREEN_COLOR_BOLD", ""},
         {"RED_COLOR_BOLD", ""},
         {"PURPLE_COLOR_BOLD", ""},
@@ -44,121 +41,108 @@ void ThemeManager::createDefaultTheme() {
         {"PROMPT_FORMAT", "cjsh \\w"}
     };
     
-    saveTheme("default", defaultColors);
-    availableThemes["default"] = defaultColors;
+    save_theme("default", default_colors);
+    available_themes["default"] = default_colors;
 }
 
-void ThemeManager::discoverAvailableThemes() {
-    availableThemes.clear();
+void Theme::discover_available_themes() {
+    available_themes.clear();
     
-    if (availableThemes.find("default") == availableThemes.end()) {
-        createDefaultTheme();
+    if (available_themes.find("default") == available_themes.end()) {
+        create_default_theme();
     }
     
-    for (const auto& entry : std::filesystem::directory_iterator(themesDirectory)) {
+    for (const auto& entry : std::filesystem::directory_iterator(themes_directory)) {
         if (entry.path().extension() == ".json") {
-            std::string themeName = entry.path().stem().string();
+            std::string theme_name = entry.path().stem().string();
             try {
-                std::ifstream themeFile(entry.path());
-                json themeData;
-                themeFile >> themeData;
+                std::ifstream theme_file(entry.path());
+                json theme_data;
+                theme_file >> theme_data;
                 
-                std::map<std::string, std::string> themeColors;
-                for (auto& [key, value] : themeData.items()) {
+                std::map<std::string, std::string> theme_colors;
+                for (auto& [key, value] : theme_data.items()) {
                     if (value.is_string()) {
-                        themeColors[key] = parseAnsiCodes(value.get<std::string>());
+                        theme_colors[key] = parse_ansi_codes(value.get<std::string>());
                     }
                 }
                 
-                availableThemes[themeName] = themeColors;
+                available_themes[theme_name] = theme_colors;
                 
             } catch (const std::exception& e) {
-                std::cerr << "Error loading theme " << themeName << ": " << e.what() << std::endl;
+                std::cerr << "Error loading theme " << theme_name << ": " << e.what() << std::endl;
             }
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 }
 
-bool ThemeManager::loadTheme(const std::string& themeName) {
-    if (availableThemes.find(themeName) != availableThemes.end()) {
-        currentThemeName = themeName;
-        currentThemeColors = availableThemes[themeName];
+bool Theme::load_theme(const std::string& theme_name) {
+    if (available_themes.find(theme_name) != available_themes.end()) {
+        current_theme_name = theme_name;
+        current_theme_colors = available_themes[theme_name];
         return true;
     }
     
-    std::filesystem::path themePath = themesDirectory / (themeName + ".json");
-    if (std::filesystem::exists(themePath)) {
+    std::filesystem::path theme_path = themes_directory / (theme_name + ".json");
+    if (std::filesystem::exists(theme_path)) {
         try {
-            std::ifstream themeFile(themePath);
-            json themeData;
-            themeFile >> themeData;
+            std::ifstream theme_file(theme_path);
+            json theme_data;
+            theme_file >> theme_data;
             
-            std::map<std::string, std::string> themeColors;
-            for (auto& [key, value] : themeData.items()) {
+            std::map<std::string, std::string> theme_colors;
+            for (auto& [key, value] : theme_data.items()) {
                 if (value.is_string()) {
-                    themeColors[key] = parseAnsiCodes(value.get<std::string>());
+                    theme_colors[key] = parse_ansi_codes(value.get<std::string>());
                 }
             }
             
-            availableThemes[themeName] = themeColors;
-            currentThemeName = themeName;
-            currentThemeColors = themeColors;
+            available_themes[theme_name] = theme_colors;
+            current_theme_name = theme_name;
+            current_theme_colors = theme_colors;
             return true;
             
         } catch (const std::exception& e) {
-            std::cerr << "Error loading theme " << themeName << ": " << e.what() << std::endl;
+            std::cerr << "Error loading theme " << theme_name << ": " << e.what() << std::endl;
             return false;
         }
     }
     
-    std::cerr << "Theme " << themeName << " not found." << std::endl;
+    std::cerr << "Theme " << theme_name << " not found." << std::endl;
     return false;
 }
 
-bool ThemeManager::saveTheme(const std::string& themeName, const std::map<std::string, std::string>& colors) {
+bool Theme::save_theme(const std::string& theme_name, const std::map<std::string, std::string>& colors) {
     try {
-        std::filesystem::path themePath = themesDirectory / (themeName + ".json");
-        std::ofstream themeFile(themePath);
+        std::filesystem::path theme_path = themes_directory / (theme_name + ".json");
+        std::ofstream theme_file(theme_path);
         
-        json themeData;
+        json theme_data;
         for (const auto& [key, value] : colors) {
-            themeData[key] = value;
+            theme_data[key] = value;
         }
         
-        themeFile << themeData.dump(4);
+        theme_file << theme_data.dump(4);
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Error saving theme " << themeName << ": " << e.what() << std::endl;
+        std::cerr << "Error saving theme " << theme_name << ": " << e.what() << std::endl;
         return false;
     }
 }
 
-bool ThemeManager::deleteTheme(const std::string& themeName) {
-    if (themeName == "default") {
+bool Theme::delete_theme(const std::string& theme_name) {
+    if (theme_name == "default") {
         std::cerr << "Cannot delete default theme." << std::endl;
         return false;
     }
     
-    std::filesystem::path themePath = themesDirectory / (themeName + ".json");
-    if (std::filesystem::exists(themePath)) {
-        std::filesystem::remove(themePath);
-        availableThemes.erase(themeName);
+    std::filesystem::path theme_path = themes_directory / (theme_name + ".json");
+    if (std::filesystem::exists(theme_path)) {
+        std::filesystem::remove(theme_path);
+        available_themes.erase(theme_name);
         
-        if (currentThemeName == themeName) {
-            loadTheme("default");
+        if (current_theme_name == theme_name) {
+            load_theme("default");
         }
         
         return true;
@@ -167,25 +151,25 @@ bool ThemeManager::deleteTheme(const std::string& themeName) {
     return false;
 }
 
-std::vector<std::string> ThemeManager::getAvailableThemeNames() const {
-    std::vector<std::string> themeNames;
-    for (const auto& [name, _] : availableThemes) {
-        themeNames.push_back(name);
+std::vector<std::string> Theme::get_available_theme_names() const {
+    std::vector<std::string> theme_names;
+    for (const auto& [name, _] : available_themes) {
+        theme_names.push_back(name);
     }
-    return themeNames;
+    return theme_names;
 }
 
-std::string ThemeManager::getColor(const std::string& colorName) const {
-    if (currentThemeColors.find(colorName) != currentThemeColors.end()) {
-        return currentThemeColors.at(colorName);
+std::string Theme::get_color(const std::string& color_name) const {
+    if (current_theme_colors.find(color_name) != current_theme_colors.end()) {
+        return current_theme_colors.at(color_name);
     }
     
-    if (currentThemeColors.find("RESET_COLOR") != currentThemeColors.end()) {
-        return currentThemeColors.at("RESET_COLOR");
+    if (current_theme_colors.find("RESET_COLOR") != current_theme_colors.end()) {
+        return current_theme_colors.at("RESET_COLOR");
     }
     return "";
 }
 
-void ThemeManager::setColor(const std::string& colorName, const std::string& colorValue) {
-    currentThemeColors[colorName] = colorValue;
+void Theme::set_color(const std::string& color_name, const std::string& color_value) {
+    current_theme_colors[color_name] = color_value;
 }

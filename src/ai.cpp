@@ -184,7 +184,7 @@ std::string Ai::chatGPT(const std::string& message, bool format) {
 
     std::string response = makeCallToChatGPT(buildPrompt(message));
     
-    if (maxPromptPrecision && response.length() > maxPromptLength) {
+    if (maxPromptPrecision && maxPromptLength > 0 && response.length() > static_cast<std::string::size_type>(maxPromptLength)) {
         return chatGPT(message, format);
     }
 

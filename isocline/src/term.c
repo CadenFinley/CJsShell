@@ -282,7 +282,7 @@ ic_private void term_write(term_t* term, const char* s) {
 ic_private void term_write_n(term_t* term, const char* s, ssize_t n) {
   if (s == NULL || n <= 0) return;
   // write to buffer to reduce flicker and to process escape sequences (this may flush too)
-  term_append_buf(term, s, n);  
+  term_append_buf(term, s, n );  
 }
 
 
@@ -433,7 +433,6 @@ ic_private void term_free(term_t* term) {
   term_flush(term);
   term_end_raw(term, true);
   sbuf_free(term->buf); term->buf = NULL;
-  mem_free(term->mem, term);
 }
 
 //-------------------------------------------------------------
@@ -984,9 +983,9 @@ ic_private void term_end_raw(term_t* term, bool force) {
   }
 }
 
-static bool term_esc_query_color_raw(term_t* term, int color_idx, uint32_t* color ) {
+static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* color ) {
   char buf[128+1];
-  snprintf(buf,128,"\x1B]4;%d;?\x1B\\", color_idx);
+  snprintf(buf,128,"\x1B]4;%zd;?\x1B\\", color_idx);
   if (!term_esc_query_raw( term, buf, buf, 128 )) {
     debug_msg("esc query response not received\n");
     return false;

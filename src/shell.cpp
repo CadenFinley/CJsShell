@@ -1,14 +1,19 @@
-Shell::Shell(pid_t pid, int argc, char *argv[]) {
-  shell_prompt = new prompt();
-  shell_exec = new exec();
+#include "shell.h"
+
+Shell::Shell(pid_t pid, char *argv[]) {
+  shell_prompt = new Prompt();
+  shell_exec = new Exec();
 
   this->pid = pid;
 
-  if (argv0 && argv0[0] == '-') {
+  if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
   } else {
     login_mode = false;
   }
+  
+  // Initialize shell_terminal
+  shell_terminal = STDIN_FILENO;
 }
 
 Shell::~Shell() {
@@ -46,6 +51,10 @@ void Shell::set_aliases(std::map<std::string, std::string> aliases) {
 
 std::string Shell::get_prompt() {
   return shell_prompt->get_prompt();
+}
+
+std::string Shell::get_ai_prompt() {
+  return shell_prompt->get_ai_prompt();
 }
 
 void Shell::execute_command(std::string command, bool sync) {

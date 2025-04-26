@@ -1,7 +1,10 @@
+#pragma once
+
 #include "ai.h"
 #include "shell.h"
 #include "theme.h"
 #include "plugin.h"
+#include "cjsh_filesystem.h"
 #include "../isocline/include/isocline.h"
 #include <signal.h>
 #include <termios.h>
@@ -10,12 +13,17 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fstream>
+#include <sstream>
+#include <chrono>
+#include <ctime>
 
 // constants
 const std::string c_version = "2.0.2.4";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
-const pid_t c_pid = std::to_string(getpid());
+const pid_t c_pid = getpid();  // Fixed: removed std::to_string
+const std::string c_pid_str = std::to_string(getpid());  // String version if needed
 
 // constant colors
 const std::string c_reset_color = "\033[0m";
@@ -29,6 +37,7 @@ bool g_source = true;
 bool g_check_updates = true;
 bool g_title_line = true;
 bool g_menu_terminal = true;
+bool g_silent_update_check = true;
 struct termios g_original_termios;
 bool g_terminal_state_saved = false;
 int g_shell_terminal;
@@ -43,36 +52,20 @@ std::string g_last_updated = "";
 
 std::vector<std::string> g_startup_commands;
 
-// the cjsh file system
-struct cjsh_filesystem {
-  // ALL STORED IN FULL PATHS
-  std::string g_user_home_path = std::getenv("HOME");
-  std::string g_cjsh_path = ""; //this will be determined at runtime
-
-  // used if login
-  std::string g_cjsh_config_path = g_user_home_path + "/.cjprofile"; //envvars and PATH setup
-
-  // used if interactive
-  std::string g_cjsh_data_path = g_user_home_path + "/.cjsh_data";
-  std::string g_cjsh_plugin_path = g_cjsh_data_path + "/plugins";
-  std::string g_cjsh_theme_path = g_cjsh_data_path + "/themes";
-  std::string g_cjsh_history_path = g_cjsh_data_path + "/history.txt";
-  std::string g_cjsh_uninstall_path = g_cjsh_data_path + "/uninstall.sh";
-  std::string g_cjsh_update_cache_path = g_cjsh_data_path + "/update_cache.json";
-  std::string g_cjsh_source_path = g_user_home_path + "/.cjshrc"; // aliases, prompt, functions, themes
-};
-
+// Global reference to the installation path
+std::string g_cjsh_path = "";
+std::string g_user_home_path = std::getenv("HOME") ? std::getenv("HOME") : "";
 
 // theme name the theme manger will load this
 std::string g_current_theme = "default";
 
 // misc
 std::string g_shortcut_prefix = "@";
-std::string title_line = "CJ's Shell v" + current_version + " - Caden J Finley (c) 2025";
-std::string created_line = "Created 2025 @ " + PURPLE_COLOR_BOLD + "Abilene Christian University" + RESET_COLOR;
+std::string title_line = "CJ's Shell v" + c_version + " - Caden J Finley (c) 2025";
+std::string created_line = "Created 2025 @ " + c_title_color + "Abilene Christian University" + c_reset_color;
 
 // objects
-AI* g_ai = nullptr;
+Ai* g_ai = nullptr;
 Shell* g_shell = nullptr;
 Theme* g_theme = nullptr;
 Plugin* g_plugin = nullptr;
@@ -90,9 +83,20 @@ void create_source_file();
 bool is_parent_process_alive();
 void parent_process_watchdog();
 void setup_signal_handlers();
-static void signal_handler_wrapper(int signum, siginfo_t* info, void* context);
 void save_terminal_state();
 void restore_terminal_state();
 void setup_job_control();
 void setup_environment_variables();
 void initialize_login_environment();
+
+using json = nlohmann::json;
+
+bool check_for_update();
+bool load_update_cache();
+void save_update_cache(bool update_available, const std::string& latest_version);
+bool execute_update_if_available(bool update_available);
+bool should_check_for_updates();
+bool download_latest_release();
+void display_changelog(const std::string& changelog_path);
+std::string get_current_time_string();
+bool is_newer_version(const std::string& latest, const std::string& current);

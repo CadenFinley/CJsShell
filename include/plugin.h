@@ -12,52 +12,52 @@
 
 #include "pluginapi.h"
 
-struct PluginData {
+struct plugin_data {
     void* handle;
     PluginApi* instance;
-    CreatePluginFunc createFunc;
-    DestroyPluginFunc destroyFunc;
+    create_plugin_func create_func;
+    destroy_plugin_func destroy_func;
     bool enabled;
     std::map<std::string, std::string> settings;
 };
 
 class Plugin {
 private:
-    std::filesystem::path pluginsDirectory;
-    std::unordered_map<std::string, PluginData> loadedPlugins;
-    std::unordered_map<std::string, std::vector<std::string>> subscribedEvents;
-    bool pluginsDiscovered;
+    std::filesystem::path plugins_directory;
+    std::unordered_map<std::string, plugin_data> loaded_plugins;
+    std::unordered_map<std::string, std::vector<std::string>> subscribed_events;
+    bool plugins_discovered;
 
-    void unloadPlugin(const std::string& name);
+    void unload_plugin(const std::string& name);
 
 public:
-    Plugin(const std::filesystem::path& pluginsDir);
+    Plugin(const std::filesystem::path& plugins_dir);
     ~Plugin();
     
-    bool discoverPlugins();
-    bool loadPlugin(const std::filesystem::path& path);
-    bool installPlugin(const std::filesystem::path& sourcePath);
-    bool uninstallPlugin(const std::string& name);
+    bool discover_plugins();
+    bool load_plugin(const std::filesystem::path& path);
+    bool install_plugin(const std::filesystem::path& source_path);
+    bool uninstall_plugin(const std::string& name);
     
-    std::vector<std::string> getAvailablePlugins() const;
-    std::vector<std::string> getEnabledPlugins() const;
+    std::vector<std::string> get_available_plugins() const;
+    std::vector<std::string> get_enabled_plugins() const;
     
-    bool enablePlugin(const std::string& name);
-    bool disablePlugin(const std::string& name);
+    bool enable_plugin(const std::string& name);
+    bool disable_plugin(const std::string& name);
 
-    int getInterfaceVersion() const { return PluginApi::INTERFACE_VERSION; }
+    int get_interface_version() const { return PluginApi::INTERFACE_VERSION; }
     
-    bool handlePluginCommand(const std::string& targetedPlugin, std::queue<std::string>& args);
-    std::vector<std::string> getPluginCommands(const std::string& name) const;
-    std::string getPluginInfo(const std::string& name) const;
+    bool handle_plugin_command(const std::string& targeted_plugin, std::queue<std::string>& args);
+    std::vector<std::string> get_plugin_commands(const std::string& name) const;
+    std::string get_plugin_info(const std::string& name) const;
     
-    bool updatePluginSetting(const std::string& pluginName, const std::string& key, const std::string& value);
-    std::map<std::string, std::map<std::string, std::string>> getAllPluginSettings() const;
+    bool update_plugin_setting(const std::string& plugin_name, const std::string& key, const std::string& value);
+    std::map<std::string, std::map<std::string, std::string>> get_all_plugin_settings() const;
     
-    void triggerSubscribedGlobalEvent(const std::string& event, const std::string& eventData);
+    void trigger_subscribed_global_event(const std::string& event, const std::string& event_data);
     
-    PluginApi* getPluginInstance(const std::string& name) const;
+    PluginApi* get_plugin_instance(const std::string& name) const;
     
-    void clearPluginCache();
-    bool isPluginLoaded(const std::string& name) const;
+    void clear_plugin_cache();
+    bool is_plugin_loaded(const std::string& name) const;
 };

@@ -3,10 +3,11 @@
 #include "prompt.h"
 #include "exec.h"
 #include <termios.h>
-#include <map>
-#include <string>
 #include <signal.h>
 #include <unistd.h>
+#include <string>
+#include <map>
+#include <sys/types.h>
 
 //this will take input from main.cpp and will handle prompting and executing the command
 
@@ -14,11 +15,12 @@
 
 class Shell {
   public:
-    Shell(pid_t pid, int argc, char *argv[]);
+    Shell(pid_t pid, char *argv[]);
     ~Shell();
 
     void execute_command(std::string command, bool sync = false);
     std::string get_prompt();
+    std::string get_ai_prompt();
 
     void set_exit_flag(bool flag);
     bool get_exit_flag();
@@ -38,6 +40,6 @@ class Shell {
 
     std::map<std::string, std::string> aliases;
 
-    prompt* shell_prompt = nullptr;
-    exec* shell_exec = nullptr;
+    Prompt* shell_prompt = nullptr;
+    Exec* shell_exec = nullptr;
 };
