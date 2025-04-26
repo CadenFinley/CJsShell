@@ -19,7 +19,7 @@
 #include <ctime>
 
 // constants
-const std::string c_version = "2.0.2.4";
+const std::string c_version = "2.1.0.0";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 const pid_t c_pid = getpid();  // Fixed: removed std::to_string
@@ -51,10 +51,6 @@ std::string g_cached_version = "";
 std::string g_last_updated = "";
 
 std::vector<std::string> g_startup_commands;
-
-// Global reference to the installation path
-std::string g_cjsh_path = "";
-std::string g_user_home_path = std::getenv("HOME") ? std::getenv("HOME") : "";
 
 // theme name the theme manger will load this
 std::string g_current_theme = "default";

@@ -1,7 +1,4 @@
 #include "cjsh_filesystem.h"
-#include <unistd.h>
-#include <limits.h>
-#include <filesystem>
 
 // For macOS _NSGetExecutablePath
 #ifdef __APPLE__
@@ -25,6 +22,7 @@ void initialize_cjsh_path() {
     #ifdef __linux__
     if (readlink("/proc/self/exe", path, PATH_MAX) != -1) {
         cjsh_filesystem::g_cjsh_path = path;
+        return;
     }
     #endif
     
@@ -35,8 +33,10 @@ void initialize_cjsh_path() {
         char real_path[PATH_MAX];
         if (realpath(path, real_path) != nullptr) {
             cjsh_filesystem::g_cjsh_path = real_path;
+            return;
         } else {
             cjsh_filesystem::g_cjsh_path = path;
+            return;
         }
     }
     #endif
@@ -48,13 +48,18 @@ void initialize_cjsh_path() {
         if (exePath) {
             cjsh_filesystem::g_cjsh_path = exePath;
             free(exePath);
+            return;
         } else {
             // Default to a common location
             cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
+            return;
         }
         #else
         // Default to a common location on non-Linux systems
         cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
+        return;
         #endif
     }
+    cjsh_filesystem::g_cjsh_path = "No path found";
+    std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
 }

@@ -25,38 +25,6 @@ Shell::~Shell() {
   }
 }
 
-bool Shell::get_interactive_mode() {
-  return interactive_mode;
-}
-
-bool Shell::get_login_mode() {
-  return login_mode;
-}
-
-bool Shell::get_exit_flag() {
-  return exit_flag;
-}
-
-void Shell::set_exit_flag(bool flag) {
-  exit_flag = flag;
-}
-
-void Shell::set_interactive_mode(bool flag) {
-  interactive_mode = flag;
-}
-
-void Shell::set_aliases(std::map<std::string, std::string> aliases) {
-  this->aliases = aliases;
-}
-
-std::string Shell::get_prompt() {
-  return shell_prompt->get_prompt();
-}
-
-std::string Shell::get_ai_prompt() {
-  return shell_prompt->get_ai_prompt();
-}
-
 void Shell::execute_command(std::string command, bool sync) {
   if (command.empty()) {
     return;

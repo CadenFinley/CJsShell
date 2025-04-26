@@ -3,10 +3,14 @@
 int main(int argc, char *argv[]) {
   // cjsh
 
+  initialize_cjsh_path();
+  std::cout << cjsh_filesystem::g_user_home_path << std::endl;
+  std::cout << cjsh_filesystem::g_cjsh_path << std::endl;
+
   // this handles the prompting and executing of commands
   g_shell = new Shell(c_pid, argv);
 
-  // Setup signal handlers before anything else
+  // setup signal handlers before anything else
   setup_signal_handlers();
   
   // Initialize login environment if necessary
@@ -44,15 +48,21 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (arg == "-h" || arg == "--help") {
-      // Display help message
+      g_shell ->execute_command("help", true);
       return 0;
     }
     else if (arg == "--set-as-shell") {
-      // somehow handle setting this as the default shell
+      std::cout << "Setting CJ's Shell as the default shell..." << std::endl;
+      std::cerr << "Please run the following command to set CJ's Shell as your default shell:\n";
+      std::cerr << "chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+      return 0;
+    }
+    else if (arg == "--force-update") {
+      download_latest_release();
       return 0;
     }
     else if (arg == "--update") {
-      // somehow handle updating the shell
+      execute_update_if_available(check_for_update());
       return 0;
     }
   }
@@ -67,8 +77,13 @@ int main(int argc, char *argv[]) {
 
   // now we know we are in interactive mode
   g_shell->set_interactive_mode(true);
+
+  // set process watchdog
   std::thread watchdog_thread(parent_process_watchdog);
   watchdog_thread.detach();
+
+  // set initial working directory
+  setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
 
   // initialize and verify the file system
   if (!init_interactive_filesystem()) {
@@ -202,6 +217,8 @@ void main_process_loop() {
   ic_enable_hint(true);
   ic_set_hint_delay(100);
   ic_enable_completion_preview(true);
+  
+  std::string cached_pwd = getenv("PWD") ? getenv("PWD") : "";
 
   while(true) {
     notify_plugins("main_process_start", c_pid_str);
@@ -209,6 +226,12 @@ void main_process_loop() {
       std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
     }
 
+    const char* current_pwd = getenv("PWD");
+    if (current_pwd && cached_pwd != current_pwd) {
+      cached_pwd = current_pwd;
+      g_shell->set_current_working_directory(cached_pwd);
+    }
+    
     std::string prompt;
     if (g_menu_terminal) {
       prompt = g_shell->get_prompt();
@@ -371,7 +394,7 @@ void setup_environment_variables() {
     setenv("USER", pw->pw_name, 1);
     setenv("LOGNAME", pw->pw_name, 1);
     setenv("HOME", pw->pw_dir, 1);
-    setenv("SHELL", g_cjsh_path.c_str(), 1);
+    setenv("SHELL", cjsh_filesystem::g_cjsh_path.c_str(), 1);
     
     setenv("CJSH_VERSION", c_version.c_str(), 1);
     
@@ -422,7 +445,7 @@ void notify_plugins(std::string trigger, std::string data) {
 
 bool init_login_filesystem() {
   try {
-    if (!std::filesystem::exists(g_user_home_path)) {
+    if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
       return false;
     }
@@ -439,7 +462,7 @@ bool init_login_filesystem() {
 
 bool init_interactive_filesystem() {
   try {
-    if (!std::filesystem::exists(g_user_home_path)) {
+    if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
       return false;
     }
@@ -827,17 +850,18 @@ bool download_latest_release() {
       return false;
   }
 
-  // save into temp with original asset filename, then rename to "cjsh"
+  // save into temp with original asset filename
   std::string asset_name = download_url.substr(download_url.find_last_of('/') + 1);
   std::filesystem::path asset_path = temp_dir / asset_name;
   std::string curl_command = "curl -L -s " + download_url + " -o " + asset_path.string();
   
-  // Execute the download command
-  int download_result = system(curl_command.c_str());
-  if (download_result != 0) {
-      std::cerr << "Error executing download command." << std::endl;
+  // Execute the download command using popen instead of system
+  FILE* download_pipe = popen(curl_command.c_str(), "r");
+  if (!download_pipe) {
+      std::cerr << "Error: Failed to execute download command." << std::endl;
       return false;
   }
+  pclose(download_pipe);
 
   if (!std::filesystem::exists(asset_path)) {
       std::cerr << "Error: Download failed - output file not created." << std::endl;
@@ -848,15 +872,28 @@ bool download_latest_release() {
   std::filesystem::path output_path = temp_dir / "cjsh";
   std::filesystem::rename(asset_path, output_path);
 
-  std::string chmod_command = "chmod 755 " + output_path.string();
-  system(chmod_command.c_str());
+  // Use filesystem to set permissions instead of chmod
+  try {
+      std::filesystem::permissions(output_path, 
+          std::filesystem::perms::owner_read | 
+          std::filesystem::perms::owner_write | 
+          std::filesystem::perms::owner_exec |
+          std::filesystem::perms::group_read |
+          std::filesystem::perms::group_exec |
+          std::filesystem::perms::others_read |
+          std::filesystem::perms::others_exec);
+  } catch (const std::exception& e) {
+      std::cerr << "Error setting file permissions: " << e.what() << std::endl;
+  }
 
   bool update_success = false;
   std::cout << "Administrator privileges required to install the update." << std::endl;
   std::cout << "Please enter your password if prompted." << std::endl;
 
+  // We still need sudo for copying to system locations, but use popen to capture output
   std::string sudo_command = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path;
-  int sudo_result = system(sudo_command.c_str());
+  FILE* sudo_pipe = popen(sudo_command.c_str(), "r");
+  int sudo_result = sudo_pipe ? pclose(sudo_pipe) : -1;
   
   if (sudo_result != 0) {
       std::cerr << "Error executing sudo command." << std::endl;
@@ -869,8 +906,11 @@ bool download_latest_release() {
       auto dest_file_size = std::filesystem::file_size(cjsh_filesystem::g_cjsh_path);
       
       if (new_file_size == dest_file_size) {
+          // Still need sudo for chmod on system files
           std::string sudo_chmod_command = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path;
-          system(sudo_chmod_command.c_str());
+          FILE* chmod_pipe = popen(sudo_chmod_command.c_str(), "r");
+          pclose(chmod_pipe);
+          
           update_success = true;
           std::cout << "Update installed successfully with administrator privileges." << std::endl;
           
@@ -895,15 +935,22 @@ bool download_latest_release() {
       std::cout << "Please ensure you have the necessary permissions." << std::endl;
   }
 
-  // Clean up temporary files
-  std::string cleanup_command = "rm -rf " + temp_dir.string();
-  system(cleanup_command.c_str());
+  // Clean up temporary files using filesystem functions
+  try {
+      std::filesystem::remove_all(temp_dir);
+  } catch (const std::exception& e) {
+      std::cerr << "Error cleaning up temporary files: " << e.what() << std::endl;
+  }
 
   // Remove update cache file if it exists
   if (std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path)) {
-      std::filesystem::remove(cjsh_filesystem::g_cjsh_update_cache_path);
-      if (g_debug_mode) {
-          std::cout << "Removed old update cache file: " << cjsh_filesystem::g_cjsh_update_cache_path << std::endl;
+      try {
+          std::filesystem::remove(cjsh_filesystem::g_cjsh_update_cache_path);
+          if (g_debug_mode) {
+              std::cout << "Removed old update cache file: " << cjsh_filesystem::g_cjsh_update_cache_path << std::endl;
+          }
+      } catch (const std::exception& e) {
+          std::cerr << "Error removing update cache: " << e.what() << std::endl;
       }
   }
 

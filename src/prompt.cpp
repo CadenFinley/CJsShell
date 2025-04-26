@@ -9,6 +9,7 @@ Prompt::~Prompt() {
 
 
 std::string Prompt::get_prompt() {
+  
   return "cjsh> ";
 }
 std::string Prompt::get_ai_prompt() {

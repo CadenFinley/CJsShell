@@ -19,17 +19,42 @@ class Shell {
     ~Shell();
 
     void execute_command(std::string command, bool sync = false);
-    std::string get_prompt();
-    std::string get_ai_prompt();
 
-    void set_exit_flag(bool flag);
-    bool get_exit_flag();
+    std::string get_prompt() {
+      return shell_prompt->get_prompt();
+    }
 
-    void set_interactive_mode(bool flag);
-    bool get_interactive_mode();
-    bool get_login_mode();
+    std::string get_ai_prompt() {
+      return shell_prompt->get_ai_prompt();
+    }
 
-    void set_aliases(std::map<std::string, std::string> aliases);
+    void set_exit_flag(bool flag) {
+      exit_flag = flag;
+    }
+
+    bool get_exit_flag() {
+      return exit_flag;
+    }
+
+    void set_interactive_mode(bool flag) {
+      interactive_mode = flag;
+    }
+
+    bool get_interactive_mode() {
+      return interactive_mode;
+    }
+
+    bool get_login_mode() {
+      return login_mode;
+    }
+
+    void set_current_working_directory(std::string cwd) {
+      current_working_directory = cwd;
+    }
+
+    void set_aliases(std::map<std::string, std::string> aliases) {
+      this->aliases = aliases;
+    }
 
   private:
     bool exit_flag = false;
@@ -37,6 +62,7 @@ class Shell {
     bool login_mode = false;
     int shell_terminal;
     pid_t pid;
+    std::string current_working_directory;
 
     std::map<std::string, std::string> aliases;
 
