@@ -1,25 +1,17 @@
 #include "exec.h"
+#include <vector>
 
 Exec::Exec(){
-  // Initialize current directory to the current working directory
-  built_ins.set_current_directory();
 }
 
 Exec::~Exec() {
-  // Destructor
+
 }
 
-void Exec::execute_command_sync(const std::string& command) {
-  if (command.empty()) return;
-  
-  std::vector<std::string> args = parser.parse_command(command);
+void Exec::execute_command_sync(const std::vector<std::string>& args) {
+
   if (args.empty()) {
     std::cerr << "cjsh: Failed to parse command" << std::endl;
-    return;
-  }
-
-  // check if command is a built-in command
-  if (built_ins.builtin_command(args)) {
     return;
   }
   
@@ -36,7 +28,7 @@ void Exec::execute_command_sync(const std::string& command) {
     // Prepare arguments for execvp
     std::vector<char*> c_args;
     for (auto& arg : args) {
-      c_args.push_back(arg.data());
+      c_args.push_back(const_cast<char*>(arg.data()));
     }
     c_args.push_back(nullptr);
     
@@ -57,10 +49,8 @@ void Exec::execute_command_sync(const std::string& command) {
   } while (wait_result == -1 && errno == EINTR);
 }
 
-void Exec::execute_command_async(const std::string& command) {
-  if (command.empty()) return;
-  
-  std::vector<std::string> args = parser.parse_command(command);
+void Exec::execute_command_async(const std::vector<std::string>& args) {
+
   if (args.empty()) {
     std::cerr << "cjsh: Failed to parse command" << std::endl;
     return;
@@ -99,7 +89,7 @@ void Exec::execute_command_async(const std::string& command) {
     // Prepare arguments for execvp
     std::vector<char*> c_args;
     for (auto& arg : args) {
-      c_args.push_back(arg.data());
+      c_args.push_back(const_cast<char*>(arg.data()));
     }
     c_args.push_back(nullptr);
     

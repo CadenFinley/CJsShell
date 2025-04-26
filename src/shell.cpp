@@ -1,11 +1,14 @@
 #include "shell.h"
+#include "main.h"
+#include "built_ins.h"
 
-Shell::Shell(pid_t pid, char *argv[]) {
+Shell::Shell(char *argv[]) {
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
   shell_parser = new Parser();
+  built_ins = new Built_ins();
 
-  this->pid = pid;
+  built_ins->set_current_directory();
 
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
@@ -18,7 +21,8 @@ Shell::Shell(pid_t pid, char *argv[]) {
 }
 
 Shell::~Shell() {
-  // unique_ptr automatically handles deletion, no need for manual cleanup
+  delete shell_parser;
+  delete built_ins;
 }
 
 void Shell::execute_command(std::string command, bool sync) {
@@ -26,12 +30,47 @@ void Shell::execute_command(std::string command, bool sync) {
   if (command.empty()) {
     return;
   }
-  if (!shell_exec) {
+  if (!shell_exec || !built_ins || !shell_parser) {
     return;
   }
+
+  // parse the command
+  std::vector<std::string> args = shell_parser->parse_command(command);
+
+  //check for clear and exit early
+  if (command == "clear") {
+    shell_exec->execute_command_sync(args);
+    return;
+  }
+  if (command == "exit" || command == "quit") {
+    g_exit_flag = true;
+    return;
+  }
+
+  // check if user is in ai mode
+  if (!g_menu_terminal) {
+    if(args[0] == "terminal") {
+      g_menu_terminal = true;
+      return;
+    }
+    if(args[0] == "ai") {
+      built_ins->ai_commands(args);
+      return;
+    }
+    built_ins->do_ai_request(command);
+  }
+
+
+  
+  // check if command is a built-in command
+  if (built_ins->builtin_command(args)) {
+    return;
+  }
+
+  // process all other commands
   if (sync) {
-    shell_exec->execute_command_sync(command);
+    shell_exec->execute_command_sync(args);
   } else {
-    shell_exec->execute_command_async(command);
+    shell_exec->execute_command_async(args);
   }
 }

@@ -10,12 +10,13 @@
 
 // Forward declaration
 class Exec;
+class Built_ins;
 
 //this will take input from main.cpp and will handle prompting and executing the command
 
 class Shell {
   public:
-    Shell(pid_t pid, char *argv[]);
+    Shell(char *argv[]);
     ~Shell();
 
     void execute_command(std::string command, bool sync = false);
@@ -54,9 +55,9 @@ class Shell {
     bool interactive_mode = false;
     bool login_mode = false;
     int shell_terminal;
-    pid_t pid;
 
     std::unique_ptr<Prompt> shell_prompt;
     std::unique_ptr<Exec> shell_exec;
     Parser* shell_parser = nullptr;
+    Built_ins* built_ins = nullptr;
 };

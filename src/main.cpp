@@ -7,9 +7,9 @@
 //TODO
 // by order of importance
 
-// it is currently checking for updates every boot (NEEDS TO BE FIXED)
 // built-ins
 // need to match command lifecycle with how zsh and bash do it
+// signal handling in exec
 // handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
 
 // good history management and implementation
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
   }
 
   // this handles the prompting and executing of commands
-  g_shell = new Shell(c_pid, argv);
+  g_shell = new Shell(argv);
 
   // setup signal handlers before anything else
   setup_signal_handlers();
@@ -157,6 +157,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // do update process
+  startup_update_process();
+
   // initalize objects
   if (l_load_plugin) {
     // this will load the users plugins from .cjsh_data/plugins
@@ -168,42 +171,6 @@ int main(int argc, char *argv[]) {
   }
   if (l_load_ai) {
     g_ai = new Ai("", "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
-  }
-
-  std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
-  if (std::filesystem::exists(changelog_path)) {
-    display_changelog(changelog_path);
-    std::string saved_changelog_path = (cjsh_filesystem::g_cjsh_data_path / "latest_changelog.txt").string();
-    try {
-      std::filesystem::rename(changelog_path, saved_changelog_path);
-      g_last_updated = get_current_time_string();
-    } catch (const std::exception& e) {
-      std::cerr << "Error handling changelog: " << e.what() << std::endl;
-    }
-  } else {
-    if (g_check_updates) {
-      bool update_available = false;
-      
-      if (load_update_cache()) {
-        if (should_check_for_updates()) {
-          update_available = check_for_update();
-          save_update_cache(update_available, g_cached_version);
-        } else if (g_cached_update) {
-          update_available = true;
-          if (!g_silent_update_check) {
-            std::cout << "\nUpdate available: " << g_cached_version << " (cached)" << std::endl;
-          }
-        }
-      } else {
-        save_update_cache(update_available, g_cached_version);
-      }
-      
-      if (update_available) {
-        execute_update_if_available(update_available);
-      } else if (!g_silent_update_check) {
-        std::cout << " You are up to date!" << std::endl;
-      }
-    }
   }
 
   if(!g_exit_flag) {
@@ -1091,4 +1058,42 @@ void display_changelog(const std::string& changelog_path) {
   file.close();
   
   std::cout << "\n===== CHANGELOG =====\n" << content << "\n=====================\n" << std::endl;
+}
+
+void startup_update_process() {
+  std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
+  if (std::filesystem::exists(changelog_path)) {
+    display_changelog(changelog_path);
+    std::string saved_changelog_path = (cjsh_filesystem::g_cjsh_data_path / "latest_changelog.txt").string();
+    try {
+      std::filesystem::rename(changelog_path, saved_changelog_path);
+      g_last_updated = get_current_time_string();
+    } catch (const std::exception& e) {
+      std::cerr << "Error handling changelog: " << e.what() << std::endl;
+    }
+  } else {
+    if (g_check_updates) {
+      bool update_available = false;
+      
+      if (load_update_cache()) {
+        if (should_check_for_updates()) {
+          update_available = check_for_update();
+          save_update_cache(update_available, g_cached_version);
+        } else if (g_cached_update) {
+          update_available = true;
+          if (!g_silent_update_check) {
+            std::cout << "\nUpdate available: " << g_cached_version << " (cached)" << std::endl;
+          }
+        }
+      } else {
+        save_update_cache(update_available, g_cached_version);
+      }
+      
+      if (update_available) {
+        execute_update_if_available(update_available);
+      } else if (!g_silent_update_check) {
+        std::cout << " You are up to date!" << std::endl;
+      }
+    }
+  }
 }

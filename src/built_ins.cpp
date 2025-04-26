@@ -1,55 +1,17 @@
 #include "built_ins.h"
-#include "main.h"
 
 bool Built_ins::builtin_command(const std::vector<std::string>& args) {
-  switch (hash(args[0].c_str())) {
-    case hash("exit"):
-      g_exit_flag = true;
-      return true;
-    case hash("cd"): {
-      std::string result;
-      std::string dir = "";
-      
-      // Extract directory argument if provided
-      if (args.size() > 1) {
-        dir = args[1];
-      }
-      
-      if (!change_directory(dir, result) && !result.empty()) {
-        std::cerr << result << std::endl;
-      }
-      return true;
-    }
-    case hash("alias"):
-      // Handle alias command
-      // add to the aliases map and then add to .cjshrc
-      return true;
-    case hash("export"):
-      // Handle export command
-      // setenv and then add to the env_vars map and then add it to .cjshrc
-      return true;
-    case hash("unset"):
-      // Handle unset command
-      return true;
-    case hash("source"):
-      // Handle source command
-      // reloads passed arg <filename>
-      return true;
-    case hash("unalias"):
-      // Handle unalias command
-      return true;
-    default:
-      return false;
-  }
-}
+  if (args.empty()) return false;
 
-// static const std::unordered_map<std::string, BuiltinHandler> builtins = {
-//   {"exit",   [this](auto& a){ shell->set_exit_flag(true); return true; }},
-//   {"cd",     [this](auto& a){ /* … */ }},
-//   …
-// };
-// auto it = builtins.find(args[0]);
-// return it != builtins.end() ? it->second(args) : false;
+  // Check if the command is in the builtins map
+  auto it = builtins.find(args[0]);
+  if (it != builtins.end()) {
+    return it->second(args);
+  }
+
+  // If not found, return false
+  return false;
+}
 
 bool Built_ins::change_directory(const std::string& dir, std::string& result) {
   std::string target_dir = dir;
@@ -120,4 +82,12 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
     result = "cd: Unexpected error: " + std::string(e.what());
     return false;
   }
+}
+
+void Built_ins::ai_commands(const std::vector<std::string>& args) {
+  
+}
+
+void Built_ins::do_ai_request(const std::string& prompt) {
+  
 }

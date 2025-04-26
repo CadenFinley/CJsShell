@@ -50,7 +50,6 @@ extern std::vector<std::string> g_startup_commands;
 extern std::string g_current_theme;
 
 // misc
-extern std::string g_shortcut_prefix;
 extern std::string title_line;
 extern std::string created_line;
 
@@ -81,6 +80,7 @@ void initialize_login_environment();
 
 using json = nlohmann::json;
 
+void startup_update_process();
 bool check_for_update();
 bool load_update_cache();
 void save_update_cache(bool update_available, const std::string& latest_version);
