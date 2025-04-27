@@ -1,5 +1,0 @@
-{
-    "ps1_prompt": "[GREEN]{USERNAME}@{HOSTNAME} {PATH} > [RESET]",
-    "git_prompt": "[GREEN]{USERNAME} {DIRECTORY} git:({GIT_BRANCH} {GIT_STATUS})[RESET]",
-    "ai_prompt": "[GREEN]{AI_MODEL} {AI_AGENT_TYPE} {AI_DIVIDER}[RESET]"
-}
