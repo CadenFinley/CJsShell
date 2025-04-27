@@ -7,6 +7,7 @@ Shell::Shell(char *argv[]) {
   shell_exec = std::make_unique<Exec>();
   shell_parser = new Parser();
   built_ins = new Built_ins();
+  built_ins->set_shell(this);
 
   built_ins->set_current_directory();
 

@@ -462,6 +462,10 @@ bool init_interactive_filesystem() {
       std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
       history_file.close();
     }
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path)) {
+      create_source_file();
+    }
+    process_source_file();
   } catch (const std::exception& e) {
     std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: " << e.what() << std::endl;
     return false;
@@ -590,8 +594,6 @@ void process_source_file() {
         }
         
         env_vars[env_name] = env_value;
-        // Also set in the environment
-        setenv(env_name.c_str(), env_value.c_str(), 1);
       }
     }
     else if (line.find("theme ") == 0) {
@@ -621,6 +623,9 @@ void process_source_file() {
   source_file.close();
   if (!aliases.empty()) {
     g_shell->set_aliases(aliases);
+  }
+  if(!env_vars.empty()) {
+    g_shell->set_env_vars(env_vars);
   }
 }
 

@@ -9,16 +9,18 @@
 #include <vector>
 #include <string>
 
+class Shell; // Forward declaration
+
 class Built_ins {
 
 public:
 Built_ins(): builtins({
       {"cd", [this](const std::vector<std::string>& args) { std::string result;return change_directory(args.size() > 1 ? args[1] : current_directory, result);}},
-      {"alias", [](const std::vector<std::string>&) { /* Handle alias command */ return true; }},
-      {"export", [](const std::vector<std::string>&) { /* Handle export command */ return true; }},
-      {"unset", [](const std::vector<std::string>&) { /* Handle unset command */ return true; }},
-      {"source", [](const std::vector<std::string>&) { /* Handle source command */ return true; }},
-      {"unalias", [](const std::vector<std::string>&) { /* Handle unalias command */ return true; }},
+      {"alias", [this](const std::vector<std::string>& args) { return alias_command(args); }},
+      {"export", [this](const std::vector<std::string>& args) { return export_command(args); }},
+      {"unset", [this](const std::vector<std::string>& args) { return unset_command(args); }},
+      {"source", [this](const std::vector<std::string>& args) { return source_command(args); }},
+      {"unalias", [this](const std::vector<std::string>& args) { return unalias_command(args); }},
       {"ai", [this](const std::vector<std::string>& args) { ai_commands(args); return true; }},
       {"user", [this](const std::vector<std::string>& args) { user_commands(args); return true; }},
       {"theme", [this](const std::vector<std::string>& args) { theme_commands(args); return true; }},
@@ -28,9 +30,12 @@ Built_ins(): builtins({
       {"aihelp", [this](const std::vector<std::string>& args) { aihelp_command(args); return true; }},
       {"version", [this](const std::vector<std::string>&) { version_command(); return true; }},
       {"uninstall", [this](const std::vector<std::string>&) { uninstall_command(); return true; }},
-  }) {}
+  }), shell(nullptr) {}
   ~Built_ins() = default;
 
+  void set_shell(Shell* shell_ptr) {
+    shell = shell_ptr;
+  }
 
   bool builtin_command(const std::vector<std::string>& args);
   bool change_directory(const std::string& dir, std::string& result);
@@ -63,7 +68,24 @@ Built_ins(): builtins({
   void help_command();
   void aihelp_command(const std::vector<std::string>& args);
 
+  // Alias and environment variable command handlers
+  bool alias_command(const std::vector<std::string>& args);
+  bool unalias_command(const std::vector<std::string>& args);
+  bool export_command(const std::vector<std::string>& args);
+  bool unset_command(const std::vector<std::string>& args);
+  bool source_command(const std::vector<std::string>& args);
+
+  // Save settings to files
+  void save_aliases_to_file();
+  void save_env_vars_to_file();
+
 private:
   std::string current_directory;
   std::unordered_map<std::string, std::function<bool(const std::vector<std::string>&)>> builtins;
+  Shell* shell;
+  std::unordered_map<std::string, std::string> aliases;
+  std::unordered_map<std::string, std::string> env_vars;
+  
+  // Helper functions
+  bool parse_assignment(const std::string& arg, std::string& name, std::string& value);
 };

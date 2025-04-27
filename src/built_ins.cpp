@@ -5,20 +5,17 @@
 bool Built_ins::builtin_command(const std::vector<std::string>& args) {
   if (args.empty()) return false;
 
-  // Check if the command is in the builtins map
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
     return it->second(args);
   }
 
-  // If not found, return false
   return false;
 }
 
 bool Built_ins::change_directory(const std::string& dir, std::string& result) {
   std::string target_dir = dir;
   
-  // Handle empty input or just "~"
   if (target_dir.empty()) {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
@@ -28,7 +25,6 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
     target_dir = home_dir;
   }
   
-  // Expand tilde at the beginning of the path
   if (target_dir[0] == '~') {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
@@ -38,40 +34,33 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
     target_dir.replace(0, 1, home_dir);
   }
   
-  // Create a path object from the target directory
   std::filesystem::path dir_path;
   
   try {
-    // If it's an absolute path, use it directly; otherwise, make it relative to current directory
     if (std::filesystem::path(target_dir).is_absolute()) {
       dir_path = target_dir;
     } else {
       dir_path = std::filesystem::path(current_directory) / target_dir;
     }
 
-    // Check if the directory exists
     if (!std::filesystem::exists(dir_path)) {
       result = "cd: " + target_dir + ": No such file or directory";
       return false;
     }
     
-    // Check if it's a directory
     if (!std::filesystem::is_directory(dir_path)) {
       result = "cd: " + target_dir + ": Not a directory";
       return false;
     }
     
-    // Get the canonical (absolute, normalized) path
     std::filesystem::path canonical_path = std::filesystem::canonical(dir_path);
     current_directory = canonical_path.string();
     
-    // Actually change the working directory
     if (chdir(current_directory.c_str()) != 0) {
       result = "cd: " + std::string(strerror(errno));
       return false;
     }
     
-    // Update PWD environment variable
     setenv("PWD", current_directory.c_str(), 1);
     
     return true;
@@ -89,10 +78,8 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
 void Built_ins::ai_commands(const std::vector<std::string>& args) {
   unsigned int command_index = 1;
   
-  // No arguments - switch to AI mode
   if (args.size() <= command_index) {
     g_menu_terminal = false;
-    // Show chat history if not empty
     if (!g_ai->getChatCache().empty()) {
       std::cout << "Chat history:" << std::endl;
       for (const auto& message : g_ai->getChatCache()) {
@@ -722,7 +709,7 @@ void Built_ins::approot_command() {
 }
 
 void Built_ins::version_command() {
-  std::cout << "CJ's Shell v" << c_version << std::endl;
+  std::cout << "CJ's g_shell v" << c_version << std::endl;
 }
 
 void Built_ins::uninstall_command() {
@@ -1003,7 +990,7 @@ void Built_ins::help_command() {
   std::cout << " uninstall: Uninstall the application" << std::endl;
   std::cout << std::endl;
   
-  std::cout << " Built-in shell commands:" << std::endl;
+  std::cout << " Built-in g_shell commands:" << std::endl;
   std::cout << " cd [DIR]: Change directory" << std::endl;
   std::cout << " alias [NAME=VALUE]: Create command alias" << std::endl;
   std::cout << " export [NAME=VALUE]: Set environment variable" << std::endl;
@@ -1034,7 +1021,7 @@ void Built_ins::aihelp_command(const std::vector<std::string>& args) {
   } else {
     // Use most recent terminal output if available
     // In the new architecture, we'd need a way to access this
-    message = "I am encountering some issues with the cjsh shell and would like some help. This is the most recent output: " + g_shell -> last_terminal_output_error + " Here is the command I used: " + g_shell ->last_command;
+    message = "I am encountering some issues with the cjsh g_shell and would like some help. This is the most recent output: " + g_shell -> last_terminal_output_error + " Here is the command I used: " + g_shell ->last_command;
   }
   
   if (g_debug_mode) {
@@ -1042,4 +1029,293 @@ void Built_ins::aihelp_command(const std::vector<std::string>& args) {
   }
   
   std::cout << g_ai->forceDirectChatGPT(message, false) << std::endl;
+}
+
+bool Built_ins::alias_command(const std::vector<std::string>& args) {
+  // If no arguments, display all aliases
+  if (args.size() == 1) {
+    auto& aliases = g_shell->get_aliases();
+    if (aliases.empty()) {
+      std::cout << "No aliases defined." << std::endl;
+    } else {
+      for (const auto& [name, value] : aliases) {
+        std::cout << "alias " << name << "='" << value << "'" << std::endl;
+      }
+    }
+    return true;
+  }
+
+  auto& aliases = g_shell->get_aliases();
+  for (size_t i = 1; i < args.size(); ++i) {
+    std::string name, value;
+    if (parse_assignment(args[i], name, value)) {
+      // Add or update the alias
+      aliases[name] = value;
+      if (g_debug_mode) {
+        std::cout << "Added alias: " << name << "='" << value << "'" << std::endl;
+      }
+    } else {
+      // Not in NAME=VALUE format, check if it's an existing alias
+      auto it = aliases.find(args[i]);
+      if (it != aliases.end()) {
+        std::cout << "alias " << it->first << "='" << it->second << "'" << std::endl;
+      } else {
+        std::cerr << "alias: " << args[i] << ": not found" << std::endl;
+      }
+    }
+  }
+
+  // Update g_shell's aliases
+  if (g_shell) {
+    g_shell->set_aliases(aliases);
+  }
+
+  // Save aliases to config file
+  save_aliases_to_file();
+  
+  return true;
+}
+
+bool Built_ins::unalias_command(const std::vector<std::string>& args) {
+  if (args.size() == 1) {
+    std::cerr << "unalias: not enough arguments" << std::endl;
+    return false;
+  }
+
+  bool success = true;
+  auto& aliases = g_shell->get_aliases();
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    const std::string& name = args[i];
+    
+    if (name == "-a") {
+      // Remove all aliases
+      aliases.clear();
+      std::cout << "All aliases removed." << std::endl;
+    } else {
+      // Remove specific alias
+      auto it = aliases.find(name);
+      if (it != aliases.end()) {
+        aliases.erase(it);
+        if (g_debug_mode) {
+          std::cout << "Removed alias: " << name << std::endl;
+        }
+      } else {
+        std::cerr << "unalias: " << name << ": not found" << std::endl;
+        success = false;
+      }
+    }
+  }
+
+  // Update g_shell's aliases
+  if (g_shell) {
+    g_shell->set_aliases(aliases);
+  }
+
+  // Save aliases to config file
+  save_aliases_to_file();
+
+  return success;
+}
+
+bool Built_ins::export_command(const std::vector<std::string>& args) {
+  // If no arguments, display all environment variables
+  if (args.size() == 1) {
+    // Get all environment variables
+    extern char **environ;
+    for (char **env = environ; *env; ++env) {
+      std::cout << "export " << *env << std::endl;
+    }
+    return true;
+  }
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    std::string name, value;
+    if (parse_assignment(args[i], name, value)) {
+      env_vars[name] = value;
+      
+      setenv(name.c_str(), value.c_str(), 1);
+      
+      if (g_debug_mode) {
+        std::cout << "Set environment variable: " << name << "='" << value << "'" << std::endl;
+      }
+    } else {
+      const char* env_val = getenv(args[i].c_str());
+      if (env_val) {
+        std::cout << "export " << args[i] << "='" << env_val << "'" << std::endl;
+      } else {
+        std::cerr << "export: " << args[i] << ": not found" << std::endl;
+      }
+    }
+  }
+
+  if (g_shell) {
+    g_shell->set_env_vars(env_vars);
+  }
+  save_env_vars_to_file();
+  
+  return true;
+}
+
+bool Built_ins::unset_command(const std::vector<std::string>& args) {
+  if (args.size() == 1) {
+    std::cerr << "unset: not enough arguments" << std::endl;
+    return false;
+  }
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    const std::string& name = args[i];
+    
+    env_vars.erase(name);
+    
+    unsetenv(name.c_str());
+    
+    if (g_debug_mode) {
+      std::cout << "Unset environment variable: " << name << std::endl;
+    }
+  }
+
+  if (g_shell) {
+    g_shell->set_env_vars(env_vars);
+  }
+
+  save_env_vars_to_file();
+
+  return true;
+}
+
+bool Built_ins::source_command(const std::vector<std::string>& args) {
+  if (args.size() < 2) {
+    std::cerr << "source: filename argument required" << std::endl;
+    return false;
+  }
+
+  std::string filename = args[1];
+  
+  if (filename[0] == '~') {
+    const char* home_dir = getenv("HOME");
+    if (home_dir) {
+      filename.replace(0, 1, home_dir);
+    }
+  }
+
+  std::filesystem::path file_path(filename);
+  if (!file_path.is_absolute()) {
+    file_path = std::filesystem::path(current_directory) / filename;
+  }
+  
+  std::ifstream file(file_path);
+  if (!file.is_open()) {
+    std::cerr << "source: cannot open " << filename << ": No such file or directory" << std::endl;
+    return false;
+  }
+
+  std::string line;
+  while (std::getline(file, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+    
+    if (g_shell) {
+      g_shell->execute_command(line);
+    }
+  }
+
+  return true;
+}
+
+void Built_ins::save_aliases_to_file() {
+  std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
+  
+  std::vector<std::string> lines;
+  std::string line;
+  std::ifstream read_file(source_path);
+  
+  if (read_file.is_open()) {
+    while (std::getline(read_file, line)) {
+      if (line.find("alias ") == 0) {
+        continue;
+      }
+      lines.push_back(line);
+    }
+    read_file.close();
+  }
+  
+  std::ofstream write_file(source_path);
+  if (!write_file.is_open()) {
+    std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
+    return;
+  }
+  
+  for (const auto& l : lines) {
+    write_file << l << std::endl;
+  }
+  
+  write_file << std::endl << "# Aliases" << std::endl;
+  for (const auto& [name, value] : aliases) {
+    write_file << "alias " << name << "='" << value << "'" << std::endl;
+  }
+  
+  write_file.close();
+  
+  if (g_debug_mode) {
+    std::cout << "Aliases saved to " << source_path.string() << std::endl;
+  }
+}
+
+void Built_ins::save_env_vars_to_file() {
+  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
+  
+  std::vector<std::string> lines;
+  std::string line;
+  std::ifstream read_file(config_path);
+  
+  if (read_file.is_open()) {
+    while (std::getline(read_file, line)) {
+      if (line.find("export ") == 0) {
+        continue;
+      }
+      lines.push_back(line);
+    }
+    read_file.close();
+  }
+  
+  std::ofstream write_file(config_path);
+  if (!write_file.is_open()) {
+    std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
+    return;
+  }
+  for (const auto& l : lines) {
+    write_file << l << std::endl;
+  }
+  
+  write_file << std::endl << "# Environment Variables" << std::endl;
+  for (const auto& [name, value] : env_vars) {
+    write_file << "export " << name << "='" << value << "'" << std::endl;
+  }
+  
+  write_file.close();
+  
+  if (g_debug_mode) {
+    std::cout << "Environment variables saved to " << config_path.string() << std::endl;
+  }
+}
+
+bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std::string& value) {
+  size_t equals_pos = arg.find('=');
+  if (equals_pos == std::string::npos || equals_pos == 0) {
+    return false;
+  }
+  
+  name = arg.substr(0, equals_pos);
+  value = arg.substr(equals_pos + 1);
+  
+  if (!value.empty()) {
+    if ((value.front() == '\'' && value.back() == '\'') || 
+        (value.front() == '"' && value.back() == '"')) {
+      value = value.substr(1, value.length() - 2);
+    }
+  }
+  
+  return true;
 }

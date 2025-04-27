@@ -11,12 +11,12 @@ class Parser {
 public:
   std::vector<std::string> parse_command(const std::string& command);
 
-  void set_aliases(const std::unordered_map<std::string, std::string>& aliases) {
-    this->aliases = aliases;
+  void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
+    this->aliases = new_aliases;
   }
 
-  void set_env_vars(const std::unordered_map<std::string, std::string>& env_vars) {
-    this->env_vars = env_vars;
+  void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
+    this->env_vars = new_env_vars;
   }
 
 private:
