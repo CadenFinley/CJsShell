@@ -67,22 +67,16 @@ void Shell::execute_command(std::string command, bool sync) {
   }
 
   //check if command is a plugin command
-      // std::vector<std::string> enabledPlugins = pluginManager->getEnabledPlugins();
-      //   if (!enabledPlugins.empty()) {
-      //     std::queue<std::string> tempQueue;
-      //     tempQueue.push(lastCommandParsed);
-      //     while (!commandsQueue.empty()) {
-      //         tempQueue.push(commandsQueue.front());
-      //         commandsQueue.pop();
-      //     }
-      //     for(const auto& plugin : enabledPlugins){
-      //         std::vector<std::string> pluginCommands = pluginManager->getPluginCommands(plugin);
-      //         if(std::find(pluginCommands.begin(), pluginCommands.end(), lastCommandParsed) != pluginCommands.end()){
-      //             pluginManager->handlePluginCommand(plugin, tempQueue);
-      //             return;
-      //         }
-      //     }
-      // }
+  std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
+  if (!enabled_plugins.empty()) {
+    for(const auto& plugin : enabled_plugins){
+      std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
+      if(std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()){
+        g_plugin->handle_plugin_command(plugin, args);
+        return;
+      }
+    }
+  }
 
   // process all other commands
   if (sync) {

@@ -15,6 +15,14 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
+# Check architecture for compiler flags
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+    # Apple Silicon (M1/M2/etc) - avoid using -march=native
+    add_compile_options(-O3)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-march=native -O3)
+endif()
+
 # Find and include curl
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})

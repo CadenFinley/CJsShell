@@ -4,9 +4,15 @@ cmake_policy(VERSION 3.10)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+
+# Check architecture for compiler flags
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+    # Apple Silicon (M1/M2/etc) - avoid using -march=native
+    add_compile_options(-O3)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-march=native -O3)
 endif()
+
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(APPLE)

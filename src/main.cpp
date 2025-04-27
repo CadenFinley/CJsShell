@@ -245,6 +245,18 @@ void main_process_loop() {
   }
 }
 
+void save_to_history(const std::string& command) {
+  if (g_shell->get_login_mode()) {
+    std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path, std::ios::app);
+    if (history_file.is_open()) {
+      history_file << command << std::endl;
+      history_file.close();
+    } else {
+      std::cerr << "Error: Unable to open history file for writing." << std::endl;
+    }
+  }
+}
+
 static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
   // Mark unused parameters to avoid compiler warnings
   (void)info;

@@ -1068,49 +1068,6 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
   return true;
 }
 
-bool Built_ins::unalias_command(const std::vector<std::string>& args) {
-  if (args.size() == 1) {
-    std::cerr << "unalias: not enough arguments" << std::endl;
-    return false;
-  }
-
-  bool success = true;
-  auto& aliases = g_shell->get_aliases();
-
-  for (size_t i = 1; i < args.size(); ++i) {
-    const std::string& name = args[i];
-    
-    if (name == "-a") {
-      // Remove all aliases
-      aliases.clear();
-      // Clear the aliases file
-      save_aliases_to_file();
-      std::cout << "All aliases removed." << std::endl;
-    } else {
-      // Remove specific alias
-      auto it = aliases.find(name);
-      if (it != aliases.end()) {
-        aliases.erase(it);
-        // Remove alias from file
-        remove_alias_from_file(name);
-        if (g_debug_mode) {
-          std::cout << "Removed alias: " << name << std::endl;
-        }
-      } else {
-        std::cerr << "unalias: " << name << ": not found" << std::endl;
-        success = false;
-      }
-    }
-  }
-
-  // Update g_shell's aliases
-  if (g_shell) {
-    g_shell->set_aliases(aliases);
-  }
-
-  return success;
-}
-
 bool Built_ins::export_command(const std::vector<std::string>& args) {
   // If no arguments, display all environment variables
   if (args.size() == 1) {
@@ -1156,35 +1113,92 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
   return true;
 }
 
+bool Built_ins::unalias_command(const std::vector<std::string>& args) {
+  if (args.size() < 2) {
+    std::cerr << "unalias: not enough arguments" << std::endl;
+    return false;
+  }
+
+  bool success = true;
+  auto& aliases = g_shell->get_aliases();
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    const std::string& name = args[i];
+    auto it = aliases.find(name);
+    
+    if (it != aliases.end()) {
+      aliases.erase(it);
+      remove_alias_from_file(name);
+      if (g_debug_mode) {
+        std::cout << "Removed alias: " << name << std::endl;
+      }
+    } else {
+      std::cerr << "unalias: " << name << ": not found" << std::endl;
+      success = false;
+    }
+  }
+
+  if (g_shell) {
+    g_shell->set_aliases(aliases);
+  }
+  
+  return success;
+}
+
 bool Built_ins::unset_command(const std::vector<std::string>& args) {
-  if (args.size() == 1) {
+  if (args.size() < 2) {
     std::cerr << "unset: not enough arguments" << std::endl;
     return false;
   }
 
+  bool success = true;
+  
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& name = args[i];
     
+    // Remove from our env_vars map
     env_vars.erase(name);
     
-    unsetenv(name.c_str());
-    
-    // Remove the environment variable from file only in login mode
-    if (shell && shell->get_login_mode()) {
-      remove_env_var_from_file(name);
-    } else if (g_debug_mode) {
-      std::cout << "Note: Environment variable unset for this session only (not in login mode)" << std::endl;
-    }
-    
-    if (g_debug_mode) {
-      std::cout << "Unset environment variable: " << name << std::endl;
+    // Unset the environment variable
+    if (unsetenv(name.c_str()) != 0) {
+      std::cerr << "unset: error unsetting " << name << ": " << strerror(errno) << std::endl;
+      success = false;
+    } else {
+      // Also remove from config file if in login mode
+      if (shell && shell->get_login_mode()) {
+        remove_env_var_from_file(name);
+      }
+      
+      if (g_debug_mode) {
+        std::cout << "Unset environment variable: " << name << std::endl;
+      }
     }
   }
 
   if (g_shell) {
     g_shell->set_env_vars(env_vars);
   }
+  
+  return success;
+}
 
+bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std::string& value) {
+  size_t equals_pos = arg.find('=');
+  if (equals_pos == std::string::npos || equals_pos == 0) {
+    return false;  // No equals sign or nothing before equals sign
+  }
+  
+  name = arg.substr(0, equals_pos);
+  value = arg.substr(equals_pos + 1);
+  
+  // Trim quotes if present
+  if (value.size() >= 2) {
+    if ((value.front() == '"' && value.back() == '"') ||
+        (value.front() == '\'' && value.back() == '\'')) {
+      value = value.substr(1, value.size() - 2);
+    }
+  }
+  
   return true;
 }
 
@@ -1358,71 +1372,4 @@ void Built_ins::remove_env_var_from_file(const std::string& name) {
   } else {
     std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
   }
-}
-
-void Built_ins::save_env_vars_to_file() {
-  // Only proceed if in login mode
-  if (!shell || !shell->get_login_mode()) {
-    if (g_debug_mode) {
-      std::cerr << "Warning: Attempted to save environment variables to config file when not in login mode" << std::endl;
-    }
-    return;
-  }
-  
-  // This method is now only used for clearing all environment variables
-  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
-  
-  // Read the entire file content
-  std::vector<std::string> lines;
-  std::string line;
-  std::ifstream read_file(config_path);
-  
-  if (read_file.is_open()) {
-    while (std::getline(read_file, line)) {
-      if (line.find("export ") != 0) {
-        // Keep all non-export lines
-        lines.push_back(line);
-      }
-    }
-    read_file.close();
-  }
-  
-  // Add all current environment variables
-  for (const auto& [name, value] : env_vars) {
-    lines.push_back("export " + name + "='" + value + "'");
-  }
-  
-  // Write back to file
-  std::ofstream write_file(config_path);
-  if (write_file.is_open()) {
-    for (const auto& l : lines) {
-      write_file << l << std::endl;
-    }
-    write_file.close();
-    
-    if (g_debug_mode) {
-      std::cout << "Environment variables saved to " << config_path.string() << std::endl;
-    }
-  } else {
-    std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
-  }
-}
-
-bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std::string& value) {
-  size_t equals_pos = arg.find('=');
-  if (equals_pos == std::string::npos || equals_pos == 0) {
-    return false;
-  }
-  
-  name = arg.substr(0, equals_pos);
-  value = arg.substr(equals_pos + 1);
-  
-  if (!value.empty()) {
-    if ((value.front() == '\'' && value.back() == '\'') || 
-        (value.front() == '"' && value.back() == '"')) {
-      value = value.substr(1, value.length() - 2);
-    }
-  }
-  
-  return true;
 }

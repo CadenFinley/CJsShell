@@ -18,9 +18,8 @@ Built_ins(): builtins({
       {"cd", [this](const std::vector<std::string>& args) { std::string result;return change_directory(args.size() > 1 ? args[1] : current_directory, result);}},
       {"alias", [this](const std::vector<std::string>& args) { return alias_command(args); }},
       {"export", [this](const std::vector<std::string>& args) { return export_command(args); }},
-      {"unset", [this](const std::vector<std::string>& args) { return unset_command(args); }},
-      {"source", [this](const std::vector<std::string>& args) { return source_command(args); }},
       {"unalias", [this](const std::vector<std::string>& args) { return unalias_command(args); }},
+      {"unset", [this](const std::vector<std::string>& args) { return unset_command(args); }},
       {"ai", [this](const std::vector<std::string>& args) { ai_commands(args); return true; }},
       {"user", [this](const std::vector<std::string>& args) { user_commands(args); return true; }},
       {"theme", [this](const std::vector<std::string>& args) { theme_commands(args); return true; }},
@@ -70,14 +69,12 @@ Built_ins(): builtins({
 
   // Alias and environment variable command handlers
   bool alias_command(const std::vector<std::string>& args);
-  bool unalias_command(const std::vector<std::string>& args);
   bool export_command(const std::vector<std::string>& args);
+  bool unalias_command(const std::vector<std::string>& args);
   bool unset_command(const std::vector<std::string>& args);
-  bool source_command(const std::vector<std::string>& args);
+
 
   // Save settings to files
-  void save_aliases_to_file();
-  void save_env_vars_to_file();
   void save_alias_to_file(const std::string& name, const std::string& value);
   void save_env_var_to_file(const std::string& name, const std::string& value);
   void remove_alias_from_file(const std::string& name);
