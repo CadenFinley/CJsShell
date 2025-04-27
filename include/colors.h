@@ -6,6 +6,7 @@
 #include <functional>
 #include <cmath>
 #include <algorithm>
+#include <unordered_map>
 
 namespace colors {
 
@@ -110,6 +111,7 @@ RGB xterm256_to_rgb(uint8_t index);
 
 // Get a color by its name
 RGB get_color_by_name(const std::string& name);
+std::unordered_map<std::string, std::string> get_color_map();
 
 // Named color constants - Extended palette of common web colors
 namespace named {

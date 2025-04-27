@@ -23,6 +23,14 @@ enum class AIPromptItems {
     AI_AGENT_TYPE
 };
 
+enum class TerminalTitleItems {
+    SHELL,
+    USERNAME,
+    HOSTNAME,
+    PATH,
+    DIRECTORY
+};
+
 class Theme {
   public:
     Theme(std::string theme_directory);
