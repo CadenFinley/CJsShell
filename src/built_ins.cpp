@@ -454,7 +454,7 @@ void Built_ins::do_ai_request(const std::string& prompt) {
     return;
   }
   if (g_ai->getAPIKey().empty()) {
-    std::cerr << "Error: No OpenAPI key set. Please set the API key using 'ai apikey set [KEY]'." << std::endl;
+    std::cerr << "Error: No OpenAI API key set. Please set the API key using 'ai apikey set [KEY]' or set the OPENAI_API_KEY environment variable." << std::endl;
     return;
   }
   std::string response = g_ai->chatGPT(prompt, false);

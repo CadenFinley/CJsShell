@@ -170,7 +170,13 @@ int main(int argc, char *argv[]) {
     g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
   }
   if (l_load_ai) {
-    g_ai = new Ai("", "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
+    // Get API key from environment if available
+    std::string api_key = "";
+    const char* env_key = getenv("OPENAI_API_KEY");
+    if (env_key) {
+      api_key = env_key;
+    }
+    g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
 
   if(!g_exit_flag) {
