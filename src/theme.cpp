@@ -88,6 +88,9 @@ const std::unordered_map<Colors, std::string> DEFAULT_COLORS = {
 const std::string RESET = "\033[0m";
 
 Theme::Theme() : m_theme_name("default") {
+    // Ensure default theme exists before proceeding
+    ensure_default_theme_exists();
+    
     // Initialize with default prompts
     m_ps1_prompt = "\033[1;32m\\u@\\h\033[0m:\033[1;34m\\w\033[0m$ ";
     m_git_prompt = "";
@@ -224,6 +227,52 @@ std::string Theme::get_color(Colors color) const {
         return it->second;
     }
     return "";
+}
+
+void Theme::ensure_default_theme_exists() {
+    std::filesystem::path default_theme_path = cjsh_filesystem::g_cjsh_theme_path / "default.json";
+    
+    // Check if the themes directory exists, create if not
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_theme_path)) {
+        std::filesystem::create_directories(cjsh_filesystem::g_cjsh_theme_path);
+    }
+    
+    // If the default theme doesn't exist, create it
+    if (!std::filesystem::exists(default_theme_path)) {
+        nlohmann::json default_theme;
+        
+        // PS1 prompt settings
+        default_theme["ps1_format"] = "\\[\\033[1;32m\\]\\u@\\h\\[\\033[0m\\]:\\[\\033[1;34m\\]\\w\\[\\033[0m\\]$ ";
+        default_theme["ps1_colors"] = {
+            {"username", "green_bold"},
+            {"hostname", "green_bold"},
+            {"path", "blue_bold"},
+            {"directory", "blue_bold"},
+            {"time", "white"},
+            {"date", "white"},
+            {"shell", "white"}
+        };
+        
+        // Git prompt settings
+        default_theme["git_format"] = "[\\[\\033[1;36m\\]branch: %s\\[\\033[0m\\]]";
+        default_theme["git_colors"] = {
+            {"branch", "cyan_bold"},
+            {"status", "yellow_bold"}
+        };
+        
+        // AI prompt settings
+        default_theme["ai_format"] = "\\[\\033[1;35m\\][AI: %s]\\[\\033[0m\\] ";
+        default_theme["ai_colors"] = {
+            {"divider", "magenta_bold"},
+            {"model", "magenta_bold"},
+            {"agent_type", "cyan_bold"}
+        };
+        
+        // Write to file
+        std::ofstream file(default_theme_path);
+        file << default_theme.dump(4); // Pretty print with 4-space indent
+        file.close();
+    }
 }
 
 // Helper function to parse color string to Colors enum

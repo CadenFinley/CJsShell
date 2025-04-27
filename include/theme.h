@@ -124,6 +124,9 @@ private:
     void build_ai_prompt();
 
     Colors parse_color_string(const std::string& color_str);
+    
+    // Create default theme file if it doesn't exist
+    static void ensure_default_theme_exists();
 
 public:
     Theme();
