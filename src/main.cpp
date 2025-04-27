@@ -4,6 +4,8 @@
 #include <signal.h>
 #include "colors.h"
 
+// create a bunch of example_format plugins in a bunch of compatable languages
+
 int main(int argc, char *argv[]) {
   // cjsh
   
