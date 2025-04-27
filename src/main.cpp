@@ -4,6 +4,8 @@
 #include <signal.h>
 #include "colors.h"
 
+//when changing settings like theme, it needs to save in the source file
+
 int main(int argc, char *argv[]) {
   // cjsh
 

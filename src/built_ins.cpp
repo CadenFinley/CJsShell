@@ -600,8 +600,10 @@ bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
         
         if (g_plugin->update_plugin_setting(pluginName, settingName, settingValue)) {
           std::cout << "Setting " << settingName << " set to " << settingValue << " for plugin " << pluginName << std::endl;
+          return true;
         } else {
           std::cout << "Setting " << settingName << " not found for plugin " << pluginName << std::endl;
+          return true;
         }
       }
     } else {

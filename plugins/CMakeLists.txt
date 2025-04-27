@@ -5,12 +5,25 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Check architecture for compiler flags
-if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-    # Apple Silicon (M1/M2/etc) - avoid using -march=native
+# Architecture detection and handling - sync with parent CMakeLists.txt
+execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+message(STATUS "Plugin build - detected architecture: ${ARCH}")
+
+# Clear any potentially problematic CPU-specific flags
+string(REGEX REPLACE "-mcpu=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REGEX REPLACE "-mcpu=[^ ]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REGEX REPLACE "-march=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REGEX REPLACE "-march=[^ ]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REGEX REPLACE "-mtune=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REGEX REPLACE "-mtune=[^ ]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+if(APPLE AND ARCH STREQUAL "arm64")
+    # Apple Silicon (arm64) - use simple, safe optimization
+    message(STATUS "Plugin build - configuring for Apple Silicon")
+    add_compile_options(-O3 -arch arm64)
+else()
+    # For other architectures, use safe optimization
     add_compile_options(-O3)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-march=native -O3)
 endif()
 
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
