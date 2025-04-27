@@ -4,18 +4,6 @@
 #include <signal.h>
 #include "colors.h"
 
-
-//TODO
-// by order of importance
-
-// need to match command lifecycle with how zsh and bash do it
-// signal handling in exec
-// handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
-
-// create example plugins using rust, go, and anything else that can tap into the C runtime API
-
-bool g_first_boot = false;
-
 int main(int argc, char *argv[]) {
   // cjsh
 

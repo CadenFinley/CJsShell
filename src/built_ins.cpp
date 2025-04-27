@@ -492,6 +492,28 @@ bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
     }
     return true;
   }
+
+  if(cmd == "enableall"){
+    if (g_plugin) {
+      for (const auto& plugin : g_plugin->get_available_plugins()) {
+        g_plugin->enable_plugin(plugin);
+      }
+    } else {
+      std::cerr << "Plugin manager not initialized" << std::endl;
+    }
+    return true;
+  }
+
+  if(cmd == "disableall"){
+    if (g_plugin) {
+      for (const auto& plugin : g_plugin->get_enabled_plugins()) {
+        g_plugin->disable_plugin(plugin);
+      }
+    } else {
+      std::cerr << "Plugin manager not initialized" << std::endl;
+    }
+    return true;
+  }
   
   if (cmd == "install" && args.size() > 2) {
     if (g_plugin) {
