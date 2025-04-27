@@ -1,3 +1,9 @@
+/**
+ * @file pluginmanager.cpp
+ * @brief Plugin management implementation
+ * @deprecated This file is deprecated and will be removed in a future version.
+ * Please use the new implementation instead.
+ */
 #include "include/pluginmanager.h"
 
 PluginManager::PluginManager(const std::filesystem::path& pluginsDir) 

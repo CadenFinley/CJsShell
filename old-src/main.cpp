@@ -1,3 +1,9 @@
+/**
+ * @file main.cpp
+ * @brief Main application entry point
+ * @deprecated This file is deprecated and will be removed in a future version.
+ * Please use the new implementation instead.
+ */
 #include <iostream>
 #include <string>
 #include <thread>
@@ -1957,7 +1963,7 @@ void shortcutCommands() {
 }
 
 bool validatePrefix(const std::string& prefix) {
-    if (prefix.length() > 1) {
+       if (prefix.length() > 1) {
         std::cerr << "Invalid prefix. Must be a single character." << std::endl;
         return false;
     } else if (prefix == " ") {
@@ -2286,67 +2292,6 @@ void aiSettingsCommands() {
         return;
     }
     std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-}
-
-void aiChatCommands() {
-    getNextCommand();
-    if (lastCommandParsed.empty()) {
-        std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-        return;
-    }
-    if (lastCommandParsed == "history") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            showChatHistory();
-            return;
-        }
-        if (lastCommandParsed == "clear") {
-            c_assistant.clearChatCache();
-            savedChatCache.clear();
-            writeUserData();
-            std::cout << "Chat history cleared." << std::endl;
-            return;
-        }
-    }
-    if (lastCommandParsed == "cache") {
-        getNextCommand();
-        if (lastCommandParsed.empty()) {
-            std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "enable") {
-            c_assistant.setCacheTokens(true);
-            std::cout << "Cache tokens enabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "disable") {
-            c_assistant.setCacheTokens(false);
-            std::cout << "Cache tokens disabled." << std::endl;
-            return;
-        }
-        if (lastCommandParsed == "clear") {
-            c_assistant.clearAllCachedTokens();
-            std::cout << "Chat history cleared." << std::endl;
-            return;
-        }
-    }
-    if (lastCommandParsed == "help") {
-        std::cout << "AI chat commands:" << std::endl;
-        std::cout << " history: Show chat history" << std::endl;
-        std::cout << " history clear: Clear chat history" << std::endl;
-        std::cout << " cache enable: Enable token caching" << std::endl;
-        std::cout << " cache disable: Disable token caching" << std::endl;
-        std::cout << " cache clear: Clear all cached tokens" << std::endl;
-        std::cout << " [MESSAGE]: Send a direct message to AI" << std::endl;
-        return;
-    }
-    for(int i = 0; i < commandsQueue.size(); i++){
-        lastCommandParsed += " " + commandsQueue.front();
-        commandsQueue.pop();
-    }
-    std::cout << "Sent message to GPT: " << lastCommandParsed << std::endl;
-    chatProcess(lastCommandParsed);
-    return;
 }
 
 void chatProcess(const std::string& message) {

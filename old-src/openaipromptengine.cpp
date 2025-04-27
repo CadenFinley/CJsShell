@@ -1,3 +1,9 @@
+/**
+ * @file openaipromptengine.cpp
+ * @brief OpenAI prompt engine implementation
+ * @deprecated This file is deprecated and will be removed in a future version.
+ * Please use the new implementation instead.
+ */
 #include "include/openaipromptengine.h"
 
 OpenAIPromptEngine::OpenAIPromptEngine(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction) {

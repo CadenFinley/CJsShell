@@ -1,3 +1,9 @@
+/**
+ * @file terminal.cpp
+ * @brief Terminal handling implementation
+ * @deprecated This file is deprecated and will be removed in a future version.
+ * Please use the new implementation instead.
+ */
 #include "include/terminal.h"
 
 Terminal::Terminal() : displayWholePath(false) {
