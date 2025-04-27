@@ -1,6 +1,12 @@
 #include "parser.h"
 #include <regex>
 #include <cstdlib>
+#include <glob.h>
+#include <memory>
+#include <array>
+#include <unistd.h>    // for pipe, close, read, STDOUT_FILENO
+#include <sys/wait.h>  // for waitpid
+#include <fcntl.h>     // for open flags
 
 std::vector<std::string> Parser::parse_command(const std::string& command) {
   std::string expanded_command = command;
@@ -119,4 +125,161 @@ void Parser::expand_env_vars(std::string& arg) {
       }
     }
   }
+}
+
+std::vector<Command> Parser::parse_pipeline(const std::string& command) {
+  std::vector<Command> pipeline;
+  
+  // Split the command by pipe characters
+  std::vector<std::string> commands;
+  std::string current;
+  bool in_quotes = false;
+  char quote_char = '\0';
+  
+  for (size_t i = 0; i < command.length(); i++) {
+    char c = command[i];
+    
+    if ((c == '"' || c == '\'') && (i == 0 || command[i-1] != '\\')) {
+      if (!in_quotes) {
+        in_quotes = true;
+        quote_char = c;
+      } else if (c == quote_char) {
+        in_quotes = false;
+        quote_char = '\0';
+      }
+    }
+    
+    if (c == '|' && !in_quotes) {
+      commands.push_back(current);
+      current.clear();
+    } else {
+      current += c;
+    }
+  }
+  
+  if (!current.empty()) {
+    commands.push_back(current);
+  }
+  
+  // Parse each command in the pipeline
+  for (const auto& cmd : commands) {
+    Command parsed_cmd;
+    std::string processed_cmd = cmd;
+    
+    // Check for background execution (& at the end)
+    if (!processed_cmd.empty() && processed_cmd.back() == '&') {
+      parsed_cmd.background = true;
+      processed_cmd.pop_back();
+      // Remove trailing whitespace
+      while (!processed_cmd.empty() && std::isspace(processed_cmd.back())) {
+        processed_cmd.pop_back();
+      }
+    }
+    
+    // Check for redirections
+    std::string remaining = processed_cmd;
+    std::string token;
+    std::vector<std::string> tokens;
+    
+    in_quotes = false;
+    quote_char = '\0';
+    current.clear();
+    
+    for (size_t i = 0; i < remaining.length(); i++) {
+      char c = remaining[i];
+      
+      if ((c == '"' || c == '\'') && (i == 0 || remaining[i-1] != '\\')) {
+        if (!in_quotes) {
+          in_quotes = true;
+          quote_char = c;
+        } else if (c == quote_char) {
+          in_quotes = false;
+          quote_char = '\0';
+        }
+        current += c;
+        continue;
+      }
+      
+      if (!in_quotes && (c == '<' || c == '>')) {
+        if (!current.empty()) {
+          tokens.push_back(current);
+          current.clear();
+        }
+        
+        if (c == '<') {
+          tokens.push_back("<");
+        } else if (c == '>' && i + 1 < remaining.length() && remaining[i + 1] == '>') {
+          tokens.push_back(">>");
+          i++;
+        } else {
+          tokens.push_back(">");
+        }
+      } else if (!in_quotes && std::isspace(c)) {
+        if (!current.empty()) {
+          tokens.push_back(current);
+          current.clear();
+        }
+      } else {
+        current += c;
+      }
+    }
+    
+    if (!current.empty()) {
+      tokens.push_back(current);
+    }
+    
+    // Process tokens for redirections and arguments
+    for (size_t i = 0; i < tokens.size(); i++) {
+      if (tokens[i] == "<") {
+        if (i + 1 < tokens.size()) {
+          parsed_cmd.input_file = tokens[i + 1];
+          i++;
+        }
+      } else if (tokens[i] == ">") {
+        if (i + 1 < tokens.size()) {
+          parsed_cmd.output_file = tokens[i + 1];
+          i++;
+        }
+      } else if (tokens[i] == ">>") {
+        if (i + 1 < tokens.size()) {
+          parsed_cmd.append_file = tokens[i + 1];
+          i++;
+        }
+      } else {
+        // Handle wildcards
+        if (tokens[i].find_first_of("*?") != std::string::npos) {
+          auto expanded = expand_wildcards(tokens[i]);
+          if (!expanded.empty()) {
+            parsed_cmd.args.insert(parsed_cmd.args.end(), expanded.begin(), expanded.end());
+          } else {
+            parsed_cmd.args.push_back(tokens[i]);
+          }
+        } else {
+          // Handle environment variables
+          std::string arg = tokens[i];
+          expand_env_vars(arg);
+          parsed_cmd.args.push_back(arg);
+        }
+      }
+    }
+    
+    pipeline.push_back(parsed_cmd);
+  }
+  
+  return pipeline;
+}
+
+std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
+  glob_t globbuf;
+  std::vector<std::string> result;
+  
+  int ret = glob(pattern.c_str(), GLOB_TILDE | GLOB_BRACE, nullptr, &globbuf);
+  if (ret == 0) {
+    for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+      result.push_back(globbuf.gl_pathv[i]);
+    }
+    globfree(&globbuf);
+  }
+  
+  return result;
 }

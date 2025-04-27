@@ -34,11 +34,9 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
-  // parse the command
-  std::vector<std::string> args = shell_parser->parse_command(command);
-
-  //check for clear and exit early
+  // Check for clear and exit early
   if (command == "clear") {
+    std::vector<std::string> args = {"clear"};
     shell_exec->execute_command_sync(args);
     return;
   }
@@ -47,8 +45,18 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
+  // Check for pipe symbols to determine if this is a pipeline
+  if (command.find('|') != std::string::npos) {
+    std::vector<Command> pipeline = shell_parser->parse_pipeline(command);
+    shell_exec->execute_pipeline(pipeline);
+    last_terminal_output_error = shell_exec->get_error();
+    last_command = command;
+    return;
+  }
+
   // check if user is in ai mode
   if (!g_menu_terminal) {
+    std::vector<std::string> args = shell_parser->parse_command(command);
     if(args[0] == "terminal") {
       g_menu_terminal = true;
       return;
@@ -58,10 +66,18 @@ void Shell::execute_command(std::string command, bool sync) {
       return;
     }
     built_ins->do_ai_request(command);
+    return;
   }
 
+  // Parse the command normally
+  std::vector<std::string> args = shell_parser->parse_command(command);
+  
   // check if command is a built-in command
-  if (built_ins->builtin_command(args)) {
+  if (built_ins->is_builtin_command(args[0])) {
+    if(!built_ins->builtin_command(args)){
+      last_terminal_output_error = "Something went wrong with the command";
+    }
+    last_command = command;
     return;
   }
 

@@ -39,6 +39,7 @@ Built_ins(): builtins({
   }
 
   bool builtin_command(const std::vector<std::string>& args);
+  bool is_builtin_command(const std::string& cmd) const;
   bool change_directory(const std::string& dir, std::string& result);
 
   std::string get_current_directory() const {
@@ -69,6 +70,7 @@ private:
 
   bool plugin_commands(const std::vector<std::string>& args);
   bool theme_commands(const std::vector<std::string>& args);
+  void update_theme_in_rc_file(const std::string& themeName);
   bool approot_command();
   bool version_command();
   bool uninstall_command();

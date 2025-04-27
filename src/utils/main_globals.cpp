@@ -2,6 +2,7 @@
 #include <atomic>
 
 // globals
+bool g_first_boot = false;
 bool g_debug_mode = false;
 bool g_silent_startup = false;
 bool g_cached_update = false;

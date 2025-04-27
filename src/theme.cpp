@@ -102,6 +102,14 @@ std::string Theme::process_color_tags(const std::string& format) {
         {"CYAN_BRIGHT", colors::ansi::FG_BRIGHT_CYAN},
         {"WHITE_BRIGHT", colors::ansi::FG_BRIGHT_WHITE},
         
+        // Pastel color palette
+        {"PASTEL_BLUE", "\033[38;5;117m"},
+        {"PASTEL_PEACH", "\033[38;5;222m"},
+        {"PASTEL_CYAN", "\033[38;5;159m"},
+        {"PASTEL_MINT", "\033[38;5;122m"},
+        {"PASTEL_LAVENDER", "\033[38;5;183m"},
+        {"PASTEL_CORAL", "\033[38;5;203m"},
+        
         // Named colors from colors.h
         {"ALICE_BLUE", colors::fg_color(colors::named::ALICE_BLUE)},
         {"ANTIQUE_WHITE", colors::fg_color(colors::named::ANTIQUE_WHITE)},
@@ -202,10 +210,10 @@ std::string Theme::process_color_tags(const std::string& format) {
         {"PERU", colors::fg_color(colors::named::PERU)},
         {"PINK", colors::fg_color(colors::named::PINK)},
         {"PLUM", colors::fg_color(colors::named::PLUM)},
-        {"POWDER_BLUE", colors::fg_color(colors::named::POWDER_BLUE)},
-        {"PURPLE", colors::fg_color(colors::named::PURPLE)},
-        {"REBECCA_PURPLE", colors::fg_color(colors::named::REBECCA_PURPLE)},
-        {"ROSY_BROWN", colors::fg_color(colors::named::ROSY_BROWN)},
+        {"MEDIUM_TURQUOISE", colors::fg_color(colors::named::MEDIUM_TURQUOISE)},
+        {"MEDIUM_VIOLET_RED", colors::fg_color(colors::named::MEDIUM_VIOLET_RED)},
+        {"MIDNIGHT_BLUE", colors::fg_color(colors::named::MIDNIGHT_BLUE)},
+        {"MINT_CREAM", colors::fg_color(colors::named::MINT_CREAM)},
         {"ROYAL_BLUE", colors::fg_color(colors::named::ROYAL_BLUE)},
         {"SADDLE_BROWN", colors::fg_color(colors::named::SADDLE_BROWN)},
         {"SALMON", colors::fg_color(colors::named::SALMON)},
