@@ -4,6 +4,8 @@
 #include <signal.h>
 #include "colors.h"
 
+// instead of static defined colors, have colors be defined in a file so that the user can add custom colors
+
 int main(int argc, char *argv[]) {
   // cjsh
   

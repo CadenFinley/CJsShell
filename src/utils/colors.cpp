@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <cstdlib>
 #include <cctype>
+#include <climits>
 
 namespace colors {
 
@@ -391,7 +392,7 @@ RGB xterm256_to_rgb(uint8_t index) {
     }
     
     // Handle grayscale (232-255)
-    if (index >= 232 && index <= 255) {
+    if (index >= 232) {
         int gray = (index - 232) * 10 + 8;
         return RGB(gray, gray, gray);
     }
