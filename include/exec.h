@@ -38,11 +38,9 @@ public:
 
   void execute_command_sync(const std::vector<std::string>& args);
   void execute_command_async(const std::vector<std::string>& args);
-  
-  // Pipeline handling
+
   void execute_pipeline(const std::vector<Command>& commands);
   
-  // Job control methods
   int add_job(const Job& job);
   void remove_job(int job_id);
   void update_job_status(int job_id, bool completed, bool stopped, int status);
@@ -51,13 +49,10 @@ public:
   void wait_for_job(int job_id);
   std::map<int, Job> get_jobs();
   
-  // Initialize shell environment
   void init_shell();
-  
-  // Process child signals
+
   void handle_child_signal(pid_t pid, int status);
   
-  // Thread-safe methods for error handling
   void set_error(const std::string& error);
   std::string get_error();
   

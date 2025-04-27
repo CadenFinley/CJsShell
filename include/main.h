@@ -90,6 +90,7 @@ void initialize_login_environment();
 bool is_shell_script_construct(const std::string& line);
 void process_shell_scripts_in_config();
 bool parse_and_set_env_var(const std::string& line);
+void prepare_shell_signal_environment();
 
 // using json = nlohmann::json;
 

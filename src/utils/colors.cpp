@@ -5,8 +5,99 @@
 #include <iomanip>
 #include <sstream>
 #include <unordered_map>
+#include <cstdlib>
+#include <cctype>
 
 namespace colors {
+
+// Initialize global variable
+ColorCapability g_color_capability = ColorCapability::BASIC_COLOR;
+
+ColorCapability detect_color_capability() {
+    // Check environment variables to determine color support
+    const char* colorterm = std::getenv("COLORTERM");
+    const char* term = std::getenv("TERM");
+    const char* no_color = std::getenv("NO_COLOR");
+    const char* force_color = std::getenv("FORCE_COLOR");
+    
+    // If NO_COLOR is set (any value), disable colors
+    if (no_color && no_color[0] != '\0') {
+        return ColorCapability::NO_COLOR;
+    }
+    
+    // If FORCE_COLOR is explicitly set to "true", force true color support
+    if (force_color && std::string(force_color) == "true") {
+        return ColorCapability::TRUE_COLOR;
+    }
+    
+    // Check for truecolor/24bit support
+    if (colorterm) {
+        std::string colortermStr = colorterm;
+        std::transform(colortermStr.begin(), colortermStr.end(), colortermStr.begin(),
+                      [](unsigned char c){ return std::tolower(c); });
+        
+        if (colortermStr.find("truecolor") != std::string::npos || 
+            colortermStr.find("24bit") != std::string::npos) {
+            return ColorCapability::TRUE_COLOR;
+        }
+    }
+    
+    // Check if terminal supports 256 colors
+    if (term) {
+        std::string termStr = term;
+        if (termStr.find("256") != std::string::npos || 
+            termStr.find("xterm") != std::string::npos) {
+            return ColorCapability::XTERM_256_COLOR;
+        }
+    }
+    
+    // Default to basic color support
+    return ColorCapability::BASIC_COLOR;
+}
+
+void initialize_color_support() {
+    g_color_capability = detect_color_capability();
+}
+
+// Helper function to get the closest basic ANSI color for an RGB color
+uint8_t get_closest_ansi_color(const RGB& color) {
+    // Basic ANSI colors (0-15)
+    const std::array<RGB, 16> basic_colors = {{
+        {0, 0, 0},       // Black
+        {170, 0, 0},     // Red
+        {0, 170, 0},     // Green
+        {170, 85, 0},    // Yellow
+        {0, 0, 170},     // Blue
+        {170, 0, 170},   // Magenta
+        {0, 170, 170},   // Cyan
+        {170, 170, 170}, // White
+        {85, 85, 85},    // Bright Black
+        {255, 85, 85},   // Bright Red
+        {85, 255, 85},   // Bright Green
+        {255, 255, 85},  // Bright Yellow
+        {85, 85, 255},   // Bright Blue
+        {255, 85, 255},  // Bright Magenta
+        {85, 255, 255},  // Bright Cyan
+        {255, 255, 255}  // Bright White
+    }};
+    
+    uint8_t closest_index = 0;
+    int closest_distance = INT_MAX;
+    
+    for (size_t i = 0; i < basic_colors.size(); i++) {
+        const RGB& c = basic_colors[i];
+        int distance = (c.r - color.r) * (c.r - color.r) +
+                      (c.g - color.g) * (c.g - color.g) +
+                      (c.b - color.b) * (c.b - color.b);
+        
+        if (distance < closest_distance) {
+            closest_distance = distance;
+            closest_index = i;
+        }
+    }
+    
+    return closest_index;
+}
 
 HSL rgb_to_hsl(const RGB& rgb) {
     float r = rgb.r / 255.0f;
@@ -71,27 +162,91 @@ RGB hsl_to_rgb(const HSL& hsl) {
 
 std::string fg_color(const RGB& color) {
     std::stringstream ss;
-    ss << "\033[38;2;" << static_cast<int>(color.r) << ";" 
-       << static_cast<int>(color.g) << ";" 
-       << static_cast<int>(color.b) << "m";
+    
+    switch (g_color_capability) {
+        case ColorCapability::NO_COLOR:
+            return "";
+            
+        case ColorCapability::BASIC_COLOR: {
+            uint8_t ansi_color = get_closest_ansi_color(color);
+            if (ansi_color < 8) {
+                ss << "\033[3" << static_cast<int>(ansi_color) << "m";
+            } else {
+                ss << "\033[9" << static_cast<int>(ansi_color - 8) << "m";
+            }
+            break;
+        }
+            
+        case ColorCapability::XTERM_256_COLOR:
+            ss << "\033[38;5;" << static_cast<int>(rgb_to_xterm256(color)) << "m";
+            break;
+            
+        case ColorCapability::TRUE_COLOR:
+            ss << "\033[38;2;" << static_cast<int>(color.r) << ";" 
+               << static_cast<int>(color.g) << ";" 
+               << static_cast<int>(color.b) << "m";
+            break;
+    }
+    
     return ss.str();
 }
 
 std::string bg_color(const RGB& color) {
     std::stringstream ss;
-    ss << "\033[48;2;" << static_cast<int>(color.r) << ";" 
-       << static_cast<int>(color.g) << ";" 
-       << static_cast<int>(color.b) << "m";
+    
+    switch (g_color_capability) {
+        case ColorCapability::NO_COLOR:
+            return "";
+            
+        case ColorCapability::BASIC_COLOR: {
+            uint8_t ansi_color = get_closest_ansi_color(color);
+            if (ansi_color < 8) {
+                ss << "\033[4" << static_cast<int>(ansi_color) << "m";
+            } else {
+                ss << "\033[10" << static_cast<int>(ansi_color - 8) << "m";
+            }
+            break;
+        }
+            
+        case ColorCapability::XTERM_256_COLOR:
+            ss << "\033[48;5;" << static_cast<int>(rgb_to_xterm256(color)) << "m";
+            break;
+            
+        case ColorCapability::TRUE_COLOR:
+            ss << "\033[48;2;" << static_cast<int>(color.r) << ";" 
+               << static_cast<int>(color.g) << ";" 
+               << static_cast<int>(color.b) << "m";
+            break;
+    }
+    
     return ss.str();
 }
 
 std::string fg_color(uint8_t index) {
+    if (g_color_capability == ColorCapability::NO_COLOR) {
+        return "";
+    }
+    
+    if (g_color_capability == ColorCapability::BASIC_COLOR && index >= 16) {
+        // Map to closest basic color
+        return fg_color(xterm256_to_rgb(index));
+    }
+    
     std::stringstream ss;
     ss << "\033[38;5;" << static_cast<int>(index) << "m";
     return ss.str();
 }
 
 std::string bg_color(uint8_t index) {
+    if (g_color_capability == ColorCapability::NO_COLOR) {
+        return "";
+    }
+    
+    if (g_color_capability == ColorCapability::BASIC_COLOR && index >= 16) {
+        // Map to closest basic color
+        return bg_color(xterm256_to_rgb(index));
+    }
+    
     std::stringstream ss;
     ss << "\033[48;5;" << static_cast<int>(index) << "m";
     return ss.str();
@@ -155,16 +310,33 @@ std::vector<RGB> gradient(const RGB& start, const RGB& end, size_t steps) {
 
 std::string gradient_text(const std::string& text, const RGB& start, const RGB& end) {
     if (text.empty()) return "";
+    if (g_color_capability == ColorCapability::NO_COLOR) return text;
     
     std::string result;
     size_t steps = text.length();
-    std::vector<RGB> colors = gradient(start, end, steps);
     
-    for (size_t i = 0; i < steps; ++i) {
-        result += fg_color(colors[i]) + text.substr(i, 1);
+    // For basic color capability, use a simpler approach with fewer distinct colors
+    if (g_color_capability == ColorCapability::BASIC_COLOR) {
+        // Use just start color for first half, end color for second half
+        size_t halfway = steps / 2;
+        for (size_t i = 0; i < steps; ++i) {
+            if (i < halfway) {
+                result += fg_color(start) + text.substr(i, 1);
+            } else {
+                result += fg_color(end) + text.substr(i, 1);
+            }
+        }
+    } else {
+        // Full gradient for terminals that support it
+        std::vector<RGB> colors = gradient(start, end, steps);
+        for (size_t i = 0; i < steps; ++i) {
+            result += fg_color(colors[i]) + text.substr(i, 1);
+        }
     }
     
-    result += ansi::RESET;
+    if (g_color_capability != ColorCapability::NO_COLOR) {
+        result += ansi::RESET;
+    }
     return result;
 }
 

@@ -4,89 +4,7 @@
 #include <signal.h>
 #include "colors.h"
 
-void setup_environment_variables() {
-  // Set up standard environment variables
-  uid_t uid = getuid();
-  struct passwd* pw = getpwuid(uid);
-  
-  if (pw != nullptr) {
-    setenv("USER", pw->pw_name, 1);
-    setenv("LOGNAME", pw->pw_name, 1);
-    setenv("HOME", pw->pw_dir, 1);
-    
-    if (getenv("PATH") == nullptr) {
-      setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
-    }
-    
-    char hostname[256];
-    if (gethostname(hostname, sizeof(hostname)) == 0) {
-      setenv("HOSTNAME", hostname, 1);
-    }
-    
-    setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
-  }
-}
-
-void initialize_login_environment() {
-  if (g_shell->get_login_mode()) {
-    g_shell_terminal = STDIN_FILENO;
-    
-    if (!isatty(g_shell_terminal)) {
-      std::cerr << "Warning: Not running on a terminal device" << std::endl;
-    }
-    
-    g_shell_pgid = getpid();
-    
-    // Put ourselves in our own process group
-    if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
-      if (errno != EPERM) {
-        perror("setpgid failed");
-      }
-    }
-    
-    // Make sure we are foreground
-    if (isatty(g_shell_terminal)) {
-      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
-        perror("tcsetpgrp failed in initialize_login_environment");
-      }
-    }
-    
-    // Save default terminal attributes
-    struct termios term_attrs;
-    if (tcgetattr(g_shell_terminal, &term_attrs) == 0) {
-      g_shell_tmodes = term_attrs;
-      g_terminal_state_saved = true;
-    }
-  }
-}
-
-// Use this before registering shell's signal handlers
-void prepare_shell_signal_environment() {
-  // Block signals while we set up handlers to avoid race conditions
-  sigset_t mask;
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGQUIT);
-  sigaddset(&mask, SIGTSTP);
-  sigaddset(&mask, SIGTTIN);
-  sigaddset(&mask, SIGTTOU);
-  sigaddset(&mask, SIGCHLD);
-  sigprocmask(SIG_BLOCK, &mask, nullptr);
-  
-  // Ignore these signals initially
-  struct sigaction sa;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
-  
-  sigaction(SIGTTOU, &sa, nullptr);
-  sigaction(SIGTTIN, &sa, nullptr);
-  sigaction(SIGQUIT, &sa, nullptr);
-  sigaction(SIGTSTP, &sa, nullptr);
-  
-  // Unblock signals now that handlers are set
-  sigprocmask(SIG_UNBLOCK, &mask, nullptr);
-}
+// update --help command
 
 int main(int argc, char *argv[]) {
   // cjsh
@@ -116,6 +34,9 @@ int main(int argc, char *argv[]) {
     setup_environment_variables();
     g_shell->setup_job_control();
   }
+
+  // Initialize color support
+  colors::initialize_color_support();
   
   // check for non interactive command line arguments
   // -c, --command
@@ -124,6 +45,7 @@ int main(int argc, char *argv[]) {
   // --set-as-shell
   // --update
   // --silent-updates
+  // --splash
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
   
@@ -250,12 +172,10 @@ int main(int argc, char *argv[]) {
     g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
 
-  // do update process
-  startup_update_process();
-
   if(!g_exit_flag) {
+    // do update process
+    startup_update_process();
     if (g_title_line) {
-      // Replace plain splash with colorized version
       std::cout << title_line << std::endl;
       std::cout << created_line  << std::endl;
     }
@@ -282,6 +202,11 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
+void update_terminal_title() {
+  std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
+  std::cout.flush();
+}
+
 void main_process_loop() {
   notify_plugins("main_process_pre_run", c_pid_str);
 
@@ -296,8 +221,8 @@ void main_process_loop() {
     if (g_debug_mode) {
       std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
     }
+    update_terminal_title();
     
-    std::cout << "\033]0;" << g_shell -> get_title_prompt() << "\007";
     std::string prompt;
     if (g_menu_terminal) {
       prompt = g_shell->get_prompt();
@@ -313,6 +238,7 @@ void main_process_loop() {
         notify_plugins("main_process_command_processed", command);
         ic_history_add(command.c_str());
         g_shell->execute_command(command, true);
+        update_terminal_title();
       }
       if (g_exit_flag) {
         break;
@@ -348,7 +274,7 @@ bool init_login_filesystem() {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
       return false;
     }
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
       create_config_file();
     }
   } catch (const std::exception& e) {
@@ -356,6 +282,82 @@ bool init_login_filesystem() {
     return false;
   }
   return true;
+}
+
+void setup_environment_variables() {
+  uid_t uid = getuid();
+  struct passwd* pw = getpwuid(uid);
+  
+  if (pw != nullptr) {
+    setenv("USER", pw->pw_name, 1);
+    setenv("LOGNAME", pw->pw_name, 1);
+    setenv("HOME", pw->pw_dir, 1);
+    
+    if (getenv("PATH") == nullptr) {
+      setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+    }
+    
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+      setenv("HOSTNAME", hostname, 1);
+    }
+    
+    setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+  }
+}
+
+void initialize_login_environment() {
+  if (g_shell->get_login_mode()) {
+    g_shell_terminal = STDIN_FILENO;
+    
+    if (!isatty(g_shell_terminal)) {
+      std::cerr << "Warning: Not running on a terminal device" << std::endl;
+    }
+    
+    g_shell_pgid = getpid();
+
+    if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
+      if (errno != EPERM) {
+        perror("setpgid failed");
+      }
+    }
+    
+    if (isatty(g_shell_terminal)) {
+      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
+        perror("tcsetpgrp failed in initialize_login_environment");
+      }
+    }
+    
+    struct termios term_attrs;
+    if (tcgetattr(g_shell_terminal, &term_attrs) == 0) {
+      g_shell_tmodes = term_attrs;
+      g_terminal_state_saved = true;
+    }
+  }
+}
+
+void prepare_shell_signal_environment() {
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGQUIT);
+  sigaddset(&mask, SIGTSTP);
+  sigaddset(&mask, SIGTTIN);
+  sigaddset(&mask, SIGTTOU);
+  sigaddset(&mask, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &mask, nullptr);
+  
+  struct sigaction sa;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  
+  sigaction(SIGTTOU, &sa, nullptr);
+  sigaction(SIGTTIN, &sa, nullptr);
+  sigaction(SIGQUIT, &sa, nullptr);
+  sigaction(SIGTSTP, &sa, nullptr);
+  
+  sigprocmask(SIG_UNBLOCK, &mask, nullptr);
 }
 
 bool init_interactive_filesystem() {
@@ -388,18 +390,17 @@ bool init_interactive_filesystem() {
 }
 
 void process_config_file() {
-  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
+  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
     create_config_file();
     return;
   }
 
-  std::ifstream config_file(cjsh_filesystem::g_cjsh_config_path);
+  std::ifstream config_file(cjsh_filesystem::g_cjsh_profile_path);
   if (!config_file.is_open()) {
     std::cerr << "cjsh: Failed to open the configuration file for reading." << std::endl;
     return;
   }
   
-  // First, process special directives like PATH_HELPER
   config_file.clear();
   config_file.seekg(0);
   
@@ -410,12 +411,10 @@ void process_config_file() {
     }
     
     if (line == "PATH_HELPER") {
-      // Process path helper specifically
       process_shell_scripts_in_config();
     }
   }
   
-  // Then, process regular commands and environment variables
   config_file.clear();
   config_file.seekg(0);
   
@@ -423,18 +422,15 @@ void process_config_file() {
     if (line.empty() || line[0] == '#' || line == "PATH_HELPER") {
       continue;
     }
-    
-    // Skip shell script constructs
+
     if (is_shell_script_construct(line)) {
       continue;
     }
     
-    // Try to handle as an environment variable
     if (parse_and_set_env_var(line)) {
       continue;
     }
     
-    // Otherwise process as a regular command
     g_shell->execute_command(line, true);
   }
   
@@ -446,10 +442,8 @@ void process_config_file() {
 
 bool is_shell_script_construct(const std::string& line) {
   std::string trimmed = line;
-  // Trim leading whitespace
   trimmed.erase(0, trimmed.find_first_not_of(" \t"));
   
-  // Check for shell script constructs
   if (trimmed.find("if ") == 0 || 
       trimmed == "then" || 
       trimmed == "else" || 
@@ -466,12 +460,7 @@ bool is_shell_script_construct(const std::string& line) {
 }
 
 void process_shell_scripts_in_config() {
-  // Special handling for common shell script patterns in config
-  // For the path_helper specifically
-  
-  // Check if path_helper exists
   if (std::filesystem::exists("/usr/libexec/path_helper")) {
-    // Execute path_helper and capture its output
     FILE* pipe = popen("/usr/libexec/path_helper -s", "r");
     if (pipe) {
       char buffer[256];
@@ -484,17 +473,13 @@ void process_shell_scripts_in_config() {
       }
       pclose(pipe);
       
-      // Process the result - for proper PATH setting
-      // The output is typically: export PATH="/usr/local/bin:/usr/bin:/bin"; 
       std::string path_value;
       size_t pos = result.find("PATH=\"");
       if (pos != std::string::npos) {
-        pos += 6; // move past 'PATH="'
+        pos += 6;
         size_t end_pos = result.find("\"", pos);
         if (end_pos != std::string::npos) {
           path_value = result.substr(pos, end_pos - pos);
-          
-          // Directly set the PATH environment variable
           if (!path_value.empty()) {
             setenv("PATH", path_value.c_str(), 1);
             if (g_debug_mode) {
@@ -505,29 +490,29 @@ void process_shell_scripts_in_config() {
       }
     }
   }
-  
-  // Add more special shell script handling as needed
+  else {
+    std::cerr << "Warning: /usr/libexec/path_helper not found. PATH may not be set correctly." << std::endl;
+  }
+  if (g_debug_mode) {
+    std::cout << "DEBUG: PATH_HELPER executed." << std::endl;
+  }
 }
 
-// Function to parse environment variable settings
 bool parse_and_set_env_var(const std::string& line) {
-  // Check if it's an export command
   if (line.find("export ") == 0) {
-    std::string var_setting = line.substr(7); // Remove "export " prefix
+    std::string var_setting = line.substr(7);
     size_t equals_pos = var_setting.find('=');
     
     if (equals_pos != std::string::npos) {
       std::string var_name = var_setting.substr(0, equals_pos);
       std::string var_value = var_setting.substr(equals_pos + 1);
       
-      // Remove quotes if present
       if (var_value.size() >= 2 && 
           ((var_value.front() == '"' && var_value.back() == '"') || 
            (var_value.front() == '\'' && var_value.back() == '\''))) {
         var_value = var_value.substr(1, var_value.size() - 2);
       }
       
-      // Set the environment variable directly
       setenv(var_name.c_str(), var_value.c_str(), 1);
       
       if (g_debug_mode) {
@@ -536,7 +521,6 @@ bool parse_and_set_env_var(const std::string& line) {
       return true;
     }
   }
-  // Check if it's a direct VAR=value format (without export)
   else {
     size_t equals_pos = line.find('=');
     
@@ -544,14 +528,12 @@ bool parse_and_set_env_var(const std::string& line) {
       std::string var_name = line.substr(0, equals_pos);
       std::string var_value = line.substr(equals_pos + 1);
       
-      // Remove quotes if present
       if (var_value.size() >= 2 && 
           ((var_value.front() == '"' && var_value.back() == '"') || 
            (var_value.front() == '\'' && var_value.back() == '\''))) {
         var_value = var_value.substr(1, var_value.size() - 2);
       }
       
-      // Set the environment variable directly
       setenv(var_name.c_str(), var_value.c_str(), 1);
       
       if (g_debug_mode) {
@@ -565,7 +547,7 @@ bool parse_and_set_env_var(const std::string& line) {
 }
 
 void create_config_file() {
-  std::ofstream config_file(cjsh_filesystem::g_cjsh_config_path);
+  std::ofstream config_file(cjsh_filesystem::g_cjsh_profile_path);
   if (config_file.is_open()) {
     config_file << "# CJ's Shell Configuration File\n";
     config_file << "# This file is sourced when the shell starts in login mode\n";
@@ -664,7 +646,7 @@ void parent_process_watchdog() {
         delete g_theme;
         g_theme = nullptr;
       }
-      _exit(1); // Use _exit instead of exit to avoid running cleanup handlers that might block
+      _exit(1);
     }
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
@@ -839,7 +821,6 @@ bool download_latest_release() {
   std::filesystem::create_directory(temp_dir);
 
   std::string download_url;
-  // Fetch actual asset URL from GitHub API
   {
       std::string api_cmd = "curl -s " + c_update_url;
       std::string api_result;
@@ -851,7 +832,6 @@ bool download_latest_release() {
           try {
               auto api_json = json::parse(api_result);
 
-              // determine expected asset name by OS
               std::string os_suffix;
               #if defined(__APPLE__)
               os_suffix = "macos";
@@ -862,7 +842,6 @@ bool download_latest_release() {
               #endif
               std::string expected = "cjsh" + (os_suffix.empty() ? "" : "-" + os_suffix);
 
-              // find matching asset
               for (const auto& asset : api_json["assets"]) {
                   std::string name = asset.value("name", "");
                   if (name == expected || (download_url.empty() && name == "cjsh")) {
@@ -881,12 +860,10 @@ bool download_latest_release() {
       return false;
   }
 
-  // save into temp with original asset filename
   std::string asset_name = download_url.substr(download_url.find_last_of('/') + 1);
   std::filesystem::path asset_path = temp_dir / asset_name;
   std::string curl_command = "curl -L -s " + download_url + " -o " + asset_path.string();
   
-  // Execute the download command using popen instead of system
   FILE* download_pipe = popen(curl_command.c_str(), "r");
   if (!download_pipe) {
       std::cerr << "Error: Failed to execute download command." << std::endl;
@@ -899,11 +876,9 @@ bool download_latest_release() {
       return false;
   }
 
-  // rename for consistency
   std::filesystem::path output_path = temp_dir / "cjsh";
   std::filesystem::rename(asset_path, output_path);
 
-  // Use filesystem to set permissions instead of chmod
   try {
       std::filesystem::permissions(output_path, 
           std::filesystem::perms::owner_read | 
@@ -921,7 +896,6 @@ bool download_latest_release() {
   std::cout << "Administrator privileges required to install the update." << std::endl;
   std::cout << "Please enter your password if prompted." << std::endl;
 
-  // We still need sudo for copying to system locations, but use popen to capture output
   std::string sudo_command = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path.string();
   FILE* sudo_pipe = popen(sudo_command.c_str(), "r");
   int sudo_result = sudo_pipe ? pclose(sudo_pipe) : -1;
@@ -937,7 +911,6 @@ bool download_latest_release() {
       auto dest_file_size = std::filesystem::file_size(cjsh_filesystem::g_cjsh_path);
       
       if (new_file_size == dest_file_size) {
-          // Still need sudo for chmod on system files
           std::string sudo_chmod_command = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path.string();
           FILE* chmod_pipe = popen(sudo_chmod_command.c_str(), "r");
           pclose(chmod_pipe);
@@ -945,7 +918,6 @@ bool download_latest_release() {
           update_success = true;
           std::cout << "Update installed successfully with administrator privileges." << std::endl;
           
-          // Create changelog file
           std::ofstream changelog((cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string());
           if (changelog.is_open()) {
               changelog << "Updated to version " << g_cached_version << " on " << get_current_time_string() << std::endl;
@@ -966,14 +938,12 @@ bool download_latest_release() {
       std::cout << "Please ensure you have the necessary permissions." << std::endl;
   }
 
-  // Clean up temporary files using filesystem functions
   try {
       std::filesystem::remove_all(temp_dir);
   } catch (const std::exception& e) {
       std::cerr << "Error cleaning up temporary files: " << e.what() << std::endl;
   }
 
-  // Remove update cache file if it exists
   if (std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path)) {
       try {
           std::filesystem::remove(cjsh_filesystem::g_cjsh_update_cache_path);
@@ -1027,10 +997,8 @@ bool execute_update_if_available(bool update_available) {
       delete g_theme;
       delete g_plugin;
       
-      // Execute the new version
       execl(cjsh_filesystem::g_cjsh_path.c_str(), cjsh_filesystem::g_cjsh_path.c_str(), NULL);
       
-      // If execl fails
       std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
       exit(0);
   } else {
@@ -1053,25 +1021,15 @@ void display_changelog(const std::string& changelog_path) {
 }
 
 void startup_update_process() {
-  // Check if this is the first boot
   g_first_boot = is_first_boot();
   
   if (g_first_boot) {
-    // Show a welcome message with the splash screen
     std::cout << "\n" << get_colorized_splash() << std::endl;
     std::cout << "Welcome to CJ's Shell!" << std::endl;
     std::cout << "Type 'help' for a list of commands or 'exit' to quit." << std::endl;
-    
-    // Pause briefly so user can see the splash screen
-    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-    
-    // Mark first boot as complete
     mark_first_boot_complete();
-    
-    // Set title line to false for this first session since we already showed the splash
     g_title_line = false;
   }
-
   std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
   if (std::filesystem::exists(changelog_path)) {
     display_changelog(changelog_path);
@@ -1120,6 +1078,14 @@ std::string get_colorized_splash() {
   };
   
   std::string colorized_splash;
+  
+  // If terminal doesn't support colors, return plain text
+  if (colors::g_color_capability == colors::ColorCapability::NO_COLOR) {
+    for (const auto& line : splash_lines) {
+      colorized_splash += line + "\n";
+    }
+    return colorized_splash;
+  }
   
   // Define gradient start and end colors for each line
   std::vector<std::pair<colors::RGB, colors::RGB>> line_gradients = {

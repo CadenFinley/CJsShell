@@ -1348,7 +1348,7 @@ void Built_ins::save_env_var_to_file(const std::string& name, const std::string&
     return;
   }
   
-  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
+  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_profile_path;
   
   std::vector<std::string> lines;
   std::string line;
@@ -1395,7 +1395,7 @@ void Built_ins::remove_env_var_from_file(const std::string& name) {
     return;
   }
   
-  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
+  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_profile_path;
   
   std::vector<std::string> lines;
   std::string line;
