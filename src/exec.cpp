@@ -680,6 +680,9 @@ void sigchld_handler(int sig) {
 void sigint_handler(int sig) {
   (void)sig; // Mark parameter as deliberately unused
   
+  // Print a newline character when Ctrl+C is pressed
+  write(STDOUT_FILENO, "\n", 1);
+  
   // Ignore SIGINT in the shell process
   // Child processes will inherit the default handler when they are exec'd
 }
