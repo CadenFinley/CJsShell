@@ -73,7 +73,11 @@ void Shell::execute_command(std::string command, bool sync) {
   std::vector<std::string> args = shell_parser->parse_command(command);
   
   // check if command is a built-in command
-  if (built_ins->builtin_command(args)) {
+  if (built_ins->is_builtin_command(args[0])) {
+    if(!built_ins->builtin_command(args)){
+      last_terminal_output_error = "Something went wrong with the command";
+    }
+    last_command = command;
     return;
   }
 

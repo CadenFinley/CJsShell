@@ -39,6 +39,7 @@ Built_ins(): builtins({
   }
 
   bool builtin_command(const std::vector<std::string>& args);
+  bool is_builtin_command(const std::string& cmd) const;
   bool change_directory(const std::string& dir, std::string& result);
 
   std::string get_current_directory() const {

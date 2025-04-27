@@ -13,6 +13,10 @@ bool Built_ins::builtin_command(const std::vector<std::string>& args) {
   return false;
 }
 
+bool Built_ins::is_builtin_command(const std::string& cmd) const {
+  return !cmd.empty() && builtins.find(cmd) != builtins.end();
+}
+
 bool Built_ins::change_directory(const std::string& dir, std::string& result) {
   std::string target_dir = dir;
   
@@ -253,7 +257,7 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
 bool Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
     std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-    return false;
+    return false;  // Return false for error case
   }
   
   const std::string& subcmd = args[cmd_index + 1];
@@ -358,7 +362,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
   if (subcmd == "add") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
       std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
-      return false;
+      return false;  // Return false for error case
     }
     
     if (args[cmd_index + 2] == "all") {
@@ -441,7 +445,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
   }
   
   std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-  return false;
+  return false;  // Return false for unknown command
 }
 
 bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
@@ -600,16 +604,15 @@ bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
         
         if (g_plugin->update_plugin_setting(pluginName, settingName, settingValue)) {
           std::cout << "Setting " << settingName << " set to " << settingValue << " for plugin " << pluginName << std::endl;
-          return true;
         } else {
           std::cout << "Setting " << settingName << " not found for plugin " << pluginName << std::endl;
-          return true;
         }
+        return true;
       }
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return false;
+    return true;
   }
   
   if (g_plugin) {
@@ -646,15 +649,15 @@ bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
           return true;
         }
         std::cerr << "Plugin: " << pluginName << " is disabled." << std::endl;
-        return false;
+        return true;  // Changed from false to true since this is a valid plugin command
       } else {
         std::cerr << "Plugin " << pluginName << " does not exist." << std::endl;
-        return false;
+        return false;  // This is correct - the plugin doesn't exist
       }
     }
   }
   
-  std::cerr << "Unknown command. Try 'plugin help' for available commands." << std::endl;
+  std::cerr << "Unknown command. Try 'help' for available commands." << std::endl;
   return false;
 }
 
@@ -668,6 +671,7 @@ bool Built_ins::theme_commands(const std::vector<std::string>& args) {
       }
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
+      return false;  // Return false when theme manager isn't initialized
     }
     return true;
   }
@@ -677,22 +681,26 @@ bool Built_ins::theme_commands(const std::vector<std::string>& args) {
       std::string themeName = args[2];
       if (g_theme->load_theme(themeName)) {
         g_current_theme = themeName;
+        return true;
       }
+      return false;  // Return false if theme loading failed
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
+      return false;  // Return false when theme manager isn't initialized
     }
-    return true;
   }
   
   if (g_theme) {
     std::string themeName = args[1];
     if (g_theme->load_theme(themeName)) {
       g_current_theme = themeName;
+      return true;
     }
+    return false;  // Return false if theme loading failed
   } else {
     std::cerr << "Theme manager not initialized" << std::endl;
+    return false;  // Return false when theme manager isn't initialized
   }
-  return true;
 }
 
 bool Built_ins::approot_command() {
@@ -1047,6 +1055,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
     return true;
   }
 
+  bool all_successful = true;  // Track if all operations succeeded
   auto& aliases = g_shell->get_aliases();
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
@@ -1062,6 +1071,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
         std::cout << "alias " << it->first << "='" << it->second << "'" << std::endl;
       } else {
         std::cerr << "alias: " << args[i] << ": not found" << std::endl;
+        all_successful = false;  // Mark as failure if any alias is not found
       }
     }
   }
@@ -1070,7 +1080,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
     g_shell->set_aliases(aliases);
   }
   
-  return true;
+  return all_successful;  // Return success only if all operations succeeded
 }
 
 bool Built_ins::export_command(const std::vector<std::string>& args) {
@@ -1082,6 +1092,7 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
     return true;
   }
 
+  bool all_successful = true;  // Track if all operations succeeded
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
     if (parse_assignment(args[i], name, value)) {
@@ -1104,6 +1115,7 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
         std::cout << "export " << args[i] << "='" << env_val << "'" << std::endl;
       } else {
         std::cerr << "export: " << args[i] << ": not found" << std::endl;
+        all_successful = false;  // Mark as failure if any variable is not found
       }
     }
   }
@@ -1112,39 +1124,7 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
     g_shell->set_env_vars(env_vars);
   }
   
-  return true;
-}
-
-bool Built_ins::unalias_command(const std::vector<std::string>& args) {
-  if (args.size() < 2) {
-    std::cerr << "unalias: not enough arguments" << std::endl;
-    return false;
-  }
-
-  bool success = true;
-  auto& aliases = g_shell->get_aliases();
-
-  for (size_t i = 1; i < args.size(); ++i) {
-    const std::string& name = args[i];
-    auto it = aliases.find(name);
-    
-    if (it != aliases.end()) {
-      aliases.erase(it);
-      remove_alias_from_file(name);
-      if (g_debug_mode) {
-        std::cout << "Removed alias: " << name << std::endl;
-      }
-    } else {
-      std::cerr << "unalias: " << name << ": not found" << std::endl;
-      success = false;
-    }
-  }
-
-  if (g_shell) {
-    g_shell->set_aliases(aliases);
-  }
-  
-  return success;
+  return all_successful;  // Return success only if all operations succeeded
 }
 
 bool Built_ins::unset_command(const std::vector<std::string>& args) {
@@ -1239,6 +1219,38 @@ void Built_ins::save_alias_to_file(const std::string& name, const std::string& v
   } else {
     std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
   }
+}
+
+bool Built_ins::unalias_command(const std::vector<std::string>& args) {
+  if (args.size() < 2) {
+    std::cerr << "unalias: not enough arguments" << std::endl;
+    return false;
+  }
+
+  bool success = true;
+  auto& aliases = g_shell->get_aliases();
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    const std::string& name = args[i];
+    auto it = aliases.find(name);
+    
+    if (it != aliases.end()) {
+      aliases.erase(it);
+      remove_alias_from_file(name);
+      if (g_debug_mode) {
+        std::cout << "Removed alias: " << name << std::endl;
+      }
+    } else {
+      std::cerr << "unalias: " << name << ": not found" << std::endl;
+      success = false;
+    }
+  }
+
+  if (g_shell) {
+    g_shell->set_aliases(aliases);
+  }
+  
+  return success;
 }
 
 void Built_ins::remove_alias_from_file(const std::string& name) {
