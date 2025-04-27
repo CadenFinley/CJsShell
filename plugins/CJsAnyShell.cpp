@@ -29,6 +29,15 @@ static std::string getPluginHomeDirectory() {
     return "./plugins"; // Fallback
 }
 
+// Get the root .cjsh directory
+static std::string getCJshRootDirectory() {
+    char* home = getenv("HOME");
+    if (home) {
+        return std::string(home) + "/.cjsh";
+    }
+    return "./.cjsh"; // Fallback
+}
+
 // Local implementation to replace plugin_get_plugin_directory
 static char* local_plugin_get_plugin_directory(const char* plugin_name) {
     std::string dirPath = getPluginHomeDirectory() + "/" + plugin_name;
@@ -67,22 +76,24 @@ static std::vector<std::string> getAvailableShells() {
     return available;
 }
 
-// Ensure the plugin directory exists
+// Ensure the root .cjsh directory and plugin directory exists
 static bool ensureDirectoryExists() {
     try {
-        // Use only the local implementation
-        char* dirPath = local_plugin_get_plugin_directory("CJsAnyShell");
+        std::string rootDir = getCJshRootDirectory();
+        std::string pluginDir = rootDir + "/CJsAnyShell";
         
-        if (!std::filesystem::exists(dirPath)) {
-            bool result = std::filesystem::create_directories(dirPath);
-            local_plugin_free_string(dirPath);
-            return result;
+        if (!std::filesystem::exists(rootDir)) {
+            if (!std::filesystem::create_directories(rootDir))
+                return false;
         }
         
-        local_plugin_free_string(dirPath);
+        if (!std::filesystem::exists(pluginDir)) {
+            return std::filesystem::create_directories(pluginDir);
+        }
+        
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Error creating plugin directory: " << e.what() << std::endl;
+        std::cerr << "Error creating directories: " << e.what() << std::endl;
         return false;
     }
 }
@@ -93,10 +104,7 @@ static bool saveSettings() {
         return false;
     }
     
-    // Use only the local implementation
-    char* dirPath = local_plugin_get_plugin_directory("CJsAnyShell");
-    std::string filePath = std::string(dirPath) + "/settings.json";
-    local_plugin_free_string(dirPath);
+    std::string filePath = getCJshRootDirectory() + "/CJsAnyShell/settings.json";
     
     std::ofstream file(filePath);
     if (!file.is_open()) {
@@ -120,10 +128,7 @@ static bool saveSettings() {
 
 // Load settings from JSON file
 static bool loadSettings() {
-    // Use only the local implementation
-    char* dirPath = local_plugin_get_plugin_directory("CJsAnyShell");
-    std::string filePath = std::string(dirPath) + "/settings.json";
-    local_plugin_free_string(dirPath);
+    std::string filePath = getCJshRootDirectory() + "/CJsAnyShell/settings.json";
     
     std::ifstream file(filePath);
     if (!file.is_open()) {
