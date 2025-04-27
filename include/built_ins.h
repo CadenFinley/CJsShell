@@ -70,6 +70,7 @@ private:
 
   bool plugin_commands(const std::vector<std::string>& args);
   bool theme_commands(const std::vector<std::string>& args);
+  void update_theme_in_rc_file(const std::string& themeName);
   bool approot_command();
   bool version_command();
   bool uninstall_command();
