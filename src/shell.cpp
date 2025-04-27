@@ -58,6 +58,7 @@ void Shell::execute_command(std::string command, bool sync) {
       return;
     }
     built_ins->do_ai_request(command);
+    return;
   }
 
   // check if command is a built-in command
