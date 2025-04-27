@@ -66,13 +66,15 @@ void Shell::execute_command(std::string command, bool sync) {
   }
 
   //check if command is a plugin command
-  std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
-  if (!enabled_plugins.empty()) {
-    for(const auto& plugin : enabled_plugins){
-      std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
-      if(std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()){
-        g_plugin->handle_plugin_command(plugin, args);
-        return;
+  if (g_plugin) {
+    std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
+    if (!enabled_plugins.empty()) {
+      for(const auto& plugin : enabled_plugins){
+        std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
+        if(std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()){
+          g_plugin->handle_plugin_command(plugin, args);
+          return;
+        }
       }
     }
   }
@@ -80,9 +82,12 @@ void Shell::execute_command(std::string command, bool sync) {
   // process all other commands
   if (sync) {
     shell_exec->execute_command_sync(args);
+    // Only set last_terminal_output_error for synchronous commands
+    last_terminal_output_error = shell_exec->get_error();
   } else {
     shell_exec->execute_command_async(args);
+    // For async commands, don't try to read the error buffer immediately
+    last_terminal_output_error = "async command launched";
   }
   last_command = command;
-  last_terminal_output_error = shell_exec->last_terminal_output_error;
 }

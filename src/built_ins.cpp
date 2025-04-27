@@ -75,7 +75,7 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
   }
 }
 
-void Built_ins::ai_commands(const std::vector<std::string>& args) {
+bool Built_ins::ai_commands(const std::vector<std::string>& args) {
   unsigned int command_index = 1;
   
   if (args.size() <= command_index) {
@@ -86,7 +86,7 @@ void Built_ins::ai_commands(const std::vector<std::string>& args) {
         std::cout << message << std::endl;
       }
     }
-    return;
+    return true;
   }
   
   const std::string& cmd = args[command_index];
@@ -104,115 +104,115 @@ void Built_ins::ai_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Error: Unable to create the chat log file at " << fileName << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "apikey") {
     if (args.size() <= command_index + 1) {
       std::cout << g_ai->getAPIKey() << std::endl;
-      return;
+      return true;
     }
     
     if (args[command_index + 1] == "set") {
       if (args.size() <= command_index + 2) {
         std::cerr << "Error: No API key provided. Try 'help' for a list of commands." << std::endl;
-        return;
+        return false;
       }
       g_ai->setAPIKey(args[command_index + 2]);
       if (g_ai->testAPIKey(g_ai->getAPIKey())) {
         std::cout << "OpenAI API key set successfully." << std::endl;
         // TODO: Implement writeUserData() equivalent
-        return;
+        return true;
       } else {
         std::cerr << "Error: Invalid API key." << std::endl;
-        return;
+        return false;
       }
     }
     
     if (args[command_index + 1] == "get") {
       std::cout << g_ai->getAPIKey() << std::endl;
-      return;
+      return true;
     }
     
     std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-    return;
+    return false;
   }
   
   if (cmd == "chat") {
     ai_chat_commands(args, command_index);
-    return;
+    return true;
   }
   
   if (cmd == "get") {
     if (args.size() <= command_index + 1) {
       std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-      return;
+      return false;
     }
     std::cout << g_ai->getResponseData(args[command_index + 1]) << std::endl;
-    return;
+    return true;
   }
   
   if (cmd == "dump") {
     std::cout << g_ai->getResponseData("all") << std::endl;
     std::cout << g_ai->getLastPromptUsed() << std::endl;
-    return;
+    return true;
   }
   
   if (cmd == "mode") {
     if (args.size() <= command_index + 1) {
       std::cout << "The current assistant mode is " << g_ai->getAssistantType() << std::endl;
-      return;
+      return true;
     }
     g_ai->setAssistantType(args[command_index + 1]);
     std::cout << "Assistant mode set to " << args[command_index + 1] << std::endl;
-    return;
+    return true;
   }
   
   if (cmd == "file") {
     handle_ai_file_commands(args, command_index);
-    return;
+    return true;
   }
   
   if (cmd == "directory") {
     if (args.size() <= command_index + 1) {
       std::cout << "The current directory is " << g_ai->getSaveDirectory() << std::endl;
-      return;
+      return true;
     }
     
     if (args[command_index + 1] == "set") {
       g_ai->setSaveDirectory(current_directory);
       std::cout << "Directory set to " << current_directory << std::endl;
-      return;
+      return true;
     }
     
     if (args[command_index + 1] == "clear") {
       g_ai->setSaveDirectory(cjsh_filesystem::g_cjsh_data_path);
       std::cout << "Directory set to default." << std::endl;
-      return;
+      return true;
     }
-    return;
+    return false;
   }
   
   if (cmd == "model") {
     if (args.size() <= command_index + 1) {
       std::cout << "The current model is " << g_ai->getModel() << std::endl;
-      return;
+      return true;
     }
     g_ai->setModel(args[command_index + 1]);
     std::cout << "Model set to " << args[command_index + 1] << std::endl;
-    return;
+    return true;
   }
   
   if (cmd == "rejectchanges") {
     g_ai->rejectChanges();
     std::cout << "Changes rejected." << std::endl;
-    return;
+    return true;
   }
   
   if (cmd == "timeoutflag") {
     if (args.size() <= command_index + 1) {
       std::cout << "The current timeout flag is " << g_ai->getTimeoutFlagSeconds() << std::endl;
-      return;
+      return true;
     }
     
     try {
@@ -222,7 +222,7 @@ void Built_ins::ai_commands(const std::vector<std::string>& args) {
     } catch (const std::exception& e) {
       std::cerr << "Error: Invalid timeout value. Please provide a number." << std::endl;
     }
-    return;
+    return false;
   }
   
   if (cmd == "help") {
@@ -238,7 +238,7 @@ void Built_ins::ai_commands(const std::vector<std::string>& args) {
     std::cout << " model [MODEL]: Set the AI model" << std::endl;
     std::cout << " rejectchanges: Reject AI suggested changes" << std::endl;
     std::cout << " timeoutflag [SECONDS]: Set the timeout duration" << std::endl;
-    return;
+    return true;
   }
   
   // If we get here, treat as a direct message to AI
@@ -247,12 +247,13 @@ void Built_ins::ai_commands(const std::vector<std::string>& args) {
     message += " " + args[i];
   }
   do_ai_request(message);
+  return true;
 }
 
-void Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
+bool Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
     std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-    return;
+    return false;
   }
   
   const std::string& subcmd = args[cmd_index + 1];
@@ -268,39 +269,39 @@ void Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_i
       } else {
         std::cout << "No chat history available." << std::endl;
       }
-      return;
+      return true;
     }
     
     if (args[cmd_index + 2] == "clear") {
       g_ai->clearChatCache();
       // TODO: Update savedChatCache and writeUserData()
       std::cout << "Chat history cleared." << std::endl;
-      return;
+      return true;
     }
   }
   
   if (subcmd == "cache") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
       std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-      return;
+      return false;
     }
     
     if (args[cmd_index + 2] == "enable") {
       g_ai->setCacheTokens(true);
       std::cout << "Cache tokens enabled." << std::endl;
-      return;
+      return true;
     }
     
     if (args[cmd_index + 2] == "disable") {
       g_ai->setCacheTokens(false);
       std::cout << "Cache tokens disabled." << std::endl;
-      return;
+      return true;
     }
     
     if (args[cmd_index + 2] == "clear") {
       g_ai->clearAllCachedTokens();
       std::cout << "Chat history cleared." << std::endl;
-      return;
+      return true;
     }
   }
   
@@ -312,7 +313,7 @@ void Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_i
     std::cout << " cache disable: Disable token caching" << std::endl;
     std::cout << " cache clear: Clear all cached tokens" << std::endl;
     std::cout << " [MESSAGE]: Send a direct message to AI" << std::endl;
-    return;
+    return true;
   }
   
   // If we get here, treat as a direct message to AI
@@ -323,9 +324,10 @@ void Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_i
   
   std::cout << "Sent message to GPT: " << message << std::endl;
   do_ai_request(message);
+  return true;
 }
 
-void Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index) {
+bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index) {
   std::vector<std::string> filesAtPath;
   try {
     for (const auto& entry : std::filesystem::directory_iterator(current_directory)) {
@@ -348,7 +350,7 @@ void Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     for (const auto& file : filesAtPath) {
       std::cout << file << std::endl;
     }
-    return;
+    return true;
   }
   
   const std::string& subcmd = args[cmd_index + 1];
@@ -356,13 +358,13 @@ void Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
   if (subcmd == "add") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
       std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
-      return;
+      return false;
     }
     
     if (args[cmd_index + 2] == "all") {
       int charsProcessed = g_ai->addFiles(filesAtPath);
       std::cout << "Processed " << charsProcessed << " characters from " << filesAtPath.size() << " files." << std::endl;
-      return;
+      return true;
     }
     
     std::string filename = args[cmd_index + 2];
@@ -370,25 +372,25 @@ void Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     
     if (!std::filesystem::exists(filePath)) {
       std::cerr << "Error: File not found: " << filename << std::endl;
-      return;
+      return false;
     }
     
     int charsProcessed = g_ai->addFile(filePath);
     std::cout << "Processed " << charsProcessed << " characters from file: " << filename << std::endl;
-    return;
+    return true;
   }
   
   if (subcmd == "remove") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
       std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
-      return;
+      return false;
     }
     
     if (args[cmd_index + 2] == "all") {
       int fileCount = g_ai->getFiles().size();
       g_ai->clearFiles();
       std::cout << "Removed all " << fileCount << " files from context." << std::endl;
-      return;
+      return true;
     }
     
     std::string filename = args[cmd_index + 2];
@@ -396,12 +398,12 @@ void Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     
     if (!std::filesystem::exists(filePath)) {
       std::cerr << "Error: File not found: " << filename << std::endl;
-      return;
+      return false;
     }
     
     g_ai->removeFile(filePath);
     std::cout << "Removed file: " << filename << " from context." << std::endl;
-    return;
+    return true;
   }
   
   if (subcmd == "active") {
@@ -415,7 +417,7 @@ void Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
       }
       std::cout << "Total characters processed: " << g_ai->getFileContents().length() << std::endl;
     }
-    return;
+    return true;
   }
   
   if (subcmd == "available") {
@@ -423,48 +425,29 @@ void Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     for (const auto& file : filesAtPath) {
       std::cout << file << std::endl;
     }
-    return;
+    return true;
   }
   
   if (subcmd == "refresh") {
     g_ai->refreshFiles();
     std::cout << "Files refreshed." << std::endl;
-    return;
+    return true;
   }
   
   if (subcmd == "clear") {
     g_ai->clearFiles();
     std::cout << "Files cleared." << std::endl;
-    return;
+    return true;
   }
   
   std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
+  return false;
 }
 
-void Built_ins::do_ai_request(const std::string& prompt) {
-  if (prompt.empty()) {
-    return;
-  }
-  if (prompt == "exit") {
-    g_exit_flag = true;
-    return;
-  }
-  if (prompt == "clear") {
-    system("clear");
-    return;
-  }
-  if (g_ai->getAPIKey().empty()) {
-    std::cerr << "Error: No OpenAI API key set. Please set the API key using 'ai apikey set [KEY]' or set the OPENAI_API_KEY environment variable." << std::endl;
-    return;
-  }
-  std::string response = g_ai->chatGPT(prompt, false);
-  std::cout << "ChatGPT:\n" << response << std::endl;
-}
-
-void Built_ins::plugin_commands(const std::vector<std::string>& args) {
+bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
   if (args.size() < 2) {
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-    return;
+    return false;
   }
   
   const std::string& cmd = args[1];
@@ -481,7 +464,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     std::cout << " help: Show this help message" << std::endl;
     std::cout << " install [PATH]: Install a new plugin" << std::endl;
     std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
-    return;
+    return true;
   }
   
   if (cmd == "available") {
@@ -494,7 +477,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "enabled") {
@@ -507,7 +490,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "install" && args.size() > 2) {
@@ -517,7 +500,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "uninstall" && args.size() > 2) {
@@ -527,7 +510,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "info" && args.size() > 2) {
@@ -537,7 +520,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "enable" && args.size() > 2) {
@@ -547,7 +530,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "disable" && args.size() > 2) {
@@ -557,7 +540,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "commands" && args.size() > 2) {
@@ -571,7 +554,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (cmd == "settings") {
@@ -585,7 +568,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
             std::cout << "  " << key << " = " << value << std::endl;
           }
         }
-        return;
+        return true;
       }
       
       if (args.size() > 4 && args[3] == "set") {
@@ -602,7 +585,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Plugin manager not initialized" << std::endl;
     }
-    return;
+    return false;
   }
   
   if (g_plugin) {
@@ -612,15 +595,15 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
       if (args.size() > 2) {
         if (args[2] == "enable") {
           g_plugin->enable_plugin(pluginName);
-          return;
+          return true;
         }
         if (args[2] == "disable") {
           g_plugin->disable_plugin(pluginName);
-          return;
+          return true;
         }
         if (args[2] == "info") {
           std::cout << g_plugin->get_plugin_info(pluginName) << std::endl;
-          return;
+          return true;
         }
         if (args[2] == "commands" || args[2] == "cmds" || args[2] == "help") {
           std::cout << "Commands for " << pluginName << ":" << std::endl;
@@ -628,7 +611,7 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
           for (const auto& cmd : listOfPluginCommands) {
             std::cout << "  " << cmd << std::endl;
           }
-          return;
+          return true;
         }
       }
     } else {
@@ -636,21 +619,22 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
       if (std::find(availablePlugins.begin(), availablePlugins.end(), pluginName) != availablePlugins.end()) {
         if (args.size() > 2 && args[2] == "enable") {
           g_plugin->enable_plugin(pluginName);
-          return;
+          return true;
         }
         std::cerr << "Plugin: " << pluginName << " is disabled." << std::endl;
-        return;
+        return false;
       } else {
         std::cerr << "Plugin " << pluginName << " does not exist." << std::endl;
-        return;
+        return false;
       }
     }
   }
   
   std::cerr << "Unknown command. Try 'plugin help' for available commands." << std::endl;
+  return false;
 }
 
-void Built_ins::theme_commands(const std::vector<std::string>& args) {
+bool Built_ins::theme_commands(const std::vector<std::string>& args) {
   if (args.size() < 2) {
     if (g_theme) {
       std::cout << "Current theme: " << g_current_theme << std::endl;
@@ -661,7 +645,7 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (args[1] == "load" && args.size() > 2) {
@@ -673,7 +657,7 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
     }
-    return;
+    return true;
   }
   
   if (g_theme) {
@@ -684,28 +668,32 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
   } else {
     std::cerr << "Theme manager not initialized" << std::endl;
   }
+  return true;
 }
 
-void Built_ins::approot_command() {
+bool Built_ins::approot_command() {
   std::string appRootPath = cjsh_filesystem::g_cjsh_data_path.string();
   std::string result;
   if (change_directory(appRootPath, result)) {
     std::cout << "Changed to application root directory: " << appRootPath << std::endl;
+    return true;
   } else {
     std::cerr << result << std::endl;
+    return false;
   }
 }
 
-void Built_ins::version_command() {
+bool Built_ins::version_command() {
   std::cout << "CJ's g_shell v" << c_version << std::endl;
+  return true;
 }
 
-void Built_ins::uninstall_command() {
+bool Built_ins::uninstall_command() {
   if (g_plugin) {
     std::vector<std::string> enabledPlugins = g_plugin->get_enabled_plugins();
     if (!enabledPlugins.empty()) {
       std::cerr << "Please disable all plugins before uninstalling." << std::endl;
-      return;
+      return false;
     }
   }
   
@@ -719,7 +707,7 @@ void Built_ins::uninstall_command() {
     
     if (!std::filesystem::exists(uninstallScriptPath)) {
       std::cerr << "Uninstall script not found." << std::endl;
-      return;
+      return false;
     }
     
     std::cout << "Do you want to remove all user data? (y/n): ";
@@ -735,15 +723,17 @@ void Built_ins::uninstall_command() {
     std::cout << "Running uninstall script..." << std::endl;
     system(uninstallCommand.c_str());
     g_exit_flag = true;
+    return true;
   } else {
     std::cout << "Uninstall cancelled." << std::endl;
+    return false;
   }
 }
 
-void Built_ins::user_commands(const std::vector<std::string>& args) {
+bool Built_ins::user_commands(const std::vector<std::string>& args) {
   if (args.size() < 2) {
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
-    return;
+    return false;
   }
   
   const std::string& cmd = args[1];
@@ -758,13 +748,13 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
       } else {
         std::cerr << "No startup commands." << std::endl;
       }
-      return;
+      return true;
     }
     
     if (args[2] == "add" && args.size() > 3) {
       g_startup_commands.push_back(args[3]);
       std::cout << "Command added to startup commands." << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "remove" && args.size() > 3) {
@@ -776,13 +766,13 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
       } else {
         std::cerr << "Command not found in startup commands." << std::endl;
       }
-      return;
+      return true;
     }
     
     if (args[2] == "clear") {
       g_startup_commands.clear();
       std::cout << "Startup commands cleared." << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "list") {
@@ -794,7 +784,7 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
       } else {
         std::cerr << "No startup commands." << std::endl;
       }
-      return;
+      return true;
     }
     
     if (args[2] == "help") {
@@ -803,99 +793,99 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
       std::cout << " remove [CMD]: Remove a startup command" << std::endl;
       std::cout << " clear: Remove all startup commands" << std::endl;
       std::cout << " list: Show all startup commands" << std::endl;
-      return;
+      return true;
     }
     
     std::cerr << "Unknown startup command. Try 'user startup help'" << std::endl;
-    return;
+    return false;
   }
   
   if (cmd == "testing") {
     if (args.size() < 3) {
       std::cout << "Debug mode is currently " << (g_debug_mode ? "enabled." : "disabled.") << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "enable") {
       g_debug_mode = true;
       std::cout << "Debug mode enabled." << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "disable") {
       g_debug_mode = false;
       std::cout << "Debug mode disabled." << std::endl;
-      return;
+      return true;
     }
     
     std::cerr << "Unknown testing command. Use 'enable' or 'disable'." << std::endl;
-    return;
+    return false;
   }
   
   if (cmd == "checkforupdates") {
     if (args.size() < 3) {
       std::cout << "Check for updates is currently " << (g_check_updates ? "enabled." : "disabled.") << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "enable") {
       g_check_updates = true;
       std::cout << "Check for updates enabled." << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "disable") {
       g_check_updates = false;
       std::cout << "Check for updates disabled." << std::endl;
-      return;
+      return true;
     }
     
     std::cerr << "Unknown command. Use 'enable' or 'disable'." << std::endl;
-    return;
+    return false;
   }
   
   if (cmd == "silentupdatecheck") {
     if (args.size() < 3) {
       std::cout << "Silent update check is currently " << (g_silent_update_check ? "enabled." : "disabled.") << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "enable") {
       g_silent_update_check = true;
       std::cout << "Silent update check enabled." << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "disable") {
       g_silent_update_check = false;
       std::cout << "Silent update check disabled." << std::endl;
-      return;
+      return true;
     }
     
     std::cerr << "Unknown command. Use 'enable' or 'disable'." << std::endl;
-    return;
+    return false;
   }
   
   if (cmd == "titleline") {
     if (args.size() < 3) {
       std::cout << "Title line is currently " << (g_title_line ? "enabled." : "disabled.") << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "enable") {
       g_title_line = true;
       std::cout << "Title line enabled." << std::endl;
-      return;
+      return true;
     }
     
     if (args[2] == "disable") {
       g_title_line = false;
       std::cout << "Title line disabled." << std::endl;
-      return;
+      return true;
     }
     
     std::cerr << "Unknown command. Use 'enable' or 'disable'." << std::endl;
-    return;
+    return false;
   }
   
   if (cmd == "update") {
@@ -909,7 +899,7 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
       if (g_cached_update) {
         std::cout << " Update available: " << g_cached_version << std::endl;
       }
-      return;
+      return true;
     }
     
     if (args[2] == "check") {
@@ -921,7 +911,7 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
       } else {
         std::cout << "You are up to date." << std::endl;
       }
-      return;
+      return true;
     }
     
     if (args[2] == "interval" && args.size() > 3) {
@@ -929,14 +919,14 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
         int hours = std::stoi(args[3]);
         if (hours < 1) {
           std::cerr << "Interval must be at least 1 hour" << std::endl;
-          return;
+          return false;
         }
         g_update_check_interval = hours * 3600;
         std::cout << "Update check interval set to " << hours << " hours" << std::endl;
-        return;
+        return true;
       } catch (const std::exception& e) {
         std::cerr << "Invalid interval value. Please specify hours as a number" << std::endl;
-        return;
+        return false;
       }
     }
     
@@ -945,11 +935,11 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
       std::cout << " check: Manually check for updates now" << std::endl;
       std::cout << " interval [HOURS]: Set update check interval in hours" << std::endl;
       std::cout << " help: Show this help message" << std::endl;
-      return;
+      return true;
     }
     
     std::cerr << "Unknown update command. Try 'help' for available commands." << std::endl;
-    return;
+    return false;
   }
   
   if (cmd == "help") {
@@ -960,13 +950,14 @@ void Built_ins::user_commands(const std::vector<std::string>& args) {
     std::cout << " silentupdatecheck: Toggle silent update check (enable/disable)" << std::endl;
     std::cout << " titleline: Toggle title line display (enable/disable)" << std::endl;
     std::cout << " update: Manage update settings and perform manual update checks" << std::endl;
-    return;
+    return true;
   }
   
   std::cerr << "Unknown command. Try 'user help' for available commands." << std::endl;
+  return false;
 }
 
-void Built_ins::help_command() {
+bool Built_ins::help_command() {
   std::cout << "Available commands:" << std::endl;
   std::cout << " ai: Access AI command settings and chat or switch to the ai menu" << std::endl;
   std::cout << " approot: Switch to the application directory" << std::endl;
@@ -992,12 +983,14 @@ void Built_ins::help_command() {
   std::cout << " exit: Exit the application" << std::endl;
   std::cout << " quit: Exit the application" << std::endl;
   std::cout << " help: Show this help message" << std::endl;
+  
+  return true;
 }
 
-void Built_ins::aihelp_command(const std::vector<std::string>& args) {
+bool Built_ins::aihelp_command(const std::vector<std::string>& args) {
   if (!g_ai || g_ai->getAPIKey().empty()) {
     std::cerr << "Please set your OpenAI API key first." << std::endl;
-    return;
+    return false;
   }
   
   std::string message;
@@ -1014,6 +1007,7 @@ void Built_ins::aihelp_command(const std::vector<std::string>& args) {
   }
   
   std::cout << g_ai->forceDirectChatGPT(message, false) << std::endl;
+  return true;
 }
 
 bool Built_ins::alias_command(const std::vector<std::string>& args) {
@@ -1336,5 +1330,24 @@ void Built_ins::remove_env_var_from_file(const std::string& name) {
     }
   } else {
     std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
+  }
+}
+
+void Built_ins::do_ai_request(const std::string& prompt) {
+  if (!g_ai) {
+    std::cerr << "AI system not initialized." << std::endl;
+    return;
+  }
+
+  if (g_ai->getAPIKey().empty()) {
+    std::cerr << "Please set your OpenAI API key first using 'ai apikey set <YOUR_API_KEY>'." << std::endl;
+    return;
+  }
+
+  try {
+    std::string response = g_ai->chatGPT(prompt, true);
+    std::cout << response << std::endl;
+  } catch (const std::exception& e) {
+    std::cerr << "Error communicating with AI: " << e.what() << std::endl;
   }
 }

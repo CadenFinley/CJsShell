@@ -1,9 +1,11 @@
 #pragma once
-#include <string>
 #include <cstdint>
+#include <string>
 #include <vector>
 #include <array>
 #include <functional>
+#include <cmath>
+#include <algorithm>
 
 namespace colors {
 
@@ -35,9 +37,9 @@ struct RGB {
     
     RGB operator*(float factor) const {
         return RGB(
-            std::min(255, int(r * factor)),
-            std::min(255, int(g * factor)),
-            std::min(255, int(b * factor))
+            std::clamp(int(std::round(r * factor)), 0, 255),
+            std::clamp(int(std::round(g * factor)), 0, 255),
+            std::clamp(int(std::round(b * factor)), 0, 255)
         );
     }
 };
@@ -105,6 +107,9 @@ std::string gradient_text(const std::string& text, const RGB& start, const RGB& 
 // Xterm 256 color palette helpers
 uint8_t rgb_to_xterm256(const RGB& color);
 RGB xterm256_to_rgb(uint8_t index);
+
+// Get a color by its name
+RGB get_color_by_name(const std::string& name);
 
 // Named color constants - Extended palette of common web colors
 namespace named {

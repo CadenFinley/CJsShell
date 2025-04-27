@@ -105,7 +105,6 @@ void Parser::expand_env_vars(std::string& arg) {
       continue;
     }
     
-
     auto it = env_vars.find(var_name);
     if (it != env_vars.end()) {
       arg.replace(pos, var_end - pos, it->second);
@@ -116,7 +115,7 @@ void Parser::expand_env_vars(std::string& arg) {
         arg.replace(pos, var_end - pos, env_value);
         pos += strlen(env_value);
       } else {
-        arg.erase(pos, var_end - pos);
+        pos = var_end;
       }
     }
   }

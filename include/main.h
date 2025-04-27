@@ -10,6 +10,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <ctime>
+#include <atomic>
 
 // constants
 const std::string c_version = "2.1.0.0";
@@ -37,7 +38,7 @@ extern int g_shell_terminal;
 extern pid_t g_shell_pgid;
 extern struct termios g_shell_tmodes;
 extern bool g_job_control_enabled;
-extern bool g_exit_flag;
+extern std::atomic_bool g_exit_flag;
 
 extern time_t g_last_update_check;
 extern int g_update_check_interval; // 24 hours

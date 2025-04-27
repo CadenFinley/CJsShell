@@ -1,8 +1,10 @@
 #include "colors.h"
-#include <sstream>
-#include <iomanip>
+
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
+#include <unordered_map>
 
 namespace colors {
 
@@ -218,6 +220,79 @@ RGB xterm256_to_rgb(uint8_t index) {
     }
     
     // Default fallback
+    return RGB(0, 0, 0);
+}
+
+// Add a new function to get color by name
+RGB get_color_by_name(const std::string& name) {
+    // Convert to uppercase for case-insensitive comparison
+    std::string upper_name = name;
+    std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
+    
+    // Map of color names to RGB values
+    static const std::unordered_map<std::string, RGB> color_map = {
+        {"ALICE_BLUE", named::ALICE_BLUE},
+        {"ANTIQUE_WHITE", named::ANTIQUE_WHITE},
+        {"AQUA", named::AQUA},
+        {"AQUAMARINE", named::AQUAMARINE},
+        {"AZURE", named::AZURE},
+        {"BEIGE", named::BEIGE},
+        {"BISQUE", named::BISQUE},
+        {"BLANCHED_ALMOND", named::BLANCHED_ALMOND},
+        {"BLUE_VIOLET", named::BLUE_VIOLET},
+        {"BROWN", named::BROWN},
+        {"BURLYWOOD", named::BURLYWOOD},
+        {"CADET_BLUE", named::CADET_BLUE},
+        {"CHARTREUSE", named::CHARTREUSE},
+        {"CHOCOLATE", named::CHOCOLATE},
+        {"CORAL", named::CORAL},
+        {"CORNFLOWER_BLUE", named::CORNFLOWER_BLUE},
+        {"CORNSILK", named::CORNSILK},
+        {"CRIMSON", named::CRIMSON},
+        {"DARK_BLUE", named::DARK_BLUE},
+        {"DARK_CYAN", named::DARK_CYAN},
+        {"DARK_GOLDENROD", named::DARK_GOLDENROD},
+        {"DARK_GRAY", named::DARK_GRAY},
+        {"DARK_GREEN", named::DARK_GREEN},
+        {"DARK_KHAKI", named::DARK_KHAKI},
+        {"DARK_MAGENTA", named::DARK_MAGENTA},
+        {"DARK_OLIVE_GREEN", named::DARK_OLIVE_GREEN},
+        {"DARK_ORANGE", named::DARK_ORANGE},
+        {"DARK_ORCHID", named::DARK_ORCHID},
+        {"DARK_RED", named::DARK_RED},
+        {"DARK_SALMON", named::DARK_SALMON},
+        {"DARK_SEA_GREEN", named::DARK_SEA_GREEN},
+        {"DARK_SLATE_BLUE", named::DARK_SLATE_BLUE},
+        {"DARK_SLATE_GRAY", named::DARK_SLATE_GRAY},
+        {"DARK_TURQUOISE", named::DARK_TURQUOISE},
+        {"DARK_VIOLET", named::DARK_VIOLET},
+        {"DEEP_PINK", named::DEEP_PINK},
+        {"DEEP_SKY_BLUE", named::DEEP_SKY_BLUE},
+        {"DIM_GRAY", named::DIM_GRAY},
+        {"DODGER_BLUE", named::DODGER_BLUE},
+        {"FIREBRICK", named::FIREBRICK},
+        {"FOREST_GREEN", named::FOREST_GREEN},
+        {"GOLD", named::GOLD},
+        {"GOLDENROD", named::GOLDENROD},
+        {"GRAY", named::GRAY},
+        {"HOT_PINK", named::HOT_PINK},
+        {"INDIAN_RED", named::INDIAN_RED},
+        {"INDIGO", named::INDIGO},
+        {"IVORY", named::IVORY},
+        {"KHAKI", named::KHAKI},
+        {"LAVENDER", named::LAVENDER},
+        {"LAVENDER_BLUSH", named::LAVENDER_BLUSH},
+        {"LAWN_GREEN", named::LAWN_GREEN},
+        {"LEMON_CHIFFON", named::LEMON_CHIFFON}
+        // Add remaining colors as needed
+    };
+    
+    auto it = color_map.find(upper_name);
+    if (it != color_map.end()) {
+        return it->second;
+    }
+    
+    // Return black if color name not found
     return RGB(0, 0, 0);
 }
 

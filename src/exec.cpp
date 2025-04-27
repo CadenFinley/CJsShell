@@ -9,10 +9,22 @@ Exec::~Exec() {
 
 }
 
+// Thread-safe method to set error message
+void Exec::set_error(const std::string& error) {
+  std::lock_guard<std::mutex> lock(error_mutex);
+  last_terminal_output_error = error;
+}
+
+// Thread-safe method to get error message
+std::string Exec::get_error() {
+  std::lock_guard<std::mutex> lock(error_mutex);
+  return last_terminal_output_error;
+}
+
 void Exec::execute_command_sync(const std::vector<std::string>& args) {
 
   if (args.empty()) {
-    last_terminal_output_error = "cjsh: Failed to parse command";
+    set_error("cjsh: Failed to parse command");
     std::cerr << last_terminal_output_error << std::endl;
     return;
   }
@@ -20,7 +32,7 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
   pid_t pid = fork();
   
   if (pid == -1) {
-    last_terminal_output_error = "cjsh: Failed to fork process: " + std::string(strerror(errno));
+    set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
     std::cerr << last_terminal_output_error << std::endl;
     return;
   }
@@ -45,12 +57,15 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
   do {
     wait_result = waitpid(pid, &status, 0);
   } while (wait_result == -1 && errno == EINTR);
+  
+  // For sync commands, we can set a success message
+  set_error("command completed successfully");
 }
 
 void Exec::execute_command_async(const std::vector<std::string>& args) {
 
   if (args.empty()) {
-    last_terminal_output_error = "cjsh: Failed to parse command";
+    set_error("cjsh: Failed to parse command");
     std::cerr << last_terminal_output_error << std::endl;
     return;
   }
@@ -58,7 +73,7 @@ void Exec::execute_command_async(const std::vector<std::string>& args) {
   pid_t pid = fork();
   
   if (pid == -1) {
-    last_terminal_output_error = "cjsh: Failed to fork process: " + std::string(strerror(errno));
+    set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
     std::cerr << last_terminal_output_error << std::endl;
     return;
   }
@@ -93,6 +108,7 @@ void Exec::execute_command_async(const std::vector<std::string>& args) {
     exit(EXIT_FAILURE);
   }
   else {
-    last_terminal_output_error = "no error encountered";
+    // For async commands, indicate they've been launched successfully
+    set_error("async command launched");
   }
 }

@@ -8,6 +8,8 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <functional>
+#include <limits.h>
 
 class Shell;
 
@@ -15,20 +17,20 @@ class Built_ins {
 
 public:
 Built_ins(): builtins({
-      {"cd", [this](const std::vector<std::string>& args) { std::string result;return change_directory(args.size() > 1 ? args[1] : current_directory, result);}},
+      {"cd", [this](const std::vector<std::string>& args) { std::string result; return change_directory(args.size() > 1 ? args[1] : current_directory, result);}},
       {"alias", [this](const std::vector<std::string>& args) { return alias_command(args); }},
       {"export", [this](const std::vector<std::string>& args) { return export_command(args); }},
       {"unalias", [this](const std::vector<std::string>& args) { return unalias_command(args); }},
       {"unset", [this](const std::vector<std::string>& args) { return unset_command(args); }},
-      {"ai", [this](const std::vector<std::string>& args) { ai_commands(args); return true; }},
-      {"user", [this](const std::vector<std::string>& args) { user_commands(args); return true; }},
-      {"theme", [this](const std::vector<std::string>& args) { theme_commands(args); return true; }},
-      {"plugin", [this](const std::vector<std::string>& args) { plugin_commands(args); return true; }},
-      {"help", [this](const std::vector<std::string>&) { help_command(); return true; }},
-      {"approot", [this](const std::vector<std::string>&) { approot_command(); return true; }},
-      {"aihelp", [this](const std::vector<std::string>& args) { aihelp_command(args); return true; }},
-      {"version", [this](const std::vector<std::string>&) { version_command(); return true; }},
-      {"uninstall", [this](const std::vector<std::string>&) { uninstall_command(); return true; }},
+      {"ai", [this](const std::vector<std::string>& args) { return ai_commands(args); }},
+      {"user", [this](const std::vector<std::string>& args) { return user_commands(args); }},
+      {"theme", [this](const std::vector<std::string>& args) { return theme_commands(args); }},
+      {"plugin", [this](const std::vector<std::string>& args) { return plugin_commands(args); }},
+      {"help", [this](const std::vector<std::string>&) { return help_command(); }},
+      {"approot", [this](const std::vector<std::string>&) { return approot_command(); }},
+      {"aihelp", [this](const std::vector<std::string>& args) { return aihelp_command(args); }},
+      {"version", [this](const std::vector<std::string>&) { return version_command(); }},
+      {"uninstall", [this](const std::vector<std::string>&) { return uninstall_command(); }},
   }), shell(nullptr) {}
   ~Built_ins() = default;
 
@@ -52,7 +54,7 @@ Built_ins(): builtins({
     }
   }
 
-  void ai_commands(const std::vector<std::string>& args);
+  bool ai_commands(const std::vector<std::string>& args);
   void do_ai_request(const std::string& prompt);
 
 private:
@@ -62,17 +64,17 @@ private:
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
 
-  void ai_chat_commands(const std::vector<std::string>& args, int command_index);
-  void handle_ai_file_commands(const std::vector<std::string>& args, int command_index);
+  bool ai_chat_commands(const std::vector<std::string>& args, int command_index);
+  bool handle_ai_file_commands(const std::vector<std::string>& args, int command_index);
 
-  void plugin_commands(const std::vector<std::string>& args);
-  void theme_commands(const std::vector<std::string>& args);
-  void approot_command();
-  void version_command();
-  void uninstall_command();
-  void user_commands(const std::vector<std::string>& args);
-  void help_command();
-  void aihelp_command(const std::vector<std::string>& args);
+  bool plugin_commands(const std::vector<std::string>& args);
+  bool theme_commands(const std::vector<std::string>& args);
+  bool approot_command();
+  bool version_command();
+  bool uninstall_command();
+  bool user_commands(const std::vector<std::string>& args);
+  bool help_command();
+  bool aihelp_command(const std::vector<std::string>& args);
 
   bool alias_command(const std::vector<std::string>& args);
   bool export_command(const std::vector<std::string>& args);
