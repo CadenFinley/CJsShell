@@ -61,10 +61,22 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann/json.hpp")
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external)
   message(STATUS "Found nlohmann/json in external/nlohmann")
 else()
-  message(WARNING "nlohmann/json.hpp not found in expected locations. Attempting to fetch...")
-  include(FetchContent)
-  FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
-  FetchContent_MakeAvailable(json)
+  message(WARNING "nlohmann/json.hpp not found in expected locations. Downloading single header...")
+  
+  # Create directories to store the header
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann")
+  
+  # Download the single header file directly
+  file(DOWNLOAD
+    "https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp"
+    SHOW_PROGRESS
+    TLS_VERIFY ON
+  )
+  
+  # Add the directory to include paths
+  include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
+  message(STATUS "Downloaded nlohmann/json.hpp to ${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann")
 endif()
 
 # isocline library (part of codebase)

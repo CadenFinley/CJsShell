@@ -1,6 +1,8 @@
 #include "built_ins.h"
 #include "main.h"
 #include "cjsh_filesystem.h"
+#include <unistd.h>     // For fork() and execl()
+#include <sys/wait.h>   // For waitpid()
 
 bool Built_ins::builtin_command(const std::vector<std::string>& args) {
   if (args.empty()) return false;
@@ -810,15 +812,30 @@ bool Built_ins::uninstall_command() {
     std::cin >> removeUserData;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     
-    std::string uninstallCommand = uninstallScriptPath.string();
-    if (removeUserData == 'y' || removeUserData == 'Y') {
-      uninstallCommand += " --all";
-    }
-    
     std::cout << "Running uninstall script..." << std::endl;
-    system(uninstallCommand.c_str());
-    g_exit_flag = true;
-    return true;
+    
+    pid_t pid = fork();
+    if (pid == -1) {
+      // Fork failed
+      std::cerr << "Error: Failed to fork process for uninstall." << std::endl;
+      return false;
+    } else if (pid == 0) {
+      // Child process
+      if (removeUserData == 'y' || removeUserData == 'Y') {
+        execl(uninstallScriptPath.c_str(), uninstallScriptPath.c_str(), "--all", NULL);
+      } else {
+        execl(uninstallScriptPath.c_str(), uninstallScriptPath.c_str(), NULL);
+      }
+      // If execl returns, there was an error
+      std::cerr << "Error: Failed to execute uninstall script: " << strerror(errno) << std::endl;
+      exit(1);
+    } else {
+      // Parent process
+      int status;
+      waitpid(pid, &status, 0);
+      g_exit_flag = true;
+      return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    }
   } else {
     std::cout << "Uninstall cancelled." << std::endl;
     return false;
@@ -1041,8 +1058,8 @@ bool Built_ins::user_commands(const std::vector<std::string>& args) {
     std::cout << "User settings commands:" << std::endl;
     std::cout << " startup: Manage startup commands (add, remove, clear, list)" << std::endl;
     std::cout << " testing: Toggle debug mode (enable/disable)" << std::endl;
-    std::cout << " checkforupdates: Toggle update checking (enable/disable)" << std::endl;
-    std::cout << " silentupdatecheck: Toggle silent update check (enable/disable)" << std::endl;
+    std::cout << " checkforupdates: Control whether updates are checked" << std::endl;
+    std::cout << " silentupdatecheck: Toggle silent update checking (enable/disable)" << std::endl;
     std::cout << " titleline: Toggle title line display (enable/disable)" << std::endl;
     std::cout << " update: Manage update settings and perform manual update checks" << std::endl;
     return true;
@@ -1091,7 +1108,7 @@ bool Built_ins::help_command() {
   std::cout << "      checkforupdates     Control whether updates are checked\n";
   std::cout << "      silentupdatecheck   Toggle silent update checking\n";
   std::cout << "      titleline           Toggle title line display\n";
-  std::cout << "      update              Manage update settings and checks\n";
+  std::cout << "      update              Manage update settings and perform manual update checks\n";
   std::cout << "    Example: 'user update check', 'user startup add \"theme dark\"'\n\n";
   
   // Theme management

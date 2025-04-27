@@ -33,6 +33,6 @@ namespace cjsh_filesystem {
   const fs::path g_cjsh_history_path = g_cjsh_data_path / "history.txt";
   const fs::path g_cjsh_uninstall_path = g_cjsh_data_path / "uninstall.sh";
   const fs::path g_cjsh_update_cache_path = g_cjsh_data_path / "update_cache.json";
-};
+}
 
 bool initialize_cjsh_path();
