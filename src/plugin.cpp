@@ -1,6 +1,7 @@
 #include "plugin.h"
 #include <sys/utsname.h>
 #include <cstdio>
+#include <cstring>  // Add this include for strdup
 
 Plugin::Plugin(const std::filesystem::path& plugins_dir) {
     plugins_directory = plugins_dir;
