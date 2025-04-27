@@ -24,7 +24,7 @@ static std::string g_pluginDirectory = "";
 static std::string getPluginHomeDirectory() {
     char* home = getenv("HOME");
     if (home) {
-        return std::string(home) + "/.cjsh_data/plugins";
+        return std::string(home) + "/.cjsh/plugins";
     }
     return "./plugins"; // Fallback
 }
