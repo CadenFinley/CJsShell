@@ -24,6 +24,7 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
       result = "cjsh: HOME environment variable is not set";
+      std::cerr << result << std::endl;
       return false;
     }
     target_dir = home_dir;
@@ -33,6 +34,7 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
       result = "cjsh: Cannot expand '~' - HOME environment variable is not set";
+      std::cerr << result << std::endl;
       return false;
     }
     target_dir.replace(0, 1, home_dir);
@@ -49,11 +51,13 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
 
     if (!std::filesystem::exists(dir_path)) {
       result = "cd: " + target_dir + ": No such file or directory";
+      std::cerr << result << std::endl;
       return false;
     }
     
     if (!std::filesystem::is_directory(dir_path)) {
       result = "cd: " + target_dir + ": Not a directory";
+      std::cerr << result << std::endl;
       return false;
     }
     
@@ -62,6 +66,7 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
     
     if (chdir(current_directory.c_str()) != 0) {
       result = "cd: " + std::string(strerror(errno));
+      std::cerr << result << std::endl;
       return false;
     }
     
@@ -71,10 +76,12 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
   }
   catch (const std::filesystem::filesystem_error& e) {
     result = "cd: " + std::string(e.what());
+    std::cerr << result << std::endl;
     return false;
   }
   catch (const std::exception& e) {
     result = "cd: Unexpected error: " + std::string(e.what());
+    std::cerr << result << std::endl;
     return false;
   }
 }
