@@ -155,9 +155,23 @@ std::string Theme::process_color_tags(const std::string& format) {
         
         std::string color_name = result.substr(pos + 1, end_pos - pos - 1);
         if (color_map.find(color_name) != color_map.end()) {
+            // Replace named color with its ANSI code
             result.replace(pos, end_pos - pos + 1, color_map[color_name]);
+        } else if (!color_name.empty()) {
+            // Check if it's a custom ANSI code
+            if (color_name.find('m') != std::string::npos) {
+                // It's already a full code like "31m" or "1;31m"
+                result.replace(pos, end_pos - pos + 1, "\033[" + color_name);
+            } else if (std::all_of(color_name.begin(), color_name.end(), [](char c) { 
+                return std::isdigit(c) || c == ';'; })) {
+                // It's a numeric code like "31" or "1;31"
+                result.replace(pos, end_pos - pos + 1, "\033[" + color_name + "m");
+            } else {
+                // Skip this tag if color not recognized
+                pos = end_pos + 1;
+            }
         } else {
-            // Skip this tag if color not found
+            // Skip empty tag
             pos = end_pos + 1;
         }
     }
