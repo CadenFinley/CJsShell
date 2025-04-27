@@ -4,8 +4,6 @@
 #include <signal.h>
 #include "colors.h"
 
-// update --help command
-
 int main(int argc, char *argv[]) {
   // cjsh
   
