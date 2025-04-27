@@ -78,7 +78,6 @@ void restore_terminal_state();
 void setup_job_control();
 void setup_environment_variables();
 void initialize_login_environment();
-void save_to_history(const std::string& command);
 
 using json = nlohmann::json;
 

@@ -209,6 +209,7 @@ void main_process_loop() {
   ic_enable_hint(true);
   ic_set_hint_delay(100);
   ic_enable_completion_preview(true);
+  ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
 
   while(true) {
     notify_plugins("main_process_start", c_pid_str);
@@ -241,18 +242,6 @@ void main_process_loop() {
     notify_plugins("main_process_end", c_pid_str);
     if (g_exit_flag) {
       break;
-    }
-  }
-}
-
-void save_to_history(const std::string& command) {
-  if (g_shell->get_login_mode()) {
-    std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path, std::ios::app);
-    if (history_file.is_open()) {
-      history_file << command << std::endl;
-      history_file.close();
-    } else {
-      std::cerr << "Error: Unable to open history file for writing." << std::endl;
     }
   }
 }
