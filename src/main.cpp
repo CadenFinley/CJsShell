@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
       std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
       return 1;
     }
+    process_config_file();
     initialize_login_environment();
     setup_environment_variables();
     setup_job_control();
@@ -146,6 +147,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // initialize and verify the file system
+  if (!init_interactive_filesystem()) {
+    std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
+    return 1;
+  }
+
   // initalize objects
   if (l_load_plugin) {
     // this will load the users plugins from .cjsh_data/plugins
@@ -164,12 +171,7 @@ int main(int argc, char *argv[]) {
     }
     g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
-
-  // initialize and verify the file system
-  if (!init_interactive_filesystem()) {
-    std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
-    return 1;
-  }
+  process_source_file();
 
   // do update process
   startup_update_process();
@@ -448,7 +450,6 @@ bool init_login_filesystem() {
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
       create_config_file();
     }
-    process_config_file();
   } catch (const std::exception& e) {
     std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: " << e.what() << std::endl;
     return false;
@@ -478,7 +479,6 @@ bool init_interactive_filesystem() {
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path)) {
       create_source_file();
     }
-    process_source_file();
   } catch (const std::exception& e) {
     std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: " << e.what() << std::endl;
     return false;

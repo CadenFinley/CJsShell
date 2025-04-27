@@ -5,17 +5,17 @@
 
 // Basic plugin information
 static plugin_info_t plugin_info = {
-    "HelloPlugin",                  // name
-    "1.0.0",                        // version
-    "GitHub Copilot",               // author
-    "A simple hello world plugin",  // description
-    PLUGIN_INTERFACE_VERSION        // interface_version
+    strdup("HelloPlugin"),                  // name
+    strdup("1.0.0"),                        // version
+    strdup("GitHub Copilot"),               // author
+    strdup("A simple hello world plugin"),  // description
+    PLUGIN_INTERFACE_VERSION                // interface_version
 };
 
 // Default settings
 static plugin_setting_t default_settings[] = {
-    {"greeting", "Hello from the plugin!"},
-    {"farewell", "Goodbye from the plugin!"}
+    {strdup("greeting"), strdup("Hello from the plugin!")},
+    {strdup("farewell"), strdup("Goodbye from the plugin!")}
 };
 
 // Current greeting (can be changed through settings)
@@ -59,7 +59,7 @@ int plugin_shutdown() {
 
 int plugin_handle_command(plugin_args_t* args) {
     if (args->count < 1) {
-        return PLUGIN_ERROR;
+        return PLUGIN_ERROR_GENERAL;
     }
     
     // Check if this is an event
@@ -94,7 +94,7 @@ int plugin_handle_command(plugin_args_t* args) {
             return PLUGIN_SUCCESS;
         }
         
-        return PLUGIN_ERROR;
+        return PLUGIN_ERROR_GENERAL;
     }
     
     // Handle regular commands
@@ -117,7 +117,7 @@ int plugin_handle_command(plugin_args_t* args) {
         return PLUGIN_SUCCESS;
     }
     
-    return PLUGIN_ERROR;
+    return PLUGIN_ERROR_GENERAL;
 }
 
 char** plugin_get_commands(int* count) {
@@ -157,7 +157,7 @@ int plugin_update_setting(const char* key, const char* value) {
         return PLUGIN_SUCCESS;
     }
     
-    return PLUGIN_ERROR;
+    return PLUGIN_ERROR_GENERAL;
 }
 
 void plugin_free_memory(void* ptr) {
