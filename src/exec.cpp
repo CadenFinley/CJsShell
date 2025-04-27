@@ -12,6 +12,13 @@ Exec::Exec(){
   
   // Initialize shell_pgid but don't try to take control of the terminal here
   shell_pgid = getpid();
+  
+  // Save default terminal modes
+  if (shell_is_interactive) {
+    if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
+      perror("tcgetattr failed in Exec constructor");
+    }
+  }
 }
 
 Exec::~Exec() {
@@ -129,7 +136,9 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     
     // If shell is interactive, give terminal control to the child
     if (shell_is_interactive) {
-      tcsetpgrp(shell_terminal, child_pid);
+      if (tcsetpgrp(shell_terminal, child_pid) < 0) {
+        perror("tcsetpgrp failed in child");
+      }
     }
     
     // Reset signal handlers to default
@@ -139,6 +148,15 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     signal(SIGTTIN, SIG_DFL);
     signal(SIGTTOU, SIG_DFL);
     signal(SIGCHLD, SIG_DFL);
+    
+    // Unblock signals that might be blocked
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGQUIT);
+    sigaddset(&set, SIGTSTP);
+    sigaddset(&set, SIGCHLD);
+    sigprocmask(SIG_UNBLOCK, &set, nullptr);
     
     std::vector<char*> c_args;
     for (auto& arg : args) {
@@ -158,7 +176,7 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
   // Put the child in its own process group
   if (setpgid(pid, pid) < 0) {
     // This can happen if the child has already exited
-    if (errno != EACCES) {
+    if (errno != EACCES && errno != ESRCH) {
       perror("setpgid failed in parent");
     }
   }
@@ -553,6 +571,7 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
   if (shell_is_interactive) {
     // Check if shell_terminal is actually a terminal before using tcsetpgrp
     if (isatty(shell_terminal)) {
+      // This is crucial for Ctrl+C to work - give terminal control to the job
       if (tcsetpgrp(shell_terminal, job.pgid) < 0) {
         // Only print error if it's not an expected terminal-related error
         if (errno != ENOTTY && errno != EINVAL) {
@@ -583,6 +602,7 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
   if (shell_is_interactive) {
     // Only attempt to manipulate terminal if it's actually a terminal
     if (isatty(shell_terminal)) {
+      // Take back terminal control - critical for proper shell operation after job completes
       if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
         // Only report error if it's not the expected "not a terminal" errors
         if (errno != ENOTTY && errno != EINVAL) {

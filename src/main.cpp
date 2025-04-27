@@ -4,17 +4,104 @@
 #include <signal.h>
 #include "colors.h"
 
+void setup_environment_variables() {
+  // Set up standard environment variables
+  uid_t uid = getuid();
+  struct passwd* pw = getpwuid(uid);
+  
+  if (pw != nullptr) {
+    setenv("USER", pw->pw_name, 1);
+    setenv("LOGNAME", pw->pw_name, 1);
+    setenv("HOME", pw->pw_dir, 1);
+    
+    if (getenv("PATH") == nullptr) {
+      setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+    }
+    
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+      setenv("HOSTNAME", hostname, 1);
+    }
+    
+    setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+  }
+}
+
+void initialize_login_environment() {
+  if (g_shell->get_login_mode()) {
+    g_shell_terminal = STDIN_FILENO;
+    
+    if (!isatty(g_shell_terminal)) {
+      std::cerr << "Warning: Not running on a terminal device" << std::endl;
+    }
+    
+    g_shell_pgid = getpid();
+    
+    // Put ourselves in our own process group
+    if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
+      if (errno != EPERM) {
+        perror("setpgid failed");
+      }
+    }
+    
+    // Make sure we are foreground
+    if (isatty(g_shell_terminal)) {
+      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
+        perror("tcsetpgrp failed in initialize_login_environment");
+      }
+    }
+    
+    // Save default terminal attributes
+    struct termios term_attrs;
+    if (tcgetattr(g_shell_terminal, &term_attrs) == 0) {
+      g_shell_tmodes = term_attrs;
+      g_terminal_state_saved = true;
+    }
+  }
+}
+
+// Use this before registering shell's signal handlers
+void prepare_shell_signal_environment() {
+  // Block signals while we set up handlers to avoid race conditions
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGQUIT);
+  sigaddset(&mask, SIGTSTP);
+  sigaddset(&mask, SIGTTIN);
+  sigaddset(&mask, SIGTTOU);
+  sigaddset(&mask, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &mask, nullptr);
+  
+  // Ignore these signals initially
+  struct sigaction sa;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  
+  sigaction(SIGTTOU, &sa, nullptr);
+  sigaction(SIGTTIN, &sa, nullptr);
+  sigaction(SIGQUIT, &sa, nullptr);
+  sigaction(SIGTSTP, &sa, nullptr);
+  
+  // Unblock signals now that handlers are set
+  sigprocmask(SIG_UNBLOCK, &mask, nullptr);
+}
+
 int main(int argc, char *argv[]) {
   // cjsh
-
+  
   // verify installation
   if (!initialize_cjsh_path()){
     std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
   }
-
+  
+  // Initialize signal handling before creating the shell
+  prepare_shell_signal_environment();
+  
   // this handles the prompting and executing of commands
   g_shell = new Shell(argv);
-
+  
   // setup signal handlers through the shell
   g_shell->setup_signal_handlers();
   
@@ -29,7 +116,7 @@ int main(int argc, char *argv[]) {
     setup_environment_variables();
     g_shell->setup_job_control();
   }
-
+  
   // check for non interactive command line arguments
   // -c, --command
   // -v, --version
@@ -236,42 +323,6 @@ void main_process_loop() {
     notify_plugins("main_process_end", c_pid_str);
     if (g_exit_flag) {
       break;
-    }
-  }
-}
-
-void setup_environment_variables() {
-  uid_t uid = getuid();
-  struct passwd* pw = getpwuid(uid);
-  
-  if (pw != nullptr) {
-    setenv("USER", pw->pw_name, 1);
-    setenv("LOGNAME", pw->pw_name, 1);
-    setenv("HOME", pw->pw_dir, 1);
-    setenv("SHELL", cjsh_filesystem::g_cjsh_path.c_str(), 1);
-    
-    setenv("CJSH_VERSION", c_version.c_str(), 1);
-    
-    char hostname[256];
-    if (gethostname(hostname, sizeof(hostname)) == 0) {
-      setenv("HOSTNAME", hostname, 1);
-    }
-    
-    setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
-    
-    if (getenv("TZ") == nullptr) {
-      std::string tz_file = "/etc/localtime";
-      if (std::filesystem::exists(tz_file)) {
-        setenv("TZ", tz_file.c_str(), 1);
-      }
-    }
-  }
-}
-
-void initialize_login_environment() {
-  if (setsid() < 0) {
-    if (errno != EPERM) {
-      perror("Failed to become session leader");
     }
   }
 }

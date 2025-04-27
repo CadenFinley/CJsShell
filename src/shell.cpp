@@ -35,8 +35,23 @@ void shell_signal_handler(int signum, siginfo_t* info, void* context) {
     case SIGINT:
       // Print a newline when Ctrl+C is pressed
       write(STDOUT_FILENO, "\n", 1);
-      // The shell itself ignores SIGINT
-      // Child processes will get the default handler when exec'd
+      
+      // Check if there's a foreground job running and send it SIGINT
+      if (g_shell_instance->shell_exec) {
+        auto jobs = g_shell_instance->shell_exec->get_jobs();
+        for (const auto& job_pair : jobs) {
+          const auto& job = job_pair.second;
+          if (!job.background && !job.completed && !job.stopped) {
+            // Send SIGINT to the process group
+            if (kill(-job.pgid, SIGINT) < 0) {
+              perror("kill (SIGINT) in shell_signal_handler");
+            }
+            return; // Let the signal do its work
+          }
+        }
+      }
+      // If no foreground job, the shell itself ignores SIGINT
+      fflush(stdout);
       break;
       
     case SIGCHLD:
@@ -149,13 +164,17 @@ void Shell::setup_job_control() {
   
   try {
     shell_terminal = STDIN_FILENO;
+    
+    // Get current foreground process group
     int tpgrp = tcgetpgrp(shell_terminal);
     if (tpgrp != -1) {
+      // Take control of the terminal
       if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
         perror("Couldn't grab terminal control");
       }
     }
     
+    // Save terminal attributes
     if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
       perror("Couldn't get terminal attributes");
     }

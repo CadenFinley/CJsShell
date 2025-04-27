@@ -82,6 +82,7 @@ class Shell {
 
     std::string last_terminal_output_error;
     std::string last_command;
+    std::unique_ptr<Exec> shell_exec; // Move this from private to public for signal handler access
 
   private:
     bool interactive_mode = false;
@@ -93,7 +94,6 @@ class Shell {
     bool job_control_enabled = false;
 
     std::unique_ptr<Prompt> shell_prompt;
-    std::unique_ptr<Exec> shell_exec;
     Parser* shell_parser = nullptr;
     Built_ins* built_ins = nullptr;
     
