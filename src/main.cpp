@@ -4,9 +4,6 @@
 #include <signal.h>
 #include "colors.h"
 
-// create customizable title line in terminal
-// rework color system
-
 int main(int argc, char *argv[]) {
   // cjsh
 
@@ -213,6 +210,7 @@ void main_process_loop() {
       std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
     }
     
+    std::cout << "\033]0;" << g_shell -> get_title_prompt() << "\007";
     std::string prompt;
     if (g_menu_terminal) {
       prompt = g_shell->get_prompt();

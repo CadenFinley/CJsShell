@@ -41,11 +41,13 @@ class Theme {
     std::string get_ps1_prompt_format();
     std::string get_git_prompt_format();
     std::string get_ai_prompt_format();
+    std::string get_terminal_title_format();
   private:
     std::string theme_directory;
     std::string ps1_format;
     std::string git_format;
     std::string ai_format;
+    std::string terminal_title_format;
     
     std::string process_color_tags(const std::string& format);
     void create_default_theme();

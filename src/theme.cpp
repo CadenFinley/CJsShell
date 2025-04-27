@@ -31,9 +31,12 @@ void Theme::create_default_theme() {
     // Default AI prompt format
     default_theme["ai_prompt"] = "[BLUE]{AI_MODEL} [YELLOW]{AI_AGENT_TYPE} [WHITE]{AI_DIVIDER}[RESET]";
     
+    // Default Terminal Title format
+    default_theme["terminal_title"] = "{SHELL} {USERNAME}@{HOSTNAME}: {DIRECTORY}";
+    
     // Write to file
     std::ofstream file(theme_directory + "/default.json");
-    file << default_theme.dump(4);  // Pretty print with 4 spaces
+    file << default_theme.dump(4);
     file.close();
 }
 
@@ -41,8 +44,6 @@ bool Theme::load_theme(const std::string& theme_name) {
     std::string theme_file = theme_directory + "/" + theme_name + ".json";
     
     if (!std::filesystem::exists(theme_file)) {
-        std::cerr << "Theme '" << theme_name << "' not found. Using default theme." << std::endl;
-        load_theme("default");
         return false;
     }
     
@@ -51,10 +52,27 @@ bool Theme::load_theme(const std::string& theme_name) {
     file >> theme_json;
     file.close();
     
-    // Store the theme formats
-    ps1_format = theme_json["ps1_prompt"];
-    git_format = theme_json["git_prompt"];
-    ai_format = theme_json["ai_prompt"];
+    if (theme_json.contains("ps1_prompt")) {
+        ps1_format = theme_json["ps1_prompt"];
+    } else {
+        ps1_format = "[RED]{USERNAME}[WHITE]@[GREEN]{HOSTNAME} [BLUE]{PATH} [WHITE]$[RESET]";
+    }
+    if (theme_json.contains("git_prompt")) {
+        git_format = theme_json["git_prompt"];
+    } else {
+        git_format = "[RED]{USERNAME} [BLUE]{DIRECTORY} [GREEN]git:([YELLOW]{GIT_BRANCH} {GIT_STATUS}[GREEN])[RESET]";
+    }
+    if (theme_json.contains("ai_prompt")) {
+        ai_format = theme_json["ai_prompt"];
+    } else {
+        ai_format = "[BLUE]{AI_MODEL} [YELLOW]{AI_AGENT_TYPE} [WHITE]{AI_DIVIDER}[RESET]";
+    }
+    if (theme_json.contains("terminal_title")) {
+        terminal_title_format = theme_json["terminal_title"];
+    } else {
+        terminal_title_format = "{USERNAME}@{HOSTNAME}: {DIRECTORY}";
+    }
+    
     return true;
 }
 
@@ -78,6 +96,10 @@ std::string Theme::get_git_prompt_format() {
 
 std::string Theme::get_ai_prompt_format() {
     return process_color_tags(ai_format);
+}
+
+std::string Theme::get_terminal_title_format() {
+    return terminal_title_format;
 }
 
 std::string Theme::process_color_tags(const std::string& format) {

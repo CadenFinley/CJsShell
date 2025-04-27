@@ -30,4 +30,5 @@ class Prompt {
     ~Prompt();
     std::string get_prompt();
     std::string get_ai_prompt();
+    std::string get_title_prompt();
 };

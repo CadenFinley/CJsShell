@@ -29,6 +29,10 @@ class Shell {
       return shell_prompt->get_ai_prompt();
     }
 
+    std::string get_title_prompt() {
+      return shell_prompt->get_title_prompt();
+    }
+
     void set_interactive_mode(bool flag) {
       interactive_mode = flag;
     }
