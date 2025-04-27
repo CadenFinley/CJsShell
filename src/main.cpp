@@ -107,12 +107,6 @@ int main(int argc, char *argv[]) {
   // set initial working directory
   setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
 
-  // initialize and verify the file system
-  if (!init_interactive_filesystem()) {
-    std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
-    return 1;
-  }
-
   // check for interactive command line arguments
   // --no-update
   // -d, --debug
@@ -120,7 +114,6 @@ int main(int argc, char *argv[]) {
   // --no-source
   // --no-titleline
   // --no-plugin
-  // --no-theme
   // --no-ai
 
   bool l_load_plugin = true;
@@ -146,18 +139,12 @@ int main(int argc, char *argv[]) {
     else if (arg == "--no-plugin") {
       l_load_plugin = false;
     }
-    else if (arg == "--no-theme") {
-      l_load_theme = false;
-    }
     else if (arg == "--no-ai") {
       l_load_ai = false;
     } else if (arg.length() > 0 && arg[0] == '-') {
       std::cerr << "Warning: Unknown argument: " << arg << std::endl;
     }
   }
-
-  // do update process
-  startup_update_process();
 
   // initalize objects
   if (l_load_plugin) {
@@ -166,7 +153,7 @@ int main(int argc, char *argv[]) {
   }
   if (l_load_theme) {
     // this will load the users selected theme from .cjshrc
-    g_theme = new Theme(); //doesnt need to verify filesys
+    g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
   }
   if (l_load_ai) {
     // Get API key from environment if available
@@ -177,6 +164,15 @@ int main(int argc, char *argv[]) {
     }
     g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
+
+  // initialize and verify the file system
+  if (!init_interactive_filesystem()) {
+    std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
+    return 1;
+  }
+
+  // do update process
+  startup_update_process();
 
   if(!g_exit_flag) {
     if (g_title_line) {
@@ -599,25 +595,6 @@ void process_source_file() {
         }
         
         env_vars[env_name] = env_value;
-      }
-    }
-    else if (line.find("theme ") == 0) {
-      g_current_theme = line.substr(6);
-      g_current_theme.erase(0, g_current_theme.find_first_not_of(" \t"));
-      g_current_theme.erase(g_current_theme.find_last_not_of(" \t") + 1);
-    }
-    else if (line.find("plugin ") == 0) {
-      if (g_plugin != nullptr) {
-        std::string plugin_cmd = line.substr(7);
-        std::stringstream ss(plugin_cmd);
-        std::string plugin_name, plugin_action;
-        ss >> plugin_name >> plugin_action;
-        
-        if (plugin_action == "enable" || plugin_action == "on") {
-          g_plugin->enable_plugin(plugin_name);
-        } else if (plugin_action == "disable" || plugin_action == "off") {
-          g_plugin->disable_plugin(plugin_name);
-        }
       }
     }
     else {

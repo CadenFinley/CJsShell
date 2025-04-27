@@ -2,6 +2,7 @@
 #include <string>
 #include <unordered_map>
 #include <nlohmann/json.hpp>
+#include <vector>
 
 enum class Colors {
     // Basic colors
@@ -79,7 +80,8 @@ enum class Colors {
     UNDERLINE,
     BLINK,
     REVERSE,
-    HIDDEN
+    HIDDEN,
+    RESET
 };
 
 enum class PromptItems {
@@ -89,12 +91,10 @@ enum class PromptItems {
     DIRECTORY,
     TIME,
     DATE,
-    SHELL
-};
-
-enum class GitPromptItems {
+    SHELL,
     GIT_BRANCH,
-    GIT_STATUS
+    GIT_STATUS,
+    REPO_NAME
 };
 
 enum class AIPromptItems {
@@ -104,48 +104,27 @@ enum class AIPromptItems {
 };
 
 class Theme {
-private:
-    std::string m_theme_name;
-    nlohmann::json m_theme_data;
-    
-    // Prompt storage
-    std::string m_ps1_prompt;
-    std::string m_git_prompt;
-    std::string m_ai_prompt;
-    
-    // Color mappings
-    std::unordered_map<PromptItems, Colors> m_ps1_colors;
-    std::unordered_map<GitPromptItems, Colors> m_git_colors;
-    std::unordered_map<AIPromptItems, Colors> m_ai_colors;
-    
-    // Build individual prompts
-    void build_ps1_prompt();
-    void build_git_prompt();
-    void build_ai_prompt();
-
-    Colors parse_color_string(const std::string& color_str);
-    
-    // Create default theme file if it doesn't exist
-    static void ensure_default_theme_exists();
-
-public:
-    Theme();
-    ~Theme() = default;
-    
-    // Load a theme from a JSON file
+  public:
+    Theme(std::string theme_directory);
+    ~Theme();
     bool load_theme(const std::string& theme_name);
+    std::vector<std::string> list_themes();
+
+    std::string get_ps1_prompt_format();
+    std::string get_git_prompt_format();
+    std::string get_ai_prompt_format();
+  private:
+    std::string theme_directory;
+    std::string ps1_format;
+    std::string git_format;
+    std::string ai_format;
     
-    // Get the built prompts
-    std::string get_ps1_prompt() const;
-    std::string get_git_prompt() const;
-    std::string get_ai_prompt() const;
-    
-    // Get the theme name
-    std::string get_theme_name() const;
-    
-    // Get color for specific elements
-    std::string get_color(Colors color) const;
-    
-    // List available themes
-    static std::vector<std::string> list_available_themes();
+    std::string process_color_tags(const std::string& format);
+    void create_default_theme();
 };
+
+//example ps1 prompt
+// [RED] {USERNAME}[WHITE]@[GREEN]{HOSTNAME} [WHITE]: [BLUE]{PATH} [WHITE]$ [RESET]
+
+//example git prompt
+// [RED] {USERNAME} [BLUE]{DIRECTORY} [GREEN]{REPO_NAME} git:([YELLOW]{GIT_BRANCH} {GIT_STATUS}(GREEN)) [RESET]

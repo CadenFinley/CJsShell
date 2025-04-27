@@ -1,9 +1,7 @@
 #pragma once
-#include <iostream>
+
 #include <string>
 #include <filesystem>
-#include <fstream>
-#include <regex>
 #include <chrono>
 #include <mutex>
 #include <cstdlib>
@@ -27,6 +25,7 @@ class Prompt {
     bool is_root_path(const std::filesystem::path& path);
     std::string get_current_file_name();
     std::string get_current_file_path();
+    std::string replace_placeholder(const std::string& format, const std::string& placeholder, const std::string& value);
     
   public:
     Prompt();

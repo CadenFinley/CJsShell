@@ -657,7 +657,7 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
     if (g_theme) {
       std::cout << "Current theme: " << g_current_theme << std::endl;
       std::cout << "Available themes: " << std::endl;
-      for (const auto& theme : g_theme->list_available_themes()) {
+      for (const auto& theme : g_theme->list_themes()) {
         std::cout << "  " << theme << std::endl;
       }
     } else {
@@ -671,8 +671,6 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
       std::string themeName = args[2];
       if (g_theme->load_theme(themeName)) {
         g_current_theme = themeName;
-        // Update theme colors and settings
-        std::cout << "Theme " << themeName << " loaded successfully" << std::endl;
       } else {
         std::cerr << "Failed to load theme " << themeName << std::endl;
       }
@@ -688,7 +686,6 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
     if (g_theme->load_theme(themeName)) {
       g_current_theme = themeName;
       // Update theme colors and settings
-      std::cout << "Theme " << themeName << " loaded successfully" << std::endl;
     } else {
       std::cerr << "Failed to load theme " << themeName << std::endl;
     }
