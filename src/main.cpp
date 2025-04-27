@@ -485,52 +485,22 @@ void process_config_file() {
     std::cerr << "cjsh: Failed to open the configuration file for reading." << std::endl;
     return;
   }
-
-  std::unordered_map<std::string, std::string> env_vars;
   
   std::string line;
   while (std::getline(config_file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
-    if (line.find("export ") == 0 || line.find('=') != std::string::npos) {
-      size_t equal_pos = line.find('=');
-      if (equal_pos != std::string::npos) {
-        std::string var_name = line.substr(0, equal_pos);
-        std::string var_value = line.substr(equal_pos + 1);
-        
-        if (var_name.find("export ") == 0) {
-          var_name = var_name.substr(7);
-        }
-        
-        var_name.erase(0, var_name.find_first_not_of(" \t"));
-        var_name.erase(var_name.find_last_not_of(" \t") + 1);
-        var_value.erase(0, var_value.find_first_not_of(" \t"));
-        var_value.erase(var_value.find_last_not_of(" \t") + 1);
-        
-        if ((var_value.front() == '"' && var_value.back() == '"') || 
-            (var_value.front() == '\'' && var_value.back() == '\'')) {
-          var_value = var_value.substr(1, var_value.length() - 2);
-        }
-        
-        env_vars[var_name] = var_value;
-        // Still need to set in environment as well for immediate effect
-        setenv(var_name.c_str(), var_value.c_str(), 1);
-      }
-    }
-    else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
+    if (line.find("export ") == 0) {
       g_shell->execute_command(line, true);
-    }
-    else {
+    } else {
       g_shell->execute_command(line, true);
     }
   }
   
   config_file.close();
-  
-  // Set all collected environment variables at once in the shell
-  if (!env_vars.empty()) {
-    g_shell->set_env_vars(env_vars);
+  if (g_debug_mode) {
+    std::cout << "DEBUG: Configuration file processed." << std::endl;
   }
 }
 
@@ -546,68 +516,27 @@ void process_source_file() {
     return;
   }
 
-  std::unordered_map<std::string, std::string> aliases;
-  std::unordered_map<std::string, std::string> env_vars;
-  
   std::string line;
   while (std::getline(source_file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
-
     if (line.find("alias ") == 0) {
-      // Parse and collect alias definitions
-      std::string alias_def = line.substr(6);
-      size_t equal_pos = alias_def.find('=');
-      if (equal_pos != std::string::npos) {
-        std::string alias_name = alias_def.substr(0, equal_pos);
-        std::string alias_value = alias_def.substr(equal_pos + 1);
-        
-        // Trim whitespace
-        alias_name.erase(0, alias_name.find_first_not_of(" \t"));
-        alias_name.erase(alias_name.find_last_not_of(" \t") + 1);
-        
-        // Remove quotes if present
-        if ((alias_value.front() == '\'' && alias_value.back() == '\'') ||
-            (alias_value.front() == '"' && alias_value.back() == '"')) {
-          alias_value = alias_value.substr(1, alias_value.length() - 2);
-        }
-        
-        aliases[alias_name] = alias_value;
-      }
+      g_shell->execute_command(line, true);
     }
-    else if (line.find("export ") == 0) {
-      // Parse and collect environment variable definitions
-      std::string env_def = line.substr(7);
-      size_t equal_pos = env_def.find('=');
-      if (equal_pos != std::string::npos) {
-        std::string env_name = env_def.substr(0, equal_pos);
-        std::string env_value = env_def.substr(equal_pos + 1);
-        
-        // Trim whitespace
-        env_name.erase(0, env_name.find_first_not_of(" \t"));
-        env_name.erase(env_name.find_last_not_of(" \t") + 1);
-        
-        // Remove quotes if present
-        if ((env_value.front() == '\'' && env_value.back() == '\'') ||
-            (env_value.front() == '"' && env_value.back() == '"')) {
-          env_value = env_value.substr(1, env_value.length() - 2);
-        }
-        
-        env_vars[env_name] = env_value;
-      }
+    else if (line.find("theme ") == 0) {
+      g_shell->execute_command(line, true);
+    }
+    else if (line.find("plugin ") == 0) {
+      g_shell->execute_command(line, true);
     }
     else {
       g_shell->execute_command(line, true);
     }
   }
-  
   source_file.close();
-  if (!aliases.empty()) {
-    g_shell->set_aliases(aliases);
-  }
-  if(!env_vars.empty()) {
-    g_shell->set_env_vars(env_vars);
+  if (g_debug_mode) {
+    std::cout << "DEBUG: Source file processed." << std::endl;
   }
 }
 

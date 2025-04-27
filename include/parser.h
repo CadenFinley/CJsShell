@@ -20,6 +20,7 @@ public:
   }
 
 private:
+  void expand_env_vars(std::string& arg);
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
 };

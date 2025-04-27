@@ -671,8 +671,6 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
       std::string themeName = args[2];
       if (g_theme->load_theme(themeName)) {
         g_current_theme = themeName;
-      } else {
-        std::cerr << "Failed to load theme " << themeName << std::endl;
       }
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
@@ -686,8 +684,6 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
     if (g_theme->load_theme(themeName)) {
       g_current_theme = themeName;
       // Update theme colors and settings
-    } else {
-      std::cerr << "Failed to load theme " << themeName << std::endl;
     }
   } else {
     std::cerr << "Theme manager not initialized" << std::endl;
@@ -1224,77 +1220,136 @@ bool Built_ins::source_command(const std::vector<std::string>& args) {
 void Built_ins::save_aliases_to_file() {
   std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
   
+  // Read the entire file content
   std::vector<std::string> lines;
   std::string line;
   std::ifstream read_file(source_path);
   
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
-      if (line.find("alias ") == 0) {
-        continue;
-      }
       lines.push_back(line);
     }
     read_file.close();
   }
   
-  std::ofstream write_file(source_path);
-  if (!write_file.is_open()) {
-    std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
-    return;
+  // Track which aliases have been updated in the file
+  std::unordered_map<std::string, bool> alias_updated;
+  for (const auto& [name, _] : aliases) {
+    alias_updated[name] = false;
   }
   
-  for (const auto& l : lines) {
-    write_file << l << std::endl;
+  // Update existing aliases in place
+  for (size_t i = 0; i < lines.size(); i++) {
+    if (lines[i].find("alias ") == 0) {
+      std::string alias_def = lines[i].substr(6);
+      size_t equal_pos = alias_def.find('=');
+      
+      if (equal_pos != std::string::npos) {
+        std::string alias_name = alias_def.substr(0, equal_pos);
+        
+        // Trim whitespace
+        alias_name.erase(0, alias_name.find_first_not_of(" \t"));
+        alias_name.erase(alias_name.find_last_not_of(" \t") + 1);
+        
+        // Check if this alias exists in our map
+        auto it = aliases.find(alias_name);
+        if (it != aliases.end()) {
+          // Update the alias in the file
+          lines[i] = "alias " + alias_name + "='" + it->second + "'";
+          alias_updated[alias_name] = true;
+        }
+      }
+    }
   }
   
-  write_file << std::endl << "# Aliases" << std::endl;
+  // Add new aliases that weren't updated
   for (const auto& [name, value] : aliases) {
-    write_file << "alias " << name << "='" << value << "'" << std::endl;
+    if (!alias_updated[name]) {
+      lines.push_back("alias " + name + "='" + value + "'");
+    }
   }
   
-  write_file.close();
-  
-  if (g_debug_mode) {
-    std::cout << "Aliases saved to " << source_path.string() << std::endl;
+  // Write back to file
+  std::ofstream write_file(source_path);
+  if (write_file.is_open()) {
+    for (const auto& l : lines) {
+      write_file << l << std::endl;
+    }
+    write_file.close();
+    
+    if (g_debug_mode) {
+      std::cout << "Aliases saved to " << source_path.string() << std::endl;
+    }
+  } else {
+    std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
   }
 }
 
 void Built_ins::save_env_vars_to_file() {
   std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
   
+  // Read the entire file content
   std::vector<std::string> lines;
   std::string line;
   std::ifstream read_file(config_path);
   
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
-      if (line.find("export ") == 0) {
-        continue;
-      }
       lines.push_back(line);
     }
     read_file.close();
   }
   
-  std::ofstream write_file(config_path);
-  if (!write_file.is_open()) {
-    std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
-    return;
-  }
-  for (const auto& l : lines) {
-    write_file << l << std::endl;
+  // Track which environment variables have been updated in the file
+  std::unordered_map<std::string, bool> env_var_updated;
+  for (const auto& [name, _] : env_vars) {
+    env_var_updated[name] = false;
   }
   
-  write_file << std::endl << "# Environment Variables" << std::endl;
+  // Update existing environment variables in place
+  for (size_t i = 0; i < lines.size(); i++) {
+    if (lines[i].find("export ") == 0) {
+      std::string env_def = lines[i].substr(7);
+      size_t equal_pos = env_def.find('=');
+      
+      if (equal_pos != std::string::npos) {
+        std::string env_name = env_def.substr(0, equal_pos);
+        
+        // Trim whitespace
+        env_name.erase(0, env_name.find_first_not_of(" \t"));
+        env_name.erase(env_name.find_last_not_of(" \t") + 1);
+        
+        // Check if this environment variable exists in our map
+        auto it = env_vars.find(env_name);
+        if (it != env_vars.end()) {
+          // Update the environment variable in the file
+          lines[i] = "export " + env_name + "='" + it->second + "'";
+          env_var_updated[env_name] = true;
+        }
+      }
+    }
+  }
+  
+  // Add new environment variables that weren't updated
   for (const auto& [name, value] : env_vars) {
-    write_file << "export " << name << "='" << value << "'" << std::endl;
+    if (!env_var_updated[name]) {
+      lines.push_back("export " + name + "='" + value + "'");
+    }
   }
   
-  write_file.close();
-  
-  if (g_debug_mode) {
-    std::cout << "Environment variables saved to " << config_path.string() << std::endl;
+  // Write back to file
+  std::ofstream write_file(config_path);
+  if (write_file.is_open()) {
+    for (const auto& l : lines) {
+      write_file << l << std::endl;
+    }
+    write_file.close();
+    
+    if (g_debug_mode) {
+      std::cout << "Environment variables saved to " << config_path.string() << std::endl;
+    }
+  } else {
+    std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
   }
 }
 
