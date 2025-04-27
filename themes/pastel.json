@@ -1,5 +1,0 @@
-{
-    "ps1_prompt": "[\\033[38;5;183m]{USERNAME}[\\033[38;5;159m]@[\\033[38;5;183m]{HOSTNAME} [\\033[38;5;116m]{PATH} [\\033[0m]",
-    "git_prompt": "[\\033[38;5;183m]{USERNAME} [\\033[38;5;116m]{DIRECTORY} [\\033[38;5;147m]git:([\\033[38;5;114m]{GIT_BRANCH} {GIT_STATUS}[\\033[38;5;147m])[\\033[0m]",
-    "ai_prompt": "[\\033[38;5;159m]{AI_MODEL} [\\033[38;5;147m]{AI_AGENT_TYPE} [\\033[38;5;255m]{AI_DIVIDER}[\\033[0m]"
-}
