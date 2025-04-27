@@ -8,7 +8,7 @@
 
 
 
-> ⚠️ **WARNING**: This project is still in active development. There are known bugs and issues that are being addressed. Use at your own risk.
+> ⚠️ **WARNING**: This project is still in active development. There are known bugs. Please do not use this unless you are okay with random issues maybe. idk open a pull request or issue if you run into them thanks
 
 ## Installation
 
