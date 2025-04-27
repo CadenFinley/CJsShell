@@ -108,8 +108,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   ${CURL_LIBRARIES} 
   isocline 
   Threads::Threads
-  $<$<AND:$<BOOL:UNIX>,$<NOT:$<BOOL:APPLE>>>:${DL_LIBRARY}>
 )
+
+# Add libdl explicitly on Linux platforms
+if(UNIX AND NOT APPLE)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})
+endif()
 
 # Installation
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
