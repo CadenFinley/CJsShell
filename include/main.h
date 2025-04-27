@@ -44,6 +44,7 @@ extern time_t g_last_update_check;
 extern int g_update_check_interval; // 24 hours
 extern std::string g_cached_version;
 extern std::string g_last_updated;
+extern bool g_first_boot;  // New variable to track first boot
 
 extern std::vector<std::string> g_startup_commands;
 
@@ -60,6 +61,14 @@ extern Shell* g_shell;
 extern Theme* g_theme;
 extern Plugin* g_plugin;
 
+const std::string c_cjsh_splash = 
+    "   ______       __   _____    __  __\n"
+    "  / ____/      / /  / ___/   / / / /\n"
+    " / /      __  / /   \\__ \\   / /_/ / \n"
+    "/ /___   / /_/ /   ___/ /  / __  /  \n"
+    "\\____/   \\____/   /____/  /_/ /_/   \n"
+    "  CJ's Shell v" + c_version;
+std::string get_colorized_splash();
 
 int main(int argc, char *argv[]);
 bool init_login_filesystem();
@@ -91,3 +100,5 @@ bool download_latest_release();
 void display_changelog(const std::string& changelog_path);
 std::string get_current_time_string();
 bool is_newer_version(const std::string& latest, const std::string& current);
+bool is_first_boot();
+void mark_first_boot_complete();

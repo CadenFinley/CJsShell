@@ -2,6 +2,7 @@
 #include "../isocline/include/isocline.h"
 #include "cjsh_filesystem.h"
 #include <signal.h>
+#include "colors.h"
 
 
 //TODO
@@ -11,10 +12,9 @@
 // signal handling in exec
 // handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
 
-// good history management and implementation
-
-// need a good splash screen maybe with some ascii art or something
 // create example plugins using rust, go, and anything else that can tap into the C runtime API
+
+bool g_first_boot = false;
 
 int main(int argc, char *argv[]) {
   // cjsh
@@ -85,6 +85,10 @@ int main(int argc, char *argv[]) {
     }
     else if (arg == "--silent-updates") {
       g_silent_update_check = true;
+    }
+    else if (arg == "--splash") {
+      std::cout << get_colorized_splash() << std::endl;
+      return 0;
     }
   }
 
@@ -176,6 +180,7 @@ int main(int argc, char *argv[]) {
 
   if(!g_exit_flag) {
     if (g_title_line) {
+      // Replace plain splash with colorized version
       std::cout << title_line << std::endl;
       std::cout << created_line  << std::endl;
     }
@@ -974,6 +979,25 @@ void display_changelog(const std::string& changelog_path) {
 }
 
 void startup_update_process() {
+  // Check if this is the first boot
+  g_first_boot = is_first_boot();
+  
+  if (g_first_boot) {
+    // Show a welcome message with the splash screen
+    std::cout << "\n" << get_colorized_splash() << std::endl;
+    std::cout << "Welcome to CJ's Shell!" << std::endl;
+    std::cout << "Type 'help' for a list of commands or 'exit' to quit." << std::endl;
+    
+    // Pause briefly so user can see the splash screen
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+    
+    // Mark first boot as complete
+    mark_first_boot_complete();
+    
+    // Set title line to false for this first session since we already showed the splash
+    g_title_line = false;
+  }
+
   std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
   if (std::filesystem::exists(changelog_path)) {
     display_changelog(changelog_path);
@@ -1009,4 +1033,46 @@ void startup_update_process() {
       }
     }
   }
+}
+
+std::string get_colorized_splash() {
+  std::vector<std::string> splash_lines = {
+      "   ______       __   _____    __  __",
+      "  / ____/      / /  / ___/   / / / /",
+      " / /      __  / /   \\__ \\   / /_/ / ",
+      "/ /___   / /_/ /   ___/ /  / __  /  ",
+      "\\____/   \\____/   /____/  /_/ /_/   ",
+      "  CJ's Shell v" + c_version
+  };
+  
+  std::string colorized_splash;
+  
+  // Define gradient start and end colors for each line
+  std::vector<std::pair<colors::RGB, colors::RGB>> line_gradients = {
+      {colors::RGB(255, 0, 127), colors::RGB(0, 255, 255)},    // Pink to Cyan
+      {colors::RGB(0, 255, 255), colors::RGB(255, 0, 255)},    // Cyan to Magenta
+      {colors::RGB(255, 0, 255), colors::RGB(255, 255, 0)},    // Magenta to Yellow
+      {colors::RGB(255, 255, 0), colors::RGB(0, 127, 255)},    // Yellow to Azure
+      {colors::RGB(0, 127, 255), colors::RGB(255, 0, 127)},    // Azure to Pink
+      {colors::RGB(255, 128, 0), colors::RGB(0, 255, 128)}     // Orange to Spring Green
+  };
+  
+  for (size_t i = 0; i < splash_lines.size(); i++) {
+      colorized_splash += colors::gradient_text(splash_lines[i], 
+                                              line_gradients[i].first, 
+                                              line_gradients[i].second) + "\n";
+  }
+  
+  return colorized_splash;
+}
+
+bool is_first_boot() {
+  std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
+  return !std::filesystem::exists(first_boot_flag);
+}
+
+void mark_first_boot_complete() {
+  std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
+  std::ofstream flag_file(first_boot_flag);
+  flag_file.close();
 }
