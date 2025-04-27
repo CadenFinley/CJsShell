@@ -160,6 +160,7 @@ int main(int argc, char *argv[]) {
     // this will load the users selected theme from .cjshrc
     g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
   }
+  process_source_file();
   if (l_load_ai) {
     // Get API key from environment if available
     std::string api_key = "";
@@ -169,7 +170,6 @@ int main(int argc, char *argv[]) {
     }
     g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
-  process_source_file();
 
   // do update process
   startup_update_process();
