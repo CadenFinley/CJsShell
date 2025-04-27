@@ -9,11 +9,8 @@
 #include <sys/types.h>
 #include <unordered_map>
 
-// Forward declaration
 class Exec;
 class Built_ins;
-
-//this will take input from main.cpp and will handle prompting and executing the command
 
 class Shell {
   public:

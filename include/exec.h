@@ -6,8 +6,6 @@
 #include <cstring>
 #include <fcntl.h>
 
-
-
 class Exec {
 private:
 

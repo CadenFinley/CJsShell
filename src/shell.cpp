@@ -17,7 +17,6 @@ Shell::Shell(char *argv[]) {
     login_mode = false;
   }
   
-  // Initialize shell_terminal
   shell_terminal = STDIN_FILENO;
 }
 

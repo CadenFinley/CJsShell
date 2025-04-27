@@ -16,18 +16,15 @@ Ai::Ai(const std::string& apiKey, const std::string& assistantType, const std::s
 Ai::Ai() {}
 
 void Ai::setAPIKey(const std::string& apiKey) {
-    // Set both environment variable and instance variable
     setenv("OPENAI_API_KEY", apiKey.c_str(), 1);
     USER_API_KEY = apiKey;
 }
 
 std::string Ai::getAPIKey() const {
-    // First check environment variable
     const char* env_key = getenv("OPENAI_API_KEY");
     if (env_key && strlen(env_key) > 0) {
         return env_key;
     }
-    // Fall back to instance variable
     return USER_API_KEY;
 }
 

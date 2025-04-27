@@ -12,8 +12,6 @@
 // handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
 
 // good history management and implementation
-// theming application and overhaul
-// prompt customization through themes
 
 // need a good splash screen maybe with some ascii art or something
 // create example plugins using rust, go, and anything else that can tap into the C runtime API
@@ -260,16 +258,14 @@ void save_to_history(const std::string& command) {
 }
 
 static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
-  // Mark unused parameters to avoid compiler warnings
-  (void)info;
-  (void)context;
-  
+  (void)context; // Unused parameter
+  (void)info; // Unused parameter
+
   switch (signum) {
     case SIGHUP:
       std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
       g_exit_flag = true;
       
-      // Clean up and exit immediately
       if (g_job_control_enabled) {
         try {
           restore_terminal_state();
@@ -290,7 +286,7 @@ static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
       break;
       
     case SIGCHLD:
-      // Reap zombie processes
+      // Handle child process termination
       pid_t child_pid;
       int status;
       while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {

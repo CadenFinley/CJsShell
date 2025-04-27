@@ -26,25 +26,19 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
   }
   
   if (pid == 0) {
-    // Child process
-    
-    // Prepare arguments for execvp
     std::vector<char*> c_args;
     for (auto& arg : args) {
       c_args.push_back(const_cast<char*>(arg.data()));
     }
     c_args.push_back(nullptr);
     
-    // Execute the command
     execvp(args[0].c_str(), c_args.data());
     
-    // If we get here, execvp failed
     std::string error_msg = "cjsh: Failed to execute command: " + std::string(strerror(errno));
     std::cerr << error_msg << std::endl;
     exit(EXIT_FAILURE);
   }
   
-  // Wait for the child process to complete with improved error handling
   int status;
   pid_t wait_result;
   
@@ -70,15 +64,11 @@ void Exec::execute_command_async(const std::vector<std::string>& args) {
   }
   
   if (pid == 0) {
-    // Child process
-    
-    // Create a new session to detach from terminal
     if (setsid() == -1) {
       std::perror("cjsh (async): setsid");
       _exit(EXIT_FAILURE);
     }
-    
-    // Redirect standard file descriptors to /dev/null
+
     int dev_null = open("/dev/null", O_RDWR);
     if (dev_null != -1) {
       if (dup2(dev_null, STDIN_FILENO)  == -1 ||
@@ -92,21 +82,17 @@ void Exec::execute_command_async(const std::vector<std::string>& args) {
       }
     }
     
-    // Prepare arguments for execvp
     std::vector<char*> c_args;
     for (auto& arg : args) {
       c_args.push_back(const_cast<char*>(arg.data()));
     }
     c_args.push_back(nullptr);
     
-    // Execute the command
     execvp(args[0].c_str(), c_args.data());
     
-    // If we get here, execvp failed
     exit(EXIT_FAILURE);
   }
   else {
-    // Parent process
     last_terminal_output_error = "no error encountered";
   }
 }

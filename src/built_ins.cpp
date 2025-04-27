@@ -605,7 +605,6 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
     return;
   }
   
-  // If we have a potential plugin name as the first argument
   if (g_plugin) {
     std::string pluginName = cmd;
     std::vector<std::string> enabledPlugins = g_plugin->get_enabled_plugins();
@@ -653,7 +652,6 @@ void Built_ins::plugin_commands(const std::vector<std::string>& args) {
 
 void Built_ins::theme_commands(const std::vector<std::string>& args) {
   if (args.size() < 2) {
-    // Show current theme and available themes
     if (g_theme) {
       std::cout << "Current theme: " << g_current_theme << std::endl;
       std::cout << "Available themes: " << std::endl;
@@ -678,12 +676,10 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
     return;
   }
   
-  // Try to load the theme name directly
   if (g_theme) {
     std::string themeName = args[1];
     if (g_theme->load_theme(themeName)) {
       g_current_theme = themeName;
-      // Update theme colors and settings
     }
   } else {
     std::cerr << "Theme manager not initialized" << std::endl;
@@ -691,7 +687,6 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
 }
 
 void Built_ins::approot_command() {
-  // Change to the application root directory
   std::string appRootPath = cjsh_filesystem::g_cjsh_data_path.string();
   std::string result;
   if (change_directory(appRootPath, result)) {
@@ -1007,13 +1002,10 @@ void Built_ins::aihelp_command(const std::vector<std::string>& args) {
   
   std::string message;
   if (args.size() > 1) {
-    // Construct message from all remaining arguments
     for (size_t i = 1; i < args.size(); ++i) {
       message += args[i] + " ";
     }
   } else {
-    // Use most recent terminal output if available
-    // In the new architecture, we'd need a way to access this
     message = "I am encountering some issues with the cjsh g_shell and would like some help. This is the most recent output: " + g_shell -> last_terminal_output_error + " Here is the command I used: " + g_shell ->last_command;
   }
   
@@ -1025,7 +1017,6 @@ void Built_ins::aihelp_command(const std::vector<std::string>& args) {
 }
 
 bool Built_ins::alias_command(const std::vector<std::string>& args) {
-  // If no arguments, display all aliases
   if (args.size() == 1) {
     auto& aliases = g_shell->get_aliases();
     if (aliases.empty()) {
@@ -1042,15 +1033,12 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
     if (parse_assignment(args[i], name, value)) {
-      // Add or update the alias
       aliases[name] = value;
-      // Immediately save the alias to file
       save_alias_to_file(name, value);
       if (g_debug_mode) {
         std::cout << "Added alias: " << name << "='" << value << "'" << std::endl;
       }
     } else {
-      // Not in NAME=VALUE format, check if it's an existing alias
       auto it = aliases.find(args[i]);
       if (it != aliases.end()) {
         std::cout << "alias " << it->first << "='" << it->second << "'" << std::endl;
@@ -1060,7 +1048,6 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
     }
   }
 
-  // Update g_shell's aliases
   if (g_shell) {
     g_shell->set_aliases(aliases);
   }
@@ -1069,9 +1056,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
 }
 
 bool Built_ins::export_command(const std::vector<std::string>& args) {
-  // If no arguments, display all environment variables
   if (args.size() == 1) {
-    // Get all environment variables
     extern char **environ;
     for (char **env = environ; *env; ++env) {
       std::cout << "export " << *env << std::endl;
@@ -1086,7 +1071,6 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
       
       setenv(name.c_str(), value.c_str(), 1);
       
-      // Immediately save the environment variable to file only in login mode
       if (shell && shell->get_login_mode()) {
         save_env_var_to_file(name, value);
       } else if (g_debug_mode) {
@@ -1156,15 +1140,12 @@ bool Built_ins::unset_command(const std::vector<std::string>& args) {
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& name = args[i];
     
-    // Remove from our env_vars map
     env_vars.erase(name);
     
-    // Unset the environment variable
     if (unsetenv(name.c_str()) != 0) {
       std::cerr << "unset: error unsetting " << name << ": " << strerror(errno) << std::endl;
       success = false;
     } else {
-      // Also remove from config file if in login mode
       if (shell && shell->get_login_mode()) {
         remove_env_var_from_file(name);
       }
@@ -1185,7 +1166,7 @@ bool Built_ins::unset_command(const std::vector<std::string>& args) {
 bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std::string& value) {
   size_t equals_pos = arg.find('=');
   if (equals_pos == std::string::npos || equals_pos == 0) {
-    return false;  // No equals sign or nothing before equals sign
+    return false;
   }
   
   name = arg.substr(0, equals_pos);
@@ -1205,7 +1186,6 @@ bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std:
 void Built_ins::save_alias_to_file(const std::string& name, const std::string& value) {
   std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
   
-  // Read the entire file content
   std::vector<std::string> lines;
   std::string line;
   std::ifstream read_file(source_path);
@@ -1215,7 +1195,6 @@ void Built_ins::save_alias_to_file(const std::string& name, const std::string& v
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
       if (line.find("alias " + name + "=") == 0) {
-        // Replace the existing alias
         lines.push_back("alias " + name + "='" + value + "'");
         alias_found = true;
       } else {
@@ -1225,12 +1204,10 @@ void Built_ins::save_alias_to_file(const std::string& name, const std::string& v
     read_file.close();
   }
   
-  // If alias wasn't found, add it as a new line
   if (!alias_found) {
     lines.push_back("alias " + name + "='" + value + "'");
   }
   
-  // Write back to file
   std::ofstream write_file(source_path);
   if (write_file.is_open()) {
     for (const auto& l : lines) {
@@ -1249,7 +1226,6 @@ void Built_ins::save_alias_to_file(const std::string& name, const std::string& v
 void Built_ins::remove_alias_from_file(const std::string& name) {
   std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
   
-  // Read the entire file content
   std::vector<std::string> lines;
   std::string line;
   std::ifstream read_file(source_path);
@@ -1257,14 +1233,12 @@ void Built_ins::remove_alias_from_file(const std::string& name) {
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
       if (line.find("alias " + name + "=") != 0) {
-        // Keep all lines except the one with the alias to remove
         lines.push_back(line);
       }
     }
     read_file.close();
   }
   
-  // Write back to file
   std::ofstream write_file(source_path);
   if (write_file.is_open()) {
     for (const auto& l : lines) {
@@ -1281,7 +1255,6 @@ void Built_ins::remove_alias_from_file(const std::string& name) {
 }
 
 void Built_ins::save_env_var_to_file(const std::string& name, const std::string& value) {
-  // Only proceed if in login mode
   if (!shell || !shell->get_login_mode()) {
     if (g_debug_mode) {
       std::cerr << "Warning: Attempted to save environment variable to config file when not in login mode" << std::endl;
@@ -1291,7 +1264,6 @@ void Built_ins::save_env_var_to_file(const std::string& name, const std::string&
   
   std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
   
-  // Read the entire file content
   std::vector<std::string> lines;
   std::string line;
   std::ifstream read_file(config_path);
@@ -1301,7 +1273,6 @@ void Built_ins::save_env_var_to_file(const std::string& name, const std::string&
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
       if (line.find("export " + name + "=") == 0) {
-        // Replace the existing environment variable
         lines.push_back("export " + name + "='" + value + "'");
         env_var_found = true;
       } else {
@@ -1311,12 +1282,10 @@ void Built_ins::save_env_var_to_file(const std::string& name, const std::string&
     read_file.close();
   }
   
-  // If environment variable wasn't found, add it as a new line
   if (!env_var_found) {
     lines.push_back("export " + name + "='" + value + "'");
   }
   
-  // Write back to file
   std::ofstream write_file(config_path);
   if (write_file.is_open()) {
     for (const auto& l : lines) {
@@ -1333,7 +1302,6 @@ void Built_ins::save_env_var_to_file(const std::string& name, const std::string&
 }
 
 void Built_ins::remove_env_var_from_file(const std::string& name) {
-  // Only proceed if in login mode
   if (!shell || !shell->get_login_mode()) {
     if (g_debug_mode) {
       std::cerr << "Warning: Attempted to remove environment variable from config file when not in login mode" << std::endl;
@@ -1343,7 +1311,6 @@ void Built_ins::remove_env_var_from_file(const std::string& name) {
   
   std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
   
-  // Read the entire file content
   std::vector<std::string> lines;
   std::string line;
   std::ifstream read_file(config_path);
@@ -1351,14 +1318,12 @@ void Built_ins::remove_env_var_from_file(const std::string& name) {
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
       if (line.find("export " + name + "=") != 0) {
-        // Keep all lines except the one with the environment variable to remove
         lines.push_back(line);
       }
     }
     read_file.close();
   }
-  
-  // Write back to file
+
   std::ofstream write_file(config_path);
   if (write_file.is_open()) {
     for (const auto& l : lines) {

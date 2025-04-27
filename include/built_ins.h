@@ -9,7 +9,7 @@
 #include <vector>
 #include <string>
 
-class Shell; // Forward declaration
+class Shell;
 
 class Built_ins {
 
@@ -53,11 +53,18 @@ Built_ins(): builtins({
   }
 
   void ai_commands(const std::vector<std::string>& args);
+  void do_ai_request(const std::string& prompt);
+
+private:
+  std::string current_directory;
+  std::unordered_map<std::string, std::function<bool(const std::vector<std::string>&)>> builtins;
+  Shell* shell;
+  std::unordered_map<std::string, std::string> aliases;
+  std::unordered_map<std::string, std::string> env_vars;
+
   void ai_chat_commands(const std::vector<std::string>& args, int command_index);
   void handle_ai_file_commands(const std::vector<std::string>& args, int command_index);
-  void do_ai_request(const std::string& prompt);
-  
-  // New command handlers
+
   void plugin_commands(const std::vector<std::string>& args);
   void theme_commands(const std::vector<std::string>& args);
   void approot_command();
@@ -67,25 +74,15 @@ Built_ins(): builtins({
   void help_command();
   void aihelp_command(const std::vector<std::string>& args);
 
-  // Alias and environment variable command handlers
   bool alias_command(const std::vector<std::string>& args);
   bool export_command(const std::vector<std::string>& args);
   bool unalias_command(const std::vector<std::string>& args);
   bool unset_command(const std::vector<std::string>& args);
 
-
-  // Save settings to files
   void save_alias_to_file(const std::string& name, const std::string& value);
   void save_env_var_to_file(const std::string& name, const std::string& value);
   void remove_alias_from_file(const std::string& name);
   void remove_env_var_from_file(const std::string& name);
-
-private:
-  std::string current_directory;
-  std::unordered_map<std::string, std::function<bool(const std::vector<std::string>&)>> builtins;
-  Shell* shell;
-  std::unordered_map<std::string, std::string> aliases;
-  std::unordered_map<std::string, std::string> env_vars;
   
   // Helper functions
   bool parse_assignment(const std::string& arg, std::string& name, std::string& value);
