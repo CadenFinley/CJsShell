@@ -52,6 +52,9 @@ endif()
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
 
+# Find threads package
+find_package(Threads REQUIRED)
+
 # nlohmann/json - header only library
 # Check both locations where json.hpp might be found
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
@@ -95,7 +98,7 @@ file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CURL_LIBRARIES} isocline)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CURL_LIBRARIES} isocline Threads::Threads)
 
 # Installation
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
