@@ -5,6 +5,7 @@
 #include "colors.h"
 
 // create customizable title line in terminal
+// rework color system
 
 int main(int argc, char *argv[]) {
   // cjsh
