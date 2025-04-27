@@ -78,6 +78,10 @@ Built_ins(): builtins({
   // Save settings to files
   void save_aliases_to_file();
   void save_env_vars_to_file();
+  void save_alias_to_file(const std::string& name, const std::string& value);
+  void save_env_var_to_file(const std::string& name, const std::string& value);
+  void remove_alias_from_file(const std::string& name);
+  void remove_env_var_from_file(const std::string& name);
 
 private:
   std::string current_directory;

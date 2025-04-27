@@ -1044,6 +1044,8 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
     if (parse_assignment(args[i], name, value)) {
       // Add or update the alias
       aliases[name] = value;
+      // Immediately save the alias to file
+      save_alias_to_file(name, value);
       if (g_debug_mode) {
         std::cout << "Added alias: " << name << "='" << value << "'" << std::endl;
       }
@@ -1062,9 +1064,6 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
   if (g_shell) {
     g_shell->set_aliases(aliases);
   }
-
-  // Save aliases to config file
-  save_aliases_to_file();
   
   return true;
 }
@@ -1084,12 +1083,16 @@ bool Built_ins::unalias_command(const std::vector<std::string>& args) {
     if (name == "-a") {
       // Remove all aliases
       aliases.clear();
+      // Clear the aliases file
+      save_aliases_to_file();
       std::cout << "All aliases removed." << std::endl;
     } else {
       // Remove specific alias
       auto it = aliases.find(name);
       if (it != aliases.end()) {
         aliases.erase(it);
+        // Remove alias from file
+        remove_alias_from_file(name);
         if (g_debug_mode) {
           std::cout << "Removed alias: " << name << std::endl;
         }
@@ -1104,9 +1107,6 @@ bool Built_ins::unalias_command(const std::vector<std::string>& args) {
   if (g_shell) {
     g_shell->set_aliases(aliases);
   }
-
-  // Save aliases to config file
-  save_aliases_to_file();
 
   return success;
 }
@@ -1129,6 +1129,13 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
       
       setenv(name.c_str(), value.c_str(), 1);
       
+      // Immediately save the environment variable to file only in login mode
+      if (shell && shell->get_login_mode()) {
+        save_env_var_to_file(name, value);
+      } else if (g_debug_mode) {
+        std::cout << "Note: Environment variable set for this session only (not in login mode)" << std::endl;
+      }
+      
       if (g_debug_mode) {
         std::cout << "Set environment variable: " << name << "='" << value << "'" << std::endl;
       }
@@ -1145,7 +1152,6 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
   if (g_shell) {
     g_shell->set_env_vars(env_vars);
   }
-  save_env_vars_to_file();
   
   return true;
 }
@@ -1163,6 +1169,13 @@ bool Built_ins::unset_command(const std::vector<std::string>& args) {
     
     unsetenv(name.c_str());
     
+    // Remove the environment variable from file only in login mode
+    if (shell && shell->get_login_mode()) {
+      remove_env_var_from_file(name);
+    } else if (g_debug_mode) {
+      std::cout << "Note: Environment variable unset for this session only (not in login mode)" << std::endl;
+    }
+    
     if (g_debug_mode) {
       std::cout << "Unset environment variable: " << name << std::endl;
     }
@@ -1172,52 +1185,10 @@ bool Built_ins::unset_command(const std::vector<std::string>& args) {
     g_shell->set_env_vars(env_vars);
   }
 
-  save_env_vars_to_file();
-
   return true;
 }
 
-bool Built_ins::source_command(const std::vector<std::string>& args) {
-  if (args.size() < 2) {
-    std::cerr << "source: filename argument required" << std::endl;
-    return false;
-  }
-
-  std::string filename = args[1];
-  
-  if (filename[0] == '~') {
-    const char* home_dir = getenv("HOME");
-    if (home_dir) {
-      filename.replace(0, 1, home_dir);
-    }
-  }
-
-  std::filesystem::path file_path(filename);
-  if (!file_path.is_absolute()) {
-    file_path = std::filesystem::path(current_directory) / filename;
-  }
-  
-  std::ifstream file(file_path);
-  if (!file.is_open()) {
-    std::cerr << "source: cannot open " << filename << ": No such file or directory" << std::endl;
-    return false;
-  }
-
-  std::string line;
-  while (std::getline(file, line)) {
-    if (line.empty() || line[0] == '#') {
-      continue;
-    }
-    
-    if (g_shell) {
-      g_shell->execute_command(line);
-    }
-  }
-
-  return true;
-}
-
-void Built_ins::save_aliases_to_file() {
+void Built_ins::save_alias_to_file(const std::string& name, const std::string& value) {
   std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
   
   // Read the entire file content
@@ -1225,48 +1196,24 @@ void Built_ins::save_aliases_to_file() {
   std::string line;
   std::ifstream read_file(source_path);
   
+  bool alias_found = false;
+  
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
-      lines.push_back(line);
+      if (line.find("alias " + name + "=") == 0) {
+        // Replace the existing alias
+        lines.push_back("alias " + name + "='" + value + "'");
+        alias_found = true;
+      } else {
+        lines.push_back(line);
+      }
     }
     read_file.close();
   }
   
-  // Track which aliases have been updated in the file
-  std::unordered_map<std::string, bool> alias_updated;
-  for (const auto& [name, _] : aliases) {
-    alias_updated[name] = false;
-  }
-  
-  // Update existing aliases in place
-  for (size_t i = 0; i < lines.size(); i++) {
-    if (lines[i].find("alias ") == 0) {
-      std::string alias_def = lines[i].substr(6);
-      size_t equal_pos = alias_def.find('=');
-      
-      if (equal_pos != std::string::npos) {
-        std::string alias_name = alias_def.substr(0, equal_pos);
-        
-        // Trim whitespace
-        alias_name.erase(0, alias_name.find_first_not_of(" \t"));
-        alias_name.erase(alias_name.find_last_not_of(" \t") + 1);
-        
-        // Check if this alias exists in our map
-        auto it = aliases.find(alias_name);
-        if (it != aliases.end()) {
-          // Update the alias in the file
-          lines[i] = "alias " + alias_name + "='" + it->second + "'";
-          alias_updated[alias_name] = true;
-        }
-      }
-    }
-  }
-  
-  // Add new aliases that weren't updated
-  for (const auto& [name, value] : aliases) {
-    if (!alias_updated[name]) {
-      lines.push_back("alias " + name + "='" + value + "'");
-    }
+  // If alias wasn't found, add it as a new line
+  if (!alias_found) {
+    lines.push_back("alias " + name + "='" + value + "'");
   }
   
   // Write back to file
@@ -1278,14 +1225,108 @@ void Built_ins::save_aliases_to_file() {
     write_file.close();
     
     if (g_debug_mode) {
-      std::cout << "Aliases saved to " << source_path.string() << std::endl;
+      std::cout << "Alias " << name << " saved to " << source_path.string() << std::endl;
     }
   } else {
     std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
   }
 }
 
-void Built_ins::save_env_vars_to_file() {
+void Built_ins::remove_alias_from_file(const std::string& name) {
+  std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
+  
+  // Read the entire file content
+  std::vector<std::string> lines;
+  std::string line;
+  std::ifstream read_file(source_path);
+  
+  if (read_file.is_open()) {
+    while (std::getline(read_file, line)) {
+      if (line.find("alias " + name + "=") != 0) {
+        // Keep all lines except the one with the alias to remove
+        lines.push_back(line);
+      }
+    }
+    read_file.close();
+  }
+  
+  // Write back to file
+  std::ofstream write_file(source_path);
+  if (write_file.is_open()) {
+    for (const auto& l : lines) {
+      write_file << l << std::endl;
+    }
+    write_file.close();
+    
+    if (g_debug_mode) {
+      std::cout << "Alias " << name << " removed from " << source_path.string() << std::endl;
+    }
+  } else {
+    std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
+  }
+}
+
+void Built_ins::save_env_var_to_file(const std::string& name, const std::string& value) {
+  // Only proceed if in login mode
+  if (!shell || !shell->get_login_mode()) {
+    if (g_debug_mode) {
+      std::cerr << "Warning: Attempted to save environment variable to config file when not in login mode" << std::endl;
+    }
+    return;
+  }
+  
+  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
+  
+  // Read the entire file content
+  std::vector<std::string> lines;
+  std::string line;
+  std::ifstream read_file(config_path);
+  
+  bool env_var_found = false;
+  
+  if (read_file.is_open()) {
+    while (std::getline(read_file, line)) {
+      if (line.find("export " + name + "=") == 0) {
+        // Replace the existing environment variable
+        lines.push_back("export " + name + "='" + value + "'");
+        env_var_found = true;
+      } else {
+        lines.push_back(line);
+      }
+    }
+    read_file.close();
+  }
+  
+  // If environment variable wasn't found, add it as a new line
+  if (!env_var_found) {
+    lines.push_back("export " + name + "='" + value + "'");
+  }
+  
+  // Write back to file
+  std::ofstream write_file(config_path);
+  if (write_file.is_open()) {
+    for (const auto& l : lines) {
+      write_file << l << std::endl;
+    }
+    write_file.close();
+    
+    if (g_debug_mode) {
+      std::cout << "Environment variable " << name << " saved to " << config_path.string() << std::endl;
+    }
+  } else {
+    std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
+  }
+}
+
+void Built_ins::remove_env_var_from_file(const std::string& name) {
+  // Only proceed if in login mode
+  if (!shell || !shell->get_login_mode()) {
+    if (g_debug_mode) {
+      std::cerr << "Warning: Attempted to remove environment variable from config file when not in login mode" << std::endl;
+    }
+    return;
+  }
+  
   std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
   
   // Read the entire file content
@@ -1295,46 +1336,60 @@ void Built_ins::save_env_vars_to_file() {
   
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
-      lines.push_back(line);
+      if (line.find("export " + name + "=") != 0) {
+        // Keep all lines except the one with the environment variable to remove
+        lines.push_back(line);
+      }
     }
     read_file.close();
   }
   
-  // Track which environment variables have been updated in the file
-  std::unordered_map<std::string, bool> env_var_updated;
-  for (const auto& [name, _] : env_vars) {
-    env_var_updated[name] = false;
+  // Write back to file
+  std::ofstream write_file(config_path);
+  if (write_file.is_open()) {
+    for (const auto& l : lines) {
+      write_file << l << std::endl;
+    }
+    write_file.close();
+    
+    if (g_debug_mode) {
+      std::cout << "Environment variable " << name << " removed from " << config_path.string() << std::endl;
+    }
+  } else {
+    std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
+  }
+}
+
+void Built_ins::save_env_vars_to_file() {
+  // Only proceed if in login mode
+  if (!shell || !shell->get_login_mode()) {
+    if (g_debug_mode) {
+      std::cerr << "Warning: Attempted to save environment variables to config file when not in login mode" << std::endl;
+    }
+    return;
   }
   
-  // Update existing environment variables in place
-  for (size_t i = 0; i < lines.size(); i++) {
-    if (lines[i].find("export ") == 0) {
-      std::string env_def = lines[i].substr(7);
-      size_t equal_pos = env_def.find('=');
-      
-      if (equal_pos != std::string::npos) {
-        std::string env_name = env_def.substr(0, equal_pos);
-        
-        // Trim whitespace
-        env_name.erase(0, env_name.find_first_not_of(" \t"));
-        env_name.erase(env_name.find_last_not_of(" \t") + 1);
-        
-        // Check if this environment variable exists in our map
-        auto it = env_vars.find(env_name);
-        if (it != env_vars.end()) {
-          // Update the environment variable in the file
-          lines[i] = "export " + env_name + "='" + it->second + "'";
-          env_var_updated[env_name] = true;
-        }
+  // This method is now only used for clearing all environment variables
+  std::filesystem::path config_path = cjsh_filesystem::g_cjsh_config_path;
+  
+  // Read the entire file content
+  std::vector<std::string> lines;
+  std::string line;
+  std::ifstream read_file(config_path);
+  
+  if (read_file.is_open()) {
+    while (std::getline(read_file, line)) {
+      if (line.find("export ") != 0) {
+        // Keep all non-export lines
+        lines.push_back(line);
       }
     }
+    read_file.close();
   }
   
-  // Add new environment variables that weren't updated
+  // Add all current environment variables
   for (const auto& [name, value] : env_vars) {
-    if (!env_var_updated[name]) {
-      lines.push_back("export " + name + "='" + value + "'");
-    }
+    lines.push_back("export " + name + "='" + value + "'");
   }
   
   // Write back to file
