@@ -17,25 +17,30 @@ void shell_signal_handler(int signum, siginfo_t* info, void* context) {
   (void)info; // Unused parameter
 
   switch (signum) {
-    case SIGINT:
+    case SIGINT: {
       sigint_received = 1;
       // Safe to write a small amount as it's async-signal-safe
-      write(STDOUT_FILENO, "\n", 1);
+      ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
+      (void)bytes_written; // Prevent unused variable warning
       break;
+    }
       
-    case SIGCHLD:
+    case SIGCHLD: {
       sigchld_received = 1;
       break;
+    }
       
-    case SIGHUP:
+    case SIGHUP: {
       sighup_received = 1;
       _exit(0); // Immediate exit for terminal disconnect
       break;
+    }
       
-    case SIGTERM:
+    case SIGTERM: {
       sigterm_received = 1;
       _exit(0); // Immediate exit for termination
       break;
+    }
   }
 }
 
