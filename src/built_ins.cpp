@@ -1046,35 +1046,135 @@ bool Built_ins::user_commands(const std::vector<std::string>& args) {
 }
 
 bool Built_ins::help_command() {
-  std::cout << "Available commands:" << std::endl;
-  std::cout << " ai: Access AI command settings and chat or switch to the ai menu" << std::endl;
-  std::cout << " approot: Switch to the application directory" << std::endl;
-  std::cout << " user: Access user settings" << std::endl;
-  std::cout << " aihelp: Get AI troubleshooting help" << std::endl;
-  std::cout << " theme: Manage themes (load/save)" << std::endl;
-  std::cout << " version: Display application version" << std::endl;
-  std::cout << " plugin: Manage plugins" << std::endl;
-  std::cout << " uninstall: Uninstall the application" << std::endl;
-  std::cout << std::endl;
+  const std::string section_separator = "\n" + std::string(80, '-') + "\n";
+  std::cout << "\nCJ'S SHELL COMMAND REFERENCE" << section_separator;
   
-  std::cout << " Built-in g_shell commands:" << std::endl;
-  std::cout << " cd [DIR]: Change directory" << std::endl;
-  std::cout << " alias [NAME=VALUE]: Create command alias" << std::endl;
-  std::cout << " export [NAME=VALUE]: Set environment variable" << std::endl;
-  std::cout << " unset [NAME]: Unset environment variable" << std::endl;
-  std::cout << " source [FILE]: Execute commands from file" << std::endl;
-  std::cout << " unalias [NAME]: Remove alias" << std::endl;
-  std::cout << std::endl;
+  // AI-related commands
+  std::cout << "AI COMMANDS:\n\n";
   
-  std::cout << " Common system commands:" << std::endl;
-  std::cout << " clear: Clear the terminal screen" << std::endl;
-  std::cout << " exit: Exit the application" << std::endl;
-  std::cout << " quit: Exit the application" << std::endl;
-  std::cout << " help: Show this help message" << std::endl;
+  std::cout << "  ai                      Access AI assistant features and settings\n";
+  std::cout << "    Usage: ai [subcommand] [options]\n";
+  std::cout << "    Examples: 'ai' (enters AI chat mode), 'ai apikey set YOUR_KEY', 'ai chat history'\n";
+  std::cout << "    Subcommands:\n";
+  std::cout << "      log                 Save the recent chat exchange to a file\n";
+  std::cout << "      apikey              View or set the OpenAI API key\n";
+  std::cout << "      chat                Access AI chat commands (history, cache)\n";
+  std::cout << "      get [KEY]           Retrieve specific response data\n";
+  std::cout << "      dump                Display all response data and last prompt\n";
+  std::cout << "      mode [TYPE]         Set or view the assistant mode\n";
+  std::cout << "      file                Manage context files (add, remove, active, available)\n";
+  std::cout << "      directory           Manage save directory for AI-generated files\n";
+  std::cout << "      model [MODEL]       Set or view the AI model being used\n";
+  std::cout << "      rejectchanges       Reject AI suggested code changes\n";
+  std::cout << "      timeoutflag [SECS]  Set timeout duration for AI requests\n\n";
+  
+  std::cout << "  aihelp [QUERY]          Get troubleshooting help from AI\n";
+  std::cout << "    Usage: aihelp [optional error description]\n";
+  std::cout << "    Example: 'aihelp why is my command failing?'\n";
+  std::cout << "    Note: Without arguments, will analyze the most recent error\n\n";
+  
+  // User settings
+  std::cout << "USER SETTINGS:\n\n";
+  
+  std::cout << "  user                    Access and manage user settings\n";
+  std::cout << "    Usage: user [subcommand] [options]\n";
+  std::cout << "    Subcommands:\n";
+  std::cout << "      startup             View, add or remove startup commands\n";
+  std::cout << "      testing             Toggle debug mode (enable/disable)\n";
+  std::cout << "      checkforupdates     Control whether updates are checked\n";
+  std::cout << "      silentupdatecheck   Toggle silent update checking\n";
+  std::cout << "      titleline           Toggle title line display\n";
+  std::cout << "      update              Manage update settings and checks\n";
+  std::cout << "    Example: 'user update check', 'user startup add \"theme dark\"'\n\n";
+  
+  // Theme management
+  std::cout << "THEME MANAGEMENT:\n\n";
+  
+  std::cout << "  theme [NAME]            View current theme or switch to a new theme\n";
+  std::cout << "    Usage: theme [name] or theme load [name]\n";
+  std::cout << "    Example: 'theme dark', 'theme load light'\n";
+  std::cout << "    Note: Without arguments, displays the current theme and available themes\n\n";
+  
+  // Plugin management
+  std::cout << "PLUGIN MANAGEMENT:\n\n";
+  
+  std::cout << "  plugin                  Manage shell plugins\n";
+  std::cout << "    Usage: plugin [subcommand] [options]\n";
+  std::cout << "    Subcommands:\n";
+  std::cout << "      available           List all available plugins\n";
+  std::cout << "      enabled             List currently enabled plugins\n";
+  std::cout << "      enableall           Enable all available plugins\n";
+  std::cout << "      disableall          Disable all enabled plugins\n";
+  std::cout << "      enable [NAME]       Enable a specific plugin\n";
+  std::cout << "      disable [NAME]      Disable a specific plugin\n";
+  std::cout << "      info [NAME]         Show information about a plugin\n";
+  std::cout << "      commands [NAME]     List commands provided by a plugin\n";
+  std::cout << "      settings [NAME]     View or modify plugin settings\n";
+  std::cout << "      install [PATH]      Install a new plugin from the given path\n";
+  std::cout << "      uninstall [NAME]    Remove an installed plugin\n";
+  std::cout << "    Example: 'plugin enable git_tools', 'plugin info markdown'\n\n";
+  
+  // Utility commands
+  std::cout << "UTILITY COMMANDS:\n\n";
+  
+  std::cout << "  approot                 Switch to the application directory\n";
+  std::cout << "    Usage: approot\n";
+  std::cout << "    Note: This is where cjsh configuration files are stored\n\n";
+  
+  std::cout << "  version                 Display the application version\n";
+  std::cout << "    Usage: version\n\n";
+  
+  std::cout << "  uninstall               Uninstall the application\n";
+  std::cout << "    Usage: uninstall\n";
+  std::cout << "    Note: Will prompt for confirmation and option to remove user data\n\n";
+  
+  // Built-in shell commands
+  std::cout << "BUILT-IN SHELL COMMANDS:\n\n";
+  
+  std::cout << "  cd [DIR]                Change the current directory\n";
+  std::cout << "    Usage: cd [directory]\n";
+  std::cout << "    Examples: 'cd /path/to/dir', 'cd ~', 'cd ..' (parent directory), 'cd' (home directory)\n\n";
+  
+  std::cout << "  alias [NAME=VALUE]      Create or display command aliases\n";
+  std::cout << "    Usage: alias [name=value]\n";
+  std::cout << "    Examples: 'alias' (show all), 'alias ll=\"ls -la\"', 'alias gs=\"git status\"'\n\n";
+  
+  std::cout << "  unalias [NAME]          Remove a command alias\n";
+  std::cout << "    Usage: unalias name\n";
+  std::cout << "    Example: 'unalias ll'\n\n";
+  
+  std::cout << "  export [NAME=VALUE]     Set or display environment variables\n";
+  std::cout << "    Usage: export [name=value]\n";
+  std::cout << "    Examples: 'export' (show all), 'export PATH=\"$PATH:/new/path\"'\n\n";
+  
+  std::cout << "  unset [NAME]            Remove an environment variable\n";
+  std::cout << "    Usage: unset name\n";
+  std::cout << "    Example: 'unset TEMP_VAR'\n\n";
+  
+  std::cout << "  source [FILE]           Execute commands from a file\n";
+  std::cout << "    Usage: source path/to/file\n";
+  std::cout << "    Example: 'source ~/.cjshrc'\n\n";
+  
+  // Common system commands
+  std::cout << "COMMON SYSTEM COMMANDS:\n\n";
+  
+  std::cout << "  clear                   Clear the terminal screen\n";
+  std::cout << "    Usage: clear\n\n";
+  
+  std::cout << "  exit or quit            Exit the application\n";
+  std::cout << "    Usage: exit or quit\n\n";
+  
+  std::cout << "  help                    Display this help message\n";
+  std::cout << "    Usage: help\n";
+  
+  // Command-specific help reminder
+  std::cout << section_separator;
+  std::cout << "NOTE: Many commands have their own help. Try [command] help for details.\n";
+  std::cout << "Examples: 'ai help', 'user help', 'plugin help', etc.\n";
+  std::cout << section_separator;
   
   return true;
 }
-
 bool Built_ins::aihelp_command(const std::vector<std::string>& args) {
   if (!g_ai || g_ai->getAPIKey().empty()) {
     std::cerr << "Please set your OpenAI API key first." << std::endl;
