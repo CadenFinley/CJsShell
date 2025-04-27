@@ -53,11 +53,19 @@ find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
 
 # nlohmann/json - header only library
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
-# If json is not available in the path above, you may need to fetch it:
-# include(FetchContent)
-# FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
-# FetchContent_MakeAvailable(json)
+# Check both locations where json.hpp might be found
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
+  message(STATUS "Found nlohmann/json in third_party/json/include")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann/json.hpp")
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external)
+  message(STATUS "Found nlohmann/json in external/nlohmann")
+else()
+  message(WARNING "nlohmann/json.hpp not found in expected locations. Attempting to fetch...")
+  include(FetchContent)
+  FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+  FetchContent_MakeAvailable(json)
+endif()
 
 # isocline library (part of codebase)
 # Pass specific options to isocline to prevent CPU targeting
