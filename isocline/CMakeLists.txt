@@ -24,6 +24,30 @@ set(ic_cflags)
 set(ic_cdefs)
 set(ic_install_dir)
 
+# -----------------------------------------------------------------------------
+# Apple Silicon detection and architecture flags
+# -----------------------------------------------------------------------------
+if(APPLE)
+  if(IC_APPLE_SILICON)
+    message(STATUS "isocline: Building for Apple Silicon (arm64)")
+    
+    # Set the architecture explicitly at the CMake level
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for macOS" FORCE)
+    
+    # Remove any CPU-specific target flags that might be causing problems
+    string(REGEX REPLACE "-mcpu=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE "-mcpu=[^ ]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REGEX REPLACE "-march=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE "-march=[^ ]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    
+    # Ensure ISOCLINE_DISABLE_CPU_TARGETING is defined to prevent CPU-specific targeting
+    list(APPEND ic_cdefs ISOCLINE_DISABLE_CPU_TARGETING)
+    
+    # Add basic arch flag but avoid any specific CPU targeting
+    list(APPEND ic_cflags "-arch" "arm64")
+  endif()
+endif()
+
 if(IC_SEPARATE_OBJS)
   list(APPEND ic_cdefs IC_SEPARATE_OBJS)
   list(APPEND ic_sources  

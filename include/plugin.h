@@ -47,6 +47,11 @@ private:
     std::mutex discovery_mutex;                   // Protects discover operations
 
     void unload_plugin(const std::string& name);
+    
+    // Architecture compatibility checking
+    std::string get_current_architecture() const;
+    std::string get_file_architecture(const std::filesystem::path& path) const;
+    bool is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const;
 
 public:
     Plugin(const std::filesystem::path& plugins_dir);
