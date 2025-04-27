@@ -87,8 +87,12 @@ void restore_terminal_state();
 void setup_job_control();
 void setup_environment_variables();
 void initialize_login_environment();
+bool is_shell_script_construct(const std::string& line);
+void process_shell_scripts_in_config();
+bool parse_and_set_env_var(const std::string& line);
+void prepare_shell_signal_environment();
 
-using json = nlohmann::json;
+// using json = nlohmann::json;
 
 void startup_update_process();
 bool check_for_update();
@@ -102,3 +106,6 @@ std::string get_current_time_string();
 bool is_newer_version(const std::string& latest, const std::string& current);
 bool is_first_boot();
 void mark_first_boot_complete();
+
+// Add a function to handle command execution errors gracefully
+void handle_command_error(const std::string& command, const std::string& error_message);

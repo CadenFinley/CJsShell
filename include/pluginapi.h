@@ -15,7 +15,7 @@ extern "C" {
  * 1. Include this header in your plugin source
  * 2. Implement all required functions
  * 3. Compile as a shared library
- * 4. Place the compiled library in the ~/.cjsh_data/plugins directory
+ * 4. Place the compiled library in the ~/.cjsh/plugins directory
  */
 
 // Plugin interface version for compatibility checking

@@ -6,8 +6,24 @@
 #include <functional>
 #include <cmath>
 #include <algorithm>
+#include <unordered_map>
 
 namespace colors {
+
+// Terminal color capability levels
+enum class ColorCapability {
+    NO_COLOR,           // Terminal doesn't support colors
+    BASIC_COLOR,        // Basic 8/16 ANSI colors
+    XTERM_256_COLOR,    // 256 color mode
+    TRUE_COLOR          // 24-bit true color (RGB)
+};
+
+// Global variable to store detected color capability
+extern ColorCapability g_color_capability;
+
+// Function to detect and initialize terminal color capabilities
+ColorCapability detect_color_capability();
+void initialize_color_support();
 
 // Color structure for RGB colors
 struct RGB {
@@ -110,6 +126,7 @@ RGB xterm256_to_rgb(uint8_t index);
 
 // Get a color by its name
 RGB get_color_by_name(const std::string& name);
+std::unordered_map<std::string, std::string> get_color_map();
 
 // Named color constants - Extended palette of common web colors
 namespace named {

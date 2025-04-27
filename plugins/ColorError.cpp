@@ -191,8 +191,8 @@ extern "C" {
         const char* home = getenv("HOME");
         if (!home) return PLUGIN_ERROR_GENERAL;
         
-        SETTINGS_DIRECTORY = std::string(home) + "/.cjsh_data/plugins/ColorError";
-        USER_DATA = SETTINGS_DIRECTORY + "/color-error-settings.json";
+        SETTINGS_DIRECTORY = std::string(home) + "/.cjsh/ColorError";
+        USER_DATA = SETTINGS_DIRECTORY + "/settings.json";
         
         ensureSettingsExist();
         loadSettings();

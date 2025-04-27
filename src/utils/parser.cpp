@@ -283,3 +283,74 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
   
   return result;
 }
+
+std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& command) {
+  std::vector<LogicalCommand> result;
+  
+  std::string current_cmd;
+  bool in_quotes = false;
+  char quote_char = '\0';
+  
+  for (size_t i = 0; i < command.length(); i++) {
+    char c = command[i];
+    
+    // Handle quotes to avoid splitting on && or || inside quotes
+    if ((c == '"' || c == '\'') && (i == 0 || command[i-1] != '\\')) {
+      if (!in_quotes) {
+        in_quotes = true;
+        quote_char = c;
+      } else if (c == quote_char) {
+        in_quotes = false;
+        quote_char = '\0';
+      }
+      current_cmd += c;
+      continue;
+    }
+    
+    // Look for logical operators
+    if (!in_quotes && i + 1 < command.length()) {
+      // Ensure we're only matching '&&' and '||', not single '&' (background)
+      if ((c == '&' && command[i + 1] == '&') || 
+          (c == '|' && command[i + 1] == '|' && (i == 0 || command[i-1] != '|'))) {
+        
+        // Trim whitespace from current command
+        std::string trimmed_cmd = current_cmd;
+        while (!trimmed_cmd.empty() && std::isspace(trimmed_cmd.back())) {
+          trimmed_cmd.pop_back();
+        }
+        
+        // Add the command and operator to result
+        if (!trimmed_cmd.empty()) {
+          LogicalCommand cmd_segment;
+          cmd_segment.command = trimmed_cmd;
+          cmd_segment.op = std::string(1, c) + c;
+          result.push_back(cmd_segment);
+        }
+        
+        // Skip the second character of the operator
+        i++;
+        current_cmd.clear();
+        continue;
+      }
+    }
+    
+    current_cmd += c;
+  }
+  
+  // Add the last command
+  if (!current_cmd.empty()) {
+    std::string trimmed_cmd = current_cmd;
+    while (!trimmed_cmd.empty() && std::isspace(trimmed_cmd.back())) {
+      trimmed_cmd.pop_back();
+    }
+    
+    if (!trimmed_cmd.empty()) {
+      LogicalCommand cmd_segment;
+      cmd_segment.command = trimmed_cmd;
+      cmd_segment.op = ""; // Last command has no operator
+      result.push_back(cmd_segment);
+    }
+  }
+  
+  return result;
+}

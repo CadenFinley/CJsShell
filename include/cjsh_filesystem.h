@@ -22,12 +22,12 @@ namespace cjsh_filesystem {
   extern fs::path g_cjsh_path; // where the executable is located
 
   // used if login
-  const fs::path g_cjsh_config_path = g_user_home_path / ".cjprofile"; //envvars and PATH setup
+  const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile"; //envvars and PATH setup
 
   // used if interactive
   const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc"; // aliases, prompt, functions, themes
   
-  const fs::path g_cjsh_data_path = g_user_home_path / ".cjsh_data"; // directory for all cjsh data
+  const fs::path g_cjsh_data_path = g_user_home_path / ".cjsh"; // directory for all cjsh things
   const fs::path g_cjsh_plugin_path = g_cjsh_data_path / "plugins";
   const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes";
   const fs::path g_cjsh_history_path = g_cjsh_data_path / "history.txt";

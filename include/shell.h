@@ -8,9 +8,12 @@
 #include <string>
 #include <sys/types.h>
 #include <unordered_map>
+#include <signal.h>
 
 class Exec;
 class Built_ins;
+
+extern void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
 class Shell {
   public:
@@ -18,6 +21,9 @@ class Shell {
     ~Shell();
 
     void execute_command(std::string command, bool sync = false);
+    
+    // New method to process signals safely from the main loop
+    void process_pending_signals();
 
     std::string get_prompt() {
       // prompt fallback built-in inside fuction return
@@ -27,6 +33,10 @@ class Shell {
     std::string get_ai_prompt() {
       // prompt fallback built-in inside fuction return
       return shell_prompt->get_ai_prompt();
+    }
+
+    std::string get_title_prompt() {
+      return shell_prompt->get_title_prompt();
     }
 
     void set_interactive_mode(bool flag) {
@@ -62,20 +72,34 @@ class Shell {
     std::unordered_map<std::string, std::string>& get_env_vars() {
       return env_vars;
     }
+    
+    void setup_signal_handlers();
+    void save_terminal_state();
+    void restore_terminal_state();
+    void setup_job_control();
+
+    // lol friend funny c++ 90's OOP moment
+    friend void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
     std::string last_terminal_output_error;
     std::string last_command;
+    std::unique_ptr<Exec> shell_exec;
 
   private:
     bool interactive_mode = false;
     bool login_mode = false;
     int shell_terminal;
+    pid_t shell_pgid;
+    struct termios shell_tmodes;
+    bool terminal_state_saved = false;
+    bool job_control_enabled = false;
 
     std::unique_ptr<Prompt> shell_prompt;
-    std::unique_ptr<Exec> shell_exec;
     Parser* shell_parser = nullptr;
     Built_ins* built_ins = nullptr;
     
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
 };
+
+extern Shell* g_shell_instance;

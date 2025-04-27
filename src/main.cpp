@@ -4,22 +4,24 @@
 #include <signal.h>
 #include "colors.h"
 
-// create customizable title line in terminal
-// rework color system
+// create a bunch of example_format plugins in a bunch of compatable languages
 
 int main(int argc, char *argv[]) {
   // cjsh
-
+  
   // verify installation
   if (!initialize_cjsh_path()){
     std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
   }
-
+  
+  // Initialize signal handling before creating the shell
+  prepare_shell_signal_environment();
+  
   // this handles the prompting and executing of commands
   g_shell = new Shell(argv);
-
-  // setup signal handlers before anything else
-  setup_signal_handlers();
+  
+  // setup signal handlers through the shell
+  g_shell->setup_signal_handlers();
   
   // Initialize login environment if necessary
   if (g_shell->get_login_mode()) {
@@ -30,9 +32,12 @@ int main(int argc, char *argv[]) {
     process_config_file();
     initialize_login_environment();
     setup_environment_variables();
-    setup_job_control();
+    g_shell->setup_job_control();
   }
 
+  // Initialize color support
+  colors::initialize_color_support();
+  
   // check for non interactive command line arguments
   // -c, --command
   // -v, --version
@@ -40,6 +45,7 @@ int main(int argc, char *argv[]) {
   // --set-as-shell
   // --update
   // --silent-updates
+  // --splash
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
   
@@ -166,12 +172,10 @@ int main(int argc, char *argv[]) {
     g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
 
-  // do update process
-  startup_update_process();
-
   if(!g_exit_flag) {
+    // do update process
+    startup_update_process();
     if (g_title_line) {
-      // Replace plain splash with colorized version
       std::cout << title_line << std::endl;
       std::cout << created_line  << std::endl;
     }
@@ -182,7 +186,7 @@ int main(int argc, char *argv[]) {
   std::cout << "CJ's Shell Exiting..." << std::endl;
 
   if (g_shell->get_login_mode()) {
-    restore_terminal_state();
+    g_shell->restore_terminal_state();
   }
 
   delete g_shell;
@@ -196,6 +200,11 @@ int main(int argc, char *argv[]) {
 
   // clean up main
   return 0;
+}
+
+void update_terminal_title() {
+  std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
+  std::cout.flush();
 }
 
 void main_process_loop() {
@@ -212,6 +221,7 @@ void main_process_loop() {
     if (g_debug_mode) {
       std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
     }
+    update_terminal_title();
     
     std::string prompt;
     if (g_menu_terminal) {
@@ -228,6 +238,7 @@ void main_process_loop() {
         notify_plugins("main_process_command_processed", command);
         ic_history_add(command.c_str());
         g_shell->execute_command(command, true);
+        update_terminal_title();
       }
       if (g_exit_flag) {
         break;
@@ -242,175 +253,8 @@ void main_process_loop() {
   }
 }
 
-static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
-  (void)context; // Unused parameter
-  (void)info; // Unused parameter
-
-  switch (signum) {
-    case SIGHUP:
-      std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
-      g_exit_flag = true;
-      
-      if (g_job_control_enabled) {
-        try {
-          restore_terminal_state();
-        } catch (...) {}
-      }
-      
-      _exit(0);
-      break;
-      
-    case SIGTERM:
-      std::cerr << "Received SIGTERM, exiting" << std::endl;
-      g_exit_flag = true;
-      _exit(0);
-      break;
-      
-    case SIGINT:
-      std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
-      break;
-      
-    case SIGCHLD:
-      // Handle child process termination
-      pid_t child_pid;
-      int status;
-      while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
-        // Child process terminated
-      }
-      break;
-  }
-}
-
-void setup_signal_handlers() {
-  struct sigaction sa;
-  sigemptyset(&sa.sa_mask);
-  sigset_t block_mask;
-  sigfillset(&block_mask);
-
-  // Setup SIGHUP handler (terminal disconnect)
-  sa.sa_sigaction = signal_handler_wrapper;
-  sa.sa_mask = block_mask;
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGHUP, &sa, nullptr);
-
-  // Setup SIGTERM handler
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGTERM, &sa, nullptr);
-
-  // Setup SIGCHLD handler (child process state changes)
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGCHLD, &sa, nullptr);
-
-  // Setup SIGINT handler (Ctrl+C)
-  sa.sa_flags = SA_SIGINFO;
-  sigaction(SIGINT, &sa, nullptr);
-
-  // Ignore certain signals
-  sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
-  sa.sa_mask = block_mask;
-  sigaction(SIGQUIT, &sa, nullptr);
-  sigaction(SIGTSTP, &sa, nullptr);
-  sigaction(SIGTTIN, &sa, nullptr);
-  sigaction(SIGTTOU, &sa, nullptr);
-
-  save_terminal_state();
-}
-
-void save_terminal_state() {
-  if (isatty(STDIN_FILENO)) {
-    if (tcgetattr(STDIN_FILENO, &g_original_termios) == 0) {
-      g_terminal_state_saved = true;
-    }
-  }
-}
-
-void restore_terminal_state() {
-  if (g_terminal_state_saved) {
-    tcsetattr(STDIN_FILENO, TCSANOW, &g_original_termios);
-  }
-}
-
-void setup_job_control() {
-  if (!isatty(STDIN_FILENO)) {
-    g_job_control_enabled = false;
-    return;
-  }
-  
-  g_shell_pgid = getpid();
-  
-  if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
-    if (errno != EPERM) {
-      perror("Couldn't put the shell in its own process group");
-    }
-  }
-  
-  try {
-    g_shell_terminal = STDIN_FILENO;
-    int tpgrp = tcgetpgrp(g_shell_terminal);
-    if (tpgrp != -1) {
-      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
-        perror("Couldn't grab terminal control");
-      }
-    }
-    
-    if (tcgetattr(g_shell_terminal, &g_shell_tmodes) < 0) {
-      perror("Couldn't get terminal attributes");
-    }
-    
-    g_job_control_enabled = true;
-  } catch (const std::exception& e) {
-    std::cerr << "Error setting up terminal: " << e.what() << std::endl;
-    g_job_control_enabled = false;
-  }
-}
-
-void setup_environment_variables() {
-  uid_t uid = getuid();
-  struct passwd* pw = getpwuid(uid);
-  
-  if (pw != nullptr) {
-    setenv("USER", pw->pw_name, 1);
-    setenv("LOGNAME", pw->pw_name, 1);
-    setenv("HOME", pw->pw_dir, 1);
-    setenv("SHELL", cjsh_filesystem::g_cjsh_path.c_str(), 1);
-    
-    setenv("CJSH_VERSION", c_version.c_str(), 1);
-    
-    char hostname[256];
-    if (gethostname(hostname, sizeof(hostname)) == 0) {
-      setenv("HOSTNAME", hostname, 1);
-    }
-    
-    setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
-    
-    if (getenv("TZ") == nullptr) {
-      std::string tz_file = "/etc/localtime";
-      if (std::filesystem::exists(tz_file)) {
-        setenv("TZ", tz_file.c_str(), 1);
-      }
-    }
-  }
-}
-
-void initialize_login_environment() {
-  if (setsid() < 0) {
-    if (errno != EPERM) {
-      perror("Failed to become session leader");
-    }
-  }
-  
-  g_shell_terminal = STDIN_FILENO;
-  
-  if (!isatty(g_shell_terminal)) {
-    std::cerr << "Warning: Not running on a terminal device" << std::endl;
-  }
-}
-
 void notify_plugins(std::string trigger, std::string data) {
   if (g_plugin == nullptr) {
-    g_exit_flag = true;
-    std::cerr << "Error: Plugin system not initialized." << std::endl;
     return;
   }
   if (g_plugin->get_enabled_plugins().empty()) {
@@ -428,7 +272,7 @@ bool init_login_filesystem() {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
       return false;
     }
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
       create_config_file();
     }
   } catch (const std::exception& e) {
@@ -436,6 +280,82 @@ bool init_login_filesystem() {
     return false;
   }
   return true;
+}
+
+void setup_environment_variables() {
+  uid_t uid = getuid();
+  struct passwd* pw = getpwuid(uid);
+  
+  if (pw != nullptr) {
+    setenv("USER", pw->pw_name, 1);
+    setenv("LOGNAME", pw->pw_name, 1);
+    setenv("HOME", pw->pw_dir, 1);
+    
+    if (getenv("PATH") == nullptr) {
+      setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+    }
+    
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+      setenv("HOSTNAME", hostname, 1);
+    }
+    
+    setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+  }
+}
+
+void initialize_login_environment() {
+  if (g_shell->get_login_mode()) {
+    g_shell_terminal = STDIN_FILENO;
+    
+    if (!isatty(g_shell_terminal)) {
+      std::cerr << "Warning: Not running on a terminal device" << std::endl;
+    }
+    
+    g_shell_pgid = getpid();
+
+    if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
+      if (errno != EPERM) {
+        perror("setpgid failed");
+      }
+    }
+    
+    if (isatty(g_shell_terminal)) {
+      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
+        perror("tcsetpgrp failed in initialize_login_environment");
+      }
+    }
+    
+    struct termios term_attrs;
+    if (tcgetattr(g_shell_terminal, &term_attrs) == 0) {
+      g_shell_tmodes = term_attrs;
+      g_terminal_state_saved = true;
+    }
+  }
+}
+
+void prepare_shell_signal_environment() {
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGQUIT);
+  sigaddset(&mask, SIGTSTP);
+  sigaddset(&mask, SIGTTIN);
+  sigaddset(&mask, SIGTTOU);
+  sigaddset(&mask, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &mask, nullptr);
+  
+  struct sigaction sa;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  
+  sigaction(SIGTTOU, &sa, nullptr);
+  sigaction(SIGTTIN, &sa, nullptr);
+  sigaction(SIGQUIT, &sa, nullptr);
+  sigaction(SIGTSTP, &sa, nullptr);
+  
+  sigprocmask(SIG_UNBLOCK, &mask, nullptr);
 }
 
 bool init_interactive_filesystem() {
@@ -468,32 +388,178 @@ bool init_interactive_filesystem() {
 }
 
 void process_config_file() {
-  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
+  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
     create_config_file();
     return;
   }
 
-  std::ifstream config_file(cjsh_filesystem::g_cjsh_config_path);
+  std::ifstream config_file(cjsh_filesystem::g_cjsh_profile_path);
   if (!config_file.is_open()) {
     std::cerr << "cjsh: Failed to open the configuration file for reading." << std::endl;
     return;
   }
+  
+  config_file.clear();
+  config_file.seekg(0);
   
   std::string line;
   while (std::getline(config_file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
-    if (line.find("export ") == 0) {
-      g_shell->execute_command(line, true);
-    } else {
-      g_shell->execute_command(line, true);
+    
+    if (line == "PATH_HELPER") {
+      process_shell_scripts_in_config();
     }
+  }
+  
+  config_file.clear();
+  config_file.seekg(0);
+  
+  while (std::getline(config_file, line)) {
+    if (line.empty() || line[0] == '#' || line == "PATH_HELPER") {
+      continue;
+    }
+
+    if (is_shell_script_construct(line)) {
+      continue;
+    }
+    
+    if (parse_and_set_env_var(line)) {
+      continue;
+    }
+    
+    g_shell->execute_command(line, true);
   }
   
   config_file.close();
   if (g_debug_mode) {
     std::cout << "DEBUG: Configuration file processed." << std::endl;
+  }
+}
+
+bool is_shell_script_construct(const std::string& line) {
+  std::string trimmed = line;
+  trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+  
+  if (trimmed.find("if ") == 0 || 
+      trimmed == "then" || 
+      trimmed == "else" || 
+      trimmed == "elif" || 
+      trimmed == "fi" || 
+      trimmed.find("eval ") == 0 ||
+      trimmed.find("for ") == 0 ||
+      trimmed.find("while ") == 0 ||
+      trimmed == "do" ||
+      trimmed == "done") {
+    return true;
+  }
+  return false;
+}
+
+void process_shell_scripts_in_config() {
+  if (std::filesystem::exists("/usr/libexec/path_helper")) {
+    FILE* pipe = popen("/usr/libexec/path_helper -s", "r");
+    if (pipe) {
+      char buffer[256];
+      std::string result;
+      
+      while (!feof(pipe)) {
+        if (fgets(buffer, 256, pipe) != NULL) {
+          result += buffer;
+        }
+      }
+      pclose(pipe);
+      
+      std::string path_value;
+      size_t pos = result.find("PATH=\"");
+      if (pos != std::string::npos) {
+        pos += 6;
+        size_t end_pos = result.find("\"", pos);
+        if (end_pos != std::string::npos) {
+          path_value = result.substr(pos, end_pos - pos);
+          if (!path_value.empty()) {
+            setenv("PATH", path_value.c_str(), 1);
+            if (g_debug_mode) {
+              std::cout << "DEBUG: Set PATH=" << path_value << std::endl;
+            }
+          }
+        }
+      }
+    }
+  }
+  else {
+    std::cerr << "Warning: /usr/libexec/path_helper not found. PATH may not be set correctly." << std::endl;
+  }
+  if (g_debug_mode) {
+    std::cout << "DEBUG: PATH_HELPER executed." << std::endl;
+  }
+}
+
+bool parse_and_set_env_var(const std::string& line) {
+  if (line.find("export ") == 0) {
+    std::string var_setting = line.substr(7);
+    size_t equals_pos = var_setting.find('=');
+    
+    if (equals_pos != std::string::npos) {
+      std::string var_name = var_setting.substr(0, equals_pos);
+      std::string var_value = var_setting.substr(equals_pos + 1);
+      
+      if (var_value.size() >= 2 && 
+          ((var_value.front() == '"' && var_value.back() == '"') || 
+           (var_value.front() == '\'' && var_value.back() == '\''))) {
+        var_value = var_value.substr(1, var_value.size() - 2);
+      }
+      
+      setenv(var_name.c_str(), var_value.c_str(), 1);
+      
+      if (g_debug_mode) {
+        std::cout << "DEBUG: Set " << var_name << "=" << var_value << std::endl;
+      }
+      return true;
+    }
+  }
+  else {
+    size_t equals_pos = line.find('=');
+    
+    if (equals_pos != std::string::npos && equals_pos > 0) {
+      std::string var_name = line.substr(0, equals_pos);
+      std::string var_value = line.substr(equals_pos + 1);
+      
+      if (var_value.size() >= 2 && 
+          ((var_value.front() == '"' && var_value.back() == '"') || 
+           (var_value.front() == '\'' && var_value.back() == '\''))) {
+        var_value = var_value.substr(1, var_value.size() - 2);
+      }
+      
+      setenv(var_name.c_str(), var_value.c_str(), 1);
+      
+      if (g_debug_mode) {
+        std::cout << "DEBUG: Set " << var_name << "=" << var_value << std::endl;
+      }
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+void create_config_file() {
+  std::ofstream config_file(cjsh_filesystem::g_cjsh_profile_path);
+  if (config_file.is_open()) {
+    config_file << "# CJ's Shell Configuration File\n";
+    config_file << "# This file is sourced when the shell starts in login mode\n";
+    config_file << "# This file is used to configure the shell PATH and set environment variables.\n";
+    config_file << "# Do not edit this file unless you know what you are doing.\n\n";
+
+    config_file << "# Path helper command - sets up system PATH\n";
+    config_file << "PATH_HELPER\n\n";
+
+    config_file << "# Any environment variables should be set without 'export' command\n";
+    config_file << "# Example: VARIABLE=value\n";
+    config_file.close();
+  } else {
+    std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
   }
 }
 
@@ -533,25 +599,6 @@ void process_source_file() {
   }
 }
 
-void create_config_file() {
-  std::ofstream config_file(cjsh_filesystem::g_cjsh_config_path);
-  if (config_file.is_open()) {
-    config_file << "# CJ's Shell Configuration File\n";
-    config_file << "# This file is sourced when the shell starts in login mode\n";
-    config_file << "# This file is used to configure the shell PATH and set environment variables.\n";
-    config_file << "# Do not edit this file unless you know what you are doing.\n";
-
-    config_file << "if [ -x /usr/libexec/path_helper ]; then\n";
-    config_file << "eval /usr/libexec/path_helper -s\n";
-    config_file << "fi\n\n";
-
-    config_file << "# Any environment variables will be set here.\n";
-    config_file.close();
-  } else {
-    std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
-  }
-}
-
 void create_source_file() {
   std::ofstream source_file(cjsh_filesystem::g_cjsh_source_path);
   if (source_file.is_open()) {
@@ -581,9 +628,25 @@ void parent_process_watchdog() {
     if (!is_parent_process_alive()) {
       std::cerr << "Parent process terminated, shutting down..." << std::endl;
       g_exit_flag = true;
-      break;
+      if(g_shell){
+        delete g_shell;
+        g_shell = nullptr;
+      }
+      if(g_ai){
+        delete g_ai;
+        g_ai = nullptr;
+      }
+      if(g_plugin){
+        delete g_plugin;
+        g_plugin = nullptr;
+      }
+      if(g_theme){
+        delete g_theme;
+        g_theme = nullptr;
+      }
+      _exit(1);
     }
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 }
 
@@ -756,7 +819,6 @@ bool download_latest_release() {
   std::filesystem::create_directory(temp_dir);
 
   std::string download_url;
-  // Fetch actual asset URL from GitHub API
   {
       std::string api_cmd = "curl -s " + c_update_url;
       std::string api_result;
@@ -768,7 +830,6 @@ bool download_latest_release() {
           try {
               auto api_json = json::parse(api_result);
 
-              // determine expected asset name by OS
               std::string os_suffix;
               #if defined(__APPLE__)
               os_suffix = "macos";
@@ -779,7 +840,6 @@ bool download_latest_release() {
               #endif
               std::string expected = "cjsh" + (os_suffix.empty() ? "" : "-" + os_suffix);
 
-              // find matching asset
               for (const auto& asset : api_json["assets"]) {
                   std::string name = asset.value("name", "");
                   if (name == expected || (download_url.empty() && name == "cjsh")) {
@@ -798,12 +858,10 @@ bool download_latest_release() {
       return false;
   }
 
-  // save into temp with original asset filename
   std::string asset_name = download_url.substr(download_url.find_last_of('/') + 1);
   std::filesystem::path asset_path = temp_dir / asset_name;
   std::string curl_command = "curl -L -s " + download_url + " -o " + asset_path.string();
   
-  // Execute the download command using popen instead of system
   FILE* download_pipe = popen(curl_command.c_str(), "r");
   if (!download_pipe) {
       std::cerr << "Error: Failed to execute download command." << std::endl;
@@ -816,11 +874,9 @@ bool download_latest_release() {
       return false;
   }
 
-  // rename for consistency
   std::filesystem::path output_path = temp_dir / "cjsh";
   std::filesystem::rename(asset_path, output_path);
 
-  // Use filesystem to set permissions instead of chmod
   try {
       std::filesystem::permissions(output_path, 
           std::filesystem::perms::owner_read | 
@@ -838,7 +894,6 @@ bool download_latest_release() {
   std::cout << "Administrator privileges required to install the update." << std::endl;
   std::cout << "Please enter your password if prompted." << std::endl;
 
-  // We still need sudo for copying to system locations, but use popen to capture output
   std::string sudo_command = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path.string();
   FILE* sudo_pipe = popen(sudo_command.c_str(), "r");
   int sudo_result = sudo_pipe ? pclose(sudo_pipe) : -1;
@@ -854,7 +909,6 @@ bool download_latest_release() {
       auto dest_file_size = std::filesystem::file_size(cjsh_filesystem::g_cjsh_path);
       
       if (new_file_size == dest_file_size) {
-          // Still need sudo for chmod on system files
           std::string sudo_chmod_command = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path.string();
           FILE* chmod_pipe = popen(sudo_chmod_command.c_str(), "r");
           pclose(chmod_pipe);
@@ -862,7 +916,6 @@ bool download_latest_release() {
           update_success = true;
           std::cout << "Update installed successfully with administrator privileges." << std::endl;
           
-          // Create changelog file
           std::ofstream changelog((cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string());
           if (changelog.is_open()) {
               changelog << "Updated to version " << g_cached_version << " on " << get_current_time_string() << std::endl;
@@ -883,14 +936,12 @@ bool download_latest_release() {
       std::cout << "Please ensure you have the necessary permissions." << std::endl;
   }
 
-  // Clean up temporary files using filesystem functions
   try {
       std::filesystem::remove_all(temp_dir);
   } catch (const std::exception& e) {
       std::cerr << "Error cleaning up temporary files: " << e.what() << std::endl;
   }
 
-  // Remove update cache file if it exists
   if (std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path)) {
       try {
           std::filesystem::remove(cjsh_filesystem::g_cjsh_update_cache_path);
@@ -936,7 +987,7 @@ bool execute_update_if_available(bool update_available) {
       std::cout << "Restarting application..." << std::endl;
       
       if (g_shell->get_login_mode()) {
-          restore_terminal_state();
+          g_shell->restore_terminal_state();
       }
       
       delete g_shell;
@@ -944,10 +995,8 @@ bool execute_update_if_available(bool update_available) {
       delete g_theme;
       delete g_plugin;
       
-      // Execute the new version
       execl(cjsh_filesystem::g_cjsh_path.c_str(), cjsh_filesystem::g_cjsh_path.c_str(), NULL);
       
-      // If execl fails
       std::cerr << "Failed to restart. Please restart the application manually." << std::endl;
       exit(0);
   } else {
@@ -970,25 +1019,15 @@ void display_changelog(const std::string& changelog_path) {
 }
 
 void startup_update_process() {
-  // Check if this is the first boot
   g_first_boot = is_first_boot();
   
   if (g_first_boot) {
-    // Show a welcome message with the splash screen
     std::cout << "\n" << get_colorized_splash() << std::endl;
     std::cout << "Welcome to CJ's Shell!" << std::endl;
     std::cout << "Type 'help' for a list of commands or 'exit' to quit." << std::endl;
-    
-    // Pause briefly so user can see the splash screen
-    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-    
-    // Mark first boot as complete
     mark_first_boot_complete();
-    
-    // Set title line to false for this first session since we already showed the splash
     g_title_line = false;
   }
-
   std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
   if (std::filesystem::exists(changelog_path)) {
     display_changelog(changelog_path);
@@ -1037,6 +1076,14 @@ std::string get_colorized_splash() {
   };
   
   std::string colorized_splash;
+  
+  // If terminal doesn't support colors, return plain text
+  if (colors::g_color_capability == colors::ColorCapability::NO_COLOR) {
+    for (const auto& line : splash_lines) {
+      colorized_splash += line + "\n";
+    }
+    return colorized_splash;
+  }
   
   // Define gradient start and end colors for each line
   std::vector<std::pair<colors::RGB, colors::RGB>> line_gradients = {

@@ -67,7 +67,6 @@ std::string Prompt::get_prompt() {
         is_clean_repo = cached_is_clean_repo;
       }
       
-      // Extract the repo name from the git repository root directory
       std::string repo_name = current_path.filename().string();
       std::string status_info;
       
@@ -81,10 +80,10 @@ std::string Prompt::get_prompt() {
         branch_name = "unknown";
       }
       
-      // Replace placeholders with actual values
       char hostname[256];
       gethostname(hostname, 256);
       
+      // in git
       prompt_format = replace_placeholder(prompt_format, "{USERNAME}", username);
       prompt_format = replace_placeholder(prompt_format, "{HOSTNAME}", hostname);
       prompt_format = replace_placeholder(prompt_format, "{PATH}", get_current_file_path());
@@ -100,7 +99,7 @@ std::string Prompt::get_prompt() {
   }
   prompt_format = g_theme->get_ps1_prompt_format();
   
-  // Replace placeholders for non-git prompt
+  // non git
   char hostname[256];
   gethostname(hostname, 256);
   
@@ -113,18 +112,32 @@ std::string Prompt::get_prompt() {
 }
 
 std::string Prompt::get_ai_prompt() {
+  std::string prompt_format = g_theme->get_ai_prompt_format();
+  
   std::string modelInfo = g_ai->getModel();
   std::string modeInfo = g_ai->getAssistantType();
             
   if (modelInfo.empty()) modelInfo = "Unknown";
   if (modeInfo.empty()) modeInfo = "Chat";
   
-  std::string prompt_format = g_theme->get_ai_prompt_format();
-  
-  // Replace AI-specific placeholders
   prompt_format = replace_placeholder(prompt_format, "{AI_MODEL}", modelInfo);
   prompt_format = replace_placeholder(prompt_format, "{AI_AGENT_TYPE}", modeInfo);
   prompt_format = replace_placeholder(prompt_format, "{AI_DIVIDER}", ">");
+  
+  return prompt_format;
+}
+
+std::string Prompt::get_title_prompt() {
+  std::string prompt_format = g_theme->get_terminal_title_format();
+  
+  char hostname[256];
+  gethostname(hostname, 256);
+  
+  prompt_format = replace_placeholder(prompt_format, "{SHELL}", terminal_name);
+  prompt_format = replace_placeholder(prompt_format, "{USERNAME}", getenv("USER"));
+  prompt_format = replace_placeholder(prompt_format, "{HOSTNAME}", hostname);
+  prompt_format = replace_placeholder(prompt_format, "{DIRECTORY}", get_current_file_name());
+  prompt_format = replace_placeholder(prompt_format, "{PATH}", get_current_file_path());
   
   return prompt_format;
 }
