@@ -15,6 +15,39 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
+if(APPLE)
+  # Detect if running on Apple Silicon
+  execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(ARCH STREQUAL "arm64")
+    message(STATUS "Detected Apple Silicon (arm64)")
+    
+    # Set the architecture explicitly at the CMake level
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for macOS" FORCE)
+    
+    # Remove all CPU-specific flags to prevent targeting issues
+    string(REGEX REPLACE "-mcpu=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE "-mcpu=[^ ]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    
+    # Also remove -march flags that might cause issues
+    string(REGEX REPLACE "-march=[^ ]+" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REGEX REPLACE "-march=[^ ]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    
+    # Set basic architecture flags
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -arch arm64")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -arch arm64")
+    
+    # Only use minimal architecture specification
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version" FORCE)
+  endif()
+endif()
+
+# Make sure to set these before adding subdirectories
+if(ARCH STREQUAL "arm64")
+  set(IC_APPLE_SILICON ON CACHE BOOL "Targeting Apple Silicon" FORCE)
+else()
+  set(IC_APPLE_SILICON OFF CACHE BOOL "Targeting Apple Silicon" FORCE)
+endif()
+
 # Find and include curl
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIRS})
@@ -27,6 +60,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
 # FetchContent_MakeAvailable(json)
 
 # isocline library (part of codebase)
+# Pass specific options to isocline to prevent CPU targeting
+set(ISOCLINE_DISABLE_CPU_TARGETING ON CACHE BOOL "Disable CPU targeting in isocline" FORCE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/isocline)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/isocline/include)
 

@@ -1,185 +1,262 @@
 #include "theme.h"
+#include <fstream>
+#include <iostream>
+#include <filesystem>
+#include "colors.h"
 
-namespace {
-    std::string parse_ansi_codes(const std::string &input) {
-        std::string output = input;
-        std::string pattern = "\\033";
-        std::string replacement(1, '\x1B');
-        size_t pos = 0;
-        while ((pos = output.find(pattern, pos)) != std::string::npos) {
-            output.replace(pos, pattern.length(), replacement);
-            pos += replacement.length();
-        }
-        return output;
+Theme::Theme(std::string theme_dir) : theme_directory(theme_dir) {
+    
+    // Create default theme if it doesn't exist
+    if (!std::filesystem::exists(theme_directory + "/default.json")) {
+        create_default_theme();
     }
-}
-
-Theme::Theme(const std::filesystem::path& themes_dir) {
-    // file setup for cjsh was already verified in startup so no need to check again
-    themes_directory = themes_dir;
-    create_default_theme();
-    discover_available_themes();
+    
+    // Load default theme by default
     load_theme("default");
 }
 
 Theme::~Theme() {
-    
+    // Cleanup if needed
 }
 
 void Theme::create_default_theme() {
-    std::map<std::string, std::string> default_colors = {
-        {"GREEN_COLOR_BOLD", ""},
-        {"RED_COLOR_BOLD", ""},
-        {"PURPLE_COLOR_BOLD", ""},
-        {"BLUE_COLOR_BOLD", ""},
-        {"YELLOW_COLOR_BOLD", ""},
-        {"CYAN_COLOR_BOLD", ""},
-        {"SHELL_COLOR", ""},
-        {"DIRECTORY_COLOR", ""},
-        {"BRANCH_COLOR", ""},
-        {"GIT_COLOR", ""},
-        {"RESET_COLOR", ""},
-        {"PROMPT_FORMAT", "cjsh \\w"}
-    };
+    nlohmann::json default_theme;
     
-    save_theme("default", default_colors);
-    available_themes["default"] = default_colors;
-}
-
-void Theme::discover_available_themes() {
-    available_themes.clear();
+    // Default PS1 prompt format
+    default_theme["ps1_prompt"] = "[RED]{USERNAME}[WHITE]@[GREEN]{HOSTNAME} [BLUE]{PATH} [WHITE]$[RESET]";
     
-    if (available_themes.find("default") == available_themes.end()) {
-        create_default_theme();
-    }
+    // Default Git prompt format
+    default_theme["git_prompt"] = "[RED]{USERNAME} [BLUE]{DIRECTORY} [GREEN]git:([YELLOW]{GIT_BRANCH} {GIT_STATUS}[GREEN])[RESET]";
     
-    if (!std::filesystem::exists(themes_directory) || !std::filesystem::is_directory(themes_directory)) {
-        std::cerr << "Themes directory does not exist or is not accessible: " << themes_directory << std::endl;
-        return;
-    }
+    // Default AI prompt format
+    default_theme["ai_prompt"] = "[BLUE]{AI_MODEL} [YELLOW]{AI_AGENT_TYPE} [WHITE]{AI_DIVIDER}[RESET]";
     
-    try {
-        for (const auto& entry : std::filesystem::directory_iterator(themes_directory)) {
-            if (entry.path().extension() == ".json") {
-                std::string theme_name = entry.path().stem().string();
-                try {
-                    std::ifstream theme_file(entry.path());
-                    json theme_data;
-                    theme_file >> theme_data;
-                    
-                    std::map<std::string, std::string> theme_colors;
-                    for (auto& [key, value] : theme_data.items()) {
-                        if (value.is_string()) {
-                            theme_colors[key] = parse_ansi_codes(value.get<std::string>());
-                        }
-                    }
-                    
-                    available_themes[theme_name] = theme_colors;
-                    
-                } catch (const std::exception& e) {
-                    std::cerr << "Error loading theme " << theme_name << ": " << e.what() << std::endl;
-                }
-            }
-        }
-    } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "Filesystem error while reading themes directory: " << e.what() << std::endl;
-    }
+    // Write to file
+    std::ofstream file(theme_directory + "/default.json");
+    file << default_theme.dump(4);  // Pretty print with 4 spaces
+    file.close();
 }
 
 bool Theme::load_theme(const std::string& theme_name) {
-    if (available_themes.find(theme_name) != available_themes.end()) {
-        current_theme_name = theme_name;
-        current_theme_colors = available_themes[theme_name];
-        return true;
-    }
+    std::string theme_file = theme_directory + "/" + theme_name + ".json";
     
-    std::filesystem::path theme_path = themes_directory / (theme_name + ".json");
-    if (std::filesystem::exists(theme_path)) {
-        try {
-            std::ifstream theme_file(theme_path);
-            json theme_data;
-            theme_file >> theme_data;
-            
-            std::map<std::string, std::string> theme_colors;
-            for (auto& [key, value] : theme_data.items()) {
-                if (value.is_string()) {
-                    theme_colors[key] = parse_ansi_codes(value.get<std::string>());
-                }
-            }
-            
-            available_themes[theme_name] = theme_colors;
-            current_theme_name = theme_name;
-            current_theme_colors = theme_colors;
-            return true;
-            
-        } catch (const std::exception& e) {
-            std::cerr << "Error loading theme " << theme_name << ": " << e.what() << std::endl;
-            return false;
-        }
-    }
-    
-    std::cerr << "Theme " << theme_name << " not found." << std::endl;
-    return false;
-}
-
-bool Theme::save_theme(const std::string& theme_name, const std::map<std::string, std::string>& colors) {
-    try {
-        std::filesystem::path theme_path = themes_directory / (theme_name + ".json");
-        std::ofstream theme_file(theme_path);
-        
-        json theme_data;
-        for (const auto& [key, value] : colors) {
-            theme_data[key] = value;
-        }
-        
-        theme_file << theme_data.dump(4);
-        return true;
-    } catch (const std::exception& e) {
-        std::cerr << "Error saving theme " << theme_name << ": " << e.what() << std::endl;
-        return false;
-    }
-}
-
-bool Theme::delete_theme(const std::string& theme_name) {
-    if (theme_name == "default") {
-        std::cerr << "Cannot delete default theme." << std::endl;
+    if (!std::filesystem::exists(theme_file)) {
+        std::cerr << "Theme '" << theme_name << "' not found. Using default theme." << std::endl;
+        load_theme("default");
         return false;
     }
     
-    std::filesystem::path theme_path = themes_directory / (theme_name + ".json");
-    if (std::filesystem::exists(theme_path)) {
-        std::filesystem::remove(theme_path);
-        available_themes.erase(theme_name);
+    std::ifstream file(theme_file);
+    nlohmann::json theme_json;
+    file >> theme_json;
+    file.close();
+    
+    // Store the theme formats
+    ps1_format = theme_json["ps1_prompt"];
+    git_format = theme_json["git_prompt"];
+    ai_format = theme_json["ai_prompt"];
+    return true;
+}
+
+std::vector<std::string> Theme::list_themes() {
+    std::vector<std::string> themes;
+    for (const auto& entry : std::filesystem::directory_iterator(theme_directory)) {
+        if (entry.path().extension() == ".json") {
+            themes.push_back(entry.path().stem().string());
+        }
+    }
+    return themes;
+}
+
+std::string Theme::get_ps1_prompt_format() {
+    return process_color_tags(ps1_format);
+}
+
+std::string Theme::get_git_prompt_format() {
+    return process_color_tags(git_format);
+}
+
+std::string Theme::get_ai_prompt_format() {
+    return process_color_tags(ai_format);
+}
+
+std::string Theme::process_color_tags(const std::string& format) {
+    std::string result = format;
+    
+    // Basic ANSI colors
+    std::unordered_map<std::string, std::string> color_map = {
+        {"BLACK", colors::ansi::FG_BLACK},
+        {"RED", colors::ansi::FG_RED},
+        {"GREEN", colors::ansi::FG_GREEN},
+        {"YELLOW", colors::ansi::FG_YELLOW},
+        {"BLUE", colors::ansi::FG_BLUE},
+        {"MAGENTA", colors::ansi::FG_MAGENTA},
+        {"CYAN", colors::ansi::FG_CYAN},
+        {"WHITE", colors::ansi::FG_WHITE},
+        {"BLACK_BRIGHT", colors::ansi::FG_BRIGHT_BLACK},
+        {"RED_BRIGHT", colors::ansi::FG_BRIGHT_RED},
+        {"GREEN_BRIGHT", colors::ansi::FG_BRIGHT_GREEN},
+        {"YELLOW_BRIGHT", colors::ansi::FG_BRIGHT_YELLOW},
+        {"BLUE_BRIGHT", colors::ansi::FG_BRIGHT_BLUE},
+        {"MAGENTA_BRIGHT", colors::ansi::FG_BRIGHT_MAGENTA},
+        {"CYAN_BRIGHT", colors::ansi::FG_BRIGHT_CYAN},
+        {"WHITE_BRIGHT", colors::ansi::FG_BRIGHT_WHITE},
         
-        if (current_theme_name == theme_name) {
-            load_theme("default");
+        // Named colors from colors.h
+        {"ALICE_BLUE", colors::fg_color(colors::named::ALICE_BLUE)},
+        {"ANTIQUE_WHITE", colors::fg_color(colors::named::ANTIQUE_WHITE)},
+        {"AQUA", colors::fg_color(colors::named::AQUA)},
+        {"AQUAMARINE", colors::fg_color(colors::named::AQUAMARINE)},
+        {"AZURE", colors::fg_color(colors::named::AZURE)},
+        {"BEIGE", colors::fg_color(colors::named::BEIGE)},
+        {"BISQUE", colors::fg_color(colors::named::BISQUE)},
+        {"BLANCHED_ALMOND", colors::fg_color(colors::named::BLANCHED_ALMOND)},
+        {"BLUE_VIOLET", colors::fg_color(colors::named::BLUE_VIOLET)},
+        {"BROWN", colors::fg_color(colors::named::BROWN)},
+        {"BURLYWOOD", colors::fg_color(colors::named::BURLYWOOD)},
+        {"CADET_BLUE", colors::fg_color(colors::named::CADET_BLUE)},
+        {"CHARTREUSE", colors::fg_color(colors::named::CHARTREUSE)},
+        {"CHOCOLATE", colors::fg_color(colors::named::CHOCOLATE)},
+        {"CORAL", colors::fg_color(colors::named::CORAL)},
+        {"CORNFLOWER_BLUE", colors::fg_color(colors::named::CORNFLOWER_BLUE)},
+        {"CORNSILK", colors::fg_color(colors::named::CORNSILK)},
+        {"CRIMSON", colors::fg_color(colors::named::CRIMSON)},
+        {"DARK_BLUE", colors::fg_color(colors::named::DARK_BLUE)},
+        {"DARK_CYAN", colors::fg_color(colors::named::DARK_CYAN)},
+        {"DARK_GOLDENROD", colors::fg_color(colors::named::DARK_GOLDENROD)},
+        {"DARK_GRAY", colors::fg_color(colors::named::DARK_GRAY)},
+        {"DARK_GREEN", colors::fg_color(colors::named::DARK_GREEN)},
+        {"DARK_KHAKI", colors::fg_color(colors::named::DARK_KHAKI)},
+        {"DARK_MAGENTA", colors::fg_color(colors::named::DARK_MAGENTA)},
+        {"DARK_OLIVE_GREEN", colors::fg_color(colors::named::DARK_OLIVE_GREEN)},
+        {"DARK_ORANGE", colors::fg_color(colors::named::DARK_ORANGE)},
+        {"DARK_ORCHID", colors::fg_color(colors::named::DARK_ORCHID)},
+        {"DARK_RED", colors::fg_color(colors::named::DARK_RED)},
+        {"DARK_SALMON", colors::fg_color(colors::named::DARK_SALMON)},
+        {"DARK_SEA_GREEN", colors::fg_color(colors::named::DARK_SEA_GREEN)},
+        {"DARK_SLATE_BLUE", colors::fg_color(colors::named::DARK_SLATE_BLUE)},
+        {"DARK_SLATE_GRAY", colors::fg_color(colors::named::DARK_SLATE_GRAY)},
+        {"DARK_TURQUOISE", colors::fg_color(colors::named::DARK_TURQUOISE)},
+        {"DARK_VIOLET", colors::fg_color(colors::named::DARK_VIOLET)},
+        {"DEEP_PINK", colors::fg_color(colors::named::DEEP_PINK)},
+        {"DEEP_SKY_BLUE", colors::fg_color(colors::named::DEEP_SKY_BLUE)},
+        {"DIM_GRAY", colors::fg_color(colors::named::DIM_GRAY)},
+        {"DODGER_BLUE", colors::fg_color(colors::named::DODGER_BLUE)},
+        {"FIREBRICK", colors::fg_color(colors::named::FIREBRICK)},
+        {"FOREST_GREEN", colors::fg_color(colors::named::FOREST_GREEN)},
+        {"GAINSBORO", colors::fg_color(colors::named::GAINSBORO)},
+        {"GOLD", colors::fg_color(colors::named::GOLD)},
+        {"GOLDENROD", colors::fg_color(colors::named::GOLDENROD)},
+        {"GRAY", colors::fg_color(colors::named::GRAY)},
+        {"HOT_PINK", colors::fg_color(colors::named::HOT_PINK)},
+        {"INDIAN_RED", colors::fg_color(colors::named::INDIAN_RED)},
+        {"INDIGO", colors::fg_color(colors::named::INDIGO)},
+        {"IVORY", colors::fg_color(colors::named::IVORY)},
+        {"KHAKI", colors::fg_color(colors::named::KHAKI)},
+        {"LAVENDER", colors::fg_color(colors::named::LAVENDER)},
+        {"LAWN_GREEN", colors::fg_color(colors::named::LAWN_GREEN)},
+        {"LIGHT_BLUE", colors::fg_color(colors::named::LIGHT_BLUE)},
+        {"LIGHT_CORAL", colors::fg_color(colors::named::LIGHT_CORAL)},
+        {"LIGHT_CYAN", colors::fg_color(colors::named::LIGHT_CYAN)},
+        {"LIGHT_GOLDENROD", colors::fg_color(colors::named::LIGHT_GOLDENROD)},
+        {"LIGHT_GRAY", colors::fg_color(colors::named::LIGHT_GRAY)},
+        {"LIGHT_GREEN", colors::fg_color(colors::named::LIGHT_GREEN)},
+        {"LIGHT_PINK", colors::fg_color(colors::named::LIGHT_PINK)},
+        {"LIGHT_SALMON", colors::fg_color(colors::named::LIGHT_SALMON)},
+        {"LIGHT_SEA_GREEN", colors::fg_color(colors::named::LIGHT_SEA_GREEN)},
+        {"LIGHT_SKY_BLUE", colors::fg_color(colors::named::LIGHT_SKY_BLUE)},
+        {"LIGHT_SLATE_GRAY", colors::fg_color(colors::named::LIGHT_SLATE_GRAY)},
+        {"LIGHT_STEEL_BLUE", colors::fg_color(colors::named::LIGHT_STEEL_BLUE)},
+        {"LIGHT_YELLOW", colors::fg_color(colors::named::LIGHT_YELLOW)},
+        {"LIME", colors::fg_color(colors::named::LIME)},
+        {"LIME_GREEN", colors::fg_color(colors::named::LIME_GREEN)},
+        {"LINEN", colors::fg_color(colors::named::LINEN)},
+        {"MAROON", colors::fg_color(colors::named::MAROON)},
+        {"MEDIUM_AQUAMARINE", colors::fg_color(colors::named::MEDIUM_AQUAMARINE)},
+        {"MEDIUM_BLUE", colors::fg_color(colors::named::MEDIUM_BLUE)},
+        {"MEDIUM_ORCHID", colors::fg_color(colors::named::MEDIUM_ORCHID)},
+        {"MEDIUM_PURPLE", colors::fg_color(colors::named::MEDIUM_PURPLE)},
+        {"MEDIUM_SEA_GREEN", colors::fg_color(colors::named::MEDIUM_SEA_GREEN)},
+        {"MEDIUM_SLATE_BLUE", colors::fg_color(colors::named::MEDIUM_SLATE_BLUE)},
+        {"MEDIUM_SPRING_GREEN", colors::fg_color(colors::named::MEDIUM_SPRING_GREEN)},
+        {"MEDIUM_TURQUOISE", colors::fg_color(colors::named::MEDIUM_TURQUOISE)},
+        {"MEDIUM_VIOLET_RED", colors::fg_color(colors::named::MEDIUM_VIOLET_RED)},
+        {"MIDNIGHT_BLUE", colors::fg_color(colors::named::MIDNIGHT_BLUE)},
+        {"MINT_CREAM", colors::fg_color(colors::named::MINT_CREAM)},
+        {"MISTY_ROSE", colors::fg_color(colors::named::MISTY_ROSE)},
+        {"MOCCASIN", colors::fg_color(colors::named::MOCCASIN)},
+        {"NAVAJO_WHITE", colors::fg_color(colors::named::NAVAJO_WHITE)},
+        {"NAVY", colors::fg_color(colors::named::NAVY)},
+        {"OLD_LACE", colors::fg_color(colors::named::OLD_LACE)},
+        {"OLIVE", colors::fg_color(colors::named::OLIVE)},
+        {"OLIVE_DRAB", colors::fg_color(colors::named::OLIVE_DRAB)},
+        {"ORANGE", colors::fg_color(colors::named::ORANGE)},
+        {"ORANGE_RED", colors::fg_color(colors::named::ORANGE_RED)},
+        {"ORCHID", colors::fg_color(colors::named::ORCHID)},
+        {"PALE_GOLDENROD", colors::fg_color(colors::named::PALE_GOLDENROD)},
+        {"PALE_GREEN", colors::fg_color(colors::named::PALE_GREEN)},
+        {"PALE_TURQUOISE", colors::fg_color(colors::named::PALE_TURQUOISE)},
+        {"PALE_VIOLET_RED", colors::fg_color(colors::named::PALE_VIOLET_RED)},
+        {"PAPAYA_WHIP", colors::fg_color(colors::named::PAPAYA_WHIP)},
+        {"PEACH_PUFF", colors::fg_color(colors::named::PEACH_PUFF)},
+        {"PERU", colors::fg_color(colors::named::PERU)},
+        {"PINK", colors::fg_color(colors::named::PINK)},
+        {"PLUM", colors::fg_color(colors::named::PLUM)},
+        {"POWDER_BLUE", colors::fg_color(colors::named::POWDER_BLUE)},
+        {"PURPLE", colors::fg_color(colors::named::PURPLE)},
+        {"REBECCA_PURPLE", colors::fg_color(colors::named::REBECCA_PURPLE)},
+        {"ROSY_BROWN", colors::fg_color(colors::named::ROSY_BROWN)},
+        {"ROYAL_BLUE", colors::fg_color(colors::named::ROYAL_BLUE)},
+        {"SADDLE_BROWN", colors::fg_color(colors::named::SADDLE_BROWN)},
+        {"SALMON", colors::fg_color(colors::named::SALMON)},
+        {"SANDY_BROWN", colors::fg_color(colors::named::SANDY_BROWN)},
+        {"SEA_GREEN", colors::fg_color(colors::named::SEA_GREEN)},
+        {"SEASHELL", colors::fg_color(colors::named::SEASHELL)},
+        {"SIENNA", colors::fg_color(colors::named::SIENNA)},
+        {"SILVER", colors::fg_color(colors::named::SILVER)},
+        {"SKY_BLUE", colors::fg_color(colors::named::SKY_BLUE)},
+        {"SLATE_BLUE", colors::fg_color(colors::named::SLATE_BLUE)},
+        {"SLATE_GRAY", colors::fg_color(colors::named::SLATE_GRAY)},
+        {"SNOW", colors::fg_color(colors::named::SNOW)},
+        {"SPRING_GREEN", colors::fg_color(colors::named::SPRING_GREEN)},
+        {"STEEL_BLUE", colors::fg_color(colors::named::STEEL_BLUE)},
+        {"TAN", colors::fg_color(colors::named::TAN)},
+        {"TEAL", colors::fg_color(colors::named::TEAL)},
+        {"THISTLE", colors::fg_color(colors::named::THISTLE)},
+        {"TOMATO", colors::fg_color(colors::named::TOMATO)},
+        {"TURQUOISE", colors::fg_color(colors::named::TURQUOISE)},
+        {"VIOLET", colors::fg_color(colors::named::VIOLET)},
+        {"WHEAT", colors::fg_color(colors::named::WHEAT)},
+        {"WHITE_SMOKE", colors::fg_color(colors::named::WHITE_SMOKE)},
+        {"YELLOW_GREEN", colors::fg_color(colors::named::YELLOW_GREEN)},
+        {"ELECTRIC_PURPLE", colors::fg_color(colors::named::ELECTRIC_PURPLE)},
+
+        // Style tags
+        {"BOLD", colors::ansi::BOLD},
+        {"ITALIC", colors::ansi::ITALIC},
+        {"UNDERLINE", colors::ansi::UNDERLINE},
+        {"BLINK", colors::ansi::BLINK},
+        {"REVERSE", colors::ansi::REVERSE},
+        {"HIDDEN", colors::ansi::HIDDEN},
+        {"RESET", colors::ansi::RESET}
+    };
+    
+    // Process the color tags
+    size_t pos = 0;
+    while ((pos = result.find('[', pos)) != std::string::npos) {
+        size_t end_pos = result.find(']', pos);
+        if (end_pos == std::string::npos) {
+            break;  // No matching closing bracket
         }
         
-        return true;
+        std::string color_name = result.substr(pos + 1, end_pos - pos - 1);
+        if (color_map.find(color_name) != color_map.end()) {
+            result.replace(pos, end_pos - pos + 1, color_map[color_name]);
+        } else {
+            // Skip this tag if color not found
+            pos = end_pos + 1;
+        }
     }
     
-    return false;
-}
-
-std::vector<std::string> Theme::get_available_theme_names() const {
-    std::vector<std::string> theme_names;
-    for (const auto& [name, _] : available_themes) {
-        theme_names.push_back(name);
-    }
-    return theme_names;
-}
-
-std::string Theme::get_color(const std::string& color_name) const {
-    if (current_theme_colors.find(color_name) != current_theme_colors.end()) {
-        return current_theme_colors.at(color_name);
-    }
-    
-    if (current_theme_colors.find("RESET_COLOR") != current_theme_colors.end()) {
-        return current_theme_colors.at("RESET_COLOR");
-    }
-    return "";
-}
-
-void Theme::set_color(const std::string& color_name, const std::string& color_value) {
-    current_theme_colors[color_name] = color_value;
+    return result;
 }

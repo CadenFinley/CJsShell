@@ -1,4 +1,6 @@
 #include "plugin.h"
+#include <sys/utsname.h>
+#include <cstdio>
 
 Plugin::Plugin(const std::filesystem::path& plugins_dir) {
     plugins_directory = plugins_dir;
@@ -8,11 +10,8 @@ Plugin::Plugin(const std::filesystem::path& plugins_dir) {
 Plugin::~Plugin() {
     std::unique_lock lock(plugins_mutex);
     for (auto& [name, data] : loaded_plugins) {
-        if (data.enabled && data.instance) {
-            data.instance->shutdown();
-        }
-        if (data.instance && data.destroy_func) {
-            data.destroy_func(data.instance);
+        if (data.enabled && data.shutdown) {
+            data.shutdown();
         }
         if (data.handle) {
             dlclose(data.handle);
@@ -39,11 +38,8 @@ bool Plugin::discover_plugins() {
     {
         std::unique_lock plugins_lock(plugins_mutex);
         for (auto& [name, data] : loaded_plugins) {
-            if (data.enabled && data.instance) {
-                data.instance->shutdown();
-            }
-            if (data.instance && data.destroy_func) {
-                data.destroy_func(data.instance);
+            if (data.enabled && data.shutdown) {
+                data.shutdown();
             }
             if (data.handle) {
                 dlclose(data.handle);
@@ -65,6 +61,16 @@ bool Plugin::discover_plugins() {
 }
 
 bool Plugin::load_plugin(const std::filesystem::path& path) {
+    // Check architecture compatibility
+    std::string file_arch = get_file_architecture(path);
+    std::string current_arch = get_current_architecture();
+    
+    if (!is_architecture_compatible(file_arch, current_arch)) {
+        std::cerr << "Architecture mismatch for plugin: " << path.filename().string() 
+                  << " (plugin: " << file_arch << ", system: " << current_arch << ")" << std::endl;
+        return false;
+    }
+    
     void* handle = dlopen(path.c_str(), RTLD_LAZY);
     if (!handle) {
         std::cerr << "Failed to load plugin: " << path << " - " << dlerror() << std::endl;
@@ -73,43 +79,35 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     
     dlerror();
     
-    create_plugin_func create_func = reinterpret_cast<create_plugin_func>(dlsym(handle, "createPlugin"));
+    // Load all required function pointers
+    plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(dlsym(handle, "plugin_get_info"));
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
-        std::cerr << "Cannot load symbol 'createPlugin': " << dlsym_error << std::endl;
+        std::cerr << "Cannot load symbol 'plugin_get_info': " << dlsym_error << std::endl;
         dlclose(handle);
         return false;
     }
 
-    destroy_plugin_func destroy_func = reinterpret_cast<destroy_plugin_func>(dlsym(handle, "destroyPlugin"));
-    dlsym_error = dlerror();
-    if (dlsym_error) {
-        std::cerr << "Cannot load symbol 'destroyPlugin': " << dlsym_error << std::endl;
+    plugin_info_t* info = get_info();
+    if (!info) {
+        std::cerr << "Failed to get plugin info" << std::endl;
         dlclose(handle);
         return false;
     }
     
-    PluginApi* instance = create_func();
-    if (!instance) {
-        std::cerr << "Failed to create plugin instance" << std::endl;
+    if (info->interface_version != PLUGIN_INTERFACE_VERSION) {
+        std::cerr << "Plugin interface version mismatch for " << info->name << ". Expected: " 
+                  << PLUGIN_INTERFACE_VERSION << ", Got: " << info->interface_version << std::endl;
         dlclose(handle);
         return false;
     }
     
-    if (instance->get_interface_version() != PluginApi::INTERFACE_VERSION) {
-        std::cerr << "Plugin interface version mismatch for " << instance->get_name() << ". Expected: " << PluginApi::INTERFACE_VERSION << ", Got: " << instance->get_interface_version() << std::endl;
-        destroy_func(instance);
-        dlclose(handle);
-        return false;
-    }
-    
-    std::string name = instance->get_name();
+    std::string name = info->name;
     
     {
         std::shared_lock plugins_lock(plugins_mutex);
         if (loaded_plugins.find(name) != loaded_plugins.end()) {
             std::cerr << "Plugin '" << name << "' is already loaded. Ignoring duplicate." << std::endl;
-            destroy_func(instance);
             dlclose(handle);
             return false;
         }
@@ -117,11 +115,35 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     
     plugin_data data;
     data.handle = handle;
-    data.instance = instance;
-    data.create_func = create_func;
-    data.destroy_func = destroy_func;
+    data.info = info;
     data.enabled = false;
-    data.settings = instance->get_default_settings();
+    
+    // Load all required function pointers
+    data.get_info = get_info;
+    data.initialize = reinterpret_cast<plugin_initialize_func>(dlsym(handle, "plugin_initialize"));
+    data.shutdown = reinterpret_cast<plugin_shutdown_func>(dlsym(handle, "plugin_shutdown"));
+    data.handle_command = reinterpret_cast<plugin_handle_command_func>(dlsym(handle, "plugin_handle_command"));
+    data.get_commands = reinterpret_cast<plugin_get_commands_func>(dlsym(handle, "plugin_get_commands"));
+    data.get_subscribed_events = reinterpret_cast<plugin_get_subscribed_events_func>(dlsym(handle, "plugin_get_subscribed_events"));
+    data.get_default_settings = reinterpret_cast<plugin_get_default_settings_func>(dlsym(handle, "plugin_get_default_settings"));
+    data.update_setting = reinterpret_cast<plugin_update_setting_func>(dlsym(handle, "plugin_update_setting"));
+    data.free_memory = reinterpret_cast<plugin_free_memory_func>(dlsym(handle, "plugin_free_memory"));
+    
+    // Check for mandatory functions
+    if (!data.initialize || !data.shutdown || !data.handle_command || !data.get_commands) {
+        std::cerr << "Plugin " << name << " is missing required functions" << std::endl;
+        dlclose(handle);
+        return false;
+    }
+    
+    // Load default settings
+    if (data.get_default_settings) {
+        int count = 0;
+        plugin_setting_t* settings = data.get_default_settings(&count);
+        for (int i = 0; i < count; i++) {
+            data.settings[settings[i].key] = settings[i].value;
+        }
+    }
     
     {
         std::unique_lock plugins_lock(plugins_mutex);
@@ -156,14 +178,14 @@ bool Plugin::uninstall_plugin(const std::string& name) {
             continue;
         }
 
-        create_plugin_func create_func = (create_plugin_func)dlsym(temp_handle, "createPlugin");
-        if (!create_func) {
+        plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(dlsym(temp_handle, "plugin_get_info"));
+        if (!get_info) {
             dlclose(temp_handle);
             continue;
         }
 
-        PluginApi* temp_instance = create_func();
-        if (temp_instance && temp_instance->get_name() == name) {
+        plugin_info_t* temp_info = get_info();
+        if (temp_info && std::string(temp_info->name) == name) {
             plugin_path = entry.path();
             dlclose(temp_handle);
             break;
@@ -191,12 +213,8 @@ void Plugin::unload_plugin(const std::string& name) {
     std::unique_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
-        if (it->second.enabled) {
-            it->second.instance->shutdown();
-        }
-        
-        if (it->second.instance && it->second.destroy_func) {
-            it->second.destroy_func(it->second.instance);
+        if (it->second.enabled && it->second.shutdown) {
+            it->second.shutdown();
         }
         
         if (it->second.handle) {
@@ -235,19 +253,30 @@ bool Plugin::enable_plugin(const std::string& name) {
         return true;
     }
     if (it != loaded_plugins.end() && !it->second.enabled) {
-        if (it->second.instance->initialize()) {
+        if (it->second.initialize() == PLUGIN_SUCCESS) {
             it->second.enabled = true;
             std::cout << "Enabled plugin: " << name << std::endl;
             
-            std::vector<std::string> events = it->second.instance->get_subscribed_events();
+            int count = 0;
+            char** events = nullptr;
+            if (it->second.get_subscribed_events) {
+                events = it->second.get_subscribed_events(&count);
+            }
             plugins_lock.unlock();
             
             trigger_subscribed_global_event("plugin_enabled", name);
             
-            if(!events.empty()){
+            if(events && count > 0){
                 std::unique_lock events_lock(events_mutex);
-                for (const auto& event : events) {
-                    subscribed_events[event].push_back(name);
+                for (int i = 0; i < count; i++) {
+                    subscribed_events[events[i]].push_back(name);
+                }
+                // Free memory if the plugin supports it
+                if (it->second.free_memory) {
+                    for (int i = 0; i < count; i++) {
+                        it->second.free_memory(events[i]);
+                    }
+                    it->second.free_memory(events);
                 }
             }
             return true;
@@ -259,16 +288,34 @@ bool Plugin::enable_plugin(const std::string& name) {
 }
 
 bool Plugin::disable_plugin(const std::string& name) {
-    std::vector<std::string> events;
+    std::vector<std::string> events_to_unsubscribe;
     
     {
         std::unique_lock plugins_lock(plugins_mutex);
         auto it = loaded_plugins.find(name);
         if (it != loaded_plugins.end() && it->second.enabled) {
-            it->second.instance->shutdown();
+            it->second.shutdown();
             it->second.enabled = false;
             std::cout << "Disabled plugin: " << name << std::endl;
-            events = it->second.instance->get_subscribed_events();
+            
+            int count = 0;
+            char** events = nullptr;
+            if (it->second.get_subscribed_events) {
+                events = it->second.get_subscribed_events(&count);
+            }
+            
+            if (events && count > 0) {
+                for (int i = 0; i < count; i++) {
+                    events_to_unsubscribe.push_back(events[i]);
+                }
+                // Free memory if the plugin supports it
+                if (it->second.free_memory) {
+                    for (int i = 0; i < count; i++) {
+                        it->second.free_memory(events[i]);
+                    }
+                    it->second.free_memory(events);
+                }
+            }
         } else {
             return false;
         }
@@ -278,7 +325,7 @@ bool Plugin::disable_plugin(const std::string& name) {
     
     {
         std::unique_lock events_lock(events_mutex);
-        for (const auto& event : events) {
+        for (const auto& event : events_to_unsubscribe) {
             auto eventIt = subscribed_events.find(event);
             if (eventIt != subscribed_events.end()) {
                 eventIt->second.erase(std::remove(eventIt->second.begin(), eventIt->second.end(), name), eventIt->second.end());
@@ -289,11 +336,29 @@ bool Plugin::disable_plugin(const std::string& name) {
     return true;
 }
 
-bool Plugin::handle_plugin_command(const std::string& targetedPlugin, std::queue<std::string>& args) {
+bool Plugin::handle_plugin_command(const std::string& targeted_plugin, std::vector<std::string>& args) {
     std::shared_lock plugins_lock(plugins_mutex);
-    auto it = loaded_plugins.find(targetedPlugin);
+    auto it = loaded_plugins.find(targeted_plugin);
     if (it != loaded_plugins.end() && it->second.enabled) {
-        return it->second.instance->handle_command(args);
+        // Convert vector<string> to plugin_args_t
+        plugin_args_t args_struct;
+        args_struct.count = args.size();
+        args_struct.args = new char*[args.size()];
+        args_struct.position = 0;
+        
+        for (size_t i = 0; i < args.size(); i++) {
+            args_struct.args[i] = strdup(args[i].c_str());
+        }
+        
+        int result = it->second.handle_command(&args_struct);
+        
+        // Clean up
+        for (int i = 0; i < args_struct.count; i++) {
+            free(args_struct.args[i]);
+        }
+        delete[] args_struct.args;
+        
+        return result == PLUGIN_SUCCESS;
     }
     return false;
 }
@@ -301,8 +366,24 @@ bool Plugin::handle_plugin_command(const std::string& targetedPlugin, std::queue
 std::vector<std::string> Plugin::get_plugin_commands(const std::string& name) const {
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
-    if (it != loaded_plugins.end()) {
-        return it->second.instance->get_commands();
+    if (it != loaded_plugins.end() && it->second.get_commands) {
+        int count = 0;
+        char** commands = it->second.get_commands(&count);
+        
+        std::vector<std::string> result;
+        for (int i = 0; i < count; i++) {
+            result.push_back(commands[i]);
+        }
+        
+        // Free memory if the plugin supports it
+        if (it->second.free_memory) {
+            for (int i = 0; i < count; i++) {
+                it->second.free_memory(commands[i]);
+            }
+            it->second.free_memory(commands);
+        }
+        
+        return result;
     }
     return {};
 }
@@ -312,21 +393,23 @@ std::string Plugin::get_plugin_info(const std::string& name) const {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
         const auto& data = it->second;
-        return "Name: " + name + "\n" +
-               "Version: " + data.instance->get_version() + "\n" +
-               "Author: " + data.instance->get_author() + "\n" +
-               "Description: " + data.instance->get_description() + "\n" +
+        return "Name: " + std::string(data.info->name) + "\n" +
+               "Version: " + std::string(data.info->version) + "\n" +
+               "Author: " + std::string(data.info->author) + "\n" +
+               "Description: " + std::string(data.info->description) + "\n" +
                "Status: " + (data.enabled ? "Enabled" : "Disabled");
     }
     return "Plugin not found: " + name;
 }
 
-bool Plugin::update_plugin_setting(const std::string& pluginName, const std::string& key, const std::string& value) {
+bool Plugin::update_plugin_setting(const std::string& plugin_name, const std::string& key, const std::string& value) {
     std::unique_lock plugins_lock(plugins_mutex);
-    auto it = loaded_plugins.find(pluginName);
+    auto it = loaded_plugins.find(plugin_name);
     if (it != loaded_plugins.end()) {
         it->second.settings[key] = value;
-        it->second.instance->update_setting(key, value);
+        if (it->second.update_setting) {
+            return it->second.update_setting(key.c_str(), value.c_str()) == PLUGIN_SUCCESS;
+        }
         return true;
     }
     return false;
@@ -341,7 +424,7 @@ std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin
     return allSettings;
 }
 
-void Plugin::trigger_subscribed_global_event(const std::string& event, const std::string& eventData) {
+void Plugin::trigger_subscribed_global_event(const std::string& event, const std::string& event_data) {
     std::vector<std::string> subscribedPlugins;
     
     {
@@ -353,118 +436,116 @@ void Plugin::trigger_subscribed_global_event(const std::string& event, const std
         subscribedPlugins = it->second;
     }
     
-    std::queue<std::string> args;
-    args.push("event");
-    args.push(event);
-    args.push(eventData);
+    // Create plugin_args_t for the event
+    plugin_args_t args;
+    args.count = 3;
+    args.args = new char*[3];
+    args.position = 0;
+    
+    args.args[0] = strdup("event");
+    args.args[1] = strdup(event.c_str());
+    args.args[2] = strdup(event_data.c_str());
 
-    for (const auto& pluginName : subscribedPlugins) {
+    for (const auto& plugin_name : subscribedPlugins) {
         std::shared_lock plugins_lock(plugins_mutex);
-        auto pluginIt = loaded_plugins.find(pluginName);
-        if (pluginIt != loaded_plugins.end() && pluginIt->second.enabled) {
-            std::queue<std::string> argsCopy = args;
+        auto plugin_it = loaded_plugins.find(plugin_name);
+        if (plugin_it != loaded_plugins.end() && plugin_it->second.enabled) {
             plugins_lock.unlock();
-            pluginIt->second.instance->handle_command(argsCopy);
+            plugin_it->second.handle_command(&args);
         }
     }
+    
+    // Clean up
+    for (int i = 0; i < args.count; i++) {
+        free(args.args[i]);
+    }
+    delete[] args.args;
 }
 
-PluginApi* Plugin::get_plugin_instance(const std::string& name) const {
+plugin_data* Plugin::get_plugin_data(const std::string& name) {
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
-        return it->second.instance;
+        return &it->second;
     }
     return nullptr;
 }
 
-bool Plugin::install_plugin(const std::filesystem::path& sourcePath) {
-    if (!std::filesystem::exists(sourcePath)) {
-        std::cerr << "Source plugin file does not exist: " << sourcePath << std::endl;
+bool Plugin::install_plugin(const std::filesystem::path& source_path) {
+    if (!std::filesystem::exists(source_path)) {
+        std::cerr << "Source plugin file does not exist: " << source_path << std::endl;
         return false;
     }
 
-    std::string extension = sourcePath.extension().string();
+    std::string extension = source_path.extension().string();
     if (extension != ".so" && extension != ".dylib") {
         std::cerr << "Invalid plugin file type. Must be .so or .dylib" << std::endl;
         return false;
     }
 
-    void* tempHandle = dlopen(sourcePath.c_str(), RTLD_LAZY);
-    if (!tempHandle) {
+    void* temp_handle = dlopen(source_path.c_str(), RTLD_LAZY);
+    if (!temp_handle) {
         std::cerr << "Invalid plugin file: " << dlerror() << std::endl;
         return false;
     }
 
     dlerror();
     
-    create_plugin_func createFunc = reinterpret_cast<create_plugin_func>(dlsym(tempHandle, "createPlugin"));
+    plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(dlsym(temp_handle, "plugin_get_info"));
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
-        std::cerr << "Invalid plugin file: missing createPlugin symbol: " << dlsym_error << std::endl;
-        dlclose(tempHandle);
+        std::cerr << "Invalid plugin file: missing plugin_get_info symbol: " << dlsym_error << std::endl;
+        dlclose(temp_handle);
         return false;
     }
 
-    PluginApi* tempInstance = nullptr;
+    plugin_info_t* temp_info = nullptr;
     try {
-        tempInstance = createFunc();
+        temp_info = get_info();
     } catch (const std::exception& e) {
-        std::cerr << "Exception while creating plugin instance: " << e.what() << std::endl;
-        dlclose(tempHandle);
+        std::cerr << "Exception while getting plugin info: " << e.what() << std::endl;
+        dlclose(temp_handle);
         return false;
     }
     
-    if (!tempInstance) {
-        std::cerr << "Failed to create temporary plugin instance" << std::endl;
-        dlclose(tempHandle);
+    if (!temp_info) {
+        std::cerr << "Failed to get plugin info" << std::endl;
+        dlclose(temp_handle);
         return false;
     }
 
-    if (tempInstance->get_interface_version() != PluginApi::INTERFACE_VERSION) {
-        std::cerr << "Plugin interface version mismatch for " << tempInstance->get_name() 
-                  << ". Expected: " << PluginApi::INTERFACE_VERSION 
-                  << ", Got: " << tempInstance->get_interface_version() << std::endl;
-        destroy_plugin_func destroyFunc = reinterpret_cast<destroy_plugin_func>(dlsym(tempHandle, "destroyPlugin"));
-        if (destroyFunc) {
-            destroyFunc(tempInstance);
-        }
-        dlclose(tempHandle);
+    if (temp_info->interface_version != PLUGIN_INTERFACE_VERSION) {
+        std::cerr << "Plugin interface version mismatch for " << temp_info->name 
+                  << ". Expected: " << PLUGIN_INTERFACE_VERSION 
+                  << ", Got: " << temp_info->interface_version << std::endl;
+        dlclose(temp_handle);
         return false;
     }
 
-    std::string pluginName = tempInstance->get_name();
-    std::string version = tempInstance->get_version();
+    std::string plugin_name = temp_info->name;
+    std::string version = temp_info->version;
     
     {
         std::shared_lock plugins_lock(plugins_mutex);
-        if (is_plugin_loaded(pluginName)) {
-            std::cerr << "Plugin already installed: " << pluginName << std::endl;
-            destroy_plugin_func destroyFunc = reinterpret_cast<destroy_plugin_func>(dlsym(tempHandle, "destroyPlugin"));
-            if (destroyFunc) {
-                destroyFunc(tempInstance);
-            }
-            dlclose(tempHandle);
+        if (is_plugin_loaded(plugin_name)) {
+            std::cerr << "Plugin already installed: " << plugin_name << std::endl;
+            dlclose(temp_handle);
             return false;
         }
     }
 
-    destroy_plugin_func destroyFunc = reinterpret_cast<destroy_plugin_func>(dlsym(tempHandle, "destroyPlugin"));
-    if (destroyFunc) {
-        destroyFunc(tempInstance);
-    }
-    dlclose(tempHandle);
+    dlclose(temp_handle);
 
-    std::filesystem::path destPath = plugins_directory / sourcePath.filename();
+    std::filesystem::path dest_path = plugins_directory / source_path.filename();
 
     try {
-        std::filesystem::copy(sourcePath, destPath, std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::copy(source_path, dest_path, std::filesystem::copy_options::overwrite_existing);
         
-        if (load_plugin(destPath)) {
-            std::cout << "Successfully installed plugin: " << pluginName << " v" << version << std::endl;
+        if (load_plugin(dest_path)) {
+            std::cout << "Successfully installed plugin: " << plugin_name << " v" << version << std::endl;
             return true;
         } else {
-            std::filesystem::remove(destPath);
+            std::filesystem::remove(dest_path);
             std::cerr << "Failed to load installed plugin" << std::endl;
             return false;
         }
@@ -482,4 +563,69 @@ void Plugin::clear_plugin_cache() {
 bool Plugin::is_plugin_loaded(const std::string& name) const {
     std::shared_lock plugins_lock(plugins_mutex);
     return loaded_plugins.find(name) != loaded_plugins.end();
+}
+
+// Detect the current process architecture
+std::string Plugin::get_current_architecture() const {
+    struct utsname system_info;
+    uname(&system_info);
+    
+    std::string arch = system_info.machine;
+    
+    // Map common architecture names to a normalized form
+    if (arch == "x86_64" || arch == "amd64")
+        return "x86_64";
+    else if (arch == "arm64" || arch == "aarch64")
+        return "arm64";
+    
+    return arch;
+}
+
+// Check the architecture of a binary file
+std::string Plugin::get_file_architecture(const std::filesystem::path& path) const {
+    std::string result = "unknown";
+    
+    // Use the file command to determine the architecture
+    std::string cmd = "file -b " + path.string();
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        return result;
+    }
+    
+    char buffer[128];
+    std::string output = "";
+    while (!feof(pipe)) {
+        if (fgets(buffer, 128, pipe) != NULL) {
+            output += buffer;
+        }
+    }
+    pclose(pipe);
+    
+    // Parse the output to determine architecture
+    if (output.find("x86_64") != std::string::npos) {
+        result = "x86_64";
+    } else if (output.find("arm64") != std::string::npos || output.find("ARM64") != std::string::npos || 
+              output.find("aarch64") != std::string::npos) {
+        result = "arm64";
+    }
+    
+    return result;
+}
+
+// Check if architectures are compatible
+bool Plugin::is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const {
+    // Direct match is always compatible
+    if (file_arch == current_arch)
+        return true;
+    
+    // On macOS with Rosetta, x86_64 binaries can run on arm64
+    #ifdef __APPLE__
+    if (current_arch == "arm64" && file_arch == "x86_64") {
+        // Check if Rosetta is installed by attempting to run a simple x86_64 command
+        int rosetta_check = system("arch -x86_64 true 2>/dev/null");
+        return rosetta_check == 0;
+    }
+    #endif
+    
+    return false;
 }

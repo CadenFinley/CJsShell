@@ -1,3 +1,9 @@
+/**
+ * @file thememanager.cpp
+ * @brief Theme management implementation
+ * @deprecated This file is deprecated and will be removed in a future version.
+ * Please use the new implementation instead.
+ */
 #include "include/thememanager.h"
 
 namespace {
@@ -77,19 +83,6 @@ void ThemeManager::discoverAvailableThemes() {
             }
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 }
 
 bool ThemeManager::loadTheme(const std::string& themeName) {

@@ -1,41 +1,50 @@
 #pragma once
-
 #include <string>
-#include <map>
-#include <filesystem>
-#include <sstream>
-#include <algorithm>
-#include <fstream>
-#include <iostream>
+#include <unordered_map>
 #include <nlohmann/json.hpp>
 #include <vector>
 
-using json = nlohmann::json;
-
-class Theme {
-private:
-    std::string current_theme_name;
-    std::filesystem::path themes_directory;
-    std::map<std::string, std::map<std::string, std::string>> available_themes;
-    std::map<std::string, std::string> current_theme_colors;
-
-    void create_default_theme();
-
-public:
-    Theme(const std::filesystem::path& themes_dir);
-    ~Theme();
-
-    void discover_available_themes();
-    bool load_theme(const std::string& theme_name);
-    bool save_theme(const std::string& theme_name, const std::map<std::string, std::string>& colors);
-    bool delete_theme(const std::string& theme_name);
-    
-    std::string get_current_theme_name() const { return current_theme_name; }
-    std::map<std::string, std::map<std::string, std::string>> get_available_themes() const { return available_themes; }
-    std::vector<std::string> get_available_theme_names() const;
-    std::string get_color(const std::string& color_name) const;
-    
-    void set_color(const std::string& color_name, const std::string& color_value);
+enum class PromptItems {
+    USERNAME,
+    HOSTNAME,
+    PATH,
+    DIRECTORY,
+    TIME,
+    DATE,
+    SHELL,
+    GIT_BRANCH,
+    GIT_STATUS,
+    REPO_NAME
 };
 
+enum class AIPromptItems {
+    AI_DIVIDER,
+    AI_MODEL,
+    AI_AGENT_TYPE
+};
 
+class Theme {
+  public:
+    Theme(std::string theme_directory);
+    ~Theme();
+    bool load_theme(const std::string& theme_name);
+    std::vector<std::string> list_themes();
+
+    std::string get_ps1_prompt_format();
+    std::string get_git_prompt_format();
+    std::string get_ai_prompt_format();
+  private:
+    std::string theme_directory;
+    std::string ps1_format;
+    std::string git_format;
+    std::string ai_format;
+    
+    std::string process_color_tags(const std::string& format);
+    void create_default_theme();
+};
+
+//example ps1 prompt
+// [RED] {USERNAME}[WHITE]@[GREEN]{HOSTNAME} [WHITE]: [BLUE]{PATH} [WHITE]$ [RESET]
+
+//example git prompt
+// [RED] {USERNAME} [BLUE]{DIRECTORY} [GREEN]{REPO_NAME} git:([YELLOW]{GIT_BRANCH} {GIT_STATUS}(GREEN)) [RESET]

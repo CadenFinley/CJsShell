@@ -4,19 +4,17 @@
 #include "exec.h"
 #include "parser.h"
 #include <termios.h>
-#include <signal.h>
 #include <unistd.h>
 #include <string>
 #include <sys/types.h>
+#include <unordered_map>
 
-// Forward declaration
 class Exec;
-
-//this will take input from main.cpp and will handle prompting and executing the command
+class Built_ins;
 
 class Shell {
   public:
-    Shell(pid_t pid, char *argv[]);
+    Shell(char *argv[]);
     ~Shell();
 
     void execute_command(std::string command, bool sync = false);
@@ -31,14 +29,6 @@ class Shell {
       return shell_prompt->get_ai_prompt();
     }
 
-    void set_exit_flag(bool flag) {
-      exit_flag = flag;
-    }
-
-    bool get_exit_flag() {
-      return exit_flag;
-    }
-
     void set_interactive_mode(bool flag) {
       interactive_mode = flag;
     }
@@ -51,22 +41,41 @@ class Shell {
       return login_mode;
     }
 
-    void set_aliases(std::unordered_map<std::string, std::string> aliases) {
-      shell_parser->set_aliases(aliases);
+    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
+      aliases = new_aliases;
+      if (shell_parser) {
+        shell_parser->set_aliases(aliases);
+      }
     }
 
-    void set_env_vars(std::unordered_map<std::string, std::string> env_vars) {
-      shell_parser->set_env_vars(env_vars);
+    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
+      env_vars = new_env_vars;
+      if (shell_parser) {
+        shell_parser->set_env_vars(env_vars);
+      }
     }
+
+    std::unordered_map<std::string, std::string>& get_aliases() {
+      return aliases;
+    }
+
+    std::unordered_map<std::string, std::string>& get_env_vars() {
+      return env_vars;
+    }
+
+    std::string last_terminal_output_error;
+    std::string last_command;
 
   private:
-    bool exit_flag = false;
     bool interactive_mode = false;
     bool login_mode = false;
     int shell_terminal;
-    pid_t pid;
 
     std::unique_ptr<Prompt> shell_prompt;
     std::unique_ptr<Exec> shell_exec;
     Parser* shell_parser = nullptr;
+    Built_ins* built_ins = nullptr;
+    
+    std::unordered_map<std::string, std::string> aliases;
+    std::unordered_map<std::string, std::string> env_vars;
 };

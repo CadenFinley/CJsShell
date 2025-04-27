@@ -17,11 +17,20 @@
 
 struct plugin_data {
     void* handle;
-    PluginApi* instance;
-    create_plugin_func create_func;
-    destroy_plugin_func destroy_func;
+    plugin_info_t* info;
     bool enabled;
     std::map<std::string, std::string> settings;
+    
+    // Function pointers from pluginapi.h
+    plugin_get_info_func get_info;
+    plugin_initialize_func initialize;
+    plugin_shutdown_func shutdown;
+    plugin_handle_command_func handle_command;
+    plugin_get_commands_func get_commands;
+    plugin_get_subscribed_events_func get_subscribed_events;
+    plugin_get_default_settings_func get_default_settings;
+    plugin_update_setting_func update_setting;
+    plugin_free_memory_func free_memory;
 };
 
 // Thread-safe plugin management class
@@ -38,6 +47,11 @@ private:
     std::mutex discovery_mutex;                   // Protects discover operations
 
     void unload_plugin(const std::string& name);
+    
+    // Architecture compatibility checking
+    std::string get_current_architecture() const;
+    std::string get_file_architecture(const std::filesystem::path& path) const;
+    bool is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const;
 
 public:
     Plugin(const std::filesystem::path& plugins_dir);
@@ -54,9 +68,9 @@ public:
     bool enable_plugin(const std::string& name);
     bool disable_plugin(const std::string& name);
 
-    int get_interface_version() const { return PluginApi::INTERFACE_VERSION; }
+    int get_interface_version() const { return PLUGIN_INTERFACE_VERSION; }
     
-    bool handle_plugin_command(const std::string& targeted_plugin, std::queue<std::string>& args);
+    bool handle_plugin_command(const std::string& targeted_plugin, std::vector<std::string>& args);
     std::vector<std::string> get_plugin_commands(const std::string& name) const;
     std::string get_plugin_info(const std::string& name) const;
     
@@ -65,7 +79,7 @@ public:
     
     void trigger_subscribed_global_event(const std::string& event, const std::string& event_data);
     
-    PluginApi* get_plugin_instance(const std::string& name) const;
+    plugin_data* get_plugin_data(const std::string& name);
     
     void clear_plugin_cache();
     bool is_plugin_loaded(const std::string& name) const;

@@ -1,19 +1,22 @@
 #include "prompt.h"
+#include "main.h"
+#include "theme.h"
+#include <iostream>
+#include <fstream>
+#include <regex>
 
 Prompt::Prompt() {
   last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
   is_git_status_check_running = false;
-  display_whole_path = false;
 }
 
 Prompt::~Prompt() {
-  // nuthin
 }
 
 std::string Prompt::get_prompt() {
-  // Get current username
   struct passwd *pw = getpwuid(getuid());
   std::string username = pw ? pw->pw_name : "user";
+  std::string prompt_format;
   
   std::filesystem::path current_path = std::filesystem::current_path();
   std::filesystem::path git_head_path;
@@ -27,6 +30,7 @@ std::string Prompt::get_prompt() {
 
   bool is_git_repo = std::filesystem::exists(git_head_path);
   if (is_git_repo) {
+    prompt_format = g_theme->get_git_prompt_format();
     std::string git_info;
     
     try {
@@ -63,7 +67,8 @@ std::string Prompt::get_prompt() {
         is_clean_repo = cached_is_clean_repo;
       }
       
-      std::string repo_name = display_whole_path ? get_current_file_path() : get_current_file_name();
+      // Extract the repo name from the git repository root directory
+      std::string repo_name = current_path.filename().string();
       std::string status_info;
       
       if (is_clean_repo) {
@@ -71,37 +76,68 @@ std::string Prompt::get_prompt() {
       } else {
         status_info = " " + status_symbols;
       }
-      
-      git_info = DIRECTORY_COLOR + " git:(" + RESET_COLOR + BRANCH_COLOR + branch_name + RESET_COLOR;
-      
-      if (is_clean_repo) {
-        git_info += DIRECTORY_COLOR + status_info + RESET_COLOR;
-      } else if (!status_symbols.empty()) {
-        git_info += DIRECTORY_COLOR + status_info + RESET_COLOR;
+
+      if(branch_name.empty()) {
+        branch_name = "unknown";
       }
       
-      git_info += DIRECTORY_COLOR + ")" + RESET_COLOR;
+      // Replace placeholders with actual values
+      char hostname[256];
+      gethostname(hostname, 256);
       
-      return SHELL_COLOR + username + RESET_COLOR + " " +
-             GIT_COLOR + repo_name + RESET_COLOR + git_info;
+      prompt_format = replace_placeholder(prompt_format, "{USERNAME}", username);
+      prompt_format = replace_placeholder(prompt_format, "{HOSTNAME}", hostname);
+      prompt_format = replace_placeholder(prompt_format, "{PATH}", get_current_file_path());
+      prompt_format = replace_placeholder(prompt_format, "{DIRECTORY}", get_current_file_name());
+      prompt_format = replace_placeholder(prompt_format, "{REPO_NAME}", repo_name);
+      prompt_format = replace_placeholder(prompt_format, "{GIT_BRANCH}", branch_name);
+      prompt_format = replace_placeholder(prompt_format, "{GIT_STATUS}", status_info);
+      
+      return prompt_format;
     } catch (const std::exception& e) {
       std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
     }
   }
+  prompt_format = g_theme->get_ps1_prompt_format();
   
-  // If not a git repo or if there was an error, return a simple prompt
-  if (display_whole_path) {
-    return SHELL_COLOR + username + RESET_COLOR + " " + 
-           DIRECTORY_COLOR + get_current_file_path() + RESET_COLOR;
-  } else {
-    return SHELL_COLOR + username + RESET_COLOR + " " + 
-           DIRECTORY_COLOR + get_current_file_name() + RESET_COLOR;
-  }
+  // Replace placeholders for non-git prompt
+  char hostname[256];
+  gethostname(hostname, 256);
+  
+  prompt_format = replace_placeholder(prompt_format, "{USERNAME}", username);
+  prompt_format = replace_placeholder(prompt_format, "{HOSTNAME}", hostname);
+  prompt_format = replace_placeholder(prompt_format, "{PATH}", get_current_file_path());
+  prompt_format = replace_placeholder(prompt_format, "{DIRECTORY}", get_current_file_name());
+  
+  return prompt_format;
 }
 
 std::string Prompt::get_ai_prompt() {
-  // TODO
-  return "AI> ";
+  std::string modelInfo = g_ai->getModel();
+  std::string modeInfo = g_ai->getAssistantType();
+            
+  if (modelInfo.empty()) modelInfo = "Unknown";
+  if (modeInfo.empty()) modeInfo = "Chat";
+  
+  std::string prompt_format = g_theme->get_ai_prompt_format();
+  
+  // Replace AI-specific placeholders
+  prompt_format = replace_placeholder(prompt_format, "{AI_MODEL}", modelInfo);
+  prompt_format = replace_placeholder(prompt_format, "{AI_AGENT_TYPE}", modeInfo);
+  prompt_format = replace_placeholder(prompt_format, "{AI_DIVIDER}", ">");
+  
+  return prompt_format;
+}
+
+// Helper method to replace placeholders in format strings
+std::string Prompt::replace_placeholder(const std::string& format, const std::string& placeholder, const std::string& value) {
+  std::string result = format;
+  size_t pos = 0;
+  while ((pos = result.find(placeholder, pos)) != std::string::npos) {
+    result.replace(pos, placeholder.length(), value);
+    pos += value.length();
+  }
+  return result;
 }
 
 bool Prompt::is_root_path(const std::filesystem::path& path) {
@@ -111,12 +147,10 @@ bool Prompt::is_root_path(const std::filesystem::path& path) {
 std::string Prompt::get_current_file_path() {
   std::string path = std::filesystem::current_path().string();
   
-  // Check if path is root
   if (path == "/") {
     return "/";
   }
   
-  // Check if path is in home directory and replace with ~
   char* home_dir = getenv("HOME");
   if (home_dir) {
     std::string home_path = home_dir;
@@ -133,19 +167,16 @@ std::string Prompt::get_current_file_path() {
 std::string Prompt::get_current_file_name() {
   std::string current_directory = get_current_file_path();
   
-  // For root directory
   if (current_directory == "/") {
     return "/";
   }
   
-  // For home directory
   if (current_directory == "~") {
     return "~";
   }
   
-  // If it's a path starting with ~/ extract the last component
   if (current_directory.find("~/") == 0) {
-    std::string relative_path = current_directory.substr(2); // Skip "~/"
+    std::string relative_path = current_directory.substr(2);
     if (relative_path.empty()) {
       return "~";
     }

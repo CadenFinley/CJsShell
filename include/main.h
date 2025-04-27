@@ -4,19 +4,13 @@
 #include "shell.h"
 #include "theme.h"
 #include "plugin.h"
-#include "cjsh_filesystem.h"
-#include "../isocline/include/isocline.h"
-#include <signal.h>
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <errno.h>
-#include <fstream>
-#include <sstream>
-#include <chrono>
 #include <ctime>
+#include <atomic>
 
 // constants
 const std::string c_version = "2.1.0.0";
@@ -44,6 +38,7 @@ extern int g_shell_terminal;
 extern pid_t g_shell_pgid;
 extern struct termios g_shell_tmodes;
 extern bool g_job_control_enabled;
+extern std::atomic_bool g_exit_flag;
 
 extern time_t g_last_update_check;
 extern int g_update_check_interval; // 24 hours
@@ -56,7 +51,6 @@ extern std::vector<std::string> g_startup_commands;
 extern std::string g_current_theme;
 
 // misc
-extern std::string g_shortcut_prefix;
 extern std::string title_line;
 extern std::string created_line;
 
@@ -84,9 +78,11 @@ void restore_terminal_state();
 void setup_job_control();
 void setup_environment_variables();
 void initialize_login_environment();
+void save_to_history(const std::string& command);
 
 using json = nlohmann::json;
 
+void startup_update_process();
 bool check_for_update();
 bool load_update_cache();
 void save_update_cache(bool update_available, const std::string& latest_version);

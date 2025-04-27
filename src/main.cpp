@@ -1,15 +1,17 @@
 #include "main.h"
+#include "../isocline/include/isocline.h"
+#include "cjsh_filesystem.h"
+#include <signal.h>
+
 
 //TODO
 // by order of importance
 
-// built-ins
 // need to match command lifecycle with how zsh and bash do it
+// signal handling in exec
 // handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
 
 // good history management and implementation
-// theming application and overhaul
-// prompt customization through themes
 
 // need a good splash screen maybe with some ascii art or something
 // create example plugins using rust, go, and anything else that can tap into the C runtime API
@@ -23,7 +25,7 @@ int main(int argc, char *argv[]) {
   }
 
   // this handles the prompting and executing of commands
-  g_shell = new Shell(c_pid, argv);
+  g_shell = new Shell(argv);
 
   // setup signal handlers before anything else
   setup_signal_handlers();
@@ -34,6 +36,7 @@ int main(int argc, char *argv[]) {
       std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
       return 1;
     }
+    process_config_file();
     initialize_login_environment();
     setup_environment_variables();
     setup_job_control();
@@ -51,7 +54,6 @@ int main(int argc, char *argv[]) {
   
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
-    
     if (arg == "-c" || arg == "--command") {
       if (i + 1 < argc) {
         l_execute_command = true;
@@ -104,12 +106,6 @@ int main(int argc, char *argv[]) {
   // set initial working directory
   setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
 
-  // initialize and verify the file system
-  if (!init_interactive_filesystem()) {
-    std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
-    return 1;
-  }
-
   // check for interactive command line arguments
   // --no-update
   // -d, --debug
@@ -117,7 +113,6 @@ int main(int argc, char *argv[]) {
   // --no-source
   // --no-titleline
   // --no-plugin
-  // --no-theme
   // --no-ai
 
   bool l_load_plugin = true;
@@ -143,12 +138,17 @@ int main(int argc, char *argv[]) {
     else if (arg == "--no-plugin") {
       l_load_plugin = false;
     }
-    else if (arg == "--no-theme") {
-      l_load_theme = false;
-    }
     else if (arg == "--no-ai") {
       l_load_ai = false;
+    } else if (arg.length() > 0 && arg[0] == '-') {
+      std::cerr << "Warning: Unknown argument: " << arg << std::endl;
     }
+  }
+
+  // initialize and verify the file system
+  if (!init_interactive_filesystem()) {
+    std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
+    return 1;
   }
 
   // initalize objects
@@ -161,47 +161,20 @@ int main(int argc, char *argv[]) {
     g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
   }
   if (l_load_ai) {
-    g_ai = new Ai("", "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
-  }
-
-  std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
-  if (std::filesystem::exists(changelog_path)) {
-    display_changelog(changelog_path);
-    std::string saved_changelog_path = (cjsh_filesystem::g_cjsh_data_path / "latest_changelog.txt").string();
-    try {
-      std::filesystem::rename(changelog_path, saved_changelog_path);
-      g_last_updated = get_current_time_string();
-    } catch (const std::exception& e) {
-      std::cerr << "Error handling changelog: " << e.what() << std::endl;
+    // Get API key from environment if available
+    std::string api_key = "";
+    const char* env_key = getenv("OPENAI_API_KEY");
+    if (env_key) {
+      api_key = env_key;
     }
-  } else {
-    if (g_check_updates) {
-      bool update_available = false;
-      
-      if (load_update_cache()) {
-        if (should_check_for_updates()) {
-          update_available = check_for_update();
-          save_update_cache(update_available, g_cached_version);
-        } else if (g_cached_update) {
-          update_available = true;
-          if (!g_silent_update_check) {
-            std::cout << "\nUpdate available: " << g_cached_version << " (cached)" << std::endl;
-          }
-        }
-      } else {
-        update_available = check_for_update();
-        save_update_cache(update_available, g_cached_version);
-      }
-      
-      if (update_available) {
-        execute_update_if_available(update_available);
-      } else if (!g_silent_update_check) {
-        std::cout << " You are up to date!" << std::endl;
-      }
-    }
+    g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
+  process_source_file();
 
-  if(!g_shell->get_exit_flag()) {
+  // do update process
+  startup_update_process();
+
+  if(!g_exit_flag) {
     if (g_title_line) {
       std::cout << title_line << std::endl;
       std::cout << created_line  << std::endl;
@@ -259,30 +232,40 @@ void main_process_loop() {
         ic_history_add(command.c_str());
         g_shell->execute_command(command, true);
       }
-      if (g_shell->get_exit_flag()) {
+      if (g_exit_flag) {
         break;
       }
     } else {
-      g_shell->set_exit_flag(true);
+      g_exit_flag = true;
     }
     notify_plugins("main_process_end", c_pid_str);
-    if (g_shell->get_exit_flag()) {
+    if (g_exit_flag) {
       break;
     }
   }
 }
 
+void save_to_history(const std::string& command) {
+  if (g_shell->get_login_mode()) {
+    std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path, std::ios::app);
+    if (history_file.is_open()) {
+      history_file << command << std::endl;
+      history_file.close();
+    } else {
+      std::cerr << "Error: Unable to open history file for writing." << std::endl;
+    }
+  }
+}
+
 static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
-  // Mark unused parameters to avoid compiler warnings
-  (void)info;
-  (void)context;
-  
+  (void)context; // Unused parameter
+  (void)info; // Unused parameter
+
   switch (signum) {
     case SIGHUP:
       std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
-      g_shell->set_exit_flag(true);
+      g_exit_flag = true;
       
-      // Clean up and exit immediately
       if (g_job_control_enabled) {
         try {
           restore_terminal_state();
@@ -294,7 +277,7 @@ static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
       
     case SIGTERM:
       std::cerr << "Received SIGTERM, exiting" << std::endl;
-      g_shell->set_exit_flag(true);
+      g_exit_flag = true;
       _exit(0);
       break;
       
@@ -303,7 +286,7 @@ static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
       break;
       
     case SIGCHLD:
-      // Reap zombie processes
+      // Handle child process termination
       pid_t child_pid;
       int status;
       while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
@@ -441,7 +424,7 @@ void initialize_login_environment() {
 
 void notify_plugins(std::string trigger, std::string data) {
   if (g_plugin == nullptr) {
-    g_shell->set_exit_flag(true);
+    g_exit_flag = true;
     std::cerr << "Error: Plugin system not initialized." << std::endl;
     return;
   }
@@ -463,7 +446,6 @@ bool init_login_filesystem() {
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_config_path)) {
       create_config_file();
     }
-    process_config_file();
   } catch (const std::exception& e) {
     std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: " << e.what() << std::endl;
     return false;
@@ -490,6 +472,9 @@ bool init_interactive_filesystem() {
       std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
       history_file.close();
     }
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path)) {
+      create_source_file();
+    }
   } catch (const std::exception& e) {
     std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: " << e.what() << std::endl;
     return false;
@@ -508,52 +493,22 @@ void process_config_file() {
     std::cerr << "cjsh: Failed to open the configuration file for reading." << std::endl;
     return;
   }
-
-  std::unordered_map<std::string, std::string> env_vars;
   
   std::string line;
   while (std::getline(config_file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
-    if (line.find("export ") == 0 || line.find('=') != std::string::npos) {
-      size_t equal_pos = line.find('=');
-      if (equal_pos != std::string::npos) {
-        std::string var_name = line.substr(0, equal_pos);
-        std::string var_value = line.substr(equal_pos + 1);
-        
-        if (var_name.find("export ") == 0) {
-          var_name = var_name.substr(7);
-        }
-        
-        var_name.erase(0, var_name.find_first_not_of(" \t"));
-        var_name.erase(var_name.find_last_not_of(" \t") + 1);
-        var_value.erase(0, var_value.find_first_not_of(" \t"));
-        var_value.erase(var_value.find_last_not_of(" \t") + 1);
-        
-        if ((var_value.front() == '"' && var_value.back() == '"') || 
-            (var_value.front() == '\'' && var_value.back() == '\'')) {
-          var_value = var_value.substr(1, var_value.length() - 2);
-        }
-        
-        env_vars[var_name] = var_value;
-        // Still need to set in environment as well for immediate effect
-        setenv(var_name.c_str(), var_value.c_str(), 1);
-      }
-    }
-    else if (line.find("PATH=") == 0 || line.find("PATH=$PATH:") == 0) {
+    if (line.find("export ") == 0) {
       g_shell->execute_command(line, true);
-    }
-    else {
+    } else {
       g_shell->execute_command(line, true);
     }
   }
   
   config_file.close();
-  
-  // Set all collected environment variables at once in the shell
-  if (!env_vars.empty()) {
-    g_shell->set_env_vars(env_vars);
+  if (g_debug_mode) {
+    std::cout << "DEBUG: Configuration file processed." << std::endl;
   }
 }
 
@@ -569,86 +524,27 @@ void process_source_file() {
     return;
   }
 
-  std::unordered_map<std::string, std::string> aliases;
-  std::unordered_map<std::string, std::string> env_vars;
-  
   std::string line;
   while (std::getline(source_file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
-
     if (line.find("alias ") == 0) {
-      // Parse and collect alias definitions
-      std::string alias_def = line.substr(6);
-      size_t equal_pos = alias_def.find('=');
-      if (equal_pos != std::string::npos) {
-        std::string alias_name = alias_def.substr(0, equal_pos);
-        std::string alias_value = alias_def.substr(equal_pos + 1);
-        
-        // Trim whitespace
-        alias_name.erase(0, alias_name.find_first_not_of(" \t"));
-        alias_name.erase(alias_name.find_last_not_of(" \t") + 1);
-        
-        // Remove quotes if present
-        if ((alias_value.front() == '\'' && alias_value.back() == '\'') ||
-            (alias_value.front() == '"' && alias_value.back() == '"')) {
-          alias_value = alias_value.substr(1, alias_value.length() - 2);
-        }
-        
-        aliases[alias_name] = alias_value;
-      }
-    }
-    else if (line.find("export ") == 0) {
-      // Parse and collect environment variable definitions
-      std::string env_def = line.substr(7);
-      size_t equal_pos = env_def.find('=');
-      if (equal_pos != std::string::npos) {
-        std::string env_name = env_def.substr(0, equal_pos);
-        std::string env_value = env_def.substr(equal_pos + 1);
-        
-        // Trim whitespace
-        env_name.erase(0, env_name.find_first_not_of(" \t"));
-        env_name.erase(env_name.find_last_not_of(" \t") + 1);
-        
-        // Remove quotes if present
-        if ((env_value.front() == '\'' && env_value.back() == '\'') ||
-            (env_value.front() == '"' && env_value.back() == '"')) {
-          env_value = env_value.substr(1, env_value.length() - 2);
-        }
-        
-        env_vars[env_name] = env_value;
-        // Also set in the environment
-        setenv(env_name.c_str(), env_value.c_str(), 1);
-      }
+      g_shell->execute_command(line, true);
     }
     else if (line.find("theme ") == 0) {
-      g_current_theme = line.substr(6);
-      g_current_theme.erase(0, g_current_theme.find_first_not_of(" \t"));
-      g_current_theme.erase(g_current_theme.find_last_not_of(" \t") + 1);
+      g_shell->execute_command(line, true);
     }
     else if (line.find("plugin ") == 0) {
-      if (g_plugin != nullptr) {
-        std::string plugin_cmd = line.substr(7);
-        std::stringstream ss(plugin_cmd);
-        std::string plugin_name, plugin_action;
-        ss >> plugin_name >> plugin_action;
-        
-        if (plugin_action == "enable" || plugin_action == "on") {
-          g_plugin->enable_plugin(plugin_name);
-        } else if (plugin_action == "disable" || plugin_action == "off") {
-          g_plugin->disable_plugin(plugin_name);
-        }
-      }
+      g_shell->execute_command(line, true);
     }
     else {
       g_shell->execute_command(line, true);
     }
   }
-  
   source_file.close();
-  if (!aliases.empty()) {
-    g_shell->set_aliases(aliases);
+  if (g_debug_mode) {
+    std::cout << "DEBUG: Source file processed." << std::endl;
   }
 }
 
@@ -696,13 +592,13 @@ void create_source_file() {
 }
 
 void parent_process_watchdog() {
-  while (!g_shell->get_exit_flag()) {
+  while (!g_exit_flag) {
     if (!is_parent_process_alive()) {
       std::cerr << "Parent process terminated, shutting down..." << std::endl;
-        g_shell->set_exit_flag(true);
-        break;
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(10));
+      g_exit_flag = true;
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(10));
   }
 }
 
@@ -1086,4 +982,42 @@ void display_changelog(const std::string& changelog_path) {
   file.close();
   
   std::cout << "\n===== CHANGELOG =====\n" << content << "\n=====================\n" << std::endl;
+}
+
+void startup_update_process() {
+  std::string changelog_path = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
+  if (std::filesystem::exists(changelog_path)) {
+    display_changelog(changelog_path);
+    std::string saved_changelog_path = (cjsh_filesystem::g_cjsh_data_path / "latest_changelog.txt").string();
+    try {
+      std::filesystem::rename(changelog_path, saved_changelog_path);
+      g_last_updated = get_current_time_string();
+    } catch (const std::exception& e) {
+      std::cerr << "Error handling changelog: " << e.what() << std::endl;
+    }
+  } else {
+    if (g_check_updates) {
+      bool update_available = false;
+      
+      if (load_update_cache()) {
+        if (should_check_for_updates()) {
+          update_available = check_for_update();
+          save_update_cache(update_available, g_cached_version);
+        } else if (g_cached_update) {
+          update_available = true;
+          if (!g_silent_update_check) {
+            std::cout << "\nUpdate available: " << g_cached_version << " (cached)" << std::endl;
+          }
+        }
+      } else {
+        save_update_cache(update_available, g_cached_version);
+      }
+      
+      if (update_available) {
+        execute_update_if_available(update_available);
+      } else if (!g_silent_update_check) {
+        std::cout << " You are up to date!" << std::endl;
+      }
+    }
+  }
 }

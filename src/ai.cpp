@@ -16,10 +16,15 @@ Ai::Ai(const std::string& apiKey, const std::string& assistantType, const std::s
 Ai::Ai() {}
 
 void Ai::setAPIKey(const std::string& apiKey) {
+    setenv("OPENAI_API_KEY", apiKey.c_str(), 1);
     USER_API_KEY = apiKey;
 }
 
 std::string Ai::getAPIKey() const {
+    const char* env_key = getenv("OPENAI_API_KEY");
+    if (env_key && strlen(env_key) > 0) {
+        return env_key;
+    }
     return USER_API_KEY;
 }
 
@@ -267,7 +272,7 @@ bool Ai::isValidConfiguration() const {
 
 std::string Ai::getInvalidConfigurationMessage() const {
     if (USER_API_KEY.empty()) {
-        return "API key not set.";
+        return "API key not set. Please set the API key using the environment variable 'OPENAI_API_KEY' or through the setAPIKey() method.";
     }
     if (initialInstruction.empty()) {
         return "Initial instruction not set.";

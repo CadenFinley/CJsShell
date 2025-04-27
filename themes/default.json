@@ -1,14 +1,5 @@
 {
-    "BLUE_COLOR_BOLD": "",
-    "BRANCH_COLOR": "",
-    "CYAN_COLOR_BOLD": "",
-    "DIRECTORY_COLOR": "",
-    "GIT_COLOR": "",
-    "GREEN_COLOR_BOLD": "",
-    "PROMPT_FORMAT": "cjsh \\w",
-    "PURPLE_COLOR_BOLD": "",
-    "RED_COLOR_BOLD": "",
-    "RESET_COLOR": "",
-    "SHELL_COLOR": "",
-    "YELLOW_COLOR_BOLD": ""
+    "ai_prompt": "[BLUE]{AI_MODEL} [YELLOW]{AI_AGENT_TYPE} [WHITE]{AI_DIVIDER}[RESET]",
+    "git_prompt": "[RED]{USERNAME} [BLUE]{DIRECTORY} [GREEN]git:([YELLOW]{GIT_BRANCH} {GIT_STATUS}[GREEN])[RESET]",
+    "ps1_prompt": "[RED]{USERNAME}[WHITE]@[GREEN]{HOSTNAME} [BLUE]{PATH} [WHITE]$[RESET]"
 }

@@ -11,14 +11,10 @@
 extern char *program_invocation_name;
 #endif
 
-// Define the global variable
 cjsh_filesystem::fs::path cjsh_filesystem::g_cjsh_path;
 
-// This function can be called during initialization to set the path
-// to the current executable
 bool initialize_cjsh_path() {
     char path[PATH_MAX];
-    // Linux-specific code
     #ifdef __linux__
     if (readlink("/proc/self/exe", path, PATH_MAX) != -1) {
         cjsh_filesystem::g_cjsh_path = path;
@@ -26,7 +22,6 @@ bool initialize_cjsh_path() {
     }
     #endif
     
-    // macOS-specific code
     #ifdef __APPLE__
     uint32_t size = PATH_MAX;
     if (_NSGetExecutablePath(path, &size) == 0) {
@@ -41,7 +36,6 @@ bool initialize_cjsh_path() {
     }
     #endif
     
-    // Fallback method
     if (cjsh_filesystem::g_cjsh_path.empty()) {
         #ifdef __linux__
         char* exePath = realpath(program_invocation_name, NULL);
@@ -50,12 +44,10 @@ bool initialize_cjsh_path() {
             free(exePath);
             return true;
         } else {
-            // Default to a common location
             cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
             return true;
         }
         #else
-        // Default to a common location on non-Linux systems
         cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
         return true;
         #endif
