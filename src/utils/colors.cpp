@@ -315,6 +315,11 @@ std::string gradient_text(const std::string& text, const RGB& start, const RGB& 
     std::string result;
     size_t steps = text.length();
     
+    // Handle single character case to prevent division by zero in gradient function
+    if (steps == 1) {
+        return fg_color(start) + text + (g_color_capability != ColorCapability::NO_COLOR ? ansi::RESET : "");
+    }
+    
     // For basic color capability, use a simpler approach with fewer distinct colors
     if (g_color_capability == ColorCapability::BASIC_COLOR) {
         // Use just start color for first half, end color for second half

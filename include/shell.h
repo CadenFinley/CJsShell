@@ -21,6 +21,9 @@ class Shell {
     ~Shell();
 
     void execute_command(std::string command, bool sync = false);
+    
+    // New method to process signals safely from the main loop
+    void process_pending_signals();
 
     std::string get_prompt() {
       // prompt fallback built-in inside fuction return

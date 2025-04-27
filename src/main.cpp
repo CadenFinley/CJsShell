@@ -253,8 +253,6 @@ void main_process_loop() {
 
 void notify_plugins(std::string trigger, std::string data) {
   if (g_plugin == nullptr) {
-    g_exit_flag = true;
-    std::cerr << "Error: Plugin system not initialized." << std::endl;
     return;
   }
   if (g_plugin->get_enabled_plugins().empty()) {

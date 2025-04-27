@@ -642,27 +642,28 @@ void Exec::put_job_in_background(int job_id, bool cont) {
 }
 
 void Exec::wait_for_job(int job_id) {
-  std::lock_guard<std::mutex> lock(jobs_mutex);
+  std::unique_lock<std::mutex> lock(jobs_mutex);
   
   auto it = jobs.find(job_id);
   if (it == jobs.end()) {
     return;
   }
   
-  Job& job = it->second;
-  
-  // Make a copy of the pids vector since we'll be modifying it
-  std::vector<pid_t> remaining_pids = job.pids;
+  // Create safe copies of needed job data
+  pid_t job_pgid = it->second.pgid;
+  std::vector<pid_t> remaining_pids = it->second.pids;
   
   // Release the mutex while waiting
-  jobs_mutex.unlock();
+  lock.unlock();
   
-  int status;
+  int status = 0;
   pid_t pid;
   
   // Wait until all processes in the job have completed or the job is stopped
+  bool job_stopped = false;
+  
   while (!remaining_pids.empty()) {
-    pid = waitpid(-job.pgid, &status, WUNTRACED);
+    pid = waitpid(-job_pgid, &status, WUNTRACED);
     
     if (pid == -1) {
       // Error in waitpid
@@ -689,32 +690,39 @@ void Exec::wait_for_job(int job_id) {
     
     // If the process was stopped, the job is stopped
     if (WIFSTOPPED(status)) {
-      jobs_mutex.lock();
-      job.stopped = true;
-      job.status = status;
-      jobs_mutex.unlock();
+      job_stopped = true;
       break;
     }
   }
   
   // Re-acquire the mutex before updating job status
-  jobs_mutex.lock();
+  lock.lock();
   
-  // Only mark the job as completed if it wasn't stopped
-  if (!job.stopped) {
-    job.completed = true;
-    job.status = status;
+  // Check if the job still exists in our map
+  it = jobs.find(job_id);
+  if (it != jobs.end()) {
+    Job& job = it->second;
     
-    // Update the error message based on exit status
-    if (WIFEXITED(status)) {
-      int exit_status = WEXITSTATUS(status);
-      if (exit_status == 0) {
-        set_error("command completed successfully");
-      } else {
-        set_error("command failed with exit code " + std::to_string(exit_status));
+    // Update job status
+    if (job_stopped) {
+      job.stopped = true;
+      job.status = status;
+    } else {
+      job.completed = true;
+      job.stopped = false;
+      job.status = status;
+      
+      // Update the error message based on exit status
+      if (WIFEXITED(status)) {
+        int exit_status = WEXITSTATUS(status);
+        if (exit_status == 0) {
+          set_error("command completed successfully");
+        } else {
+          set_error("command failed with exit code " + std::to_string(exit_status));
+        }
+      } else if (WIFSIGNALED(status)) {
+        set_error("command terminated by signal " + std::to_string(WTERMSIG(status)));
       }
-    } else if (WIFSIGNALED(status)) {
-      set_error("command terminated by signal " + std::to_string(WTERMSIG(status)));
     }
   }
 }

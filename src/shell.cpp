@@ -5,66 +5,77 @@
 // Global pointer to the current Shell instance for signal handlers
 Shell* g_shell_instance = nullptr;
 
-// Signal handler implementation - remove static keyword to match header
+// Signal flags
+static volatile sig_atomic_t sigint_received = 0;
+static volatile sig_atomic_t sigchld_received = 0;
+static volatile sig_atomic_t sighup_received = 0;
+static volatile sig_atomic_t sigterm_received = 0;
+
+// Signal handler implementation - minimal and async-signal-safe
 void shell_signal_handler(int signum, siginfo_t* info, void* context) {
   (void)context; // Unused parameter
   (void)info; // Unused parameter
 
-  if (!g_shell_instance) return;
-
   switch (signum) {
-    case SIGHUP:
-      std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
-      g_exit_flag = true;
-      
-      if (g_shell_instance->job_control_enabled) {
-        try {
-          g_shell_instance->restore_terminal_state();
-        } catch (...) {}
-      }
-      
-      _exit(0);
-      break;
-      
-    case SIGTERM:
-      std::cerr << "Received SIGTERM, exiting" << std::endl;
-      g_exit_flag = true;
-      _exit(0);
-      break;
-      
     case SIGINT:
-      // Print a newline when Ctrl+C is pressed
+      sigint_received = 1;
+      // Safe to write a small amount as it's async-signal-safe
       write(STDOUT_FILENO, "\n", 1);
-      
-      // Check if there's a foreground job running and send it SIGINT
-      if (g_shell_instance->shell_exec) {
-        auto jobs = g_shell_instance->shell_exec->get_jobs();
-        for (const auto& job_pair : jobs) {
-          const auto& job = job_pair.second;
-          if (!job.background && !job.completed && !job.stopped) {
-            // Send SIGINT to the process group
-            if (kill(-job.pgid, SIGINT) < 0) {
-              perror("kill (SIGINT) in shell_signal_handler");
-            }
-            return; // Let the signal do its work
-          }
-        }
-      }
-      // If no foreground job, the shell itself ignores SIGINT
-      fflush(stdout);
       break;
       
     case SIGCHLD:
-      // Handle child process termination
-      if (g_shell_instance->shell_exec) {
-        pid_t pid;
-        int status;
-        while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-          g_shell_instance->shell_exec->handle_child_signal(pid, status);
-        }
-      }
+      sigchld_received = 1;
+      break;
+      
+    case SIGHUP:
+      sighup_received = 1;
+      _exit(0); // Immediate exit for terminal disconnect
+      break;
+      
+    case SIGTERM:
+      sigterm_received = 1;
+      _exit(0); // Immediate exit for termination
       break;
   }
+}
+
+// New method to process pending signals from the main loop
+void Shell::process_pending_signals() {
+  // Handle SIGINT
+  if (sigint_received) {
+    sigint_received = 0;
+    
+    // Check if there's a foreground job running and send it SIGINT
+    if (shell_exec) {
+      auto jobs = shell_exec->get_jobs();
+      for (const auto& job_pair : jobs) {
+        const auto& job = job_pair.second;
+        if (!job.background && !job.completed && !job.stopped) {
+          // Send SIGINT to the process group
+          if (kill(-job.pgid, SIGINT) < 0) {
+            perror("kill (SIGINT) in process_pending_signals");
+          }
+          break;
+        }
+      }
+    }
+    fflush(stdout);
+  }
+  
+  // Handle SIGCHLD
+  if (sigchld_received) {
+    sigchld_received = 0;
+    
+    if (shell_exec) {
+      pid_t pid;
+      int status;
+      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+        shell_exec->handle_child_signal(pid, status);
+      }
+    }
+  }
+  
+  // SIGHUP and SIGTERM are handled directly in the signal handler with _exit()
 }
 
 Shell::Shell(char *argv[]) {
