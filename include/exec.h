@@ -9,7 +9,7 @@
 #include <vector>
 #include <signal.h>
 #include <map>
-#include <termios.h> // Add this include for struct termios
+#include <termios.h>
 
 struct Job {
   pid_t pgid;
@@ -39,10 +39,10 @@ public:
   void execute_command_sync(const std::vector<std::string>& args);
   void execute_command_async(const std::vector<std::string>& args);
   
-  // New methods for pipeline handling
+  // Pipeline handling
   void execute_pipeline(const std::vector<Command>& commands);
   
-  // New methods for job control
+  // Job control methods
   int add_job(const Job& job);
   void remove_job(int job_id);
   void update_job_status(int job_id, bool completed, bool stopped, int status);
@@ -51,20 +51,15 @@ public:
   void wait_for_job(int job_id);
   std::map<int, Job> get_jobs();
   
-  // New method for handling signals
-  void setup_signal_handlers();
+  // Initialize shell environment
+  void init_shell();
+  
+  // Process child signals
+  void handle_child_signal(pid_t pid, int status);
   
   // Thread-safe methods for error handling
   void set_error(const std::string& error);
   std::string get_error();
-
-  void init_shell();
   
   std::string last_terminal_output_error;
 };
-
-// Signal handler functions (declared outside class)
-void sigchld_handler(int sig);
-void sigint_handler(int sig);
-void sigtstp_handler(int sig);
-void sigcont_handler(int sig);

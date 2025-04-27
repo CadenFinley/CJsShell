@@ -102,3 +102,6 @@ std::string get_current_time_string();
 bool is_newer_version(const std::string& latest, const std::string& current);
 bool is_first_boot();
 void mark_first_boot_complete();
+
+// Add a function to handle command execution errors gracefully
+void handle_command_error(const std::string& command, const std::string& error_message);

@@ -5,31 +5,13 @@
 #include <csignal>
 #include <algorithm>
 
-// Global pointer to the Exec instance for signal handlers
-static Exec* g_exec_instance = nullptr;
-
 Exec::Exec(){
   last_terminal_output_error = "";
   shell_terminal = STDIN_FILENO;
   shell_is_interactive = isatty(shell_terminal);
   
-  if (shell_is_interactive) {
-    // Put ourselves in our own process group
-    shell_pgid = getpid();
-    if (setpgid(shell_pgid, shell_pgid) < 0) {
-      perror("setpgid failed");
-      exit(1);
-    }
-
-    // Grab control of the terminal
-    tcsetpgrp(shell_terminal, shell_pgid);
-
-    // Save default terminal attributes
-    tcgetattr(shell_terminal, &shell_tmodes);
-  }
-  
-  g_exec_instance = this;
-  setup_signal_handlers();
+  // Initialize shell_pgid but don't try to take control of the terminal here
+  shell_pgid = getpid();
 }
 
 Exec::~Exec() {
@@ -50,44 +32,64 @@ void Exec::init_shell() {
     // Put ourselves in our own process group
     shell_pgid = getpid();
     if (setpgid(shell_pgid, shell_pgid) < 0) {
-      perror("setpgid failed");
-      exit(1);
+      // Only fail if it's not an "Operation not permitted" error
+      // (which happens when the process is already a process group leader)
+      if (errno != EPERM) {
+        perror("setpgid failed");
+        return;
+      }
     }
 
-    // Grab control of the terminal
-    tcsetpgrp(shell_terminal, shell_pgid);
+    // Grab control of the terminal - but handle errors gracefully
+    if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+      // This could fail if the shell is running in the background
+      perror("tcsetpgrp failed");
+      // Continue anyway - the shell can still run without job control
+    }
 
     // Save default terminal attributes
-    tcgetattr(shell_terminal, &shell_tmodes);
+    if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
+      perror("tcgetattr failed");
+      // Continue anyway - the shell can still run without saved terminal attributes
+    }
   }
 }
 
-void Exec::setup_signal_handlers() {
-  // Setup signal handlers
-  struct sigaction sa;
+// New method to handle child process signals
+void Exec::handle_child_signal(pid_t pid, int status) {
+  std::lock_guard<std::mutex> lock(jobs_mutex);
   
-  // SIGCHLD handler
-  sa.sa_handler = sigchld_handler;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART;
-  sigaction(SIGCHLD, &sa, nullptr);
-  
-  // SIGINT handler
-  sa.sa_handler = sigint_handler;
-  sigaction(SIGINT, &sa, nullptr);
-  
-  // SIGTSTP handler
-  sa.sa_handler = sigtstp_handler;
-  sigaction(SIGTSTP, &sa, nullptr);
-  
-  // SIGCONT handler
-  sa.sa_handler = sigcont_handler;
-  sigaction(SIGCONT, &sa, nullptr);
-  
-  // Ignore SIGTTIN and SIGTTOU
-  sa.sa_handler = SIG_IGN;
-  sigaction(SIGTTIN, &sa, nullptr);
-  sigaction(SIGTTOU, &sa, nullptr);
+  // Find the job that this process belongs to
+  for (auto& job_pair : jobs) {
+    int job_id = job_pair.first;
+    Job& job = job_pair.second;
+    
+    // If this process is part of the job
+    auto it = std::find(job.pids.begin(), job.pids.end(), pid);
+    if (it != job.pids.end()) {
+      // Update the job status if the process was stopped or terminated
+      if (WIFSTOPPED(status)) {
+        job.stopped = true;
+        job.status = status;
+      } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
+        // Remove the process from the job's process list
+        job.pids.erase(it);
+        
+        // If all processes in the job have completed
+        if (job.pids.empty()) {
+          job.completed = true;
+          job.stopped = false;
+          job.status = status;
+          
+          // Notify the user of job completion
+          if (job.background) {
+            std::cout << "\n[" << job_id << "] Done\t" << job.command << std::endl;
+          }
+        }
+      }
+      break;
+    }
+  }
 }
 
 // Thread-safe method to set error message
@@ -146,7 +148,7 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     
     execvp(args[0].c_str(), c_args.data());
     
-    std::string error_msg = "cjsh: Failed to execute command: " + std::string(strerror(errno));
+    std::string error_msg = "cjsh: Failed to execute command( " + args[0] + " ) : " + std::string(strerror(errno));
     std::cerr << error_msg << std::endl;
     _exit(EXIT_FAILURE);
   }
@@ -547,24 +549,55 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
   
   Job& job = it->second;
   
-  // Put the job in the foreground
-  tcsetpgrp(shell_terminal, job.pgid);
+  // Put the job in the foreground only if shell is interactive
+  if (shell_is_interactive) {
+    // Check if shell_terminal is actually a terminal before using tcsetpgrp
+    if (isatty(shell_terminal)) {
+      if (tcsetpgrp(shell_terminal, job.pgid) < 0) {
+        // Only print error if it's not an expected terminal-related error
+        if (errno != ENOTTY && errno != EINVAL) {
+          perror("tcsetpgrp (job to fg)");
+        }
+      }
+    }
+  }
   
   // Send the job a continue signal if necessary
   if (cont && job.stopped) {
     if (kill(-job.pgid, SIGCONT) < 0) {
       perror("kill (SIGCONT)");
     }
+    job.stopped = false;
   }
+  
+  // Temporarily release the mutex while waiting for the job
+  jobs_mutex.unlock();
   
   // Wait for the job to complete or stop
   wait_for_job(job_id);
   
-  // Put the shell back in the foreground
-  tcsetpgrp(shell_terminal, shell_pgid);
+  // Re-acquire the mutex
+  jobs_mutex.lock();
   
-  // Restore the shell's terminal modes
-  tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes);
+  // Put the shell back in the foreground
+  if (shell_is_interactive) {
+    // Only attempt to manipulate terminal if it's actually a terminal
+    if (isatty(shell_terminal)) {
+      if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+        // Only report error if it's not the expected "not a terminal" errors
+        if (errno != ENOTTY && errno != EINVAL) {
+          perror("tcsetpgrp (shell to fg)");
+        }
+      }
+      
+      // Restore the shell's terminal modes - only if we have a valid terminal
+      if (tcgetattr(shell_terminal, &shell_tmodes) == 0) {
+        if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+          perror("tcsetattr");
+        }
+      }
+    }
+  }
 }
 
 void Exec::put_job_in_background(int job_id, bool cont) {
@@ -589,112 +622,72 @@ void Exec::put_job_in_background(int job_id, bool cont) {
 }
 
 void Exec::wait_for_job(int job_id) {
+  std::lock_guard<std::mutex> lock(jobs_mutex);
+  
+  auto it = jobs.find(job_id);
+  if (it == jobs.end()) {
+    return;
+  }
+  
+  Job& job = it->second;
+  
+  // Make a copy of the pids vector since we'll be modifying it
+  std::vector<pid_t> remaining_pids = job.pids;
+  
+  // Release the mutex while waiting
+  jobs_mutex.unlock();
+  
   int status;
   pid_t pid;
   
-  do {
-    pid = waitpid(-1, &status, WUNTRACED);
+  // Wait until all processes in the job have completed or the job is stopped
+  while (!remaining_pids.empty()) {
+    pid = waitpid(-job.pgid, &status, WUNTRACED);
     
-    // Find the job that this process belongs to
-    for (auto& job_pair : jobs) {
-      Job& job = job_pair.second;
-      
-      // If this process is part of the job
-      auto it = std::find(job.pids.begin(), job.pids.end(), pid);
-      if (it != job.pids.end()) {
-        // Remove the process from the job's process list
-        job.pids.erase(it);
-        
-        // If all processes in the job have completed
-        if (job.pids.empty()) {
-          if (WIFSTOPPED(status)) {
-            job.stopped = true;
-            job.completed = false;
-          } else {
-            job.completed = true;
-            job.stopped = false;
-          }
-          
-          job.status = status;
-          
-          // If this is the job we're waiting for, and it's completed or stopped
-          if (job_pair.first == job_id && (job.completed || job.stopped)) {
-            return;
-          }
-        }
-        
+    if (pid == -1) {
+      // Error in waitpid
+      if (errno == EINTR) {
+        // Interrupted by signal, try again
+        continue;
+      } else if (errno == ECHILD) {
+        // No child processes - they may have been reaped by SIGCHLD handler
+        // Just mark all remaining processes as completed
+        remaining_pids.clear();
+        break;
+      } else {
+        // Other error, break out of the loop
+        perror("waitpid");
         break;
       }
     }
-  } while (!WIFEXITED(status) && !WIFSIGNALED(status) && !WIFSTOPPED(status));
+    
+    // Process exited, remove from our tracking list
+    auto pid_it = std::find(remaining_pids.begin(), remaining_pids.end(), pid);
+    if (pid_it != remaining_pids.end()) {
+      remaining_pids.erase(pid_it);
+    }
+    
+    // If the process was stopped, the job is stopped
+    if (WIFSTOPPED(status)) {
+      jobs_mutex.lock();
+      job.stopped = true;
+      job.status = status;
+      jobs_mutex.unlock();
+      break;
+    }
+  }
+  
+  // Re-acquire the mutex before updating job status
+  jobs_mutex.lock();
+  
+  // Only mark the job as completed if it wasn't stopped
+  if (!job.stopped) {
+    job.completed = true;
+    job.status = status;
+  }
 }
 
 std::map<int, Job> Exec::get_jobs() {
   std::lock_guard<std::mutex> lock(jobs_mutex);
   return jobs;
-}
-
-// Signal handlers
-void sigchld_handler(int sig) {
-  (void)sig; // Mark parameter as deliberately unused
-  
-  // Check for terminated children
-  pid_t pid;
-  int status;
-  
-  while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-    if (g_exec_instance) {
-      // Find the job that this process belongs to
-      auto jobs = g_exec_instance->get_jobs();
-      
-      for (auto& job_pair : jobs) {
-        int job_id = job_pair.first;
-        Job& job = job_pair.second;
-        
-        // If this process is part of the job
-        auto it = std::find(job.pids.begin(), job.pids.end(), pid);
-        if (it != job.pids.end()) {
-          // Update the job status if the process was stopped or terminated
-          if (WIFSTOPPED(status)) {
-            g_exec_instance->update_job_status(job_id, false, true, status);
-          } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
-            // Only mark the job as completed if this was the last process
-            job.pids.erase(it);
-            if (job.pids.empty()) {
-              g_exec_instance->update_job_status(job_id, true, false, status);
-              
-              // Notify the user of job completion
-              if (job.background) {
-                std::cout << "\n[" << job_id << "] Done\t" << job.command << std::endl;
-              }
-            }
-          }
-          
-          break;
-        }
-      }
-    }
-  }
-}
-
-void sigint_handler(int sig) {
-  (void)sig; // Mark parameter as deliberately unused
-  
-  // Print a newline character when Ctrl+C is pressed
-  write(STDOUT_FILENO, "\n", 1);
-  
-  // Ignore SIGINT in the shell process
-  // Child processes will inherit the default handler when they are exec'd
-}
-
-void sigtstp_handler(int sig) {
-  (void)sig; // Mark parameter as deliberately unused
-  
-  // Ignore SIGTSTP in the shell process
-}
-
-void sigcont_handler(int sig) {
-  (void)sig; // Mark parameter as deliberately unused
-  
-  // Handle SIGCONT if necessary
 }

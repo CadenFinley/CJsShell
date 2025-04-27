@@ -8,9 +8,13 @@
 #include <string>
 #include <sys/types.h>
 #include <unordered_map>
+#include <signal.h>
 
 class Exec;
 class Built_ins;
+
+// Signal handler function declaration - making it extern instead of static
+extern void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
 class Shell {
   public:
@@ -66,6 +70,15 @@ class Shell {
     std::unordered_map<std::string, std::string>& get_env_vars() {
       return env_vars;
     }
+    
+    // Signal handling methods
+    void setup_signal_handlers();
+    void save_terminal_state();
+    void restore_terminal_state();
+    void setup_job_control();
+    
+    // Make shell_signal_handler a friend to access private members
+    friend void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
     std::string last_terminal_output_error;
     std::string last_command;
@@ -74,6 +87,10 @@ class Shell {
     bool interactive_mode = false;
     bool login_mode = false;
     int shell_terminal;
+    pid_t shell_pgid;
+    struct termios shell_tmodes;
+    bool terminal_state_saved = false;
+    bool job_control_enabled = false;
 
     std::unique_ptr<Prompt> shell_prompt;
     std::unique_ptr<Exec> shell_exec;
@@ -83,3 +100,6 @@ class Shell {
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
 };
+
+// Global pointer to the current Shell instance for signal handlers
+extern Shell* g_shell_instance;

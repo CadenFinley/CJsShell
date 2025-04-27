@@ -15,8 +15,8 @@ int main(int argc, char *argv[]) {
   // this handles the prompting and executing of commands
   g_shell = new Shell(argv);
 
-  // setup signal handlers before anything else
-  setup_signal_handlers();
+  // setup signal handlers through the shell
+  g_shell->setup_signal_handlers();
   
   // Initialize login environment if necessary
   if (g_shell->get_login_mode()) {
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     process_config_file();
     initialize_login_environment();
     setup_environment_variables();
-    setup_job_control();
+    g_shell->setup_job_control();
   }
 
   // check for non interactive command line arguments
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
   std::cout << "CJ's Shell Exiting..." << std::endl;
 
   if (g_shell->get_login_mode()) {
-    restore_terminal_state();
+    g_shell->restore_terminal_state();
   }
 
   delete g_shell;
@@ -240,129 +240,6 @@ void main_process_loop() {
   }
 }
 
-static void signal_handler_wrapper(int signum, siginfo_t* info, void* context) {
-  (void)context; // Unused parameter
-  (void)info; // Unused parameter
-
-  switch (signum) {
-    case SIGHUP:
-      std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
-      g_exit_flag = true;
-      
-      if (g_job_control_enabled) {
-        try {
-          restore_terminal_state();
-        } catch (...) {}
-      }
-      
-      _exit(0);
-      break;
-      
-    case SIGTERM:
-      std::cerr << "Received SIGTERM, exiting" << std::endl;
-      g_exit_flag = true;
-      _exit(0);
-      break;
-      
-    case SIGINT:
-      std::cerr << "Received SIGINT, interrupting current operation" << std::endl;
-      break;
-      
-    case SIGCHLD:
-      // Handle child process termination
-      pid_t child_pid;
-      int status;
-      while ((child_pid = waitpid(-1, &status, WNOHANG)) > 0) {
-        // Child process terminated
-      }
-      break;
-  }
-}
-
-void setup_signal_handlers() {
-  struct sigaction sa;
-  sigemptyset(&sa.sa_mask);
-  sigset_t block_mask;
-  sigfillset(&block_mask);
-
-  // Setup SIGHUP handler (terminal disconnect)
-  sa.sa_sigaction = signal_handler_wrapper;
-  sa.sa_mask = block_mask;
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGHUP, &sa, nullptr);
-
-  // Setup SIGTERM handler
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGTERM, &sa, nullptr);
-
-  // Setup SIGCHLD handler (child process state changes)
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGCHLD, &sa, nullptr);
-
-  // Setup SIGINT handler (Ctrl+C)
-  sa.sa_flags = SA_SIGINFO;
-  sigaction(SIGINT, &sa, nullptr);
-
-  // Ignore certain signals
-  sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
-  sa.sa_mask = block_mask;
-  sigaction(SIGQUIT, &sa, nullptr);
-  sigaction(SIGTSTP, &sa, nullptr);
-  sigaction(SIGTTIN, &sa, nullptr);
-  sigaction(SIGTTOU, &sa, nullptr);
-
-  save_terminal_state();
-}
-
-void save_terminal_state() {
-  if (isatty(STDIN_FILENO)) {
-    if (tcgetattr(STDIN_FILENO, &g_original_termios) == 0) {
-      g_terminal_state_saved = true;
-    }
-  }
-}
-
-void restore_terminal_state() {
-  if (g_terminal_state_saved) {
-    tcsetattr(STDIN_FILENO, TCSANOW, &g_original_termios);
-  }
-}
-
-void setup_job_control() {
-  if (!isatty(STDIN_FILENO)) {
-    g_job_control_enabled = false;
-    return;
-  }
-  
-  g_shell_pgid = getpid();
-  
-  if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
-    if (errno != EPERM) {
-      perror("Couldn't put the shell in its own process group");
-    }
-  }
-  
-  try {
-    g_shell_terminal = STDIN_FILENO;
-    int tpgrp = tcgetpgrp(g_shell_terminal);
-    if (tpgrp != -1) {
-      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
-        perror("Couldn't grab terminal control");
-      }
-    }
-    
-    if (tcgetattr(g_shell_terminal, &g_shell_tmodes) < 0) {
-      perror("Couldn't get terminal attributes");
-    }
-    
-    g_job_control_enabled = true;
-  } catch (const std::exception& e) {
-    std::cerr << "Error setting up terminal: " << e.what() << std::endl;
-    g_job_control_enabled = false;
-  }
-}
-
 void setup_environment_variables() {
   uid_t uid = getuid();
   struct passwd* pw = getpwuid(uid);
@@ -396,12 +273,6 @@ void initialize_login_environment() {
     if (errno != EPERM) {
       perror("Failed to become session leader");
     }
-  }
-  
-  g_shell_terminal = STDIN_FILENO;
-  
-  if (!isatty(g_shell_terminal)) {
-    std::cerr << "Warning: Not running on a terminal device" << std::endl;
   }
 }
 
@@ -934,7 +805,7 @@ bool execute_update_if_available(bool update_available) {
       std::cout << "Restarting application..." << std::endl;
       
       if (g_shell->get_login_mode()) {
-          restore_terminal_state();
+          g_shell->restore_terminal_state();
       }
       
       delete g_shell;

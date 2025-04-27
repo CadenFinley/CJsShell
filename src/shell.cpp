@@ -2,13 +2,62 @@
 #include "main.h"
 #include "built_ins.h"
 
+// Global pointer to the current Shell instance for signal handlers
+Shell* g_shell_instance = nullptr;
+
+// Signal handler implementation - remove static keyword to match header
+void shell_signal_handler(int signum, siginfo_t* info, void* context) {
+  (void)context; // Unused parameter
+  (void)info; // Unused parameter
+
+  if (!g_shell_instance) return;
+
+  switch (signum) {
+    case SIGHUP:
+      std::cerr << "Received SIGHUP, terminal disconnected" << std::endl;
+      g_exit_flag = true;
+      
+      if (g_shell_instance->job_control_enabled) {
+        try {
+          g_shell_instance->restore_terminal_state();
+        } catch (...) {}
+      }
+      
+      _exit(0);
+      break;
+      
+    case SIGTERM:
+      std::cerr << "Received SIGTERM, exiting" << std::endl;
+      g_exit_flag = true;
+      _exit(0);
+      break;
+      
+    case SIGINT:
+      // Print a newline when Ctrl+C is pressed
+      write(STDOUT_FILENO, "\n", 1);
+      // The shell itself ignores SIGINT
+      // Child processes will get the default handler when exec'd
+      break;
+      
+    case SIGCHLD:
+      // Handle child process termination
+      if (g_shell_instance->shell_exec) {
+        pid_t pid;
+        int status;
+        while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+          g_shell_instance->shell_exec->handle_child_signal(pid, status);
+        }
+      }
+      break;
+  }
+}
+
 Shell::Shell(char *argv[]) {
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
   shell_parser = new Parser();
   built_ins = new Built_ins();
   built_ins->set_shell(this);
-
   built_ins->set_current_directory();
 
   if (argv && argv[0] && argv[0][0] == '-') {
@@ -18,13 +67,106 @@ Shell::Shell(char *argv[]) {
   }
   
   shell_terminal = STDIN_FILENO;
+  
+  // Set global shell instance for signal handlers
+  g_shell_instance = this;
 }
 
 Shell::~Shell() {
   delete shell_parser;
   delete built_ins;
+  
+  // Unset global shell instance
+  if (g_shell_instance == this) {
+    g_shell_instance = nullptr;
+  }
 }
 
+void Shell::setup_signal_handlers() {
+  struct sigaction sa;
+  sigemptyset(&sa.sa_mask);
+  sigset_t block_mask;
+  sigfillset(&block_mask);
+
+  // Setup SIGHUP handler (terminal disconnect)
+  sa.sa_sigaction = shell_signal_handler;
+  sa.sa_mask = block_mask;
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGHUP, &sa, nullptr);
+
+  // Setup SIGTERM handler
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGTERM, &sa, nullptr);
+
+  // Setup SIGCHLD handler (child process state changes)
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction(SIGCHLD, &sa, nullptr);
+
+  // Setup SIGINT handler (Ctrl+C)
+  sa.sa_flags = SA_SIGINFO;
+  sigaction(SIGINT, &sa, nullptr);
+
+  // Ignore certain signals
+  sa.sa_handler = SIG_IGN;
+  sa.sa_flags = 0;
+  sa.sa_mask = block_mask;
+  sigaction(SIGQUIT, &sa, nullptr);
+  sigaction(SIGTSTP, &sa, nullptr);
+  sigaction(SIGTTIN, &sa, nullptr);
+  sigaction(SIGTTOU, &sa, nullptr);
+
+  save_terminal_state();
+}
+
+void Shell::save_terminal_state() {
+  if (isatty(STDIN_FILENO)) {
+    if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
+      terminal_state_saved = true;
+    }
+  }
+}
+
+void Shell::restore_terminal_state() {
+  if (terminal_state_saved) {
+    tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes);
+  }
+}
+
+void Shell::setup_job_control() {
+  if (!isatty(STDIN_FILENO)) {
+    job_control_enabled = false;
+    return;
+  }
+  
+  shell_pgid = getpid();
+  
+  if (setpgid(shell_pgid, shell_pgid) < 0) {
+    if (errno != EPERM) {
+      perror("Couldn't put the shell in its own process group");
+    }
+  }
+  
+  try {
+    shell_terminal = STDIN_FILENO;
+    int tpgrp = tcgetpgrp(shell_terminal);
+    if (tpgrp != -1) {
+      if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+        perror("Couldn't grab terminal control");
+      }
+    }
+    
+    if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
+      perror("Couldn't get terminal attributes");
+    }
+    
+    job_control_enabled = true;
+  } catch (const std::exception& e) {
+    std::cerr << "Error setting up terminal: " << e.what() << std::endl;
+    job_control_enabled = false;
+  }
+}
+
+// Existing code
 void Shell::execute_command(std::string command, bool sync) {
   //since this is a custom shell be dont return bool we handle errors and error messages in the command execution process
   if (command.empty()) {
