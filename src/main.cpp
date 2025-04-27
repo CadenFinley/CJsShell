@@ -348,21 +348,187 @@ void process_config_file() {
     return;
   }
   
+  // First, process special directives like PATH_HELPER
+  config_file.clear();
+  config_file.seekg(0);
+  
   std::string line;
   while (std::getline(config_file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
-    if (line.find("export ") == 0) {
-      g_shell->execute_command(line, true);
-    } else {
-      g_shell->execute_command(line, true);
+    
+    if (line == "PATH_HELPER") {
+      // Process path helper specifically
+      process_shell_scripts_in_config();
     }
+  }
+  
+  // Then, process regular commands and environment variables
+  config_file.clear();
+  config_file.seekg(0);
+  
+  while (std::getline(config_file, line)) {
+    if (line.empty() || line[0] == '#' || line == "PATH_HELPER") {
+      continue;
+    }
+    
+    // Skip shell script constructs
+    if (is_shell_script_construct(line)) {
+      continue;
+    }
+    
+    // Try to handle as an environment variable
+    if (parse_and_set_env_var(line)) {
+      continue;
+    }
+    
+    // Otherwise process as a regular command
+    g_shell->execute_command(line, true);
   }
   
   config_file.close();
   if (g_debug_mode) {
     std::cout << "DEBUG: Configuration file processed." << std::endl;
+  }
+}
+
+bool is_shell_script_construct(const std::string& line) {
+  std::string trimmed = line;
+  // Trim leading whitespace
+  trimmed.erase(0, trimmed.find_first_not_of(" \t"));
+  
+  // Check for shell script constructs
+  if (trimmed.find("if ") == 0 || 
+      trimmed == "then" || 
+      trimmed == "else" || 
+      trimmed == "elif" || 
+      trimmed == "fi" || 
+      trimmed.find("eval ") == 0 ||
+      trimmed.find("for ") == 0 ||
+      trimmed.find("while ") == 0 ||
+      trimmed == "do" ||
+      trimmed == "done") {
+    return true;
+  }
+  return false;
+}
+
+void process_shell_scripts_in_config() {
+  // Special handling for common shell script patterns in config
+  // For the path_helper specifically
+  
+  // Check if path_helper exists
+  if (std::filesystem::exists("/usr/libexec/path_helper")) {
+    // Execute path_helper and capture its output
+    FILE* pipe = popen("/usr/libexec/path_helper -s", "r");
+    if (pipe) {
+      char buffer[256];
+      std::string result;
+      
+      while (!feof(pipe)) {
+        if (fgets(buffer, 256, pipe) != NULL) {
+          result += buffer;
+        }
+      }
+      pclose(pipe);
+      
+      // Process the result - for proper PATH setting
+      // The output is typically: export PATH="/usr/local/bin:/usr/bin:/bin"; 
+      std::string path_value;
+      size_t pos = result.find("PATH=\"");
+      if (pos != std::string::npos) {
+        pos += 6; // move past 'PATH="'
+        size_t end_pos = result.find("\"", pos);
+        if (end_pos != std::string::npos) {
+          path_value = result.substr(pos, end_pos - pos);
+          
+          // Directly set the PATH environment variable
+          if (!path_value.empty()) {
+            setenv("PATH", path_value.c_str(), 1);
+            if (g_debug_mode) {
+              std::cout << "DEBUG: Set PATH=" << path_value << std::endl;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Add more special shell script handling as needed
+}
+
+// Function to parse environment variable settings
+bool parse_and_set_env_var(const std::string& line) {
+  // Check if it's an export command
+  if (line.find("export ") == 0) {
+    std::string var_setting = line.substr(7); // Remove "export " prefix
+    size_t equals_pos = var_setting.find('=');
+    
+    if (equals_pos != std::string::npos) {
+      std::string var_name = var_setting.substr(0, equals_pos);
+      std::string var_value = var_setting.substr(equals_pos + 1);
+      
+      // Remove quotes if present
+      if (var_value.size() >= 2 && 
+          ((var_value.front() == '"' && var_value.back() == '"') || 
+           (var_value.front() == '\'' && var_value.back() == '\''))) {
+        var_value = var_value.substr(1, var_value.size() - 2);
+      }
+      
+      // Set the environment variable directly
+      setenv(var_name.c_str(), var_value.c_str(), 1);
+      
+      if (g_debug_mode) {
+        std::cout << "DEBUG: Set " << var_name << "=" << var_value << std::endl;
+      }
+      return true;
+    }
+  }
+  // Check if it's a direct VAR=value format (without export)
+  else {
+    size_t equals_pos = line.find('=');
+    
+    if (equals_pos != std::string::npos && equals_pos > 0) {
+      std::string var_name = line.substr(0, equals_pos);
+      std::string var_value = line.substr(equals_pos + 1);
+      
+      // Remove quotes if present
+      if (var_value.size() >= 2 && 
+          ((var_value.front() == '"' && var_value.back() == '"') || 
+           (var_value.front() == '\'' && var_value.back() == '\''))) {
+        var_value = var_value.substr(1, var_value.size() - 2);
+      }
+      
+      // Set the environment variable directly
+      setenv(var_name.c_str(), var_value.c_str(), 1);
+      
+      if (g_debug_mode) {
+        std::cout << "DEBUG: Set " << var_name << "=" << var_value << std::endl;
+      }
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+void create_config_file() {
+  std::ofstream config_file(cjsh_filesystem::g_cjsh_config_path);
+  if (config_file.is_open()) {
+    config_file << "# CJ's Shell Configuration File\n";
+    config_file << "# This file is sourced when the shell starts in login mode\n";
+    config_file << "# This file is used to configure the shell PATH and set environment variables.\n";
+    config_file << "# Do not edit this file unless you know what you are doing.\n\n";
+
+    config_file << "# Path helper command - sets up system PATH\n";
+    config_file << "PATH_HELPER\n\n";
+
+    config_file << "# Any environment variables should be set without 'export' command\n";
+    config_file << "# Example: VARIABLE=value\n";
+    config_file.close();
+  } else {
+    std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
   }
 }
 
@@ -402,25 +568,6 @@ void process_source_file() {
   }
 }
 
-void create_config_file() {
-  std::ofstream config_file(cjsh_filesystem::g_cjsh_config_path);
-  if (config_file.is_open()) {
-    config_file << "# CJ's Shell Configuration File\n";
-    config_file << "# This file is sourced when the shell starts in login mode\n";
-    config_file << "# This file is used to configure the shell PATH and set environment variables.\n";
-    config_file << "# Do not edit this file unless you know what you are doing.\n";
-
-    config_file << "if [ -x /usr/libexec/path_helper ]; then\n";
-    config_file << "eval /usr/libexec/path_helper -s\n";
-    config_file << "fi\n\n";
-
-    config_file << "# Any environment variables will be set here.\n";
-    config_file.close();
-  } else {
-    std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
-  }
-}
-
 void create_source_file() {
   std::ofstream source_file(cjsh_filesystem::g_cjsh_source_path);
   if (source_file.is_open()) {
@@ -450,9 +597,25 @@ void parent_process_watchdog() {
     if (!is_parent_process_alive()) {
       std::cerr << "Parent process terminated, shutting down..." << std::endl;
       g_exit_flag = true;
-      break;
+      if(g_shell){
+        delete g_shell;
+        g_shell = nullptr;
+      }
+      if(g_ai){
+        delete g_ai;
+        g_ai = nullptr;
+      }
+      if(g_plugin){
+        delete g_plugin;
+        g_plugin = nullptr;
+      }
+      if(g_theme){
+        delete g_theme;
+        g_theme = nullptr;
+      }
+      _exit(1); // Use _exit instead of exit to avoid running cleanup handlers that might block
     }
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(5));
   }
 }
 

@@ -684,6 +684,18 @@ void Exec::wait_for_job(int job_id) {
   if (!job.stopped) {
     job.completed = true;
     job.status = status;
+    
+    // Update the error message based on exit status
+    if (WIFEXITED(status)) {
+      int exit_status = WEXITSTATUS(status);
+      if (exit_status == 0) {
+        set_error("command completed successfully");
+      } else {
+        set_error("command failed with exit code " + std::to_string(exit_status));
+      }
+    } else if (WIFSIGNALED(status)) {
+      set_error("command terminated by signal " + std::to_string(WTERMSIG(status)));
+    }
   }
 }
 

@@ -87,8 +87,11 @@ void restore_terminal_state();
 void setup_job_control();
 void setup_environment_variables();
 void initialize_login_environment();
+bool is_shell_script_construct(const std::string& line);
+void process_shell_scripts_in_config();
+bool parse_and_set_env_var(const std::string& line);
 
-using json = nlohmann::json;
+// using json = nlohmann::json;
 
 void startup_update_process();
 bool check_for_update();

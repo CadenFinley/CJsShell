@@ -75,6 +75,7 @@ Shell::Shell(char *argv[]) {
 Shell::~Shell() {
   delete shell_parser;
   delete built_ins;
+  restore_terminal_state();
   
   // Unset global shell instance
   if (g_shell_instance == this) {
@@ -173,6 +174,54 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
   if (!shell_exec || !built_ins || !shell_parser) {
+    return;
+  }
+
+  // Check for logical operators (&&, ||)
+  if (command.find("&&") != std::string::npos || command.find("||") != std::string::npos) {
+    std::vector<LogicalCommand> logical_commands = shell_parser->parse_logical_commands(command);
+    
+    bool prev_success = true; // Assume first command should run
+    
+    for (size_t i = 0; i < logical_commands.size(); i++) {
+      const auto& cmd_segment = logical_commands[i];
+      
+      // Determine if we should execute this command based on previous result and operator
+      bool should_execute = true;
+      if (i > 0) {
+        const auto& prev_op = logical_commands[i-1].op;
+        if (prev_op == "&&") {
+          should_execute = prev_success;
+        } else if (prev_op == "||") {
+          should_execute = !prev_success;
+        }
+      }
+      
+      if (should_execute) {
+        // Check for built-in commands first
+        std::vector<std::string> args = shell_parser->parse_command(cmd_segment.command);
+        
+        // Special handling for built-in commands, especially 'cd'
+        if (!args.empty() && built_ins->is_builtin_command(args[0])) {
+          bool result = built_ins->builtin_command(args);
+          if (!result) {
+            last_terminal_output_error = "Something went wrong with the built-in command";
+            prev_success = false;
+          } else {
+            last_terminal_output_error = "command completed successfully";
+            prev_success = true;
+          }
+        } else {
+          // Not a built-in, execute normally
+          execute_command(cmd_segment.command, sync);
+          
+          // Determine success based on error message
+          prev_success = (last_terminal_output_error == "command completed successfully" || 
+                         last_terminal_output_error == "async command launched");
+        }
+      }
+    }
+    
     return;
   }
 
