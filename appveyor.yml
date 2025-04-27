@@ -10,7 +10,7 @@ branches:
     - master
 
 # Clone depth
-clone_depth: 1
+clone_depth: 5
 
 # Cache to speed up builds
 cache:
