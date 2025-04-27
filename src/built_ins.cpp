@@ -657,8 +657,8 @@ void Built_ins::theme_commands(const std::vector<std::string>& args) {
     if (g_theme) {
       std::cout << "Current theme: " << g_current_theme << std::endl;
       std::cout << "Available themes: " << std::endl;
-      for (const auto& theme : g_theme->get_available_themes()) {
-        std::cout << "  " << theme.first << std::endl;
+      for (const auto& theme : g_theme->list_available_themes()) {
+        std::cout << "  " << theme << std::endl;
       }
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;

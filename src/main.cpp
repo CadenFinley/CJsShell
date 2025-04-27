@@ -7,7 +7,6 @@
 //TODO
 // by order of importance
 
-// built-ins
 // need to match command lifecycle with how zsh and bash do it
 // signal handling in exec
 // handle piping, redirection, jobs, background processes/child processes and making sure they get killed, wildcards, history with: (!, !!, !n), and command substitution
@@ -167,7 +166,7 @@ int main(int argc, char *argv[]) {
   }
   if (l_load_theme) {
     // this will load the users selected theme from .cjshrc
-    g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
+    g_theme = new Theme(); //doesnt need to verify filesys
   }
   if (l_load_ai) {
     // Get API key from environment if available

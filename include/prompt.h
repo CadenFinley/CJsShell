@@ -9,17 +9,12 @@
 #include <cstdlib>
 #include <pwd.h>
 #include <unistd.h>
+#include "theme.h"
 
 // this returns the prompt for the user
 class Prompt {
   private:
-    const std::string SHELL_COLOR = "\033[1;31m";
-    const std::string RESET_COLOR = "\033[0m";
-    const std::string DIRECTORY_COLOR = "\033[1;34m";
-    const std::string BRANCH_COLOR = "\033[1;33m";
-    const std::string GIT_COLOR = "\033[1;32m";
     std::string terminal_name = "cjsh";
-    bool display_whole_path = false;
     
     // Git status caching
     std::chrono::steady_clock::time_point last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);

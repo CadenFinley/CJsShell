@@ -4,7 +4,6 @@
 Prompt::Prompt() {
   last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
   is_git_status_check_running = false;
-  display_whole_path = false;
 }
 
 Prompt::~Prompt() {
@@ -64,7 +63,8 @@ std::string Prompt::get_prompt() {
         is_clean_repo = cached_is_clean_repo;
       }
       
-      std::string repo_name = display_whole_path ? get_current_file_path() : get_current_file_name();
+      // needs to be adjusted for the theme prompt formatting get_current_file_path()
+      std::string repo_name = get_current_file_name();
       std::string status_info;
       
       if (is_clean_repo) {
@@ -73,42 +73,23 @@ std::string Prompt::get_prompt() {
         status_info = " " + status_symbols;
       }
       
-      git_info = DIRECTORY_COLOR + " git:(" + RESET_COLOR + BRANCH_COLOR + branch_name + RESET_COLOR;
-      
-      if (is_clean_repo) {
-        git_info += DIRECTORY_COLOR + status_info + RESET_COLOR;
-      } else if (!status_symbols.empty()) {
-        git_info += DIRECTORY_COLOR + status_info + RESET_COLOR;
-      }
-      
-      git_info += DIRECTORY_COLOR + ")" + RESET_COLOR;
-      
-      return SHELL_COLOR + username + RESET_COLOR + " " +
-             GIT_COLOR + repo_name + RESET_COLOR + git_info;
+      //implement prompt formatting
+      return g_theme->get_git_prompt();
     } catch (const std::exception& e) {
       std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
     }
   }
-  
-  // If not a git repo or if there was an error, return a simple prompt
-  if (display_whole_path) {
-    return SHELL_COLOR + username + RESET_COLOR + " " + 
-           DIRECTORY_COLOR + get_current_file_path() + RESET_COLOR;
-  } else {
-    return SHELL_COLOR + username + RESET_COLOR + " " + 
-           DIRECTORY_COLOR + get_current_file_name() + RESET_COLOR;
-  }
+  return g_theme->get_ps1_prompt();
 }
 
 std::string Prompt::get_ai_prompt() {
-  // TODO
-  std::string modelInfo = g_ai -> getModel();
-  std::string modeInfo = g_ai -> getAssistantType();
+  std::string modelInfo = g_ai->getModel();
+  std::string modeInfo = g_ai->getAssistantType();
             
   if (modelInfo.empty()) modelInfo = "Unknown";
   if (modeInfo.empty()) modeInfo = "Chat";
-  //return g_theme -> ai_prompt_divider_color + "[" + g_theme -> ai_prompt_model_color + modelInfo + g_theme -> ai_prompt_divider_color + " | " + g_theme -> ai_prompt_info + modeInfo + g_theme -> ai_prompt_divider_color + "] >" + c_reset_color;
-  return "AI >";
+  
+  return g_theme->get_ai_prompt();
 }
 
 bool Prompt::is_root_path(const std::filesystem::path& path) {
