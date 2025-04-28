@@ -1,0 +1,74 @@
+{
+    "terminal_title": "{SCRIPT$/users/cadenfinley/.cjsh/themes/script_themes/get_title.sh}",
+    "ps1_segments": [
+        {
+            "tag": "leftinfo",
+            "content": "{SCRIPT$/users/cadenfinley/.cjsh/themes/script_themes/get_user_info.sh}",
+            "bg_color": "BLUE",
+            "fg_color": "WHITE_BRIGHT",
+            "separator": " ",
+            "separator_fg": "WHITE",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "directory",
+            "content": "{SCRIPT$/users/cadenfinley/.cjsh/themes/script_themes/get_directory.sh}",
+            "bg_color": "GREEN",
+            "fg_color": "BLACK",
+            "separator": " ",
+            "separator_fg": "WHITE",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "git",
+            "content": "{SCRIPT$/users/cadenfinley/.cjsh/themes/script_themes/get_git_info.sh}",
+            "bg_color": "MAGENTA",
+            "fg_color": "WHITE_BRIGHT",
+            "separator": " ",
+            "separator_fg": "WHITE",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "time",
+            "content": "{SCRIPT$/users/cadenfinley/.cjsh/themes/script_themes/get_time.sh}",
+            "bg_color": "YELLOW",
+            "fg_color": "BLACK",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "newline_segments": [
+        {
+            "tag": "prompt",
+            "content": "$ ",
+            "bg_color": "RESET",
+            "fg_color": "WHITE_BRIGHT",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "git_segments": [
+        {
+            "tag": "git_prompt",
+            "content": "{SCRIPT$/users/cadenfinley/.cjsh/themes/script_themes/get_git_prompt.sh}",
+            "bg_color": "RESET",
+            "fg_color": "WHITE_BRIGHT",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "ai_segments": [
+        {
+            "tag": "ai_prompt",
+            "content": "[{SCRIPT$/users/cadenfinley/.cjsh/themes/script_themes/get_ai_info.sh}] ",
+            "bg_color": "CYAN",
+            "fg_color": "BLACK",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ]
+}
