@@ -59,7 +59,7 @@ public:
     bool is_vpn_active();
     std::string get_active_network_interface();
     int get_background_jobs_count();
-    std::string get_current_time();
+    std::string get_current_time(bool twelve_hour_format = false);
     std::string get_current_date();
     std::string get_shell();
     std::string get_shell_version();

@@ -14,7 +14,8 @@
  * {HOSTNAME}   - System hostname
  * {PATH}       - Current working directory (with ~ for home)
  * {DIRECTORY}  - Name of the current directory
- * {TIME}       - Current time (HH:MM:SS)
+ * {TIME12}     - Current time (HH:MM:SS) in 12 hour format
+ * {TIME24}, {TIME} - Current time (HH:MM:SS) in 24 hour format
  * {DATE}       - Current date (YYYY-MM-DD)
  * {SHELL}      - Name of the shell
  * {SHELL_VER}  - Version of the shell
@@ -239,17 +240,33 @@ std::string PromptInfo::get_hostname() {
     return hostname;
 }
 
-std::string PromptInfo::get_current_time() {
-    auto now = std::chrono::system_clock::now();
-    auto time_now = std::chrono::system_clock::to_time_t(now);
+std::string PromptInfo::get_current_time(bool twelve_hour_format) {
+    auto now       = std::chrono::system_clock::now();
+    auto time_now  = std::chrono::system_clock::to_time_t(now);
     struct tm time_info;
     localtime_r(&time_now, &time_info);
-    
+
     std::stringstream time_stream;
-    time_stream << std::setfill('0') << std::setw(2) << time_info.tm_hour << ":"
-              << std::setfill('0') << std::setw(2) << time_info.tm_min << ":"
-              << std::setfill('0') << std::setw(2) << time_info.tm_sec;
-    
+    int hour = time_info.tm_hour;
+    int display_hour = hour;
+    std::string suffix;
+
+    if (twelve_hour_format) {
+        suffix = (hour >= 12) ? " PM" : " AM";
+        display_hour = hour % 12;
+        if (display_hour == 0) {
+            display_hour = 12;
+        }
+    }
+
+    time_stream << std::setfill('0') << std::setw(2) << display_hour << ":"
+                << std::setfill('0') << std::setw(2) << time_info.tm_min << ":"
+                << std::setfill('0') << std::setw(2) << time_info.tm_sec;
+
+    if (twelve_hour_format) {
+        time_stream << suffix;
+    }
+
     return time_stream.str();
 }
 
@@ -432,7 +449,15 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
     
     if (is_variable_used("TIME", segments)) {
-        vars["TIME"] = get_current_time();
+        vars["TIME"] = get_current_time(false);
+    }
+
+    if (is_variable_used("TIME12", segments)) {
+      vars["TIME12"] = get_current_time(true);
+  }
+
+    if (is_variable_used("TIME", segments)) {
+      vars["TIME"] = get_current_time();
     }
     
     if (is_variable_used("DATE", segments)) {
@@ -447,7 +472,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         vars["SHELL_VER"] = get_shell_version();
     }
     
-    // System information variables
     if (is_variable_used("OS_INFO", segments)) {
         vars["OS_INFO"] = get_os_info();
     }
