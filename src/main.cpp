@@ -6,6 +6,7 @@
 
 // instead of static defined colors, have colors be defined in a file so that the user can add custom colors
 
+std::vector<std::string> g_startup_args;
 int main(int argc, char *argv[]) {
   // cjsh
   
@@ -14,11 +15,13 @@ int main(int argc, char *argv[]) {
     std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
   }
   
-  // Initialize signal handling before creating the shell
-  prepare_shell_signal_environment();
-  
   // this handles the prompting and executing of commands and signal handling
   g_shell = new Shell(argv);
+
+  g_startup_args.clear();
+  for (int i = 0; i < argc; i++) {
+    g_startup_args.push_back(std::string(argv[i]));
+  }
   
   // Initialize login environment if necessary
   if (g_shell->get_login_mode()) {
@@ -39,12 +42,12 @@ int main(int argc, char *argv[]) {
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
   
-  for (int i = 1; i < argc; i++) {
-    std::string arg = argv[i];
+  for (size_t i = 1; i < g_startup_args.size(); i++) {
+    std::string arg = g_startup_args[i];
     if (arg == "-c" || arg == "--command") {
-      if (i + 1 < argc) {
+      if (i + 1 < g_startup_args.size()) {
         l_execute_command = true;
-        l_cmd_to_execute = argv[i + 1];
+        l_cmd_to_execute = g_startup_args[i + 1];
         i++;
       }
     }
@@ -98,11 +101,8 @@ int main(int argc, char *argv[]) {
   setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
 
   // check for interactive command line arguments
-  bool l_load_plugin = true;
-  bool l_load_theme = true;
-  bool l_load_ai = true;
-  for (int i = 1; i < argc; i++) {
-    std::string arg = argv[i];
+  for (size_t i = 1; i < g_startup_args.size(); i++) {
+    std::string arg = g_startup_args[i];
     if (arg == "--no-update") {
       g_check_updates = false;
     }
@@ -119,7 +119,8 @@ int main(int argc, char *argv[]) {
       g_title_line = false;
     }
     else if (arg.length() > 0 && arg[0] == '-') {
-      std::cerr << "Warning: Unknown argument: " << arg << std::endl;
+      std::cerr << "Warning: Unknown startup argument: " << arg << std::endl;
+      return 1;
     }
   }
 
@@ -131,15 +132,12 @@ int main(int argc, char *argv[]) {
 
   g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path); //doesnt need to verify filesys
   g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
-  if (l_load_ai) {
-    // Get API key from environment if available
-    std::string api_key = "";
-    const char* env_key = getenv("OPENAI_API_KEY");
-    if (env_key) {
-      api_key = env_key;
-    }
-    g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
+  std::string api_key = "";
+  const char* env_key = getenv("OPENAI_API_KEY");
+  if (env_key) {
+    api_key = env_key;
   }
+  g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   process_source_file();
 
   if(!g_exit_flag) {
@@ -396,6 +394,12 @@ void process_profile_file() {
     }
     
     if (parse_and_set_env_var(line)) {
+      continue;
+    }
+
+    // if line starts with -- it is a startup arg
+    if (line.length() > 0 && line[0] == '-') {
+      g_startup_args.push_back(line);
       continue;
     }
     

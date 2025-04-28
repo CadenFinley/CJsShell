@@ -11,6 +11,10 @@
 #include <unistd.h>
 #include <ctime>
 #include <atomic>
+#include <sys/param.h>
+#ifndef MAXPATHLEN
+#define MAXPATHLEN 4096
+#endif
 
 // constants
 const std::string c_version = "2.1.0.0";
