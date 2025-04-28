@@ -13,7 +13,7 @@ private:
     
     std::string terminal_title_format;
 
-    void prerender_segments(); // will prerender all segments
+    void prerender_segments();
     std::string prerender_line(const std::vector<nlohmann::json>& segments) const; // will render full line with placeholders
 
     std::string prerendered_ps1_format;
@@ -23,7 +23,6 @@ private:
 
     std::string render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const;
     
-    // Helper method to execute scripts for the SCRIPT$ placeholder
     std::string execute_script(const std::string& script_path) const;
     
 public:
