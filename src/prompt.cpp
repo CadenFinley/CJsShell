@@ -22,7 +22,7 @@
  * {SHELL_VER}  - Version of the shell
  * 
  * Git prompt additional placeholders:
- * {REPO_NAME}  - Name of the Git repository
+ * {LOCAL_PATH} - Local path of the git repository
  * {GIT_BRANCH} - Current Git branch
  * {GIT_STATUS} - Git status (✓ for clean, * for dirty)
  * 
@@ -49,12 +49,9 @@ Prompt::Prompt() {
 Prompt::~Prompt() {
 }
 
-bool Prompt::is_variable_used(const std::string& var_name, const std::string& format_str, const std::vector<nlohmann::json>& segments) {
+bool Prompt::is_variable_used(const std::string& var_name, const std::vector<nlohmann::json>& segments) {
   // Check if variable is used in format string
   std::string placeholder = "{" + var_name + "}";
-  if (format_str.find(placeholder) != std::string::npos) {
-    return true;
-  }
   
   // Check if variable is used in any segment
   for (const auto& segment : segments) {
@@ -72,7 +69,6 @@ bool Prompt::is_variable_used(const std::string& var_name, const std::string& fo
 std::string Prompt::get_prompt() {
   struct passwd *pw = getpwuid(getuid());
   std::string username = pw ? pw->pw_name : "user";
-  std::string prompt_format;
   
   std::filesystem::path current_path = std::filesystem::current_path();
   std::filesystem::path git_head_path;
@@ -94,45 +90,42 @@ std::string Prompt::get_prompt() {
   std::vector<nlohmann::json> segments_to_check;
   
   if (is_git_repo) {
-    format_to_check = g_theme->get_git_prompt_format();
     segments_to_check = g_theme->git_segments;
   } else {
-    format_to_check = g_theme->get_ps1_prompt_format();
     segments_to_check = g_theme->ps1_segments;
   }
   
   // Only calculate needed variables
-  if (is_variable_used("USERNAME", format_to_check, segments_to_check)) {
+  if (is_variable_used("USERNAME", segments_to_check)) {
     vars["USERNAME"] = username;
   }
-  
-  if (is_variable_used("HOSTNAME", format_to_check, segments_to_check)) {
+  if (is_variable_used("HOSTNAME", segments_to_check)) {
     char hostname[256];
     gethostname(hostname, 256);
     vars["HOSTNAME"] = hostname;
   }
   
-  if (is_variable_used("PATH", format_to_check, segments_to_check)) {
+  if (is_variable_used("PATH", segments_to_check)) {
     vars["PATH"] = get_current_file_path();
   }
   
-  if (is_variable_used("DIRECTORY", format_to_check, segments_to_check)) {
+  if (is_variable_used("DIRECTORY", segments_to_check)) {
     vars["DIRECTORY"] = get_current_file_name();
   }
   
-  if (is_variable_used("TIME", format_to_check, segments_to_check)) {
+  if (is_variable_used("TIME", segments_to_check)) {
     vars["TIME"] = get_current_time();
   }
   
-  if (is_variable_used("DATE", format_to_check, segments_to_check)) {
+  if (is_variable_used("DATE", segments_to_check)) {
     vars["DATE"] = get_current_date();
   }
   
-  if (is_variable_used("SHELL", format_to_check, segments_to_check)) {
+  if (is_variable_used("SHELL", segments_to_check)) {
     vars["SHELL"] = get_shell();
   }
   
-  if (is_variable_used("SHELL_VER", format_to_check, segments_to_check)) {
+  if (is_variable_used("SHELL_VER", segments_to_check)) {
     vars["SHELL_VER"] = get_shell_version();
   }
 
@@ -145,7 +138,7 @@ std::string Prompt::get_prompt() {
       std::string branch_name;
       
       // Only read branch name if it's needed
-      if (is_variable_used("GIT_BRANCH", format_to_check, segments_to_check)) {
+      if (is_variable_used("GIT_BRANCH", segments_to_check)) {
         while (std::getline(head_file, line)) {
           if (std::regex_search(line, match, head_pattern)) {
             branch_name = match[1];
@@ -161,8 +154,8 @@ std::string Prompt::get_prompt() {
       }
 
       // Only check git status if it's needed
-      if (is_variable_used("GIT_STATUS", format_to_check, segments_to_check) || 
-          is_variable_used("REPO_NAME", format_to_check, segments_to_check)) {
+      if (is_variable_used("GIT_STATUS", segments_to_check) || 
+          is_variable_used("LOCAL_PATH", segments_to_check)) {
         
         std::string status_symbols = "";
         std::string git_dir = current_path.string();
@@ -195,40 +188,33 @@ std::string Prompt::get_prompt() {
         
         vars["GIT_STATUS"] = status_info;
         
-        if (is_variable_used("REPO_NAME", format_to_check, segments_to_check)) {
-          std::string repo_name = current_path.filename().string();
-          vars["REPO_NAME"] = repo_name;
+        if (is_variable_used("LOCAL_PATH", segments_to_check)) {
+          std::filesystem::path cwd = std::filesystem::current_path();
+          std::string repo_root_path = current_path.string();
+          std::string repo_root_name = current_path.filename().string();
+          std::string current_path_str = cwd.string();
+          
+          if (current_path_str == repo_root_path) {
+            vars["LOCAL_PATH"] = repo_root_name;
+          } else if (current_path_str.find(repo_root_path) == 0) {
+            std::string relative_path = current_path_str.substr(repo_root_path.length());
+            if (!relative_path.empty() && relative_path[0] == '/') {
+              relative_path = relative_path.substr(1);
+            }
+            relative_path = repo_root_name + (relative_path.empty() ? "" : "/" + relative_path);
+            vars["LOCAL_PATH"] = relative_path;
+          } else {
+            vars["LOCAL_PATH"] = "/";
+          }
         }
       }
-      
-      // Use the segmented style if available, otherwise fall back to the legacy format
-      if (g_theme->is_segmented_style()) {
-        return g_theme->render_git_segments(vars);
-      } else {
-        // Legacy style
-        prompt_format = g_theme->get_git_prompt_format();
-        for (const auto& [key, value] : vars) {
-          prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
-        }
-        
-        return prompt_format;
-      }
+      return g_theme->get_git_prompt_format(vars);
     } catch (const std::exception& e) {
       std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
     }
   }
   
-  // Non-git prompt
-  if (g_theme->is_segmented_style()) {
-    return g_theme->render_ps1_segments(vars);
-  } else {
-    prompt_format = g_theme->get_ps1_prompt_format();
-    for (const auto& [key, value] : vars) {
-      prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
-    }
-    
-    return prompt_format;
-  }
+  return g_theme->get_ps1_prompt_format(vars);
 }
 
 std::string Prompt::get_ai_prompt() {
@@ -239,39 +225,54 @@ std::string Prompt::get_ai_prompt() {
   if (modeInfo.empty()) modeInfo = "Chat";
   
   std::unordered_map<std::string, std::string> vars;
-  std::string format_to_check = g_theme->get_ai_prompt_format();
   std::vector<nlohmann::json> segments_to_check = g_theme->ai_segments;
   
-  if (is_variable_used("AI_MODEL", format_to_check, segments_to_check)) {
+  if (is_variable_used("AI_MODEL", segments_to_check)) {
     vars["AI_MODEL"] = modelInfo;
   }
   
-  if (is_variable_used("AI_AGENT_TYPE", format_to_check, segments_to_check)) {
+  if (is_variable_used("AI_AGENT_TYPE", segments_to_check)) {
     vars["AI_AGENT_TYPE"] = modeInfo;
   }
   
-  if (is_variable_used("AI_DIVIDER", format_to_check, segments_to_check)) {
+  if (is_variable_used("AI_DIVIDER", segments_to_check)) {
     vars["AI_DIVIDER"] = ">";
   }
   
-  if (is_variable_used("TIME", format_to_check, segments_to_check)) {
+  if (is_variable_used("TIME", segments_to_check)) {
     vars["TIME"] = get_current_time();
   }
   
-  if (is_variable_used("DATE", format_to_check, segments_to_check)) {
+  if (is_variable_used("DATE", segments_to_check)) {
     vars["DATE"] = get_current_date();
   }
   
-  if (g_theme->is_segmented_style()) {
-    return g_theme->render_ai_segments(vars);
-  } else {
-    std::string prompt_format = g_theme->get_ai_prompt_format();
-    for (const auto& [key, value] : vars) {
-      prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
-    }
-    
-    return prompt_format;
+  return g_theme->get_ai_prompt_format(vars);
+}
+
+std::string Prompt::get_newline_prompt() {
+  std::unordered_map<std::string, std::string> vars;
+  std::vector<nlohmann::json> segments_to_check = g_theme->newline_segments;
+  
+  if (is_variable_used("USERNAME", segments_to_check)) {
+    vars["USERNAME"] = getenv("USER");
   }
+  
+  if (is_variable_used("HOSTNAME", segments_to_check)) {
+    char hostname[256];
+    gethostname(hostname, 256);
+    vars["HOSTNAME"] = hostname;
+  }
+  
+  if (is_variable_used("PATH", segments_to_check)) {
+    vars["PATH"] = get_current_file_path();
+  }
+  
+  if (is_variable_used("DIRECTORY", segments_to_check)) {
+    vars["DIRECTORY"] = get_current_file_name();
+  }
+  
+  return g_theme->get_newline_prompt(vars);
 }
 
 std::string Prompt::get_title_prompt() {

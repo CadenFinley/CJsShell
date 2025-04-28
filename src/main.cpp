@@ -218,7 +218,7 @@ void main_process_loop() {
       prompt += " ";
     } else {
       std::cout << prompt << std::endl;
-      prompt = g_theme->get_newline_prompt();
+      prompt = g_shell->get_newline_prompt();
     }
     
     char* input = ic_readline(prompt.c_str());

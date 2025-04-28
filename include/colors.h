@@ -132,6 +132,8 @@ std::unordered_map<std::string, std::string> get_color_map();
 namespace ansi {
     const std::string ESC = "\033[";
     const std::string RESET = "\033[0m";
+    const std::string BG_RESET = "\033[49m";  // Reset only the background color
+    const std::string FG_RESET = "\033[39m";  // Reset only the foreground color
     const std::string BOLD = "\033[1m";
     const std::string DIM = "\033[2m";
     const std::string ITALIC = "\033[3m";

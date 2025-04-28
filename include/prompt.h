@@ -26,7 +26,7 @@ class Prompt {
     std::string get_current_date();
     std::string get_shell();
     std::string get_shell_version();
-    bool is_variable_used(const std::string& var_name, const std::string& format_str, const std::vector<nlohmann::json>& segments = {});
+    bool is_variable_used(const std::string& var_name, const std::vector<nlohmann::json>& segments = {});
     
   public:
     Prompt();
@@ -34,4 +34,5 @@ class Prompt {
     std::string get_prompt();
     std::string get_ai_prompt();
     std::string get_title_prompt();
+    std::string get_newline_prompt();
 };

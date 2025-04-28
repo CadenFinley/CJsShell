@@ -33,6 +33,10 @@ class Shell {
       return shell_prompt->get_ai_prompt();
     }
 
+    std::string get_newline_prompt() {
+      return shell_prompt->get_newline_prompt();
+    }
+
     std::string get_title_prompt() {
       return shell_prompt->get_title_prompt();
     }

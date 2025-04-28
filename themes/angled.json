@@ -1,31 +1,20 @@
 {
-    "use_segments": true,
     "terminal_title": "{SHELL}  {USERNAME}@{HOSTNAME} {TIME}  {DATE}",
-    "use_newline": true,
     "ps1_segments": [
         {
-            "type": "text",
-            "content": "  {SHELL}  ",
-            "bg_color": "P10K_SHELL_BG",
-            "fg_color": "P10K_SHELL_FG",
-            "separator": "\uE0B0",
-            "separator_fg": "P10K_SHELL_BG",
-            "separator_bg": "P10K_USER_BG",
-            "forward_separator": "\uE0B2",
-            "forward_separator_fg": "P10K_SHELL_BG",
-            "forward_separator_bg": "RESET"
-        },
-        {
-            "type": "text",
+            "tag": "userseg",
             "content": " {USERNAME}  ",
             "bg_color": "P10K_USER_BG",
             "fg_color": "P10K_USER_FG",
             "separator": "\uE0B0",
             "separator_fg": "P10K_USER_BG",
-            "separator_bg": "P10K_HOST_BG"
+            "separator_bg": "P10K_HOST_BG",
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "P10K_USER_BG",
+            "forward_separator_bg": "RESET"
         },
         {
-            "type": "text",
+            "tag": "hostseg",
             "content": " {HOSTNAME}  ",
             "bg_color": "P10K_HOST_BG",
             "fg_color": "P10K_HOST_FG",
@@ -34,7 +23,7 @@
             "separator_bg": "P10K_DIR_BG"
         },
         {
-            "type": "text",
+            "tag": "pathseg",
             "content": " 📁 {PATH}  ",
             "bg_color": "P10K_DIR_BG",
             "fg_color": "P10K_DIR_FG",
@@ -43,7 +32,7 @@
             "separator_bg": "RESET"
         },
         {
-            "type": "text",
+            "tag": "timeseg",
             "content": " {TIME} ",
             "bg_color": "P10K_TIME_BG",
             "fg_color": "P10K_TIME_FG",
@@ -57,7 +46,7 @@
     ],
     "git_segments": [
         {
-            "type": "text",
+            "tag": "userseg",
             "content": "  {USERNAME} ",
             "bg_color": "P10K_USER_BG",
             "fg_color": "P10K_USER_FG",
@@ -69,8 +58,8 @@
             "forward_separator_bg": "RESET"
         },
         {
-            "type": "text",
-            "content": " 📁 {DIRECTORY}  ",
+            "tag": "directoryseg",
+            "content": " 📁 {LOCAL_PATH}  ",
             "bg_color": "P10K_DIR_BG",
             "fg_color": "P10K_DIR_FG",
             "separator": "\uE0B0",
@@ -78,14 +67,14 @@
             "separator_bg": "P10K_GIT_STATUS_BG"
         },
         {
-            "type": "text",
+            "tag": "gitbranchseg",
             "content": " {GIT_BRANCH}",
             "bg_color": "P10K_GIT_STATUS_BG",
             "fg_color": "P10K_GIT_STATUS_FG",
             "separator": ""
         },
         {
-            "type": "text",
+            "tag": "gitstatusseg",
             "content": "{GIT_STATUS}  ",
             "bg_color": "P10K_GIT_STATUS_BG",
             "fg_color": "P10K_GIT_STATUS_FG",
@@ -96,7 +85,7 @@
     ],
     "ai_segments": [
         {
-            "type": "text",
+            "tag": "aimodelseg",
             "content": "  🤖 {AI_MODEL}  ",
             "bg_color": "P10K_AI_MODEL_BG",
             "fg_color": "P10K_AI_MODEL_FG",
@@ -108,8 +97,8 @@
             "forward_separator_bg": "RESET"
         },
         {
-            "type": "text",
-            "content": " ⚙️ {AI_AGENT_TYPE}  ",
+            "tag": "aigentseg",
+            "content": " ⚙️ {AI_AGENT}  ",
             "bg_color": "P10K_AI_AGENT_BG",
             "fg_color": "P10K_AI_AGENT_FG",
             "separator": "\uE0B0",
@@ -117,18 +106,18 @@
             "separator_bg": "RESET"
         },
         {
-            "type": "text",
+            "tag": "aidivseg",
             "content": " {AI_DIVIDER}  ",
             "bg_color": "RESET",
             "fg_color": "P10K_DIVIDER_FG",
             "separator": "\uE0B0",
-            "separator_fg": "RESET",
+            "separator_fg": "P10K_DIVIDER_FG",
             "separator_bg": "RESET"
         }
     ],
     "newline_segments": [
         {
-            "type": "text",
+            "tag": "nlpromptseg",
             "content": " ╰─> ",
             "bg_color": "RESET",
             "fg_color": "WHITE",
