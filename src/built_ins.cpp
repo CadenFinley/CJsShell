@@ -1278,7 +1278,6 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
   
   return all_successful;
 }
-
 bool Built_ins::unset_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
     std::cerr << "unset: not enough arguments" << std::endl;
@@ -1537,4 +1536,34 @@ void Built_ins::do_ai_request(const std::string& prompt) {
   } catch (const std::exception& e) {
     std::cerr << "Error communicating with AI: " << e.what() << std::endl;
   }
+}
+
+bool Built_ins::restart_command() {
+  std::cout << "Restarting shell..." << std::endl;
+  
+  // Get the path to the shell executable
+  std::filesystem::path shell_path = cjsh_filesystem::g_cjsh_path;
+  
+  if (!std::filesystem::exists(shell_path)) {
+    std::cerr << "Error: Could not find shell executable at " << shell_path.string() << std::endl;
+    return false;
+  }
+  
+  // Convert path to C-style string
+  std::string path_str = shell_path.string();
+  const char* path_cstr = path_str.c_str();
+  
+  // Create new argument array (argv) for the new process
+  // Use the same arguments as the current process
+  char* const args[] = {
+    const_cast<char*>(path_cstr),
+    nullptr  // Array must be null-terminated
+  };
+  
+  // Execute the new process, replacing the current one
+  execv(path_cstr, args);
+  
+  // If execv returns, it failed
+  std::cerr << "Error restarting shell: " << strerror(errno) << std::endl;
+  return false;
 }

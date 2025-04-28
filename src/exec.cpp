@@ -631,6 +631,31 @@ void Exec::wait_for_job(int job_id) {
   }
 }
 
+void Exec::terminate_all_child_process() {
+  std::lock_guard<std::mutex> lock(jobs_mutex);
+  
+  for (auto& job_pair : jobs) {
+    Job& job = job_pair.second;
+    if (!job.completed) {
+      // Send SIGTERM to the entire process group
+      if (kill(-job.pgid, SIGTERM) < 0) {
+        if (errno != ESRCH) {
+          perror("kill (SIGTERM) in terminate_all_child_process");
+        }
+      }
+      
+      // Mark the job as completed
+      job.completed = true;
+      job.stopped = false;
+      job.status = 0;
+      
+      std::cout << "[" << job_pair.first << "] Terminated\t" << job.command << std::endl;
+    }
+  }
+  
+  set_error("All child processes terminated");
+}
+
 std::map<int, Job> Exec::get_jobs() {
   std::lock_guard<std::mutex> lock(jobs_mutex);
   return jobs;

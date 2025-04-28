@@ -30,6 +30,7 @@ Built_ins(): builtins({
       {"aihelp", [this](const std::vector<std::string>& args) { return aihelp_command(args); }},
       {"version", [this](const std::vector<std::string>&) { return version_command(); }},
       {"uninstall", [this](const std::vector<std::string>&) { return uninstall_command(); }},
+      {"restart", [this](const std::vector<std::string>&) { return restart_command(); }},
   }), shell(nullptr) {}
   ~Built_ins() = default;
 
@@ -69,6 +70,7 @@ private:
   bool approot_command();
   bool version_command();
   bool uninstall_command();
+  bool restart_command();
   bool user_commands(const std::vector<std::string>& args);
   bool help_command();
   bool aihelp_command(const std::vector<std::string>& args);

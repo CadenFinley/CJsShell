@@ -96,6 +96,7 @@ Shell::Shell(char *argv[]) {
 Shell::~Shell() {
   delete shell_parser;
   delete built_ins;
+  shell_exec->terminate_all_child_process();
   restore_terminal_state();
   
   if (g_shell_instance == this) {

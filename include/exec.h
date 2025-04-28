@@ -50,6 +50,7 @@ public:
   void handle_child_signal(pid_t pid, int status);
   void set_error(const std::string& error);
   std::string get_error();
+  void terminate_all_child_process();
   
   std::string last_terminal_output_error;
 };
