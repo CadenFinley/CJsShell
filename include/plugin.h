@@ -21,7 +21,6 @@ struct plugin_data {
     bool enabled;
     std::map<std::string, std::string> settings;
     
-    // Function pointers from pluginapi.h
     plugin_get_info_func get_info;
     plugin_initialize_func initialize;
     plugin_shutdown_func shutdown;
@@ -33,23 +32,18 @@ struct plugin_data {
     plugin_free_memory_func free_memory;
 };
 
-// Thread-safe plugin management class
 class Plugin {
 private:
     std::filesystem::path plugins_directory;
     std::unordered_map<std::string, plugin_data> loaded_plugins;
     std::unordered_map<std::string, std::vector<std::string>> subscribed_events;
     bool plugins_discovered;
-    bool enabled;  // Indicates if the plugin system is enabled
-    
-    // Mutexes for thread safety
-    mutable std::shared_mutex plugins_mutex;      // Protects loaded_plugins
-    mutable std::shared_mutex events_mutex;       // Protects subscribed_events
-    std::mutex discovery_mutex;                   // Protects discover operations
+    bool enabled;
+    mutable std::shared_mutex plugins_mutex;
+    mutable std::shared_mutex events_mutex;
+    std::mutex discovery_mutex;
 
     void unload_plugin(const std::string& name);
-    
-    // Architecture compatibility checking
     std::string get_current_architecture() const;
     std::string get_file_architecture(const std::filesystem::path& path) const;
     bool is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const;
@@ -57,31 +51,22 @@ private:
 public:
     Plugin(const std::filesystem::path& plugins_dir, bool enabled);
     ~Plugin();
-    
     bool discover_plugins();
     bool load_plugin(const std::filesystem::path& path);
     bool install_plugin(const std::filesystem::path& source_path);
     bool uninstall_plugin(const std::string& name);
-    
     std::vector<std::string> get_available_plugins() const;
     std::vector<std::string> get_enabled_plugins() const;
-    
     bool enable_plugin(const std::string& name);
     bool disable_plugin(const std::string& name);
-
     int get_interface_version() const { return PLUGIN_INTERFACE_VERSION; }
-    
     bool handle_plugin_command(const std::string& targeted_plugin, std::vector<std::string>& args);
     std::vector<std::string> get_plugin_commands(const std::string& name) const;
     std::string get_plugin_info(const std::string& name) const;
-    
     bool update_plugin_setting(const std::string& plugin_name, const std::string& key, const std::string& value);
     std::map<std::string, std::map<std::string, std::string>> get_all_plugin_settings() const;
-    
     void trigger_subscribed_global_event(const std::string& event, const std::string& event_data);
-    
     plugin_data* get_plugin_data(const std::string& name);
-    
     void clear_plugin_cache();
     bool is_plugin_loaded(const std::string& name) const;
 };

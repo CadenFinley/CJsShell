@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iostream>
-#include "hash.h"
 #include <filesystem>
 #include <unistd.h>
 #include <unordered_map>
@@ -37,15 +36,9 @@ Built_ins(): builtins({
   void set_shell(Shell* shell_ptr) {
     shell = shell_ptr;
   }
-
-  bool builtin_command(const std::vector<std::string>& args);
-  bool is_builtin_command(const std::string& cmd) const;
-  bool change_directory(const std::string& dir, std::string& result);
-
   std::string get_current_directory() const {
     return current_directory;
   }
-
   void set_current_directory() {
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) != nullptr) {
@@ -55,6 +48,9 @@ Built_ins(): builtins({
     }
   }
 
+  bool builtin_command(const std::vector<std::string>& args);
+  bool is_builtin_command(const std::string& cmd) const;
+  bool change_directory(const std::string& dir, std::string& result);
   bool ai_commands(const std::vector<std::string>& args);
   void do_ai_request(const std::string& prompt);
 
@@ -67,7 +63,6 @@ private:
 
   bool ai_chat_commands(const std::vector<std::string>& args, int command_index);
   bool handle_ai_file_commands(const std::vector<std::string>& args, int command_index);
-
   bool plugin_commands(const std::vector<std::string>& args);
   bool theme_commands(const std::vector<std::string>& args);
   void update_theme_in_rc_file(const std::string& themeName);
@@ -77,17 +72,13 @@ private:
   bool user_commands(const std::vector<std::string>& args);
   bool help_command();
   bool aihelp_command(const std::vector<std::string>& args);
-
   bool alias_command(const std::vector<std::string>& args);
   bool export_command(const std::vector<std::string>& args);
   bool unalias_command(const std::vector<std::string>& args);
   bool unset_command(const std::vector<std::string>& args);
-
   void save_alias_to_file(const std::string& name, const std::string& value);
   void save_env_var_to_file(const std::string& name, const std::string& value);
   void remove_alias_from_file(const std::string& name);
   void remove_env_var_from_file(const std::string& name);
-  
-  // Helper functions
   bool parse_assignment(const std::string& arg, std::string& name, std::string& value);
 };

@@ -1,11 +1,9 @@
 #include "cjsh_filesystem.h"
 
-// For macOS _NSGetExecutablePath
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
 
-// For Linux fallback
 #ifdef __linux__
 #include <string.h>
 extern char *program_invocation_name;
@@ -59,27 +57,18 @@ bool initialize_cjsh_path() {
 bool initialize_cjsh_directories() {
     try {
         namespace fs = cjsh_filesystem::fs;
-        
-        // Create main data directory if it doesn't exist
         if (!fs::exists(cjsh_filesystem::g_cjsh_data_path)) {
             fs::create_directories(cjsh_filesystem::g_cjsh_data_path);
         }
-        
-        // Create plugins directory if it doesn't exist
         if (!fs::exists(cjsh_filesystem::g_cjsh_plugin_path)) {
             fs::create_directories(cjsh_filesystem::g_cjsh_plugin_path);
         }
-        
-        // Create themes directory if it doesn't exist
         if (!fs::exists(cjsh_filesystem::g_cjsh_theme_path)) {
             fs::create_directories(cjsh_filesystem::g_cjsh_theme_path);
         }
-        
-        // Create colors directory if it doesn't exist
         if (!fs::exists(cjsh_filesystem::g_cjsh_colors_path)) {
             fs::create_directories(cjsh_filesystem::g_cjsh_colors_path);
         }
-        
         return true;
     } catch (const cjsh_filesystem::fs::filesystem_error& e) {
         std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;

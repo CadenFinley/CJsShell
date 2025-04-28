@@ -14,30 +14,22 @@
 
 namespace colors {
 
-// Initialize global variable
 ColorCapability g_color_capability = ColorCapability::BASIC_COLOR;
-
-// Map to store custom user-defined colors
 static std::unordered_map<std::string, RGB> g_custom_colors;
 
 ColorCapability detect_color_capability() {
-    // Check environment variables to determine color support
     const char* colorterm = std::getenv("COLORTERM");
     const char* term = std::getenv("TERM");
     const char* no_color = std::getenv("NO_COLOR");
     const char* force_color = std::getenv("FORCE_COLOR");
     
-    // If NO_COLOR is set (any value), disable colors
     if (no_color && no_color[0] != '\0') {
         return ColorCapability::NO_COLOR;
     }
-    
-    // If FORCE_COLOR is explicitly set to "true", force true color support
+
     if (force_color && std::string(force_color) == "true") {
         return ColorCapability::TRUE_COLOR;
     }
-    
-    // Check for truecolor/24bit support
     if (colorterm) {
         std::string colortermStr = colorterm;
         std::transform(colortermStr.begin(), colortermStr.end(), colortermStr.begin(),
@@ -49,7 +41,6 @@ ColorCapability detect_color_capability() {
         }
     }
     
-    // Check if terminal supports 256 colors
     if (term) {
         std::string termStr = term;
         if (termStr.find("256") != std::string::npos || 
@@ -58,31 +49,21 @@ ColorCapability detect_color_capability() {
         }
     }
     
-    // Default to basic color support
     return ColorCapability::BASIC_COLOR;
 }
 
 void initialize_color_support(bool enabled) {
     if (!enabled) {
-        // If colors are disabled, set capability to NO_COLOR
         g_color_capability = ColorCapability::NO_COLOR;
-        // Don't load any color files
         return;
     }
     
-    // Normal color detection and initialization
     g_color_capability = detect_color_capability();
-    
-    // Ensure the default colors file exists
     ensure_default_colors_file_exists();
-    
-    // Load all custom colors from the colors directory
     load_all_custom_colors();
 }
 
-// Helper function to get the closest basic ANSI color for an RGB color
 uint8_t get_closest_ansi_color(const RGB& color) {
-    // Basic ANSI colors (0-15)
     const std::array<RGB, 16> basic_colors = {{
         {0, 0, 0},       // Black
         {170, 0, 0},     // Red
@@ -153,7 +134,6 @@ RGB hsl_to_rgb(const HSL& hsl) {
     float l = hsl.l;
     
     if (s == 0) {
-        // Achromatic (grey)
         int gray = static_cast<int>(l * 255);
         return RGB(gray, gray, gray);
     }
@@ -249,7 +229,6 @@ std::string fg_color(uint8_t index) {
     }
     
     if (g_color_capability == ColorCapability::BASIC_COLOR && index >= 16) {
-        // Map to closest basic color
         return fg_color(xterm256_to_rgb(index));
     }
     
@@ -264,7 +243,6 @@ std::string bg_color(uint8_t index) {
     }
     
     if (g_color_capability == ColorCapability::BASIC_COLOR && index >= 16) {
-        // Map to closest basic color
         return bg_color(xterm256_to_rgb(index));
     }
     
@@ -336,14 +314,11 @@ std::string gradient_text(const std::string& text, const RGB& start, const RGB& 
     std::string result;
     size_t steps = text.length();
     
-    // Handle single character case to prevent division by zero in gradient function
     if (steps == 1) {
         return fg_color(start) + text + (g_color_capability != ColorCapability::NO_COLOR ? ansi::RESET : "");
     }
-    
-    // For basic color capability, use a simpler approach with fewer distinct colors
+
     if (g_color_capability == ColorCapability::BASIC_COLOR) {
-        // Use just start color for first half, end color for second half
         size_t halfway = steps / 2;
         for (size_t i = 0; i < steps; ++i) {
             if (i < halfway) {
@@ -353,7 +328,6 @@ std::string gradient_text(const std::string& text, const RGB& start, const RGB& 
             }
         }
     } else {
-        // Full gradient for terminals that support it
         std::vector<RGB> colors = gradient(start, end, steps);
         for (size_t i = 0; i < steps; ++i) {
             result += fg_color(colors[i]) + text.substr(i, 1);
@@ -367,10 +341,6 @@ std::string gradient_text(const std::string& text, const RGB& start, const RGB& 
 }
 
 uint8_t rgb_to_xterm256(const RGB& color) {
-    // Simplified conversion algorithm
-    // For more accurate conversion, a lookup table would be better
-    
-    // 16-231: 6x6x6 RGB color cube
     int r = static_cast<int>(round(color.r / 255.0 * 5.0));
     int g = static_cast<int>(round(color.g / 255.0 * 5.0));
     int b = static_cast<int>(round(color.b / 255.0 * 5.0));
@@ -379,9 +349,7 @@ uint8_t rgb_to_xterm256(const RGB& color) {
 }
 
 RGB xterm256_to_rgb(uint8_t index) {
-    // Handle basic 16 colors
     if (index < 16) {
-        // Return appropriate ANSI color
         switch (index) {
             case 0: return RGB(0, 0, 0);       // Black
             case 1: return RGB(170, 0, 0);     // Red
@@ -401,8 +369,7 @@ RGB xterm256_to_rgb(uint8_t index) {
             case 15: return RGB(255, 255, 255);// Bright White
         }
     }
-    
-    // Handle 6x6x6 color cube (16-231)
+
     if (index >= 16 && index <= 231) {
         index -= 16;
         int r = (index / 36) * 51;
@@ -411,27 +378,24 @@ RGB xterm256_to_rgb(uint8_t index) {
         return RGB(r, g, b);
     }
     
-    // Handle grayscale (232-255)
+
     if (index >= 232) {
         int gray = (index - 232) * 10 + 8;
         return RGB(gray, gray, gray);
     }
     
-    // Default fallback
+
     return RGB(0, 0, 0);
 }
 
-// Parse a color value string (supports hex, rgb format, and color names)
 RGB parse_color_value(const std::string& value) {
     std::string trimmed_value = value;
     trimmed_value.erase(0, trimmed_value.find_first_not_of(" \t\n\r\f\v"));
     trimmed_value.erase(trimmed_value.find_last_not_of(" \t\n\r\f\v") + 1);
-    
-    // Check if it's a hex color code (#RRGGBB or #RGB)
+
     if (trimmed_value[0] == '#') {
         std::string hex = trimmed_value.substr(1);
         
-        // Convert 3-digit hex to 6-digit
         if (hex.length() == 3) {
             std::string expanded;
             for (char c : hex) {
@@ -448,13 +412,11 @@ RGB parse_color_value(const std::string& value) {
                 int b = std::stoi(hex.substr(4, 2), nullptr, 16);
                 return RGB(r, g, b);
             } catch (const std::exception& e) {
-                // If parsing fails, return black
                 return RGB(0, 0, 0);
             }
         }
     }
     
-    // Check if it's an RGB format like "rgb(255, 128, 64)"
     std::regex rgb_regex("rgb\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)", 
                          std::regex_constants::icase);
     std::smatch rgb_match;
@@ -465,18 +427,15 @@ RGB parse_color_value(const std::string& value) {
             int b = std::clamp(std::stoi(rgb_match[3]), 0, 255);
             return RGB(r, g, b);
         } catch (const std::exception& e) {
-            // If parsing fails, return black
             return RGB(0, 0, 0);
         }
     }
-    
-    // Check if it's a named color (transform to uppercase for case-insensitive comparison)
+
     std::string upper_value = trimmed_value;
     std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
     return get_color_by_name(upper_value);
 }
 
-// Load custom colors from a specific file
 bool load_custom_colors(const std::string& filename) {
     namespace fs = cjsh_filesystem::fs;
     fs::path color_file_path = cjsh_filesystem::g_cjsh_colors_path / filename;
@@ -495,7 +454,6 @@ bool load_custom_colors(const std::string& filename) {
     bool colors_loaded = false;
     
     while (std::getline(file, line)) {
-        // Skip empty lines and comments
         if (line.empty() || line[0] == '#' || line[0] == '/') {
             continue;
         }
@@ -505,10 +463,8 @@ bool load_custom_colors(const std::string& filename) {
             std::string color_name = matches[1];
             std::string color_value = matches[2];
             
-            // Convert name to uppercase for consistency
             std::transform(color_name.begin(), color_name.end(), color_name.begin(), ::toupper);
-            
-            // Parse and store the color
+
             RGB color = parse_color_value(color_value);
             g_custom_colors[color_name] = color;
             colors_loaded = true;
@@ -518,12 +474,10 @@ bool load_custom_colors(const std::string& filename) {
     return colors_loaded;
 }
 
-// Export all predefined colors to a file
 bool export_predefined_colors_to_file(const std::string& filename) {
     namespace fs = cjsh_filesystem::fs;
     fs::path colors_dir = cjsh_filesystem::g_cjsh_colors_path;
     
-    // Create the directory if it doesn't exist
     if (!fs::exists(colors_dir)) {
         try {
             fs::create_directories(colors_dir);
@@ -535,7 +489,6 @@ bool export_predefined_colors_to_file(const std::string& filename) {
     
     fs::path color_file_path = colors_dir / filename;
     
-    // Open the file
     std::ofstream file(color_file_path);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file for writing: " << color_file_path.string() << std::endl;
@@ -546,8 +499,6 @@ bool export_predefined_colors_to_file(const std::string& filename) {
     file << "# This file contains the basic ANSI colors in CJSH.\n";
     file << "# Format: COLOR_NAME = #RRGGBB\n";
     file << "# To create your own colors, you can edit this file or create a new .txt file in this directory.\n\n";
-    
-    // Write the basic ANSI colors
     file << "# Basic ANSI Colors\n";
     file << "BLACK = #000000\n";
     file << "RED = #AA0000\n";
@@ -569,7 +520,6 @@ bool export_predefined_colors_to_file(const std::string& filename) {
     return true;
 }
 
-// Make sure the default colors file exists
 bool ensure_default_colors_file_exists() {
     namespace fs = cjsh_filesystem::fs;
     fs::path default_colors_path = cjsh_filesystem::g_cjsh_colors_path / "default_colors.txt";
@@ -581,15 +531,12 @@ bool ensure_default_colors_file_exists() {
     return true;
 }
 
-// Modified load_all_custom_colors to check for and create default colors file
 bool load_all_custom_colors() {
     namespace fs = cjsh_filesystem::fs;
     fs::path colors_dir = cjsh_filesystem::g_cjsh_colors_path;
-    
-    // Clear existing custom colors
+
     g_custom_colors.clear();
-    
-    // Create the directory if it doesn't exist
+
     if (!fs::exists(colors_dir)) {
         try {
             fs::create_directories(colors_dir);
@@ -598,13 +545,11 @@ bool load_all_custom_colors() {
             return false;
         }
     }
-    
-    // Ensure default colors file exists
+
     ensure_default_colors_file_exists();
     
     bool any_loaded = false;
-    
-    // Try to find and load all .txt files in the colors directory
+
     for (const auto& entry : fs::directory_iterator(colors_dir)) {
         if (entry.is_regular_file() && entry.path().extension() == ".txt") {
             std::string filename = entry.path().filename().string();
@@ -621,31 +566,25 @@ std::unordered_map<std::string, RGB> get_custom_colors() {
     return g_custom_colors;
 }
 
-// Override the existing get_color_by_name to use custom colors
 RGB get_color_by_name(const std::string& name) {
-    // If colors are disabled, always return white
     if (g_color_capability == ColorCapability::NO_COLOR) {
-        return RGB(255, 255, 255); // Return white when colors are disabled
+        return RGB(255, 255, 255);
     }
     
-    // Convert to uppercase for case-insensitive comparison
     std::string upper_name = name;
     std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
     
-    // Check if it's in the custom/loaded colors map
     auto custom_it = g_custom_colors.find(upper_name);
     if (custom_it != g_custom_colors.end()) {
         return custom_it->second;
     }
-    
-    // If not found, return black
+
     return RGB(0, 0, 0);
 }
 
 std::unordered_map<std::string, std::string> get_color_map() {
   
   std::unordered_map<std::string, std::string> color_map = {
-      // Style tags
       {"BOLD", ansi::BOLD},
       {"ITALIC", ansi::ITALIC},
       {"UNDERLINE", ansi::UNDERLINE},
@@ -654,14 +593,12 @@ std::unordered_map<std::string, std::string> get_color_map() {
       {"HIDDEN", ansi::HIDDEN},
       {"RESET", ansi::RESET}
   };
-  
-  // Add all loaded custom colors to the color map
+
   if (g_color_capability != ColorCapability::NO_COLOR) {
     for (const auto& [name, rgb] : g_custom_colors) {
       color_map[name] = fg_color(rgb);
     }
   } else {
-    //return reset for all colors if colors are disabled
     for (const auto& [name, rgb] : g_custom_colors) {
       color_map[name] = ansi::RESET;
     }

@@ -4,9 +4,9 @@
 #include <glob.h>
 #include <memory>
 #include <array>
-#include <unistd.h>    // for pipe, close, read, STDOUT_FILENO
-#include <sys/wait.h>  // for waitpid
-#include <fcntl.h>     // for open flags
+#include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 std::vector<std::string> Parser::parse_command(const std::string& command) {
   std::string expanded_command = command;
@@ -81,7 +81,6 @@ std::vector<std::string> Parser::parse_command(const std::string& command) {
 void Parser::expand_env_vars(std::string& arg) {
   size_t pos = 0;
   while ((pos = arg.find('$', pos)) != std::string::npos) {
-    // Skip if escaped
     if (pos > 0 && arg[pos-1] == '\\') {
       pos++;
       continue;
@@ -129,8 +128,7 @@ void Parser::expand_env_vars(std::string& arg) {
 
 std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   std::vector<Command> pipeline;
-  
-  // Split the command by pipe characters
+
   std::vector<std::string> commands;
   std::string current;
   bool in_quotes = false;
@@ -160,23 +158,19 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   if (!current.empty()) {
     commands.push_back(current);
   }
-  
-  // Parse each command in the pipeline
+
   for (const auto& cmd : commands) {
     Command parsed_cmd;
     std::string processed_cmd = cmd;
-    
-    // Check for background execution (& at the end)
+
     if (!processed_cmd.empty() && processed_cmd.back() == '&') {
       parsed_cmd.background = true;
       processed_cmd.pop_back();
-      // Remove trailing whitespace
       while (!processed_cmd.empty() && std::isspace(processed_cmd.back())) {
         processed_cmd.pop_back();
       }
     }
-    
-    // Check for redirections
+
     std::string remaining = processed_cmd;
     std::string token;
     std::vector<std::string> tokens;
@@ -227,8 +221,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     if (!current.empty()) {
       tokens.push_back(current);
     }
-    
-    // Process tokens for redirections and arguments
+
     for (size_t i = 0; i < tokens.size(); i++) {
       if (tokens[i] == "<") {
         if (i + 1 < tokens.size()) {
@@ -246,7 +239,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           i++;
         }
       } else {
-        // Handle wildcards
         if (tokens[i].find_first_of("*?") != std::string::npos) {
           auto expanded = expand_wildcards(tokens[i]);
           if (!expanded.empty()) {
@@ -255,7 +247,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             parsed_cmd.args.push_back(tokens[i]);
           }
         } else {
-          // Handle environment variables
           std::string arg = tokens[i];
           expand_env_vars(arg);
           parsed_cmd.args.push_back(arg);
@@ -293,8 +284,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
   
   for (size_t i = 0; i < command.length(); i++) {
     char c = command[i];
-    
-    // Handle quotes to avoid splitting on && or || inside quotes
+
     if ((c == '"' || c == '\'') && (i == 0 || command[i-1] != '\\')) {
       if (!in_quotes) {
         in_quotes = true;
@@ -307,19 +297,15 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
       continue;
     }
     
-    // Look for logical operators
     if (!in_quotes && i + 1 < command.length()) {
-      // Ensure we're only matching '&&' and '||', not single '&' (background)
       if ((c == '&' && command[i + 1] == '&') || 
           (c == '|' && command[i + 1] == '|' && (i == 0 || command[i-1] != '|'))) {
         
-        // Trim whitespace from current command
         std::string trimmed_cmd = current_cmd;
         while (!trimmed_cmd.empty() && std::isspace(trimmed_cmd.back())) {
           trimmed_cmd.pop_back();
         }
         
-        // Add the command and operator to result
         if (!trimmed_cmd.empty()) {
           LogicalCommand cmd_segment;
           cmd_segment.command = trimmed_cmd;
@@ -327,7 +313,6 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
           result.push_back(cmd_segment);
         }
         
-        // Skip the second character of the operator
         i++;
         current_cmd.clear();
         continue;
@@ -337,7 +322,6 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
     current_cmd += c;
   }
   
-  // Add the last command
   if (!current_cmd.empty()) {
     std::string trimmed_cmd = current_cmd;
     while (!trimmed_cmd.empty() && std::isspace(trimmed_cmd.back())) {
@@ -347,7 +331,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
     if (!trimmed_cmd.empty()) {
       LogicalCommand cmd_segment;
       cmd_segment.command = trimmed_cmd;
-      cmd_segment.op = ""; // Last command has no operator
+      cmd_segment.op = "";
       result.push_back(cmd_segment);
     }
   }

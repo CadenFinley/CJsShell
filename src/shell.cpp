@@ -2,26 +2,22 @@
 #include "main.h"
 #include "built_ins.h"
 
-// Global pointer to the current Shell instance for signal handlers
 Shell* g_shell_instance = nullptr;
 
-// Signal flags
 static volatile sig_atomic_t sigint_received = 0;
 static volatile sig_atomic_t sigchld_received = 0;
 static volatile sig_atomic_t sighup_received = 0;
 static volatile sig_atomic_t sigterm_received = 0;
 
-// Signal handler implementation - minimal and async-signal-safe
 void shell_signal_handler(int signum, siginfo_t* info, void* context) {
-  (void)context; // Unused parameter
-  (void)info; // Unused parameter
+  (void)context;
+  (void)info;
 
   switch (signum) {
     case SIGINT: {
       sigint_received = 1;
-      // Safe to write a small amount as it's async-signal-safe
       ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
-      (void)bytes_written; // Prevent unused variable warning
+      (void)bytes_written;
       break;
     }
       
@@ -32,31 +28,27 @@ void shell_signal_handler(int signum, siginfo_t* info, void* context) {
       
     case SIGHUP: {
       sighup_received = 1;
-      _exit(0); // Immediate exit for terminal disconnect
+      _exit(0);
       break;
     }
       
     case SIGTERM: {
       sigterm_received = 1;
-      _exit(0); // Immediate exit for termination
+      _exit(0);
       break;
     }
   }
 }
 
-// New method to process pending signals from the main loop
 void Shell::process_pending_signals() {
-  // Handle SIGINT
   if (sigint_received) {
     sigint_received = 0;
     
-    // Check if there's a foreground job running and send it SIGINT
     if (shell_exec) {
       auto jobs = shell_exec->get_jobs();
       for (const auto& job_pair : jobs) {
         const auto& job = job_pair.second;
         if (!job.background && !job.completed && !job.stopped) {
-          // Send SIGINT to the process group
           if (kill(-job.pgid, SIGINT) < 0) {
             perror("kill (SIGINT) in process_pending_signals");
           }
@@ -67,7 +59,6 @@ void Shell::process_pending_signals() {
     fflush(stdout);
   }
   
-  // Handle SIGCHLD
   if (sigchld_received) {
     sigchld_received = 0;
     
@@ -79,8 +70,6 @@ void Shell::process_pending_signals() {
       }
     }
   }
-  
-  // SIGHUP and SIGTERM are handled directly in the signal handler with _exit()
 }
 
 Shell::Shell(char *argv[]) {
@@ -99,7 +88,6 @@ Shell::Shell(char *argv[]) {
   
   shell_terminal = STDIN_FILENO;
   
-  // Set global shell instance for signal handlers
   g_shell_instance = this;
 
   setup_signal_handlers();
@@ -110,7 +98,6 @@ Shell::~Shell() {
   delete built_ins;
   restore_terminal_state();
   
-  // Unset global shell instance
   if (g_shell_instance == this) {
     g_shell_instance = nullptr;
   }
@@ -122,25 +109,20 @@ void Shell::setup_signal_handlers() {
   sigset_t block_mask;
   sigfillset(&block_mask);
 
-  // Setup SIGHUP handler (terminal disconnect)
   sa.sa_sigaction = shell_signal_handler;
   sa.sa_mask = block_mask;
   sa.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction(SIGHUP, &sa, nullptr);
 
-  // Setup SIGTERM handler
   sa.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction(SIGTERM, &sa, nullptr);
 
-  // Setup SIGCHLD handler (child process state changes)
   sa.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction(SIGCHLD, &sa, nullptr);
 
-  // Setup SIGINT handler (Ctrl+C)
   sa.sa_flags = SA_SIGINFO;
   sigaction(SIGINT, &sa, nullptr);
 
-  // Ignore certain signals
   sa.sa_handler = SIG_IGN;
   sa.sa_flags = 0;
   sa.sa_mask = block_mask;
@@ -183,16 +165,13 @@ void Shell::setup_job_control() {
   try {
     shell_terminal = STDIN_FILENO;
     
-    // Get current foreground process group
     int tpgrp = tcgetpgrp(shell_terminal);
     if (tpgrp != -1) {
-      // Take control of the terminal
       if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
         perror("Couldn't grab terminal control");
       }
     }
     
-    // Save terminal attributes
     if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
       perror("Couldn't get terminal attributes");
     }
@@ -204,9 +183,7 @@ void Shell::setup_job_control() {
   }
 }
 
-// Existing code
 void Shell::execute_command(std::string command, bool sync) {
-  //since this is a custom shell be dont return bool we handle errors and error messages in the command execution process
   if (command.empty()) {
     return;
   }
@@ -214,16 +191,14 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
-  // Check for logical operators (&&, ||)
   if (command.find("&&") != std::string::npos || command.find("||") != std::string::npos) {
     std::vector<LogicalCommand> logical_commands = shell_parser->parse_logical_commands(command);
     
-    bool prev_success = true; // Assume first command should run
+    bool prev_success = true;
     
     for (size_t i = 0; i < logical_commands.size(); i++) {
       const auto& cmd_segment = logical_commands[i];
       
-      // Determine if we should execute this command based on previous result and operator
       bool should_execute = true;
       if (i > 0) {
         const auto& prev_op = logical_commands[i-1].op;
@@ -235,10 +210,8 @@ void Shell::execute_command(std::string command, bool sync) {
       }
       
       if (should_execute) {
-        // Check for built-in commands first
         std::vector<std::string> args = shell_parser->parse_command(cmd_segment.command);
         
-        // Special handling for built-in commands, especially 'cd'
         if (!args.empty() && built_ins->is_builtin_command(args[0])) {
           bool result = built_ins->builtin_command(args);
           if (!result) {
@@ -249,10 +222,8 @@ void Shell::execute_command(std::string command, bool sync) {
             prev_success = true;
           }
         } else {
-          // Not a built-in, execute normally
           execute_command(cmd_segment.command, sync);
           
-          // Determine success based on error message
           prev_success = (last_terminal_output_error == "command completed successfully" || 
                          last_terminal_output_error == "async command launched");
         }
@@ -262,7 +233,6 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
-  // Check for clear and exit early
   if (command == "clear") {
     std::vector<std::string> args = {"clear"};
     shell_exec->execute_command_sync(args);
@@ -273,7 +243,6 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
-  // Check for pipe symbols to determine if this is a pipeline
   if (command.find('|') != std::string::npos) {
     std::vector<Command> pipeline = shell_parser->parse_pipeline(command);
     shell_exec->execute_pipeline(pipeline);
@@ -282,7 +251,6 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
-  // check if user is in ai mode
   if (!g_menu_terminal) {
     std::vector<std::string> args = shell_parser->parse_command(command);
     if(args[0] == "terminal") {
@@ -297,10 +265,8 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
-  // Parse the command normally
   std::vector<std::string> args = shell_parser->parse_command(command);
   
-  // check if command is a built-in command
   if (built_ins->is_builtin_command(args[0])) {
     if(!built_ins->builtin_command(args)){
       last_terminal_output_error = "Something went wrong with the command";
@@ -309,7 +275,6 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
-  //check if command is a plugin command
   if (g_plugin) {
     std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
     if (!enabled_plugins.empty()) {
@@ -323,14 +288,11 @@ void Shell::execute_command(std::string command, bool sync) {
     }
   }
 
-  // process all other commands
   if (sync) {
     shell_exec->execute_command_sync(args);
-    // Only set last_terminal_output_error for synchronous commands
     last_terminal_output_error = shell_exec->get_error();
   } else {
     shell_exec->execute_command_async(args);
-    // For async commands, don't try to read the error buffer immediately
     last_terminal_output_error = "async command launched";
   }
   last_command = command;

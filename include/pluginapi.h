@@ -142,6 +142,7 @@ typedef char** (*plugin_get_commands_func)(int* count);
  * The shell will notify the plugin when these events occur.
  * 
  * Common events include:
+ * - "main_process_pre_run" - Beginning of main process loop
  * - "main_process_start" - Beginning of command processing loop
  * - "main_process_end" - End of command processing loop
  * - "main_process_command_processed" - After a command is processed

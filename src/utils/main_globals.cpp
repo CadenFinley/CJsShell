@@ -1,7 +1,5 @@
 #include "main.h"
 #include <atomic>
-
-// globals
 bool g_first_boot = false;
 bool g_debug_mode = false;
 bool g_silent_startup = false;
@@ -18,23 +16,14 @@ pid_t g_shell_pgid = 0;
 struct termios g_shell_tmodes;
 bool g_job_control_enabled = false;
 std::atomic_bool g_exit_flag{false};
-
 time_t g_last_update_check = 0;
-int g_update_check_interval = 86400; // 24 hours
+int g_update_check_interval = 86400;
 std::string g_cached_version = "";
 std::string g_last_updated = "";
-
 std::vector<std::string> g_startup_commands;
-
-// theme name the theme manger will load this
 std::string g_current_theme = "default";
-
-// misc
-std::string g_shortcut_prefix = "@";
 std::string title_line = "CJ's Shell v" + c_version + " - Caden J Finley (c) 2025";
 std::string created_line = "Created 2025 @ " + c_title_color + "Abilene Christian University" + c_reset_color;
-
-// objects
 Ai* g_ai = nullptr;
 Shell* g_shell = nullptr;
 Theme* g_theme = nullptr;

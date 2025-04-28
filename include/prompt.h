@@ -12,7 +12,6 @@
 class Prompt {
   private:
     std::string terminal_name = "cjsh";
-  
     std::chrono::steady_clock::time_point last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
     std::string cached_git_dir;
     std::string cached_status_symbols;

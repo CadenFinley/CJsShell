@@ -1,8 +1,8 @@
 #include "built_ins.h"
 #include "main.h"
 #include "cjsh_filesystem.h"
-#include <unistd.h>     // For fork() and execl()
-#include <sys/wait.h>   // For waitpid()
+#include <unistd.h>
+#include <sys/wait.h>
 
 bool Built_ins::builtin_command(const std::vector<std::string>& args) {
   if (args.empty()) return false;
@@ -124,34 +124,8 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
   }
   
   if (cmd == "apikey") {
-    if (args.size() <= command_index + 1) {
-      std::cout << g_ai->getAPIKey() << std::endl;
-      return true;
-    }
-    
-    if (args[command_index + 1] == "set") {
-      if (args.size() <= command_index + 2) {
-        std::cerr << "Error: No API key provided. Try 'help' for a list of commands." << std::endl;
-        return false;
-      }
-      g_ai->setAPIKey(args[command_index + 2]);
-      if (g_ai->testAPIKey(g_ai->getAPIKey())) {
-        std::cout << "OpenAI API key set successfully." << std::endl;
-        // TODO: Implement writeUserData() equivalent
-        return true;
-      } else {
-        std::cerr << "Error: Invalid API key." << std::endl;
-        return false;
-      }
-    }
-    
-    if (args[command_index + 1] == "get") {
-      std::cout << g_ai->getAPIKey() << std::endl;
-      return true;
-    }
-    
-    std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-    return false;
+    std::cout << g_ai->getAPIKey() << std::endl;
+    return true;
   }
   
   if (cmd == "chat") {
@@ -244,7 +218,7 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
   if (cmd == "help") {
     std::cout << "AI settings commands:" << std::endl;
     std::cout << " log: Save recent chat exchange to a file" << std::endl;
-    std::cout << " apikey: Manage OpenAI API key (set/get)" << std::endl;
+    std::cout << " apikey" << std::endl;
     std::cout << " chat: Access AI chat commands" << std::endl;
     std::cout << " get [KEY]: Retrieve specific response data" << std::endl;
     std::cout << " dump: Display all response data and last prompt" << std::endl;
@@ -256,8 +230,7 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
     std::cout << " timeoutflag [SECONDS]: Set the timeout duration" << std::endl;
     return true;
   }
-  
-  // If we get here, treat as a direct message to AI
+
   std::string message = cmd;
   for (unsigned int i = command_index + 1; i < args.size(); i++) {
     message += " " + args[i];
@@ -269,14 +242,13 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
 bool Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
     std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
-    return false;  // Return false for error case
+    return false;
   }
   
   const std::string& subcmd = args[cmd_index + 1];
   
   if (subcmd == "history") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      // Show chat history
       if (!g_ai->getChatCache().empty()) {
         std::cout << "Chat history:" << std::endl;
         for (const auto& message : g_ai->getChatCache()) {
@@ -290,7 +262,6 @@ bool Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_i
     
     if (args[cmd_index + 2] == "clear") {
       g_ai->clearChatCache();
-      // TODO: Update savedChatCache and writeUserData()
       std::cout << "Chat history cleared." << std::endl;
       return true;
     }
@@ -331,8 +302,7 @@ bool Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_i
     std::cout << " [MESSAGE]: Send a direct message to AI" << std::endl;
     return true;
   }
-  
-  // If we get here, treat as a direct message to AI
+
   std::string message = subcmd;
   for (unsigned int i = cmd_index + 2; i < args.size(); i++) {
     message += " " + args[i];
@@ -374,7 +344,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
   if (subcmd == "add") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
       std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
-      return false;  // Return false for error case
+      return false;
     }
     
     if (args[cmd_index + 2] == "all") {
@@ -457,7 +427,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
   }
   
   std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
-  return false;  // Return false for unknown command
+  return false;
 }
 
 bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
@@ -665,10 +635,10 @@ bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
           return true;
         }
         std::cerr << "Plugin: " << pluginName << " is disabled." << std::endl;
-        return true;  // Changed from false to true since this is a valid plugin command
+        return true;
       } else {
         std::cerr << "Plugin " << pluginName << " does not exist." << std::endl;
-        return false;  // This is correct - the plugin doesn't exist
+        return false;
       }
     }
   }
@@ -690,7 +660,7 @@ bool Built_ins::theme_commands(const std::vector<std::string>& args) {
       }
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
-      return false;  // Return false when theme manager isn't initialized
+      return false;
     }
     return true;
   }
@@ -705,11 +675,11 @@ bool Built_ins::theme_commands(const std::vector<std::string>& args) {
       } else {
         std::cerr << "Error: Theme '" << themeName << "' not found or could not be loaded." << std::endl;
         std::cout << "Staying with current theme: '" << g_current_theme << "'" << std::endl;
-        return true;  // Return true since we're handling the error gracefully
+        return true;
       }
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
-      return false;  // Return false when theme manager isn't initialized
+      return false;
     }
   }
   
@@ -722,11 +692,11 @@ bool Built_ins::theme_commands(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Error: Theme '" << themeName << "' not found or could not be loaded." << std::endl;
       std::cout << "Staying with current theme: '" << g_current_theme << "'" << std::endl;
-      return true;  // Return true since we're handling the error gracefully
+      return true;
     }
   } else {
     std::cerr << "Theme manager not initialized" << std::endl;
-    return false;  // Return false when theme manager isn't initialized
+    return false;
   }
 }
 
@@ -743,7 +713,6 @@ void Built_ins::update_theme_in_rc_file(const std::string& themeName) {
   if (read_file.is_open()) {
     while (std::getline(read_file, line)) {
       lines.push_back(line);
-      // Look for theme command lines (either 'theme xyz' or 'theme load xyz')
       if (line.find("theme ") == 0) {
         theme_line_found = true;
         last_theme_line_idx = lines.size() - 1;
@@ -751,15 +720,12 @@ void Built_ins::update_theme_in_rc_file(const std::string& themeName) {
     }
     read_file.close();
   }
-  
-  // Create the new theme command line
+
   std::string new_theme_line = "theme load " + themeName;
   
   if (theme_line_found) {
-    // Replace the last theme line with the new theme
     lines[last_theme_line_idx] = new_theme_line;
   } else {
-    // If no theme line was found, add it at the end
     lines.push_back(new_theme_line);
   }
   
@@ -826,21 +792,17 @@ bool Built_ins::uninstall_command() {
     
     pid_t pid = fork();
     if (pid == -1) {
-      // Fork failed
       std::cerr << "Error: Failed to fork process for uninstall." << std::endl;
       return false;
     } else if (pid == 0) {
-      // Child process
       if (removeUserData == 'y' || removeUserData == 'Y') {
         execl(uninstallScriptPath.c_str(), uninstallScriptPath.c_str(), "--all", NULL);
       } else {
         execl(uninstallScriptPath.c_str(), uninstallScriptPath.c_str(), NULL);
       }
-      // If execl returns, there was an error
       std::cerr << "Error: Failed to execute uninstall script: " << strerror(errno) << std::endl;
       exit(1);
     } else {
-      // Parent process
       int status;
       waitpid(pid, &status, 0);
       g_exit_flag = true;
@@ -1245,7 +1207,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
     return true;
   }
 
-  bool all_successful = true;  // Track if all operations succeeded
+  bool all_successful = true;
   auto& aliases = g_shell->get_aliases();
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
@@ -1261,7 +1223,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
         std::cout << "alias " << it->first << "='" << it->second << "'" << std::endl;
       } else {
         std::cerr << "alias: " << args[i] << ": not found" << std::endl;
-        all_successful = false;  // Mark as failure if any alias is not found
+        all_successful = false;
       }
     }
   }
@@ -1270,7 +1232,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
     g_shell->set_aliases(aliases);
   }
   
-  return all_successful;  // Return success only if all operations succeeded
+  return all_successful;
 }
 
 bool Built_ins::export_command(const std::vector<std::string>& args) {
@@ -1282,7 +1244,7 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
     return true;
   }
 
-  bool all_successful = true;  // Track if all operations succeeded
+  bool all_successful = true;
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
     if (parse_assignment(args[i], name, value)) {
@@ -1305,7 +1267,7 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
         std::cout << "export " << args[i] << "='" << env_val << "'" << std::endl;
       } else {
         std::cerr << "export: " << args[i] << ": not found" << std::endl;
-        all_successful = false;  // Mark as failure if any variable is not found
+        all_successful = false;
       }
     }
   }
@@ -1314,7 +1276,7 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
     g_shell->set_env_vars(env_vars);
   }
   
-  return all_successful;  // Return success only if all operations succeeded
+  return all_successful;
 }
 
 bool Built_ins::unset_command(const std::vector<std::string>& args) {
@@ -1359,8 +1321,7 @@ bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std:
   
   name = arg.substr(0, equals_pos);
   value = arg.substr(equals_pos + 1);
-  
-  // Trim quotes if present
+
   if (value.size() >= 2) {
     if ((value.front() == '"' && value.back() == '"') ||
         (value.front() == '\'' && value.back() == '\'')) {

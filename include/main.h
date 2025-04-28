@@ -11,23 +11,16 @@
 #include <unistd.h>
 #include <ctime>
 #include <atomic>
-#include <sys/param.h>
-#ifndef MAXPATHLEN
-#define MAXPATHLEN 4096
-#endif
 
-// constants
 const std::string c_version = "2.1.0.0";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 const pid_t c_pid = getpid();
 const std::string c_pid_str = std::to_string(getpid());
-
-// constant colors
 const std::string c_reset_color = "\033[0m";
 const std::string c_title_color = "\033[1;35m";
 
-// globals
+
 extern bool g_debug_mode;
 extern bool g_silent_startup;
 extern bool g_cached_update;
@@ -43,22 +36,15 @@ extern pid_t g_shell_pgid;
 extern struct termios g_shell_tmodes;
 extern bool g_job_control_enabled;
 extern std::atomic_bool g_exit_flag;
-
 extern time_t g_last_update_check;
 extern int g_update_check_interval;
 extern std::string g_cached_version;
 extern std::string g_last_updated;
 extern bool g_first_boot;
-
 extern std::vector<std::string> g_startup_commands;
-
 extern std::string g_current_theme;
-
-// misc
 extern std::string title_line;
 extern std::string created_line;
-
-// objects
 extern Ai* g_ai;
 extern Shell* g_shell;
 extern Theme* g_theme;

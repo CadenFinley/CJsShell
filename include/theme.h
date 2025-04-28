@@ -49,7 +49,6 @@ class Theme {
     std::string ai_format;
     std::string terminal_title_format;
     
-    // Processed formats (with color tags processed)
     std::string processed_ps1_format;
     std::string processed_git_format;
     std::string processed_ai_format;
@@ -59,5 +58,5 @@ class Theme {
     std::string process_color_tags(const std::string& format);
     std::string remove_color_tags(const std::string& format);
     void create_default_theme();
-    void process_all_formats(); // New method to process all formats at once
+    void process_all_formats();
 };

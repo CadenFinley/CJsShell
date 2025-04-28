@@ -80,7 +80,6 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
         return false;
     }
     
-    // Check architecture compatibility
     std::string file_arch = get_file_architecture(path);
     std::string current_arch = get_current_architecture();
     
@@ -98,7 +97,6 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     
     dlerror();
     
-    // Load all required function pointers
     plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(dlsym(handle, "plugin_get_info"));
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
@@ -137,7 +135,6 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     data.info = info;
     data.enabled = false;
     
-    // Load all required function pointers
     data.get_info = get_info;
     data.initialize = reinterpret_cast<plugin_initialize_func>(dlsym(handle, "plugin_initialize"));
     data.shutdown = reinterpret_cast<plugin_shutdown_func>(dlsym(handle, "plugin_shutdown"));
@@ -148,14 +145,12 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     data.update_setting = reinterpret_cast<plugin_update_setting_func>(dlsym(handle, "plugin_update_setting"));
     data.free_memory = reinterpret_cast<plugin_free_memory_func>(dlsym(handle, "plugin_free_memory"));
     
-    // Check for mandatory functions
     if (!data.initialize || !data.shutdown || !data.handle_command || !data.get_commands) {
         std::cerr << "Plugin " << name << " is missing required functions" << std::endl;
         dlclose(handle);
         return false;
     }
     
-    // Load default settings
     if (data.get_default_settings) {
         int count = 0;
         plugin_setting_t* settings = data.get_default_settings(&count);
@@ -311,7 +306,6 @@ bool Plugin::enable_plugin(const std::string& name) {
                 for (int i = 0; i < count; i++) {
                     subscribed_events[events[i]].push_back(name);
                 }
-                // Free memory if the plugin supports it
                 if (it->second.free_memory) {
                     for (int i = 0; i < count; i++) {
                         it->second.free_memory(events[i]);
@@ -352,7 +346,6 @@ bool Plugin::disable_plugin(const std::string& name) {
                 for (int i = 0; i < count; i++) {
                     events_to_unsubscribe.push_back(events[i]);
                 }
-                // Free memory if the plugin supports it
                 if (it->second.free_memory) {
                     for (int i = 0; i < count; i++) {
                         it->second.free_memory(events[i]);
@@ -388,7 +381,6 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin, std::vect
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(targeted_plugin);
     if (it != loaded_plugins.end() && it->second.enabled) {
-        // Convert vector<string> to plugin_args_t
         plugin_args_t args_struct;
         args_struct.count = args.size();
         args_struct.args = new char*[args.size()];
@@ -400,7 +392,6 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin, std::vect
         
         int result = it->second.handle_command(&args_struct);
         
-        // Clean up
         for (int i = 0; i < args_struct.count; i++) {
             free(args_struct.args[i]);
         }
@@ -427,7 +418,6 @@ std::vector<std::string> Plugin::get_plugin_commands(const std::string& name) co
             result.push_back(commands[i]);
         }
         
-        // Free memory if the plugin supports it
         if (it->second.free_memory) {
             for (int i = 0; i < count; i++) {
                 it->second.free_memory(commands[i]);
@@ -504,7 +494,6 @@ void Plugin::trigger_subscribed_global_event(const std::string& event, const std
         subscribedPlugins = it->second;
     }
     
-    // Create plugin_args_t for the event
     plugin_args_t args;
     args.count = 3;
     args.args = new char*[3];
@@ -523,7 +512,6 @@ void Plugin::trigger_subscribed_global_event(const std::string& event, const std
         }
     }
     
-    // Clean up
     for (int i = 0; i < args.count; i++) {
         free(args.args[i]);
     }
@@ -650,14 +638,12 @@ bool Plugin::is_plugin_loaded(const std::string& name) const {
     return loaded_plugins.find(name) != loaded_plugins.end();
 }
 
-// Detect the current process architecture
 std::string Plugin::get_current_architecture() const {
     struct utsname system_info;
     uname(&system_info);
     
     std::string arch = system_info.machine;
     
-    // Map common architecture names to a normalized form
     if (arch == "x86_64" || arch == "amd64")
         return "x86_64";
     else if (arch == "arm64" || arch == "aarch64")
@@ -666,11 +652,9 @@ std::string Plugin::get_current_architecture() const {
     return arch;
 }
 
-// Check the architecture of a binary file
 std::string Plugin::get_file_architecture(const std::filesystem::path& path) const {
     std::string result = "unknown";
     
-    // Use the file command to determine the architecture
     std::string cmd = "file -b " + path.string();
     FILE* pipe = popen(cmd.c_str(), "r");
     if (!pipe) {
@@ -686,7 +670,6 @@ std::string Plugin::get_file_architecture(const std::filesystem::path& path) con
     }
     pclose(pipe);
     
-    // Parse the output to determine architecture
     if (output.find("x86_64") != std::string::npos) {
         result = "x86_64";
     } else if (output.find("arm64") != std::string::npos || output.find("ARM64") != std::string::npos || 
@@ -697,16 +680,12 @@ std::string Plugin::get_file_architecture(const std::filesystem::path& path) con
     return result;
 }
 
-// Check if architectures are compatible
 bool Plugin::is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const {
-    // Direct match is always compatible
     if (file_arch == current_arch)
         return true;
     
-    // On macOS with Rosetta, x86_64 binaries can run on arm64
     #ifdef __APPLE__
     if (current_arch == "arm64" && file_arch == "x86_64") {
-        // Check if Rosetta is installed by attempting to run a simple x86_64 command
         int rosetta_check = system("arch -x86_64 true 2>/dev/null");
         return rosetta_check == 0;
     }
