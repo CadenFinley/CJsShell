@@ -139,9 +139,6 @@ std::string Theme::prerender_line(const std::vector<nlohmann::json>& segments) c
             if (forward_separator_fg_name != "RESET") {
                 auto fw_sep_fg_rgb = colors::get_color_by_name(forward_separator_fg_name);
                 segment_result += colors::fg_color(fw_sep_fg_rgb);
-            } else if (bg_color_name != "RESET") {
-                auto bg_rgb = colors::get_color_by_name(bg_color_name);
-                segment_result += colors::fg_color(bg_rgb);
             }
             
             segment_result += forward_separator;
@@ -165,9 +162,6 @@ std::string Theme::prerender_line(const std::vector<nlohmann::json>& segments) c
             if (separator_fg_name != "RESET") {
                 auto sep_fg_rgb = colors::get_color_by_name(separator_fg_name);
                 segment_result += colors::fg_color(sep_fg_rgb);
-            } else if (bg_color_name != "RESET") {
-                auto bg_rgb = colors::get_color_by_name(bg_color_name);
-                segment_result += colors::fg_color(bg_rgb);
             }
             
             if (separator_bg_name != "RESET") {
@@ -241,7 +235,8 @@ std::string Theme::execute_script(const std::string& script_path) const {
     }
     
     std::string result;
-    std::string command = "sh -c \"" + script_path + "\"";
+    // Use bash explicitly to ensure proper escape sequence interpretation
+    std::string command = "bash -c \"" + script_path + "\"";
     FILE* pipe = popen(command.c_str(), "r");
     
     if (!pipe) {

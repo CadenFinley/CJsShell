@@ -412,7 +412,7 @@ RGB parse_color_value(const std::string& value) {
                 int b = std::stoi(hex.substr(4, 2), nullptr, 16);
                 return RGB(r, g, b);
             } catch (const std::exception& e) {
-                return RGB(0, 0, 0);
+                return RGB(255, 255, 255);
             }
         }
     }
@@ -427,7 +427,7 @@ RGB parse_color_value(const std::string& value) {
             int b = std::clamp(std::stoi(rgb_match[3]), 0, 255);
             return RGB(r, g, b);
         } catch (const std::exception& e) {
-            return RGB(0, 0, 0);
+            return RGB(255, 255, 255);
         }
     }
 
