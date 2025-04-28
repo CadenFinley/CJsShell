@@ -10,9 +10,15 @@ private:
     std::string theme_directory;
     bool is_enabled;
     
+    std::string ps1_format;
+    std::string git_format;
+    std::string ai_format;
     std::string newline_format;
     std::string terminal_title_format;
     
+    std::string processed_ps1_format;
+    std::string processed_git_format;
+    std::string processed_ai_format;
     std::string processed_newline_format;
     
     // Newline setting
@@ -50,6 +56,7 @@ public:
     
     std::string render_segment(const nlohmann::json& segment, const std::unordered_map<std::string, std::string>& vars);
     
+    bool is_segmented_style() const;
     bool uses_newline() const;
     std::string get_newline_prompt() const;
     bool has_newline_segments() const;
