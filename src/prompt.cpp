@@ -8,6 +8,7 @@
 #include <ctime>
 #include <sstream>
 
+//add more info that can be used in the prompt
 /*
  * Available prompt placeholders:
  * -----------------------------

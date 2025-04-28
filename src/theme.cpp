@@ -4,6 +4,8 @@
 #include <filesystem>
 #include "colors.h"
 
+//add the ability to allign the segments to the left or right
+
 Theme::Theme(std::string theme_dir, bool enabled) : theme_directory(theme_dir), is_enabled(enabled) {
     if (!std::filesystem::exists(theme_directory + "/default.json")) {
         create_default_theme();
