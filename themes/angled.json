@@ -131,7 +131,7 @@
             "type": "text",
             "content": " ╰─> ",
             "bg_color": "RESET",
-            "fg_color": "P10K_NEWLINE_FG",
+            "fg_color": "WHITE",
             "separator": ""
         }
     ]

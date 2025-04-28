@@ -30,7 +30,6 @@ Theme::~Theme() {
 void Theme::create_default_theme() {
     nlohmann::json default_theme;
     
-    // Create properties in the same order as the provided file
     default_theme["ai_prompt"] = "[BLUE]{AI_MODEL} [YELLOW]{AI_AGENT_TYPE} [WHITE]{AI_DIVIDER}[RESET]";
     default_theme["git_prompt"] = "[RED]{USERNAME} [BLUE]{DIRECTORY} [GREEN]git:([YELLOW]{GIT_BRANCH} {GIT_STATUS}[GREEN])[RESET]";
     default_theme["ps1_prompt"] = "[RED]{USERNAME}[WHITE]@[GREEN]{HOSTNAME} [BLUE]{PATH} [WHITE]$[RESET]";
@@ -58,14 +57,12 @@ bool Theme::load_theme(const std::string& theme_name) {
     file >> theme_json;
     file.close();
     
-    // Check for newline setting
     if (theme_json.contains("use_newline")) {
         use_newline = theme_json["use_newline"];
     } else {
         use_newline = false;
     }
     
-    // Check for newline prompt setting (for backward compatibility)
     if (theme_json.contains("newline_prompt")) {
         newline_format = theme_json["newline_prompt"];
     } else {
@@ -96,7 +93,6 @@ bool Theme::load_theme(const std::string& theme_name) {
         terminal_title_format = "{USERNAME}@{HOSTNAME}: {DIRECTORY}";
     }
     
-    // Load segmented style if available
     ps1_segments.clear();
     git_segments.clear();
     ai_segments.clear();
@@ -117,18 +113,15 @@ bool Theme::load_theme(const std::string& theme_name) {
     if (theme_json.contains("newline_segments") && theme_json["newline_segments"].is_array()) {
         newline_segments = theme_json["newline_segments"];
     } else {
-        // Create default newline segment if none exists
         nlohmann::json default_segment;
         default_segment["type"] = "text";
-        default_segment["content"] = newline_format; // Use the newline_format as fallback
+        default_segment["content"] = newline_format;
         default_segment["bg_color"] = "RESET";
         default_segment["fg_color"] = "WHITE";
         default_segment["separator"] = "none";
         newline_segments.push_back(default_segment);
     }
     
-    // Update this - convert the newline segments content to processed_newline_format
-    // for backwards compatibility
     if (!newline_segments.empty() && newline_segments[0].contains("content")) {
         newline_format = newline_segments[0]["content"];
     }
@@ -199,7 +192,6 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
     
     std::string content = segment["content"];
     
-    // Replace variables in content
     for (const auto& [key, value] : vars) {
         std::string placeholder = "{" + key + "}";
         size_t pos = 0;
@@ -209,41 +201,33 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
         }
     }
     
-    // Apply colors and styling
     std::string bg_color = segment.value("bg_color", "RESET");
     std::string fg_color = segment.value("fg_color", "WHITE");
     
-    // Get background and foreground colors
     colors::RGB bg = colors::get_color_by_name(bg_color);
     colors::RGB fg = colors::get_color_by_name(fg_color);
     
-    // Build the final result
     std::string result = "";
     
-    // First, add forward separator if specified (goes before content)
     if (segment.contains("forward_separator") && segment["forward_separator"] != "none" && !segment["forward_separator"].empty()) {
         std::string forward_separator = segment["forward_separator"];
         
-        // Get forward separator colors
         std::string forward_sep_fg = segment.value("forward_separator_fg", "WHITE");
         std::string forward_sep_bg = segment.value("forward_separator_bg", "RESET");
         
         colors::RGB forward_sep_fg_color = colors::get_color_by_name(forward_sep_fg);
         colors::RGB forward_sep_bg_color = colors::get_color_by_name(forward_sep_bg);
         
-        // Process gradient separators if specified
         if (forward_separator == "gradient_right" || forward_separator == "gradient_left" || forward_separator == "gradient_curve") {
             int num_steps = segment.value("forward_gradient_steps", 4);
             std::string gradient_sep;
             
-            // Use the already resolved colors
             colors::RGB start_bg = bg;
             
             for (int i = 0; i < num_steps; ++i) {
                 float factor = static_cast<float>(i) / (num_steps - 1);
                 colors::RGB blend_bg = colors::blend(start_bg, forward_sep_bg_color, factor);
                 
-                // Adjust brightness for better visual distinction
                 if (i > 0 && i < num_steps - 1) {
                     float brightness_adjust = (i % 2 == 0) ? 0.9f : 1.1f;
                     blend_bg.r = std::min(255, static_cast<int>(blend_bg.r * brightness_adjust));
@@ -254,53 +238,41 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
                 gradient_sep += colors::bg_color(blend_bg) + " ";
             }
             
-            // Add the gradient forward separator
             result += gradient_sep;
         } else {
-            // Handle special cases like right_arrow or left_arrow
             if (forward_separator == "right_arrow" || forward_separator == "left_arrow") {
-                forward_sep_fg_color = bg; // Use the segment's background color for the separator foreground
+                forward_sep_fg_color = bg;
             }
             
-            // Apply the styling and add the forward separator
             result += colors::fg_color(forward_sep_fg_color) + 
                       colors::bg_color(forward_sep_bg_color) + 
                       forward_separator;
         }
     }
     
-    // Add styled content
     result += colors::bg_color(bg) + colors::fg_color(fg) + content;
     
-    // Add backward separator if specified (goes after content)
     if (segment.contains("separator") && segment["separator"] != "none" && !segment["separator"].empty()) {
         std::string separator = segment["separator"];
         
-        // Get separator colors
         std::string sep_fg = segment.value("separator_fg", "WHITE");
         std::string sep_bg = segment.value("separator_bg", "RESET");
         
         colors::RGB sep_fg_color = colors::get_color_by_name(sep_fg);
         colors::RGB sep_bg_color = colors::get_color_by_name(sep_bg);
         
-        // For gradient separators, create a special gradient transition
         if (separator == "gradient_right" || separator == "gradient_left" || separator == "gradient_curve") {
-            // For gradient separators, we create a smooth transition between segments
             if (separator == "gradient_curve") {
-                // Get custom gradient steps if provided, otherwise use default
-                int num_steps = segment.value("gradient_steps", 4); // Allow customization of gradient steps
+                int num_steps = segment.value("gradient_steps", 4);
                 std::string gradient_sep;
                 
-                // Use the already resolved colors to avoid issues with P10K_ prefixes
                 colors::RGB start_bg = bg;
                 
                 for (int i = 0; i < num_steps; ++i) {
                     float factor = static_cast<float>(i) / (num_steps - 1);
                     colors::RGB blend_bg = colors::blend(start_bg, sep_bg_color, factor);
                     
-                    // Adjust brightness slightly for more visual distinction
                     if (i > 0 && i < num_steps - 1) {
-                        // Make intermediate colors slightly brighter/darker for better visual separation
                         float brightness_adjust = (i % 2 == 0) ? 0.9f : 1.1f;
                         blend_bg.r = std::min(255, static_cast<int>(blend_bg.r * brightness_adjust));
                         blend_bg.g = std::min(255, static_cast<int>(blend_bg.g * brightness_adjust));
@@ -312,18 +284,15 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
                 
                 result += gradient_sep;
             } else {
-                // For right or left gradient, create a smooth color transition of spaces
-                int width = segment.value("gradient_steps", 4); // Allow customization of gradient width
+                int width = segment.value("gradient_steps", 4);
                 std::string gradient_sep;
                 
-                // Use the already resolved colors to avoid issues with P10K_ prefixes
                 colors::RGB start_bg = bg;
                 
                 for (int i = 0; i < width; i++) {
                     float factor = static_cast<float>(i) / (width - 1);
                     colors::RGB blend_bg = colors::blend(start_bg, sep_bg_color, factor);
                     
-                    // Adjust brightness for better visual distinction
                     if (i > 0 && i < width - 1) {
                         float brightness_adjust = (i % 2 == 0) ? 0.92f : 1.08f;
                         blend_bg.r = std::min(255, static_cast<int>(blend_bg.r * brightness_adjust));
@@ -337,13 +306,10 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
                 result += gradient_sep;
             }
         } else {
-            // For the right_arrow separator specifically, we need to make sure 
-            // the foreground color matches the background of the segment for a seamless transition
             if (separator == "right_arrow" || separator == "left_arrow") {
-                sep_fg_color = bg; // Use the segment's background color for the separator foreground
+                sep_fg_color = bg;
             }
             
-            // Apply the styling to the separator
             result += colors::fg_color(sep_fg_color) + colors::bg_color(sep_bg_color) + separator;
         }
     }
@@ -351,7 +317,6 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
     return result;
 }
 
-// Render PS1 segments
 std::string Theme::render_ps1_segments(const std::unordered_map<std::string, std::string>& vars) {
     if (ps1_segments.empty()) {
         return processed_ps1_format;
@@ -366,7 +331,6 @@ std::string Theme::render_ps1_segments(const std::unordered_map<std::string, std
     return result;
 }
 
-// Render Git segments
 std::string Theme::render_git_segments(const std::unordered_map<std::string, std::string>& vars) {
     if (git_segments.empty()) {
         return processed_git_format;
@@ -381,7 +345,6 @@ std::string Theme::render_git_segments(const std::unordered_map<std::string, std
     return result;
 }
 
-// Render AI segments
 std::string Theme::render_ai_segments(const std::unordered_map<std::string, std::string>& vars) {
     if (ai_segments.empty()) {
         return processed_ai_format;
@@ -396,10 +359,8 @@ std::string Theme::render_ai_segments(const std::unordered_map<std::string, std:
     return result;
 }
 
-// Render Newline segments
 std::string Theme::render_newline_segments(const std::unordered_map<std::string, std::string>& vars) {
     if (newline_segments.empty()) {
-        // If for some reason there are no segments, use the processed format
         return processed_newline_format;
     }
     
