@@ -270,6 +270,10 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
       result.push_back(globbuf.gl_pathv[i]);
     }
     globfree(&globbuf);
+  } else if (ret == GLOB_NOMATCH) {
+    // Keep the original pattern when no matches are found
+    // This allows the error to be handled by the command
+    result.push_back(pattern);
   }
   
   return result;

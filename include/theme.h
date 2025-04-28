@@ -59,4 +59,6 @@ public:
     std::string get_ps1_prompt_format(const std::unordered_map<std::string, std::string>& vars) const;
     std::string get_git_prompt_format(const std::unordered_map<std::string, std::string>& vars) const;
     std::string get_ai_prompt_format(const std::unordered_map<std::string, std::string>& vars) const;
+    
+    void clear_script_cache();
 };

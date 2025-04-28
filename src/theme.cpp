@@ -230,6 +230,16 @@ std::string Theme::get_ai_prompt_format(const std::unordered_map<std::string, st
 }
 
 std::string Theme::execute_script(const std::string& script_path) const {
+    static std::unordered_map<std::string, std::pair<std::string, std::time_t>> script_cache;
+    static const int CACHE_EXPIRY_SECONDS = 5;
+    auto now = std::time(nullptr);
+    auto cache_it = script_cache.find(script_path);
+    if (cache_it != script_cache.end()) {
+        if (now - cache_it->second.second < CACHE_EXPIRY_SECONDS) {
+            return cache_it->second.first;
+        }
+    }
+    
     std::string result;
     std::string command = "sh -c \"" + script_path + "\"";
     FILE* pipe = popen(command.c_str(), "r");
@@ -238,20 +248,25 @@ std::string Theme::execute_script(const std::string& script_path) const {
         return "Error executing script: " + script_path;
     }
     
-    char buffer[128];
+    char buffer[4096];
     while (!feof(pipe)) {
-        if (fgets(buffer, 128, pipe) != nullptr) {
+        if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
             result += buffer;
         }
     }
-    
-    // Remove trailing newline if present
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
     }
     
     pclose(pipe);
+    script_cache[script_path] = {result, now};
+    
     return result;
+}
+
+void Theme::clear_script_cache() {
+    static std::unordered_map<std::string, std::pair<std::string, std::time_t>> script_cache;
+    script_cache.clear();
 }
 
 std::string Theme::render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const {
