@@ -39,6 +39,15 @@ done
 echo "CJ's Shell Installer"
 echo "-------------------------"
 echo "This will install CJ's Shell to $DATA_DIR."
+4rf./
+# Check if system is Linux and inform user about availability
+if [[ "$(uname)" == "Linux" ]]; then
+    echo "Notice: A Linux build of CJ's Shell is currently unavailable but is on the way."
+    echo "Please check back later for Linux support."
+    read -n 1 -s -r -p "Press any key to exit..."
+    echo ""
+    exit 0
+fi
 
 # Create data directory if it doesn't exist
 if [ ! -d "$DATA_DIR" ]; then
