@@ -34,9 +34,6 @@ int main(int argc, char *argv[]) {
     setup_environment_variables();
     g_shell->setup_job_control();
   }
-
-  // Initialize color support
-  colors::initialize_color_support();
   
   // check for non interactive command line arguments
   bool l_execute_command = false;
@@ -77,6 +74,7 @@ int main(int argc, char *argv[]) {
       g_silent_update_check = true;
     }
     else if (arg == "--splash") {
+      colors::initialize_color_support();
       std::cout << get_colorized_splash() << std::endl;
       return 0;
     }
@@ -130,6 +128,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  colors::initialize_color_support();
   g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path); //doesnt need to verify filesys
   g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
   std::string api_key = "";
@@ -157,16 +156,22 @@ int main(int argc, char *argv[]) {
     g_shell->restore_terminal_state();
   }
 
-  delete g_shell;
-  g_shell = nullptr;
-  delete g_ai;
-  g_ai = nullptr;
-  delete g_theme;
-  g_theme = nullptr;
-  delete g_plugin;
-  g_plugin = nullptr;
-
-  // clean up main
+  if(g_shell) {
+    delete g_shell;
+    g_shell = nullptr;
+  }
+  if (g_ai) {
+    delete g_ai;
+    g_ai = nullptr;
+  }
+  if (g_theme) {
+    delete g_theme;
+    g_theme = nullptr;
+  }
+  if(g_plugin) {
+    delete g_plugin;
+    g_plugin = nullptr;
+  }
   return 0;
 }
 
