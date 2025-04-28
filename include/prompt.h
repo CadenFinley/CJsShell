@@ -11,7 +11,6 @@
 
 class Prompt {
   private:
-    std::string terminal_name = "cjsh";
     std::chrono::steady_clock::time_point last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
     std::string cached_git_dir;
     std::string cached_status_symbols;
@@ -23,6 +22,11 @@ class Prompt {
     std::string get_current_file_name();
     std::string get_current_file_path();
     std::string replace_placeholder(const std::string& format, const std::string& placeholder, const std::string& value);
+    std::string get_current_time();
+    std::string get_current_date();
+    std::string get_shell();
+    std::string get_shell_version();
+    bool is_variable_used(const std::string& var_name, const std::string& format_str, const std::vector<nlohmann::json>& segments = {});
     
   public:
     Prompt();

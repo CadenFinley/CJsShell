@@ -4,6 +4,42 @@
 #include <iostream>
 #include <fstream>
 #include <regex>
+#include <iomanip>
+#include <ctime>
+#include <sstream>
+
+/*
+ * Available prompt placeholders:
+ * -----------------------------
+ * Standard prompt placeholders (PS1):
+ * {USERNAME}   - Current user's name
+ * {HOSTNAME}   - System hostname
+ * {PATH}       - Current working directory (with ~ for home)
+ * {DIRECTORY}  - Name of the current directory
+ * {TIME}       - Current time (HH:MM:SS)
+ * {DATE}       - Current date (YYYY-MM-DD)
+ * {SHELL} - Name of the shell
+ * {SHELL_VER}  - Version of the shell
+ * 
+ * Git prompt additional placeholders:
+ * {REPO_NAME}  - Name of the Git repository
+ * {GIT_BRANCH} - Current Git branch
+ * {GIT_STATUS} - Git status (✓ for clean, * for dirty)
+ * 
+ * AI prompt placeholders:
+ * {AI_MODEL}      - Current AI model name
+ * {AI_AGENT_TYPE} - AI assistant type (Chat, etc.)
+ * {AI_DIVIDER}    - Divider for AI prompt (>)
+ * 
+ * Terminal title placeholders:
+ * {SHELL}     - Terminal name
+ * {USERNAME}  - Current user's name
+ * {HOSTNAME}  - System hostname
+ * {DIRECTORY} - Name of the current directory
+ * {PATH}      - Current working directory (with ~ for home)
+ * {TIME}      - Current time (HH:MM:SS)
+ * {DATE}      - Current date (YYYY-MM-DD)
+ */
 
 Prompt::Prompt() {
   last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
@@ -11,6 +47,26 @@ Prompt::Prompt() {
 }
 
 Prompt::~Prompt() {
+}
+
+bool Prompt::is_variable_used(const std::string& var_name, const std::string& format_str, const std::vector<nlohmann::json>& segments) {
+  // Check if variable is used in format string
+  std::string placeholder = "{" + var_name + "}";
+  if (format_str.find(placeholder) != std::string::npos) {
+    return true;
+  }
+  
+  // Check if variable is used in any segment
+  for (const auto& segment : segments) {
+    if (segment.contains("content")) {
+      std::string content = segment["content"];
+      if (content.find(placeholder) != std::string::npos) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 }
 
 std::string Prompt::get_prompt() {
@@ -29,115 +85,240 @@ std::string Prompt::get_prompt() {
   }
 
   bool is_git_repo = std::filesystem::exists(git_head_path);
+  
+  // Variables to be passed to prompt renderer
+  std::unordered_map<std::string, std::string> vars;
+  
+  // Base format and segments to check for variable usage
+  std::string format_to_check;
+  std::vector<nlohmann::json> segments_to_check;
+  
   if (is_git_repo) {
-    prompt_format = g_theme->get_git_prompt_format();
-    std::string git_info;
-    
+    format_to_check = g_theme->get_git_prompt_format();
+    segments_to_check = g_theme->git_segments;
+  } else {
+    format_to_check = g_theme->get_ps1_prompt_format();
+    segments_to_check = g_theme->ps1_segments;
+  }
+  
+  // Only calculate needed variables
+  if (is_variable_used("USERNAME", format_to_check, segments_to_check)) {
+    vars["USERNAME"] = username;
+  }
+  
+  if (is_variable_used("HOSTNAME", format_to_check, segments_to_check)) {
+    char hostname[256];
+    gethostname(hostname, 256);
+    vars["HOSTNAME"] = hostname;
+  }
+  
+  if (is_variable_used("PATH", format_to_check, segments_to_check)) {
+    vars["PATH"] = get_current_file_path();
+  }
+  
+  if (is_variable_used("DIRECTORY", format_to_check, segments_to_check)) {
+    vars["DIRECTORY"] = get_current_file_name();
+  }
+  
+  if (is_variable_used("TIME", format_to_check, segments_to_check)) {
+    vars["TIME"] = get_current_time();
+  }
+  
+  if (is_variable_used("DATE", format_to_check, segments_to_check)) {
+    vars["DATE"] = get_current_date();
+  }
+  
+  if (is_variable_used("SHELL", format_to_check, segments_to_check)) {
+    vars["SHELL"] = get_shell();
+  }
+  
+  if (is_variable_used("SHELL_VER", format_to_check, segments_to_check)) {
+    vars["SHELL_VER"] = get_shell_version();
+  }
+
+  if (is_git_repo) {
     try {
       std::ifstream head_file(git_head_path);
       std::string line;
       std::regex head_pattern("ref: refs/heads/(.*)");
       std::smatch match;
       std::string branch_name;
-      while (std::getline(head_file, line)) {
-        if (std::regex_search(line, match, head_pattern)) {
-          branch_name = match[1];
-          break;
+      
+      // Only read branch name if it's needed
+      if (is_variable_used("GIT_BRANCH", format_to_check, segments_to_check)) {
+        while (std::getline(head_file, line)) {
+          if (std::regex_search(line, match, head_pattern)) {
+            branch_name = match[1];
+            break;
+          }
+        }
+        
+        if(branch_name.empty()) {
+          branch_name = "unknown";
+        }
+        
+        vars["GIT_BRANCH"] = branch_name;
+      }
+
+      // Only check git status if it's needed
+      if (is_variable_used("GIT_STATUS", format_to_check, segments_to_check) || 
+          is_variable_used("REPO_NAME", format_to_check, segments_to_check)) {
+        
+        std::string status_symbols = "";
+        std::string git_dir = current_path.string();
+        bool is_clean_repo = true;
+        
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_git_status_check).count();
+        
+        if ((elapsed > 30 || cached_git_dir != git_dir) && !is_git_status_check_running) {
+          std::lock_guard<std::mutex> lock(git_status_mutex);
+          cached_git_dir = git_dir;
+          cached_status_symbols = "*";
+          cached_is_clean_repo = false;
+          last_git_status_check = std::chrono::steady_clock::now();
+          status_symbols = cached_status_symbols;
+          is_clean_repo = cached_is_clean_repo;
+        } else {
+          std::lock_guard<std::mutex> lock(git_status_mutex);
+          status_symbols = cached_status_symbols;
+          is_clean_repo = cached_is_clean_repo;
+        }
+        
+        std::string status_info;
+        
+        if (is_clean_repo) {
+          status_info = " ✓";
+        } else {
+          status_info = " " + status_symbols;
+        }
+        
+        vars["GIT_STATUS"] = status_info;
+        
+        if (is_variable_used("REPO_NAME", format_to_check, segments_to_check)) {
+          std::string repo_name = current_path.filename().string();
+          vars["REPO_NAME"] = repo_name;
         }
       }
-
-      std::string status_symbols = "";
-      std::string git_dir = current_path.string();
-      bool is_clean_repo = true;
       
-      auto now = std::chrono::steady_clock::now();
-      auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_git_status_check).count();
-      
-      if ((elapsed > 30 || cached_git_dir != git_dir) && !is_git_status_check_running) {
-        std::lock_guard<std::mutex> lock(git_status_mutex);
-        cached_git_dir = git_dir;
-        cached_status_symbols = "*";
-        cached_is_clean_repo = false;
-        last_git_status_check = std::chrono::steady_clock::now();
-        status_symbols = cached_status_symbols;
-        is_clean_repo = cached_is_clean_repo;
+      // Use the segmented style if available, otherwise fall back to the legacy format
+      if (g_theme->is_segmented_style()) {
+        return g_theme->render_git_segments(vars);
       } else {
-        std::lock_guard<std::mutex> lock(git_status_mutex);
-        status_symbols = cached_status_symbols;
-        is_clean_repo = cached_is_clean_repo;
+        // Legacy style
+        prompt_format = g_theme->get_git_prompt_format();
+        for (const auto& [key, value] : vars) {
+          prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
+        }
+        
+        return prompt_format;
       }
-      
-      std::string repo_name = current_path.filename().string();
-      std::string status_info;
-      
-      if (is_clean_repo) {
-        status_info = " ✓";
-      } else {
-        status_info = " " + status_symbols;
-      }
-
-      if(branch_name.empty()) {
-        branch_name = "unknown";
-      }
-      
-      char hostname[256];
-      gethostname(hostname, 256);
-      
-      // in git
-      prompt_format = replace_placeholder(prompt_format, "{USERNAME}", username);
-      prompt_format = replace_placeholder(prompt_format, "{HOSTNAME}", hostname);
-      prompt_format = replace_placeholder(prompt_format, "{PATH}", get_current_file_path());
-      prompt_format = replace_placeholder(prompt_format, "{DIRECTORY}", get_current_file_name());
-      prompt_format = replace_placeholder(prompt_format, "{REPO_NAME}", repo_name);
-      prompt_format = replace_placeholder(prompt_format, "{GIT_BRANCH}", branch_name);
-      prompt_format = replace_placeholder(prompt_format, "{GIT_STATUS}", status_info);
-      
-      return prompt_format;
     } catch (const std::exception& e) {
       std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
     }
   }
-  prompt_format = g_theme->get_ps1_prompt_format();
   
-  // non git
-  char hostname[256];
-  gethostname(hostname, 256);
-  
-  prompt_format = replace_placeholder(prompt_format, "{USERNAME}", username);
-  prompt_format = replace_placeholder(prompt_format, "{HOSTNAME}", hostname);
-  prompt_format = replace_placeholder(prompt_format, "{PATH}", get_current_file_path());
-  prompt_format = replace_placeholder(prompt_format, "{DIRECTORY}", get_current_file_name());
-  
-  return prompt_format;
+  // Non-git prompt
+  if (g_theme->is_segmented_style()) {
+    return g_theme->render_ps1_segments(vars);
+  } else {
+    prompt_format = g_theme->get_ps1_prompt_format();
+    for (const auto& [key, value] : vars) {
+      prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
+    }
+    
+    return prompt_format;
+  }
 }
 
 std::string Prompt::get_ai_prompt() {
-  std::string prompt_format = g_theme->get_ai_prompt_format();
-  
   std::string modelInfo = g_ai->getModel();
   std::string modeInfo = g_ai->getAssistantType();
             
   if (modelInfo.empty()) modelInfo = "Unknown";
   if (modeInfo.empty()) modeInfo = "Chat";
   
-  prompt_format = replace_placeholder(prompt_format, "{AI_MODEL}", modelInfo);
-  prompt_format = replace_placeholder(prompt_format, "{AI_AGENT_TYPE}", modeInfo);
-  prompt_format = replace_placeholder(prompt_format, "{AI_DIVIDER}", ">");
+  std::unordered_map<std::string, std::string> vars;
+  std::string format_to_check = g_theme->get_ai_prompt_format();
+  std::vector<nlohmann::json> segments_to_check = g_theme->ai_segments;
   
-  return prompt_format;
+  if (is_variable_used("AI_MODEL", format_to_check, segments_to_check)) {
+    vars["AI_MODEL"] = modelInfo;
+  }
+  
+  if (is_variable_used("AI_AGENT_TYPE", format_to_check, segments_to_check)) {
+    vars["AI_AGENT_TYPE"] = modeInfo;
+  }
+  
+  if (is_variable_used("AI_DIVIDER", format_to_check, segments_to_check)) {
+    vars["AI_DIVIDER"] = ">";
+  }
+  
+  if (is_variable_used("TIME", format_to_check, segments_to_check)) {
+    vars["TIME"] = get_current_time();
+  }
+  
+  if (is_variable_used("DATE", format_to_check, segments_to_check)) {
+    vars["DATE"] = get_current_date();
+  }
+  
+  if (g_theme->is_segmented_style()) {
+    return g_theme->render_ai_segments(vars);
+  } else {
+    std::string prompt_format = g_theme->get_ai_prompt_format();
+    for (const auto& [key, value] : vars) {
+      prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
+    }
+    
+    return prompt_format;
+  }
 }
 
 std::string Prompt::get_title_prompt() {
   std::string prompt_format = g_theme->get_terminal_title_format();
+  std::unordered_map<std::string, std::string> vars;
   
-  char hostname[256];
-  gethostname(hostname, 256);
+  if (prompt_format.find("{SHELL}") != std::string::npos) {
+    vars["SHELL"] = get_shell();
+  }
   
-  prompt_format = replace_placeholder(prompt_format, "{SHELL}", terminal_name);
-  prompt_format = replace_placeholder(prompt_format, "{USERNAME}", getenv("USER"));
-  prompt_format = replace_placeholder(prompt_format, "{HOSTNAME}", hostname);
-  prompt_format = replace_placeholder(prompt_format, "{DIRECTORY}", get_current_file_name());
-  prompt_format = replace_placeholder(prompt_format, "{PATH}", get_current_file_path());
+  if (prompt_format.find("{USERNAME}") != std::string::npos) {
+    vars["USERNAME"] = getenv("USER");
+  }
+  
+  if (prompt_format.find("{HOSTNAME}") != std::string::npos) {
+    char hostname[256];
+    gethostname(hostname, 256);
+    vars["HOSTNAME"] = hostname;
+  }
+  
+  if (prompt_format.find("{DIRECTORY}") != std::string::npos) {
+    vars["DIRECTORY"] = get_current_file_name();
+  }
+  
+  if (prompt_format.find("{PATH}") != std::string::npos) {
+    vars["PATH"] = get_current_file_path();
+  }
+  
+  if (prompt_format.find("{TIME}") != std::string::npos) {
+    vars["TIME"] = get_current_time();
+  }
+  
+  if (prompt_format.find("{DATE}") != std::string::npos) {
+    vars["DATE"] = get_current_date();
+  }
+  
+  if (prompt_format.find("{SHELL}") != std::string::npos) {
+    vars["SHELL"] = get_shell();
+  }
+  
+  if (prompt_format.find("{SHELL_VER}") != std::string::npos) {
+    vars["SHELL_VER"] = get_shell_version();
+  }
+  
+  for (const auto& [key, value] : vars) {
+    prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
+  }
   
   return prompt_format;
 }
@@ -205,4 +386,40 @@ std::string Prompt::get_current_file_name() {
     return "/";
   }
   return current_file_name;
+}
+
+std::string Prompt::get_current_time() {
+  auto now = std::chrono::system_clock::now();
+  auto time_now = std::chrono::system_clock::to_time_t(now);
+  struct tm time_info;
+  localtime_r(&time_now, &time_info);
+  
+  std::stringstream time_stream;
+  time_stream << std::setfill('0') << std::setw(2) << time_info.tm_hour << ":"
+              << std::setfill('0') << std::setw(2) << time_info.tm_min << ":"
+              << std::setfill('0') << std::setw(2) << time_info.tm_sec;
+  
+  return time_stream.str();
+}
+
+std::string Prompt::get_current_date() {
+  auto now = std::chrono::system_clock::now();
+  auto time_now = std::chrono::system_clock::to_time_t(now);
+  struct tm time_info;
+  localtime_r(&time_now, &time_info);
+  
+  std::stringstream date_stream;
+  date_stream << (time_info.tm_year + 1900) << "-"
+              << std::setfill('0') << std::setw(2) << (time_info.tm_mon + 1) << "-"
+              << std::setfill('0') << std::setw(2) << time_info.tm_mday;
+  
+  return date_stream.str();
+}
+
+std::string Prompt::get_shell() {
+  return "cjsh";
+}
+
+std::string Prompt::get_shell_version() {
+  return c_version;
 }

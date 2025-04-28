@@ -1,0 +1,126 @@
+{
+    "use_segments": true,
+    "terminal_title": "{SHELL}  {USERNAME}@{HOSTNAME} {TIME}  {DATE}",
+    "use_newline": true,
+    "ps1_segments": [
+        {
+            "type": "text",
+            "content": " {USERNAME} ",
+            "bg_color": "P10K_USER_BG",
+            "fg_color": "P10K_USER_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_USER_BG",
+            "separator_bg": "P10K_HOST_BG",
+            "gradient_steps": 3
+        },
+        {
+            "type": "text",
+            "content": " {HOSTNAME} ",
+            "bg_color": "P10K_HOST_BG",
+            "fg_color": "P10K_HOST_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_HOST_BG",
+            "separator_bg": "P10K_DIR_BG",
+            "gradient_steps": 3
+        },
+        {
+            "type": "text",
+            "content": " 📁 {DIRECTORY} ",
+            "bg_color": "P10K_DIR_BG",
+            "fg_color": "P10K_DIR_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_DIR_BG",
+            "separator_bg": "RESET",
+            "gradient_steps": 7
+        }
+    ],
+    "git_segments": [
+        {
+            "type": "text",
+            "content": " {USERNAME} ",
+            "bg_color": "P10K_USER_BG",
+            "fg_color": "P10K_USER_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_USER_BG",
+            "separator_bg": "P10K_GIT_BRANCH_BG",
+            "gradient_steps": 3
+        },
+        {
+            "type": "text",
+            "content": " {REPO_NAME} ",
+            "bg_color": "P10K_GIT_BRANCH_BG",
+            "fg_color": "P10K_GIT_BRANCH_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_GIT_BRANCH_BG",
+            "separator_bg": "P10K_DIR_BG",
+            "gradient_steps": 3
+        },
+        {
+            "type": "text",
+            "content": " 📁 {DIRECTORY} ",
+            "bg_color": "P10K_DIR_BG",
+            "fg_color": "P10K_DIR_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_DIR_BG",
+            "separator_bg": "P10K_GIT_STATUS_BG",
+            "gradient_steps": 3
+        },
+        {
+            "type": "text",
+            "content": " {GIT_BRANCH} ",
+            "bg_color": "P10K_GIT_STATUS_BG",
+            "fg_color": "P10K_GIT_STATUS_FG",
+            "separator": "",
+            "separator_fg": "P10K_GIT_STATUS_BG",
+            "separator_bg": "P10K_GIT_STATUS_BG"
+        },
+        {
+            "type": "text",
+            "content": "{GIT_STATUS} ",
+            "bg_color": "P10K_GIT_STATUS_BG",
+            "fg_color": "P10K_GIT_STATUS_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_GIT_STATUS_BG",
+            "separator_bg": "P10K_TIME_BG",
+            "gradient_steps": 7
+        }
+    ],
+    "ai_segments": [
+        {
+            "type": "text",
+            "content": " 🤖 {AI_MODEL} ",
+            "bg_color": "P10K_AI_MODEL_BG",
+            "fg_color": "P10K_AI_MODEL_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_AI_MODEL_BG",
+            "separator_bg": "P10K_AI_AGENT_BG",
+            "gradient_steps": 3
+        },
+        {
+            "type": "text",
+            "content": " ⚙️ {AI_AGENT_TYPE} ",
+            "bg_color": "P10K_AI_AGENT_BG",
+            "fg_color": "P10K_AI_AGENT_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_AI_AGENT_BG",
+            "separator_bg": "RESET",
+            "gradient_steps": 5
+        },
+        {
+            "type": "text",
+            "content": " {AI_DIVIDER}",
+            "bg_color": "RESET",
+            "fg_color": "P10K_DIVIDER_FG",
+            "separator": ""
+        }
+    ],
+    "newline_segments": [
+        {
+            "type": "text",
+            "content": " ❯ ",
+            "bg_color": "RESET",
+            "fg_color": "P10K_NEWLINE_FG",
+            "separator": ""
+        }
+    ]
+}

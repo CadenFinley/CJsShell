@@ -213,7 +213,14 @@ void main_process_loop() {
     } else {
       prompt = g_shell->get_ai_prompt();
     }
-    prompt += " ";
+    
+    if (!g_theme -> uses_newline()) {
+      prompt += " ";
+    } else {
+      std::cout << prompt << std::endl;
+      prompt = g_theme->get_newline_prompt();
+    }
+    
     char* input = ic_readline(prompt.c_str());
     if (input != nullptr) {
       std::string command(input);
@@ -913,8 +920,8 @@ bool download_latest_release() {
 
   if (!update_success) {
       std::cout << "Update installation failed. You can manually install the update by running:" << std::endl;
-      std::cout << "sudo cp " << output_path.string() << " " << cjsh_filesystem::g_cjsh_path.string() << std::endl;
-      std::cout << "sudo chmod 755 " << cjsh_filesystem::g_cjsh_path.string() << std::endl;
+      std::cout << "sudo cp " << output_path.string() << " " << cjsh_filesystem::g_cjsh_path.c_str() << std::endl;
+      std::cout << "sudo chmod 755 " << cjsh_filesystem::g_cjsh_path.c_str() << std::endl;
       std::cout << "Please ensure you have the necessary permissions." << std::endl;
   }
 
