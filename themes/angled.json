@@ -5,129 +5,131 @@
     "ps1_segments": [
         {
             "type": "text",
-            "content": " {SHELL}",
+            "content": "  {SHELL}  ",
             "bg_color": "P10K_SHELL_BG",
             "fg_color": "P10K_SHELL_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_SHELL_BG",
             "separator_bg": "P10K_USER_BG",
-            "gradient_steps": 3
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "P10K_SHELL_BG",
+            "forward_separator_bg": "RESET"
         },
         {
             "type": "text",
-            "content": "{USERNAME}",
+            "content": " {USERNAME}  ",
             "bg_color": "P10K_USER_BG",
             "fg_color": "P10K_USER_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_USER_BG",
-            "separator_bg": "P10K_HOST_BG",
-            "gradient_steps": 2
+            "separator_bg": "P10K_HOST_BG"
         },
         {
             "type": "text",
-            "content": "{HOSTNAME} ",
+            "content": " {HOSTNAME}  ",
             "bg_color": "P10K_HOST_BG",
             "fg_color": "P10K_HOST_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_HOST_BG",
-            "separator_bg": "P10K_DIR_BG",
-            "gradient_steps": 3
+            "separator_bg": "P10K_DIR_BG"
         },
         {
             "type": "text",
-            "content": " 📁 {PATH} ",
+            "content": " 📁 {PATH}  ",
             "bg_color": "P10K_DIR_BG",
             "fg_color": "P10K_DIR_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0                           ",
             "separator_fg": "P10K_DIR_BG",
+            "separator_bg": "RESET"
+        },
+        {
+            "type": "text",
+            "content": " {TIME} ",
+            "bg_color": "P10K_TIME_BG",
+            "fg_color": "P10K_TIME_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "P10K_TIME_BG",
             "separator_bg": "RESET",
-            "gradient_steps": 7
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "P10K_TIME_BG",
+            "forward_separator_bg": "RESET"
         }
     ],
     "git_segments": [
         {
             "type": "text",
-            "content": " {USERNAME} ",
+            "content": "  {USERNAME} ",
             "bg_color": "P10K_USER_BG",
             "fg_color": "P10K_USER_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_USER_BG",
-            "separator_bg": "P10K_GIT_BRANCH_BG",
-            "gradient_steps": 3
-        },
-        {
-            "type": "text",
-            "content": " {REPO_NAME} ",
-            "bg_color": "P10K_GIT_BRANCH_BG",
-            "fg_color": "P10K_GIT_BRANCH_FG",
-            "separator": "gradient_curve",
-            "separator_fg": "P10K_GIT_BRANCH_BG",
             "separator_bg": "P10K_DIR_BG",
-            "gradient_steps": 3
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "P10K_USER_BG",
+            "forward_separator_bg": "RESET"
         },
         {
             "type": "text",
-            "content": " 📁 {DIRECTORY} ",
+            "content": " 📁 {DIRECTORY}  ",
             "bg_color": "P10K_DIR_BG",
             "fg_color": "P10K_DIR_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_DIR_BG",
-            "separator_bg": "P10K_GIT_STATUS_BG",
-            "gradient_steps": 3
-        },
-        {
-            "type": "text",
-            "content": " {GIT_BRANCH} ",
-            "bg_color": "P10K_GIT_STATUS_BG",
-            "fg_color": "P10K_GIT_STATUS_FG",
-            "separator": "",
-            "separator_fg": "P10K_GIT_STATUS_BG",
             "separator_bg": "P10K_GIT_STATUS_BG"
         },
         {
             "type": "text",
-            "content": "{GIT_STATUS} ",
+            "content": " {GIT_BRANCH}",
             "bg_color": "P10K_GIT_STATUS_BG",
             "fg_color": "P10K_GIT_STATUS_FG",
-            "separator": "gradient_curve",
+            "separator": ""
+        },
+        {
+            "type": "text",
+            "content": "{GIT_STATUS}  ",
+            "bg_color": "P10K_GIT_STATUS_BG",
+            "fg_color": "P10K_GIT_STATUS_FG",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_GIT_STATUS_BG",
-            "separator_bg": "P10K_TIME_BG",
-            "gradient_steps": 7
+            "separator_bg": "RESET"
         }
     ],
     "ai_segments": [
         {
             "type": "text",
-            "content": " 🤖 {AI_MODEL} ",
+            "content": "  🤖 {AI_MODEL}  ",
             "bg_color": "P10K_AI_MODEL_BG",
             "fg_color": "P10K_AI_MODEL_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_AI_MODEL_BG",
             "separator_bg": "P10K_AI_AGENT_BG",
-            "gradient_steps": 3
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "P10K_AI_MODEL_BG",
+            "forward_separator_bg": "RESET"
         },
         {
             "type": "text",
-            "content": " ⚙️ {AI_AGENT_TYPE} ",
+            "content": " ⚙️ {AI_AGENT_TYPE}  ",
             "bg_color": "P10K_AI_AGENT_BG",
             "fg_color": "P10K_AI_AGENT_FG",
-            "separator": "gradient_curve",
+            "separator": "\uE0B0",
             "separator_fg": "P10K_AI_AGENT_BG",
-            "separator_bg": "RESET",
-            "gradient_steps": 5
+            "separator_bg": "RESET"
         },
         {
             "type": "text",
-            "content": " {AI_DIVIDER}",
+            "content": " {AI_DIVIDER}  ",
             "bg_color": "RESET",
             "fg_color": "P10K_DIVIDER_FG",
-            "separator": ""
+            "separator": "\uE0B0",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
         }
     ],
     "newline_segments": [
         {
             "type": "text",
-            "content": " ❯ ",
+            "content": " ╰─> ",
             "bg_color": "RESET",
             "fg_color": "P10K_NEWLINE_FG",
             "separator": ""

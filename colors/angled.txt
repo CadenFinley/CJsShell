@@ -1,9 +1,7 @@
-# PowerLevel10k Custom Colors - Modern Theme
-# These colors are designed to work with the powerlevel10k.json theme
-
 # Time segment colors - Deep Purple
 P10K_TIME_BG = #5E35B1
 P10K_TIME_FG = #FFFFFF
+P10K_TIME_ACCENT = #B39DDB  # Light purple accent for time highlights
 
 # Hostname segment colors - Indigo
 P10K_HOST_BG = #3949AB

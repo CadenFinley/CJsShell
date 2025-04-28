@@ -127,6 +127,12 @@ bool Theme::load_theme(const std::string& theme_name) {
         newline_segments.push_back(default_segment);
     }
     
+    // Update this - convert the newline segments content to processed_newline_format
+    // for backwards compatibility
+    if (!newline_segments.empty() && newline_segments[0].contains("content")) {
+        newline_format = newline_segments[0]["content"];
+    }
+    
     process_all_formats();
     
     return true;
@@ -211,11 +217,63 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
     colors::RGB bg = colors::get_color_by_name(bg_color);
     colors::RGB fg = colors::get_color_by_name(fg_color);
     
-    // Style the content
-    std::string styled_content = colors::bg_color(bg) + colors::fg_color(fg) + content;
+    // Build the final result
+    std::string result = "";
     
-    // Add separator if specified
-    if (segment.contains("separator") && segment["separator"] != "none") {
+    // First, add forward separator if specified (goes before content)
+    if (segment.contains("forward_separator") && segment["forward_separator"] != "none" && !segment["forward_separator"].empty()) {
+        std::string forward_separator = segment["forward_separator"];
+        
+        // Get forward separator colors
+        std::string forward_sep_fg = segment.value("forward_separator_fg", "WHITE");
+        std::string forward_sep_bg = segment.value("forward_separator_bg", "RESET");
+        
+        colors::RGB forward_sep_fg_color = colors::get_color_by_name(forward_sep_fg);
+        colors::RGB forward_sep_bg_color = colors::get_color_by_name(forward_sep_bg);
+        
+        // Process gradient separators if specified
+        if (forward_separator == "gradient_right" || forward_separator == "gradient_left" || forward_separator == "gradient_curve") {
+            int num_steps = segment.value("forward_gradient_steps", 4);
+            std::string gradient_sep;
+            
+            // Use the already resolved colors
+            colors::RGB start_bg = bg;
+            
+            for (int i = 0; i < num_steps; ++i) {
+                float factor = static_cast<float>(i) / (num_steps - 1);
+                colors::RGB blend_bg = colors::blend(start_bg, forward_sep_bg_color, factor);
+                
+                // Adjust brightness for better visual distinction
+                if (i > 0 && i < num_steps - 1) {
+                    float brightness_adjust = (i % 2 == 0) ? 0.9f : 1.1f;
+                    blend_bg.r = std::min(255, static_cast<int>(blend_bg.r * brightness_adjust));
+                    blend_bg.g = std::min(255, static_cast<int>(blend_bg.g * brightness_adjust));
+                    blend_bg.b = std::min(255, static_cast<int>(blend_bg.b * brightness_adjust));
+                }
+                
+                gradient_sep += colors::bg_color(blend_bg) + " ";
+            }
+            
+            // Add the gradient forward separator
+            result += gradient_sep;
+        } else {
+            // Handle special cases like right_arrow or left_arrow
+            if (forward_separator == "right_arrow" || forward_separator == "left_arrow") {
+                forward_sep_fg_color = bg; // Use the segment's background color for the separator foreground
+            }
+            
+            // Apply the styling and add the forward separator
+            result += colors::fg_color(forward_sep_fg_color) + 
+                      colors::bg_color(forward_sep_bg_color) + 
+                      forward_separator;
+        }
+    }
+    
+    // Add styled content
+    result += colors::bg_color(bg) + colors::fg_color(fg) + content;
+    
+    // Add backward separator if specified (goes after content)
+    if (segment.contains("separator") && segment["separator"] != "none" && !segment["separator"].empty()) {
         std::string separator = segment["separator"];
         
         // Get separator colors
@@ -252,7 +310,7 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
                     gradient_sep += colors::bg_color(blend_bg) + " ";
                 }
                 
-                styled_content += gradient_sep;
+                result += gradient_sep;
             } else {
                 // For right or left gradient, create a smooth color transition of spaces
                 int width = segment.value("gradient_steps", 4); // Allow customization of gradient width
@@ -276,7 +334,7 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
                     gradient_sep += colors::bg_color(blend_bg) + " ";
                 }
                 
-                styled_content += gradient_sep;
+                result += gradient_sep;
             }
         } else {
             // For the right_arrow separator specifically, we need to make sure 
@@ -286,11 +344,11 @@ std::string Theme::render_segment(const nlohmann::json& segment, const std::unor
             }
             
             // Apply the styling to the separator
-            styled_content += colors::fg_color(sep_fg_color) + colors::bg_color(sep_bg_color) + separator;
+            result += colors::fg_color(sep_fg_color) + colors::bg_color(sep_bg_color) + separator;
         }
     }
     
-    return styled_content;
+    return result;
 }
 
 // Render PS1 segments

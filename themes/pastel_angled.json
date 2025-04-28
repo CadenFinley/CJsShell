@@ -1,0 +1,138 @@
+{
+    "use_segments": true,
+    "terminal_title": "{SHELL}  {USERNAME}@{HOSTNAME} {TIME}  {DATE}",
+    "use_newline": true,
+    "ps1_segments": [
+        {
+            "type": "text",
+            "content": "  {SHELL}  ",
+            "bg_color": "PASTEL_BLUE",
+            "fg_color": "PASTEL_BLUSH",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_BLUE",
+            "separator_bg": "PASTEL_LAVENDER",
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "PASTEL_BLUE",
+            "forward_separator_bg": "RESET"
+        },
+        {
+            "type": "text",
+            "content": " {USERNAME}  ",
+            "bg_color": "PASTEL_LAVENDER",
+            "fg_color": "PASTEL_BLUSH",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_LAVENDER",
+            "separator_bg": "PASTEL_PURPLE"
+        },
+        {
+            "type": "text",
+            "content": " {HOSTNAME}  ",
+            "bg_color": "PASTEL_PURPLE",
+            "fg_color": "PASTEL_BLUSH",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_PURPLE",
+            "separator_bg": "PASTEL_CYAN"
+        },
+        {
+            "type": "text",
+            "content": " 📁 {PATH}  ",
+            "bg_color": "PASTEL_CYAN",
+            "fg_color": "PASTEL_PURPLE",
+            "separator": "\uE0B0                           ",
+            "separator_fg": "PASTEL_CYAN",
+            "separator_bg": "RESET"
+        },
+        {
+            "type": "text",
+            "content": " {TIME} ",
+            "bg_color": "PASTEL_SKY",
+            "fg_color": "PASTEL_PURPLE",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_SKY",
+            "separator_bg": "RESET",
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "PASTEL_SKY",
+            "forward_separator_bg": "RESET"
+        }
+    ],
+    "git_segments": [
+        {
+            "type": "text",
+            "content": "  {USERNAME} ",
+            "bg_color": "PASTEL_LAVENDER",
+            "fg_color": "PASTEL_BLUSH",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_LAVENDER",
+            "separator_bg": "PASTEL_CYAN",
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "PASTEL_LAVENDER",
+            "forward_separator_bg": "RESET"
+        },
+        {
+            "type": "text",
+            "content": " 📁 {DIRECTORY}  ",
+            "bg_color": "PASTEL_CYAN",
+            "fg_color": "PASTEL_PURPLE",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_CYAN",
+            "separator_bg": "PASTEL_MINT"
+        },
+        {
+            "type": "text",
+            "content": " {GIT_BRANCH}",
+            "bg_color": "PASTEL_MINT",
+            "fg_color": "PASTEL_PURPLE",
+            "separator": ""
+        },
+        {
+            "type": "text",
+            "content": "{GIT_STATUS}  ",
+            "bg_color": "PASTEL_MINT",
+            "fg_color": "PASTEL_PURPLE",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_MINT",
+            "separator_bg": "RESET"
+        }
+    ],
+    "ai_segments": [
+        {
+            "type": "text",
+            "content": "  🤖 {AI_MODEL}  ",
+            "bg_color": "PASTEL_ROSE",
+            "fg_color": "PASTEL_BLUSH",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_ROSE",
+            "separator_bg": "PASTEL_TURQUOISE",
+            "forward_separator": "\uE0B2",
+            "forward_separator_fg": "PASTEL_ROSE",
+            "forward_separator_bg": "RESET"
+        },
+        {
+            "type": "text",
+            "content": " ⚙️ {AI_AGENT_TYPE}  ",
+            "bg_color": "PASTEL_TURQUOISE",
+            "fg_color": "PASTEL_PURPLE",
+            "separator": "\uE0B0",
+            "separator_fg": "PASTEL_TURQUOISE",
+            "separator_bg": "RESET"
+        },
+        {
+            "type": "text",
+            "content": " {AI_DIVIDER}  ",
+            "bg_color": "RESET",
+            "fg_color": "PASTEL_PEACH",
+            "separator": "\uE0B0",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "newline_segments": [
+        {
+            "type": "text",
+            "content": " ╰─> ",
+            "bg_color": "RESET",
+            "fg_color": "PASTEL_CORAL",
+            "separator": ""
+        }
+    ]
+}
