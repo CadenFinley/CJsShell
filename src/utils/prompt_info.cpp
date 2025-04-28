@@ -572,10 +572,92 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     return vars;
 }
 
+int PromptInfo::get_background_jobs_count() {
+    // This function needs to count the number of background jobs
+    // We'll use a system command to get the count of background jobs
+    FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
+    if (!fp) return 0;
+    
+    char buffer[32];
+    std::string result = "";
+    if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        result = buffer;
+    }
+    pclose(fp);
+    
+    // Trim whitespace
+    result.erase(result.find_last_not_of(" \n\r\t") + 1);
+    
+    try {
+        return std::stoi(result);
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
 // System information implementations
 std::string PromptInfo::get_os_info() {
-    #ifdef __APPLE__
-        FILE* fp = popen("sh -c 'sw_vers -productName'", "r");
+    return get_cached_value("os_info", []() -> std::string {
+        #ifdef __APPLE__
+            FILE* fp = popen("sh -c 'sw_vers -productName'", "r");
+            if (!fp) return "Unknown";
+            
+            char buffer[128];
+            std::string result = "";
+            while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                result += buffer;
+            }
+            pclose(fp);
+            
+            // Remove newline
+            if (!result.empty() && result[result.length()-1] == '\n') {
+                result.erase(result.length()-1);
+            }
+            
+            // Get version
+            fp = popen("sh -c 'sw_vers -productVersion'", "r");
+            if (fp) {
+                std::string version = "";
+                while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    version += buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!version.empty() && version[version.length()-1] == '\n') {
+                    version.erase(version.length()-1);
+                }
+                
+                result += " " + version;
+            }
+            
+            return result;
+        #elif defined(__linux__)
+            FILE* fp = popen("sh -c 'cat /etc/os-release | grep PRETTY_NAME | cut -d \"\\\"\" -f 2'", "r");
+            if (!fp) return "Linux";
+            
+            char buffer[128];
+            std::string result = "";
+            while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                result += buffer;
+            }
+            pclose(fp);
+            
+            // Remove newline
+            if (!result.empty() && result[result.length()-1] == '\n') {
+                result.erase(result.length()-1);
+            }
+            
+            return result;
+        #else
+            return "Unknown OS";
+        #endif
+    }, 3600); // OS info won't change, cache for 1 hour
+}
+
+std::string PromptInfo::get_kernel_version() {
+    return get_cached_value("kernel_version", []() -> std::string {
+        FILE* fp = popen("sh -c 'uname -r'", "r");
         if (!fp) return "Unknown";
         
         char buffer[128];
@@ -590,63 +672,8 @@ std::string PromptInfo::get_os_info() {
             result.erase(result.length()-1);
         }
         
-        // Get version
-        fp = popen("sh -c 'sw_vers -productVersion'", "r");
-        if (fp) {
-            std::string version = "";
-            while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-                version += buffer;
-            }
-            pclose(fp);
-            
-            // Remove newline
-            if (!version.empty() && version[version.length()-1] == '\n') {
-                version.erase(version.length()-1);
-            }
-            
-            result += " " + version;
-        }
-        
         return result;
-    #elif defined(__linux__)
-        FILE* fp = popen("sh -c 'cat /etc/os-release | grep PRETTY_NAME | cut -d \"\\\"\" -f 2'", "r");
-        if (!fp) return "Linux";
-        
-        char buffer[128];
-        std::string result = "";
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-            result += buffer;
-        }
-        pclose(fp);
-        
-        // Remove newline
-        if (!result.empty() && result[result.length()-1] == '\n') {
-            result.erase(result.length()-1);
-        }
-        
-        return result;
-    #else
-        return "Unknown OS";
-    #endif
-}
-
-std::string PromptInfo::get_kernel_version() {
-    FILE* fp = popen("sh -c 'uname -r'", "r");
-    if (!fp) return "Unknown";
-    
-    char buffer[128];
-    std::string result = "";
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        result += buffer;
-    }
-    pclose(fp);
-    
-    // Remove newline
-    if (!result.empty() && result[result.length()-1] == '\n') {
-        result.erase(result.length()-1);
-    }
-    
-    return result;
+    }, 3600); // Kernel version rarely changes, cache for 1 hour
 }
 
 float PromptInfo::get_cpu_usage() {
@@ -884,35 +911,94 @@ bool PromptInfo::is_in_virtual_environment(std::string& env_name) {
 
 // Network information implementations
 std::string PromptInfo::get_ip_address(bool external) {
-    if (external) {
-        FILE* fp = popen("sh -c 'curl -s icanhazip.com'", "r");
-        if (!fp) return "Unknown";
+    std::string cache_key = external ? "external_ip" : "local_ip";
+    int ttl = external ? 300 : 60; // Cache external IP longer (5 min vs 1 min)
+    
+    return get_cached_value(cache_key, [external]() -> std::string {
+        if (external) {
+            FILE* fp = popen("sh -c 'curl -s -m 2 icanhazip.com'", "r"); // Add timeout to curl
+            if (!fp) return "Unknown";
+            
+            char buffer[64];
+            std::string result = "";
+            while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                result += buffer;
+            }
+            pclose(fp);
+            
+            // Remove newline
+            if (!result.empty() && result[result.length()-1] == '\n') {
+                result.erase(result.length()-1);
+            }
+            
+            return result;
+        } else {
+            #ifdef __APPLE__
+                FILE* fp = popen("sh -c 'ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1'", "r");
+            #elif defined(__linux__)
+                FILE* fp = popen("sh -c 'hostname -I | awk \"{print \\$1}\"'", "r");
+            #else
+                return "Unknown";
+            #endif
+            
+            if (!fp) return "Unknown";
+            
+            char buffer[64];
+            std::string result = "";
+            while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                result += buffer;
+            }
+            pclose(fp);
+            
+            // Remove newline
+            if (!result.empty() && result[result.length()-1] == '\n') {
+                result.erase(result.length()-1);
+            }
+            
+            return result;
+        }
+    }, ttl);
+}
+
+bool PromptInfo::is_vpn_active() {
+    return get_cached_value("vpn_active", []() -> std::string {
+        #ifdef __APPLE__
+            FILE* fp = popen("sh -c 'scutil --nc list | grep Connected | wc -l'", "r");
+        #elif defined(__linux__)
+            FILE* fp = popen("sh -c 'ip tuntap show | grep -q tun && echo 1 || echo 0'", "r");
+        #else
+            return "0";
+        #endif
         
-        char buffer[64];
+        if (!fp) return "0";
+        
+        char buffer[16];
         std::string result = "";
         while (fgets(buffer, sizeof(buffer), fp) != NULL) {
             result += buffer;
         }
         pclose(fp);
         
-        // Remove newline
-        if (!result.empty() && result[result.length()-1] == '\n') {
-            result.erase(result.length()-1);
-        }
+        // Trim whitespace
+        result.erase(result.find_last_not_of(" \n\r\t") + 1);
         
         return result;
-    } else {
+    }, 60) == "1" || get_cached_value("vpn_active", []() -> std::string { return ""; }, 60) == "true";
+}
+
+std::string PromptInfo::get_active_network_interface() {
+    return get_cached_value("active_network_interface", []() -> std::string {
         #ifdef __APPLE__
-            FILE* fp = popen("sh -c 'ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1'", "r");
+            FILE* fp = popen("sh -c 'route get default | grep interface | awk \"{print \\$2}\"'", "r");
         #elif defined(__linux__)
-            FILE* fp = popen("sh -c 'hostname -I | awk \"{print \\$1}\"'", "r");
+            FILE* fp = popen("sh -c 'ip route | grep default | awk \"{print \\$5}\" | head -n1'", "r");
         #else
             return "Unknown";
         #endif
         
         if (!fp) return "Unknown";
         
-        char buffer[64];
+        char buffer[32];
         std::string result = "";
         while (fgets(buffer, sizeof(buffer), fp) != NULL) {
             result += buffer;
@@ -925,82 +1011,5 @@ std::string PromptInfo::get_ip_address(bool external) {
         }
         
         return result;
-    }
-}
-
-bool PromptInfo::is_vpn_active() {
-    #ifdef __APPLE__
-        FILE* fp = popen("sh -c 'scutil --nc list | grep Connected | wc -l'", "r");
-    #elif defined(__linux__)
-        FILE* fp = popen("sh -c 'ip tuntap show | grep -q tun && echo 1 || echo 0'", "r");
-    #else
-        return false;
-    #endif
-    
-    if (!fp) return false;
-    
-    char buffer[16];
-    std::string result = "";
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        result += buffer;
-    }
-    pclose(fp);
-    
-    try {
-        return std::stoi(result) > 0;
-    } catch (const std::exception&) {
-        return false;
-    }
-}
-
-std::string PromptInfo::get_active_network_interface() {
-    #ifdef __APPLE__
-        FILE* fp = popen("sh -c 'route get default | grep interface | awk \"{print \\$2}\"'", "r");
-    #elif defined(__linux__)
-        FILE* fp = popen("sh -c 'ip route | grep default | awk \"{print \\$5}\" | head -n1'", "r");
-    #else
-        return "Unknown";
-    #endif
-    
-    if (!fp) return "Unknown";
-    
-    char buffer[32];
-    std::string result = "";
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        result += buffer;
-    }
-    pclose(fp);
-    
-    // Remove newline
-    if (!result.empty() && result[result.length()-1] == '\n') {
-        result.erase(result.length()-1);
-    }
-    
-    return result;
-}
-
-
-int PromptInfo::get_background_jobs_count() {
-    #ifdef __APPLE__
-        FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
-    #elif defined(__linux__)
-        FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
-    #else
-        return 0;
-    #endif
-    
-    if (!fp) return 0;
-    
-    char buffer[16];
-    std::string result = "";
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        result += buffer;
-    }
-    pclose(fp);
-    
-    try {
-        return std::stoi(result);
-    } catch (const std::exception&) {
-        return 0;
-    }
+    }, 120); // Network interface rarely changes, cache for 2 minutes
 }
