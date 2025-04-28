@@ -5,17 +5,27 @@
     "ps1_segments": [
         {
             "type": "text",
-            "content": " {USERNAME} ",
+            "content": " {SHELL}",
+            "bg_color": "P10K_SHELL_BG",
+            "fg_color": "P10K_SHELL_FG",
+            "separator": "gradient_curve",
+            "separator_fg": "P10K_SHELL_BG",
+            "separator_bg": "P10K_USER_BG",
+            "gradient_steps": 3
+        },
+        {
+            "type": "text",
+            "content": "{USERNAME}",
             "bg_color": "P10K_USER_BG",
             "fg_color": "P10K_USER_FG",
             "separator": "gradient_curve",
             "separator_fg": "P10K_USER_BG",
             "separator_bg": "P10K_HOST_BG",
-            "gradient_steps": 3
+            "gradient_steps": 2
         },
         {
             "type": "text",
-            "content": " {HOSTNAME} ",
+            "content": "{HOSTNAME} ",
             "bg_color": "P10K_HOST_BG",
             "fg_color": "P10K_HOST_FG",
             "separator": "gradient_curve",
@@ -25,7 +35,7 @@
         },
         {
             "type": "text",
-            "content": " 📁 {DIRECTORY} ",
+            "content": " 📁 {PATH} ",
             "bg_color": "P10K_DIR_BG",
             "fg_color": "P10K_DIR_FG",
             "separator": "gradient_curve",
