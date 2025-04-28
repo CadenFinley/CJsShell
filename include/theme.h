@@ -33,7 +33,7 @@ enum class TerminalTitleItems {
 
 class Theme {
   public:
-    Theme(std::string theme_directory);
+    Theme(std::string theme_directory, bool enabled);
     ~Theme();
     bool load_theme(const std::string& theme_name);
     std::vector<std::string> list_themes();
@@ -49,12 +49,15 @@ class Theme {
     std::string ai_format;
     std::string terminal_title_format;
     
+    // Processed formats (with color tags processed)
+    std::string processed_ps1_format;
+    std::string processed_git_format;
+    std::string processed_ai_format;
+    
+    bool is_enabled;
+    
     std::string process_color_tags(const std::string& format);
+    std::string remove_color_tags(const std::string& format);
     void create_default_theme();
+    void process_all_formats(); // New method to process all formats at once
 };
-
-//example ps1 prompt
-// [RED] {USERNAME}[WHITE]@[GREEN]{HOSTNAME} [WHITE]: [BLUE]{PATH} [WHITE]$ [RESET]
-
-//example git prompt
-// [RED] {USERNAME} [BLUE]{DIRECTORY} [GREEN]{REPO_NAME} git:([YELLOW]{GIT_BRANCH} {GIT_STATUS}(GREEN)) [RESET]

@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
       g_silent_update_check = true;
     }
     else if (arg == "--splash") {
-      colors::initialize_color_support();
+      colors::initialize_color_support(true);
       std::cout << get_colorized_splash() << std::endl;
       return 0;
     }
@@ -98,6 +98,10 @@ int main(int argc, char *argv[]) {
   // set initial working directory
   setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
 
+  bool l_plugins_enabled = true;
+  bool l_themes_enabled = true;
+  bool l_ai_enabled = true;
+  bool l_colors_enabled = true;
   // check for interactive command line arguments
   for (size_t i = 1; i < g_startup_args.size(); i++) {
     std::string arg = g_startup_args[i];
@@ -116,6 +120,18 @@ int main(int argc, char *argv[]) {
     else if (arg == "--no-titleline") {
       g_title_line = false;
     }
+    else if (arg == "--no-plugins") {
+      l_plugins_enabled = false;
+    }
+    else if (arg == "--no-themes") {
+      l_themes_enabled = false;
+    }
+    else if (arg == "--no-ai") {
+      l_ai_enabled = false;
+    }
+    else if (arg == "--no-colors") {
+      l_colors_enabled = false;
+    }
     else if (arg.length() > 0 && arg[0] == '-') {
       std::cerr << "Warning: Unknown startup argument: " << arg << std::endl;
       return 1;
@@ -128,15 +144,15 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  colors::initialize_color_support();
-  g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path); //doesnt need to verify filesys
-  g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
+  colors::initialize_color_support(l_colors_enabled);
+  g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path, l_plugins_enabled);
+  g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path, l_themes_enabled);
   std::string api_key = "";
   const char* env_key = getenv("OPENAI_API_KEY");
   if (env_key) {
     api_key = env_key;
   }
-  g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
+  g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path, l_ai_enabled);
   process_source_file();
 
   if(!g_exit_flag) {
@@ -337,15 +353,7 @@ bool init_interactive_filesystem() {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
       return false;
     }
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_data_path)) {
-      std::filesystem::create_directories(cjsh_filesystem::g_cjsh_data_path);
-    }
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_plugin_path)) {
-      std::filesystem::create_directories(cjsh_filesystem::g_cjsh_plugin_path);
-    }
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_theme_path)) {
-      std::filesystem::create_directories(cjsh_filesystem::g_cjsh_theme_path);
-    }
+    initialize_cjsh_directories();
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path)) {
       std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
       history_file.close();

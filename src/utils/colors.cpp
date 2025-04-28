@@ -62,7 +62,15 @@ ColorCapability detect_color_capability() {
     return ColorCapability::BASIC_COLOR;
 }
 
-void initialize_color_support() {
+void initialize_color_support(bool enabled) {
+    if (!enabled) {
+        // If colors are disabled, set capability to NO_COLOR
+        g_color_capability = ColorCapability::NO_COLOR;
+        // Don't load any color files
+        return;
+    }
+    
+    // Normal color detection and initialization
     g_color_capability = detect_color_capability();
     
     // Ensure the default colors file exists
@@ -615,6 +623,11 @@ std::unordered_map<std::string, RGB> get_custom_colors() {
 
 // Override the existing get_color_by_name to use custom colors
 RGB get_color_by_name(const std::string& name) {
+    // If colors are disabled, always return white
+    if (g_color_capability == ColorCapability::NO_COLOR) {
+        return RGB(255, 255, 255); // Return white when colors are disabled
+    }
+    
     // Convert to uppercase for case-insensitive comparison
     std::string upper_name = name;
     std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
@@ -630,22 +643,30 @@ RGB get_color_by_name(const std::string& name) {
 }
 
 std::unordered_map<std::string, std::string> get_color_map() {
-    std::unordered_map<std::string, std::string> color_map = {
-        // Style tags
-        {"BOLD", ansi::BOLD},
-        {"ITALIC", ansi::ITALIC},
-        {"UNDERLINE", ansi::UNDERLINE},
-        {"BLINK", ansi::BLINK},
-        {"REVERSE", ansi::REVERSE},
-        {"HIDDEN", ansi::HIDDEN},
-        {"RESET", ansi::RESET}
-    };
-    
-    // Add all loaded custom colors to the color map
+  
+  std::unordered_map<std::string, std::string> color_map = {
+      // Style tags
+      {"BOLD", ansi::BOLD},
+      {"ITALIC", ansi::ITALIC},
+      {"UNDERLINE", ansi::UNDERLINE},
+      {"BLINK", ansi::BLINK},
+      {"REVERSE", ansi::REVERSE},
+      {"HIDDEN", ansi::HIDDEN},
+      {"RESET", ansi::RESET}
+  };
+  
+  // Add all loaded custom colors to the color map
+  if (g_color_capability != ColorCapability::NO_COLOR) {
     for (const auto& [name, rgb] : g_custom_colors) {
-        color_map[name] = fg_color(rgb);
+      color_map[name] = fg_color(rgb);
     }
-    
-    return color_map;
+  } else {
+    //return reset for all colors if colors are disabled
+    for (const auto& [name, rgb] : g_custom_colors) {
+      color_map[name] = ansi::RESET;
+    }
+  }
+  
+  return color_map;
 }
 }

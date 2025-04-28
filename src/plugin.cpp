@@ -3,12 +3,21 @@
 #include <cstdio>
 #include <cstring>
 
-Plugin::Plugin(const std::filesystem::path& plugins_dir) {
+Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled) {
     plugins_directory = plugins_dir;
-    plugins_discovered = discover_plugins();
+    plugins_discovered = false;
+    this->enabled = enabled;
+    
+    if (enabled) {
+        plugins_discovered = discover_plugins();
+    }
 }
 
 Plugin::~Plugin() {
+    if (!enabled) {
+        return;
+    }
+    
     std::unique_lock lock(plugins_mutex);
     for (auto& [name, data] : loaded_plugins) {
         if (data.enabled && data.shutdown) {
@@ -22,6 +31,10 @@ Plugin::~Plugin() {
 }
 
 bool Plugin::discover_plugins() {
+    if (!enabled) {
+        return false;
+    }
+    
     std::unique_lock discovery_lock(discovery_mutex);
     
     {
@@ -62,6 +75,11 @@ bool Plugin::discover_plugins() {
 }
 
 bool Plugin::load_plugin(const std::filesystem::path& path) {
+    if (!enabled) {
+        std::cerr << "Plugin loading is disabled." << std::endl;
+        return false;
+    }
+    
     // Check architecture compatibility
     std::string file_arch = get_file_architecture(path);
     std::string current_arch = get_current_architecture();
@@ -155,6 +173,10 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
 }
 
 bool Plugin::uninstall_plugin(const std::string& name) {
+    if (!enabled) {
+        return false;
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it == loaded_plugins.end()) {
@@ -211,6 +233,10 @@ bool Plugin::uninstall_plugin(const std::string& name) {
 }
 
 void Plugin::unload_plugin(const std::string& name) {
+    if (!enabled) {
+        return;
+    }
+    
     std::unique_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
@@ -227,6 +253,10 @@ void Plugin::unload_plugin(const std::string& name) {
 }
 
 std::vector<std::string> Plugin::get_available_plugins() const {
+    if (!enabled) {
+        return {};
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     std::vector<std::string> plugins;
     for (const auto& [name, _] : loaded_plugins) {
@@ -236,6 +266,10 @@ std::vector<std::string> Plugin::get_available_plugins() const {
 }
 
 std::vector<std::string> Plugin::get_enabled_plugins() const {
+    if (!enabled) {
+        return {};
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     std::vector<std::string> plugins;
     for (const auto& [name, data] : loaded_plugins) {
@@ -247,6 +281,11 @@ std::vector<std::string> Plugin::get_enabled_plugins() const {
 }
 
 bool Plugin::enable_plugin(const std::string& name) {
+    if (!enabled) {
+        std::cerr << "Plugin system is disabled" << std::endl;
+        return false;
+    }
+    
     std::unique_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if(it != loaded_plugins.end() && it->second.enabled){
@@ -289,6 +328,10 @@ bool Plugin::enable_plugin(const std::string& name) {
 }
 
 bool Plugin::disable_plugin(const std::string& name) {
+    if (!enabled) {
+        return false;
+    }
+    
     std::vector<std::string> events_to_unsubscribe;
     
     {
@@ -338,6 +381,10 @@ bool Plugin::disable_plugin(const std::string& name) {
 }
 
 bool Plugin::handle_plugin_command(const std::string& targeted_plugin, std::vector<std::string>& args) {
+    if (!enabled) {
+        return false;
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(targeted_plugin);
     if (it != loaded_plugins.end() && it->second.enabled) {
@@ -365,6 +412,10 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin, std::vect
 }
 
 std::vector<std::string> Plugin::get_plugin_commands(const std::string& name) const {
+    if (!enabled) {
+        return {};
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end() && it->second.get_commands) {
@@ -390,6 +441,10 @@ std::vector<std::string> Plugin::get_plugin_commands(const std::string& name) co
 }
 
 std::string Plugin::get_plugin_info(const std::string& name) const {
+    if (!enabled) {
+        return "Plugin system is disabled";
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
@@ -404,6 +459,10 @@ std::string Plugin::get_plugin_info(const std::string& name) const {
 }
 
 bool Plugin::update_plugin_setting(const std::string& plugin_name, const std::string& key, const std::string& value) {
+    if (!enabled) {
+        return false;
+    }
+    
     std::unique_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(plugin_name);
     if (it != loaded_plugins.end()) {
@@ -417,6 +476,10 @@ bool Plugin::update_plugin_setting(const std::string& plugin_name, const std::st
 }
 
 std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin_settings() const {
+    if (!enabled) {
+        return {};
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     std::map<std::string, std::map<std::string, std::string>> allSettings;
     for (const auto& [name, data] : loaded_plugins) {
@@ -426,6 +489,10 @@ std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin
 }
 
 void Plugin::trigger_subscribed_global_event(const std::string& event, const std::string& event_data) {
+    if (!enabled) {
+        return;
+    }
+    
     std::vector<std::string> subscribedPlugins;
     
     {
@@ -464,6 +531,10 @@ void Plugin::trigger_subscribed_global_event(const std::string& event, const std
 }
 
 plugin_data* Plugin::get_plugin_data(const std::string& name) {
+    if (!enabled) {
+        return nullptr;
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
@@ -473,6 +544,11 @@ plugin_data* Plugin::get_plugin_data(const std::string& name) {
 }
 
 bool Plugin::install_plugin(const std::filesystem::path& source_path) {
+    if (!enabled) {
+        std::cerr << "Plugin system is disabled" << std::endl;
+        return false;
+    }
+    
     if (!std::filesystem::exists(source_path)) {
         std::cerr << "Source plugin file does not exist: " << source_path << std::endl;
         return false;
@@ -557,11 +633,19 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
 }
 
 void Plugin::clear_plugin_cache() {
+    if (!enabled) {
+        return;
+    }
+    
     std::unique_lock discovery_lock(discovery_mutex);
     plugins_discovered = false;
 }
 
 bool Plugin::is_plugin_loaded(const std::string& name) const {
+    if (!enabled) {
+        return false;
+    }
+    
     std::shared_lock plugins_lock(plugins_mutex);
     return loaded_plugins.find(name) != loaded_plugins.end();
 }

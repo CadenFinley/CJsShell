@@ -17,7 +17,7 @@ class Ai {
 public:
     Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction);
     Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles);
-    Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles, const std::string& saveDirectory);
+    Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles, const std::string& saveDirectory, bool enabled);
     Ai();
 
     void setAPIKey(const std::string& apiKey);
@@ -57,6 +57,8 @@ public:
     void clearFiles();
     void setSaveDirectory(const std::string& directory);
     std::string getSaveDirectory() const;
+    void setEnabled(bool enabled);
+    bool isEnabled() const;
 
     std::string chatGPT(const std::string& message, bool format);
     std::string forceDirectChatGPT(const std::string& message, bool format);
@@ -105,4 +107,5 @@ private:
     std::string lastResponseReceived;
     std::map<std::string, nlohmann::json> responseDataMap;
     std::string saveDirectory;
+    bool enabled = true; // Default to enabled
 };

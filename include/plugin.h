@@ -40,6 +40,7 @@ private:
     std::unordered_map<std::string, plugin_data> loaded_plugins;
     std::unordered_map<std::string, std::vector<std::string>> subscribed_events;
     bool plugins_discovered;
+    bool enabled;  // Indicates if the plugin system is enabled
     
     // Mutexes for thread safety
     mutable std::shared_mutex plugins_mutex;      // Protects loaded_plugins
@@ -54,7 +55,7 @@ private:
     bool is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const;
 
 public:
-    Plugin(const std::filesystem::path& plugins_dir);
+    Plugin(const std::filesystem::path& plugins_dir, bool enabled);
     ~Plugin();
     
     bool discover_plugins();

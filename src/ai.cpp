@@ -8,9 +8,10 @@ Ai::Ai(const std::string& apiKey, const std::string& assistantType, const std::s
     initialize(apiKey, assistantType, initialInstruction, userFiles);
 }
 
-Ai::Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles, const std::string& saveDirectory) {
+Ai::Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction, const std::vector<std::string>& userFiles, const std::string& saveDirectory, bool enabled) {
     initialize(apiKey, assistantType, initialInstruction, userFiles);
     setSaveDirectory(saveDirectory);
+    setEnabled(enabled);
 }
 
 Ai::Ai() {}
@@ -182,7 +183,19 @@ std::string Ai::getSaveDirectory() const {
     return saveDirectory;
 }
 
+void Ai::setEnabled(bool enabled) {
+    this->enabled = enabled;
+}
+
+bool Ai::isEnabled() const {
+    return enabled;
+}
+
 std::string Ai::chatGPT(const std::string& message, bool format) {
+    if (!enabled) {
+        return "AI functionality is currently disabled.";
+    }
+
     if (!isValidConfiguration()) {
         return getInvalidConfigurationMessage();
     }
@@ -210,11 +223,19 @@ std::string Ai::chatGPT(const std::string& message, bool format) {
 }
 
 std::string Ai::forceDirectChatGPT(const std::string& message, bool format) {
+    if (!enabled) {
+        return "AI functionality is currently disabled.";
+    }
+
     std::string response = makeCallToChatGPT(message);
     return format ? formatMarkdown(response) : response;
 }
 
 int Ai::setFiles(const std::vector<std::string>& userFiles) {
+    if (!enabled) {
+        return -1;
+    }
+    
     this->files = userFiles;
     if (lastUsedFiles != files) {
         lastUsedFiles = files;
@@ -224,6 +245,10 @@ int Ai::setFiles(const std::vector<std::string>& userFiles) {
 }
 
 int Ai::setFile(const std::string& userFile) {
+    if (!enabled) {
+        return -1;
+    }
+    
     this->files = {userFile};
     if (lastUsedFiles != files) {
         lastUsedFiles = files;
@@ -233,6 +258,10 @@ int Ai::setFile(const std::string& userFile) {
 }
 
 int Ai::addFile(const std::string& userFile) {
+    if (!enabled) {
+        return -1;
+    }
+    
     if (files.empty()) {
         files = {userFile};
     } else {
@@ -246,6 +275,10 @@ int Ai::addFile(const std::string& userFile) {
 }
 
 int Ai::addFiles(const std::vector<std::string>& userFiles) {
+    if (!enabled) {
+        return -1;
+    }
+    
     if (files.empty()) {
         files = userFiles;
     } else {
@@ -266,11 +299,19 @@ void Ai::initialize(const std::string& apiKey, const std::string& assistantType,
 }
 
 bool Ai::isValidConfiguration() const {
+    if (!enabled) {
+        return false;
+    }
+    
     bool validAssistantType = assistantType == "chat" || assistantType == "file-search" || assistantType == "code-interpreter";
     return !USER_API_KEY.empty() && !initialInstruction.empty() && !assistantType.empty() && validAssistantType;
 }
 
 std::string Ai::getInvalidConfigurationMessage() const {
+    if (!enabled) {
+        return "AI functionality is currently disabled. Please enable it to use this feature.";
+    }
+    
     if (USER_API_KEY.empty()) {
         return "API key not set. Please set the API key using the environment variable 'OPENAI_API_KEY' or through the setAPIKey() method.";
     }

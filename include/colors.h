@@ -23,7 +23,7 @@ extern ColorCapability g_color_capability;
 
 // Function to detect and initialize terminal color capabilities
 ColorCapability detect_color_capability();
-void initialize_color_support();
+void initialize_color_support(bool enabled);
 
 // Color structure for RGB colors
 struct RGB {
