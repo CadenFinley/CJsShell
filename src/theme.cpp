@@ -6,7 +6,6 @@
 
 Theme::Theme(std::string theme_dir, bool enabled) : theme_directory(theme_dir), is_enabled(enabled) {
     
-    // Create default theme if it doesn't exist
     if (!std::filesystem::exists(theme_directory + "/default.json")) {
         create_default_theme();
     }

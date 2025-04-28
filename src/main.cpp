@@ -38,6 +38,10 @@ int main(int argc, char *argv[]) {
   // check for non interactive command line arguments
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
+  bool l_plugins_enabled = true;
+  bool l_themes_enabled = true;
+  bool l_ai_enabled = true;
+  bool l_colors_enabled = true;
   
   for (size_t i = 1; i < g_startup_args.size(); i++) {
     std::string arg = g_startup_args[i];
@@ -73,10 +77,41 @@ int main(int argc, char *argv[]) {
     else if (arg == "--silent-updates") {
       g_silent_update_check = true;
     }
+    else if (arg == "--no-plugins") {
+      l_plugins_enabled = false;
+    }
+    else if (arg == "--no-themes") {
+      l_themes_enabled = false;
+    }
+    else if (arg == "--no-ai") {
+      l_ai_enabled = false;
+    }
+    else if (arg == "--no-colors") {
+      l_colors_enabled = false;
+    }
     else if (arg == "--splash") {
-      colors::initialize_color_support(true);
+      colors::initialize_color_support(l_colors_enabled);
       std::cout << get_colorized_splash() << std::endl;
       return 0;
+    }
+    else if (arg == "--no-update") {
+      g_check_updates = false;
+    }
+    else if (arg == "-d" || arg == "--debug") {
+      g_debug_mode = true;
+    }
+    else if (arg == "--check-update") {
+      g_check_updates = true;
+    }
+    else if (arg == "--no-source") {
+      g_source = false;
+    }
+    else if (arg == "--no-titleline") {
+      g_title_line = false;
+    }
+    else if (arg.length() > 0 && arg[0] == '-') {
+      std::cerr << "Warning: Unknown startup argument: " << arg << std::endl;
+      return 1;
     }
   }
 
@@ -97,46 +132,6 @@ int main(int argc, char *argv[]) {
 
   // set initial working directory
   setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
-
-  bool l_plugins_enabled = true;
-  bool l_themes_enabled = true;
-  bool l_ai_enabled = true;
-  bool l_colors_enabled = true;
-  // check for interactive command line arguments
-  for (size_t i = 1; i < g_startup_args.size(); i++) {
-    std::string arg = g_startup_args[i];
-    if (arg == "--no-update") {
-      g_check_updates = false;
-    }
-    else if (arg == "-d" || arg == "--debug") {
-      g_debug_mode = true;
-    }
-    else if (arg == "--check-update") {
-      g_check_updates = true;
-    }
-    else if (arg == "--no-source") {
-      g_source = false;
-    }
-    else if (arg == "--no-titleline") {
-      g_title_line = false;
-    }
-    else if (arg == "--no-plugins") {
-      l_plugins_enabled = false;
-    }
-    else if (arg == "--no-themes") {
-      l_themes_enabled = false;
-    }
-    else if (arg == "--no-ai") {
-      l_ai_enabled = false;
-    }
-    else if (arg == "--no-colors") {
-      l_colors_enabled = false;
-    }
-    else if (arg.length() > 0 && arg[0] == '-') {
-      std::cerr << "Warning: Unknown startup argument: " << arg << std::endl;
-      return 1;
-    }
-  }
 
   // initialize and verify the file system
   if (!init_interactive_filesystem()) {
