@@ -1,0 +1,86 @@
+{
+    "ai_segments": [
+        {
+            "bg_color": "P10K_AI_MODEL_BG",
+            "content": " {AI_MODEL} ",
+            "fg_color": "P10K_AI_MODEL_FG",
+            "separator": "",
+            "separator_bg": "P10K_AI_AGENT_BG",
+            "separator_fg": "P10K_AI_MODEL_BG",
+            "tag": "aimodelseg"
+        },
+        {
+            "bg_color": "P10K_AI_AGENT_BG",
+            "content": " {AI_AGENT_TYPE} ",
+            "fg_color": "P10K_AI_AGENT_FG",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "P10K_AI_AGENT_BG",
+            "tag": "aiagentseg"
+        },
+        {
+            "bg_color": "RESET",
+            "content": " {AI_DIVIDER} ",
+            "fg_color": "P10K_DIVIDER_FG",
+            "separator": "",
+            "tag": "aidivseg"
+        }
+    ],
+    "git_segments": [
+        {
+            "bg_color": "P10K_USER_BG",
+            "content": " {USERNAME} ",
+            "fg_color": "P10K_USER_FG",
+            "separator": "",
+            "separator_bg": "P10K_DIR_BG",
+            "separator_fg": "P10K_USER_BG",
+            "tag": "userseg"
+        },
+        {
+            "bg_color": "P10K_DIR_BG",
+            "content": " {DIRECTORY} ",
+            "fg_color": "P10K_DIR_FG",
+            "separator": "",
+            "separator_bg": "P10K_GIT_STATUS_BG",
+            "separator_fg": "P10K_DIR_BG",
+            "tag": "directoryseg"
+        },
+        {
+            "bg_color": "P10K_GIT_STATUS_BG",
+            "content": " {GIT_BRANCH}",
+            "fg_color": "P10K_GIT_STATUS_FG",
+            "separator": "",
+            "tag": "gitbranchseg"
+        },
+        {
+            "bg_color": "P10K_GIT_STATUS_BG",
+            "content": "{GIT_STATUS} ",
+            "fg_color": "P10K_GIT_STATUS_FG",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "P10K_GIT_STATUS_BG",
+            "tag": "gitstatusseg"
+        }
+    ],
+    "ps1_segments": [
+        {
+            "bg_color": "P10K_USER_BG",
+            "content": " {USERNAME}@{HOSTNAME} ",
+            "fg_color": "P10K_USER_FG",
+            "separator": "",
+            "separator_bg": "P10K_DIR_BG",
+            "separator_fg": "P10K_USER_BG",
+            "tag": "userseg"
+        },
+        {
+            "bg_color": "P10K_DIR_BG",
+            "content": " {PATH} ",
+            "fg_color": "P10K_DIR_FG",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "P10K_DIR_BG",
+            "tag": "pathseg"
+        }
+    ],
+    "terminal_title": "{SHELL} {USERNAME}@{HOSTNAME}: {DIRECTORY}"
+}
