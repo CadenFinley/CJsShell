@@ -26,6 +26,8 @@ class Prompt {
     std::string get_current_date();
     std::string get_shell();
     std::string get_shell_version();
+    
+    // Modified to emphasize format_str is mainly for terminal title
     bool is_variable_used(const std::string& var_name, const std::string& format_str, const std::vector<nlohmann::json>& segments = {});
     
   public:
