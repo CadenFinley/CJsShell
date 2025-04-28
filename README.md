@@ -6,7 +6,9 @@
 ![Version](https://img.shields.io/github/v/release/CadenFinley/CJsShell?label=version&color=blue)
 ![Lines of Code](https://img.shields.io/badge/lines%20of%20code-21694-green)
 
+## CJ's Shell
 
+CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built in AI assistant who only offers help when you ask for it, a super power plugin engine with a super versitile, language agnostic plugin api, super customizable themes, and a vibrant color engine.
 
 > ⚠️ **WARNING**: This project is still in active development. There are known bugs. Please do not use this unless you are okay with random issues maybe. idk open a pull request or issue if you run into them thanks
 
