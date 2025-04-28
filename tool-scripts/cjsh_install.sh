@@ -2,7 +2,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 HOME_DIR="$HOME"
-DATA_DIR="$HOME_DIR/.cjsh_data"
+DATA_DIR="$HOME_DIR/.cjsh"
 APP_NAME="cjsh"
 INSTALL_PATH="/usr/local/bin"
 APP_PATH="$INSTALL_PATH/$APP_NAME"
