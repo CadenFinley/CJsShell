@@ -1,0 +1,47 @@
+{
+    "terminal_title": "{USERNAME}@{HOSTNAME} - {PATH}",
+    "ps1_segments": [
+        {
+            "tag": "headerline",
+            "content": "┌─[{USERNAME}@{HOSTNAME}] - [{TIME}] - [{DIRECTORY}]",
+            "bg_color": "RESET",
+            "fg_color": "DUAL_HEADER",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "git_segments": [
+        {
+            "tag": "gitline",
+            "content": "┌─[{USERNAME}@{HOSTNAME}] - [{TIME}] - [{LOCAL_PATH}] - [{GIT_BRANCH}{GIT_STATUS}]",
+            "bg_color": "RESET",
+            "fg_color": "DUAL_HEADER",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "ai_segments": [
+        {
+            "tag": "ailine",
+            "content": "[{AI_MODEL}] ",
+            "bg_color": "RESET",
+            "fg_color": "DUAL_ACCENT",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "newline_segments": [
+        {
+            "tag": "promptline",
+            "content": "└─❯ ",
+            "bg_color": "RESET",
+            "fg_color": "DUAL_PROMPT",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ]
+}

@@ -1,0 +1,9 @@
+# Minimalist Theme Colors
+# A clean, simple color scheme with muted colors
+
+MINI_PRIMARY = #5E81AC
+MINI_SECONDARY = #88C0D0
+MINI_ACCENT = #A3BE8C
+MINI_ACCENT2 = #B48EAD
+MINI_FG = #ECEFF4
+MINI_BG = #2E3440

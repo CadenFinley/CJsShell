@@ -1,0 +1,90 @@
+{
+    "terminal_title": "{SHELL} Terminal - {USERNAME}",
+    "ps1_segments": [
+        {
+            "tag": "userseg",
+            "content": "⟪",
+            "bg_color": "RESET",
+            "fg_color": "NEON_PINK",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "hostseg",
+            "content": "{USERNAME}",
+            "bg_color": "RESET",
+            "fg_color": "NEON_BLUE",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "pathseg",
+            "content": "@{DIRECTORY}",
+            "bg_color": "RESET",
+            "fg_color": "NEON_GREEN",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "promptseg",
+            "content": "⟫ ",
+            "bg_color": "RESET",
+            "fg_color": "NEON_PINK",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "git_segments": [
+        {
+            "tag": "userseg",
+            "content": "⟪",
+            "bg_color": "RESET",
+            "fg_color": "NEON_PINK",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "pathseg",
+            "content": "{LOCAL_PATH}",
+            "bg_color": "RESET",
+            "fg_color": "NEON_GREEN",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "gitseg",
+            "content": "●{GIT_BRANCH}{GIT_STATUS}",
+            "bg_color": "RESET",
+            "fg_color": "NEON_PURPLE",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "promptseg",
+            "content": "⟫ ",
+            "bg_color": "RESET",
+            "fg_color": "NEON_PINK",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "ai_segments": [
+        {
+            "tag": "aiseg",
+            "content": "⟪{AI_MODEL}⟫ ",
+            "bg_color": "RESET",
+            "fg_color": "NEON_CYAN",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ]
+}

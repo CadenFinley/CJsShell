@@ -1,0 +1,11 @@
+# Dual Line Theme Colors
+# Professional color scheme for a dual-line prompt
+
+DUAL_HEADER = #4682B4
+DUAL_PROMPT = #5F9EA0
+DUAL_USER = #6495ED
+DUAL_DIR = #3CB371
+DUAL_GIT = #9370DB
+DUAL_ACCENT = #CD5C5C
+DUAL_FG = #E0E0E0
+DUAL_BG = #2C2C2C

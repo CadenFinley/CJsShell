@@ -1,0 +1,83 @@
+{
+    "terminal_title": "{SHELL} @ {USERNAME}@{HOSTNAME}",
+    "ps1_segments": [
+        {
+            "tag": "userseg",
+            "content": " {USERNAME} ",
+            "bg_color": "PL_USER_BG",
+            "fg_color": "PL_USER_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "PL_USER_BG",
+            "separator_bg": "PL_HOST_BG"
+        },
+        {
+            "tag": "hostseg",
+            "content": " {HOSTNAME} ",
+            "bg_color": "PL_HOST_BG",
+            "fg_color": "PL_HOST_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "PL_HOST_BG",
+            "separator_bg": "PL_DIR_BG"
+        },
+        {
+            "tag": "dirseg",
+            "content": " {DIRECTORY} ",
+            "bg_color": "PL_DIR_BG",
+            "fg_color": "PL_DIR_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "PL_DIR_BG",
+            "separator_bg": "RESET"
+        }
+    ],
+    "git_segments": [
+        {
+            "tag": "userseg",
+            "content": " {USERNAME} ",
+            "bg_color": "PL_USER_BG",
+            "fg_color": "PL_USER_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "PL_USER_BG",
+            "separator_bg": "PL_DIR_BG"
+        },
+        {
+            "tag": "dirseg",
+            "content": " {LOCAL_PATH} ",
+            "bg_color": "PL_DIR_BG",
+            "fg_color": "PL_DIR_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "PL_DIR_BG",
+            "separator_bg": "PL_GIT_BG"
+        },
+        {
+            "tag": "gitseg",
+            "content": " {GIT_BRANCH}{GIT_STATUS} ",
+            "bg_color": "PL_GIT_BG",
+            "fg_color": "PL_GIT_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "PL_GIT_BG",
+            "separator_bg": "RESET"
+        }
+    ],
+    "ai_segments": [
+        {
+            "tag": "aimodelseg",
+            "content": " AI: {AI_MODEL} ",
+            "bg_color": "PL_AI_BG",
+            "fg_color": "PL_AI_FG",
+            "separator": "\uE0B0",
+            "separator_fg": "PL_AI_BG",
+            "separator_bg": "RESET"
+        }
+    ],
+    "newline_segments": [
+        {
+            "tag": "promptseg",
+            "content": " $ ",
+            "bg_color": "RESET",
+            "fg_color": "PL_PROMPT_FG",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ]
+}

@@ -8,6 +8,7 @@ Theme::Theme(std::string theme_dir, bool enabled) : theme_directory(theme_dir), 
     if (!std::filesystem::exists(theme_directory + "/default.json")) {
         create_default_theme();
     }
+    is_enabled = enabled;
     
     load_theme("default");
 }
@@ -58,10 +59,12 @@ void Theme::create_default_theme() {
 }
 
 bool Theme::load_theme(const std::string& theme_name) {
+    std::string theme_name_to_use = theme_name;
     if (!is_enabled) {
-        return false;
+        theme_name_to_use = "default";
     }
-    std::string theme_file = theme_directory + "/" + theme_name + ".json";
+
+    std::string theme_file = theme_directory + "/" + theme_name_to_use + ".json";
     
     if (!std::filesystem::exists(theme_file)) {
         return false;
@@ -103,7 +106,7 @@ bool Theme::load_theme(const std::string& theme_name) {
 }
 
 std::string Theme::prerender_line(const std::vector<nlohmann::json>& segments) const {
-    if (!is_enabled || segments.empty()) {
+    if (segments.empty()) {
         return "";
     }
     

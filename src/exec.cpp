@@ -141,7 +141,7 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     
     execvp(args[0].c_str(), c_args.data());
     
-    std::string error_msg = "cjsh: Failed to execute command( " + args[0] + " ) : " + std::string(strerror(errno));
+    std::string error_msg = "cjsh: Failed to execute command ( " + args[0] + " ) : no command found";
     std::cerr << error_msg << std::endl;
     _exit(EXIT_FAILURE);
   }
