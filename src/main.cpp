@@ -17,11 +17,8 @@ int main(int argc, char *argv[]) {
   // Initialize signal handling before creating the shell
   prepare_shell_signal_environment();
   
-  // this handles the prompting and executing of commands
+  // this handles the prompting and executing of commands and signal handling
   g_shell = new Shell(argv);
-  
-  // setup signal handlers through the shell
-  g_shell->setup_signal_handlers();
   
   // Initialize login environment if necessary
   if (g_shell->get_login_mode()) {
@@ -29,7 +26,7 @@ int main(int argc, char *argv[]) {
       std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
       return 1;
     }
-    process_config_file();
+    process_profile_file();
     initialize_login_environment();
     setup_environment_variables();
     g_shell->setup_job_control();
@@ -39,13 +36,6 @@ int main(int argc, char *argv[]) {
   colors::initialize_color_support();
   
   // check for non interactive command line arguments
-  // -c, --command
-  // -v, --version
-  // -h, --help
-  // --set-as-shell
-  // --update
-  // --silent-updates
-  // --splash
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
   
@@ -108,14 +98,6 @@ int main(int argc, char *argv[]) {
   setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
 
   // check for interactive command line arguments
-  // --no-update
-  // -d, --debug
-  // --check-update
-  // --no-source
-  // --no-titleline
-  // --no-plugin
-  // --no-ai
-
   bool l_load_plugin = true;
   bool l_load_theme = true;
   bool l_load_ai = true;
@@ -136,12 +118,7 @@ int main(int argc, char *argv[]) {
     else if (arg == "--no-titleline") {
       g_title_line = false;
     }
-    else if (arg == "--no-plugin") {
-      l_load_plugin = false;
-    }
-    else if (arg == "--no-ai") {
-      l_load_ai = false;
-    } else if (arg.length() > 0 && arg[0] == '-') {
+    else if (arg.length() > 0 && arg[0] == '-') {
       std::cerr << "Warning: Unknown argument: " << arg << std::endl;
     }
   }
@@ -152,16 +129,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  // initalize objects
-  if (l_load_plugin) {
-    // this will load the users plugins from .cjsh_data/plugins
-    g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path); //doesnt need to verify filesys
-  }
-  if (l_load_theme) {
-    // this will load the users selected theme from .cjshrc
-    g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
-  }
-  process_source_file();
+  g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path); //doesnt need to verify filesys
+  g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path); //doesnt need to verify filesys
   if (l_load_ai) {
     // Get API key from environment if available
     std::string api_key = "";
@@ -171,6 +140,7 @@ int main(int argc, char *argv[]) {
     }
     g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path);
   }
+  process_source_file();
 
   if(!g_exit_flag) {
     // do update process
@@ -273,7 +243,7 @@ bool init_login_filesystem() {
       return false;
     }
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
-      create_config_file();
+      create_profile_file();
     }
   } catch (const std::exception& e) {
     std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: " << e.what() << std::endl;
@@ -387,23 +357,23 @@ bool init_interactive_filesystem() {
   return true;
 }
 
-void process_config_file() {
+void process_profile_file() {
   if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
-    create_config_file();
+    create_profile_file();
     return;
   }
 
-  std::ifstream config_file(cjsh_filesystem::g_cjsh_profile_path);
-  if (!config_file.is_open()) {
+  std::ifstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
+  if (!profile_file.is_open()) {
     std::cerr << "cjsh: Failed to open the configuration file for reading." << std::endl;
     return;
   }
   
-  config_file.clear();
-  config_file.seekg(0);
+  profile_file.clear();
+  profile_file.seekg(0);
   
   std::string line;
-  while (std::getline(config_file, line)) {
+  while (std::getline(profile_file, line)) {
     if (line.empty() || line[0] == '#') {
       continue;
     }
@@ -413,10 +383,10 @@ void process_config_file() {
     }
   }
   
-  config_file.clear();
-  config_file.seekg(0);
+  profile_file.clear();
+  profile_file.seekg(0);
   
-  while (std::getline(config_file, line)) {
+  while (std::getline(profile_file, line)) {
     if (line.empty() || line[0] == '#' || line == "PATH_HELPER") {
       continue;
     }
@@ -432,7 +402,7 @@ void process_config_file() {
     g_shell->execute_command(line, true);
   }
   
-  config_file.close();
+  profile_file.close();
   if (g_debug_mode) {
     std::cout << "DEBUG: Configuration file processed." << std::endl;
   }
@@ -544,20 +514,20 @@ bool parse_and_set_env_var(const std::string& line) {
   return false;
 }
 
-void create_config_file() {
-  std::ofstream config_file(cjsh_filesystem::g_cjsh_profile_path);
-  if (config_file.is_open()) {
-    config_file << "# CJ's Shell Configuration File\n";
-    config_file << "# This file is sourced when the shell starts in login mode\n";
-    config_file << "# This file is used to configure the shell PATH and set environment variables.\n";
-    config_file << "# Do not edit this file unless you know what you are doing.\n\n";
+void create_profile_file() {
+  std::ofstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
+  if (profile_file.is_open()) {
+    profile_file << "# CJ's Shell Configuration File\n";
+    profile_file << "# This file is sourced when the shell starts in login mode\n";
+    profile_file << "# This file is used to configure the shell PATH and set environment variables.\n";
+    profile_file << "# Do not edit this file unless you know what you are doing.\n\n";
 
-    config_file << "# Path helper command - sets up system PATH\n";
-    config_file << "PATH_HELPER\n\n";
+    profile_file << "# Path helper command - sets up system PATH\n";
+    profile_file << "PATH_HELPER\n\n";
 
-    config_file << "# Any environment variables should be set without 'export' command\n";
-    config_file << "# Example: VARIABLE=value\n";
-    config_file.close();
+    profile_file << "# Any environment variables should be set without 'export' command\n";
+    profile_file << "# Example: VARIABLE=value\n";
+    profile_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
   }

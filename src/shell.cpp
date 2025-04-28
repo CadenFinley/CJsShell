@@ -101,6 +101,8 @@ Shell::Shell(char *argv[]) {
   
   // Set global shell instance for signal handlers
   g_shell_instance = this;
+
+  setup_signal_handlers();
 }
 
 Shell::~Shell() {

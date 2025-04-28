@@ -30,9 +30,11 @@ namespace cjsh_filesystem {
   const fs::path g_cjsh_data_path = g_user_home_path / ".cjsh"; // directory for all cjsh things
   const fs::path g_cjsh_plugin_path = g_cjsh_data_path / "plugins";
   const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes";
+  const fs::path g_cjsh_colors_path = g_cjsh_data_path / "colors"; // path for custom color definitions
   const fs::path g_cjsh_history_path = g_cjsh_data_path / "history.txt";
   const fs::path g_cjsh_uninstall_path = g_cjsh_data_path / "uninstall.sh";
   const fs::path g_cjsh_update_cache_path = g_cjsh_data_path / "update_cache.json";
 }
 
 bool initialize_cjsh_path();
+bool initialize_cjsh_directories(); // New function to ensure required directories exist

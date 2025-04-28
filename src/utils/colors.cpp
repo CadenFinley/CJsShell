@@ -1,4 +1,5 @@
 #include "colors.h"
+#include "cjsh_filesystem.h"
 
 #include <algorithm>
 #include <cmath>
@@ -8,11 +9,16 @@
 #include <cstdlib>
 #include <cctype>
 #include <climits>
+#include <fstream>
+#include <regex>
 
 namespace colors {
 
 // Initialize global variable
 ColorCapability g_color_capability = ColorCapability::BASIC_COLOR;
+
+// Map to store custom user-defined colors
+static std::unordered_map<std::string, RGB> g_custom_colors;
 
 ColorCapability detect_color_capability() {
     // Check environment variables to determine color support
@@ -58,6 +64,12 @@ ColorCapability detect_color_capability() {
 
 void initialize_color_support() {
     g_color_capability = detect_color_capability();
+    
+    // Ensure the default colors file exists
+    ensure_default_colors_file_exists();
+    
+    // Load all custom colors from the colors directory
+    load_all_custom_colors();
 }
 
 // Helper function to get the closest basic ANSI color for an RGB color
@@ -401,313 +413,224 @@ RGB xterm256_to_rgb(uint8_t index) {
     return RGB(0, 0, 0);
 }
 
-//Add a new function to get color by name
+// Parse a color value string (supports hex, rgb format, and color names)
+RGB parse_color_value(const std::string& value) {
+    std::string trimmed_value = value;
+    trimmed_value.erase(0, trimmed_value.find_first_not_of(" \t\n\r\f\v"));
+    trimmed_value.erase(trimmed_value.find_last_not_of(" \t\n\r\f\v") + 1);
+    
+    // Check if it's a hex color code (#RRGGBB or #RGB)
+    if (trimmed_value[0] == '#') {
+        std::string hex = trimmed_value.substr(1);
+        
+        // Convert 3-digit hex to 6-digit
+        if (hex.length() == 3) {
+            std::string expanded;
+            for (char c : hex) {
+                expanded += c;
+                expanded += c;
+            }
+            hex = expanded;
+        }
+        
+        if (hex.length() == 6) {
+            try {
+                int r = std::stoi(hex.substr(0, 2), nullptr, 16);
+                int g = std::stoi(hex.substr(2, 2), nullptr, 16);
+                int b = std::stoi(hex.substr(4, 2), nullptr, 16);
+                return RGB(r, g, b);
+            } catch (const std::exception& e) {
+                // If parsing fails, return black
+                return RGB(0, 0, 0);
+            }
+        }
+    }
+    
+    // Check if it's an RGB format like "rgb(255, 128, 64)"
+    std::regex rgb_regex("rgb\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)", 
+                         std::regex_constants::icase);
+    std::smatch rgb_match;
+    if (std::regex_match(trimmed_value, rgb_match, rgb_regex)) {
+        try {
+            int r = std::clamp(std::stoi(rgb_match[1]), 0, 255);
+            int g = std::clamp(std::stoi(rgb_match[2]), 0, 255);
+            int b = std::clamp(std::stoi(rgb_match[3]), 0, 255);
+            return RGB(r, g, b);
+        } catch (const std::exception& e) {
+            // If parsing fails, return black
+            return RGB(0, 0, 0);
+        }
+    }
+    
+    // Check if it's a named color (transform to uppercase for case-insensitive comparison)
+    std::string upper_value = trimmed_value;
+    std::transform(upper_value.begin(), upper_value.end(), upper_value.begin(), ::toupper);
+    return get_color_by_name(upper_value);
+}
+
+// Load custom colors from a specific file
+bool load_custom_colors(const std::string& filename) {
+    namespace fs = cjsh_filesystem::fs;
+    fs::path color_file_path = cjsh_filesystem::g_cjsh_colors_path / filename;
+    
+    if (!fs::exists(color_file_path)) {
+        return false;
+    }
+    
+    std::ifstream file(color_file_path);
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    std::string line;
+    std::regex color_def_regex("^\\s*([A-Za-z0-9_]+)\\s*=\\s*(.+)$");
+    bool colors_loaded = false;
+    
+    while (std::getline(file, line)) {
+        // Skip empty lines and comments
+        if (line.empty() || line[0] == '#' || line[0] == '/') {
+            continue;
+        }
+        
+        std::smatch matches;
+        if (std::regex_match(line, matches, color_def_regex)) {
+            std::string color_name = matches[1];
+            std::string color_value = matches[2];
+            
+            // Convert name to uppercase for consistency
+            std::transform(color_name.begin(), color_name.end(), color_name.begin(), ::toupper);
+            
+            // Parse and store the color
+            RGB color = parse_color_value(color_value);
+            g_custom_colors[color_name] = color;
+            colors_loaded = true;
+        }
+    }
+    
+    return colors_loaded;
+}
+
+// Export all predefined colors to a file
+bool export_predefined_colors_to_file(const std::string& filename) {
+    namespace fs = cjsh_filesystem::fs;
+    fs::path colors_dir = cjsh_filesystem::g_cjsh_colors_path;
+    
+    // Create the directory if it doesn't exist
+    if (!fs::exists(colors_dir)) {
+        try {
+            fs::create_directories(colors_dir);
+        } catch (const fs::filesystem_error& e) {
+            std::cerr << "Error creating colors directory: " << e.what() << std::endl;
+            return false;
+        }
+    }
+    
+    fs::path color_file_path = colors_dir / filename;
+    
+    // Open the file
+    std::ofstream file(color_file_path);
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file for writing: " << color_file_path.string() << std::endl;
+        return false;
+    }
+    
+    file << "# CJSH Default Colors\n";
+    file << "# This file contains the basic ANSI colors in CJSH.\n";
+    file << "# Format: COLOR_NAME = #RRGGBB\n";
+    file << "# To create your own colors, you can edit this file or create a new .txt file in this directory.\n\n";
+    
+    // Write the basic ANSI colors
+    file << "# Basic ANSI Colors\n";
+    file << "BLACK = #000000\n";
+    file << "RED = #AA0000\n";
+    file << "GREEN = #00AA00\n";
+    file << "YELLOW = #AA5500\n";
+    file << "BLUE = #0000AA\n";
+    file << "MAGENTA = #AA00AA\n";
+    file << "CYAN = #00AAAA\n";
+    file << "WHITE = #AAAAAA\n";
+    file << "BLACK_BRIGHT = #555555\n";
+    file << "RED_BRIGHT = #FF5555\n";
+    file << "GREEN_BRIGHT = #55FF55\n";
+    file << "YELLOW_BRIGHT = #FFFF55\n";
+    file << "BLUE_BRIGHT = #5555FF\n";
+    file << "MAGENTA_BRIGHT = #FF55FF\n";
+    file << "CYAN_BRIGHT = #55FFFF\n";
+    file << "WHITE_BRIGHT = #FFFFFF\n";
+    
+    return true;
+}
+
+// Make sure the default colors file exists
+bool ensure_default_colors_file_exists() {
+    namespace fs = cjsh_filesystem::fs;
+    fs::path default_colors_path = cjsh_filesystem::g_cjsh_colors_path / "default_colors.txt";
+    
+    if (!fs::exists(default_colors_path)) {
+        return export_predefined_colors_to_file("default_colors.txt");
+    }
+    
+    return true;
+}
+
+// Modified load_all_custom_colors to check for and create default colors file
+bool load_all_custom_colors() {
+    namespace fs = cjsh_filesystem::fs;
+    fs::path colors_dir = cjsh_filesystem::g_cjsh_colors_path;
+    
+    // Clear existing custom colors
+    g_custom_colors.clear();
+    
+    // Create the directory if it doesn't exist
+    if (!fs::exists(colors_dir)) {
+        try {
+            fs::create_directories(colors_dir);
+        } catch (const fs::filesystem_error& e) {
+            std::cerr << "Error creating colors directory: " << e.what() << std::endl;
+            return false;
+        }
+    }
+    
+    // Ensure default colors file exists
+    ensure_default_colors_file_exists();
+    
+    bool any_loaded = false;
+    
+    // Try to find and load all .txt files in the colors directory
+    for (const auto& entry : fs::directory_iterator(colors_dir)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".txt") {
+            std::string filename = entry.path().filename().string();
+            if (load_custom_colors(filename)) {
+                any_loaded = true;
+            }
+        }
+    }
+    
+    return any_loaded;
+}
+
+std::unordered_map<std::string, RGB> get_custom_colors() {
+    return g_custom_colors;
+}
+
+// Override the existing get_color_by_name to use custom colors
 RGB get_color_by_name(const std::string& name) {
     // Convert to uppercase for case-insensitive comparison
     std::string upper_name = name;
     std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
     
-    // Map of color names to RGB values
-    static const std::unordered_map<std::string, RGB> color_map = {
-        {"ALICE_BLUE", named::ALICE_BLUE},
-        {"ANTIQUE_WHITE", named::ANTIQUE_WHITE},
-        {"AQUA", named::AQUA},
-        {"AQUAMARINE", named::AQUAMARINE},
-        {"AZURE", named::AZURE},
-        {"BEIGE", named::BEIGE},
-        {"BISQUE", named::BISQUE},
-        {"BLANCHED_ALMOND", named::BLANCHED_ALMOND},
-        {"BLUE_VIOLET", named::BLUE_VIOLET},
-        {"BROWN", named::BROWN},
-        {"BURLYWOOD", named::BURLYWOOD},
-        {"CADET_BLUE", named::CADET_BLUE},
-        {"CHARTREUSE", named::CHARTREUSE},
-        {"CHOCOLATE", named::CHOCOLATE},
-        {"CORAL", named::CORAL},
-        {"CORNFLOWER_BLUE", named::CORNFLOWER_BLUE},
-        {"CORNSILK", named::CORNSILK},
-        {"CRIMSON", named::CRIMSON},
-        {"DARK_BLUE", named::DARK_BLUE},
-        {"DARK_CYAN", named::DARK_CYAN},
-        {"DARK_GOLDENROD", named::DARK_GOLDENROD},
-        {"DARK_GRAY", named::DARK_GRAY},
-        {"DARK_GREEN", named::DARK_GREEN},
-        {"DARK_KHAKI", named::DARK_KHAKI},
-        {"DARK_MAGENTA", named::DARK_MAGENTA},
-        {"DARK_OLIVE_GREEN", named::DARK_OLIVE_GREEN},
-        {"DARK_ORANGE", named::DARK_ORANGE},
-        {"DARK_ORCHID", named::DARK_ORCHID},
-        {"DARK_RED", named::DARK_RED},
-        {"DARK_SALMON", named::DARK_SALMON},
-        {"DARK_SEA_GREEN", named::DARK_SEA_GREEN},
-        {"DARK_SLATE_BLUE", named::DARK_SLATE_BLUE},
-        {"DARK_SLATE_GRAY", named::DARK_SLATE_GRAY},
-        {"DARK_TURQUOISE", named::DARK_TURQUOISE},
-        {"DARK_VIOLET", named::DARK_VIOLET},
-        {"DEEP_PINK", named::DEEP_PINK},
-        {"DEEP_SKY_BLUE", named::DEEP_SKY_BLUE},
-        {"DIM_GRAY", named::DIM_GRAY},
-        {"DODGER_BLUE", named::DODGER_BLUE},
-        {"FIREBRICK", named::FIREBRICK},
-        {"FOREST_GREEN", named::FOREST_GREEN},
-        {"GAINSBORO", named::GAINSBORO},
-        {"GOLD", named::GOLD},
-        {"GOLDENROD", named::GOLDENROD},
-        {"GRAY", named::GRAY},
-        {"HOT_PINK", named::HOT_PINK},
-        {"INDIAN_RED", named::INDIAN_RED},
-        {"INDIGO", named::INDIGO},
-        {"IVORY", named::IVORY},
-        {"KHAKI", named::KHAKI},
-        {"LAVENDER", named::LAVENDER},
-        {"LAVENDER_BLUSH", named::LAVENDER_BLUSH},
-        {"LAWN_GREEN", named::LAWN_GREEN},
-        {"LEMON_CHIFFON", named::LEMON_CHIFFON},
-        {"LIGHT_BLUE", named::LIGHT_BLUE},
-        {"LIGHT_CORAL", named::LIGHT_CORAL},
-        {"LIGHT_CYAN", named::LIGHT_CYAN},
-        {"LIGHT_GOLDENROD", named::LIGHT_GOLDENROD},
-        {"LIGHT_GRAY", named::LIGHT_GRAY},
-        {"LIGHT_GREEN", named::LIGHT_GREEN},
-        {"LIGHT_PINK", named::LIGHT_PINK},
-        {"LIGHT_SALMON", named::LIGHT_SALMON},
-        {"LIGHT_SEA_GREEN", named::LIGHT_SEA_GREEN},
-        {"LIGHT_SKY_BLUE", named::LIGHT_SKY_BLUE},
-        {"LIGHT_SLATE_GRAY", named::LIGHT_SLATE_GRAY},
-        {"LIGHT_STEEL_BLUE", named::LIGHT_STEEL_BLUE},
-        {"LIGHT_YELLOW", named::LIGHT_YELLOW},
-        {"LIME", named::LIME},
-        {"LIME_GREEN", named::LIME_GREEN},
-        {"LINEN", named::LINEN},
-        {"MAROON", named::MAROON},
-        {"MEDIUM_AQUAMARINE", named::MEDIUM_AQUAMARINE},
-        {"MEDIUM_BLUE", named::MEDIUM_BLUE},
-        {"MEDIUM_ORCHID", named::MEDIUM_ORCHID},
-        {"MEDIUM_PURPLE", named::MEDIUM_PURPLE},
-        {"MEDIUM_SEA_GREEN", named::MEDIUM_SEA_GREEN},
-        {"MEDIUM_SLATE_BLUE", named::MEDIUM_SLATE_BLUE},
-        {"MEDIUM_SPRING_GREEN", named::MEDIUM_SPRING_GREEN},
-        {"MEDIUM_TURQUOISE", named::MEDIUM_TURQUOISE},
-        {"MEDIUM_VIOLET_RED", named::MEDIUM_VIOLET_RED},
-        {"MIDNIGHT_BLUE", named::MIDNIGHT_BLUE},
-        {"MINT_CREAM", named::MINT_CREAM},
-        {"MISTY_ROSE", named::MISTY_ROSE},
-        {"MOCCASIN", named::MOCCASIN},
-        {"NAVAJO_WHITE", named::NAVAJO_WHITE},
-        {"NAVY", named::NAVY},
-        {"OLD_LACE", named::OLD_LACE},
-        {"OLIVE", named::OLIVE},
-        {"OLIVE_DRAB", named::OLIVE_DRAB},
-        {"ORANGE", named::ORANGE},
-        {"ORANGE_RED", named::ORANGE_RED},
-        {"ORCHID", named::ORCHID},
-        {"PALE_GOLDENROD", named::PALE_GOLDENROD},
-        {"PALE_GREEN", named::PALE_GREEN},
-        {"PALE_TURQUOISE", named::PALE_TURQUOISE},
-        {"PALE_VIOLET_RED", named::PALE_VIOLET_RED},
-        {"PAPAYA_WHIP", named::PAPAYA_WHIP},
-        {"PEACH_PUFF", named::PEACH_PUFF},
-        {"PERU", named::PERU},
-        {"PINK", named::PINK},
-        {"PLUM", named::PLUM},
-        {"POWDER_BLUE", named::POWDER_BLUE},
-        {"PURPLE", named::PURPLE},
-        {"REBECCA_PURPLE", named::REBECCA_PURPLE},
-        {"ROSY_BROWN", named::ROSY_BROWN},
-        {"ROYAL_BLUE", named::ROYAL_BLUE},
-        {"SADDLE_BROWN", named::SADDLE_BROWN},
-        {"SALMON", named::SALMON},
-        {"SANDY_BROWN", named::SANDY_BROWN},
-        {"SEA_GREEN", named::SEA_GREEN},
-        {"SEASHELL", named::SEASHELL},
-        {"SIENNA", named::SIENNA},
-        {"SILVER", named::SILVER},
-        {"SKY_BLUE", named::SKY_BLUE},
-        {"SLATE_BLUE", named::SLATE_BLUE},
-        {"SLATE_GRAY", named::SLATE_GRAY},
-        {"SNOW", named::SNOW},
-        {"SPRING_GREEN", named::SPRING_GREEN},
-        {"STEEL_BLUE", named::STEEL_BLUE},
-        {"TAN", named::TAN},
-        {"TEAL", named::TEAL},
-        {"THISTLE", named::THISTLE},
-        {"TOMATO", named::TOMATO},
-        {"TURQUOISE", named::TURQUOISE},
-        {"VIOLET", named::VIOLET},
-        {"WHEAT", named::WHEAT},
-        {"WHITE_SMOKE", named::WHITE_SMOKE},
-        {"YELLOW_GREEN", named::YELLOW_GREEN},
-        {"ELECTRIC_PURPLE", named::ELECTRIC_PURPLE}
-    };
-    
-    auto it = color_map.find(upper_name);
-    if (it != color_map.end()) {
-        return it->second;
+    // Check if it's in the custom/loaded colors map
+    auto custom_it = g_custom_colors.find(upper_name);
+    if (custom_it != g_custom_colors.end()) {
+        return custom_it->second;
     }
     
-    // Return black if color name not found
+    // If not found, return black
     return RGB(0, 0, 0);
 }
 
 std::unordered_map<std::string, std::string> get_color_map() {
     std::unordered_map<std::string, std::string> color_map = {
-        // Basic ANSI colors
-        {"BLACK", ansi::FG_BLACK},
-        {"RED", ansi::FG_RED},
-        {"GREEN", ansi::FG_GREEN},
-        {"YELLOW", ansi::FG_YELLOW},
-        {"BLUE", ansi::FG_BLUE},
-        {"MAGENTA", ansi::FG_MAGENTA},
-        {"CYAN", ansi::FG_CYAN},
-        {"WHITE", ansi::FG_WHITE},
-        {"BLACK_BRIGHT", ansi::FG_BRIGHT_BLACK},
-        {"RED_BRIGHT", ansi::FG_BRIGHT_RED},
-        {"GREEN_BRIGHT", ansi::FG_BRIGHT_GREEN},
-        {"YELLOW_BRIGHT", ansi::FG_BRIGHT_YELLOW},
-        {"BLUE_BRIGHT", ansi::FG_BRIGHT_BLUE},
-        {"MAGENTA_BRIGHT", ansi::FG_BRIGHT_MAGENTA},
-        {"CYAN_BRIGHT", ansi::FG_BRIGHT_CYAN},
-        {"WHITE_BRIGHT", ansi::FG_BRIGHT_WHITE},
-        
-        // Pastel color palette
-        {"PASTEL_BLUE", "\033[38;5;117m"},
-        {"PASTEL_PEACH", "\033[38;5;222m"},
-        {"PASTEL_CYAN", "\033[38;5;159m"},
-        {"PASTEL_MINT", "\033[38;5;122m"},
-        {"PASTEL_LAVENDER", "\033[38;5;183m"},
-        {"PASTEL_CORAL", "\033[38;5;203m"},
-        
-        // Named colors from colors.h
-        {"ALICE_BLUE", fg_color(named::ALICE_BLUE)},
-        {"ANTIQUE_WHITE", fg_color(named::ANTIQUE_WHITE)},
-        {"AQUA", fg_color(named::AQUA)},
-        {"AQUAMARINE", fg_color(named::AQUAMARINE)},
-        {"AZURE", fg_color(named::AZURE)},
-        {"BEIGE", fg_color(named::BEIGE)},
-        {"BISQUE", fg_color(named::BISQUE)},
-        {"BLANCHED_ALMOND", fg_color(named::BLANCHED_ALMOND)},
-        {"BLUE_VIOLET", fg_color(named::BLUE_VIOLET)},
-        {"BROWN", fg_color(named::BROWN)},
-        {"BURLYWOOD", fg_color(named::BURLYWOOD)},
-        {"CADET_BLUE", fg_color(named::CADET_BLUE)},
-        {"CHARTREUSE", fg_color(named::CHARTREUSE)},
-        {"CHOCOLATE", fg_color(named::CHOCOLATE)},
-        {"CORAL", fg_color(named::CORAL)},
-        {"CORNFLOWER_BLUE", fg_color(named::CORNFLOWER_BLUE)},
-        {"CORNSILK", fg_color(named::CORNSILK)},
-        {"CRIMSON", fg_color(named::CRIMSON)},
-        {"DARK_BLUE", fg_color(named::DARK_BLUE)},
-        {"DARK_CYAN", fg_color(named::DARK_CYAN)},
-        {"DARK_GOLDENROD", fg_color(named::DARK_GOLDENROD)},
-        {"DARK_GRAY", fg_color(named::DARK_GRAY)},
-        {"DARK_GREEN", fg_color(named::DARK_GREEN)},
-        {"DARK_KHAKI", fg_color(named::DARK_KHAKI)},
-        {"DARK_MAGENTA", fg_color(named::DARK_MAGENTA)},
-        {"DARK_OLIVE_GREEN", fg_color(named::DARK_OLIVE_GREEN)},
-        {"DARK_ORANGE", fg_color(named::DARK_ORANGE)},
-        {"DARK_ORCHID", fg_color(named::DARK_ORCHID)},
-        {"DARK_RED", fg_color(named::DARK_RED)},
-        {"DARK_SALMON", fg_color(named::DARK_SALMON)},
-        {"DARK_SEA_GREEN", fg_color(named::DARK_SEA_GREEN)},
-        {"DARK_SLATE_BLUE", fg_color(named::DARK_SLATE_BLUE)},
-        {"DARK_SLATE_GRAY", fg_color(named::DARK_SLATE_GRAY)},
-        {"DARK_TURQUOISE", fg_color(named::DARK_TURQUOISE)},
-        {"DARK_VIOLET", fg_color(named::DARK_VIOLET)},
-        {"DEEP_PINK", fg_color(named::DEEP_PINK)},
-        {"DEEP_SKY_BLUE", fg_color(named::DEEP_SKY_BLUE)},
-        {"DIM_GRAY", fg_color(named::DIM_GRAY)},
-        {"DODGER_BLUE", fg_color(named::DODGER_BLUE)},
-        {"FIREBRICK", fg_color(named::FIREBRICK)},
-        {"FOREST_GREEN", fg_color(named::FOREST_GREEN)},
-        {"GAINSBORO", fg_color(named::GAINSBORO)},
-        {"GOLD", fg_color(named::GOLD)},
-        {"GOLDENROD", fg_color(named::GOLDENROD)},
-        {"GRAY", fg_color(named::GRAY)},
-        {"HOT_PINK", fg_color(named::HOT_PINK)},
-        {"INDIAN_RED", fg_color(named::INDIAN_RED)},
-        {"INDIGO", fg_color(named::INDIGO)},
-        {"IVORY", fg_color(named::IVORY)},
-        {"KHAKI", fg_color(named::KHAKI)},
-        {"LAVENDER", fg_color(named::LAVENDER)},
-        {"LAVENDER_BLUSH", fg_color(named::LAVENDER_BLUSH)},
-        {"LAWN_GREEN", fg_color(named::LAWN_GREEN)},
-        {"LEMON_CHIFFON", fg_color(named::LEMON_CHIFFON)},
-        {"LIGHT_BLUE", fg_color(named::LIGHT_BLUE)},
-        {"LIGHT_CORAL", fg_color(named::LIGHT_CORAL)},
-        {"LIGHT_CYAN", fg_color(named::LIGHT_CYAN)},
-        {"LIGHT_GOLDENROD", fg_color(named::LIGHT_GOLDENROD)},
-        {"LIGHT_GRAY", fg_color(named::LIGHT_GRAY)},
-        {"LIGHT_GREEN", fg_color(named::LIGHT_GREEN)},
-        {"LIGHT_PINK", fg_color(named::LIGHT_PINK)},
-        {"LIGHT_SALMON", fg_color(named::LIGHT_SALMON)},
-        {"LIGHT_SEA_GREEN", fg_color(named::LIGHT_SEA_GREEN)},
-        {"LIGHT_SKY_BLUE", fg_color(named::LIGHT_SKY_BLUE)},
-        {"LIGHT_SLATE_GRAY", fg_color(named::LIGHT_SLATE_GRAY)},
-        {"LIGHT_STEEL_BLUE", fg_color(named::LIGHT_STEEL_BLUE)},
-        {"LIGHT_YELLOW", fg_color(named::LIGHT_YELLOW)},
-        {"LIME", fg_color(named::LIME)},
-        {"LIME_GREEN", fg_color(named::LIME_GREEN)},
-        {"LINEN", fg_color(named::LINEN)},
-        {"MAROON", fg_color(named::MAROON)},
-        {"MEDIUM_AQUAMARINE", fg_color(named::MEDIUM_AQUAMARINE)},
-        {"MEDIUM_BLUE", fg_color(named::MEDIUM_BLUE)},
-        {"MEDIUM_ORCHID", fg_color(named::MEDIUM_ORCHID)},
-        {"MEDIUM_PURPLE", fg_color(named::MEDIUM_PURPLE)},
-        {"MEDIUM_SEA_GREEN", fg_color(named::MEDIUM_SEA_GREEN)},
-        {"MEDIUM_SLATE_BLUE", fg_color(named::MEDIUM_SLATE_BLUE)},
-        {"MEDIUM_SPRING_GREEN", fg_color(named::MEDIUM_SPRING_GREEN)},
-        {"MEDIUM_TURQUOISE", fg_color(named::MEDIUM_TURQUOISE)},
-        {"MEDIUM_VIOLET_RED", fg_color(named::MEDIUM_VIOLET_RED)},
-        {"MIDNIGHT_BLUE", fg_color(named::MIDNIGHT_BLUE)},
-        {"MINT_CREAM", fg_color(named::MINT_CREAM)},
-        {"MISTY_ROSE", fg_color(named::MISTY_ROSE)},
-        {"MOCCASIN", fg_color(named::MOCCASIN)},
-        {"NAVAJO_WHITE", fg_color(named::NAVAJO_WHITE)},
-        {"NAVY", fg_color(named::NAVY)},
-        {"OLD_LACE", fg_color(named::OLD_LACE)},
-        {"OLIVE", fg_color(named::OLIVE)},
-        {"OLIVE_DRAB", fg_color(named::OLIVE_DRAB)},
-        {"ORANGE", fg_color(named::ORANGE)},
-        {"ORANGE_RED", fg_color(named::ORANGE_RED)},
-        {"ORCHID", fg_color(named::ORCHID)},
-        {"PALE_GOLDENROD", fg_color(named::PALE_GOLDENROD)},
-        {"PALE_GREEN", fg_color(named::PALE_GREEN)},
-        {"PALE_TURQUOISE", fg_color(named::PALE_TURQUOISE)},
-        {"PALE_VIOLET_RED", fg_color(named::PALE_VIOLET_RED)},
-        {"PAPAYA_WHIP", fg_color(named::PAPAYA_WHIP)},
-        {"PEACH_PUFF", fg_color(named::PEACH_PUFF)},
-        {"PERU", fg_color(named::PERU)},
-        {"PINK", fg_color(named::PINK)},
-        {"PLUM", fg_color(named::PLUM)},
-        {"POWDER_BLUE", fg_color(named::POWDER_BLUE)},
-        {"PURPLE", fg_color(named::PURPLE)},
-        {"REBECCA_PURPLE", fg_color(named::REBECCA_PURPLE)},
-        {"ROSY_BROWN", fg_color(named::ROSY_BROWN)},
-        {"ROYAL_BLUE", fg_color(named::ROYAL_BLUE)},
-        {"SADDLE_BROWN", fg_color(named::SADDLE_BROWN)},
-        {"SALMON", fg_color(named::SALMON)},
-        {"SANDY_BROWN", fg_color(named::SANDY_BROWN)},
-        {"SEA_GREEN", fg_color(named::SEA_GREEN)},
-        {"SEASHELL", fg_color(named::SEASHELL)},
-        {"SIENNA", fg_color(named::SIENNA)},
-        {"SILVER", fg_color(named::SILVER)},
-        {"SKY_BLUE", fg_color(named::SKY_BLUE)},
-        {"SLATE_BLUE", fg_color(named::SLATE_BLUE)},
-        {"SLATE_GRAY", fg_color(named::SLATE_GRAY)},
-        {"SNOW", fg_color(named::SNOW)},
-        {"SPRING_GREEN", fg_color(named::SPRING_GREEN)},
-        {"STEEL_BLUE", fg_color(named::STEEL_BLUE)},
-        {"TAN", fg_color(named::TAN)},
-        {"TEAL", fg_color(named::TEAL)},
-        {"THISTLE", fg_color(named::THISTLE)},
-        {"TOMATO", fg_color(named::TOMATO)},
-        {"TURQUOISE", fg_color(named::TURQUOISE)},
-        {"VIOLET", fg_color(named::VIOLET)},
-        {"WHEAT", fg_color(named::WHEAT)},
-        {"WHITE_SMOKE", fg_color(named::WHITE_SMOKE)},
-        {"YELLOW_GREEN", fg_color(named::YELLOW_GREEN)},
-        {"ELECTRIC_PURPLE", fg_color(named::ELECTRIC_PURPLE)},
-
         // Style tags
         {"BOLD", ansi::BOLD},
         {"ITALIC", ansi::ITALIC},
@@ -718,6 +641,11 @@ std::unordered_map<std::string, std::string> get_color_map() {
         {"RESET", ansi::RESET}
     };
     
+    // Add all loaded custom colors to the color map
+    for (const auto& [name, rgb] : g_custom_colors) {
+        color_map[name] = fg_color(rgb);
+    }
+    
     return color_map;
 }
-} // namespace colors
+}

@@ -41,14 +41,13 @@ extern bool g_job_control_enabled;
 extern std::atomic_bool g_exit_flag;
 
 extern time_t g_last_update_check;
-extern int g_update_check_interval; // 24 hours
+extern int g_update_check_interval;
 extern std::string g_cached_version;
 extern std::string g_last_updated;
-extern bool g_first_boot;  // New variable to track first boot
+extern bool g_first_boot;
 
 extern std::vector<std::string> g_startup_commands;
 
-// theme name the theme manger will load this
 extern std::string g_current_theme;
 
 // misc
@@ -61,23 +60,15 @@ extern Shell* g_shell;
 extern Theme* g_theme;
 extern Plugin* g_plugin;
 
-const std::string c_cjsh_splash = 
-    "   ______       __   _____    __  __\n"
-    "  / ____/      / /  / ___/   / / / /\n"
-    " / /      __  / /   \\__ \\   / /_/ / \n"
-    "/ /___   / /_/ /   ___/ /  / __  /  \n"
-    "\\____/   \\____/   /____/  /_/ /_/   \n"
-    "  CJ's Shell v" + c_version;
 std::string get_colorized_splash();
-
 int main(int argc, char *argv[]);
 bool init_login_filesystem();
 bool init_interactive_filesystem();
 void main_process_loop();
 void notify_plugins(std::string trigger, std::string data);
 void process_source_file();
-void process_config_file();
-void create_config_file();
+void process_profile_file();
+void create_profile_file();
 void create_source_file();
 bool is_parent_process_alive();
 void parent_process_watchdog();
@@ -91,9 +82,6 @@ bool is_shell_script_construct(const std::string& line);
 void process_shell_scripts_in_config();
 bool parse_and_set_env_var(const std::string& line);
 void prepare_shell_signal_environment();
-
-// using json = nlohmann::json;
-
 void startup_update_process();
 bool check_for_update();
 bool load_update_cache();
@@ -106,6 +94,4 @@ std::string get_current_time_string();
 bool is_newer_version(const std::string& latest, const std::string& current);
 bool is_first_boot();
 void mark_first_boot_complete();
-
-// Add a function to handle command execution errors gracefully
 void handle_command_error(const std::string& command, const std::string& error_message);

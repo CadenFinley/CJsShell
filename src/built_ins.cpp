@@ -89,6 +89,9 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
 }
 
 bool Built_ins::ai_commands(const std::vector<std::string>& args) {
+  if(g_ai == nullptr) {
+    return false;
+  }
   unsigned int command_index = 1;
   
   if (args.size() <= command_index) {
@@ -458,6 +461,10 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
 }
 
 bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
+  if(g_plugin == nullptr) {
+    return false;
+  }
+
   if (args.size() < 2) {
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
     return false;
@@ -671,6 +678,9 @@ bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
 }
 
 bool Built_ins::theme_commands(const std::vector<std::string>& args) {
+  if (g_theme == nullptr) {
+    return false;
+  }
   if (args.size() < 2) {
     if (g_theme) {
       std::cout << "Current theme: " << g_current_theme << std::endl;
