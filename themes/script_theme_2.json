@@ -1,0 +1,152 @@
+{
+  "terminal_title": "{USERNAME}@{HOSTNAME}: {DIRECTORY}",
+  "ps1_segments": [
+    {
+      "tag": "statusseg",
+      "content": "{SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme_2/status.sh}",
+      "bg_color": "RED",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "RED",
+      "separator_bg": "BLUE",
+      "forward_separator": "",
+      "forward_separator_fg": "RED",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "userseg",
+      "content": " {SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme_2/username.sh} ",
+      "bg_color": "BLUE",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "BLUE",
+      "separator_bg": "CYAN",
+      "forward_separator": "",
+      "forward_separator_fg": "BLUE",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "dirseg",
+      "content": " {DIRECTORY} ",
+      "bg_color": "CYAN",
+      "fg_color": "BLACK",
+      "separator": "",
+      "separator_fg": "CYAN",
+      "separator_bg": "RESET",
+      "forward_separator": "",
+      "forward_separator_fg": "CYAN",
+      "forward_separator_bg": "RESET"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "statusseg",
+      "content": "{SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme_2/status.sh}",
+      "bg_color": "RED",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "RED",
+      "separator_bg": "BLUE",
+      "forward_separator": "",
+      "forward_separator_fg": "RED",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "userseg",
+      "content": " {SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme_2/username.sh} ",
+      "bg_color": "BLUE",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "BLUE",
+      "separator_bg": "CYAN",
+      "forward_separator": "",
+      "forward_separator_fg": "BLUE",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "dirseg",
+      "content": " {DIRECTORY} ",
+      "bg_color": "CYAN",
+      "fg_color": "BLACK",
+      "separator": "",
+      "separator_fg": "CYAN",
+      "separator_bg": "GREEN",
+      "forward_separator": "",
+      "forward_separator_fg": "CYAN",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "gitseg",
+      "content": " {GIT_BRANCH}{GIT_STATUS} ",
+      "bg_color": "GREEN",
+      "fg_color": "BLACK",
+      "separator": "",
+      "separator_fg": "GREEN",
+      "separator_bg": "RESET",
+      "forward_separator": "",
+      "forward_separator_fg": "GREEN",
+      "forward_separator_bg": "RESET"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "statusseg",
+      "content": "{SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme_2/status.sh}",
+      "bg_color": "RED",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "RED",
+      "separator_bg": "BLUE",
+      "forward_separator": "",
+      "forward_separator_fg": "RED",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "userseg",
+      "content": " {SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme_2/username.sh} ",
+      "bg_color": "BLUE",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "BLUE",
+      "separator_bg": "CYAN",
+      "forward_separator": "",
+      "forward_separator_fg": "BLUE",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "dirseg",
+      "content": " {DIRECTORY} ",
+      "bg_color": "CYAN",
+      "fg_color": "BLACK",
+      "separator": "",
+      "separator_fg": "CYAN",
+      "separator_bg": "MAGENTA",
+      "forward_separator": "",
+      "forward_separator_fg": "CYAN",
+      "forward_separator_bg": "RESET"
+    },
+    {
+      "tag": "aiseg",
+      "content": " {AI_MODEL} ",
+      "bg_color": "MAGENTA",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "MAGENTA",
+      "separator_bg": "RESET",
+      "forward_separator": "",
+      "forward_separator_fg": "MAGENTA",
+      "forward_separator_bg": "RESET"
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "promptseg",
+      "content": " ❯ ",
+      "bg_color": "RESET",
+      "fg_color": "GREEN_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ]
+}

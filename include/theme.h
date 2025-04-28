@@ -23,6 +23,9 @@ private:
 
     std::string render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const;
     
+    // Helper method to execute scripts for the SCRIPT$ placeholder
+    std::string execute_script(const std::string& script_path) const;
+    
 public:
     
     Theme(std::string theme_dir, bool enabled);

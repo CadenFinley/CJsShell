@@ -229,6 +229,31 @@ std::string Theme::get_ai_prompt_format(const std::unordered_map<std::string, st
     return render_line(prerendered_ai_format, vars);
 }
 
+std::string Theme::execute_script(const std::string& script_path) const {
+    std::string result;
+    std::string command = "sh -c \"" + script_path + "\"";
+    FILE* pipe = popen(command.c_str(), "r");
+    
+    if (!pipe) {
+        return "Error executing script: " + script_path;
+    }
+    
+    char buffer[128];
+    while (!feof(pipe)) {
+        if (fgets(buffer, 128, pipe) != nullptr) {
+            result += buffer;
+        }
+    }
+    
+    // Remove trailing newline if present
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+    
+    pclose(pipe);
+    return result;
+}
+
 std::string Theme::render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const {
     if (line.empty()) {
         return "";
@@ -244,13 +269,19 @@ std::string Theme::render_line(const std::string& line, const std::unordered_map
         }
         
         std::string placeholder = result.substr(start_pos + 1, end_pos - start_pos - 1);
-        
-        auto it = vars.find(placeholder);
-        if (it != vars.end()) {
-            result.replace(start_pos, end_pos - start_pos + 1, it->second);
-            start_pos += it->second.length();
+        if (placeholder.compare(0, 7, "SCRIPT$") == 0 && placeholder.length() > 7) {
+            std::string script_path = placeholder.substr(7);
+            std::string script_output = execute_script(script_path);
+            result.replace(start_pos, end_pos - start_pos + 1, script_output);
+            start_pos += script_output.length();
         } else {
-            start_pos = end_pos + 1;
+            auto it = vars.find(placeholder);
+            if (it != vars.end()) {
+                result.replace(start_pos, end_pos - start_pos + 1, it->second);
+                start_pos += it->second.length();
+            } else {
+                start_pos = end_pos + 1;
+            }
         }
     }
     

@@ -1,0 +1,74 @@
+{
+  "terminal_title": "{USERNAME}@{HOSTNAME}: {DIRECTORY}",
+  "ps1_segments": [
+    {
+      "tag": "sysinfoseg",
+      "content": "[{SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme/system_info.sh}] ",
+      "bg_color": "BLUE",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    },
+    {
+      "tag": "basicseg",
+      "content": "{USERNAME}@{HOSTNAME}:{DIRECTORY}$ ",
+      "bg_color": "RESET",
+      "fg_color": "GREEN_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "sysinfoseg",
+      "content": "[{SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme/system_info.sh}] ",
+      "bg_color": "BLUE",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    },
+    {
+      "tag": "basicseg",
+      "content": "{DIRECTORY} [{GIT_BRANCH}{GIT_STATUS}]$ ",
+      "bg_color": "RESET",
+      "fg_color": "MAGENTA_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "sysinfoseg",
+      "content": "[{SCRIPT$/Users/cadenfinley/.cjsh/themes/script_theme/system_info.sh}] ",
+      "bg_color": "BLUE",
+      "fg_color": "WHITE_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    },
+    {
+      "tag": "aiseg",
+      "content": "[{AI_MODEL}] ",
+      "bg_color": "CYAN",
+      "fg_color": "BLACK",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "promptseg",
+      "content": "➜ ",
+      "bg_color": "RESET",
+      "fg_color": "GREEN_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ]
+}

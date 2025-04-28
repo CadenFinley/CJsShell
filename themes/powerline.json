@@ -1,5 +1,5 @@
 {
-    "terminal_title": "{SHELL} @ {USERNAME}@{HOSTNAME}",
+    "terminal_title": "{SHELL} {SHELL_VER} {TIME} : {DATE}",
     "ps1_segments": [
         {
             "tag": "userseg",
@@ -21,7 +21,7 @@
         },
         {
             "tag": "dirseg",
-            "content": " {DIRECTORY} ",
+            "content": " {PATH} ",
             "bg_color": "PL_DIR_BG",
             "fg_color": "PL_DIR_FG",
             "separator": "\uE0B0",
@@ -50,7 +50,7 @@
         },
         {
             "tag": "gitseg",
-            "content": " {GIT_BRANCH}{GIT_STATUS} ",
+            "content": " \ue0a0 {GIT_BRANCH}{GIT_STATUS} ",
             "bg_color": "PL_GIT_BG",
             "fg_color": "PL_GIT_FG",
             "separator": "\uE0B0",

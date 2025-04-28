@@ -291,7 +291,7 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int
         std::string command = "cd " + repo_root.string() + 
                               " && git rev-list --left-right --count @{u}...HEAD 2>/dev/null";
         
-        FILE* pipe = popen(command.c_str(), "r");
+        FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
         if (!pipe) {
             return -1;
         }
@@ -323,7 +323,7 @@ int PromptInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
         std::string command = "cd " + repo_root.string() + 
                               " && git stash list | wc -l";
         
-        FILE* pipe = popen(command.c_str(), "r");
+        FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
         if (!pipe) {
             return 0;
         }
@@ -352,7 +352,7 @@ bool PromptInfo::get_git_has_staged_changes(const std::filesystem::path& repo_ro
         std::string command = "cd " + repo_root.string() + 
                               " && git diff --cached --quiet && echo 0 || echo 1";
         
-        FILE* pipe = popen(command.c_str(), "r");
+        FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
         if (!pipe) {
             return false;
         }
@@ -383,7 +383,7 @@ int PromptInfo::get_git_uncommitted_changes(const std::filesystem::path& repo_ro
         std::string command = "cd " + repo_root.string() + 
                               " && git status --porcelain | wc -l";
         
-        FILE* pipe = popen(command.c_str(), "r");
+        FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
         if (!pipe) {
             return 0;
         }
@@ -575,7 +575,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 // System information implementations
 std::string PromptInfo::get_os_info() {
     #ifdef __APPLE__
-        FILE* fp = popen("sw_vers -productName", "r");
+        FILE* fp = popen("sh -c 'sw_vers -productName'", "r");
         if (!fp) return "Unknown";
         
         char buffer[128];
@@ -591,7 +591,7 @@ std::string PromptInfo::get_os_info() {
         }
         
         // Get version
-        fp = popen("sw_vers -productVersion", "r");
+        fp = popen("sh -c 'sw_vers -productVersion'", "r");
         if (fp) {
             std::string version = "";
             while (fgets(buffer, sizeof(buffer), fp) != NULL) {
@@ -609,7 +609,7 @@ std::string PromptInfo::get_os_info() {
         
         return result;
     #elif defined(__linux__)
-        FILE* fp = popen("cat /etc/os-release | grep PRETTY_NAME | cut -d '\"' -f 2", "r");
+        FILE* fp = popen("sh -c 'cat /etc/os-release | grep PRETTY_NAME | cut -d \"\\\"\" -f 2'", "r");
         if (!fp) return "Linux";
         
         char buffer[128];
@@ -631,7 +631,7 @@ std::string PromptInfo::get_os_info() {
 }
 
 std::string PromptInfo::get_kernel_version() {
-    FILE* fp = popen("uname -r", "r");
+    FILE* fp = popen("sh -c 'uname -r'", "r");
     if (!fp) return "Unknown";
     
     char buffer[128];
@@ -651,9 +651,9 @@ std::string PromptInfo::get_kernel_version() {
 
 float PromptInfo::get_cpu_usage() {
     #ifdef __APPLE__
-        FILE* fp = popen("top -l 1 | grep 'CPU usage' | awk '{print $3}' | cut -d'%' -f1", "r");
+        FILE* fp = popen("sh -c 'top -l 1 | grep \"CPU usage\" | awk \"{print \\$3}\" | cut -d\"%\" -f1'", "r");
     #elif defined(__linux__)
-        FILE* fp = popen("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'", "r");
+        FILE* fp = popen("sh -c 'top -bn1 | grep \"Cpu(s)\" | awk \"{print \\$2 + \\$4}\"'", "r");
     #else
         return 0.0f;
     #endif
@@ -676,9 +676,9 @@ float PromptInfo::get_cpu_usage() {
 
 float PromptInfo::get_memory_usage() {
     #ifdef __APPLE__
-        FILE* fp = popen("top -l 1 | grep PhysMem | awk '{print $2}' | cut -d'M' -f1", "r");
+        FILE* fp = popen("sh -c 'top -l 1 | grep PhysMem | awk \"{print \\$2}\" | cut -d\"M\" -f1'", "r");
     #elif defined(__linux__)
-        FILE* fp = popen("free | grep Mem | awk '{print $3/$2 * 100.0}'", "r");
+        FILE* fp = popen("sh -c 'free | grep Mem | awk \"{print \\$3/\\$2 * 100.0}\"'", "r");
     #else
         return 0.0f;
     #endif
@@ -701,7 +701,7 @@ float PromptInfo::get_memory_usage() {
 
 std::string PromptInfo::get_battery_status() {
     #ifdef __APPLE__
-        FILE* fp = popen("pmset -g batt | grep -Eo '\\d+%'", "r");
+        FILE* fp = popen("sh -c 'pmset -g batt | grep -Eo \"\\\\d+%\"'", "r");
         if (!fp) return "Unknown";
         
         char buffer[32];
@@ -717,7 +717,7 @@ std::string PromptInfo::get_battery_status() {
         }
         
         // Get charging status
-        fp = popen("pmset -g batt | grep -Eo ';.*' | cut -d ';' -f2 | cut -d ' ' -f2", "r");
+        fp = popen("sh -c 'pmset -g batt | grep -Eo \";.*\" | cut -d \";\" -f2 | cut -d \" \" -f2'", "r");
         if (!fp) return percentage;
         
         std::string status = "";
@@ -740,7 +740,7 @@ std::string PromptInfo::get_battery_status() {
         
         return percentage + " " + icon;
     #elif defined(__linux__)
-        FILE* fp = popen("cat /sys/class/power_supply/BAT0/capacity 2>/dev/null", "r");
+        FILE* fp = popen("sh -c 'cat /sys/class/power_supply/BAT0/capacity 2>/dev/null'", "r");
         if (!fp) return "Unknown";
         
         char buffer[32];
@@ -756,7 +756,7 @@ std::string PromptInfo::get_battery_status() {
         }
         
         // Get charging status
-        fp = popen("cat /sys/class/power_supply/BAT0/status 2>/dev/null", "r");
+        fp = popen("sh -c 'cat /sys/class/power_supply/BAT0/status 2>/dev/null'", "r");
         if (!fp) return percentage + "%";
         
         std::string status = "";
@@ -784,7 +784,7 @@ std::string PromptInfo::get_battery_status() {
 }
 
 std::string PromptInfo::get_uptime() {
-    FILE* fp = popen("uptime | awk '{print $3 $4 $5}' | sed 's/,//g'", "r");
+    FILE* fp = popen("sh -c 'uptime | awk \"{print \\$3 \\$4 \\$5}\" | sed \"s/,//g\"'", "r");
     if (!fp) return "Unknown";
     
     char buffer[128];
@@ -833,7 +833,7 @@ std::string PromptInfo::get_active_language_version(const std::string& language)
         return "Unknown";
     }
     
-    FILE* fp = popen(cmd.c_str(), "r");
+    FILE* fp = popen(("sh -c '" + cmd + "'").c_str(), "r");
     if (!fp) return "Unknown";
     
     char buffer[128];
@@ -885,7 +885,7 @@ bool PromptInfo::is_in_virtual_environment(std::string& env_name) {
 // Network information implementations
 std::string PromptInfo::get_ip_address(bool external) {
     if (external) {
-        FILE* fp = popen("curl -s icanhazip.com", "r");
+        FILE* fp = popen("sh -c 'curl -s icanhazip.com'", "r");
         if (!fp) return "Unknown";
         
         char buffer[64];
@@ -903,9 +903,9 @@ std::string PromptInfo::get_ip_address(bool external) {
         return result;
     } else {
         #ifdef __APPLE__
-            FILE* fp = popen("ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1", "r");
+            FILE* fp = popen("sh -c 'ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1'", "r");
         #elif defined(__linux__)
-            FILE* fp = popen("hostname -I | awk '{print $1}'", "r");
+            FILE* fp = popen("sh -c 'hostname -I | awk \"{print \\$1}\"'", "r");
         #else
             return "Unknown";
         #endif
@@ -930,9 +930,9 @@ std::string PromptInfo::get_ip_address(bool external) {
 
 bool PromptInfo::is_vpn_active() {
     #ifdef __APPLE__
-        FILE* fp = popen("scutil --nc list | grep Connected | wc -l", "r");
+        FILE* fp = popen("sh -c 'scutil --nc list | grep Connected | wc -l'", "r");
     #elif defined(__linux__)
-        FILE* fp = popen("ip tuntap show | grep -q tun && echo 1 || echo 0", "r");
+        FILE* fp = popen("sh -c 'ip tuntap show | grep -q tun && echo 1 || echo 0'", "r");
     #else
         return false;
     #endif
@@ -955,9 +955,9 @@ bool PromptInfo::is_vpn_active() {
 
 std::string PromptInfo::get_active_network_interface() {
     #ifdef __APPLE__
-        FILE* fp = popen("route get default | grep interface | awk '{print $2}'", "r");
+        FILE* fp = popen("sh -c 'route get default | grep interface | awk \"{print \\$2}\"'", "r");
     #elif defined(__linux__)
-        FILE* fp = popen("ip route | grep default | awk '{print $5}' | head -n1", "r");
+        FILE* fp = popen("sh -c 'ip route | grep default | awk \"{print \\$5}\" | head -n1'", "r");
     #else
         return "Unknown";
     #endif
@@ -982,9 +982,9 @@ std::string PromptInfo::get_active_network_interface() {
 
 int PromptInfo::get_background_jobs_count() {
     #ifdef __APPLE__
-        FILE* fp = popen("jobs -p | wc -l", "r");
+        FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
     #elif defined(__linux__)
-        FILE* fp = popen("jobs -p | wc -l", "r");
+        FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
     #else
         return 0;
     #endif
