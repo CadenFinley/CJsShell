@@ -135,13 +135,48 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_git_status_check).count();
     
     if ((elapsed > 30 || cached_git_dir != git_dir) && !is_git_status_check_running) {
-        std::lock_guard<std::mutex> lock(git_status_mutex);
-        cached_git_dir = git_dir;
-        cached_status_symbols = "*";
-        cached_is_clean_repo = false;
-        last_git_status_check = std::chrono::steady_clock::now();
-        status_symbols = cached_status_symbols;
-        is_clean_repo = cached_is_clean_repo;
+        is_git_status_check_running = true;
+        std::string command = "cd " + git_dir + " && git status --porcelain";
+        
+        FILE* pipe = popen(command.c_str(), "r");
+        if (pipe) {
+            char buffer[128];
+            std::string result = "";
+            
+            while (!feof(pipe)) {
+                if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+                    result += buffer;
+                }
+            }
+            
+            pclose(pipe);
+            
+            // Lock to update cache
+            std::lock_guard<std::mutex> lock(git_status_mutex);
+            cached_git_dir = git_dir;
+            if (result.empty()) {
+                // No changes detected, repo is clean
+                cached_status_symbols = "✓";
+                cached_is_clean_repo = true;
+            } else {
+                // Changes detected, repo is dirty
+                cached_status_symbols = "*";
+                cached_is_clean_repo = false;
+            }
+            
+            last_git_status_check = std::chrono::steady_clock::now();
+            status_symbols = cached_status_symbols;
+            is_clean_repo = cached_is_clean_repo;
+            is_git_status_check_running = false;
+        } else {
+            // Command failed, revert to default
+            std::lock_guard<std::mutex> lock(git_status_mutex);
+            cached_status_symbols = "?";
+            cached_is_clean_repo = false;
+            status_symbols = cached_status_symbols;
+            is_clean_repo = cached_is_clean_repo;
+            is_git_status_check_running = false;
+        }
     } else {
         std::lock_guard<std::mutex> lock(git_status_mutex);
         status_symbols = cached_status_symbols;
