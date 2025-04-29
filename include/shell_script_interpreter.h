@@ -22,10 +22,8 @@ public:
     ShellScriptInterpreter();
     ~ShellScriptInterpreter();
 
-    // Execute a shell script from a file
     bool execute_script(const std::string& filename);
-    
-    // Execute a single line of shell script
+
     bool execute_line(const std::string& line);
     
     // Execute a block of shell script

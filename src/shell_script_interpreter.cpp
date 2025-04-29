@@ -917,7 +917,7 @@ std::string ShellScriptInterpreter::capture_command_output(const std::string& cm
     if (g_shell) {
         g_shell->execute_command(redirect_cmd, true);
     } else {
-        int i = system(redirect_cmd.c_str());
+        std::cerr << "Error: No shell available for command execution" << std::endl;
     }
     
     // Read the output from the temporary file
