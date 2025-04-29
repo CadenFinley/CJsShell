@@ -1,9 +1,9 @@
 #pragma once
 
 #include "ai.h"
-#include "shell.h"
 #include "theme.h"
 #include "plugin.h"
+#include "shell.h"
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -46,11 +46,11 @@ extern std::string g_current_theme;
 extern std::string title_line;
 extern std::string created_line;
 extern Ai* g_ai;
+
+class Shell;
 extern Shell* g_shell;
 extern Theme* g_theme;
 extern Plugin* g_plugin;
-class ShellScriptInterpreter;
-extern ShellScriptInterpreter* g_script_interpreter;
 
 std::string get_colorized_splash();
 int main(int argc, char *argv[]);

@@ -90,15 +90,13 @@ std::string Exec::get_error() {
   return last_terminal_output_error;
 }
 
-void Exec::execute_command_sync(const std::vector<std::string>& args) {
+int Exec::execute_command_sync(const std::vector<std::string>& args) {
   if (args.empty()) {
     set_error("cjsh: Failed to parse command");
     std::cerr << last_terminal_output_error << std::endl;
-    return;
+    last_exit_code = 1;
+    return 1;
   }
-  
-  // Check if the command starts with an environment variable assignment
-  // like "VAR=value command args..."
   std::vector<std::pair<std::string, std::string>> env_assignments;
   size_t cmd_start_idx = 0;
   
@@ -109,8 +107,7 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     if (pos != std::string::npos && pos > 0) {
       std::string name = args[i].substr(0, pos);
       bool valid_name = true;
-      
-      // Check if the name is a valid environment variable name
+
       if (!isalpha(name[0]) && name[0] != '_') {
         valid_name = false;
       } else {
@@ -134,17 +131,16 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
       break;
     }
   }
-  
-  // If there are only environment assignments and no command, apply them to the current process
+
   if (cmd_start_idx >= args.size()) {
     for (const auto& env : env_assignments) {
       setenv(env.first.c_str(), env.second.c_str(), 1);
     }
     set_error("Environment variables set");
-    return;
+    last_exit_code = 0;
+    return 0;
   }
   
-  // Now execute the actual command with the environment variables
   std::vector<std::string> cmd_args(args.begin() + cmd_start_idx, args.end());
   
   pid_t pid = fork();
@@ -152,13 +148,11 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
   if (pid == -1) {
     set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
     std::cerr << last_terminal_output_error << std::endl;
-    return;
+    last_exit_code = 1;
+    return 1;
   }
   
   if (pid == 0) {
-    // Child process
-    
-    // Apply environment variable assignments
     for (const auto& env : env_assignments) {
       setenv(env.first.c_str(), env.second.c_str(), 1);
     }
@@ -221,14 +215,30 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
   
   put_job_in_foreground(job_id, false);
   
-  set_error("command completed successfully");
+  std::lock_guard<std::mutex> lock(jobs_mutex);
+  auto it = jobs.find(job_id);
+  int exit_code = 0;
+  
+  if (it != jobs.end() && it->second.completed) {
+    int status = it->second.status;
+    if (WIFEXITED(status)) {
+      exit_code = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+      exit_code = 128 + WTERMSIG(status);
+    }
+  }
+  
+  set_error(exit_code == 0 ? "command completed successfully" : "command failed with exit code " + std::to_string(exit_code));
+  last_exit_code = exit_code;
+  return exit_code;
 }
 
-void Exec::execute_command_async(const std::vector<std::string>& args) {
+int Exec::execute_command_async(const std::vector<std::string>& args) {
   if (args.empty()) {
     set_error("cjsh: Failed to parse command");
     std::cerr << last_terminal_output_error << std::endl;
-    return;
+    last_exit_code = 1;
+    return 1;
   }
   
   pid_t pid = fork();
@@ -236,7 +246,8 @@ void Exec::execute_command_async(const std::vector<std::string>& args) {
   if (pid == -1) {
     set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
     std::cerr << last_terminal_output_error << std::endl;
-    return;
+    last_exit_code = 1;
+    return 1;
   }
   
   if (pid == 0) {
@@ -289,13 +300,16 @@ void Exec::execute_command_async(const std::vector<std::string>& args) {
     set_error("async command launched");
     
     std::cout << "[" << job_id << "] " << pid << std::endl;
+    last_exit_code = 0;
+    return 0;
   }
 }
 
-void Exec::execute_pipeline(const std::vector<Command>& commands) {
+int Exec::execute_pipeline(const std::vector<Command>& commands) {
   if (commands.empty()) {
     set_error("cjsh: Empty pipeline");
-    return;
+    last_exit_code = 1;
+    return 1;
   }
   
   if (commands.size() == 1) {
@@ -309,7 +323,7 @@ void Exec::execute_pipeline(const std::vector<Command>& commands) {
       if (pid == -1) {
         set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
         std::cerr << last_terminal_output_error << std::endl;
-        return;
+        return 1;
       }
       
       if (pid == 0) {
@@ -374,7 +388,7 @@ void Exec::execute_pipeline(const std::vector<Command>& commands) {
       put_job_in_foreground(job_id, false);
     }
     
-    return;
+    return 0;
   }
   
   std::vector<pid_t> pids;
@@ -395,7 +409,7 @@ void Exec::execute_pipeline(const std::vector<Command>& commands) {
           kill(pid, SIGTERM);
         }
         
-        return;
+        return 1;
       }
     }
     
@@ -414,7 +428,7 @@ void Exec::execute_pipeline(const std::vector<Command>& commands) {
         kill(pid, SIGTERM);
       }
       
-      return;
+      return 1;
     }
     
     if (pid == 0) {
@@ -514,6 +528,8 @@ void Exec::execute_pipeline(const std::vector<Command>& commands) {
   } else {
     put_job_in_foreground(job_id, false);
   }
+  
+  return 0;
 }
 
 int Exec::add_job(const Job& job) {
@@ -669,6 +685,7 @@ void Exec::wait_for_job(int job_id) {
     if (job_stopped) {
       job.stopped = true;
       job.status = status;
+      last_exit_code = 128 + SIGTSTP;
     } else {
       job.completed = true;
       job.stopped = false;
@@ -676,12 +693,14 @@ void Exec::wait_for_job(int job_id) {
       
       if (WIFEXITED(status)) {
         int exit_status = WEXITSTATUS(status);
+        last_exit_code = exit_status;
         if (exit_status == 0) {
           set_error("command completed successfully");
         } else {
           set_error("command failed with exit code " + std::to_string(exit_status));
         }
       } else if (WIFSIGNALED(status)) {
+        last_exit_code = 128 + WTERMSIG(status);
         set_error("command terminated by signal " + std::to_string(WTERMSIG(status)));
       }
     }

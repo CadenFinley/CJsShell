@@ -77,6 +77,7 @@ Shell::Shell(bool login_mode) {
   shell_exec = std::make_unique<Exec>();
   shell_parser = new Parser();
   built_ins = new Built_ins();
+  shell_script_interpreter = new ShellScriptInterpreter();
   built_ins->set_shell(this);
   built_ins->set_current_directory();
   this->login_mode = login_mode;
@@ -91,6 +92,7 @@ Shell::Shell(bool login_mode) {
 Shell::~Shell() {
   delete shell_parser;
   delete built_ins;
+  delete shell_script_interpreter;
   shell_exec->terminate_all_child_process();
   restore_terminal_state();
   
@@ -179,12 +181,12 @@ void Shell::setup_job_control() {
   }
 }
 
-void Shell::execute_command(std::string command, bool sync) {
+int Shell::execute_command(std::string command, bool sync) {
   if (command.empty()) {
-    return;
+    return 0;
   }
   if (!shell_exec || !built_ins || !shell_parser) {
-    return;
+    return 1;
   }
 
   // Check if the command contains semicolons
@@ -193,7 +195,7 @@ void Shell::execute_command(std::string command, bool sync) {
     for (const auto& cmd : cmds) {
       execute_command(cmd, sync);
     }
-    return;
+    return 0;
   }
 
   // Parse command once and reuse the parsed args throughout the function
@@ -206,7 +208,7 @@ void Shell::execute_command(std::string command, bool sync) {
     shell_parser->set_env_vars(env_vars);
     last_terminal_output_error = "Variable set successfully";
     last_command = command;
-    return;
+    return 0;
   }
 
   // Check for export command
@@ -224,7 +226,7 @@ void Shell::execute_command(std::string command, bool sync) {
       shell_parser->set_env_vars(env_vars);
       last_terminal_output_error = "Variables exported successfully";
       last_command = command;
-      return;
+      return 0;
     }
   }
 
@@ -267,17 +269,17 @@ void Shell::execute_command(std::string command, bool sync) {
       }
     }
     
-    return;
+    return 0;
   }
 
   if (command == "clear") {
     std::vector<std::string> clear_args = {"clear"};
     shell_exec->execute_command_sync(clear_args);
-    return;
+    return 0;
   }
   if (command == "exit" || command == "quit") {
     g_exit_flag = true;
-    return;
+    return 0;
   }
 
   if (command.find('|') != std::string::npos) {
@@ -285,22 +287,22 @@ void Shell::execute_command(std::string command, bool sync) {
     shell_exec->execute_pipeline(pipeline);
     last_terminal_output_error = shell_exec->get_error();
     last_command = command;
-    return;
+    return 0;
   }
 
   if (!g_menu_terminal) {
     if(!args.empty()) {
       if(args[0] == "terminal") {
         g_menu_terminal = true;
-        return;
+        return 0;
       }
       if(args[0] == "ai") {
         built_ins->ai_commands(args);
-        return;
+        return 0;
       }
     }
     built_ins->do_ai_request(command);
-    return;
+    return 0;
   }
 
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
@@ -308,7 +310,7 @@ void Shell::execute_command(std::string command, bool sync) {
       last_terminal_output_error = "Something went wrong with the command";
     }
     last_command = command;
-    return;
+    return 0;
   }
 
   if (g_plugin) {
@@ -318,10 +320,24 @@ void Shell::execute_command(std::string command, bool sync) {
         std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
         if(std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()){
           g_plugin->handle_plugin_command(plugin, args);
-          return;
+          return 0;
         }
       }
     }
+  }
+
+  //if command is source
+  if (args.size() > 0 && args[0] == "source") {
+    if (args.size() > 1) {
+      if (shell_script_interpreter != nullptr) {
+        shell_script_interpreter->execute_script(args[1]);
+      } else {
+        last_terminal_output_error = "Script interpreter not available";
+      }
+    } else {
+      last_terminal_output_error = "No source file specified";
+    }
+    return 0;
   }
 
   if (sync) {
@@ -332,4 +348,5 @@ void Shell::execute_command(std::string command, bool sync) {
     last_terminal_output_error = "async command launched";
   }
   last_command = command;
+  return shell_exec->get_exit_code();
 }

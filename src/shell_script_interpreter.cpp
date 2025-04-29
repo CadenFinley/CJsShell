@@ -1,4 +1,6 @@
 #include "shell_script_interpreter.h"
+#include "shell.h"
+#include "main.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -12,57 +14,67 @@
 ShellScriptInterpreter* g_script_interpreter = nullptr;
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
-    commandExecutor = [](const std::string& cmd, bool) -> bool {
+    command_executor = [](const std::string& cmd, bool) -> bool {
         return system(cmd.c_str()) == 0;
     };
     
-    inThenBlock = false;
+    in_then_block = false;
     
-    debugLevel = DebugLevel::NONE;
-    showCommandOutput = false;
-    debugIndentLevel = 0;
+    debug_level = DebugLevel::NONE;
+    show_command_output = false;
+    debug_indent_level = 0;
+    cached_indent_level = -1;
 }
 
 ShellScriptInterpreter::~ShellScriptInterpreter() {
 }
 
-void ShellScriptInterpreter::setDebugLevel(DebugLevel level) {
-    debugLevel = level;
+void ShellScriptInterpreter::set_debug_level(DebugLevel level) {
+    debug_level = level;
 }
 
-DebugLevel ShellScriptInterpreter::getDebugLevel() const {
-    return debugLevel;
+DebugLevel ShellScriptInterpreter::get_debug_level() const {
+    return debug_level;
 }
 
-void ShellScriptInterpreter::debugPrint(const std::string& message, DebugLevel level) const {
-    if (static_cast<int>(debugLevel) >= static_cast<int>(level)) {
-        std::cerr << getIndentation() << "[DEBUG] " << message << std::endl;
+void ShellScriptInterpreter::debug_print(const std::string& message, DebugLevel level) const {
+    if (static_cast<int>(debug_level) >= static_cast<int>(level)) {
+        std::cerr << get_indentation() << "[DEBUG] " << message << std::endl;
     }
 }
 
-std::string ShellScriptInterpreter::getIndentation() const {
-    return std::string(debugIndentLevel * 2, ' ');
+std::string ShellScriptInterpreter::get_indentation() const {
+    // Cache the indentation string for performance
+    if (cached_indent_level != debug_indent_level) {
+        cached_indentation = std::string(debug_indent_level * 2, ' ');
+        cached_indent_level = debug_indent_level;
+    }
+    return cached_indentation;
 }
 
-void ShellScriptInterpreter::dumpVariables() const {
-    if (debugLevel == DebugLevel::NONE) {
+void ShellScriptInterpreter::dump_variables() const {
+    if (debug_level == DebugLevel::NONE) {
         return;
     }
     
-    std::cerr << getIndentation() << "[DEBUG] Variable dump:" << std::endl;
+    // Use a stringstream for more efficient string building
+    std::stringstream ss;
+    ss << get_indentation() << "[DEBUG] Variable dump:" << std::endl;
     
-    size_t maxLength = 0;
-    for (const auto& pair : localVariables) {
-        maxLength = std::max(maxLength, pair.first.length());
+    // Find max length in one pass
+    size_t max_length = 0;
+    for (const auto& pair : local_variables) {
+        max_length = std::max(max_length, pair.first.length());
     }
     
-    for (const auto& pair : localVariables) {
-        std::cerr << getIndentation() << "  " << std::left 
-                  << std::setw(maxLength + 2) << pair.first 
-                  << "= \"" << pair.second << "\"" << std::endl;
+    // Output formatted variables
+    for (const auto& pair : local_variables) {
+        ss << get_indentation() << "  " << std::left 
+           << std::setw(max_length + 2) << pair.first 
+           << "= \"" << pair.second << "\"" << std::endl;
     }
     
-    const char* envVars[] = {
+    const char* env_vars[] = {
         "PATH", "HOME", "USER", "SHELL", "PWD", "OLDPWD",
         "TERM", "LANG", "LC_ALL", "DISPLAY",
         "?", "PPID", "PS1", "PS2", 
@@ -70,18 +82,19 @@ void ShellScriptInterpreter::dumpVariables() const {
         "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "MANPATH",
         "JAVA_HOME", "PYTHONPATH", "GOPATH", "NODE_PATH"
     };
-    std::cerr << getIndentation() << "[DEBUG] Key environment variables:" << std::endl;
-    for (const char* var : envVars) {
+    ss << get_indentation() << "[DEBUG] Key environment variables:" << std::endl;
+    for (const char* var : env_vars) {
         const char* value = getenv(var);
         if (value) {
-            std::cerr << getIndentation() << "  " << std::left 
-                      << std::setw(maxLength + 2) << var 
-                      << "= \"" << value << "\"" << std::endl;
+            ss << get_indentation() << "  " << std::left 
+               << std::setw(max_length + 2) << var 
+               << "= \"" << value << "\"" << std::endl;
         }
     }
+    std::cerr << ss.str();
 }
 
-std::string ShellScriptInterpreter::escapeDebugString(const std::string& input) const {
+std::string ShellScriptInterpreter::escape_debug_string(const std::string& input) const {
     std::string result;
     for (char c : input) {
         if (c == '\n') result += "\\n";
@@ -98,56 +111,56 @@ std::string ShellScriptInterpreter::escapeDebugString(const std::string& input) 
     return result;
 }
 
-bool ShellScriptInterpreter::handleDebugCommand(const std::string& command) {
+bool ShellScriptInterpreter::handle_debug_command(const std::string& command) {
     if (command == "debug on") {
-        debugLevel = DebugLevel::BASIC;
+        debug_level = DebugLevel::BASIC;
         std::cerr << "Debug mode ON (basic)" << std::endl;
         return true;
     } else if (command == "debug off") {
-        debugLevel = DebugLevel::NONE;
+        debug_level = DebugLevel::NONE;
         std::cerr << "Debug mode OFF" << std::endl;
         return true;
     } else if (command == "debug verbose") {
-        debugLevel = DebugLevel::VERBOSE;
+        debug_level = DebugLevel::VERBOSE;
         std::cerr << "Debug mode ON (verbose)" << std::endl;
         return true;
     } else if (command == "debug trace") {
-        debugLevel = DebugLevel::TRACE;
+        debug_level = DebugLevel::TRACE;
         std::cerr << "Debug mode ON (trace)" << std::endl;
         return true;
     } else if (command == "debug level") {
-        std::cerr << "Current debug level: " << static_cast<int>(debugLevel) << std::endl;
+        std::cerr << "Current debug level: " << static_cast<int>(debug_level) << std::endl;
         return true;
     } else if (command == "debug vars") {
-        dumpVariables();
+        dump_variables();
         return true;
     } else if (command == "debug show_output on") {
-        showCommandOutput = true;
+        show_command_output = true;
         std::cerr << "Command output display ON" << std::endl;
         return true;
     } else if (command == "debug show_output off") {
-        showCommandOutput = false;
+        show_command_output = false;
         std::cerr << "Command output display OFF" << std::endl;
         return true;
     } else if (command == "debug safe_mode on") {
-        debugPrint("Enabling safe mode - path operations will be more carefully validated", DebugLevel::BASIC);
-        localVariables["CJSH_SAFE_MODE"] = "1";
+        debug_print("Enabling safe mode - path operations will be more carefully validated", DebugLevel::BASIC);
+        local_variables["CJSH_SAFE_MODE"] = "1";
         return true;
     } else if (command == "debug safe_mode off") {
-        debugPrint("Disabling safe mode", DebugLevel::BASIC);
-        localVariables["CJSH_SAFE_MODE"] = "0";
+        debug_print("Disabling safe mode", DebugLevel::BASIC);
+        local_variables["CJSH_SAFE_MODE"] = "0";
         return true;
     }
     
     return false;
 }
 
-bool ShellScriptInterpreter::handlePathHelper() {
-    debugPrint("Directly handling path_helper command", DebugLevel::BASIC);
+bool ShellScriptInterpreter::handle_path_helper() {
+    debug_print("Directly handling path_helper command", DebugLevel::BASIC);
     
     FILE* pipe = popen("/usr/libexec/path_helper -s", "r");
     if (!pipe) {
-        debugPrint("Failed to execute path_helper", DebugLevel::BASIC);
+        debug_print("Failed to execute path_helper", DebugLevel::BASIC);
         return false;
     }
     
@@ -158,33 +171,33 @@ bool ShellScriptInterpreter::handlePathHelper() {
     }
     pclose(pipe);
     
-    debugPrint("Path helper output: " + escapeDebugString(result), DebugLevel::VERBOSE);
+    debug_print("Path helper output: " + escape_debug_string(result), DebugLevel::VERBOSE);
     
-    size_t pathStart = result.find("PATH=\"") + 6;
-    size_t pathEnd = result.find("\"", pathStart);
+    size_t path_start = result.find("PATH=\"") + 6;
+    size_t path_end = result.find("\"", path_start);
     
-    if (pathStart != std::string::npos && pathEnd != std::string::npos) {
-        std::string pathValue = result.substr(pathStart, pathEnd - pathStart);
+    if (path_start != std::string::npos && path_end != std::string::npos) {
+        std::string path_value = result.substr(path_start, path_end - path_start);
         
-        if (!pathValue.empty()) {
-            debugPrint("Setting PATH to: " + pathValue, DebugLevel::BASIC);
+        if (!path_value.empty()) {
+            debug_print("Setting PATH to: " + path_value, DebugLevel::BASIC);
             
-            localVariables["PATH"] = pathValue;
-            setenv("PATH", pathValue.c_str(), 1);
+            local_variables["PATH"] = path_value;
+            setenv("PATH", path_value.c_str(), 1);
             return true;
         }
     }
     
-    debugPrint("ERROR: Could not parse path_helper output, using default path", DebugLevel::BASIC);
-    std::string defaultPath = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
-    localVariables["PATH"] = defaultPath;
-    setenv("PATH", defaultPath.c_str(), 1);
+    debug_print("ERROR: Could not parse path_helper output, using default path", DebugLevel::BASIC);
+    std::string default_path = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
+    local_variables["PATH"] = default_path;
+    setenv("PATH", default_path.c_str(), 1);
     
     return true;
 }
 
-bool ShellScriptInterpreter::executeScript(const std::string& filename) {
-    debugPrint("Executing script: " + filename);
+bool ShellScriptInterpreter::execute_script(const std::string& filename) {
+    debug_print("Executing script: " + filename);
     
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -198,50 +211,50 @@ bool ShellScriptInterpreter::executeScript(const std::string& filename) {
         lines.push_back(line);
     }
     
-    if (debugLevel >= DebugLevel::VERBOSE) {
-        debugPrint("Script content (" + std::to_string(lines.size()) + " lines):", DebugLevel::VERBOSE);
+    if (debug_level >= DebugLevel::VERBOSE) {
+        debug_print("Script content (" + std::to_string(lines.size()) + " lines):", DebugLevel::VERBOSE);
         for (size_t i = 0; i < lines.size(); i++) {
-            debugPrint(std::to_string(i+1) + ": " + lines[i], DebugLevel::VERBOSE);
+            debug_print(std::to_string(i+1) + ": " + lines[i], DebugLevel::VERBOSE);
         }
     }
     
-    return executeBlock(lines);
+    return execute_block(lines);
 }
 
-bool ShellScriptInterpreter::executeBlock(const std::vector<std::string>& lines) {
+bool ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
     std::vector<std::string> lines_copy = lines;
     
     for (auto it = lines_copy.begin(); it != lines_copy.end(); ) {
-        std::string trimmed = trimString(*it);
+        std::string trimmed = trim_string(*it);
         
         if (trimmed.empty() || trimmed[0] == '#') {
-            debugPrint("Skipping empty line or comment: " + escapeDebugString(*it), DebugLevel::VERBOSE);
+            debug_print("Skipping empty line or comment: " + escape_debug_string(*it), DebugLevel::VERBOSE);
             ++it;
             continue;
         }
         
         if (trimmed.find("if ") == 0) {
-            debugPrint("Found if statement: " + escapeDebugString(trimmed), DebugLevel::VERBOSE);
+            debug_print("Found if statement: " + escape_debug_string(trimmed), DebugLevel::VERBOSE);
             
             if (trimmed.find("; then") != std::string::npos) {
-                debugPrint("Found 'then' on same line", DebugLevel::VERBOSE);
+                debug_print("Found 'then' on same line", DebugLevel::VERBOSE);
             }
             
-            if (!parseConditional(it, lines_copy.end())) {
+            if (!parse_conditional(it, lines_copy.end())) {
                 return false;
             }
             continue;
         }
         
         if (trimmed.find("for ") == 0 || trimmed.find("while ") == 0) {
-            if (!parseLoop(it, lines_copy.end())) {
+            if (!parse_loop(it, lines_copy.end())) {
                 return false;
             }
             continue;
         }
         
-        if (!executeLine(trimmed)) {
-            debugPrint("Command failed: " + escapeDebugString(trimmed), DebugLevel::BASIC);
+        if (!execute_line(trimmed)) {
+            debug_print("Command failed: " + escape_debug_string(trimmed), DebugLevel::BASIC);
             return false;
         }
         
@@ -251,72 +264,73 @@ bool ShellScriptInterpreter::executeBlock(const std::vector<std::string>& lines)
     return true;
 }
 
-bool ShellScriptInterpreter::executeLine(const std::string& line) {
-    std::string trimmed = trimString(line);
+bool ShellScriptInterpreter::execute_line(const std::string& line) {
+    std::string trimmed = trim_string(line);
     
     if (trimmed.empty()) {
-        debugPrint("Skipping empty line", DebugLevel::VERBOSE);
+        debug_print("Skipping empty line", DebugLevel::VERBOSE);
         return true;
     }
     
     try {
-        debugPrint("Executing line: " + escapeDebugString(trimmed), DebugLevel::BASIC);
+        debug_print("Executing line: " + escape_debug_string(trimmed), DebugLevel::BASIC);
         
         if (trimmed[0] == '#') {
-            debugPrint("Skipping comment", DebugLevel::VERBOSE);
+            debug_print("Skipping comment", DebugLevel::VERBOSE);
             return true;
         }
         
         if (trimmed.find("debug ") == 0 || trimmed == "debug") {
-            return handleDebugCommand(trimmed);
+            return handle_debug_command(trimmed);
         }
         
         if (trimmed.find("eval") == 0 && trimmed.find("path_helper") != std::string::npos) {
-            debugPrint("Detected path_helper eval command, using special handling", DebugLevel::BASIC);
-            return handlePathHelper();
+            debug_print("Detected path_helper eval command, using special handling", DebugLevel::BASIC);
+            return handle_path_helper();
         }
         
-        size_t equalsPos = trimmed.find('=');
-        if (equalsPos != std::string::npos && 
-            (trimmed.find(' ') > equalsPos || trimmed.find(' ') == std::string::npos)) {
-            std::string varName = trimString(trimmed.substr(0, equalsPos));
-            std::string varValue = trimString(trimmed.substr(equalsPos + 1));
+        // Handle variable assignment
+        size_t equals_pos = trimmed.find('=');
+        if (equals_pos != std::string::npos && 
+            (trimmed.find(' ') > equals_pos || trimmed.find(' ') == std::string::npos)) {
+            std::string var_name = trim_string(trimmed.substr(0, equals_pos));
+            std::string var_value = trim_string(trimmed.substr(equals_pos + 1));
             
-            debugPrint("Variable assignment: " + varName + "=" + varValue, DebugLevel::VERBOSE);
+            debug_print("Variable assignment: " + var_name + "=" + var_value, DebugLevel::VERBOSE);
             
-            if ((varValue.front() == '"' && varValue.back() == '"') ||
-                (varValue.front() == '\'' && varValue.back() == '\'')) {
-                varValue = varValue.substr(1, varValue.size() - 2);
-                debugPrint("Removed quotes: " + varValue, DebugLevel::TRACE);
+            if ((var_value.front() == '"' && var_value.back() == '"') ||
+                (var_value.front() == '\'' && var_value.back() == '\'')) {
+                var_value = var_value.substr(1, var_value.size() - 2);
+                debug_print("Removed quotes: " + var_value, DebugLevel::TRACE);
             }
             
-            bool isExport = false;
-            if (varName.find("export ") == 0) {
-                isExport = true;
-                varName = trimString(varName.substr(7));
-                debugPrint("Export variable: " + varName, DebugLevel::VERBOSE);
+            bool is_export = false;
+            if (var_name.find("export ") == 0) {
+                is_export = true;
+                var_name = trim_string(var_name.substr(7));
+                debug_print("Export variable: " + var_name, DebugLevel::VERBOSE);
             }
             
-            std::string origValue = varValue;
-            varValue = expandVariables(varValue);
+            std::string orig_value = var_value;
+            var_value = expand_variables(var_value);
             
-            if (origValue != varValue && debugLevel >= DebugLevel::VERBOSE) {
-                debugPrint("Expanded value: " + origValue + " -> " + varValue, DebugLevel::VERBOSE);
+            if (orig_value != var_value && debug_level >= DebugLevel::VERBOSE) {
+                debug_print("Expanded value: " + orig_value + " -> " + var_value, DebugLevel::VERBOSE);
             }
             
-            if (varName == "PATH" && varValue.empty()) {
-                debugPrint("WARNING: Attempt to set PATH to empty string, using default value instead", DebugLevel::BASIC);
-                varValue = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
+            if (var_name == "PATH" && var_value.empty()) {
+                debug_print("WARNING: Attempt to set PATH to empty string, using default value instead", DebugLevel::BASIC);
+                var_value = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
             }
             
-            localVariables[varName] = varValue;
+            local_variables[var_name] = var_value;
             
-            if (isExport) {
+            if (is_export) {
                 try {
-                    setenv(varName.c_str(), varValue.c_str(), 1);
-                    debugPrint("Set environment variable: " + varName + "=" + varValue, DebugLevel::VERBOSE);
+                    setenv(var_name.c_str(), var_value.c_str(), 1);
+                    debug_print("Set environment variable: " + var_name + "=" + var_value, DebugLevel::VERBOSE);
                 } catch (const std::exception& e) {
-                    debugPrint("ERROR: Failed to set environment variable: " + varName + " - " + e.what(), DebugLevel::BASIC);
+                    debug_print("ERROR: Failed to set environment variable: " + var_name + " - " + e.what(), DebugLevel::BASIC);
                     return false;
                 }
             }
@@ -324,15 +338,16 @@ bool ShellScriptInterpreter::executeLine(const std::string& line) {
             return true;
         }
         
+        // Handle if/then statements
         if (trimmed.find("if ") == 0) {
-            size_t thenPos = trimmed.find("; then");
-            if (thenPos != std::string::npos) {
-                std::string condition = trimString(trimmed.substr(3, thenPos - 3));
-                debugPrint("Evaluating condition: " + condition, DebugLevel::VERBOSE);
-                bool result = evaluateCondition(condition);
-                debugPrint("Condition result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+            size_t then_pos = trimmed.find("; then");
+            if (then_pos != std::string::npos) {
+                std::string condition = trim_string(trimmed.substr(3, then_pos - 3));
+                debug_print("Evaluating condition: " + condition, DebugLevel::VERBOSE);
+                bool result = evaluate_condition(condition);
+                debug_print("Condition result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
                 
-                localVariables["?"] = result ? "0" : "1";
+                local_variables["?"] = result ? "0" : "1";
                 return true;
             }
             
@@ -340,241 +355,265 @@ bool ShellScriptInterpreter::executeLine(const std::string& line) {
         }
         
         if (trimmed == "then") {
-            debugPrint("Then statement", DebugLevel::VERBOSE);
+            debug_print("Then statement", DebugLevel::VERBOSE);
             return true;
         }
         
+        // Handle eval commands
         if (trimmed.find("eval ") == 0) {
-            std::string cmd = trimString(trimmed.substr(4));
-            debugPrint("Eval command: " + escapeDebugString(cmd), DebugLevel::VERBOSE);
+            std::string cmd = trim_string(trimmed.substr(4));
+            debug_print("Eval command: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
             
             if (cmd.front() == '`' && cmd.back() == '`') {
                 cmd = cmd.substr(1, cmd.size() - 2);
-                debugPrint("Backtick command: " + escapeDebugString(cmd), DebugLevel::VERBOSE);
+                debug_print("Backtick command: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
                 
                 if (cmd.find("path_helper") != std::string::npos) {
-                    debugPrint("Using special path_helper handler", DebugLevel::BASIC);
-                    return handlePathHelper();
+                    debug_print("Using special path_helper handler", DebugLevel::BASIC);
+                    return handle_path_helper();
                 }
                 
                 try {
-                    std::string expandedCmd = expandVariables(cmd);
-                    if (expandedCmd != cmd && debugLevel >= DebugLevel::VERBOSE) {
-                        debugPrint("Expanded command: " + escapeDebugString(expandedCmd), DebugLevel::VERBOSE);
+                    std::string expanded_cmd = expand_variables(cmd);
+                    if (expanded_cmd != cmd && debug_level >= DebugLevel::VERBOSE) {
+                        debug_print("Expanded command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
                     }
                     
-                    debugPrint("Executing backtick command", DebugLevel::VERBOSE);
-                    std::string result = executeCommandSubstitution(expandedCmd);
+                    debug_print("Executing backtick command", DebugLevel::VERBOSE);
+                    std::string result = execute_command_substitution(expanded_cmd);
                     
-                    result = trimString(result);
-                    debugPrint("Command result: " + escapeDebugString(result), DebugLevel::VERBOSE);
+                    result = trim_string(result);
+                    debug_print("Command result: " + escape_debug_string(result), DebugLevel::VERBOSE);
                     
-                    return commandExecutor(result, true);
+                    // Use global Shell to execute the result if available
+                    if (g_shell) {
+                        debug_print("Using shell to execute result: " + escape_debug_string(result), DebugLevel::VERBOSE);
+                        g_shell->execute_command(result, true);
+                        return g_shell->get_last_exit_code() == 0;
+                    } else {
+                        return command_executor(result, true);
+                    }
                     
                 } catch (const std::exception& e) {
-                    debugPrint("ERROR in eval command: " + std::string(e.what()), DebugLevel::BASIC);
+                    debug_print("ERROR in eval command: " + std::string(e.what()), DebugLevel::BASIC);
                     return false;
                 }
             }
             
             try {
-                std::string expandedCmd = expandVariables(cmd);
-                if (expandedCmd != cmd && debugLevel >= DebugLevel::VERBOSE) {
-                    debugPrint("Expanded eval command: " + expandedCmd, DebugLevel::VERBOSE);
+                std::string expanded_cmd = expand_variables(cmd);
+                if (expanded_cmd != cmd && debug_level >= DebugLevel::VERBOSE) {
+                    debug_print("Expanded eval command: " + expanded_cmd, DebugLevel::VERBOSE);
                 }
                 
-                debugPrint("Executing eval command", DebugLevel::BASIC);
-                return commandExecutor(expandedCmd, true);
+                debug_print("Executing eval command", DebugLevel::BASIC);
+                
+                // Use global Shell to execute if available
+                if (g_shell) {
+                    debug_print("Using shell to execute eval command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
+                    g_shell->execute_command(expanded_cmd, true);
+                    return g_shell->get_last_exit_code() == 0;
+                } else {
+                    return command_executor(expanded_cmd, true);
+                }
             } catch (const std::exception& e) {
-                debugPrint("ERROR in eval command: " + std::string(e.what()), DebugLevel::BASIC);
+                debug_print("ERROR in eval command: " + std::string(e.what()), DebugLevel::BASIC);
                 return false;
             }
         }
         
-        std::string expandedCmd = expandVariables(trimmed);
-        if (expandedCmd != trimmed && debugLevel >= DebugLevel::VERBOSE) {
-            debugPrint("Expanded command: " + expandedCmd, DebugLevel::VERBOSE);
+        std::string expanded_cmd = expand_variables(trimmed);
+        if (expanded_cmd != trimmed && debug_level >= DebugLevel::VERBOSE) {
+            debug_print("Expanded command: " + expanded_cmd, DebugLevel::VERBOSE);
         }
         
-        debugPrint("Executing command", DebugLevel::BASIC);
-        return commandExecutor(expandedCmd, true);
+        debug_print("Executing command", DebugLevel::BASIC);
+        
+        // Use global Shell to execute if available
+        if (g_shell) {
+            debug_print("Using shell to execute command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
+            g_shell->execute_command(expanded_cmd, true);
+            return g_shell->get_last_exit_code() == 0;
+        } else {
+            return command_executor(expanded_cmd, true);
+        }
     } catch (const std::exception& e) {
-        debugPrint("ERROR: Exception in executeLine: " + std::string(e.what()), DebugLevel::BASIC);
+        debug_print("ERROR: Exception in execute_line: " + std::string(e.what()), DebugLevel::BASIC);
         return false;
     }
 }
 
-bool ShellScriptInterpreter::evaluateCondition(const std::string& condition) {
-    debugPrint("Evaluating condition: " + escapeDebugString(condition), DebugLevel::VERBOSE);
+bool ShellScriptInterpreter::evaluate_condition(const std::string& condition) {
+    debug_print("Evaluating condition: " + escape_debug_string(condition), DebugLevel::VERBOSE);
     
     if (condition.front() == '[' && condition.back() == ']') {
-        std::string testCondition = trimString(condition.substr(1, condition.size() - 2));
-        debugPrint("Test condition: " + escapeDebugString(testCondition), DebugLevel::VERBOSE);
+        std::string test_condition = trim_string(condition.substr(1, condition.size() - 2));
+        debug_print("Test condition: " + escape_debug_string(test_condition), DebugLevel::VERBOSE);
         
-        if (testCondition.find("-x ") == 0) {
-            std::string filePath = expandVariables(trimString(testCondition.substr(3)));
-            debugPrint("Checking if file is executable: " + filePath, DebugLevel::VERBOSE);
-            bool result = access(filePath.c_str(), X_OK) == 0;
-            debugPrint("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+        if (test_condition.find("-x ") == 0) {
+            std::string file_path = expand_variables(trim_string(test_condition.substr(3)));
+            debug_print("Checking if file is executable: " + file_path, DebugLevel::VERBOSE);
+            bool result = access(file_path.c_str(), X_OK) == 0;
+            debug_print("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
             return result;
         }
         
-        if (testCondition.find("-e ") == 0) {
-            std::string filePath = expandVariables(trimString(testCondition.substr(3)));
-            debugPrint("Checking if file exists: " + filePath, DebugLevel::VERBOSE);
-            bool result = access(filePath.c_str(), F_OK) == 0;
-            debugPrint("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+        if (test_condition.find("-e ") == 0) {
+            std::string file_path = expand_variables(trim_string(test_condition.substr(3)));
+            debug_print("Checking if file exists: " + file_path, DebugLevel::VERBOSE);
+            bool result = access(file_path.c_str(), F_OK) == 0;
+            debug_print("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
             return result;
         }
         
-        if (testCondition.find("-r ") == 0) {
-            std::string filePath = expandVariables(trimString(testCondition.substr(3)));
-            debugPrint("Checking if file is readable: " + filePath, DebugLevel::VERBOSE);
-            bool result = access(filePath.c_str(), R_OK) == 0;
-            debugPrint("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+        if (test_condition.find("-r ") == 0) {
+            std::string file_path = expand_variables(trim_string(test_condition.substr(3)));
+            debug_print("Checking if file is readable: " + file_path, DebugLevel::VERBOSE);
+            bool result = access(file_path.c_str(), R_OK) == 0;
+            debug_print("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
             return result;
         }
         
-        size_t eqPos = testCondition.find(" = ");
-        if (eqPos != std::string::npos) {
-            std::string lhs = expandVariables(trimString(testCondition.substr(0, eqPos)));
-            std::string rhs = expandVariables(trimString(testCondition.substr(eqPos + 3)));
-            debugPrint("Comparing strings: '" + lhs + "' = '" + rhs + "'", DebugLevel::VERBOSE);
+        size_t eq_pos = test_condition.find(" = ");
+        if (eq_pos != std::string::npos) {
+            std::string lhs = expand_variables(trim_string(test_condition.substr(0, eq_pos)));
+            std::string rhs = expand_variables(trim_string(test_condition.substr(eq_pos + 3)));
+            debug_print("Comparing strings: '" + lhs + "' = '" + rhs + "'", DebugLevel::VERBOSE);
             bool result = lhs == rhs;
-            debugPrint("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+            debug_print("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
             return result;
         }
         
-        size_t neqPos = testCondition.find(" != ");
-        if (neqPos != std::string::npos) {
-            std::string lhs = expandVariables(trimString(testCondition.substr(0, neqPos)));
-            std::string rhs = expandVariables(trimString(testCondition.substr(neqPos + 4)));
-            debugPrint("Comparing strings: '" + lhs + "' != '" + rhs + "'", DebugLevel::VERBOSE);
+        size_t neq_pos = test_condition.find(" != ");
+        if (neq_pos != std::string::npos) {
+            std::string lhs = expand_variables(trim_string(test_condition.substr(0, neq_pos)));
+            std::string rhs = expand_variables(trim_string(test_condition.substr(neq_pos + 4)));
+            debug_print("Comparing strings: '" + lhs + "' != '" + rhs + "'", DebugLevel::VERBOSE);
             bool result = lhs != rhs;
-            debugPrint("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+            debug_print("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
             return result;
         }
         
-        if (testCondition.find("-n ") == 0) {
-            std::string value = expandVariables(trimString(testCondition.substr(3)));
-            debugPrint("Checking if string is non-empty: '" + value + "'", DebugLevel::VERBOSE);
+        if (test_condition.find("-n ") == 0) {
+            std::string value = expand_variables(trim_string(test_condition.substr(3)));
+            debug_print("Checking if string is non-empty: '" + value + "'", DebugLevel::VERBOSE);
             bool result = !value.empty();
-            debugPrint("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+            debug_print("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
             return result;
         }
         
-        if (testCondition.find("-z ") == 0) {
-            std::string value = expandVariables(trimString(testCondition.substr(3)));
-            debugPrint("Checking if string is empty: '" + value + "'", DebugLevel::VERBOSE);
+        if (test_condition.find("-z ") == 0) {
+            std::string value = expand_variables(trim_string(test_condition.substr(3)));
+            debug_print("Checking if string is empty: '" + value + "'", DebugLevel::VERBOSE);
             bool result = value.empty();
-            debugPrint("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
+            debug_print("Result: " + std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
             return result;
         }
         
-        debugPrint("Unrecognized test condition: " + testCondition, DebugLevel::BASIC);
+        debug_print("Unrecognized test condition: " + test_condition, DebugLevel::BASIC);
         return false;
     }
     
-    std::string expandedCondition = expandVariables(condition);
-    debugPrint("Executing condition command: " + expandedCondition, DebugLevel::VERBOSE);
+    std::string expanded_condition = expand_variables(condition);
+    debug_print("Executing condition command: " + expanded_condition, DebugLevel::VERBOSE);
     
-    FILE* pipe = popen(expandedCondition.c_str(), "r");
+    FILE* pipe = popen(expanded_condition.c_str(), "r");
     if (!pipe) {
-        debugPrint("Failed to execute condition command", DebugLevel::BASIC);
+        debug_print("Failed to execute condition command", DebugLevel::BASIC);
         return false;
     }
     
     int status = pclose(pipe);
     bool result = status == 0;
-    debugPrint("Command returned: " + std::to_string(status) + ", result: " + 
+    debug_print("Command returned: " + std::to_string(status) + ", result: " + 
                std::string(result ? "true" : "false"), DebugLevel::VERBOSE);
     return result;
 }
 
-bool ShellScriptInterpreter::parseConditional(std::vector<std::string>::iterator& it, 
+bool ShellScriptInterpreter::parse_conditional(std::vector<std::string>::iterator& it, 
                                              const std::vector<std::string>::const_iterator& end) {
     std::string line = *it;
     std::string condition;
-    bool conditionMet = false;
+    bool condition_met = false;
     
-    debugPrint("Parsing conditional: " + escapeDebugString(line), DebugLevel::VERBOSE);
+    debug_print("Parsing conditional: " + escape_debug_string(line), DebugLevel::VERBOSE);
     
-    size_t thenPos = line.find("; then");
-    if (thenPos != std::string::npos) {
-        condition = trimString(line.substr(3, thenPos - 3));
-        debugPrint("Extracted condition from same line: " + escapeDebugString(condition), DebugLevel::VERBOSE);
-        conditionMet = evaluateCondition(condition);
-        inThenBlock = true;
+    size_t then_pos = line.find("; then");
+    if (then_pos != std::string::npos) {
+        condition = trim_string(line.substr(3, then_pos - 3));
+        debug_print("Extracted condition from same line: " + escape_debug_string(condition), DebugLevel::VERBOSE);
+        condition_met = evaluate_condition(condition);
+        in_then_block = true;
     } else {
-        condition = trimString(line.substr(3));
-        debugPrint("Extracted condition from separate line: " + escapeDebugString(condition), DebugLevel::VERBOSE);
-        conditionMet = evaluateCondition(condition);
-        inThenBlock = false;
+        condition = trim_string(line.substr(3));
+        debug_print("Extracted condition from separate line: " + escape_debug_string(condition), DebugLevel::VERBOSE);
+        condition_met = evaluate_condition(condition);
+        in_then_block = false;
     }
     
-    debugPrint("Condition result: " + std::string(conditionMet ? "true" : "false"), DebugLevel::VERBOSE);
+    debug_print("Condition result: " + std::string(condition_met ? "true" : "false"), DebugLevel::VERBOSE);
     
-    localVariables["?"] = conditionMet ? "0" : "1";
+    local_variables["?"] = condition_met ? "0" : "1";
     
-    bool executingBlock = conditionMet;
-    bool foundElse = false;
+    bool executing_block = condition_met;
+    bool found_else = false;
     
-    std::vector<std::string> currentBlock;
+    std::vector<std::string> current_block;
     
     ++it;
     
     while (it != end) {
-        std::string currentLine = trimString(*it);
+        std::string current_line = trim_string(*it);
         
-        debugPrint("Conditional processing line: " + escapeDebugString(currentLine), DebugLevel::TRACE);
+        debug_print("Conditional processing line: " + escape_debug_string(current_line), DebugLevel::TRACE);
         
-        if (currentLine == "then") {
-            debugPrint("Found 'then' statement", DebugLevel::VERBOSE);
-            inThenBlock = true;
+        if (current_line == "then") {
+            debug_print("Found 'then' statement", DebugLevel::VERBOSE);
+            in_then_block = true;
             ++it;
             continue;
-        } else if (currentLine == "else") {
-            if (conditionMet && !currentBlock.empty()) {
-                debugPrint("Executing 'then' block", DebugLevel::VERBOSE);
-                executeBlock(currentBlock);
+        } else if (current_line == "else") {
+            if (condition_met && !current_block.empty()) {
+                debug_print("Executing 'then' block", DebugLevel::VERBOSE);
+                execute_block(current_block);
             }
             
-            currentBlock.clear();
-            executingBlock = !conditionMet;
-            foundElse = true;
+            current_block.clear();
+            executing_block = !condition_met;
+            found_else = true;
             ++it;
             continue;
-        } else if (currentLine == "fi") {
-            if (executingBlock && !currentBlock.empty()) {
-                debugPrint("Executing final block", DebugLevel::VERBOSE);
-                executeBlock(currentBlock);
+        } else if (current_line == "fi") {
+            if (executing_block && !current_block.empty()) {
+                debug_print("Executing final block", DebugLevel::VERBOSE);
+                execute_block(current_block);
             }
             
             ++it;
             return true;
-        } else if (currentLine.find("elif ") == 0) {
-            if (conditionMet && !currentBlock.empty()) {
-                executeBlock(currentBlock);
+        } else if (current_line.find("elif ") == 0) {
+            if (condition_met && !current_block.empty()) {
+                execute_block(current_block);
             }
             
-            if (!conditionMet && !foundElse) {
-                condition = trimString(currentLine.substr(5));
-                conditionMet = evaluateCondition(condition);
-                executingBlock = conditionMet;
+            if (!condition_met && !found_else) {
+                condition = trim_string(current_line.substr(5));
+                condition_met = evaluate_condition(condition);
+                executing_block = condition_met;
             } else {
-                executingBlock = false;
+                executing_block = false;
             }
             
-            currentBlock.clear();
+            current_block.clear();
             ++it;
             continue;
         }
         
-        if (inThenBlock && executingBlock) {
-            debugPrint("Adding line to conditional block: " + escapeDebugString(currentLine), DebugLevel::TRACE);
-            currentBlock.push_back(currentLine);
+        if (in_then_block && executing_block) {
+            debug_print("Adding line to conditional block: " + escape_debug_string(current_line), DebugLevel::TRACE);
+            current_block.push_back(current_line);
         } else {
-            debugPrint("Skipping line in inactive block: " + escapeDebugString(currentLine), DebugLevel::TRACE);
+            debug_print("Skipping line in inactive block: " + escape_debug_string(current_line), DebugLevel::TRACE);
         }
         
         ++it;
@@ -584,27 +623,27 @@ bool ShellScriptInterpreter::parseConditional(std::vector<std::string>::iterator
     return false;
 }
 
-bool ShellScriptInterpreter::parseLoop(std::vector<std::string>::iterator& it, 
+bool ShellScriptInterpreter::parse_loop(std::vector<std::string>::iterator& it, 
                                       const std::vector<std::string>::const_iterator& end) {
-    std::string loopLine = *it;
-    bool isForLoop = loopLine.find("for ") == 0;
+    std::string loop_line = *it;
+    bool is_for_loop = loop_line.find("for ") == 0;
     
-    std::vector<std::string> loopBody;
+    std::vector<std::string> loop_body;
     
-    bool inDoBlock = false;
+    bool in_do_block = false;
     ++it;
     
     while (it != end) {
-        std::string line = trimString(*it);
+        std::string line = trim_string(*it);
         
         if (line == "do") {
-            inDoBlock = true;
+            in_do_block = true;
             ++it;
             continue;
         } else if (line == "done") {
             break;
-        } else if (inDoBlock) {
-            loopBody.push_back(line);
+        } else if (in_do_block) {
+            loop_body.push_back(line);
         }
         
         ++it;
@@ -615,27 +654,27 @@ bool ShellScriptInterpreter::parseLoop(std::vector<std::string>::iterator& it,
         return false;
     }
     
-    if (isForLoop) {
-        std::string forDecl = trimString(loopLine.substr(4));
-        size_t inPos = forDecl.find(" in ");
+    if (is_for_loop) {
+        std::string for_decl = trim_string(loop_line.substr(4));
+        size_t in_pos = for_decl.find(" in ");
         
-        if (inPos != std::string::npos) {
-            std::string varName = trimString(forDecl.substr(0, inPos));
-            std::string valueList = trimString(forDecl.substr(inPos + 4));
+        if (in_pos != std::string::npos) {
+            std::string var_name = trim_string(for_decl.substr(0, in_pos));
+            std::string value_list = trim_string(for_decl.substr(in_pos + 4));
             
-            std::vector<std::string> values = splitCommand(valueList);
+            std::vector<std::string> values = split_command(value_list);
             
             for (const auto& value : values) {
-                localVariables[varName] = value;
+                local_variables[var_name] = value;
                 
-                executeBlock(loopBody);
+                execute_block(loop_body);
             }
         }
     } else {
-        std::string whileCondition = trimString(loopLine.substr(6));
+        std::string while_condition = trim_string(loop_line.substr(6));
         
-        while (evaluateCondition(whileCondition)) {
-            executeBlock(loopBody);
+        while (evaluate_condition(while_condition)) {
+            execute_block(loop_body);
         }
     }
     
@@ -643,36 +682,36 @@ bool ShellScriptInterpreter::parseLoop(std::vector<std::string>::iterator& it,
     return true;
 }
 
-std::string ShellScriptInterpreter::expandVariables(const std::string& str) {
+std::string ShellScriptInterpreter::expand_variables(const std::string& str) {
     if (str.empty()) {
-        debugPrint("Empty string for variable expansion", DebugLevel::TRACE);
+        debug_print("Empty string for variable expansion", DebugLevel::TRACE);
         return str;
     }
     
     std::string result = str;
     size_t pos = 0;
     
-    debugPrint("Expanding variables in: " + escapeDebugString(str), DebugLevel::TRACE);
+    debug_print("Expanding variables in: " + escape_debug_string(str), DebugLevel::TRACE);
     
     while ((pos = result.find("${", pos)) != std::string::npos) {
-        size_t endPos = result.find("}", pos + 2);
-        if (endPos == std::string::npos) break;
+        size_t end_pos = result.find("}", pos + 2);
+        if (end_pos == std::string::npos) break;
         
-        std::string varName = result.substr(pos + 2, endPos - pos - 2);
-        std::string varValue;
+        std::string var_name = result.substr(pos + 2, end_pos - pos - 2);
+        std::string var_value;
         
-        auto it = localVariables.find(varName);
-        if (it != localVariables.end()) {
-            varValue = it->second;
+        auto it = local_variables.find(var_name);
+        if (it != local_variables.end()) {
+            var_value = it->second;
         } else {
-            const char* envValue = getenv(varName.c_str());
-            if (envValue) {
-                varValue = envValue;
+            const char* env_value = getenv(var_name.c_str());
+            if (env_value) {
+                var_value = env_value;
             }
         }
         
-        result.replace(pos, endPos - pos + 1, varValue);
-        pos += varValue.length();
+        result.replace(pos, end_pos - pos + 1, var_value);
+        pos += var_value.length();
     }
     
     pos = 0;
@@ -682,28 +721,28 @@ std::string ShellScriptInterpreter::expandVariables(const std::string& str) {
             continue;
         }
         
-        size_t endPos = pos + 1;
-        while (endPos < result.size() && 
-               (isalnum(result[endPos]) || result[endPos] == '_')) {
-            endPos++;
+        size_t end_pos = pos + 1;
+        while (end_pos < result.size() && 
+               (isalnum(result[end_pos]) || result[end_pos] == '_')) {
+            end_pos++;
         }
         
-        if (endPos > pos + 1) {
-            std::string varName = result.substr(pos + 1, endPos - pos - 1);
-            std::string varValue;
+        if (end_pos > pos + 1) {
+            std::string var_name = result.substr(pos + 1, end_pos - pos - 1);
+            std::string var_value;
             
-            auto it = localVariables.find(varName);
-            if (it != localVariables.end()) {
-                varValue = it->second;
+            auto it = local_variables.find(var_name);
+            if (it != local_variables.end()) {
+                var_value = it->second;
             } else {
-                const char* envValue = getenv(varName.c_str());
-                if (envValue) {
-                    varValue = envValue;
+                const char* env_value = getenv(var_name.c_str());
+                if (env_value) {
+                    var_value = env_value;
                 }
             }
             
-            result.replace(pos, endPos - pos, varValue);
-            pos += varValue.length();
+            result.replace(pos, end_pos - pos, var_value);
+            pos += var_value.length();
         } else {
             pos++;
         }
@@ -712,35 +751,35 @@ std::string ShellScriptInterpreter::expandVariables(const std::string& str) {
     pos = 0;
     while ((pos = result.find("$(", pos)) != std::string::npos) {
         size_t depth = 1;
-        size_t endPos = pos + 2;
+        size_t end_pos = pos + 2;
         
-        while (endPos < result.size() && depth > 0) {
-            if (result[endPos] == '(') depth++;
-            else if (result[endPos] == ')') depth--;
-            endPos++;
+        while (end_pos < result.size() && depth > 0) {
+            if (result[end_pos] == '(') depth++;
+            else if (result[end_pos] == ')') depth--;
+            end_pos++;
         }
         
         if (depth == 0) {
-            std::string cmd = result.substr(pos + 2, endPos - pos - 3);
-            std::string cmdOutput = executeCommandSubstitution(cmd);
+            std::string cmd = result.substr(pos + 2, end_pos - pos - 3);
+            std::string cmd_output = execute_command_substitution(cmd);
             
-            std::stringstream ss(cmdOutput);
-            std::string processedOutput;
-            std::string outputLine;
+            std::stringstream ss(cmd_output);
+            std::string processed_output;
+            std::string output_line;
             
-            while (std::getline(ss, outputLine)) {
-                std::string trimmedLine = trimString(outputLine);
-                if (!trimmedLine.empty()) {
-                    if (!processedOutput.empty()) {
-                        processedOutput += " ";
+            while (std::getline(ss, output_line)) {
+                std::string trimmed_line = trim_string(output_line);
+                if (!trimmed_line.empty()) {
+                    if (!processed_output.empty()) {
+                        processed_output += " ";
                     }
-                    processedOutput += trimmedLine;
+                    processed_output += trimmed_line;
                 }
             }
             
-            debugPrint("Processed backtick output: " + escapeDebugString(processedOutput), DebugLevel::VERBOSE);
-            result.replace(pos, endPos - pos + 1, processedOutput);
-            pos += processedOutput.length();
+            debug_print("Processed backtick output: " + escape_debug_string(processed_output), DebugLevel::VERBOSE);
+            result.replace(pos, end_pos - pos + 1, processed_output);
+            pos += processed_output.length();
         } else {
             pos += 2;
         }
@@ -748,76 +787,82 @@ std::string ShellScriptInterpreter::expandVariables(const std::string& str) {
     
     pos = 0;
     while ((pos = result.find('`', pos)) != std::string::npos) {
-        size_t endPos = result.find('`', pos + 1);
-        if (endPos == std::string::npos) {
-            debugPrint("Warning: Unmatched backtick at position " + std::to_string(pos), DebugLevel::BASIC);
+        size_t end_pos = result.find('`', pos + 1);
+        if (end_pos == std::string::npos) {
+            debug_print("Warning: Unmatched backtick at position " + std::to_string(pos), DebugLevel::BASIC);
             break;
         }
         
-        std::string cmd = result.substr(pos + 1, endPos - pos - 1);
-        debugPrint("Backtick command: " + escapeDebugString(cmd), DebugLevel::VERBOSE);
+        std::string cmd = result.substr(pos + 1, end_pos - pos - 1);
+        debug_print("Backtick command: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
         
-        std::string expandedCmd = expandVariables(cmd);
-        if (expandedCmd != cmd) {
-            debugPrint("Expanded backtick command: " + escapeDebugString(expandedCmd), DebugLevel::VERBOSE);
+        std::string expanded_cmd = expand_variables(cmd);
+        if (expanded_cmd != cmd) {
+            debug_print("Expanded backtick command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
         }
         
-        std::string cmdOutput = executeCommandSubstitution(expandedCmd);
+        std::string cmd_output = execute_command_substitution(expanded_cmd);
         
-        std::stringstream ss(cmdOutput);
-        std::string processedOutput;
-        std::string outputLine;
+        std::stringstream ss(cmd_output);
+        std::string processed_output;
+        std::string output_line;
         
-        while (std::getline(ss, outputLine)) {
-            std::string trimmedLine = trimString(outputLine);
-            if (!trimmedLine.empty()) {
-                if (!processedOutput.empty()) {
-                    processedOutput += " ";
+        while (std::getline(ss, output_line)) {
+            std::string trimmed_line = trim_string(output_line);
+            if (!trimmed_line.empty()) {
+                if (!processed_output.empty()) {
+                    processed_output += " ";
                 }
-                processedOutput += trimmedLine;
+                processed_output += trimmed_line;
             }
         }
         
-        debugPrint("Processed backtick output: " + escapeDebugString(processedOutput), DebugLevel::VERBOSE);
-        result.replace(pos, endPos - pos + 1, processedOutput);
-        pos += processedOutput.length();
+        debug_print("Processed backtick output: " + escape_debug_string(processed_output), DebugLevel::VERBOSE);
+        result.replace(pos, end_pos - pos + 1, processed_output);
+        pos += processed_output.length();
     }
     
     if (result.length() == 1) {
         char c = result[0];
         if (c == '\n' || c == '\r' || (c < 32 && c != '\t')) {
-            debugPrint("Filtered control character in expansion: " + escapeDebugString(result), DebugLevel::VERBOSE);
+            debug_print("Filtered control character in expansion: " + escape_debug_string(result), DebugLevel::VERBOSE);
             return "";
         }
     }
     
-    debugPrint("Expanded result: " + escapeDebugString(result), DebugLevel::TRACE);
+    debug_print("Expanded result: " + escape_debug_string(result), DebugLevel::TRACE);
     return result;
 }
 
-void ShellScriptInterpreter::setCommandExecutor(std::function<bool(const std::string&, bool)> executor) {
-    commandExecutor = executor;
+void ShellScriptInterpreter::set_command_executor(std::function<bool(const std::string&, bool)> executor) {
+    command_executor = executor;
 }
 
-std::string ShellScriptInterpreter::executeCommandSubstitution(const std::string& cmd) {
-    if (trimString(cmd).empty()) {
-        debugPrint("Skipping empty command substitution", DebugLevel::VERBOSE);
+std::string ShellScriptInterpreter::execute_command_substitution(const std::string& cmd) {
+    if (trim_string(cmd).empty()) {
+        debug_print("Skipping empty command substitution", DebugLevel::VERBOSE);
         return "";
     }
     
-    debugPrint("Command substitution: " + escapeDebugString(cmd), DebugLevel::VERBOSE);
+    debug_print("Command substitution: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
     
     if (cmd.find("/usr/libexec/path_helper") != std::string::npos) {
-        debugPrint("Executing path_helper command with extra caution", DebugLevel::VERBOSE);
+        debug_print("Executing path_helper command with extra caution", DebugLevel::VERBOSE);
     }
     
+    // If we have a global shell reference, use it to capture command output
+    if (g_shell) {
+        return capture_command_output(cmd);
+    }
+    
+    // Fall back to the original implementation if no shell is available
     FILE* pipe = nullptr;
     try {
         pipe = popen(cmd.c_str(), "r");
         if (!pipe) {
-            std::string errorMsg = "Error executing command: " + escapeDebugString(cmd);
-            debugPrint(errorMsg, DebugLevel::BASIC);
-            std::cerr << errorMsg << std::endl;
+            std::string error_msg = "Error executing command: " + escape_debug_string(cmd);
+            debug_print(error_msg, DebugLevel::BASIC);
+            std::cerr << error_msg << std::endl;
             return "";
         }
         
@@ -832,11 +877,11 @@ std::string ShellScriptInterpreter::executeCommandSubstitution(const std::string
         pipe = nullptr;
         
         if (status != 0) {
-            debugPrint("Command returned non-zero status: " + std::to_string(status), DebugLevel::VERBOSE);
+            debug_print("Command returned non-zero status: " + std::to_string(status), DebugLevel::VERBOSE);
         }
         
         if (result.empty() && cmd.find("path_helper") != std::string::npos) {
-            debugPrint("WARNING: path_helper command returned empty result", DebugLevel::BASIC);
+            debug_print("WARNING: path_helper command returned empty result", DebugLevel::BASIC);
             return "PATH=\"/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin\"; export PATH;";
         }
         
@@ -844,11 +889,11 @@ std::string ShellScriptInterpreter::executeCommandSubstitution(const std::string
             result.pop_back();
         }
         
-        debugPrint("Command substitution result: " + escapeDebugString(result), DebugLevel::VERBOSE);
+        debug_print("Command substitution result: " + escape_debug_string(result), DebugLevel::VERBOSE);
         return result;
     }
     catch (const std::exception& e) {
-        debugPrint("ERROR in command substitution: " + std::string(e.what()), DebugLevel::BASIC);
+        debug_print("ERROR in command substitution: " + std::string(e.what()), DebugLevel::BASIC);
         if (pipe != nullptr) {
             pclose(pipe);
         }
@@ -856,20 +901,65 @@ std::string ShellScriptInterpreter::executeCommandSubstitution(const std::string
     }
 }
 
-std::string ShellScriptInterpreter::trimString(const std::string& str) {
+// New method to capture command output using Shell's execution mechanism
+std::string ShellScriptInterpreter::capture_command_output(const std::string& cmd) {
+    debug_print("Capturing output for command: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
+    
+    // We need to redirect output to a temporary file
+    char temp_filename[256];
+    snprintf(temp_filename, sizeof(temp_filename), "/tmp/cjsh_cmd_output_%d", getpid());
+    
+    // Create the redirection command
+    std::string redirect_cmd = cmd + " > " + temp_filename + " 2>&1";
+    debug_print("Redirected command: " + escape_debug_string(redirect_cmd), DebugLevel::VERBOSE);
+    
+    // Execute the command with redirection using the global shell
+    if (g_shell) {
+        g_shell->execute_command(redirect_cmd, true);
+    } else {
+        system(redirect_cmd.c_str());
+    }
+    
+    // Read the output from the temporary file
+    std::ifstream file(temp_filename);
+    std::string result;
+    std::string line;
+    
+    if (file.is_open()) {
+        while (std::getline(file, line)) {
+            result += line + "\n";
+        }
+        file.close();
+        
+        // Remove the temporary file
+        unlink(temp_filename);
+        
+        // Remove trailing newlines
+        while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
+            result.pop_back();
+        }
+    } else {
+        debug_print("Failed to open temporary output file", DebugLevel::BASIC);
+    }
+    
+    debug_print("Captured output: " + escape_debug_string(result), DebugLevel::VERBOSE);
+    return result;
+}
+
+std::string ShellScriptInterpreter::trim_string(const std::string& str) {
     if (str.empty()) {
         return "";
     }
     
-    bool onlyWhitespace = true;
+    bool only_whitespace = true;
     for (char c : str) {
         if (!std::isspace(static_cast<unsigned char>(c))) {
-            onlyWhitespace = false;
+            only_whitespace = false;
             break;
         }
     }
     
-    if (onlyWhitespace) {
+    if (only_whitespace) {
         return "";
     }
     
@@ -882,27 +972,27 @@ std::string ShellScriptInterpreter::trimString(const std::string& str) {
     return str.substr(first, last - first + 1);
 }
 
-std::vector<std::string> ShellScriptInterpreter::splitCommand(const std::string& cmd) {
+std::vector<std::string> ShellScriptInterpreter::split_command(const std::string& cmd) {
     std::vector<std::string> result;
     std::stringstream ss(cmd);
     std::string item;
     
-    bool inQuotes = false;
-    char quoteChar = '\0';
+    bool in_quotes = false;
+    char quote_char = '\0';
     std::string current;
     
     for (char c : cmd) {
         if (c == '"' || c == '\'') {
-            if (!inQuotes) {
-                inQuotes = true;
-                quoteChar = c;
-            } else if (c == quoteChar) {
-                inQuotes = false;
-                quoteChar = '\0';
+            if (!in_quotes) {
+                in_quotes = true;
+                quote_char = c;
+            } else if (c == quote_char) {
+                in_quotes = false;
+                quote_char = '\0';
             } else {
                 current += c;
             }
-        } else if (c == ' ' && !inQuotes) {
+        } else if (c == ' ' && !in_quotes) {
             if (!current.empty()) {
                 result.push_back(current);
                 current.clear();

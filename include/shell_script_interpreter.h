@@ -5,6 +5,9 @@
 #include <map>
 #include <memory>
 #include <functional>
+#include "main.h"
+
+class Shell;
 
 // Debug verbosity levels
 enum class DebugLevel {
@@ -20,54 +23,57 @@ public:
     ~ShellScriptInterpreter();
 
     // Execute a shell script from a file
-    bool executeScript(const std::string& filename);
+    bool execute_script(const std::string& filename);
     
     // Execute a single line of shell script
-    bool executeLine(const std::string& line);
+    bool execute_line(const std::string& line);
     
-    // Parse and execute a block of shell script
-    bool executeBlock(const std::vector<std::string>& lines);
+    // Execute a block of shell script
+    bool execute_block(const std::vector<std::string>& lines);
     
     // Set command executor callback
-    void setCommandExecutor(std::function<bool(const std::string&, bool)> executor);
+    void set_command_executor(std::function<bool(const std::string&, bool)> executor);
     
     // Debug control methods
-    void setDebugLevel(DebugLevel level);
-    DebugLevel getDebugLevel() const;
-    void debugPrint(const std::string& message, DebugLevel level = DebugLevel::BASIC) const;
-    void dumpVariables() const;
+    void set_debug_level(DebugLevel level);
+    DebugLevel get_debug_level() const;
+    void debug_print(const std::string& message, DebugLevel level = DebugLevel::BASIC) const;
+    void dump_variables() const;
 
 private:
-    // Shell script parsing - updated parameter types to fix const correctness
-    bool parseConditional(std::vector<std::string>::iterator& it, const std::vector<std::string>::const_iterator& end);
-    bool parseLoop(std::vector<std::string>::iterator& it, const std::vector<std::string>::const_iterator& end);
-    bool evaluateCondition(const std::string& condition);
+    // Shell script parsing
+    bool parse_conditional(std::vector<std::string>::iterator& it, const std::vector<std::string>::const_iterator& end);
+    bool parse_loop(std::vector<std::string>::iterator& it, const std::vector<std::string>::const_iterator& end);
+    bool evaluate_condition(const std::string& condition);
     
     // Variable handling
-    std::string expandVariables(const std::string& str);
-    std::string executeCommandSubstitution(const std::string& cmd);
+    std::string expand_variables(const std::string& str);
+    std::string execute_command_substitution(const std::string& cmd);
     
     // Utility functions
-    std::string trimString(const std::string& str);
-    std::vector<std::string> splitCommand(const std::string& cmd);
+    std::string trim_string(const std::string& str);
+    std::vector<std::string> split_command(const std::string& cmd);
     
     // Debug related methods
-    bool handleDebugCommand(const std::string& command);
-    std::string escapeDebugString(const std::string& input) const;
+    bool handle_debug_command(const std::string& command);
+    std::string escape_debug_string(const std::string& input) const;
     
     // Special case handlers
-    bool handlePathHelper();
+    bool handle_path_helper();
+    
+    // Shell command execution with output capture
+    std::string capture_command_output(const std::string& cmd);
     
     // State
-    std::map<std::string, std::string> localVariables;
-    std::function<bool(const std::string&, bool)> commandExecutor;
-    bool inThenBlock; // Flag to track if we're in a then block
+    std::map<std::string, std::string> local_variables;
+    std::function<bool(const std::string&, bool)> command_executor;
+    bool in_then_block; // Flag to track if we're in a then block
     
     // Debug state
-    DebugLevel debugLevel;
-    bool showCommandOutput;
-    int debugIndentLevel;
-    std::string getIndentation() const;
+    DebugLevel debug_level;
+    bool show_command_output;
+    int debug_indent_level;
+    mutable int cached_indent_level;        // Cache for indentation level
+    mutable std::string cached_indentation; // Cached indentation string
+    std::string get_indentation() const;
 };
-
-extern ShellScriptInterpreter* g_script_interpreter;

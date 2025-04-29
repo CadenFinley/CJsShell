@@ -31,14 +31,15 @@ private:
   struct termios shell_tmodes;
   int shell_terminal;
   bool shell_is_interactive;
+  int last_exit_code = 0;
 
 public:
   Exec();
   ~Exec();
 
-  void execute_command_sync(const std::vector<std::string>& args);
-  void execute_command_async(const std::vector<std::string>& args);
-  void execute_pipeline(const std::vector<Command>& commands);
+  int execute_command_sync(const std::vector<std::string>& args);
+  int execute_command_async(const std::vector<std::string>& args);
+  int execute_pipeline(const std::vector<Command>& commands);
   int add_job(const Job& job);
   void remove_job(int job_id);
   void update_job_status(int job_id, bool completed, bool stopped, int status);
@@ -50,6 +51,8 @@ public:
   void handle_child_signal(pid_t pid, int status);
   void set_error(const std::string& error);
   std::string get_error();
+  int get_exit_code() const { return last_exit_code; }
+  void set_exit_code(int code) { last_exit_code = code; }
   void terminate_all_child_process();
   
   std::string last_terminal_output_error;

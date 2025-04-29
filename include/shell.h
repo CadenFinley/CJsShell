@@ -3,6 +3,7 @@
 #include "prompt.h"
 #include "exec.h"
 #include "parser.h"
+#include "shell_script_interpreter.h"
 #include <termios.h>
 #include <unistd.h>
 #include <string>
@@ -12,6 +13,7 @@
 
 class Exec;
 class Built_ins;
+class ShellScriptInterpreter;
 
 extern void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
@@ -20,7 +22,7 @@ class Shell {
     Shell(bool login_mode = false);
     ~Shell();
 
-    void execute_command(std::string command, bool sync = false);
+    int execute_command(std::string command, bool sync = false);
     void process_pending_signals();
 
     std::string get_prompt() {
@@ -53,6 +55,9 @@ class Shell {
       return login_mode;
     }
 
+    int get_last_exit_code() const {
+      return last_exit_code;
+    }
 
     void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
       aliases = new_aliases;
@@ -96,8 +101,10 @@ class Shell {
     struct termios shell_tmodes;
     bool terminal_state_saved = false;
     bool job_control_enabled = false;
+    int last_exit_code = 0;
 
     std::unique_ptr<Prompt> shell_prompt;
+    ShellScriptInterpreter* shell_script_interpreter = nullptr;
     Parser* shell_parser = nullptr;
     Built_ins* built_ins = nullptr;
     
