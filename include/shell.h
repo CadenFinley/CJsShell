@@ -17,7 +17,7 @@ extern void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
 class Shell {
   public:
-    Shell(char *argv[]);
+    Shell(bool login_mode = false);
     ~Shell();
 
     void execute_command(std::string command, bool sync = false);

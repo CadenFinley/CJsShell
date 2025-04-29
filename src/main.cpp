@@ -4,8 +4,6 @@
 #include <signal.h>
 #include "colors.h"
 
-// instead of static defined colors, have colors be defined in a file so that the user can add custom colors
-
 std::vector<std::string> g_startup_args;
 int main(int argc, char *argv[]) {
   // cjsh
@@ -14,9 +12,21 @@ int main(int argc, char *argv[]) {
   if (!initialize_cjsh_path()){
     std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
   }
-  
+
+  // login mode and login commands detection: -cjsh, --login, -l
+  bool login_mode = false;
+  if (argv && argv[0] && argv[0][0] == '-') {
+    login_mode = true;
+  } else {
+    for (int i = 1; i < argc; i++) {
+      if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--login") == 0) {
+        login_mode = true;
+        break;
+      }
+    }
+  }
   // this handles the prompting and executing of commands and signal handling
-  g_shell = new Shell(argv);
+  g_shell = new Shell(login_mode);
 
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {

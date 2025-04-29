@@ -1,7 +1,6 @@
 #include "shell.h"
 #include "main.h"
 #include "built_ins.h"
-#include <cstring>
 
 Shell* g_shell_instance = nullptr;
 
@@ -73,28 +72,17 @@ void Shell::process_pending_signals() {
   }
 }
 
-Shell::Shell(char *argv[]) {
+Shell::Shell(bool login_mode) {
   shell_prompt = std::make_unique<Prompt>();
-  shell_exec   = std::make_unique<Exec>();
+  shell_exec = std::make_unique<Exec>();
   shell_parser = new Parser();
-  built_ins    = new Built_ins();
+  built_ins = new Built_ins();
   built_ins->set_shell(this);
   built_ins->set_current_directory();
-
-  login_mode = false;
-  if (argv && argv[0] && argv[0][0] == '-') {
-    login_mode = true;
-  }
-  if (argv) {
-    for (char **p = argv + 1; *p; ++p) {
-      if (strcmp(*p, "--login") == 0 || strcmp(*p, "-l") == 0) {
-        login_mode = true;
-        break;
-      }
-    }
-  }
+  this->login_mode = login_mode;
 
   shell_terminal = STDIN_FILENO;
+  
   g_shell_instance = this;
 
   setup_signal_handlers();
