@@ -49,6 +49,8 @@ extern Ai* g_ai;
 extern Shell* g_shell;
 extern Theme* g_theme;
 extern Plugin* g_plugin;
+class ShellScriptInterpreter;
+extern ShellScriptInterpreter* g_script_interpreter;
 
 std::string get_colorized_splash();
 int main(int argc, char *argv[]);

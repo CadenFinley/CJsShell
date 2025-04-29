@@ -3,6 +3,7 @@
 #include "cjsh_filesystem.h"
 #include <signal.h>
 #include "colors.h"
+#include "shell_script_interpreter.h"
 
 std::vector<std::string> g_startup_args;
 int main(int argc, char *argv[]) {
@@ -193,6 +194,13 @@ int main(int argc, char *argv[]) {
     delete g_plugin;
     g_plugin = nullptr;
   }
+
+  // Add this before exiting the main function
+  if (g_script_interpreter) {
+    delete g_script_interpreter;
+    g_script_interpreter = nullptr;
+  }
+
   return 0;
 }
 
@@ -293,7 +301,11 @@ void setup_environment_variables() {
     setenv("HOME", pw->pw_dir, 1);
     
     if (getenv("PATH") == nullptr) {
+      //std::cerr << "WARNING: PATH environment variable is not set. Setting default PATH." << std::endl;
       setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
+    } else {
+      //std::cerr << "WARNING: PATH environment variable is already set." << std::endl;
+      //std::cout << "Current PATHCurrent PATHCurrent PATHCurrent PATHm: " << getenv("PATH") << std::endl;
     }
     
     char hostname[256];
@@ -386,161 +398,16 @@ void process_profile_file() {
     return;
   }
 
-  std::ifstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
-  if (!profile_file.is_open()) {
-    std::cerr << "cjsh: Failed to open the configuration file for reading." << std::endl;
-    return;
+  if (g_script_interpreter == nullptr) {
+    g_script_interpreter = new ShellScriptInterpreter();
+    g_script_interpreter->setCommandExecutor([](const std::string& cmd, bool interactive) {
+      g_shell->execute_command(cmd, interactive);
+      return true; // Return success after executing command
+    });
   }
-  
-  profile_file.clear();
-  profile_file.seekg(0);
-  
-  std::string line;
-  while (std::getline(profile_file, line)) {
-    if (line.empty() || line[0] == '#') {
-      continue;
-    }
-    
-    if (line == "PATH_HELPER") {
-      process_shell_scripts_in_config();
-    }
-  }
-  
-  profile_file.clear();
-  profile_file.seekg(0);
-  
-  while (std::getline(profile_file, line)) {
-    if (line.empty() || line[0] == '#' || line == "PATH_HELPER") {
-      continue;
-    }
 
-    if (is_shell_script_construct(line)) {
-      continue;
-    }
-    
-    if (parse_and_set_env_var(line)) {
-      continue;
-    }
-
-    // if line starts with -- it is a startup arg
-    if (line.length() > 0 && line[0] == '-') {
-      g_startup_args.push_back(line);
-      continue;
-    }
-    
-    g_shell->execute_command(line, true);
-  }
-  
-  profile_file.close();
-  if (g_debug_mode) {
-    std::cout << "DEBUG: Configuration file processed." << std::endl;
-  }
-}
-
-bool is_shell_script_construct(const std::string& line) {
-  std::string trimmed = line;
-  trimmed.erase(0, trimmed.find_first_not_of(" \t"));
-  
-  if (trimmed.find("if ") == 0 || 
-      trimmed == "then" || 
-      trimmed == "else" || 
-      trimmed == "elif" || 
-      trimmed == "fi" || 
-      trimmed.find("eval ") == 0 ||
-      trimmed.find("for ") == 0 ||
-      trimmed.find("while ") == 0 ||
-      trimmed == "do" ||
-      trimmed == "done") {
-    return true;
-  }
-  return false;
-}
-
-void process_shell_scripts_in_config() {
-  if (std::filesystem::exists("/usr/libexec/path_helper")) {
-    FILE* pipe = popen("/usr/libexec/path_helper -s", "r");
-    if (pipe) {
-      char buffer[256];
-      std::string result;
-      
-      while (!feof(pipe)) {
-        if (fgets(buffer, 256, pipe) != NULL) {
-          result += buffer;
-        }
-      }
-      pclose(pipe);
-      
-      std::string path_value;
-      size_t pos = result.find("PATH=\"");
-      if (pos != std::string::npos) {
-        pos += 6;
-        size_t end_pos = result.find("\"", pos);
-        if (end_pos != std::string::npos) {
-          path_value = result.substr(pos, end_pos - pos);
-          if (!path_value.empty()) {
-            setenv("PATH", path_value.c_str(), 1);
-            if (g_debug_mode) {
-              std::cout << "DEBUG: Set PATH=" << path_value << std::endl;
-            }
-          }
-        }
-      }
-    }
-  }
-  else {
-    std::cerr << "Warning: /usr/libexec/path_helper not found. PATH may not be set correctly." << std::endl;
-  }
-  if (g_debug_mode) {
-    std::cout << "DEBUG: PATH_HELPER executed." << std::endl;
-  }
-}
-
-bool parse_and_set_env_var(const std::string& line) {
-  if (line.find("export ") == 0) {
-    std::string var_setting = line.substr(7);
-    size_t equals_pos = var_setting.find('=');
-    
-    if (equals_pos != std::string::npos) {
-      std::string var_name = var_setting.substr(0, equals_pos);
-      std::string var_value = var_setting.substr(equals_pos + 1);
-      
-      if (var_value.size() >= 2 && 
-          ((var_value.front() == '"' && var_value.back() == '"') || 
-           (var_value.front() == '\'' && var_value.back() == '\''))) {
-        var_value = var_value.substr(1, var_value.size() - 2);
-      }
-      
-      setenv(var_name.c_str(), var_value.c_str(), 1);
-      
-      if (g_debug_mode) {
-        std::cout << "DEBUG: Set " << var_name << "=" << var_value << std::endl;
-      }
-      return true;
-    }
-  }
-  else {
-    size_t equals_pos = line.find('=');
-    
-    if (equals_pos != std::string::npos && equals_pos > 0) {
-      std::string var_name = line.substr(0, equals_pos);
-      std::string var_value = line.substr(equals_pos + 1);
-      
-      if (var_value.size() >= 2 && 
-          ((var_value.front() == '"' && var_value.back() == '"') || 
-           (var_value.front() == '\'' && var_value.back() == '\''))) {
-        var_value = var_value.substr(1, var_value.size() - 2);
-      }
-      
-      setenv(var_name.c_str(), var_value.c_str(), 1);
-      
-      if (g_debug_mode) {
-        std::cout << "DEBUG: Set " << var_name << "=" << var_value << std::endl;
-      }
-      return true;
-    }
-  }
-  
-  return false;
+  // Execute the profile file using the shell script interpreter
+  g_script_interpreter->executeScript(cjsh_filesystem::g_cjsh_profile_path);
 }
 
 void create_profile_file() {
@@ -552,7 +419,9 @@ void create_profile_file() {
     profile_file << "# Do not edit this file unless you know what you are doing.\n\n";
 
     profile_file << "# Path helper command - sets up system PATH\n";
-    profile_file << "PATH_HELPER\n\n";
+    profile_file << "if [ -x /usr/libexec/path_helper ]; then\n";
+    profile_file << "  eval \"`/usr/libexec/path_helper -s`\"\n";
+    profile_file << "fi\n\n";
 
     profile_file << "# Any environment variables should be set without 'export' command\n";
     profile_file << "# Example: VARIABLE=value\n";
@@ -568,34 +437,16 @@ void process_source_file() {
     return;
   }
 
-  std::ifstream source_file(cjsh_filesystem::g_cjsh_source_path);
-  if (!source_file.is_open()) {
-    std::cerr << "cjsh: Failed to open the source file for reading." << std::endl;
-    return;
+  if (g_script_interpreter == nullptr) {
+    g_script_interpreter = new ShellScriptInterpreter();
+    g_script_interpreter->setCommandExecutor([](const std::string& cmd, bool interactive) {
+      g_shell->execute_command(cmd, interactive);
+      return true; // Return success after executing command
+    });
   }
 
-  std::string line;
-  while (std::getline(source_file, line)) {
-    if (line.empty() || line[0] == '#') {
-      continue;
-    }
-    if (line.find("alias ") == 0) {
-      g_shell->execute_command(line, true);
-    }
-    else if (line.find("theme ") == 0) {
-      g_shell->execute_command(line, true);
-    }
-    else if (line.find("plugin ") == 0) {
-      g_shell->execute_command(line, true);
-    }
-    else {
-      g_shell->execute_command(line, true);
-    }
-  }
-  source_file.close();
-  if (g_debug_mode) {
-    std::cout << "DEBUG: Source file processed." << std::endl;
-  }
+  // Execute the source file using the shell script interpreter
+  g_script_interpreter->executeScript(cjsh_filesystem::g_cjsh_source_path);
 }
 
 void create_source_file() {

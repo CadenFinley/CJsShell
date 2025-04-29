@@ -97,6 +97,56 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     return;
   }
   
+  // Check if the command starts with an environment variable assignment
+  // like "VAR=value command args..."
+  std::vector<std::pair<std::string, std::string>> env_assignments;
+  size_t cmd_start_idx = 0;
+  
+  for (size_t i = 0; i < args.size(); i++) {
+    std::string var_name, var_value;
+    size_t pos = args[i].find('=');
+    
+    if (pos != std::string::npos && pos > 0) {
+      std::string name = args[i].substr(0, pos);
+      bool valid_name = true;
+      
+      // Check if the name is a valid environment variable name
+      if (!isalpha(name[0]) && name[0] != '_') {
+        valid_name = false;
+      } else {
+        for (char c : name) {
+          if (!isalnum(c) && c != '_') {
+            valid_name = false;
+            break;
+          }
+        }
+      }
+      
+      if (valid_name) {
+        var_name = name;
+        var_value = args[i].substr(pos + 1);
+        env_assignments.push_back({var_name, var_value});
+        cmd_start_idx = i + 1;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+  
+  // If there are only environment assignments and no command, apply them to the current process
+  if (cmd_start_idx >= args.size()) {
+    for (const auto& env : env_assignments) {
+      setenv(env.first.c_str(), env.second.c_str(), 1);
+    }
+    set_error("Environment variables set");
+    return;
+  }
+  
+  // Now execute the actual command with the environment variables
+  std::vector<std::string> cmd_args(args.begin() + cmd_start_idx, args.end());
+  
   pid_t pid = fork();
   
   if (pid == -1) {
@@ -106,6 +156,13 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
   }
   
   if (pid == 0) {
+    // Child process
+    
+    // Apply environment variable assignments
+    for (const auto& env : env_assignments) {
+      setenv(env.first.c_str(), env.second.c_str(), 1);
+    }
+    
     pid_t child_pid = getpid();
     if (setpgid(child_pid, child_pid) < 0) {
       perror("setpgid failed in child");
@@ -134,14 +191,14 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     sigprocmask(SIG_UNBLOCK, &set, nullptr);
     
     std::vector<char*> c_args;
-    for (auto& arg : args) {
+    for (auto& arg : cmd_args) {
       c_args.push_back(const_cast<char*>(arg.data()));
     }
     c_args.push_back(nullptr);
     
-    execvp(args[0].c_str(), c_args.data());
+    execvp(cmd_args[0].c_str(), c_args.data());
     
-    std::string error_msg = "cjsh: Failed to execute command ( " + args[0] + " ) : no command found";
+    std::string error_msg = "cjsh: Failed to execute command ( " + cmd_args[0] + " ) : no command found";
     std::cerr << error_msg << std::endl;
     _exit(EXIT_FAILURE);
   }

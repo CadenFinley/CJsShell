@@ -187,6 +187,47 @@ void Shell::execute_command(std::string command, bool sync) {
     return;
   }
 
+  // Check if the command contains semicolons
+  if (command.find(';') != std::string::npos) {
+    std::vector<std::string> cmds = shell_parser->parse_semicolon_commands(command);
+    for (const auto& cmd : cmds) {
+      execute_command(cmd, sync);
+    }
+    return;
+  }
+
+  // Parse command once and reuse the parsed args throughout the function
+  std::vector<std::string> args = shell_parser->parse_command(command);
+  
+  // Check if this is an environment variable assignment
+  std::string var_name, var_value;
+  if (shell_parser->is_env_assignment(command, var_name, var_value)) {
+    env_vars[var_name] = var_value;
+    shell_parser->set_env_vars(env_vars);
+    last_terminal_output_error = "Variable set successfully";
+    last_command = command;
+    return;
+  }
+
+  // Check for export command
+  if (!args.empty() && args[0] == "export") {
+    if (args.size() > 1) {
+      for (size_t i = 1; i < args.size(); i++) {
+        std::string var_name, var_value;
+        if (shell_parser->is_env_assignment(args[i], var_name, var_value)) {
+          env_vars[var_name] = var_value;
+          setenv(var_name.c_str(), var_value.c_str(), 1);
+        } else if (env_vars.find(args[i]) != env_vars.end()) {
+          setenv(args[i].c_str(), env_vars[args[i]].c_str(), 1);
+        }
+      }
+      shell_parser->set_env_vars(env_vars);
+      last_terminal_output_error = "Variables exported successfully";
+      last_command = command;
+      return;
+    }
+  }
+
   if (command.find("&&") != std::string::npos || command.find("||") != std::string::npos) {
     std::vector<LogicalCommand> logical_commands = shell_parser->parse_logical_commands(command);
     
@@ -206,10 +247,10 @@ void Shell::execute_command(std::string command, bool sync) {
       }
       
       if (should_execute) {
-        std::vector<std::string> args = shell_parser->parse_command(cmd_segment.command);
+        std::vector<std::string> segment_args = shell_parser->parse_command(cmd_segment.command);
         
-        if (!args.empty() && built_ins->is_builtin_command(args[0])) {
-          bool result = built_ins->builtin_command(args);
+        if (!segment_args.empty() && built_ins->is_builtin_command(segment_args[0])) {
+          bool result = built_ins->builtin_command(segment_args);
           if (!result) {
             last_terminal_output_error = "Something went wrong with the built-in command";
             prev_success = false;
@@ -230,8 +271,8 @@ void Shell::execute_command(std::string command, bool sync) {
   }
 
   if (command == "clear") {
-    std::vector<std::string> args = {"clear"};
-    shell_exec->execute_command_sync(args);
+    std::vector<std::string> clear_args = {"clear"};
+    shell_exec->execute_command_sync(clear_args);
     return;
   }
   if (command == "exit" || command == "quit") {
@@ -248,22 +289,21 @@ void Shell::execute_command(std::string command, bool sync) {
   }
 
   if (!g_menu_terminal) {
-    std::vector<std::string> args = shell_parser->parse_command(command);
-    if(args[0] == "terminal") {
-      g_menu_terminal = true;
-      return;
-    }
-    if(args[0] == "ai") {
-      built_ins->ai_commands(args);
-      return;
+    if(!args.empty()) {
+      if(args[0] == "terminal") {
+        g_menu_terminal = true;
+        return;
+      }
+      if(args[0] == "ai") {
+        built_ins->ai_commands(args);
+        return;
+      }
     }
     built_ins->do_ai_request(command);
     return;
   }
 
-  std::vector<std::string> args = shell_parser->parse_command(command);
-  
-  if (built_ins->is_builtin_command(args[0])) {
+  if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     if(!built_ins->builtin_command(args)){
       last_terminal_output_error = "Something went wrong with the command";
     }
@@ -273,7 +313,7 @@ void Shell::execute_command(std::string command, bool sync) {
 
   if (g_plugin) {
     std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
-    if (!enabled_plugins.empty()) {
+    if (!args.empty() && !enabled_plugins.empty()) {
       for(const auto& plugin : enabled_plugins){
         std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
         if(std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()){

@@ -24,6 +24,8 @@ public:
   std::vector<Command> parse_pipeline(const std::string& command);
   std::vector<std::string> expand_wildcards(const std::string& pattern);
   std::vector<LogicalCommand> parse_logical_commands(const std::string& command);
+  std::vector<std::string> parse_semicolon_commands(const std::string& command);
+  bool is_env_assignment(const std::string& command, std::string& var_name, std::string& var_value);
 
   void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
     this->aliases = new_aliases;

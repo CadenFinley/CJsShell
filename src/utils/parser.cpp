@@ -348,3 +348,92 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
   
   return result;
 }
+
+std::vector<std::string> Parser::parse_semicolon_commands(const std::string& command) {
+  std::vector<std::string> result;
+  
+  std::string current_cmd;
+  bool in_quotes = false;
+  char quote_char = '\0';
+  
+  for (size_t i = 0; i < command.length(); i++) {
+    char c = command[i];
+    
+    if ((c == '"' || c == '\'') && (i == 0 || command[i-1] != '\\')) {
+      if (!in_quotes) {
+        in_quotes = true;
+        quote_char = c;
+      } else if (c == quote_char) {
+        in_quotes = false;
+        quote_char = '\0';
+      }
+      current_cmd += c;
+      continue;
+    }
+    
+    if (c == ';' && !in_quotes) {
+      if (!current_cmd.empty()) {
+        // Trim trailing whitespace
+        while (!current_cmd.empty() && std::isspace(current_cmd.back())) {
+          current_cmd.pop_back();
+        }
+        
+        // Trim leading whitespace
+        size_t startPos = 0;
+        while (startPos < current_cmd.length() && std::isspace(current_cmd[startPos])) {
+          startPos++;
+        }
+        
+        if (startPos < current_cmd.length()) {
+          result.push_back(current_cmd.substr(startPos));
+        }
+        current_cmd.clear();
+      }
+    } else {
+      current_cmd += c;
+    }
+  }
+  
+  if (!current_cmd.empty()) {
+    // Trim trailing whitespace
+    while (!current_cmd.empty() && std::isspace(current_cmd.back())) {
+      current_cmd.pop_back();
+    }
+    
+    // Trim leading whitespace
+    size_t startPos = 0;
+    while (startPos < current_cmd.length() && std::isspace(current_cmd[startPos])) {
+      startPos++;
+    }
+    
+    if (startPos < current_cmd.length()) {
+      result.push_back(current_cmd.substr(startPos));
+    }
+  }
+  
+  return result;
+}
+
+bool Parser::is_env_assignment(const std::string& command, std::string& var_name, std::string& var_value) {
+  size_t pos = command.find('=');
+  if (pos == std::string::npos) {
+    return false;
+  }
+  
+  // Check that the part before '=' is a valid variable name
+  // (must start with a letter or underscore, and contain only letters, numbers, or underscores)
+  std::string name = command.substr(0, pos);
+  if (name.empty() || !(std::isalpha(name[0]) || name[0] == '_')) {
+    return false;
+  }
+  
+  for (char c : name) {
+    if (!(std::isalnum(c) || c == '_')) {
+      return false;
+    }
+  }
+  
+  var_name = name;
+  var_value = command.substr(pos + 1);
+  return true;
+}
