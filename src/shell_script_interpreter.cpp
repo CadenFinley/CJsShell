@@ -917,7 +917,7 @@ std::string ShellScriptInterpreter::capture_command_output(const std::string& cm
     if (g_shell) {
         g_shell->execute_command(redirect_cmd, true);
     } else {
-        system(redirect_cmd.c_str());
+        int i = system(redirect_cmd.c_str());
     }
     
     // Read the output from the temporary file
