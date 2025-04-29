@@ -223,14 +223,12 @@ void main_process_loop() {
     
     std::string prompt;
     if (g_menu_terminal) {
-      prompt = g_shell->get_prompt();
+      prompt = g_shell->get_prompt(); //ps1 or git prompt
     } else {
-      prompt = g_shell->get_ai_prompt();
+      prompt = g_shell->get_ai_prompt(); // ai menu prompt
     }
     
-    if (!g_theme -> uses_newline()) {
-      prompt += " ";
-    } else {
+    if (g_theme -> uses_newline()) { // multi line prompts
       std::cout << prompt << std::endl;
       prompt = g_shell->get_newline_prompt();
     }
