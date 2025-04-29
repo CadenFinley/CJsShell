@@ -59,6 +59,12 @@ static std::vector<std::string> g_supportedShells = {
     "csh", "dash", "sh", "pwsh", "powershell"
 };
 
+// Memory tracking for safe shutdown
+static plugin_info_t* g_pluginInfo = nullptr;
+static char** g_eventsList = nullptr;
+static plugin_setting_t* g_defaultSettings = nullptr;
+static bool g_memoryAllocated = false;
+
 // Helper method to check if a shell is available
 static bool isShellAvailable(const std::string& shell) {
     std::string checkCmd = "which " + shell + " > /dev/null 2>&1";
@@ -181,21 +187,21 @@ static bool executeShellCommand(const std::string& command) {
 // Exported plugin functions
 extern "C" {
     PLUGIN_API plugin_info_t* plugin_get_info() {
-        static bool initialized = false;
-        static plugin_info_t info;
-        
-        if (!initialized) {
-            // Allocate strings that will persist for the lifetime of the plugin
-            info.name = strdup("CJsAnyShell");
-            info.version = strdup("1.1.0.0");
-            info.description = strdup("A plugin to execute commands through various shells (bash, zsh, fish, ksh, tcsh, csh, dash, sh, powershell).");
-            info.author = strdup("Caden Finley");
-            info.interface_version = PLUGIN_INTERFACE_VERSION;
-            
-            initialized = true;
+        if (g_pluginInfo == nullptr) {
+            // Allocate info structure
+            g_pluginInfo = (plugin_info_t*)malloc(sizeof(plugin_info_t));
+            if (g_pluginInfo) {
+                // Allocate strings that will persist for the lifetime of the plugin
+                g_pluginInfo->name = strdup("CJsAnyShell");
+                g_pluginInfo->version = strdup("1.1.0.0");
+                g_pluginInfo->description = strdup("A plugin to execute commands through various shells (bash, zsh, fish, ksh, tcsh, csh, dash, sh, powershell).");
+                g_pluginInfo->author = strdup("Caden Finley");
+                g_pluginInfo->interface_version = PLUGIN_INTERFACE_VERSION;
+                g_memoryAllocated = true;
+            }
         }
         
-        return &info;
+        return g_pluginInfo;
     }
 
     PLUGIN_API int plugin_initialize() {
@@ -258,8 +264,47 @@ extern "C" {
     }
 
     PLUGIN_API void plugin_shutdown() {
+        // Mark as not initialized first
         g_isInitialized = false;
-        saveSettings();
+        
+        // Save settings before shutdown
+        if (!g_settings.empty()) {
+            saveSettings();
+        }
+        
+        // Free allocated memory for plugin info
+        if (g_memoryAllocated && g_pluginInfo != nullptr) {
+            free(g_pluginInfo->name);
+            free(g_pluginInfo->version);
+            free(g_pluginInfo->description);
+            free(g_pluginInfo->author);
+            free(g_pluginInfo);
+            g_pluginInfo = nullptr;
+        }
+        
+        // Free allocated memory for events list
+        if (g_memoryAllocated && g_eventsList != nullptr) {
+            free(g_eventsList[0]);
+            free(g_eventsList[1]);
+            free(g_eventsList);
+            g_eventsList = nullptr;
+        }
+        
+        // Free allocated memory for default settings
+        if (g_memoryAllocated && g_defaultSettings != nullptr) {
+            free(g_defaultSettings[0].key);
+            free(g_defaultSettings[0].value);
+            free(g_defaultSettings[1].key);
+            free(g_defaultSettings[1].value);
+            free(g_defaultSettings);
+            g_defaultSettings = nullptr;
+        }
+        
+        // Reset memory allocation flag
+        g_memoryAllocated = false;
+        
+        // Clear captured command
+        g_capturedCommand.clear();
     }
 
     PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
@@ -347,44 +392,36 @@ extern "C" {
     }
 
     PLUGIN_API char** plugin_get_subscribed_events(int* count) {
-        static char** events = nullptr;
-        static int initialized = 0;
-        
-        // Only allocate once to avoid double-free issues
-        if (!initialized) {
+        if (g_eventsList == nullptr && !g_memoryAllocated) {
             // Allocate memory for the array of pointers
-            events = (char**)malloc(2 * sizeof(char*));
-            if (events) {
+            g_eventsList = (char**)malloc(2 * sizeof(char*));
+            if (g_eventsList) {
                 // Allocate and copy each string
-                events[0] = strdup("main_process_pre_run");
-                events[1] = strdup("main_process_command_processed");
-                initialized = 1;
+                g_eventsList[0] = strdup("main_process_pre_run");
+                g_eventsList[1] = strdup("main_process_command_processed");
+                g_memoryAllocated = true;
             }
         }
         
-        *count = (events != nullptr) ? 2 : 0;
-        return events;
+        *count = (g_eventsList != nullptr) ? 2 : 0;
+        return g_eventsList;
     }
 
     PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
-        static plugin_setting_t* settings = nullptr;
-        static int initialized = 0;
-        
-        // Only allocate once to avoid double-free issues
-        if (!initialized) {
+        if (g_defaultSettings == nullptr && !g_memoryAllocated) {
             // Allocate memory for the settings array
-            settings = (plugin_setting_t*)malloc(2 * sizeof(plugin_setting_t));
-            if (settings) {
-                settings[0].key = strdup("verbose");
-                settings[0].value = strdup("true");
-                settings[1].key = strdup("shell_type");
-                settings[1].value = strdup("auto");
-                initialized = 1;
+            g_defaultSettings = (plugin_setting_t*)malloc(2 * sizeof(plugin_setting_t));
+            if (g_defaultSettings) {
+                g_defaultSettings[0].key = strdup("verbose");
+                g_defaultSettings[0].value = strdup("true");
+                g_defaultSettings[1].key = strdup("shell_type");
+                g_defaultSettings[1].value = strdup("auto");
+                g_memoryAllocated = true;
             }
         }
         
-        *count = (settings != nullptr) ? 2 : 0;
-        return settings;
+        *count = (g_defaultSettings != nullptr) ? 2 : 0;
+        return g_defaultSettings;
     }
 
     PLUGIN_API int plugin_update_setting(const char* key, const char* value) {
