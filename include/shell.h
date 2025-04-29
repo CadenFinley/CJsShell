@@ -53,6 +53,7 @@ class Shell {
       return login_mode;
     }
 
+
     void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
       aliases = new_aliases;
       if (shell_parser) {

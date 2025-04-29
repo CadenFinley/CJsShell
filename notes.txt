@@ -1,0 +1,53 @@
+Below is how cjsh’s “login‐shell” and early initialization work under the hood, and where it still lags behind a full-featured shell like bash or zsh.
+
+        2. `~/.cjprofile` (Login Config)
+           • On a login shell cjsh:
+             – calls init_login_filesystem(): ensures your home dir exists and creates `~/.cjprofile` (named `.cjprofile`) with a small template if missing.
+             – calls process_profile_file(): reads `~/.cjprofile` line by line, skipping blank lines and comments.
+           • A special line `PATH_HELPER` will shell-out to macOS’s `/usr/libexec/path_helper -s` to set a system default PATH.
+           • Lines of the form `export VAR=VALUE` or `VAR=VALUE` become real environment variables via `setenv`.
+           • Lines beginning with ‘–’ are treated as extra startup flags (e.g. `--no-plugins`).
+           • All other non-script constructs (no support for `if … fi`, loops, functions, case, etc.) are fed into cjsh’s own command executor
+    (`g_shell->execute_command(…, true)`).
+           • In bash/zsh you get full shell-scripting power in `/etc/profile`, `~/.bash_profile`/`~/.profile` etc., with loops, conditional logic, function
+    definitions, sourcing other files, etc.
+        3. Terminal & Job-Control Setup
+           • initialize_login_environment():
+             – makes the shell its own process group leader (setpgid), grabs the controlling tty (tcsetpgrp), and saves the terminal modes.
+           • setup_environment_variables(): sets USER, LOGNAME, HOME, HOSTNAME, PWD (and a default PATH if none).
+           • g_shell->setup_job_control(): re-asserts process-group ownership of the tty, installs signal handlers, and enables job-control flags.
+           • Bash/Zsh do all this plus things like SHLVL, umask, signals for more builtin commands, login/logout hooks, support for `trap … EXIT`, etc.
+        4. Interactive Initialization (`~/.cjshrc`)
+           • After login-phase comes interactive-phase:
+             – init_interactive_filesystem() creates `~/.cjsh/` (for history, plugins, themes, colors) and touches `~/.cjsh/history.txt`.
+             – Ensures `~/.cjshrc` (named `.cjshrc`) exists.
+             – process_source_file() reads `.cjshrc` (skips comments) and dispatches lines starting with `alias`, `theme`, `plugin` (and any other plain command) into
+     the command executor.
+           • Bash/Zsh automatically source `~/.bashrc` for interactive non-login shells (and often source it from your login file), supporting all of shell’s
+    scripting features.
+        5. Line-Editing & History (via isocline)
+           • cjsh links in the isocline C library for readline-style editing, completion preview, inline hints, multi-line input, history search.
+           • main_process_loop():
+             – calls `ic_set_history( ~/.cjsh/history.txt, -1 )` to load existing history, then on every successful command does `ic_history_add(command)`.
+           • You get up/down and Ctrl-R search, but no `!`-style history expansion (e.g. `!!`, `!$`).
+        6. Execution Flow
+           • Parser supports: quoting, escapes, `$VAR`-expansion, `*?`-globbing, pipelines (`|`), redirections (`<`, `>`, `>>`), background (`&`), logical operators
+    (`&&`, `||`).
+           • Built-ins include only a handful (`cd`, `alias`, `export`, `unalias`, `unset`, plus cjsh-specific commands like `theme`, `plugin`, `ai`, etc.).
+           • Everything else becomes an external `execvp` child job under a very simple job-control regime.
+
+    ––––––––––––––––––––––––––––––––––––––
+    Shortcomings compared to bash/zsh
+    ––––––––––––––––––––––––––––––––––––––
+     • Minimal startup files: only ~/.cjprofile and ~/.cjshrc (no /etc/profile, no /etc/cjshrc, no layering of login vs non-login).
+     • Fragile login detection (solely argv[0][0]=='-'). No --login flag.
+     • No real shell scripting in your profile files: you can’t write for, if…then…else, define functions, source arbitrary scripts, etc.
+     • Environment setup is very basic—no SHLVL, no user’s default umask, no shell options (set -o).
+     • Very limited built-ins (no jobs, fg, bg, trap, read, arithmetic, let, test/[).
+     • No advanced expansions (command substitution `…`, $(…), process substitution <(...), brace expansion {a,b}).
+     • History persistence but no !-expansion or HISTCONTROL, HISTSIZE, etc.
+     • Prompt customization is via JSON-themes and cjsh’s Prompt API, whereas bash/zsh let you use PS1 formatting and PROMPT_COMMAND hooks.
+     • Plugin/theme/AI layers add extensibility, but at the cost of deviating from POSIX/sh-compatibility.
+
+    In short, cjsh gives you a slick UI (AI assistant, JSON themes, a modern line-editor) and a simple plugin API, but it isn’t (yet) a drop-in replacement for the
+    full scripting power, startup-file richness, and built-in command suite of bash or zsh.

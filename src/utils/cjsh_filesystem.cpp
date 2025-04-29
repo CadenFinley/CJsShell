@@ -12,6 +12,9 @@ extern char *program_invocation_name;
 cjsh_filesystem::fs::path cjsh_filesystem::g_cjsh_path;
 
 bool initialize_cjsh_path() {
+    if (!fs::exists(cjsh_filesystem::g_cjsh_data_path)) {
+      fs::create_directories(cjsh_filesystem::g_cjsh_data_path);
+    }
     char path[PATH_MAX];
     #ifdef __linux__
     if (readlink("/proc/self/exe", path, PATH_MAX) != -1) {
@@ -57,9 +60,6 @@ bool initialize_cjsh_path() {
 bool initialize_cjsh_directories() {
     try {
         namespace fs = cjsh_filesystem::fs;
-        if (!fs::exists(cjsh_filesystem::g_cjsh_data_path)) {
-            fs::create_directories(cjsh_filesystem::g_cjsh_data_path);
-        }
         if (!fs::exists(cjsh_filesystem::g_cjsh_plugin_path)) {
             fs::create_directories(cjsh_filesystem::g_cjsh_plugin_path);
         }
