@@ -10,6 +10,9 @@
 #include <signal.h>
 #include <map>
 #include <termios.h>
+#include "cjsh_filesystem.h"
+#include "script_interpreter.h"
+#include <memory>
 
 struct Job {
   pid_t pgid;
@@ -31,6 +34,7 @@ private:
   struct termios shell_tmodes;
   int shell_terminal;
   bool shell_is_interactive;
+  std::unique_ptr<ScriptInterpreter> interpreter;
 
 public:
   Exec();
@@ -51,6 +55,9 @@ public:
   void set_error(const std::string& error);
   std::string get_error();
   void terminate_all_child_process();
+  
+  // Helper method to check if a file is a shell script
+  bool is_shell_script(const std::string& filepath);
   
   std::string last_terminal_output_error;
 };

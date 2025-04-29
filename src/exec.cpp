@@ -4,6 +4,9 @@
 #include <memory>
 #include <csignal>
 #include <algorithm>
+#include <sys/stat.h>
+#include <sstream>
+#include <fstream>
 
 Exec::Exec(){
   last_terminal_output_error = "";
@@ -17,6 +20,13 @@ Exec::Exec(){
       perror("tcgetattr failed in Exec constructor");
     }
   }
+  
+  // Initialize the script interpreter with a lambda that calls execute_command_sync
+  interpreter = std::make_unique<ScriptInterpreter>(
+    [this](const std::vector<std::string>& args) {
+      this->execute_command_sync(args);
+    }
+  );
 }
 
 Exec::~Exec() {
@@ -90,10 +100,78 @@ std::string Exec::get_error() {
   return last_terminal_output_error;
 }
 
+bool Exec::is_shell_script(const std::string& filepath) {
+  // Check if the file is .cjshrc or .cjprofile
+  std::string filename = filepath;
+  size_t lastSlash = filepath.find_last_of("/\\");
+  if (lastSlash != std::string::npos) {
+    filename = filepath.substr(lastSlash + 1);
+  }
+  
+  if (filename == ".cjshrc" || filename == ".cjprofile") {
+    return true;
+  }
+  
+  // Check if the file has a .sh extension
+  if (filepath.size() >= 3 && 
+      filepath.substr(filepath.size() - 3) == ".sh") {
+    return true;
+  }
+  
+  // Check file contents for shebang (#!/bin/sh or #!/bin/bash)
+  std::ifstream file(filepath);
+  if (file.is_open()) {
+    std::string first_line;
+    if (std::getline(file, first_line)) {
+      if (first_line.find("#!/bin/sh") == 0 || 
+          first_line.find("#!/bin/bash") == 0 ||
+          first_line.find("#!/usr/bin/env sh") == 0 ||
+          first_line.find("#!/usr/bin/env bash") == 0) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 void Exec::execute_command_sync(const std::vector<std::string>& args) {
+  for (const auto& arg : args) {
+    std::cout << arg << " ";
+  }
   if (args.empty()) {
     set_error("cjsh: Failed to parse command");
     std::cerr << last_terminal_output_error << std::endl;
+    return;
+  }
+  
+  // Get the filename from the first argument
+  std::string filename = args[0];
+  size_t lastSlash = filename.find_last_of("/\\");
+  if (lastSlash != std::string::npos) {
+    filename = filename.substr(lastSlash + 1);
+  }
+  
+  // Special handling for shell scripts and special rc files
+  bool special_file = false;
+  
+  // Check if we're executing a shell script with ./script.sh pattern
+  if (args[0].size() > 1 && args[0][0] == '.' && args[0][1] == '/') {
+    special_file = is_shell_script(args[0]);
+  }
+  // Check if we're directly executing .cjshrc or .cjprofile
+  else if (filename == ".cjshrc" || filename == ".cjprofile") {
+    special_file = true;
+  }
+  
+  if (special_file) {
+    // Execute the script through our interpreter
+    bool success = interpreter->execute_script_file(args[0]);
+    if (success) {
+      set_error("script executed successfully");
+    } else {
+      set_error("script execution failed");
+    }
     return;
   }
   
@@ -141,7 +219,19 @@ void Exec::execute_command_sync(const std::vector<std::string>& args) {
     
     execvp(args[0].c_str(), c_args.data());
     
-    std::string error_msg = "cjsh: Failed to execute command ( " + args[0] + " ) : no command found";
+    std::string error_msg;
+    if (args[0].find('/') != std::string::npos) {
+      if (access(args[0].c_str(), F_OK) != 0) {
+        error_msg = "cjsh: " + args[0] + ": No such file or directory";
+      } else if (access(args[0].c_str(), X_OK) != 0) {
+        error_msg = "cjsh: " + args[0] + ": Permission denied (file not executable)";
+      } else {
+        error_msg = "cjsh: Failed to execute " + args[0] + ": " + strerror(errno);
+      }
+    } else {
+      error_msg = "cjsh: Failed to execute command ( " + args[0] + " ) : no command found";
+    }
+    
     std::cerr << error_msg << std::endl;
     _exit(EXIT_FAILURE);
   }
