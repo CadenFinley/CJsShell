@@ -51,3 +51,28 @@ Below is how cjsh’s “login‐shell” and early initialization work under th
 
     In short, cjsh gives you a slick UI (AI assistant, JSON themes, a modern line-editor) and a simple plugin API, but it isn’t (yet) a drop-in replacement for the
     full scripting power, startup-file richness, and built-in command suite of bash or zsh.
+
+        What to tackle first—high impact, relatively self-contained, low risk:
+
+        1. **Profile Sourcing & Full Shell­script Syntax**
+           • Replace “line-by-line parse” of `~/.cjprofile` with a real shell-script interpreter or delegate to `/bin/sh -c “. ~/.cjprofile”`.
+           • Benefit: instantly support if/then, loops, functions, sourcing other files, `ssh-agent` hooks, etc.
+        2. **Standard Startup‐File Hierarchy**
+           • Honor `%SHELL% --login`, `/etc/profile`, `~/.profile`, and then for interactive non-login shells source `~/.bashrc` or `~/.cjshrc`.
+           • Benefit: familiar file layout, better multi-shell coexistence.
+        3. **Command Substitution & Brace Expansion**
+           • Implement `` `…` `` and `$(…)` by capturing the child-process stdout and inserting it back into the command line.
+           • Add `{a,b}`, `{1..N}` expansions in the parser.
+           • Benefit: unlocks a huge swath of one-liners and existing scripts.
+        4. **Enhanced Built-ins & Job Control**
+           • Add `jobs`, `fg`, `bg`, `disown`, `trap` built-ins that interact with the existing `Shell::setup_job_control()` and `shell_exec->get_jobs()`.
+           • Benefit: robust process management, resilient coredumps and clean shutdown on SIGHUP.
+        5. **History Expansion & Configuration Variables**
+           • Implement `HISTFILESIZE`, `HISTSIZE`, `HISTCONTROL`, and `!`-style expansion in the parser.
+           • Benefit: muscle-memory boost for power users, scriptable history.
+        6. **Sourcing & `alias`/`function` Definitions**
+           • Allow defining shell functions (not just cjsh built-ins) and saving them to `~/.cjshrc`.
+           • Benefit: portable shell functions, less reliance on external scripts or plugins.
+        7. **Process/Arithmetic Substitution & Redirection Polish**
+           • Support `<(…)`, `>(…)` and `let`, `((…))` arithmetic.
+           • Benefit: tight loops in scripts, integration with awk/sed, more POSIX.
