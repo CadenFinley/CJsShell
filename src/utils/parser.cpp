@@ -74,8 +74,23 @@ std::vector<std::string> Parser::parse_command(const std::string& command) {
   for (auto& arg : args) {
     expand_env_vars(arg);
   }
-  
-  return args;
+
+  // wildcard expansion for simple commands
+  std::vector<std::string> expanded_args;
+  for (auto& arg : args) {
+    if (arg.find_first_of("*?") != std::string::npos) {
+      auto ex = expand_wildcards(arg);
+      if (!ex.empty()) {
+        expanded_args.insert(expanded_args.end(), ex.begin(), ex.end());
+      } else {
+        expanded_args.push_back(arg);
+      }
+    } else {
+      expanded_args.push_back(arg);
+    }
+  }
+
+  return expanded_args;
 }
 
 void Parser::expand_env_vars(std::string& arg) {
@@ -239,18 +254,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           i++;
         }
       } else {
-        if (tokens[i].find_first_of("*?") != std::string::npos) {
-          auto expanded = expand_wildcards(tokens[i]);
-          if (!expanded.empty()) {
-            parsed_cmd.args.insert(parsed_cmd.args.end(), expanded.begin(), expanded.end());
-          } else {
-            parsed_cmd.args.push_back(tokens[i]);
-          }
-        } else {
-          std::string arg = tokens[i];
-          expand_env_vars(arg);
-          parsed_cmd.args.push_back(arg);
-        }
+        std::string arg = tokens[i];
+        expand_env_vars(arg);
+        parsed_cmd.args.push_back(arg);
       }
     }
     
