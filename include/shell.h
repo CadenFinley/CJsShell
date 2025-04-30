@@ -90,9 +90,18 @@ class Shell {
     std::string last_command;
     std::unique_ptr<Exec> shell_exec;
 
+    bool get_menu_active() {
+      return menu_active;
+    }
+
+    void set_menu_active(bool active) {
+      menu_active = active;
+    }
+
   private:
     bool interactive_mode = false;
     bool login_mode = false;
+    bool menu_active = true;
     int shell_terminal;
     pid_t shell_pgid;
     struct termios shell_tmodes;

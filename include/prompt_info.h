@@ -19,14 +19,10 @@ private:
     bool cached_is_clean_repo;
     std::mutex git_status_mutex;
     bool is_git_status_check_running;
-    
-    // Add cache related members
     std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> cache;
     std::mutex cache_mutex;
 
     bool is_root_path(const std::filesystem::path& path);
-    
-    // Add template function for cached values
     template<typename F>
     std::string get_cached_value(const std::string& key, F value_func, int ttl_seconds = 60);
 
@@ -67,7 +63,6 @@ public:
     std::unordered_map<std::string, std::string> get_variables(const std::vector<nlohmann::json>& segments, bool is_git_repo = false, const std::filesystem::path& repo_root = {});
 };
 
-// Implement the template function in the header
 template<typename F>
 std::string PromptInfo::get_cached_value(const std::string& key, F value_func, int ttl_seconds) {
     auto now = std::chrono::steady_clock::now();

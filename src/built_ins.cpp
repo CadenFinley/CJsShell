@@ -95,7 +95,7 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
   unsigned int command_index = 1;
   
   if (args.size() <= command_index) {
-    g_menu_terminal = false;
+    shell->set_menu_active(false);
     if (!g_ai->getChatCache().empty()) {
       std::cout << "Chat history:" << std::endl;
       for (const auto& message : g_ai->getChatCache()) {
@@ -822,68 +822,6 @@ bool Built_ins::user_commands(const std::vector<std::string>& args) {
   
   const std::string& cmd = args[1];
   
-  if (cmd == "startup") {
-    if (args.size() < 3) {
-      if (!g_startup_commands.empty()) {
-        std::cout << "Startup commands:" << std::endl;
-        for (const auto& command : g_startup_commands) {
-          std::cout << command << std::endl;
-        }
-      } else {
-        std::cerr << "No startup commands." << std::endl;
-      }
-      return true;
-    }
-    
-    if (args[2] == "add" && args.size() > 3) {
-      g_startup_commands.push_back(args[3]);
-      std::cout << "Command added to startup commands." << std::endl;
-      return true;
-    }
-    
-    if (args[2] == "remove" && args.size() > 3) {
-      std::string commandToRemove = args[3];
-      auto it = std::find(g_startup_commands.begin(), g_startup_commands.end(), commandToRemove);
-      if (it != g_startup_commands.end()) {
-        g_startup_commands.erase(it);
-        std::cout << "Command removed from startup commands." << std::endl;
-      } else {
-        std::cerr << "Command not found in startup commands." << std::endl;
-      }
-      return true;
-    }
-    
-    if (args[2] == "clear") {
-      g_startup_commands.clear();
-      std::cout << "Startup commands cleared." << std::endl;
-      return true;
-    }
-    
-    if (args[2] == "list") {
-      if (!g_startup_commands.empty()) {
-        std::cout << "Startup commands:" << std::endl;
-        for (const auto& command : g_startup_commands) {
-          std::cout << command << std::endl;
-        }
-      } else {
-        std::cerr << "No startup commands." << std::endl;
-      }
-      return true;
-    }
-    
-    if (args[2] == "help") {
-      std::cout << "Startup commands:" << std::endl;
-      std::cout << " add [CMD]: Add a startup command" << std::endl;
-      std::cout << " remove [CMD]: Remove a startup command" << std::endl;
-      std::cout << " clear: Remove all startup commands" << std::endl;
-      std::cout << " list: Show all startup commands" << std::endl;
-      return true;
-    }
-    
-    std::cerr << "Unknown startup command. Try 'user startup help'" << std::endl;
-    return false;
-  }
-  
   if (cmd == "testing") {
     if (args.size() < 3) {
       std::cout << "Debug mode is currently " << (g_debug_mode ? "enabled." : "disabled.") << std::endl;
@@ -1028,7 +966,6 @@ bool Built_ins::user_commands(const std::vector<std::string>& args) {
   
   if (cmd == "help") {
     std::cout << "User settings commands:" << std::endl;
-    std::cout << " startup: Manage startup commands (add, remove, clear, list)" << std::endl;
     std::cout << " testing: Toggle debug mode (enable/disable)" << std::endl;
     std::cout << " checkforupdates: Control whether updates are checked" << std::endl;
     std::cout << " silentupdatecheck: Toggle silent update checking (enable/disable)" << std::endl;
@@ -1075,13 +1012,12 @@ bool Built_ins::help_command() {
   std::cout << "  user                    Access and manage user settings\n";
   std::cout << "    Usage: user [subcommand] [options]\n";
   std::cout << "    Subcommands:\n";
-  std::cout << "      startup             View, add or remove startup commands\n";
   std::cout << "      testing             Toggle debug mode (enable/disable)\n";
   std::cout << "      checkforupdates     Control whether updates are checked\n";
   std::cout << "      silentupdatecheck   Toggle silent update checking\n";
   std::cout << "      titleline           Toggle title line display\n";
   std::cout << "      update              Manage update settings and perform manual update checks\n";
-  std::cout << "    Example: 'user update check', 'user startup add \"theme dark\"'\n\n";
+  std::cout << "    Example: 'user update check', 'user testing enable'\n\n";
   
   // Theme management
   std::cout << "THEME MANAGEMENT:\n\n";
@@ -1163,6 +1099,52 @@ bool Built_ins::help_command() {
   std::cout << "  help                    Display this help message\n";
   std::cout << "    Usage: help\n";
   
+  // Add new section for file system and configuration
+  std::cout << section_separator;
+  std::cout << "FILESYSTEM AND CONFIGURATION:\n\n";
+  
+  std::cout << "  Configuration Files:\n";
+  std::cout << "    ~/.cjprofile          Environment variable, PATH setup, and optional statup args (login mode)\n";
+  std::cout << "    ~/.cjshrc             Aliases, functions, themes, plugins (interactive mode)\n\n";
+  
+  std::cout << "  Primary Directories:\n";
+  std::cout << "    ~/.cjsh               Main data directory for CJ's Shell\n";
+  std::cout << "    ~/.cjsh/plugins       Where plugins are stored\n";
+  std::cout << "    ~/.cjsh/themes        Where themes are stored\n";
+  std::cout << "    ~/.cjsh/colors        Where color configurations are stored\n\n";
+  
+  std::cout << "  File Sourcing Order:\n";
+  std::cout << "    1. ~/.profile         (if exists, login mode only)\n";
+  std::cout << "    2. ~/.cjprofile       (login mode only)\n";
+  std::cout << "    3. ~/.cjshrc          (interactive mode only, unless --no-source specified)\n\n";
+  
+  // Add new section for startup arguments
+  std::cout << "STARTUP ARGUMENTS:\n\n";
+  
+  std::cout << "  Login and Execution:\n";
+  std::cout << "    -l, --login           Start shell in login mode\n";
+  std::cout << "    -c, --command CMD     Execute CMD and exit\n";
+  std::cout << "    --set-as-shell        Show instructions to set as default shell\n\n";
+  
+  std::cout << "  Feature Toggles:\n";
+  std::cout << "    --no-plugins          Disable plugins\n";
+  std::cout << "    --no-themes           Disable themes\n";
+  std::cout << "    --no-ai               Disable AI features\n";
+  std::cout << "    --no-colors           Disable colors\n";
+  std::cout << "    --no-titleline        Disable title line display\n";
+  std::cout << "    --no-source           Don't source the ~/.cjshrc file\n\n";
+  
+  std::cout << "  Updates and Information:\n";
+  std::cout << "    -v, --version         Display version and exit\n";
+  std::cout << "    -h, --help            Display help and exit\n";
+  std::cout << "    --update              Check for updates and install if available\n";
+  std::cout << "    --force-update        Force update to latest version\n";
+  std::cout << "    --check-update        Enable update checks\n";
+  std::cout << "    --no-update           Disable update checks\n";
+  std::cout << "    --silent-updates      Enable silent update checks\n";
+  std::cout << "    --splash              Display splash screen and exit\n";
+  std::cout << "    -d, --debug           Enable debug mode\n";
+  
   // Command-specific help reminder
   std::cout << section_separator;
   std::cout << "NOTE: Many commands have their own help. Try [command] help for details.\n";
@@ -1171,6 +1153,7 @@ bool Built_ins::help_command() {
   
   return true;
 }
+
 bool Built_ins::aihelp_command(const std::vector<std::string>& args) {
   if (!g_ai || g_ai->getAPIKey().empty()) {
     std::cerr << "Please set your OpenAI API key first." << std::endl;
@@ -1209,6 +1192,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
 
   bool all_successful = true;
   auto& aliases = g_shell->get_aliases();
+  
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
     if (parse_assignment(args[i], name, value)) {
@@ -1218,13 +1202,8 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
         std::cout << "Added alias: " << name << "='" << value << "'" << std::endl;
       }
     } else {
-      auto it = aliases.find(args[i]);
-      if (it != aliases.end()) {
-        std::cout << "alias " << it->first << "='" << it->second << "'" << std::endl;
-      } else {
-        std::cerr << "alias: " << args[i] << ": not found" << std::endl;
-        all_successful = false;
-      }
+      std::cerr << "alias: invalid assignment: " << args[i] << std::endl;
+      all_successful = false;
     }
   }
 

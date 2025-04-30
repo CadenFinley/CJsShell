@@ -3,8 +3,11 @@
 #include "cjsh_filesystem.h"
 #include <signal.h>
 #include "colors.h"
+#include <filesystem> // Added direct include
+#include <memory> // For std::unique_ptr
 
 std::vector<std::string> g_startup_args;
+
 int main(int argc, char *argv[]) {
   // cjsh
   
@@ -137,12 +140,9 @@ int main(int argc, char *argv[]) {
   // now we know we are in interactive mode
   g_shell->set_interactive_mode(true);
 
-  // set process watchdog
-  std::thread watchdog_thread(parent_process_watchdog);
-  watchdog_thread.detach();
-
   // set initial working directory
-  setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
+  std::string current_path = std::filesystem::current_path().string();
+  setenv("PWD", current_path.c_str(), 1);
 
   // initialize and verify the file system
   if (!init_interactive_filesystem()) {
@@ -151,14 +151,29 @@ int main(int argc, char *argv[]) {
   }
 
   colors::initialize_color_support(l_colors_enabled);
-  g_plugin = new Plugin(cjsh_filesystem::g_cjsh_plugin_path, l_plugins_enabled);
-  g_theme = new Theme(cjsh_filesystem::g_cjsh_theme_path, l_themes_enabled);
+  
+  // Replace raw pointers with unique_ptr for automatic cleanup
+  std::unique_ptr<Plugin> plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path, l_plugins_enabled);
+  g_plugin = plugin.get(); // Use the raw pointer for global access
+  
+  std::unique_ptr<Theme> theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path, l_themes_enabled);
+  g_theme = theme.get();
+  
   std::string api_key = "";
   const char* env_key = getenv("OPENAI_API_KEY");
   if (env_key) {
     api_key = env_key;
   }
-  g_ai = new Ai(api_key, "chat", "You are an AI personal assistant within a users login shell.", {}, cjsh_filesystem::g_cjsh_data_path, l_ai_enabled);
+  
+  std::unique_ptr<Ai> ai = std::make_unique<Ai>(
+      api_key,
+      std::string("chat"),  // Convert string literal to std::string
+      std::string("You are an AI personal assistant within a users login shell."), // Convert to std::string
+      std::vector<std::string>{},  // Specify the type for empty initializer list
+      cjsh_filesystem::g_cjsh_data_path,
+      l_ai_enabled);
+  g_ai = ai.get();
+  
   if(source_enabled){
     process_source_file();
   }
@@ -171,7 +186,28 @@ int main(int argc, char *argv[]) {
       std::cout << created_line  << std::endl;
     }
 
+    // Create a flag for watchdog termination
+    std::atomic<bool> watchdog_should_exit{false};
+    
+    // Create and start the watchdog thread, but don't detach it
+    std::thread watchdog_thread([&watchdog_should_exit]() {
+      while (!watchdog_should_exit && !g_exit_flag) {
+        if (!is_parent_process_alive()) {
+          std::cerr << "Parent process terminated, shutting down..." << std::endl;
+          g_exit_flag = true;
+          break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      }
+    });
+
     main_process_loop();
+    
+    // Signal the watchdog to exit and join the thread
+    watchdog_should_exit = true;
+    if (watchdog_thread.joinable()) {
+      watchdog_thread.join();
+    }
   }
 
   std::cout << "CJ's Shell Exiting..." << std::endl;
@@ -180,22 +216,11 @@ int main(int argc, char *argv[]) {
     g_shell->restore_terminal_state();
   }
 
-  if(g_shell) {
-    delete g_shell;
-    g_shell = nullptr;
-  }
-  if (g_ai) {
-    delete g_ai;
-    g_ai = nullptr;
-  }
-  if (g_theme) {
-    delete g_theme;
-    g_theme = nullptr;
-  }
-  if(g_plugin) {
-    delete g_plugin;
-    g_plugin = nullptr;
-  }
+  // No need for manual delete; unique_ptr will handle cleanup
+  g_shell = nullptr;
+  g_ai = nullptr;
+  g_theme = nullptr;
+  g_plugin = nullptr;
 
   return 0;
 }
@@ -222,7 +247,7 @@ void main_process_loop() {
     update_terminal_title();
     
     std::string prompt;
-    if (g_menu_terminal) {
+    if (g_shell->get_menu_active()) { // Use Shell's method instead of global
       prompt = g_shell->get_prompt(); //ps1 or git prompt
     } else {
       prompt = g_shell->get_ai_prompt(); // ai menu prompt
@@ -455,30 +480,9 @@ void create_source_file() {
 }
 
 void parent_process_watchdog() {
-  while (!g_exit_flag) {
-    if (!is_parent_process_alive()) {
-      std::cerr << "Parent process terminated, shutting down..." << std::endl;
-      g_exit_flag = true;
-      if(g_shell){
-        delete g_shell;
-        g_shell = nullptr;
-      }
-      if(g_ai){
-        delete g_ai;
-        g_ai = nullptr;
-      }
-      if(g_plugin){
-        delete g_plugin;
-        g_plugin = nullptr;
-      }
-      if(g_theme){
-        delete g_theme;
-        g_theme = nullptr;
-      }
-      _exit(1);
-    }
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-  }
+  // This is now only for backward compatibility
+  // The actual implementation is inline in main
+  std::cerr << "Warning: Legacy watchdog function called" << std::endl;
 }
 
 bool is_parent_process_alive() {

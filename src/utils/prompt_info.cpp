@@ -87,7 +87,7 @@ bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
     std::filesystem::path current_path = std::filesystem::current_path();
     std::filesystem::path git_head_path;
     
-    repo_root = current_path; // Initialize repo_root to current_path
+    repo_root = current_path;
     
     while (!is_root_path(repo_root)) {
         git_head_path = repo_root / ".git" / "HEAD";

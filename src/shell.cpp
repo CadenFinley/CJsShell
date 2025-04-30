@@ -286,10 +286,11 @@ int Shell::execute_command(std::string command, bool sync) {
     return 0;
   }
 
-  if (!g_menu_terminal) {
+  // Changed g_menu_terminal to a local variable or property of the shell
+  if (!menu_active) {
     if(!args.empty()) {
       if(args[0] == "terminal") {
-        g_menu_terminal = true;
+        menu_active = true;
         return 0;
       }
       if(args[0] == "ai") {

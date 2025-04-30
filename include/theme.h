@@ -14,7 +14,7 @@ private:
     std::string terminal_title_format;
 
     void prerender_segments();
-    std::string prerender_line(const std::vector<nlohmann::json>& segments) const; // will render full line with placeholders
+    std::string prerender_line(const std::vector<nlohmann::json>& segments) const;
 
     std::string prerendered_ps1_format;
     std::string prerendered_git_format;

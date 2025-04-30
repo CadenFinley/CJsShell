@@ -22,7 +22,7 @@ namespace cjsh_filesystem {
   extern fs::path g_cjsh_path; // where the executable is located
 
   // used if login
-  const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile"; //envvars and PATH setup loaded on login shell
+  const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile"; //envvars and PATH setup loaded on login shell also startup flags
 
   // used if interactive
   const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc"; // aliases, prompt, functions, themes loaded on interactive shell
@@ -35,5 +35,5 @@ namespace cjsh_filesystem {
   const fs::path g_cjsh_uninstall_path = g_cjsh_data_path / "uninstall.sh"; // uninstall script
   const fs::path g_cjsh_update_cache_path = g_cjsh_data_path / "update_cache.json"; // where the update cache is stored
 }
-bool initialize_cjsh_path(); // New function to set the cjsh installation path
-bool initialize_cjsh_directories(); // New function to ensure required directories exist
+bool initialize_cjsh_path();
+bool initialize_cjsh_directories();

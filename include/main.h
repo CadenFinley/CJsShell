@@ -22,12 +22,9 @@ const std::string c_title_color = "\033[1;35m";
 
 
 extern bool g_debug_mode;
-extern bool g_silent_startup;
 extern bool g_cached_update;
-extern bool g_source;
 extern bool g_check_updates;
 extern bool g_title_line;
-extern bool g_menu_terminal;
 extern bool g_silent_update_check;
 extern struct termios g_original_termios;
 extern bool g_terminal_state_saved;
@@ -41,7 +38,6 @@ extern int g_update_check_interval;
 extern std::string g_cached_version;
 extern std::string g_last_updated;
 extern bool g_first_boot;
-extern std::vector<std::string> g_startup_commands;
 extern std::string g_current_theme;
 extern std::string title_line;
 extern std::string created_line;
