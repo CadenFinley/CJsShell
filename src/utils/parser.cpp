@@ -78,7 +78,24 @@ std::vector<std::string> Parser::parse_command(const std::string& command) {
   // wildcard expansion for simple commands
   std::vector<std::string> expanded_args;
   for (auto& arg : args) {
-    if (arg.find_first_of("*?") != std::string::npos) {
+    // Check for paths containing tilde anywhere (either at start or after a path separator)
+    bool has_tilde = false;
+    
+    if (arg.length() > 0) {
+      if (arg[0] == '~') {
+        has_tilde = true;
+      } else {
+        // Look for tilde after path separators (/ or :)
+        for (size_t i = 1; i < arg.length(); i++) {
+          if (arg[i] == '~' && (arg[i-1] == '/' || arg[i-1] == ':')) {
+            has_tilde = true;
+            break;
+          }
+        }
+      }
+    }
+    
+    if (arg.find_first_of("*?") != std::string::npos || has_tilde) {
       auto ex = expand_wildcards(arg);
       if (!ex.empty()) {
         expanded_args.insert(expanded_args.end(), ex.begin(), ex.end());
@@ -270,6 +287,7 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
   glob_t globbuf;
   std::vector<std::string> result;
   
+  // First attempt direct expansion with GLOB_TILDE
   int ret = glob(pattern.c_str(), GLOB_TILDE | GLOB_BRACE, nullptr, &globbuf);
   if (ret == 0) {
     for (size_t i = 0; i < globbuf.gl_pathc; i++) {
@@ -277,6 +295,43 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
     }
     globfree(&globbuf);
   } else if (ret == GLOB_NOMATCH) {
+    // For patterns that contain a tilde but weren't expanded by glob
+    if (pattern.find('~') != std::string::npos) {
+      // Manual tilde expansion
+      const char* home = getenv("HOME");
+      if (home != nullptr) {
+        std::string expanded = pattern;
+        size_t pos = 0;
+        while ((pos = expanded.find('~', pos)) != std::string::npos) {
+          // Only replace standalone ~ or ~/path but not user/~path
+          if (pos == 0 || expanded[pos-1] == ':' || expanded[pos-1] == '/') {
+            if (pos + 1 == expanded.length() || expanded[pos+1] == '/' || expanded[pos+1] == ':') {
+              expanded.replace(pos, 1, home);
+              pos += strlen(home);
+            } else {
+              pos++;
+            }
+          } else {
+            pos++;
+          }
+        }
+        
+        // Try again with the manually expanded path
+        ret = glob(expanded.c_str(), GLOB_BRACE, nullptr, &globbuf);
+        if (ret == 0) {
+          for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+            result.push_back(globbuf.gl_pathv[i]);
+          }
+          globfree(&globbuf);
+          return result;
+        }
+        
+        // If still no match, return the manually expanded path
+        result.push_back(expanded);
+        return result;
+      }
+    }
+    
     // Keep the original pattern when no matches are found
     // This allows the error to be handled by the command
     result.push_back(pattern);
