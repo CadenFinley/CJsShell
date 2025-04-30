@@ -383,11 +383,6 @@ bool init_interactive_filesystem() {
 }
 
 void process_profile_file() {
-  // First, source system-wide profile if it exists
-  if (std::filesystem::exists("/etc/profile")) {
-    g_shell->execute_command("source /etc/profile", true);
-  }
-  
   // Then source user's profile if it exists
   std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
   if (std::filesystem::exists(user_profile)) {
