@@ -713,14 +713,12 @@ void Exec::terminate_all_child_process() {
   for (auto& job_pair : jobs) {
     Job& job = job_pair.second;
     if (!job.completed) {
-      // Send SIGTERM to the entire process group
       if (kill(-job.pgid, SIGTERM) < 0) {
         if (errno != ESRCH) {
           perror("kill (SIGTERM) in terminate_all_child_process");
         }
       }
       
-      // Mark the job as completed
       job.completed = true;
       job.stopped = false;
       job.status = 0;

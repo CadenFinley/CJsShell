@@ -26,12 +26,10 @@ class Shell {
     void process_pending_signals();
 
     std::string get_prompt() {
-      // prompt fallback built-in inside fuction return
       return shell_prompt->get_prompt();
     }
 
     std::string get_ai_prompt() {
-      // prompt fallback built-in inside fuction return
       return shell_prompt->get_ai_prompt();
     }
 
@@ -86,7 +84,6 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
 
-    // lol friend funny c++ 90's OOP moment
     friend void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
     std::string last_terminal_output_error;

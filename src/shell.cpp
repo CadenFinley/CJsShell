@@ -189,7 +189,6 @@ int Shell::execute_command(std::string command, bool sync) {
     return 1;
   }
 
-  // Check if the command contains semicolons
   if (command.find(';') != std::string::npos) {
     std::vector<std::string> cmds = shell_parser->parse_semicolon_commands(command);
     for (const auto& cmd : cmds) {
@@ -198,10 +197,8 @@ int Shell::execute_command(std::string command, bool sync) {
     return 0;
   }
 
-  // Parse command once and reuse the parsed args throughout the function
   std::vector<std::string> args = shell_parser->parse_command(command);
   
-  // Check if this is an environment variable assignment
   std::string var_name, var_value;
   if (shell_parser->is_env_assignment(command, var_name, var_value)) {
     env_vars[var_name] = var_value;
@@ -211,7 +208,6 @@ int Shell::execute_command(std::string command, bool sync) {
     return 0;
   }
 
-  // Check for export command
   if (!args.empty() && args[0] == "export") {
     if (args.size() > 1) {
       for (size_t i = 1; i < args.size(); i++) {
@@ -326,7 +322,6 @@ int Shell::execute_command(std::string command, bool sync) {
     }
   }
 
-  //if command is source
   if (args.size() > 0 && args[0] == "source") {
     if (args.size() > 1) {
       if (shell_script_interpreter != nullptr) {

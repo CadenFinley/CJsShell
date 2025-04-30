@@ -75,17 +75,14 @@ std::vector<std::string> Parser::parse_command(const std::string& command) {
     expand_env_vars(arg);
   }
 
-  // wildcard expansion for simple commands
   std::vector<std::string> expanded_args;
   for (auto& arg : args) {
-    // Check for paths containing tilde anywhere (either at start or after a path separator)
     bool has_tilde = false;
     
     if (arg.length() > 0) {
       if (arg[0] == '~') {
         has_tilde = true;
       } else {
-        // Look for tilde after path separators (/ or :)
         for (size_t i = 1; i < arg.length(); i++) {
           if (arg[i] == '~' && (arg[i-1] == '/' || arg[i-1] == ':')) {
             has_tilde = true;
@@ -287,7 +284,6 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
   glob_t globbuf;
   std::vector<std::string> result;
   
-  // First attempt direct expansion with GLOB_TILDE
   int ret = glob(pattern.c_str(), GLOB_TILDE | GLOB_BRACE, nullptr, &globbuf);
   if (ret == 0) {
     for (size_t i = 0; i < globbuf.gl_pathc; i++) {
@@ -295,15 +291,12 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
     }
     globfree(&globbuf);
   } else if (ret == GLOB_NOMATCH) {
-    // For patterns that contain a tilde but weren't expanded by glob
     if (pattern.find('~') != std::string::npos) {
-      // Manual tilde expansion
       const char* home = getenv("HOME");
       if (home != nullptr) {
         std::string expanded = pattern;
         size_t pos = 0;
         while ((pos = expanded.find('~', pos)) != std::string::npos) {
-          // Only replace standalone ~ or ~/path but not user/~path
           if (pos == 0 || expanded[pos-1] == ':' || expanded[pos-1] == '/') {
             if (pos + 1 == expanded.length() || expanded[pos+1] == '/' || expanded[pos+1] == ':') {
               expanded.replace(pos, 1, home);
@@ -316,7 +309,6 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
           }
         }
         
-        // Try again with the manually expanded path
         ret = glob(expanded.c_str(), GLOB_BRACE, nullptr, &globbuf);
         if (ret == 0) {
           for (size_t i = 0; i < globbuf.gl_pathc; i++) {
@@ -326,14 +318,11 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
           return result;
         }
         
-        // If still no match, return the manually expanded path
         result.push_back(expanded);
         return result;
       }
     }
     
-    // Keep the original pattern when no matches are found
-    // This allows the error to be handled by the command
     result.push_back(pattern);
   }
   
@@ -428,12 +417,10 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
     
     if (c == ';' && !in_quotes) {
       if (!current_cmd.empty()) {
-        // Trim trailing whitespace
         while (!current_cmd.empty() && std::isspace(current_cmd.back())) {
           current_cmd.pop_back();
         }
         
-        // Trim leading whitespace
         size_t startPos = 0;
         while (startPos < current_cmd.length() && std::isspace(current_cmd[startPos])) {
           startPos++;
@@ -450,12 +437,10 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
   }
   
   if (!current_cmd.empty()) {
-    // Trim trailing whitespace
     while (!current_cmd.empty() && std::isspace(current_cmd.back())) {
       current_cmd.pop_back();
     }
     
-    // Trim leading whitespace
     size_t startPos = 0;
     while (startPos < current_cmd.length() && std::isspace(current_cmd[startPos])) {
       startPos++;
@@ -475,8 +460,6 @@ bool Parser::is_env_assignment(const std::string& command, std::string& var_name
     return false;
   }
   
-  // Check that the part before '=' is a valid variable name
-  // (must start with a letter or underscore, and contain only letters, numbers, or underscores)
   std::string name = command.substr(0, pos);
   if (name.empty() || !(std::isalpha(name[0]) || name[0] == '_')) {
     return false;
