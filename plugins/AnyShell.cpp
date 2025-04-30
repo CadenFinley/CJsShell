@@ -86,7 +86,7 @@ static std::vector<std::string> getAvailableShells() {
 static bool ensureDirectoryExists() {
     try {
         std::string rootDir = getCJshRootDirectory();
-        std::string pluginDir = rootDir + "/CJsAnyShell";
+        std::string pluginDir = rootDir + "/AnyShell";
         
         if (!std::filesystem::exists(rootDir)) {
             if (!std::filesystem::create_directories(rootDir))
@@ -110,7 +110,7 @@ static bool saveSettings() {
         return false;
     }
     
-    std::string filePath = getCJshRootDirectory() + "/CJsAnyShell/settings.json";
+    std::string filePath = getCJshRootDirectory() + "/AnyShell/settings.json";
     
     std::ofstream file(filePath);
     if (!file.is_open()) {
@@ -134,7 +134,7 @@ static bool saveSettings() {
 
 // Load settings from JSON file
 static bool loadSettings() {
-    std::string filePath = getCJshRootDirectory() + "/CJsAnyShell/settings.json";
+    std::string filePath = getCJshRootDirectory() + "/AnyShell/settings.json";
     
     std::ifstream file(filePath);
     if (!file.is_open()) {
@@ -192,7 +192,7 @@ extern "C" {
             g_pluginInfo = (plugin_info_t*)malloc(sizeof(plugin_info_t));
             if (g_pluginInfo) {
                 // Allocate strings that will persist for the lifetime of the plugin
-                g_pluginInfo->name = strdup("CJsAnyShell");
+                g_pluginInfo->name = strdup("AnyShell");
                 g_pluginInfo->version = strdup("1.1.0.0");
                 g_pluginInfo->description = strdup("A plugin to execute commands through various shells (bash, zsh, fish, ksh, tcsh, csh, dash, sh, powershell).");
                 g_pluginInfo->author = strdup("Caden Finley");
