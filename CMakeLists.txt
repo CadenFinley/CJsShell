@@ -91,8 +91,8 @@ endif()
 # isocline library (part of codebase)
 # Pass specific options to isocline to prevent CPU targeting
 set(ISOCLINE_DISABLE_CPU_TARGETING ON CACHE BOOL "Disable CPU targeting in isocline" FORCE)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/isocline)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/isocline/include)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline/include)
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -100,17 +100,35 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Source files
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-# Define the executable
-add_executable(${PROJECT_NAME} ${SOURCES})
-
-# Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-  ${CURL_LIBRARIES} 
-  isocline 
-  Threads::Threads
+# build mvdan/sh bridge as a static C library
+add_custom_command(
+  OUTPUT 
+    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a 
+    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.h
+  COMMAND go mod tidy
+  # generate into build folder
+  COMMAND go build -o ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a -buildmode=c-archive bridge.go
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vendor/mvdan_sh
+  VERBATIM
+)
+add_custom_target(mvdan_sh_lib ALL
+  DEPENDS 
+    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a 
+    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.h
 )
 
-# Add libdl explicitly on Linux platforms
+# define and link your main executable, including the Go bridge
+add_executable(${PROJECT_NAME} ${SOURCES})
+add_dependencies(${PROJECT_NAME} mvdan_sh_lib)
+target_include_directories(${PROJECT_NAME} PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}   # for libmvdan_sh.h
+)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a
+  ${CURL_LIBRARIES}
+  isocline
+  Threads::Threads
+)
 if(UNIX AND NOT APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})
 endif()
