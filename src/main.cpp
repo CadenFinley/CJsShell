@@ -1,7 +1,6 @@
 #include "main.h"
 #include "../vendor/isocline/include/isocline.h"
 #include "cjsh_filesystem.h"
-#include "shell_env_loader.h"
 #include <signal.h>
 #include "colors.h"
 #include <filesystem>
@@ -30,7 +29,6 @@ int main(int argc, char *argv[]) {
   }
   // this handles the prompting and executing of commands and signal handling
   g_shell = new Shell(login_mode);
-  load_shell_env();
 
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
