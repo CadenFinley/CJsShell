@@ -1,12 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project name and version
-project(cjsh VERSION 0.1.0 LANGUAGES CXX)
+project(cjsh VERSION 0.1.0 LANGUAGES C CXX)
 
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Specify the C standard
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
 
 # Set compiler warnings
 if(MSVC)
@@ -98,33 +103,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Source files
-file(GLOB_RECURSE SOURCES "src/*.cpp")
-
-# build mvdan/sh bridge as a static C library
-add_custom_command(
-  OUTPUT 
-    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a 
-    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.h
-  COMMAND go mod tidy
-  # generate into build folder
-  COMMAND go build -o ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a -buildmode=c-archive bridge.go
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vendor/mvdan_sh
-  VERBATIM
-)
-add_custom_target(mvdan_sh_lib ALL
-  DEPENDS 
-    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a 
-    ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.h
-)
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 
 # define and link your main executable, including the Go bridge
 add_executable(${PROJECT_NAME} ${SOURCES})
-add_dependencies(${PROJECT_NAME} mvdan_sh_lib)
 target_include_directories(${PROJECT_NAME} PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}   # for libmvdan_sh.h
+  ${CMAKE_CURRENT_BINARY_DIR}
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
-  ${CMAKE_CURRENT_BINARY_DIR}/libmvdan_sh.a
   ${CURL_LIBRARIES}
   isocline
   Threads::Threads

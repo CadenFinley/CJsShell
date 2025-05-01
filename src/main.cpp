@@ -1,28 +1,11 @@
 #include "main.h"
 #include "../vendor/isocline/include/isocline.h"
 #include "cjsh_filesystem.h"
+#include "shell_env_loader.h"
 #include <signal.h>
 #include "colors.h"
 #include <filesystem>
 #include <memory>
-
-extern "C" {
-  int RunScript(const char* path);
-}
-
-namespace {
-  const std::string mvdan_sh_bin = [](){
-    const char* env = std::getenv("MVDSH_PATH");
-    return env ? std::string(env) : std::string("shell");
-  }();
-  const bool mvdan_sh_enabled = true;
-  bool execute_mvdan_sh(const std::string& file) {
-    if (!mvdan_sh_enabled) return false;
-    std::cout << "Executing with mvdan-sh: " << file << std::endl;
-    return RunScript(file.c_str()) == 0;
-  }
-}
-
 std::vector<std::string> g_startup_args;
 
 int main(int argc, char *argv[]) {
@@ -47,6 +30,7 @@ int main(int argc, char *argv[]) {
   }
   // this handles the prompting and executing of commands and signal handling
   g_shell = new Shell(login_mode);
+  load_shell_env();
 
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
@@ -428,12 +412,7 @@ void process_profile_file() {
   // Then source user's profile if it exists
   std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
   if (std::filesystem::exists(user_profile)) {
-    if (mvdan_sh_enabled) {
-      execute_mvdan_sh(user_profile.string());
-    } else {
-      std::cerr << "USING FALLBACK: for .profile" << std::endl;
-      g_shell->execute_command("source " + user_profile.string(), true);
-    }
+    g_shell->execute_command("source " + user_profile.string(), true);
   }
   
   // Finally, source our own profile
@@ -442,13 +421,7 @@ void process_profile_file() {
     return;
   }
 
-  // Execute the profile file using the shell script interpreter
-  if (mvdan_sh_enabled) {
-    execute_mvdan_sh(cjsh_filesystem::g_cjsh_profile_path.string());
-  } else {
-    std::cerr << "USING FALLBACK: for .cjprofile" << std::endl;
-    g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_profile_path.string(), true);
-  }
+  g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_profile_path.string(), true);
 }
 
 void process_source_file() {
@@ -456,14 +429,7 @@ void process_source_file() {
     create_source_file();
     return;
   }
-
-  // Execute the source file using the shell script interpreter
-  if (mvdan_sh_enabled) {
-    execute_mvdan_sh(cjsh_filesystem::g_cjsh_source_path.string());
-  } else {
-    std::cerr << "USING FALLBACK: for .cjshrc" << std::endl;
-    g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_source_path.string(), true);
-  }
+  g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_source_path.string(), true);
 }
 
 void create_profile_file() {
