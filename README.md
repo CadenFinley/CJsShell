@@ -1,5 +1,5 @@
 <p align="left">
-  <img src="resources/cjsh_logo.png" alt="CJ's Shell Logo" width="200">
+  <img src="assets/cjsh_logo.png" alt="CJ's Shell Logo" width="200">
 </p>
 
 [![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
