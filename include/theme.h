@@ -33,6 +33,8 @@ private:
     size_t calculate_raw_length(const std::string& str) const;
     size_t get_terminal_width() const;
     std::string prerender_line_aligned(const std::vector<nlohmann::json>& segments) const;
+    std::string render_line_aligned(const std::vector<nlohmann::json>& segments,
+                                    const std::unordered_map<std::string,std::string>& vars) const;
 
     char fill_char_{' '};          // ← new: padding character, defaults to space
     

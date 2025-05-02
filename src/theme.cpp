@@ -349,6 +349,145 @@ std::string Theme::prerender_line_aligned(const std::vector<nlohmann::json>& seg
     return out;
 }
 
+// new combined render for left/center/right with vars
+std::string Theme::render_line_aligned(
+    const std::vector<nlohmann::json>& segments,
+    const std::unordered_map<std::string,std::string>& vars) const
+{
+    if (segments.empty()) return "";
+    bool hasAlign = false;
+    for (auto& seg: segments)
+        if (seg.contains("align")) { hasAlign = true; break; }
+    if (!hasAlign) {
+        // fallback to simple render+color
+        std::string flat = prerender_line(segments);
+        return render_line(flat, vars);
+    }
+
+    // split buckets
+    std::vector<nlohmann::json> left, center, right;
+    for (auto& seg: segments) {
+        auto a = seg.value("align","left");
+        if      (a=="center") center.push_back(seg);
+        else if (a=="right")  right .push_back(seg);
+        else                  left  .push_back(seg);
+    }
+
+    // build each bucket, substituting placeholders first
+    auto build = [&](const std::vector<nlohmann::json>& bucket){
+        std::string out;
+        for (auto& segment: bucket) {
+            std::string segment_result;
+            // first substitute placeholders in content & separator
+            std::string content   = render_line(segment.value("content",""), vars);
+            std::string separator = render_line(segment.value("separator",""), vars);
+
+            // grab color names
+            std::string bg_color_name   = segment.value("bg_color","RESET");
+            std::string fg_color_name   = segment.value("fg_color","RESET");
+            std::string sep_fg_name     = segment.value("separator_fg","RESET");
+            std::string sep_bg_name     = segment.value("separator_bg","RESET");
+
+            // forward_separator (if any)
+            if (segment.contains("forward_separator") && !segment["forward_separator"].empty()) {
+                std::string fsep    = segment["forward_separator"];
+                std::string fsep_fg = segment.value("forward_separator_fg","RESET");
+                std::string fsep_bg = segment.value("forward_separator_bg","RESET");
+                if (fsep_bg != "RESET") {
+                    segment_result += colors::bg_color(colors::parse_color_value(fsep_bg));
+                } else {
+                    segment_result += colors::ansi::BG_RESET;
+                }
+                if (fsep_fg != "RESET") {
+                    segment_result += colors::fg_color(colors::parse_color_value(fsep_fg));
+                }
+                segment_result += fsep;
+            }
+
+            // background color
+            if (bg_color_name != "RESET") {
+                segment_result += colors::bg_color(colors::parse_color_value(bg_color_name));
+            } else {
+                segment_result += colors::ansi::BG_RESET;
+            }
+            // foreground color
+            if (fg_color_name != "RESET") {
+                segment_result += colors::fg_color(colors::parse_color_value(fg_color_name));
+            }
+            // the content
+            segment_result += content;
+            // trailing separator
+            if (!separator.empty()) {
+                if (sep_fg_name != "RESET") {
+                    segment_result += colors::fg_color(colors::parse_color_value(sep_fg_name));
+                }
+                if (sep_bg_name != "RESET") {
+                    segment_result += colors::bg_color(colors::parse_color_value(sep_bg_name));
+                } else {
+                    segment_result += colors::ansi::BG_RESET;
+                }
+                segment_result += separator;
+            }
+
+            out += segment_result;
+        }
+        return out;
+    };
+
+    auto L = build(left);
+    auto C = build(center);
+    auto R = build(right);
+
+    size_t w  = get_terminal_width();
+    size_t lL = calculate_raw_length(L);
+    size_t lC = calculate_raw_length(C);
+    size_t lR = calculate_raw_length(R);
+
+    std::string out;
+    if (!C.empty()) {
+        size_t desiredCStart = (w>lC ? (w-lC)/2 : 0);
+        size_t padL = (desiredCStart>lL?desiredCStart-lL:0);
+        size_t afterC = lL+padL+lC;
+        size_t padR = (w>afterC+lR? w-afterC-lR:0);
+        out = L + std::string(padL, fill_char_) + C + std::string(padR, fill_char_) + R;
+    } else {
+        size_t pad = (w>lL+lR? w-lL-lR:0);
+        out = L + std::string(pad, fill_char_) + R;
+    }
+    out += colors::ansi::RESET;
+    if (g_debug_mode) std::cout<<"\nCombined render:\n"<<out<<std::endl;
+    return out;
+}
+
+// update getters to use the new combined render
+std::string Theme::get_ps1_prompt_format(const std::unordered_map<std::string,std::string>& vars) const {
+    auto        result = render_line_aligned(ps1_segments, vars);
+    last_ps1_raw_length = calculate_raw_length(result);
+    if (g_debug_mode) std::cout<<"Last PS1 raw length: "<<last_ps1_raw_length<<std::endl;
+    return result;
+}
+
+std::string Theme::get_git_prompt_format(const std::unordered_map<std::string,std::string>& vars) const {
+    auto        result = render_line_aligned(git_segments, vars);
+    last_git_raw_length = calculate_raw_length(result);
+    if (g_debug_mode) std::cout<<"Last Git raw length: "<<last_git_raw_length<<std::endl;
+    return result;
+}
+
+std::string Theme::get_ai_prompt_format(const std::unordered_map<std::string,std::string>& vars) const {
+    auto        result = render_line_aligned(ai_segments, vars);
+    last_ai_raw_length = calculate_raw_length(result);
+    if (g_debug_mode) std::cout<<"Last AI raw length: "<<last_ai_raw_length<<std::endl;
+    return result;
+}
+
+std::string Theme::get_newline_prompt(const std::unordered_map<std::string,std::string>& vars) const {
+    auto        result = render_line_aligned(newline_segments, vars);
+    last_newline_raw_length = calculate_raw_length(result);
+    if (g_debug_mode) std::cout<<"Last newline raw length: "<<last_newline_raw_length<<std::endl;
+    return result;
+}
+
 std::vector<std::string> Theme::list_themes() {
     std::vector<std::string> themes;
     
@@ -366,46 +505,6 @@ bool Theme::uses_newline() const {
 
 std::string Theme::get_terminal_title_format() const {
     return terminal_title_format;
-}
-
-std::string Theme::get_newline_prompt(const std::unordered_map<std::string, std::string>& vars) const {
-    std::string raw    = prerender_line_aligned(newline_segments);
-    auto        result = render_line(raw, vars);
-    last_newline_raw_length = calculate_raw_length(result);
-    if (g_debug_mode) {
-        std::cout << "Last newline raw length: " << last_newline_raw_length << std::endl;
-    }
-    return result;
-}
-
-std::string Theme::get_ps1_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
-    std::string raw    = prerender_line_aligned(ps1_segments);
-    auto        result = render_line(raw, vars);
-    last_ps1_raw_length = calculate_raw_length(result);
-    if (g_debug_mode) {
-        std::cout << "Last PS1 raw length: " << last_ps1_raw_length << std::endl;
-    }
-    return result;
-}
-
-std::string Theme::get_git_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
-    std::string raw    = prerender_line_aligned(git_segments);
-    auto        result = render_line(raw, vars);
-    last_git_raw_length = calculate_raw_length(result);
-    if (g_debug_mode) {
-        std::cout << "Last Git raw length: " << last_git_raw_length << std::endl;
-    }
-    return result;
-}
-
-std::string Theme::get_ai_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
-    std::string raw    = prerender_line_aligned(ai_segments);
-    auto        result = render_line(raw, vars);
-    last_ai_raw_length = calculate_raw_length(result);
-    if (g_debug_mode) {
-        std::cout << "Last AI raw length: " << last_ai_raw_length << std::endl;
-    }
-    return result;
 }
 
 std::string Theme::execute_script(const std::string& script_path) const {
