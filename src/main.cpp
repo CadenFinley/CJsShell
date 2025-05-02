@@ -508,7 +508,7 @@ void create_source_file() {
     source_file << "# Alias examples\n";
     source_file << "alias ll='ls -la'\n";
 
-    source_file << "# eheme examples\n";
+    source_file << "# theme examples\n";
     source_file << "theme default\n";
 
     source_file << "# plugin examples\n";
