@@ -223,141 +223,6 @@ size_t Theme::get_terminal_width() const {
     return 80;
 }
 
-// static std::string build_basic_line(const std::vector<nlohmann::json>& segments) {
-//     std::string result;
-//     auto color_map = colors::get_color_map();
-//     for (const auto& segment : segments) {
-//       std::string segment_result;
-//       std::string content = segment.value("content", "");
-//       std::string bg_color_name = segment.value("bg_color", "RESET");
-//       std::string fg_color_name = segment.value("fg_color", "RESET");
-//       std::string separator = segment.value("separator", "");
-//       std::string separator_fg_name = segment.value("separator_fg", "RESET");
-//       std::string separator_bg_name = segment.value("separator_bg", "RESET");
-      
-//       if (segment.contains("forward_separator") && !segment["forward_separator"].empty()) {
-//           std::string forward_separator = segment["forward_separator"];
-//           std::string forward_separator_fg_name = segment.value("forward_separator_fg", "RESET");
-//           std::string forward_separator_bg_name = segment.value("forward_separator_bg", "RESET");
-          
-//           if (forward_separator_bg_name != "RESET") {
-//               auto fw_sep_bg_rgb = colors::parse_color_value(forward_separator_bg_name);
-//               segment_result += colors::bg_color(fw_sep_bg_rgb);
-//           } else {
-//               segment_result += colors::ansi::BG_RESET;
-//           }
-          
-//           if (forward_separator_fg_name != "RESET") {
-//               auto fw_sep_fg_rgb = colors::parse_color_value(forward_separator_fg_name);
-//               segment_result += colors::fg_color(fw_sep_fg_rgb);
-//           }
-          
-//           segment_result += forward_separator;
-//       }
-      
-//       if (bg_color_name != "RESET") {
-//           auto bg_rgb = colors::parse_color_value(bg_color_name);
-//           segment_result += colors::bg_color(bg_rgb);
-//       } else {
-//           segment_result += colors::ansi::BG_RESET;
-//       }
-      
-//       if (fg_color_name != "RESET") {
-//           auto fg_rgb = colors::parse_color_value(fg_color_name);
-//           segment_result += colors::fg_color(fg_rgb);
-//       }
-      
-//       segment_result += content;
-      
-//       if (!separator.empty()) {
-//           if (separator_fg_name != "RESET") {
-//               auto sep_fg_rgb = colors::parse_color_value(separator_fg_name);
-//               segment_result += colors::fg_color(sep_fg_rgb);
-//           }
-          
-//           if (separator_bg_name != "RESET") {
-//               auto sep_bg_rgb = colors::parse_color_value(separator_bg_name);
-//               segment_result += colors::bg_color(sep_bg_rgb);
-//           } else {
-//               segment_result += colors::ansi::BG_RESET;
-//           }
-          
-//           segment_result += separator;
-//       }
-      
-//       result += segment_result;
-//     }
-//     return result;
-// }
-
-// std::string Theme::prerender_line_aligned(const std::vector<nlohmann::json>& segments) const {
-//     if (segments.empty()) return "";
-//     bool hasAlign = false;
-//     for (const auto& seg : segments) {
-//         if (seg.contains("align")) {
-//             hasAlign = true;
-//             break;
-//         }
-//     }
-//     if (!hasAlign) {
-//         return prerender_line(segments);
-//     }
-
-//     std::vector<nlohmann::json> left, center, right;
-//     for (auto& seg : segments) {
-//         auto a = seg.value("align", "left");
-//         if      (a == "center") center.push_back(seg);
-//         else if (a == "right")  right .push_back(seg);
-//         else                    left  .push_back(seg);
-//     }
-//     auto L = build_basic_line(left);
-//     auto C = build_basic_line(center);
-//     auto R = build_basic_line(right);
-
-//     size_t w  = get_terminal_width();
-//     size_t lL = calculate_raw_length(L);
-//     size_t lC = calculate_raw_length(C);
-//     size_t lR = calculate_raw_length(R);
-
-//     std::string out;
-//     if (!C.empty()) {
-//         size_t desiredCStart = (w > lC ? (w - lC) / 2 : 0);
-//         size_t padL = (desiredCStart > lL ? desiredCStart - lL : 0);
-//         size_t afterC = lL + padL + lC;
-//         size_t padR = (w > afterC + lR ? w - afterC - lR - 1 : 0);
-//         std::string fillL;
-//         for (size_t i = 0; i < padL; ++i) {
-//             if (fill_bg_color_ != "RESET") fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
-//             else                          fillL += colors::ansi::BG_RESET;
-//             if (fill_fg_color_ != "RESET") fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-//             fillL += fill_char_;
-//         }
-//         std::string fillR;
-//         for (size_t i = 0; i < padR; ++i) {
-//             if (fill_bg_color_ != "RESET") fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
-//             else                          fillR += colors::ansi::BG_RESET;
-//             if (fill_fg_color_ != "RESET") fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-//             fillR += fill_char_;
-//         }
-//         out = L + fillL + C + fillR + R;
-//     } else {
-//         size_t pad = (w > lL + lR ? w - lL - lR - 1 : 0);
-//         std::string fill;
-//         for (size_t i = 0; i < pad; ++i) {
-//             if (fill_bg_color_ != "RESET") fill += colors::bg_color(colors::parse_color_value(fill_bg_color_));
-//             else                          fill += colors::ansi::BG_RESET;
-//             if (fill_fg_color_ != "RESET") fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-//             fill += fill_char_;
-//         }
-//         out = L + fill + R;
-//     }
-//     out += colors::ansi::RESET;
-//     if (g_debug_mode) {
-//         std::cout << "Aligned prerendered line:\n" << out << std::endl;
-//     }
-//     return out;
-// }
-
 std::string Theme::render_line_aligned(
     const std::vector<nlohmann::json>& segments,
     const std::unordered_map<std::string,std::string>& vars) const
@@ -525,7 +390,6 @@ std::string Theme::get_terminal_title_format() const {
     return terminal_title_format;
 }
 
-// Updated render_line: removed SCRIPT$ placeholder handling
 std::string Theme::render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const {
     if (line.empty()) {
         return "";
@@ -541,7 +405,6 @@ std::string Theme::render_line(const std::string& line, const std::unordered_map
         }
         
         std::string placeholder = result.substr(start_pos + 1, end_pos - start_pos - 1);
-        // no SCRIPT$ handling any more:
         auto it = vars.find(placeholder);
         if (it != vars.end()) {
             result.replace(start_pos, end_pos - start_pos + 1, it->second);
@@ -564,12 +427,12 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
         if (c == '\033') {
             if (i + 1 < str.size()) {
                 unsigned char next = static_cast<unsigned char>(str[i+1]);
-                if (next == '[') { // CSI
+                if (next == '[') {
                     i += 2;
                     while (i < str.size() && !(str[i] >= '@' && str[i] <= '~')) ++i;
                     if (i < str.size()) ++i;
                     continue;
-                } else if (next == ']') { // OSC
+                } else if (next == ']') {
                     i += 2;
                     while (i < str.size()) {
                         if (str[i] == '\a') { ++i; break; }
@@ -577,7 +440,7 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
                         ++i;
                     }
                     continue;
-                } else { // other ESC
+                } else {
                     i += 2;
                     continue;
                 }

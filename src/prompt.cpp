@@ -85,7 +85,6 @@ std::string Prompt::get_title_prompt() {
     return prompt_format;
 }
 
-// Helper method to replace placeholders in format strings
 std::string Prompt::replace_placeholder(const std::string& format, const std::string& placeholder, const std::string& value) {
     std::string result = format;
     size_t pos = 0;

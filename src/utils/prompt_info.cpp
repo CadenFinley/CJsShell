@@ -67,10 +67,7 @@ PromptInfo::~PromptInfo() {
 }
 
 bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector<nlohmann::json>& segments) {
-    // Check if variable is used in format string
     std::string placeholder = "{" + var_name + "}";
-    
-    // Check if variable is used in any segment
     for (const auto& segment : segments) {
         if (segment.contains("content")) {
             std::string content = segment["content"];
@@ -156,26 +153,21 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
             }
             
             pclose(pipe);
-            
-            // Lock to update cache
+
             std::lock_guard<std::mutex> lock(git_status_mutex);
             cached_git_dir = git_dir;
             if (result.empty()) {
-                // No changes detected, repo is clean
                 cached_status_symbols = "✓";
                 cached_is_clean_repo = true;
             } else {
-                // Changes detected, repo is dirty
                 cached_status_symbols = "*";
                 cached_is_clean_repo = false;
             }
-            
             last_git_status_check = std::chrono::steady_clock::now();
             status_symbols = cached_status_symbols;
             is_clean_repo = cached_is_clean_repo;
             is_git_status_check_running = false;
         } else {
-            // Command failed, revert to default
             std::lock_guard<std::mutex> lock(git_status_mutex);
             cached_status_symbols = "?";
             cached_is_clean_repo = false;
@@ -348,7 +340,6 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int
             return -1;
         }
         
-        // Get the current branch's remote tracking branch info
         std::string command = "cd " + repo_root.string() + 
                               " && git rev-list --left-right --count @{u}...HEAD 2>/dev/null";
         
@@ -368,7 +359,6 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int
         
         pclose(pipe);
         
-        // Parse the output which is in format "behind ahead"
         std::istringstream iss(result);
         iss >> behind >> ahead;
         
@@ -401,7 +391,6 @@ int PromptInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
         
         pclose(pipe);
         
-        // Parse the output to get stash count
         return std::stoi(result);
     } catch (const std::exception& e) {
         std::cerr << "Error getting git stash count: " << e.what() << std::endl;
@@ -430,7 +419,6 @@ bool PromptInfo::get_git_has_staged_changes(const std::filesystem::path& repo_ro
         
         pclose(pipe);
         
-        // Trim whitespace
         result.erase(result.find_last_not_of(" \n\r\t") + 1);
         
         return result == "1";
@@ -461,7 +449,6 @@ int PromptInfo::get_git_uncommitted_changes(const std::filesystem::path& repo_ro
         
         pclose(pipe);
         
-        // Parse the output to get change count
         return std::stoi(result);
     } catch (const std::exception& e) {
         std::cerr << "Error getting git uncommitted changes: " << e.what() << std::endl;
@@ -477,7 +464,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     
     std::unordered_map<std::string, std::string> vars;
     
-    // Only calculate needed variables
     if (is_variable_used("USERNAME", segments)) {
         vars["USERNAME"] = get_username();
     }
@@ -542,7 +528,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         vars["UPTIME"] = get_uptime();
     }
     
-    // Environment information variables
     if (is_variable_used("TERM_TYPE", segments)) {
         vars["TERM_TYPE"] = get_terminal_type();
     }
@@ -552,7 +537,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         vars["TERM_SIZE"] = std::to_string(width) + "x" + std::to_string(height);
     }
     
-    // Check for language version variables like {LANG_VER:python}
     for (const auto& segment : segments) {
         if (segment.contains("content")) {
             std::string content = segment["content"];
@@ -581,8 +565,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         int job_count = get_background_jobs_count();
         vars["BG_JOBS"] = job_count > 0 ? std::to_string(job_count) : "";
     }
-    
-    // Network information variables
+
     if (is_variable_used("IP_LOCAL", segments)) {
         vars["IP_LOCAL"] = get_ip_address(false);
     }
@@ -614,7 +597,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             vars["LOCAL_PATH"] = get_local_path(repo_root);
         }
         
-        // Add new git variables
         if (is_variable_used("GIT_AHEAD", segments) || is_variable_used("GIT_BEHIND", segments)) {
             int ahead = 0, behind = 0;
             if (get_git_ahead_behind(repo_root, ahead, behind) == 0) {
@@ -643,8 +625,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 }
 
 int PromptInfo::get_background_jobs_count() {
-    // This function needs to count the number of background jobs
-    // We'll use a system command to get the count of background jobs
     FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
     if (!fp) return 0;
     
@@ -665,7 +645,6 @@ int PromptInfo::get_background_jobs_count() {
     }
 }
 
-// System information implementations
 std::string PromptInfo::get_os_info() {
     return get_cached_value("os_info", []() -> std::string {
         #ifdef __APPLE__
@@ -679,12 +658,10 @@ std::string PromptInfo::get_os_info() {
             }
             pclose(fp);
             
-            // Remove newline
             if (!result.empty() && result[result.length()-1] == '\n') {
                 result.erase(result.length()-1);
             }
             
-            // Get version
             fp = popen("sh -c 'sw_vers -productVersion'", "r");
             if (fp) {
                 std::string version = "";
@@ -692,8 +669,7 @@ std::string PromptInfo::get_os_info() {
                     version += buffer;
                 }
                 pclose(fp);
-                
-                // Remove newline
+
                 if (!version.empty() && version[version.length()-1] == '\n') {
                     version.erase(version.length()-1);
                 }

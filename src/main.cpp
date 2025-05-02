@@ -177,9 +177,9 @@ int main(int argc, char *argv[]) {
   if (g_debug_mode) std::cerr << "DEBUG: Initializing AI with enabled=" << l_ai_enabled << std::endl;
   std::unique_ptr<Ai> ai = std::make_unique<Ai>(
       api_key,
-      std::string("chat"),  // Convert string literal to std::string
-      std::string("You are an AI personal assistant within a users login shell."), // Convert to std::string
-      std::vector<std::string>{},  // Specify the type for empty initializer list
+      std::string("chat"),
+      std::string("You are an AI personal assistant within a users login shell."),
+      std::vector<std::string>{},
       cjsh_filesystem::g_cjsh_data_path,
       l_ai_enabled);
   g_ai = ai.get();
@@ -196,11 +196,7 @@ int main(int argc, char *argv[]) {
       std::cout << title_line << std::endl;
       std::cout << created_line  << std::endl;
     }
-
-    // Create a flag for watchdog termination
     std::atomic<bool> watchdog_should_exit{false};
-    
-    // Create and start the watchdog thread, but don't detach it
     std::thread watchdog_thread([&watchdog_should_exit]() {
       while (!watchdog_should_exit && !g_exit_flag) {
         if (!is_parent_process_alive()) {
@@ -213,8 +209,6 @@ int main(int argc, char *argv[]) {
     });
 
     main_process_loop();
-    
-    // Signal the watchdog to exit and join the thread
     watchdog_should_exit = true;
     if (watchdog_thread.joinable()) {
       watchdog_thread.join();
@@ -252,13 +246,13 @@ void main_process_loop() {
     update_terminal_title();
     
     std::string prompt;
-    if (g_shell->get_menu_active()) { // Use Shell's method instead of global
-      prompt = g_shell->get_prompt(); //ps1 or git prompt
+    if (g_shell->get_menu_active()) {
+      prompt = g_shell->get_prompt();
     } else {
-      prompt = g_shell->get_ai_prompt(); // ai menu prompt
+      prompt = g_shell->get_ai_prompt();
     }
     
-    if (g_theme -> uses_newline()) { // multi line prompts
+    if (g_theme -> uses_newline()) {
       std::cout << prompt << std::endl;
       prompt = g_shell->get_newline_prompt();
     }
@@ -957,16 +951,12 @@ std::string get_colorized_splash() {
   };
   
   std::string colorized_splash;
-  
-  // If terminal doesn't support colors, return plain text
   if (colors::g_color_capability == colors::ColorCapability::NO_COLOR) {
     for (const auto& line : splash_lines) {
       colorized_splash += line + "\n";
     }
     return colorized_splash;
   }
-  
-  // Define gradient start and end colors for each line
   std::vector<std::pair<colors::RGB, colors::RGB>> line_gradients = {
       {colors::RGB(255, 0, 127), colors::RGB(0, 255, 255)},    // Pink to Cyan
       {colors::RGB(0, 255, 255), colors::RGB(255, 0, 255)},    // Cyan to Magenta

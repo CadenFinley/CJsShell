@@ -48,7 +48,6 @@ void ShellScriptInterpreter::debug_print(const std::string& message, DebugLevel 
 }
 
 std::string ShellScriptInterpreter::get_indentation() const {
-    // Cache the indentation string for performance
     if (cached_indent_level != debug_indent_level) {
         cached_indentation = std::string(debug_indent_level * 2, ' ');
         cached_indent_level = debug_indent_level;
@@ -63,17 +62,14 @@ void ShellScriptInterpreter::dump_variables() const {
     return;
   }
     
-    // Use a stringstream for more efficient string building
     std::stringstream ss;
     ss << get_indentation() << "[DEBUG] Variable dump:" << std::endl;
-    
-    // Find max length in one pass
+  
     size_t max_length = 0;
     for (const auto& pair : local_variables) {
         max_length = std::max(max_length, pair.first.length());
     }
-    
-    // Output formatted variables
+  
     for (const auto& pair : local_variables) {
         ss << get_indentation() << "  " << std::left 
            << std::setw(max_length + 2) << pair.first 
