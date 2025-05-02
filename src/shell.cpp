@@ -2,8 +2,6 @@
 #include "main.h"
 #include "built_ins.h"
 
-Shell* g_shell_instance = nullptr;
-
 static volatile sig_atomic_t sigint_received = 0;
 static volatile sig_atomic_t sigchld_received = 0;
 static volatile sig_atomic_t sighup_received = 0;
@@ -99,8 +97,6 @@ Shell::Shell(bool login_mode) {
   this->login_mode = login_mode;
 
   shell_terminal = STDIN_FILENO;
-  
-  g_shell_instance = this;
 
   setup_signal_handlers();
 }
@@ -114,10 +110,6 @@ Shell::~Shell() {
   shell_exec->terminate_all_child_process();
   if (login_mode) {
     restore_terminal_state();
-  }
-  
-  if (g_shell_instance == this) {
-    g_shell_instance = nullptr;
   }
 }
 

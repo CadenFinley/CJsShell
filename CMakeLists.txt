@@ -119,6 +119,13 @@ if(UNIX AND NOT APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})
 endif()
 
+# Add a formatting target that uses .clang-format
+add_custom_target(format
+  COMMAND clang-format -i -style=file
+    ${PROJECT_SOURCE_DIR}/src/*.cpp
+    ${PROJECT_SOURCE_DIR}/include/*.h
+)
+
 # Installation
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 

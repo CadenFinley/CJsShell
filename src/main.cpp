@@ -7,6 +7,9 @@
 #include <memory>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <iostream>
+
+//DOCS AND TESTS
 
 int main(int argc, char *argv[]) {
   if (g_debug_mode) std::cerr << "DEBUG: main() starting with " << argc << " arguments" << std::endl;
