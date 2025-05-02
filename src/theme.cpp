@@ -4,11 +4,9 @@
 #include <iostream>
 #include <filesystem>
 #include <unordered_set>
-#include <sys/ioctl.h>    // new
-#include <unistd.h>       // new
+#include <sys/ioctl.h>
+#include <unistd.h>
 #include "colors.h"
-
-//add the ability to allign the segments to the left or right
 
 Theme::Theme(std::string theme_dir, bool enabled) : theme_directory(theme_dir), is_enabled(enabled) {
     if (!std::filesystem::exists(theme_directory + "/default.json")) {
@@ -59,6 +57,8 @@ void Theme::create_default_theme() {
     
     default_theme["newline_segments"] = nlohmann::json::array();
     default_theme["fill_char"] = " ";
+    default_theme["fill_fg_color"] = "RESET";
+    default_theme["fill_bg_color"] = "RESET";
 
     std::ofstream file(theme_directory + "/default.json");
     file << default_theme.dump(4);
@@ -127,11 +127,14 @@ bool Theme::load_theme(const std::string& theme_name) {
 
     if (theme_json.contains("fill_char") && theme_json["fill_char"].is_string()) {
         auto s = theme_json["fill_char"].get<std::string>();
-        if (s.size() == 1) fill_char_ = s[0];
+        if (!s.empty()) fill_char_ = s;
     }
-
-    //prerender_segments();
-    
+    if (theme_json.contains("fill_fg_color") && theme_json["fill_fg_color"].is_string()) {
+        fill_fg_color_ = theme_json["fill_fg_color"].get<std::string>();
+    }
+    if (theme_json.contains("fill_bg_color") && theme_json["fill_bg_color"].is_string()) {
+        fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
+    }
     return true;
 }
 
@@ -212,13 +215,6 @@ std::string Theme::prerender_line(const std::vector<nlohmann::json>& segments) c
     return result;
 }
 
-void Theme::prerender_segments() {
-    prerendered_ps1_format     = prerender_line_aligned(ps1_segments);
-    prerendered_git_format     = prerender_line_aligned(git_segments);
-    prerendered_ai_format      = prerender_line_aligned(ai_segments);
-    prerendered_newline_format = prerender_line_aligned(newline_segments);
-}
-
 size_t Theme::get_terminal_width() const {
     struct winsize w;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
@@ -227,7 +223,6 @@ size_t Theme::get_terminal_width() const {
     return 80;
 }
 
-// build colored string for a bucket (no final ANSI reset)
 static std::string build_basic_line(const std::vector<nlohmann::json>& segments) {
     std::string result;
     auto color_map = colors::get_color_map();
@@ -326,21 +321,35 @@ std::string Theme::prerender_line_aligned(const std::vector<nlohmann::json>& seg
 
     std::string out;
     if (!C.empty()) {
-        // compute desired start of center segment = (terminal width - center length) / 2
         size_t desiredCStart = (w > lC ? (w - lC) / 2 : 0);
-        // pad between left segment and center to reach desiredCStart
         size_t padL = (desiredCStart > lL ? desiredCStart - lL : 0);
-        // after placing left+padL+center, compute remaining space before right
         size_t afterC = lL + padL + lC;
         size_t padR = (w > afterC + lR ? w - afterC - lR : 0);
-        out = L
-            + std::string(padL, fill_char_)
-            + C
-            + std::string(padR, fill_char_)
-            + R;
+        std::string fillL;
+        for (size_t i = 0; i < padL; ++i) {
+            if (fill_bg_color_ != "RESET") fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            else                          fillL += colors::ansi::BG_RESET;
+            if (fill_fg_color_ != "RESET") fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fillL += fill_char_;
+        }
+        std::string fillR;
+        for (size_t i = 0; i < padR; ++i) {
+            if (fill_bg_color_ != "RESET") fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            else                          fillR += colors::ansi::BG_RESET;
+            if (fill_fg_color_ != "RESET") fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fillR += fill_char_;
+        }
+        out = L + fillL + C + fillR + R;
     } else {
         size_t pad = (w > lL + lR ? w - lL - lR : 0);
-        out = L + std::string(pad, fill_char_) + R;
+        std::string fill;
+        for (size_t i = 0; i < pad; ++i) {
+            if (fill_bg_color_ != "RESET") fill += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            else                          fill += colors::ansi::BG_RESET;
+            if (fill_fg_color_ != "RESET") fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fill += fill_char_;
+        }
+        out = L + fill + R;
     }
     out += colors::ansi::RESET;
     if (g_debug_mode) {
@@ -349,7 +358,6 @@ std::string Theme::prerender_line_aligned(const std::vector<nlohmann::json>& seg
     return out;
 }
 
-// new combined render for left/center/right with vars
 std::string Theme::render_line_aligned(
     const std::vector<nlohmann::json>& segments,
     const std::unordered_map<std::string,std::string>& vars) const
@@ -359,12 +367,10 @@ std::string Theme::render_line_aligned(
     for (auto& seg: segments)
         if (seg.contains("align")) { hasAlign = true; break; }
     if (!hasAlign) {
-        // fallback to simple render+color
         std::string flat = prerender_line(segments);
         return render_line(flat, vars);
     }
 
-    // split buckets
     std::vector<nlohmann::json> left, center, right;
     for (auto& seg: segments) {
         auto a = seg.value("align","left");
@@ -373,22 +379,18 @@ std::string Theme::render_line_aligned(
         else                  left  .push_back(seg);
     }
 
-    // build each bucket, substituting placeholders first
     auto build = [&](const std::vector<nlohmann::json>& bucket){
         std::string out;
         for (auto& segment: bucket) {
             std::string segment_result;
-            // first substitute placeholders in content & separator
             std::string content   = render_line(segment.value("content",""), vars);
             std::string separator = render_line(segment.value("separator",""), vars);
 
-            // grab color names
             std::string bg_color_name   = segment.value("bg_color","RESET");
             std::string fg_color_name   = segment.value("fg_color","RESET");
             std::string sep_fg_name     = segment.value("separator_fg","RESET");
             std::string sep_bg_name     = segment.value("separator_bg","RESET");
 
-            // forward_separator (if any)
             if (segment.contains("forward_separator") && !segment["forward_separator"].empty()) {
                 std::string fsep    = segment["forward_separator"];
                 std::string fsep_fg = segment.value("forward_separator_fg","RESET");
@@ -404,19 +406,15 @@ std::string Theme::render_line_aligned(
                 segment_result += fsep;
             }
 
-            // background color
             if (bg_color_name != "RESET") {
                 segment_result += colors::bg_color(colors::parse_color_value(bg_color_name));
             } else {
                 segment_result += colors::ansi::BG_RESET;
             }
-            // foreground color
             if (fg_color_name != "RESET") {
                 segment_result += colors::fg_color(colors::parse_color_value(fg_color_name));
             }
-            // the content
             segment_result += content;
-            // trailing separator
             if (!separator.empty()) {
                 if (sep_fg_name != "RESET") {
                     segment_result += colors::fg_color(colors::parse_color_value(sep_fg_name));
@@ -449,17 +447,37 @@ std::string Theme::render_line_aligned(
         size_t padL = (desiredCStart>lL?desiredCStart-lL:0);
         size_t afterC = lL+padL+lC;
         size_t padR = (w>afterC+lR? w-afterC-lR:0);
-        out = L + std::string(padL, fill_char_) + C + std::string(padR, fill_char_) + R;
+        std::string fillL;
+        for (size_t i = 0; i < padL; ++i) {
+            if (fill_bg_color_ != "RESET") fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            else                          fillL += colors::ansi::BG_RESET;
+            if (fill_fg_color_ != "RESET") fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fillL += fill_char_;
+        }
+        std::string fillR;
+        for (size_t i = 0; i < padR; ++i) {
+            if (fill_bg_color_ != "RESET") fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            else                          fillR += colors::ansi::BG_RESET;
+            if (fill_fg_color_ != "RESET") fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fillR += fill_char_;
+        }
+        out = L + fillL + C + fillR + R;
     } else {
         size_t pad = (w>lL+lR? w-lL-lR:0);
-        out = L + std::string(pad, fill_char_) + R;
+        std::string fill;
+        for (size_t i = 0; i < pad; ++i) {
+            if (fill_bg_color_ != "RESET") fill += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            else                          fill += colors::ansi::BG_RESET;
+            if (fill_fg_color_ != "RESET") fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fill += fill_char_;
+        }
+        out = L + fill + R;
     }
     out += colors::ansi::RESET;
     if (g_debug_mode) std::cout<<"\nCombined render:\n"<<out<<std::endl;
     return out;
 }
 
-// update getters to use the new combined render
 std::string Theme::get_ps1_prompt_format(const std::unordered_map<std::string,std::string>& vars) const {
     auto        result = render_line_aligned(ps1_segments, vars);
     last_ps1_raw_length = calculate_raw_length(result);
@@ -507,47 +525,7 @@ std::string Theme::get_terminal_title_format() const {
     return terminal_title_format;
 }
 
-std::string Theme::execute_script(const std::string& script_path) const {
-    static std::unordered_map<std::string, std::pair<std::string, std::time_t>> script_cache;
-    static const int CACHE_EXPIRY_SECONDS = 5;
-    auto now = std::time(nullptr);
-    auto cache_it = script_cache.find(script_path);
-    if (cache_it != script_cache.end()) {
-        if (now - cache_it->second.second < CACHE_EXPIRY_SECONDS) {
-            return cache_it->second.first;
-        }
-    }
-    
-    std::string result;
-    // Use bash explicitly to ensure proper escape sequence interpretation
-    std::string command = "bash -c \"" + script_path + "\"";
-    FILE* pipe = popen(command.c_str(), "r");
-    
-    if (!pipe) {
-        return "Error executing script: " + script_path;
-    }
-    
-    char buffer[4096];
-    while (!feof(pipe)) {
-        if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-            result += buffer;
-        }
-    }
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-    
-    pclose(pipe);
-    script_cache[script_path] = {result, now};
-    
-    return result;
-}
-
-void Theme::clear_script_cache() {
-    static std::unordered_map<std::string, std::pair<std::string, std::time_t>> script_cache;
-    script_cache.clear();
-}
-
+// Updated render_line: removed SCRIPT$ placeholder handling
 std::string Theme::render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const {
     if (line.empty()) {
         return "";
@@ -563,22 +541,17 @@ std::string Theme::render_line(const std::string& line, const std::unordered_map
         }
         
         std::string placeholder = result.substr(start_pos + 1, end_pos - start_pos - 1);
-        if (placeholder.compare(0, 7, "SCRIPT$") == 0 && placeholder.length() > 7) {
-            std::string script_path = placeholder.substr(7);
-            std::string script_output = execute_script(script_path);
-            result.replace(start_pos, end_pos - start_pos + 1, script_output);
-            start_pos += script_output.length();
+        // no SCRIPT$ handling any more:
+        auto it = vars.find(placeholder);
+        if (it != vars.end()) {
+            result.replace(start_pos, end_pos - start_pos + 1, it->second);
+            start_pos += it->second.length();
         } else {
-            auto it = vars.find(placeholder);
-            if (it != vars.end()) {
-                result.replace(start_pos, end_pos - start_pos + 1, it->second);
-                start_pos += it->second.length();
-            } else {
-                start_pos = end_pos + 1;
-            }
+            start_pos = end_pos + 1;
         }
     }
-    if(g_debug_mode) {
+
+    if (g_debug_mode) {
         std::cout << "Rendered line: \n" << result << std::endl;
     }
     return result;

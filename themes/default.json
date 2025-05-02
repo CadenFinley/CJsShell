@@ -10,6 +10,9 @@
             "tag": "aiseg"
         }
     ],
+    "fill_bg_color": "RESET",
+    "fill_char": " ",
+    "fill_fg_color": "RESET",
     "git_segments": [
         {
             "bg_color": "RESET",
@@ -21,6 +24,7 @@
             "tag": "basicseg"
         }
     ],
+    "newline_segments": [],
     "ps1_segments": [
         {
             "bg_color": "RESET",

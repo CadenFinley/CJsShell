@@ -3,7 +3,7 @@
     "ps1_segments": [
         {
             "tag": "userseg",
-            "content": " {USERNAME}  ",
+            "content": " {USERNAME} {TIME12}  ",
             "bg_color": "P10K_USER_BG",
             "fg_color": "P10K_USER_FG",
             "separator": "\uE0B0",

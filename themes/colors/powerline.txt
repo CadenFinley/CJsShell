@@ -4,8 +4,16 @@
 PL_USER_BG = #005F87
 PL_USER_FG = #FFFFFF
 
+# Transition between user and host
+PL_TRANS1_BG = #0073A0
+PL_TRANS1_FG = #FFFFFF
+
 PL_HOST_BG = #0087AF
 PL_HOST_FG = #FFFFFF
+
+# Transition between host and directory
+PL_TRANS2_BG = #009BAF
+PL_TRANS2_FG = #FFFFFF
 
 PL_DIR_BG = #00AFAF
 PL_DIR_FG = #FFFFFF
@@ -13,10 +21,19 @@ PL_DIR_FG = #FFFFFF
 PL_GIT_BG = #5FAF00
 PL_GIT_FG = #FFFFFF
 
+# Git transitions that were empty in the theme
+GREEN_BRIGHT = #87D700
+
 PL_AI_BG = #AF005F
 PL_AI_FG = #FFFFFF
 
+# AI transition
+BLUE_BRIGHT = #5F87FF
+
 PL_TIME_BG = #5F5FAF
 PL_TIME_FG = #FFFFFF
+
+# Prompt transition
+YELLOW_BRIGHT = #FFAF00
 
 PL_PROMPT_FG = #00AFAF
