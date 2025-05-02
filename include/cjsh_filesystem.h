@@ -22,7 +22,7 @@ namespace cjsh_filesystem {
   extern fs::path g_cjsh_path; // where the executable is located
 
   // used if login
-  const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile"; //envvars and PATH setup loaded on login shell also startup flags
+  const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile"; //envvars loaded on login shell also startup flags
 
   // used if interactive
   const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc"; // aliases, prompt, functions, themes loaded on interactive shell

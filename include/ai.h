@@ -107,5 +107,5 @@ private:
     std::string lastResponseReceived;
     std::map<std::string, nlohmann::json> responseDataMap;
     std::string saveDirectory;
-    bool enabled = true; // Default to enabled
+    bool enabled = true;
 };
