@@ -451,33 +451,33 @@ static void capture_profile_env(const std::string& profile_path) {
 void process_profile_file() {
     std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
     if (std::filesystem::exists(user_profile)) {
-        std::cout << "Sourcing " << user_profile.string() << std::endl;
+        //std::cout << "Sourcing " << user_profile.string() << std::endl;
         capture_profile_env(user_profile.string());
     }
     std::filesystem::path universal_profile = "/etc/profile";
     if (std::filesystem::exists(universal_profile)) {
-        std::cout << "Sourcing " << universal_profile.string() << std::endl;
+        //std::cout << "Sourcing " << universal_profile.string() << std::endl;
         capture_profile_env(universal_profile.string());
     }
-    std::filesystem::path profile_d = "/etc/profile.d";
-    if (std::filesystem::exists(profile_d) && std::filesystem::is_directory(profile_d)) {
-        for (auto& entry : std::filesystem::directory_iterator(profile_d)) {
-            if (entry.path().extension() == ".sh") {
-                std::cout << "Sourcing " << entry.path().string() << std::endl;
-                capture_profile_env(entry.path().string());
-            }
-        }
-    }
-    std::filesystem::path bash_bashrc = "/etc/bash.bashrc";
-    if (std::filesystem::exists(bash_bashrc)) {
-        std::cout << "Sourcing " << bash_bashrc.string() << std::endl;
-        capture_profile_env(bash_bashrc.string());
-    }
-    std::filesystem::path bashrc = "/etc/bashrc";
-    if (std::filesystem::exists(bashrc)) {
-        std::cout << "Sourcing " << bashrc.string() << std::endl;
-        capture_profile_env(bashrc.string());
-    }
+    // std::filesystem::path profile_d = "/etc/profile.d";
+    // if (std::filesystem::exists(profile_d) && std::filesystem::is_directory(profile_d)) {
+    //     for (auto& entry : std::filesystem::directory_iterator(profile_d)) {
+    //         if (entry.path().extension() == ".sh") {
+    //             std::cout << "Sourcing " << entry.path().string() << std::endl;
+    //             capture_profile_env(entry.path().string());
+    //         }
+    //     }
+    // }
+    // std::filesystem::path bash_bashrc = "/etc/bash.bashrc";
+    // if (std::filesystem::exists(bash_bashrc)) {
+    //     std::cout << "Sourcing " << bash_bashrc.string() << std::endl;
+    //     capture_profile_env(bash_bashrc.string());
+    // }
+    // std::filesystem::path bashrc = "/etc/bashrc";
+    // if (std::filesystem::exists(bashrc)) {
+    //     std::cout << "Sourcing " << bashrc.string() << std::endl;
+    //     capture_profile_env(bashrc.string());
+    // }
 
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
         create_profile_file();
