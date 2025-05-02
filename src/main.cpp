@@ -487,10 +487,10 @@ void create_profile_file() {
     profile_file << "# this file is sourced when the shell starts in login mode and is sourced after /etc/profile and ~/.profile\n";
     profile_file << "# this file is used to configure the shell PATH and set environment variables.\n";
 
-    profile_file << "# Any environment variables should be set without 'export' command\n";
-    profile_file << "# Example: VARIABLE=value\n\n";
+    profile_file << "# any environment variables should be set without 'export' command\n";
+    profile_file << "# example: VARIABLE=value\n\n";
 
-    profile_file << "# This is also where you can add any startup flags you want for cjsh\n";
+    profile_file << "# this is also where you can add any startup flags you want for cjsh\n";
     profile_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
@@ -501,17 +501,17 @@ void create_source_file() {
   std::ofstream source_file(cjsh_filesystem::g_cjsh_source_path);
   if (source_file.is_open()) {
     source_file << "# cjsh Source File\n";
-    source_file << "# This file is sourced when the shell starts in interactive mode\n";
-    source_file << "# This is where your aliases, theme setup, enabled plugins, startup commands, functions etc.";
+    source_file << "# this file is sourced when the shell starts in interactive mode\n";
+    source_file << "# this is where your aliases, theme setup, enabled plugins, startup commands, functions etc.";
     source_file << "# are stored.\n";
 
     source_file << "# Alias examples\n";
     source_file << "alias ll='ls -la'\n";
 
-    source_file << "# Theme examples\n";
+    source_file << "# eheme examples\n";
     source_file << "theme default\n";
 
-    source_file << "# Plugin examples\n";
+    source_file << "# plugin examples\n";
     source_file << "# plugin example_plugin enable\n";
     source_file.close();
   } else {
