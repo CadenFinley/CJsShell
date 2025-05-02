@@ -45,8 +45,7 @@ make
 ## Third‑Party Components
 
 - **isocline**  
-  A minimal header‑only terminal control library used for advanced cursor and color handling.  
-  Repository: https://github.com/daanx/isocline (MIT License)
+  https://github.com/daanx/isocline (MIT License)
 
 ## License
 
