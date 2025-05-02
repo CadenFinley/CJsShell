@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <filesystem>
+#include <unordered_set>
 #include "colors.h"
 
 //add the ability to allign the segments to the left or right
@@ -98,6 +99,24 @@ bool Theme::load_theme(const std::string& theme_name) {
         newline_segments = theme_json["newline_segments"];
     }
 
+    auto has_duplicate_tags = [](const std::vector<nlohmann::json>& segs) {
+        std::unordered_set<std::string> seen;
+        for (const auto& s : segs) {
+            std::string tag = s.value("tag", "");
+            if (!seen.insert(tag).second) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (has_duplicate_tags(ps1_segments) ||
+        has_duplicate_tags(git_segments) ||
+        has_duplicate_tags(ai_segments) ||
+        has_duplicate_tags(newline_segments)) {
+        return false;
+    }
+
     if (theme_json.contains("terminal_title")) {
         terminal_title_format = theme_json["terminal_title"];
     }
@@ -130,14 +149,14 @@ std::string Theme::prerender_line(const std::vector<nlohmann::json>& segments) c
             std::string forward_separator_bg_name = segment.value("forward_separator_bg", "RESET");
             
             if (forward_separator_bg_name != "RESET") {
-                auto fw_sep_bg_rgb = colors::get_color_by_name(forward_separator_bg_name);
+                auto fw_sep_bg_rgb = colors::parse_color_value(forward_separator_bg_name);
                 segment_result += colors::bg_color(fw_sep_bg_rgb);
             } else {
                 segment_result += colors::ansi::BG_RESET;
             }
             
             if (forward_separator_fg_name != "RESET") {
-                auto fw_sep_fg_rgb = colors::get_color_by_name(forward_separator_fg_name);
+                auto fw_sep_fg_rgb = colors::parse_color_value(forward_separator_fg_name);
                 segment_result += colors::fg_color(fw_sep_fg_rgb);
             }
             
@@ -145,14 +164,14 @@ std::string Theme::prerender_line(const std::vector<nlohmann::json>& segments) c
         }
         
         if (bg_color_name != "RESET") {
-            auto bg_rgb = colors::get_color_by_name(bg_color_name);
+            auto bg_rgb = colors::parse_color_value(bg_color_name);
             segment_result += colors::bg_color(bg_rgb);
         } else {
             segment_result += colors::ansi::BG_RESET;
         }
         
         if (fg_color_name != "RESET") {
-            auto fg_rgb = colors::get_color_by_name(fg_color_name);
+            auto fg_rgb = colors::parse_color_value(fg_color_name);
             segment_result += colors::fg_color(fg_rgb);
         }
         
@@ -160,12 +179,12 @@ std::string Theme::prerender_line(const std::vector<nlohmann::json>& segments) c
         
         if (!separator.empty()) {
             if (separator_fg_name != "RESET") {
-                auto sep_fg_rgb = colors::get_color_by_name(separator_fg_name);
+                auto sep_fg_rgb = colors::parse_color_value(separator_fg_name);
                 segment_result += colors::fg_color(sep_fg_rgb);
             }
             
             if (separator_bg_name != "RESET") {
-                auto sep_bg_rgb = colors::get_color_by_name(separator_bg_name);
+                auto sep_bg_rgb = colors::parse_color_value(separator_bg_name);
                 segment_result += colors::bg_color(sep_bg_rgb);
             } else {
                 segment_result += colors::ansi::BG_RESET;
