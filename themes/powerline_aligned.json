@@ -1,0 +1,125 @@
+{
+  "terminal_title": "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME} | {TIME12} : {DATE}",
+  "ps1_segments": [
+    {
+      "tag": "userseg",
+      "content": " {USERNAME} ",
+      "bg_color": "PL_USER_BG",
+      "fg_color": "PL_USER_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "PL_USER_BG",
+      "separator_bg": "PL_HOST_BG",
+      "forward_separator": " \ue0b6",
+      "forward_separator_fg": "PL_USER_BG",
+      "forward_separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "hostseg",
+      "content": " {HOSTNAME} ",
+      "bg_color": "PL_HOST_BG",
+      "fg_color": "PL_HOST_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "PL_HOST_BG",
+      "separator_bg": "PL_DIR_BG",
+      "align": "left"
+    },
+    {
+      "tag": "dirseg",
+      "content": " 📁 {PATH} ",
+      "bg_color": "PL_DIR_BG",
+      "fg_color": "PL_DIR_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "PL_DIR_BG",
+      "separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "timeseg",
+      "content": " {TIME12} ",
+      "bg_color": "PL_TIME_BG",
+      "fg_color": "PL_TIME_FG",
+      "separator": "\uE0B4",
+      "separator_fg": "PL_TIME_BG",
+      "separator_bg": "RESET",
+      "align": "right",
+      "forward_separator": "\ue0b2",
+      "forward_separator_fg": "PL_TIME_BG",
+      "forward_separator_bg": "RESET"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "userseg",
+      "content": " {USERNAME} ",
+      "bg_color": "PL_USER_BG",
+      "fg_color": "PL_USER_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "PL_USER_BG",
+      "separator_bg": "PL_DIR_BG",
+      "forward_separator": " \ue0b6",
+      "forward_separator_fg": "PL_USER_BG",
+      "forward_separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "dirseg",
+      "content": " 📁 {LOCAL_PATH} ",
+      "bg_color": "PL_DIR_BG",
+      "fg_color": "PL_DIR_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "PL_DIR_BG",
+      "separator_bg": "PL_GIT_BG",
+      "align": "left"
+    },
+    {
+      "tag": "gitseg",
+      "content": " {GIT_BRANCH} : {GIT_STATUS} ",
+      "bg_color": "PL_GIT_BG",
+      "fg_color": "PL_GIT_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "PL_GIT_BG",
+      "separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "timeseg",
+      "content": " {TIME12} ",
+      "bg_color": "PL_TIME_BG",
+      "fg_color": "PL_TIME_FG",
+      "separator": "\uE0B4",
+      "separator_fg": "PL_TIME_BG",
+      "separator_bg": "RESET",
+      "align": "right",
+      "forward_separator": "\ue0b2",
+      "forward_separator_fg": "PL_TIME_BG",
+      "forward_separator_bg": "RESET"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "ai_seg",
+      "content": " 📁 {DIRECTORY} | {AI_MODEL}/{AI_AGENT_TYPE} ",
+      "bg_color": "PL_AI_BG",
+      "fg_color": "PL_AI_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "PL_AI_BG",
+      "separator_bg": "RESET",
+      "align": "center"
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "promptseg",
+      "content": " \u2192 ",
+      "bg_color": "RESET",
+      "fg_color": "GREEN_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ],
+  "fill_char": "—",
+  "fill_fg_color": "BLACK_BRIGHT",
+  "fill_bg_color": "RESET"
+}
