@@ -8,7 +8,7 @@
 #include <vector>
 #include <pwd.h>
 #include <unistd.h>
-#include <sys/ioctl.h> 
+#include <sys/ioctl.h>
 #include "nlohmann/json.hpp"
 
 class PromptInfo {
