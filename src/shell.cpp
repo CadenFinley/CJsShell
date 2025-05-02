@@ -226,46 +226,28 @@ int Shell::execute_command(std::string command, bool sync) {
     }
   }
 
-  if (command.find("&&") != std::string::npos || command.find("||") != std::string::npos) {
-    std::vector<LogicalCommand> logical_commands = shell_parser->parse_logical_commands(command);
-    
+  if (command.find("&&") != std::string::npos ||
+      command.find("||") != std::string::npos) {
+    auto logical_commands = shell_parser->parse_logical_commands(command);
     bool prev_success = true;
-    
-    for (size_t i = 0; i < logical_commands.size(); i++) {
-      const auto& cmd_segment = logical_commands[i];
-      
-      bool should_execute = true;
+    int exit_code = 0;
+    for (size_t i = 0; i < logical_commands.size(); ++i) {
+      const auto& segment = logical_commands[i];
       if (i > 0) {
-        const auto& prev_op = logical_commands[i-1].op;
-        if (prev_op == "&&") {
-          should_execute = prev_success;
-        } else if (prev_op == "||") {
-          should_execute = !prev_success;
+        const std::string& prev_op = logical_commands[i-1].op;
+        if ((prev_op == "&&" && !prev_success) ||
+            (prev_op == "||" &&  prev_success)) {
+          break;
         }
       }
-      
-      if (should_execute) {
-        std::vector<std::string> segment_args = shell_parser->parse_command(cmd_segment.command);
-        
-        if (!segment_args.empty() && built_ins->is_builtin_command(segment_args[0])) {
-          bool result = built_ins->builtin_command(segment_args);
-          if (!result) {
-            last_terminal_output_error = "Something went wrong with the built-in command";
-            prev_success = false;
-          } else {
-            last_terminal_output_error = "command completed successfully";
-            prev_success = true;
-          }
-        } else {
-          execute_command(cmd_segment.command, sync);
-          
-          prev_success = (last_terminal_output_error == "command completed successfully" || 
-                         last_terminal_output_error == "async command launched");
-        }
-      }
+      exit_code = execute_command(segment.command, true);
+      prev_success = (exit_code == 0);
     }
-    
-    return 0;
+    last_command = command;
+    last_terminal_output_error = prev_success
+      ? "command completed successfully"
+      : "command failed";
+    return exit_code;
   }
 
   if (command == "clear") {
@@ -286,7 +268,6 @@ int Shell::execute_command(std::string command, bool sync) {
     return 0;
   }
 
-  // Changed g_menu_terminal to a local variable or property of the shell
   if (!menu_active) {
     if(!args.empty()) {
       if(args[0] == "terminal") {
