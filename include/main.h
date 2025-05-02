@@ -59,7 +59,6 @@ void process_profile_file();
 void create_profile_file();
 void create_source_file();
 bool is_parent_process_alive();
-void parent_process_watchdog();
 void setup_signal_handlers();
 void save_terminal_state();
 void restore_terminal_state();
