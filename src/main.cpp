@@ -416,7 +416,6 @@ bool init_interactive_filesystem() {
   return true;
 }
 
-// new helper: fork+exec sh to source a profile and read back its exported env
 static void capture_profile_env(const std::string& profile_path) {
     int pipefd[2];
     if (pipe(pipefd) != 0) { perror("pipe failed"); return; }
@@ -427,7 +426,6 @@ static void capture_profile_env(const std::string& profile_path) {
         return;
     }
     if (pid == 0) {
-        // child: send its stdout to parent
         close(pipefd[0]);
         dup2(pipefd[1], STDOUT_FILENO);
         execlp("sh", "sh", "-c",
@@ -435,7 +433,6 @@ static void capture_profile_env(const std::string& profile_path) {
                (char*)NULL);
         _exit(1);
     }
-    // parent: read null-delimited VAR=VAL from child
     close(pipefd[1]);
     std::string data;
     char buf[4096];
