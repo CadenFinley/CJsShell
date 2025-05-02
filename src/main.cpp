@@ -246,6 +246,9 @@ void main_process_loop() {
   while(true) {
     if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
     notify_plugins("main_process_start", c_pid_str);
+
+    g_shell->process_pending_signals();
+
     update_terminal_title();
     
     std::string prompt;
