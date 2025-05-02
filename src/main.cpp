@@ -25,15 +25,17 @@ int main(int argc, char *argv[]) {
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
     if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0] << std::endl;
-  } else {
-    for (int i = 1; i < argc; i++) {
-      if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--login") == 0) {
-        login_mode = true;
-        if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from argument: " << argv[i] << std::endl;
-        break;
-      }
+  }
+  
+  // Additional check for --login or -l arguments
+  for (int i = 1; i < argc; i++) {
+    if (std::string(argv[i]) == "--login" || std::string(argv[i]) == "-l") {
+      login_mode = true;
+      if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from command-line argument: " << argv[i] << std::endl;
+      break;
     }
   }
+  
   // this handles the prompting and executing of commands and signal handling
   g_shell = new Shell(login_mode);
 
@@ -80,6 +82,11 @@ int main(int argc, char *argv[]) {
     else if (arg == "-h" || arg == "--help") {
       g_shell ->execute_command("help", true);
       return 0;
+    }
+    else if (arg == "--login" || arg == "-l") {
+      // These are already handled earlier for setting login_mode
+      // Including them here to avoid the unknown argument warning
+      if (g_debug_mode) std::cerr << "DEBUG: Recognized login argument: " << arg << std::endl;
     }
     else if (arg == "--set-as-shell") {
       std::cout << "Setting CJ's Shell as the default shell..." << std::endl;

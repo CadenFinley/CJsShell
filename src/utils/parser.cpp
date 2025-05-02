@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <cstring>
 
 std::vector<std::string> Parser::parse_command(const std::string& command) {
   std::string expanded_command = command;
