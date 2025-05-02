@@ -13,7 +13,6 @@ std::string Prompt::get_prompt() {
     std::filesystem::path repo_root;
     bool is_git_repo = info.is_git_repository(repo_root);
     
-    // Base format and segments to check for variable usage
     std::vector<nlohmann::json> segments_to_check;
     
     if (is_git_repo) {
@@ -21,8 +20,7 @@ std::string Prompt::get_prompt() {
     } else {
         segments_to_check = g_theme->ps1_segments;
     }
-    
-    // Get all variables needed for the prompt
+
     std::unordered_map<std::string, std::string> vars = info.get_variables(segments_to_check, is_git_repo, repo_root);
     
     if (is_git_repo) {
@@ -54,10 +52,8 @@ std::string Prompt::get_ai_prompt() {
         vars["AI_DIVIDER"] = ">";
     }
     
-    // Get common variables like TIME and DATE
     std::unordered_map<std::string, std::string> common_vars = info.get_variables(segments_to_check);
     
-    // Merge common variables with AI-specific ones
     for (const auto& [key, value] : common_vars) {
         vars[key] = value;
     }
@@ -74,8 +70,7 @@ std::string Prompt::get_newline_prompt() {
 
 std::string Prompt::get_title_prompt() {
     std::string prompt_format = g_theme->get_terminal_title_format();
-    
-    // Create a mock segments structure to check which variables are needed
+
     std::vector<nlohmann::json> segments;
     nlohmann::json segment;
     segment["content"] = prompt_format;

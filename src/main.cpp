@@ -7,11 +7,10 @@
 #include <memory>
 #include <unistd.h>
 #include <sys/wait.h>
-std::vector<std::string> g_startup_args;
 
 int main(int argc, char *argv[]) {
-  // cjsh
-  
+  if (g_debug_mode) std::cerr << "DEBUG: main() starting with " << argc << " arguments" << std::endl;
+
   // verify installation
   if (!initialize_cjsh_path()){
     std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
@@ -21,10 +20,12 @@ int main(int argc, char *argv[]) {
   bool login_mode = false;
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
+    if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0] << std::endl;
   } else {
     for (int i = 1; i < argc; i++) {
       if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--login") == 0) {
         login_mode = true;
+        if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from argument: " << argv[i] << std::endl;
         break;
       }
     }
@@ -39,6 +40,7 @@ int main(int argc, char *argv[]) {
   
   // Initialize login environment if necessary
   if (g_shell->get_login_mode()) {
+    if (g_debug_mode) std::cerr << "DEBUG: Initializing login environment" << std::endl;
     if (!init_login_filesystem()) {
       std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
       return 1;
@@ -143,9 +145,9 @@ int main(int argc, char *argv[]) {
 
   // set initial working directory
   std::string current_path = std::filesystem::current_path().string();
+  if (g_debug_mode) std::cerr << "DEBUG: Current path: " << current_path << std::endl;
   setenv("PWD", current_path.c_str(), 1);
 
-  // initialize and verify the file system
   if (!init_interactive_filesystem()) {
     std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
     return 1;
@@ -154,12 +156,15 @@ int main(int argc, char *argv[]) {
   // ensure bash‐style envvars are set for interactive shells too
   setup_environment_variables();
 
+  if (g_debug_mode) std::cerr << "DEBUG: Initializing colors with enabled=" << l_colors_enabled << std::endl;
   colors::initialize_color_support(l_colors_enabled);
   
   // Replace raw pointers with unique_ptr for automatic cleanup
+  if (g_debug_mode) std::cerr << "DEBUG: Initializing plugin system with enabled=" << l_plugins_enabled << std::endl;
   std::unique_ptr<Plugin> plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path, l_plugins_enabled);
   g_plugin = plugin.get(); // Use the raw pointer for global access
   
+  if (g_debug_mode) std::cerr << "DEBUG: Initializing theme system with enabled=" << l_themes_enabled << std::endl;
   std::unique_ptr<Theme> theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path, l_themes_enabled);
   g_theme = theme.get();
   
@@ -169,6 +174,7 @@ int main(int argc, char *argv[]) {
     api_key = env_key;
   }
   
+  if (g_debug_mode) std::cerr << "DEBUG: Initializing AI with enabled=" << l_ai_enabled << std::endl;
   std::unique_ptr<Ai> ai = std::make_unique<Ai>(
       api_key,
       std::string("chat"),  // Convert string literal to std::string
@@ -179,6 +185,7 @@ int main(int argc, char *argv[]) {
   g_ai = ai.get();
   
   if(source_enabled){
+    if (g_debug_mode) std::cerr << "DEBUG: Processing source file" << std::endl;
     process_source_file();
   }
 
@@ -216,15 +223,10 @@ int main(int argc, char *argv[]) {
 
   std::cout << "CJ's Shell Exiting..." << std::endl;
 
-  if (g_shell->get_login_mode()) {
-    g_shell->restore_terminal_state();
+  if (g_shell){
+    delete g_shell;
+    g_shell = nullptr;
   }
-
-  // No need for manual delete; unique_ptr will handle cleanup
-  g_shell = nullptr;
-  g_ai = nullptr;
-  g_theme = nullptr;
-  g_plugin = nullptr;
 
   return 0;
 }
@@ -235,6 +237,7 @@ void update_terminal_title() {
 }
 
 void main_process_loop() {
+  if (g_debug_mode) std::cerr << "DEBUG: Entering main process loop" << std::endl;
   notify_plugins("main_process_pre_run", c_pid_str);
 
   ic_set_prompt_marker("", NULL);
@@ -244,10 +247,8 @@ void main_process_loop() {
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
 
   while(true) {
+    if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
     notify_plugins("main_process_start", c_pid_str);
-    if (g_debug_mode) {
-      std::cout << c_title_color << "DEBUG MODE ENABLED" << c_reset_color << std::endl;
-    }
     update_terminal_title();
     
     std::string prompt;
@@ -287,24 +288,28 @@ void main_process_loop() {
 
 void notify_plugins(std::string trigger, std::string data) {
   if (g_plugin == nullptr) {
+    if (g_debug_mode) std::cerr << "DEBUG: notify_plugins: plugin manager is nullptr" << std::endl;
     return;
   }
   if (g_plugin->get_enabled_plugins().empty()) {
+    if (g_debug_mode) std::cerr << "DEBUG: notify_plugins: no enabled plugins" << std::endl;
     return;
   }
   if (g_debug_mode) {
-    std::cout << "DEBUG: Notifying plugins of trigger: " << trigger << std::endl;
+    std::cerr << "DEBUG: Notifying plugins of trigger: " << trigger << " with data: " << data << std::endl;
   }
   g_plugin->trigger_subscribed_global_event(trigger, data);
 }
 
 bool init_login_filesystem() {
+  if (g_debug_mode) std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
   try {
     if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
       return false;
     }
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
+      if (g_debug_mode) std::cerr << "DEBUG: Creating profile file" << std::endl;
       create_profile_file();
     }
   } catch (const std::exception& e) {
@@ -315,20 +320,25 @@ bool init_login_filesystem() {
 }
 
 void setup_environment_variables() {
+  if (g_debug_mode) std::cerr << "DEBUG: Setting up environment variables" << std::endl;
+  
   uid_t uid = getuid();
   struct passwd* pw = getpwuid(uid);
   
   if (pw != nullptr) {
+    if (g_debug_mode) std::cerr << "DEBUG: Setting USER=" << pw->pw_name << std::endl;
     setenv("USER", pw->pw_name, 1);
     setenv("LOGNAME", pw->pw_name, 1);
     setenv("HOME", pw->pw_dir, 1);
     
     if (getenv("PATH") == nullptr) {
+      if (g_debug_mode) std::cerr << "DEBUG: Setting default PATH" << std::endl;
       setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
     
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) == 0) {
+      if (g_debug_mode) std::cerr << "DEBUG: Setting HOSTNAME=" << hostname << std::endl;
       setenv("HOSTNAME", hostname, 1);
     }
     
@@ -396,6 +406,7 @@ void prepare_shell_signal_environment() {
 }
 
 bool init_interactive_filesystem() {
+  if (g_debug_mode) std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
   try {
     if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
@@ -403,10 +414,12 @@ bool init_interactive_filesystem() {
     }
     initialize_cjsh_directories();
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path)) {
+      if (g_debug_mode) std::cerr << "DEBUG: Creating history file" << std::endl;
       std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
       history_file.close();
     }
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path)) {
+      if (g_debug_mode) std::cerr << "DEBUG: Creating source file" << std::endl;
       create_source_file();
     }
   } catch (const std::exception& e) {
@@ -454,9 +467,11 @@ static void capture_profile_env(const std::string& profile_path) {
 }
 
 void process_profile_file() {
+    if (g_debug_mode) std::cerr << "DEBUG: Processing profile files" << std::endl;
     std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
     if (std::filesystem::exists(user_profile)) {
-        capture_profile_env(user_profile.string());
+      if (g_debug_mode) std::cerr << "DEBUG: Found user profile: " << user_profile.string() << std::endl;
+      capture_profile_env(user_profile.string());
     }
     std::filesystem::path universal_profile = "/etc/profile";
     if (std::filesystem::exists(universal_profile)) {

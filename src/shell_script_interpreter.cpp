@@ -14,23 +14,27 @@
 ShellScriptInterpreter* g_script_interpreter = nullptr;
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
-    command_executor = [](const std::string& cmd, bool) -> bool {
-        return system(cmd.c_str()) == 0;
-    };
-    
-    in_then_block = false;
-    
-    debug_level = DebugLevel::NONE;
-    show_command_output = false;
-    debug_indent_level = 0;
-    cached_indent_level = -1;
+  if (g_debug_mode) std::cerr << "DEBUG: Initializing ShellScriptInterpreter" << std::endl;
+  
+  command_executor = [](const std::string& cmd, bool) -> bool {
+    if (g_debug_mode) std::cerr << "DEBUG: Executing shell command: " << cmd << std::endl;
+    return system(cmd.c_str()) == 0;
+  };
+  
+  in_then_block = false;
+  
+  debug_level = DebugLevel::NONE;
+  show_command_output = false;
+  debug_indent_level = 0;
+  cached_indent_level = -1;
 }
 
 ShellScriptInterpreter::~ShellScriptInterpreter() {
 }
 
 void ShellScriptInterpreter::set_debug_level(DebugLevel level) {
-    debug_level = level;
+  if (g_debug_mode) std::cerr << "DEBUG: Setting script interpreter debug level to " << static_cast<int>(level) << std::endl;
+  debug_level = level;
 }
 
 DebugLevel ShellScriptInterpreter::get_debug_level() const {
@@ -53,9 +57,11 @@ std::string ShellScriptInterpreter::get_indentation() const {
 }
 
 void ShellScriptInterpreter::dump_variables() const {
-    if (debug_level == DebugLevel::NONE) {
-        return;
-    }
+  if (g_debug_mode) std::cerr << "DEBUG: Dumping script interpreter variables" << std::endl;
+  
+  if (debug_level == DebugLevel::NONE) {
+    return;
+  }
     
     // Use a stringstream for more efficient string building
     std::stringstream ss;
@@ -95,105 +101,68 @@ void ShellScriptInterpreter::dump_variables() const {
 }
 
 std::string ShellScriptInterpreter::escape_debug_string(const std::string& input) const {
-    std::string result;
-    for (char c : input) {
-        if (c == '\n') result += "\\n";
-        else if (c == '\r') result += "\\r";
-        else if (c == '\t') result += "\\t";
-        else if (c < 32 || c > 126) {
-            char buf[5];
-            snprintf(buf, sizeof(buf), "\\x%02X", static_cast<unsigned char>(c));
-            result += buf;
-        } else {
-            result += c;
-        }
+  if (g_debug_mode) std::cerr << "DEBUG: Escaping debug string of length " << input.length() << std::endl;
+  
+  std::string result;
+  for (char c : input) {
+    if (c == '\n') result += "\\n";
+    else if (c == '\r') result += "\\r";
+    else if (c == '\t') result += "\\t";
+    else if (c < 32 || c > 126) {
+      char buf[5];
+      snprintf(buf, sizeof(buf), "\\x%02X", static_cast<unsigned char>(c));
+      result += buf;
+    } else {
+      result += c;
     }
-    return result;
+  }
+  return result;
 }
 
 bool ShellScriptInterpreter::handle_debug_command(const std::string& command) {
-    if (command == "debug on") {
-        debug_level = DebugLevel::BASIC;
-        std::cerr << "Debug mode ON (basic)" << std::endl;
-        return true;
-    } else if (command == "debug off") {
-        debug_level = DebugLevel::NONE;
-        std::cerr << "Debug mode OFF" << std::endl;
-        return true;
-    } else if (command == "debug verbose") {
-        debug_level = DebugLevel::VERBOSE;
-        std::cerr << "Debug mode ON (verbose)" << std::endl;
-        return true;
-    } else if (command == "debug trace") {
-        debug_level = DebugLevel::TRACE;
-        std::cerr << "Debug mode ON (trace)" << std::endl;
-        return true;
-    } else if (command == "debug level") {
-        std::cerr << "Current debug level: " << static_cast<int>(debug_level) << std::endl;
-        return true;
-    } else if (command == "debug vars") {
-        dump_variables();
-        return true;
-    } else if (command == "debug show_output on") {
-        show_command_output = true;
-        std::cerr << "Command output display ON" << std::endl;
-        return true;
-    } else if (command == "debug show_output off") {
-        show_command_output = false;
-        std::cerr << "Command output display OFF" << std::endl;
-        return true;
-    } else if (command == "debug safe_mode on") {
-        debug_print("Enabling safe mode - path operations will be more carefully validated", DebugLevel::BASIC);
-        local_variables["CJSH_SAFE_MODE"] = "1";
-        return true;
-    } else if (command == "debug safe_mode off") {
-        debug_print("Disabling safe mode", DebugLevel::BASIC);
-        local_variables["CJSH_SAFE_MODE"] = "0";
-        return true;
-    }
+  if (g_debug_mode) std::cerr << "DEBUG: Handling debug command: " << command << std::endl;
+  
+  if (command == "debug on") {
+    debug_level = DebugLevel::BASIC;
+    std::cerr << "Debug mode ON (basic)" << std::endl;
+    return true;
+  } else if (command == "debug off") {
+    debug_level = DebugLevel::NONE;
+    std::cerr << "Debug mode OFF" << std::endl;
+    return true;
+  } else if (command == "debug verbose") {
+    debug_level = DebugLevel::VERBOSE;
+    std::cerr << "Debug mode ON (verbose)" << std::endl;
+    return true;
+  } else if (command == "debug trace") {
+    debug_level = DebugLevel::TRACE;
+    std::cerr << "Debug mode ON (trace)" << std::endl;
+    return true;
+  } else if (command == "debug level") {
+    std::cerr << "Current debug level: " << static_cast<int>(debug_level) << std::endl;
+    return true;
+  } else if (command == "debug vars") {
+    dump_variables();
+    return true;
+  } else if (command == "debug show_output on") {
+    show_command_output = true;
+    std::cerr << "Command output display ON" << std::endl;
+    return true;
+  } else if (command == "debug show_output off") {
+    show_command_output = false;
+    std::cerr << "Command output display OFF" << std::endl;
+    return true;
+  } else if (command == "debug safe_mode on") {
+    debug_print("Enabling safe mode - path operations will be more carefully validated", DebugLevel::BASIC);
+    local_variables["CJSH_SAFE_MODE"] = "1";
+    return true;
+  } else if (command == "debug safe_mode off") {
+    debug_print("Disabling safe mode", DebugLevel::BASIC);
+    local_variables["CJSH_SAFE_MODE"] = "0";
+    return true;
+  }
     
     return false;
-}
-
-bool ShellScriptInterpreter::handle_path_helper() {
-    debug_print("Directly handling path_helper command", DebugLevel::BASIC);
-    
-    FILE* pipe = popen("/usr/libexec/path_helper -s", "r");
-    if (!pipe) {
-        debug_print("Failed to execute path_helper", DebugLevel::BASIC);
-        return false;
-    }
-    
-    std::string result;
-    char buffer[256];
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        result += buffer;
-    }
-    pclose(pipe);
-    
-    debug_print("Path helper output: " + escape_debug_string(result), DebugLevel::VERBOSE);
-    
-    size_t path_start = result.find("PATH=\"") + 6;
-    size_t path_end = result.find("\"", path_start);
-    
-    if (path_start != std::string::npos && path_end != std::string::npos) {
-        std::string path_value = result.substr(path_start, path_end - path_start);
-        
-        if (!path_value.empty()) {
-            debug_print("Setting PATH to: " + path_value, DebugLevel::BASIC);
-            
-            local_variables["PATH"] = path_value;
-            setenv("PATH", path_value.c_str(), 1);
-            return true;
-        }
-    }
-    
-    debug_print("ERROR: Could not parse path_helper output, using default path", DebugLevel::BASIC);
-    std::string default_path = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
-    local_variables["PATH"] = default_path;
-    setenv("PATH", default_path.c_str(), 1);
-    
-    return true;
 }
 
 bool ShellScriptInterpreter::execute_script(const std::string& filename) {
@@ -280,13 +249,12 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
             return true;
         }
         
-        if (trimmed.find("debug ") == 0 || trimmed == "debug") {
-            return handle_debug_command(trimmed);
-        }
-        
-        if (trimmed.find("eval") == 0 && trimmed.find("path_helper") != std::string::npos) {
-            debug_print("Detected path_helper eval command, using special handling", DebugLevel::BASIC);
-            return handle_path_helper();
+        // Handle command line style arguments (--flag style)
+        if (trimmed.size() >= 2 && trimmed[0] == '-' && trimmed[1] == '-') {
+            debug_print("Found startup argument: " + trimmed, DebugLevel::BASIC);
+            g_startup_args.push_back(trimmed);
+            debug_print("Added to startup args: " + trimmed, DebugLevel::VERBOSE);
+            return true;
         }
         
         // Handle variable assignment
@@ -367,11 +335,6 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
             if (cmd.front() == '`' && cmd.back() == '`') {
                 cmd = cmd.substr(1, cmd.size() - 2);
                 debug_print("Backtick command: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
-                
-                if (cmd.find("path_helper") != std::string::npos) {
-                    debug_print("Using special path_helper handler", DebugLevel::BASIC);
-                    return handle_path_helper();
-                }
                 
                 try {
                     std::string expanded_cmd = expand_variables(cmd);

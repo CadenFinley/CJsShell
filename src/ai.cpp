@@ -1,4 +1,5 @@
 #include "ai.h"
+#include "main.h"
 
 Ai::Ai(const std::string& apiKey, const std::string& assistantType, const std::string& initialInstruction) {
     initialize(apiKey, assistantType, initialInstruction, {});
@@ -148,6 +149,7 @@ void Ai::toggleMaxPromptPrecision() {
 }
 
 void Ai::setTimeoutFlagSeconds(float timeoutFlagSeconds) {
+    if (g_debug_mode) std::cerr << "DEBUG: Setting AI timeout to " << timeoutFlagSeconds << " seconds" << std::endl;
     this->timeoutFlagSeconds = timeoutFlagSeconds;
 }
 
@@ -156,6 +158,7 @@ float Ai::getTimeoutFlagSeconds() const {
 }
 
 void Ai::setModel(const std::string& model) {
+    if (g_debug_mode) std::cerr << "DEBUG: Setting AI model to " << model << std::endl;
     currentModel = model;
 }
 
@@ -172,6 +175,7 @@ float Ai::getDynamicPromptLengthScale() const {
 }
 
 void Ai::setSaveDirectory(const std::string& directory) {
+    if (g_debug_mode) std::cerr << "DEBUG: Setting AI save directory to " << directory << std::endl;
     if(directory.back() == '/') {
         saveDirectory = directory;
     } else {
@@ -184,6 +188,7 @@ std::string Ai::getSaveDirectory() const {
 }
 
 void Ai::setEnabled(bool enabled) {
+    if (g_debug_mode) std::cerr << "DEBUG: " << (enabled ? "Enabling" : "Disabling") << " AI system" << std::endl;
     this->enabled = enabled;
 }
 

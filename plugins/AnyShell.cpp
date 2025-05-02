@@ -290,16 +290,6 @@ extern "C" {
             g_eventsList = nullptr;
         }
         
-        // Free allocated memory for default settings
-        if (g_memoryAllocated && g_defaultSettings != nullptr) {
-            free(g_defaultSettings[0].key);
-            free(g_defaultSettings[0].value);
-            free(g_defaultSettings[1].key);
-            free(g_defaultSettings[1].value);
-            free(g_defaultSettings);
-            g_defaultSettings = nullptr;
-        }
-        
         // Reset memory allocation flag
         g_memoryAllocated = false;
         

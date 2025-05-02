@@ -21,9 +21,20 @@ private:
     std::string prerendered_ai_format;
     std::string prerendered_newline_format;
 
+    mutable size_t last_ps1_raw_length = 0;
+    mutable size_t last_git_raw_length = 0;
+    mutable size_t last_ai_raw_length = 0;
+    mutable size_t last_newline_raw_length = 0;
+
     std::string render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const;
     
     std::string execute_script(const std::string& script_path) const;
+    
+    size_t calculate_raw_length(const std::string& str) const;
+    size_t get_terminal_width() const;
+    std::string prerender_line_aligned(const std::vector<nlohmann::json>& segments) const;
+
+    char fill_char_{' '};          // ← new: padding character, defaults to space
     
 public:
     
@@ -54,6 +65,11 @@ public:
     std::string get_rendered_newline_format() const {
         return prerendered_newline_format;
     }
+
+    size_t get_ps1_raw_length() const { return last_ps1_raw_length; }
+    size_t get_git_raw_length() const { return last_git_raw_length; }
+    size_t get_ai_raw_length() const { return last_ai_raw_length; }
+    size_t get_newline_raw_length() const { return last_newline_raw_length; }
 
     std::string get_newline_prompt(const std::unordered_map<std::string, std::string>& vars) const;
     std::string get_ps1_prompt_format(const std::unordered_map<std::string, std::string>& vars) const;

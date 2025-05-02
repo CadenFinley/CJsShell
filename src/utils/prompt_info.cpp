@@ -84,6 +84,8 @@ bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector
 }
 
 bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
+    if (g_debug_mode) std::cerr << "DEBUG: Checking if path is git repository" << std::endl;
+    
     std::filesystem::path current_path = std::filesystem::current_path();
     std::filesystem::path git_head_path;
     
@@ -101,6 +103,8 @@ bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
 }
 
 std::string PromptInfo::get_git_branch(const std::filesystem::path& git_head_path) {
+    if (g_debug_mode) std::cerr << "DEBUG: Getting git branch from " << git_head_path.string() << std::endl;
+    
     try {
         std::ifstream head_file(git_head_path);
         std::string line;
@@ -127,6 +131,8 @@ std::string PromptInfo::get_git_branch(const std::filesystem::path& git_head_pat
 }
 
 std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
+    if (g_debug_mode) std::cerr << "DEBUG: Getting git status for " << repo_root.string() << std::endl;
+    
     std::string status_symbols = "";
     std::string git_dir = repo_root.string();
     bool is_clean_repo = true;
@@ -328,6 +334,8 @@ std::string PromptInfo::get_shell_version() {
 }
 
 int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int& behind) {
+    if (g_debug_mode) std::cerr << "DEBUG: Getting git ahead/behind for " << repo_root.string() << std::endl;
+    
     ahead = 0;
     behind = 0;
     
@@ -336,6 +344,7 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int
         std::string branch = get_git_branch(git_head_path);
         
         if (branch == "unknown") {
+            if (g_debug_mode) std::cerr << "DEBUG: Unknown branch, cannot get ahead/behind" << std::endl;
             return -1;
         }
         
@@ -363,9 +372,10 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int
         std::istringstream iss(result);
         iss >> behind >> ahead;
         
+        if (g_debug_mode) std::cerr << "DEBUG: Git ahead/behind result: ahead=" << ahead << ", behind=" << behind << std::endl;
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "Error getting git ahead/behind status: " << e.what() << std::endl;
+        if (g_debug_mode) std::cerr << "DEBUG: Error getting git ahead/behind status: " << e.what() << std::endl;
         return -1;
     }
 }
@@ -463,6 +473,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     const std::vector<nlohmann::json>& segments, 
     bool is_git_repo, 
     const std::filesystem::path& repo_root) {
+    if (g_debug_mode) std::cerr << "DEBUG: Getting prompt variables, is_git_repo=" << is_git_repo << std::endl;
     
     std::unordered_map<std::string, std::string> vars;
     
@@ -736,6 +747,8 @@ std::string PromptInfo::get_kernel_version() {
 }
 
 float PromptInfo::get_cpu_usage() {
+    if (g_debug_mode) std::cerr << "DEBUG: Getting CPU usage" << std::endl;
+    
     #ifdef __APPLE__
         FILE* fp = popen("sh -c 'top -l 1 | grep \"CPU usage\" | awk \"{print \\$3}\" | cut -d\"%\" -f1'", "r");
     #elif defined(__linux__)
@@ -744,23 +757,31 @@ float PromptInfo::get_cpu_usage() {
         return 0.0f;
     #endif
     
-    if (!fp) return 0.0f;
+    if (!fp) {
+        if (g_debug_mode) std::cerr << "DEBUG: Failed to popen for CPU usage" << std::endl;
+        return 0.0f;
+    }
     
     char buffer[32];
-    std::string result = "";
+    std::string resultStr = "";
     while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        result += buffer;
+        resultStr += buffer;
     }
     pclose(fp);
     
     try {
-        return std::stof(result);
-    } catch (const std::exception&) {
+        float result = std::stof(resultStr);
+        if (g_debug_mode) std::cerr << "DEBUG: CPU usage is " << result << "%" << std::endl;
+        return result;
+    } catch (const std::exception& e) {
+        if (g_debug_mode) std::cerr << "DEBUG: Failed to parse CPU usage: " << e.what() << std::endl;
         return 0.0f;
     }
 }
 
 float PromptInfo::get_memory_usage() {
+    if (g_debug_mode) std::cerr << "DEBUG: Getting memory usage" << std::endl;
+    
     #ifdef __APPLE__
         FILE* fp = popen("sh -c 'top -l 1 | grep PhysMem | awk \"{print \\$2}\" | cut -d\"M\" -f1'", "r");
     #elif defined(__linux__)

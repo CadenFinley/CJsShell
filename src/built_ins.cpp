@@ -89,6 +89,11 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
 }
 
 bool Built_ins::ai_commands(const std::vector<std::string>& args) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: ai_commands called with " << args.size() << " arguments" << std::endl;
+    if (args.size() > 1) std::cerr << "DEBUG: ai subcommand: " << args[1] << std::endl;
+  }
+
   if(g_ai == nullptr) {
     return false;
   }
@@ -431,6 +436,11 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
 }
 
 bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: plugin_commands called with " << args.size() << " arguments" << std::endl;
+    if (args.size() > 1) std::cerr << "DEBUG: plugin command: " << args[1] << std::endl;
+  }
+
   if(g_plugin == nullptr) {
     return false;
   }
@@ -815,6 +825,11 @@ bool Built_ins::uninstall_command() {
 }
 
 bool Built_ins::user_commands(const std::vector<std::string>& args) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: user_commands called with " << args.size() << " arguments" << std::endl;
+    if (args.size() > 1) std::cerr << "DEBUG: user subcommand: " << args[1] << std::endl;
+  }
+
   if (args.size() < 2) {
     std::cerr << "Unknown command. No given ARGS. Try 'help'" << std::endl;
     return false;
@@ -845,18 +860,22 @@ bool Built_ins::user_commands(const std::vector<std::string>& args) {
   }
   
   if (cmd == "checkforupdates") {
+    if (g_debug_mode) std::cerr << "DEBUG: Processing checkforupdates command" << std::endl;
+    
     if (args.size() < 3) {
       std::cout << "Check for updates is currently " << (g_check_updates ? "enabled." : "disabled.") << std::endl;
       return true;
     }
     
     if (args[2] == "enable") {
+      if (g_debug_mode) std::cerr << "DEBUG: Enabling check for updates" << std::endl;
       g_check_updates = true;
       std::cout << "Check for updates enabled." << std::endl;
       return true;
     }
     
     if (args[2] == "disable") {
+      if (g_debug_mode) std::cerr << "DEBUG: Disabling check for updates" << std::endl;
       g_check_updates = false;
       std::cout << "Check for updates disabled." << std::endl;
       return true;
@@ -979,6 +998,10 @@ bool Built_ins::user_commands(const std::vector<std::string>& args) {
 }
 
 bool Built_ins::help_command() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: help_command called" << std::endl;
+  }
+
   const std::string section_separator = "\n" + std::string(80, '-') + "\n";
   std::cout << "\nCJ'S SHELL COMMAND REFERENCE" << section_separator;
   
@@ -1215,7 +1238,12 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
 }
 
 bool Built_ins::export_command(const std::vector<std::string>& args) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: export_command called with " << args.size() << " arguments" << std::endl;
+  }
+
   if (args.size() == 1) {
+    if (g_debug_mode) std::cerr << "DEBUG: Listing all environment variables" << std::endl;
     extern char **environ;
     for (char **env = environ; *env; ++env) {
       std::cout << "export " << *env << std::endl;

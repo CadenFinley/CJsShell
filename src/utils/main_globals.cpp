@@ -24,3 +24,4 @@ Ai* g_ai = nullptr;
 Shell* g_shell = nullptr;
 Theme* g_theme = nullptr;
 Plugin* g_plugin = nullptr;
+std::vector<std::string> g_startup_args;

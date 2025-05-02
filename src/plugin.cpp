@@ -1,4 +1,5 @@
 #include "plugin.h"
+#include "main.h"
 #include <sys/utsname.h>
 #include <cstdio>
 #include <cstring>
@@ -479,6 +480,13 @@ std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin
 }
 
 void Plugin::trigger_subscribed_global_event(const std::string& event, const std::string& event_data) {
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: Triggering plugin event: " << event 
+                  << " with data: " << event_data 
+                  << " for " << get_enabled_plugins().size() << " plugins" 
+                  << std::endl;
+    }
+
     if (!enabled) {
         return;
     }
@@ -502,6 +510,10 @@ void Plugin::trigger_subscribed_global_event(const std::string& event, const std
     args.args[0] = strdup("event");
     args.args[1] = strdup(event.c_str());
     args.args[2] = strdup(event_data.c_str());
+
+    if (g_debug_mode && args.count > 0) {
+        std::cerr << "DEBUG: Created event args with " << args.count << " arguments" << std::endl;
+    }
 
     for (const auto& plugin_name : subscribedPlugins) {
         std::shared_lock plugins_lock(plugins_mutex);

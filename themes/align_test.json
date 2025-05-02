@@ -1,0 +1,104 @@
+{
+  "terminal_title": "Alignment Test",
+  "ps1_segments": [
+    {
+      "tag": "left_seg",
+      "content": " {USERNAME} ",
+      "bg_color": "BLUE_BRIGHT",
+      "fg_color": "WHITE",
+      "separator": " ",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "center_seg",
+      "content": " {PATH} ",
+      "bg_color": "GREEN_BRIGHT",
+      "fg_color": "BLACK",
+      "separator": " ",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET",
+      "align": "center"
+    },
+    {
+      "tag": "right_seg",
+      "content": " {TIME12} ",
+      "bg_color": "RED_BRIGHT",
+      "fg_color": "WHITE",
+      "separator": "",
+      "align": "right"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "left_seg",
+      "content": " {USERNAME} ",
+      "bg_color": "BLUE_BRIGHT",
+      "fg_color": "WHITE",
+      "separator": " ",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "center_seg",
+      "content": " {PATH} ",
+      "bg_color": "GREEN_BRIGHT",
+      "fg_color": "BLACK",
+      "separator": " ",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET",
+      "align": "center"
+    },
+    {
+      "tag": "right_seg",
+      "content": " {TIME12} ",
+      "bg_color": "RED_BRIGHT",
+      "fg_color": "WHITE",
+      "separator": "",
+      "align": "right"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "left_seg",
+      "content": " {USERNAME} ",
+      "bg_color": "BLUE_BRIGHT",
+      "fg_color": "WHITE",
+      "separator": " ",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "center_seg",
+      "content": " {PATH} ",
+      "bg_color": "GREEN_BRIGHT",
+      "fg_color": "BLACK",
+      "separator": " ",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET",
+      "align": "center"
+    },
+    {
+      "tag": "right_seg",
+      "content": " {TIME12} ",
+      "bg_color": "RED_BRIGHT",
+      "fg_color": "WHITE",
+      "separator": "",
+      "align": "right"
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "promptseg",
+      "content": " \u2192 ",
+      "bg_color": "RESET",
+      "fg_color": "GREEN_BRIGHT",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+  }
+  ]
+}

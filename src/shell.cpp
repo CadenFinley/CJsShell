@@ -13,27 +13,35 @@ void shell_signal_handler(int signum, siginfo_t* info, void* context) {
   (void)context;
   (void)info;
 
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Signal received: " << signum << std::endl;
+  }
+
   switch (signum) {
     case SIGINT: {
       sigint_received = 1;
       ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
       (void)bytes_written;
+      if (g_debug_mode) std::cerr << "DEBUG: SIGINT handler executed" << std::endl;
       break;
     }
       
     case SIGCHLD: {
       sigchld_received = 1;
+      if (g_debug_mode) std::cerr << "DEBUG: SIGCHLD handler executed" << std::endl;
       break;
     }
       
     case SIGHUP: {
       sighup_received = 1;
+      if (g_debug_mode) std::cerr << "DEBUG: SIGHUP handler executed, exiting" << std::endl;
       _exit(0);
       break;
     }
       
     case SIGTERM: {
       sigterm_received = 1;
+      if (g_debug_mode) std::cerr << "DEBUG: SIGTERM handler executed, exiting" << std::endl;
       _exit(0);
       break;
     }
@@ -41,6 +49,12 @@ void shell_signal_handler(int signum, siginfo_t* info, void* context) {
 }
 
 void Shell::process_pending_signals() {
+  if (g_debug_mode && (sigint_received || sigchld_received)) {
+    std::cerr << "DEBUG: Processing pending signals: "
+              << "SIGINT=" << sigint_received << ", "
+              << "SIGCHLD=" << sigchld_received << std::endl;
+  }
+
   if (sigint_received) {
     sigint_received = 0;
     
@@ -73,6 +87,8 @@ void Shell::process_pending_signals() {
 }
 
 Shell::Shell(bool login_mode) {
+  if (g_debug_mode) std::cerr << "DEBUG: Constructing Shell, login_mode=" << login_mode << std::endl;
+
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
   shell_parser = new Parser();
@@ -90,11 +106,15 @@ Shell::Shell(bool login_mode) {
 }
 
 Shell::~Shell() {
+  if (g_debug_mode) std::cerr << "DEBUG: Destroying Shell" << std::endl;
+
   delete shell_parser;
   delete built_ins;
   delete shell_script_interpreter;
   shell_exec->terminate_all_child_process();
-  restore_terminal_state();
+  if (login_mode) {
+    restore_terminal_state();
+  }
   
   if (g_shell_instance == this) {
     g_shell_instance = nullptr;
@@ -102,6 +122,8 @@ Shell::~Shell() {
 }
 
 void Shell::setup_signal_handlers() {
+  if (g_debug_mode) std::cerr << "DEBUG: Setting up signal handlers" << std::endl;
+
   struct sigaction sa;
   sigemptyset(&sa.sa_mask);
   sigset_t block_mask;
@@ -133,6 +155,8 @@ void Shell::setup_signal_handlers() {
 }
 
 void Shell::save_terminal_state() {
+  if (g_debug_mode) std::cerr << "DEBUG: Saving terminal state" << std::endl;
+
   if (isatty(STDIN_FILENO)) {
     if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
       terminal_state_saved = true;
@@ -141,12 +165,16 @@ void Shell::save_terminal_state() {
 }
 
 void Shell::restore_terminal_state() {
+  if (g_debug_mode) std::cerr << "DEBUG: Restoring terminal state" << std::endl;
+
   if (terminal_state_saved) {
     tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes);
   }
 }
 
 void Shell::setup_job_control() {
+  if (g_debug_mode) std::cerr << "DEBUG: Setting up job control" << std::endl;
+
   if (!isatty(STDIN_FILENO)) {
     job_control_enabled = false;
     return;
@@ -182,6 +210,8 @@ void Shell::setup_job_control() {
 }
 
 int Shell::execute_command(std::string command, bool sync) {
+  if (g_debug_mode) std::cerr << "DEBUG: Executing command: '" << command << "', sync=" << sync << std::endl;
+
   if (command.empty()) {
     return 0;
   }

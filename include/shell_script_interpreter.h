@@ -38,6 +38,7 @@ private:
     bool parse_conditional(std::vector<std::string>::iterator& it, const std::vector<std::string>::const_iterator& end);
     bool parse_loop(std::vector<std::string>::iterator& it, const std::vector<std::string>::const_iterator& end);
     bool evaluate_condition(const std::string& condition);
+    bool process_startup_argument(const std::string& line);
     
     std::string expand_variables(const std::string& str);
     std::string execute_command_substitution(const std::string& cmd);

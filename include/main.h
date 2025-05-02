@@ -47,6 +47,7 @@ class Shell;
 extern Shell* g_shell;
 extern Theme* g_theme;
 extern Plugin* g_plugin;
+extern std::vector<std::string> g_startup_args;
 
 std::string get_colorized_splash();
 int main(int argc, char *argv[]);
