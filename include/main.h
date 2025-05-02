@@ -4,6 +4,7 @@
 #include "theme.h"
 #include "plugin.h"
 #include "shell.h"
+#include "update.h"
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -70,16 +71,7 @@ bool is_shell_script_construct(const std::string& line);
 void process_shell_scripts_in_config();
 bool parse_and_set_env_var(const std::string& line);
 void prepare_shell_signal_environment();
-void startup_update_process();
-bool check_for_update();
-bool load_update_cache();
-void save_update_cache(bool update_available, const std::string& latest_version);
-bool execute_update_if_available(bool update_available);
-bool should_check_for_updates();
-bool download_latest_release();
-void display_changelog(const std::string& changelog_path);
-std::string get_current_time_string();
-bool is_newer_version(const std::string& latest, const std::string& current);
 bool is_first_boot();
 void mark_first_boot_complete();
+std::string get_current_time_string();
 void handle_command_error(const std::string& command, const std::string& error_message);
