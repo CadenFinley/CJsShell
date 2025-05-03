@@ -16,7 +16,6 @@ bool check_for_update();
 bool load_update_cache();
 void save_update_cache(bool update_available, const std::string& latest_version);
 bool should_check_for_updates();
-bool download_latest_release();
 bool execute_update_if_available(bool update_available);
 void display_changelog(const std::string& changelog_path);
 void startup_update_process();

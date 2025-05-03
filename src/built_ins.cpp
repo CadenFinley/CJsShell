@@ -767,61 +767,16 @@ bool Built_ins::approot_command() {
 }
 
 bool Built_ins::version_command() {
-  std::cout << "CJ's g_shell v" << c_version << std::endl;
+  std::cout << "CJ's Shell v" << c_version << std::endl;
   return true;
 }
 
 bool Built_ins::uninstall_command() {
-  if (g_plugin) {
-    std::vector<std::string> enabledPlugins = g_plugin->get_enabled_plugins();
-    if (!enabledPlugins.empty()) {
-      std::cerr << "Please disable all plugins before uninstalling." << std::endl;
-      return false;
-    }
-  }
-  
-  std::cout << "Are you sure you want to uninstall cjsh? (y/n): ";
-  char confirmation;
-  std::cin >> confirmation;
-  std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  
-  if (confirmation == 'y' || confirmation == 'Y') {
-    std::filesystem::path uninstallScriptPath = cjsh_filesystem::g_cjsh_data_path / "cjsh_uninstall.sh";
-    
-    if (!std::filesystem::exists(uninstallScriptPath)) {
-      std::cerr << "Uninstall script not found." << std::endl;
-      return false;
-    }
-    
-    std::cout << "Do you want to remove all user data? (y/n): ";
-    char removeUserData;
-    std::cin >> removeUserData;
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    
-    std::cout << "Running uninstall script..." << std::endl;
-    
-    pid_t pid = fork();
-    if (pid == -1) {
-      std::cerr << "Error: Failed to fork process for uninstall." << std::endl;
-      return false;
-    } else if (pid == 0) {
-      if (removeUserData == 'y' || removeUserData == 'Y') {
-        execl(uninstallScriptPath.c_str(), uninstallScriptPath.c_str(), "--all", NULL);
-      } else {
-        execl(uninstallScriptPath.c_str(), uninstallScriptPath.c_str(), NULL);
-      }
-      std::cerr << "Error: Failed to execute uninstall script: " << strerror(errno) << std::endl;
-      exit(1);
-    } else {
-      int status;
-      waitpid(pid, &status, 0);
-      g_exit_flag = true;
-      return WIFEXITED(status) && WEXITSTATUS(status) == 0;
-    }
-  } else {
-    std::cout << "Uninstall cancelled." << std::endl;
-    return false;
-  }
+  std::cout << "To uninstall CJ's Shell run the following brew command:" << std::endl;
+  std::cout << "brew uninstall cjsh" << std::endl;
+  std::cout << "To remove the application data, run:" << std::endl;
+  std::cout << "rm -rf " << cjsh_filesystem::g_cjsh_data_path.string() << std::endl;
+  return true;
 }
 
 bool Built_ins::user_commands(const std::vector<std::string>& args) {
@@ -1161,9 +1116,8 @@ bool Built_ins::help_command() {
   std::cout << "    -v, --version         Display version and exit\n";
   std::cout << "    -h, --help            Display help and exit\n";
   std::cout << "    --update              Check for updates and install if available\n";
-  std::cout << "    --force-update        Force update to latest version\n";
-  std::cout << "    --check-update        Enable update checks\n";
-  std::cout << "    --no-update           Disable update checks\n";
+  std::cout << "    --check-update        Check for update\n";
+  std::cout << "    --no-update           Do not check for update on launch\n";
   std::cout << "    --silent-updates      Enable silent update checks\n";
   std::cout << "    --splash              Display splash screen and exit\n";
   std::cout << "    -d, --debug           Enable debug mode\n";

@@ -13,7 +13,6 @@
 
 using json = nlohmann::json;
 
-// helper to compare versions
 static std::vector<int> parseVersion(const std::string& ver) {
     std::vector<int> parts;
     std::istringstream iss(ver);
@@ -112,142 +111,14 @@ bool should_check_for_updates() {
     return elapsed > g_update_check_interval;
 }
 
-bool download_latest_release() {
-    std::cout << "Downloading latest release..." << std::endl;
-    std::filesystem::path temp_dir = cjsh_filesystem::g_cjsh_data_path / "temp_update";
-    if (std::filesystem::exists(temp_dir)) std::filesystem::remove_all(temp_dir);
-    std::filesystem::create_directory(temp_dir);
-
-    std::string download_url;
-    {
-        std::string api_cmd = "curl -s " + c_update_url;
-        std::string api_result;
-        FILE* api_pipe = popen(api_cmd.c_str(), "r");
-        if (api_pipe) {
-            char buf[128];
-            while (fgets(buf, sizeof(buf), api_pipe)) api_result += buf;
-            pclose(api_pipe);
-            try {
-                auto api_json = json::parse(api_result);
-#if defined(__APPLE__)
-                std::string os_suffix = "macos";
-#elif defined(__linux__)
-                std::string os_suffix = "linux";
-#else
-                std::string os_suffix;
-#endif
-                std::string expected = "cjsh" + (os_suffix.empty() ? "" : "-" + os_suffix);
-                for (const auto& asset : api_json["assets"]) {
-                    std::string name = asset.value("name", "");
-                    if (name == expected || (download_url.empty() && name == "cjsh")) {
-                        download_url = asset.value("browser_download_url", "");
-                        if (name == expected) break;
-                    }
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "Error parsing asset data: " << e.what() << std::endl;
-            }
-        }
-    }
-
-    if (download_url.empty()) {
-        std::cerr << "Error: Unable to determine download URL." << std::endl;
-        return false;
-    }
-
-    auto asset_name = download_url.substr(download_url.find_last_of('/') + 1);
-    std::filesystem::path asset_path = temp_dir / asset_name;
-    {
-        std::string dl_cmd = "curl -L -s " + download_url + " -o " + asset_path.string();
-        FILE* dl = popen(dl_cmd.c_str(), "r");
-        if (!dl) {
-            std::cerr << "Error: Failed to execute download command." << std::endl;
-            return false;
-        }
-        pclose(dl);
-    }
-
-    if (!std::filesystem::exists(asset_path)) {
-        std::cerr << "Error: Download failed - output file not created." << std::endl;
-        return false;
-    }
-
-    std::filesystem::path output_path = temp_dir / "cjsh";
-    std::filesystem::rename(asset_path, output_path);
-
-    try {
-        std::filesystem::permissions(output_path,
-            std::filesystem::perms::owner_read | std::filesystem::perms::owner_write |
-            std::filesystem::perms::owner_exec | std::filesystem::perms::group_read |
-            std::filesystem::perms::group_exec | std::filesystem::perms::others_read |
-            std::filesystem::perms::others_exec);
-    } catch (const std::exception& e) {
-        std::cerr << "Error setting file permissions: " << e.what() << std::endl;
-    }
-
-    std::cout << "Administrator privileges required to install the update." << std::endl;
-    std::cout << "Please enter your password if prompted." << std::endl;
-
-    std::string sudo_cp = "sudo cp " + output_path.string() + " " + cjsh_filesystem::g_cjsh_path.string();
-    FILE* sudo_pipe = popen(sudo_cp.c_str(), "r");
-    int sudo_res = sudo_pipe ? pclose(sudo_pipe) : -1;
-    if (sudo_res != 0) {
-        std::cerr << "Error executing sudo command." << std::endl;
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    if (std::filesystem::exists(cjsh_filesystem::g_cjsh_path)) {
-        auto new_sz = std::filesystem::file_size(output_path);
-        auto dest_sz = std::filesystem::file_size(cjsh_filesystem::g_cjsh_path);
-        if (new_sz == dest_sz) {
-            std::string sudo_chmod = "sudo chmod 755 " + cjsh_filesystem::g_cjsh_path.string();
-            FILE* chmod_pipe = popen(sudo_chmod.c_str(), "r");
-            pclose(chmod_pipe);
-            std::cout << "Update installed successfully." << std::endl;
-            std::ofstream changelog((cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string());
-            if (changelog.is_open()) {
-                changelog << "Updated to version " << g_cached_version
-                          << " on " << get_current_time_string() << std::endl;
-                changelog << "See GitHub for full release notes: "
-                          << c_github_url << "/releases/tag/v" << g_cached_version << std::endl;
-            }
-        } else {
-            std::cout << "Error: The file was not properly installed (size mismatch)." << std::endl;
-        }
-    } else {
-        std::cout << "Error: Installation failed - destination file doesn't exist." << std::endl;
-    }
-
-    if (std::filesystem::exists(temp_dir)) std::filesystem::remove_all(temp_dir);
-    if (std::filesystem::exists(cjsh_filesystem::g_cjsh_update_cache_path))
-        std::filesystem::remove(cjsh_filesystem::g_cjsh_update_cache_path);
-
-    return true;
-}
-
 bool execute_update_if_available(bool avail) {
-    if (!avail) { std::cout << "\nYou are up to date!.\n"; return false; }
-    std::cout << "\nAn update is available. Download? (Y/N): ";
-    char r; std::cin >> r; std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    if (r!='Y' && r!='y') return false;
-    save_update_cache(false, g_cached_version);
-    if (!download_latest_release()) {
-        std::cout << "Failed to update. Visit: " << c_github_url << "/releases/latest\n";
-        save_update_cache(true, g_cached_version);
+    if (!avail) {
+        std::cout << "\nYou are up to date!.\n";
         return false;
     }
-    std::cout << "Update installed! Restart now? (Y/N): ";
-    std::cin >> r; std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    if (r=='Y' || r=='y') {
-        if (g_shell->get_login_mode()) g_shell->restore_terminal_state();
-        delete g_shell; delete g_ai; delete g_theme; delete g_plugin;
-        execl(cjsh_filesystem::g_cjsh_path.c_str(),
-              cjsh_filesystem::g_cjsh_path.c_str(), NULL);
-        std::cerr << "Restart failed, please restart manually.\n"; exit(0);
-    }
-    std::cout << "Please restart to use the new version.\n";
-    return true;
+    std::cout << "\nAn update is available. Please run:\n"
+              << "  brew update cadenfinley/cjsh/cjsh\n";
+    return false;
 }
 
 void display_changelog(const std::string& path) {

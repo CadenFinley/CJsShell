@@ -94,10 +94,6 @@ int main(int argc, char *argv[]) {
       std::cerr << "chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
       return 0;
     }
-    else if (arg == "--force-update") {
-      download_latest_release();
-      return 0;
-    }
     else if (arg == "--update") {
       execute_update_if_available(check_for_update());
       return 0;
