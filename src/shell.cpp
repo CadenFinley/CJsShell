@@ -207,15 +207,12 @@ void Shell::setup_job_control() {
 
 int Shell::execute_command(std::string command) {
   if (g_debug_mode) std::cerr << "DEBUG: Executing command: '" << command << std::endl;
-
   if (command.empty()) {
     return 0;
   }
-
   if (command[0] == '#') {
     return 0;
   }
-
   if(!shell_exec || !shell_parser || !built_ins || !shell_script_interpreter) {
     return 1;
   }
@@ -232,7 +229,8 @@ int Shell::execute_command(std::string command) {
       command.pop_back();
     }
   }
-
+ 
+  // check again for empty command after removing spaces and removing &
   if (command.empty()) {
     return 0;
   }
@@ -247,43 +245,6 @@ int Shell::execute_command(std::string command) {
     return 0;
   }
 
-  if (command.find('{') != std::string::npos && command.find('}') != std::string::npos && 
-      command.find("mkdir") == 0) {
-    std::istringstream iss(command);
-    std::string cmd_part;
-    iss >> cmd_part;
-    
-    std::string args_part = command.substr(cmd_part.length());
-    while (!args_part.empty() && std::isspace(args_part.front())) {
-      args_part.erase(0, 1);
-    }
-    
-    std::vector<std::string> args = {cmd_part};
-    
-    if (!args_part.empty() && args_part[0] == '-') {
-      size_t space_pos = args_part.find(' ');
-      if (space_pos != std::string::npos) {
-        args.push_back(args_part.substr(0, space_pos));
-        args_part = args_part.substr(space_pos + 1);
-        while (!args_part.empty() && std::isspace(args_part.front())) {
-          args_part.erase(0, 1);
-        }
-      }
-    }
-    
-    std::vector<std::string> expanded_paths = shell_parser->expand_wildcards(args_part);
-    args.insert(args.end(), expanded_paths.begin(), expanded_paths.end());
-    
-    if (run_in_background) {
-      shell_exec->execute_command_async(args);
-      last_terminal_output_error = "Background command launched";
-    } else {
-      shell_exec->execute_command_sync(args);
-      last_terminal_output_error = shell_exec->get_error();
-    }
-    last_command = command + (run_in_background ? " &" : "");
-    return shell_exec->get_exit_code();
-  }
 
   if (menu_active && command.find('\n') != std::string::npos) {
     std::istringstream iss(command);

@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <unordered_map>
+#include <glib.h>
 
 struct Command {
   std::vector<std::string> args;
@@ -20,7 +21,7 @@ struct LogicalCommand {
 
 class Parser {
 public:
-  std::vector<std::string> parse_command(const std::string& command);
+  std::vector<std::string> parse_command(const std::string& cmdline);
   std::vector<Command> parse_pipeline(const std::string& command);
   std::vector<std::string> expand_wildcards(const std::string& pattern);
   std::vector<LogicalCommand> parse_logical_commands(const std::string& command);

@@ -165,6 +165,71 @@ if(UNIX AND NOT APPLE)
   find_library(DL_LIBRARY dl REQUIRED)
 endif()
 
+# Find GLib which provides glib.h
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(GLIB QUIET glib-2.0)
+  if(GLIB_FOUND)
+    include_directories(${GLIB_INCLUDE_DIRS})
+    message(STATUS "Found GLib via pkg-config: ${GLIB_VERSION}")
+  else()
+    message(WARNING "GLib not found via pkg-config, trying alternate methods...")
+    # Try to find GLib in common locations
+    find_path(GLIB_INCLUDE_DIRS glib.h
+      PATH_SUFFIXES glib-2.0
+      PATHS
+        /usr/include
+        /usr/local/include
+        /opt/local/include
+        /opt/homebrew/include
+        $ENV{GLIB_DIR}/include
+    )
+    
+    if(GLIB_INCLUDE_DIRS)
+      # Also need to find glibconfig.h which is in a different location
+      find_path(GLIB_CONFIG_INCLUDE_DIR glibconfig.h
+        PATH_SUFFIXES 
+          glib-2.0/include
+          lib/glib-2.0/include
+          include/glib-2.0/include
+        PATHS
+          /usr/lib
+          /usr/local/lib
+          /opt/local/lib
+          /opt/homebrew/lib
+          /usr/include
+          /usr/local/include
+          $ENV{GLIB_DIR}/lib
+      )
+      
+      if(GLIB_CONFIG_INCLUDE_DIR)
+        set(GLIB_INCLUDE_DIRS ${GLIB_INCLUDE_DIRS} ${GLIB_CONFIG_INCLUDE_DIR})
+        find_library(GLIB_LIBRARIES NAMES glib-2.0 glib
+          PATHS
+            /usr/lib
+            /usr/local/lib
+            /opt/local/lib
+            /opt/homebrew/lib
+            $ENV{GLIB_DIR}/lib
+        )
+        
+        if(GLIB_LIBRARIES)
+          message(STATUS "Found GLib manually: ${GLIB_LIBRARIES}")
+          include_directories(${GLIB_INCLUDE_DIRS})
+        else()
+          message(FATAL_ERROR "GLib library not found. Please install GLib development package.")
+        endif()
+      else()
+        message(FATAL_ERROR "glibconfig.h not found. Please install GLib development package.")
+      endif()
+    else()
+      message(FATAL_ERROR "glib.h not found. Please install GLib development package.")
+    endif()
+  endif()
+else()
+  message(FATAL_ERROR "pkg-config not found. Unable to locate GLib. Please install pkg-config and GLib development package.")
+endif()
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
   message(STATUS "Found nlohmann/json in third_party/json/include")
@@ -211,6 +276,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   ${CURL_LIBRARIES}
   isocline
   Threads::Threads
+  ${GLIB_LIBRARIES}
 )
 if(UNIX AND NOT APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})

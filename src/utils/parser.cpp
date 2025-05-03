@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "main.h"
 #include <regex>
 #include <cstdlib>
 #include <glob.h>
@@ -9,86 +10,73 @@
 #include <fcntl.h>
 #include <cstring>
 
-std::vector<std::string> Parser::parse_command(const std::string& command) {
-  std::string expanded_command = command;
-  
-  std::string first_word;
-  size_t space_pos = command.find(' ');
-  if (space_pos != std::string::npos) {
-    first_word = command.substr(0, space_pos);
-  } else {
-    first_word = command;
-  }
-  
-  auto alias_it = aliases.find(first_word);
-  if (alias_it != aliases.end()) {
-    if (space_pos != std::string::npos) {
-      expanded_command = alias_it->second + command.substr(space_pos);
-    } else {
-      expanded_command = alias_it->second;
-    }
-  }
-  
+std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   std::vector<std::string> args;
-  std::string current_arg;
-  bool in_quotes = false;
-  char quote_char = '\0';
+  GError* error = nullptr;
+  gchar** argv = nullptr;
+  int argc = 0;
+  if (!g_shell_parse_argv(cmdline.c_str(), &argc, &argv, &error)) {
+    if (g_debug_mode && error) {
+      std::cerr << "DEBUG: g_shell_parse_argv failed: "
+                << error->message << std::endl;
+      g_error_free(error);
+    }
+    return args;
+  }
+  for (int i = 0; i < argc; ++i) {
+    args.emplace_back(argv[i]);
+  }
+  g_strfreev(argv);
+  // now args[] are unquoted and backslashes handled
   
-  for (size_t i = 0; i < expanded_command.length(); i++) {
-    char c = expanded_command[i];
-    
-    if ((c == '"' || c == '\'') && (i == 0 || expanded_command[i-1] != '\\')) {
-      if (!in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char) {
-        in_quotes = false;
-        quote_char = '\0';
-      } else {
-        current_arg += c;
+  // First check if the command is an alias
+  if (!args.empty()) {
+    auto alias_it = aliases.find(args[0]);
+    if (alias_it != aliases.end()) {
+      // Parse the alias and combine with the remaining arguments
+      std::vector<std::string> alias_args;
+      GError* alias_error = nullptr;
+      gchar** alias_argv = nullptr;
+      int alias_argc = 0;
+      
+      if (g_shell_parse_argv(alias_it->second.c_str(), &alias_argc, &alias_argv, &alias_error)) {
+        for (int i = 0; i < alias_argc; ++i) {
+          alias_args.emplace_back(alias_argv[i]);
+        }
+        g_strfreev(alias_argv);
+        
+        // Replace the first argument with the expanded alias
+        if (!alias_args.empty()) {
+          std::vector<std::string> new_args;
+          new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
+          
+          // Add remaining arguments from the original command
+          if (args.size() > 1) {
+            new_args.insert(new_args.end(), args.begin() + 1, args.end());
+          }
+          
+          args = new_args;
+        }
+      } else if (alias_error) {
+        g_error_free(alias_error);
       }
-      continue;
-    }
-    
-    if (c == ' ' && !in_quotes) {
-      if (current_arg.length() > 0) {
-        args.push_back(current_arg);
-        current_arg.clear();
-      }
-      while (i+1 < expanded_command.length() && expanded_command[i+1] == ' ') {
-        i++;
-      }
-      continue;
-    }
-    
-    if (c == '\\' && i+1 < expanded_command.length()) {
-      current_arg += expanded_command[i+1];
-      i++;
-      continue;
-    }
-    
-    if (c != ' ' || in_quotes) {
-      current_arg += c;
     }
   }
   
-  if (current_arg.length() > 0) {
-    args.push_back(current_arg);
-  }
-  
+  // Expand environment variables and wildcards
   for (auto& arg : args) {
     expand_env_vars(arg);
   }
 
   std::vector<std::string> expanded_args;
   for (auto& arg : args) {
+    // Detect tilde (~), globbing (*, ?), and brace ({}) patterns for expansion
     bool has_tilde = false;
-    
-    if (arg.length() > 0) {
+    if (!arg.empty()) {
       if (arg[0] == '~') {
         has_tilde = true;
       } else {
-        for (size_t i = 1; i < arg.length(); i++) {
+        for (size_t i = 1; i < arg.length(); ++i) {
           if (arg[i] == '~' && (arg[i-1] == '/' || arg[i-1] == ':')) {
             has_tilde = true;
             break;
@@ -96,8 +84,10 @@ std::vector<std::string> Parser::parse_command(const std::string& command) {
         }
       }
     }
-    
-    if (arg.find_first_of("*?") != std::string::npos || has_tilde) {
+    bool has_braces = (arg.find('{') != std::string::npos && arg.find('}') != std::string::npos);
+    bool has_glob = (arg.find_first_of("*?") != std::string::npos);
+    // Perform wildcard, tilde, and brace expansion
+    if (has_glob || has_tilde || has_braces) {
       auto ex = expand_wildcards(arg);
       if (!ex.empty()) {
         expanded_args.insert(expanded_args.end(), ex.begin(), ex.end());
@@ -108,7 +98,6 @@ std::vector<std::string> Parser::parse_command(const std::string& command) {
       expanded_args.push_back(arg);
     }
   }
-
   return expanded_args;
 }
 
@@ -329,8 +318,37 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           }
         }
         
+        // Expand environment variables
         expand_env_vars(arg);
-        parsed_cmd.args.push_back(arg);
+        // Detect tilde (~), globbing (*, ?), and brace ({}) patterns for expansion
+        bool has_tilde = false;
+        if (!arg.empty()) {
+          if (arg[0] == '~') {
+            has_tilde = true;
+          } else {
+            for (size_t k = 1; k < arg.size(); ++k) {
+              if (arg[k] == '~' && (arg[k-1] == '/' || arg[k-1] == ':')) {
+                has_tilde = true;
+                break;
+              }
+            }
+          }
+        }
+        bool has_glob = (arg.find_first_of("*?") != std::string::npos);
+        bool has_braces = (arg.find('{') != std::string::npos && arg.find('}') != std::string::npos);
+        // Perform wildcard, tilde, and brace expansion
+        if (has_glob || has_tilde || has_braces) {
+          auto ex = expand_wildcards(arg);
+          if (!ex.empty()) {
+            for (const auto& e : ex) {
+              parsed_cmd.args.push_back(e);
+            }
+          } else {
+            parsed_cmd.args.push_back(arg);
+          }
+        } else {
+          parsed_cmd.args.push_back(arg);
+        }
       }
     }
     
