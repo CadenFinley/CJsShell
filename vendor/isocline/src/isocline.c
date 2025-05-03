@@ -486,6 +486,10 @@ static void ic_atexit(void);
 
 static void ic_env_free(ic_env_t* env) {
   if (env == NULL) return;
+// disable bracketed‑paste before exit
+  if (env->term != NULL) {
+    term_write(env->term, "\x1b[?2004l");
+  }
   history_save(env->history);
   history_free(env->history);
   completions_free(env->completions);
@@ -526,11 +530,16 @@ static ic_env_t* ic_env_create( ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _rea
   env->mem = mem;
 
   // Initialize
-  env->tty         = tty_new(env->mem, -1);  // can return NULL
-  env->term        = term_new(env->mem, env->tty, false, false, -1 );  
+  env->tty         = tty_new(env->mem, -1);
+  env->term        = term_new(env->mem, env->tty, false, false, -1 );
+// enable bracketed‑paste in POSIX terminals
+  if (env->term != NULL) {
+    term_write(env->term, "\x1b[?2004h");
+  }
   env->history     = history_new(env->mem);
   env->completions = completions_new(env->mem);
   env->bbcode      = bbcode_new(env->mem, env->term);
+
   env->hint_delay  = 400;   
   
   if (env->tty == NULL || env->term==NULL ||

@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "main.h"
 #include "built_ins.h"
+#include <sstream>
 
 static volatile sig_atomic_t sigint_received = 0;
 static volatile sig_atomic_t sigchld_received = 0;
@@ -207,6 +208,20 @@ int Shell::execute_command(std::string command, bool sync) {
   if (command.empty()) {
     return 0;
   }
+
+  if (command.find('\n') != std::string::npos) {
+    std::istringstream iss(command);
+    std::string line;
+    bool prev_success = true;
+    int exit_code = 0;
+    while (prev_success && std::getline(iss, line)) {
+      if (line.empty()) continue;
+      exit_code = execute_command(line, sync);
+      prev_success = (exit_code == 0);
+    }
+    return exit_code;
+  }
+
   if (!shell_exec || !built_ins || !shell_parser) {
     return 1;
   }

@@ -55,6 +55,7 @@ struct tty_s {
   struct termios  orig_ios;         // original terminal settings
   struct termios  raw_ios;          // raw terminal settings
   #endif
+  bool      paste_mode;             // are we inside a bracketed‑paste?
 };
 
 
@@ -403,6 +404,7 @@ ic_private tty_t* tty_new(alloc_t* mem, int fd_in)
   tty->esc_initial_timeout = 100; 
   #endif
   tty->esc_timeout = 10;
+  tty->paste_mode = false;  // initialize
   if (!(isatty(tty->fd_in) && tty_init_raw(tty) && tty_init_utf8(tty))) {
     tty_free(tty);
     return NULL;
