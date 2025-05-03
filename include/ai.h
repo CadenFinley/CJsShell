@@ -10,6 +10,9 @@
 #include <chrono>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
+#include <atomic>
+#include <termios.h>
+#include <unistd.h>
 
 using json = nlohmann::json;
 
@@ -88,6 +91,7 @@ private:
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp);
     std::vector<std::string> splitString(const std::string& str, char delimiter);
     std::string sanitizeFileName(const std::string& fileName);
+    static void monitorCancellation(std::atomic<bool>& loading, std::atomic<bool>& requestCancelled);
 
     std::string USER_API_KEY;
     std::string initialInstruction;
@@ -108,4 +112,5 @@ private:
     std::map<std::string, nlohmann::json> responseDataMap;
     std::string saveDirectory;
     bool enabled = true;
+    std::atomic<bool> requestInProgress{false};
 };

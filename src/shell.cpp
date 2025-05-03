@@ -213,6 +213,17 @@ int Shell::execute_command(std::string command, bool sync) {
     return 1;
   }
 
+
+  if (command == "clear") {
+    std::vector<std::string> clear_args = {"clear"};
+    shell_exec->execute_command_sync(clear_args);
+    return 0;
+  }
+  if (command == "exit" || command == "quit") {
+    g_exit_flag = true;
+    return 0;
+  }
+
   if (!menu_active) {
     // we are in the ai menu
     if(!command.empty()) {
@@ -303,16 +314,6 @@ int Shell::execute_command(std::string command, bool sync) {
       ? "command completed successfully"
       : "command failed";
     return exit_code;
-  }
-
-  if (command == "clear") {
-    std::vector<std::string> clear_args = {"clear"};
-    shell_exec->execute_command_sync(clear_args);
-    return 0;
-  }
-  if (command == "exit" || command == "quit") {
-    g_exit_flag = true;
-    return 0;
   }
 
   if (command.find('|') != std::string::npos) {

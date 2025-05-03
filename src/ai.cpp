@@ -393,6 +393,10 @@ std::string Ai::makeCallToChatGPT(const std::string& message) {
     std::string responseData;
 
     std::atomic<bool> loading(true);
+    std::atomic<bool> requestCancelled(false);
+    requestInProgress = true;
+    
+    // Thread for showing loading animation
     std::thread loadingThread([&loading]() {
         const char* loadingChars = "|/-\\";
         int i = 0;
@@ -402,6 +406,11 @@ std::string Ai::makeCallToChatGPT(const std::string& message) {
         }
         std::cout << "\r                    \r" << std::flush;
     });
+    
+    // Thread for monitoring cancellation request
+    std::thread cancellationThread([&loading, &requestCancelled]() {
+        monitorCancellation(loading, requestCancelled);
+    });
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -410,15 +419,28 @@ std::string Ai::makeCallToChatGPT(const std::string& message) {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, static_cast<long>(timeoutFlagSeconds));
 
-    CURLcode res = curl_easy_perform(curl);
+    CURLcode res = CURLE_OK;
+    if (!requestCancelled) {
+        res = curl_easy_perform(curl);
+    }
     
     loading = false;
+    requestInProgress = false;
+    
     if (loadingThread.joinable()) {
         loadingThread.join();
     }
     
+    if (cancellationThread.joinable()) {
+        cancellationThread.join();
+    }
+    
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
+
+    if (requestCancelled) {
+        return "Request cancelled by user.";
+    }
 
     if (res != CURLE_OK) {
         std::cerr << "Curl error: " << curl_easy_strerror(res) << std::endl;
@@ -448,6 +470,42 @@ std::string Ai::makeCallToChatGPT(const std::string& message) {
         std::cerr << "JSON parsing error: " << e.what() << std::endl;
         return "";
     }
+}
+
+void Ai::monitorCancellation(std::atomic<bool>& loading, std::atomic<bool>& requestCancelled) {
+    std::cout << "\nPress Enter to cancel the request.\n";
+    
+    fd_set readfds;
+    struct timeval tv;
+    int stdin_fd = fileno(stdin);
+    
+    while (loading) {
+        FD_ZERO(&readfds);
+        FD_SET(stdin_fd, &readfds);
+        
+        // Set timeout for select to ensure we can check the loading flag regularly
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000; // 100ms
+        
+        int result = select(stdin_fd + 1, &readfds, NULL, NULL, &tv);
+        
+        if (result > 0 && FD_ISSET(stdin_fd, &readfds)) {
+            // Consume all pending input characters
+            int c;
+            while ((c = getchar()) != EOF && c != '\n') {
+                // Consume the character
+            }
+            
+            // Signal cancellation
+            requestCancelled = true;
+            break;
+        }
+        
+        if (!loading) break;
+    }
+    
+    // Make sure stdin buffer is flushed
+    tcflush(stdin_fd, TCIFLUSH);
 }
 
 size_t Ai::WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userp) {
