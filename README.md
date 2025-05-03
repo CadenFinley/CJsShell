@@ -5,7 +5,7 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7)](https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 ![Version](https://img.shields.io/github/v/release/CadenFinley/CJsShell?label=version&color=blue)
-![Lines of Code](https://img.shields.io/badge/lines%20of%20code-21008-green)
+![Lines of Code](https://img.shields.io/badge/lines%20of%20code-21168-green)
 
 ## CJ's Shell
 
@@ -17,14 +17,10 @@ CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes wi
 
 ### Quick Installation
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool-scripts/cjsh_install.sh | bash
-```
-
-To install and set as your default shell:
+This installs cjsh from a custom brew tap hosted at: https://github.com/CadenFinley/homebrew-cjsh
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool-scripts/cjsh_install.sh | bash -s -- --set-as-shell
+brew install cadenfinley/cjsh/cjsh
 ```
 
 ### Manual Installation
