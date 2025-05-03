@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <iostream>
+#include <errno.h>
 #include "update.h"
 
 //DOCS AND TESTS
@@ -270,8 +271,23 @@ void main_process_loop() {
     }
     
     if (g_theme -> uses_newline()) {
+      // Check if stdout is still connected before writing
+      if (write(STDOUT_FILENO, "", 0) < 0) {
+        if (errno == EIO || errno == EPIPE) {
+          if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (EIO/EPIPE on stdout)" << std::endl;
+          g_exit_flag = true;
+          break;
+        }
+      }
       std::cout << prompt << std::endl;
       prompt = g_shell->get_newline_prompt();
+    }
+
+    // Check terminal status before readline
+    if (!isatty(STDIN_FILENO)) {
+      if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (stdin no longer a TTY)" << std::endl;
+      g_exit_flag = true;
+      break;
     }
     
     char* input = ic_readline(prompt.c_str());
@@ -289,6 +305,11 @@ void main_process_loop() {
         break;
       }
     } else {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: ic_readline returned nullptr (possible PTY disconnect)" << std::endl;
+        if (errno == EIO) std::cerr << "DEBUG: EIO error detected" << std::endl;
+        if (errno == EPIPE) std::cerr << "DEBUG: EPIPE error detected" << std::endl;
+      }
       g_exit_flag = true;
     }
     notify_plugins("main_process_end", c_pid_str);
@@ -436,6 +457,13 @@ void prepare_shell_signal_environment() {
   sigaction(SIGTSTP, &sa, nullptr);
   
   sigprocmask(SIG_UNBLOCK, &mask, nullptr);
+  
+  // Reset SIGPIPE to default behavior to ensure shell dies when writing to closed PTY
+  struct sigaction sa_pipe;
+  sa_pipe.sa_handler = SIG_DFL; // Default action (process termination)
+  sigemptyset(&sa_pipe.sa_mask);
+  sa_pipe.sa_flags = 0;
+  sigaction(SIGPIPE, &sa_pipe, nullptr);
 }
 
 bool init_interactive_filesystem() {
