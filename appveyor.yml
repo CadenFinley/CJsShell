@@ -73,22 +73,3 @@ notifications:
     on_build_success: false
     on_build_failure: true
     on_build_status_changed: true
-
-image: Visual Studio 2019
-environment:
-  matrix:
-    - BUILD_TYPE: Release
-    - BUILD_TYPE: Debug
-
-build_script:
-  - cmd: >
-      mkdir build &&
-      cd build &&
-      cmake -DCMAKE_BUILD_TYPE=%BUILD_TYPE% ..
-  - cmd: >
-      cmake --build . --config %BUILD_TYPE%
-
-test_script:
-  - cmd: >
-      cd build &&
-      ctest --output-on-failure
