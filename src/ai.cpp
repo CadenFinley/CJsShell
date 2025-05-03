@@ -395,6 +395,11 @@ std::string Ai::makeCallToChatGPT(const std::string& message) {
     std::atomic<bool> loading(true);
     std::atomic<bool> requestCancelled(false);
     requestInProgress = true;
+
+    // Thread for monitoring cancellation request
+    std::thread cancellationThread([&loading, &requestCancelled]() {
+      monitorCancellation(loading, requestCancelled);
+    });
     
     // Thread for showing loading animation
     std::thread loadingThread([&loading]() {
@@ -405,11 +410,6 @@ std::string Ai::makeCallToChatGPT(const std::string& message) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         std::cout << "\r                    \r" << std::flush;
-    });
-    
-    // Thread for monitoring cancellation request
-    std::thread cancellationThread([&loading, &requestCancelled]() {
-        monitorCancellation(loading, requestCancelled);
     });
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
