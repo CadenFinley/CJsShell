@@ -1,0 +1,165 @@
+.TH CJSH 1 "May 2023" "Version 2.1.2.3" "CJ's Shell Manual"
+
+.SH NAME
+cjsh \- CJ's Shell
+
+.SH SYNOPSIS
+.B cjsh
+[\fIOPTIONS\fR]
+[\fICOMMAND\fR]
+
+.SH DESCRIPTION
+.B cjsh
+(CJ's Shell) is a custom login shell with modern features including a built-in AI assistant,
+a powerful plugin engine, customizable themes, and a vibrant color engine.
+It aims to enhance productivity while providing a user-friendly experience.
+
+.SH OPTIONS
+
+.SS "Login and Execution:"
+.TP
+.B \-l, \-\-login
+Start shell in login mode. This enables loading of login configuration files.
+
+.TP
+.B \-c, \-\-command \fICMD\fR
+Execute the specified command and exit.
+
+.TP
+.B \-\-set\-as\-shell
+Show instructions to set CJ's Shell as your default shell.
+
+.SS "Feature Toggles:"
+.TP
+.B \-\-no\-plugins
+Disable the plugin system.
+
+.TP
+.B \-\-no\-themes
+Disable theme support.
+
+.TP
+.B \-\-no\-ai
+Disable AI assistant features.
+
+.TP
+.B \-\-no\-colors
+Disable color output.
+
+.TP
+.B \-\-no\-titleline
+Disable title line display.
+
+.TP
+.B \-\-no\-source
+Don't source the ~/.cjshrc file.
+
+.SS "Updates and Information:"
+.TP
+.B \-v, \-\-version
+Display version information and exit.
+
+.TP
+.B \-h, \-\-help
+Display help and exit.
+
+.TP
+.B \-\-update
+Check for updates and install if available.
+
+.TP
+.B \-\-check\-update
+Check for updates without installing.
+
+.TP
+.B \-\-no\-update
+Do not check for updates on launch.
+
+.TP
+.B \-\-silent\-updates
+Enable silent update checks.
+
+.TP
+.B \-d, \-\-debug
+Enable debug mode with verbose output.
+
+.SH FILES
+
+.TP
+.B ~/.profile
+Standard system profile. Sourced in login mode if it exists.
+
+.TP
+.B ~/.cjprofile
+CJ's Shell profile configuration. Sourced in login mode.
+
+.TP
+.B ~/.cjshrc
+CJ's Shell runtime configuration. Sourced in interactive mode unless --no-source is specified.
+
+.TP
+.B ~/.cjsh/colors
+Directory where color configurations are stored.
+
+.TP
+.B ~/.cjsh/AnyShell/
+Configuration directory for the AnyShell plugin.
+
+.SH FILE SOURCING ORDER
+.PP
+1. ~/.profile (if exists, login mode only)
+.br
+2. ~/.cjprofile (login mode only)
+.br
+3. ~/.cjshrc (interactive mode only, unless --no-source specified)
+
+.SH ENVIRONMENT
+CJ's Shell sets and uses several environment variables to maintain its state and functionality.
+Custom environment variables can be set in the configuration files.
+
+.SH PLUGINS
+CJ's Shell supports a versatile plugin system. Notable plugins include:
+
+.TP
+.B AnyShell
+Allows execution of commands through other shells (bash, zsh, fish, etc.).
+
+.SH JOB CONTROL
+CJ's Shell provides job control similar to other Unix shells, allowing process management
+through foreground and background execution.
+
+.SH AI ASSISTANT
+CJ's Shell includes a built-in AI assistant that offers help when requested.
+This feature can be disabled with the --no-ai option.
+
+.SH THEMES
+Customizable themes are supported, allowing users to personalize their shell environment.
+Themes can be disabled with the --no-themes option.
+
+.SH EXAMPLES
+.PP
+Start CJ's Shell in login mode:
+.PP
+.B cjsh --login
+.PP
+Execute a command and exit:
+.PP
+.B cjsh -c "echo Hello, world!"
+.PP
+Start shell with plugins disabled:
+.PP
+.B cjsh --no-plugins
+
+.SH AUTHOR
+Caden J Finley - Abilene Christian University
+
+.SH REPORTING BUGS
+Report bugs to: https://github.com/CadenFinley/CJsShell/issues
+
+.SH COPYRIGHT
+Copyright (c) 2025 Caden J Finley. All rights reserved.
+
+.SH SEE ALSO
+.BR bash (1),
+.BR zsh (1),
+.BR fish (1)
