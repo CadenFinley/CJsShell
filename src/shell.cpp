@@ -209,6 +209,28 @@ int Shell::execute_command(std::string command, bool sync) {
     return 0;
   }
 
+  if(!shell_exec || !shell_parser || !built_ins || !shell_script_interpreter) {
+    return 1;
+  }
+
+  if (!menu_active) {
+    // we are in the ai menu
+    if(!command.empty()) {
+      if(command == "terminal") {
+        menu_active = true;
+        return 0;
+      }
+      std::vector<std::string> args = shell_parser->parse_command(command);
+      if(args[0] == "ai") {
+        built_ins->ai_commands(args);
+        return 0;
+      }
+    }
+    built_ins->do_ai_request(command);
+    return 0;
+  }
+  //in terminal menu
+
   if (command.find('\n') != std::string::npos) {
     std::istringstream iss(command);
     std::string line;
@@ -220,10 +242,6 @@ int Shell::execute_command(std::string command, bool sync) {
       prev_success = (exit_code == 0);
     }
     return exit_code;
-  }
-
-  if (!shell_exec || !built_ins || !shell_parser) {
-    return 1;
   }
 
   if (command.find(';') != std::string::npos) {
@@ -302,21 +320,6 @@ int Shell::execute_command(std::string command, bool sync) {
     shell_exec->execute_pipeline(pipeline);
     last_terminal_output_error = shell_exec->get_error();
     last_command = command;
-    return 0;
-  }
-
-  if (!menu_active) {
-    if(!args.empty()) {
-      if(args[0] == "terminal") {
-        menu_active = true;
-        return 0;
-      }
-      if(args[0] == "ai") {
-        built_ins->ai_commands(args);
-        return 0;
-      }
-    }
-    built_ins->do_ai_request(command);
     return 0;
   }
 
