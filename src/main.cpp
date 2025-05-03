@@ -56,6 +56,13 @@ int main(int argc, char *argv[]) {
     setup_environment_variables();
     g_shell->setup_job_control();
   }
+  if (argv[0]) {
+    if (g_debug_mode) std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
+    setenv("0", argv[0], 1);
+  } else {
+    if (g_debug_mode) std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
+    setenv("0", "cjsh", 1);
+  }
   
   // check for non interactive command line arguments
   bool l_execute_command = false;
@@ -353,6 +360,27 @@ void setup_environment_variables() {
     if (getenv("LANG") == nullptr) {
       setenv("LANG", "en_US.UTF-8", 1);
     }
+    
+    if (getenv("PAGER") == nullptr) {
+      setenv("PAGER", "less", 1);
+    }
+
+    if (getenv("TMPDIR") == nullptr) {
+      setenv("TMPDIR", "/tmp", 1);
+    }
+
+    int shlvl = 1;
+    if (const char* current_shlvl = getenv("SHLVL")) {
+      try {
+        shlvl = std::stoi(current_shlvl) + 1;
+      } catch (...) {
+        shlvl = 1;
+      }
+    }
+    setenv("SHLVL", std::to_string(shlvl).c_str(), 1);
+    
+    // Set _ to the path of the shell executable
+    setenv("_", cjsh_filesystem::g_cjsh_path.c_str(), 1);
   }
 }
 
