@@ -340,50 +340,143 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   return pipeline;
 }
 
-std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
-  glob_t globbuf;
+std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
   
-  int ret = glob(pattern.c_str(), GLOB_TILDE | GLOB_BRACE, nullptr, &globbuf);
-  if (ret == 0) {
-    for (size_t i = 0; i < globbuf.gl_pathc; i++) {
-      result.push_back(globbuf.gl_pathv[i]);
+  if (pattern.find('{') == std::string::npos || pattern.find('}') == std::string::npos) {
+    result.push_back(pattern);
+    return result;
+  }
+  
+  size_t start = std::string::npos;
+  for (size_t i = 0; i < pattern.size(); i++) {
+    if (pattern[i] == '{' && (i == 0 || pattern[i-1] != '\\')) {
+      start = i;
+      break;
     }
-    globfree(&globbuf);
-  } else if (ret == GLOB_NOMATCH) {
-    if (pattern.find('~') != std::string::npos) {
-      const char* home = getenv("HOME");
-      if (home != nullptr) {
-        std::string expanded = pattern;
-        size_t pos = 0;
-        while ((pos = expanded.find('~', pos)) != std::string::npos) {
-          if (pos == 0 || expanded[pos-1] == ':' || expanded[pos-1] == '/') {
-            if (pos + 1 == expanded.length() || expanded[pos+1] == '/' || expanded[pos+1] == ':') {
-              expanded.replace(pos, 1, home);
-              pos += strlen(home);
+  }
+  
+  if (start == std::string::npos) {
+    result.push_back(pattern);
+    return result;
+  }
+  
+  int brace_level = 1;
+  size_t end = start + 1;
+  
+  while (end < pattern.size() && brace_level > 0) {
+    if (pattern[end] == '{' && (end == 0 || pattern[end-1] != '\\')) {
+      brace_level++;
+    } else if (pattern[end] == '}' && (end == 0 || pattern[end-1] != '\\')) {
+      brace_level--;
+    }
+    end++;
+    
+    if (brace_level == 0) break;
+  }
+  
+  if (brace_level != 0) {
+    result.push_back(pattern);
+    return result;
+  }
+  
+  end--;
+  
+  std::string prefix = pattern.substr(0, start);
+  std::string brace_content = pattern.substr(start + 1, end - start - 1);
+  std::string suffix = pattern.substr(end + 1);
+  
+  std::vector<std::string> alternatives;
+  brace_level = 0;
+  std::string current;
+  
+  for (size_t i = 0; i < brace_content.size(); i++) {
+    char c = brace_content[i];
+    
+    if (c == '{' && (i == 0 || brace_content[i-1] != '\\')) {
+      brace_level++;
+      current += c;
+    } else if (c == '}' && (i == 0 || brace_content[i-1] != '\\')) {
+      brace_level--;
+      current += c;
+    } else if (c == ',' && brace_level == 0 && (i == 0 || brace_content[i-1] != '\\')) {
+      alternatives.push_back(current);
+      current.clear();
+    } else {
+      current += c;
+    }
+  }
+  
+  if (!current.empty() || alternatives.empty()) {
+    alternatives.push_back(current);
+  }
+  
+  for (const auto& alt : alternatives) {
+    std::string expanded = prefix + alt + suffix;
+    
+    std::vector<std::string> nested_expansions = expand_braces(expanded);
+    result.insert(result.end(), nested_expansions.begin(), nested_expansions.end());
+  }
+  
+  return result;
+}
+
+std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
+  bool has_braces = (pattern.find('{') != std::string::npos && pattern.find('}') != std::string::npos);
+  
+  std::vector<std::string> result;
+  std::vector<std::string> patterns_to_expand;
+  
+  if (has_braces) {
+    patterns_to_expand = expand_braces(pattern);
+  } else {
+    patterns_to_expand.push_back(pattern);
+  }
+  
+  for (const auto& expanded_pattern : patterns_to_expand) {
+    glob_t globbuf;
+    int ret = glob(expanded_pattern.c_str(), GLOB_TILDE | GLOB_BRACE, nullptr, &globbuf);
+    
+    if (ret == 0) {
+      for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+        result.push_back(globbuf.gl_pathv[i]);
+      }
+      globfree(&globbuf);
+    } else if (ret == GLOB_NOMATCH) {
+      if (expanded_pattern.find('~') != std::string::npos) {
+        const char* home = getenv("HOME");
+        if (home != nullptr) {
+          std::string home_expanded = expanded_pattern;
+          size_t pos = 0;
+          while ((pos = home_expanded.find('~', pos)) != std::string::npos) {
+            if (pos == 0 || home_expanded[pos-1] == ':' || home_expanded[pos-1] == '/') {
+              if (pos + 1 == home_expanded.length() || home_expanded[pos+1] == '/' || home_expanded[pos+1] == ':') {
+                home_expanded.replace(pos, 1, home);
+                pos += strlen(home);
+              } else {
+                pos++;
+              }
             } else {
               pos++;
             }
-          } else {
-            pos++;
           }
-        }
-        
-        ret = glob(expanded.c_str(), GLOB_BRACE, nullptr, &globbuf);
-        if (ret == 0) {
-          for (size_t i = 0; i < globbuf.gl_pathc; i++) {
-            result.push_back(globbuf.gl_pathv[i]);
+          
+          ret = glob(home_expanded.c_str(), GLOB_BRACE, nullptr, &globbuf);
+          if (ret == 0) {
+            for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+              result.push_back(globbuf.gl_pathv[i]);
+            }
+            globfree(&globbuf);
+            continue;
           }
-          globfree(&globbuf);
-          return result;
+          
+          result.push_back(home_expanded);
+          continue;
         }
-        
-        result.push_back(expanded);
-        return result;
       }
+      
+      result.push_back(expanded_pattern);
     }
-    
-    result.push_back(pattern);
   }
   
   return result;

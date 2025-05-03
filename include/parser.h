@@ -37,6 +37,7 @@ public:
 
 private:
   void expand_env_vars(std::string& arg);
+  std::vector<std::string> expand_braces(const std::string& pattern);
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
 };
