@@ -30,7 +30,7 @@ jobs:
           echo "Starting cloc calculation at $(date)"
           
           # Count lines with more exclusions for better performance
-          TOTAL_LINES=$(cloc . --exclude-dir=.git,.github,build,node_modules,dist,coverage --exclude-ext=json,lock --json | jq -r '.SUM.code')
+          TOTAL_LINES=$(cloc . --exclude-dir=.git,.github,build,node_modules,dist,coverage,vendor --exclude-ext=json,lock --json | jq -r '.SUM.code')
           
           # Set output for later steps
           echo "total=$TOTAL_LINES" >> $GITHUB_OUTPUT
