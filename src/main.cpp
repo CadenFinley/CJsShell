@@ -270,6 +270,7 @@ void main_process_loop() {
     char* input = ic_readline(prompt.c_str());
     if (input != nullptr) {
       std::string command(input);
+      if(g_debug_mode) std::cerr << "DEBUG: User input: " << command << std::endl;
       ic_free(input);
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
