@@ -1,9 +1,11 @@
-   ______    _______ __  __
+```plaintext
+  ______    _______ __  __
   / ____/   / / ___// / / /
  / /   __  / /\__ \/ /_/ / 
 / /___/ /_/ /___/ / __  /  
 \____/\____//____/_/ /_/   
-                        
+```
+
 ![Version](https://img.shields.io/github/v/release/CadenFinley/CJsShell?label=version&color=blue)
 [![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7)](https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
