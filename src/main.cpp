@@ -48,6 +48,10 @@ int main(int argc, char *argv[]) {
     if (g_debug_mode) std::cerr << "DEBUG: Initializing login environment" << std::endl;
     if (!init_login_filesystem()) {
       std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
+      if (g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 1;
     }
     process_profile_file();
@@ -55,6 +59,7 @@ int main(int argc, char *argv[]) {
     setup_environment_variables();
     g_shell->setup_job_control();
   }
+
   if (argv[0]) {
     if (g_debug_mode) std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
     setenv("0", argv[0], 1);
@@ -83,10 +88,18 @@ int main(int argc, char *argv[]) {
     }
     else if (arg == "-v" || arg == "--version") {
       std::cout << c_version << std::endl;
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 0;
     }
     else if (arg == "-h" || arg == "--help") {
       g_shell ->execute_command("help");
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 0;
     }
     else if (arg == "--login" || arg == "-l") {
@@ -97,10 +110,18 @@ int main(int argc, char *argv[]) {
       std::cout << "Setting CJ's Shell as the default shell..." << std::endl;
       std::cerr << "Please run the following command to set CJ's Shell as your default shell:\n";
       std::cerr << "chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 0;
     }
     else if (arg == "--update") {
       execute_update_if_available(check_for_update());
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 0;
     }
     else if (arg == "--silent-updates") {
@@ -121,6 +142,10 @@ int main(int argc, char *argv[]) {
     else if (arg == "--splash") {
       colors::initialize_color_support(l_colors_enabled);
       std::cout << get_colorized_splash() << std::endl;
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 0;
     }
     else if (arg == "--no-update") {
@@ -140,6 +165,10 @@ int main(int argc, char *argv[]) {
     }
     else if (arg.length() > 0 && arg[0] == '-') {
       std::cerr << "Warning: Unknown startup argument: " << arg << std::endl;
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 1;
     }
   }
@@ -147,8 +176,10 @@ int main(int argc, char *argv[]) {
   // execute the command passed in the startup arg and exit
   if (l_execute_command) {
     g_shell->execute_command(l_cmd_to_execute);
-    delete g_shell;
-    g_shell = nullptr;
+    if(g_shell) {
+      delete g_shell;
+      g_shell = nullptr;
+    }
     return 0;
   }
 
@@ -162,6 +193,10 @@ int main(int argc, char *argv[]) {
 
   if (!init_interactive_filesystem()) {
     std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
+    if(g_shell) {
+      delete g_shell;
+      g_shell = nullptr;
+    }
     return 1;
   }
 

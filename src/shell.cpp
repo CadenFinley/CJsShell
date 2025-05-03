@@ -103,8 +103,9 @@ Shell::Shell(bool login_mode) {
 }
 
 Shell::~Shell() {
-  std::cerr << "Destroying Shell" << std::endl;
-
+  if(interactive_mode) {
+    std::cerr << "Destroying Shell" << std::endl;
+  }
   delete shell_parser;
   delete built_ins;
   delete shell_script_interpreter;
@@ -158,7 +159,9 @@ void Shell::save_terminal_state() {
 }
 
 void Shell::restore_terminal_state() {
-  std::cerr << "Restoring terminal state" << std::endl;
+  if(interactive_mode) {
+    std::cerr << "Restoring terminal state" << std::endl;
+  }
 
   if (terminal_state_saved) {
     tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes);
