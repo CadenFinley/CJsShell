@@ -42,6 +42,46 @@ cmake ..
 make
 ```
 
+## Usage
+
+### Launching cjsh
+Start an interactive session:
+```bash
+cjsh
+```
+
+Start a login session:
+```bash
+cjsh --login
+```
+Or run a one‑off command:
+```bash
+cjsh -c "ls -la"
+```
+Available startup flags:
+- `-l`, `--login` Start in login mode  
+- `--set-as-shell` Show instructions to set cjsh as your login shell  
+- `--no-update` Disable automatic update checks  
+- `-d`, `--debug` Enable debug logging  
+
+### Common Built‑In Commands
+- `help` Display help and usage information  
+- `cd [dir]` Change directory  
+- `export VAR=val` Set environment variables  
+- `plugin [subcommand]` Manage plugins (`available`, `enable`, `disable`, `install`, `uninstall`, etc.)  
+- `theme [subcommand]` Manage themes (`list`, `set`, `current`, etc.)  
+- `aihelp` Invoke the AI assistant  
+- `version` Show the current cjsh version  
+
+### Configuration Files
+- `~/.cjprofile` Login‑mode setup (env vars, PATH, startup args)  
+- `~/.cjshrc` Interactive‑mode setup (aliases, functions, themes, plugins)  
+
+### Tips
+- Use ↑/↓ to cycle through your history  
+- Run `source ~/.cjshrc` to reload your interactive config  
+- Scripts can be executed with `cjsh -c "/path/to/script.sh"`  
+
 ## Third‑Party Components
 
 - **isocline**  
