@@ -117,7 +117,7 @@ bool execute_update_if_available(bool avail) {
         return false;
     }
     std::cout << "\nAn update is available. Please run:\n"
-              << "  brew update cadenfinley/cjsh/cjsh\n";
+              << "  brew upgrade cadenfinley/cjsh/cjsh\n";
     return false;
 }
 
