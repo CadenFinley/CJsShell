@@ -31,6 +31,7 @@ Built_ins(): builtins({
       {"version", [this](const std::vector<std::string>&) { return version_command(); }},
       {"uninstall", [this](const std::vector<std::string>&) { return uninstall_command(); }},
       {"restart", [this](const std::vector<std::string>&) { return restart_command(); }},
+      {"eval", [this](const std::vector<std::string>& args) { return eval_command(args); }},
   }), shell(nullptr) {}
   ~Built_ins() = default;
 
@@ -78,6 +79,7 @@ private:
   bool export_command(const std::vector<std::string>& args);
   bool unalias_command(const std::vector<std::string>& args);
   bool unset_command(const std::vector<std::string>& args);
+  bool eval_command(const std::vector<std::string>& args);
   void save_alias_to_file(const std::string& name, const std::string& value);
   void save_env_var_to_file(const std::string& name, const std::string& value);
   void remove_alias_from_file(const std::string& name);

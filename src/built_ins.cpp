@@ -1064,6 +1064,10 @@ bool Built_ins::help_command() {
   std::cout << "  source [FILE]           Execute commands from a file\n";
   std::cout << "    Usage: source path/to/file\n";
   std::cout << "    Example: 'source ~/.cjshrc'\n\n";
+
+  std::cout << "  eval [EXPRESSION]       Evaluate a shell expression\n";
+  std::cout << "    Usage: eval expression\n";
+  std::cout << "    Example: 'eval echo Hello, World!'\n\n";
   
   // Common system commands
   std::cout << "COMMON SYSTEM COMMANDS:\n\n";
@@ -1518,4 +1522,36 @@ bool Built_ins::restart_command() {
   execv(path_cstr, args);
   std::cerr << "Error restarting shell: " << strerror(errno) << std::endl;
   return false;
+}
+
+bool Built_ins::eval_command(const std::vector<std::string>& args) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: eval_command called with " << args.size() << " arguments" << std::endl;
+  }
+
+  if (args.size() < 2) {
+    std::cerr << "eval: missing arguments" << std::endl;
+    return false;
+  }
+
+  std::string command_to_eval;
+  for (size_t i = 1; i < args.size(); ++i) {
+    if (i > 1) command_to_eval += " ";
+    command_to_eval += args[i];
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Evaluating command: " << command_to_eval << std::endl;
+  }
+  
+  if (shell) {
+    int result = shell->execute_command(command_to_eval);
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: eval command returned: " << result << std::endl;
+    }
+    return result == 0;
+  } else {
+    std::cerr << "eval: shell not initialized" << std::endl;
+    return false;
+  }
 }
