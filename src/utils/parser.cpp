@@ -222,8 +222,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   for (const auto& cmd : commands) {
     Command parsed_cmd;
     std::string processed_cmd = cmd;
-
-    // Check if the command should run in the background
     if (!processed_cmd.empty() && processed_cmd.back() == '&') {
       parsed_cmd.background = true;
       processed_cmd.pop_back();

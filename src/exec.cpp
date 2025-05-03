@@ -301,7 +301,6 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
       setenv(env.first.c_str(), env.second.c_str(), 1);
     }
     
-    // Create new process group for the background process
     if (setpgid(0, 0) < 0) {
       perror("setpgid failed in child");
       _exit(EXIT_FAILURE);
@@ -313,8 +312,6 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     signal(SIGTTIN, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
     
-    // Don't redirect stdin/stdout/stderr for background processes that might need them
-    
     std::vector<char*> c_args;
     for (auto& arg : cmd_args) {
       c_args.push_back(const_cast<char*>(arg.data()));
@@ -322,13 +319,11 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     c_args.push_back(nullptr);
     
     execvp(cmd_args[0].c_str(), c_args.data());
-    
-    // If we get here, execvp failed
+
     std::cerr << "cjsh: " << cmd_args[0] << ": " << strerror(errno) << std::endl;
     _exit(EXIT_FAILURE);
   }
   else {
-    // Create process group in parent too to avoid race condition
     if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
       perror("setpgid failed in parent");
     }
@@ -362,7 +357,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const Command& cmd = commands[0];
     
     if (cmd.background) {
-      // For a single command with background flag, use execute_command_async
       execute_command_async(cmd.args);
     } else {
       pid_t pid = fork();

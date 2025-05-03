@@ -245,15 +245,13 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
             return true;
         }
         
-        // Handle command line style arguments (--flag style)
         if (trimmed.size() >= 2 && trimmed[0] == '-' && trimmed[1] == '-') {
             debug_print("Found startup argument: " + trimmed, DebugLevel::BASIC);
             g_startup_args.push_back(trimmed);
             debug_print("Added to startup args: " + trimmed, DebugLevel::VERBOSE);
             return true;
         }
-        
-        // Handle variable assignment
+
         size_t equals_pos = trimmed.find('=');
         if (equals_pos != std::string::npos && 
             (trimmed.find(' ') > equals_pos || trimmed.find(' ') == std::string::npos)) {
@@ -301,8 +299,7 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
             
             return true;
         }
-        
-        // Handle if/then statements
+
         if (trimmed.find("if ") == 0) {
             size_t then_pos = trimmed.find("; then");
             if (then_pos != std::string::npos) {
@@ -322,8 +319,7 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
             debug_print("Then statement", DebugLevel::VERBOSE);
             return true;
         }
-        
-        // Handle eval commands
+
         if (trimmed.find("eval ") == 0) {
             std::string cmd = trim_string(trimmed.substr(4));
             debug_print("Eval command: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
@@ -344,7 +340,6 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
                     result = trim_string(result);
                     debug_print("Command result: " + escape_debug_string(result), DebugLevel::VERBOSE);
                     
-                    // Use global Shell to execute the result if available
                     if (g_shell) {
                         debug_print("Using shell to execute result: " + escape_debug_string(result), DebugLevel::VERBOSE);
                         g_shell->execute_command(result);
@@ -366,8 +361,7 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
                 }
                 
                 debug_print("Executing eval command", DebugLevel::BASIC);
-                
-                // Use global Shell to execute if available
+
                 if (g_shell) {
                     debug_print("Using shell to execute eval command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
                     g_shell->execute_command(expanded_cmd);
@@ -387,8 +381,7 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
         }
         
         debug_print("Executing command", DebugLevel::BASIC);
-        
-        // Use global Shell to execute if available
+
         if (g_shell) {
             debug_print("Using shell to execute command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
             g_shell->execute_command(expanded_cmd);
@@ -808,13 +801,11 @@ std::string ShellScriptInterpreter::execute_command_substitution(const std::stri
     if (cmd.find("/usr/libexec/path_helper") != std::string::npos) {
         debug_print("Executing path_helper command with extra caution", DebugLevel::VERBOSE);
     }
-    
-    // If we have a global shell reference, use it to capture command output
+
     if (g_shell) {
         return capture_command_output(cmd);
     }
-    
-    // Fall back to the original implementation if no shell is available
+
     FILE* pipe = nullptr;
     try {
         pipe = popen(cmd.c_str(), "r");
@@ -860,26 +851,20 @@ std::string ShellScriptInterpreter::execute_command_substitution(const std::stri
     }
 }
 
-// New method to capture command output using Shell's execution mechanism
 std::string ShellScriptInterpreter::capture_command_output(const std::string& cmd) {
     debug_print("Capturing output for command: " + escape_debug_string(cmd), DebugLevel::VERBOSE);
-    
-    // We need to redirect output to a temporary file
     char temp_filename[256];
     snprintf(temp_filename, sizeof(temp_filename), "/tmp/cjsh_cmd_output_%d", getpid());
     
-    // Create the redirection command
     std::string redirect_cmd = cmd + " > " + temp_filename + " 2>&1";
     debug_print("Redirected command: " + escape_debug_string(redirect_cmd), DebugLevel::VERBOSE);
     
-    // Execute the command with redirection using the global shell
     if (g_shell) {
         g_shell->execute_command(redirect_cmd);
     } else {
         std::cerr << "Error: No shell available for command execution" << std::endl;
     }
-    
-    // Read the output from the temporary file
+
     std::ifstream file(temp_filename);
     std::string result;
     std::string line;
@@ -889,11 +874,8 @@ std::string ShellScriptInterpreter::capture_command_output(const std::string& cm
             result += line + "\n";
         }
         file.close();
-        
-        // Remove the temporary file
+
         unlink(temp_filename);
-        
-        // Remove trailing newlines
         while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
             result.pop_back();
         }

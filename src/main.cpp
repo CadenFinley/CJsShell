@@ -11,8 +11,6 @@
 #include <errno.h>
 #include "update.h"
 
-//DOCS AND TESTS
-
 int main(int argc, char *argv[]) {
   if (g_debug_mode) std::cerr << "DEBUG: main() starting with " << argc << " arguments" << std::endl;
 
@@ -92,8 +90,7 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (arg == "--login" || arg == "-l") {
-      // These are already handled earlier for setting login_mode
-      // Including them here to avoid the unknown argument warning
+      // simpy to avoid command not found error
       if (g_debug_mode) std::cerr << "DEBUG: Recognized login argument: " << arg << std::endl;
     }
     else if (arg == "--set-as-shell") {
@@ -168,16 +165,15 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  // ensure bash‐style envvars are set for interactive shells too
+  // ensure bash style envvars are set for interactive shells too
   setup_environment_variables();
 
   if (g_debug_mode) std::cerr << "DEBUG: Initializing colors with enabled=" << l_colors_enabled << std::endl;
   colors::initialize_color_support(l_colors_enabled);
-  
-  // Replace raw pointers with unique_ptr for automatic cleanup
+
   if (g_debug_mode) std::cerr << "DEBUG: Initializing plugin system with enabled=" << l_plugins_enabled << std::endl;
   std::unique_ptr<Plugin> plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path, l_plugins_enabled);
-  g_plugin = plugin.get(); // Use the raw pointer for global access
+  g_plugin = plugin.get();
   
   if (g_debug_mode) std::cerr << "DEBUG: Initializing theme system with enabled=" << l_themes_enabled << std::endl;
   std::unique_ptr<Theme> theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path, l_themes_enabled);
@@ -271,7 +267,6 @@ void main_process_loop() {
     }
     
     if (g_theme -> uses_newline()) {
-      // Check if stdout is still connected before writing
       if (write(STDOUT_FILENO, "", 0) < 0) {
         if (errno == EIO || errno == EPIPE) {
           if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (EIO/EPIPE on stdout)" << std::endl;
@@ -283,7 +278,6 @@ void main_process_loop() {
       prompt = g_shell->get_newline_prompt();
     }
 
-    // Check terminal status before readline
     if (!isatty(STDIN_FILENO)) {
       if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (stdin no longer a TTY)" << std::endl;
       g_exit_flag = true;
@@ -399,8 +393,6 @@ void setup_environment_variables() {
       }
     }
     setenv("SHLVL", std::to_string(shlvl).c_str(), 1);
-    
-    // Set _ to the path of the shell executable
     setenv("_", cjsh_filesystem::g_cjsh_path.c_str(), 1);
   }
 }
@@ -458,9 +450,8 @@ void prepare_shell_signal_environment() {
   
   sigprocmask(SIG_UNBLOCK, &mask, nullptr);
   
-  // Reset SIGPIPE to default behavior to ensure shell dies when writing to closed PTY
   struct sigaction sa_pipe;
-  sa_pipe.sa_handler = SIG_DFL; // Default action (process termination)
+  sa_pipe.sa_handler = SIG_DFL;
   sigemptyset(&sa_pipe.sa_mask);
   sa_pipe.sa_flags = 0;
   sigaction(SIGPIPE, &sa_pipe, nullptr);

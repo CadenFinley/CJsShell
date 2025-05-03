@@ -103,7 +103,7 @@ Shell::Shell(bool login_mode) {
 }
 
 Shell::~Shell() {
-  if (g_debug_mode) std::cerr << "DEBUG: Destroying Shell" << std::endl;
+  std::cerr << "DEBUG: Destroying Shell" << std::endl;
 
   delete shell_parser;
   delete built_ins;
@@ -158,7 +158,7 @@ void Shell::save_terminal_state() {
 }
 
 void Shell::restore_terminal_state() {
-  if (g_debug_mode) std::cerr << "DEBUG: Restoring terminal state" << std::endl;
+  std::cerr << "DEBUG: Restoring terminal state" << std::endl;
 
   if (terminal_state_saved) {
     tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes);
@@ -213,17 +213,14 @@ int Shell::execute_command(std::string command) {
     return 1;
   }
 
-  // Trim trailing spaces
   while (!command.empty() && std::isspace(command.back())) {
     command.pop_back();
   }
   
-  // Check for background execution
   bool run_in_background = false;
   if (!command.empty() && command.back() == '&') {
     run_in_background = true;
     command.pop_back();
-    // Trim spaces again after removing &
     while (!command.empty() && std::isspace(command.back())) {
       command.pop_back();
     }
@@ -259,7 +256,6 @@ int Shell::execute_command(std::string command) {
   std::vector<std::string> args = shell_parser->parse_command(command);
 
   if (!menu_active) {
-    // we are in the ai menu
     if(!command.empty()) {
       if(command == "terminal") {
         menu_active = true;
@@ -273,7 +269,6 @@ int Shell::execute_command(std::string command) {
     built_ins->do_ai_request(command);
     return 0;
   }
-  //in terminal menu
 
   if (command.find(';') != std::string::npos) {
     std::vector<std::string> cmds = shell_parser->parse_semicolon_commands(command);
