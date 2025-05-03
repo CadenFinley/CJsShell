@@ -27,13 +27,9 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     args.emplace_back(argv[i]);
   }
   g_strfreev(argv);
-  // now args[] are unquoted and backslashes handled
-  
-  // First check if the command is an alias
   if (!args.empty()) {
     auto alias_it = aliases.find(args[0]);
     if (alias_it != aliases.end()) {
-      // Parse the alias and combine with the remaining arguments
       std::vector<std::string> alias_args;
       GError* alias_error = nullptr;
       gchar** alias_argv = nullptr;
@@ -44,13 +40,9 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
           alias_args.emplace_back(alias_argv[i]);
         }
         g_strfreev(alias_argv);
-        
-        // Replace the first argument with the expanded alias
         if (!alias_args.empty()) {
           std::vector<std::string> new_args;
           new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
-          
-          // Add remaining arguments from the original command
           if (args.size() > 1) {
             new_args.insert(new_args.end(), args.begin() + 1, args.end());
           }
@@ -62,15 +54,12 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       }
     }
   }
-  
-  // Expand environment variables and wildcards
   for (auto& arg : args) {
     expand_env_vars(arg);
   }
 
   std::vector<std::string> expanded_args;
   for (auto& arg : args) {
-    // Detect tilde (~), globbing (*, ?), and brace ({}) patterns for expansion
     bool has_tilde = false;
     if (!arg.empty()) {
       if (arg[0] == '~') {
@@ -86,7 +75,6 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
     bool has_braces = (arg.find('{') != std::string::npos && arg.find('}') != std::string::npos);
     bool has_glob = (arg.find_first_of("*?") != std::string::npos);
-    // Perform wildcard, tilde, and brace expansion
     if (has_glob || has_tilde || has_braces) {
       auto ex = expand_wildcards(arg);
       if (!ex.empty()) {
@@ -317,10 +305,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             }
           }
         }
-        
-        // Expand environment variables
         expand_env_vars(arg);
-        // Detect tilde (~), globbing (*, ?), and brace ({}) patterns for expansion
         bool has_tilde = false;
         if (!arg.empty()) {
           if (arg[0] == '~') {
@@ -336,7 +321,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
         bool has_glob = (arg.find_first_of("*?") != std::string::npos);
         bool has_braces = (arg.find('{') != std::string::npos && arg.find('}') != std::string::npos);
-        // Perform wildcard, tilde, and brace expansion
         if (has_glob || has_tilde || has_braces) {
           auto ex = expand_wildcards(arg);
           if (!ex.empty()) {
