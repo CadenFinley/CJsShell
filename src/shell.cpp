@@ -202,8 +202,8 @@ void Shell::setup_job_control() {
   }
 }
 
-int Shell::execute_command(std::string command, bool sync) {
-  if (g_debug_mode) std::cerr << "DEBUG: Executing command: '" << command << "', sync=" << sync << std::endl;
+int Shell::execute_command(std::string command) {
+  if (g_debug_mode) std::cerr << "DEBUG: Executing command: '" << command << std::endl;
 
   if (command.empty()) {
     return 0;
@@ -213,6 +213,25 @@ int Shell::execute_command(std::string command, bool sync) {
     return 1;
   }
 
+  // Trim trailing spaces
+  while (!command.empty() && std::isspace(command.back())) {
+    command.pop_back();
+  }
+  
+  // Check for background execution
+  bool run_in_background = false;
+  if (!command.empty() && command.back() == '&') {
+    run_in_background = true;
+    command.pop_back();
+    // Trim spaces again after removing &
+    while (!command.empty() && std::isspace(command.back())) {
+      command.pop_back();
+    }
+  }
+
+  if (command.empty()) {
+    return 0;
+  }
 
   if (command == "clear") {
     std::vector<std::string> clear_args = {"clear"};
@@ -224,6 +243,21 @@ int Shell::execute_command(std::string command, bool sync) {
     return 0;
   }
 
+  if (menu_active && command.find('\n') != std::string::npos) {
+    std::istringstream iss(command);
+    std::string line;
+    bool prev_success = true;
+    int exit_code = 0;
+    while (prev_success && std::getline(iss, line)) {
+      if (line.empty()) continue;
+      exit_code = execute_command(line);
+      prev_success = (exit_code == 0);
+    }
+    return exit_code;
+  }
+
+  std::vector<std::string> args = shell_parser->parse_command(command);
+
   if (!menu_active) {
     // we are in the ai menu
     if(!command.empty()) {
@@ -231,7 +265,6 @@ int Shell::execute_command(std::string command, bool sync) {
         menu_active = true;
         return 0;
       }
-      std::vector<std::string> args = shell_parser->parse_command(command);
       if(args[0] == "ai") {
         built_ins->ai_commands(args);
         return 0;
@@ -242,28 +275,13 @@ int Shell::execute_command(std::string command, bool sync) {
   }
   //in terminal menu
 
-  if (command.find('\n') != std::string::npos) {
-    std::istringstream iss(command);
-    std::string line;
-    bool prev_success = true;
-    int exit_code = 0;
-    while (prev_success && std::getline(iss, line)) {
-      if (line.empty()) continue;
-      exit_code = execute_command(line, sync);
-      prev_success = (exit_code == 0);
-    }
-    return exit_code;
-  }
-
   if (command.find(';') != std::string::npos) {
     std::vector<std::string> cmds = shell_parser->parse_semicolon_commands(command);
     for (const auto& cmd : cmds) {
-      execute_command(cmd, sync);
+      execute_command(cmd);
     }
     return 0;
   }
-
-  std::vector<std::string> args = shell_parser->parse_command(command);
   
   std::string var_name, var_value;
   if (shell_parser->is_env_assignment(command, var_name, var_value)) {
@@ -306,7 +324,7 @@ int Shell::execute_command(std::string command, bool sync) {
           break;
         }
       }
-      exit_code = execute_command(segment.command, true);
+      exit_code = execute_command(segment.command);
       prev_success = (exit_code == 0);
     }
     last_command = command;
@@ -318,17 +336,20 @@ int Shell::execute_command(std::string command, bool sync) {
 
   if (command.find('|') != std::string::npos) {
     std::vector<Command> pipeline = shell_parser->parse_pipeline(command);
-    shell_exec->execute_pipeline(pipeline);
+    if (run_in_background && !pipeline.empty()) {
+      pipeline.back().background = true;
+    }
+    int result = shell_exec->execute_pipeline(pipeline);
     last_terminal_output_error = shell_exec->get_error();
-    last_command = command;
-    return 0;
+    last_command = command + (run_in_background ? " &" : "");
+    return result;
   }
 
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     if(!built_ins->builtin_command(args)){
       last_terminal_output_error = "Something went wrong with the command";
     }
-    last_command = command;
+    last_command = command + (run_in_background ? " &" : "");
     return 0;
   }
 
@@ -358,13 +379,13 @@ int Shell::execute_command(std::string command, bool sync) {
     return 0;
   }
 
-  if (sync) {
+  if (run_in_background) {
+    shell_exec->execute_command_async(args);
+    last_terminal_output_error = "Background command launched";
+  } else {
     shell_exec->execute_command_sync(args);
     last_terminal_output_error = shell_exec->get_error();
-  } else {
-    shell_exec->execute_command_async(args);
-    last_terminal_output_error = "async command launched";
   }
-  last_command = command;
+  last_command = command + (run_in_background ? " &" : "");
   return shell_exec->get_exit_code();
 }

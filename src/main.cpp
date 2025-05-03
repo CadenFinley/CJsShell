@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (arg == "-h" || arg == "--help") {
-      g_shell ->execute_command("help", true);
+      g_shell ->execute_command("help");
       return 0;
     }
     else if (arg == "--login" || arg == "-l") {
@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
 
   // execute the command passed in the startup arg and exit
   if (l_execute_command) {
-    g_shell->execute_command(l_cmd_to_execute, true);
+    g_shell->execute_command(l_cmd_to_execute);
     delete g_shell;
     g_shell = nullptr;
     return 0;
@@ -282,7 +282,7 @@ void main_process_loop() {
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
         ic_history_add(command.c_str());
-        g_shell->execute_command(command, true);
+        g_shell->execute_command(command);
         update_terminal_title();
       }
       if (g_exit_flag) {
@@ -514,7 +514,7 @@ void process_profile_file() {
         create_profile_file();
         return;
     }
-    g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_profile_path.string(), true);
+    g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_profile_path.string());
 }
 
 void process_source_file() {
@@ -522,7 +522,7 @@ void process_source_file() {
     create_source_file();
     return;
   }
-  g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_source_path.string(), true);
+  g_shell->execute_command("source " + cjsh_filesystem::g_cjsh_source_path.string());
 }
 
 void create_profile_file() {

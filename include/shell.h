@@ -22,7 +22,7 @@ class Shell {
     Shell(bool login_mode = false);
     ~Shell();
 
-    int execute_command(std::string command, bool sync = false);
+    int execute_command(std::string command);
     void process_pending_signals();
 
     std::string get_prompt() {

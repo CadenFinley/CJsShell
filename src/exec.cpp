@@ -241,6 +241,52 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     return 1;
   }
   
+  std::vector<std::pair<std::string, std::string>> env_assignments;
+  size_t cmd_start_idx = 0;
+  
+  for (size_t i = 0; i < args.size(); i++) {
+    std::string var_name, var_value;
+    size_t pos = args[i].find('=');
+    
+    if (pos != std::string::npos && pos > 0) {
+      std::string name = args[i].substr(0, pos);
+      bool valid_name = true;
+
+      if (!isalpha(name[0]) && name[0] != '_') {
+        valid_name = false;
+      } else {
+        for (char c : name) {
+          if (!isalnum(c) && c != '_') {
+            valid_name = false;
+            break;
+          }
+        }
+      }
+      
+      if (valid_name) {
+        var_name = name;
+        var_value = args[i].substr(pos + 1);
+        env_assignments.push_back({var_name, var_value});
+        cmd_start_idx = i + 1;
+      } else {
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+
+  if (cmd_start_idx >= args.size()) {
+    for (const auto& env : env_assignments) {
+      setenv(env.first.c_str(), env.second.c_str(), 1);
+    }
+    set_error("Environment variables set");
+    last_exit_code = 0;
+    return 0;
+  }
+  
+  std::vector<std::string> cmd_args(args.begin() + cmd_start_idx, args.end());
+  
   pid_t pid = fork();
   
   if (pid == -1) {
@@ -251,42 +297,42 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
   }
   
   if (pid == 0) {
-    if (setsid() == -1) {
-      perror("cjsh (async): setsid");
+    for (const auto& env : env_assignments) {
+      setenv(env.first.c_str(), env.second.c_str(), 1);
+    }
+    
+    // Create new process group for the background process
+    if (setpgid(0, 0) < 0) {
+      perror("setpgid failed in child");
       _exit(EXIT_FAILURE);
     }
-
-    int dev_null = open("/dev/null", O_RDWR);
-    if (dev_null != -1) {
-      if (dup2(dev_null, STDIN_FILENO) == -1 ||
-          dup2(dev_null, STDOUT_FILENO) == -1 ||
-          dup2(dev_null, STDERR_FILENO) == -1) {
-        perror("cjsh (async): dup2");
-        _exit(EXIT_FAILURE);
-      }
-      if (dev_null > 2) {
-        close(dev_null);
-      }
-    }
     
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGTSTP, SIG_DFL);
-    signal(SIGTTIN, SIG_DFL);
-    signal(SIGTTOU, SIG_DFL);
-    signal(SIGCHLD, SIG_DFL);
+    signal(SIGINT, SIG_IGN);
+    signal(SIGQUIT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+    
+    // Don't redirect stdin/stdout/stderr for background processes that might need them
     
     std::vector<char*> c_args;
-    for (auto& arg : args) {
+    for (auto& arg : cmd_args) {
       c_args.push_back(const_cast<char*>(arg.data()));
     }
     c_args.push_back(nullptr);
     
-    execvp(args[0].c_str(), c_args.data());
+    execvp(cmd_args[0].c_str(), c_args.data());
     
+    // If we get here, execvp failed
+    std::cerr << "cjsh: " << cmd_args[0] << ": " << strerror(errno) << std::endl;
     _exit(EXIT_FAILURE);
   }
   else {
+    // Create process group in parent too to avoid race condition
+    if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
+      perror("setpgid failed in parent");
+    }
+    
     Job job;
     job.pgid = pid;
     job.command = args[0];
@@ -297,7 +343,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     
     int job_id = add_job(job);
     
-    set_error("async command launched");
+    set_error("Background job started");
     
     std::cout << "[" << job_id << "] " << pid << std::endl;
     last_exit_code = 0;
@@ -316,6 +362,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const Command& cmd = commands[0];
     
     if (cmd.background) {
+      // For a single command with background flag, use execute_command_async
       execute_command_async(cmd.args);
     } else {
       pid_t pid = fork();
@@ -390,29 +437,38 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     
     return 0;
   }
-  
   std::vector<pid_t> pids;
   pid_t pgid = 0;
   
-  int pipes[2];
-  int in_fd = STDIN_FILENO;
+  std::vector<std::array<int, 2>> pipes(commands.size() - 1);
   
   try {
-    // Existing pipeline execution code
+    for (size_t i = 0; i < commands.size() - 1; i++) {
+      if (pipe(pipes[i].data()) == -1) {
+        set_error("cjsh: Failed to create pipe: " + std::string(strerror(errno)));
+        std::cerr << last_terminal_output_error << std::endl;
+        for (size_t j = 0; j < i; j++) {
+          close(pipes[j][0]);
+          close(pipes[j][1]);
+        }
+        
+        return 1;
+      }
+    }
+    
     for (size_t i = 0; i < commands.size(); i++) {
       const Command& cmd = commands[i];
       
-      if (i < commands.size() - 1) {
-        if (pipe(pipes) == -1) {
-          set_error("cjsh: Failed to create pipe: " + std::string(strerror(errno)));
-          std::cerr << last_terminal_output_error << std::endl;
-          
-          for (pid_t pid : pids) {
-            kill(pid, SIGTERM);
-          }
-          
-          return 1;
+      if (cmd.args.empty()) {
+        set_error("cjsh: Empty command in pipeline");
+        std::cerr << last_terminal_output_error << std::endl;
+
+        for (size_t j = 0; j < commands.size() - 1; j++) {
+          close(pipes[j][0]);
+          close(pipes[j][1]);
         }
+        
+        return 1;
       }
       
       pid_t pid = fork();
@@ -421,20 +477,20 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
         std::cerr << last_terminal_output_error << std::endl;
         
-        if (i < commands.size() - 1) {
-          close(pipes[0]);
-          close(pipes[1]);
+        for (size_t j = 0; j < commands.size() - 1; j++) {
+          close(pipes[j][0]);
+          close(pipes[j][1]);
         }
         
-        for (pid_t pid : pids) {
-          kill(pid, SIGTERM);
+        for (pid_t child_pid : pids) {
+          kill(child_pid, SIGTERM);
         }
         
         return 1;
       }
       
       if (pid == 0) {
-        if (pgid == 0) {
+        if (i == 0) {
           pgid = getpid();
         }
         
@@ -443,17 +499,31 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           _exit(EXIT_FAILURE);
         }
         
-        if (i == 0 && !cmd.input_file.empty()) {
-          int fd = open(cmd.input_file.c_str(), O_RDONLY);
-          if (fd == -1) {
-            std::cerr << "cjsh: " << cmd.input_file << ": " << strerror(errno) << std::endl;
+        signal(SIGINT, SIG_DFL);
+        signal(SIGQUIT, SIG_DFL);
+        signal(SIGTSTP, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
+        signal(SIGCHLD, SIG_DFL);
+        
+        if (i == 0) {
+          if (!cmd.input_file.empty()) {
+            int fd = open(cmd.input_file.c_str(), O_RDONLY);
+            if (fd == -1) {
+              std::cerr << "cjsh: " << cmd.input_file << ": " << strerror(errno) << std::endl;
+              _exit(EXIT_FAILURE);
+            }
+            if (dup2(fd, STDIN_FILENO) == -1) {
+              perror("dup2 input");
+              _exit(EXIT_FAILURE);
+            }
+            close(fd);
+          }
+        } else {
+          if (dup2(pipes[i-1][0], STDIN_FILENO) == -1) {
+            perror("dup2 pipe input");
             _exit(EXIT_FAILURE);
           }
-          dup2(fd, STDIN_FILENO);
-          close(fd);
-        } else if (in_fd != STDIN_FILENO) {
-          dup2(in_fd, STDIN_FILENO);
-          close(in_fd);
         }
         
         if (i == commands.size() - 1) {
@@ -463,7 +533,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               std::cerr << "cjsh: " << cmd.output_file << ": " << strerror(errno) << std::endl;
               _exit(EXIT_FAILURE);
             }
-            dup2(fd, STDOUT_FILENO);
+            if (dup2(fd, STDOUT_FILENO) == -1) {
+              perror("dup2 output");
+              _exit(EXIT_FAILURE);
+            }
             close(fd);
           } else if (!cmd.append_file.empty()) {
             int fd = open(cmd.append_file.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
@@ -471,13 +544,22 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               std::cerr << "cjsh: " << cmd.append_file << ": " << strerror(errno) << std::endl;
               _exit(EXIT_FAILURE);
             }
-            dup2(fd, STDOUT_FILENO);
+            if (dup2(fd, STDOUT_FILENO) == -1) {
+              perror("dup2 append");
+              _exit(EXIT_FAILURE);
+            }
             close(fd);
           }
         } else {
-          dup2(pipes[1], STDOUT_FILENO);
-          close(pipes[0]);
-          close(pipes[1]);
+          if (dup2(pipes[i][1], STDOUT_FILENO) == -1) {
+            perror("dup2 pipe output");
+            _exit(EXIT_FAILURE);
+          }
+        }
+        
+        for (size_t j = 0; j < commands.size() - 1; j++) {
+          close(pipes[j][0]);
+          close(pipes[j][1]);
         }
         
         std::vector<char*> c_args;
@@ -492,27 +574,24 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         _exit(EXIT_FAILURE);
       }
       
-      if (pgid == 0) {
+      if (i == 0) {
         pgid = pid;
       }
       
       if (setpgid(pid, pgid) < 0) {
-        if (errno != EACCES) {
+        if (errno != EACCES && errno != EPERM) {
           perror("setpgid failed in parent");
         }
       }
       
       pids.push_back(pid);
-      
-      if (in_fd != STDIN_FILENO) {
-        close(in_fd);
-      }
-      
-      if (i < commands.size() - 1) {
-        close(pipes[1]);
-        in_fd = pipes[0];
-      }
     }
+    
+    for (size_t i = 0; i < commands.size() - 1; i++) {
+      close(pipes[i][0]);
+      close(pipes[i][1]);
+    }
+    
   } catch (const std::exception& e) {
     std::cerr << "Error executing pipeline: " << e.what() << std::endl;
     for (pid_t pid : pids) {

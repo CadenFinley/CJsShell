@@ -50,10 +50,14 @@ std::vector<std::string> Parser::parse_command(const std::string& command) {
       continue;
     }
     
-    if (c == ' ' && !in_quotes && current_arg.length() > 0) {
-      args.push_back(current_arg);
-      current_arg.clear();
-      while (i+1 < expanded_command.length() && expanded_command[i+1] == ' ') i++;
+    if (c == ' ' && !in_quotes) {
+      if (current_arg.length() > 0) {
+        args.push_back(current_arg);
+        current_arg.clear();
+      }
+      while (i+1 < expanded_command.length() && expanded_command[i+1] == ' ') {
+        i++;
+      }
       continue;
     }
     
@@ -175,10 +179,24 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         in_quotes = false;
         quote_char = '\0';
       }
+      current += c;
+      continue;
     }
     
     if (c == '|' && !in_quotes) {
-      commands.push_back(current);
+      std::string trimmed = current;
+      while (!trimmed.empty() && std::isspace(trimmed.back())) {
+        trimmed.pop_back();
+      }
+      size_t start = 0;
+      while (start < trimmed.length() && std::isspace(trimmed[start])) {
+        start++;
+      }
+      if (start < trimmed.length()) {
+        trimmed = trimmed.substr(start);
+      }
+      
+      commands.push_back(trimmed);
       current.clear();
     } else {
       current += c;
@@ -186,13 +204,26 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   }
   
   if (!current.empty()) {
-    commands.push_back(current);
+    std::string trimmed = current;
+    while (!trimmed.empty() && std::isspace(trimmed.back())) {
+      trimmed.pop_back();
+    }
+    size_t start = 0;
+    while (start < trimmed.length() && std::isspace(trimmed[start])) {
+      start++;
+    }
+    if (start < trimmed.length()) {
+      trimmed = trimmed.substr(start);
+    }
+    
+    commands.push_back(trimmed);
   }
 
   for (const auto& cmd : commands) {
     Command parsed_cmd;
     std::string processed_cmd = cmd;
 
+    // Check if the command should run in the background
     if (!processed_cmd.empty() && processed_cmd.back() == '&') {
       parsed_cmd.background = true;
       processed_cmd.pop_back();
@@ -211,6 +242,16 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     
     for (size_t i = 0; i < remaining.length(); i++) {
       char c = remaining[i];
+      
+      if (c == '\\' && i + 1 < remaining.length()) {
+        if (in_quotes && quote_char == '\'') {
+          current += c;
+        } else {
+          current += remaining[i+1];
+          i++;
+        }
+        continue;
+      }
       
       if ((c == '"' || c == '\'') && (i == 0 || remaining[i-1] != '\\')) {
         if (!in_quotes) {
@@ -270,6 +311,26 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
       } else {
         std::string arg = tokens[i];
+        if (arg.length() >= 2 && 
+            ((arg.front() == '"' && arg.back() == '"') || 
+             (arg.front() == '\'' && arg.back() == '\''))) {
+          if (arg.front() == '\'') {
+            arg = arg.substr(1, arg.length() - 2);
+          }
+          else if (arg.front() == '"') {
+            std::string unquoted = arg.substr(1, arg.length() - 2);
+            arg = "";
+            for (size_t j = 0; j < unquoted.length(); j++) {
+              if (unquoted[j] == '\\' && j + 1 < unquoted.length()) {
+                arg += unquoted[j+1];
+                j++;
+              } else {
+                arg += unquoted[j];
+              }
+            }
+          }
+        }
+        
         expand_env_vars(arg);
         parsed_cmd.args.push_back(arg);
       }

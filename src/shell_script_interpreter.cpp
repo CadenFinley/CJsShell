@@ -347,7 +347,7 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
                     // Use global Shell to execute the result if available
                     if (g_shell) {
                         debug_print("Using shell to execute result: " + escape_debug_string(result), DebugLevel::VERBOSE);
-                        g_shell->execute_command(result, true);
+                        g_shell->execute_command(result);
                         return g_shell->get_last_exit_code() == 0;
                     } else {
                         return command_executor(result, true);
@@ -370,7 +370,7 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
                 // Use global Shell to execute if available
                 if (g_shell) {
                     debug_print("Using shell to execute eval command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
-                    g_shell->execute_command(expanded_cmd, true);
+                    g_shell->execute_command(expanded_cmd);
                     return g_shell->get_last_exit_code() == 0;
                 } else {
                     return command_executor(expanded_cmd, true);
@@ -391,7 +391,7 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
         // Use global Shell to execute if available
         if (g_shell) {
             debug_print("Using shell to execute command: " + escape_debug_string(expanded_cmd), DebugLevel::VERBOSE);
-            g_shell->execute_command(expanded_cmd, true);
+            g_shell->execute_command(expanded_cmd);
             return g_shell->get_last_exit_code() == 0;
         } else {
             return command_executor(expanded_cmd, true);
@@ -874,7 +874,7 @@ std::string ShellScriptInterpreter::capture_command_output(const std::string& cm
     
     // Execute the command with redirection using the global shell
     if (g_shell) {
-        g_shell->execute_command(redirect_cmd, true);
+        g_shell->execute_command(redirect_cmd);
     } else {
         std::cerr << "Error: No shell available for command execution" << std::endl;
     }
