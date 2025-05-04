@@ -29,9 +29,9 @@ void shell_signal_handler(int signum, siginfo_t* info, void* context) {
     case SIGCHLD: {
       sigchld_received = 1;
       if (g_debug_mode) std::cerr << "DEBUG: SIGCHLD handler executed" << std::endl;
+      while (waitpid(-1, nullptr, WNOHANG) > 0) {}
       break;
     }
-    while (waitpid(-1, nullptr, WNOHANG) > 0) {}
       
     case SIGHUP: {
       sighup_received = 1;
