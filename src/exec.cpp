@@ -488,6 +488,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
             if (dup2(fd, STDIN_FILENO) == -1) {
               perror("dup2 input");
+              close(fd);
               _exit(EXIT_FAILURE);
             }
             close(fd);
@@ -508,6 +509,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
             if (dup2(fd, STDOUT_FILENO) == -1) {
               perror("dup2 output");
+              close(fd);
               _exit(EXIT_FAILURE);
             }
             close(fd);
@@ -519,6 +521,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
             if (dup2(fd, STDOUT_FILENO) == -1) {
               perror("dup2 append");
+              close(fd);
               _exit(EXIT_FAILURE);
             }
             close(fd);

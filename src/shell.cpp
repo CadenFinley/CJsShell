@@ -31,6 +31,7 @@ void shell_signal_handler(int signum, siginfo_t* info, void* context) {
       if (g_debug_mode) std::cerr << "DEBUG: SIGCHLD handler executed" << std::endl;
       break;
     }
+    while (waitpid(-1, nullptr, WNOHANG) > 0) {}
       
     case SIGHUP: {
       sighup_received = 1;
@@ -114,6 +115,15 @@ Shell::~Shell() {
   if (login_mode) {
     restore_terminal_state();
   }
+
+  signal(SIGINT, SIG_DFL);
+  signal(SIGQUIT, SIG_DFL);
+  signal(SIGTSTP, SIG_DFL);
+  signal(SIGTTIN, SIG_DFL);
+  signal(SIGTTOU, SIG_DFL);
+  signal(SIGCHLD, SIG_DFL);
+  signal(SIGHUP, SIG_DFL);
+  signal(SIGTERM, SIG_DFL);
 }
 
 void Shell::setup_signal_handlers() {

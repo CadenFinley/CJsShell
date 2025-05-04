@@ -393,7 +393,8 @@ void setup_environment_variables() {
     setenv("LOGNAME", pw->pw_name, 1);
     setenv("HOME", pw->pw_dir, 1);
     
-    if (getenv("PATH") == nullptr) {
+    const char* path_env = getenv("PATH");
+    if (!path_env || path_env[0] == '\0') {
       if (g_debug_mode) std::cerr << "DEBUG: Setting default PATH" << std::endl;
       setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
@@ -407,7 +408,9 @@ void setup_environment_variables() {
     setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
     setenv("SHELL", cjsh_filesystem::g_cjsh_path.c_str(), 1);
     setenv("IFS", " \t\n", 1);
-    if (getenv("LANG") == nullptr) {
+
+    const char* lang_env = getenv("LANG");
+    if (!lang_env || lang_env[0] == '\0') {
       setenv("LANG", "en_US.UTF-8", 1);
     }
     
