@@ -261,17 +261,18 @@ int Shell::execute_command(std::string command) {
 
   std::vector<std::string> args = shell_parser->parse_command(command);
 
-  if (!menu_active) {
-    if(!command.empty()) {
-      if(command == "terminal") {
-        menu_active = true;
-        return 0;
+  if (!menu_active && args.size() > 0) {
+    if (args[0][0] != ':'){
+      if(!command.empty()) {
+        if(command == "terminal") {
+          menu_active = true;
+          return 0;
+        }
       }
-      if(args[0] == "ai") {
-        return built_ins->ai_commands(args);
-      }
+      return built_ins->do_ai_request(command);
+    } else {
+      args[0].erase(0, 1);
     }
-    return built_ins->do_ai_request(command);
   }
 
   if (command.find(';') != std::string::npos) {
