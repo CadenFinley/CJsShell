@@ -13,7 +13,7 @@
 #include <ctime>
 #include <atomic>
 
-const std::string c_version = "2.1.3.6";
+const std::string c_version = "2.1.3.7";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 const pid_t c_pid = getpid();
