@@ -188,7 +188,6 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED glib-2.0)
 message(STATUS "Found GLib via pkg-config: ${GLIB_VERSION}")
-include_directories(${GLIB_INCLUDE_DIRS})
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
@@ -227,7 +226,6 @@ if(MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
-  target_compile_options(${PROJECT_NAME} PRIVATE ${GLIB_CFLAGS})
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
