@@ -187,7 +187,6 @@ endif()
 # Simplified GLib detection via pkg-config
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED glib-2.0)
-include_directories(${GLIB_INCLUDE_DIRS})
 message(STATUS "Found GLib via pkg-config: ${GLIB_VERSION}")
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
@@ -231,6 +230,7 @@ endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
+  ${GLIB_INCLUDE_DIRS}
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
   ${CURL_LIBRARIES}
