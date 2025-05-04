@@ -11,6 +11,7 @@
 #include <iostream>
 #include <errno.h>
 #include "update.h"
+#include <cstring>
 
 int main(int argc, char *argv[]) {
 
@@ -270,10 +271,17 @@ void main_process_loop() {
 
   ic_set_prompt_marker("", NULL);
   ic_enable_hint(true);
-  ic_set_hint_delay(100);
+  ic_set_hint_delay(0);
   ic_enable_completion_preview(true);
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
+
   ic_set_default_completer(cjsh_default_completer, NULL);
+  ic_enable_auto_tab(true);
+  ic_enable_highlight(true);
+
+  ic_enable_history_duplicates(true);
+  ic_enable_inline_help(true);
+  ic_enable_multiline_indent(false);
 
   while(true) {
     if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
@@ -675,10 +683,12 @@ void mark_first_boot_complete() {
 }
 
 static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
+    size_t prefix_len = std::strlen(prefix);
     auto cmds = g_shell->get_available_commands();
     for (const auto& cmd : cmds) {
-        if (cmd.rfind(prefix,0)==0) {
-            if (!ic_add_completion(cenv, cmd.c_str())) return;
+        if (cmd.rfind(prefix, 0) == 0) {
+            std::string suffix = cmd.substr(prefix_len);
+            if (!ic_add_completion(cenv, suffix.c_str())) return;
         }
     }
 }

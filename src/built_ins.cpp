@@ -759,12 +759,7 @@ int Built_ins::update_theme_in_rc_file(const std::string& themeName) {
 
 int Built_ins::approot_command() {
   std::string appRootPath = cjsh_filesystem::g_cjsh_data_path.string();
-  if (change_directory(appRootPath)) {
-    std::cout << "Changed to application root directory: " << appRootPath << std::endl;
-    return 0;
-  } else {
-    return 1;
-  }
+  return change_directory(appRootPath);
 }
 
 int Built_ins::version_command() {
