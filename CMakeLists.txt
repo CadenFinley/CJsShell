@@ -184,9 +184,10 @@ if(APPLE)
   endif()
 endif()
 
-# Simplified GLib detection using CMake's FindGLIB
-find_package(GLIB REQUIRED)
-message(STATUS "Found GLib: ${GLIB_VERSION}")
+# Simplified GLib detection via pkg-config
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED glib-2.0)
+message(STATUS "Found GLib via pkg-config: ${GLIB_VERSION}")
 include_directories(${GLIB_INCLUDE_DIRS})
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
@@ -226,7 +227,7 @@ if(MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
-  # GLib include paths are now provided via FindGLIB
+  target_compile_options(${PROJECT_NAME} PRIVATE ${GLIB_CFLAGS})
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
