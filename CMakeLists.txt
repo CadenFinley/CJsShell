@@ -165,7 +165,29 @@ if(UNIX AND NOT APPLE)
   find_library(DL_LIBRARY dl REQUIRED)
 endif()
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/glib)
+if(APPLE)
+  execute_process(COMMAND which brew
+                  OUTPUT_VARIABLE BREW_PATH
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(BREW_PATH)
+    execute_process(COMMAND brew --prefix glib
+                    OUTPUT_VARIABLE GLIB_BREW_PREFIX
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET)
+    if(GLIB_BREW_PREFIX)
+      set(ENV{PKG_CONFIG_PATH}
+          "${GLIB_BREW_PREFIX}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+      message(STATUS "Prepended Glib pkg-config path: ${GLIB_BREW_PREFIX}/lib/pkgconfig")
+    endif()
+  endif()
+endif()
+
+# Simplified GLib detection using pkg-config
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED glib-2.0)
+message(STATUS "Found GLib via pkg-config: ${GLIB_VERSION}")
+include_directories(${GLIB_INCLUDE_DIRS})
+link_directories(${GLIB_LIBRARY_DIRS})
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
@@ -199,21 +221,23 @@ file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+# Add warning flags only to our project target, not to libraries
 if(MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+  target_compile_options(${PROJECT_NAME} PRIVATE ${GLIB_CFLAGS})
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
+  ${GLIB_INCLUDE_DIRS}
 )
-
 target_link_libraries(${PROJECT_NAME} PRIVATE
   ${CURL_LIBRARIES}
-  glib::glib
   isocline
   Threads::Threads
+  ${GLIB_LIBRARIES}
 )
 if(UNIX AND NOT APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})
