@@ -12,30 +12,6 @@
 #include <errno.h>
 #include "update.h"
 #include <cstring>
-#include <cstdlib>  // for system()
-
-// Print a concise summary of cjsh startup options
-static void print_usage() {
-  std::cout
-    << "Usage: cjsh [OPTIONS]\n"
-    << "Options:\n"
-    << "  -l, --login           Start in login mode\n"
-    << "  -c, --command CMD     Execute a one-off command\n"
-    << "  -v, --version         Show version and exit\n"
-    << "  -h, --help            Show this help message and exit\n"
-    << "  --no-plugins          Disable plugins\n"
-    << "  --no-themes           Disable themes\n"
-    << "  --no-ai               Disable AI assistant\n"
-    << "  --no-colors           Disable colors\n"
-    << "  --silent-updates      Enable silent update checks\n"
-    << "  --no-update           Disable automatic update checks\n"
-    << "  --check-update        Check for updates and exit\n"
-    << "  --set-as-shell        Install cjsh as your default shell\n"
-    << "  --splash              Show splash screen and exit\n"
-    << "  -d, --debug           Enable debug logging\n"
-    << "  --no-titleline        Disable title line\n"
-    << "  --no-source           Disable sourcing ~/.cjshrc\n";
-}
 
 int main(int argc, char *argv[]) {
 
@@ -113,29 +89,27 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (arg == "-h" || arg == "--help") {
-      print_usage();
-      if (g_shell) { delete g_shell; g_shell = nullptr; }
+      g_shell ->execute_command("help");
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
       return 0;
     }
     else if (arg == "--login" || arg == "-l") {
       if (g_debug_mode) std::cerr << "DEBUG: Recognized login argument: " << arg << std::endl;
     }
     else if (arg == "--set-as-shell") {
-      const std::string path = cjsh_filesystem::g_cjsh_path.string();
-      std::cout << "Warning: cjsh is not a POSIX compliant shell, and there is NO WARRANTY.";
-      // ensure entry in /etc/shells
-      std::string add_cmd = "grep -Fxq \"" + path + "\" /etc/shells || sudo sh -c 'echo " + path + " >> /etc/shells'";
-      if (g_shell -> execute_command(add_cmd) != 0) {
-        std::cerr << "Failed to add '" << path << "' to /etc/shells; please do so manually.\n";
-        if (g_shell) { delete g_shell; g_shell = nullptr; }
-        return 0;
+      std::cout << "Warning: cjsh is not a POSIX compliant shell. \nSimilar to FISH, missuse of cjsh or incorrectly settingcjsh as your login shell can \nhave adverse effects and there is no warranty." << std::endl;
+      std::cout << "To set cjsh as your default shell you must run these two commands:" << std::endl;
+      std::cout << "To add cjsh to the list of shells:" << std::endl;
+      std::cout << "sudo sh -c \"echo " << cjsh_filesystem::g_cjsh_path << " >> /etc/shells\"" << std::endl;
+      std::cerr << "To set CJ's Shell as your default shell:" << std::endl;
+      std::cerr << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+      if(g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
       }
-      // attempt to change default shell
-      std::string chsh_cmd = "chsh -s " + path;
-      if (g_shell -> execute_command(chsh_cmd) != 0) {
-        std::cerr << "Failed to change default shell; please run: sudo chsh -s " << path << "\n";
-      }
-      if (g_shell) { delete g_shell; g_shell = nullptr; }
       return 0;
     }
     else if (arg == "--update") {
@@ -418,9 +392,8 @@ void setup_environment_variables() {
     setenv("USER", pw->pw_name, 1);
     setenv("LOGNAME", pw->pw_name, 1);
     setenv("HOME", pw->pw_dir, 1);
-
-    const char* path_env = getenv("PATH");
-    if (!path_env || path_env[0] == '\0') {
+    
+    if (getenv("PATH") == nullptr) {
       if (g_debug_mode) std::cerr << "DEBUG: Setting default PATH" << std::endl;
       setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
@@ -434,8 +407,7 @@ void setup_environment_variables() {
     setenv("PWD", std::filesystem::current_path().string().c_str(), 1);
     setenv("SHELL", cjsh_filesystem::g_cjsh_path.c_str(), 1);
     setenv("IFS", " \t\n", 1);
-    const char* lang_env = getenv("LANG");
-    if (!lang_env || lang_env[0] == '\0') {
+    if (getenv("LANG") == nullptr) {
       setenv("LANG", "en_US.UTF-8", 1);
     }
     
@@ -462,7 +434,6 @@ void setup_environment_variables() {
   }
 }
 
-#if defined(__unix__) || defined(__APPLE__)
 void initialize_login_environment() {
   if (g_shell->get_login_mode()) {
     g_shell_terminal = STDIN_FILENO;
@@ -522,9 +493,7 @@ void prepare_shell_signal_environment() {
   sa_pipe.sa_flags = 0;
   sigaction(SIGPIPE, &sa_pipe, nullptr);
 }
-#endif
 
-#if defined(__unix__) || defined(__APPLE__)
 bool init_interactive_filesystem() {
   if (g_debug_mode) std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
   std::string current_path = std::filesystem::current_path().string();
@@ -551,7 +520,6 @@ bool init_interactive_filesystem() {
   }
   return true;
 }
-#endif
 
 static void capture_profile_env(const std::string& profile_path) {
     int pipefd[2];
