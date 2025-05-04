@@ -184,67 +184,11 @@ if(APPLE)
   endif()
 endif()
 
-find_package(PkgConfig QUIET)
-if(PKG_CONFIG_FOUND)
-  pkg_check_modules(GLIB QUIET glib-2.0)
-  if(GLIB_FOUND)
-    include_directories(${GLIB_INCLUDE_DIRS})
-    message(STATUS "Found GLib via pkg-config: ${GLIB_VERSION}")
-  else()
-    message(WARNING "GLib not found via pkg-config, trying alternate methods...")
-    # Try to find GLib headers manually
-    find_path(GLIB_INCLUDE_DIRS glib.h
-      PATH_SUFFIXES glib-2.0
-      PATHS
-        /usr/include
-        /usr/local/include
-        /opt/local/include
-        /opt/homebrew/include
-        /usr/local/opt/glib/include
-        /opt/homebrew/opt/glib/include
-        $ENV{GLIB_DIR}/include
-    )
-    if(GLIB_INCLUDE_DIRS)
-      # Also find glibconfig.h
-      find_path(GLIB_CONFIG_INCLUDE_DIR glibconfig.h
-        PATH_SUFFIXES glib-2.0/include
-        PATHS
-          /usr/lib
-          /usr/local/lib
-          /opt/local/lib
-          /opt/homebrew/lib
-          /usr/local/opt/glib/lib
-          /opt/homebrew/opt/glib/lib
-          $ENV{GLIB_DIR}/lib
-      )
-      if(GLIB_CONFIG_INCLUDE_DIR)
-        set(GLIB_INCLUDE_DIRS ${GLIB_INCLUDE_DIRS} ${GLIB_CONFIG_INCLUDE_DIR})
-        find_library(GLIB_LIBRARIES NAMES glib-2.0 glib
-          PATHS
-            /usr/lib
-            /usr/local/lib
-            /opt/local/lib
-            /opt/homebrew/lib
-            /usr/local/opt/glib/lib
-            /opt/homebrew/opt/glib/lib
-            $ENV{GLIB_DIR}/lib
-        )
-        if(GLIB_LIBRARIES)
-          include_directories(${GLIB_INCLUDE_DIRS})
-          message(STATUS "Found GLib manually: ${GLIB_LIBRARIES}")
-        else()
-          message(FATAL_ERROR "GLib library not found. Please install Glib (e.g. 'brew install glib').")
-        endif()
-      else()
-        message(FATAL_ERROR "glibconfig.h not found. Please install Glib (e.g. 'brew install glib').")
-      endif()
-    else()
-      message(FATAL_ERROR "glib.h not found. Please install Glib (e.g. 'brew install glib').")
-    endif()
-  endif()
-else()
-  message(FATAL_ERROR "pkg-config not found. Please install pkg-config and Glib (e.g. 'brew install pkg-config glib').")
-endif()
+# Simplified GLib detection via pkg-config
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED glib-2.0)
+include_directories(${GLIB_INCLUDE_DIRS})
+message(STATUS "Found GLib via pkg-config: ${GLIB_VERSION}")
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
