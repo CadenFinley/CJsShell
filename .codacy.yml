@@ -2,6 +2,7 @@
 # .codacy.yml
 engines:
   cppcheck:
+    language: cpp
     enabled: true
     patterns:
       - performance
