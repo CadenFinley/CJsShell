@@ -1143,7 +1143,7 @@ int Built_ins::aihelp_command(const std::vector<std::string>& args) {
       message += args[i] + " ";
     }
   } else {
-    message = "I am encountering some issues with the cjsh g_shell and would like some help. This is the most recent output: " + g_shell -> last_terminal_output_error + " Here is the command I used: " + g_shell ->last_command;
+    message = "I am encountering some issues with a cjsh command and would like some help. This is the most recent output: " + g_shell -> last_terminal_output_error + " Here is the command I used: " + g_shell ->last_command;
   }
   
   if (g_debug_mode) {
