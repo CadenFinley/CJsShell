@@ -552,14 +552,14 @@ static void capture_profile_env(const std::string& profile_path) {
 
 void process_profile_file() {
     if (g_debug_mode) std::cerr << "DEBUG: Processing profile files" << std::endl;
+    std::filesystem::path universal_profile = "/etc/profile";
+    if (std::filesystem::exists(universal_profile)) {
+        capture_profile_env(universal_profile.string());
+    }
     std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
     if (std::filesystem::exists(user_profile)) {
       if (g_debug_mode) std::cerr << "DEBUG: Found user profile: " << user_profile.string() << std::endl;
       capture_profile_env(user_profile.string());
-    }
-    std::filesystem::path universal_profile = "/etc/profile";
-    if (std::filesystem::exists(universal_profile)) {
-        capture_profile_env(universal_profile.string());
     }
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
         create_profile_file();
