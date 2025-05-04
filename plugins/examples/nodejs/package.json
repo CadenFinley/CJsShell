@@ -1,0 +1,11 @@
+{
+  "name": "hello-node-plugin",
+  "version": "1.0.0",
+  "description": "Example Node.js plugin for CJSH",
+  "main": "hello_plugin.js",
+  "scripts": {
+    "build": "node hello_plugin.js"
+  },
+  "author": "CJSH Team",
+  "license": "MIT"
+}
