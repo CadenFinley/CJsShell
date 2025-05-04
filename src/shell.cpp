@@ -2,7 +2,7 @@
 #include "main.h"
 #include "built_ins.h"
 #include <sstream>
-#include <cstdlib>   // for setenv
+#include <cstdlib>
 
 static volatile sig_atomic_t sigint_received = 0;
 static volatile sig_atomic_t sigchld_received = 0;
