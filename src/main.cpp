@@ -13,21 +13,16 @@
 #include "update.h"
 
 int main(int argc, char *argv[]) {
-  if (g_debug_mode) std::cerr << "DEBUG: main() starting with " << argc << " arguments" << std::endl;
 
-  // verify installation
   if (!initialize_cjsh_path()){
     std::cerr << "Warning: Unable to determine the executable path. This program may not work correctly." << std::endl;
   }
 
-  // login mode and login commands detection: -cjsh, --login, -l
   bool login_mode = false;
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
     if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0] << std::endl;
   }
-  
-  // Additional check for --login or -l arguments
   for (int i = 1; i < argc; i++) {
     if (std::string(argv[i]) == "--login" || std::string(argv[i]) == "-l") {
       login_mode = true;
@@ -36,7 +31,6 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  // this handles the prompting and executing of commands and signal handling
   g_shell = new Shell(login_mode);
 
   g_startup_args.clear();
@@ -44,7 +38,6 @@ int main(int argc, char *argv[]) {
     g_startup_args.push_back(std::string(argv[i]));
   }
   
-  // Initialize login environment if necessary
   if (g_shell->get_login_mode()) {
     if (g_debug_mode) std::cerr << "DEBUG: Initializing login environment" << std::endl;
     if (!init_login_filesystem()) {
@@ -69,7 +62,6 @@ int main(int argc, char *argv[]) {
     setenv("0", "cjsh", 1);
   }
   
-  // check for non interactive command line arguments
   bool l_execute_command = false;
   std::string l_cmd_to_execute = "";
   bool l_plugins_enabled = true;
@@ -104,7 +96,6 @@ int main(int argc, char *argv[]) {
       return 0;
     }
     else if (arg == "--login" || arg == "-l") {
-      // simpy to avoid command not found error
       if (g_debug_mode) std::cerr << "DEBUG: Recognized login argument: " << arg << std::endl;
     }
     else if (arg == "--set-as-shell") {
@@ -174,7 +165,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // execute the command passed in the startup arg and exit
   if (l_execute_command) {
     g_shell->execute_command(l_cmd_to_execute);
     if(g_shell) {
@@ -184,14 +174,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  // now we know we are in interactive mode
   g_shell->set_interactive_mode(true);
-
-  // set initial working directory
-  std::string current_path = std::filesystem::current_path().string();
-  if (g_debug_mode) std::cerr << "DEBUG: Current path: " << current_path << std::endl;
-  setenv("PWD", current_path.c_str(), 1);
-
   if (!init_interactive_filesystem()) {
     std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
     if(g_shell) {
@@ -200,8 +183,6 @@ int main(int argc, char *argv[]) {
     }
     return 1;
   }
-
-  // ensure bash style envvars are set for interactive shells too
   setup_environment_variables();
 
   if (g_debug_mode) std::cerr << "DEBUG: Initializing colors with enabled=" << l_colors_enabled << std::endl;
@@ -237,7 +218,6 @@ int main(int argc, char *argv[]) {
   }
 
   if(!g_exit_flag) {
-    // do update process
     startup_update_process();
     if (g_title_line) {
       std::cout << title_line << std::endl;
@@ -500,6 +480,9 @@ void prepare_shell_signal_environment() {
 
 bool init_interactive_filesystem() {
   if (g_debug_mode) std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
+  std::string current_path = std::filesystem::current_path().string();
+  if (g_debug_mode) std::cerr << "DEBUG: Current path: " << current_path << std::endl;
+  setenv("PWD", current_path.c_str(), 1);
   try {
     if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
       std::cerr << "cjsh: the users home path could not be determined." << std::endl;
