@@ -1,0 +1,54 @@
+# .codacy.yml
+        engines:
+          cpplint:
+            enabled: true
+            config:
+              filter-patterns: []
+              indent_width: 2
+              line_length: 100
+          clangtidy:
+            enabled: true
+            patterns:
+              - modernize-use-nullptr
+              - modernize-use-override
+              - cppcoreguidelines-pro-bounds-pointer-arithmetic
+              - readability-function-size
+              - bugprone-exception-escape
+          cppcheck:
+            enabled: true
+            patterns:
+              - performance
+              - portability
+              - style
+              - memleak
+
+        metrics:
+          complexity:
+            cyclomatic:
+              warning: 10
+              error: 15
+            cognitive:
+              warning: 15
+              error: 20
+            max_function_length:
+              warning: 100
+              error: 150
+            max_file_length:
+              warning: 500
+              error: 1000
+
+        duplication:
+          min_tokens: 30
+
+        style:
+          line_length: 100
+          indent_size: 2
+          naming_conventions:
+            function: snake_case
+            variable: snake_case
+            class: PascalCase
+            constant: UPPER_CASE
+
+        coverage:
+          overall: 80
+          per_file: 70
