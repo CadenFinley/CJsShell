@@ -1,3 +1,4 @@
+---
 # .codacy.yml
         engines:
           cpplint:
@@ -52,3 +53,7 @@
         coverage:
           overall: 80
           per_file: 70
+        exclude_patterns:
+          - vendor/**
+          - plugins/**
+          - themes/**
