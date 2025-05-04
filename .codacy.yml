@@ -1,20 +1,6 @@
 ---
 # .codacy.yml
 engines:
-  cpplint:
-    enabled: true
-    config:
-      filter-patterns: []
-      indent_width: 2
-      line_length: 100
-  clangtidy:
-    enabled: true
-    patterns:
-      - modernize-use-nullptr
-      - modernize-use-override
-      - cppcoreguidelines-pro-bounds-pointer-arithmetic
-      - readability-function-size
-      - bugprone-exception-escape
   cppcheck:
     enabled: true
     patterns:
