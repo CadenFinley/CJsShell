@@ -4,30 +4,38 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-bool Built_ins::builtin_command(const std::vector<std::string>& args) {
-  if (args.empty()) return false;
+#define PRINT_ERROR(MSG)                              \
+  do {                                                \
+    last_terminal_output_error = (MSG);               \
+    std::cerr << last_terminal_output_error << '\n';  \
+  } while (0)
+
+int Built_ins::builtin_command(const std::vector<std::string>& args) {
+  if (args.empty()) return 1;
 
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
-    return it->second(args);
+    int status = it->second(args);
+    return status;
   }
-
-  return false;
+  last_terminal_output_error = "cjsh: command not found: " + args[0];
+  std::cerr << last_terminal_output_error << std::endl;
+  return 127;
 }
 
-bool Built_ins::is_builtin_command(const std::string& cmd) const {
+int Built_ins::is_builtin_command(const std::string& cmd) const {
   return !cmd.empty() && builtins.find(cmd) != builtins.end();
 }
 
-bool Built_ins::change_directory(const std::string& dir, std::string& result) {
+int Built_ins::change_directory(const std::string& dir) {
   std::string target_dir = dir;
   
   if (target_dir.empty()) {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
-      result = "cjsh: HOME environment variable is not set";
-      std::cerr << result << std::endl;
-      return false;
+      last_terminal_output_error = "cjsh: HOME environment variable is not set";
+      std::cerr << last_terminal_output_error << std::endl;
+      return 1;
     }
     target_dir = home_dir;
   }
@@ -35,9 +43,9 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
   if (target_dir[0] == '~') {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
-      result = "cjsh: Cannot expand '~' - HOME environment variable is not set";
-      std::cerr << result << std::endl;
-      return false;
+      last_terminal_output_error = "cjsh: Cannot expand '~' - HOME environment variable is not set";
+      std::cerr << last_terminal_output_error << std::endl;
+      return 1;
     }
     target_dir.replace(0, 1, home_dir);
   }
@@ -52,43 +60,43 @@ bool Built_ins::change_directory(const std::string& dir, std::string& result) {
     }
 
     if (!std::filesystem::exists(dir_path)) {
-      result = "cd: " + target_dir + ": No such file or directory";
-      std::cerr << result << std::endl;
-      return false;
+      last_terminal_output_error = "cd: " + target_dir + ": No such file or directory";
+      std::cerr << last_terminal_output_error << std::endl;
+      return 1;
     }
     
     if (!std::filesystem::is_directory(dir_path)) {
-      result = "cd: " + target_dir + ": Not a directory";
-      std::cerr << result << std::endl;
-      return false;
+      last_terminal_output_error = "cd: " + target_dir + ": Not a directory";
+      std::cerr << last_terminal_output_error << std::endl;
+      return 1;
     }
     
     std::filesystem::path canonical_path = std::filesystem::canonical(dir_path);
     current_directory = canonical_path.string();
     
     if (chdir(current_directory.c_str()) != 0) {
-      result = "cd: " + std::string(strerror(errno));
-      std::cerr << result << std::endl;
-      return false;
+      last_terminal_output_error = "cd: " + std::string(strerror(errno));
+      std::cerr << last_terminal_output_error << std::endl;
+      return 1;
     }
     
     setenv("PWD", current_directory.c_str(), 1);
     
-    return true;
+    return 0;
   }
   catch (const std::filesystem::filesystem_error& e) {
-    result = "cd: " + std::string(e.what());
-    std::cerr << result << std::endl;
-    return false;
+    last_terminal_output_error = "cd: " + std::string(e.what());
+    std::cerr << last_terminal_output_error << std::endl;
+    return 1;
   }
   catch (const std::exception& e) {
-    result = "cd: Unexpected error: " + std::string(e.what());
-    std::cerr << result << std::endl;
-    return false;
+    last_terminal_output_error = "cd: Unexpected error: " + std::string(e.what());
+    std::cerr << last_terminal_output_error << std::endl;
+    return 1;
   }
 }
 
-bool Built_ins::ai_commands(const std::vector<std::string>& args) {
+int Built_ins::ai_commands(const std::vector<std::string>& args) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: ai_commands called with " << args.size() << " arguments" << std::endl;
     if (args.size() > 1) std::cerr << "DEBUG: ai subcommand: " << args[1] << std::endl;
@@ -117,13 +125,13 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
     std::string lastChatReceived = g_ai->getLastResponseReceived();
     std::string fileName = (cjsh_filesystem::g_cjsh_data_path / ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt")).string();
     std::ofstream file(fileName);
-    if (file.is_open()) {
+    if (!file.is_open()) {
+      PRINT_ERROR(std::string("Error: Unable to create the chat log file at ") + fileName);
+    } else {
       file << "Chat Sent: " << lastChatSent << "\n";
       file << "Chat Received: " << lastChatReceived << "\n";
       file.close();
       std::cout << "Chat log saved to " << fileName << std::endl;
-    } else {
-      std::cerr << "Error: Unable to create the chat log file at " << fileName << std::endl;
     }
     return true;
   }
@@ -140,7 +148,7 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
   
   if (cmd == "get") {
     if (args.size() <= command_index + 1) {
-      std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
+      PRINT_ERROR("Error: No arguments provided. Try 'help' for a list of commands.");
       return false;
     }
     std::cout << g_ai->getResponseData(args[command_index + 1]) << std::endl;
@@ -215,7 +223,7 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
       g_ai->setTimeoutFlagSeconds(timeout);
       std::cout << "Timeout flag set to " << timeout << " seconds." << std::endl;
     } catch (const std::exception& e) {
-      std::cerr << "Error: Invalid timeout value. Please provide a number." << std::endl;
+      PRINT_ERROR("Error: Invalid timeout value. Please provide a number.");
     }
     return false;
   }
@@ -244,9 +252,9 @@ bool Built_ins::ai_commands(const std::vector<std::string>& args) {
   return true;
 }
 
-bool Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
+int Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
-    std::cerr << "Error: No arguments provided. Try 'help' for a list of commands." << std::endl;
+    PRINT_ERROR("Error: No arguments provided. Try 'help' for a list of commands.");
     return false;
   }
   
@@ -318,7 +326,7 @@ bool Built_ins::ai_chat_commands(const std::vector<std::string>& args, int cmd_i
   return true;
 }
 
-bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index) {
+int Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index) {
   std::vector<std::string> filesAtPath;
   try {
     for (const auto& entry : std::filesystem::directory_iterator(current_directory)) {
@@ -327,7 +335,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
       }
     }
   } catch (const std::exception& e) {
-    std::cerr << "Error reading directory: " << e.what() << std::endl;
+    PRINT_ERROR(std::string("Error reading directory: ") + e.what());
   }
   
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
@@ -341,14 +349,14 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     for (const auto& file : filesAtPath) {
       std::cout << file << std::endl;
     }
-    return true;
+    return 0;
   }
   
   const std::string& subcmd = args[cmd_index + 1];
   
   if (subcmd == "add") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
+      PRINT_ERROR("Error: No file specified. Try 'help' for a list of commands.");
       return false;
     }
     
@@ -362,7 +370,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     std::string filePath = current_directory + "/" + filename;
     
     if (!std::filesystem::exists(filePath)) {
-      std::cerr << "Error: File not found: " << filename << std::endl;
+      PRINT_ERROR(std::string("Error: File not found: ") + filename);
       return false;
     }
     
@@ -373,7 +381,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
   
   if (subcmd == "remove") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      std::cerr << "Error: No file specified. Try 'help' for a list of commands." << std::endl;
+      PRINT_ERROR("Error: No file specified. Try 'help' for a list of commands.");
       return false;
     }
     
@@ -388,7 +396,7 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     std::string filePath = current_directory + "/" + filename;
     
     if (!std::filesystem::exists(filePath)) {
-      std::cerr << "Error: File not found: " << filename << std::endl;
+      PRINT_ERROR(std::string("Error: File not found: ") + filename);
       return false;
     }
     
@@ -431,11 +439,11 @@ bool Built_ins::handle_ai_file_commands(const std::vector<std::string>& args, in
     return true;
   }
   
-  std::cerr << "Error: Unknown command. Try 'help' for a list of commands." << std::endl;
+  PRINT_ERROR("Error: Unknown command. Try 'help' for a list of commands.");
   return false;
 }
 
-bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
+int Built_ins::plugin_commands(const std::vector<std::string>& args) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: plugin_commands called with " << args.size() << " arguments" << std::endl;
     if (args.size() > 1) std::cerr << "DEBUG: plugin command: " << args[1] << std::endl;
@@ -657,7 +665,7 @@ bool Built_ins::plugin_commands(const std::vector<std::string>& args) {
   return false;
 }
 
-bool Built_ins::theme_commands(const std::vector<std::string>& args) {
+int Built_ins::theme_commands(const std::vector<std::string>& args) {
   if (g_theme == nullptr) {
     return false;
   }
@@ -710,7 +718,7 @@ bool Built_ins::theme_commands(const std::vector<std::string>& args) {
   }
 }
 
-void Built_ins::update_theme_in_rc_file(const std::string& themeName) {
+int Built_ins::update_theme_in_rc_file(const std::string& themeName) {
   std::filesystem::path rc_path = cjsh_filesystem::g_cjsh_source_path;
   
   std::vector<std::string> lines;
@@ -752,34 +760,33 @@ void Built_ins::update_theme_in_rc_file(const std::string& themeName) {
   } else {
     std::cerr << "Error: Unable to open .cjshrc file for writing at " << rc_path.string() << std::endl;
   }
+  return 0;
 }
 
-bool Built_ins::approot_command() {
+int Built_ins::approot_command() {
   std::string appRootPath = cjsh_filesystem::g_cjsh_data_path.string();
-  std::string result;
-  if (change_directory(appRootPath, result)) {
+  if (change_directory(appRootPath)) {
     std::cout << "Changed to application root directory: " << appRootPath << std::endl;
     return true;
   } else {
-    std::cerr << result << std::endl;
     return false;
   }
 }
 
-bool Built_ins::version_command() {
+int Built_ins::version_command() {
   std::cout << "CJ's Shell v" << c_version << std::endl;
-  return true;
+  return 0;
 }
 
-bool Built_ins::uninstall_command() {
+int Built_ins::uninstall_command() {
   std::cout << "To uninstall CJ's Shell run the following brew command:" << std::endl;
   std::cout << "brew uninstall cjsh" << std::endl;
   std::cout << "To remove the application data, run:" << std::endl;
   std::cout << "rm -rf " << cjsh_filesystem::g_cjsh_data_path.string() << std::endl;
-  return true;
+  return 0;
 }
 
-bool Built_ins::user_commands(const std::vector<std::string>& args) {
+int Built_ins::user_commands(const std::vector<std::string>& args) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: user_commands called with " << args.size() << " arguments" << std::endl;
     if (args.size() > 1) std::cerr << "DEBUG: user subcommand: " << args[1] << std::endl;
@@ -952,7 +959,7 @@ bool Built_ins::user_commands(const std::vector<std::string>& args) {
   return false;
 }
 
-bool Built_ins::help_command() {
+int Built_ins::help_command() {
   if (g_debug_mode) {
     std::cerr << "DEBUG: help_command called" << std::endl;
   }
@@ -1021,24 +1028,10 @@ bool Built_ins::help_command() {
   std::cout << "      commands [NAME]     List commands provided by a plugin\n";
   std::cout << "      settings [NAME]     View or modify plugin settings\n";
   std::cout << "      install [PATH]      Install a new plugin from the given path\n";
-  std::cout << "      uninstall [NAME]    Remove an installed plugin\n";
+  std::cout << "      uninstall [NAME]    Remove an installed plugin" << std::endl;
   std::cout << "    Example: 'plugin enable git_tools', 'plugin info markdown'\n\n";
   
   // Utility commands
-  std::cout << "UTILITY COMMANDS:\n\n";
-  
-  std::cout << "  approot                 Switch to the application directory\n";
-  std::cout << "    Usage: approot\n";
-  std::cout << "    Note: This is where cjsh configuration files are stored\n\n";
-  
-  std::cout << "  version                 Display the application version\n";
-  std::cout << "    Usage: version\n\n";
-  
-  std::cout << "  uninstall               Uninstall the application\n";
-  std::cout << "    Usage: uninstall\n";
-  std::cout << "    Note: Will prompt for confirmation and option to remove user data\n\n";
-  
-  // Built-in shell commands
   std::cout << "BUILT-IN SHELL COMMANDS:\n\n";
   
   std::cout << "  cd [DIR]                Change the current directory\n";
@@ -1135,7 +1128,7 @@ bool Built_ins::help_command() {
   return true;
 }
 
-bool Built_ins::aihelp_command(const std::vector<std::string>& args) {
+int Built_ins::aihelp_command(const std::vector<std::string>& args) {
   if (!g_ai || g_ai->getAPIKey().empty()) {
     std::cerr << "Please set your OpenAI API key first." << std::endl;
     return false;
@@ -1158,7 +1151,7 @@ bool Built_ins::aihelp_command(const std::vector<std::string>& args) {
   return true;
 }
 
-bool Built_ins::alias_command(const std::vector<std::string>& args) {
+int Built_ins::alias_command(const std::vector<std::string>& args) {
   if (args.size() == 1) {
     auto& aliases = g_shell->get_aliases();
     if (aliases.empty()) {
@@ -1195,7 +1188,7 @@ bool Built_ins::alias_command(const std::vector<std::string>& args) {
   return all_successful;
 }
 
-bool Built_ins::export_command(const std::vector<std::string>& args) {
+int Built_ins::export_command(const std::vector<std::string>& args) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: export_command called with " << args.size() << " arguments" << std::endl;
   }
@@ -1243,7 +1236,7 @@ bool Built_ins::export_command(const std::vector<std::string>& args) {
   
   return all_successful;
 }
-bool Built_ins::unset_command(const std::vector<std::string>& args) {
+int Built_ins::unset_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
     std::cerr << "unset: not enough arguments" << std::endl;
     return false;
@@ -1277,7 +1270,7 @@ bool Built_ins::unset_command(const std::vector<std::string>& args) {
   return success;
 }
 
-bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std::string& value) {
+int Built_ins::parse_assignment(const std::string& arg, std::string& name, std::string& value) {
   size_t equals_pos = arg.find('=');
   if (equals_pos == std::string::npos || equals_pos == 0) {
     return false;
@@ -1296,7 +1289,7 @@ bool Built_ins::parse_assignment(const std::string& arg, std::string& name, std:
   return true;
 }
 
-void Built_ins::save_alias_to_file(const std::string& name, const std::string& value) {
+int Built_ins::save_alias_to_file(const std::string& name, const std::string& value) {
   std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
   
   std::vector<std::string> lines;
@@ -1334,9 +1327,10 @@ void Built_ins::save_alias_to_file(const std::string& name, const std::string& v
   } else {
     std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
   }
+  return 0;
 }
 
-bool Built_ins::unalias_command(const std::vector<std::string>& args) {
+int Built_ins::unalias_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
     std::cerr << "unalias: not enough arguments" << std::endl;
     return false;
@@ -1368,7 +1362,7 @@ bool Built_ins::unalias_command(const std::vector<std::string>& args) {
   return success;
 }
 
-void Built_ins::remove_alias_from_file(const std::string& name) {
+int Built_ins::remove_alias_from_file(const std::string& name) {
   std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
   
   std::vector<std::string> lines;
@@ -1397,14 +1391,15 @@ void Built_ins::remove_alias_from_file(const std::string& name) {
   } else {
     std::cerr << "Error: Unable to open source file for writing at " << source_path.string() << std::endl;
   }
+  return 0;
 }
 
-void Built_ins::save_env_var_to_file(const std::string& name, const std::string& value) {
+int Built_ins::save_env_var_to_file(const std::string& name, const std::string& value) {
   if (!shell || !shell->get_login_mode()) {
     if (g_debug_mode) {
       std::cerr << "Warning: Attempted to save environment variable to config file when not in login mode" << std::endl;
     }
-    return;
+    return 0;
   }
   
   std::filesystem::path config_path = cjsh_filesystem::g_cjsh_profile_path;
@@ -1444,14 +1439,15 @@ void Built_ins::save_env_var_to_file(const std::string& name, const std::string&
   } else {
     std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
   }
+  return 0;
 }
 
-void Built_ins::remove_env_var_from_file(const std::string& name) {
+int Built_ins::remove_env_var_from_file(const std::string& name) {
   if (!shell || !shell->get_login_mode()) {
     if (g_debug_mode) {
       std::cerr << "Warning: Attempted to remove environment variable from config file when not in login mode" << std::endl;
     }
-    return;
+    return 0;
   }
   
   std::filesystem::path config_path = cjsh_filesystem::g_cjsh_profile_path;
@@ -1482,35 +1478,39 @@ void Built_ins::remove_env_var_from_file(const std::string& name) {
   } else {
     std::cerr << "Error: Unable to open config file for writing at " << config_path.string() << std::endl;
   }
+  return 0;
 }
 
-void Built_ins::do_ai_request(const std::string& prompt) {
+int Built_ins::do_ai_request(const std::string& prompt) {
   if (!g_ai) {
     std::cerr << "AI system not initialized." << std::endl;
-    return;
+    return 1;
   }
 
   if (g_ai->getAPIKey().empty()) {
     std::cerr << "Please set your OpenAI API key first using 'ai apikey set <YOUR_API_KEY>'." << std::endl;
-    return;
+    return 1;
   }
 
   try {
     std::string response = g_ai->chatGPT(prompt, true);
     std::cout << response << std::endl;
+    return 0;
   } catch (const std::exception& e) {
     std::cerr << "Error communicating with AI: " << e.what() << std::endl;
+    return 1;
   }
 }
 
-bool Built_ins::restart_command() {
+int Built_ins::restart_command() {
   std::cout << "Restarting shell..." << std::endl;
   
   std::filesystem::path shell_path = cjsh_filesystem::g_cjsh_path;
   
   if (!std::filesystem::exists(shell_path)) {
     std::cerr << "Error: Could not find shell executable at " << shell_path.string() << std::endl;
-    return false;
+    last_terminal_output_error = "restart: executable not found";
+    return 1;
   }
   
   std::string path_str = shell_path.string();
@@ -1519,19 +1519,23 @@ bool Built_ins::restart_command() {
     const_cast<char*>(path_cstr),
     nullptr
   };
-  execv(path_cstr, args);
-  std::cerr << "Error restarting shell: " << strerror(errno) << std::endl;
-  return false;
+  if (execv(path_cstr, args) == -1) {
+    last_terminal_output_error = "Error restarting shell: " + std::string(strerror(errno));
+    std::cerr << last_terminal_output_error << std::endl;
+    return 1;
+  }
+  return 0;
 }
 
-bool Built_ins::eval_command(const std::vector<std::string>& args) {
+int Built_ins::eval_command(const std::vector<std::string>& args) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: eval_command called with " << args.size() << " arguments" << std::endl;
   }
 
   if (args.size() < 2) {
-    std::cerr << "eval: missing arguments" << std::endl;
-    return false;
+    last_terminal_output_error = "eval: missing arguments";
+    std::cerr << last_terminal_output_error << std::endl;
+    return 1;
   }
 
   std::string command_to_eval;
@@ -1549,9 +1553,10 @@ bool Built_ins::eval_command(const std::vector<std::string>& args) {
     if (g_debug_mode) {
       std::cerr << "DEBUG: eval command returned: " << result << std::endl;
     }
-    return result == 0;
+    return result;
   } else {
-    std::cerr << "eval: shell not initialized" << std::endl;
-    return false;
+    last_terminal_output_error = "eval: shell not initialized";
+    std::cerr << last_terminal_output_error << std::endl;
+    return 1;
   }
 }

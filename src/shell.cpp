@@ -2,6 +2,7 @@
 #include "main.h"
 #include "built_ins.h"
 #include <sstream>
+#include <cstdlib>   // for setenv
 
 static volatile sig_atomic_t sigint_received = 0;
 static volatile sig_atomic_t sigchld_received = 0;
@@ -268,20 +269,19 @@ int Shell::execute_command(std::string command) {
         return 0;
       }
       if(args[0] == "ai") {
-        built_ins->ai_commands(args);
-        return 0;
+        return built_ins->ai_commands(args);
       }
     }
-    built_ins->do_ai_request(command);
-    return 0;
+    return built_ins->do_ai_request(command);
   }
 
   if (command.find(';') != std::string::npos) {
     std::vector<std::string> cmds = shell_parser->parse_semicolon_commands(command);
+    int exit_code = 0;
     for (const auto& cmd : cmds) {
-      execute_command(cmd);
+      exit_code = execute_command(cmd);
     }
-    return 0;
+    return exit_code;
   }
   
   std::string var_name, var_value;
@@ -347,11 +347,10 @@ int Shell::execute_command(std::string command) {
   }
 
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
-    if(!built_ins->builtin_command(args)){
-      last_terminal_output_error = "Something went wrong with the command";
-    }
+    int code = built_ins->builtin_command(args);
+    last_terminal_output_error = built_ins->get_last_error();
     last_command = command + (run_in_background ? " &" : "");
-    return 0;
+    return code;
   }
 
   if (g_plugin) {
@@ -360,8 +359,7 @@ int Shell::execute_command(std::string command) {
       for(const auto& plugin : enabled_plugins){
         std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
         if(std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()){
-          g_plugin->handle_plugin_command(plugin, args);
-          return 0;
+          return g_plugin->handle_plugin_command(plugin, args) ? 0 : 1;
         }
       }
     }
@@ -373,22 +371,25 @@ int Shell::execute_command(std::string command) {
         shell_script_interpreter->execute_script(args[1]);
       } else {
         last_terminal_output_error = "Script interpreter not available";
+        return 1;
       }
     } else {
       last_terminal_output_error = "No source file specified";
+      return 1;
     }
     return 0;
   }
-
   if (run_in_background) {
     shell_exec->execute_command_async(args);
     last_terminal_output_error = "Background command launched";
+    last_command = command + (run_in_background ? " &" : "");
+    return 0;
   } else {
     shell_exec->execute_command_sync(args);
     last_terminal_output_error = shell_exec->get_error();
+    last_command = command + (run_in_background ? " &" : "");
+    return shell_exec->get_exit_code();
   }
-  last_command = command + (run_in_background ? " &" : "");
-  return shell_exec->get_exit_code();
 }
 
 std::vector<std::string> Shell::get_available_commands() const {

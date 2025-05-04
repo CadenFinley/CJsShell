@@ -99,9 +99,12 @@ int main(int argc, char *argv[]) {
       if (g_debug_mode) std::cerr << "DEBUG: Recognized login argument: " << arg << std::endl;
     }
     else if (arg == "--set-as-shell") {
-      std::cout << "Setting CJ's Shell as the default shell..." << std::endl;
-      std::cerr << "Please run the following command to set CJ's Shell as your default shell:\n";
-      std::cerr << "chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+      std::cout << "Warning: cjsh is not a POSIX compliant shell. \nSimilar to FISH, missuse of cjsh or incorrectly settingcjsh as your login shell can \nhave adverse effects and there is no warranty." << std::endl;
+      std::cout << "To set cjsh as your default shell you must run these two commands:" << std::endl;
+      std::cout << "To add cjsh to the list of shells:" << std::endl;
+      std::cout << "sudo sh -c \"echo " << cjsh_filesystem::g_cjsh_path << " >> /etc/shells\"" << std::endl;
+      std::cerr << "To set CJ's Shell as your default shell:" << std::endl;
+      std::cerr << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
       if(g_shell) {
         delete g_shell;
         g_shell = nullptr;

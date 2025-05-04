@@ -15,23 +15,23 @@ class Shell;
 class Built_ins {
 
 public:
-Built_ins(): builtins({
-      {"cd", [this](const std::vector<std::string>& args) { std::string result; return change_directory(args.size() > 1 ? args[1] : current_directory, result);}},
-      {"alias", [this](const std::vector<std::string>& args) { return alias_command(args); }},
-      {"export", [this](const std::vector<std::string>& args) { return export_command(args); }},
+  Built_ins(): builtins({
+      {"cd",      [this](const std::vector<std::string>& args) { return change_directory(args.size()>1?args[1]:current_directory); }},
+      {"alias",   [this](const std::vector<std::string>& args) { return alias_command(args); }},
+      {"export",  [this](const std::vector<std::string>& args) { return export_command(args); }},
       {"unalias", [this](const std::vector<std::string>& args) { return unalias_command(args); }},
-      {"unset", [this](const std::vector<std::string>& args) { return unset_command(args); }},
-      {"ai", [this](const std::vector<std::string>& args) { return ai_commands(args); }},
-      {"user", [this](const std::vector<std::string>& args) { return user_commands(args); }},
-      {"theme", [this](const std::vector<std::string>& args) { return theme_commands(args); }},
-      {"plugin", [this](const std::vector<std::string>& args) { return plugin_commands(args); }},
-      {"help", [this](const std::vector<std::string>&) { return help_command(); }},
-      {"approot", [this](const std::vector<std::string>&) { return approot_command(); }},
-      {"aihelp", [this](const std::vector<std::string>& args) { return aihelp_command(args); }},
-      {"version", [this](const std::vector<std::string>&) { return version_command(); }},
-      {"uninstall", [this](const std::vector<std::string>&) { return uninstall_command(); }},
-      {"restart", [this](const std::vector<std::string>&) { return restart_command(); }},
-      {"eval", [this](const std::vector<std::string>& args) { return eval_command(args); }},
+      {"unset",   [this](const std::vector<std::string>& args) { return unset_command(args); }},
+      {"ai",      [this](const std::vector<std::string>& args) { return ai_commands(args); }},
+      {"user",    [this](const std::vector<std::string>& args) { return user_commands(args); }},
+      {"theme",   [this](const std::vector<std::string>& args) { return theme_commands(args); }},
+      {"plugin",  [this](const std::vector<std::string>& args) { return plugin_commands(args); }},
+      {"help",    [this](const std::vector<std::string>&)     { return help_command(); }},
+      {"approot", [this](const std::vector<std::string>&)     { return approot_command(); }},
+      {"aihelp",  [this](const std::vector<std::string>& args){ return aihelp_command(args); }},
+      {"version", [this](const std::vector<std::string>&)     { return version_command(); }},
+      {"uninstall",[this](const std::vector<std::string>&)    { return uninstall_command(); }},
+      {"restart", [this](const std::vector<std::string>&)     { return restart_command(); }},
+      {"eval",    [this](const std::vector<std::string>& args){ return eval_command(args); }},
   }), shell(nullptr) {}
   ~Built_ins() = default;
 
@@ -50,11 +50,11 @@ Built_ins(): builtins({
     }
   }
 
-  bool builtin_command(const std::vector<std::string>& args);
-  bool is_builtin_command(const std::string& cmd) const;
-  bool change_directory(const std::string& dir, std::string& result);
-  bool ai_commands(const std::vector<std::string>& args);
-  void do_ai_request(const std::string& prompt);
+  int builtin_command(const std::vector<std::string>& args);
+  int is_builtin_command(const std::string& cmd) const;
+  int change_directory(const std::string& dir);
+  int ai_commands(const std::vector<std::string>& args);
+  int do_ai_request(const std::string& prompt);
 
   std::vector<std::string> get_builtin_and_alias_names() const {
     std::vector<std::string> names;
@@ -63,33 +63,38 @@ Built_ins(): builtins({
     return names;
   }
 
+  std::string get_last_error() const {
+    return last_terminal_output_error;
+  }
+
 private:
   std::string current_directory;
-  std::unordered_map<std::string, std::function<bool(const std::vector<std::string>&)>> builtins;
+  std::unordered_map<std::string, std::function<int(const std::vector<std::string>&)>> builtins;
   Shell* shell;
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
+  std::string last_terminal_output_error;
 
-  bool ai_chat_commands(const std::vector<std::string>& args, int command_index);
-  bool handle_ai_file_commands(const std::vector<std::string>& args, int command_index);
-  bool plugin_commands(const std::vector<std::string>& args);
-  bool theme_commands(const std::vector<std::string>& args);
-  void update_theme_in_rc_file(const std::string& themeName);
-  bool approot_command();
-  bool version_command();
-  bool uninstall_command();
-  bool restart_command();
-  bool user_commands(const std::vector<std::string>& args);
-  bool help_command();
-  bool aihelp_command(const std::vector<std::string>& args);
-  bool alias_command(const std::vector<std::string>& args);
-  bool export_command(const std::vector<std::string>& args);
-  bool unalias_command(const std::vector<std::string>& args);
-  bool unset_command(const std::vector<std::string>& args);
-  bool eval_command(const std::vector<std::string>& args);
-  void save_alias_to_file(const std::string& name, const std::string& value);
-  void save_env_var_to_file(const std::string& name, const std::string& value);
-  void remove_alias_from_file(const std::string& name);
-  void remove_env_var_from_file(const std::string& name);
-  bool parse_assignment(const std::string& arg, std::string& name, std::string& value);
+  int ai_chat_commands(const std::vector<std::string>& args,int command_index);
+  int handle_ai_file_commands(const std::vector<std::string>& args,int command_index);
+  int plugin_commands(const std::vector<std::string>& args);
+  int theme_commands(const std::vector<std::string>& args);
+  int update_theme_in_rc_file(const std::string& themeName);
+  int approot_command();
+  int version_command();
+  int uninstall_command();
+  int restart_command();
+  int user_commands(const std::vector<std::string>& args);
+  int help_command();
+  int aihelp_command(const std::vector<std::string>& args);
+  int alias_command(const std::vector<std::string>& args);
+  int export_command(const std::vector<std::string>& args);
+  int unalias_command(const std::vector<std::string>& args);
+  int unset_command(const std::vector<std::string>& args);
+  int eval_command(const std::vector<std::string>& args);
+  int save_alias_to_file(const std::string& name, const std::string& value);
+  int save_env_var_to_file(const std::string& name, const std::string& value);
+  int remove_alias_from_file(const std::string& name);
+  int remove_env_var_from_file(const std::string& name);
+  int parse_assignment(const std::string& arg, std::string& name, std::string& value);
 };
