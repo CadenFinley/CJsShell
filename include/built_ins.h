@@ -56,6 +56,13 @@ Built_ins(): builtins({
   bool ai_commands(const std::vector<std::string>& args);
   void do_ai_request(const std::string& prompt);
 
+  std::vector<std::string> get_builtin_and_alias_names() const {
+    std::vector<std::string> names;
+    for (auto &kv : builtins) names.push_back(kv.first);
+    for (auto &kv : aliases)  names.push_back(kv.first);
+    return names;
+  }
+
 private:
   std::string current_directory;
   std::unordered_map<std::string, std::function<bool(const std::vector<std::string>&)>> builtins;

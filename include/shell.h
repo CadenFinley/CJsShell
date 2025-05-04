@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <unordered_map>
 #include <signal.h>
+#include <vector>
 
 class Exec;
 class Built_ins;
@@ -97,6 +98,7 @@ class Shell {
     void set_menu_active(bool active) {
       menu_active = active;
     }
+    std::vector<std::string> get_available_commands() const;
 
   private:
     bool interactive_mode = false;

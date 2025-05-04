@@ -1,5 +1,6 @@
 #include "main.h"
 #include "../vendor/isocline/include/isocline.h"
+#include "shell.h"
 #include "cjsh_filesystem.h"
 #include <signal.h>
 #include "colors.h"
@@ -276,6 +277,10 @@ void update_terminal_title() {
   std::cout.flush();
 }
 
+static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix);
+static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix);
+static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix);
+
 void main_process_loop() {
   if (g_debug_mode) std::cerr << "DEBUG: Entering main process loop" << std::endl;
   notify_plugins("main_process_pre_run", c_pid_str);
@@ -285,6 +290,7 @@ void main_process_loop() {
   ic_set_hint_delay(100);
   ic_enable_completion_preview(true);
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
+  ic_set_default_completer(cjsh_default_completer, NULL);
 
   while(true) {
     if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
@@ -675,4 +681,22 @@ void mark_first_boot_complete() {
   std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
   std::ofstream flag_file(first_boot_flag);
   flag_file.close();
+}
+
+static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
+    auto cmds = g_shell->get_available_commands();
+    for (const auto& cmd : cmds) {
+        if (cmd.rfind(prefix,0)==0) {
+            if (!ic_add_completion(cenv, cmd.c_str())) return;
+        }
+    }
+}
+
+static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
+    ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
+}
+
+static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
+    cjsh_command_completer(cenv, prefix);
+    cjsh_filename_completer(cenv, prefix);
 }

@@ -390,3 +390,12 @@ int Shell::execute_command(std::string command) {
   last_command = command + (run_in_background ? " &" : "");
   return shell_exec->get_exit_code();
 }
+
+std::vector<std::string> Shell::get_available_commands() const {
+  std::vector<std::string> cmds;
+  if (built_ins) {
+    auto b = built_ins->get_builtin_and_alias_names();
+    cmds.insert(cmds.end(), b.begin(), b.end());
+  }
+  return cmds;
+}
