@@ -707,3 +707,14 @@ bool Plugin::is_architecture_compatible(const std::string& file_arch, const std:
 
     return false;
 }
+
+bool Plugin::is_rosetta_translated() const {
+    #ifdef __APPLE__
+    int ret = 0;
+    size_t size = sizeof(ret);
+    if (sysctlbyname("sysctl.proc_translated", &ret, &size, NULL, 0) != -1) {
+        return ret == 1;
+    }
+    #endif
+    return false;
+}
