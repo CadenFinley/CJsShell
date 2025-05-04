@@ -44,6 +44,7 @@
  * {LANG_VER:X}  - Version of language X (python, node, ruby, go, rust)
  * {VIRTUAL_ENV} - Name of active virtual environment, if any
  * {BG_JOBS}     - Number of background jobs
+ * {STATUS}      - Last command exit code
  * 
  * Network information placeholders:
  * {IP_LOCAL}    - Local IP address
@@ -564,6 +565,12 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     if (is_variable_used("BG_JOBS", segments)) {
         int job_count = get_background_jobs_count();
         vars["BG_JOBS"] = job_count > 0 ? std::to_string(job_count) : "";
+    }
+
+    // Add last exit code placeholder
+    if (is_variable_used("STATUS", segments)) {
+        char* status_env = getenv("STATUS");
+        vars["STATUS"] = status_env ? std::string(status_env) : "0";
     }
 
     if (is_variable_used("IP_LOCAL", segments)) {

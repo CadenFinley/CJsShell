@@ -1,4 +1,5 @@
 #include "exec.h"
+#include <sysexits.h>
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -93,9 +94,8 @@ std::string Exec::get_error() {
 int Exec::execute_command_sync(const std::vector<std::string>& args) {
   if (args.empty()) {
     set_error("cjsh: Failed to parse command");
-    std::cerr << last_terminal_output_error << std::endl;
-    last_exit_code = 1;
-    return 1;
+    last_exit_code = EX_DATAERR;
+    return EX_DATAERR;
   }
   std::vector<std::pair<std::string, std::string>> env_assignments;
   size_t cmd_start_idx = 0;
@@ -147,9 +147,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   
   if (pid == -1) {
     set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
-    std::cerr << last_terminal_output_error << std::endl;
-    last_exit_code = 1;
-    return 1;
+    last_exit_code = EX_OSERR;
+    return EX_OSERR;
   }
   
   if (pid == 0) {
@@ -192,9 +191,10 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     
     execvp(cmd_args[0].c_str(), c_args.data());
     
-    std::string error_msg = "cjsh: Failed to execute command ( " + cmd_args[0] + " ) : no command found";
-    std::cerr << error_msg << std::endl;
-    _exit(EXIT_FAILURE);
+    std::string err = "cjsh: command not found or failed to execute: " + cmd_args[0] + ": " + strerror(errno);
+    std::cerr << err<< std::endl;
+    set_error(err);
+    _exit(127);
   }
   
   if (setpgid(pid, pid) < 0) {
@@ -236,9 +236,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 int Exec::execute_command_async(const std::vector<std::string>& args) {
   if (args.empty()) {
     set_error("cjsh: Failed to parse command");
-    std::cerr << last_terminal_output_error << std::endl;
-    last_exit_code = 1;
-    return 1;
+    last_exit_code = EX_DATAERR;
+    return EX_DATAERR;
   }
   
   std::vector<std::pair<std::string, std::string>> env_assignments;
@@ -291,9 +290,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
   
   if (pid == -1) {
     set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
-    std::cerr << last_terminal_output_error << std::endl;
-    last_exit_code = 1;
-    return 1;
+    last_exit_code = EX_OSERR;
+    return EX_OSERR;
   }
   
   if (pid == 0) {
@@ -319,9 +317,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     c_args.push_back(nullptr);
     
     execvp(cmd_args[0].c_str(), c_args.data());
-
-    std::cerr << "cjsh: " << cmd_args[0] << ": " << strerror(errno) << std::endl;
-    _exit(EXIT_FAILURE);
+    _exit(127);
   }
   else {
     if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
@@ -349,8 +345,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
   if (commands.empty()) {
     set_error("cjsh: Empty pipeline");
-    last_exit_code = 1;
-    return 1;
+    last_exit_code = EX_USAGE;
+    return EX_USAGE;
   }
   
   if (commands.size() == 1) {
@@ -363,8 +359,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       
       if (pid == -1) {
         set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
-        std::cerr << last_terminal_output_error << std::endl;
-        return 1;
+        last_exit_code = EX_OSERR;
+        return EX_OSERR;
       }
       
       if (pid == 0) {
@@ -411,9 +407,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         c_args.push_back(nullptr);
         
         execvp(cmd.args[0].c_str(), c_args.data());
-        
-        std::cerr << "cjsh: " << cmd.args[0] << ": " << strerror(errno) << std::endl;
-        _exit(EXIT_FAILURE);
+        _exit(127);
       }
       
       Job job;
@@ -440,13 +434,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     for (size_t i = 0; i < commands.size() - 1; i++) {
       if (pipe(pipes[i].data()) == -1) {
         set_error("cjsh: Failed to create pipe: " + std::string(strerror(errno)));
-        std::cerr << last_terminal_output_error << std::endl;
-        for (size_t j = 0; j < i; j++) {
-          close(pipes[j][0]);
-          close(pipes[j][1]);
-        }
-        
-        return 1;
+        last_exit_code = EX_OSERR;
+        return EX_OSERR;
       }
     }
     
@@ -469,18 +458,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       
       if (pid == -1) {
         set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
-        std::cerr << last_terminal_output_error << std::endl;
-        
-        for (size_t j = 0; j < commands.size() - 1; j++) {
-          close(pipes[j][0]);
-          close(pipes[j][1]);
-        }
-        
-        for (pid_t child_pid : pids) {
-          kill(child_pid, SIGTERM);
-        }
-        
-        return 1;
+        last_exit_code = EX_OSERR;
+        return EX_OSERR;
       }
       
       if (pid == 0) {
@@ -563,9 +542,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         c_args.push_back(nullptr);
         
         execvp(cmd.args[0].c_str(), c_args.data());
-        
-        std::cerr << "cjsh: " << cmd.args[0] << ": " << strerror(errno) << std::endl;
-        _exit(EXIT_FAILURE);
+        _exit(127);
       }
       
       if (i == 0) {

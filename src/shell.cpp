@@ -231,7 +231,6 @@ int Shell::execute_command(std::string command) {
     }
   }
  
-  // check again for empty command after removing spaces and removing &
   if (command.empty()) {
     return 0;
   }

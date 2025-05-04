@@ -316,7 +316,10 @@ void main_process_loop() {
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
         ic_history_add(command.c_str());
-        g_shell->execute_command(command);
+        {
+          std::string status_str = std::to_string(g_shell->execute_command(command));
+          setenv("STATUS", status_str.c_str(), 1);
+        }
         update_terminal_title();
       }
       if (g_exit_flag) {
@@ -418,6 +421,8 @@ void setup_environment_variables() {
     }
     setenv("SHLVL", std::to_string(shlvl).c_str(), 1);
     setenv("_", cjsh_filesystem::g_cjsh_path.c_str(), 1);
+    std::string status_str = std::to_string(0);
+    setenv("STATUS", status_str.c_str(), 1);
   }
 }
 
