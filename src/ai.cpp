@@ -483,20 +483,14 @@ void Ai::monitorCancellation(std::atomic<bool>& loading, std::atomic<bool>& requ
         FD_ZERO(&readfds);
         FD_SET(stdin_fd, &readfds);
         
-        // Set timeout for select to ensure we can check the loading flag regularly
         tv.tv_sec = 0;
-        tv.tv_usec = 100000; // 100ms
+        tv.tv_usec = 100000;
         
         int result = select(stdin_fd + 1, &readfds, NULL, NULL, &tv);
         
         if (result > 0 && FD_ISSET(stdin_fd, &readfds)) {
-            // Consume all pending input characters
             int c;
-            while ((c = getchar()) != EOF && c != '\n') {
-                // Consume the character
-            }
-            
-            // Signal cancellation
+            while ((c = getchar()) != EOF && c != '\n') {}
             requestCancelled = true;
             break;
         }
