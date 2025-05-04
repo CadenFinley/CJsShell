@@ -35,7 +35,7 @@
               warning: 100
               error: 200
             max_file_length:
-              warning: 100
+              warning: 1000
               error: 1500
 
         duplication:
