@@ -453,8 +453,9 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
           while ((pos = home_expanded.find('~', pos)) != std::string::npos) {
             if (pos == 0 || home_expanded[pos-1] == ':' || home_expanded[pos-1] == '/') {
               if (pos + 1 == home_expanded.length() || home_expanded[pos+1] == '/' || home_expanded[pos+1] == ':') {
-                home_expanded.replace(pos, 1, home);
-                pos += strlen(home);
+                std::string home_str(home);
+                home_expanded.replace(pos, 1, home_str);
+                pos += home_str.length();
               } else {
                 pos++;
               }

@@ -23,9 +23,10 @@ bool initialize_cjsh_path() {
     #ifdef __APPLE__
     uint32_t size = PATH_MAX;
     if (_NSGetExecutablePath(path, &size) == 0) {
-        char real_path[PATH_MAX];
-        if (realpath(path, real_path) != nullptr) {
-            cjsh_filesystem::g_cjsh_path = real_path;
+        char* resolved_path = realpath(path, NULL);
+        if (resolved_path != nullptr) {
+            cjsh_filesystem::g_cjsh_path = resolved_path;
+            free(resolved_path);
             return true;
         } else {
             cjsh_filesystem::g_cjsh_path = path;

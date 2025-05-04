@@ -3,6 +3,9 @@
 #include <sys/utsname.h>
 #include <cstdio>
 #include <cstring>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled) {
     plugins_directory = plugins_dir;
@@ -695,13 +698,12 @@ std::string Plugin::get_file_architecture(const std::filesystem::path& path) con
 bool Plugin::is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const {
     if (file_arch == current_arch)
         return true;
-    
+
     #ifdef __APPLE__
     if (current_arch == "arm64" && file_arch == "x86_64") {
-        int rosetta_check = system("arch -x86_64 true 2>/dev/null");
-        return rosetta_check == 0;
+        return is_rosetta_translated();
     }
     #endif
-    
+
     return false;
 }

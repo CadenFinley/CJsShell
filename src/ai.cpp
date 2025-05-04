@@ -24,7 +24,7 @@ void Ai::setAPIKey(const std::string& apiKey) {
 
 std::string Ai::getAPIKey() const {
     const char* env_key = getenv("OPENAI_API_KEY");
-    if (env_key && strlen(env_key) > 0) {
+    if (env_key && env_key[0] != '\0') {
         return env_key;
     }
     return USER_API_KEY;
