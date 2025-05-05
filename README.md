@@ -18,13 +18,33 @@ CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes wi
 
 ## Installation
 
-### Quick Installation
+### MACOS Install
 
-This installs cjsh from a custom brew tap hosted at: https://github.com/CadenFinley/homebrew-cjsh
+This installs cjsh from a custom brew tap hosted at: https://github.com/CadenFinley/homebrew-tap
 
 ```bash
-brew install cadenfinley/cjsh/cjsh
+brew install cadenfinley/tap/cjsh
 ```
+
+### LINUX Install
+
+To install cjsh on your Linux distribution:
+
+1. First follow the manual installation steps below to build the project and then navigate to the tool-scripts directory in the root of the repo
+2. Make the installation script executable:
+   ```bash
+   chmod +x ./tool-scripts/linux_install_from_local.sh
+   ```
+3. After the build is complete, run the installation script with sudo privileges:
+   ```bash
+   sudo ./tool-scripts/linux_install_from_local.sh
+   ```
+
+This script will:
+- Install the cjsh binary to `/usr/local/bin/`
+- Install the man page if available
+- Create the necessary `.cjsh` directory structure in your home folder
+- Show instructions for setting cjsh as your default shell
 
 ### Manual Installation
 
