@@ -15,6 +15,10 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
+    // Special handling for "cd" command with no arguments
+    if (args[0] == "cd" && args.size() == 1) {
+      return change_directory("");
+    }
     int status = it->second(args);
     return status;
   }
