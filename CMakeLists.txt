@@ -45,7 +45,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 if(UNIX)
   if(NOT APPLE)
     # Static linking flags only for non-Apple Unix (Linux, etc.)
-    target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
+    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-static-libgcc -static-libstdc++")
     if(DL_LIBRARY)
       target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})
     endif()
