@@ -42,6 +42,15 @@ int Built_ins::change_directory(const std::string& dir) {
     target_dir = home_dir;
   }
   
+  // Handle cd - (change to previous directory)
+  if (target_dir == "-") {
+    if (previous_directory.empty()) {
+      PRINT_ERROR("cjsh: No previous directory");
+      return 1;
+    }
+    target_dir = previous_directory;
+  }
+  
   if (target_dir[0] == '~') {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
@@ -70,6 +79,9 @@ int Built_ins::change_directory(const std::string& dir) {
       return 1;
     }
     
+    // Save current directory before changing
+    std::string old_directory = current_directory;
+    
     std::filesystem::path canonical_path = std::filesystem::canonical(dir_path);
     current_directory = canonical_path.string();
     
@@ -79,6 +91,9 @@ int Built_ins::change_directory(const std::string& dir) {
     }
     
     setenv("PWD", current_directory.c_str(), 1);
+    
+    // Update previous directory after successful change
+    previous_directory = old_directory;
     
     return 0;
   }
