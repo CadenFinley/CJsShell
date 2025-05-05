@@ -256,16 +256,11 @@ int Shell::execute_command(std::string command) {
 
 
   if (menu_active && command.find('\n') != std::string::npos) {
-    std::istringstream iss(command);
-    std::string line;
-    bool prev_success = true;
-    int exit_code = 0;
-    while (prev_success && std::getline(iss, line)) {
-      if (line.empty()) continue;
-      exit_code = execute_command(line);
-      prev_success = (exit_code == 0);
+    for (size_t i = 0; i < command.size(); ++i) {
+      if (command[i] == '\n') {
+        command[i] = ';';
+      }
     }
-    return exit_code;
   }
 
   std::vector<std::string> args = shell_parser->parse_command(command);
