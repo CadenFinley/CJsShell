@@ -5,6 +5,7 @@
 #include <memory>
 #include <csignal>
 #include <algorithm>
+#include <array>
 
 Exec::Exec(){
   last_terminal_output_error = "";

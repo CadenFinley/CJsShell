@@ -10,6 +10,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+# Improved ARM64 detection
 if(APPLE)
   execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
   if(ARCH STREQUAL "arm64")
@@ -28,12 +29,19 @@ if(APPLE)
     
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum OS X deployment version" FORCE)
   endif()
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
+  set(ARCH "arm64" CACHE INTERNAL "Architecture" FORCE)
+else()
+  if(NOT DEFINED ARCH)
+    set(ARCH "x86_64" CACHE INTERNAL "Architecture" FORCE)
+  endif()
 endif()
 
 if(ARCH STREQUAL "arm64")
-  set(IC_APPLE_SILICON ON CACHE BOOL "Targeting Apple Silicon" FORCE)
+  set(IC_APPLE_SILICON ON CACHE BOOL "Targeting ARM64 architecture" FORCE)
+  add_compile_definitions(IC_ARM64)
 else()
-  set(IC_APPLE_SILICON OFF CACHE BOOL "Targeting Apple Silicon" FORCE)
+  set(IC_APPLE_SILICON OFF CACHE BOOL "Targeting ARM64 architecture" FORCE)
 endif()
 
 # Try to find CURL, but don't require it
@@ -172,6 +180,17 @@ if(UNIX AND NOT APPLE)
   find_library(DL_LIBRARY dl REQUIRED)
 endif()
 
+# Ensure standard C++ headers are available
+include_directories(SYSTEM ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
+
+# Explicitly add the C++ standard library include paths - crucial for std::array
+if(APPLE)
+  if(ARCH STREQUAL "arm64")
+    include_directories(SYSTEM "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1")
+  endif()
+endif()
+
+# Improved nlohmann/json inclusion logic
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
   message(STATUS "Found nlohmann/json in third_party/json/include")
@@ -179,7 +198,7 @@ elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann/json.hpp")
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external)
   message(STATUS "Found nlohmann/json in external/nlohmann")
 else()
-  message(WARNING "nlohmann/json.hpp not found in expected locations. Downloading single header...")
+  message(STATUS "nlohmann/json.hpp not found in expected locations. Downloading single header...")
   
   file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann")
   
@@ -223,6 +242,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 if(UNIX AND NOT APPLE)
   target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})
 endif()
+
+# Ensure standard headers needed by json library are explicitly included in the build
+target_compile_definitions(${PROJECT_NAME} PRIVATE 
+  HAVE_ARRAY=1
+  HAVE_CSTDDEF=1
+  HAVE_UTILITY=1
+)
 
 add_custom_target(format
   COMMAND clang-format -i -style=file
