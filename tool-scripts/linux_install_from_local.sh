@@ -66,5 +66,6 @@ echo "For more information, run 'man cjsh' (if man page was installed)."
 echo -e "${YELLOW}To set cjsh as your default shell:${NC}"
 echo "1. Add it to /etc/shells: echo \"/usr/local/bin/cjsh\" >> /etc/shells"
 echo "2. Change your shell: chsh -s /usr/local/bin/cjsh"
+echo "\n alternatively, you can add cjsh to your .bashrc or .zshrc file."
 
 exit 0
