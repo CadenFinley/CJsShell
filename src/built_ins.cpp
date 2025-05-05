@@ -15,7 +15,6 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
-    // Special handling for "cd" command with no arguments
     if (args[0] == "cd" && args.size() == 1) {
       return change_directory("");
     }
@@ -42,7 +41,6 @@ int Built_ins::change_directory(const std::string& dir) {
     target_dir = home_dir;
   }
   
-  // Handle cd - (change to previous directory)
   if (target_dir == "-") {
     if (previous_directory.empty()) {
       PRINT_ERROR("cjsh: No previous directory");
@@ -79,7 +77,6 @@ int Built_ins::change_directory(const std::string& dir) {
       return 1;
     }
     
-    // Save current directory before changing
     std::string old_directory = current_directory;
     
     std::filesystem::path canonical_path = std::filesystem::canonical(dir_path);
@@ -92,7 +89,6 @@ int Built_ins::change_directory(const std::string& dir) {
     
     setenv("PWD", current_directory.c_str(), 1);
     
-    // Update previous directory after successful change
     previous_directory = old_directory;
     
     return 0;
