@@ -104,8 +104,29 @@ int main(int argc, char *argv[]) {
       std::cout << "To set cjsh as your default shell you must run these two commands:" << std::endl;
       std::cout << "To add cjsh to the list of shells:" << std::endl;
       std::cout << "sudo sh -c \"echo " << cjsh_filesystem::g_cjsh_path << " >> /etc/shells\"" << std::endl;
-      std::cerr << "To set CJ's Shell as your default shell:" << std::endl;
-      std::cerr << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+      std::cout << "To set CJ's Shell as your default shell:" << std::endl;
+      std::cout << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+      std::cout << "Would you like to automatically run these commands? (y/n): ";
+      std::string response;
+      std::getline(std::cin, response);
+      if (response == "y" || response == "Y") {
+        std::string command = "sudo sh -c \"echo " + cjsh_filesystem::g_cjsh_path.string() + " >> /etc/shells\"";
+        int result = g_shell -> execute_command(command);
+        if (result != 0) {
+          std::cerr << "Error: Failed to add cjsh to /etc/shells." << std::endl;
+        } else {
+          std::cout << "cjsh added to /etc/shells successfully." << std::endl;
+        }
+        command = "sudo chsh -s " + cjsh_filesystem::g_cjsh_path.string();
+        result = g_shell -> execute_command(command);
+        if (result == -1) {
+          std::cerr << "Error: Failed to set cjsh as default shell." << std::endl;
+        } else {
+          std::cout << "cjsh set as default shell successfully." << std::endl;
+        }
+      } else {
+        std::cout << "cjsh will not be set as your default shell." << std::endl;
+      }
       if(g_shell) {
         delete g_shell;
         g_shell = nullptr;
