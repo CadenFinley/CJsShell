@@ -59,13 +59,6 @@ mkdir -p "$HOME/.cjsh"
 SUDO_USER_HOME=$(eval echo ~$(logname))
 chown -R $(logname):$(logname) "$SUDO_USER_HOME/.cjsh"
 
-# Install uninstall script to user's .cjsh directory
-echo "Installing uninstall script to ~/.cjsh/..."
-cp "$SCRIPT_DIR/linux_uninstall.sh" "$SUDO_USER_HOME/.cjsh/"
-chmod 755 "$SUDO_USER_HOME/.cjsh/linux_uninstall.sh"
-chown $(logname):$(logname) "$SUDO_USER_HOME/.cjsh/linux_uninstall.sh"
-echo -e "${GREEN}Uninstall script installed successfully.${NC}"
-
 # Final success message
 echo -e "${GREEN}CJ's Shell has been installed successfully!${NC}"
 echo "You can now run 'cjsh' to start the shell."
