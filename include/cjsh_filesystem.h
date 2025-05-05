@@ -26,14 +26,18 @@ namespace cjsh_filesystem {
 
   // used if interactive
   const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc"; // aliases, prompt, functions, themes loaded on interactive shell
+
+  const fs::path g_config_path = g_user_home_path / ".config"; // config directory
+  const fs::path g_cache_path = g_user_home_path / ".cache"; // cache directory
   
-  const fs::path g_cjsh_data_path = g_user_home_path / ".config/cjsh"; // directory for all cjsh things
+  const fs::path g_cjsh_data_path = g_config_path / "cjsh"; // directory for all cjsh things
+  const fs::path g_cjsh_cache_path = g_cache_path / "cjsh"; // cache directory for cjsh
+
   const fs::path g_cjsh_plugin_path = g_cjsh_data_path / "plugins"; // where all plugins are stored
   const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes"; // where all themes are stored
   const fs::path g_cjsh_colors_path = g_cjsh_data_path / "colors"; // where all colors are stored
   const fs::path g_cjsh_history_path = g_cjsh_data_path / "history.txt"; // where the history is stored
-  const fs::path g_cjsh_uninstall_path = g_cjsh_data_path / "uninstall.sh"; // uninstall script
-  const fs::path g_cjsh_update_cache_path = g_cjsh_data_path / "update_cache.json"; // where the update cache is stored
+  const fs::path g_cjsh_update_cache_path = g_cjsh_cache_path / "update_cache.json"; // where the update cache is stored
 }
 bool initialize_cjsh_path();
 bool initialize_cjsh_directories();
