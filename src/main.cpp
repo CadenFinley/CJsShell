@@ -302,7 +302,7 @@ void main_process_loop() {
   ic_enable_highlight(true);
 
   ic_enable_history_duplicates(false);
-  //ic_enable_inline_help(true);
+  ic_enable_inline_help(false);
   ic_enable_multiline_indent(false);
 
   while(true) {
@@ -714,16 +714,14 @@ static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix
 
 static void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     size_t prefix_len = std::strlen(prefix);
-    if (prefix_len == 0) return; // Don't suggest entire history for empty prefix
-    
-    // Read the history file and add matching entries as completions
+    if (prefix_len == 0) return;
     std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
     if (!history_file.is_open()) return;
     
     std::string line;
     
     while (std::getline(history_file, line)) {
-        if (line.rfind(prefix, 0) == 0 && line != prefix) { // Starts with prefix and isn't the prefix itself
+        if (line.rfind(prefix, 0) == 0 && line != prefix) {
             std::string suffix = line.substr(prefix_len);
             if (!ic_add_completion(cenv, suffix.c_str())) return;
         }
