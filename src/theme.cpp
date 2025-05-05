@@ -21,11 +21,29 @@ Theme::~Theme() {
 void Theme::create_default_theme() {
     nlohmann::json default_theme;
     
-    default_theme["terminal_title"] = "{USERNAME}@{HOSTNAME}: {DIRECTORY}";
+    default_theme["terminal_title"] = "{PATH}";
     default_theme["ps1_segments"] = nlohmann::json::array();
     default_theme["ps1_segments"].push_back({
-        {"tag", "basicseg"},
-        {"content", "{USERNAME}@{HOSTNAME}:{DIRECTORY}$ "},
+        {"tag", "username"},
+        {"content", "{USERNAME}@{HOSTNAME}:"},
+        {"bg_color", "RESET"},
+        {"fg_color", "BLUE_BRIGHT"},
+        {"separator", ""},
+        {"separator_fg", "RESET"},
+        {"separator_bg", "RESET"}
+    });
+    default_theme["ps1_segments"].push_back({
+        {"tag", "directory"},
+        {"content", " {DIRECTORY} "},
+        {"bg_color", "RESET"},
+        {"fg_color", "GREEN_BRIGHT"},
+        {"separator", " "},
+        {"separator_fg", "WHITE_BRIGHT"},
+        {"separator_bg", "RESET"}
+    });
+    default_theme["ps1_segments"].push_back({
+        {"tag", "prompt"},
+        {"content", "$ "},
         {"bg_color", "RESET"},
         {"fg_color", "WHITE_BRIGHT"},
         {"separator", ""},
@@ -35,28 +53,55 @@ void Theme::create_default_theme() {
     
     default_theme["git_segments"] = nlohmann::json::array();
     default_theme["git_segments"].push_back({
-        {"tag", "basicseg"},
-        {"content", "{DIRECTORY} [{GIT_BRANCH}{GIT_STATUS}]$ "},
+        {"tag", "path"},
+        {"content", " {LOCAL_PATH} "},
         {"bg_color", "RESET"},
-        {"fg_color", "WHITE_BRIGHT"},
+        {"fg_color", "GREEN_BRIGHT"},
+        {"separator", " "},
+        {"separator_fg", "WHITE_BRIGHT"},
+        {"separator_bg", "RESET"}
+    });
+    default_theme["git_segments"].push_back({
+        {"tag", "branch"},
+        {"content", "{GIT_BRANCH}"},
+        {"bg_color", "RESET"},
+        {"fg_color", "YELLOW_BRIGHT"},
         {"separator", ""},
         {"separator_fg", "RESET"},
+        {"separator_bg", "RESET"}
+    });
+    default_theme["git_segments"].push_back({
+        {"tag", "status"},
+        {"content", "{GIT_STATUS}"},
+        {"bg_color", "RESET"},
+        {"fg_color", "RED_BRIGHT"},
+        {"separator", " $ "},
+        {"separator_fg", "WHITE_BRIGHT"},
         {"separator_bg", "RESET"}
     });
     
     default_theme["ai_segments"] = nlohmann::json::array();
     default_theme["ai_segments"].push_back({
-        {"tag", "aiseg"},
-        {"content", "[{AI_MODEL}] "},
+        {"tag", "model"},
+        {"content", " {AI_MODEL} "},
         {"bg_color", "RESET"},
-        {"fg_color", "WHITE_BRIGHT"},
+        {"fg_color", "MAGENTA_BRIGHT"},
+        {"separator", " / "},
+        {"separator_fg", "WHITE_BRIGHT"},
+        {"separator_bg", "RESET"}
+    });
+    default_theme["ai_segments"].push_back({
+        {"tag", "mode"},
+        {"content", "{AI-MODE} "},
+        {"bg_color", "RESET"},
+        {"fg_color", "CYAN_BRIGHT"},
         {"separator", ""},
         {"separator_fg", "RESET"},
         {"separator_bg", "RESET"}
     });
     
     default_theme["newline_segments"] = nlohmann::json::array();
-    default_theme["fill_char"] = " ";
+    default_theme["fill_char"] = "";
     default_theme["fill_fg_color"] = "RESET";
     default_theme["fill_bg_color"] = "RESET";
 
