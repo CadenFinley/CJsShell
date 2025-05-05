@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 project(cjsh VERSION 0.1.0 LANGUAGES C CXX)
 
+# Add option for forcing 32-bit build
+option(FORCE_32BIT "Force 32-bit build" OFF)
+
 # Detect architecture
 if(APPLE)
   execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -15,18 +18,23 @@ if(APPLE)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
   set(ARCH "arm64" CACHE INTERNAL "Architecture" FORCE)
   message(STATUS "Detected ARM64 architecture")
+elseif(FORCE_32BIT OR CMAKE_SIZEOF_VOID_P EQUAL 4)
+  set(ARCH "x86" CACHE INTERNAL "Architecture" FORCE)
+  message(STATUS "Configuring for x86 (32-bit) architecture")
 else()
-  if(NOT DEFINED ARCH)
-    set(ARCH "x86_64" CACHE INTERNAL "Architecture" FORCE)
-    message(STATUS "Assuming x86_64 architecture")
-  endif()
+  set(ARCH "x86_64" CACHE INTERNAL "Architecture" FORCE)
+  message(STATUS "Assuming x86_64 architecture")
 endif()
 
 # Include common settings
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.common.cmake)
 
 # Include architecture-specific settings
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.${ARCH}.cmake)
+if(FORCE_32BIT OR CMAKE_SIZEOF_VOID_P EQUAL 4)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.x86.cmake)
+else()
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.${ARCH}.cmake)
+endif()
 
 # File globbing and main target definition
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")

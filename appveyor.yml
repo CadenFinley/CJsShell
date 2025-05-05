@@ -26,14 +26,15 @@ environment:
       configuration: Release
 
 install:
-  # Linux-specific setup
+  # Linux dependencies
   - sh: |
       echo Installing Linux dependencies...
       sudo apt-get update
       sudo apt-get install -y build-essential cmake
       # Install 32-bit libraries if building for x86
       if [ "$platform" = "x86" ]; then
-        sudo apt-get install -y gcc-multilib g++-multilib
+        chmod +x tool-scripts/linux_build_helper.sh
+        sudo ./tool-scripts/linux_build_helper.sh install-32bit
       fi
       # Always use the latest version of nlohmann/json from GitHub
       mkdir -p external/nlohmann
@@ -51,7 +52,8 @@ before_build:
         # For 32-bit builds
         export CFLAGS="-m32"
         export CXXFLAGS="-m32"
-        cmake .. -DCMAKE_BUILD_TYPE=$configuration -DCMAKE_CXX_FLAGS="-m32" -DCMAKE_C_FLAGS="-m32"
+        # Force the arch to be x86
+        cmake .. -DCMAKE_BUILD_TYPE=$configuration -DCMAKE_CXX_FLAGS="-m32" -DCMAKE_C_FLAGS="-m32" -DFORCE_32BIT=ON
       else
         cmake .. -DCMAKE_BUILD_TYPE=$configuration
       fi
