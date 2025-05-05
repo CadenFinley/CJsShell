@@ -85,6 +85,18 @@ Available startup flags:
 
 - **isocline**  
   https://github.com/daanx/isocline (MIT License)
+ 
+- **nlohmann/json**  
+  https://github.com/nlohmann/json (MIT License)
+ 
+- **libcurl**  
+  https://github.com/curl/curl (MIT License)
+ 
+- **OpenSSL** (optional, for SSL support)  
+  https://www.openssl.org (Apache License 2.0)
+ 
+- **GLib (glib-2.0)**  
+  https://developer.gnome.org/glib (LGPL 2.0+)
 
 ## License
 
