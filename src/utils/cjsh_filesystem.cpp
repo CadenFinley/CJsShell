@@ -60,15 +60,8 @@ void temp_cjsh_migration() {
     fs::path old_path = cjsh_filesystem::g_user_home_path / ".cjsh";
     if (fs::exists(old_path) && fs::is_directory(old_path)) {
         std::cout << "Found old ~/.cjsh directory. Migrating to ~/.config/cjsh..." << std::endl;
-        if (fs::exists(cjsh_filesystem::g_cjsh_data_path) && 
-            fs::is_directory(cjsh_filesystem::g_cjsh_data_path)) {
-            try {
-                fs::remove_all(cjsh_filesystem::g_cjsh_data_path);
-            } catch (const fs::filesystem_error& e) {
-                std::cerr << "Error removing existing ~/.config/cjsh: " << e.what() << std::endl;
-                return;
-            }
-        }
+        
+        // Create ~/.config directory if it doesn't exist
         fs::path config_dir = cjsh_filesystem::g_user_home_path / ".config";
         if (!fs::exists(config_dir)) {
             try {
@@ -78,9 +71,34 @@ void temp_cjsh_migration() {
                 return;
             }
         }
+        
+        // Create ~/.config/cjsh if it doesn't exist
+        if (!fs::exists(cjsh_filesystem::g_cjsh_data_path)) {
+            try {
+                fs::create_directory(cjsh_filesystem::g_cjsh_data_path);
+            } catch (const fs::filesystem_error& e) {
+                std::cerr << "Error creating ~/.config/cjsh directory: " << e.what() << std::endl;
+                return;
+            }
+        }
+        
         try {
-            fs::rename(old_path, cjsh_filesystem::g_cjsh_data_path);
-            std::cout << "Successfully migrated ~/.cjsh to ~/.config/cjsh" << std::endl;
+            // Copy all contents from old directory to new directory
+            for (const auto& entry : fs::directory_iterator(old_path)) {
+                fs::path target = cjsh_filesystem::g_cjsh_data_path / entry.path().filename();
+                
+                if (fs::is_directory(entry.path())) {
+                    fs::copy(entry.path(), target, fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+                } else {
+                    fs::copy(entry.path(), target, fs::copy_options::overwrite_existing);
+                }
+            }
+            
+            std::cout << "Successfully migrated all data from ~/.cjsh to ~/.config/cjsh" << std::endl;
+            
+            // Optionally, you can remove the old directory after successful migration
+            // fs::remove_all(old_path);
+            // std::cout << "Removed old ~/.cjsh directory" << std::endl;
         } catch (const fs::filesystem_error& e) {
             std::cerr << "Error migrating ~/.cjsh to ~/.config/cjsh: " << e.what() << std::endl;
         }
@@ -91,11 +109,14 @@ bool initialize_cjsh_directories() {
     try {
         namespace fs = cjsh_filesystem::fs;
         if (!fs::exists(cjsh_filesystem::g_cjsh_data_path)) {
-          fs::create_directories(cjsh_filesystem::g_cjsh_data_path);
+            fs::create_directories(cjsh_filesystem::g_cjsh_data_path);
         }
-        if (!fs::exists(fs::path(".cjsh"))) {
-          temp_cjsh_migration();
-          std::cout << "The new directory is located at: " << cjsh_filesystem::g_cjsh_data_path << std::endl;
+        
+        // Check for old .cjsh directory in home path, not current directory
+        fs::path old_cjsh_path = cjsh_filesystem::g_user_home_path / ".cjsh";
+        if (fs::exists(old_cjsh_path)) {
+            temp_cjsh_migration();
+            std::cout << "The new directory is located at: " << cjsh_filesystem::g_cjsh_data_path << std::endl;
         }
         if (!fs::exists(cjsh_filesystem::g_cjsh_plugin_path)) {
             fs::create_directories(cjsh_filesystem::g_cjsh_plugin_path);
