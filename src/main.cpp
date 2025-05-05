@@ -283,6 +283,7 @@ void update_terminal_title() {
 }
 
 static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix);
+static void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix);
 static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix);
 static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix);
 
@@ -300,8 +301,8 @@ void main_process_loop() {
   ic_enable_auto_tab(true);
   ic_enable_highlight(true);
 
-  ic_enable_history_duplicates(true);
-  ic_enable_inline_help(true);
+  ic_enable_history_duplicates(false);
+  //ic_enable_inline_help(true);
   ic_enable_multiline_indent(false);
 
   while(true) {
@@ -344,7 +345,7 @@ void main_process_loop() {
       ic_free(input);
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
-        ic_history_add(command.c_str());
+        //ic_history_add(command.c_str());
         {
           std::string status_str = std::to_string(g_shell->execute_command(command));
           setenv("STATUS", status_str.c_str(), 1);
@@ -711,11 +712,30 @@ static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix
     }
 }
 
+static void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
+    size_t prefix_len = std::strlen(prefix);
+    if (prefix_len == 0) return; // Don't suggest entire history for empty prefix
+    
+    // Read the history file and add matching entries as completions
+    std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
+    if (!history_file.is_open()) return;
+    
+    std::string line;
+    
+    while (std::getline(history_file, line)) {
+        if (line.rfind(prefix, 0) == 0 && line != prefix) { // Starts with prefix and isn't the prefix itself
+            std::string suffix = line.substr(prefix_len);
+            if (!ic_add_completion(cenv, suffix.c_str())) return;
+        }
+    }
+}
+
 static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
 }
 
 static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     cjsh_command_completer(cenv, prefix);
+    cjsh_history_completer(cenv, prefix);
     cjsh_filename_completer(cenv, prefix);
 }
