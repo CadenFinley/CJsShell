@@ -27,7 +27,7 @@ namespace cjsh_filesystem {
   // used if interactive
   const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc"; // aliases, prompt, functions, themes loaded on interactive shell
   
-  const fs::path g_cjsh_data_path = g_user_home_path / ".cjsh"; // directory for all cjsh things
+  const fs::path g_cjsh_data_path = g_user_home_path / ".config/cjsh"; // directory for all cjsh things
   const fs::path g_cjsh_plugin_path = g_cjsh_data_path / "plugins"; // where all plugins are stored
   const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes"; // where all themes are stored
   const fs::path g_cjsh_colors_path = g_cjsh_data_path / "colors"; // where all colors are stored
