@@ -165,17 +165,17 @@ int main(int argc, char *argv[]) {
         delete g_shell;
         g_shell = nullptr;
       }
-      return 1;
+      return 127;
     }
   }
 
   if (l_execute_command) {
-    g_shell->execute_command(l_cmd_to_execute);
+    int exit_code = g_shell->execute_command(l_cmd_to_execute);
     if(g_shell) {
       delete g_shell;
       g_shell = nullptr;
     }
-    return 0;
+    return exit_code;
   }
 
   g_shell->set_interactive_mode(true);
@@ -468,33 +468,27 @@ void initialize_login_environment() {
 }
 
 void prepare_shell_signal_environment() {
-  sigset_t mask;
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);
-  sigaddset(&mask, SIGQUIT);
-  sigaddset(&mask, SIGTSTP);
-  sigaddset(&mask, SIGTTIN);
-  sigaddset(&mask, SIGTTOU);
-  sigaddset(&mask, SIGCHLD);
-  sigprocmask(SIG_BLOCK, &mask, nullptr);
-  
   struct sigaction sa;
+  
   sigemptyset(&sa.sa_mask);
-  sa.sa_handler = SIG_IGN;
   sa.sa_flags = 0;
   
+  sigaddset(&sa.sa_mask, SIGINT);
+  sigaddset(&sa.sa_mask, SIGQUIT);
+  sigaddset(&sa.sa_mask, SIGTSTP);
+  sigaddset(&sa.sa_mask, SIGTTIN);
+  sigaddset(&sa.sa_mask, SIGTTOU);
+  sigaddset(&sa.sa_mask, SIGCHLD);
+  
+  sa.sa_handler = SIG_IGN;
   sigaction(SIGTTOU, &sa, nullptr);
   sigaction(SIGTTIN, &sa, nullptr);
   sigaction(SIGQUIT, &sa, nullptr);
   sigaction(SIGTSTP, &sa, nullptr);
-  
-  sigprocmask(SIG_UNBLOCK, &mask, nullptr);
-  
-  struct sigaction sa_pipe;
-  sa_pipe.sa_handler = SIG_DFL;
-  sigemptyset(&sa_pipe.sa_mask);
-  sa_pipe.sa_flags = 0;
-  sigaction(SIGPIPE, &sa_pipe, nullptr);
+
+  sa.sa_handler = SIG_DFL;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGPIPE, &sa, nullptr);
 }
 
 bool init_interactive_filesystem() {

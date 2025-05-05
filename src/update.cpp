@@ -118,6 +118,21 @@ bool execute_update_if_available(bool avail) {
     }
     std::cout << "\nAn update is available. Please run:\n"
               << "  brew upgrade cadenfinley/cjsh/cjsh\n";
+    std::cout << "or would you like to automattically run that command? (y/n): ";
+    std::string response;
+    std::getline(std::cin, response);
+    if (response == "y" || response == "Y") {
+        std::string cmd = "brew upgrade cadenfinley/cjsh/cjsh";
+        std::cout << "Running command: " << cmd << "\n";
+        int exit_code = g_shell->execute_command(cmd);
+        if (exit_code == 0) {
+            std::cout << "Update completed successfully.\n";
+            return true;
+        } else {
+            std::cerr << "Error: Update command failed with exit code " << exit_code << "\n";
+            return false;
+        }
+    }
     return false;
 }
 
