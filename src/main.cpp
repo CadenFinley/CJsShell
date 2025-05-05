@@ -356,12 +356,12 @@ void main_process_loop() {
         break;
       }
     } else {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: ic_readline returned nullptr (possible PTY disconnect)" << std::endl;
-        if (errno == EIO) std::cerr << "DEBUG: EIO error detected" << std::endl;
-        if (errno == EPIPE) std::cerr << "DEBUG: EPIPE error detected" << std::endl;
-      }
-      g_exit_flag = true;
+      // if (g_debug_mode) {
+      //   std::cerr << "DEBUG: ic_readline returned nullptr (possible PTY disconnect)" << std::endl;
+      //   if (errno == EIO) std::cerr << "DEBUG: EIO error detected" << std::endl;
+      //   if (errno == EPIPE) std::cerr << "DEBUG: EPIPE error detected" << std::endl;
+      // }
+      continue;
     }
     notify_plugins("main_process_end", c_pid_str);
     if (g_exit_flag) {
