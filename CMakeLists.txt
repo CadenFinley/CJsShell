@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(cjsh VERSION 0.1.0 LANGUAGES C CXX)
+project(cjsh VERSION 2.1.6 LANGUAGES C CXX)
 
 # Add option for forcing 32-bit build
 option(FORCE_32BIT "Force 32-bit build" OFF)

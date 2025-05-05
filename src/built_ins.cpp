@@ -1087,10 +1087,10 @@ int Built_ins::help_command() {
   std::cout << "    ~/.cjshrc             Aliases, functions, themes, plugins (interactive mode)\n\n";
   
   std::cout << "  Primary Directories:\n";
-  std::cout << "    ~/.cjsh               Main data directory for CJ's Shell\n";
-  std::cout << "    ~/.cjsh/plugins       Where plugins are stored\n";
-  std::cout << "    ~/.cjsh/themes        Where themes are stored\n";
-  std::cout << "    ~/.cjsh/colors        Where color configurations are stored\n\n";
+  std::cout << "    ~/.config/cjsh               Main data directory for CJ's Shell\n";
+  std::cout << "    cjsh/plugins       Where plugins are stored\n";
+  std::cout << "    cjsh/themes        Where themes are stored\n";
+  std::cout << "    cjsh/colors        Where color configurations are stored\n\n";
   
   std::cout << "  File Sourcing Order:\n";
   std::cout << "    1. ~/.profile         (if exists, login mode only)\n";

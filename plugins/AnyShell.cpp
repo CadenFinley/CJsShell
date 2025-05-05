@@ -24,7 +24,7 @@ static std::string g_pluginDirectory = "";
 static std::string getPluginHomeDirectory() {
     char* home = getenv("HOME");
     if (home) {
-        return std::string(home) + "/.cjsh/plugins";
+        return std::string(home) + "/.config/cjsh/plugins";
     }
     return "./plugins"; // Fallback
 }
@@ -33,9 +33,9 @@ static std::string getPluginHomeDirectory() {
 static std::string getCJshRootDirectory() {
     char* home = getenv("HOME");
     if (home) {
-        return std::string(home) + "/.cjsh";
+        return std::string(home) + "/.config/cjsh/plugins";
     }
-    return "./.cjsh"; // Fallback
+    return "./.config/cjsh"; // Fallback
 }
 
 // Local implementation to replace plugin_get_plugin_directory
