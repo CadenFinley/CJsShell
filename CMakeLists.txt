@@ -32,25 +32,65 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.${ARCH}.cmake)
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Final linking and installation
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE
-  ${CURL_LIBRARIES}
-  isocline
-  Threads::Threads
-  ${GLIB_LIBRARIES}
+# Find required packages
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED glib-2.0)
+
+# Find additional libraries needed for libcurl
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
+
+# Check for optional libraries
+find_package(LDAP)
+find_package(Libssh2)
+find_package(LibRTMP)
+find_package(LibPSL)
+find_package(LibIDN2)
+find_package(Libnghttp2)
+
+# Add required include directories
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
+    ${GLIB_INCLUDE_DIRS}
+    ${OPENSSL_INCLUDE_DIR}
+    ${ZLIB_INCLUDE_DIRS}
 )
 
-# Platform-specific linking
-if(UNIX)
-  if(NOT APPLE)
-    # Static linking flags only for non-Apple Unix (Linux, etc.)
-    set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-static-libgcc -static-libstdc++")
-    if(DL_LIBRARY)
-      target_link_libraries(${PROJECT_NAME} PRIVATE ${DL_LIBRARY})
-    endif()
-  endif()
+# Link against libraries
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    isocline
+    ${GLIB_LIBRARIES}
+    curl
+    pthread
+    dl
+    ${OPENSSL_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+)
+
+# Add optional libraries if found
+if(LDAP_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LDAP_LIBRARIES})
 endif()
+if(LIBSSH2_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSSH2_LIBRARIES})
+endif()
+if(LIBRTMP_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRTMP_LIBRARIES})
+endif()
+if(LIBPSL_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBPSL_LIBRARIES})
+endif()
+if(LIBIDN2_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBIDN2_LIBRARIES})
+endif()
+if(LIBNGHTTP2_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBNGHTTP2_LIBRARIES})
+endif()
+
+# Use dynamic linking for libcurl instead of static
+add_definitions(-DCURL_STATICLIB=0)
 
 # Ensure standard headers needed by json library
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
