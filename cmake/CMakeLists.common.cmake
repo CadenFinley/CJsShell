@@ -1,0 +1,178 @@
+# Common C++ settings
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+# Prefer static linking when possible
+set(BUILD_SHARED_LIBS OFF)
+
+# Configure static linking - handle platform differences
+if(UNIX)
+  if(NOT APPLE)
+    # Static linking flags only for non-Apple Unix (Linux, etc.)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+  else()
+    # macOS-specific linking options (Apple's Clang doesn't support -static-libgcc)
+    message(STATUS "Using macOS-specific linking options")
+  endif()
+endif()
+
+# Common warning flags
+if(MSVC)
+  add_compile_options(/W4 /WX)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
+# Common dependencies
+find_package(Threads REQUIRED)
+
+# Add GLib via pkg-config
+find_package(PkgConfig REQUIRED)
+set(PKG_CONFIG_USE_STATIC_LIBS ON)
+pkg_check_modules(GLIB REQUIRED glib-2.0)
+include_directories(${GLIB_INCLUDE_DIRS})
+link_directories(${GLIB_LIBRARY_DIRS})
+add_definitions(${GLIB_CFLAGS_OTHER})
+
+if(UNIX AND NOT APPLE)
+  find_library(DL_LIBRARY dl REQUIRED)
+endif()
+
+# Try to find CURL
+find_package(CURL QUIET)
+
+# If CURL was not found, download and build it
+if(NOT CURL_FOUND)
+  message(STATUS "CURL not found. Attempting to download and build it...")
+  
+  if(CMAKE_VERSION VERSION_LESS 3.11)
+    message(FATAL_ERROR "CURL not found and CMake version < 3.11. Please install libcurl development files.")
+  endif()
+  
+  include(FetchContent)
+  
+  find_package(OpenSSL QUIET)
+  if(NOT OpenSSL_FOUND)
+    if(APPLE)
+      set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl" CACHE PATH "OpenSSL root directory")
+      if(NOT EXISTS "${OPENSSL_ROOT_DIR}")
+        set(OPENSSL_ROOT_DIR "/opt/homebrew/opt/openssl" CACHE PATH "OpenSSL root directory" FORCE)
+      endif()
+    endif()
+    find_package(OpenSSL QUIET)
+  endif()
+  
+  option(CURL_USE_SSL "Build CURL with SSL support" ${OpenSSL_FOUND})
+  
+  set(CURL_DISABLE_LDAP ON CACHE BOOL "Disable LDAP" FORCE)
+  set(CURL_DISABLE_LDAPS ON CACHE BOOL "Disable LDAPS" FORCE)
+  set(ENABLE_IPV6 ON CACHE BOOL "Enable IPv6" FORCE)
+  set(CMAKE_USE_SYSTEM_LIBRARY_IN_CURL ON CACHE BOOL "Use system library in curl" FORCE)
+  set(CURL_ENABLE_CURL_CONFIG ON CACHE BOOL "Enable curl_config.h" FORCE)
+  
+  add_compile_options(-D_GNU_SOURCE)
+  add_compile_definitions(HAVE_GETHOSTNAME)
+  
+  FetchContent_Declare(
+    curl
+    GIT_REPOSITORY https://github.com/curl/curl.git
+    GIT_TAG curl-8_2_1
+  )
+  
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
+    
+    set(HAVE_UNISTD_H 1 CACHE INTERNAL "Have unistd.h header" FORCE)
+    set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Have sys/socket.h header" FORCE)
+    set(HAVE_NETDB_H 1 CACHE INTERNAL "Have netdb.h header" FORCE)
+    
+    if(NOT CURL_USE_SSL)
+      set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
+      set(HTTP_ONLY ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_CRYPTO_AUTH ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_DICT ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_FILE ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_FTP ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_GOPHER ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_IMAP ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_LDAPS ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_POP3 ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_RTMP ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_RTSP ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_SMB ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_SMTP ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_TELNET ON CACHE BOOL "" FORCE)
+      set(CURL_DISABLE_TFTP ON CACHE BOOL "" FORCE)
+    endif()
+    
+    FetchContent_MakeAvailable(curl)
+    set(CURL_INCLUDE_DIRS ${curl_SOURCE_DIR}/include)
+    set(CURL_LIBRARIES libcurl)
+  else()
+    FetchContent_GetProperties(curl)
+    if(NOT curl_POPULATED)
+      FetchContent_Populate(curl)
+      
+      set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+      set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+      set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
+      
+      set(HAVE_UNISTD_H 1 CACHE INTERNAL "Have unistd.h header" FORCE)
+      set(HAVE_SYS_SOCKET_H 1 CACHE INTERNAL "Have sys/socket.h header" FORCE)
+      set(HAVE_NETDB_H 1 CACHE INTERNAL "Have netdb.h header" FORCE)
+      
+      if(NOT CURL_USE_SSL)
+        set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
+        set(HTTP_ONLY ON CACHE BOOL "" FORCE)
+        set(CURL_DISABLE_CRYPTO_AUTH ON CACHE BOOL "" FORCE)
+      endif()
+      
+      add_subdirectory(${curl_SOURCE_DIR} ${curl_BINARY_DIR} EXCLUDE_FROM_ALL)
+      
+      set(CURL_INCLUDE_DIRS ${curl_SOURCE_DIR}/include)
+      set(CURL_LIBRARIES libcurl)
+    endif()
+  endif()
+endif()
+
+include_directories(${CURL_INCLUDE_DIRS})
+
+# Common include directories
+include_directories(SYSTEM ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# JSON library inclusion
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
+  message(STATUS "Found nlohmann/json in third_party/json/include")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann/json.hpp")
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external)
+  message(STATUS "Found nlohmann/json in external/nlohmann")
+else()
+  message(STATUS "nlohmann/json.hpp not found in expected locations. Downloading single header...")
+  
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann")
+  
+  file(DOWNLOAD
+    "https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp"
+    SHOW_PROGRESS
+    TLS_VERIFY ON
+  )
+  
+  include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
+endif()
+
+# Isocline terminal library
+set(ISOCLINE_DISABLE_CPU_TARGETING ON CACHE BOOL "Disable CPU targeting in isocline" FORCE)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline/include)
