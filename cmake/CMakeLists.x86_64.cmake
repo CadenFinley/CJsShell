@@ -1,7 +1,7 @@
 # x86_64-specific configuration
 
 # Define that we're targeting x86_64
-add_compile_definitions(IC_X86_64)
+add_definitions(-DX86_64)
 set(IC_APPLE_SILICON OFF CACHE BOOL "Targeting ARM64 architecture" FORCE)
 
 # x86_64-specific compiler flags
