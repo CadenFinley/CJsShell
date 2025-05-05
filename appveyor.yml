@@ -22,8 +22,6 @@ environment:
       configuration: Release
     - platform: x64
       configuration: Debug
-    - platform: x86
-      configuration: Release
 
 install:
   # Linux dependencies
