@@ -5,7 +5,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include "main_globals.h"
+#include "main.h"
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     size_t prefix_len = std::strlen(prefix);
