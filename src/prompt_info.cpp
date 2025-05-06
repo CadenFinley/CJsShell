@@ -67,6 +67,17 @@ PromptInfo::PromptInfo() {
 PromptInfo::~PromptInfo() {
 }
 
+std::string PromptInfo::get_basic_prompt() {
+    std::string prompt = "";
+    std::string username = get_username();
+    std::string hostname = get_hostname();
+    std::string cwd = get_current_file_path();
+    
+    prompt += username + "@" + hostname + " : " + cwd + " $ ";
+    
+    return prompt;
+}
+
 bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector<nlohmann::json>& segments) {
     std::string placeholder = "{" + var_name + "}";
     for (const auto& segment : segments) {

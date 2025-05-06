@@ -10,6 +10,9 @@ Prompt::~Prompt() {
 }
 
 std::string Prompt::get_prompt() {
+    if(!g_theme -> get_enabled()) {
+      return info.get_basic_prompt();
+    }
     std::filesystem::path repo_root;
     bool is_git_repo = info.is_git_repository(repo_root);
     
