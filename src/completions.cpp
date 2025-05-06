@@ -13,6 +13,8 @@
 std::map<std::string, int> g_completion_frequency;
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
+    if (ic_stop_completing(cenv)) return;
+    
     size_t prefix_len = std::strlen(prefix);
     auto cmds = g_shell->get_available_commands();
     for (const auto& cmd : cmds) {
@@ -20,10 +22,13 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string suffix = cmd.substr(prefix_len);
             if (!ic_add_completion(cenv, suffix.c_str())) return;
         }
+        if (ic_stop_completing(cenv)) return;
     }
 }
 
 void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
+    if (ic_stop_completing(cenv)) return;
+    
     size_t prefix_len = std::strlen(prefix);
     if (prefix_len == 0) return;
     std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
@@ -43,21 +48,27 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     std::sort(matches.begin(), matches.end(), 
               [](const auto& a, const auto& b) { return a.second > b.second; });
-
+    const size_t max_suggestions = 20;
+    size_t count = 0;
+    
     for (const auto& match : matches) {
         std::string suffix = match.first.substr(prefix_len);
         if (!ic_add_completion(cenv, suffix.c_str())) return;
+        if (++count >= max_suggestions || ic_stop_completing(cenv)) return;
     }
 }
 
 void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
+    if (ic_stop_completing(cenv)) return;
     ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
 }
 
 void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     cjsh_history_completer(cenv, prefix);
-    cjsh_command_completer(cenv, prefix);
     cjsh_filename_completer(cenv, prefix);
+    if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+    cjsh_command_completer(cenv, prefix);
+    if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
 }
 
 void initialize_completion_system() {
@@ -78,6 +89,7 @@ void initialize_completion_system() {
     ic_enable_multiline_indent(false);
     ic_set_prompt_marker("", NULL);
     ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
+    ic_enable_completion_preview(true);
 }
 
 void update_completion_frequency(const std::string& command) {
