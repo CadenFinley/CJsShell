@@ -13,6 +13,9 @@ Theme::Theme(std::string theme_dir, bool enabled) : theme_directory(theme_dir), 
         create_default_theme();
     }
     is_enabled = enabled;
+    if (!is_enabled) {
+      load_theme("default");
+    }
 }
 
 Theme::~Theme() {

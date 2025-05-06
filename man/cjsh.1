@@ -104,23 +104,248 @@ Directory where color configurations are stored.
 3. ~/.cjshrc (interactive mode only, unless --no-source specified)
 
 .SH ENVIRONMENT
-CJ's Shell sets and uses several environment variables to maintain its state and functionality.
-Custom environment variables can be set in the configuration files.
+CJ's Shell sets and uses numerous environment variables to maintain its state and functionality:
+
+.TP
+.B Standard Variables
+USER, LOGNAME, HOME, PATH, HOSTNAME, PWD, SHELL, IFS, LANG, PAGER, and TMPDIR are automatically configured.
+
+.TP
+.B Shell-Specific Variables
+STATUS - Contains the exit code of the last executed command
+.br
+SHELL - Set to the full path of the cjsh executable
+.br
+SHLVL - Incremented when launching nested shells
+.br
+0 - Contains the name of the shell or script being executed
+
+.PP
+The shell supports full environment variable expansion in commands using standard $VAR or ${VAR} syntax.
+Custom environment variables can be set using the export command or in configuration files.
+Environment variables can be inspected with the 'export' command without arguments.
 
 .SH PLUGINS
-CJ's Shell supports a versatile plugin system.
+CJ's Shell implements a comprehensive and dynamic plugin system:
+
+.TP
+.B Plugin Architecture
+Plugins are dynamically loaded shared libraries (.so/.dll/.dylib) that conform to the plugin API.
+Each plugin can register commands, subscribe to events, and expose configurable settings.
+Plugins have access to a structured API for interacting with the shell environment.
+
+.TP
+.B Plugin Management
+Plugins can be managed with the 'plugin' command, which supports the following subcommands:
+.br
+available - List all available plugins
+.br
+enabled - List currently enabled plugins
+.br
+enableall - Enable all available plugins
+.br
+disableall - Disable all enabled plugins
+.br
+enable [NAME] - Enable a specific plugin
+.br
+disable [NAME] - Disable a specific plugin
+.br
+info [NAME] - Show detailed information about a plugin
+.br
+commands [NAME] - List commands provided by a plugin
+.br
+settings [NAME] - View or modify plugin settings
+.br
+install [PATH] - Install a new plugin from the given path
+.br
+uninstall [NAME] - Remove an installed plugin
+
+.TP
+.B Built-in Plugins
+Several built-in plugins provide enhanced functionality:
+.br
+custom_ls - Enhanced ls command with color highlighting and formatting
+.br
+git_tools - Extended Git integration and information
+.br
+AnyShell - Provides shell execution capabilities
+
+.TP
+.B Plugin Events
+Plugins can subscribe to shell events including:
+.br
+main_process_start - When the shell starts processing a new command
+.br
+main_process_command_processed - After a command has been processed
+.br
+main_process_end - When command processing completes
+.br
+plugin_enabled - When a plugin is enabled
+
+.PP
+Plugins are stored in the ~/.cjsh/plugins directory and are automatically discovered at startup.
+Plugin settings are persisted across sessions in JSON configuration files.
 
 .SH JOB CONTROL
-CJ's Shell provides job control similar to other Unix shells, allowing process management
-through foreground and background execution.
+CJ's Shell provides sophisticated job control similar to other Unix shells:
+
+.TP
+.B Job Management
+Jobs are tracked using a structured Job system that maintains information about process groups, status, and command text.
+Each job has a unique job ID and can contain multiple processes in a pipeline.
+
+.TP
+.B Job Commands
+bg [JOB_ID] - Resume a stopped job in the background
+.br
+fg [JOB_ID] - Bring a job to the foreground
+.br
+jobs - List all active jobs with their status
+
+.TP
+.B Process Groups
+The shell creates process groups for job control and properly handles terminal control.
+Foreground jobs have exclusive access to the terminal while background jobs do not.
+
+.TP
+.B Signal Handling
+The shell implements handlers for key signals including:
+.br
+SIGINT (Ctrl-C) - Interrupts the current foreground process
+.br
+SIGTSTP (Ctrl-Z) - Suspends the current foreground process
+.br
+SIGCHLD - Processes child termination and updates job status
+.br
+SIGHUP - Handles terminal disconnect
+.br
+SIGTERM - Handles termination requests
+
+.PP
+Job control is automatically set up during shell initialization and properly resets terminal state on exit.
+Background jobs can be initiated using & at the end of a command and can be referenced by job ID (e.g., %1).
 
 .SH AI ASSISTANT
-CJ's Shell includes a built-in AI assistant that offers help when requested.
-This feature can be disabled with the --no-ai option.
+CJ's Shell includes a sophisticated built-in AI assistant powered by large language models:
+
+.TP
+.B Assistant Models
+The AI assistant can use multiple models including gpt-3.5-turbo and other OpenAI-compatible models.
+Models can be changed using 'ai model [MODEL]' command.
+
+.TP
+.B Assistant Types
+chat - General purpose conversational assistant
+.br
+code-interpreter - Specialized for programming and code analysis
+.br
+file-search - Optimized for searching through file contents
+
+.TP
+.B AI Commands
+ai - Enter AI chat mode for interactive assistance
+.br
+ai log - Save the recent chat exchange to a file
+.br
+ai apikey - View or set the OpenAI API key
+.br
+ai chat - Access AI chat commands (history, cache)
+.br
+ai get [KEY] - Retrieve specific response data
+.br
+ai dump - Display all response data and last prompt
+.br
+ai mode [TYPE] - Set or view the assistant mode
+.br
+ai file - Manage context files (add, remove, active, available)
+.br
+ai directory - Manage save directory for AI-generated files
+.br
+ai model [MODEL] - Set or view the AI model being used
+.br
+ai rejectchanges - Reject AI suggested code changes
+.br
+ai timeoutflag [SECS] - Set timeout duration for AI requests
+
+.TP
+.B Context Management
+The AI can analyze files in the current directory to provide context-aware assistance.
+Files can be added to context using 'ai file add [PATH]'.
+The AI can interpret code, analyze errors, and provide suggestions based on the shell environment.
+
+.PP
+The AI assistant uses a dedicated configuration for the prompt that appears when in AI chat mode.
+The response time depends on the model used and the complexity of the query.
+Markdown-formatted responses are automatically processed for better terminal display.
+The AI assistant requires an OpenAI API key which can be set with 'ai apikey set YOUR_KEY'.
 
 .SH THEMES
-Customizable themes are supported, allowing users to personalize their shell environment.
-Themes can be disabled with the --no-themes option.
+CJ's Shell features an extensive theming system for customizing the shell appearance:
+
+.TP
+.B Theme Structure
+Themes are JSON files stored in ~/.cjsh/themes/ that define various prompt segments.
+Each theme can customize PS1, git status display, AI prompt, and newline display.
+Terminal title formats can also be customized through themes.
+
+.TP
+.B Prompt Segments
+ps1_segments - The main command prompt
+.br
+git_segments - Git repository status information
+.br
+ai_segments - Special prompt when in AI assistant mode
+.br
+newline_segments - Optional multiline prompt formatting
+
+.TP
+.B Theme Variables
+Themes can incorporate dynamic information using variables:
+.br
+{USERNAME} - Current user's name
+.br
+{HOSTNAME} - System hostname
+.br
+{PATH} - Current working directory (with ~ for home)
+.br
+{DIRECTORY} - Name of the current directory
+.br
+{TIME12}/{TIME24} - Current time in 12/24 hour format
+.br
+{DATE} - Current date (YYYY-MM-DD)
+.br
+{GIT_BRANCH} - Current Git branch
+.br
+{GIT_STATUS} - Git status (✓ for clean, * for dirty)
+.br
+{OS_INFO} - Operating system name and version
+.br
+{CPU_USAGE} - Current CPU usage percentage
+.br
+{MEM_USAGE} - Current memory usage percentage
+.br
+{BATTERY} - Battery percentage and charging status
+.br
+{STATUS} - Last command exit code
+.br
+And many more...
+
+.TP
+.B Terminal Width
+Themes are terminal-width aware and can adapt to different terminal sizes.
+Right-aligned elements can be specified in the theme configuration.
+
+.PP
+Themes can be managed with the 'theme' command:
+.br
+theme - Display current theme and list available themes
+.br
+theme [NAME] - Switch to the specified theme
+.br
+theme load [NAME] - Explicitly load a theme
+.br
+Default themes include 'default', 'dark', 'light', and 'minimal'.
+Terminal colors are automatically detected and supported according to terminal capability.
 
 .SH EXAMPLES
 .PP
@@ -135,6 +360,26 @@ Execute a command and exit:
 Start shell with plugins disabled:
 .PP
 .B cjsh --no-plugins
+.PP
+Start shell with AI disabled but themes enabled:
+.PP
+.B cjsh --no-ai
+.PP
+Check for updates without installing them:
+.PP
+.B cjsh --check-update
+.PP
+Run a command with debug output enabled:
+.PP
+.B cjsh -d -c "ls -la"
+.PP
+Start shell without sourcing the .cjshrc file:
+.PP
+.B cjsh --no-source
+.PP
+Display the splash screen and exit:
+.PP
+.B cjsh --splash
 
 .SH AUTHOR
 Caden J Finley - Abilene Christian University
