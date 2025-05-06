@@ -288,17 +288,6 @@ void main_process_loop() {
   notify_plugins("main_process_pre_run", c_pid_str);
 
   initialize_completion_system();
-  ic_enable_highlight(true);
-
-  ic_enable_history_duplicates(false);
-  ic_enable_inline_help(false);
-  ic_enable_multiline_indent(false);
-
-  ic_set_prompt_marker("", NULL);
-  ic_enable_hint(true);
-  ic_set_hint_delay(0);
-  ic_enable_completion_preview(true);
-  ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
 
   while(true) {
     if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
@@ -340,7 +329,7 @@ void main_process_loop() {
       ic_free(input);
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
-        //ic_history_add(command.c_str());
+        update_completion_frequency(command);
         {
           std::string status_str = std::to_string(g_shell->execute_command(command));
           setenv("STATUS", status_str.c_str(), 1);
@@ -351,11 +340,6 @@ void main_process_loop() {
         break;
       }
     } else {
-      // if (g_debug_mode) {
-      //   std::cerr << "DEBUG: ic_readline returned nullptr (possible PTY disconnect)" << std::endl;
-      //   if (errno == EIO) std::cerr << "DEBUG: EIO error detected" << std::endl;
-      //   if (errno == EPIPE) std::cerr << "DEBUG: EPIPE error detected" << std::endl;
-      // }
       continue;
     }
     notify_plugins("main_process_end", c_pid_str);
