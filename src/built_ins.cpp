@@ -3,6 +3,7 @@
 #include "cjsh_filesystem.h"
 #include <unistd.h>
 #include <sys/wait.h>
+#include <iomanip>  // Add this include for std::setw
 
 #define PRINT_ERROR(MSG)                              \
   do {                                                \
@@ -1570,4 +1571,27 @@ int Built_ins::eval_command(const std::vector<std::string>& args) {
     PRINT_ERROR("eval: shell not initialized");
     return 1;
   }
+
+}
+int Built_ins::history_command() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: history_command called" << std::endl;
+  }
+  
+  std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
+  if (!history_file.is_open()) {
+    PRINT_ERROR("Error: Could not open history file at " + cjsh_filesystem::g_cjsh_history_path.string());
+    return 1;
+  }
+  
+  std::string line;
+  int index = 1;
+  
+  while (std::getline(history_file, line)) {
+    std::cout << std::setw(5) << index << "  " << line << std::endl;
+    index++;
+  }
+  
+  history_file.close();
+  return 0;
 }
