@@ -5,10 +5,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-
-// External variables from main.h
-extern Shell* g_shell;
-extern bool g_debug_mode;
+#include "main_globals.h"
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     size_t prefix_len = std::strlen(prefix);
