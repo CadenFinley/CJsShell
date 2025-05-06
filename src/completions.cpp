@@ -71,7 +71,7 @@ void initialize_completion_system() {
     ic_enable_auto_tab(false);
     ic_enable_completion_preview(true);
     ic_enable_hint(true);
-    ic_set_hint_delay(10);
+    ic_set_hint_delay(0);
     ic_enable_highlight(true);
     ic_enable_history_duplicates(false);
     ic_enable_inline_help(false);
