@@ -12,6 +12,7 @@
 #include <errno.h>
 #include "update.h"
 #include <cstring>
+#include "completions.h"
 
 int main(int argc, char *argv[]) {
 
@@ -282,28 +283,22 @@ void update_terminal_title() {
   std::cout.flush();
 }
 
-static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix);
-static void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix);
-static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix);
-static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix);
-
 void main_process_loop() {
   if (g_debug_mode) std::cerr << "DEBUG: Entering main process loop" << std::endl;
   notify_plugins("main_process_pre_run", c_pid_str);
+
+  initialize_completion_system();
+  ic_enable_highlight(true);
+
+  ic_enable_history_duplicates(false);
+  ic_enable_inline_help(false);
+  ic_enable_multiline_indent(false);
 
   ic_set_prompt_marker("", NULL);
   ic_enable_hint(true);
   ic_set_hint_delay(0);
   ic_enable_completion_preview(true);
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
-
-  ic_set_default_completer(cjsh_default_completer, NULL);
-  ic_enable_auto_tab(true);
-  ic_enable_highlight(true);
-
-  ic_enable_history_duplicates(false);
-  ic_enable_inline_help(false);
-  ic_enable_multiline_indent(false);
 
   while(true) {
     if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
@@ -699,41 +694,4 @@ void mark_first_boot_complete() {
   std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
   std::ofstream flag_file(first_boot_flag);
   flag_file.close();
-}
-
-static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
-    size_t prefix_len = std::strlen(prefix);
-    auto cmds = g_shell->get_available_commands();
-    for (const auto& cmd : cmds) {
-        if (cmd.rfind(prefix, 0) == 0) {
-            std::string suffix = cmd.substr(prefix_len);
-            if (!ic_add_completion(cenv, suffix.c_str())) return;
-        }
-    }
-}
-
-static void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
-    size_t prefix_len = std::strlen(prefix);
-    if (prefix_len == 0) return;
-    std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
-    if (!history_file.is_open()) return;
-    
-    std::string line;
-    
-    while (std::getline(history_file, line)) {
-        if (line.rfind(prefix, 0) == 0 && line != prefix) {
-            std::string suffix = line.substr(prefix_len);
-            if (!ic_add_completion(cenv, suffix.c_str())) return;
-        }
-    }
-}
-
-static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
-    ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
-}
-
-static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
-    cjsh_command_completer(cenv, prefix);
-    cjsh_history_completer(cenv, prefix);
-    cjsh_filename_completer(cenv, prefix);
 }
