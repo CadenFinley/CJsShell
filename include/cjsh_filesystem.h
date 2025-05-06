@@ -23,7 +23,7 @@ namespace cjsh_filesystem {
 
   // used if login
   const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile"; // envvars loaded on login shell also startup flags
-  
+
   // used if interactive
   const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc"; // aliases, prompt, functions, themes loaded on interactive shell
 
@@ -37,7 +37,7 @@ namespace cjsh_filesystem {
   const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes"; // where all themes are stored
   const fs::path g_cjsh_colors_path = g_cjsh_data_path / "colors"; // where all colors are stored
   const fs::path g_cjsh_history_path = g_cjsh_data_path / "history.txt"; // where the history is stored
-
+  
   const fs::path g_cjsh_update_cache_path = g_cjsh_cache_path / "update_cache.json"; // where the update cache is stored
 }
 bool initialize_cjsh_path();
