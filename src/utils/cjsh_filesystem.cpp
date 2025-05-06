@@ -79,7 +79,6 @@ bool initialize_cjsh_directories() {
             fs::create_directories(cjsh_filesystem::g_cjsh_cache_path);
         }
 
-        // all stores in ~/.config/cjsh
         if (!fs::exists(cjsh_filesystem::g_cjsh_plugin_path)) {
             fs::create_directories(cjsh_filesystem::g_cjsh_plugin_path);
         }
