@@ -72,6 +72,9 @@ std::string Prompt::get_newline_prompt() {
 }
 
 std::string Prompt::get_title_prompt() {
+  if(!g_theme -> get_enabled()) {
+    return info.get_basic_title();
+  }
     std::string prompt_format = g_theme->get_terminal_title_format();
 
     std::vector<nlohmann::json> segments;
