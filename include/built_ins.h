@@ -32,7 +32,7 @@ public:
       {"uninstall",[this](const std::vector<std::string>&)    { return uninstall_command(); }},
       {"restart", [this](const std::vector<std::string>&)     { return restart_command(); }},
       {"eval",    [this](const std::vector<std::string>& args){ return eval_command(args); }},
-      {"history", [this](const std::vector<std::string>&)     { return history_command(); }},
+      {"history", [this](const std::vector<std::string>& args)     { return history_command(args); }},
   }), shell(nullptr) {}
   ~Built_ins() = default;
 
@@ -94,7 +94,7 @@ private:
   int unalias_command(const std::vector<std::string>& args);
   int unset_command(const std::vector<std::string>& args);
   int eval_command(const std::vector<std::string>& args);
-  int history_command();
+  int history_command(const std::vector<std::string>& args);
   int save_alias_to_file(const std::string& name, const std::string& value);
   int save_env_var_to_file(const std::string& name, const std::string& value);
   int remove_alias_from_file(const std::string& name);

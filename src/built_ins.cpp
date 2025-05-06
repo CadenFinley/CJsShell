@@ -1529,15 +1529,35 @@ int Built_ins::restart_command() {
   
   std::string path_str = shell_path.string();
   const char* path_cstr = path_str.c_str();
-  char* const args[] = {
-    const_cast<char*>(path_cstr),
-    nullptr
-  };
-  if (execv(path_cstr, args) == -1) {
-    last_terminal_output_error = "Error restarting shell: " + std::string(strerror(errno));
-    PRINT_ERROR(last_terminal_output_error);
-     return 1;
-   }
+  
+  bool login_mode = false;
+  if (shell) {
+    login_mode = shell->get_login_mode();
+  }
+  
+  if (login_mode) {
+    char* const args[] = {
+      const_cast<char*>(path_cstr),
+      const_cast<char*>("-l"),
+      nullptr
+    };
+    if (execv(path_cstr, args) == -1) {
+      last_terminal_output_error = "Error restarting shell: " + std::string(strerror(errno));
+      PRINT_ERROR(last_terminal_output_error);
+      return 1;
+    }
+  } else {
+    char* const args[] = {
+      const_cast<char*>(path_cstr),
+      nullptr
+    };
+    if (execv(path_cstr, args) == -1) {
+      last_terminal_output_error = "Error restarting shell: " + std::string(strerror(errno));
+      PRINT_ERROR(last_terminal_output_error);
+      return 1;
+    }
+  }
+  
   return 0;
 }
 
@@ -1573,7 +1593,7 @@ int Built_ins::eval_command(const std::vector<std::string>& args) {
   }
 
 }
-int Built_ins::history_command() {
+int Built_ins::history_command(const std::vector<std::string>& args) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: history_command called" << std::endl;
   }
@@ -1585,11 +1605,25 @@ int Built_ins::history_command() {
   }
   
   std::string line;
-  int index = 1;
-  
-  while (std::getline(history_file, line)) {
-    std::cout << std::setw(5) << index << "  " << line << std::endl;
-    index++;
+  int index;
+
+  if (args.size() > 1) {
+    try {
+      index = std::stoi(args[1]);
+    } catch (const std::invalid_argument&) {
+      PRINT_ERROR("Invalid index: " + args[1]);
+      return 1;
+    }
+    for (int i = 0; i < index; ++i) {
+      if (!std::getline(history_file, line)) {
+        break;
+      }
+      std::cout << std::setw(5) << i << "  " << line << std::endl;
+    }
+  } else {
+    while (std::getline(history_file, line)) {
+      std::cout << std::setw(5) << line << std::endl;
+    }
   }
   
   history_file.close();
