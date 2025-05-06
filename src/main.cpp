@@ -12,8 +12,6 @@
 #include <errno.h>
 #include "update.h"
 #include <cstring>
-#include <chrono>
-#include <unordered_set>
 
 int main(int argc, char *argv[]) {
 
@@ -284,6 +282,11 @@ void update_terminal_title() {
   std::cout.flush();
 }
 
+static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix);
+static void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix);
+static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix);
+static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix);
+
 void main_process_loop() {
   if (g_debug_mode) std::cerr << "DEBUG: Entering main process loop" << std::endl;
   notify_plugins("main_process_pre_run", c_pid_str);
@@ -294,8 +297,8 @@ void main_process_loop() {
   ic_enable_completion_preview(true);
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
 
-  // No custom completers
-  ic_enable_auto_tab(false);
+  ic_set_default_completer(cjsh_default_completer, NULL);
+  ic_enable_auto_tab(true);
   ic_enable_highlight(true);
 
   ic_enable_history_duplicates(false);
@@ -303,62 +306,67 @@ void main_process_loop() {
   ic_enable_multiline_indent(false);
 
   while(true) {
-      if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
-      notify_plugins("main_process_start", c_pid_str);
+    if (g_debug_mode) std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
+    notify_plugins("main_process_start", c_pid_str);
 
-      g_shell->process_pending_signals();
+    g_shell->process_pending_signals();
 
-      update_terminal_title();
-      
-      std::string prompt;
-      if (g_shell->get_menu_active()) {
-          prompt = g_shell->get_prompt();
-      } else {
-          prompt = g_shell->get_ai_prompt();
-      }
-      
-      if (g_theme -> uses_newline()) {
-          if (write(STDOUT_FILENO, "", 0) < 0) {
-              if (errno == EIO || errno == EPIPE) {
-                  if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (EIO/EPIPE on stdout)" << std::endl;
-                  g_exit_flag = true;
-                  break;
-              }
-          }
-          std::cout << prompt << std::endl;
-          prompt = g_shell->get_newline_prompt();
-      }
-
-      if (!isatty(STDIN_FILENO)) {
-          if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (stdin no longer a TTY)" << std::endl;
+    update_terminal_title();
+    
+    std::string prompt;
+    if (g_shell->get_menu_active()) {
+      prompt = g_shell->get_prompt();
+    } else {
+      prompt = g_shell->get_ai_prompt();
+    }
+    
+    if (g_theme -> uses_newline()) {
+      if (write(STDOUT_FILENO, "", 0) < 0) {
+        if (errno == EIO || errno == EPIPE) {
+          if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (EIO/EPIPE on stdout)" << std::endl;
           g_exit_flag = true;
           break;
+        }
       }
-      
-      char* input = ic_readline(prompt.c_str());
-      if (input != nullptr) {
-          std::string command(input);
-          if(g_debug_mode) std::cerr << "DEBUG: User input: " << command << std::endl;
-          ic_free(input);
-          if (!command.empty()) {
-              notify_plugins("main_process_command_processed", command);
-              ic_history_add(command.c_str());
-              {
-                  std::string status_str = std::to_string(g_shell->execute_command(command));
-                  setenv("STATUS", status_str.c_str(), 1);
-              }
-              update_terminal_title();
-          }
-          if (g_exit_flag) {
-              break;
-          }
-      } else {
-          continue;
+      std::cout << prompt << std::endl;
+      prompt = g_shell->get_newline_prompt();
+    }
+
+    if (!isatty(STDIN_FILENO)) {
+      if (g_debug_mode) std::cerr << "DEBUG: Terminal disconnected (stdin no longer a TTY)" << std::endl;
+      g_exit_flag = true;
+      break;
+    }
+    
+    char* input = ic_readline(prompt.c_str());
+    if (input != nullptr) {
+      std::string command(input);
+      if(g_debug_mode) std::cerr << "DEBUG: User input: " << command << std::endl;
+      ic_free(input);
+      if (!command.empty()) {
+        notify_plugins("main_process_command_processed", command);
+        //ic_history_add(command.c_str());
+        {
+          std::string status_str = std::to_string(g_shell->execute_command(command));
+          setenv("STATUS", status_str.c_str(), 1);
+        }
+        update_terminal_title();
       }
-      notify_plugins("main_process_end", c_pid_str);
       if (g_exit_flag) {
-          break;
+        break;
       }
+    } else {
+      // if (g_debug_mode) {
+      //   std::cerr << "DEBUG: ic_readline returned nullptr (possible PTY disconnect)" << std::endl;
+      //   if (errno == EIO) std::cerr << "DEBUG: EIO error detected" << std::endl;
+      //   if (errno == EPIPE) std::cerr << "DEBUG: EPIPE error detected" << std::endl;
+      // }
+      continue;
+    }
+    notify_plugins("main_process_end", c_pid_str);
+    if (g_exit_flag) {
+      break;
+    }
   }
 }
 
@@ -691,4 +699,41 @@ void mark_first_boot_complete() {
   std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
   std::ofstream flag_file(first_boot_flag);
   flag_file.close();
+}
+
+static void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
+    size_t prefix_len = std::strlen(prefix);
+    auto cmds = g_shell->get_available_commands();
+    for (const auto& cmd : cmds) {
+        if (cmd.rfind(prefix, 0) == 0) {
+            std::string suffix = cmd.substr(prefix_len);
+            if (!ic_add_completion(cenv, suffix.c_str())) return;
+        }
+    }
+}
+
+static void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
+    size_t prefix_len = std::strlen(prefix);
+    if (prefix_len == 0) return;
+    std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
+    if (!history_file.is_open()) return;
+    
+    std::string line;
+    
+    while (std::getline(history_file, line)) {
+        if (line.rfind(prefix, 0) == 0 && line != prefix) {
+            std::string suffix = line.substr(prefix_len);
+            if (!ic_add_completion(cenv, suffix.c_str())) return;
+        }
+    }
+}
+
+static void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
+    ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
+}
+
+static void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
+    cjsh_command_completer(cenv, prefix);
+    cjsh_history_completer(cenv, prefix);
+    cjsh_filename_completer(cenv, prefix);
 }
