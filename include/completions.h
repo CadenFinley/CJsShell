@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../vendor/isocline/include/isocline.h"
 #include <string>
+
+#include "../vendor/isocline/include/isocline.h"
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix);
 void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix);

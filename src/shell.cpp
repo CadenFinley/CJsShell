@@ -1,9 +1,11 @@
 #include "shell.h"
-#include "main.h"
-#include "built_ins.h"
-#include "signal_handler.h"
-#include <sstream>
+
 #include <cstdlib>
+#include <sstream>
+
+#include "built_ins.h"
+#include "main.h"
+#include "signal_handler.h"
 
 void Shell::process_pending_signals() {
   if (signal_handler && shell_exec) {
@@ -12,7 +14,9 @@ void Shell::process_pending_signals() {
 }
 
 Shell::Shell(bool login_mode) {
-  if (g_debug_mode) std::cerr << "DEBUG: Constructing Shell, login_mode=" << login_mode << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Constructing Shell, login_mode=" << login_mode
+              << std::endl;
 
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
@@ -31,7 +35,7 @@ Shell::Shell(bool login_mode) {
 }
 
 Shell::~Shell() {
-  if(interactive_mode && g_debug_mode) {
+  if (interactive_mode && g_debug_mode) {
     std::cerr << "Destroying Shell" << std::endl;
   }
   delete shell_parser;
@@ -44,7 +48,8 @@ Shell::~Shell() {
 }
 
 void Shell::setup_signal_handlers() {
-  if (g_debug_mode) std::cerr << "DEBUG: Setting up signal handlers" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Setting up signal handlers" << std::endl;
   if (signal_handler) {
     signal_handler->setup_signal_handlers();
   }
@@ -62,7 +67,7 @@ void Shell::save_terminal_state() {
 }
 
 void Shell::restore_terminal_state() {
-  if(interactive_mode && g_debug_mode) {
+  if (interactive_mode && g_debug_mode) {
     std::cerr << "Restoring terminal state" << std::endl;
   }
 
@@ -78,29 +83,29 @@ void Shell::setup_job_control() {
     job_control_enabled = false;
     return;
   }
-  
+
   shell_pgid = getpid();
-  
+
   if (setpgid(shell_pgid, shell_pgid) < 0) {
     if (errno != EPERM) {
       perror("Couldn't put the shell in its own process group");
     }
   }
-  
+
   try {
     shell_terminal = STDIN_FILENO;
-    
+
     int tpgrp = tcgetpgrp(shell_terminal);
     if (tpgrp != -1) {
       if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
         perror("Couldn't grab terminal control");
       }
     }
-    
+
     if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
       perror("Couldn't get terminal attributes");
     }
-    
+
     job_control_enabled = true;
   } catch (const std::exception& e) {
     std::cerr << "Error setting up terminal: " << e.what() << std::endl;
@@ -109,21 +114,22 @@ void Shell::setup_job_control() {
 }
 
 int Shell::execute_command(std::string command) {
-  if (g_debug_mode) std::cerr << "DEBUG: Executing command: '" << command << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Executing command: '" << command << std::endl;
   if (command.empty()) {
     return 0;
   }
   if (command[0] == '#') {
     return 0;
   }
-  if(!shell_exec || !shell_parser || !built_ins || !shell_script_interpreter) {
+  if (!shell_exec || !shell_parser || !built_ins || !shell_script_interpreter) {
     return 1;
   }
 
   while (!command.empty() && std::isspace(command.back())) {
     command.pop_back();
   }
-  
+
   bool run_in_background = false;
   if (!command.empty() && command.back() == '&') {
     run_in_background = true;
@@ -132,7 +138,7 @@ int Shell::execute_command(std::string command) {
       command.pop_back();
     }
   }
- 
+
   if (command.empty()) {
     return 0;
   }
@@ -147,7 +153,6 @@ int Shell::execute_command(std::string command) {
     return 0;
   }
 
-
   if (menu_active && command.find('\n') != std::string::npos) {
     for (size_t i = 0; i < command.size(); ++i) {
       if (command[i] == '\n') {
@@ -159,9 +164,9 @@ int Shell::execute_command(std::string command) {
   std::vector<std::string> args = shell_parser->parse_command(command);
 
   if (!menu_active && args.size() > 0) {
-    if (args[0][0] != ':'){
-      if(!command.empty()) {
-        if(command == "terminal") {
+    if (args[0][0] != ':') {
+      if (!command.empty()) {
+        if (command == "terminal") {
           menu_active = true;
           return 0;
         }
@@ -173,14 +178,15 @@ int Shell::execute_command(std::string command) {
   }
 
   if (command.find(';') != std::string::npos) {
-    std::vector<std::string> cmds = shell_parser->parse_semicolon_commands(command);
+    std::vector<std::string> cmds =
+        shell_parser->parse_semicolon_commands(command);
     int exit_code = 0;
     for (const auto& cmd : cmds) {
       exit_code = execute_command(cmd);
     }
     return exit_code;
   }
-  
+
   std::string var_name, var_value;
   if (shell_parser->is_env_assignment(command, var_name, var_value)) {
     env_vars[var_name] = var_value;
@@ -216,9 +222,9 @@ int Shell::execute_command(std::string command) {
     for (size_t i = 0; i < logical_commands.size(); ++i) {
       const auto& segment = logical_commands[i];
       if (i > 0) {
-        const std::string& prev_op = logical_commands[i-1].op;
+        const std::string& prev_op = logical_commands[i - 1].op;
         if ((prev_op == "&&" && !prev_success) ||
-            (prev_op == "||" &&  prev_success)) {
+            (prev_op == "||" && prev_success)) {
           break;
         }
       }
@@ -226,9 +232,8 @@ int Shell::execute_command(std::string command) {
       prev_success = (exit_code == 0);
     }
     last_command = command;
-    last_terminal_output_error = prev_success
-      ? "command completed successfully"
-      : "command failed";
+    last_terminal_output_error =
+        prev_success ? "command completed successfully" : "command failed";
     return exit_code;
   }
 
@@ -253,9 +258,11 @@ int Shell::execute_command(std::string command) {
   if (g_plugin) {
     std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
     if (!args.empty() && !enabled_plugins.empty()) {
-      for(const auto& plugin : enabled_plugins){
-        std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
-        if(std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()){
+      for (const auto& plugin : enabled_plugins) {
+        std::vector<std::string> plugin_commands =
+            g_plugin->get_plugin_commands(plugin);
+        if (std::find(plugin_commands.begin(), plugin_commands.end(),
+                      args[0]) != plugin_commands.end()) {
           return g_plugin->handle_plugin_command(plugin, args) ? 0 : 1;
         }
       }
