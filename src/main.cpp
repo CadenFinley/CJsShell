@@ -245,31 +245,17 @@ int main(int argc, char *argv[]) {
       std::cout << title_line << std::endl;
       std::cout << created_line  << std::endl;
     }
-    std::atomic<bool> watchdog_should_exit{false};
-    std::thread watchdog_thread([&watchdog_should_exit]() {
-      while (!watchdog_should_exit && !g_exit_flag) {
-        if (!is_parent_process_alive()) {
-          std::cerr << "Parent process terminated, shutting down..." << std::endl;
-          g_exit_flag = true;
-          break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-      }
-    });
-
     main_process_loop();
-    watchdog_should_exit = true;
-    if (watchdog_thread.joinable()) {
-      watchdog_thread.join();
-    }
   }
 
   return 0;
 }
 
 void update_terminal_title() {
-  std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
-  std::cout.flush();
+  std::string title_str = "\033]0;" + g_shell->get_title_prompt() + "\007";
+  if (isatty(STDOUT_FILENO)) {
+    write(STDOUT_FILENO, title_str.c_str(), title_str.length());
+  }
 }
 
 void main_process_loop() {

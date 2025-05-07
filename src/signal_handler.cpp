@@ -8,6 +8,7 @@ volatile sig_atomic_t SignalHandler::s_sigchld_received = 0;
 volatile sig_atomic_t SignalHandler::s_sighup_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigterm_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigtstp_received = 0;
+volatile sig_atomic_t SignalHandler::s_sigcont_received = 0;
 
 SignalHandler* g_signal_handler = nullptr;
 
@@ -25,43 +26,36 @@ SignalHandler::~SignalHandler() {
 void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
     (void)context;
     (void)info;
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Signal received: " << signum << std::endl;
-    }
-
     switch (signum) {
         case SIGINT: {
             s_sigint_received = 1;
-            ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
-            (void)bytes_written;
-            if (g_debug_mode) std::cerr << "DEBUG: SIGINT handler executed" << std::endl;
+            write(STDOUT_FILENO, "\n", 1);
             break;
         }
             
         case SIGCHLD: {
             s_sigchld_received = 1;
-            if (g_debug_mode) std::cerr << "DEBUG: SIGCHLD handler executed" << std::endl;
             break;
         }
             
         case SIGHUP: {
             s_sighup_received = 1;
-            if (g_debug_mode) std::cerr << "DEBUG: SIGHUP handler executed, flag set" << std::endl;
             break;
         }
             
         case SIGTERM: {
             s_sigterm_received = 1;
-            if (g_debug_mode) std::cerr << "DEBUG: SIGTERM handler executed, flag set" << std::endl;
             break;
         }
 
         case SIGTSTP: {
             s_sigtstp_received = 1;
-            ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
-            (void)bytes_written;
-            if (g_debug_mode) std::cerr << "DEBUG: SIGTSTP handler executed" << std::endl;
+            write(STDOUT_FILENO, "\n", 1);
+            break;
+        }
+        
+        case SIGCONT: {
+            s_sigcont_received = 1;
             break;
         }
     }
@@ -71,30 +65,30 @@ void SignalHandler::setup_signal_handlers() {
     if (g_debug_mode) std::cerr << "DEBUG: Setting up signal handlers" << std::endl;
 
     struct sigaction sa;
+    memset(&sa, 0, sizeof(struct sigaction));
     sigemptyset(&sa.sa_mask);
     sigset_t block_mask;
+    sigemptyset(&block_mask);
+
     sigfillset(&block_mask);
 
     sa.sa_sigaction = signal_handler;
     sa.sa_mask = block_mask;
+
     sa.sa_flags = SA_SIGINFO | SA_RESTART;
     sigaction(SIGHUP, &sa, &m_old_sighup_handler);
-
-    sa.sa_flags = SA_SIGINFO | SA_RESTART;
     sigaction(SIGTERM, &sa, &m_old_sigterm_handler);
-
-    sa.sa_flags = SA_SIGINFO | SA_RESTART;
     sigaction(SIGCHLD, &sa, &m_old_sigchld_handler);
+    sigaction(SIGCONT, &sa, &m_old_sigcont_handler);
 
     sa.sa_flags = SA_SIGINFO;
     sigaction(SIGINT, &sa, &m_old_sigint_handler);
-
-    sa.sa_flags = SA_SIGINFO;
     sigaction(SIGTSTP, &sa, &m_old_sigtstp_handler);
 
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
-    sa.sa_mask = block_mask;
+    sigaction(SIGPIPE, &sa, &m_old_sigpipe_handler);
+    
     sigaction(SIGQUIT, &sa, &m_old_sigquit_handler);
     sigaction(SIGTTIN, &sa, &m_old_sigttin_handler);
     sigaction(SIGTTOU, &sa, &m_old_sigttou_handler);
@@ -109,17 +103,46 @@ void SignalHandler::restore_original_handlers() {
     sigaction(SIGTSTP, &m_old_sigtstp_handler, nullptr);
     sigaction(SIGTTIN, &m_old_sigttin_handler, nullptr);
     sigaction(SIGTTOU, &m_old_sigttou_handler, nullptr);
+    sigaction(SIGCONT, &m_old_sigcont_handler, nullptr);
+    sigaction(SIGPIPE, &m_old_sigpipe_handler, nullptr);
 }
 
 void SignalHandler::process_pending_signals(Exec* shell_exec) {
     if (g_debug_mode && (s_sigint_received || s_sigchld_received || s_sigtstp_received || 
-                         s_sighup_received || s_sigterm_received)) {
+                         s_sighup_received || s_sigterm_received || s_sigcont_received)) {
         std::cerr << "DEBUG: Processing pending signals: "
                 << "SIGINT=" << s_sigint_received << ", "
                 << "SIGCHLD=" << s_sigchld_received << ", "
                 << "SIGTSTP=" << s_sigtstp_received << ", "
                 << "SIGHUP=" << s_sighup_received << ", "
-                << "SIGTERM=" << s_sigterm_received << std::endl;
+                << "SIGTERM=" << s_sigterm_received << ", "
+                << "SIGCONT=" << s_sigcont_received << std::endl;
+    }
+
+    if (s_sigcont_received) {
+        s_sigcont_received = 0;
+        
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: SIGCONT received, restoring terminal settings" << std::endl;
+        }
+        
+        if (isatty(g_shell_terminal)) {
+            if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
+                if (errno != ENOTTY && errno != EINVAL) {
+                    std::cerr << "tcsetpgrp failed in SIGCONT handler" << std::endl;
+                }
+            }
+            
+            if (g_terminal_state_saved) {
+                if (tcsetattr(g_shell_terminal, TCSADRAIN, &g_shell_tmodes) < 0) {
+                    std::cerr << "tcsetattr failed in SIGCONT handler" << std::endl;
+                }
+            }
+        }
+        
+        if (g_shell) {
+            g_shell->process_pending_signals();
+        }
     }
 
     if (s_sighup_received || s_sigterm_received) {
@@ -137,7 +160,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         std::cout << "\nReceived termination signal. Exiting...\n";
         exit(0);
     }
-
     if (s_sigint_received) {
         s_sigint_received = 0;
         
@@ -147,7 +169,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                 const auto& job = job_pair.second;
                 if (!job.background && !job.completed && !job.stopped) {
                     if (kill(-job.pgid, SIGINT) < 0) {
-                        perror("kill (SIGINT) in process_pending_signals");
+                        if (errno != ESRCH) {
+                            std::cerr << "kill (SIGINT) in process_pending_signals: " 
+                                      << strerror(errno) << std::endl;
+                        }
                     }
                     break;
                 }
@@ -155,7 +180,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         }
         fflush(stdout);
     }
-    
     if (s_sigtstp_received) {
         s_sigtstp_received = 0;
         
@@ -165,7 +189,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                 const auto& job = job_pair.second;
                 if (!job.background && !job.completed && !job.stopped) {
                     if (kill(-job.pgid, SIGTSTP) < 0) {
-                        perror("kill (SIGTSTP) in process_pending_signals");
+                        if (errno != ESRCH) {
+                            std::cerr << "kill (SIGTSTP) in process_pending_signals: " 
+                                      << strerror(errno) << std::endl;
+                        }
                     }
                     break;
                 }
@@ -173,16 +200,21 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         }
         fflush(stdout);
     }
-    
     if (s_sigchld_received) {
         s_sigchld_received = 0;
         
         if (shell_exec) {
+            sigset_t mask, prev_mask;
+            sigemptyset(&mask);
+            sigaddset(&mask, SIGCHLD);
+            sigprocmask(SIG_BLOCK, &mask, &prev_mask);
+            
             pid_t pid;
             int status;
             while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
                 shell_exec->handle_child_signal(pid, status);
             }
+            sigprocmask(SIG_SETMASK, &prev_mask, nullptr);
         }
     }
 }

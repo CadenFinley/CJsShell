@@ -5,6 +5,7 @@
 #include <iostream>
 #include <functional>
 #include <atomic>
+#include <cstring>
 
 class Exec;
 
@@ -20,11 +21,14 @@ public:
 
 private:
     static std::atomic<SignalHandler*> s_instance;
+    
     static volatile sig_atomic_t s_sigint_received;
     static volatile sig_atomic_t s_sigchld_received;
     static volatile sig_atomic_t s_sighup_received;
     static volatile sig_atomic_t s_sigterm_received;
     static volatile sig_atomic_t s_sigtstp_received;
+    static volatile sig_atomic_t s_sigcont_received;
+    
     struct sigaction m_old_sigint_handler;
     struct sigaction m_old_sigchld_handler;
     struct sigaction m_old_sighup_handler;
@@ -33,6 +37,8 @@ private:
     struct sigaction m_old_sigtstp_handler;
     struct sigaction m_old_sigttin_handler;
     struct sigaction m_old_sigttou_handler;
+    struct sigaction m_old_sigcont_handler;
+    struct sigaction m_old_sigpipe_handler;
 
     void restore_original_handlers();
 };
