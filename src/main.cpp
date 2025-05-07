@@ -321,6 +321,11 @@ void main_process_loop() {
         update_completion_frequency(command);
         {
           std::string status_str = std::to_string(g_shell->execute_command(command));
+          if(g_debug_mode) std::cerr << "DEBUG: Command exit status: " << status_str << std::endl;
+          if (status_str != "127") {
+            if (g_debug_mode) std::cerr << "DEBUG: Adding command to history: " << command << std::endl;
+            ic_history_add(command.c_str());
+          }
           setenv("STATUS", status_str.c_str(), 1);
         }
         update_terminal_title();
