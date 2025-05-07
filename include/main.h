@@ -45,7 +45,7 @@ extern std::string created_line;
 extern Ai* g_ai;
 
 class Shell;
-extern Shell* g_shell;
+extern std::unique_ptr<Shell> g_shell;
 extern Theme* g_theme;
 extern Plugin* g_plugin;
 extern std::vector<std::string> g_startup_args;
@@ -70,6 +70,5 @@ void initialize_login_environment();
 bool is_shell_script_construct(const std::string& line);
 void process_shell_scripts_in_config();
 bool parse_and_set_env_var(const std::string& line);
-void prepare_shell_signal_environment();
 std::string get_current_time_string();
 void handle_command_error(const std::string& command, const std::string& error_message);

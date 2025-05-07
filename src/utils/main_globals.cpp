@@ -21,7 +21,7 @@ std::string g_current_theme = "";
 std::string title_line = " CJ's Shell v" + c_version + " - Caden J Finley (c) 2025";
 std::string created_line = " Created 2025 @ " + c_title_color + "Abilene Christian University" + c_reset_color;
 Ai* g_ai = nullptr;
-Shell* g_shell = nullptr;
+std::unique_ptr<Shell> g_shell = nullptr;
 Theme* g_theme = nullptr;
 Plugin* g_plugin = nullptr;
 std::vector<std::string> g_startup_args;

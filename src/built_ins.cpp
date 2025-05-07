@@ -3,7 +3,7 @@
 #include "cjsh_filesystem.h"
 #include <unistd.h>
 #include <sys/wait.h>
-#include <iomanip>  // Add this include for std::setw
+#include <iomanip>
 
 #define PRINT_ERROR(MSG)                              \
   do {                                                \

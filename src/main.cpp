@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     }
   }
   
-  g_shell = new Shell(login_mode);
+  g_shell = std::make_unique<Shell>(login_mode);
 
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
@@ -68,10 +68,7 @@ int main(int argc, char *argv[]) {
     if (g_debug_mode) std::cerr << "DEBUG: Initializing login environment" << std::endl;
     if (!init_login_filesystem()) {
       std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
-      if (g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
+      g_shell.reset();
       return 1;
     }
     process_profile_file();
@@ -180,10 +177,7 @@ int main(int argc, char *argv[]) {
     }
     else if (arg.length() > 0 && arg[0] == '-') {
       std::cerr << "Warning: Unknown startup argument: " << arg << std::endl;
-      if(g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
+      g_shell.reset();
       return 127;
     }
   }
@@ -192,30 +186,21 @@ int main(int argc, char *argv[]) {
     int exit_code = g_shell->execute_command(l_cmd_to_execute);
     if((!interactive_mode && !force_interactive) || exit_code != 0) {
       if (g_debug_mode) std::cerr << "DEBUG: Exiting after executing command: " << l_cmd_to_execute << std::endl;
-      if (g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
+      g_shell.reset();
       return exit_code;
     }
   }
 
   if(!interactive_mode && !force_interactive) {
     if (g_debug_mode) std::cerr << "DEBUG: Interactive mode not enabled" << std::endl;
-    if (g_shell) {
-      delete g_shell;
-      g_shell = nullptr;
-    }
+    g_shell.reset();
     return 0;
   }
 
   g_shell->set_interactive_mode(true);
   if (!init_interactive_filesystem()) {
     std::cerr << "Error: Failed to initialize or verify file system or files within the file system." << std::endl;
-    if(g_shell) {
-      delete g_shell;
-      g_shell = nullptr;
-    }
+    g_shell.reset();
     return 1;
   }
 
@@ -276,13 +261,6 @@ int main(int argc, char *argv[]) {
     if (watchdog_thread.joinable()) {
       watchdog_thread.join();
     }
-  }
-
-  std::cout << "CJ's Shell Exiting..." << std::endl;
-
-  if (g_shell){
-    delete g_shell;
-    g_shell = nullptr;
   }
 
   return 0;
@@ -476,30 +454,6 @@ void initialize_login_environment() {
       g_terminal_state_saved = true;
     }
   }
-}
-
-void prepare_shell_signal_environment() {
-  struct sigaction sa;
-  
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-  
-  sigaddset(&sa.sa_mask, SIGINT);
-  sigaddset(&sa.sa_mask, SIGQUIT);
-  sigaddset(&sa.sa_mask, SIGTSTP);
-  sigaddset(&sa.sa_mask, SIGTTIN);
-  sigaddset(&sa.sa_mask, SIGTTOU);
-  sigaddset(&sa.sa_mask, SIGCHLD);
-  
-  sa.sa_handler = SIG_IGN;
-  sigaction(SIGTTOU, &sa, nullptr);
-  sigaction(SIGTTIN, &sa, nullptr);
-  sigaction(SIGQUIT, &sa, nullptr);
-  sigaction(SIGTSTP, &sa, nullptr);
-
-  sa.sa_handler = SIG_DFL;
-  sigemptyset(&sa.sa_mask);
-  sigaction(SIGPIPE, &sa, nullptr);
 }
 
 bool init_interactive_filesystem() {

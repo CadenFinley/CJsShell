@@ -31,7 +31,7 @@ Shell::Shell(bool login_mode) {
 }
 
 Shell::~Shell() {
-  if(interactive_mode) {
+  if(interactive_mode && g_debug_mode) {
     std::cerr << "Destroying Shell" << std::endl;
   }
   delete shell_parser;
@@ -62,7 +62,7 @@ void Shell::save_terminal_state() {
 }
 
 void Shell::restore_terminal_state() {
-  if(interactive_mode) {
+  if(interactive_mode && g_debug_mode) {
     std::cerr << "Restoring terminal state" << std::endl;
   }
 
