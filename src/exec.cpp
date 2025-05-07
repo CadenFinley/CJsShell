@@ -6,7 +6,7 @@
 #include <csignal>
 #include <algorithm>
 #include <array>
-#include <sys/resource.h> // For setpriority
+#include <sys/resource.h>
 
 Exec::Exec(){
   last_terminal_output_error = "";
@@ -187,10 +187,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         perror("tcsetpgrp failed in child");
       }
     }
-    
-    // Child process can set its own priority before exec
+
     if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
-      // Just log the error, don't fail the command
       perror("setpriority failed in child");
     }
     
@@ -330,9 +328,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
       _exit(EXIT_FAILURE);
     }
     
-    // Child process can set its own priority before exec
     if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
-      // Just log the error, don't fail the command
       perror("setpriority failed in child");
     }
     
@@ -676,7 +672,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
     }
   }
   
-  // Set higher priority for foreground processes
   set_process_priority(job.pgid, true);
   
   if (cont && job.stopped) {
@@ -720,7 +715,6 @@ void Exec::put_job_in_background(int job_id, bool cont) {
   
   Job& job = it->second;
   
-  // Set lower priority for background processes
   set_process_priority(job.pgid, false);
   
   if (cont && job.stopped) {
