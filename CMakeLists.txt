@@ -40,10 +40,6 @@ endif()
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Find required packages
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GLIB REQUIRED glib-2.0)
-
 # Find additional libraries needed for libcurl
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -61,7 +57,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
     ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
-    ${GLIB_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
@@ -69,7 +64,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
     isocline
-    ${GLIB_LIBRARIES}
     curl
     pthread
     dl
