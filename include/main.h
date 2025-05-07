@@ -43,6 +43,7 @@ extern std::string g_current_theme;
 extern std::string title_line;
 extern std::string created_line;
 extern Ai* g_ai;
+extern bool g_startup_active;
 
 class Shell;
 extern std::unique_ptr<Shell> g_shell;

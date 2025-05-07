@@ -238,6 +238,7 @@ int main(int argc, char *argv[]) {
     process_source_file();
   }
 
+  g_startup_active = false;
   if(!g_exit_flag) {
     startup_update_process();
     if (g_title_line) {
