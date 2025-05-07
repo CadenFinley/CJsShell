@@ -21,7 +21,8 @@ int main(int argc, char *argv[]) {
   }
 
   bool login_mode = false;
-  bool interactive_mode = false;
+  bool interactive_mode = true;
+  bool force_interactive = false;
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
     if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0] << std::endl;
@@ -32,7 +33,7 @@ int main(int argc, char *argv[]) {
       if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from command-line argument: " << argv[i] << std::endl;
     }
     if (std::string(argv[i]) == "--interactive" || std::string(argv[i]) == "-i") {
-      interactive_mode = true;
+      force_interactive = true;
       if (g_debug_mode) std::cerr << "DEBUG: Interactive detected from command-line argument: " << argv[i] << std::endl;
     }
     if (std::string(argv[i]) == "--debug") {
@@ -88,12 +89,15 @@ int main(int argc, char *argv[]) {
         l_cmd_to_execute = g_startup_args[i + 1];
         i++;
       }
+      interactive_mode = false;
     }
     else if (arg == "-v" || arg == "--version") {
       std::cout << c_version << std::endl;
+      interactive_mode = false;
     }
     else if (arg == "-h" || arg == "--help") {
       g_shell -> execute_command("help");
+      interactive_mode = false;
     }
     else if (arg == "--login" || arg == "-l" || arg == "--interactive" || arg == "-i" || arg == "--debug") {
       if (g_debug_mode) std::cerr << "DEBUG: Recognized immeadiate arguement: " << arg << std::endl;
@@ -126,9 +130,11 @@ int main(int argc, char *argv[]) {
       } else {
         std::cout << "cjsh will not be set as your default shell." << std::endl;
       }
+      interactive_mode = false;
     }
     else if (arg == "--update") {
       execute_update_if_available(check_for_update());
+      interactive_mode = false;
     }
     else if (arg == "--silent-updates") {
       g_silent_update_check = true;
@@ -169,7 +175,7 @@ int main(int argc, char *argv[]) {
 
   if (l_execute_command) {
     int exit_code = g_shell->execute_command(l_cmd_to_execute);
-    if(!interactive_mode || exit_code != 0) {
+    if((!interactive_mode && !force_interactive) || exit_code != 0) {
       if (g_debug_mode) std::cerr << "DEBUG: Exiting after executing command: " << l_cmd_to_execute << std::endl;
       if (g_shell) {
         delete g_shell;
@@ -179,7 +185,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if(!interactive_mode) {
+  if(!interactive_mode && !force_interactive) {
     if (g_debug_mode) std::cerr << "DEBUG: Interactive mode not enabled" << std::endl;
     if (g_shell) {
       delete g_shell;
@@ -197,6 +203,7 @@ int main(int argc, char *argv[]) {
     }
     return 1;
   }
+
   setup_environment_variables();
 
   if (g_debug_mode) std::cerr << "DEBUG: Initializing colors with enabled=" << l_colors_enabled << std::endl;
