@@ -1,88 +1,13 @@
 #include "shell.h"
 #include "main.h"
 #include "built_ins.h"
+#include "signal_handler.h"
 #include <sstream>
 #include <cstdlib>
 
-static volatile sig_atomic_t sigint_received = 0;
-static volatile sig_atomic_t sigchld_received = 0;
-static volatile sig_atomic_t sighup_received = 0;
-static volatile sig_atomic_t sigterm_received = 0;
-
-void shell_signal_handler(int signum, siginfo_t* info, void* context) {
-  (void)context;
-  (void)info;
-
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Signal received: " << signum << std::endl;
-  }
-
-  switch (signum) {
-    case SIGINT: {
-      sigint_received = 1;
-      ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
-      (void)bytes_written;
-      if (g_debug_mode) std::cerr << "DEBUG: SIGINT handler executed" << std::endl;
-      break;
-    }
-      
-    case SIGCHLD: {
-      sigchld_received = 1;
-      if (g_debug_mode) std::cerr << "DEBUG: SIGCHLD handler executed" << std::endl;
-      break;
-    }
-      
-    case SIGHUP: {
-      sighup_received = 1;
-      if (g_debug_mode) std::cerr << "DEBUG: SIGHUP handler executed, exiting" << std::endl;
-      _exit(0);
-      break;
-    }
-      
-    case SIGTERM: {
-      sigterm_received = 1;
-      if (g_debug_mode) std::cerr << "DEBUG: SIGTERM handler executed, exiting" << std::endl;
-      _exit(0);
-      break;
-    }
-  }
-}
-
 void Shell::process_pending_signals() {
-  if (g_debug_mode && (sigint_received || sigchld_received)) {
-    std::cerr << "DEBUG: Processing pending signals: "
-              << "SIGINT=" << sigint_received << ", "
-              << "SIGCHLD=" << sigchld_received << std::endl;
-  }
-
-  if (sigint_received) {
-    sigint_received = 0;
-    
-    if (shell_exec) {
-      auto jobs = shell_exec->get_jobs();
-      for (const auto& job_pair : jobs) {
-        const auto& job = job_pair.second;
-        if (!job.background && !job.completed && !job.stopped) {
-          if (kill(-job.pgid, SIGINT) < 0) {
-            perror("kill (SIGINT) in process_pending_signals");
-          }
-          break;
-        }
-      }
-    }
-    fflush(stdout);
-  }
-  
-  if (sigchld_received) {
-    sigchld_received = 0;
-    
-    if (shell_exec) {
-      pid_t pid;
-      int status;
-      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-        shell_exec->handle_child_signal(pid, status);
-      }
-    }
+  if (signal_handler && shell_exec) {
+    signal_handler->process_pending_signals(shell_exec.get());
   }
 }
 
@@ -91,6 +16,7 @@ Shell::Shell(bool login_mode) {
 
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
+  signal_handler = std::make_unique<SignalHandler>();
   shell_parser = new Parser();
   built_ins = new Built_ins();
   shell_script_interpreter = new ShellScriptInterpreter();
@@ -101,6 +27,7 @@ Shell::Shell(bool login_mode) {
   shell_terminal = STDIN_FILENO;
 
   setup_signal_handlers();
+  g_signal_handler = signal_handler.get();
 }
 
 Shell::~Shell() {
@@ -114,47 +41,13 @@ Shell::~Shell() {
   if (login_mode) {
     restore_terminal_state();
   }
-
-  signal(SIGINT, SIG_DFL);
-  signal(SIGQUIT, SIG_DFL);
-  signal(SIGTSTP, SIG_DFL);
-  signal(SIGTTIN, SIG_DFL);
-  signal(SIGTTOU, SIG_DFL);
-  signal(SIGCHLD, SIG_DFL);
-  signal(SIGHUP, SIG_DFL);
-  signal(SIGTERM, SIG_DFL);
 }
 
 void Shell::setup_signal_handlers() {
   if (g_debug_mode) std::cerr << "DEBUG: Setting up signal handlers" << std::endl;
-
-  struct sigaction sa;
-  sigemptyset(&sa.sa_mask);
-  sigset_t block_mask;
-  sigfillset(&block_mask);
-
-  sa.sa_sigaction = shell_signal_handler;
-  sa.sa_mask = block_mask;
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGHUP, &sa, nullptr);
-
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGTERM, &sa, nullptr);
-
-  sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  sigaction(SIGCHLD, &sa, nullptr);
-
-  sa.sa_flags = SA_SIGINFO;
-  sigaction(SIGINT, &sa, nullptr);
-
-  sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
-  sa.sa_mask = block_mask;
-  sigaction(SIGQUIT, &sa, nullptr);
-  sigaction(SIGTSTP, &sa, nullptr);
-  sigaction(SIGTTIN, &sa, nullptr);
-  sigaction(SIGTTOU, &sa, nullptr);
-
+  if (signal_handler) {
+    signal_handler->setup_signal_handlers();
+  }
   save_terminal_state();
 }
 

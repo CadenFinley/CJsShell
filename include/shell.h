@@ -4,6 +4,7 @@
 #include "exec.h"
 #include "parser.h"
 #include "shell_script_interpreter.h"
+#include "signal_handler.h"
 #include <termios.h>
 #include <unistd.h>
 #include <string>
@@ -11,12 +12,11 @@
 #include <unordered_map>
 #include <signal.h>
 #include <vector>
+#include <memory>
 
 class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
-
-extern void shell_signal_handler(int signum, siginfo_t* info, void* context);
 
 class Shell {
   public:
@@ -85,8 +85,6 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
 
-    friend void shell_signal_handler(int signum, siginfo_t* info, void* context);
-
     std::string last_terminal_output_error;
     std::string last_command;
     std::unique_ptr<Exec> shell_exec;
@@ -112,6 +110,7 @@ class Shell {
     int last_exit_code = 0;
 
     std::unique_ptr<Prompt> shell_prompt;
+    std::unique_ptr<SignalHandler> signal_handler;
     ShellScriptInterpreter* shell_script_interpreter = nullptr;
     Parser* shell_parser = nullptr;
     Built_ins* built_ins = nullptr;
