@@ -282,7 +282,8 @@ int main(int argc, char* argv[]) {
 void update_terminal_title() {
   std::string title_str = "\033]0;" + g_shell->get_title_prompt() + "\007";
   if (isatty(STDOUT_FILENO)) {
-    ssize_t bytes_written = write(STDOUT_FILENO, title_str.c_str(), title_str.length());
+    ssize_t bytes_written =
+        write(STDOUT_FILENO, title_str.c_str(), title_str.length());
     (void)bytes_written;
   }
 }
