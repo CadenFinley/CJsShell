@@ -54,6 +54,7 @@ public:
   int get_exit_code() const { return last_exit_code; }
   void set_exit_code(int code) { last_exit_code = code; }
   void terminate_all_child_process();
+  void set_process_priority(pid_t pid, bool is_foreground);
   
   std::string last_terminal_output_error;
 };
