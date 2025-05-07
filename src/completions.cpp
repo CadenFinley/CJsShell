@@ -11,6 +11,27 @@
 #include "main.h"
 
 std::map<std::string, int> g_completion_frequency;
+enum CompletionContext {
+    CONTEXT_COMMAND,
+    CONTEXT_ARGUMENT,
+    CONTEXT_PATH
+};
+
+CompletionContext detect_completion_context(const char* prefix) {
+    std::string prefix_str(prefix);
+
+    if (prefix_str.find('/') == 0 || 
+        prefix_str.find("./") == 0 || 
+        prefix_str.find("../") == 0) {
+        return CONTEXT_PATH;
+    }
+
+    if (prefix_str.find(' ') != std::string::npos) {
+        return CONTEXT_ARGUMENT;
+    }
+
+    return CONTEXT_COMMAND;
+}
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (ic_stop_completing(cenv)) return;
@@ -64,22 +85,44 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 }
 
 void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
-    cjsh_history_completer(cenv, prefix);
-    cjsh_filename_completer(cenv, prefix);
-    if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
-    cjsh_command_completer(cenv, prefix);
-    if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+    if (ic_stop_completing(cenv)) return;
+    CompletionContext context = detect_completion_context(prefix);
+    
+    switch (context) {
+        case CONTEXT_COMMAND:
+            cjsh_history_completer(cenv, prefix);
+            if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+
+            cjsh_command_completer(cenv, prefix);
+            if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+            
+            cjsh_filename_completer(cenv, prefix);
+            break;
+            
+        case CONTEXT_PATH:
+            cjsh_filename_completer(cenv, prefix);
+            if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+            
+            cjsh_history_completer(cenv, prefix);
+            break;
+            
+        case CONTEXT_ARGUMENT:
+            cjsh_filename_completer(cenv, prefix);
+            if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+            
+            cjsh_history_completer(cenv, prefix);
+            break;
+    }
 }
 
 void initialize_completion_system() {
     if (g_debug_mode) std::cerr << "DEBUG: Initializing completion system" << std::endl;
 
-    ic_style_def("completion", "bold color=#00FFFF");
-    ic_style_def("completion-preview", "bold color=#FFFF00");
-    ic_style_def("completion-select", "bold reverse color=#FFFFFF");
+    // ic_style_def("completion", "bold color=#00FFFF");
+    // ic_style_def("completion-preview", "bold color=#FFFF00");
+    // ic_style_def("completion-select", "bold reverse color=#FFFFFF");
     
     ic_set_default_completer(cjsh_default_completer, NULL);
-    ic_enable_auto_tab(false);
     ic_enable_completion_preview(true);
     ic_enable_hint(true);
     ic_set_hint_delay(0);
@@ -88,6 +131,7 @@ void initialize_completion_system() {
     ic_enable_inline_help(false);
     ic_enable_multiline_indent(false);
     ic_set_prompt_marker("", NULL);
+    ic_enable_auto_tab(true);
     ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
     ic_enable_completion_preview(true);
 }
