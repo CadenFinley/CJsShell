@@ -19,3 +19,5 @@ bool should_check_for_updates();
 bool execute_update_if_available(bool update_available);
 void display_changelog(const std::string& changelog_path);
 void startup_update_process();
+bool is_first_boot();
+void mark_first_boot_complete();

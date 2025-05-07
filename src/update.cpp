@@ -175,3 +175,15 @@ void startup_update_process() {
             std::cout << " You are up to date!\n";
     }
 }
+
+bool is_first_boot() {
+  std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
+  return !std::filesystem::exists(first_boot_flag);
+}
+
+void mark_first_boot_complete() {
+  std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
+  std::ofstream flag_file(first_boot_flag);
+  flag_file.close();
+}
+

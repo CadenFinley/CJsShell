@@ -13,7 +13,7 @@
 #include <ctime>
 #include <atomic>
 
-const std::string c_version = "2.1.10";
+const std::string c_version = "2.1.11";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 const pid_t c_pid = getpid();
@@ -71,7 +71,5 @@ bool is_shell_script_construct(const std::string& line);
 void process_shell_scripts_in_config();
 bool parse_and_set_env_var(const std::string& line);
 void prepare_shell_signal_environment();
-bool is_first_boot();
-void mark_first_boot_complete();
 std::string get_current_time_string();
 void handle_command_error(const std::string& command, const std::string& error_message);

@@ -10,7 +10,7 @@ Prompt::~Prompt() {
 }
 
 std::string Prompt::get_prompt() {
-    if(!g_theme -> get_enabled()) {
+    if(!g_theme -> get_enabled() || g_current_theme.empty()) {
       return info.get_basic_prompt();
     }
     std::filesystem::path repo_root;
@@ -72,7 +72,7 @@ std::string Prompt::get_newline_prompt() {
 }
 
 std::string Prompt::get_title_prompt() {
-  if(!g_theme -> get_enabled()) {
+  if(!g_theme -> get_enabled() || g_current_theme.empty()) {
     return info.get_basic_title();
   }
     std::string prompt_format = g_theme->get_terminal_title_format();

@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
   }
 
   bool login_mode = false;
+  bool interactive_mode = false;
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
     if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0] << std::endl;
@@ -29,7 +30,14 @@ int main(int argc, char *argv[]) {
     if (std::string(argv[i]) == "--login" || std::string(argv[i]) == "-l") {
       login_mode = true;
       if (g_debug_mode) std::cerr << "DEBUG: Login mode detected from command-line argument: " << argv[i] << std::endl;
-      break;
+    }
+    if (std::string(argv[i]) == "--interactive" || std::string(argv[i]) == "-i") {
+      interactive_mode = true;
+      if (g_debug_mode) std::cerr << "DEBUG: Interactive detected from command-line argument: " << argv[i] << std::endl;
+    }
+    if (std::string(argv[i]) == "--debug") {
+      g_debug_mode = true;
+      if (g_debug_mode) std::cerr << "DEBUG: Debug mode enabled from command-line argument: " << argv[i] << std::endl;
     }
   }
   
@@ -83,22 +91,12 @@ int main(int argc, char *argv[]) {
     }
     else if (arg == "-v" || arg == "--version") {
       std::cout << c_version << std::endl;
-      if(g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
-      return 0;
     }
     else if (arg == "-h" || arg == "--help") {
-      g_shell ->execute_command("help");
-      if(g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
-      return 0;
+      g_shell -> execute_command("help");
     }
-    else if (arg == "--login" || arg == "-l") {
-      if (g_debug_mode) std::cerr << "DEBUG: Recognized login argument: " << arg << std::endl;
+    else if (arg == "--login" || arg == "-l" || arg == "--interactive" || arg == "-i" || arg == "--debug") {
+      if (g_debug_mode) std::cerr << "DEBUG: Recognized immeadiate arguement: " << arg << std::endl;
     }
     else if (arg == "--set-as-shell") {
       std::cout << "Warning: cjsh is not a POSIX compliant shell. \nSimilar to FISH, missuse of cjsh or incorrectly settingcjsh as your login shell can \nhave adverse effects and there is no warranty." << std::endl;
@@ -128,19 +126,9 @@ int main(int argc, char *argv[]) {
       } else {
         std::cout << "cjsh will not be set as your default shell." << std::endl;
       }
-      if(g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
-      return 0;
     }
     else if (arg == "--update") {
       execute_update_if_available(check_for_update());
-      if(g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
-      return 0;
     }
     else if (arg == "--silent-updates") {
       g_silent_update_check = true;
@@ -157,20 +145,8 @@ int main(int argc, char *argv[]) {
     else if (arg == "--no-colors") {
       l_colors_enabled = false;
     }
-    else if (arg == "--splash") {
-      colors::initialize_color_support(l_colors_enabled);
-      std::cout << get_colorized_splash() << std::endl;
-      if(g_shell) {
-        delete g_shell;
-        g_shell = nullptr;
-      }
-      return 0;
-    }
     else if (arg == "--no-update") {
       g_check_updates = false;
-    }
-    else if (arg == "-d" || arg == "--debug") {
-      g_debug_mode = true;
     }
     else if (arg == "--check-update") {
       g_check_updates = true;
@@ -193,11 +169,23 @@ int main(int argc, char *argv[]) {
 
   if (l_execute_command) {
     int exit_code = g_shell->execute_command(l_cmd_to_execute);
-    if(g_shell) {
+    if(!interactive_mode || exit_code != 0) {
+      if (g_debug_mode) std::cerr << "DEBUG: Exiting after executing command: " << l_cmd_to_execute << std::endl;
+      if (g_shell) {
+        delete g_shell;
+        g_shell = nullptr;
+      }
+      return exit_code;
+    }
+  }
+
+  if(!interactive_mode) {
+    if (g_debug_mode) std::cerr << "DEBUG: Interactive mode not enabled" << std::endl;
+    if (g_shell) {
       delete g_shell;
       g_shell = nullptr;
     }
-    return exit_code;
+    return 0;
   }
 
   g_shell->set_interactive_mode(true);
@@ -667,15 +655,4 @@ std::string get_colorized_splash() {
   }
   
   return colorized_splash;
-}
-
-bool is_first_boot() {
-  std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
-  return !std::filesystem::exists(first_boot_flag);
-}
-
-void mark_first_boot_complete() {
-  std::filesystem::path first_boot_flag = cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
-  std::ofstream flag_file(first_boot_flag);
-  flag_file.close();
 }
