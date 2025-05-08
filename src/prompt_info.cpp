@@ -80,6 +80,17 @@ std::string PromptInfo::get_basic_prompt() {
   return prompt;
 }
 
+std::string PromptInfo::get_basic_ai_prompt() {
+  std::string prompt = "";
+  std::string username = get_username();
+  std::string hostname = get_hostname();
+  std::string cwd = get_current_file_path();
+
+  prompt += username + "@" + hostname + " : " + cwd + " > ";
+
+  return prompt;
+}
+
 std::string PromptInfo::get_basic_title() { return get_current_file_path(); }
 
 bool PromptInfo::is_variable_used(const std::string& var_name,

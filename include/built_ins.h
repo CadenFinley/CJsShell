@@ -2,6 +2,7 @@
 
 #include <limits.h>
 #include <unistd.h>
+#include "shell.h"
 
 #include <filesystem>
 #include <fstream>
@@ -16,7 +17,7 @@ class Shell;
 class Built_ins {
  public:
   Built_ins()
-      : builtins({
+      : builtins{
             {"cd",
              [this](const std::vector<std::string>& args) {
                return change_directory(args.size() > 1 ? args[1]
@@ -94,7 +95,13 @@ class Built_ins {
              [this](const std::vector<std::string>& args) {
                return exit_command(args);
              }},
-        }),
+            {"terminal",
+             [this](const std::vector<std::string>& args) {
+              (void)args;
+               shell->set_menu_active(true);
+               return 0;
+             }},
+        },
         shell(nullptr) {}
   ~Built_ins() = default;
 

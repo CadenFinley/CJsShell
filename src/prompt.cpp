@@ -42,6 +42,14 @@ std::string Prompt::get_ai_prompt() {
   std::string modelInfo = g_ai->getModel();
   std::string modeInfo = g_ai->getAssistantType();
 
+  if (g_current_theme.empty()) {
+    if(!g_theme->get_enabled()) {
+      return " > ";
+    } else {
+      g_theme->load_theme("default");
+    }
+  }
+
   if (modelInfo.empty()) modelInfo = "Unknown";
   if (modeInfo.empty()) modeInfo = "Chat";
 
@@ -71,6 +79,13 @@ std::string Prompt::get_ai_prompt() {
 }
 
 std::string Prompt::get_newline_prompt() {
+  if (g_current_theme.empty()) {
+    if(!g_theme->get_enabled()) {
+      return " ";
+    } else {
+      g_theme->load_theme("default");
+    }
+  }
   std::vector<nlohmann::json> segments_to_check = g_theme->newline_segments;
   std::unordered_map<std::string, std::string> vars =
       info.get_variables(segments_to_check);

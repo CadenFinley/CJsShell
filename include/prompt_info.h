@@ -37,6 +37,7 @@ class PromptInfo {
   ~PromptInfo();
   std::string get_basic_prompt();
   std::string get_basic_title();
+  std::string get_basic_ai_prompt();
   bool is_git_repository(std::filesystem::path& repo_root);
   std::string get_git_branch(const std::filesystem::path& git_head_path);
   std::string get_git_status(const std::filesystem::path& repo_root);

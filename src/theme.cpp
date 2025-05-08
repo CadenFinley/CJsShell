@@ -81,7 +81,7 @@ void Theme::create_default_theme() {
                                           {"separator_fg", "WHITE_BRIGHT"},
                                           {"separator_bg", "RESET"}});
   default_theme["ai_segments"].push_back({{"tag", "mode"},
-                                          {"content", "{AI-MODE} "},
+                                          {"content", "{AI_AGENT_TYPE} "},
                                           {"bg_color", "RESET"},
                                           {"fg_color", "CYAN_BRIGHT"},
                                           {"separator", ""},
