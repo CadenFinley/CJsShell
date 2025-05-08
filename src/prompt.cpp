@@ -10,8 +10,12 @@ Prompt::Prompt() {}
 Prompt::~Prompt() {}
 
 std::string Prompt::get_prompt() {
-  if (!g_theme->get_enabled() || g_current_theme.empty()) {
-    return info.get_basic_prompt();
+  if (g_current_theme.empty()) {
+    if(!g_theme->get_enabled()) {
+      return info.get_basic_prompt();
+    } else {
+      g_theme->load_theme("default");
+    }
   }
   std::filesystem::path repo_root;
   bool is_git_repo = info.is_git_repository(repo_root);
@@ -75,8 +79,12 @@ std::string Prompt::get_newline_prompt() {
 }
 
 std::string Prompt::get_title_prompt() {
-  if (!g_theme->get_enabled() || g_current_theme.empty()) {
-    return info.get_basic_title();
+  if (g_current_theme.empty()) {
+    if(!g_theme->get_enabled()) {
+      return info.get_basic_title();
+    } else {
+      g_theme->load_theme("default");
+    }
   }
   std::string prompt_format = g_theme->get_terminal_title_format();
 

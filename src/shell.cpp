@@ -157,12 +157,8 @@ int Shell::execute_command(std::string command) {
   if (!menu_active && args.size() > 0) {
     if (args[0][0] != ':') {
       if (!command.empty()) {
-        if (command == "terminal") {
-          menu_active = true;
-          return 0;
-        }
+        return built_ins->do_ai_request(command);
       }
-      return built_ins->do_ai_request(command);
     } else {
       args[0].erase(0, 1);
     }

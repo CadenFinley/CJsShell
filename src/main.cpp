@@ -637,15 +637,7 @@ void create_profile_file() {
     profile_file << "# cjsh Configuration File\n";
     profile_file << "# this file is sourced when the shell starts in login "
                     "mode and is sourced after /etc/profile and ~/.profile\n";
-    profile_file << "# this file is used to configure the shell PATH and set "
-                    "environment variables.\n";
-
-    profile_file << "# any environment variables should be set without "
-                    "'export' command\n";
-    profile_file << "# example: VARIABLE=value\n\n";
-
-    profile_file << "# this is also where you can add any startup flags you "
-                    "want for cjsh\n";
+    profile_file << "# this file is the only one that is capable of handling startup args";
     profile_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
@@ -659,8 +651,7 @@ void create_source_file() {
     source_file
         << "# this file is sourced when the shell starts in interactive mode\n";
     source_file << "# this is where your aliases, theme setup, enabled "
-                   "plugins, startup commands, functions etc.";
-    source_file << "# are stored.\n";
+                   "plugins will be stored by default.\n";
 
     source_file << "# Alias examples\n";
     source_file << "alias ll='ls -la'\n";

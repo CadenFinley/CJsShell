@@ -24,24 +24,27 @@ void SyntaxHighlighter::initialize() {
 
 void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
                                   void* /*arg*/) {
-  size_t len = std::strlen(input), i = 0;
-  while (i < len && !std::isspace((unsigned char)input[i])) ++i;
-  std::string token(input, i);
-
-  if (token.rfind("./", 0) == 0) {
-    if (!std::filesystem::exists(token) ||
-        !std::filesystem::is_regular_file(token)) {
-      ic_highlight(henv, 0, i, "cjsh-unknown-command");
+    if (!g_shell->get_menu_active() && input[0] != ':') {
+        return;
     }
-    return;
-  }
+    size_t len = std::strlen(input), i = 0;
+    while (i < len && !std::isspace((unsigned char)input[i])) ++i;
+    std::string token(input, i);
 
-  if (!token.empty()) {
-    auto cmds = g_shell->get_available_commands();
-    if (std::find(cmds.begin(), cmds.end(), token) == cmds.end() &&
-        basic_unix_commands_.count(token) == 0 &&
-        external_executables_.count(token) == 0) {
-      ic_highlight(henv, 0, i, "cjsh-unknown-command");
+    if (token.rfind("./", 0) == 0) {
+      if (!std::filesystem::exists(token) ||
+          !std::filesystem::is_regular_file(token)) {
+        ic_highlight(henv, 0, i, "cjsh-unknown-command");
+      }
+      return;
     }
-  }
+
+    if (!token.empty()) {
+      auto cmds = g_shell->get_available_commands();
+      if (std::find(cmds.begin(), cmds.end(), token) == cmds.end() &&
+          basic_unix_commands_.count(token) == 0 &&
+          external_executables_.count(token) == 0) {
+        ic_highlight(henv, 0, i, "cjsh-unknown-command");
+      }
+    }
 }
