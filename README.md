@@ -114,6 +114,9 @@ Available startup flags:
  
 - **OpenSSL** (optional, for SSL support)  
   https://www.openssl.org (Apache License 2.0)
+ 
+- **GLib (glib-2.0)**  
+  https://developer.gnome.org/glib (LGPL 2.0+)
 
 ## License
 
