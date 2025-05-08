@@ -93,19 +93,26 @@ bool load_update_cache() {
 }
 
 void save_update_cache(bool upd, const std::string& latest) {
+  namespace fs = std::filesystem;
+  auto path = cjsh_filesystem::g_cjsh_update_cache_path;
+  fs::create_directories(fs::path(path).parent_path());
+
   json cache;
   cache["update_available"] = upd;
   cache["latest_version"] = latest;
   cache["check_time"] = std::time(nullptr);
-  std::ofstream f(cjsh_filesystem::g_cjsh_update_cache_path);
+
+  std::ofstream f(path);
   if (f.is_open()) {
-    f << cache.dump();
+    if (g_debug_mode) std::cout << "Writing update cache to: " << path << "\n";
+    f << cache.dump(4) << "\n";
     f.close();
     g_cached_update = upd;
     g_cached_version = latest;
     g_last_update_check = std::time(nullptr);
   } else {
-    std::cerr << "Warning: Could not open update cache file for writing.\n";
+    std::cerr << "Warning: Could not open update cache file for writing: "
+              << path << "\n";
   }
 }
 
@@ -182,6 +189,7 @@ void startup_update_process() {
                     << " (cached)\n";
       }
     } else {
+      upd = check_for_update();
       save_update_cache(upd, g_cached_version);
     }
     if (upd)
