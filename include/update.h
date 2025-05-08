@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <ctime>
+#include <string>
 
 extern bool g_cached_update;
 extern bool g_check_updates;
@@ -14,7 +14,8 @@ extern bool g_first_boot;
 
 bool check_for_update();
 bool load_update_cache();
-void save_update_cache(bool update_available, const std::string& latest_version);
+void save_update_cache(bool update_available,
+                       const std::string& latest_version);
 bool should_check_for_updates();
 bool execute_update_if_available(bool update_available);
 void display_changelog(const std::string& changelog_path);

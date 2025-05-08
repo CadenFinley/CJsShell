@@ -1,26 +1,28 @@
 #pragma once
 
-#include "ai.h"
-#include "theme.h"
-#include "plugin.h"
-#include "shell.h"
-#include "update.h"
-#include <termios.h>
+#include <pwd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <pwd.h>
+#include <termios.h>
 #include <unistd.h>
-#include <ctime>
+
 #include <atomic>
+#include <ctime>
+
+#include "ai.h"
+#include "plugin.h"
+#include "shell.h"
+#include "theme.h"
+#include "update.h"
 
 const std::string c_version = "2.1.14";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
-const std::string c_update_url = "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
+const std::string c_update_url =
+    "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
 const pid_t c_pid = getpid();
 const std::string c_pid_str = std::to_string(getpid());
 const std::string c_reset_color = "\033[0m";
 const std::string c_title_color = "\033[1;35m";
-
 
 extern bool g_debug_mode;
 extern bool g_cached_update;
@@ -52,7 +54,7 @@ extern Plugin* g_plugin;
 extern std::vector<std::string> g_startup_args;
 
 std::string get_colorized_splash();
-int main(int argc, char *argv[]);
+int main(int argc, char* argv[]);
 bool init_login_filesystem();
 bool init_interactive_filesystem();
 void main_process_loop();
@@ -72,4 +74,5 @@ bool is_shell_script_construct(const std::string& line);
 void process_shell_scripts_in_config();
 bool parse_and_set_env_var(const std::string& line);
 std::string get_current_time_string();
-void handle_command_error(const std::string& command, const std::string& error_message);
+void handle_command_error(const std::string& command,
+                          const std::string& error_message);

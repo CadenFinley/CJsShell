@@ -136,7 +136,12 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
   }
 
-  return tilde_expanded_args;
+  std::vector<std::string> final_args;
+  for (const auto& arg : tilde_expanded_args) {
+    auto gw = expand_wildcards(arg);
+    final_args.insert(final_args.end(), gw.begin(), gw.end());
+  }
+  return final_args;
 }
 std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
