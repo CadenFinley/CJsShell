@@ -31,8 +31,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
   switch (signum) {
     case SIGINT: {
       s_sigint_received = 1;
-      ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
-      (void)bytes_written;
+      (void)write(STDOUT_FILENO, "\n", 1);
       break;
     }
 
@@ -53,8 +52,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
     case SIGTSTP: {
       s_sigtstp_received = 1;
-      ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
-      (void)bytes_written;
+      (void)write(STDOUT_FILENO, "\n", 1);
       break;
     }
 
