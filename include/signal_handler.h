@@ -24,7 +24,6 @@ private:
     static volatile sig_atomic_t s_sigchld_received;
     static volatile sig_atomic_t s_sighup_received;
     static volatile sig_atomic_t s_sigterm_received;
-    static volatile sig_atomic_t s_sigtstp_received;
     struct sigaction m_old_sigint_handler;
     struct sigaction m_old_sigchld_handler;
     struct sigaction m_old_sighup_handler;
