@@ -1,17 +1,15 @@
 #pragma once
-#include <fcntl.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <termios.h>
-#include <unistd.h>
-
-#include <cstring>
-#include <map>
-#include <mutex>
-#include <string>
-#include <vector>
-
 #include "parser.h"
+#include <string>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <cstring>
+#include <fcntl.h>
+#include <mutex>
+#include <vector>
+#include <signal.h>
+#include <map>
+#include <termios.h>
 
 struct Job {
   pid_t pgid;
@@ -24,7 +22,7 @@ struct Job {
 };
 
 class Exec {
- private:
+private:
   std::mutex error_mutex;
   std::mutex jobs_mutex;
   std::map<int, Job> jobs;
@@ -35,7 +33,7 @@ class Exec {
   bool shell_is_interactive;
   int last_exit_code = 0;
 
- public:
+public:
   Exec();
   ~Exec();
 
@@ -57,6 +55,6 @@ class Exec {
   void set_exit_code(int code) { last_exit_code = code; }
   void terminate_all_child_process();
   void set_process_priority(pid_t pid, bool is_foreground);
-
+  
   std::string last_terminal_output_error;
 };
