@@ -3,6 +3,8 @@
 #include "exec.h"
 #include "main.h"
 
+// CADEN DONT TOUCH IT WORKS
+
 std::atomic<SignalHandler*> SignalHandler::s_instance(nullptr);
 volatile sig_atomic_t SignalHandler::s_sigint_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigchld_received = 0;
