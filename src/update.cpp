@@ -57,16 +57,7 @@ bool check_for_update() {
       if (!latest.empty() && latest[0] == 'v') latest.erase(0, 1);
       std::string current = c_version;
       if (!current.empty() && current[0] == 'v') current.erase(0, 1);
-
-      // Always set cached version when we get a valid response
-      if (!latest.empty()) {
-        g_cached_version = latest;
-        if (g_debug_mode) {
-          std::cout << "\nParsed versions - Latest: " << latest
-                    << ", Current: " << current << std::endl;
-        }
-      }
-
+      g_cached_version = latest;
       if (is_newer_version(latest, current)) {
         std::cout << "\nLast Updated: " << g_last_updated << "\n"
                   << c_version << " -> " << latest << std::endl;
@@ -102,30 +93,16 @@ bool load_update_cache() {
 }
 
 void save_update_cache(bool upd, const std::string& latest) {
-  std::string version_to_save = latest;
-  if (version_to_save.empty()) {
-    version_to_save = g_cached_version.empty() ? c_version : g_cached_version;
-    if (!version_to_save.empty() && version_to_save[0] == 'v') {
-      version_to_save.erase(0, 1);
-    }
-  }
-
   json cache;
   cache["update_available"] = upd;
-  cache["latest_version"] = version_to_save;
+  cache["latest_version"] = latest;
   cache["check_time"] = std::time(nullptr);
-
-  if (g_debug_mode) {
-    std::cout << "Saving to update cache - Version: " << version_to_save
-              << ", Update available: " << (upd ? "yes" : "no") << std::endl;
-  }
-
   std::ofstream f(cjsh_filesystem::g_cjsh_update_cache_path);
   if (f.is_open()) {
     f << cache.dump();
     f.close();
     g_cached_update = upd;
-    g_cached_version = version_to_save;
+    g_cached_version = latest;
     g_last_update_check = std::time(nullptr);
   } else {
     std::cerr << "Warning: Could not open update cache file for writing.\n";
@@ -205,7 +182,6 @@ void startup_update_process() {
                     << " (cached)\n";
       }
     } else {
-      upd = check_for_update();
       save_update_cache(upd, g_cached_version);
     }
     if (upd)
