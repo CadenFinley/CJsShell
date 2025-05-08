@@ -97,11 +97,11 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
       break;
 
     case CONTEXT_PATH:
-     cjsh_filename_completer(cenv, prefix);
+      cjsh_filename_completer(cenv, prefix);
       break;
 
     case CONTEXT_ARGUMENT:
-     cjsh_filename_completer(cenv, prefix);
+      cjsh_filename_completer(cenv, prefix);
       break;
   }
 }
