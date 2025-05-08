@@ -1,9 +1,10 @@
 #include "cjsh_filesystem.h"
-#include <cstdlib>
-#include <sstream>
-#include <fstream>
-#include <vector>
+
 #include <chrono>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <vector>
 
 namespace cjsh_filesystem {
 
@@ -29,7 +30,8 @@ bool build_executable_cache() {
     fs::path p(dir);
     if (!fs::is_directory(p)) continue;
     try {
-      for (auto& entry : fs::directory_iterator(p, fs::directory_options::skip_permission_denied)) {
+      for (auto& entry : fs::directory_iterator(
+               p, fs::directory_options::skip_permission_denied)) {
         auto perms = fs::status(entry.path()).permissions();
         if (fs::is_regular_file(entry.path()) &&
             (perms & fs::perms::owner_exec) != fs::perms::none) {
@@ -56,7 +58,7 @@ std::vector<fs::path> read_cached_executables() {
   return executables;
 }
 
-}
+}  // namespace cjsh_filesystem
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>

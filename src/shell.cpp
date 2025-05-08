@@ -1,8 +1,8 @@
 #include "shell.h"
 
 #include <cstdlib>
-#include <sstream>
 #include <set>
+#include <sstream>
 
 #include "built_ins.h"
 #include "main.h"

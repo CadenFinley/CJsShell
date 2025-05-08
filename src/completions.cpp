@@ -1,5 +1,4 @@
 #include "completions.h"
-#include "syntax_highlighter.h"
 
 #include <algorithm>
 #include <cctype>
@@ -12,10 +11,10 @@
 #include <vector>
 
 #include "../vendor/isocline/include/isocline.h"
-
 #include "cjsh_filesystem.h"
 #include "main.h"
 #include "shell.h"
+#include "syntax_highlighter.h"
 
 std::map<std::string, int> g_completion_frequency;
 enum CompletionContext { CONTEXT_COMMAND, CONTEXT_ARGUMENT, CONTEXT_PATH };
@@ -115,9 +114,9 @@ void initialize_completion_system() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing completion system" << std::endl;
 
-  ic_style_def("cjsh-known-command",   "bold color=#00FF00");
+  ic_style_def("cjsh-known-command", "bold color=#00FF00");
   ic_style_def("cjsh-unknown-command", "bold color=#FF0000");
-  ic_style_def("cjsh-external-command","bold color=#00FF00");
+  ic_style_def("cjsh-external-command", "bold color=#00FF00");
 
   // for (const auto& e : cjsh_filesystem::read_cached_executables()) {
   //     external_executables.insert(e.filename().string());
