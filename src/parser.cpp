@@ -305,6 +305,21 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     }
 
     cmd.args = filtered_args;
+
+    const char* home = getenv("HOME");
+    if (home) {
+      std::string h(home);
+      if (!cmd.input_file.empty() && cmd.input_file[0] == '~') {
+        cmd.input_file = h + cmd.input_file.substr(1);
+      }
+      if (!cmd.output_file.empty() && cmd.output_file[0] == '~') {
+        cmd.output_file = h + cmd.output_file.substr(1);
+      }
+      if (!cmd.append_file.empty() && cmd.append_file[0] == '~') {
+        cmd.append_file = h + cmd.append_file.substr(1);
+      }
+    }
+
     commands.push_back(cmd);
   }
 

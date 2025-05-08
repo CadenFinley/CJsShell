@@ -237,8 +237,10 @@ int Shell::execute_command(std::string command) {
     return exit_code;
   }
 
-  if (command.find('|') != std::string::npos) {
-    std::vector<Command> pipeline = shell_parser->parse_pipeline(command);
+  if (command.find('<') != std::string::npos ||
+      command.find('>') != std::string::npos ||
+      command.find('|') != std::string::npos) {
+    auto pipeline = shell_parser->parse_pipeline(command);
     if (run_in_background && !pipeline.empty()) {
       pipeline.back().background = true;
     }
