@@ -192,19 +192,12 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       perror("setpriority failed in child");
     }
     
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(struct sigaction));
-    sigemptyset(&sa.sa_mask);
-    
-    sa.sa_handler = SIG_DFL;
-    sa.sa_flags = 0;
-    
-    sigaction(SIGINT, &sa, nullptr);
-    sigaction(SIGQUIT, &sa, nullptr);
-    sigaction(SIGTSTP, &sa, nullptr);
-    sigaction(SIGTTIN, &sa, nullptr);
-    sigaction(SIGTTOU, &sa, nullptr);
-    sigaction(SIGCHLD, &sa, nullptr);
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGTSTP, SIG_DFL);
+    signal(SIGTTIN, SIG_DFL);
+    signal(SIGTTOU, SIG_DFL);
+    signal(SIGCHLD, SIG_DFL);
     
     sigset_t set;
     sigemptyset(&set);
