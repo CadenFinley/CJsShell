@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_set>
+#include <filesystem>
 
 #include "cjsh_filesystem.h"
 #include "main.h"
@@ -27,14 +28,19 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
   while (i < len && !std::isspace((unsigned char)input[i])) ++i;
   std::string token(input, i);
 
+  if (token.rfind("./", 0) == 0) {
+    if (!std::filesystem::exists(token) ||
+        !std::filesystem::is_regular_file(token)) {
+      ic_highlight(henv, 0, i, "cjsh-unknown-command");
+    }
+    return;
+  }
+
   if (!token.empty()) {
     auto cmds = g_shell->get_available_commands();
-    if (std::find(cmds.begin(), cmds.end(), token) != cmds.end()) {
-      ic_highlight(henv, 0, i, "cjsh-known-command");
-    } else if (basic_unix_commands_.count(token) ||
-               external_executables_.count(token)) {
-      ic_highlight(henv, 0, i, "cjsh-external-command");
-    } else {
+    if (std::find(cmds.begin(), cmds.end(), token) == cmds.end() &&
+        basic_unix_commands_.count(token) == 0 &&
+        external_executables_.count(token) == 0) {
       ic_highlight(henv, 0, i, "cjsh-unknown-command");
     }
   }
