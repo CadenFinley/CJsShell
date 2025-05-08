@@ -124,7 +124,12 @@ int main(int argc, char* argv[]) {
       g_shell->execute_command("help");
       interactive_mode = false;
     } else if (arg == "--login" || arg == "-l" || arg == "--interactive" ||
-               arg == "-i" || arg == "--debug") {
+               arg == "-i") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Recognized immeadiate arguement: " << arg
+                  << std::endl;
+    } else if (arg == "--debug") {
+      g_debug_mode = true;
       if (g_debug_mode)
         std::cerr << "DEBUG: Recognized immeadiate arguement: " << arg
                   << std::endl;

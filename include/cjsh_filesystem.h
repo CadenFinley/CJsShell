@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <vector>
 
 // the cjsh file system
 namespace cjsh_filesystem {
