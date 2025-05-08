@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "exec.h"
@@ -82,7 +83,7 @@ class Shell {
   bool get_menu_active() { return menu_active; }
 
   void set_menu_active(bool active) { menu_active = active; }
-  std::vector<std::string> get_available_commands() const;
+  std::unordered_set<std::string> get_available_commands() const;
 
  private:
   bool interactive_mode = false;

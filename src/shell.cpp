@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <sstream>
+#include <set>
 
 #include "built_ins.h"
 #include "main.h"
@@ -140,16 +141,6 @@ int Shell::execute_command(std::string command) {
   }
 
   if (command.empty()) {
-    return 0;
-  }
-
-  if (command == "clear") {
-    std::vector<std::string> clear_args = {"clear"};
-    shell_exec->execute_command_sync(clear_args);
-    return 0;
-  }
-  if (command == "exit" || command == "quit") {
-    g_exit_flag = true;
     return 0;
   }
 
@@ -298,11 +289,21 @@ int Shell::execute_command(std::string command) {
   }
 }
 
-std::vector<std::string> Shell::get_available_commands() const {
-  std::vector<std::string> cmds;
+std::unordered_set<std::string> Shell::get_available_commands() const {
+  std::unordered_set<std::string> cmds;
   if (built_ins) {
-    auto b = built_ins->get_builtin_and_alias_names();
-    cmds.insert(cmds.end(), b.begin(), b.end());
+    auto b = built_ins->get_builtin_commands();
+    cmds.insert(b.begin(), b.end());
+  }
+  for (const auto& alias : aliases) {
+    cmds.insert(alias.first);
+  }
+  if (g_plugin) {
+    auto enabled_plugins = g_plugin->get_enabled_plugins();
+    for (const auto& plugin : enabled_plugins) {
+      auto plugin_commands = g_plugin->get_plugin_commands(plugin);
+      cmds.insert(plugin_commands.begin(), plugin_commands.end());
+    }
   }
   return cmds;
 }

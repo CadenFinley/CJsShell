@@ -1,4 +1,62 @@
 #include "cjsh_filesystem.h"
+#include <cstdlib>
+#include <sstream>
+#include <fstream>
+#include <vector>
+#include <chrono>
+
+namespace cjsh_filesystem {
+
+bool should_refresh_executable_cache() {
+  namespace fs = cjsh_filesystem::fs;
+  try {
+    if (!fs::exists(g_cjsh_found_executables_path)) return true;
+    auto last = fs::last_write_time(g_cjsh_found_executables_path);
+    auto now = decltype(last)::clock::now();
+    return (now - last) > std::chrono::hours(24);
+  } catch (...) {
+    return true;
+  }
+}
+
+bool build_executable_cache() {
+  const char* path_env = std::getenv("PATH");
+  if (!path_env) return false;
+  std::stringstream ss(path_env);
+  std::string dir;
+  std::vector<fs::path> executables;
+  while (std::getline(ss, dir, ':')) {
+    fs::path p(dir);
+    if (!fs::is_directory(p)) continue;
+    try {
+      for (auto& entry : fs::directory_iterator(p, fs::directory_options::skip_permission_denied)) {
+        auto perms = fs::status(entry.path()).permissions();
+        if (fs::is_regular_file(entry.path()) &&
+            (perms & fs::perms::owner_exec) != fs::perms::none) {
+          executables.push_back(entry.path());
+        }
+      }
+    } catch (const fs::filesystem_error& e) {
+    }
+  }
+  std::ofstream ofs(g_cjsh_found_executables_path);
+  if (!ofs.is_open()) return false;
+  for (auto& e : executables) ofs << e.filename().string() << "\n";
+  return true;
+}
+
+std::vector<fs::path> read_cached_executables() {
+  std::vector<fs::path> executables;
+  std::ifstream ifs(g_cjsh_found_executables_path);
+  if (!ifs.is_open()) return executables;
+  std::string line;
+  while (std::getline(ifs, line)) {
+    executables.emplace_back(line);
+  }
+  return executables;
+}
+
+}
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>

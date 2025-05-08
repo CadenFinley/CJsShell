@@ -1,5 +1,6 @@
 #include "built_ins.h"
 
+#include <cstdlib>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -1762,5 +1763,11 @@ int Built_ins::history_command(const std::vector<std::string>& args) {
   }
 
   history_file.close();
+  return 0;
+}
+
+int Built_ins::exit_command(const std::vector<std::string>& args) {
+  (void)args;
+  g_exit_flag = true;
   return 0;
 }

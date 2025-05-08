@@ -86,6 +86,14 @@ class Built_ins {
              [this](const std::vector<std::string>& args) {
                return history_command(args);
              }},
+            {"exit",
+             [this](const std::vector<std::string>& args) {
+               return exit_command(args);
+             }},
+            {"quit",
+             [this](const std::vector<std::string>& args) {
+               return exit_command(args);
+             }},
         }),
         shell(nullptr) {}
   ~Built_ins() = default;
@@ -107,10 +115,9 @@ class Built_ins {
   int ai_commands(const std::vector<std::string>& args);
   int do_ai_request(const std::string& prompt);
 
-  std::vector<std::string> get_builtin_and_alias_names() const {
+  std::vector<std::string> get_builtin_commands() const {
     std::vector<std::string> names;
     for (auto& kv : builtins) names.push_back(kv.first);
-    for (auto& kv : aliases) names.push_back(kv.first);
     return names;
   }
 
@@ -146,6 +153,8 @@ class Built_ins {
   int unset_command(const std::vector<std::string>& args);
   int eval_command(const std::vector<std::string>& args);
   int history_command(const std::vector<std::string>& args);
+  int clear_command(const std::vector<std::string>& args);
+  int exit_command(const std::vector<std::string>& args);
   int save_alias_to_file(const std::string& name, const std::string& value);
   int save_env_var_to_file(const std::string& name, const std::string& value);
   int remove_alias_from_file(const std::string& name);

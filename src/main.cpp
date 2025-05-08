@@ -538,6 +538,16 @@ bool init_interactive_filesystem() {
       if (g_debug_mode) std::cerr << "DEBUG: Creating source file" << std::endl;
       create_source_file();
     }
+
+    if (cjsh_filesystem::should_refresh_executable_cache()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Refreshing executable cache" << std::endl;
+      cjsh_filesystem::build_executable_cache();
+    } else {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Using existing executable cache" << std::endl;
+    }
+
   } catch (const std::exception& e) {
     std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: "
               << e.what() << std::endl;

@@ -1,12 +1,17 @@
 #include "completions.h"
+#include "syntax_highlighter.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <string>
+#include <unordered_set>
 #include <vector>
+
+#include "../vendor/isocline/include/isocline.h"
 
 #include "cjsh_filesystem.h"
 #include "main.h"
@@ -110,11 +115,19 @@ void initialize_completion_system() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing completion system" << std::endl;
 
-  // ic_style_def("completion", "bold color=#00FFFF");
-  // ic_style_def("completion-preview", "bold color=#FFFF00");
-  // ic_style_def("completion-select", "bold reverse color=#FFFFFF");
+  ic_style_def("cjsh-known-command",   "bold color=#00FF00");
+  ic_style_def("cjsh-unknown-command", "bold color=#FF0000");
+  ic_style_def("cjsh-external-command","bold color=#00FF00");
+
+  // for (const auto& e : cjsh_filesystem::read_cached_executables()) {
+  //     external_executables.insert(e.filename().string());
+  // }
 
   ic_set_default_completer(cjsh_default_completer, NULL);
+
+  SyntaxHighlighter::initialize();
+  ic_set_default_highlighter(SyntaxHighlighter::highlight, NULL);
+
   ic_enable_completion_preview(true);
   ic_enable_hint(true);
   ic_set_hint_delay(0);
