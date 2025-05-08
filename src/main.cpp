@@ -637,7 +637,8 @@ void create_profile_file() {
     profile_file << "# cjsh Configuration File\n";
     profile_file << "# this file is sourced when the shell starts in login "
                     "mode and is sourced after /etc/profile and ~/.profile\n";
-    profile_file << "# this file is the only one that is capable of handling startup args";
+    profile_file << "# this file is the only one that is capable of handling "
+                    "startup args";
     profile_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the configuration file." << std::endl;

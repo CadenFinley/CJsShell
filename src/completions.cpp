@@ -117,6 +117,7 @@ void initialize_completion_system() {
   ic_style_def("cjsh-known-command", "bold color=#00FF00");
   ic_style_def("cjsh-unknown-command", "bold color=#FF0000");
   ic_style_def("cjsh-external-command", "bold color=#00FF00");
+  ic_style_def("cjsh-colon", "bold color=#00FFFF");
 
   // for (const auto& e : cjsh_filesystem::read_cached_executables()) {
   //     external_executables.insert(e.filename().string());

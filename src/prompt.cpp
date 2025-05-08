@@ -11,7 +11,7 @@ Prompt::~Prompt() {}
 
 std::string Prompt::get_prompt() {
   if (g_current_theme.empty()) {
-    if(!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled()) {
       return info.get_basic_prompt();
     } else {
       g_theme->load_theme("default");
@@ -43,7 +43,7 @@ std::string Prompt::get_ai_prompt() {
   std::string modeInfo = g_ai->getAssistantType();
 
   if (g_current_theme.empty()) {
-    if(!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled()) {
       return " > ";
     } else {
       g_theme->load_theme("default");
@@ -80,7 +80,7 @@ std::string Prompt::get_ai_prompt() {
 
 std::string Prompt::get_newline_prompt() {
   if (g_current_theme.empty()) {
-    if(!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled()) {
       return " ";
     } else {
       g_theme->load_theme("default");
@@ -95,7 +95,7 @@ std::string Prompt::get_newline_prompt() {
 
 std::string Prompt::get_title_prompt() {
   if (g_current_theme.empty()) {
-    if(!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled()) {
       return info.get_basic_title();
     } else {
       g_theme->load_theme("default");

@@ -2,7 +2,6 @@
 
 #include <limits.h>
 #include <unistd.h>
-#include "shell.h"
 
 #include <filesystem>
 #include <fstream>
@@ -11,6 +10,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "shell.h"
 
 class Shell;
 
