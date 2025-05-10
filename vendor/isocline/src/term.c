@@ -493,10 +493,13 @@ static void term_append_buf( term_t* term, const char* s, ssize_t len ) {
     if (next <= 0) break;
 
     const uint8_t c = (uint8_t)s[pos];
-    // handle utf8 sequences (for non-utf8 terminals)
+    // handle utf-8 sequences: append raw bytes for correct display
     if (c >= 0x80) {
-      term_append_utf8(term, s+pos, next);
+      sbuf_append_n(term->buf, s+pos, next);
+      pos += next;
+      continue;
     }
+
     // handle escape sequence (note: str_next_ofs considers whole CSI escape sequences at a time)
     else if (next > 1 && c == '\x1B') {
       term_append_esc(term, s+pos, next);
