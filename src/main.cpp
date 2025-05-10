@@ -22,8 +22,10 @@
  * 0       - Success
  * 1       - General errors/Catchall
  * 2       - Misuse of shell builtins or syntax error
- * 126     - Command invoked cannot execute (permission problem or not
- * executable) 127     - Command not found 128     - Invalid argument to exit
+ * 126     - Command invoked cannot execute (permission problem 
+ * or not executable) 
+ * 127     - Command not found 
+ * 128     - Invalid argument to exit
  * 128+n   - Fatal error signal "n" (e.g., 130 = 128 + SIGINT(2) = Control-C)
  * 130     - Script terminated by Control-C (SIGINT)
  * 137     - Process killed (SIGKILL)
