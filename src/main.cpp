@@ -19,6 +19,7 @@
 
 //to do
 // add ~ and - to isocline completion
+// package nlohmann as a vendor
 
 /*
  * Exit/Return Codes:
