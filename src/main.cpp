@@ -17,6 +17,9 @@
 #include "shell.h"
 #include "update.h"
 
+//to do
+// add ~ and - to isocline completion
+
 /*
  * Exit/Return Codes:
  * 0       - Success
