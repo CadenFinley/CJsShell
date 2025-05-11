@@ -85,6 +85,7 @@ class Shell {
   void set_menu_active(bool active) { menu_active = active; }
   std::unordered_set<std::string> get_available_commands() const;
 
+    Built_ins* built_ins = nullptr;
  private:
   bool interactive_mode = false;
   bool login_mode = false;
@@ -100,7 +101,6 @@ class Shell {
   std::unique_ptr<SignalHandler> signal_handler;
   ShellScriptInterpreter* shell_script_interpreter = nullptr;
   Parser* shell_parser = nullptr;
-  Built_ins* built_ins = nullptr;
 
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;

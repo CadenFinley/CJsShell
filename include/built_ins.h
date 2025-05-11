@@ -108,6 +108,7 @@ class Built_ins {
 
   void set_shell(Shell* shell_ptr) { shell = shell_ptr; }
   std::string get_current_directory() const { return current_directory; }
+  std::string get_previous_directory() const { return previous_directory; }
   void set_current_directory() {
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) != nullptr) {

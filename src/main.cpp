@@ -19,7 +19,7 @@
 
 // to do
 //  add ~ and - to isocline completion
-//  package nlohmann as a vendor
+//  spec out shell script interpreter
 
 /*
  * Exit/Return Codes:
