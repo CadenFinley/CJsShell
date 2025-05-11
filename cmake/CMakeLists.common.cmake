@@ -203,28 +203,6 @@ include_directories(${CURL_INCLUDE_DIRS})
 include_directories(SYSTEM ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# JSON library inclusion
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include/nlohmann/json.hpp")
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include)
-  message(STATUS "Found nlohmann/json in third_party/json/include")
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann/json.hpp")
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external)
-  message(STATUS "Found nlohmann/json in external/nlohmann")
-else()
-  message(STATUS "nlohmann/json.hpp not found in expected locations. Downloading single header...")
-  
-  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann")
-  
-  file(DOWNLOAD
-    "https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp"
-    "${CMAKE_CURRENT_BINARY_DIR}/include/nlohmann/json.hpp"
-    SHOW_PROGRESS
-    TLS_VERIFY ON
-  )
-  
-  include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
-endif()
-
 # Isocline terminal library
 set(ISOCLINE_DISABLE_CPU_TARGETING ON CACHE BOOL "Disable CPU targeting in isocline" FORCE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline)

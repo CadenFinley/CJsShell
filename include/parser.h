@@ -10,12 +10,12 @@ std::vector<std::string> tokenize_command(const std::string& cmdline);
 
 struct Command {
   std::vector<std::string> args;
-  std::string input_file;   // < redirection
-  std::string output_file;  // > redirection
-  std::string append_file;  // >> redirection
-  bool background = false;  // & at the end
-  bool stderr_to_stdout = false; // 2>&1 redirection
-  std::string here_doc;     // << HERE document
+  std::string input_file;         // < redirection
+  std::string output_file;        // > redirection
+  std::string append_file;        // >> redirection
+  bool background = false;        // & at the end
+  bool stderr_to_stdout = false;  // 2>&1 redirection
+  std::string here_doc;           // << HERE document
 };
 
 struct LogicalCommand {

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
-#include "parser.h"
+
 #include "main.h"
+#include "parser.h"
 
 // Mock global variable needed by parser.cpp
 bool g_debug_mode = false;
@@ -16,8 +17,8 @@ TEST(TokenizeCommand, SplitsOnSpaces) {
 
 // quotes and escapes
 TEST(TokenizeCommand, HandlesQuotes) {
-  auto t = tokenize_command(R"(say "a b" 'c d')"); 
-  std::vector<std::string> expect = {"say","a b","c d"};
+  auto t = tokenize_command(R"(say "a b" 'c d')");
+  std::vector<std::string> expect = {"say", "a b", "c d"};
   EXPECT_EQ(t, expect);
 }
 
@@ -50,7 +51,7 @@ TEST(TokenizeCommand, ComplexQuotesAndEscapes) {
 TEST(ParseCommand, BraceExpansion) {
   Parser parser;
   auto t = parser.parse_command("echo {a,b,c}");
-  std::vector<std::string> exp = {"echo","a","b","c"};
+  std::vector<std::string> exp = {"echo", "a", "b", "c"};
   EXPECT_EQ(t, exp);
 }
 
@@ -58,7 +59,7 @@ TEST(ParseCommand, BraceExpansion) {
 TEST(ParseCommand, NestedBraces) {
   Parser parser;
   auto t = parser.parse_command("cmd {x,{y,z}} end");
-  std::vector<std::string> exp = {"cmd","x","y","z","end"};
+  std::vector<std::string> exp = {"cmd", "x", "y", "z", "end"};
   EXPECT_EQ(t, exp);
 }
 
@@ -76,7 +77,8 @@ TEST(ParseCommand, TildeExpansion) {
 // pipeline parsing with redirection and background
 TEST(ParsePipeline, RedirectionAndBackground) {
   Parser parser;
-  auto cmds = parser.parse_pipeline("cat < in.txt | grep foo > out.txt >> app.txt &");
+  auto cmds =
+      parser.parse_pipeline("cat < in.txt | grep foo > out.txt >> app.txt &");
   ASSERT_EQ(cmds.size(), 2);
   // first command
   EXPECT_EQ(cmds[0].args[0], "cat");
@@ -93,7 +95,7 @@ TEST(ParsePipeline, RedirectionAndBackground) {
 TEST(ParseSemicolonCommands, MultipleCommands) {
   Parser parser;
   auto cmds = parser.parse_semicolon_commands(" echo a ; echo b;echo c ");
-  std::vector<std::string> exp = {"echo a","echo b","echo c"};
+  std::vector<std::string> exp = {"echo a", "echo b", "echo c"};
   EXPECT_EQ(cmds, exp);
 }
 
@@ -127,7 +129,7 @@ TEST(IsEnvAssignment, ValidAndInvalid) {
   EXPECT_TRUE(parser.is_env_assignment("NOVALUE=", name, value));
   EXPECT_EQ(name, "NOVALUE");
   EXPECT_EQ(value, "");
-  
+
   EXPECT_FALSE(parser.is_env_assignment("1INVALID=foo", name, value));
 }
 
@@ -193,7 +195,7 @@ TEST(ExpandEnvVars, QuotedVariables) {
   parser.expand_env_vars(s1);
   parser.expand_env_vars(s2);
   EXPECT_EQ(s1, R"("value")");
-  EXPECT_EQ(s2, R"('$VAR')"); // Variables in single quotes shouldn't expand
+  EXPECT_EQ(s2, R"('$VAR')");  // Variables in single quotes shouldn't expand
   unsetenv("VAR");
 }
 
@@ -229,9 +231,9 @@ TEST(ParseCommand, MultipleBraceExpansions) {
 // Pathname expansion (globbing)
 TEST(ParseCommand, BasicGlob) {
   Parser parser;
-  // This test assumes certain files exist - use mock filesystem or create temp files
-  // auto t = parser.parse_command("echo *.txt");
-  // EXPECT_GT(t.size(), 1); // At least "echo" plus matching files
+  // This test assumes certain files exist - use mock filesystem or create temp
+  // files auto t = parser.parse_command("echo *.txt"); EXPECT_GT(t.size(), 1);
+  // // At least "echo" plus matching files
 }
 
 // Command substitution
@@ -280,22 +282,20 @@ TEST(ParsePipeline, HereDocument) {
 // Error handling
 TEST(ParseCommand, UnterminatedQuote) {
   Parser parser;
-  EXPECT_THROW({
-    parser.parse_command("echo \"unterminated");
-  }, std::runtime_error);
+  EXPECT_THROW(
+      { parser.parse_command("echo \"unterminated"); }, std::runtime_error);
 }
 
 TEST(ParseCommand, UnmatchedBrace) {
   Parser parser;
-  EXPECT_THROW({
-    parser.parse_command("echo {a,b");
-  }, std::runtime_error);
+  EXPECT_THROW({ parser.parse_command("echo {a,b"); }, std::runtime_error);
 }
 
 // Complex pipelines and logical operators
 TEST(ParsePipeline, ComplexPipeline) {
   Parser parser;
-  auto cmds = parser.parse_pipeline("grep pattern file | sort -r | uniq -c | head -5");
+  auto cmds =
+      parser.parse_pipeline("grep pattern file | sort -r | uniq -c | head -5");
   ASSERT_EQ(cmds.size(), 4);
   EXPECT_EQ(cmds[0].args[0], "grep");
   EXPECT_EQ(cmds[1].args[0], "sort");

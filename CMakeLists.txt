@@ -56,7 +56,7 @@ find_package(Libnghttp2)
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json
     ${OPENSSL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
