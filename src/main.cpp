@@ -308,6 +308,10 @@ int main(int argc, char* argv[]) {
 }
 
 void update_terminal_title() {
+  if (g_debug_mode) {
+    std::cout << "\033]0;" << "<<<DEBUG MODE ENABLED>>>" << "\007";
+    std::cout.flush();
+  }
   std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
   std::cout.flush();
 }
