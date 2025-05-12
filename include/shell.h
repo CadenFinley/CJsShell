@@ -85,7 +85,8 @@ class Shell {
   void set_menu_active(bool active) { menu_active = active; }
   std::unordered_set<std::string> get_available_commands() const;
 
-    Built_ins* built_ins = nullptr;
+  Built_ins* built_ins = nullptr;
+
  private:
   bool interactive_mode = false;
   bool login_mode = false;
