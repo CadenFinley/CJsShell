@@ -18,7 +18,6 @@
 #include "update.h"
 
 // to do
-//  add ~ and - to isocline completion
 //  spec out shell script interpreter
 
 /*
