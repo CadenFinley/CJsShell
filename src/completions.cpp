@@ -133,29 +133,42 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
   size_t last_space = prefix_str.find_last_of(" \t");
 
   bool has_tilde = false;
+  bool has_dash = false;
   std::string prefix_before = "";
-  std::string tilde_part = "";
+  std::string special_part = "";
 
-  if (last_space != std::string::npos && last_space + 1 < prefix_str.length() &&
-      prefix_str[last_space + 1] == '~') {
-    has_tilde = true;
-    prefix_before = prefix_str.substr(0, last_space + 1);
-    tilde_part = prefix_str.substr(last_space + 1);
+  if (last_space != std::string::npos && last_space + 1 < prefix_str.length()) {
+    if (prefix_str[last_space + 1] == '~') {
+      has_tilde = true;
+      prefix_before = prefix_str.substr(0, last_space + 1);
+      special_part = prefix_str.substr(last_space + 1);
+    } else if (prefix_str[last_space + 1] == '-' &&
+               (prefix_str.length() == last_space + 2 ||
+                prefix_str[last_space + 2] == '/')) {
+      has_dash = true;
+      prefix_before = prefix_str.substr(0, last_space + 1);
+      special_part = prefix_str.substr(last_space + 1);
+    }
   } else if (prefix_str[0] == '~') {
     has_tilde = true;
-    tilde_part = prefix_str;
+    special_part = prefix_str;
+  } else if (prefix_str[0] == '-' &&
+             (prefix_str.length() == 1 || prefix_str[1] == '/')) {
+    has_dash = true;
+    special_part = prefix_str;
   }
 
-  if (has_tilde && (tilde_part.length() == 1 || tilde_part[1] == '/')) {
+  // Handle tilde expansion
+  if (has_tilde && (special_part.length() == 1 || special_part[1] == '/')) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Processing tilde completion: '" << tilde_part << "'"
-                << std::endl;
+      std::cerr << "DEBUG: Processing tilde completion: '" << special_part
+                << "'" << std::endl;
 
     std::string path_after_tilde =
-        tilde_part.length() > 1 ? tilde_part.substr(2) : "";
+        special_part.length() > 1 ? special_part.substr(2) : "";
     std::string dir_to_complete = cjsh_filesystem::g_user_home_path.string();
 
-    if (tilde_part.length() > 1) {
+    if (special_part.length() > 1) {
       dir_to_complete += "/" + path_after_tilde;
     }
 
@@ -163,7 +176,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     fs::path dir_path;
     std::string match_prefix;
 
-    if (tilde_part.back() == '/') {
+    if (special_part.back() == '/') {
       dir_path = dir_to_complete;
       match_prefix = "";
     } else {
@@ -204,6 +217,85 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
             if (g_debug_mode)
               std::cerr << "DEBUG: Adding tilde completion: '"
+                        << completion_suffix << "'" << std::endl;
+
+            if (!ic_add_completion(cenv, completion_suffix.c_str())) return;
+          }
+        }
+      }
+    } catch (const std::exception& e) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Error reading directory: " << e.what()
+                  << std::endl;
+    }
+
+    return;
+  }
+
+  else if (has_dash && (special_part.length() == 1 || special_part[1] == '/')) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Processing dash completion for previous directory: '"
+                << special_part << "'" << std::endl;
+
+    std::string path_after_dash =
+        special_part.length() > 1 ? special_part.substr(2) : "";
+    std::string dir_to_complete = g_shell->get_previous_directory();
+
+    if (dir_to_complete.empty()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: No previous directory set" << std::endl;
+      return;
+    }
+
+    if (special_part.length() > 1) {
+      dir_to_complete += "/" + path_after_dash;
+    }
+
+    namespace fs = std::filesystem;
+    fs::path dir_path;
+    std::string match_prefix;
+
+    if (special_part.back() == '/') {
+      dir_path = dir_to_complete;
+      match_prefix = "";
+    } else {
+      size_t last_slash = dir_to_complete.find_last_of('/');
+      if (last_slash != std::string::npos) {
+        dir_path = dir_to_complete.substr(0, last_slash);
+        match_prefix = dir_to_complete.substr(last_slash + 1);
+      } else {
+        dir_path = dir_to_complete;
+        match_prefix = "";
+      }
+    }
+
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Looking in directory: '" << dir_path << "'"
+                << std::endl;
+      std::cerr << "DEBUG: Matching prefix: '" << match_prefix << "'"
+                << std::endl;
+    }
+
+    try {
+      if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+        for (const auto& entry : fs::directory_iterator(dir_path)) {
+          std::string filename = entry.path().filename().string();
+
+          if (match_prefix.empty() || filename.find(match_prefix) == 0) {
+            std::string completion_suffix;
+
+            if (match_prefix.empty()) {
+              completion_suffix = filename;
+            } else {
+              completion_suffix = filename.substr(match_prefix.length());
+            }
+
+            if (entry.is_directory()) {
+              completion_suffix += "/";
+            }
+
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Adding dash completion: '"
                         << completion_suffix << "'" << std::endl;
 
             if (!ic_add_completion(cenv, completion_suffix.c_str())) return;

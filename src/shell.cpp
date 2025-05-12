@@ -303,3 +303,7 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
   }
   return cmds;
 }
+
+std::string Shell::get_previous_directory() const {
+  return built_ins->get_previous_directory();
+}
