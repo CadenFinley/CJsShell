@@ -69,4 +69,45 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
       ic_highlight(henv, 0, i, "cjsh-unknown-command");
     }
   }
+
+  bool is_cd_command = (token == "cd");
+
+  size_t start = i;
+  while (start < len) {
+    while (start < len && std::isspace((unsigned char)input[start])) ++start;
+    if (start >= len) break;
+
+    size_t end = start;
+    while (end < len && !std::isspace((unsigned char)input[end])) ++end;
+
+    std::string arg(input + start, end - start);
+
+    if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
+        arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
+        arg.rfind("-/", 0) == 0) {
+      std::string path_to_check = arg;
+
+      if (arg.rfind("~/", 0) == 0) {
+        path_to_check =
+            cjsh_filesystem::g_user_home_path.string() + arg.substr(1);
+      } else if (arg.rfind("-/", 0) == 0) {
+        std::string prev_dir = g_shell->get_previous_directory();
+        if (!prev_dir.empty()) {
+          path_to_check = prev_dir + arg.substr(1);
+        }
+      } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
+                 arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
+                 arg.rfind("-/", 0) != 0) {
+        path_to_check = std::filesystem::current_path().string() + "/" + arg;
+      }
+
+      if (std::filesystem::exists(path_to_check)) {
+        ic_highlight(henv, start, end - start, "cjsh-path-exists");
+      } else {
+        ic_highlight(henv, start, end - start, "cjsh-path-not-exists");
+      }
+    }
+
+    start = end;
+  }
 }
