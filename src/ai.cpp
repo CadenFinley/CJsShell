@@ -493,7 +493,6 @@ void Ai::monitorCancellation(std::atomic<bool>& loading,
 
     if (!loading) break;
   }
-
   // Make sure stdin buffer is flushed
   tcflush(stdin_fd, TCIFLUSH);
 }

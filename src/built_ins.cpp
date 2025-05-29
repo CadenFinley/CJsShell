@@ -121,6 +121,7 @@ int Built_ins::ai_commands(const std::vector<std::string>& args) {
   unsigned int command_index = 1;
 
   if (args.size() <= command_index) {
+    std::cerr << "To invoke regular commands prefix all commands with ':'" << std::endl;
     shell->set_menu_active(false);
     if (!g_ai->getChatCache().empty()) {
       std::cout << "Chat history:" << std::endl;
@@ -1646,7 +1647,7 @@ int Built_ins::do_ai_request(const std::string& prompt) {
 
   try {
     std::string response = g_ai->chatGPT(prompt, true);
-    std::cout << response << std::endl;
+    std::cout << g_ai->getModel() << ": " << response << std::endl;
     return 0;
   } catch (const std::exception& e) {
     PRINT_ERROR(std::string("Error communicating with AI: ") + e.what());
