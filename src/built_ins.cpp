@@ -14,6 +14,7 @@
 #include "approot_command.h"
 #include "exit_command.h"
 #include "version_command.h"
+#include "restart_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -81,8 +82,8 @@ Built_ins::Built_ins()
                return uninstall_command();
              }},
             {"restart",
-             [this](const std::vector<std::string>&) {
-               return restart_command();
+             [](const std::vector<std::string>&) {
+               return ::restart_command();
              }},
             {"eval",
              [this](const std::vector<std::string>& args) {
@@ -1665,49 +1666,6 @@ int Built_ins::do_ai_request(const std::string& prompt) {
     PRINT_ERROR(std::string("Error communicating with AI: ") + e.what());
     return 1;
   }
-}
-
-int Built_ins::restart_command() {
-  std::cout << "Restarting shell..." << std::endl;
-
-  std::filesystem::path shell_path = cjsh_filesystem::g_cjsh_path;
-
-  if (!std::filesystem::exists(shell_path)) {
-    PRINT_ERROR("Error: Could not find shell executable at " +
-                shell_path.string());
-    last_terminal_output_error = "restart: executable not found";
-    return 1;
-  }
-
-  std::string path_str = shell_path.string();
-  const char* path_cstr = path_str.c_str();
-
-  std::vector<char*> args_vec;
-  args_vec.push_back(const_cast<char*>(path_cstr));
-
-  if (!g_startup_args.empty()) {
-    for (const auto& arg : g_startup_args) {
-      args_vec.push_back(const_cast<char*>(arg.c_str()));
-    }
-  }
-  args_vec.push_back(nullptr);  // Null termination for execv
-
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Restarting shell with " << args_vec.size() - 1
-              << " args" << std::endl;
-    for (size_t i = 0; i < args_vec.size() - 1; ++i) {
-      std::cerr << "DEBUG: Arg " << i << ": " << args_vec[i] << std::endl;
-    }
-  }
-
-  if (execv(path_cstr, args_vec.data()) == -1) {
-    last_terminal_output_error =
-        "Error restarting shell: " + std::string(strerror(errno));
-    PRINT_ERROR(last_terminal_output_error);
-    return 1;
-  }
-
-  return 0;
 }
 
 int Built_ins::eval_command(const std::vector<std::string>& args) {

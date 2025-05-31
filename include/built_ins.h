@@ -63,7 +63,6 @@ class Built_ins {
   int theme_commands(const std::vector<std::string>& args);
   int update_theme_in_rc_file(const std::string& themeName);
   int uninstall_command();
-  int restart_command();
   int user_commands(const std::vector<std::string>& args);
   int help_command();
   int aihelp_command(const std::vector<std::string>& args);
