@@ -62,7 +62,6 @@ class Built_ins {
   int plugin_commands(const std::vector<std::string>& args);
   int theme_commands(const std::vector<std::string>& args);
   int update_theme_in_rc_file(const std::string& themeName);
-  int user_commands(const std::vector<std::string>& args);
   int history_command(const std::vector<std::string>& args);
   int clear_command(const std::vector<std::string>& args);
 };
