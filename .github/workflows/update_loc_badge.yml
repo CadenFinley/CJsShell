@@ -1,0 +1,40 @@
+name: Update LOC Badge
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'  # Run every 12 hours
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  update-loc:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Count lines of code
+      id: count_loc
+      run: |
+        chmod +x ./tool-scripts/count_loc.sh
+        LOC=$(./tool-scripts/count_loc.sh)
+        echo "loc=$LOC" >> $GITHUB_OUTPUT
+      
+    - name: Update README badge
+      run: |
+        LOC="${{ steps.count_loc.outputs.loc }}"
+        
+        # Parse the README file and update the LOC badge
+        sed -i -E 's|!\[LOC\]\(https://img\.shields\.io/badge/Lines%20of%20Code-[0-9,]+-blue\)|![LOC](https://img.shields.io/badge/Lines%20of%20Code-'"$LOC"'-blue)|g' README.md
+        
+        # If the badge doesn't exist yet, add it after the version badge
+        if ! grep -q "!\[LOC\]" README.md; then
+          sed -i '/!\[Version\]/a ![LOC](https://img.shields.io/badge/Lines%20of%20Code-'"$LOC"'-blue)' README.md
+        fi
+      
+    - name: Commit and push if changed
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        git add README.md
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update lines of code count: ${{ steps.count_loc.outputs.loc }}" && git push)
