@@ -379,6 +379,7 @@ void initialize_completion_system() {
   ic_enable_history_duplicates(false);
   ic_enable_inline_help(false);
   ic_enable_multiline_indent(false);
+  ic_enable_multiline(true);
   ic_set_prompt_marker("", NULL);
   ic_enable_auto_tab(true);
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
