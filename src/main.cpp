@@ -81,6 +81,14 @@ int main(int argc, char* argv[]) {
     g_startup_args.push_back(std::string(argv[i]));
   }
 
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Starting CJ's Shell version " << c_version
+              << " with PID: " << c_pid_str << " with args: " << std::endl;
+    for (const auto& arg : g_startup_args) {
+      std::cerr << "DEBUG:   " << arg << std::endl;
+    }
+  }
+
   if (g_shell->get_login_mode()) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing login environment" << std::endl;

@@ -121,7 +121,8 @@ int Built_ins::ai_commands(const std::vector<std::string>& args) {
   unsigned int command_index = 1;
 
   if (args.size() <= command_index) {
-    std::cerr << "To invoke regular commands prefix all commands with ':'" << std::endl;
+    std::cerr << "To invoke regular commands prefix all commands with ':'"
+              << std::endl;
     shell->set_menu_active(false);
     if (!g_ai->getChatCache().empty()) {
       std::cout << "Chat history:" << std::endl;
@@ -1670,28 +1671,29 @@ int Built_ins::restart_command() {
   std::string path_str = shell_path.string();
   const char* path_cstr = path_str.c_str();
 
-  bool login_mode = false;
-  if (shell) {
-    login_mode = shell->get_login_mode();
+  std::vector<char*> args_vec;
+  args_vec.push_back(const_cast<char*>(path_cstr));
+
+  if (!g_startup_args.empty()) {
+    for (const auto& arg : g_startup_args) {
+      args_vec.push_back(const_cast<char*>(arg.c_str()));
+    }
+  }
+  args_vec.push_back(nullptr);  // Null termination for execv
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Restarting shell with " << args_vec.size() - 1
+              << " args" << std::endl;
+    for (size_t i = 0; i < args_vec.size() - 1; ++i) {
+      std::cerr << "DEBUG: Arg " << i << ": " << args_vec[i] << std::endl;
+    }
   }
 
-  if (login_mode) {
-    char* const args[] = {const_cast<char*>(path_cstr), const_cast<char*>("-l"),
-                          nullptr};
-    if (execv(path_cstr, args) == -1) {
-      last_terminal_output_error =
-          "Error restarting shell: " + std::string(strerror(errno));
-      PRINT_ERROR(last_terminal_output_error);
-      return 1;
-    }
-  } else {
-    char* const args[] = {const_cast<char*>(path_cstr), nullptr};
-    if (execv(path_cstr, args) == -1) {
-      last_terminal_output_error =
-          "Error restarting shell: " + std::string(strerror(errno));
-      PRINT_ERROR(last_terminal_output_error);
-      return 1;
-    }
+  if (execv(path_cstr, args_vec.data()) == -1) {
+    last_terminal_output_error =
+        "Error restarting shell: " + std::string(strerror(errno));
+    PRINT_ERROR(last_terminal_output_error);
+    return 1;
   }
 
   return 0;
