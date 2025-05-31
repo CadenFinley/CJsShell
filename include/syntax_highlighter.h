@@ -14,4 +14,5 @@ class SyntaxHighlighter {
  private:
   static const std::unordered_set<std::string> basic_unix_commands_;
   static std::unordered_set<std::string> external_executables_;
+  static const std::unordered_set<std::string> command_operators_;
 };

@@ -356,12 +356,14 @@ void initialize_completion_system() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing completion system" << std::endl;
 
-  ic_style_def("cjsh-known-command", "bold color=#00FF00");
+  // ic_style_def("cjsh-known-command", "bold color=#00FF00");
   ic_style_def("cjsh-unknown-command", "bold color=#FF0000");
-  ic_style_def("cjsh-external-command", "bold color=#00FF00");
+  // ic_style_def("cjsh-external-command", "bold color=#00FF00");
   ic_style_def("cjsh-colon", "bold color=#00FFFF");
   ic_style_def("cjsh-path-exists", "color=#00FF00");
   ic_style_def("cjsh-path-not-exists", "color=#FF0000");
+  ic_style_def("cjsh-operator",
+               "bold color=#FFCC00");  // Operator style for &&, ||, |, ;
 
   // for (const auto& e : cjsh_filesystem::read_cached_executables()) {
   //     external_executables.insert(e.filename().string());

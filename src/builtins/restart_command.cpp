@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <iostream>
 #include <vector>
+#include <string>
+#include <algorithm>
 
 #include "cjsh_filesystem.h"
 #include "main.h"
@@ -25,19 +27,64 @@ int restart_command(const std::vector<std::string>& args) {
   std::string path_str = shell_path.string();
   const char* path_cstr = path_str.c_str();
 
+  std::vector<std::string> flags_to_remove;
+  bool next_is_removal_flag = false;
+  
+  for (size_t i = 1; i < args.size(); ++i) {
+    const std::string& arg = args[i];
+    
+    if (arg == "--remove") {
+      next_is_removal_flag = true;
+      continue;
+    }
+    
+    if (next_is_removal_flag) {
+      flags_to_remove.push_back(arg);
+      next_is_removal_flag = false;
+      continue;
+    }
+    
+    if (arg.substr(0, 9) == "--remove=") {
+      flags_to_remove.push_back(arg.substr(9));
+    }
+  }
+
   std::vector<char*> args_vec;
   args_vec.push_back(const_cast<char*>(path_cstr));
 
   if (!g_startup_args.empty()) {
     for (const auto& arg : g_startup_args) {
-      args_vec.push_back(const_cast<char*>(arg.c_str()));
+      bool should_remove = false;
+      for (const auto& flag : flags_to_remove) {
+        if (arg == flag) {
+          should_remove = true;
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Removing startup flag: " << arg << std::endl;
+          }
+          break;
+        }
+      }
+      
+      if (!should_remove) {
+        args_vec.push_back(const_cast<char*>(arg.c_str()));
+      }
     }
   }
 
   for (size_t i = 1; i < args.size(); ++i) {
-    args_vec.push_back(const_cast<char*>(args[i].c_str()));
+    const std::string& arg = args[i];
+    
+    if (arg == "--remove") {
+      i++;
+      continue;
+    }
+    if (arg.substr(0, 9) == "--remove=") {
+      continue;
+    }
+    
+    args_vec.push_back(const_cast<char*>(arg.c_str()));
   }
-
+  
   args_vec.push_back(nullptr);
 
   if (g_debug_mode) {

@@ -15,6 +15,8 @@ const std::unordered_set<std::string> SyntaxHighlighter::basic_unix_commands_ =
      "rm",    "mkdir", "rmdir", "touch", "grep",  "find",   "chmod",
      "chown", "kill",  "ps",    "man",   "which", "whereis"};
 std::unordered_set<std::string> SyntaxHighlighter::external_executables_;
+const std::unordered_set<std::string> SyntaxHighlighter::command_operators_ = {
+    "&&", "||", "|", ";"};
 
 void SyntaxHighlighter::initialize() {
   for (const auto& e : cjsh_filesystem::read_cached_executables()) {
@@ -27,12 +29,14 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
   if (!g_shell->get_menu_active() && input[0] != ':') {
     return;
   }
-  size_t len = std::strlen(input), i = 0;
-  while (i < len && !std::isspace((unsigned char)input[i])) ++i;
-  std::string token(input, i);
+  size_t len = std::strlen(input);
 
-  if (!g_shell->get_menu_active() && !token.empty() && token[0] == ':') {
+  if (!g_shell->get_menu_active() && input[0] == ':') {
     ic_highlight(henv, 0, 1, "cjsh-colon");
+
+    size_t i = 0;
+    while (i < len && !std::isspace((unsigned char)input[i])) ++i;
+    std::string token(input, i);
 
     if (token.size() > 1) {
       std::string sub = token.substr(1);
@@ -40,12 +44,18 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
         if (!std::filesystem::exists(sub) ||
             !std::filesystem::is_regular_file(sub)) {
           ic_highlight(henv, 1, i - 1, "cjsh-unknown-command");
+        } else {
+          ic_highlight(henv, 1, i - 1, "cjsh-known-command");
         }
       } else {
         auto cmds = g_shell->get_available_commands();
-        if (std::find(cmds.begin(), cmds.end(), sub) == cmds.end() &&
-            basic_unix_commands_.count(sub) == 0 &&
-            external_executables_.count(sub) == 0) {
+        if (std::find(cmds.begin(), cmds.end(), sub) != cmds.end()) {
+          ic_highlight(henv, 1, i - 1, "cjsh-known-command");
+        } else if (basic_unix_commands_.count(sub) > 0) {
+          ic_highlight(henv, 1, i - 1, "cjsh-known-command");
+        } else if (external_executables_.count(sub) > 0) {
+          ic_highlight(henv, 1, i - 1, "cjsh-external-command");
+        } else {
           ic_highlight(henv, 1, i - 1, "cjsh-unknown-command");
         }
       }
@@ -53,61 +63,127 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
     return;
   }
 
-  if (token.rfind("./", 0) == 0) {
-    if (!std::filesystem::exists(token) ||
-        !std::filesystem::is_regular_file(token)) {
-      ic_highlight(henv, 0, i, "cjsh-unknown-command");
+  size_t pos = 0;
+  while (pos < len) {
+    size_t cmd_end = pos;
+    while (cmd_end < len) {
+      if ((cmd_end + 1 < len && input[cmd_end] == '&' &&
+           input[cmd_end + 1] == '&') ||
+          (cmd_end + 1 < len && input[cmd_end] == '|' &&
+           input[cmd_end + 1] == '|') ||
+          input[cmd_end] == '|' || input[cmd_end] == ';') {
+        break;
+      }
+      cmd_end++;
     }
-    return;
-  }
 
-  if (!token.empty()) {
-    auto cmds = g_shell->get_available_commands();
-    if (std::find(cmds.begin(), cmds.end(), token) == cmds.end() &&
-        basic_unix_commands_.count(token) == 0 &&
-        external_executables_.count(token) == 0) {
-      ic_highlight(henv, 0, i, "cjsh-unknown-command");
+    size_t cmd_start = pos;
+    while (cmd_start < cmd_end &&
+           std::isspace((unsigned char)input[cmd_start])) {
+      cmd_start++;
     }
-  }
 
-  bool is_cd_command = (token == "cd");
+    std::string cmd_str(input + cmd_start, cmd_end - cmd_start);
 
-  size_t start = i;
-  while (start < len) {
-    while (start < len && std::isspace((unsigned char)input[start])) ++start;
-    if (start >= len) break;
+    size_t token_end = 0;
+    while (token_end < cmd_str.length() &&
+           !std::isspace((unsigned char)cmd_str[token_end])) {
+      token_end++;
+    }
 
-    size_t end = start;
-    while (end < len && !std::isspace((unsigned char)input[end])) ++end;
+    std::string token = token_end > 0 ? cmd_str.substr(0, token_end) : "";
 
-    std::string arg(input + start, end - start);
-
-    if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
-        arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
-        arg.rfind("-/", 0) == 0) {
-      std::string path_to_check = arg;
-
-      if (arg.rfind("~/", 0) == 0) {
-        path_to_check =
-            cjsh_filesystem::g_user_home_path.string() + arg.substr(1);
-      } else if (arg.rfind("-/", 0) == 0) {
-        std::string prev_dir = g_shell->get_previous_directory();
-        if (!prev_dir.empty()) {
-          path_to_check = prev_dir + arg.substr(1);
+    if (!token.empty()) {
+      if (token.rfind("./", 0) == 0) {
+        if (!std::filesystem::exists(token) ||
+            !std::filesystem::is_regular_file(token)) {
+          ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
+        } else {
+          ic_highlight(henv, cmd_start, token_end, "cjsh-known-command");
         }
-      } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
-                 arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
-                 arg.rfind("-/", 0) != 0) {
-        path_to_check = std::filesystem::current_path().string() + "/" + arg;
-      }
-
-      if (std::filesystem::exists(path_to_check)) {
-        ic_highlight(henv, start, end - start, "cjsh-path-exists");
       } else {
-        ic_highlight(henv, start, end - start, "cjsh-path-not-exists");
+        auto cmds = g_shell->get_available_commands();
+        if (std::find(cmds.begin(), cmds.end(), token) != cmds.end()) {
+          ic_highlight(henv, cmd_start, token_end, "cjsh-known-command");
+        } else if (basic_unix_commands_.count(token) > 0) {
+          ic_highlight(henv, cmd_start, token_end, "cjsh-known-command");
+        } else if (external_executables_.count(token) > 0) {
+          ic_highlight(henv, cmd_start, token_end, "cjsh-external-command");
+        } else {
+          ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
+        }
       }
     }
 
-    start = end;
+    bool is_cd_command = (token == "cd");
+    size_t arg_start = token_end;
+
+    while (arg_start < cmd_str.length()) {
+      while (arg_start < cmd_str.length() &&
+             std::isspace((unsigned char)cmd_str[arg_start])) {
+        arg_start++;
+      }
+      if (arg_start >= cmd_str.length()) break;
+
+      size_t arg_end = arg_start;
+      while (arg_end < cmd_str.length() &&
+             !std::isspace((unsigned char)cmd_str[arg_end])) {
+        arg_end++;
+      }
+
+      std::string arg = cmd_str.substr(arg_start, arg_end - arg_start);
+
+      if (is_cd_command && (arg == "~" || arg == "-")) {
+        ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                     "cjsh-path-exists");
+      } else if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
+                 arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
+                 arg.rfind("-/", 0) == 0) {
+        std::string path_to_check = arg;
+
+        if (arg.rfind("~/", 0) == 0) {
+          path_to_check =
+              cjsh_filesystem::g_user_home_path.string() + arg.substr(1);
+        } else if (arg.rfind("-/", 0) == 0) {
+          std::string prev_dir = g_shell->get_previous_directory();
+          if (!prev_dir.empty()) {
+            path_to_check = prev_dir + arg.substr(1);
+          }
+        } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
+                   arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
+                   arg.rfind("-/", 0) != 0) {
+          path_to_check = std::filesystem::current_path().string() + "/" + arg;
+        }
+
+        if (std::filesystem::exists(path_to_check)) {
+          ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                       "cjsh-path-exists");
+        } else {
+          ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                       "cjsh-path-not-exists");
+        }
+      }
+
+      arg_start = arg_end;
+    }
+
+    pos = cmd_end;
+    if (pos < len) {
+      if (pos + 1 < len && input[pos] == '&' && input[pos + 1] == '&') {
+        ic_highlight(henv, pos, 2, "cjsh-operator");
+        pos += 2;
+      } else if (pos + 1 < len && input[pos] == '|' && input[pos + 1] == '|') {
+        ic_highlight(henv, pos, 2, "cjsh-operator");
+        pos += 2;
+      } else if (input[pos] == '|') {
+        ic_highlight(henv, pos, 1, "cjsh-operator");
+        pos += 1;
+      } else if (input[pos] == ';') {
+        ic_highlight(henv, pos, 1, "cjsh-operator");
+        pos += 1;
+      } else {
+        pos += 1;
+      }
+    }
   }
 }
