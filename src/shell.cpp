@@ -49,8 +49,6 @@ Shell::~Shell() {
 }
 
 void Shell::setup_signal_handlers() {
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Setting up signal handlers" << std::endl;
   if (signal_handler) {
     signal_handler->setup_signal_handlers();
   }
