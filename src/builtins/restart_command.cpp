@@ -1,10 +1,11 @@
 #include "restart_command.h"
 
+#include <unistd.h>
+
+#include <cstring>
 #include <filesystem>
 #include <iostream>
-#include <unistd.h>
 #include <vector>
-#include <cstring>
 
 #include "cjsh_filesystem.h"
 #include "main.h"
@@ -15,8 +16,9 @@ int restart_command() {
   std::filesystem::path shell_path = cjsh_filesystem::g_cjsh_path;
 
   if (!std::filesystem::exists(shell_path)) {
-    std::cerr << "Error: Could not find shell executable at " + 
-                shell_path.string() << std::endl;
+    std::cerr << "Error: Could not find shell executable at " +
+                     shell_path.string()
+              << std::endl;
     return 1;
   }
 
@@ -42,7 +44,8 @@ int restart_command() {
   }
 
   if (execv(path_cstr, args_vec.data()) == -1) {
-    std::string error_message = "Error restarting shell: " + std::string(strerror(errno));
+    std::string error_message =
+        "Error restarting shell: " + std::string(strerror(errno));
     std::cerr << error_message << std::endl;
     return 1;
   }

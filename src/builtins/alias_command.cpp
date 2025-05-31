@@ -1,12 +1,16 @@
 #include "alias_command.h"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <vector>
+
 #include "cjsh_filesystem.h"
 #include "main.h"
 
-#define PRINT_ERROR(MSG) do { std::cerr << MSG << '\n'; } while (0)
+#define PRINT_ERROR(MSG)      \
+  do {                        \
+    std::cerr << MSG << '\n'; \
+  } while (0)
 
 int alias_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() == 1) {
@@ -30,7 +34,8 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
       aliases[name] = value;
       save_alias_to_file(name, value);
       if (g_debug_mode) {
-        std::cout << "Added alias: " << name << "='" << value << "'" << std::endl;
+        std::cout << "Added alias: " << name << "='" << value << "'"
+                  << std::endl;
       }
     } else {
       PRINT_ERROR("alias: invalid assignment: " + args[i]);

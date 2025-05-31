@@ -32,10 +32,10 @@ class Built_ins {
     }
   }
 
+  Shell* get_shell() { return shell; }
+
   int builtin_command(const std::vector<std::string>& args);
   int is_builtin_command(const std::string& cmd) const;
-  int ai_commands(const std::vector<std::string>& args);
-  int do_ai_request(const std::string& prompt);
 
   std::vector<std::string> get_builtin_commands() const {
     std::vector<std::string> names;
@@ -44,6 +44,7 @@ class Built_ins {
   }
 
   std::string get_last_error() const { return last_terminal_output_error; }
+  int do_ai_request(const std::string& prompt);
 
  private:
   std::string current_directory;
@@ -55,13 +56,4 @@ class Built_ins {
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
   std::string last_terminal_output_error;
-
-  int ai_chat_commands(const std::vector<std::string>& args, int command_index);
-  int handle_ai_file_commands(const std::vector<std::string>& args,
-                              int command_index);
-  int plugin_commands(const std::vector<std::string>& args);
-  int theme_commands(const std::vector<std::string>& args);
-  int update_theme_in_rc_file(const std::string& themeName);
-  int history_command(const std::vector<std::string>& args);
-  int clear_command(const std::vector<std::string>& args);
 };

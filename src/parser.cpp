@@ -213,7 +213,7 @@ void Parser::expand_env_vars(std::string& arg) {
       var_name.clear();
       continue;
     } else if (in_var) {
-      if (isalnum(arg[i]) || arg[i] == '_' || 
+      if (isalnum(arg[i]) || arg[i] == '_' ||
           (var_name.empty() && isdigit(arg[i]))) {
         var_name += arg[i];
       } else {

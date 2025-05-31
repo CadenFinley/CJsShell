@@ -1,6 +1,7 @@
 #include "version_command.h"
 
 #include <iostream>
+
 #include "main.h"
 
 int version_command(const std::vector<std::string>& args) {

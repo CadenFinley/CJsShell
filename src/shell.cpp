@@ -24,6 +24,7 @@ Shell::Shell(bool login_mode) {
   signal_handler = std::make_unique<SignalHandler>();
   shell_parser = new Parser();
   built_ins = new Built_ins();
+
   shell_script_interpreter = new ShellScriptInterpreter();
   built_ins->set_shell(this);
   built_ins->set_current_directory();

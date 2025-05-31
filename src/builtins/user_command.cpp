@@ -7,9 +7,9 @@
 
 #include "main.h"
 
-#define PRINT_ERROR(MSG)                             \
-  do {                                               \
-    std::cerr << (MSG) << '\n';                      \
+#define PRINT_ERROR(MSG)        \
+  do {                          \
+    std::cerr << (MSG) << '\n'; \
   } while (0)
 
 int user_command(const std::vector<std::string>& args) {

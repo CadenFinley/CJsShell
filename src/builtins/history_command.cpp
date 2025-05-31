@@ -1,8 +1,8 @@
 #include "history_command.h"
 
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <string>
 
 #include "cjsh_filesystem.h"

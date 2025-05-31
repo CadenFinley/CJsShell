@@ -8,7 +8,10 @@
 #include "cjsh_filesystem.h"
 #include "main.h"
 
-#define PRINT_ERROR(MSG) do { std::cerr << MSG << '\n'; } while (0)
+#define PRINT_ERROR(MSG)      \
+  do {                        \
+    std::cerr << MSG << '\n'; \
+  } while (0)
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() == 1) {
@@ -33,19 +36,19 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         save_env_var_to_file(name, value, shell->get_login_mode());
       } else if (g_debug_mode) {
         std::cout << "Note: Environment variable set for this session only "
-                    "(not in login mode)"
-                << std::endl;
+                     "(not in login mode)"
+                  << std::endl;
       }
 
       if (g_debug_mode) {
         std::cout << "Set environment variable: " << name << "='" << value
-                << "'" << std::endl;
+                  << "'" << std::endl;
       }
     } else {
       const char* env_val = getenv(args[i].c_str());
       if (env_val) {
         std::cout << "export " << args[i] << "='" << env_val << "'"
-                << std::endl;
+                  << std::endl;
       } else {
         PRINT_ERROR("export: " + args[i] + ": not found");
         all_successful = false;
@@ -97,7 +100,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 bool parse_env_assignment(const std::string& arg, std::string& name,
-                         std::string& value) {
+                          std::string& value) {
   size_t equals_pos = arg.find('=');
   if (equals_pos == std::string::npos || equals_pos == 0) {
     return false;
@@ -116,13 +119,12 @@ bool parse_env_assignment(const std::string& arg, std::string& name,
   return true;
 }
 
-int save_env_var_to_file(const std::string& name,
-                        const std::string& value,
-                        bool login_mode) {
+int save_env_var_to_file(const std::string& name, const std::string& value,
+                         bool login_mode) {
   if (!login_mode) {
     if (g_debug_mode) {
       std::cerr << "Warning: Attempted to save environment variable to config "
-                  "file when not in login mode"
+                   "file when not in login mode"
                 << std::endl;
     }
     return 0;
@@ -174,7 +176,7 @@ int remove_env_var_from_file(const std::string& name, bool login_mode) {
   if (!login_mode) {
     if (g_debug_mode) {
       std::cerr << "Warning: Attempted to remove environment variable from "
-                  "config file when not in login mode"
+                   "config file when not in login mode"
                 << std::endl;
     }
     return 0;
