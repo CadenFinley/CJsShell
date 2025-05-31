@@ -1,0 +1,15 @@
+# Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
+#
+# SPDX-License-Identifier: curl
+
+server_bundle.c
+servers
+buildinfo
+dnsd
+mqttd
+resolve
+rtspd
+sockfilt
+socksd
+sws
+tftpd
