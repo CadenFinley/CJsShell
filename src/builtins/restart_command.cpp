@@ -14,7 +14,8 @@
 
 int restart_command(const std::vector<std::string>& args) {
   std::cout << "CJsShell Restart Command" << std::endl;
-  std::cout << "This command is currently disabled as of version: " << c_version << std::endl;
+  std::cout << "This command is currently disabled as of version: " << c_version
+            << std::endl;
   return 1;
   std::cout << "Restarting shell..." << std::endl;
 

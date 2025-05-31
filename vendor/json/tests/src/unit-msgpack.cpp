@@ -1606,7 +1606,7 @@ TEST_CASE("single MessagePack roundtrip")
 
         // parse JSON file
         std::ifstream f_json(filename);
-        json j1 = json::parse(f_json);
+        const json j1 = json::parse(f_json);
 
         // parse MessagePack file
         auto packed = utils::read_binary_file(filename + ".msgpack");
@@ -1817,7 +1817,7 @@ TEST_CASE("MessagePack roundtrips" * doctest::skip())
                 INFO_WITH_TEMP(filename + ": std::vector<uint8_t>");
                 // parse JSON file
                 std::ifstream f_json(filename);
-                json j1 = json::parse(f_json);
+                const json j1 = json::parse(f_json);
 
                 // parse MessagePack file
                 auto packed = utils::read_binary_file(filename + ".msgpack");
@@ -1832,7 +1832,7 @@ TEST_CASE("MessagePack roundtrips" * doctest::skip())
                 INFO_WITH_TEMP(filename + ": std::ifstream");
                 // parse JSON file
                 std::ifstream f_json(filename);
-                json j1 = json::parse(f_json);
+                const json j1 = json::parse(f_json);
 
                 // parse MessagePack file
                 std::ifstream f_msgpack(filename + ".msgpack", std::ios::binary);
@@ -1847,7 +1847,7 @@ TEST_CASE("MessagePack roundtrips" * doctest::skip())
                 INFO_WITH_TEMP(filename + ": uint8_t* and size");
                 // parse JSON file
                 std::ifstream f_json(filename);
-                json j1 = json::parse(f_json);
+                const json j1 = json::parse(f_json);
 
                 // parse MessagePack file
                 auto packed = utils::read_binary_file(filename + ".msgpack");
@@ -1914,10 +1914,12 @@ TEST_CASE("MessagePack with std::byte")
         SECTION("empty vector")
         {
             const std::vector<std::byte> empty_data;
-            CHECK_THROWS_WITH_AS([&]() { 
-                [[maybe_unused]] auto result = json::from_msgpack(empty_data); 
-                return true; 
-            }(),
+            CHECK_THROWS_WITH_AS([&]()
+            {
+                [[maybe_unused]] auto result = json::from_msgpack(empty_data);
+                return true;
+            }
+            (),
             "[json.exception.parse_error.110] parse error at byte 1: syntax error while parsing MessagePack value: unexpected end of input",
             json::parse_error&);
         }
@@ -1943,11 +1945,11 @@ TEST_CASE("MessagePack with std::byte")
                 msgpack_data[i] = std::byte(temp[i]);
             }
             // Attempt direct deserialization using std::byte input
-            json direct_result = json::from_msgpack(msgpack_data);
+            const json direct_result = json::from_msgpack(msgpack_data);
 
             // Test the workaround approach: reinterpret as unsigned char* and use iterator range
-            const auto *const char_start = reinterpret_cast<unsigned char const*>(msgpack_data.data());
-            const auto *const char_end = char_start + msgpack_data.size();
+            const auto* const char_start = reinterpret_cast<unsigned char const*>(msgpack_data.data());
+            const auto* const char_end = char_start + msgpack_data.size();
             json workaround_result = json::from_msgpack(char_start, char_end);
 
             // Verify that the final deserialized JSON matches the original JSON

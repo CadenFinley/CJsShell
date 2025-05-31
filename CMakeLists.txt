@@ -37,74 +37,67 @@ else()
 endif()
 
 # File globbing and main target definition
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "src/builtins/*.cpp" "src/builtins/*.c")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Find additional libraries needed for libcurl
+# Configure curl build options before adding the subdirectory
+set(BUILD_CURL_EXE OFF CACHE BOOL "Don't build the curl executable" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
+set(CURL_STATIC_CRT ON CACHE BOOL "Use static CRT" FORCE)
+
+# Disable all optional protocols we don't need
+set(CURL_DISABLE_LDAP ON CACHE BOOL "Disable LDAP support" FORCE)
+set(CURL_DISABLE_LDAPS ON CACHE BOOL "Disable LDAPS support" FORCE)
+set(CURL_DISABLE_RTSP ON CACHE BOOL "Disable RTSP support" FORCE)
+set(CURL_DISABLE_DICT ON CACHE BOOL "Disable DICT support" FORCE)
+set(CURL_DISABLE_FILE ON CACHE BOOL "Disable FILE support" FORCE)
+set(CURL_DISABLE_TELNET ON CACHE BOOL "Disable TELNET support" FORCE)
+set(CURL_DISABLE_TFTP ON CACHE BOOL "Disable TFTP support" FORCE)
+set(CURL_DISABLE_LIBCURL_OPTION ON CACHE BOOL "Disable install of curl-config" FORCE)
+
+# Completely disable libpsl dependency
+set(CURL_USE_LIBPSL OFF CACHE BOOL "Disable PSL support" FORCE)
+set(CURL_DISABLE_PSL ON CACHE BOOL "Disable PSL support" FORCE)
+
+# Add vendor subdirectories
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/curl)
+
+# Check if isocline target exists before adding its subdirectory
+if(NOT TARGET isocline)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline 
+                   ${CMAKE_CURRENT_BINARY_DIR}/isocline_build)
+endif()
+
+# We still need these for curl dependencies
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
-
-# Check for optional libraries
-find_package(LDAP)
-find_package(Libssh2)
-find_package(LibRTMP)
-find_package(LibPSL)
-find_package(LibIDN2)
-find_package(Libnghttp2)
 
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/curl/include
     ${OPENSSL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
 
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    isocline
-    curl
+    libcurl  # Changed to the actual target name from vendor/curl
+    isocline # Link against the local isocline library
     pthread
     dl
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
 )
 
-# Add optional libraries if found
-if(LDAP_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LDAP_LIBRARIES})
-endif()
-if(LIBSSH2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSSH2_LIBRARIES})
-endif()
-if(LIBRTMP_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRTMP_LIBRARIES})
-endif()
-if(LIBPSL_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBPSL_LIBRARIES})
-endif()
-if(LIBIDN2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBIDN2_LIBRARIES})
-endif()
-if(LIBNGHTTP2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBNGHTTP2_LIBRARIES})
-endif()
-
-# Use dynamic linking for libcurl instead of static
-add_definitions(-DCURL_STATICLIB=0)
-
 # Ensure standard headers needed by json library
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
   HAVE_ARRAY=1
   HAVE_CSTDDEF=1
   HAVE_UTILITY=1
-)
-
-add_custom_target(format
-  COMMAND clang-format -i -style=file
-    ${PROJECT_SOURCE_DIR}/src/*.cpp
-    ${PROJECT_SOURCE_DIR}/include/*.h
 )
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
