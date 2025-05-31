@@ -47,6 +47,13 @@ int restart_command(const std::vector<std::string>& args) {
       std::cerr << "DEBUG: Arg " << i << ": " << args_vec[i] << std::endl;
     }
   }
+  
+  if (access(path_cstr, X_OK) != 0) {
+    std::string error_message = "Error: Shell executable at " + std::string(path_cstr) + 
+                               " is not accessible or executable: " + std::string(strerror(errno));
+    std::cerr << error_message << std::endl;
+    return 1;
+  }
 
   if (execv(path_cstr, args_vec.data()) == -1) {
     std::string error_message =
@@ -55,5 +62,6 @@ int restart_command(const std::vector<std::string>& args) {
     return 1;
   }
 
-  return 0;
+  std::cerr << "Unexpected error: exec call returned" << std::endl;
+  return 1;
 }
