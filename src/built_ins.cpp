@@ -12,6 +12,8 @@
 
 #include "cd_command.h"
 #include "approot_command.h"
+#include "exit_command.h"
+#include "version_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -71,8 +73,8 @@ Built_ins::Built_ins()
                return aihelp_command(args);
              }},
             {"version",
-             [this](const std::vector<std::string>&) {
-               return version_command();
+             [](const std::vector<std::string>& args) {
+               return ::version_command(args);
              }},
             {"uninstall",
              [this](const std::vector<std::string>&) {
@@ -91,12 +93,12 @@ Built_ins::Built_ins()
                return history_command(args);
              }},
             {"exit",
-             [this](const std::vector<std::string>& args) {
-               return exit_command(args);
+             [](const std::vector<std::string>& args) {
+               return ::exit_command(args);
              }},
             {"quit",
-             [this](const std::vector<std::string>& args) {
-               return exit_command(args);
+             [](const std::vector<std::string>& args) {
+               return ::exit_command(args);
              }},
             {"terminal",
              [this](const std::vector<std::string>& args) {
@@ -841,11 +843,6 @@ int Built_ins::update_theme_in_rc_file(const std::string& themeName) {
     PRINT_ERROR("Error: Unable to open .cjshrc file for writing at " +
                 rc_path.string());
   }
-  return 0;
-}
-
-int Built_ins::version_command() {
-  std::cout << "CJ's Shell v" << c_version << std::endl;
   return 0;
 }
 
@@ -1780,11 +1777,5 @@ int Built_ins::history_command(const std::vector<std::string>& args) {
   }
 
   history_file.close();
-  return 0;
-}
-
-int Built_ins::exit_command(const std::vector<std::string>& args) {
-  (void)args;
-  g_exit_flag = true;
   return 0;
 }
