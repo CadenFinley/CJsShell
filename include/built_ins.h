@@ -69,7 +69,6 @@ class Built_ins {
   int export_command(const std::vector<std::string>& args);
   int unalias_command(const std::vector<std::string>& args);
   int unset_command(const std::vector<std::string>& args);
-  int eval_command(const std::vector<std::string>& args);
   int history_command(const std::vector<std::string>& args);
   int clear_command(const std::vector<std::string>& args);
   int save_alias_to_file(const std::string& name, const std::string& value);

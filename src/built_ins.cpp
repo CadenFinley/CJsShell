@@ -18,6 +18,7 @@
 #include "help_command.h"
 #include "history_command.h"
 #include "uninstall_command.h"
+#include "eval_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -90,7 +91,7 @@ Built_ins::Built_ins()
              }},
             {"eval",
              [this](const std::vector<std::string>& args) {
-               return eval_command(args);
+               return ::eval_command(args, shell);
              }},
             {"history",
              [](const std::vector<std::string>& args) {
@@ -1459,39 +1460,6 @@ int Built_ins::do_ai_request(const std::string& prompt) {
     return 0;
   } catch (const std::exception& e) {
     PRINT_ERROR(std::string("Error communicating with AI: ") + e.what());
-    return 1;
-  }
-}
-
-int Built_ins::eval_command(const std::vector<std::string>& args) {
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: eval_command called with " << args.size()
-              << " arguments" << std::endl;
-  }
-
-  if (args.size() < 2) {
-    PRINT_ERROR("eval: missing arguments");
-    return 1;
-  }
-
-  std::string command_to_eval;
-  for (size_t i = 1; i < args.size(); ++i) {
-    if (i > 1) command_to_eval += " ";
-    command_to_eval += args[i];
-  }
-
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Evaluating command: " << command_to_eval << std::endl;
-  }
-
-  if (shell) {
-    int result = shell->execute_command(command_to_eval);
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: eval command returned: " << result << std::endl;
-    }
-    return result;
-  } else {
-    PRINT_ERROR("eval: shell not initialized");
     return 1;
   }
 }

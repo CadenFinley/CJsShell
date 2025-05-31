@@ -208,12 +208,13 @@ void Parser::expand_env_vars(std::string& arg) {
 
   for (size_t i = 0; i < arg.length(); ++i) {
     if (arg[i] == '$' && (i + 1 < arg.length()) &&
-        (isalpha(arg[i + 1]) || arg[i + 1] == '_')) {
+        (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]))) {
       in_var = true;
       var_name.clear();
       continue;
     } else if (in_var) {
-      if (isalnum(arg[i]) || arg[i] == '_') {
+      if (isalnum(arg[i]) || arg[i] == '_' || 
+          (var_name.empty() && isdigit(arg[i]))) {
         var_name += arg[i];
       } else {
         in_var = false;
