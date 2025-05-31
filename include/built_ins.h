@@ -62,7 +62,6 @@ class Built_ins {
   int plugin_commands(const std::vector<std::string>& args);
   int theme_commands(const std::vector<std::string>& args);
   int update_theme_in_rc_file(const std::string& themeName);
-  int approot_command();
   int version_command();
   int uninstall_command();
   int restart_command();
@@ -76,7 +75,6 @@ class Built_ins {
   int eval_command(const std::vector<std::string>& args);
   int history_command(const std::vector<std::string>& args);
   int clear_command(const std::vector<std::string>& args);
-  int exit_command(const std::vector<std::string>& args);
   int save_alias_to_file(const std::string& name, const std::string& value);
   int save_env_var_to_file(const std::string& name, const std::string& value);
   int remove_alias_from_file(const std::string& name);

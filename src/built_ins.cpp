@@ -11,6 +11,7 @@
 #include "main.h"
 
 #include "cd_command.h"
+#include "approot_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -63,7 +64,7 @@ Built_ins::Built_ins()
              }},
             {"approot",
              [this](const std::vector<std::string>&) {
-               return approot_command();
+               return ::change_to_approot(current_directory, previous_directory, last_terminal_output_error);
              }},
             {"aihelp",
              [this](const std::vector<std::string>& args) {
@@ -841,11 +842,6 @@ int Built_ins::update_theme_in_rc_file(const std::string& themeName) {
                 rc_path.string());
   }
   return 0;
-}
-
-int Built_ins::approot_command() {
-  std::string appRootPath = cjsh_filesystem::g_cjsh_data_path.string();
-  return ::change_directory(appRootPath, current_directory, previous_directory, last_terminal_output_error);
 }
 
 int Built_ins::version_command() {
