@@ -17,6 +17,7 @@
 #include "restart_command.h"
 #include "help_command.h"
 #include "history_command.h"
+#include "uninstall_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -80,8 +81,8 @@ Built_ins::Built_ins()
                return ::version_command(args);
              }},
             {"uninstall",
-             [this](const std::vector<std::string>&) {
-               return uninstall_command();
+             [](const std::vector<std::string>&) {
+               return ::uninstall_command();
              }},
             {"restart",
              [](const std::vector<std::string>&) {
@@ -846,16 +847,6 @@ int Built_ins::update_theme_in_rc_file(const std::string& themeName) {
     PRINT_ERROR("Error: Unable to open .cjshrc file for writing at " +
                 rc_path.string());
   }
-  return 0;
-}
-
-int Built_ins::uninstall_command() {
-  std::cout << "To uninstall CJ's Shell run the following brew command:"
-            << std::endl;
-  std::cout << "brew uninstall cjsh" << std::endl;
-  std::cout << "To remove the application data, run:" << std::endl;
-  std::cout << "rm -rf " << cjsh_filesystem::g_cjsh_data_path.string()
-            << std::endl;
   return 0;
 }
 
