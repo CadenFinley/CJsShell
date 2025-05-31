@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
       g_shell->execute_command("help");
       interactive_mode = false;
     } else if (arg == "--login" || arg == "-l" || arg == "--interactive" ||
-               arg == "-i") {
+               arg == "-i" || arg == "-cjsh") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Recognized immeadiate arguement: " << arg
                   << std::endl;
