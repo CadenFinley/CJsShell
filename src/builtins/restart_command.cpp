@@ -52,6 +52,7 @@ int restart_command(const std::vector<std::string>& args) {
   std::vector<char*> args_vec;
   args_vec.push_back(const_cast<char*>(path_cstr));
 
+  // Process the startup args first before adding new args
   if (!g_startup_args.empty()) {
     for (const auto& arg : g_startup_args) {
       bool should_remove = false;
@@ -71,6 +72,7 @@ int restart_command(const std::vector<std::string>& args) {
     }
   }
 
+  // Add new arguments that aren't removal flags
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
 
@@ -85,6 +87,7 @@ int restart_command(const std::vector<std::string>& args) {
     args_vec.push_back(const_cast<char*>(arg.c_str()));
   }
 
+  // Important: Add null terminator
   args_vec.push_back(nullptr);
 
   if (g_debug_mode) {
@@ -103,6 +106,36 @@ int restart_command(const std::vector<std::string>& args) {
     return 1;
   }
 
+  // Ensure terminal is in a good state before exec
+  if (isatty(STDIN_FILENO)) {
+    tcflush(STDIN_FILENO, TCIFLUSH);  // Clear input buffer
+    
+    // If we're in a login shell, reset terminal attributes
+    extern bool g_terminal_state_saved;
+    extern struct termios g_shell_tmodes;
+    
+    if (g_terminal_state_saved) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Restoring terminal state before exec" << std::endl;
+      }
+      tcsetattr(STDIN_FILENO, TCSANOW, &g_shell_tmodes);
+    }
+  }
+
+  // Close all file descriptors except the standard ones
+  for (int fd = 3; fd < 256; fd++) {
+    close(fd);
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Executing " << path_cstr << " with " 
+              << args_vec.size() - 1 << " arguments" << std::endl;
+  }
+
+  // Make sure environment is properly set before exec
+  std::string cwd = std::filesystem::current_path().string();
+  setenv("PWD", cwd.c_str(), 1);
+  
   if (execv(path_cstr, args_vec.data()) == -1) {
     std::string error_message =
         "Error restarting shell: " + std::string(strerror(errno));
