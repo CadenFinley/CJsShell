@@ -90,8 +90,8 @@ Built_ins::Built_ins()
                return ::uninstall_command();
              }},
             {"restart",
-             [](const std::vector<std::string>&) {
-               return ::restart_command();
+             [](const std::vector<std::string>& args) {
+               return ::restart_command(args);
              }},
             {"eval",
              [this](const std::vector<std::string>& args) {

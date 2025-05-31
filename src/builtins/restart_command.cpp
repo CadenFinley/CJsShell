@@ -10,7 +10,7 @@
 #include "cjsh_filesystem.h"
 #include "main.h"
 
-int restart_command() {
+int restart_command(const std::vector<std::string>& args) {
   std::cout << "Restarting shell..." << std::endl;
 
   std::filesystem::path shell_path = cjsh_filesystem::g_cjsh_path;
@@ -33,7 +33,12 @@ int restart_command() {
       args_vec.push_back(const_cast<char*>(arg.c_str()));
     }
   }
-  args_vec.push_back(nullptr);  // Null termination for execv
+
+  for (size_t i = 1; i < args.size(); ++i) {
+    args_vec.push_back(const_cast<char*>(args[i].c_str()));
+  }
+
+  args_vec.push_back(nullptr);
 
   if (g_debug_mode) {
     std::cerr << "DEBUG: Restarting shell with " << args_vec.size() - 1
