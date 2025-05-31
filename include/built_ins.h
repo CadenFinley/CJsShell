@@ -17,93 +17,7 @@ class Shell;
 
 class Built_ins {
  public:
-  Built_ins()
-      : builtins{
-            {"cd",
-             [this](const std::vector<std::string>& args) {
-               return change_directory(args.size() > 1 ? args[1]
-                                                       : current_directory);
-             }},
-            {"alias",
-             [this](const std::vector<std::string>& args) {
-               return alias_command(args);
-             }},
-            {"export",
-             [this](const std::vector<std::string>& args) {
-               return export_command(args);
-             }},
-            {"unalias",
-             [this](const std::vector<std::string>& args) {
-               return unalias_command(args);
-             }},
-            {"unset",
-             [this](const std::vector<std::string>& args) {
-               return unset_command(args);
-             }},
-            {"ai",
-             [this](const std::vector<std::string>& args) {
-               return ai_commands(args);
-             }},
-            {"user",
-             [this](const std::vector<std::string>& args) {
-               return user_commands(args);
-             }},
-            {"theme",
-             [this](const std::vector<std::string>& args) {
-               return theme_commands(args);
-             }},
-            {"plugin",
-             [this](const std::vector<std::string>& args) {
-               return plugin_commands(args);
-             }},
-            {"help",
-             [this](const std::vector<std::string>&) {
-               return help_command();
-             }},
-            {"approot",
-             [this](const std::vector<std::string>&) {
-               return approot_command();
-             }},
-            {"aihelp",
-             [this](const std::vector<std::string>& args) {
-               return aihelp_command(args);
-             }},
-            {"version",
-             [this](const std::vector<std::string>&) {
-               return version_command();
-             }},
-            {"uninstall",
-             [this](const std::vector<std::string>&) {
-               return uninstall_command();
-             }},
-            {"restart",
-             [this](const std::vector<std::string>&) {
-               return restart_command();
-             }},
-            {"eval",
-             [this](const std::vector<std::string>& args) {
-               return eval_command(args);
-             }},
-            {"history",
-             [this](const std::vector<std::string>& args) {
-               return history_command(args);
-             }},
-            {"exit",
-             [this](const std::vector<std::string>& args) {
-               return exit_command(args);
-             }},
-            {"quit",
-             [this](const std::vector<std::string>& args) {
-               return exit_command(args);
-             }},
-            {"terminal",
-             [this](const std::vector<std::string>& args) {
-              (void)args;
-               shell->set_menu_active(true);
-               return 0;
-             }},
-        },
-        shell(nullptr) {}
+  Built_ins();
   ~Built_ins() = default;
 
   void set_shell(Shell* shell_ptr) { shell = shell_ptr; }
@@ -120,7 +34,6 @@ class Built_ins {
 
   int builtin_command(const std::vector<std::string>& args);
   int is_builtin_command(const std::string& cmd) const;
-  int change_directory(const std::string& dir);
   int ai_commands(const std::vector<std::string>& args);
   int do_ai_request(const std::string& prompt);
 

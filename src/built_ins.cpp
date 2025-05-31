@@ -6,8 +6,11 @@
 #include <cstdlib>
 #include <iomanip>
 
+
 #include "cjsh_filesystem.h"
 #include "main.h"
+
+#include "cd_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -15,13 +18,101 @@
     std::cerr << last_terminal_output_error << '\n'; \
   } while (0)
 
+
+Built_ins::Built_ins()
+      : builtins{
+            {"cd",
+             [this](const std::vector<std::string>& args) {
+              return ::change_directory(args.size() > 1 ? args[1] : current_directory, current_directory, previous_directory, last_terminal_output_error);
+             }},
+            {"alias",
+             [this](const std::vector<std::string>& args) {
+               return alias_command(args);
+             }},
+            {"export",
+             [this](const std::vector<std::string>& args) {
+               return export_command(args);
+             }},
+            {"unalias",
+             [this](const std::vector<std::string>& args) {
+               return unalias_command(args);
+             }},
+            {"unset",
+             [this](const std::vector<std::string>& args) {
+               return unset_command(args);
+             }},
+            {"ai",
+             [this](const std::vector<std::string>& args) {
+               return ai_commands(args);
+             }},
+            {"user",
+             [this](const std::vector<std::string>& args) {
+               return user_commands(args);
+             }},
+            {"theme",
+             [this](const std::vector<std::string>& args) {
+               return theme_commands(args);
+             }},
+            {"plugin",
+             [this](const std::vector<std::string>& args) {
+               return plugin_commands(args);
+             }},
+            {"help",
+             [this](const std::vector<std::string>&) {
+               return help_command();
+             }},
+            {"approot",
+             [this](const std::vector<std::string>&) {
+               return approot_command();
+             }},
+            {"aihelp",
+             [this](const std::vector<std::string>& args) {
+               return aihelp_command(args);
+             }},
+            {"version",
+             [this](const std::vector<std::string>&) {
+               return version_command();
+             }},
+            {"uninstall",
+             [this](const std::vector<std::string>&) {
+               return uninstall_command();
+             }},
+            {"restart",
+             [this](const std::vector<std::string>&) {
+               return restart_command();
+             }},
+            {"eval",
+             [this](const std::vector<std::string>& args) {
+               return eval_command(args);
+             }},
+            {"history",
+             [this](const std::vector<std::string>& args) {
+               return history_command(args);
+             }},
+            {"exit",
+             [this](const std::vector<std::string>& args) {
+               return exit_command(args);
+             }},
+            {"quit",
+             [this](const std::vector<std::string>& args) {
+               return exit_command(args);
+             }},
+            {"terminal",
+             [this](const std::vector<std::string>& args) {
+              (void)args;
+               shell->set_menu_active(true);
+               return 0;
+             }},
+        },
+        shell(nullptr) {}
+
 int Built_ins::builtin_command(const std::vector<std::string>& args) {
   if (args.empty()) return 1;
 
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
     if (args[0] == "cd" && args.size() == 1) {
-      return change_directory("");
+      return ::change_directory("", current_directory, previous_directory, last_terminal_output_error);
     }
     int status = it->second(args);
     return status;
@@ -32,79 +123,6 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 
 int Built_ins::is_builtin_command(const std::string& cmd) const {
   return !cmd.empty() && builtins.find(cmd) != builtins.end();
-}
-
-int Built_ins::change_directory(const std::string& dir) {
-  std::string target_dir = dir;
-
-  if (target_dir.empty()) {
-    const char* home_dir = getenv("HOME");
-    if (!home_dir) {
-      PRINT_ERROR("cjsh: HOME environment variable is not set");
-      return 1;
-    }
-    target_dir = home_dir;
-  }
-
-  if (target_dir == "-") {
-    if (previous_directory.empty()) {
-      PRINT_ERROR("cjsh: No previous directory");
-      return 1;
-    }
-    target_dir = previous_directory;
-  }
-
-  if (target_dir[0] == '~') {
-    const char* home_dir = getenv("HOME");
-    if (!home_dir) {
-      PRINT_ERROR(
-          "cjsh: Cannot expand '~' - HOME environment variable is not set");
-      return 1;
-    }
-    target_dir.replace(0, 1, home_dir);
-  }
-
-  std::filesystem::path dir_path;
-
-  try {
-    if (std::filesystem::path(target_dir).is_absolute()) {
-      dir_path = target_dir;
-    } else {
-      dir_path = std::filesystem::path(current_directory) / target_dir;
-    }
-
-    if (!std::filesystem::exists(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": No such file or directory");
-      return 1;
-    }
-
-    if (!std::filesystem::is_directory(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": Not a directory");
-      return 1;
-    }
-
-    std::string old_directory = current_directory;
-
-    std::filesystem::path canonical_path = std::filesystem::canonical(dir_path);
-    current_directory = canonical_path.string();
-
-    if (chdir(current_directory.c_str()) != 0) {
-      PRINT_ERROR("cd: " + std::string(strerror(errno)));
-      return 1;
-    }
-
-    setenv("PWD", current_directory.c_str(), 1);
-
-    previous_directory = old_directory;
-
-    return 0;
-  } catch (const std::filesystem::filesystem_error& e) {
-    PRINT_ERROR("cd: " + std::string(e.what()));
-    return 1;
-  } catch (const std::exception& e) {
-    PRINT_ERROR("cd: Unexpected error: " + std::string(e.what()));
-    return 1;
-  }
 }
 
 int Built_ins::ai_commands(const std::vector<std::string>& args) {
@@ -827,7 +845,7 @@ int Built_ins::update_theme_in_rc_file(const std::string& themeName) {
 
 int Built_ins::approot_command() {
   std::string appRootPath = cjsh_filesystem::g_cjsh_data_path.string();
-  return change_directory(appRootPath);
+  return ::change_directory(appRootPath, current_directory, previous_directory, last_terminal_output_error);
 }
 
 int Built_ins::version_command() {
