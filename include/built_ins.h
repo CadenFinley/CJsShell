@@ -63,18 +63,6 @@ class Built_ins {
   int theme_commands(const std::vector<std::string>& args);
   int update_theme_in_rc_file(const std::string& themeName);
   int user_commands(const std::vector<std::string>& args);
-  int help_command();
-  int aihelp_command(const std::vector<std::string>& args);
-  int alias_command(const std::vector<std::string>& args);
-  int export_command(const std::vector<std::string>& args);
-  int unalias_command(const std::vector<std::string>& args);
-  int unset_command(const std::vector<std::string>& args);
   int history_command(const std::vector<std::string>& args);
   int clear_command(const std::vector<std::string>& args);
-  int save_alias_to_file(const std::string& name, const std::string& value);
-  int save_env_var_to_file(const std::string& name, const std::string& value);
-  int remove_alias_from_file(const std::string& name);
-  int remove_env_var_from_file(const std::string& name);
-  int parse_assignment(const std::string& arg, std::string& name,
-                       std::string& value);
 };
