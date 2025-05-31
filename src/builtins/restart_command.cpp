@@ -2,12 +2,12 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
-#include <vector>
 #include <string>
-#include <algorithm>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "main.h"
@@ -29,21 +29,21 @@ int restart_command(const std::vector<std::string>& args) {
 
   std::vector<std::string> flags_to_remove;
   bool next_is_removal_flag = false;
-  
+
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
-    
+
     if (arg == "--remove") {
       next_is_removal_flag = true;
       continue;
     }
-    
+
     if (next_is_removal_flag) {
       flags_to_remove.push_back(arg);
       next_is_removal_flag = false;
       continue;
     }
-    
+
     if (arg.substr(0, 9) == "--remove=") {
       flags_to_remove.push_back(arg.substr(9));
     }
@@ -64,7 +64,7 @@ int restart_command(const std::vector<std::string>& args) {
           break;
         }
       }
-      
+
       if (!should_remove) {
         args_vec.push_back(const_cast<char*>(arg.c_str()));
       }
@@ -73,7 +73,7 @@ int restart_command(const std::vector<std::string>& args) {
 
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
-    
+
     if (arg == "--remove") {
       i++;
       continue;
@@ -81,10 +81,10 @@ int restart_command(const std::vector<std::string>& args) {
     if (arg.substr(0, 9) == "--remove=") {
       continue;
     }
-    
+
     args_vec.push_back(const_cast<char*>(arg.c_str()));
   }
-  
+
   args_vec.push_back(nullptr);
 
   if (g_debug_mode) {
@@ -94,10 +94,11 @@ int restart_command(const std::vector<std::string>& args) {
       std::cerr << "DEBUG: Arg " << i << ": " << args_vec[i] << std::endl;
     }
   }
-  
+
   if (access(path_cstr, X_OK) != 0) {
-    std::string error_message = "Error: Shell executable at " + std::string(path_cstr) + 
-                               " is not accessible or executable: " + std::string(strerror(errno));
+    std::string error_message =
+        "Error: Shell executable at " + std::string(path_cstr) +
+        " is not accessible or executable: " + std::string(strerror(errno));
     std::cerr << error_message << std::endl;
     return 1;
   }

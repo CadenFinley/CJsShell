@@ -17,6 +17,7 @@
 #include "export_command.h"
 #include "help_command.h"
 #include "history_command.h"
+#include "ls_command.h"
 #include "main.h"
 #include "plugin_command.h"
 #include "restart_command.h"
@@ -36,6 +37,10 @@ Built_ins::Built_ins()
             {"cd",
              [this](const std::vector<std::string>& args) {
               return ::change_directory(args.size() > 1 ? args[1] : current_directory, current_directory, previous_directory, last_terminal_output_error);
+             }},
+            {"ls",
+             [](const std::vector<std::string>& args) {
+               return ::ls_command(args);
              }},
             {"alias",
              [this](const std::vector<std::string>& args) {
