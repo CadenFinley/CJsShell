@@ -85,15 +85,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    libcurl  # Changed to the actual target name from vendor/curl
-    isocline # Link against the local isocline library
+    libcurl
+    isocline
     pthread
     dl
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
 )
 
-# Ensure standard headers needed by json library
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
   HAVE_ARRAY=1
   HAVE_CSTDDEF=1
