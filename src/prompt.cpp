@@ -39,8 +39,8 @@ std::string Prompt::get_prompt() {
 }
 
 std::string Prompt::get_ai_prompt() {
-  std::string modelInfo = g_ai->getModel();
-  std::string modeInfo = g_ai->getAssistantType();
+  std::string modelInfo = g_ai->get_model();
+  std::string modeInfo = g_ai->get_assistant_type();
 
   if (g_current_theme.empty()) {
     if (!g_theme->get_enabled()) {

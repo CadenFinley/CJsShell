@@ -1,0 +1,856 @@
+#include "openai_assistant.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <chrono>
+#include <thread>
+#include <cstring>
+#include <curl/curl.h>
+
+openai_assistant_engine::openai_assistant_engine(const std::string& api_key) 
+    : user_api_key(api_key), max_responses_per_category(100) {
+    curl_global_init(CURL_GLOBAL_ALL);
+}
+
+openai_assistant_engine::openai_assistant_engine(const std::string& api_key, int max_responses) 
+    : user_api_key(api_key), max_responses_per_category(max_responses) {
+    curl_global_init(CURL_GLOBAL_ALL);
+}
+
+size_t openai_assistant_engine::write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+void openai_assistant_engine::log_response(const std::string& category, const std::string& response) {
+    if (response.empty()) {
+        return;
+    }
+
+    if (response_log.find(category) == response_log.end()) {
+        response_log[category] = std::vector<std::string>();
+    }
+
+    auto& category_responses = response_log[category];
+    category_responses.push_back(response);
+    if (category_responses.size() > static_cast<size_t>(max_responses_per_category)) {
+        category_responses.erase(category_responses.begin());
+    }
+}
+
+std::vector<std::string> openai_assistant_engine::get_responses_by_category(const std::string& category) {
+    if (response_log.find(category) != response_log.end()) {
+        return response_log[category];
+    }
+    return std::vector<std::string>();
+}
+
+std::string openai_assistant_engine::get_latest_response(const std::string& category) {
+    auto responses = get_responses_by_category(category);
+    if (responses.empty()) {
+        return "";
+    }
+    return responses.back();
+}
+
+void openai_assistant_engine::clear_category(const std::string& category) {
+    response_log.erase(category);
+}
+
+void openai_assistant_engine::clear_all_responses() {
+    response_log.clear();
+}
+
+std::vector<std::string> openai_assistant_engine::get_categories() {
+    std::vector<std::string> categories;
+    for (const auto& pair : response_log) {
+        categories.push_back(pair.first);
+    }
+    return categories;
+}
+
+void openai_assistant_engine::handle_error_response(CURL* curl, long response_code, const std::string& error_body) {
+    std::string error_message;
+    (void)curl; // Explicitly mark the parameter as unused
+    
+    switch (response_code) {
+        case 400:
+            error_message = "Bad Request: The server could not understand the request due to invalid syntax.";
+            break;
+        case 401:
+            error_message = "Unauthorized: The API key is invalid or missing.\n"
+                          "Possible Causes:\n"
+                          "- Invalid Authentication: Ensure the correct API key and requesting organization are being used.\n"
+                          "- Incorrect API key provided: Verify the API key, clear your browser cache, or generate a new one.\n"
+                          "- You must be a member of an organization to use the API: Contact support to join an organization or ask your organization manager to invite you.";
+            break;
+        case 403:
+            error_message = "Forbidden: You do not have permission to access this resource.\n"
+                          "Cause: You are accessing the API from an unsupported country, region, or territory.\n"
+                          "Solution: Please see the OpenAI documentation for supported regions.";
+            break;
+        case 404:
+            error_message = "Not Found: The requested resource could not be found.";
+            break;
+        case 429:
+            error_message = "Too Many Requests: You have exceeded the rate limit.\n"
+                          "Possible Causes:\n"
+                          "- Rate limit reached for requests: Pace your requests. Read the Rate limit guide.\n"
+                          "- You exceeded your current quota: Check your plan and billing details, or buy more credits.";
+            break;
+        case 500:
+            error_message = "Internal Server Error: The server encountered an error and could not complete your request.\n"
+                          "Solution: Retry your request after a brief wait and contact support if the issue persists. Check the status page.";
+            break;
+        case 502:
+            error_message = "Bad Gateway: The server received an invalid response from the upstream server.";
+            break;
+        case 503:
+            error_message = "Service Unavailable: The server is not ready to handle the request.\n"
+                          "Possible Causes:\n"
+                          "- The engine is currently overloaded: Retry your requests after a brief wait.\n"
+                          "- Slow Down: Reduce your request rate to its original level, maintain a consistent rate for at least 15 minutes, and then gradually increase it.";
+            break;
+        case 504:
+            error_message = "Gateway Timeout: The server did not receive a timely response from the upstream server.";
+            break;
+        default:
+            error_message = "Unexpected Error: Received HTTP response code " + std::to_string(response_code);
+    }
+
+    error_message += "\nDetails: " + error_body;
+    std::cerr << error_message << std::endl;
+}
+
+std::string openai_assistant_engine::execute_request(const std::string& url, const std::string& method, 
+                                               const std::map<std::string, std::string>& headers, 
+                                               const std::string& body) {
+    CURL* curl = curl_easy_init();
+    std::string response_data;
+    std::string error_buffer;
+    
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
+        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, &error_buffer);
+        
+        struct curl_slist* header_list = nullptr;
+        header_list = curl_slist_append(header_list, ("Authorization: Bearer " + user_api_key).c_str());
+        
+        for (const auto& header : headers) {
+            header_list = curl_slist_append(header_list, (header.first + ": " + header.second).c_str());
+        }
+        
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
+        
+        if (!body.empty()) {
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
+        }
+        
+        CURLcode res = curl_easy_perform(curl);
+        
+        if (res != CURLE_OK) {
+            std::cerr << "CURL error: " << curl_easy_strerror(res) << std::endl;
+            curl_slist_free_all(header_list);
+            curl_easy_cleanup(curl);
+            return "";
+        }
+        
+        long response_code;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+        
+        if (response_code >= 400) {
+            handle_error_response(curl, response_code, response_data);
+            curl_slist_free_all(header_list);
+            curl_easy_cleanup(curl);
+            return "";
+        }
+        
+        curl_slist_free_all(header_list);
+        curl_easy_cleanup(curl);
+    }
+    
+    return response_data;
+}
+
+std::string openai_assistant_engine::execute_multipart_upload(const std::string& url, const std::string& file_path,
+                                                       const std::string& purpose) {
+    CURL* curl = curl_easy_init();
+    std::string response_data;
+    
+    if (curl) {
+        // Create a new mime structure to replace the deprecated form API
+        curl_mime* mime = curl_mime_init(curl);
+        curl_mimepart* part;
+        
+        // Add the "purpose" field
+        part = curl_mime_addpart(mime);
+        curl_mime_name(part, "purpose");
+        curl_mime_data(part, purpose.c_str(), CURL_ZERO_TERMINATED);
+        
+        // Add the file
+        part = curl_mime_addpart(mime);
+        curl_mime_name(part, "file");
+        curl_mime_filedata(part, file_path.c_str());
+        
+        struct curl_slist* header_list = nullptr;
+        header_list = curl_slist_append(header_list, ("Authorization: Bearer " + user_api_key).c_str());
+        
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_list);
+        curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
+        
+        CURLcode res = curl_easy_perform(curl);
+        
+        if (res != CURLE_OK) {
+            std::cerr << "CURL error during file upload: " << curl_easy_strerror(res) << std::endl;
+            curl_slist_free_all(header_list);
+            curl_mime_free(mime);
+            curl_easy_cleanup(curl);
+            return "";
+        }
+        
+        long response_code;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+        
+        if (response_code >= 400) {
+            handle_error_response(curl, response_code, response_data);
+            curl_slist_free_all(header_list);
+            curl_mime_free(mime);
+            curl_easy_cleanup(curl);
+            return "";
+        }
+        
+        curl_slist_free_all(header_list);
+        curl_mime_free(mime);
+        curl_easy_cleanup(curl);
+    }
+    
+    return response_data;
+}
+
+bool openai_assistant_engine::test_api_key(const std::string& api_key) {
+    std::string url = "https://api.openai.com/v1/engines";
+    
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        return false;
+    }
+    
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, ("Authorization: Bearer " + api_key).c_str());
+    
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+    
+    CURLcode res = curl_easy_perform(curl);
+    
+    long response_code;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+    
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    
+    return (res == CURLE_OK && response_code == 200);
+}
+
+std::string openai_assistant_engine::upload_file(const std::string& file_path, const std::string& purpose) {
+    std::string url = "https://api.openai.com/v1/files";
+    std::string response = execute_multipart_upload(url, file_path, purpose);
+    
+    if (!response.empty()) {
+        log_response("file_upload", response);
+        nlohmann::json json_response = nlohmann::json::parse(response);
+        return json_response["id"];
+    }
+    
+    return "";
+}
+
+nlohmann::json openai_assistant_engine::retrieve_file(const std::string& file_id) {
+    std::string url = "https://api.openai.com/v1/files/" + file_id;
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    
+    std::string response = execute_request(url, "GET", headers);
+    
+    if (!response.empty()) {
+        log_response("file_info", response);
+        return nlohmann::json::parse(response);
+    }
+    
+    return nlohmann::json();
+}
+
+std::string openai_assistant_engine::create_vector_store(const std::string& name, 
+                                                  const std::vector<std::string>& file_ids,
+                                                  const nlohmann::json& chunking_strategy,
+                                                  const nlohmann::json& expires_after,
+                                                  const std::map<std::string, std::string>& metadata) {
+    std::string url = "https://api.openai.com/v1/vector_stores";
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    nlohmann::json body;
+    
+    if (!name.empty()) {
+        body["name"] = name;
+    }
+    
+    if (!file_ids.empty()) {
+        body["file_ids"] = file_ids;
+    }
+    
+    if (!chunking_strategy.is_null()) {
+        body["chunking_strategy"] = chunking_strategy;
+    }
+    
+    if (!expires_after.is_null()) {
+        body["expires_after"] = expires_after;
+    }
+    
+    if (!metadata.empty()) {
+        body["metadata"] = metadata;
+    }
+    
+    std::string response = execute_request(url, "POST", headers, body.dump());
+    
+    if (!response.empty()) {
+        log_response("vector_store", response);
+        nlohmann::json json_response = nlohmann::json::parse(response);
+        return json_response["id"];
+    }
+    
+    return "";
+}
+
+std::string openai_assistant_engine::modify_vector_store(const std::string& vector_store_id,
+                                                  const nlohmann::json& expires_after,
+                                                  const std::map<std::string, std::string>& metadata,
+                                                  const std::string& name) {
+    std::string url = "https://api.openai.com/v1/vector_stores/" + vector_store_id;
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    nlohmann::json body;
+    
+    if (!expires_after.is_null()) {
+        body["expires_after"] = expires_after;
+    }
+    
+    if (!metadata.empty()) {
+        body["metadata"] = metadata;
+    }
+    
+    if (!name.empty()) {
+        body["name"] = name;
+    }
+    
+    std::string response = execute_request(url, "POST", headers, body.dump());
+    
+    if (!response.empty()) {
+        log_response("vector_store_modify", response);
+        return response;
+    }
+    
+    return "";
+}
+
+std::string openai_assistant_engine::create_assistant(const std::string& model, const std::string& name,
+                                                const std::string& description, const std::string& instructions,
+                                                const std::string& reasoning_effort,
+                                                const std::vector<std::string>& tool_names,
+                                                const std::map<std::string, std::string>& metadata,
+                                                double temperature, double top_p,
+                                                const std::map<std::string, std::string>& tool_resources) {
+    std::string url = "https://api.openai.com/v1/assistants";
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    nlohmann::json body;
+    body["model"] = model;
+    
+    if (!name.empty()) {
+        body["name"] = name;
+    }
+    
+    if (!description.empty()) {
+        body["description"] = description;
+    }
+    
+    if (!instructions.empty()) {
+        body["instructions"] = instructions;
+    }
+    
+    if (!reasoning_effort.empty()) {
+        body["reasoning_effort"] = reasoning_effort;
+    }
+    
+    if (!tool_names.empty()) {
+        nlohmann::json tools = nlohmann::json::array();
+        for (const auto& tool_name : tool_names) {
+            nlohmann::json tool;
+            tool["type"] = tool_name;
+            tools.push_back(tool);
+        }
+        body["tools"] = tools;
+    }
+    
+    if (!metadata.empty()) {
+        body["metadata"] = metadata;
+    }
+    
+    if (temperature != 0.0) {
+        body["temperature"] = temperature;
+    }
+    
+    if (top_p != 0.0) {
+        body["top_p"] = top_p;
+    }
+    
+    if (!tool_resources.empty()) {
+        body["tool_resources"] = tool_resources;
+    }
+    
+    std::string response = execute_request(url, "POST", headers, body.dump());
+    
+    if (!response.empty()) {
+        log_response("assistant", response);
+        nlohmann::json json_response = nlohmann::json::parse(response);
+        return json_response["id"];
+    }
+    
+    return "";
+}
+
+std::string openai_assistant_engine::retrieve_assistant(const std::string& assistant_id) {
+    std::string url = "https://api.openai.com/v1/assistants/" + assistant_id;
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    std::string response = execute_request(url, "GET", headers);
+    
+    if (!response.empty()) {
+        log_response("assistant_retrieve", response);
+        return response;
+    }
+    
+    return "";
+}
+
+bool openai_assistant_engine::modify_assistant(const std::string& assistant_id, const std::string& description,
+                                         const std::string& instructions,
+                                         const std::map<std::string, std::string>& metadata,
+                                         const std::string& model, const std::string& name,
+                                         const std::string& reasoning_effort,
+                                         const nlohmann::json& response_format,
+                                         double temperature,
+                                         const std::map<std::string, nlohmann::json>& tool_resources,
+                                         const std::vector<nlohmann::json>& tools, double top_p) {
+    std::string url = "https://api.openai.com/v1/assistants/" + assistant_id;
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    nlohmann::json body;
+    
+    if (!description.empty()) {
+        body["description"] = description;
+    }
+    
+    if (!instructions.empty()) {
+        body["instructions"] = instructions;
+    }
+    
+    if (!metadata.empty()) {
+        body["metadata"] = metadata;
+    }
+    
+    if (!model.empty()) {
+        body["model"] = model;
+    }
+    
+    if (!name.empty()) {
+        body["name"] = name;
+    }
+    
+    if (!reasoning_effort.empty()) {
+        body["reasoning_effort"] = reasoning_effort;
+    }
+    
+    if (!response_format.is_null()) {
+        body["response_format"] = response_format;
+    }
+    
+    if (temperature != 0.0) {
+        body["temperature"] = temperature;
+    }
+    
+    if (!tool_resources.empty()) {
+        body["tool_resources"] = tool_resources;
+    }
+    
+    if (!tools.empty()) {
+        body["tools"] = tools;
+    }
+    
+    if (top_p != 0.0) {
+        body["top_p"] = top_p;
+    }
+    
+    std::string response = execute_request(url, "POST", headers, body.dump());
+    
+    if (!response.empty()) {
+        log_response("assistant_update", response);
+        return true;
+    }
+    
+    return false;
+}
+
+std::string openai_assistant_engine::list_assistants(const std::string& after, const std::string& before,
+                                               int limit, const std::string& order) {
+    std::stringstream url_builder;
+    url_builder << "https://api.openai.com/v1/assistants?";
+    
+    if (!after.empty()) {
+        url_builder << "after=" << after << "&";
+    }
+    
+    if (!before.empty()) {
+        url_builder << "before=" << before << "&";
+    }
+    
+    if (limit > 0) {
+        url_builder << "limit=" << std::min(limit, 100) << "&";
+    }
+    
+    if (!order.empty()) {
+        url_builder << "order=" << order;
+    }
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    std::string response = execute_request(url_builder.str(), "GET", headers);
+    
+    if (!response.empty()) {
+        log_response("assistants_list", response);
+        return response;
+    }
+    
+    return "";
+}
+
+std::string openai_assistant_engine::create_thread(const std::vector<nlohmann::json>& messages,
+                                             const std::map<std::string, std::string>& tool_resources,
+                                             const std::map<std::string, std::string>& metadata) {
+    std::string url = "https://api.openai.com/v1/threads";
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    nlohmann::json body;
+    
+    if (!messages.empty()) {
+        body["messages"] = messages;
+    }
+    
+    if (!tool_resources.empty()) {
+        body["tool_resources"] = tool_resources;
+    }
+    
+    if (!metadata.empty()) {
+        body["metadata"] = metadata;
+    }
+    
+    std::string response = execute_request(url, "POST", headers, body.dump());
+    
+    if (!response.empty()) {
+        log_response("thread", response);
+        nlohmann::json json_response = nlohmann::json::parse(response);
+        return json_response["id"];
+    }
+    
+    return "";
+}
+
+std::string openai_assistant_engine::add_message_to_thread(const std::string& thread_id, const std::string& content) {
+    std::string url = "https://api.openai.com/v1/threads/" + thread_id + "/messages";
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    nlohmann::json body;
+    body["role"] = "user";
+    body["content"] = content;
+    
+    std::string response = execute_request(url, "POST", headers, body.dump());
+    
+    if (!response.empty()) {
+        log_response("message_add", response);
+        nlohmann::json json_response = nlohmann::json::parse(response);
+        return json_response["id"];
+    }
+    
+    return "";
+}
+
+std::vector<std::string> openai_assistant_engine::list_messages(const std::string& thread_id, const std::string& run_id) {
+    std::string url = "https://api.openai.com/v1/threads/" + thread_id + "/messages";
+    
+    if (!run_id.empty()) {
+        url += "?run_id=" + run_id;
+    }
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    std::string response = execute_request(url, "GET", headers);
+    std::vector<std::string> messages;
+    
+    if (!response.empty()) {
+        log_response("messages", response);
+        
+        try {
+            nlohmann::json json_response = nlohmann::json::parse(response);
+            auto data_array = json_response["data"];
+            
+            for (const auto& message_obj : data_array) {
+                auto content_array = message_obj["content"];
+                
+                for (const auto& content_obj : content_array) {
+                    if (content_obj["type"] == "text") {
+                        messages.push_back(content_obj["text"]["value"]);
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing messages: " << e.what() << std::endl;
+        }
+    }
+    
+    return messages;
+}
+
+std::string openai_assistant_engine::create_run(const std::string& thread_id, const std::string& assistant_id,
+                                          const std::string& model, const std::string& reasoning_effort,
+                                          const std::string& instructions, const std::string& additional_instructions,
+                                          const std::vector<nlohmann::json>& additional_messages,
+                                          const std::vector<nlohmann::json>& tools,
+                                          const std::map<std::string, std::string>& metadata,
+                                          double temperature, double top_p, bool stream,
+                                          int max_prompt_tokens, int max_completion_tokens,
+                                          const nlohmann::json& truncation_strategy,
+                                          const nlohmann::json& tool_choice, bool parallel_tool_calls,
+                                          const nlohmann::json& response_format) {
+    std::string url = "https://api.openai.com/v1/threads/" + thread_id + "/runs";
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    nlohmann::json body;
+    body["assistant_id"] = assistant_id;
+    
+    if (!model.empty()) {
+        body["model"] = model;
+    }
+    
+    if (!reasoning_effort.empty()) {
+        body["reasoning_effort"] = reasoning_effort;
+    }
+    
+    if (!instructions.empty()) {
+        body["instructions"] = instructions;
+    }
+    
+    if (!additional_instructions.empty()) {
+        body["additional_instructions"] = additional_instructions;
+    }
+    
+    if (!additional_messages.empty()) {
+        body["additional_messages"] = additional_messages;
+    }
+    
+    if (!tools.empty()) {
+        body["tools"] = tools;
+    }
+    
+    if (!metadata.empty()) {
+        body["metadata"] = metadata;
+    }
+    
+    if (temperature != 0.0) {
+        body["temperature"] = temperature;
+    }
+    
+    if (top_p != 0.0) {
+        body["top_p"] = top_p;
+    }
+    
+    body["stream"] = stream;
+    
+    if (max_prompt_tokens > 0) {
+        body["max_prompt_tokens"] = max_prompt_tokens;
+    }
+    
+    if (max_completion_tokens > 0) {
+        body["max_completion_tokens"] = max_completion_tokens;
+    }
+    
+    if (!truncation_strategy.is_null()) {
+        body["truncation_strategy"] = truncation_strategy;
+    }
+    
+    if (!tool_choice.is_null()) {
+        body["tool_choice"] = tool_choice;
+    }
+    
+    body["parallel_tool_calls"] = parallel_tool_calls;
+    
+    if (!response_format.is_null()) {
+        body["response_format"] = response_format;
+    }
+    
+    std::string response = execute_request(url, "POST", headers, body.dump());
+    
+    if (!response.empty()) {
+        log_response("run", response);
+        nlohmann::json json_response = nlohmann::json::parse(response);
+        return json_response["id"];
+    }
+    
+    return "";
+}
+
+std::string openai_assistant_engine::retrieve_run(const std::string& thread_id, const std::string& run_id) {
+    std::string url = "https://api.openai.com/v1/threads/" + thread_id + "/runs/" + run_id;
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    std::string response = execute_request(url, "GET", headers);
+    
+    if (!response.empty()) {
+        log_response("run_status", response);
+        return response;
+    }
+    
+    return "";
+}
+
+std::string openai_assistant_engine::retrieve_run_status(const std::string& thread_id) {
+    std::string url = "https://api.openai.com/v1/threads/" + thread_id + "/runs";
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    std::string response = execute_request(url, "GET", headers);
+    
+    if (!response.empty()) {
+        try {
+            nlohmann::json json_response = nlohmann::json::parse(response);
+            if (json_response["data"].size() > 0) {
+                return json_response["data"][0].dump();
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing run status: " << e.what() << std::endl;
+        }
+    }
+    
+    return "";
+}
+
+bool openai_assistant_engine::wait_for_run_completion(const std::string& thread_id, const std::string& run_id,
+                                              int timeout_seconds, int poll_interval_milliseconds) {
+    auto start_time = std::chrono::steady_clock::now();
+    auto timeout_duration = std::chrono::seconds(timeout_seconds);
+    
+    while (std::chrono::steady_clock::now() - start_time < timeout_duration) {
+        std::string run_response = retrieve_run(thread_id, run_id);
+        
+        if (run_response.empty()) {
+            std::cerr << "Failed to retrieve run status" << std::endl;
+            return false;
+        }
+        
+        try {
+            nlohmann::json json_response = nlohmann::json::parse(run_response);
+            std::string status = json_response["status"];
+            
+            if (status == "completed") {
+                return true;
+            } else if (status == "failed" || status == "cancelled" || status == "expired") {
+                std::cerr << "Run ended with status: " << status << std::endl;
+                
+                if (json_response.contains("last_error")) {
+                    std::cerr << "Error: " << json_response["last_error"].dump() << std::endl;
+                }
+                
+                return false;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error parsing run response: " << e.what() << std::endl;
+            return false;
+        }
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(poll_interval_milliseconds));
+    }
+    
+    std::cerr << "Run timed out after " << timeout_seconds << " seconds" << std::endl;
+    return false;
+}
+
+std::string openai_assistant_engine::cancel_run(const std::string& thread_id, const std::string& run_id) {
+    std::string url = "https://api.openai.com/v1/threads/" + thread_id + "/runs/" + run_id + "/cancel";
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    headers["OpenAI-Beta"] = "assistants=v2";
+    
+    std::string response = execute_request(url, "POST", headers);
+    
+    if (!response.empty()) {
+        log_response("run_cancel", response);
+        return response;
+    }
+    
+    return "";
+}
+
+bool openai_assistant_engine::delete_resource(const std::string& resource_type, const std::string& resource_id) {
+    std::string url = "https://api.openai.com/v1/" + resource_type + "/" + resource_id;
+    
+    std::map<std::string, std::string> headers;
+    headers["Content-Type"] = "application/json";
+    
+    if (resource_type != "files") {
+        headers["OpenAI-Beta"] = "assistants=v2";
+    }
+    
+    std::string response = execute_request(url, "DELETE", headers);
+    
+    return !response.empty();
+}

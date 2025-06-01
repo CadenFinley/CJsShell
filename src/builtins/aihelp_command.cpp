@@ -6,8 +6,10 @@
 
 #include "main.h"
 
+//make better system prompt for ai help that includes cjsh documentation
+
 int aihelp_command(const std::vector<std::string>& args) {
-  if (!g_ai || g_ai->getAPIKey().empty()) {
+  if (!g_ai || g_ai->get_api_key().empty()) {
     std::cerr << "Please set your OpenAI API key first." << std::endl;
     return 1;
   }
@@ -38,6 +40,6 @@ int aihelp_command(const std::vector<std::string>& args) {
     std::cout << "Sending to AI: " << message << std::endl;
   }
 
-  std::cout << g_ai->forceDirectChatGPT(message, false) << std::endl;
+  std::cout << g_ai->force_direct_chat_gpt(message, false) << std::endl;
   return 0;
 }

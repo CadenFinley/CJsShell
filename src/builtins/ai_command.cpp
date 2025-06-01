@@ -33,9 +33,9 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     std::cerr << "To invoke regular commands prefix all commands with ':'"
               << std::endl;
     built_ins->get_shell()->set_menu_active(false);
-    if (!g_ai->getChatCache().empty()) {
+    if (!g_ai->get_chat_cache().empty()) {
       std::cout << "Chat history:" << std::endl;
-      for (const auto& message : g_ai->getChatCache()) {
+      for (const auto& message : g_ai->get_chat_cache()) {
         std::cout << message << std::endl;
       }
     }
@@ -45,8 +45,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   const std::string& cmd = args[command_index];
 
   if (cmd == "log") {
-    std::string lastChatSent = g_ai->getLastPromptUsed();
-    std::string lastChatReceived = g_ai->getLastResponseReceived();
+    std::string lastChatSent = g_ai->get_last_prompt_used();
+    std::string lastChatReceived = g_ai->get_last_response_received();
     std::string fileName =
         (cjsh_filesystem::g_cjsh_data_path /
          ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt"))
@@ -65,8 +65,16 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (cmd == "apikey") {
-    std::cout << g_ai->getAPIKey() << std::endl;
-    return 0;
+    std::string api_key = getenv("OPENAI_API_KEY") ? getenv("OPENAI_API_KEY") : "";
+    if(api_key.empty()) {
+      std::cout << "No OpenAI API key is set." << std::endl;
+      std::cout << "To set your OpenAI API key, set the OPENAI_API_KEY environment variable." << std::endl;
+      return 1;
+    } else {
+      std::cout << "The current OpenAI API key is set." << std::endl;
+      std::cout << api_key << std::endl;
+      return 0;
+    }
   }
 
   if (cmd == "chat") {
@@ -80,23 +88,23 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
           "Error: No arguments provided. Try 'help' for a list of commands.");
       return 1;
     }
-    std::cout << g_ai->getResponseData(args[command_index + 1]) << std::endl;
+    std::cout << g_ai->get_response_data(args[command_index + 1]) << std::endl;
     return 0;
   }
 
   if (cmd == "dump") {
-    std::cout << g_ai->getResponseData("all") << std::endl;
-    std::cout << g_ai->getLastPromptUsed() << std::endl;
+    std::cout << g_ai->get_response_data("all") << std::endl;
+    std::cout << g_ai->get_last_prompt_used() << std::endl;
     return 0;
   }
 
   if (cmd == "mode") {
     if (args.size() <= command_index + 1) {
-      std::cout << "The current assistant mode is " << g_ai->getAssistantType()
+      std::cout << "The current assistant mode is " << g_ai->get_assistant_type()
                 << std::endl;
       return 0;
     }
-    g_ai->setAssistantType(args[command_index + 1]);
+    g_ai->set_assistant_type(args[command_index + 1]);
     std::cout << "Assistant mode set to " << args[command_index + 1]
               << std::endl;
     return 0;
@@ -110,20 +118,20 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "directory") {
     if (args.size() <= command_index + 1) {
-      std::cout << "The current directory is " << g_ai->getSaveDirectory()
+      std::cout << "The current directory is " << g_ai->get_save_directory()
                 << std::endl;
       return 0;
     }
 
     if (args[command_index + 1] == "set") {
-      g_ai->setSaveDirectory(built_ins->get_current_directory());
+      g_ai->set_save_directory(built_ins->get_current_directory());
       std::cout << "Directory set to " << built_ins->get_current_directory()
                 << std::endl;
       return 0;
     }
 
     if (args[command_index + 1] == "clear") {
-      g_ai->setSaveDirectory(cjsh_filesystem::g_cjsh_data_path);
+      g_ai->set_save_directory(cjsh_filesystem::g_cjsh_data_path);
       std::cout << "Directory set to default." << std::endl;
       return 0;
     }
@@ -132,16 +140,16 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "model") {
     if (args.size() <= command_index + 1) {
-      std::cout << "The current model is " << g_ai->getModel() << std::endl;
+      std::cout << "The current model is " << g_ai->get_model() << std::endl;
       return 0;
     }
-    g_ai->setModel(args[command_index + 1]);
+    g_ai->set_model(args[command_index + 1]);
     std::cout << "Model set to " << args[command_index + 1] << std::endl;
     return 0;
   }
 
   if (cmd == "rejectchanges") {
-    g_ai->rejectChanges();
+    g_ai->reject_changes();
     std::cout << "Changes rejected." << std::endl;
     return 0;
   }
@@ -149,13 +157,13 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   if (cmd == "timeoutflag") {
     if (args.size() <= command_index + 1) {
       std::cout << "The current timeout flag is "
-                << g_ai->getTimeoutFlagSeconds() << std::endl;
+                << g_ai->get_timeout_flag_seconds() << std::endl;
       return 0;
     }
 
     try {
       int timeout = std::stoi(args[command_index + 1]);
-      g_ai->setTimeoutFlagSeconds(timeout);
+      g_ai->set_timeout_flag_seconds(timeout);
       std::cout << "Timeout flag set to " << timeout << " seconds."
                 << std::endl;
     } catch (const std::exception& e) {
@@ -166,22 +174,23 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (cmd == "help") {
-    std::cout << "AI settings commands:" << std::endl;
-    std::cout << " log: Save recent chat exchange to a file" << std::endl;
-    std::cout << " apikey" << std::endl;
-    std::cout << " chat: Access AI chat commands" << std::endl;
-    std::cout << " get [KEY]: Retrieve specific response data" << std::endl;
-    std::cout << " dump: Display all response data and last prompt"
-              << std::endl;
-    std::cout << " mode [TYPE]: Set the assistant mode" << std::endl;
-    std::cout << " file: Manage files for context (add, remove, active, "
-                 "available, refresh, clear)"
-              << std::endl;
-    std::cout << " directory: Manage save directory (set, clear)" << std::endl;
-    std::cout << " model [MODEL]: Set the AI model" << std::endl;
-    std::cout << " rejectchanges: Reject AI suggested changes" << std::endl;
-    std::cout << " timeoutflag [SECONDS]: Set the timeout duration"
-              << std::endl;
+    std::cout << "AI Command Help:\n"
+              << "  ai                    - Enter AI mode and show chat history\n"
+              << "  ai log                - Save the last chat to a file\n"
+              << "  ai apikey             - Show API key status\n"
+              << "  ai chat <message>     - Send a chat message\n"
+              << "  ai chat history       - Show chat history\n"
+              << "  ai chat history clear - Clear chat history\n"
+              << "  ai chat help          - Show chat help\n"
+              << "  ai get <key>          - Get a specific response data\n"
+              << "  ai dump               - Dump all response data and last prompt\n"
+              << "  ai mode [type]        - Get or set the assistant mode\n"
+              << "  ai file               - Manage files in AI context\n"
+              << "  ai directory          - Show or set AI save directory\n"
+              << "  ai model [name]       - Show or set AI model\n"
+              << "  ai rejectchanges      - Reject changes from AI\n"
+              << "  ai timeoutflag [sec]  - Show or set timeout in seconds\n"
+              << "  ai help               - Show this help message\n";
     return 0;
   }
 
@@ -204,9 +213,9 @@ int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
 
   if (subcmd == "history") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      if (!g_ai->getChatCache().empty()) {
+      if (!g_ai->get_chat_cache().empty()) {
         std::cout << "Chat history:" << std::endl;
-        for (const auto& message : g_ai->getChatCache()) {
+        for (const auto& message : g_ai->get_chat_cache()) {
           std::cout << message << std::endl;
         }
       } else {
@@ -216,47 +225,18 @@ int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
     }
 
     if (args[cmd_index + 2] == "clear") {
-      g_ai->clearChatCache();
-      std::cout << "Chat history cleared." << std::endl;
-      return 0;
-    }
-  }
-
-  if (subcmd == "cache") {
-    if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      std::cerr
-          << "Error: No arguments provided. Try 'help' for a list of commands."
-          << std::endl;
-      return 1;
-    }
-
-    if (args[cmd_index + 2] == "enable") {
-      g_ai->setCacheTokens(true);
-      std::cout << "Cache tokens enabled." << std::endl;
-      return 0;
-    }
-
-    if (args[cmd_index + 2] == "disable") {
-      g_ai->setCacheTokens(false);
-      std::cout << "Cache tokens disabled." << std::endl;
-      return 0;
-    }
-
-    if (args[cmd_index + 2] == "clear") {
-      g_ai->clearAllCachedTokens();
+      g_ai->clear_chat_cache();
       std::cout << "Chat history cleared." << std::endl;
       return 0;
     }
   }
 
   if (subcmd == "help") {
-    std::cout << "AI chat commands:" << std::endl;
-    std::cout << " history: Show chat history" << std::endl;
-    std::cout << " history clear: Clear chat history" << std::endl;
-    std::cout << " cache enable: Enable token caching" << std::endl;
-    std::cout << " cache disable: Disable token caching" << std::endl;
-    std::cout << " cache clear: Clear all cached tokens" << std::endl;
-    std::cout << " [MESSAGE]: Send a direct message to AI" << std::endl;
+    std::cout << "AI Chat Help:\n"
+              << "  ai chat <message>     - Send a chat message\n"
+              << "  ai chat history       - Show chat history\n"
+              << "  ai chat history clear - Clear chat history\n"
+              << "  ai chat help          - Show this help message\n";
     return 0;
   }
 
@@ -265,7 +245,7 @@ int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
     message += " " + args[i];
   }
 
-  std::cout << "Sent message to GPT: " << message << std::endl;
+  std::cout << getenv("USER") << ": " << message << std::endl;
   do_ai_request(message);
   return 0;
 }
@@ -285,13 +265,13 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
   }
 
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
-    std::vector<std::string> activeFiles = g_ai->getFiles();
+    std::vector<std::string> activeFiles = g_ai->get_files();
     std::cout << "Active Files: " << std::endl;
     for (const auto& file : activeFiles) {
       std::cout << file << std::endl;
     }
     std::cout << "Total characters processed: "
-              << g_ai->getFileContents().length() << std::endl;
+              << g_ai->get_file_contents().length() << std::endl;
     std::cout << "Files at current path: " << std::endl;
     for (const auto& file : filesAtPath) {
       std::cout << file << std::endl;
@@ -309,7 +289,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     }
 
     if (args[cmd_index + 2] == "all") {
-      int charsProcessed = g_ai->addFiles(filesAtPath);
+      int charsProcessed = g_ai->add_files(filesAtPath);
       std::cout << "Processed " << charsProcessed << " characters from "
                 << filesAtPath.size() << " files." << std::endl;
       return 0;
@@ -323,7 +303,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
       return 1;
     }
 
-    int charsProcessed = g_ai->addFile(filePath);
+    int charsProcessed = g_ai->add_file(filePath);
     std::cout << "Processed " << charsProcessed
               << " characters from file: " << filename << std::endl;
     return 0;
@@ -337,8 +317,8 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     }
 
     if (args[cmd_index + 2] == "all") {
-      int fileCount = g_ai->getFiles().size();
-      g_ai->clearFiles();
+      int fileCount = g_ai->get_files().size();
+      g_ai->clear_files();
       std::cout << "Removed all " << fileCount << " files from context."
                 << std::endl;
       return 0;
@@ -352,13 +332,13 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
       return 1;
     }
 
-    g_ai->removeFile(filePath);
+    g_ai->remove_file(filePath);
     std::cout << "Removed file: " << filename << " from context." << std::endl;
     return 0;
   }
 
   if (subcmd == "active") {
-    std::vector<std::string> activeFiles = g_ai->getFiles();
+    std::vector<std::string> activeFiles = g_ai->get_files();
     std::cout << "Active Files: " << std::endl;
     if (activeFiles.empty()) {
       std::cout << "  No active files." << std::endl;
@@ -367,7 +347,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
         std::cout << "  " << file << std::endl;
       }
       std::cout << "Total characters processed: "
-                << g_ai->getFileContents().length() << std::endl;
+                << g_ai->get_file_contents().length() << std::endl;
     }
     return 0;
   }
@@ -381,13 +361,13 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
   }
 
   if (subcmd == "refresh") {
-    g_ai->refreshFiles();
+    g_ai->refresh_files();
     std::cout << "Files refreshed." << std::endl;
     return 0;
   }
 
   if (subcmd == "clear") {
-    g_ai->clearFiles();
+    g_ai->clear_files();
     std::cout << "Files cleared." << std::endl;
     return 0;
   }
@@ -397,24 +377,11 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 }
 
 int do_ai_request(const std::string& prompt) {
-  if (!g_ai) {
-    PRINT_ERROR("AI system not initialized.");
-    return 1;
-  }
-
-  if (g_ai->getAPIKey().empty()) {
-    PRINT_ERROR(
-        "Please set your OpenAI API key first using 'ai apikey set "
-        "<YOUR_API_KEY>'.");
-    return 1;
-  }
-
   try {
-    std::string response = g_ai->chatGPT(prompt, true);
-    std::cout << g_ai->getModel() << ": " << response << std::endl;
+    std::string response = g_ai->chat_gpt(prompt, true);
+    std::cout << g_ai->get_model() << ": " << response << std::endl;
     return 0;
   } catch (const std::exception& e) {
-    PRINT_ERROR(std::string("Error communicating with AI: ") + e.what());
     return 1;
   }
 }
