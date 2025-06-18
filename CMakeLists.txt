@@ -40,57 +40,37 @@ endif()
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Configure curl build options before adding the subdirectory
-set(BUILD_CURL_EXE OFF CACHE BOOL "Don't build the curl executable" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
-set(CURL_STATIC_CRT ON CACHE BOOL "Use static CRT" FORCE)
+# Find system packages instead of using vendored versions
+find_package(CURL REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(ZLIB REQUIRED)
 
-# Disable all optional protocols we don't need
-set(CURL_DISABLE_LDAP ON CACHE BOOL "Disable LDAP support" FORCE)
-set(CURL_DISABLE_LDAPS ON CACHE BOOL "Disable LDAPS support" FORCE)
-set(CURL_DISABLE_RTSP ON CACHE BOOL "Disable RTSP support" FORCE)
-set(CURL_DISABLE_DICT ON CACHE BOOL "Disable DICT support" FORCE)
-set(CURL_DISABLE_FILE ON CACHE BOOL "Disable FILE support" FORCE)
-set(CURL_DISABLE_TELNET ON CACHE BOOL "Disable TELNET support" FORCE)
-set(CURL_DISABLE_TFTP ON CACHE BOOL "Disable TFTP support" FORCE)
-set(CURL_DISABLE_LIBCURL_OPTION ON CACHE BOOL "Disable install of curl-config" FORCE)
-
-# Completely disable libpsl dependency
-set(CURL_USE_LIBPSL OFF CACHE BOOL "Disable PSL support" FORCE)
-set(CURL_DISABLE_PSL ON CACHE BOOL "Disable PSL support" FORCE)
-
-# Add vendor subdirectories
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/curl)
-
-# Check if isocline target exists before adding its subdirectory
+# Add isocline subdirectory (keeping this as vendored)
 if(NOT TARGET isocline)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline 
                    ${CMAKE_CURRENT_BINARY_DIR}/isocline_build)
 endif()
 
-# We still need these for curl dependencies
-find_package(OpenSSL REQUIRED)
-find_package(ZLIB REQUIRED)
-
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json/include
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/curl/include
+    ${CURL_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
 
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    libcurl
+    ${CURL_LIBRARIES}
     isocline
     pthread
     dl
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
