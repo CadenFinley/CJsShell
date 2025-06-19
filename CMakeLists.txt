@@ -40,9 +40,8 @@ endif()
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Find system packages instead of using vendored versions
+# Find system packages
 find_package(CURL REQUIRED)
-find_package(nlohmann_json REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 
@@ -70,7 +69,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dl
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
-    nlohmann_json::nlohmann_json
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE 

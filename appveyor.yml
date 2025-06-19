@@ -38,13 +38,15 @@ install:
       mkdir -p external/nlohmann
       wget -O external/nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
       sudo apt-get install -y libcurl4-openssl-dev
+      sudo apt-get install -y libssl-dev
+      sudo apt-get install -y zlib1g-dev
       # Make sure we have the dynamic loading library
       sudo apt-get install -y libdl-dev || echo "libdl is part of glibc-dev, continuing..."
 
 before_build:
   # Linux build preparation
   - sh: |
-      mkdir build
+      mkdir -p build
       cd build
       if [ "$platform" = "x86" ]; then
         # For 32-bit builds
