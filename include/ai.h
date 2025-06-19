@@ -97,17 +97,15 @@ class Ai {
   void process_other_file(const std::string& file, std::string& out);
   static std::vector<std::string> extract_code_snippet(
       const std::string& content);
-  std::string process_code_blocks_for_code_interpreter(
-      const std::string& message);
+  std::string process_code_blocks_for_code_interpreter(const std::string& message);
   static std::string format_markdown(const std::string& text);
   static size_t write_callback(void* contents, size_t size, size_t nmemb,
-                               std::string* userp);
+                              std::string* userp);
   std::vector<std::string> split_string(const std::string& str, char delimiter);
   std::string sanitize_file_name(const std::string& file_name);
   static void monitor_cancellation(std::atomic<bool>& loading,
-                                   std::atomic<bool>& request_cancelled);
-  static void handle_error_response(CURL* curl, long response_code,
-                                    const std::string& error_body);
+                                  std::atomic<bool>& request_cancelled);
+  static void handle_error_response(CURL* curl, long response_code, const std::string& error_body);
 
   std::string user_api_key;
   std::string initial_instruction;

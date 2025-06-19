@@ -65,13 +65,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (cmd == "apikey") {
-    std::string api_key =
-        getenv("OPENAI_API_KEY") ? getenv("OPENAI_API_KEY") : "";
-    if (api_key.empty()) {
+    std::string api_key = getenv("OPENAI_API_KEY") ? getenv("OPENAI_API_KEY") : "";
+    if(api_key.empty()) {
       std::cout << "No OpenAI API key is set." << std::endl;
-      std::cout << "To set your OpenAI API key, set the OPENAI_API_KEY "
-                   "environment variable."
-                << std::endl;
+      std::cout << "To set your OpenAI API key, set the OPENAI_API_KEY environment variable." << std::endl;
       return 1;
     } else {
       std::cout << "The current OpenAI API key is set." << std::endl;
@@ -103,8 +100,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "mode") {
     if (args.size() <= command_index + 1) {
-      std::cout << "The current assistant mode is "
-                << g_ai->get_assistant_type() << std::endl;
+      std::cout << "The current assistant mode is " << g_ai->get_assistant_type()
+                << std::endl;
       return 0;
     }
     g_ai->set_assistant_type(args[command_index + 1]);
@@ -177,24 +174,23 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (cmd == "help") {
-    std::cout
-        << "AI Command Help:\n"
-        << "  ai                    - Enter AI mode and show chat history\n"
-        << "  ai log                - Save the last chat to a file\n"
-        << "  ai apikey             - Show API key status\n"
-        << "  ai chat <message>     - Send a chat message\n"
-        << "  ai chat history       - Show chat history\n"
-        << "  ai chat history clear - Clear chat history\n"
-        << "  ai chat help          - Show chat help\n"
-        << "  ai get <key>          - Get a specific response data\n"
-        << "  ai dump               - Dump all response data and last prompt\n"
-        << "  ai mode [type]        - Get or set the assistant mode\n"
-        << "  ai file               - Manage files in AI context\n"
-        << "  ai directory          - Show or set AI save directory\n"
-        << "  ai model [name]       - Show or set AI model\n"
-        << "  ai rejectchanges      - Reject changes from AI\n"
-        << "  ai timeoutflag [sec]  - Show or set timeout in seconds\n"
-        << "  ai help               - Show this help message\n";
+    std::cout << "AI Command Help:\n"
+              << "  ai                    - Enter AI mode and show chat history\n"
+              << "  ai log                - Save the last chat to a file\n"
+              << "  ai apikey             - Show API key status\n"
+              << "  ai chat <message>     - Send a chat message\n"
+              << "  ai chat history       - Show chat history\n"
+              << "  ai chat history clear - Clear chat history\n"
+              << "  ai chat help          - Show chat help\n"
+              << "  ai get <key>          - Get a specific response data\n"
+              << "  ai dump               - Dump all response data and last prompt\n"
+              << "  ai mode [type]        - Get or set the assistant mode\n"
+              << "  ai file               - Manage files in AI context\n"
+              << "  ai directory          - Show or set AI save directory\n"
+              << "  ai model [name]       - Show or set AI model\n"
+              << "  ai rejectchanges      - Reject changes from AI\n"
+              << "  ai timeoutflag [sec]  - Show or set timeout in seconds\n"
+              << "  ai help               - Show this help message\n";
     return 0;
   }
 
