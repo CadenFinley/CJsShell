@@ -62,34 +62,7 @@ before_build:
 build_script:
   # Linux build
   - sh: |
-      # Install missing dependencies required by static libcurl
-      sudo apt-get update
-      sudo apt-get install -y libidn2-dev libpsl-dev libnghttp2-dev libkrb5-dev librtmp-dev libssh2-1-dev libldap2-dev
-      
-      # Build with proper linking flags
       cmake --build . --config $configuration -- -j $(nproc)
-      
-      # If the build fails, try with explicit linking
-      if [ $? -ne 0 ]; then
-        echo "Trying build with explicit dependencies..."
-        cd $APPVEYOR_BUILD_FOLDER
-        mkdir -p build_retry
-        cd build_retry
-        if [ "$platform" = "x86" ]; then
-          cmake .. -DCMAKE_BUILD_TYPE=$configuration -DCMAKE_CXX_FLAGS="-m32" -DCMAKE_C_FLAGS="-m32" -DFORCE_32BIT=ON \
-            -DCMAKE_EXE_LINKER_FLAGS="-lssl -lcrypto -lidn2 -lpsl -lnghttp2 -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err -lrtmp -lssh2 -lldap"
-        else
-          cmake .. -DCMAKE_BUILD_TYPE=$configuration \
-            -DCMAKE_EXE_LINKER_FLAGS="-lssl -lcrypto -lidn2 -lpsl -lnghttp2 -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err -lrtmp -lssh2 -lldap"
-        fi
-        cmake --build . --config $configuration -- -j $(nproc)
-        if [ $? -eq 0 ]; then
-          cp cjsh $APPVEYOR_BUILD_FOLDER/build/
-          cd $APPVEYOR_BUILD_FOLDER/build
-        else
-          exit 1
-        fi
-      fi
 
 after_build:
   # Linux packaging
