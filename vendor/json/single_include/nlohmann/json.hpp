@@ -2395,14 +2395,8 @@ JSON_HEDLEY_DIAGNOSTIC_POP
 
 // C++ language standard detection
 // if the user manually specified the used C++ version, this is skipped
-#if !defined(JSON_HAS_CPP_26) && !defined(JSON_HAS_CPP_23) && !defined(JSON_HAS_CPP_20) && !defined(JSON_HAS_CPP_17) && !defined(JSON_HAS_CPP_14) && !defined(JSON_HAS_CPP_11)
-    #if (defined(__cplusplus) && __cplusplus > 202302L) || (defined(_MSVC_LANG) && _MSVC_LANG > 202302L)
-        #define JSON_HAS_CPP_26
-        #define JSON_HAS_CPP_23
-        #define JSON_HAS_CPP_20
-        #define JSON_HAS_CPP_17
-        #define JSON_HAS_CPP_14
-    #elif (defined(__cplusplus) && __cplusplus > 202002L) || (defined(_MSVC_LANG) && _MSVC_LANG > 202002L)
+#if !defined(JSON_HAS_CPP_23) && !defined(JSON_HAS_CPP_20) && !defined(JSON_HAS_CPP_17) && !defined(JSON_HAS_CPP_14) && !defined(JSON_HAS_CPP_11)
+    #if (defined(__cplusplus) && __cplusplus > 202002L) || (defined(_MSVC_LANG) && _MSVC_LANG > 202002L)
         #define JSON_HAS_CPP_23
         #define JSON_HAS_CPP_20
         #define JSON_HAS_CPP_17
@@ -12987,12 +12981,10 @@ class parser
     explicit parser(InputAdapterType&& adapter,
                     parser_callback_t<BasicJsonType> cb = nullptr,
                     const bool allow_exceptions_ = true,
-                    const bool ignore_comments = false,
-                    const bool ignore_trailing_commas_ = false)
+                    const bool skip_comments = false)
         : callback(std::move(cb))
-        , m_lexer(std::move(adapter), ignore_comments)
+        , m_lexer(std::move(adapter), skip_comments)
         , allow_exceptions(allow_exceptions_)
-        , ignore_trailing_commas(ignore_trailing_commas_)
     {
         // read first token
         get_token();
@@ -13302,17 +13294,11 @@ class parser
             if (states.back())  // array
             {
                 // comma -> next value
-                // or end of array (ignore_trailing_commas = true)
                 if (get_token() == token_type::value_separator)
                 {
                     // parse a new value
                     get_token();
-
-                    // if ignore_trailing_commas and last_token is ], we can continue to "closing ]"
-                    if (!(ignore_trailing_commas && last_token == token_type::end_array))
-                    {
-                        continue;
-                    }
+                    continue;
                 }
 
                 // closing ]
@@ -13341,39 +13327,32 @@ class parser
             // states.back() is false -> object
 
             // comma -> next value
-            // or end of object (ignore_trailing_commas = true)
             if (get_token() == token_type::value_separator)
             {
-                get_token();
-
-                // if ignore_trailing_commas and last_token is }, we can continue to "closing }"
-                if (!(ignore_trailing_commas && last_token == token_type::end_object))
+                // parse key
+                if (JSON_HEDLEY_UNLIKELY(get_token() != token_type::value_string))
                 {
-                    // parse key
-                    if (JSON_HEDLEY_UNLIKELY(last_token != token_type::value_string))
-                    {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string, "object key"), nullptr));
-                    }
-
-                    if (JSON_HEDLEY_UNLIKELY(!sax->key(m_lexer.get_string())))
-                    {
-                        return false;
-                    }
-
-                    // parse separator (:)
-                    if (JSON_HEDLEY_UNLIKELY(get_token() != token_type::name_separator))
-                    {
-                        return sax->parse_error(m_lexer.get_position(),
-                                                m_lexer.get_token_string(),
-                                                parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator, "object separator"), nullptr));
-                    }
-
-                    // parse values
-                    get_token();
-                    continue;
+                    return sax->parse_error(m_lexer.get_position(),
+                                            m_lexer.get_token_string(),
+                                            parse_error::create(101, m_lexer.get_position(), exception_message(token_type::value_string, "object key"), nullptr));
                 }
+
+                if (JSON_HEDLEY_UNLIKELY(!sax->key(m_lexer.get_string())))
+                {
+                    return false;
+                }
+
+                // parse separator (:)
+                if (JSON_HEDLEY_UNLIKELY(get_token() != token_type::name_separator))
+                {
+                    return sax->parse_error(m_lexer.get_position(),
+                                            m_lexer.get_token_string(),
+                                            parse_error::create(101, m_lexer.get_position(), exception_message(token_type::name_separator, "object separator"), nullptr));
+                }
+
+                // parse values
+                get_token();
+                continue;
             }
 
             // closing }
@@ -13444,8 +13423,6 @@ class parser
     lexer_t m_lexer;
     /// whether to throw exceptions in case of errors
     const bool allow_exceptions = true;
-    /// whether trailing commas in objects and arrays should be ignored (true) or signaled as errors (false)
-    const bool ignore_trailing_commas = false;
 };
 
 }  // namespace detail
@@ -17628,21 +17605,8 @@ class binary_writer
                enable_if_t < std::is_signed<C>::value && std::is_unsigned<char>::value > * = nullptr >
     static CharType to_char_type(std::uint8_t x) noexcept
     {
-        // The std::is_trivial trait is deprecated in C++26. The replacement is to use
-        // std::is_trivially_copyable and std::is_trivially_default_constructible.
-        // However, some older library implementations support std::is_trivial
-        // but not all the std::is_trivially_* traits.
-        // Since detecting full support across all libraries is difficult,
-        // we use std::is_trivial unless we are using a standard where it has been deprecated.
-        // For more details, see: https://github.com/nlohmann/json/pull/4775#issuecomment-2884361627
-#ifdef JSON_HAS_CPP_26
-        static_assert(std::is_trivially_copyable<CharType>::value, "CharType must be trivially copyable");
-        static_assert(std::is_trivially_default_constructible<CharType>::value, "CharType must be trivially default constructible");
-#else
-        static_assert(std::is_trivial<CharType>::value, "CharType must be trivial");
-#endif
-
         static_assert(sizeof(std::uint8_t) == sizeof(CharType), "size of CharType must be equal to std::uint8_t");
+        static_assert(std::is_trivial<CharType>::value, "CharType must be trivial");
         CharType result;
         std::memcpy(&result, &x, sizeof(x));
         return result;
@@ -20236,12 +20200,11 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
         InputAdapterType adapter,
         detail::parser_callback_t<basic_json>cb = nullptr,
         const bool allow_exceptions = true,
-        const bool ignore_comments = false,
-        const bool ignore_trailing_commas = false
+        const bool ignore_comments = false
                                  )
     {
         return ::nlohmann::detail::parser<basic_json, InputAdapterType>(std::move(adapter),
-            std::move(cb), allow_exceptions, ignore_comments, ignore_trailing_commas);
+            std::move(cb), allow_exceptions, ignore_comments);
     }
 
   private:
@@ -20666,7 +20629,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                 (t == value_t::binary && binary == nullptr)
             )
             {
-                // not initialized (e.g., due to exception in the ctor)
+                //not initialized (e.g., due to exception in the ctor)
                 return;
             }
             if (t == value_t::array || t == value_t::object)
@@ -24148,11 +24111,10 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     static basic_json parse(InputType&& i,
                             parser_callback_t cb = nullptr,
                             const bool allow_exceptions = true,
-                            const bool ignore_comments = false,
-                            const bool ignore_trailing_commas = false)
+                            const bool ignore_comments = false)
     {
         basic_json result;
-        parser(detail::input_adapter(std::forward<InputType>(i)), std::move(cb), allow_exceptions, ignore_comments, ignore_trailing_commas).parse(true, result); // cppcheck-suppress[accessMoved,accessForwarded]
+        parser(detail::input_adapter(std::forward<InputType>(i)), std::move(cb), allow_exceptions, ignore_comments).parse(true, result); // cppcheck-suppress[accessMoved,accessForwarded]
         return result;
     }
 
@@ -24164,11 +24126,10 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                             IteratorType last,
                             parser_callback_t cb = nullptr,
                             const bool allow_exceptions = true,
-                            const bool ignore_comments = false,
-                            const bool ignore_trailing_commas = false)
+                            const bool ignore_comments = false)
     {
         basic_json result;
-        parser(detail::input_adapter(std::move(first), std::move(last)), std::move(cb), allow_exceptions, ignore_comments, ignore_trailing_commas).parse(true, result); // cppcheck-suppress[accessMoved]
+        parser(detail::input_adapter(std::move(first), std::move(last)), std::move(cb), allow_exceptions, ignore_comments).parse(true, result); // cppcheck-suppress[accessMoved]
         return result;
     }
 
@@ -24177,11 +24138,10 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     static basic_json parse(detail::span_input_adapter&& i,
                             parser_callback_t cb = nullptr,
                             const bool allow_exceptions = true,
-                            const bool ignore_comments = false,
-                            const bool ignore_trailing_commas = false)
+                            const bool ignore_comments = false)
     {
         basic_json result;
-        parser(i.get(), std::move(cb), allow_exceptions, ignore_comments, ignore_trailing_commas).parse(true, result); // cppcheck-suppress[accessMoved]
+        parser(i.get(), std::move(cb), allow_exceptions, ignore_comments).parse(true, result); // cppcheck-suppress[accessMoved]
         return result;
     }
 
@@ -24189,29 +24149,26 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     /// @sa https://json.nlohmann.me/api/basic_json/accept/
     template<typename InputType>
     static bool accept(InputType&& i,
-                       const bool ignore_comments = false,
-                       const bool ignore_trailing_commas = false)
+                       const bool ignore_comments = false)
     {
-        return parser(detail::input_adapter(std::forward<InputType>(i)), nullptr, false, ignore_comments, ignore_trailing_commas).accept(true);
+        return parser(detail::input_adapter(std::forward<InputType>(i)), nullptr, false, ignore_comments).accept(true);
     }
 
     /// @brief check if the input is valid JSON
     /// @sa https://json.nlohmann.me/api/basic_json/accept/
     template<typename IteratorType>
     static bool accept(IteratorType first, IteratorType last,
-                       const bool ignore_comments = false,
-                       const bool ignore_trailing_commas = false)
+                       const bool ignore_comments = false)
     {
-        return parser(detail::input_adapter(std::move(first), std::move(last)), nullptr, false, ignore_comments, ignore_trailing_commas).accept(true);
+        return parser(detail::input_adapter(std::move(first), std::move(last)), nullptr, false, ignore_comments).accept(true);
     }
 
     JSON_HEDLEY_WARN_UNUSED_RESULT
     JSON_HEDLEY_DEPRECATED_FOR(3.8.0, accept(ptr, ptr + len))
     static bool accept(detail::span_input_adapter&& i,
-                       const bool ignore_comments = false,
-                       const bool ignore_trailing_commas = false)
+                       const bool ignore_comments = false)
     {
-        return parser(i.get(), nullptr, false, ignore_comments, ignore_trailing_commas).accept(true);
+        return parser(i.get(), nullptr, false, ignore_comments).accept(true);
     }
 
     /// @brief generate SAX events
@@ -24221,12 +24178,11 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     static bool sax_parse(InputType&& i, SAX* sax,
                           input_format_t format = input_format_t::json,
                           const bool strict = true,
-                          const bool ignore_comments = false,
-                          const bool ignore_trailing_commas = false)
+                          const bool ignore_comments = false)
     {
         auto ia = detail::input_adapter(std::forward<InputType>(i));
         return format == input_format_t::json
-               ? parser(std::move(ia), nullptr, true, ignore_comments, ignore_trailing_commas).sax_parse(sax, strict)
+               ? parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict)
                : detail::binary_reader<basic_json, decltype(ia), SAX>(std::move(ia), format).sax_parse(format, sax, strict);
     }
 
@@ -24237,12 +24193,11 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     static bool sax_parse(IteratorType first, IteratorType last, SAX* sax,
                           input_format_t format = input_format_t::json,
                           const bool strict = true,
-                          const bool ignore_comments = false,
-                          const bool ignore_trailing_commas = false)
+                          const bool ignore_comments = false)
     {
         auto ia = detail::input_adapter(std::move(first), std::move(last));
         return format == input_format_t::json
-               ? parser(std::move(ia), nullptr, true, ignore_comments, ignore_trailing_commas).sax_parse(sax, strict)
+               ? parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict)
                : detail::binary_reader<basic_json, decltype(ia), SAX>(std::move(ia), format).sax_parse(format, sax, strict);
     }
 
@@ -24257,13 +24212,12 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
     static bool sax_parse(detail::span_input_adapter&& i, SAX* sax,
                           input_format_t format = input_format_t::json,
                           const bool strict = true,
-                          const bool ignore_comments = false,
-                          const bool ignore_trailing_commas = false)
+                          const bool ignore_comments = false)
     {
         auto ia = i.get();
         return format == input_format_t::json
                // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
-               ? parser(std::move(ia), nullptr, true, ignore_comments, ignore_trailing_commas).sax_parse(sax, strict)
+               ? parser(std::move(ia), nullptr, true, ignore_comments).sax_parse(sax, strict)
                // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
                : detail::binary_reader<basic_json, decltype(ia), SAX>(std::move(ia), format).sax_parse(format, sax, strict);
     }
@@ -24318,9 +24272,8 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
             case value_t::number_integer:
             case value_t::number_unsigned:
             case value_t::number_float:
-                return "number";
             default:
-                return "invalid";
+                return "number";
         }
     }
 
@@ -25454,7 +25407,6 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
     #undef JSON_HAS_CPP_17
     #undef JSON_HAS_CPP_20
     #undef JSON_HAS_CPP_23
-    #undef JSON_HAS_CPP_26
     #undef JSON_HAS_FILESYSTEM
     #undef JSON_HAS_EXPERIMENTAL_FILESYSTEM
     #undef JSON_HAS_THREE_WAY_COMPARISON

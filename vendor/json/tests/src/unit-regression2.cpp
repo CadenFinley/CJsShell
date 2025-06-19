@@ -549,7 +549,7 @@ TEST_CASE("regression tests 2")
             {"3", {{"a", "testa_3"}, {"b", "testb_3"}}},
         };
 
-        const std::map<std::string, Data> expected
+        std::map<std::string, Data> expected
         {
             {"1", {"testa_1", "testb_1"}},
             {"2", {"testa_2", "testb_2"}},
@@ -642,7 +642,7 @@ TEST_CASE("regression tests 2")
 #if !(defined(__INTEL_COMPILER) && __cplusplus >= 202000)
         {
             const json j;
-            const NonDefaultFromJsonStruct x(j);
+            NonDefaultFromJsonStruct x(j);
             NonDefaultFromJsonStruct y;
             CHECK(x == y);
         }
@@ -920,7 +920,7 @@ TEST_CASE("regression tests 2")
     SECTION("issue #2982 - to_{binary format} does not provide a mechanism for specifying a custom allocator for the returned type")
     {
         std::vector<std::uint8_t, my_allocator<std::uint8_t>> my_vector;
-        const json j = {1, 2, 3, 4};
+        json j = {1, 2, 3, 4};
         json::to_cbor(j, my_vector);
         json k = json::from_cbor(my_vector);
         CHECK(j == k);
@@ -1019,8 +1019,8 @@ TEST_CASE("regression tests 2")
 
     SECTION("issue #3204 - ambiguous regression")
     {
-        const for_3204_bar bar_from_foo([](for_3204_foo) noexcept {}); // NOLINT(performance-unnecessary-value-param)
-        const for_3204_bar bar_from_json([](json) noexcept {}); // NOLINT(performance-unnecessary-value-param)
+        for_3204_bar bar_from_foo([](for_3204_foo) noexcept {}); // NOLINT(performance-unnecessary-value-param)
+        for_3204_bar bar_from_json([](json) noexcept {}); // NOLINT(performance-unnecessary-value-param)
 
         CHECK(bar_from_foo.constructed_from == for_3204_bar::constructed_from_foo);
         CHECK(bar_from_json.constructed_from == for_3204_bar::constructed_from_json);
@@ -1033,7 +1033,7 @@ TEST_CASE("regression tests 2")
             {"x", 1},
             {"y", 2}
         };
-        const for_3333 p = j;
+        for_3333 p = j;
 
         CHECK(p.x == 1);
         CHECK(p.y == 2);
@@ -1078,20 +1078,6 @@ TEST_CASE("regression tests 2")
         const auto t4 = j2.get<Example_4740>();
         CHECK(t4.host.has_value());
         CHECK(t4.port.has_value());
-    }
-#endif
-
-#if !defined(_MSVC_LANG)
-    // MSVC returns garbage on invalid enum values, so this test is excluded
-    // there.
-    SECTION("issue #4762 - json exception 302 with unhelpful explanation : type must be number, but is number")
-    {
-        // In #4762, the main issue was that a json object with an invalid type
-        // returned "number" as type_name(), because this was the default case.
-        // This test makes sure we now return "invalid" instead.
-        json j;
-        j.m_data.m_type = static_cast<json::value_t>(100); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
-        CHECK(j.type_name() == "invalid");
     }
 #endif
 }

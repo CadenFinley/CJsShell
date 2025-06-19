@@ -206,7 +206,6 @@ class SaxCountdown : public nlohmann::json::json_sax_t
 json parser_helper(const std::string& s);
 bool accept_helper(const std::string& s);
 void comments_helper(const std::string& s);
-void trailing_comma_helper(const std::string& s);
 
 json parser_helper(const std::string& s)
 {
@@ -225,8 +224,6 @@ json parser_helper(const std::string& s)
     CHECK(j_sax == j);
 
     comments_helper(s);
-
-    trailing_comma_helper(s);
 
     return j;
 }
@@ -262,11 +259,10 @@ bool accept_helper(const std::string& s)
     // 6. check if this approach came to the same result
     CHECK(ok_noexcept == ok_noexcept_cb);
 
-    // 7. check if comments or trailing commas are properly ignored
+    // 7. check if comments are properly ignored
     if (ok_accept)
     {
         comments_helper(s);
-        trailing_comma_helper(s);
     }
 
     // 8. return result
@@ -303,38 +299,6 @@ void comments_helper(const std::string& s)
 
         CHECK_NOTHROW(_ = json::parse(json_with_comment, nullptr, true, true));
         CHECK(json::accept(json_with_comment, true));
-    }
-}
-
-void trailing_comma_helper(const std::string& s)
-{
-    json _;
-
-    // parse/accept with default parser
-    CHECK_NOTHROW(_ = json::parse(s));
-    CHECK(json::accept(s));
-
-    // parse/accept while allowing trailing commas
-    CHECK_NOTHROW(_ = json::parse(s, nullptr, false, false, true));
-    CHECK(json::accept(s, false, true));
-
-    // note: [,] and {,} are not allowed
-    if (s.size() > 1 && (s.back() == ']' || s.back() == '}') && !_.empty())
-    {
-        std::vector<std::string> json_with_trailing_commas;
-        json_with_trailing_commas.push_back(s.substr(0, s.size() - 1) + " ," + s.back());
-        json_with_trailing_commas.push_back(s.substr(0, s.size() - 1) + "," + s.back());
-        json_with_trailing_commas.push_back(s.substr(0, s.size() - 1) + ", " + s.back());
-
-        for (const auto& json_with_trailing_comma : json_with_trailing_commas)
-        {
-            CAPTURE(json_with_trailing_comma)
-            CHECK_THROWS_AS(_ = json::parse(json_with_trailing_comma), json::parse_error);
-            CHECK(!json::accept(json_with_trailing_comma));
-
-            CHECK_NOTHROW(_ = json::parse(json_with_trailing_comma, nullptr, true, false, true));
-            CHECK(json::accept(json_with_trailing_comma, false, true));
-        }
     }
 }
 
@@ -1402,7 +1366,7 @@ TEST_CASE("parser class")
                 return event != json::parse_event_t::key;
             };
 
-            const json x = json::parse("{\"key\": false}", cb);
+            json x = json::parse("{\"key\": false}", cb);
             CHECK(x == json::object());
         }
     }
@@ -1436,14 +1400,14 @@ TEST_CASE("parser class")
 
         SECTION("filter nothing")
         {
-            const json j_object = json::parse(s_object, [](int /*unused*/, json::parse_event_t /*unused*/, const json& /*unused*/) noexcept
+            json j_object = json::parse(s_object, [](int /*unused*/, json::parse_event_t /*unused*/, const json& /*unused*/) noexcept
             {
                 return true;
             });
 
             CHECK (j_object == json({{"foo", 2}, {"bar", {{"baz", 1}}}}));
 
-            const json j_array = json::parse(s_array, [](int /*unused*/, json::parse_event_t /*unused*/, const json& /*unused*/) noexcept
+            json j_array = json::parse(s_array, [](int /*unused*/, json::parse_event_t /*unused*/, const json& /*unused*/) noexcept
             {
                 return true;
             });
@@ -1472,7 +1436,7 @@ TEST_CASE("parser class")
 
         SECTION("filter specific element")
         {
-            const json j_object = json::parse(s_object, [](int /*unused*/, json::parse_event_t event, const json & j) noexcept
+            json j_object = json::parse(s_object, [](int /*unused*/, json::parse_event_t event, const json & j) noexcept
             {
                 // filter all number(2) elements
                 return event != json::parse_event_t::value || j != json(2);
@@ -1480,7 +1444,7 @@ TEST_CASE("parser class")
 
             CHECK (j_object == json({{"bar", {{"baz", 1}}}}));
 
-            const json j_array = json::parse(s_array, [](int /*unused*/, json::parse_event_t event, const json & j) noexcept
+            json j_array = json::parse(s_array, [](int /*unused*/, json::parse_event_t event, const json & j) noexcept
             {
                 return event != json::parse_event_t::value || j != json(2);
             });
@@ -1490,7 +1454,7 @@ TEST_CASE("parser class")
 
         SECTION("filter object in array")
         {
-            const json j_filtered1 = json::parse(structured_array, [](int /*unused*/, json::parse_event_t e, const json & parsed)
+            json j_filtered1 = json::parse(structured_array, [](int /*unused*/, json::parse_event_t e, const json & parsed)
             {
                 return !(e == json::parse_event_t::object_end && parsed.contains("foo"));
             });
@@ -1499,7 +1463,7 @@ TEST_CASE("parser class")
             CHECK (j_filtered1.size() == 2);
             CHECK (j_filtered1 == json({1, {{"qux", "baz"}}}));
 
-            const json j_filtered2 = json::parse(structured_array, [](int /*unused*/, json::parse_event_t e, const json& /*parsed*/) noexcept
+            json j_filtered2 = json::parse(structured_array, [](int /*unused*/, json::parse_event_t e, const json& /*parsed*/) noexcept
             {
                 return e != json::parse_event_t::object_end;
             });
@@ -1514,7 +1478,7 @@ TEST_CASE("parser class")
             SECTION("first closing event")
             {
                 {
-                    const json j_object = json::parse(s_object, [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
+                    json j_object = json::parse(s_object, [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
                     {
                         static bool first = true;
                         if (e == json::parse_event_t::object_end && first)
@@ -1531,7 +1495,7 @@ TEST_CASE("parser class")
                 }
 
                 {
-                    const json j_array = json::parse(s_array, [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
+                    json j_array = json::parse(s_array, [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
                     {
                         static bool first = true;
                         if (e == json::parse_event_t::array_end && first)
@@ -1555,13 +1519,13 @@ TEST_CASE("parser class")
             // object and array is discarded only after the closing character
             // has been read
 
-            const json j_empty_object = json::parse("{}", [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
+            json j_empty_object = json::parse("{}", [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
             {
                 return e != json::parse_event_t::object_end;
             });
             CHECK(j_empty_object == json());
 
-            const json j_empty_array = json::parse("[]", [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
+            json j_empty_array = json::parse("[]", [](int /*unused*/, json::parse_event_t e, const json& /*unused*/) noexcept
             {
                 return e != json::parse_event_t::array_end;
             });

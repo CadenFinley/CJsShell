@@ -640,7 +640,7 @@ TEST_CASE_TEMPLATE("Serialization/deserialization of classes with 26 public/priv
 
     SECTION("alphabet")
     {
-        T obj1; // NOLINT(misc-const-correctness)
+        T obj1;
         Json const j = obj1;
         T obj2;
         j.get_to(obj2);

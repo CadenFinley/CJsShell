@@ -278,8 +278,8 @@ TEST_CASE("object inspection")
                 std::ifstream f_escaped(TEST_DATA_DIRECTORY "/json_nlohmann_tests/all_unicode_ascii.json");
                 std::ifstream f_unescaped(TEST_DATA_DIRECTORY "/json_nlohmann_tests/all_unicode.json");
 
-                const json j1 = json::parse(f_escaped);
-                const json j2 = json::parse(f_unescaped);
+                json j1 = json::parse(f_escaped);
+                json j2 = json::parse(f_unescaped);
                 CHECK(j1 == j2);
             }
 
@@ -289,10 +289,10 @@ TEST_CASE("object inspection")
                 std::ifstream f_unescaped(TEST_DATA_DIRECTORY "/json_nlohmann_tests/all_unicode.json");
 
                 json const value = json::parse(f_unescaped);
-                const std::string text = value.dump(4, ' ', true);
+                std::string text = value.dump(4, ' ', true);
 
-                const std::string expected((std::istreambuf_iterator<char>(f_escaped)),
-                                           std::istreambuf_iterator<char>());
+                std::string expected((std::istreambuf_iterator<char>(f_escaped)),
+                                     std::istreambuf_iterator<char>());
                 CHECK(text == expected);
             }
         }
@@ -333,7 +333,7 @@ TEST_CASE("object inspection")
                 })
         {
             json const j1 = json::parse(s);
-            const std::string s1 = j1.dump();
+            std::string s1 = j1.dump();
             json const j2 = json::parse(s1);
             std::string s2 = j2.dump();
             CHECK(s1 == s2);
@@ -396,63 +396,63 @@ TEST_CASE("object inspection")
         SECTION("null")
         {
             json const j = nullptr;
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("object")
         {
             json const j = {{"foo", "bar"}};
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("array")
         {
             json const j = {1, 2, 3, 4};
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("boolean")
         {
             json const j = true;
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("string")
         {
             json const j = "Hello world";
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("number (integer)")
         {
             json const j = 23;
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("number (unsigned)")
         {
             json const j = 23u;
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("number (floating-point)")
         {
             json const j = 42.23;
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
 
         SECTION("binary")
         {
             json const j = json::binary({});
-            const json::value_t t = j;
+            json::value_t t = j;
             CHECK(t == j.type());
         }
     }

@@ -1514,7 +1514,7 @@ TEST_CASE("value conversion")
 
             SECTION("std::map (array of pairs)")
             {
-                const std::map<int, int> m{{0, 1}, {1, 2}, {2, 3}};
+                std::map<int, int> m{{0, 1}, {1, 2}, {2, 3}};
                 json const j6 = m;
 
                 auto m2 = j6.get<std::map<int, int>>();
@@ -1539,7 +1539,7 @@ TEST_CASE("value conversion")
 
             SECTION("std::unordered_map (array of pairs)")
             {
-                const std::unordered_map<int, int> m{{0, 1}, {1, 2}, {2, 3}};
+                std::unordered_map<int, int> m{{0, 1}, {1, 2}, {2, 3}};
                 json const j6 = m;
 
                 auto m2 = j6.get<std::unordered_map<int, int>>();

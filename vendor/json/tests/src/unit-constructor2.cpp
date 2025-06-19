@@ -17,63 +17,63 @@ TEST_CASE("other constructors and destructor")
     {
         SECTION("object")
         {
-            const json j {{"foo", 1}, {"bar", false}};
+            json j {{"foo", 1}, {"bar", false}};
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("array")
         {
-            const json j {"foo", 1, 42.23, false};
+            json j {"foo", 1, 42.23, false};
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("null")
         {
-            const json j(nullptr);
+            json j(nullptr);
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("boolean")
         {
-            const json j(true);
+            json j(true);
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("string")
         {
-            const json j("Hello world");
+            json j("Hello world");
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("number (integer)")
         {
-            const json j(42);
+            json j(42);
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("number (unsigned)")
         {
-            const  json j(42u);
+            json j(42u);
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("number (floating-point)")
         {
-            const json j(42.23);
+            json j(42.23);
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
 
         SECTION("binary")
         {
-            const json j = json::binary({1, 2, 3});
+            json j = json::binary({1, 2, 3});
             json k(j); // NOLINT(performance-unnecessary-copy-initialization)
             CHECK(j == k);
         }
@@ -92,7 +92,7 @@ TEST_CASE("other constructors and destructor")
     {
         SECTION("object")
         {
-            const json j {{"foo", 1}, {"bar", false}};
+            json j {{"foo", 1}, {"bar", false}};
             json k;
             k = j;
             CHECK(j == k);
@@ -100,7 +100,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("array")
         {
-            const json j {"foo", 1, 42.23, false};
+            json j {"foo", 1, 42.23, false};
             json k;
             k = j;
             CHECK(j == k);
@@ -108,7 +108,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("null")
         {
-            const json j(nullptr);
+            json j(nullptr);
             json k;
             k = j;
             CHECK(j == k);
@@ -116,7 +116,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("boolean")
         {
-            const json j(true);
+            json j(true);
             json k;
             k = j;
             CHECK(j == k);
@@ -124,7 +124,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("string")
         {
-            const json j("Hello world");
+            json j("Hello world");
             json k;
             k = j;
             CHECK(j == k);
@@ -132,7 +132,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("number (integer)")
         {
-            const json j(42);
+            json j(42);
             json k;
             k = j;
             CHECK(j == k);
@@ -140,7 +140,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("number (unsigned)")
         {
-            const json j(42u);
+            json j(42u);
             json k;
             k = j;
             CHECK(j == k);
@@ -148,7 +148,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("number (floating-point)")
         {
-            const json j(42.23);
+            json j(42.23);
             json k;
             k = j;
             CHECK(j == k);
@@ -156,7 +156,7 @@ TEST_CASE("other constructors and destructor")
 
         SECTION("binary")
         {
-            const json j = json::binary({1, 2, 3});
+            json j = json::binary({1, 2, 3});
             json k;
             k = j;
             CHECK(j == k);

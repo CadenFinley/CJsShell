@@ -122,7 +122,7 @@ TEST_CASE("regression tests 1")
         SECTION("escape_doublequote")
         {
             const auto* s = R"(["\"foo\""])";
-            const json j = json::parse(s);
+            json j = json::parse(s);
             auto expected = R"(["\"foo\""])"_json;
             CHECK(j == expected);
         }
@@ -182,7 +182,7 @@ TEST_CASE("regression tests 1")
         j.push_back(t);
 
         // maybe this is not the place to test this?
-        const json j2 = u;
+        json j2 = u;
 
         auto anon_enum_value = j2.get<decltype(u)>();
         CHECK(u == anon_enum_value);
@@ -247,9 +247,9 @@ TEST_CASE("regression tests 1")
 
         auto test = j["Test"].get<std::string>();
         CHECK(test == "Test1");
-        const int number{j["Number"]};
+        int number{j["Number"]};
         CHECK(number == 100);
-        const float foo{j["Foo"]};
+        float foo{j["Foo"]};
         CHECK(static_cast<double>(foo) == Approx(42.42));
     }
 
@@ -371,7 +371,7 @@ TEST_CASE("regression tests 1")
     {
         json o = {{"name", "value"}};
 
-        const std::string s1 = o["name"];
+        std::string s1 = o["name"];
         CHECK(s1 == "value");
 
         std::string s2;
@@ -607,8 +607,8 @@ TEST_CASE("regression tests 1")
             {"object", {{"key1", 1}, {"key2", 2}}},
         };
 
-        const int at_integer{j.at("/object/key2"_json_pointer)};
-        const int val_integer = j.value("/object/key2"_json_pointer, 0);
+        int at_integer{j.at("/object/key2"_json_pointer)};
+        int val_integer = j.value("/object/key2"_json_pointer, 0);
 
         CHECK(at_integer == val_integer);
     }
@@ -1099,7 +1099,7 @@ TEST_CASE("regression tests 1")
 #if JSON_USE_IMPLICIT_CONVERSIONS
     SECTION("issue #464 - VS2017 implicit to std::string conversion fix")
     {
-        const json v = "test";
+        json v = "test";
         std::string test;
         test = v;
         CHECK(v == "test");
@@ -1109,9 +1109,9 @@ TEST_CASE("regression tests 1")
     SECTION("issue #465 - roundtrip error while parsing 1000000000000000010E5")
     {
         json const j1 = json::parse("1000000000000000010E5");
-        const std::string s1 = j1.dump();
+        std::string s1 = j1.dump();
         json const j2 = json::parse(s1);
-        const std::string s2 = j2.dump();
+        std::string s2 = j2.dump();
         CHECK(s1 == s2);
     }
 
@@ -1243,7 +1243,7 @@ TEST_CASE("regression tests 1")
         SECTION("example 1")
         {
             // create a map
-            const std::map<std::string, int> m1 {{"key", 1}};
+            std::map<std::string, int> m1 {{"key", 1}};
 
             // create and print a JSON from the map
             json const j = m1;
@@ -1258,7 +1258,7 @@ TEST_CASE("regression tests 1")
         SECTION("example 2")
         {
             // create a map
-            const std::map<std::string, std::string> m1 {{"key", "val"}};
+            std::map<std::string, std::string> m1 {{"key", "val"}};
 
             // create and print a JSON from the map
             json const j = m1;
@@ -1322,7 +1322,7 @@ TEST_CASE("regression tests 1")
 
             auto m1 = j1.get<std::map<std::string, std::string>>();
             auto m2 = j2.get<std::map<std::string, std::string>>();
-            const int i3{j3};
+            int i3{j3};
 
             CHECK( m1 == ( std::map<std::string, std::string> {{ "first",  "one" }} ));
             CHECK( m2 == ( std::map<std::string, std::string> {{ "second", "two" }} ));
@@ -1431,7 +1431,7 @@ TEST_CASE("regression tests 1")
             '1', '2', '3',
             0xFF
         };
-        const json j = json::from_cbor(v_cbor);
+        json j = json::from_cbor(v_cbor);
         CHECK(j == "abcd123");
     }
 
@@ -1477,7 +1477,7 @@ TEST_CASE("regression tests 1")
         };
 
         // parse (with callback) and serialize JSON
-        const json j_filtered = json::parse(text, cb);
+        json j_filtered = json::parse(text, cb);
 
         CHECK(j_filtered == R"({"Image":{"Animated":false,"Height":600,"IDs":[116,943,234,38793], "Title":"View from 15th Floor","Width":800}})"_json);
     }
@@ -1490,7 +1490,7 @@ TEST_CASE("regression tests 1")
     SECTION("issue #977 - Assigning between different json types")
     {
         foo_json lj = ns::foo{3};
-        const ns::foo ff(lj);
+        ns::foo ff(lj);
         CHECK(lj.is_object());
         CHECK(lj.size() == 1);
         CHECK(lj["x"] == 3);
