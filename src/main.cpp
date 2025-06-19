@@ -53,7 +53,8 @@ int main(int argc, char* argv[]) {
                 << std::endl;
   }
   for (int i = 1; i < argc; i++) {
-    if (std::string(argv[i]) == "--login" || std::string(argv[i]) == "-l" || std::string(argv[i]) == "-cjsh") {
+    if (std::string(argv[i]) == "--login" || std::string(argv[i]) == "-l" ||
+        std::string(argv[i]) == "-cjsh") {
       login_mode = true;
       if (g_debug_mode)
         std::cerr << "DEBUG: Login mode detected from command-line argument: "
