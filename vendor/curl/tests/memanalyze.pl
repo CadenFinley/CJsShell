@@ -343,7 +343,7 @@ while(<$fileh>) {
         $function = $3;
 
         if($function =~ /getaddrinfo\(\) = (\(nil\)|0x([0-9a-f]*))/) {
-            my $add = $1;
+            my $add = $2;
             if($add eq "(nil)") {
                 ;
             }
@@ -357,13 +357,12 @@ while(<$fileh>) {
             }
         }
         # fclose(0x1026c8)
-        elsif($function =~ /freeaddrinfo\((0x[0-9a-f]*)\)/) {
-            my $addr = $1;
-            if(!$addrinfo{$addr}) {
+        elsif($function =~ /freeaddrinfo\(0x([0-9a-f]*)\)/) {
+            if(!$addrinfo{$1}) {
                 print "freeaddrinfo() without getaddrinfo(): $line\n";
             }
             else {
-                $addrinfo{$addr}=0;
+                $addrinfo{$1}=0;
                 $addrinfos--;
             }
             if($trace) {
