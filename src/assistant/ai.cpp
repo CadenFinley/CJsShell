@@ -309,7 +309,6 @@ std::string Ai::get_invalid_configuration_message() const {
     return "AI functionality is currently disabled. Please enable it to use "
            "this feature.";
   }
-
   if (user_api_key.empty() && !getenv("OPENAI_API_KEY")) {
     return "API key not set. Please set the API key using the environment "
            "variable 'OPENAI_API_KEY'.";
