@@ -68,6 +68,10 @@ std::string Prompt::get_ai_prompt() {
     vars["AI_DIVIDER"] = ">";
   }
 
+  if (info.is_variable_used("AI_CONTEXT", segments_to_check)) {
+    vars["AI_CONTEXT"] = g_ai->get_save_directory();
+  }
+
   std::unordered_map<std::string, std::string> common_vars =
       info.get_variables(segments_to_check);
 

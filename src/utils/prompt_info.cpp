@@ -58,6 +58,7 @@
  * {AI_MODEL}      - Current AI model name
  * {AI_AGENT_TYPE} - AI assistant type (Chat, etc.)
  * {AI_DIVIDER}    - Divider for AI prompt (>)
+ * {AI_CONTEXT}    - Context information for AI prompt
  */
 
 PromptInfo::PromptInfo() {
