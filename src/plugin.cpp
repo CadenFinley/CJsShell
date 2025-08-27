@@ -1,6 +1,7 @@
 #include "plugin.h"
-#include "pluginapi.h"
+
 #include "main.h"  // for g_plugin
+#include "pluginapi.h"
 // Thread-local plugin context for prompt variable registration
 static thread_local std::string current_plugin_context;
 
@@ -347,7 +348,8 @@ bool Plugin::enable_plugin(const std::string& name) {
     init_func = it->second.initialize;
   }
 
-  // Initialize plugin outside of the mutex to avoid deadlock in plugin_register_prompt_variable
+  // Initialize plugin outside of the mutex to avoid deadlock in
+  // plugin_register_prompt_variable
   current_plugin_context = name;
   bool init_ok = (init_func && init_func() == PLUGIN_SUCCESS);
   current_plugin_context.clear();
@@ -363,7 +365,8 @@ bool Plugin::enable_plugin(const std::string& name) {
     std::unique_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(name);
     if (it == loaded_plugins.end()) {
-      std::cerr << "Plugin not found after initialization: " << name << std::endl;
+      std::cerr << "Plugin not found after initialization: " << name
+                << std::endl;
       return false;
     }
     it->second.enabled = true;

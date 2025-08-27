@@ -36,9 +36,8 @@ const fs::path g_cjsh_source_path =
                                    // on interactive shell
 
 const fs::path g_config_path =
-    g_user_home_path / ".config"; // config directory
-const fs::path g_cache_path =
-    g_user_home_path / ".cache";  // cache directory
+    g_user_home_path / ".config";                           // config directory
+const fs::path g_cache_path = g_user_home_path / ".cache";  // cache directory
 
 const fs::path g_cjsh_data_path =
     g_config_path / "cjsh";  // directory for all cjsh things

@@ -21,7 +21,6 @@
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
 
-
 /*
  * Exit/Return Codes:
  * 0       - Success
