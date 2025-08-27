@@ -53,7 +53,7 @@ const fs::path g_cjsh_history_path =
 
 const fs::path g_cjsh_ai_config_path =
     g_cjsh_data_path / "ai";  // where the ai config is stored
-const fs::path g_cjsh_ai_files_path =
+const fs::path g_cjsh_ai_config_file_path =
     g_cjsh_ai_config_path / "config.json";  // where the ai config is stored
 
 const fs::path g_cjsh_ai_conversations_path =
@@ -71,7 +71,7 @@ const fs::path g_cjsh_found_executables_path =
 
 std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();
-
+bool file_exists(const cjsh_filesystem::fs::path& path);
 bool should_refresh_executable_cache();
 }  // namespace cjsh_filesystem
 bool initialize_cjsh_path();

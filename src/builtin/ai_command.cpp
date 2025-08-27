@@ -207,6 +207,12 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     return 0;
   }
 
+  if (cmd == "saveconfig") {
+    g_ai->save_ai_config();
+    std::cout << "AI configuration saved." << std::endl;
+    return 0;
+  }
+
   if (cmd == "help") {
     std::cout << "AI Command Help:\n"
               << "  ai                    - Enter AI mode and show chat history\n"
@@ -226,7 +232,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
               << "  ai timeoutflag [sec]  - Show or set timeout in seconds\n"
               << "  ai help               - Show this help message\n"
               << "  ai initialinstruction [instruction] - Show or set the initial instruction\n"
-              << "  ai name [name]        - Show or set the assistant name\n";
+              << "  ai name [name]        - Show or set the assistant name\n"
+              << "  ai saveconfig         - Save the current AI configuration\n";
     return 0;
   }
 

@@ -58,6 +58,10 @@ std::vector<fs::path> read_cached_executables() {
   return executables;
 }
 
+bool file_exists(const fs::path& path) {
+  return fs::exists(path);
+}
+
 }  // namespace cjsh_filesystem
 
 #ifdef __APPLE__
@@ -160,3 +164,4 @@ bool initialize_cjsh_directories() {
     return false;
   }
 }
+

@@ -289,6 +289,113 @@ int Ai::add_files(const std::vector<std::string>& user_files) {
   return 0;
 }
 
+void Ai::load_ai_config() {
+  std::ifstream config_file(cjsh_filesystem::g_cjsh_ai_config_file_path);
+    if (config_file.is_open()) {
+      nlohmann::json config_json;
+      try {
+        config_file >> config_json;
+        if (config_json.contains("assistant_name")) {
+          assistant_name = config_json["assistant_name"].get<std::string>();
+        }
+        if (config_json.contains("initial_instruction")) {
+          set_initial_instruction(
+              config_json["initial_instruction"].get<std::string>());
+        }
+        if (config_json.contains("assistant_type")) {
+          this->assistant_type =
+              config_json["assistant_type"].get<std::string>();
+        }
+        if (config_json.contains("max_prompt_length")) {
+          max_prompt_length = config_json["max_prompt_length"].get<int>();
+        }
+        if (config_json.contains("cache_tokens")) {
+          cache_tokens = config_json["cache_tokens"].get<bool>();
+        }
+        if (config_json.contains("max_prompt_precision")) {
+          max_prompt_precision = config_json["max_prompt_precision"].get<bool>();
+        }
+        if (config_json.contains("dynamic_prompt_length")) {
+          dynamic_prompt_length =
+              config_json["dynamic_prompt_length"].get<bool>();
+        }
+        if (config_json.contains("dynamic_prompt_length_scale")) {
+          dynamic_prompt_length_scale =
+              config_json["dynamic_prompt_length_scale"].get<float>();
+        }
+        if (config_json.contains("timeout_flag_seconds")) {
+          timeout_flag_seconds =
+              config_json["timeout_flag_seconds"].get<float>();
+        }
+        if (config_json.contains("model")) {
+          current_model = config_json["model"].get<std::string>();
+        }
+        if (config_json.contains("save_directory")) {
+          set_save_directory(config_json["save_directory"].get<std::string>());
+        } else {
+          set_save_directory(cjsh_filesystem::g_cjsh_data_path);
+        }
+        if (config_json.contains("enabled")) {
+          enabled = config_json["enabled"].get<bool>();
+        } else {
+          enabled = true;
+        }
+      } catch (const std::exception& e) {
+        std::cerr << "Error parsing AI config file: " << e.what() << std::endl;
+      }
+      config_file.close();
+    } else {
+      std::cerr << "Error opening AI config file." << std::endl;
+    }
+}
+
+void Ai::save_ai_config() {
+  std::ofstream config_file(cjsh_filesystem::g_cjsh_ai_config_file_path);
+    if (config_file.is_open()) {
+      nlohmann::json config_json = {
+          {"assistant_name", assistant_name},
+          {"initial_instruction", initial_instruction},
+          {"assistant_type", assistant_type},
+          {"max_prompt_length", max_prompt_length},
+          {"cache_tokens", cache_tokens},
+          {"max_prompt_precision", max_prompt_precision},
+          {"dynamic_prompt_length", dynamic_prompt_length},
+          {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
+          {"timeout_flag_seconds", timeout_flag_seconds},
+          {"model", current_model},
+          {"save_directory", save_directory},
+          {"enabled", enabled}};
+      config_file << config_json.dump(4);
+      config_file.close();
+    } else {
+      std::cerr << "Error saving AI config file." << std::endl;
+    }
+}
+
+void Ai::create_default_config_file() {
+  std::ofstream config_file(cjsh_filesystem::g_cjsh_ai_config_file_path);
+    if (config_file.is_open()) {
+      nlohmann::json default_config = {
+          {"assistant_name", ""},
+          {"initial_instruction",
+           "You are an AI personal assistant within a users login shell."},
+          {"assistant_type", "chat"},
+          {"max_prompt_length", -1},
+          {"cache_tokens", false},
+          {"max_prompt_precision", false},
+          {"dynamic_prompt_length", false},
+          {"dynamic_prompt_length_scale", 5},
+          {"timeout_flag_seconds", 300},
+          {"model", "gpt-3.5-turbo"},
+          {"save_directory", cjsh_filesystem::g_cjsh_data_path},
+          {"enabled", true}};
+      config_file << default_config.dump(4);
+      config_file.close();
+    } else {
+      std::cerr << "Error creating default AI config file." << std::endl;
+    }
+}
+
 void Ai::initialize(const std::string& api_key, const std::string& assistant_type,
                     const std::string& initial_instruction,
                     const std::vector<std::string>& user_files) {
@@ -296,6 +403,13 @@ void Ai::initialize(const std::string& api_key, const std::string& assistant_typ
   this->assistant_type = assistant_type;
   this->initial_instruction = initial_instruction;
   this->files = user_files;
+
+  if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_ai_config_file_path)) {
+    create_default_config_file();
+    load_ai_config();
+  } else {
+    load_ai_config();
+  }
 }
 
 bool Ai::is_valid_configuration() const {
@@ -406,12 +520,10 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
   std::atomic<bool> request_cancelled(false);
   request_in_progress = true;
 
-  // Thread for monitoring cancellation request
   std::thread cancellation_thread([&loading, &request_cancelled]() {
     monitor_cancellation(loading, request_cancelled);
   });
 
-  // Thread for showing loading animation
   std::thread loading_thread([&loading]() {
     const char* loading_chars = "|/-\\";
     int i = 0;

@@ -15,6 +15,8 @@
 #include <thread>
 #include <vector>
 
+#include "cjsh_filesystem.h"
+
 using json = nlohmann::json;
 
 class Ai {
@@ -81,6 +83,7 @@ class Ai {
   static bool test_api_key(const std::string& api_key);
   void reject_changes();
   void refresh_files();
+  void save_ai_config();
 
  private:
   void initialize(const std::string& api_key, const std::string& assistant_type,
@@ -110,6 +113,9 @@ class Ai {
                                    std::atomic<bool>& request_cancelled);
   static void handle_error_response(CURL* curl, long response_code,
                                     const std::string& error_body);
+
+  void load_ai_config();
+  void create_default_config_file();
 
   std::string user_api_key;
   std::string assistant_name;

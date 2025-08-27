@@ -277,7 +277,7 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<Ai> ai = std::make_unique<Ai>(
       api_key, std::string("chat"),
       std::string(
-          "You are an AI personal assistant within a users login shell."),
+          ""),
       std::vector<std::string>{}, cjsh_filesystem::g_cjsh_data_path,
       l_ai_enabled);
   g_ai = ai.get();
