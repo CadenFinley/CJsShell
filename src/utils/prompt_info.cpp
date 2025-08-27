@@ -682,8 +682,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
           std::to_string(get_git_uncommitted_changes(repo_root));
     }
   }
-
-  // Plugin-defined prompt variables
+  
   if (g_plugin) {
     for (const auto& plugin_name : g_plugin->get_enabled_plugins()) {
       plugin_data* pd = g_plugin->get_plugin_data(plugin_name);
