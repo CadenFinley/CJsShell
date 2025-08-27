@@ -3,13 +3,25 @@
 #include <cstdlib>
 #include "pluginapi.h"
 
+plugin_string_t generate_callback(){
+  //generate random string to callback
+  const char available_chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const int string_length = 10;
+  char* random_string = (char*)std::malloc(string_length + 1);
+  for (int i = 0; i < string_length; i++) {
+    random_string[i] = available_chars[std::rand() % (sizeof(available_chars) - 1)];
+  }
+  random_string[string_length] = '\0';
+  plugin_string_t result = { random_string, string_length };
+  return result;
+}
+
 // Callback that returns the custom prompt variable value
 static plugin_string_t mytag_callback() {
-    const char* msg = "HelloFromPlugin";
-    size_t len = std::strlen(msg);
-    char* data = (char*)std::malloc(len + 1);
-    std::memcpy(data, msg, len + 1);
-    plugin_string_t result = { data, (int)len };
+    plugin_string_t generated = generate_callback();
+    char* data = (char*)std::malloc(generated.length + 1);
+    std::memcpy(data, generated.data, generated.length);
+    plugin_string_t result = { data, generated.length };
     return result;
 }
 

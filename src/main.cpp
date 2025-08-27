@@ -19,7 +19,8 @@
 
 // to do
 //  spec out shell script interpreter
-//  have plugins be able to provide prompt info headers
+//  local session history files, that combine into main one upon process close
+
 
 /*
  * Exit/Return Codes:
@@ -33,6 +34,7 @@
  * 128+n   - Fatal error signal "n" (e.g., 130 = 128 + SIGINT(2) = Control-C)
  * 130     - Script terminated by Control-C (SIGINT)
  * 137     - Process killed (SIGKILL)
+ * 139     - Process terminated (SIGQUIT)
  * 143     - Process terminated (SIGTERM)
  * 255     - Exit status out of range
  */

@@ -36,8 +36,9 @@ const fs::path g_cjsh_source_path =
                                    // on interactive shell
 
 const fs::path g_config_path =
-    g_user_home_path / ".config";                           // config directory
-const fs::path g_cache_path = g_user_home_path / ".cache";  // cache directory
+    g_user_home_path / ".config"; // config directory
+const fs::path g_cache_path =
+    g_user_home_path / ".cache";  // cache directory
 
 const fs::path g_cjsh_data_path =
     g_config_path / "cjsh";  // directory for all cjsh things
@@ -49,7 +50,7 @@ const fs::path g_cjsh_plugin_path =
 const fs::path g_cjsh_theme_path =
     g_cjsh_data_path / "themes";  // where all themes are stored
 const fs::path g_cjsh_history_path =
-    g_cjsh_data_path / "history.txt";  // where the history is stored
+    g_cjsh_cache_path / "history.txt";  // where the history is stored
 
 const fs::path g_cjsh_update_cache_path =
     g_cjsh_cache_path /
