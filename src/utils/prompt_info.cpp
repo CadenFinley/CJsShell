@@ -58,7 +58,8 @@
  * {AI_MODEL}      - Current AI model name
  * {AI_AGENT_TYPE} - AI assistant type (Chat, etc.)
  * {AI_DIVIDER}    - Divider for AI prompt (>)
- * {AI_CONTEXT}    - Context information for AI prompt
+ * {AI_CONTEXT}    - Current working directory path
+ * {AI_CONTEXT_COMPARISON} - Check mark for when the context is local and equal to current directory, ✔ and ✖ for when it is not
  */
 
 PromptInfo::PromptInfo() {
@@ -198,7 +199,7 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
         cached_status_symbols = "✓";
         cached_is_clean_repo = true;
       } else {
-        cached_status_symbols = "*";
+        cached_status_symbols = "✖";
         cached_is_clean_repo = false;
       }
       last_git_status_check = std::chrono::steady_clock::now();
