@@ -19,6 +19,7 @@
 
 // to do
 //  spec out shell script interpreter
+//  have plugins be able to provide prompt info headers
 
 /*
  * Exit/Return Codes:
