@@ -73,7 +73,11 @@ std::string Prompt::get_ai_prompt() {
   }
 
   if (info.is_variable_used("AI_CONTEXT_COMPARISON", segments_to_check)) {
-    vars["AI_CONTEXT_COMPARISON"] = (std::filesystem::current_path().string() + "/" == g_ai->get_save_directory()) ? "✔" : "✖";
+    vars["AI_CONTEXT_COMPARISON"] =
+        (std::filesystem::current_path().string() + "/" ==
+         g_ai->get_save_directory())
+            ? "✔"
+            : "✖";
   }
 
   std::unordered_map<std::string, std::string> common_vars =

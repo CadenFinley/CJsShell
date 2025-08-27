@@ -1,0 +1,182 @@
+{
+  "terminal_title": "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME} ",
+  "ps1_segments": [
+    {
+      "tag": "userseg",
+      "content": " {USERNAME} ",
+      "bg_color": "#005F87",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#005F87",
+      "separator_bg": "#0000AA",
+      "forward_separator": "\ue0b6",
+      "forward_separator_fg": "#005F87",
+      "forward_separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "transitionseg1",
+      "content": "\uE0B0",
+      "bg_color": "#5555FF",
+      "fg_color": "#0000AA",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": "",
+      "align": "left"
+    },
+    {
+      "tag": "transitionseg2",
+      "content": "\uE0B0",
+      "bg_color": "#0087AF",
+      "fg_color": "#5555FF",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": "",
+      "align": "left"
+    },
+    {
+      "tag": "hostseg",
+      "content": " {HOSTNAME} ",
+      "bg_color": "#0087AF",
+      "fg_color": "PL_HOST_FG",
+      "separator": "\uE0B0",
+      "separator_fg": "#0087AF",
+      "separator_bg": "#0000AA",
+      "align": "left"
+    },
+    {
+      "tag": "transitionseg3",
+      "content": "\uE0B0",
+      "bg_color": "#5555FF",
+      "fg_color": "#0000AA",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": "",
+      "align": "left"
+    },
+    {
+      "tag": "transitionseg4",
+      "content": "\uE0B0",
+      "bg_color": "#00AFAF",
+      "fg_color": "#5555FF",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": "",
+      "align": "left"
+    },
+    {
+      "tag": "dirseg",
+      "content": " 📁 {PATH} ",
+      "bg_color": "#00AFAF",
+      "fg_color": "#FFFFFF",
+      "align": "left"
+    },
+    {
+      "tag": "statusseg",
+      "content": " [ {STATUS} ] ",
+      "bg_color": "#00AFAF",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#00AFAF",
+      "separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "timeseg",
+      "content": " {TIME12} ",
+      "bg_color": "#5F5FAF",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B4",
+      "separator_fg": "#5F5FAF",
+      "separator_bg": "RESET",
+      "align": "right",
+      "forward_separator": "\ue0b2",
+      "forward_separator_fg": "#5F5FAF",
+      "forward_separator_bg": "RESET"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "userseg",
+      "content": " {USERNAME} ",
+      "bg_color": "#005F87",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#005F87",
+      "separator_bg": "#00AFAF",
+      "forward_separator": "\ue0b6",
+      "forward_separator_fg": "#005F87",
+      "forward_separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "dirseg",
+      "content": " 📁 {LOCAL_PATH} ",
+      "bg_color": "#00AFAF",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#00AFAF",
+      "separator_bg": "#5FAF00",
+      "align": "left"
+    },
+    {
+      "tag": "gitseg",
+      "content": " {GIT_BRANCH} : {GIT_STATUS} ",
+      "bg_color": "#5FAF00",
+      "fg_color": "#FFFFFF",
+      "align": "left"
+    },
+    {
+      "tag": "statusseg",
+      "content": " [ {STATUS} ] ",
+      "bg_color": "#5FAF00",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#5FAF00",
+      "separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "timeseg",
+      "content": " {TIME12} ",
+      "bg_color": "#5F5FAF",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B4",
+      "separator_fg": "#5F5FAF",
+      "separator_bg": "RESET",
+      "align": "right",
+      "forward_separator": "\ue0b2",
+      "forward_separator_fg": "#5F5FAF",
+      "forward_separator_bg": "RESET"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "ai_seg",
+      "content": " 📁 {DIRECTORY} {AI_CONTEXT_COMPARISON} | {AI_MODEL}/{AI_AGENT_TYPE} | {TIME12} ",
+      "bg_color": "#AF005F",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#AF005F",
+      "separator_bg": "RESET",
+      "forward_separator": "\uE0B2",
+      "forward_separator_fg": "#AF005F",
+      "forward_separator_bg": "RESET",
+      "align": "center"
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "promptseg",
+      "content": " \u2192 ",
+      "bg_color": "RESET",
+      "fg_color": "#87D700",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ],
+  "fill_char": "—",
+  "fill_fg_color": "#555555",
+  "fill_bg_color": "RESET"
+}
