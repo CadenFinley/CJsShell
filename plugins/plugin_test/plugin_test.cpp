@@ -19,7 +19,7 @@ extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
         (char*)"plugin_test",           // name
         (char*)"0.1.0",                // version
         (char*)"Test prompt variable plugin", // description
-        (char*)"CJsShell",             // author
+        (char*)"caden finley",             // author
         PLUGIN_INTERFACE_VERSION        // interface version
     };
     return &info;
