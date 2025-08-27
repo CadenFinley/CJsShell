@@ -19,7 +19,6 @@
 
 // to do
 //  spec out shell script interpreter
-//  remove the ability for the user to upload custom color files, just have the themes use the color codes in them
 
 /*
  * Exit/Return Codes:
