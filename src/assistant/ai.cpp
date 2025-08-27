@@ -43,6 +43,12 @@ void Ai::set_initial_instruction(const std::string& instruction) {
 
 std::string Ai::get_initial_instruction() const { return initial_instruction; }
 
+void Ai::set_assistant_name(const std::string& name) {
+  assistant_name = name;
+}
+
+std::string Ai::get_assistant_name() { return assistant_name; }
+
 void Ai::set_assistant_type(const std::string& assistant_type) {
   this->assistant_type = assistant_type;
 }
@@ -325,8 +331,8 @@ std::string Ai::get_invalid_configuration_message() const {
 std::string Ai::build_prompt(const std::string& message) {
   std::stringstream prompt;
   process_file_contents();
+  prompt << initial_instruction;
   if (assistant_type != "code-interpreter") {
-    prompt << initial_instruction;
     if (max_prompt_length != -1) {
       int prompt_length =
           dynamic_prompt_length
@@ -348,8 +354,8 @@ std::string Ai::build_prompt(const std::string& message) {
   } else {
     if (assistant_type == "code-interpreter") {
       prompt << message
-             << "Please only return code in your response if edits were made "
-                "and only make edits that the I request.  Please use markdown "
+             << "Please only return code in your response if edits were made. "
+                "Please only make the edits that I request.  Please use markdown "
                 "syntax in your response for the code. Include only the exact "
                 "file name and only the file name in the line above. ";
     } else {

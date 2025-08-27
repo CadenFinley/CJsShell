@@ -32,6 +32,8 @@ class Ai {
 
   void set_api_key(const std::string& api_key);
   std::string get_api_key() const;
+  void set_assistant_name(const std::string& name);
+  std::string get_assistant_name();
   void set_initial_instruction(const std::string& instruction);
   std::string get_initial_instruction() const;
   void set_assistant_type(const std::string& assistant_type);
@@ -110,6 +112,7 @@ class Ai {
                                     const std::string& error_body);
 
   std::string user_api_key;
+  std::string assistant_name;
   std::string initial_instruction;
   std::string assistant_type;
   std::vector<std::string> files;

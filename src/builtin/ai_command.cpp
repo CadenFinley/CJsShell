@@ -138,6 +138,22 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     return 1;
   }
 
+  if (cmd == "initialinstruction") {
+    if (args.size() <= command_index + 1) {
+      std::cout << "The current initial instruction is:\n"
+                << g_ai->get_initial_instruction() << std::endl;
+      return 0;
+    }
+    std::string instruction = args[command_index + 1];
+    for (unsigned int i = command_index + 2; i < args.size(); i++) {
+      instruction += " " + args[i];
+    }
+    g_ai->set_initial_instruction(instruction);
+    std::cout << "Initial instruction set to:\n"
+              << g_ai->get_initial_instruction() << std::endl;
+    return 0;
+  }
+
   if (cmd == "model") {
     if (args.size() <= command_index + 1) {
       std::cout << "The current model is " << g_ai->get_model() << std::endl;
@@ -173,6 +189,24 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     return 0;
   }
 
+  if (cmd =="name") {
+    if (args.size() <= command_index + 1) {
+      if (g_ai->get_assistant_name().length() > 0) {
+        std::cout << "The current assistant name is " << g_ai->get_assistant_name() << std::endl;
+      } else {
+        std::cout << "No assistant name is set." << std::endl;
+      }
+      return 0;
+    }
+    std::string name = args[command_index + 1];
+    for (unsigned int i = command_index + 2; i < args.size(); i++) {
+      name += " " + args[i];
+    }
+    g_ai->set_assistant_name(name);
+    std::cout << "Assistant name set to " << name << std::endl;
+    return 0;
+  }
+
   if (cmd == "help") {
     std::cout << "AI Command Help:\n"
               << "  ai                    - Enter AI mode and show chat history\n"
@@ -190,7 +224,9 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
               << "  ai model [name]       - Show or set AI model\n"
               << "  ai rejectchanges      - Reject changes from AI\n"
               << "  ai timeoutflag [sec]  - Show or set timeout in seconds\n"
-              << "  ai help               - Show this help message\n";
+              << "  ai help               - Show this help message\n"
+              << "  ai initialinstruction [instruction] - Show or set the initial instruction\n"
+              << "  ai name [name]        - Show or set the assistant name\n";
     return 0;
   }
 
@@ -379,6 +415,10 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 int do_ai_request(const std::string& prompt) {
   try {
     std::string response = g_ai->chat_gpt(prompt, true);
+    if (g_ai->get_assistant_name().length() > 0) {
+      std::cout << g_ai->get_assistant_name() << ": " << response << std::endl;
+      return 0;
+    }
     std::cout << g_ai->get_model() << ": " << response << std::endl;
     return 0;
   } catch (const std::exception& e) {
