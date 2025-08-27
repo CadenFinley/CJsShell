@@ -1,4 +1,21 @@
 #include "plugin.h"
+#include "pluginapi.h"
+#include "main.h"  // for g_plugin
+// Thread-local plugin context for prompt variable registration
+static thread_local std::string current_plugin_context;
+
+extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(
+    const char* name, plugin_get_prompt_variable_func func) {
+  if (current_plugin_context.empty() || !g_plugin) {
+    return PLUGIN_ERROR_GENERAL;
+  }
+  plugin_data* pd = g_plugin->get_plugin_data(current_plugin_context);
+  if (!pd) {
+    return PLUGIN_ERROR_GENERAL;
+  }
+  pd->prompt_variables[std::string(name)] = func;
+  return PLUGIN_SUCCESS;
+}
 
 #include <sys/utsname.h>
 
@@ -313,44 +330,72 @@ bool Plugin::enable_plugin(const std::string& name) {
     return false;
   }
 
-  std::unique_lock plugins_lock(plugins_mutex);
-  auto it = loaded_plugins.find(name);
-  if (it != loaded_plugins.end() && it->second.enabled) {
-    std::cout << "Plugin already enabled: " << name << std::endl;
-    return true;
-  }
-  if (it != loaded_plugins.end() && !it->second.enabled) {
-    if (it->second.initialize() == PLUGIN_SUCCESS) {
-      it->second.enabled = true;
-      std::cout << "Enabled plugin: " << name << std::endl;
-
-      int count = 0;
-      char** events = nullptr;
-      if (it->second.get_subscribed_events) {
-        events = it->second.get_subscribed_events(&count);
-      }
-      plugins_lock.unlock();
-
-      trigger_subscribed_global_event("plugin_enabled", name);
-
-      if (events && count > 0) {
-        std::unique_lock events_lock(events_mutex);
-        for (int i = 0; i < count; i++) {
-          subscribed_events[events[i]].push_back(name);
-        }
-        if (it->second.free_memory) {
-          for (int i = 0; i < count; i++) {
-            it->second.free_memory(events[i]);
-          }
-          it->second.free_memory(events);
-        }
-      }
+  // First, locate the plugin and check if already enabled
+  plugin_initialize_func init_func = nullptr;
+  {
+    std::unique_lock plugins_lock(plugins_mutex);
+    auto it = loaded_plugins.find(name);
+    if (it != loaded_plugins.end() && it->second.enabled) {
+      std::cout << "Plugin already enabled: " << name << std::endl;
       return true;
-    } else {
-      std::cerr << "Failed to initialize plugin: " << name << std::endl;
+    }
+    if (it == loaded_plugins.end()) {
+      std::cerr << "Plugin not found: " << name << std::endl;
+      return false;
+    }
+    // Save the initialize callback and release lock before calling it
+    init_func = it->second.initialize;
+  }
+
+  // Initialize plugin outside of the mutex to avoid deadlock in plugin_register_prompt_variable
+  current_plugin_context = name;
+  bool init_ok = (init_func && init_func() == PLUGIN_SUCCESS);
+  current_plugin_context.clear();
+  if (!init_ok) {
+    std::cerr << "Failed to initialize plugin: " << name << std::endl;
+    return false;
+  }
+
+  // After successful init, enable plugin and collect subscribed events
+  int count = 0;
+  char** events = nullptr;
+  {
+    std::unique_lock plugins_lock(plugins_mutex);
+    auto it = loaded_plugins.find(name);
+    if (it == loaded_plugins.end()) {
+      std::cerr << "Plugin not found after initialization: " << name << std::endl;
+      return false;
+    }
+    it->second.enabled = true;
+    std::cout << "Enabled plugin: " << name << std::endl;
+    if (it->second.get_subscribed_events) {
+      events = it->second.get_subscribed_events(&count);
     }
   }
-  return false;
+
+  // Trigger global plugin enabled event
+  trigger_subscribed_global_event("plugin_enabled", name);
+
+  // Register subscriptions for plugin events
+  if (events && count > 0) {
+    std::unique_lock events_lock(events_mutex);
+    for (int i = 0; i < count; i++) {
+      subscribed_events[events[i]].push_back(name);
+    }
+  }
+
+  // Free memory allocated by plugin for events list
+  if (events && count > 0) {
+    std::unique_lock plugins_lock(plugins_mutex);
+    auto it = loaded_plugins.find(name);
+    if (it != loaded_plugins.end() && it->second.free_memory) {
+      for (int i = 0; i < count; i++) {
+        it->second.free_memory(events[i]);
+      }
+      it->second.free_memory(events);
+    }
+  }
+  return true;
 }
 
 bool Plugin::disable_plugin(const std::string& name) {
@@ -560,7 +605,10 @@ void Plugin::trigger_subscribed_global_event(const std::string& event,
     auto plugin_it = loaded_plugins.find(plugin_name);
     if (plugin_it != loaded_plugins.end() && plugin_it->second.enabled) {
       plugins_lock.unlock();
+      // Set context for plugin event handling
+      current_plugin_context = plugin_name;
       plugin_it->second.handle_command(&args);
+      current_plugin_context.clear();
     }
   }
 

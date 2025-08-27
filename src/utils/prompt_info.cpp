@@ -683,6 +683,31 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
   }
 
+  // Plugin-defined prompt variables
+  if (g_plugin) {
+    for (const auto& plugin_name : g_plugin->get_enabled_plugins()) {
+      plugin_data* pd = g_plugin->get_plugin_data(plugin_name);
+      if (!pd) continue;
+      for (const auto& kv : pd->prompt_variables) {
+        const std::string& tag = kv.first;
+        auto func = kv.second;
+        if (vars.find(tag) == vars.end() &&
+            is_variable_used(tag, segments)) {
+          plugin_string_t res = func();
+          std::string value;
+          if (res.length > 0)
+            value = std::string(res.data, res.length);
+          else if (res.data)
+            value = std::string(res.data);
+          else
+            value = "";
+          if (pd->free_memory && res.data)
+            pd->free_memory(res.data);
+          vars[tag] = value;
+        }
+      }
+    }
+  }
   return vars;
 }
 

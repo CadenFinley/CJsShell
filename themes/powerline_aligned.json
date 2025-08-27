@@ -38,7 +38,7 @@
       "tag": "hostseg",
       "content": " {HOSTNAME} ",
       "bg_color": "#0087AF",
-      "fg_color": "PL_HOST_FG",
+      "fg_color": "#FFFFFF",
       "separator": "\uE0B0",
       "separator_fg": "#0087AF",
       "separator_bg": "#0000AA",

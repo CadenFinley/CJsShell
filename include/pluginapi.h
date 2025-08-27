@@ -220,6 +220,22 @@ char* plugin_get_plugin_directory(const char* plugin_name);
  * @param str String to free
  */
 void plugin_free_string(char* str);
+/**
+ * Function pointer type for prompt variable callbacks.
+ * Should return a plugin_string_t containing the variable's value.
+ */
+typedef plugin_string_t (*plugin_get_prompt_variable_func)();
+
+/**
+ * Register a new prompt variable provider with the shell.
+ * Plugins should call this during initialization or when enabled.
+ *
+ * @param name Name of the variable/tag (without braces).
+ * @param func Callback function returning the variable's value.
+ * @return PLUGIN_SUCCESS on success, error code otherwise.
+ */
+plugin_error_t plugin_register_prompt_variable(
+    const char* name, plugin_get_prompt_variable_func func);
 
 /**
  * Macro for defining exported functions

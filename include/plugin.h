@@ -21,6 +21,9 @@ struct plugin_data {
   plugin_info_t* info;
   bool enabled;
   std::map<std::string, std::string> settings;
+  // Registered prompt variables provided by this plugin
+  std::unordered_map<std::string, plugin_get_prompt_variable_func>
+      prompt_variables;
 
   plugin_get_info_func get_info;
   plugin_initialize_func initialize;
