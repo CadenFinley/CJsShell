@@ -145,9 +145,6 @@ bool initialize_cjsh_directories() {
     if (!fs::exists(cjsh_filesystem::g_cjsh_theme_path)) {
       fs::create_directories(cjsh_filesystem::g_cjsh_theme_path);
     }
-    if (!fs::exists(cjsh_filesystem::g_cjsh_colors_path)) {
-      fs::create_directories(cjsh_filesystem::g_cjsh_colors_path);
-    }
     return true;
   } catch (const cjsh_filesystem::fs::filesystem_error& e) {
     std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;

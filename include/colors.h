@@ -178,13 +178,5 @@ const std::string BG_BRIGHT_MAGENTA = "\033[105m";
 const std::string BG_BRIGHT_CYAN = "\033[106m";
 const std::string BG_BRIGHT_WHITE = "\033[107m";
 }  // namespace ansi
-bool load_custom_colors(const std::string& filename);
-bool load_all_custom_colors();
 RGB parse_color_value(const std::string& value);
-bool save_custom_color(const std::string& name, const RGB& color,
-                       const std::string& filename = "user_colors.txt");
-std::unordered_map<std::string, RGB> get_custom_colors();
-bool export_predefined_colors_to_file(
-    const std::string& filename = "default_colors.txt");
-bool ensure_default_colors_file_exists();
 }  // namespace colors

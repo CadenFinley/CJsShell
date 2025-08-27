@@ -48,8 +48,6 @@ const fs::path g_cjsh_plugin_path =
     g_cjsh_data_path / "plugins";  // where all plugins are stored
 const fs::path g_cjsh_theme_path =
     g_cjsh_data_path / "themes";  // where all themes are stored
-const fs::path g_cjsh_colors_path =
-    g_cjsh_data_path / "colors";  // where all colors are stored
 const fs::path g_cjsh_history_path =
     g_cjsh_data_path / "history.txt";  // where the history is stored
 
