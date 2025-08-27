@@ -163,18 +163,18 @@ void display_changelog(const std::string& path) {
 }
 
 void startup_update_process() {
-  g_first_boot = !std::filesystem::exists(cjsh_filesystem::g_cjsh_data_path /
+  g_first_boot = !std::filesystem::exists(cjsh_filesystem::g_cjsh_cache_path /
                                           ".first_boot_complete");
   if (g_first_boot) {
     std::cout << "\n" << get_colorized_splash() << "\nWelcome to CJ's Shell!\n";
     mark_first_boot_complete();
     g_title_line = false;
   }
-  auto cl = (cjsh_filesystem::g_cjsh_data_path / "CHANGELOG.txt").string();
+  auto cl = (cjsh_filesystem::g_cjsh_cache_path / "CHANGELOG.txt").string();
   if (std::filesystem::exists(cl)) {
     display_changelog(cl);
     std::filesystem::rename(
-        cl, cjsh_filesystem::g_cjsh_data_path / "latest_changelog.txt");
+        cl, cjsh_filesystem::g_cjsh_cache_path / "latest_changelog.txt");
     g_last_updated = get_current_time_string();
   } else if (g_check_updates) {
     bool upd = false;
@@ -201,13 +201,13 @@ void startup_update_process() {
 
 bool is_first_boot() {
   std::filesystem::path first_boot_flag =
-      cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
+      cjsh_filesystem::g_cjsh_cache_path / ".first_boot_complete";
   return !std::filesystem::exists(first_boot_flag);
 }
 
 void mark_first_boot_complete() {
   std::filesystem::path first_boot_flag =
-      cjsh_filesystem::g_cjsh_data_path / ".first_boot_complete";
+      cjsh_filesystem::g_cjsh_cache_path / ".first_boot_complete";
   std::ofstream flag_file(first_boot_flag);
   flag_file.close();
 }
