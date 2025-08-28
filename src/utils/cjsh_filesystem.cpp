@@ -58,9 +58,7 @@ std::vector<fs::path> read_cached_executables() {
   return executables;
 }
 
-bool file_exists(const fs::path& path) {
-  return fs::exists(path);
-}
+bool file_exists(const fs::path& path) { return fs::exists(path); }
 
 }  // namespace cjsh_filesystem
 
@@ -154,14 +152,12 @@ bool initialize_cjsh_directories() {
       fs::create_directories(cjsh_filesystem::g_cjsh_ai_config_path);
     }
     if (!fs::exists(cjsh_filesystem::g_cjsh_ai_conversations_path)) {
-      fs::create_directories(
-        cjsh_filesystem::g_cjsh_ai_conversations_path);
+      fs::create_directories(cjsh_filesystem::g_cjsh_ai_conversations_path);
     }
-    
+
     return true;
   } catch (const cjsh_filesystem::fs::filesystem_error& e) {
     std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;
     return false;
   }
 }
-

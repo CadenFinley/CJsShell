@@ -7,28 +7,39 @@
 #include "main.h"
 
 std::string create_system_prompt() {
-  return " You are an AI assistant for CJ's Shell (cjsh), a Unix-like shell with special features. "
-         "Help users troubleshoot and fix issues with their commands or shell usage. "
+  return " You are an AI assistant for CJ's Shell (cjsh), a Unix-like shell "
+         "with special features. "
+         "Help users troubleshoot and fix issues with their commands or shell "
+         "usage. "
          "\n\nABOUT CJ'S SHELL:"
-         "\n- CJ's Shell is a custom shell with built-in AI capabilities, theming, plugins, and job control"
-         "\n- It supports standard Unix commands and shell features like pipes, redirection, and background jobs"
-         "\n- Configuration files: ~/.cjprofile (login mode), ~/.cjshrc (interactive mode)"
-         "\n- Main directories: ~/.config/cjsh/, with subdirectories for plugins, themes, and colors"
-         
+         "\n- CJ's Shell is a custom shell with built-in AI capabilities, "
+         "theming, plugins, and job control"
+         "\n- It supports standard Unix commands and shell features like "
+         "pipes, redirection, and background jobs"
+         "\n- Configuration files: ~/.cjprofile (login mode), ~/.cjshrc "
+         "(interactive mode)"
+         "\n- Main directories: ~/.config/cjsh/, with subdirectories for "
+         "plugins, themes, and colors"
+
          "\n\nKEY FEATURES:"
-         "\n1. AI Integration - Commands: ai (chat mode), aihelp (troubleshooting)"
-         "\n2. Plugin System - Managed via 'plugin' command (enable, disable, settings)"
+         "\n1. AI Integration - Commands: ai (chat mode), aihelp "
+         "(troubleshooting)"
+         "\n2. Plugin System - Managed via 'plugin' command (enable, disable, "
+         "settings)"
          "\n3. Theming - Visual customization via 'theme' command"
-         "\n4. Job Control - Standard fg, bg, jobs commands with process group management"
+         "\n4. Job Control - Standard fg, bg, jobs commands with process group "
+         "management"
          "\n5. Environment - Uses STATUS variable for last command exit code"
-         
+
          "\n\nCOMMON ISSUES:"
          "\n- Path issues: Check PATH variable using 'export' without arguments"
          "\n- Permission errors: Check file permissions with 'ls -la'"
          "\n- Command not found: May need to install package or check typos"
-         "\n- Plugin errors: Try 'plugin disable NAME' to see if a plugin is causing issues"
-         "\n- AI features unavailable: Check API key configuration with 'ai apikey'"
-         
+         "\n- Plugin errors: Try 'plugin disable NAME' to see if a plugin is "
+         "causing issues"
+         "\n- AI features unavailable: Check API key configuration with 'ai "
+         "apikey'"
+
          "\n\nWhen responding:"
          "\n1. Be concise and clear with your explanations"
          "\n2. Provide commands the user can run to fix their issues"
@@ -41,12 +52,12 @@ int aihelp_command(const std::vector<std::string>& args) {
     std::cerr << "Please set your OpenAI API key first." << std::endl;
     return 1;
   }
-  
+
   bool force_mode = false;
   std::string custom_prompt;
   std::string custom_model = g_ai->get_model();
   std::vector<std::string> remaining_args;
-  
+
   for (size_t i = 1; i < args.size(); ++i) {
     if (args[i] == "-f") {
       force_mode = true;
@@ -58,11 +69,12 @@ int aihelp_command(const std::vector<std::string>& args) {
       remaining_args.push_back(args[i]);
     }
   }
-  
+
   if (!force_mode) {
     const char* status_env = getenv("STATUS");
     if (!status_env) {
-      std::cerr << "The last executed command status is unavailable" << std::endl;
+      std::cerr << "The last executed command status is unavailable"
+                << std::endl;
       return 0;
     }
     int status = std::atoi(status_env);
@@ -93,7 +105,9 @@ int aihelp_command(const std::vector<std::string>& args) {
     std::cout << "Sending to AI: " << message << std::endl;
     std::cout << "Using model: " << custom_model << std::endl;
   }
-  
-  std::cout << g_ai->force_direct_chat_gpt(message + create_system_prompt(), false) << std::endl;
+
+  std::cout << g_ai->force_direct_chat_gpt(message + create_system_prompt(),
+                                           false)
+            << std::endl;
   return 0;
 }

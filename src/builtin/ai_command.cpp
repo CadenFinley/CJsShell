@@ -31,7 +31,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (args.size() <= command_index) {
     std::cout << "To invoke regular commands prefix all commands with ':'"
-               << std::endl;
+              << std::endl;
     built_ins->get_shell()->set_menu_active(false);
     if (!g_ai->get_chat_cache().empty()) {
       std::cout << "Chat history:" << std::endl;
@@ -65,10 +65,13 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (cmd == "apikey") {
-    std::string api_key = getenv("OPENAI_API_KEY") ? getenv("OPENAI_API_KEY") : "";
-    if(api_key.empty()) {
+    std::string api_key =
+        getenv("OPENAI_API_KEY") ? getenv("OPENAI_API_KEY") : "";
+    if (api_key.empty()) {
       std::cout << "No OpenAI API key is set." << std::endl;
-      std::cout << "To set your OpenAI API key, set the OPENAI_API_KEY environment variable." << std::endl;
+      std::cout << "To set your OpenAI API key, set the OPENAI_API_KEY "
+                   "environment variable."
+                << std::endl;
       return 1;
     } else {
       std::cout << "The current OpenAI API key is set." << std::endl;
@@ -100,8 +103,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "mode") {
     if (args.size() <= command_index + 1) {
-      std::cout << "The current assistant mode is " << g_ai->get_assistant_type()
-                << std::endl;
+      std::cout << "The current assistant mode is "
+                << g_ai->get_assistant_type() << std::endl;
       return 0;
     }
     g_ai->set_assistant_type(args[command_index + 1]);
@@ -189,10 +192,11 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     return 0;
   }
 
-  if (cmd =="name") {
+  if (cmd == "name") {
     if (args.size() <= command_index + 1) {
       if (g_ai->get_assistant_name().length() > 0) {
-        std::cout << "The current assistant name is " << g_ai->get_assistant_name() << std::endl;
+        std::cout << "The current assistant name is "
+                  << g_ai->get_assistant_name() << std::endl;
       } else {
         std::cout << "No assistant name is set." << std::endl;
       }
@@ -215,7 +219,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "voice") {
     if (args.size() <= command_index + 1) {
-      std::cout << "The current voice is " << g_ai->get_voice_dictation_voice() << std::endl;
+      std::cout << "The current voice is " << g_ai->get_voice_dictation_voice()
+                << std::endl;
       return 0;
     }
     g_ai->set_voice_dictation_voice(args[command_index + 1]);
@@ -226,7 +231,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   if (cmd == "voicedictation") {
     if (args.size() <= command_index + 1) {
       std::cout << "Voice dictation is currently "
-                << (g_ai->get_voice_dictation_enabled() ? "enabled" : "disabled")
+                << (g_ai->get_voice_dictation_enabled() ? "enabled"
+                                                        : "disabled")
                 << std::endl;
       return 0;
     }
@@ -261,29 +267,33 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (cmd == "help") {
-    std::cout << "AI Command Help:\n"
-              << "  ai                    - Enter AI mode and show chat history\n"
-              << "  ai log                - Save the last chat to a file\n"
-              << "  ai apikey             - Show API key status\n"
-              << "  ai chat <message>     - Send a chat message\n"
-              << "  ai chat history       - Show chat history\n"
-              << "  ai chat history clear - Clear chat history\n"
-              << "  ai chat help          - Show chat help\n"
-              << "  ai get <key>          - Get a specific response data\n"
-              << "  ai dump               - Dump all response data and last prompt\n"
-              << "  ai mode [type]        - Get or set the assistant mode\n"
-              << "  ai file               - Manage files in AI context\n"
-              << "  ai directory          - Show or set AI save directory\n"
-              << "  ai model [name]       - Show or set AI model\n"
-              << "  ai rejectchanges      - Reject changes from AI\n"
-              << "  ai timeoutflag [sec]  - Show or set timeout in seconds\n"
-              << "  ai help               - Show this help message\n"
-              << "  ai initialinstruction [instruction] - Show or set the initial instruction\n"
-              << "  ai name [name]        - Show or set the assistant name\n"
-              << "  ai saveconfig         - Save the current AI configuration\n"
-              << "  ai voice [voice]      - Show or set the voice for dictation\n"
-              << "  ai voicedictation [enable|disable] - Enable or disable voice dictation\n"
-              << "  ai voicedictationinstructions [instructions] - Show or set voice dictation instructions\n";
+    std::cout
+        << "AI Command Help:\n"
+        << "  ai                    - Enter AI mode and show chat history\n"
+        << "  ai log                - Save the last chat to a file\n"
+        << "  ai apikey             - Show API key status\n"
+        << "  ai chat <message>     - Send a chat message\n"
+        << "  ai chat history       - Show chat history\n"
+        << "  ai chat history clear - Clear chat history\n"
+        << "  ai chat help          - Show chat help\n"
+        << "  ai get <key>          - Get a specific response data\n"
+        << "  ai dump               - Dump all response data and last prompt\n"
+        << "  ai mode [type]        - Get or set the assistant mode\n"
+        << "  ai file               - Manage files in AI context\n"
+        << "  ai directory          - Show or set AI save directory\n"
+        << "  ai model [name]       - Show or set AI model\n"
+        << "  ai rejectchanges      - Reject changes from AI\n"
+        << "  ai timeoutflag [sec]  - Show or set timeout in seconds\n"
+        << "  ai help               - Show this help message\n"
+        << "  ai initialinstruction [instruction] - Show or set the initial "
+           "instruction\n"
+        << "  ai name [name]        - Show or set the assistant name\n"
+        << "  ai saveconfig         - Save the current AI configuration\n"
+        << "  ai voice [voice]      - Show or set the voice for dictation\n"
+        << "  ai voicedictation [enable|disable] - Enable or disable voice "
+           "dictation\n"
+        << "  ai voicedictationinstructions [instructions] - Show or set voice "
+           "dictation instructions\n";
     return 0;
   }
 

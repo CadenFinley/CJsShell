@@ -59,7 +59,8 @@
  * {AI_AGENT_TYPE} - AI assistant type (Chat, etc.)
  * {AI_DIVIDER}    - Divider for AI prompt (>)
  * {AI_CONTEXT}    - Current working directory path
- * {AI_CONTEXT_COMPARISON} - Check mark for when the context is local and equal to current directory, ✔ and ✖ for when it is not
+ * {AI_CONTEXT_COMPARISON} - Check mark for when the context is local and equal
+ * to current directory, ✔ and ✖ for when it is not
  */
 
 PromptInfo::PromptInfo() {
@@ -682,7 +683,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
           std::to_string(get_git_uncommitted_changes(repo_root));
     }
   }
-  
+
   if (g_plugin) {
     for (const auto& plugin_name : g_plugin->get_enabled_plugins()) {
       plugin_data* pd = g_plugin->get_plugin_data(plugin_name);
@@ -690,8 +691,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
       for (const auto& kv : pd->prompt_variables) {
         const std::string& tag = kv.first;
         auto func = kv.second;
-        if (vars.find(tag) == vars.end() &&
-            is_variable_used(tag, segments)) {
+        if (vars.find(tag) == vars.end() && is_variable_used(tag, segments)) {
           plugin_string_t res = func();
           std::string value;
           if (res.length > 0)
@@ -700,8 +700,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             value = std::string(res.data);
           else
             value = "";
-          if (pd->free_memory && res.data)
-            pd->free_memory(res.data);
+          if (pd->free_memory && res.data) pd->free_memory(res.data);
           vars[tag] = value;
         }
       }

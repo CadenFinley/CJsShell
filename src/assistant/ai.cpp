@@ -43,9 +43,7 @@ void Ai::set_initial_instruction(const std::string& instruction) {
 
 std::string Ai::get_initial_instruction() const { return initial_instruction; }
 
-void Ai::set_assistant_name(const std::string& name) {
-  assistant_name = name;
-}
+void Ai::set_assistant_name(const std::string& name) { assistant_name = name; }
 
 std::string Ai::get_assistant_name() { return assistant_name; }
 
@@ -61,7 +59,9 @@ void Ai::set_max_prompt_length(int max_prompt_length) {
 
 int Ai::get_max_prompt_length() const { return max_prompt_length; }
 
-void Ai::set_cache_tokens(bool cache_tokens) { this->cache_tokens = cache_tokens; }
+void Ai::set_cache_tokens(bool cache_tokens) {
+  this->cache_tokens = cache_tokens;
+}
 
 bool Ai::get_cache_tokens() const { return cache_tokens; }
 
@@ -93,7 +93,9 @@ void Ai::toggle_dynamic_prompt_length() {
   dynamic_prompt_length = !dynamic_prompt_length;
 }
 
-void Ai::add_chat_to_cache(const std::string& chat) { chat_cache.push_back(chat); }
+void Ai::add_chat_to_cache(const std::string& chat) {
+  chat_cache.push_back(chat);
+}
 
 std::string Ai::get_response_data(const std::string& key) const {
   auto it = response_data_map.find(key);
@@ -117,7 +119,9 @@ void Ai::refresh_files() {
   set_files(active_files);
 }
 
-std::string Ai::get_last_response_received() const { return last_response_received; }
+std::string Ai::get_last_response_received() const {
+  return last_response_received;
+}
 
 void Ai::set_max_prompt_precision(bool max_prompt_precision) {
   this->max_prompt_precision = max_prompt_precision;
@@ -176,6 +180,26 @@ void Ai::set_enabled(bool enabled) {
 
 bool Ai::is_enabled() const { return enabled; }
 
+void ltrim(std::string& s) {
+  size_t start = 0;
+  while (start < s.size() &&
+         std::isspace(static_cast<unsigned char>(s[start]))) {
+    ++start;
+  }
+  s.erase(0, start);
+}
+
+void rtrim(std::string& s) {
+  while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) {
+    s.pop_back();
+  }
+}
+
+void trim(std::string& s) {
+  ltrim(s);
+  rtrim(s);
+}
+
 std::string Ai::chat_gpt(const std::string& message, bool format) {
   (void)format;
   if (!enabled) {
@@ -198,7 +222,7 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
       response.length() >
           static_cast<std::string::size_type>(max_prompt_length)) {
     std::string shorter = make_call_to_chat_gpt(build_prompt(message) +
-                                            " Please shorten your answer.");
+                                                " Please shorten your answer.");
     if (shorter.length() <= static_cast<std::size_t>(max_prompt_length))
       response = shorter;
   }
@@ -209,32 +233,53 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
     std::istringstream ss(response);
     std::ostringstream oss;
     std::string ln;
-    while (std::getline(ss, ln)) {
+    std::string next;
+    if (!std::getline(ss, ln)) ln = "";
+
+    while (true) {
+      if (!std::getline(ss, next)) {
+        if (!in_code_block && !ln.empty() && ln.rfind("```", 0) != 0) {
+          oss << ln << "\n";
+        }
+        break;
+      }
+
       if (ln.rfind("```", 0) == 0) {
         in_code_block = !in_code_block;
+        ln = next;
         continue;
       }
-      if (!in_code_block) {
+      if (!in_code_block && next.rfind("```", 0) == 0) {
+        ln = next;
+        continue;
+      }
+
+      if (!in_code_block && !ln.empty()) {
         oss << ln << "\n";
       }
+
+      ln = next;
     }
+
     clean_text = oss.str();
   }
+  clean_text = format_markdown(clean_text);
+  clean_text.erase(std::remove(clean_text.begin(), clean_text.end(), '`'),
+                   clean_text.end());
+  trim(clean_text);
 
   if (assistant_type == "code-interpreter" && !response.empty()) {
-    std::cout << process_code_blocks_for_code_interpreter(response) << std::endl;
+    std::cout << process_code_blocks_for_code_interpreter(response)
+              << std::endl;
   }
 
-  clean_text = format_markdown(clean_text);
-  clean_text.erase(std::remove(clean_text.begin(), clean_text.end(), '`'), clean_text.end());
-
-  if (voice_dictation_enabled) {
+  if (voice_dictation_enabled && clean_text != "Request cancelled by user.") {
     process_voice_dictation(clean_text);
   }
 
   if (!clean_text.empty()) {
     chat_cache.push_back("User: " + message);
-    chat_cache.push_back("AI: " + clean_text);
+    chat_cache.push_back(assistant_name + ": " + clean_text);
   }
 
   return clean_text;
@@ -317,133 +362,141 @@ int Ai::add_files(const std::vector<std::string>& user_files) {
 
 void Ai::load_ai_config() {
   std::ifstream config_file(cjsh_filesystem::g_cjsh_ai_config_file_path);
-    if (config_file.is_open()) {
-      nlohmann::json config_json;
-      try {
-        config_file >> config_json;
-        if (config_json.contains("assistant_name")) {
-          assistant_name = config_json["assistant_name"].get<std::string>();
-        }
-        if (config_json.contains("initial_instruction")) {
-          set_initial_instruction(
-              config_json["initial_instruction"].get<std::string>());
-        }
-        if (config_json.contains("assistant_type")) {
-          this->assistant_type =
-              config_json["assistant_type"].get<std::string>();
-        }
-        if (config_json.contains("max_prompt_length")) {
-          max_prompt_length = config_json["max_prompt_length"].get<int>();
-        }
-        if (config_json.contains("cache_tokens")) {
-          cache_tokens = config_json["cache_tokens"].get<bool>();
-        }
-        if (config_json.contains("max_prompt_precision")) {
-          max_prompt_precision = config_json["max_prompt_precision"].get<bool>();
-        }
-        if (config_json.contains("dynamic_prompt_length")) {
-          dynamic_prompt_length =
-              config_json["dynamic_prompt_length"].get<bool>();
-        }
-        if (config_json.contains("dynamic_prompt_length_scale")) {
-          dynamic_prompt_length_scale =
-              config_json["dynamic_prompt_length_scale"].get<float>();
-        }
-        if (config_json.contains("timeout_flag_seconds")) {
-          timeout_flag_seconds =
-              config_json["timeout_flag_seconds"].get<float>();
-        }
-        if (config_json.contains("model")) {
-          current_model = config_json["model"].get<std::string>();
-        }
-        if (config_json.contains("save_directory")) {
-          set_save_directory(config_json["save_directory"].get<std::string>());
-        } else {
-          set_save_directory(cjsh_filesystem::g_cjsh_data_path);
-        }
-        if (config_json.contains("enabled")) {
-          enabled = config_json["enabled"].get<bool>();
-        } else {
-          enabled = true;
-        }
-        if (config_json.contains("voice_dictation_enabled")) {
-          voice_dictation_enabled = config_json["voice_dictation_enabled"].get<bool>();
-        } else {
-          voice_dictation_enabled = true;
-        }
-        if (config_json.contains("voice_dictation_voice")) {
-          voice_dictation_voice = config_json["voice_dictation_voice"].get<std::string>();
-        } else {
-          voice_dictation_voice = "onyx";
-        }
-        if (config_json.contains("voice_dictation_instructions")) {
-          voice_dictation_instructions = config_json["voice_dictation_instructions"].get<std::string>();
-        } else {
-          voice_dictation_instructions = "Accent/Affect: Moderate British accent; sophisticated yet friendly, clearly understandable but lower voice tones. Tone: Warm, Calm. Pacing: Moderate.";
-        }
-      } catch (const std::exception& e) {
-        std::cerr << "Error parsing AI config file: " << e.what() << std::endl;
+  if (config_file.is_open()) {
+    nlohmann::json config_json;
+    try {
+      config_file >> config_json;
+      if (config_json.contains("assistant_name")) {
+        assistant_name = config_json["assistant_name"].get<std::string>();
       }
-      config_file.close();
-    } else {
-      std::cerr << "Error opening AI config file." << std::endl;
+      if (config_json.contains("initial_instruction")) {
+        set_initial_instruction(
+            config_json["initial_instruction"].get<std::string>());
+      }
+      if (config_json.contains("assistant_type")) {
+        this->assistant_type = config_json["assistant_type"].get<std::string>();
+      }
+      if (config_json.contains("max_prompt_length")) {
+        max_prompt_length = config_json["max_prompt_length"].get<int>();
+      }
+      if (config_json.contains("cache_tokens")) {
+        cache_tokens = config_json["cache_tokens"].get<bool>();
+      }
+      if (config_json.contains("max_prompt_precision")) {
+        max_prompt_precision = config_json["max_prompt_precision"].get<bool>();
+      }
+      if (config_json.contains("dynamic_prompt_length")) {
+        dynamic_prompt_length =
+            config_json["dynamic_prompt_length"].get<bool>();
+      }
+      if (config_json.contains("dynamic_prompt_length_scale")) {
+        dynamic_prompt_length_scale =
+            config_json["dynamic_prompt_length_scale"].get<float>();
+      }
+      if (config_json.contains("timeout_flag_seconds")) {
+        timeout_flag_seconds = config_json["timeout_flag_seconds"].get<float>();
+      }
+      if (config_json.contains("model")) {
+        current_model = config_json["model"].get<std::string>();
+      }
+      if (config_json.contains("save_directory")) {
+        set_save_directory(config_json["save_directory"].get<std::string>());
+      } else {
+        set_save_directory(cjsh_filesystem::g_cjsh_data_path);
+      }
+      if (config_json.contains("enabled")) {
+        enabled = config_json["enabled"].get<bool>();
+      } else {
+        enabled = true;
+      }
+      if (config_json.contains("voice_dictation_enabled")) {
+        voice_dictation_enabled =
+            config_json["voice_dictation_enabled"].get<bool>();
+      } else {
+        voice_dictation_enabled = true;
+      }
+      if (config_json.contains("voice_dictation_voice")) {
+        voice_dictation_voice =
+            config_json["voice_dictation_voice"].get<std::string>();
+      } else {
+        voice_dictation_voice = "onyx";
+      }
+      if (config_json.contains("voice_dictation_instructions")) {
+        voice_dictation_instructions =
+            config_json["voice_dictation_instructions"].get<std::string>();
+      } else {
+        voice_dictation_instructions =
+            "Accent/Affect: Moderate British accent; sophisticated yet "
+            "friendly, clearly understandable but lower voice tones. Tone: "
+            "Warm, Calm. Pacing: Moderate.";
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "Error parsing AI config file: " << e.what() << std::endl;
     }
+    config_file.close();
+  } else {
+    std::cerr << "Error opening AI config file." << std::endl;
+  }
 }
 
 void Ai::save_ai_config() {
   std::ofstream config_file(cjsh_filesystem::g_cjsh_ai_config_file_path);
-    if (config_file.is_open()) {
-      nlohmann::json config_json = {
-          {"assistant_name", assistant_name},
-          {"initial_instruction", initial_instruction},
-          {"assistant_type", assistant_type},
-          {"max_prompt_length", max_prompt_length},
-          {"cache_tokens", cache_tokens},
-          {"max_prompt_precision", max_prompt_precision},
-          {"dynamic_prompt_length", dynamic_prompt_length},
-          {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
-          {"timeout_flag_seconds", timeout_flag_seconds},
-          {"model", current_model},
-          {"save_directory", save_directory},
-          {"enabled", enabled},
-          {"voice_dictation_enabled", voice_dictation_enabled},
-          {"voice_dictation_voice", voice_dictation_voice},
-          {"voice_dictation_instructions", voice_dictation_instructions}};
-      config_file << config_json.dump(4);
-      config_file.close();
-    } else {
-      std::cerr << "Error saving AI config file." << std::endl;
-    }
+  if (config_file.is_open()) {
+    nlohmann::json config_json = {
+        {"assistant_name", assistant_name},
+        {"initial_instruction", initial_instruction},
+        {"assistant_type", assistant_type},
+        {"max_prompt_length", max_prompt_length},
+        {"cache_tokens", cache_tokens},
+        {"max_prompt_precision", max_prompt_precision},
+        {"dynamic_prompt_length", dynamic_prompt_length},
+        {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
+        {"timeout_flag_seconds", timeout_flag_seconds},
+        {"model", current_model},
+        {"save_directory", save_directory},
+        {"enabled", enabled},
+        {"voice_dictation_enabled", voice_dictation_enabled},
+        {"voice_dictation_voice", voice_dictation_voice},
+        {"voice_dictation_instructions", voice_dictation_instructions}};
+    config_file << config_json.dump(4);
+    config_file.close();
+  } else {
+    std::cerr << "Error saving AI config file." << std::endl;
+  }
 }
 
 void Ai::create_default_config_file() {
   std::ofstream config_file(cjsh_filesystem::g_cjsh_ai_config_file_path);
-    if (config_file.is_open()) {
-      nlohmann::json default_config = {
-          {"assistant_name", ""},
-          {"initial_instruction",
-           "You are an AI personal assistant within a users login shell."},
-          {"assistant_type", "chat"},
-          {"max_prompt_length", -1},
-          {"cache_tokens", false},
-          {"max_prompt_precision", false},
-          {"dynamic_prompt_length", false},
-          {"dynamic_prompt_length_scale", 5},
-          {"timeout_flag_seconds", 300},
-          {"model", "gpt-3.5-turbo"},
-          {"save_directory", cjsh_filesystem::g_cjsh_data_path},
-          {"enabled", true},
-          {"voice_dictation_enabled", true},
-          {"voice_dictation_voice", "onyx"},
-          {"voice_dictation_instructions", "Accent/Affect: Moderate British accent; sophisticated yet friendly, clearly understandable but lower voice tones. Tone: Warm, Calm. Pacing: Moderate."}};
-      config_file << default_config.dump(4);
-      config_file.close();
-    } else {
-      std::cerr << "Error creating default AI config file." << std::endl;
-    }
+  if (config_file.is_open()) {
+    nlohmann::json default_config = {
+        {"assistant_name", ""},
+        {"initial_instruction",
+         "You are an AI personal assistant within a users login shell."},
+        {"assistant_type", "chat"},
+        {"max_prompt_length", -1},
+        {"cache_tokens", false},
+        {"max_prompt_precision", false},
+        {"dynamic_prompt_length", false},
+        {"dynamic_prompt_length_scale", 5},
+        {"timeout_flag_seconds", 300},
+        {"model", "gpt-3.5-turbo"},
+        {"save_directory", cjsh_filesystem::g_cjsh_data_path},
+        {"enabled", true},
+        {"voice_dictation_enabled", true},
+        {"voice_dictation_voice", "onyx"},
+        {"voice_dictation_instructions",
+         "Accent/Affect: Moderate British accent; sophisticated yet friendly, "
+         "clearly understandable but lower voice tones. Tone: Warm, Calm. "
+         "Pacing: Moderate."}};
+    config_file << default_config.dump(4);
+    config_file.close();
+  } else {
+    std::cerr << "Error creating default AI config file." << std::endl;
+  }
 }
 
-void Ai::initialize(const std::string& api_key, const std::string& assistant_type,
+void Ai::initialize(const std::string& api_key,
+                    const std::string& assistant_type,
                     const std::string& initial_instruction,
                     const std::vector<std::string>& user_files) {
   user_api_key = api_key;
@@ -451,7 +504,8 @@ void Ai::initialize(const std::string& api_key, const std::string& assistant_typ
   this->initial_instruction = initial_instruction;
   this->files = user_files;
 
-  if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_ai_config_file_path)) {
+  if (!cjsh_filesystem::file_exists(
+          cjsh_filesystem::g_cjsh_ai_config_file_path)) {
     create_default_config_file();
     load_ai_config();
   } else {
@@ -465,8 +519,8 @@ bool Ai::is_valid_configuration() const {
   }
 
   bool valid_assistant_type = assistant_type == "chat" ||
-                            assistant_type == "file-search" ||
-                            assistant_type == "code-interpreter";
+                              assistant_type == "file-search" ||
+                              assistant_type == "code-interpreter";
   return !user_api_key.empty() && !initial_instruction.empty() &&
          !assistant_type.empty() && valid_assistant_type;
 }
@@ -492,6 +546,10 @@ std::string Ai::get_invalid_configuration_message() const {
 std::string Ai::build_prompt(const std::string& message) {
   std::stringstream prompt;
   process_file_contents();
+  if (!assistant_name.empty()) {
+    prompt << "You are named " << assistant_name
+           << ". Please refer to yourself as such. ";
+  }
   prompt << initial_instruction;
   if (assistant_type != "code-interpreter") {
     if (max_prompt_length != -1) {
@@ -513,18 +571,18 @@ std::string Ai::build_prompt(const std::string& message) {
     prompt << "] This is the latest message from the user: [" << message
            << "] ";
   } else {
-    if (assistant_type == "code-interpreter") {
-      prompt << message
-             << "Please only return code in your response if edits were made. "
-                "Please only make the edits that I request.  Please use markdown "
-                "syntax in your response for the code. Include only the exact "
-                "file name and only the file name in the line above. "
-                "Be sure to give a brief summary of the changes you made, but explain them in a professional conversation matter not in a list format."
-                "Do not reference this prompt in any way.";
-    } else {
-      prompt << " This is the first message from the user: [" << message
-             << "] ";
-    }
+    prompt << " This is the first message from the user: [" << message << "] ";
+  }
+  if (assistant_type == "code-interpreter") {
+    prompt << message
+           << "Please only return code in your response if edits were made. "
+              "Please only make the edits that I request.  Please use markdown "
+              "syntax in your response for the code. Include only the exact "
+              "file name and only the file name in the line above. "
+              "Be sure to give a brief summary of the changes you made, but "
+              "explain them in a professional conversation matter not in a "
+              "list format."
+              "Do not reference this prompt in any way.";
   }
 
   if (assistant_type == "file-search" && file_contents.length() > 0) {
@@ -610,12 +668,13 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
   long response_code = 0;
   if (res == CURLE_OK) {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-    
+
     if (response_code < 200 || response_code >= 300) {
       handle_error_response(curl, response_code, response_data);
       curl_slist_free_all(headers);
       curl_easy_cleanup(curl);
-      return "Error: API request failed with status code " + std::to_string(response_code) + ". See console for details.";
+      return "Error: API request failed with status code " +
+             std::to_string(response_code) + ". See console for details.";
     }
   }
 
@@ -628,7 +687,9 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
 
   if (res != CURLE_OK) {
     std::cerr << "Curl error: " << curl_easy_strerror(res) << std::endl;
-    return "Error: Failed to connect to API server. Please check you internet connection. " + std::string(curl_easy_strerror(res));
+    return "Error: Failed to connect to API server. Please check you internet "
+           "connection. " +
+           std::string(curl_easy_strerror(res));
   }
 
   try {
@@ -647,18 +708,20 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
 
     response_data_map["assistant_type"] = assistant_type;
     response_data_map["initial_instruction"] = initial_instruction;
-    response_data_map["received_message_length"] = last_response_received.length();
+    response_data_map["received_message_length"] =
+        last_response_received.length();
 
     return last_response_received;
   } catch (const nlohmann::json::exception& e) {
     std::cerr << "JSON parsing error: " << e.what() << std::endl;
     std::cerr << "Raw response: " << response_data << std::endl;
-    return "Error: Failed to parse API response. The service might be experiencing issues.";
+    return "Error: Failed to parse API response. The service might be "
+           "experiencing issues.";
   }
 }
 
 void Ai::monitor_cancellation(std::atomic<bool>& loading,
-                             std::atomic<bool>& request_cancelled) {
+                              std::atomic<bool>& request_cancelled) {
   std::cout << "\nPress Enter to cancel the request.\n";
 
   fd_set readfds;
@@ -689,7 +752,7 @@ void Ai::monitor_cancellation(std::atomic<bool>& loading,
 }
 
 size_t Ai::write_callback(void* contents, size_t size, size_t nmemb,
-                         std::string* userp) {
+                          std::string* userp) {
   userp->append((char*)contents, size * nmemb);
   return size * nmemb;
 }
@@ -722,7 +785,8 @@ std::map<std::string, nlohmann::json> Ai::parse_json_response(
   return response_data;
 }
 
-std::string Ai::extract_content_from_json(const std::string& json_response) const {
+std::string Ai::extract_content_from_json(
+    const std::string& json_response) const {
   try {
     nlohmann::json json_object = nlohmann::json::parse(json_response);
     return json_object["choices"][0]["message"]["content"];
@@ -775,7 +839,7 @@ std::vector<std::string> Ai::extract_code_snippet(const std::string& content) {
     if (line.substr(0, 3) == "```") {
       if (in_code_block) {
         code_snippets.push_back(language + " " + filename + "\n" +
-                               code_snippet.str());
+                                code_snippet.str());
         code_snippet.str("");
         in_code_block = false;
       } else {
@@ -817,7 +881,7 @@ std::string Ai::process_code_blocks_for_code_interpreter(
         files.push_back(directory + file_name);
         file_name = file_name.substr(file_name.find_last_of("/") + 1);
         code_blocks[j] = language + " " + file_name +
-                        code_blocks[j].substr(code_blocks[j].find('\n'));
+                         code_blocks[j].substr(code_blocks[j].find('\n'));
       } else {
         files.push_back(directory + file_name);
         std::cout << "New file created: " << files.back() << std::endl;
@@ -880,14 +944,16 @@ std::string Ai::process_code_blocks_for_code_interpreter(
       if (!new_lines.empty()) {
         new_lines.erase(new_lines.begin());
       }
-      if (!original_lines.empty() && new_lines.size() == original_lines.size() &&
+      if (!original_lines.empty() &&
+          new_lines.size() == original_lines.size() &&
           std::equal(original_lines.begin(), original_lines.end(),
                      new_lines.begin())) {
         updated_lines = new_lines;
       } else {
         size_t start_index = std::string::npos;
         for (size_t idx = 0; idx < original_lines.size(); idx++) {
-          if (original_lines[idx].find(new_lines.front()) != std::string::npos) {
+          if (original_lines[idx].find(new_lines.front()) !=
+              std::string::npos) {
             start_index = idx;
             break;
           }
@@ -901,7 +967,7 @@ std::string Ai::process_code_blocks_for_code_interpreter(
         } else {
           updated_lines = original_lines;
           updated_lines.insert(updated_lines.end(), new_lines.begin(),
-                              new_lines.end());
+                               new_lines.end());
         }
       }
       std::ofstream out_file(file_to_change);
@@ -913,21 +979,21 @@ std::string Ai::process_code_blocks_for_code_interpreter(
       size_t common_lines = std::min(original_lines.size(), new_lines.size());
       for (size_t j = 0; j < common_lines; j++) {
         if (original_lines[j] != new_lines[j]) {
-          changes_summary << "\033[1;31m- " << j + 1 << ": " << original_lines[j]
-                         << "\033[0m\n";
+          changes_summary << "\033[1;31m- " << j + 1 << ": "
+                          << original_lines[j] << "\033[0m\n";
           changes_summary << "\033[1;32m+ " << j + 1 << ": " << new_lines[j]
-                         << "\033[0m\n";
+                          << "\033[0m\n";
         }
       }
       if (original_lines.size() > new_lines.size()) {
         for (size_t j = new_lines.size(); j < original_lines.size(); j++) {
-          changes_summary << "\033[1;31m- " << j + 1 << ": " << original_lines[j]
-                         << "\033[0m\n";
+          changes_summary << "\033[1;31m- " << j + 1 << ": "
+                          << original_lines[j] << "\033[0m\n";
         }
       } else if (new_lines.size() > original_lines.size()) {
         for (size_t j = original_lines.size(); j < new_lines.size(); j++) {
           changes_summary << "\033[1;32m+ " << j + 1 << ": " << new_lines[j]
-                         << "\033[0m\n";
+                          << "\033[0m\n";
         }
       }
     } catch (const std::exception& e) {
@@ -1038,7 +1104,7 @@ std::string Ai::sanitize_file_name(const std::string& file_name) {
 }
 
 std::vector<std::string> Ai::split_string(const std::string& str,
-                                         char delimiter) {
+                                          char delimiter) {
   std::vector<std::string> tokens;
   std::string token;
   std::istringstream token_stream(str);
@@ -1049,46 +1115,47 @@ std::vector<std::string> Ai::split_string(const std::string& str,
 }
 
 size_t write_data(void* ptr, size_t size, size_t nmemb, void* userdata) {
-    std::ofstream* ofs = static_cast<std::ofstream*>(userdata);
-    ofs->write(static_cast<char*>(ptr), size * nmemb);
-    return size * nmemb;
+  std::ofstream* ofs = static_cast<std::ofstream*>(userdata);
+  ofs->write(static_cast<char*>(ptr), size * nmemb);
+  return size * nmemb;
 }
 
 bool Ai::process_voice_dictation(const std::string& message) {
-    CURL* curl = curl_easy_init();
-    if (!curl) return false;
-    std::string temp_file_name = cjsh_filesystem::g_cjsh_ai_conversations_path.string()+ "/" + current_model + "_" + assistant_type + ".mp3";
+  CURL* curl = curl_easy_init();
+  if (!curl) return false;
+  std::string temp_file_name =
+      cjsh_filesystem::g_cjsh_ai_conversations_path.string() + "/" +
+      current_model + "_" + assistant_type + ".mp3";
 
-    std::ofstream ofs(temp_file_name, std::ios::binary);
-    if (!ofs.is_open()) return false;
+  std::ofstream ofs(temp_file_name, std::ios::binary);
+  if (!ofs.is_open()) return false;
 
-    struct curl_slist* headers = nullptr;
-    headers = curl_slist_append(headers, ("Authorization: Bearer " + user_api_key).c_str());
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    json body = {
-        {"model", "gpt-4o-mini-tts"},
-        {"input", message},
-        {"voice", voice_dictation_voice},
-        {"instructions", voice_dictation_instructions}
-    };
-    std::string jsonData = body.dump();
-    curl_easy_setopt(curl, CURLOPT_URL, "https://api.openai.com/v1/audio/speech");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ofs);
+  struct curl_slist* headers = nullptr;
+  headers = curl_slist_append(
+      headers, ("Authorization: Bearer " + user_api_key).c_str());
+  headers = curl_slist_append(headers, "Content-Type: application/json");
+  json body = {{"model", "gpt-4o-mini-tts"},
+               {"input", message},
+               {"voice", voice_dictation_voice},
+               {"instructions", voice_dictation_instructions}};
+  std::string jsonData = body.dump();
+  curl_easy_setopt(curl, CURLOPT_URL, "https://api.openai.com/v1/audio/speech");
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ofs);
 
-    CURLcode res = curl_easy_perform(curl);
+  CURLcode res = curl_easy_perform(curl);
 
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-    ofs.close();
+  curl_slist_free_all(headers);
+  curl_easy_cleanup(curl);
+  ofs.close();
 
-    //g_shell->execute_command(":terminal");
-    g_shell->execute_command(":afplay " + temp_file_name + " &");
-    //g_shell->execute_command("ai");
-    std::remove(temp_file_name.c_str());
-    return (res == CURLE_OK);
+  // g_shell->execute_command(":terminal");
+  g_shell->execute_command(":afplay " + temp_file_name + " &");
+  // g_shell->execute_command("ai");
+  // std::remove(temp_file_name.c_str());
+  return (res == CURLE_OK);
 }
 
 void Ai::set_voice_dictation_enabled(bool enabled) {
@@ -1101,61 +1168,92 @@ void Ai::set_voice_dictation_voice(const std::string& voice) {
   voice_dictation_voice = voice;
 }
 
-std::string Ai::get_voice_dictation_voice() const { return voice_dictation_voice; }
+std::string Ai::get_voice_dictation_voice() const {
+  return voice_dictation_voice;
+}
 
 void Ai::set_voice_dictation_instructions(const std::string& instructions) {
   voice_dictation_instructions = instructions;
 }
 
-std::string Ai::get_voice_dictation_instructions() const { return voice_dictation_instructions; }
+std::string Ai::get_voice_dictation_instructions() const {
+  return voice_dictation_instructions;
+}
 
-void Ai::handle_error_response(CURL* curl, long response_code, const std::string& error_body) {
+void Ai::handle_error_response(CURL* curl, long response_code,
+                               const std::string& error_body) {
   std::string error_message;
   (void)curl;
-  
+
   switch (response_code) {
     case 400:
-      error_message = "Bad Request: The server could not understand the request due to invalid syntax.";
+      error_message =
+          "Bad Request: The server could not understand the request due to "
+          "invalid syntax.";
       break;
     case 401:
-      error_message = "Unauthorized: The API key is invalid or missing.\n"
-                    "Possible Causes:\n"
-                    "- Invalid Authentication: Ensure the correct API key and requesting organization are being used.\n"
-                    "- Incorrect API key provided: Verify the API key, clear your browser cache, or generate a new one.\n"
-                    "- You must be a member of an organization to use the API: Contact support to join an organization or ask your organization manager to invite you.";
+      error_message =
+          "Unauthorized: The API key is invalid or missing.\n"
+          "Possible Causes:\n"
+          "- Invalid Authentication: Ensure the correct API key and requesting "
+          "organization are being used.\n"
+          "- Incorrect API key provided: Verify the API key, clear your "
+          "browser cache, or generate a new one.\n"
+          "- You must be a member of an organization to use the API: Contact "
+          "support to join an organization or ask your organization manager to "
+          "invite you.";
       break;
     case 403:
-      error_message = "Forbidden: You do not have permission to access this resource.\n"
-                    "Cause: You are accessing the API from an unsupported country, region, or territory.\n"
-                    "Solution: Please see the OpenAI documentation for supported regions.";
+      error_message =
+          "Forbidden: You do not have permission to access this resource.\n"
+          "Cause: You are accessing the API from an unsupported country, "
+          "region, or territory.\n"
+          "Solution: Please see the OpenAI documentation for supported "
+          "regions.";
       break;
     case 404:
       error_message = "Not Found: The requested resource could not be found.";
       break;
     case 429:
-      error_message = "Too Many Requests: You have exceeded the rate limit.\n"
-                    "Possible Causes:\n"
-                    "- Rate limit reached for requests: Pace your requests. Read the Rate limit guide.\n"
-                    "- You exceeded your current quota: Check your plan and billing details, or buy more credits.";
+      error_message =
+          "Too Many Requests: You have exceeded the rate limit.\n"
+          "Possible Causes:\n"
+          "- Rate limit reached for requests: Pace your requests. Read the "
+          "Rate limit guide.\n"
+          "- You exceeded your current quota: Check your plan and billing "
+          "details, or buy more credits.";
       break;
     case 500:
-      error_message = "Internal Server Error: The server encountered an error and could not complete your request.\n"
-                    "Solution: Retry your request after a brief wait and contact support if the issue persists. Check the status page.";
+      error_message =
+          "Internal Server Error: The server encountered an error and could "
+          "not complete your request.\n"
+          "Solution: Retry your request after a brief wait and contact support "
+          "if the issue persists. Check the status page.";
       break;
     case 502:
-      error_message = "Bad Gateway: The server received an invalid response from the upstream server.";
+      error_message =
+          "Bad Gateway: The server received an invalid response from the "
+          "upstream server.";
       break;
     case 503:
-      error_message = "Service Unavailable: The server is not ready to handle the request.\n"
-                    "Possible Causes:\n"
-                    "- The engine is currently overloaded: Retry your requests after a brief wait.\n"
-                    "- Slow Down: Reduce your request rate to its original level, maintain a consistent rate for at least 15 minutes, and then gradually increase it.";
+      error_message =
+          "Service Unavailable: The server is not ready to handle the "
+          "request.\n"
+          "Possible Causes:\n"
+          "- The engine is currently overloaded: Retry your requests after a "
+          "brief wait.\n"
+          "- Slow Down: Reduce your request rate to its original level, "
+          "maintain a consistent rate for at least 15 minutes, and then "
+          "gradually increase it.";
       break;
     case 504:
-      error_message = "Gateway Timeout: The server did not receive a timely response from the upstream server.";
+      error_message =
+          "Gateway Timeout: The server did not receive a timely response from "
+          "the upstream server.";
       break;
     default:
-      error_message = "Unexpected Error: Received HTTP response code " + std::to_string(response_code);
+      error_message = "Unexpected Error: Received HTTP response code " +
+                      std::to_string(response_code);
   }
 
   error_message += "\nDetails: " + error_body;
