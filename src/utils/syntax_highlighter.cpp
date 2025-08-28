@@ -94,7 +94,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
     std::string token = token_end > 0 ? cmd_str.substr(0, token_end) : "";
 
     bool is_sudo_command = (token == "sudo");
-    
+
     if (!token.empty()) {
       if (token.rfind("./", 0) == 0) {
         if (!std::filesystem::exists(token) ||
@@ -139,20 +139,26 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
         if (arg.rfind("./", 0) == 0) {
           if (!std::filesystem::exists(arg) ||
               !std::filesystem::is_regular_file(arg)) {
-            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-unknown-command");
+            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                         "cjsh-unknown-command");
           } else {
-            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-known-command");
+            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                         "cjsh-known-command");
           }
         } else {
           auto cmds = g_shell->get_available_commands();
           if (std::find(cmds.begin(), cmds.end(), arg) != cmds.end()) {
-            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-known-command");
+            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                         "cjsh-known-command");
           } else if (basic_unix_commands_.count(arg) > 0) {
-            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-known-command");
+            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                         "cjsh-known-command");
           } else if (external_executables_.count(arg) > 0) {
-            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-external-command");
+            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                         "cjsh-external-command");
           } else {
-            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-unknown-command");
+            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                         "cjsh-unknown-command");
           }
         }
       }
