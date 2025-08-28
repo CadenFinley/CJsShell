@@ -36,6 +36,8 @@ else()
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.${ARCH}.cmake)
 endif()
 
+find_package(PkgConfig REQUIRED)
+
 # File globbing and main target definition
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "src/builtins/*.cpp" "src/builtins/*.c")
 add_executable(${PROJECT_NAME} ${SOURCES})

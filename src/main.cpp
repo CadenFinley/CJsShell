@@ -20,6 +20,9 @@
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
+//  bug: the : break character in the ai menu only breaks for the first command
+//  and not anything after && or || when doing sudo, it should check the next
+//  command to see if it is valid and to do syntax highlighting on it
 
 /*
  * Exit/Return Codes:
@@ -275,11 +278,8 @@ int main(int argc, char* argv[]) {
     std::cerr << "DEBUG: Initializing AI with enabled=" << l_ai_enabled
               << std::endl;
   std::unique_ptr<Ai> ai = std::make_unique<Ai>(
-      api_key, std::string("chat"),
-      std::string(
-          ""),
-      std::vector<std::string>{}, cjsh_filesystem::g_cjsh_data_path,
-      l_ai_enabled);
+      api_key, std::string("chat"), std::string(""), std::vector<std::string>{},
+      cjsh_filesystem::g_cjsh_data_path, l_ai_enabled);
   g_ai = ai.get();
 
   if (source_enabled) {

@@ -207,6 +207,12 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
     chat_cache.push_back("AI: " + response);
   }
 
+  if (voice_dictation_enabled) {
+    std::thread voice_thread(&Ai::process_voice_dictation, this, response);
+    voice_thread.detach();
+    //process_voice_dictation(response);
+  }
+
   if (assistant_type == "code-interpreter" && !response.empty()) {
     response += process_code_blocks_for_code_interpreter(response);
   }
@@ -340,6 +346,21 @@ void Ai::load_ai_config() {
         } else {
           enabled = true;
         }
+        if (config_json.contains("voice_dictation_enabled")) {
+          voice_dictation_enabled = config_json["voice_dictation_enabled"].get<bool>();
+        } else {
+          voice_dictation_enabled = true;
+        }
+        if (config_json.contains("voice_dictation_voice")) {
+          voice_dictation_voice = config_json["voice_dictation_voice"].get<std::string>();
+        } else {
+          voice_dictation_voice = "onyx";
+        }
+        if (config_json.contains("voice_dictation_instructions")) {
+          voice_dictation_instructions = config_json["voice_dictation_instructions"].get<std::string>();
+        } else {
+          voice_dictation_instructions = "Accent/Affect: Moderate British accent; sophisticated yet friendly, clearly understandable but lower voice tones. Tone: Warm, Calm. Pacing: Moderate.";
+        }
       } catch (const std::exception& e) {
         std::cerr << "Error parsing AI config file: " << e.what() << std::endl;
       }
@@ -364,7 +385,10 @@ void Ai::save_ai_config() {
           {"timeout_flag_seconds", timeout_flag_seconds},
           {"model", current_model},
           {"save_directory", save_directory},
-          {"enabled", enabled}};
+          {"enabled", enabled},
+          {"voice_dictation_enabled", voice_dictation_enabled},
+          {"voice_dictation_voice", voice_dictation_voice},
+          {"voice_dictation_instructions", voice_dictation_instructions}};
       config_file << config_json.dump(4);
       config_file.close();
     } else {
@@ -388,7 +412,10 @@ void Ai::create_default_config_file() {
           {"timeout_flag_seconds", 300},
           {"model", "gpt-3.5-turbo"},
           {"save_directory", cjsh_filesystem::g_cjsh_data_path},
-          {"enabled", true}};
+          {"enabled", true},
+          {"voice_dictation_enabled", true},
+          {"voice_dictation_voice", "onyx"},
+          {"voice_dictation_instructions", "Accent/Affect: Moderate British accent; sophisticated yet friendly, clearly understandable but lower voice tones. Tone: Warm, Calm. Pacing: Moderate."}};
       config_file << default_config.dump(4);
       config_file.close();
     } else {
@@ -471,7 +498,8 @@ std::string Ai::build_prompt(const std::string& message) {
              << "Please only return code in your response if edits were made. "
                 "Please only make the edits that I request.  Please use markdown "
                 "syntax in your response for the code. Include only the exact "
-                "file name and only the file name in the line above. ";
+                "file name and only the file name in the line above. "
+                "Be sure to give a brief summary of the changes you made, but explain them in a professional conversation matter not in a list format.";
     } else {
       prompt << " This is the first message from the user: [" << message
              << "] ";
@@ -998,6 +1026,85 @@ std::vector<std::string> Ai::split_string(const std::string& str,
   }
   return tokens;
 }
+
+size_t write_data(void* ptr, size_t size, size_t nmemb, void* userdata) {
+    std::ofstream* ofs = static_cast<std::ofstream*>(userdata);
+    ofs->write(static_cast<char*>(ptr), size * nmemb);
+    return size * nmemb;
+}
+
+bool Ai::process_voice_dictation(const std::string& message) {
+    std::string clean_text;
+    {
+        bool in_code_block = false;
+        std::istringstream ss(message);
+        std::ostringstream oss;
+        std::string ln;
+        while (std::getline(ss, ln)) {
+            if (ln.rfind("```", 0) == 0) {
+                in_code_block = !in_code_block;
+                continue;
+            }
+            if (!in_code_block) {
+                oss << ln << "\n";
+            }
+        }
+        clean_text = oss.str();
+    }
+    clean_text = format_markdown(clean_text);
+    clean_text.erase(std::remove(clean_text.begin(), clean_text.end(), '`'), clean_text.end());
+
+    CURL* curl = curl_easy_init();
+    if (!curl) return false;
+    std::string temp_file_name = cjsh_filesystem::g_cjsh_ai_conversations_path.string()+"/" + current_model + "_" + assistant_type + ".mp3";
+
+    std::ofstream ofs(temp_file_name, std::ios::binary);
+    if (!ofs.is_open()) return false;
+
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, ("Authorization: Bearer " + user_api_key).c_str());
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    json body = {
+        {"model", "gpt-4o-mini-tts"},
+        {"input", clean_text},
+        {"voice", voice_dictation_voice},
+        {"instructions", voice_dictation_instructions}
+    };
+    std::string jsonData = body.dump();
+    curl_easy_setopt(curl, CURLOPT_URL, "https://api.openai.com/v1/audio/speech");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ofs);
+
+    CURLcode res = curl_easy_perform(curl);
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    ofs.close();
+
+    g_shell->execute_command(":afplay " + temp_file_name);
+    std::remove(temp_file_name.c_str());
+    return (res == CURLE_OK);
+}
+
+void Ai::set_voice_dictation_enabled(bool enabled) {
+  voice_dictation_enabled = enabled;
+}
+
+bool Ai::get_voice_dictation_enabled() const { return voice_dictation_enabled; }
+
+void Ai::set_voice_dictation_voice(const std::string& voice) {
+  voice_dictation_voice = voice;
+}
+
+std::string Ai::get_voice_dictation_voice() const { return voice_dictation_voice; }
+
+void Ai::set_voice_dictation_instructions(const std::string& instructions) {
+  voice_dictation_instructions = instructions;
+}
+
+std::string Ai::get_voice_dictation_instructions() const { return voice_dictation_instructions; }
 
 void Ai::handle_error_response(CURL* curl, long response_code, const std::string& error_body) {
   std::string error_message;

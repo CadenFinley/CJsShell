@@ -85,6 +85,13 @@ class Ai {
   void refresh_files();
   void save_ai_config();
 
+  void set_voice_dictation_enabled(bool enabled);
+  bool get_voice_dictation_enabled() const;
+  void set_voice_dictation_voice(const std::string& voice);
+  std::string get_voice_dictation_voice() const;
+  void set_voice_dictation_instructions(const std::string& instructions);
+  std::string get_voice_dictation_instructions() const;
+
  private:
   void initialize(const std::string& api_key, const std::string& assistant_type,
                   const std::string& initial_instruction,
@@ -117,6 +124,8 @@ class Ai {
   void load_ai_config();
   void create_default_config_file();
 
+  bool process_voice_dictation(const std::string& message);
+
   std::string user_api_key;
   std::string assistant_name;
   std::string initial_instruction;
@@ -138,4 +147,11 @@ class Ai {
   std::string save_directory;
   bool enabled = true;
   std::atomic<bool> request_in_progress{false};
+
+  bool voice_dictation_enabled = true;
+  std::string voice_dictation_voice = "onyx";
+  std::string voice_dictation_instructions =
+      "Accent/Affect: Moderate British accent; sophisticated yet friendly, "
+      "clearly understandable but lower voice tones. Tone: Warm, Calm. Pacing: "
+      "Moderate.";
 };

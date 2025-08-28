@@ -213,6 +213,53 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     return 0;
   }
 
+  if (cmd == "voice") {
+    if (args.size() <= command_index + 1) {
+      std::cout << "The current voice is " << g_ai->get_voice_dictation_voice() << std::endl;
+      return 0;
+    }
+    g_ai->set_voice_dictation_voice(args[command_index + 1]);
+    std::cout << "Voice set to " << args[command_index + 1] << std::endl;
+    return 0;
+  }
+
+  if (cmd == "voicedictation") {
+    if (args.size() <= command_index + 1) {
+      std::cout << "Voice dictation is currently "
+                << (g_ai->get_voice_dictation_enabled() ? "enabled" : "disabled")
+                << std::endl;
+      return 0;
+    }
+    if (args[command_index + 1] == "enable") {
+      g_ai->set_voice_dictation_enabled(true);
+      std::cout << "Voice dictation enabled." << std::endl;
+      return 0;
+    }
+    if (args[command_index + 1] == "disable") {
+      g_ai->set_voice_dictation_enabled(false);
+      std::cout << "Voice dictation disabled." << std::endl;
+      return 0;
+    }
+    PRINT_ERROR("Error: Invalid argument. Use 'enable' or 'disable'.");
+    return 1;
+  }
+
+  if (cmd == "voicedictationinstructions") {
+    if (args.size() <= command_index + 1) {
+      std::cout << "The current voice dictation instructions are:\n"
+                << g_ai->get_voice_dictation_instructions() << std::endl;
+      return 0;
+    }
+    std::string instructions = args[command_index + 1];
+    for (unsigned int i = command_index + 2; i < args.size(); i++) {
+      instructions += " " + args[i];
+    }
+    g_ai->set_voice_dictation_instructions(instructions);
+    std::cout << "Voice dictation instructions set to:\n"
+              << g_ai->get_voice_dictation_instructions() << std::endl;
+    return 0;
+  }
+
   if (cmd == "help") {
     std::cout << "AI Command Help:\n"
               << "  ai                    - Enter AI mode and show chat history\n"
@@ -233,7 +280,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
               << "  ai help               - Show this help message\n"
               << "  ai initialinstruction [instruction] - Show or set the initial instruction\n"
               << "  ai name [name]        - Show or set the assistant name\n"
-              << "  ai saveconfig         - Save the current AI configuration\n";
+              << "  ai saveconfig         - Save the current AI configuration\n"
+              << "  ai voice [voice]      - Show or set the voice for dictation\n"
+              << "  ai voicedictation [enable|disable] - Enable or disable voice dictation\n"
+              << "  ai voicedictationinstructions [instructions] - Show or set voice dictation instructions\n";
     return 0;
   }
 
