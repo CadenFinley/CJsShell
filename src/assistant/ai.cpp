@@ -399,11 +399,7 @@ void Ai::load_ai_config() {
       if (config_json.contains("model")) {
         current_model = config_json["model"].get<std::string>();
       }
-      if (config_json.contains("save_directory")) {
-        set_save_directory(config_json["save_directory"].get<std::string>());
-      } else {
         set_save_directory(cjsh_filesystem::g_cjsh_data_path);
-      }
       if (config_json.contains("enabled")) {
         enabled = config_json["enabled"].get<bool>();
       } else {
@@ -453,7 +449,6 @@ void Ai::save_ai_config() {
         {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
         {"timeout_flag_seconds", timeout_flag_seconds},
         {"model", current_model},
-        {"save_directory", save_directory},
         {"enabled", enabled},
         {"voice_dictation_enabled", voice_dictation_enabled},
         {"voice_dictation_voice", voice_dictation_voice},
@@ -480,7 +475,6 @@ void Ai::create_default_config_file() {
         {"dynamic_prompt_length_scale", 5},
         {"timeout_flag_seconds", 300},
         {"model", "gpt-3.5-turbo"},
-        {"save_directory", cjsh_filesystem::g_cjsh_data_path},
         {"enabled", true},
         {"voice_dictation_enabled", true},
         {"voice_dictation_voice", "onyx"},

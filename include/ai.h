@@ -153,5 +153,5 @@ class Ai {
   std::string voice_dictation_instructions =
       "Accent/Affect: Moderate British accent; sophisticated yet friendly, "
       "clearly understandable but lower voice tones. Tone: Warm, Calm. Pacing: "
-      "Moderate.";
+      "Normal, to the point.";
 };
