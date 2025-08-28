@@ -35,6 +35,13 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     } else if (c == quote_char && in_quotes) {
       in_quotes = false;
       quote_char = '\0';
+    } else if ((c == '(' || c == ')') && !in_quotes) {
+      // Handle parentheses as separate tokens when not in quotes
+      if (!current_token.empty()) {
+        tokens.push_back(current_token);
+        current_token.clear();
+      }
+      tokens.push_back(std::string(1, c));
     } else if (std::isspace(c) && !in_quotes) {
       if (!current_token.empty()) {
         tokens.push_back(current_token);

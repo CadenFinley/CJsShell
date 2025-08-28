@@ -201,7 +201,6 @@ void trim(std::string& s) {
 }
 
 std::string Ai::chat_gpt(const std::string& message, bool format) {
-  (void)format;
   if (!enabled) {
     return "AI functionality is currently disabled.";
   }
@@ -235,7 +234,6 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
     std::string ln;
     std::string next;
     if (!std::getline(ss, ln)) ln = "";
-
     while (true) {
       if (!std::getline(ss, next)) {
         if (!in_code_block && !ln.empty() && ln.rfind("```", 0) != 0) {
@@ -243,7 +241,6 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
         }
         break;
       }
-
       if (ln.rfind("```", 0) == 0) {
         in_code_block = !in_code_block;
         ln = next;
@@ -253,17 +250,14 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
         ln = next;
         continue;
       }
-
       if (!in_code_block && !ln.empty()) {
         oss << ln << "\n";
       }
-
       ln = next;
     }
-
     clean_text = oss.str();
   }
-  clean_text = format_markdown(clean_text);
+  clean_text = (format ? format_markdown(clean_text) : clean_text);
   clean_text.erase(std::remove(clean_text.begin(), clean_text.end(), '`'),
                    clean_text.end());
   trim(clean_text);
@@ -399,7 +393,7 @@ void Ai::load_ai_config() {
       if (config_json.contains("model")) {
         current_model = config_json["model"].get<std::string>();
       }
-        set_save_directory(cjsh_filesystem::g_cjsh_data_path);
+      set_save_directory(cjsh_filesystem::g_cjsh_data_path);
       if (config_json.contains("enabled")) {
         enabled = config_json["enabled"].get<bool>();
       } else {
@@ -1145,10 +1139,16 @@ bool Ai::process_voice_dictation(const std::string& message) {
   curl_easy_cleanup(curl);
   ofs.close();
 
-  // g_shell->execute_command(":terminal");
-  g_shell->execute_command(":afplay " + temp_file_name + " &");
-  // g_shell->execute_command("ai");
-  // std::remove(temp_file_name.c_str());
+  std::string command =
+      "(afplay \"" + temp_file_name + "\" && rm \"" + temp_file_name + "\")";
+  std::vector<std::string> args;
+  args.push_back("sh");
+  args.push_back("-c");
+  args.push_back(command);
+  if (g_shell && g_shell->shell_exec) {
+    g_shell->shell_exec->execute_command_async(args);
+  }
+
   return (res == CURLE_OK);
 }
 

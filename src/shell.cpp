@@ -113,6 +113,10 @@ void Shell::setup_job_control() {
   }
 }
 
+int Shell::do_ai_request(const std::string& command) {
+  return built_ins->do_ai_request(command);
+}
+
 int Shell::execute_command(std::string command) {
   if (g_debug_mode)
     std::cerr << "DEBUG: Executing command: '" << command << std::endl;
@@ -152,16 +156,6 @@ int Shell::execute_command(std::string command) {
   }
 
   std::vector<std::string> args = shell_parser->parse_command(command);
-
-  if (!menu_active && args.size() > 0) {
-    if (args[0][0] != ':') {
-      if (!command.empty()) {
-        return built_ins->do_ai_request(command);
-      }
-    } else {
-      args[0].erase(0, 1);
-    }
-  }
 
   if (command.find(';') != std::string::npos) {
     std::vector<std::string> cmds =

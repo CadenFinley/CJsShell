@@ -27,6 +27,7 @@ class Shell {
   ~Shell();
 
   int execute_command(std::string command);
+  int do_ai_request(const std::string& command);
   void process_pending_signals();
 
   std::string get_prompt() { return shell_prompt->get_prompt(); }

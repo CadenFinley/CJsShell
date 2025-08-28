@@ -383,8 +383,19 @@ void main_process_loop() {
         notify_plugins("main_process_command_processed", command);
         update_completion_frequency(command);
         {
-          std::string status_str =
-              std::to_string(g_shell->execute_command(command));
+          std::string status_str;
+
+          if (g_shell->get_menu_active()) {
+            status_str = std::to_string(g_shell->execute_command(command));
+          } else {
+            if (command[0] == ':') {
+              command.erase(0, 1);
+              status_str = std::to_string(g_shell->execute_command(command));
+            } else {
+              status_str = std::to_string(g_shell->do_ai_request(command));
+            }
+          }
+
           if (g_debug_mode)
             std::cerr << "DEBUG: Command exit status: " << status_str
                       << std::endl;
