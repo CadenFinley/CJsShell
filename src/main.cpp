@@ -20,10 +20,6 @@
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
-//  bug: the : break character in the ai menu only breaks for the first command
-//  and not anything after && or || when doing sudo, it should check the next
-//  command to see if it is valid and to do syntax highlighting on it
-
 /*
  * Exit/Return Codes:
  * 0       - Success
