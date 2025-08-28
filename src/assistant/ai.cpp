@@ -203,10 +203,6 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
       response = shorter;
   }
 
-  if (assistant_type == "code-interpreter" && !response.empty()) {
-    std::cout << process_code_blocks_for_code_interpreter(response) << std::endl;
-  }
-
   std::string clean_text;
   {
     bool in_code_block = false;
@@ -224,12 +220,16 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
     }
     clean_text = oss.str();
   }
+
+  if (assistant_type == "code-interpreter" && !response.empty()) {
+    std::cout << process_code_blocks_for_code_interpreter(response) << std::endl;
+  }
+
   clean_text = format_markdown(clean_text);
   clean_text.erase(std::remove(clean_text.begin(), clean_text.end(), '`'), clean_text.end());
 
   if (voice_dictation_enabled) {
-    std::thread voice_thread(&Ai::process_voice_dictation, this, clean_text);
-    voice_thread.detach();
+    process_voice_dictation(clean_text);
   }
 
   if (!clean_text.empty()) {
@@ -1084,7 +1084,9 @@ bool Ai::process_voice_dictation(const std::string& message) {
     curl_easy_cleanup(curl);
     ofs.close();
 
-    g_shell->execute_command(":afplay " + temp_file_name);
+    //g_shell->execute_command(":terminal");
+    g_shell->execute_command(":afplay " + temp_file_name + " &");
+    //g_shell->execute_command("ai");
     std::remove(temp_file_name.c_str());
     return (res == CURLE_OK);
 }

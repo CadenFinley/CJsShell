@@ -30,8 +30,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   unsigned int command_index = 1;
 
   if (args.size() <= command_index) {
-    std::cerr << "To invoke regular commands prefix all commands with ':'"
-              << std::endl;
+    std::cout << "To invoke regular commands prefix all commands with ':'"
+               << std::endl;
     built_ins->get_shell()->set_menu_active(false);
     if (!g_ai->get_chat_cache().empty()) {
       std::cout << "Chat history:" << std::endl;
