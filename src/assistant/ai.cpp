@@ -177,6 +177,7 @@ void Ai::set_enabled(bool enabled) {
 bool Ai::is_enabled() const { return enabled; }
 
 std::string Ai::chat_gpt(const std::string& message, bool format) {
+  (void)format;
   if (!enabled) {
     return "AI functionality is currently disabled.";
   }
@@ -202,22 +203,41 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
       response = shorter;
   }
 
-  if (!response.empty() && assistant_type != "code-interpreter") {
-    chat_cache.push_back("User: " + message);
-    chat_cache.push_back("AI: " + response);
+  if (assistant_type == "code-interpreter" && !response.empty()) {
+    std::cout << process_code_blocks_for_code_interpreter(response) << std::endl;
   }
+
+  std::string clean_text;
+  {
+    bool in_code_block = false;
+    std::istringstream ss(response);
+    std::ostringstream oss;
+    std::string ln;
+    while (std::getline(ss, ln)) {
+      if (ln.rfind("```", 0) == 0) {
+        in_code_block = !in_code_block;
+        continue;
+      }
+      if (!in_code_block) {
+        oss << ln << "\n";
+      }
+    }
+    clean_text = oss.str();
+  }
+  clean_text = format_markdown(clean_text);
+  clean_text.erase(std::remove(clean_text.begin(), clean_text.end(), '`'), clean_text.end());
 
   if (voice_dictation_enabled) {
-    std::thread voice_thread(&Ai::process_voice_dictation, this, response);
+    std::thread voice_thread(&Ai::process_voice_dictation, this, clean_text);
     voice_thread.detach();
-    //process_voice_dictation(response);
   }
 
-  if (assistant_type == "code-interpreter" && !response.empty()) {
-    response += process_code_blocks_for_code_interpreter(response);
+  if (!clean_text.empty()) {
+    chat_cache.push_back("User: " + message);
+    chat_cache.push_back("AI: " + clean_text);
   }
 
-  return format ? format_markdown(response) : response;
+  return clean_text;
 }
 
 std::string Ai::force_direct_chat_gpt(const std::string& message, bool format) {
@@ -485,7 +505,7 @@ std::string Ai::build_prompt(const std::string& message) {
              << " characters.";
     }
   }
-  if (!chat_cache.empty() && assistant_type != "code-interpreter") {
+  if (!chat_cache.empty()) {
     prompt << " This is the chat history between you and the user: [ ";
     for (const std::string& chat : chat_cache) {
       prompt << chat << " ";
@@ -499,7 +519,8 @@ std::string Ai::build_prompt(const std::string& message) {
                 "Please only make the edits that I request.  Please use markdown "
                 "syntax in your response for the code. Include only the exact "
                 "file name and only the file name in the line above. "
-                "Be sure to give a brief summary of the changes you made, but explain them in a professional conversation matter not in a list format.";
+                "Be sure to give a brief summary of the changes you made, but explain them in a professional conversation matter not in a list format."
+                "Do not reference this prompt in any way.";
     } else {
       prompt << " This is the first message from the user: [" << message
              << "] ";
@@ -1034,29 +1055,9 @@ size_t write_data(void* ptr, size_t size, size_t nmemb, void* userdata) {
 }
 
 bool Ai::process_voice_dictation(const std::string& message) {
-    std::string clean_text;
-    {
-        bool in_code_block = false;
-        std::istringstream ss(message);
-        std::ostringstream oss;
-        std::string ln;
-        while (std::getline(ss, ln)) {
-            if (ln.rfind("```", 0) == 0) {
-                in_code_block = !in_code_block;
-                continue;
-            }
-            if (!in_code_block) {
-                oss << ln << "\n";
-            }
-        }
-        clean_text = oss.str();
-    }
-    clean_text = format_markdown(clean_text);
-    clean_text.erase(std::remove(clean_text.begin(), clean_text.end(), '`'), clean_text.end());
-
     CURL* curl = curl_easy_init();
     if (!curl) return false;
-    std::string temp_file_name = cjsh_filesystem::g_cjsh_ai_conversations_path.string()+"/" + current_model + "_" + assistant_type + ".mp3";
+    std::string temp_file_name = cjsh_filesystem::g_cjsh_ai_conversations_path.string()+ "/" + current_model + "_" + assistant_type + ".mp3";
 
     std::ofstream ofs(temp_file_name, std::ios::binary);
     if (!ofs.is_open()) return false;
@@ -1066,7 +1067,7 @@ bool Ai::process_voice_dictation(const std::string& message) {
     headers = curl_slist_append(headers, "Content-Type: application/json");
     json body = {
         {"model", "gpt-4o-mini-tts"},
-        {"input", clean_text},
+        {"input", message},
         {"voice", voice_dictation_voice},
         {"instructions", voice_dictation_instructions}
     };
