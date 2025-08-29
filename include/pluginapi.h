@@ -4,6 +4,9 @@
 extern "C" {
 #endif
 
+// to do, make more reliable lol
+// allow plugins to be able to use the shell API to execute commands
+
 /**
  * CJSH Plugin API
  *
@@ -15,7 +18,7 @@ extern "C" {
  * 1. Include this header in your plugin source
  * 2. Implement all required functions
  * 3. Compile as a shared library
- * 4. Place the compiled library in the ~/.cjsh/plugins directory
+ * 4. Place the compiled library in the ~/.config/cjsh/plugins directory
  */
 
 // Plugin interface version for compatibility checking

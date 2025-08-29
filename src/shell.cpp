@@ -121,6 +121,9 @@ int Shell::execute_command(std::string command) {
   if (g_debug_mode)
     std::cerr << "DEBUG: Executing command: '" << command << std::endl;
   if (command.empty()) {
+    if (!menu_active) {
+      set_menu_active(true);
+    }
     return 0;
   }
   if (command[0] == '#') {
