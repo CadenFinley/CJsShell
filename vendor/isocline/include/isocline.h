@@ -593,6 +593,11 @@ int ic_term_get_color_bits( void );
 /// functional on Linux, macOS and Windows).
 bool ic_async_stop(void);
 
+/// Thread-safe way to asynchronously unblock a getline operation.
+/// Can be used to interrupt getline from another thread when reading from stdin.
+/// Returns `true` if the event was successfully delivered.
+bool ic_async_interrupt_getline(void);
+
 /// \}
 
 //--------------------------------------------------------------

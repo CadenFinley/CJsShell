@@ -250,18 +250,22 @@ int main(int argc, char* argv[]) {
               << std::endl;
   colors::initialize_color_support(l_colors_enabled);
 
+  std::unique_ptr<Plugin> plugin;
+  std::unique_ptr<Theme> theme;
+  std::unique_ptr<Ai> ai;
+
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing plugin system with enabled="
               << l_plugins_enabled << std::endl;
-  std::unique_ptr<Plugin> plugin = std::make_unique<Plugin>(
-      cjsh_filesystem::g_cjsh_plugin_path, l_plugins_enabled);
+  plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
+                                    l_plugins_enabled);
   g_plugin = plugin.get();
 
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing theme system with enabled="
               << l_themes_enabled << std::endl;
-  std::unique_ptr<Theme> theme = std::make_unique<Theme>(
-      cjsh_filesystem::g_cjsh_theme_path, l_themes_enabled);
+  theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path,
+                                  l_themes_enabled);
   g_theme = theme.get();
 
   std::string api_key = "";
@@ -273,9 +277,9 @@ int main(int argc, char* argv[]) {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing AI with enabled=" << l_ai_enabled
               << std::endl;
-  std::unique_ptr<Ai> ai = std::make_unique<Ai>(
-      api_key, std::string("chat"), std::string(""), std::vector<std::string>{},
-      cjsh_filesystem::g_cjsh_data_path, l_ai_enabled);
+  ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
+                            std::vector<std::string>{},
+                            cjsh_filesystem::g_cjsh_data_path, l_ai_enabled);
   g_ai = ai.get();
 
   if (source_enabled) {
@@ -309,7 +313,22 @@ int main(int argc, char* argv[]) {
       watchdog_thread.join();
     }
   }
+  std::cout << "Exiting main process loop" << std::endl;
 
+  std::cout << "Cleaning up resources..." << std::endl;
+
+  g_ai = nullptr;
+  ai.reset();
+
+  g_theme = nullptr;
+  theme.reset();
+
+  g_plugin = nullptr;
+  plugin.reset();
+
+  g_shell.reset();
+
+  std::cout << "Cleanup complete, exiting with status 0" << std::endl;
   return 0;
 }
 

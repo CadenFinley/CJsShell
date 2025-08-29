@@ -48,6 +48,10 @@
 #include "common.h"
 #include "env.h"
 
+//-------------------------------------------------------------
+// Global variables
+//-------------------------------------------------------------
+static bool getline_interrupt = false;
 
 //-------------------------------------------------------------
 // Readline
@@ -87,6 +91,9 @@ ic_public char* ic_readline(const char* prompt_text)
 
 static char* ic_getline(alloc_t* mem)
 {  
+  // reset interrupt flag
+  getline_interrupt = false;
+  
   // read until eof or newline
   stringbuf_t* sb = sbuf_new(mem);
   int c;
@@ -97,6 +104,10 @@ static char* ic_getline(alloc_t* mem)
     }
     else {
       sbuf_append_char(sb, (char)c);
+    }
+    // check if we've been interrupted
+    if (getline_interrupt) {
+      break;
     }
   }
   return sbuf_free_dup(sb);
@@ -154,6 +165,11 @@ ic_public bool ic_async_stop(void) {
   ic_env_t* env = ic_get_env(); if (env==NULL) return false;
   if (env->tty==NULL) return false;
   return tty_async_stop(env->tty);
+}
+
+ic_public bool ic_async_interrupt_getline(void) {
+  getline_interrupt = true;
+  return true;
 }
 
 static void set_prompt_marker(ic_env_t* env, const char* prompt_marker, const char* cprompt_marker) {
