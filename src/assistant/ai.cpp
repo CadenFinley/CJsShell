@@ -1127,17 +1127,67 @@ bool Ai::process_voice_dictation(const std::string& message) {
                {"voice", voice_dictation_voice},
                {"instructions", voice_dictation_instructions}};
   std::string jsonData = body.dump();
+
+  std::atomic<bool> loading(true);
+  std::atomic<bool> request_cancelled(false);
+  request_in_progress = true;
+
+  std::thread cancellation_thread([&loading, &request_cancelled]() {
+    monitor_cancellation(loading, request_cancelled);
+  });
+
+  std::thread loading_thread([&loading]() {
+    const char* loading_chars = "|/-\\";
+    int i = 0;
+    while (loading) {
+      std::cout << "\rGenerating audio " << loading_chars[i++ % 4]
+                << std::flush;
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    std::cout << "\r                         \r" << std::flush;
+  });
+
   curl_easy_setopt(curl, CURLOPT_URL, "https://api.openai.com/v1/audio/speech");
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ofs);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT,
+                   static_cast<long>(timeout_flag_seconds));
 
-  CURLcode res = curl_easy_perform(curl);
+  CURLcode res = CURLE_OK;
+  if (!request_cancelled) {
+    res = curl_easy_perform(curl);
+  }
+
+  loading = false;
+  request_in_progress = false;
+
+  if (loading_thread.joinable()) {
+    loading_thread.join();
+  }
+
+  if (cancellation_thread.joinable()) {
+    cancellation_thread.join();
+  }
 
   curl_slist_free_all(headers);
   curl_easy_cleanup(curl);
   ofs.close();
+
+  if (request_cancelled) {
+    // Remove the temporary file if request was cancelled
+    if (std::filesystem::exists(temp_file_name)) {
+      std::filesystem::remove(temp_file_name);
+    }
+    return false;
+  }
+
+  if (res != CURLE_OK) {
+    std::cerr << "Curl error generating audio: " << curl_easy_strerror(res)
+              << std::endl;
+    return false;
+  }
 
   std::string command =
       "(afplay \"" + temp_file_name + "\" && rm \"" + temp_file_name + "\")";

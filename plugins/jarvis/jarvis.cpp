@@ -12,8 +12,8 @@
 #include <iostream>
 #include <thread>
 
-#include "pluginapi.h"
 #include "main.h"
+#include "pluginapi.h"
 
 static std::thread worker_thread;
 static std::atomic<bool> running{false};
@@ -68,14 +68,14 @@ static FILE* start_python_worker(const char* cmd, pid_t& pid_out) {
 
 extern "C" PLUGIN_API int plugin_initialize() {
   running = true;
-  std::cerr << "[jarvis] Starting jarvis\n";
+  // std::cerr << "[jarvis] Starting jarvis\n";
 
   const char* home = getenv("HOME");
   if (!home) {
     std::cerr << "[jarvis] Failed to get HOME environment variable\n";
     return PLUGIN_ERROR_GENERAL;
   }
-  
+
   std::string script_path =
       std::string(home) + "/.config/cjsh/Jarvis/jarvis.py";
 
@@ -97,17 +97,18 @@ extern "C" PLUGIN_API int plugin_initialize() {
         }
         std::cout << "\n" << line << std::endl;
         std::string status_str;
+        status_str = std::to_string(g_shell->do_ai_request(line));
 
-        if (g_shell->get_menu_active()) {
-          status_str = std::to_string(g_shell->execute_command(line));
-        } else {
-          if (line[0] == ':') {
-            line.erase(0, 1);
-            status_str = std::to_string(g_shell->execute_command(line));
-          } else {
-            status_str = std::to_string(g_shell->do_ai_request(line));
-          }
-        }
+        // if (g_shell->get_menu_active()) {
+        //   status_str = std::to_string(g_shell->execute_command(line));
+        // } else {
+        //   if (line[0] == ':') {
+        //     line.erase(0, 1);
+        //     status_str = std::to_string(g_shell->execute_command(line));
+        //   } else {
+        //     status_str = std::to_string(g_shell->do_ai_request(line));
+        //   }
+        // }
       }
     }
   });
