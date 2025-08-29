@@ -27,6 +27,7 @@ if(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         SUFFIX ".dylib"
         PREFIX ""                # no "lib" prefix (CJSH plugin expects raw name)
+        LINK_FLAGS "-undefined dynamic_lookup -flat_namespace"
     )
 elseif(UNIX)
     set_target_properties(${PROJECT_NAME} PROPERTIES
