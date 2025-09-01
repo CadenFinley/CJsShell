@@ -10,6 +10,7 @@
 #include <iostream>
 #include <memory>
 
+#include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
 #include "completions.h"
@@ -282,9 +283,19 @@ int main(int argc, char* argv[]) {
                             cjsh_filesystem::g_cjsh_data_path, l_ai_enabled);
   g_ai = ai.get();
 
+  std::string saved_current_dir = std::filesystem::current_path().string();
+  if (g_debug_mode) std::cerr << "DEBUG: Saved current directory: " << saved_current_dir << std::endl;
+
   if (source_enabled) {
     if (g_debug_mode) std::cerr << "DEBUG: Processing source file" << std::endl;
     process_source_file();
+  } else {
+    if (g_debug_mode) std::cerr << "DEBUG: Restoring current directory due to --no-source: " << saved_current_dir << std::endl;
+    if (std::filesystem::current_path() != saved_current_dir) {
+      std::filesystem::current_path(saved_current_dir);
+      setenv("PWD", saved_current_dir.c_str(), 1);
+      g_shell->get_built_ins()->set_current_directory();
+    }
   }
 
   g_startup_active = false;

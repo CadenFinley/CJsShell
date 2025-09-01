@@ -87,7 +87,9 @@ class Shell {
   std::unordered_set<std::string> get_available_commands() const;
 
   std::string get_previous_directory() const;
-
+  
+  Built_ins* get_built_ins() { return built_ins; }
+  
   Built_ins* built_ins = nullptr;
 
  private:
