@@ -219,6 +219,75 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     return 0;
   }
 
+  if (cmd == "config") {
+    if (args.size() <= command_index + 1) {
+      // Show current config
+      std::cout << "Current AI config: " << g_ai->get_config_name()
+                << std::endl;
+      return 0;
+    }
+
+    const std::string& subcmd = args[command_index + 1];
+
+    if (subcmd == "list") {
+      // List available configs
+      std::vector<std::string> configs = g_ai->list_configs();
+      if (configs.empty()) {
+        std::cout << "No AI configs found." << std::endl;
+      } else {
+        std::cout << "Available AI configs:" << std::endl;
+        for (const auto& config : configs) {
+          if (config == g_ai->get_config_name()) {
+            std::cout << "* " << config << " (current)" << std::endl;
+          } else {
+            std::cout << "  " << config << std::endl;
+          }
+        }
+      }
+      return 0;
+    }
+
+    if (subcmd == "switch" || subcmd == "load") {
+      if (args.size() <= command_index + 2) {
+        std::cout
+            << "Error: Missing config name. Usage: ai config switch <name>"
+            << std::endl;
+        return 1;
+      }
+      std::string config_name = args[command_index + 2];
+      if (g_ai->load_config(config_name)) {
+        std::cout << "Switched to AI config: " << config_name << std::endl;
+      } else {
+        std::cout << "Failed to switch to AI config: " << config_name
+                  << std::endl;
+        return 1;
+      }
+      return 0;
+    }
+
+    if (subcmd == "save" || subcmd == "saveas") {
+      if (args.size() <= command_index + 2) {
+        std::cout << "Error: Missing config name. Usage: ai config save <name>"
+                  << std::endl;
+        return 1;
+      }
+      std::string config_name = args[command_index + 2];
+      if (g_ai->save_config_as(config_name)) {
+        std::cout << "Saved AI config as: " << config_name << std::endl;
+      } else {
+        std::cout << "Failed to save AI config as: " << config_name
+                  << std::endl;
+        return 1;
+      }
+      return 0;
+    }
+
+    std::cout
+        << "Unknown config command. Available commands: list, switch, save"
+        << std::endl;
+    return 1;
+  }
+
   if (cmd == "voice") {
     if (args.size() <= command_index + 1) {
       std::cout << "The current voice is " << g_ai->get_voice_dictation_voice()
@@ -291,6 +360,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
            "instruction\n"
         << "  ai name [name]        - Show or set the assistant name\n"
         << "  ai saveconfig         - Save the current AI configuration\n"
+        << "  ai config             - Show current config name\n"
+        << "  ai config list        - List available configs\n"
+        << "  ai config switch <name> - Switch to another config\n"
+        << "  ai config save <name> - Save current config with a new name\n"
         << "  ai voice [voice]      - Show or set the voice for dictation\n"
         << "  ai voicedictation [enable|disable] - Enable or disable voice "
            "dictation\n"

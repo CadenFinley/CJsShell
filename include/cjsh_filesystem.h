@@ -55,6 +55,8 @@ const fs::path g_cjsh_ai_config_path =
     g_cjsh_data_path / "ai";  // where the ai config is stored
 const fs::path g_cjsh_ai_config_file_path =
     g_cjsh_ai_config_path / "config.json";  // where the ai config is stored
+const fs::path g_cjsh_ai_default_config_path =
+    g_cjsh_ai_config_path / "default.json";  // default ai config
 
 const fs::path g_cjsh_ai_conversations_path =
     g_cjsh_cache_path /

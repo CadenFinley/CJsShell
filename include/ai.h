@@ -73,6 +73,11 @@ class Ai {
   std::string get_save_directory() const;
   void set_enabled(bool enabled);
   bool is_enabled() const;
+  void set_config_name(const std::string& config_name);
+  std::string get_config_name() const;
+  std::vector<std::string> list_configs() const;
+  bool load_config(const std::string& config_name);
+  bool save_config_as(const std::string& config_name);
 
   std::string chat_gpt(const std::string& message, bool format);
   std::string force_direct_chat_gpt(const std::string& message, bool format);
@@ -145,6 +150,7 @@ class Ai {
   std::string last_response_received;
   std::map<std::string, nlohmann::json> response_data_map;
   std::string save_directory;
+  std::string config_name = "default";
   bool enabled = true;
   std::atomic<bool> request_in_progress{false};
 

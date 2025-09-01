@@ -39,7 +39,7 @@ endif()
 find_package(PkgConfig REQUIRED)
 
 # File globbing and main target definition
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "src/builtins/*.cpp" "src/builtins/*.c" "src/utils/*.cpp" "src/utils/*.c")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "src/builtins/*.cpp" "src/builtins/*.c" "src/utils/*.cpp" "src/utils/*.c" "src/assistant/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Find additional libraries needed for libcurl

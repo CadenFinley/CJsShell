@@ -114,7 +114,7 @@ extern "C" PLUGIN_API int plugin_initialize() {
     }
   });
 
-  std::cerr << "[jarvis] I am up and running sir.\n";
+  std::cout << "\n[jarvis] I am up and running sir.\n";
   return PLUGIN_SUCCESS;
 }
 
