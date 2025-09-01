@@ -6,6 +6,7 @@
 -----------------------------------------------------------------------------*/
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include "isocline/isocline.h"
 #include "isocline/common.h"
