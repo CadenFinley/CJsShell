@@ -20,8 +20,6 @@
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
-//  make jarvis plugin apart of main program that is enabled and disabled by the
-//  voice dictation feature which is apart of the built in assistant
 /*
  * Exit/Return Codes:
  * 0       - Success
