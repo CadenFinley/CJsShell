@@ -39,7 +39,51 @@ endif()
 find_package(PkgConfig REQUIRED)
 
 # File globbing and main target definition
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.c" "src/builtins/*.cpp" "src/builtins/*.c" "src/utils/*.cpp" "src/utils/*.c" "src/assistant/*.cpp")
+file(GLOB_RECURSE SOURCES 
+  "src/*.cpp" 
+  "src/*.c" 
+  "src/builtins/*.cpp" 
+  "src/builtins/*.c" 
+  "src/utils/*.cpp" 
+  "src/utils/*.c" 
+  "src/assistant/*.cpp" 
+  "src/isocline/*.cpp"
+)
+
+# Explicitly list isocline .c files that should be compiled
+file(GLOB ISOCLINE_MAIN_C 
+  "src/isocline/attr.c" 
+  "src/isocline/bbcode.c" 
+  "src/isocline/bbcode_colors.c" 
+  "src/isocline/common.c" 
+  "src/isocline/completers.c" 
+  "src/isocline/completions.c" 
+  "src/isocline/editline.c" 
+  "src/isocline/highlight.c" 
+  "src/isocline/history.c" 
+  "src/isocline/isocline.c" 
+  "src/isocline/stringbuf.c" 
+  "src/isocline/term.c" 
+  "src/isocline/tty.c" 
+  "src/isocline/tty_esc.c" 
+  "src/isocline/undo.c" 
+  "src/isocline/wcwidth.c"
+)
+
+# Remove files that are included by other files and shouldn't be compiled separately
+list(APPEND SOURCES ${ISOCLINE_MAIN_C})
+
+# Find files in sources that should be excluded
+file(GLOB EXCLUDE_FILES
+  "src/isocline/editline_completion.c"
+  "src/isocline/editline_help.c"
+  "src/isocline/editline_history.c"
+  "src/isocline/term_color.c"
+)
+
+# Remove the excluded files from the sources list
+list(REMOVE_ITEM SOURCES ${EXCLUDE_FILES})
+
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Find additional libraries needed for libcurl
@@ -54,6 +98,22 @@ find_package(LibPSL)
 find_package(LibIDN2)
 find_package(Libnghttp2)
 
+# Set isocline library to use separate objects
+add_definitions(-DIC_SEPARATE_OBJS=1)
+
+# Create a file-specific compile flags for isocline files
+set_source_files_properties(
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/bbcode_colors.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/completers.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/editline.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/term.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/term_color.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/tty.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/tty_esc.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/wcwidth.c
+  PROPERTIES COMPILE_FLAGS "-Wno-error=unused-variable -Wno-error=unused-function"
+)
+
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -65,7 +125,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    isocline
     curl
     pthread
     dl

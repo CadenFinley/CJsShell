@@ -8,10 +8,10 @@
 #include <string.h>  
 #include <sys/stat.h>
 
-#include "../include/isocline.h"
-#include "common.h"
-#include "history.h"
-#include "stringbuf.h"
+#include "isocline/isocline.h"
+#include "isocline/common.h"
+#include "isocline/history.h"
+#include "isocline/stringbuf.h"
 
 #define IC_MAX_HISTORY (200)
 

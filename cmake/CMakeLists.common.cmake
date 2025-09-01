@@ -202,8 +202,4 @@ include_directories(${CURL_INCLUDE_DIRS})
 # Common include directories
 include_directories(SYSTEM ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-# Isocline terminal library
-set(ISOCLINE_DISABLE_CPU_TARGETING ON CACHE BOOL "Disable CPU targeting in isocline" FORCE)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/vendor/isocline/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/isocline)

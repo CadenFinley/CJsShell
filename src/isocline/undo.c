@@ -7,12 +7,12 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "../include/isocline.h"
-#include "common.h"
-#include "env.h"
-#include "stringbuf.h"
-#include "completions.h"
-#include "undo.h"
+#include "isocline/isocline.h"
+#include "isocline/common.h"
+#include "isocline/env.h"
+#include "isocline/stringbuf.h"
+#include "isocline/completions.h"
+#include "isocline/undo.h"
 
 
 

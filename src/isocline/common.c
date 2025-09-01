@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include "common.h"
+#include "isocline/common.h"
 
 
 //-------------------------------------------------------------

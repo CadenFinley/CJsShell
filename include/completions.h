@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "../vendor/isocline/include/isocline.h"
+#include "isocline/isocline.h"
 
 extern std::string g_previous_directory;
 

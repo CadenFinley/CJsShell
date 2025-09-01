@@ -10,7 +10,7 @@
 #include <stdarg.h>
 #include <locale.h>
 
-#include "tty.h"
+#include "isocline/tty.h"
 
 #if defined(_WIN32)
 #include <windows.h>

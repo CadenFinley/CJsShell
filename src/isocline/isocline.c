@@ -21,19 +21,19 @@
 # endif
 # define _XOPEN_SOURCE   700      // for wcwidth
 # define _DEFAULT_SOURCE          // ensure usleep stays visible with _XOPEN_SOURCE >= 700
-# include "attr.c"
-# include "bbcode.c"
-# include "editline.c"
-# include "highlight.c"
-# include "undo.c"
-# include "history.c"
-# include "completers.c"
-# include "completions.c"
-# include "term.c"
-# include "tty_esc.c"
-# include "tty.c"
-# include "stringbuf.c"
-# include "common.c"
+# include "isocline/attr.c"
+# include "isocline/bbcode.c"
+# include "isocline/editline.c"
+# include "isocline/highlight.c"
+# include "isocline/undo.c"
+# include "isocline/history.c"
+# include "isocline/completers.c"
+# include "isocline/completions.c"
+# include "isocline/term.c"
+# include "isocline/tty_esc.c"
+# include "isocline/tty.c"
+# include "isocline/stringbuf.c"
+# include "isocline/common.c"
 #endif
 
 //-------------------------------------------------------------
@@ -44,9 +44,9 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "../include/isocline.h"
-#include "common.h"
-#include "env.h"
+#include "isocline/isocline.h"
+#include "isocline/common.h"
+#include "isocline/env.h"
 
 //-------------------------------------------------------------
 // Global variables

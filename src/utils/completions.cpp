@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "../vendor/isocline/include/isocline.h"
+#include "isocline/isocline.h"
 #include "cjsh_filesystem.h"
 #include "main.h"
 #include "shell.h"

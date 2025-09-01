@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_set>
 
-#include "../vendor/isocline/include/isocline.h"
+#include "isocline/isocline.h"
 
 class SyntaxHighlighter {
  public:

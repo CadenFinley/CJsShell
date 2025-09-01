@@ -9,10 +9,10 @@
 #include <stdarg.h>
 #include <stdlib.h>  
 
-#include "common.h"
-#include "attr.h"
-#include "term.h"
-#include "bbcode.h" 
+#include "isocline/common.h"
+#include "isocline/attr.h"
+#include "isocline/term.h"
+#include "isocline/bbcode.h" 
 
 //-------------------------------------------------------------
 // HTML color table
