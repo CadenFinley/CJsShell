@@ -1,0 +1,85 @@
+{
+  "terminal_title": "C:\\{USERNAME}\\{PATH}",
+  "ps1_segments": [
+    {
+      "tag": "username",
+      "content": "{USERNAME}@",
+      "bg_color": "#000000",
+      "fg_color": "#55FF55",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    },
+    {
+      "tag": "hostname",
+      "content": "{HOSTNAME}:",
+      "bg_color": "#000000",
+      "fg_color": "#55FF55",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    },
+    {
+      "tag": "directory",
+      "content": "C:\\{DIRECTORY}>",
+      "bg_color": "#000000",
+      "fg_color": "#55FF55",
+      "separator": " ",
+      "separator_fg": "#55FF55",
+      "separator_bg": "#000000"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "path",
+      "content": "{LOCAL_PATH}",
+      "bg_color": "#000000",
+      "fg_color": "#55FF55",
+      "separator": "\\",
+      "separator_fg": "#55FF55",
+      "separator_bg": "#000000"
+    },
+    {
+      "tag": "branch",
+      "content": "BRANCH={GIT_BRANCH}",
+      "bg_color": "#000000",
+      "fg_color": "#55FF55",
+      "separator": "\\",
+      "separator_fg": "#55FF55",
+      "separator_bg": "#000000"
+    },
+    {
+      "tag": "status",
+      "content": "STATUS={GIT_STATUS}",
+      "bg_color": "#000000",
+      "fg_color": "#FF5555",
+      "separator": ">",
+      "separator_fg": "#55FF55",
+      "separator_bg": "#000000"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "model",
+      "content": "AI:{AI_MODEL}",
+      "bg_color": "#000000",
+      "fg_color": "#FF55FF",
+      "separator": "\\",
+      "separator_fg": "#55FF55",
+      "separator_bg": "#000000"
+    },
+    {
+      "tag": "mode",
+      "content": "MODE={AI_AGENT_TYPE}",
+      "bg_color": "#000000",
+      "fg_color": "#55FFFF",
+      "separator": ">",
+      "separator_fg": "#55FF55",
+      "separator_bg": "#000000"
+    }
+  ],
+  "newline_segments": [],
+  "fill_char": "_",
+  "fill_fg_color": "#555555",
+  "fill_bg_color": "#000000"
+}

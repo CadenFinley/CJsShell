@@ -1,0 +1,113 @@
+{
+  "terminal_title": "☀️ {USERNAME}@{HOSTNAME}: {PATH}",
+  "ps1_segments": [
+    {
+      "tag": "username",
+      "content": " {USERNAME} ",
+      "bg_color": "#002B36",
+      "fg_color": "#2AA198",
+      "separator": "⟫",
+      "separator_fg": "#839496",
+      "separator_bg": "#002B36"
+    },
+    {
+      "tag": "hostname",
+      "content": " {HOSTNAME} ",
+      "bg_color": "#002B36",
+      "fg_color": "#268BD2",
+      "separator": "⟫",
+      "separator_fg": "#839496",
+      "separator_bg": "#002B36"
+    },
+    {
+      "tag": "directory",
+      "content": " {DIRECTORY} ",
+      "bg_color": "#002B36",
+      "fg_color": "#859900",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    },
+    {
+      "tag": "prompt",
+      "content": " ☀️ ",
+      "bg_color": "#002B36",
+      "fg_color": "#CB4B16",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "path",
+      "content": " {LOCAL_PATH} ",
+      "bg_color": "#002B36",
+      "fg_color": "#859900",
+      "separator": "⟫",
+      "separator_fg": "#839496",
+      "separator_bg": "#002B36"
+    },
+    {
+      "tag": "branch",
+      "content": " {GIT_BRANCH} ",
+      "bg_color": "#002B36",
+      "fg_color": "#B58900",
+      "separator": "⟫",
+      "separator_fg": "#839496",
+      "separator_bg": "#002B36"
+    },
+    {
+      "tag": "status",
+      "content": " {GIT_STATUS} ",
+      "bg_color": "#002B36",
+      "fg_color": "#DC322F",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    },
+    {
+      "tag": "prompt",
+      "content": " ☀️ ",
+      "bg_color": "#002B36",
+      "fg_color": "#CB4B16",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "model",
+      "content": " {AI_MODEL} ",
+      "bg_color": "#002B36",
+      "fg_color": "#6C71C4",
+      "separator": "⟫",
+      "separator_fg": "#839496",
+      "separator_bg": "#002B36"
+    },
+    {
+      "tag": "mode",
+      "content": " {AI_AGENT_TYPE} ",
+      "bg_color": "#002B36",
+      "fg_color": "#D33682",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "prompt",
+      "content": " ❯ ",
+      "bg_color": "RESET",
+      "fg_color": "#2AA198",
+      "separator": "",
+      "separator_fg": "",
+      "separator_bg": ""
+    }
+  ],
+  "fill_char": "─",
+  "fill_fg_color": "#586E75",
+  "fill_bg_color": "#002B36"
+}

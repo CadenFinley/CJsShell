@@ -1,0 +1,67 @@
+{
+  "terminal_title": "{PATH}",
+  "ps1_segments": [
+    {
+      "tag": "directory",
+      "content": "{DIRECTORY}",
+      "bg_color": "RESET",
+      "fg_color": "#4F8CC9",
+      "separator": " ",
+      "separator_fg": "#FFFFFF",
+      "separator_bg": "RESET"
+    },
+    {
+      "tag": "prompt",
+      "content": "$ ",
+      "bg_color": "RESET",
+      "fg_color": "#FFFFFF",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "branch",
+      "content": "{GIT_BRANCH}",
+      "bg_color": "RESET",
+      "fg_color": "#7CB07C",
+      "separator": " ",
+      "separator_fg": "#FFFFFF",
+      "separator_bg": "RESET"
+    },
+    {
+      "tag": "status",
+      "content": "{GIT_STATUS}",
+      "bg_color": "RESET",
+      "fg_color": "#D35E5E",
+      "separator": " $ ",
+      "separator_fg": "#FFFFFF",
+      "separator_bg": "RESET"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "model",
+      "content": "{AI_MODEL}",
+      "bg_color": "RESET",
+      "fg_color": "#C882CC",
+      "separator": " / ",
+      "separator_fg": "#FFFFFF",
+      "separator_bg": "RESET"
+    },
+    {
+      "tag": "mode",
+      "content": "{AI_AGENT_TYPE}",
+      "bg_color": "RESET",
+      "fg_color": "#55FFFF",
+      "separator": " $ ",
+      "separator_fg": "#FFFFFF",
+      "separator_bg": "RESET"
+    }
+  ],
+  "newline_segments": [],
+  "fill_char": "",
+  "fill_fg_color": "RESET",
+  "fill_bg_color": "RESET"
+}

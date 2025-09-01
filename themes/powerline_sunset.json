@@ -1,0 +1,95 @@
+{
+  "terminal_title": "{USERNAME}@{HOSTNAME}: {PATH}",
+  "ps1_segments": [
+    {
+      "tag": "username",
+      "content": " {USERNAME} ",
+      "bg_color": "#442266",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#442266",
+      "separator_bg": "#663399"
+    },
+    {
+      "tag": "hostname",
+      "content": " {HOSTNAME} ",
+      "bg_color": "#663399",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#663399",
+      "separator_bg": "#AA5500"
+    },
+    {
+      "tag": "directory",
+      "content": " {DIRECTORY} ",
+      "bg_color": "#AA5500",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#AA5500",
+      "separator_bg": "RESET"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "path",
+      "content": " {LOCAL_PATH} ",
+      "bg_color": "#442266",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#442266",
+      "separator_bg": "#AA5500"
+    },
+    {
+      "tag": "branch",
+      "content": " {GIT_BRANCH} ",
+      "bg_color": "#AA5500",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#AA5500",
+      "separator_bg": "#FF7700"
+    },
+    {
+      "tag": "status",
+      "content": " {GIT_STATUS} ",
+      "bg_color": "#FF7700",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#FF7700",
+      "separator_bg": "RESET"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "model",
+      "content": " {AI_MODEL} ",
+      "bg_color": "#442266",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#442266",
+      "separator_bg": "#663399"
+    },
+    {
+      "tag": "mode",
+      "content": " {AI_AGENT_TYPE} ",
+      "bg_color": "#663399",
+      "fg_color": "#FFFFFF",
+      "separator": "\uE0B0",
+      "separator_fg": "#663399",
+      "separator_bg": "RESET"
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "prompt",
+      "content": " \u276F ",
+      "bg_color": "RESET",
+      "fg_color": "#FF7700",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ],
+  "fill_char": "",
+  "fill_fg_color": "#555555",
+  "fill_bg_color": "RESET"
+}
