@@ -15,6 +15,7 @@ class Theme {
 
   void prerender_segments();
   std::string prerender_line(const std::vector<nlohmann::json>& segments) const;
+  bool check_theme_requirements(const nlohmann::json& requirements) const;
 
   std::string prerendered_ps1_format;
   std::string prerendered_git_format;

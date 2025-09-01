@@ -1,4 +1,9 @@
 {
+  "requirements": {
+    "plugins": ["threaded_prompt"],
+    "colors": "true_color",
+    "fonts": ["FiraCode Nerd Font", "Hack Nerd Font"]
+  },
   "terminal_title": "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME}",
   "ps1_segments": [
     {

@@ -63,6 +63,7 @@ class Plugin {
   bool uninstall_plugin(const std::string& name);
   std::vector<std::string> get_available_plugins() const;
   std::vector<std::string> get_enabled_plugins() const;
+  bool is_plugin_enabled(const std::string& name) const;
   bool enable_plugin(const std::string& name);
   bool disable_plugin(const std::string& name);
   int get_interface_version() const { return PLUGIN_INTERFACE_VERSION; }

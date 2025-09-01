@@ -99,14 +99,15 @@ std::string PromptInfo::get_basic_title() { return get_current_file_path(); }
 bool PromptInfo::is_variable_used(const std::string& var_name,
                                   const std::vector<nlohmann::json>& segments) {
   std::string placeholder = "{" + var_name + "}";
-  
+
   // Use a static cache to avoid repetitive checks for the same variables
   static std::unordered_map<std::string, bool> cache;
   static std::mutex cache_mutex;
-  
-  // Create a unique key based on the variable name and segment sizes (rough approximation)
+
+  // Create a unique key based on the variable name and segment sizes (rough
+  // approximation)
   std::string cache_key = var_name + "_" + std::to_string(segments.size());
-  
+
   {
     std::lock_guard<std::mutex> lock(cache_mutex);
     auto it = cache.find(cache_key);
@@ -114,7 +115,7 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
       return it->second;
     }
   }
-  
+
   // If not in cache, search through all segments
   for (const auto& segment : segments) {
     if (segment.contains("content")) {
@@ -139,7 +140,7 @@ bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
   // Cache this result using the current path as the key
   std::string current_path_str = std::filesystem::current_path().string();
   std::string cache_key = "is_git_repo_" + current_path_str;
-  
+
   std::string cached_result = get_cached_value(
       cache_key,
       [this, &repo_root]() -> std::string {
@@ -159,19 +160,19 @@ bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
         return "not_found,false";
       },
       300);  // Cache for 5 minutes since repo status rarely changes
-  
+
   // Parse the result
   size_t comma_pos = cached_result.find(',');
   if (comma_pos != std::string::npos) {
     std::string path_str = cached_result.substr(0, comma_pos);
     std::string is_repo_str = cached_result.substr(comma_pos + 1);
-    
+
     if (is_repo_str == "true" && path_str != "not_found") {
       repo_root = std::filesystem::path(path_str);
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -224,9 +225,11 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
   if ((elapsed > 60 || cached_git_dir != git_dir) &&
       !is_git_status_check_running) {
     is_git_status_check_running = true;
-    
+
     // Run a faster git status command that exits as soon as it finds a change
-    std::string command = "cd " + git_dir + " && git diff --no-ext-diff --quiet || echo 'modified'";
+    std::string command =
+        "cd " + git_dir +
+        " && git diff --no-ext-diff --quiet || echo 'modified'";
 
     FILE* pipe = popen(command.c_str(), "r");
     if (pipe) {
@@ -428,24 +431,24 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
         try {
           std::filesystem::path git_head_path = repo_root / ".git" / "HEAD";
           std::string branch;
-          
+
           // Read HEAD file directly instead of calling get_git_branch
           std::ifstream head_file(git_head_path);
           std::string line;
           std::regex head_pattern("ref: refs/heads/(.*)");
           std::smatch match;
-          
+
           while (std::getline(head_file, line)) {
             if (std::regex_search(line, match, head_pattern)) {
               branch = match[1];
               break;
             }
           }
-          
+
           if (branch.empty()) {
             return "0,0";  // Return default if can't determine branch
           }
-          
+
           std::string command =
               "cd " + repo_root.string() +
               " && git rev-list --left-right --count @{u}...HEAD 2>/dev/null";
@@ -465,25 +468,25 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
           }
 
           pclose(pipe);
-          
+
           // Trim whitespace
           cmdResult.erase(cmdResult.find_last_not_of(" \n\r\t") + 1);
-          
+
           // Parse result
           std::istringstream iss(cmdResult);
           int b, a;
           iss >> b >> a;
-          
+
           return std::to_string(b) + "," + std::to_string(a);
         } catch (const std::exception& e) {
           if (g_debug_mode)
-            std::cerr << "DEBUG: Error getting git ahead/behind status: " << e.what()
-                      << std::endl;
+            std::cerr << "DEBUG: Error getting git ahead/behind status: "
+                      << e.what() << std::endl;
           return "0,0";
         }
       },
       120);  // Cache for 2 minutes
-  
+
   // Parse the cached result
   size_t comma_pos = result.find(',');
   if (comma_pos != std::string::npos) {
@@ -495,7 +498,7 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
       return -1;
     }
   }
-  
+
   return -1;
 }
 
@@ -524,10 +527,10 @@ int PromptInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
           }
 
           pclose(pipe);
-          
+
           // Trim whitespace
           result.erase(result.find_last_not_of(" \n\r\t") + 1);
-          
+
           return result;
         } catch (const std::exception&) {
           return "0";
@@ -541,37 +544,38 @@ bool PromptInfo::get_git_has_staged_changes(
   // Cache staged changes status for 60 seconds
   std::string cache_key = "git_staged_" + repo_root.string();
   return get_cached_value(
-      cache_key,
-      [&repo_root]() -> std::string {
-        try {
-          std::string command = "cd " + repo_root.string() +
-                               " && git diff --cached --quiet && echo 0 || echo 1";
+             cache_key,
+             [&repo_root]() -> std::string {
+               try {
+                 std::string command =
+                     "cd " + repo_root.string() +
+                     " && git diff --cached --quiet && echo 0 || echo 1";
 
-          FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
-          if (!pipe) {
-            return "0";
-          }
+                 FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
+                 if (!pipe) {
+                   return "0";
+                 }
 
-          char buffer[128];
-          std::string result = "";
+                 char buffer[128];
+                 std::string result = "";
 
-          while (!feof(pipe)) {
-            if (fgets(buffer, 128, pipe) != nullptr) {
-              result += buffer;
-            }
-          }
+                 while (!feof(pipe)) {
+                   if (fgets(buffer, 128, pipe) != nullptr) {
+                     result += buffer;
+                   }
+                 }
 
-          pclose(pipe);
+                 pclose(pipe);
 
-          // Trim whitespace
-          result.erase(result.find_last_not_of(" \n\r\t") + 1);
+                 // Trim whitespace
+                 result.erase(result.find_last_not_of(" \n\r\t") + 1);
 
-          return result;
-        } catch (const std::exception&) {
-          return "0";
-        }
-      },
-      60) == "1";  // Cache for 60 seconds
+                 return result;
+               } catch (const std::exception&) {
+                 return "0";
+               }
+             },
+             60) == "1";  // Cache for 60 seconds
 }
 
 int PromptInfo::get_git_uncommitted_changes(
@@ -584,7 +588,8 @@ int PromptInfo::get_git_uncommitted_changes(
         try {
           // Use --name-only to make the command faster
           std::string command =
-              "cd " + repo_root.string() + " && git status --porcelain --name-only | wc -l";
+              "cd " + repo_root.string() +
+              " && git status --porcelain --name-only | wc -l";
 
           FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
           if (!pipe) {
@@ -601,10 +606,10 @@ int PromptInfo::get_git_uncommitted_changes(
           }
 
           pclose(pipe);
-          
+
           // Trim whitespace
           result.erase(result.find_last_not_of(" \n\r\t") + 1);
-          
+
           return result;
         } catch (const std::exception&) {
           return "0";
@@ -621,7 +626,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
               << std::endl;
 
   std::unordered_map<std::string, std::string> vars;
-  
+
   // Create a set of needed variables to avoid computing unused ones
   std::unordered_set<std::string> needed_vars;
   for (const auto& segment : segments) {
@@ -631,8 +636,9 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
       std::regex placeholder_pattern("\\{([^}]+)\\}");
       std::smatch matches;
       std::string::const_iterator search_start(content.cbegin());
-      
-      while (std::regex_search(search_start, content.cend(), matches, placeholder_pattern)) {
+
+      while (std::regex_search(search_start, content.cend(), matches,
+                               placeholder_pattern)) {
         needed_vars.insert(matches[1]);
         search_start = matches.suffix().first;
       }
@@ -823,7 +829,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
       }
     }
   }
-  
+
   return vars;
 }
 
@@ -950,7 +956,8 @@ float PromptInfo::get_cpu_usage() {
             "r");
 #elif defined(__linux__)
         FILE* fp = popen(
-            "sh -c 'top -bn1 | grep \"Cpu(s)\" | awk \"{print \\$2 + \\$4}\"'", "r");
+            "sh -c 'top -bn1 | grep \"Cpu(s)\" | awk \"{print \\$2 + \\$4}\"'",
+            "r");
 #else
         return "0.0";
 #endif
@@ -967,12 +974,12 @@ float PromptInfo::get_cpu_usage() {
           resultStr += buffer;
         }
         pclose(fp);
-        
+
         // Remove newline if present
         if (!resultStr.empty() && resultStr[resultStr.length() - 1] == '\n') {
           resultStr.erase(resultStr.length() - 1);
         }
-        
+
         return resultStr;
       },
       5));  // Cache for 5 seconds
@@ -980,19 +987,20 @@ float PromptInfo::get_cpu_usage() {
 
 float PromptInfo::get_memory_usage() {
   if (g_debug_mode) std::cerr << "DEBUG: Getting memory usage" << std::endl;
-  
+
   // Cache memory usage for 5 seconds as it doesn't change that rapidly
   return std::stof(get_cached_value(
       "memory_usage",
       []() -> std::string {
 #ifdef __APPLE__
         FILE* fp = popen(
-            "sh -c 'top -l 1 | grep PhysMem | awk \"{print \\$2}\" | cut -d\"M\" "
+            "sh -c 'top -l 1 | grep PhysMem | awk \"{print \\$2}\" | cut "
+            "-d\"M\" "
             "-f1'",
             "r");
 #elif defined(__linux__)
-        FILE* fp =
-            popen("sh -c 'free | grep Mem | awk \"{print \\$3/\\$2 * 100.0}\"'", "r");
+        FILE* fp = popen(
+            "sh -c 'free | grep Mem | awk \"{print \\$3/\\$2 * 100.0}\"'", "r");
 #else
         return "0.0";
 #endif
@@ -1005,12 +1013,12 @@ float PromptInfo::get_memory_usage() {
           result += buffer;
         }
         pclose(fp);
-        
+
         // Remove newline if present
         if (!result.empty() && result[result.length() - 1] == '\n') {
           result.erase(result.length() - 1);
         }
-        
+
         return result;
       },
       5));  // Cache for 5 seconds
@@ -1054,12 +1062,12 @@ std::string PromptInfo::get_battery_status() {
         // Combine commands for Linux as well
         std::string capacity_path = "/sys/class/power_supply/BAT0/capacity";
         std::string status_path = "/sys/class/power_supply/BAT0/status";
-        
+
         // Check if battery exists
         if (!std::filesystem::exists(capacity_path)) {
           return "Unknown";
         }
-        
+
         // Read capacity file directly instead of using popen
         std::ifstream capacity_file(capacity_path);
         std::string percentage = "Unknown";
@@ -1067,7 +1075,7 @@ std::string PromptInfo::get_battery_status() {
           std::getline(capacity_file, percentage);
           percentage += "%";
         }
-        
+
         // Read status file directly
         std::string icon = "";
         std::ifstream status_file(status_path);
@@ -1080,7 +1088,7 @@ std::string PromptInfo::get_battery_status() {
             icon = "🔋";
           }
         }
-        
+
         return percentage + " " + icon;
 #else
         return "Unknown";

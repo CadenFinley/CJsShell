@@ -25,6 +25,7 @@ void Theme::create_default_theme() {
   nlohmann::json default_theme;
 
   default_theme["terminal_title"] = "{PATH}";
+  default_theme["requirements"] = nlohmann::json::object();
   default_theme["ps1_segments"] = nlohmann::json::array();
   default_theme["ps1_segments"].push_back(
       {{"tag", "username"},
@@ -104,6 +105,12 @@ bool Theme::load_theme(const std::string& theme_name) {
     theme_name_to_use = "default";
   }
 
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Loading theme '" << theme_name_to_use
+              << "', startup_active=" << (g_startup_active ? "true" : "false")
+              << std::endl;
+  }
+
   std::string theme_file = theme_directory + "/" + theme_name_to_use + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
@@ -114,6 +121,24 @@ bool Theme::load_theme(const std::string& theme_name) {
   nlohmann::json theme_json;
   file >> theme_json;
   file.close();
+
+  // Check theme requirements
+  if (theme_json.contains("requirements") &&
+      theme_json["requirements"].is_object() &&
+      !theme_json["requirements"].empty()) {
+    if (g_startup_active && theme_json["requirements"].contains("plugins") &&
+        g_debug_mode) {
+      std::cerr << "DEBUG: Theme '" << theme_name_to_use
+                << "' has plugin requirements, these will be checked later"
+                << std::endl;
+    }
+    if (!check_theme_requirements(theme_json["requirements"])) {
+      std::cerr << "Theme '" << theme_name_to_use
+                << "' requirements not met, falling back to default theme"
+                << std::endl;
+      return load_theme("default");
+    }
+  }
 
   ps1_segments.clear();
   git_segments.clear();
@@ -261,7 +286,17 @@ std::string Theme::prerender_line(
 size_t Theme::get_terminal_width() const {
   struct winsize w;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
-    return w.ws_col;
+    if (g_debug_mode) {
+      std::cout << "Detected terminal width: " << w.ws_col << " columns"
+                << std::endl;
+    }
+    return w.ws_col > 2 ? w.ws_col - 1 : w.ws_col;
+  }
+
+  if (g_debug_mode) {
+    std::cout
+        << "Terminal width detection failed, using default width: 80 columns"
+        << std::endl;
   }
   return 80;
 }
@@ -270,9 +305,9 @@ std::string Theme::render_line_aligned(
     const std::vector<nlohmann::json>& segments,
     const std::unordered_map<std::string, std::string>& vars) const {
   if (segments.empty()) return "";
-  
+
   bool isNewlineSegments = (&segments == &newline_segments);
-  
+
   bool hasAlign = false;
   for (auto& seg : segments)
     if (seg.contains("align")) {
@@ -365,52 +400,123 @@ std::string Theme::render_line_aligned(
   size_t lR = calculate_raw_length(R);
 
   std::string out;
-  
-  // For newline segments, skip adding fill characters
+
   if (isNewlineSegments) {
     out = L + C + R;
   } else if (!C.empty()) {
-    size_t desiredCStart = (w > lC ? (w - lC) / 2 : 0);
-    size_t padL = (desiredCStart > lL ? desiredCStart - lL : 0);
-    size_t afterC = lL + padL + lC;
-    size_t padR = (w > afterC + lR ? w - afterC - lR - 1 : 0);
-    std::string fillL;
-    for (size_t i = 0; i < padL; ++i) {
-      if (fill_bg_color_ != "RESET")
-        fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
-      else
-        fillL += colors::ansi::BG_RESET;
-      if (fill_fg_color_ != "RESET")
-        fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-      fillL += fill_char_;
+    size_t total_content_width = lL + lC + lR;
+
+    if (w >= total_content_width) {
+      size_t desiredCStart = (w - lC) / 2;
+
+      size_t padL = (desiredCStart > lL) ? (desiredCStart - lL) : 0;
+      size_t afterC = lL + padL + lC;
+      size_t padR = (w > afterC + lR) ? (w - afterC - lR) : 0;
+
+      std::string fillL;
+      if (padL > 0) {
+        if (fill_bg_color_ != "RESET") {
+          fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+        } else {
+          fillL += colors::ansi::BG_RESET;
+        }
+
+        if (fill_fg_color_ != "RESET") {
+          fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+        }
+
+        for (size_t i = 0; i < padL; ++i) {
+          fillL += fill_char_;
+        }
+      }
+
+      std::string fillR;
+      if (padR > 0) {
+        if (fill_bg_color_ != "RESET") {
+          fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+        } else {
+          fillR += colors::ansi::BG_RESET;
+        }
+
+        if (fill_fg_color_ != "RESET") {
+          fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+        }
+
+        for (size_t i = 0; i < padR; ++i) {
+          fillR += fill_char_;
+        }
+      }
+
+      out = L + fillL + C + fillR + R;
+    } else {
+      if (lL + lC + 3 < w) {
+        size_t remaining = w - lL - lC - 1;
+        if (remaining >= 3) {
+          out = L + C + "...";
+        } else {
+          out = L + C;
+        }
+      } else if (lL + 3 < w) {
+        size_t remaining = w - lL - 1;
+        if (remaining >= 3) {
+          out = L + "...";
+        } else {
+          out = L;
+        }
+      } else {
+        out = L.substr(0, w - 3) + "...";
+      }
     }
-    std::string fillR;
-    for (size_t i = 0; i < padR; ++i) {
-      if (fill_bg_color_ != "RESET")
-        fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
-      else
-        fillR += colors::ansi::BG_RESET;
-      if (fill_fg_color_ != "RESET")
-        fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-      fillR += fill_char_;
-    }
-    out = L + fillL + C + fillR + R;
   } else {
-    size_t pad = (w > lL + lR ? w - lL - lR - 1 : 0);
+    size_t total_content_width = lL + lR;
+    size_t pad = 0;
+    if (w > total_content_width) {
+      pad = w - total_content_width;
+
+      if (g_debug_mode) {
+        std::cout << "Raw pad calculation: " << pad << " chars" << std::endl;
+      }
+    }
+
     std::string fill;
+
+    if (fill_bg_color_ != "RESET") {
+      fill += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+    } else {
+      fill += colors::ansi::BG_RESET;
+    }
+
+    if (fill_fg_color_ != "RESET") {
+      fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+    }
+
     for (size_t i = 0; i < pad; ++i) {
-      if (fill_bg_color_ != "RESET")
-        fill += colors::bg_color(colors::parse_color_value(fill_bg_color_));
-      else
-        fill += colors::ansi::BG_RESET;
-      if (fill_fg_color_ != "RESET")
-        fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
       fill += fill_char_;
     }
-    out = L + fill + R;
+    if (w < total_content_width && lL < w) {
+      size_t available_for_right = w - lL - 1;
+      if (available_for_right > 3) {
+        std::string truncated_R = "...";
+        out = L + fill + truncated_R;
+      } else {
+        out = L;
+      }
+    } else {
+      out = L + fill + R;
+    }
   }
   out += colors::ansi::RESET;
-  if (g_debug_mode) std::cout << "\nCombined render:\n" << out << std::endl;
+  if (g_debug_mode) {
+    std::cout << "\nCombined render:\n" << out << std::endl;
+    std::cout << "Terminal width: " << w << " chars" << std::endl;
+    std::cout << "Left segments width: " << lL << " chars" << std::endl;
+    std::cout << "Center segments width: " << lC << " chars" << std::endl;
+    std::cout << "Right segments width: " << lR << " chars" << std::endl;
+    std::cout << "Total content width: " << (lL + lC + lR) << " chars"
+              << std::endl;
+    std::cout << "Final rendered width: " << calculate_raw_length(out)
+              << " chars" << std::endl;
+  }
   return out;
 }
 
@@ -502,42 +608,179 @@ std::string Theme::render_line(
   return result;
 }
 
+bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
+  bool requirements_met = true;
+  std::vector<std::string> missing_requirements;
+
+  if (requirements.contains("plugins") && requirements["plugins"].is_array()) {
+    if (!g_startup_active) {
+      for (const auto& plugin_name : requirements["plugins"]) {
+        if (plugin_name.is_string()) {
+          std::string name = plugin_name.get<std::string>();
+
+          bool plugin_enabled = false;
+          if (g_plugin != nullptr) {
+            auto enabled_plugins = g_plugin->get_enabled_plugins();
+            plugin_enabled =
+                std::find(enabled_plugins.begin(), enabled_plugins.end(),
+                          name) != enabled_plugins.end();
+          }
+
+          if (!plugin_enabled) {
+            requirements_met = false;
+            missing_requirements.push_back("Plugin '" + name +
+                                           "' is required but not enabled");
+          }
+        }
+      }
+    } else if (g_debug_mode) {
+      std::cerr << "DEBUG: Skipping plugin requirements check during startup"
+                << std::endl;
+    }
+  }
+
+  if (requirements.contains("colors") && requirements["colors"].is_string()) {
+    std::string required_capability = requirements["colors"].get<std::string>();
+
+    if (required_capability == "true_color" &&
+        colors::g_color_capability != colors::ColorCapability::TRUE_COLOR) {
+      requirements_met = false;
+      missing_requirements.push_back(
+          "True color (24-bit) terminal support is required");
+    } else if (required_capability == "256_color" &&
+               colors::g_color_capability <
+                   colors::ColorCapability::XTERM_256_COLOR) {
+      requirements_met = false;
+      missing_requirements.push_back("256-color terminal support is required");
+    }
+  }
+
+  if (requirements.contains("fonts") && requirements["fonts"].is_array()) {
+    std::stringstream font_req;
+    font_req << "This theme works best with one of these fonts: ";
+    bool first = true;
+
+    for (const auto& font : requirements["fonts"]) {
+      if (font.is_string()) {
+        if (!first) font_req << ", ";
+        font_req << font.get<std::string>();
+        first = false;
+      }
+    }
+
+    std::cout << font_req.str() << std::endl;
+  }
+
+  if (requirements.contains("custom") && requirements["custom"].is_object()) {
+    for (auto it = requirements["custom"].begin();
+         it != requirements["custom"].end(); ++it) {
+      std::string requirement_name = it.key();
+      if (it.value().is_string()) {
+        std::string requirement_value = it.value().get<std::string>();
+        std::cout << "Custom requirement: " << requirement_name << " = "
+                  << requirement_value << std::endl;
+      }
+    }
+  }
+
+  // Output all missing requirements
+  if (!requirements_met) {
+    std::cerr << "Theme requirements not met:" << std::endl;
+    for (const auto& req : missing_requirements) {
+      std::cerr << " - " << req << std::endl;
+    }
+  }
+
+  return requirements_met;
+}
+
 size_t Theme::calculate_raw_length(const std::string& str) const {
   size_t raw_length = 0;
+
+  size_t visible_chars = 0;
+  size_t ansi_chars = 0;
+
   for (size_t i = 0; i < str.size();) {
     unsigned char c = static_cast<unsigned char>(str[i]);
+
     if (c == '\033') {
+      ansi_chars++;
       if (i + 1 < str.size()) {
         unsigned char next = static_cast<unsigned char>(str[i + 1]);
         if (next == '[') {
           i += 2;
-          while (i < str.size() && !(str[i] >= '@' && str[i] <= '~')) ++i;
-          if (i < str.size()) ++i;
+          ansi_chars += 2;
+          while (i < str.size() && !(str[i] >= '@' && str[i] <= '~')) {
+            ++i;
+            ansi_chars++;
+          }
+          if (i < str.size()) {
+            ++i;
+            ansi_chars++;
+          }
           continue;
         } else if (next == ']') {
           i += 2;
+          ansi_chars += 2;
           while (i < str.size()) {
             if (str[i] == '\a') {
               ++i;
+              ansi_chars++;
               break;
             }
             if (str[i] == '\033' && i + 1 < str.size() && str[i + 1] == '\\') {
               i += 2;
+              ansi_chars += 2;
               break;
             }
             ++i;
+            ansi_chars++;
           }
           continue;
         } else {
           i += 2;
+          ansi_chars += 2;
           continue;
         }
       }
       ++i;
+      ansi_chars++;
+    } else if ((c & 0xF8) == 0xF0) {
+      raw_length += 2;
+      visible_chars++;
+      i += 4;
+    } else if ((c & 0xF0) == 0xE0) {
+      if (i + 2 < str.size()) {
+        unsigned char c1 = static_cast<unsigned char>(str[i + 1]);
+        bool is_wide =
+            (c == 0xE3 && c1 >= 0x80 && c1 <= 0xBF) ||
+            (c == 0xE4 && c1 >= 0xB8) ||
+            (c == 0xE5 || c == 0xE6 || c == 0xE7 || c == 0xE8 || c == 0xE9);
+        raw_length += (is_wide ? 2 : 1);
+      } else {
+        raw_length += 1;
+      }
+      visible_chars++;
+      i += 3;
+    } else if ((c & 0xE0) == 0xC0) {
+      raw_length += 1;
+      visible_chars++;
+      i += 2;
     } else {
-      if ((c & 0xC0) != 0x80) ++raw_length;
+      if ((c & 0xC0) != 0x80) {
+        raw_length++;
+        visible_chars++;
+      }
       ++i;
     }
   }
+
+  if (g_debug_mode) {
+    std::cout << "String length: " << str.size()
+              << " bytes, Visible chars: " << visible_chars
+              << ", ANSI chars: " << ansi_chars
+              << ", Raw display width: " << raw_length << std::endl;
+  }
+
   return raw_length;
 }
