@@ -4,12 +4,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "main.h"
+#include "system_prompts.h"
 
 #define PRINT_ERROR(MSG)      \
   do {                        \
@@ -481,7 +483,14 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
 int do_ai_request(const std::string& prompt) {
   try {
-    std::string response = g_ai->chat_gpt(prompt, true);
+    std::string system_prompt = build_system_prompt();
+    std::string full_prompt = prompt;
+
+    if (prompt.find(system_prompt) == std::string::npos) {
+      full_prompt = system_prompt + "\n\n" + prompt;
+    }
+
+    std::string response = g_ai->chat_gpt(full_prompt, true);
     if (g_ai->get_assistant_name().length() > 0) {
       std::cout << g_ai->get_assistant_name() << ": " << response << std::endl;
       return 0;

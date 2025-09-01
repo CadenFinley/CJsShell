@@ -343,6 +343,27 @@ void update_terminal_title() {
   std::cout.flush();
 }
 
+void reprint_prompt() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Reprinting prompt" << std::endl;
+  }
+
+  update_terminal_title();
+
+  std::string prompt;
+  if (g_shell->get_menu_active()) {
+    prompt = g_shell->get_prompt();
+  } else {
+    prompt = g_shell->get_ai_prompt();
+  }
+
+  if (g_theme->uses_newline()) {
+    std::cout << prompt << std::endl;
+    prompt = g_shell->get_newline_prompt();
+  }
+  ic_print_prompt(prompt.c_str(), false);
+}
+
 void main_process_loop() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Entering main process loop" << std::endl;

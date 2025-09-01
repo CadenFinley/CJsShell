@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, queue, json, time
+import sys, queue, json, time, random
 import sounddevice as sd
 import vosk
 import os
@@ -18,6 +18,20 @@ def main():
     # Set environment variables to suppress logs
     os.environ["VOSK_LOG_LEVEL"] = "0"  # 0 = no logs, 1 = errors, 2 = warnings, 3 = info
     os.environ["KALDI_LOG_LEVEL"] = "0"  # Completely silence Kaldi logs
+    
+    # Jarvis response messages in Iron Man style
+    jarvis_responses = [
+        "I'm listening sir.",
+        "At your service, sir.",
+        "How may I assist you today, sir?",
+        "Ready and waiting, sir.",
+        "Processing your request, sir.",
+        "Standing by for instructions, sir.",
+        "I'm all ears, sir.",
+        "What can I do for you, sir?",
+        "Awaiting your instructions, sir.",
+        "How can I be of assistance, sir?",
+    ]
     
     # Additional settings to silence all Vosk/Kaldi logs
     if hasattr(vosk, "SetLogLevel"):
@@ -53,7 +67,9 @@ def main():
                         continue
 
                     if not active and HOTWORD in text:
-                        print("[jarvis] I'm listening sir.", file=sys.stderr)
+                        # Select a random response when Jarvis is activated
+                        response = random.choice(jarvis_responses)
+                        print(f"\n[jarvis] {response}", file=sys.stderr)
                         active = True
                         last_active = time.time()
                         continue

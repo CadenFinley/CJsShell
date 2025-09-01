@@ -415,6 +415,45 @@ ic_public void ic_term_vwritef(const char* fmt, va_list args) {
   term_vwritef(env->term, fmt, args);
 }
 
+ic_public void ic_print_prompt(const char* prompt_text, bool continuation_line) {
+  ic_env_t* env = ic_get_env();
+  if (env == NULL || env->term == NULL || env->bbcode == NULL) {
+    return;
+  }
+
+  // Make sure terminal is ready for output
+  term_start_raw(env->term);
+  
+  // Create temporary editor state with the prompt text
+  const char* text = (prompt_text != NULL ? prompt_text : "");
+  
+  // Style the prompt
+  bbcode_style_open(env->bbcode, "ic-prompt");
+  
+  // Print the prompt text first
+  if (!continuation_line) {
+    bbcode_print(env->bbcode, text);
+  }
+  else if (!env->no_multiline_indent) {
+    // Implement multiline continuation indentation like in edit_write_prompt
+    ssize_t textw = bbcode_column_width(env->bbcode, text);
+    ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
+    ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
+    if (cmarkerw < markerw + textw) {
+      term_write_repeat(env->term, " ", markerw + textw - cmarkerw);
+    }
+  }
+  
+  // Print the marker
+  bbcode_print(env->bbcode, (continuation_line ? env->cprompt_marker : env->prompt_marker));
+  
+  // Close the style
+  bbcode_style_close(env->bbcode, NULL);
+  
+  // Flush output to ensure it's displayed
+  term_flush(env->term);
+}
+
 ic_public void ic_term_reset( void )  {
   ic_env_t* env = ic_get_env(); if (env==NULL) return;
   if (env->term == NULL) return;

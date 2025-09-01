@@ -98,6 +98,7 @@ extern "C" PLUGIN_API int plugin_initialize() {
         std::cout << "\n" << line << std::endl;
         std::string status_str;
         status_str = std::to_string(g_shell->do_ai_request(line));
+        reprint_prompt();
 
         // if (g_shell->get_menu_active()) {
         //   status_str = std::to_string(g_shell->execute_command(line));

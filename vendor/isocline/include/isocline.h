@@ -534,6 +534,14 @@ void ic_term_write(const char* s);
 /// (and process CSI escape sequences).
 void ic_term_writeln(const char* s);
 
+/// Print prompt to the console with the proper styling.
+/// @param prompt_text   The prompt text, can be NULL for the default ("").
+/// @param continuation_line   If true, uses the continuation prompt marker instead of the primary one.
+void ic_print_prompt(const char* prompt_text, bool continuation_line);
+
+/// Write formatted text to the console (and process CSI escape sequences).
+void ic_term_writeln(const char* s);
+
 /// Write a formatted string to the console.
 /// (and process CSI escape sequences)
 void ic_term_writef(const char* fmt, ...);

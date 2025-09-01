@@ -76,3 +76,4 @@ bool parse_and_set_env_var(const std::string& line);
 std::string get_current_time_string();
 void handle_command_error(const std::string& command,
                           const std::string& error_message);
+void reprint_prompt();
