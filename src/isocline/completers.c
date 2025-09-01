@@ -7,6 +7,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "isocline/isocline.h"
 #include "isocline/common.h"
@@ -448,8 +451,10 @@ static bool os_is_dir(const char* cpath) {
 static file_type_t os_get_filetype(const char* cpath) {
   struct stat st;
   memset(&st, 0, sizeof(st));
-  lstat(cpath, &st);
-  switch ((st.st_mode)&S_IFMT) {
+  if (lstat(cpath, &st) != 0) {
+    return FT_DEFAULT;  // Error with lstat, return default file type
+  }
+  switch ((st.st_mode) & S_IFMT) {
     case S_IFSOCK: return FT_SOCK;
     case S_IFLNK: {
       return FT_SYM;
