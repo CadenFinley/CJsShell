@@ -107,12 +107,6 @@ bool Theme::load_theme(const std::string& theme_name) {
   std::string theme_file = theme_directory + "/" + theme_name_to_use + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
-    // if(g_current_theme.empty()) {
-    //   if (!std::filesystem::exists(theme_directory + "/default.json")) {
-    //     create_default_theme();
-    //   }
-    //   load_theme("default");
-    // }
     return false;
   }
 

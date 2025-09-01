@@ -64,24 +64,22 @@ void initialize_color_support(bool enabled) {
 }
 
 uint8_t get_closest_ansi_color(const RGB& color) {
-  const std::array<RGB, 16> basic_colors = {{
-      {0, 0, 0},        // Black
-      {170, 0, 0},      // Red
-      {0, 170, 0},      // Green
-      {170, 85, 0},     // Yellow
-      {0, 0, 170},      // Blue
-      {170, 0, 170},    // Magenta
-      {0, 170, 170},    // Cyan
-      {170, 170, 170},  // White
-      {85, 85, 85},     // Bright Black
-      {255, 85, 85},    // Bright Red
-      {85, 255, 85},    // Bright Green
-      {255, 255, 85},   // Bright Yellow
-      {85, 85, 255},    // Bright Blue
-      {255, 85, 255},   // Bright Magenta
-      {85, 255, 255},   // Bright Cyan
-      {255, 255, 255}   // Bright White
-  }};
+  const std::array<RGB, 16> basic_colors = {{{0, 0, 0},
+                                             {170, 0, 0},
+                                             {0, 170, 0},
+                                             {170, 85, 0},
+                                             {0, 0, 170},
+                                             {170, 0, 170},
+                                             {0, 170, 170},
+                                             {170, 170, 170},
+                                             {85, 85, 85},
+                                             {255, 85, 85},
+                                             {85, 255, 85},
+                                             {255, 255, 85},
+                                             {85, 85, 255},
+                                             {255, 85, 255},
+                                             {85, 255, 255},
+                                             {255, 255, 255}}};
 
   uint8_t closest_index = 0;
   int closest_distance = INT_MAX;
@@ -347,37 +345,37 @@ RGB xterm256_to_rgb(uint8_t index) {
   if (index < 16) {
     switch (index) {
       case 0:
-        return RGB(0, 0, 0);  // Black
+        return RGB(0, 0, 0);
       case 1:
-        return RGB(170, 0, 0);  // Red
+        return RGB(170, 0, 0);
       case 2:
-        return RGB(0, 170, 0);  // Green
+        return RGB(0, 170, 0);
       case 3:
-        return RGB(170, 85, 0);  // Yellow
+        return RGB(170, 85, 0);
       case 4:
-        return RGB(0, 0, 170);  // Blue
+        return RGB(0, 0, 170);
       case 5:
-        return RGB(170, 0, 170);  // Magenta
+        return RGB(170, 0, 170);
       case 6:
-        return RGB(0, 170, 170);  // Cyan
+        return RGB(0, 170, 170);
       case 7:
-        return RGB(170, 170, 170);  // White
+        return RGB(170, 170, 170);
       case 8:
-        return RGB(85, 85, 85);  // Bright Black
+        return RGB(85, 85, 85);
       case 9:
-        return RGB(255, 85, 85);  // Bright Red
+        return RGB(255, 85, 85);
       case 10:
-        return RGB(85, 255, 85);  // Bright Green
+        return RGB(85, 255, 85);
       case 11:
-        return RGB(255, 255, 85);  // Bright Yellow
+        return RGB(255, 255, 85);
       case 12:
-        return RGB(85, 85, 255);  // Bright Blue
+        return RGB(85, 85, 255);
       case 13:
-        return RGB(255, 85, 255);  // Bright Magenta
+        return RGB(255, 85, 255);
       case 14:
-        return RGB(85, 255, 255);  // Bright Cyan
+        return RGB(85, 255, 255);
       case 15:
-        return RGB(255, 255, 255);  // Bright White
+        return RGB(255, 255, 255);
     }
   }
 

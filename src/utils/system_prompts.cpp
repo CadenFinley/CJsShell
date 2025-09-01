@@ -16,14 +16,12 @@ std::string get_common_system_prompt() {
 std::string build_system_prompt() {
   std::stringstream prompt;
 
-  // Get system information
   const char* username = getenv("USER");
   const char* hostname = getenv("HOSTNAME");
   if (!hostname) {
     hostname = getenv("HOST");
   }
 
-  // Get current time and date
   std::time_t now = std::time(nullptr);
   char time_buffer[80];
   std::strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S",
@@ -33,7 +31,6 @@ std::string build_system_prompt() {
   std::strftime(date_buffer, sizeof(date_buffer), "%Y-%m-%d",
                 std::localtime(&now));
 
-  // Build the system prompt
   prompt << get_common_system_prompt() << " ";
   prompt << "Current context: ";
 
@@ -48,7 +45,6 @@ std::string build_system_prompt() {
   prompt << "Time: " << time_buffer << " ";
   prompt << "Date: " << date_buffer << " ";
 
-  // Add shell environment info
   prompt << "Shell: cjsh ";
 
   const char* pwd = getenv("PWD");

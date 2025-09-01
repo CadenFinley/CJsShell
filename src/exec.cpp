@@ -99,7 +99,7 @@ std::string Exec::get_error() {
 void Exec::set_process_priority(pid_t pid, bool is_foreground) {
   if (is_foreground) {
     if (setpriority(PRIO_PGRP, pid, -10) == 0) {
-      return;  // Successfully set high priority
+      return;
     }
     setpriority(PRIO_PGRP, pid, 0);
     setpriority(PRIO_PROCESS, pid, 0);

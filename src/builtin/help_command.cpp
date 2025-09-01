@@ -13,7 +13,6 @@ int help_command() {
   const std::string section_separator = "\n" + std::string(80, '-') + "\n";
   std::cout << "\nCJ'S SHELL COMMAND REFERENCE" << section_separator;
 
-  // AI-related commands
   std::cout << "AI COMMANDS:\n\n";
 
   std::cout << "  ai                      Access AI assistant features and "
@@ -47,7 +46,6 @@ int help_command() {
   std::cout
       << "    Note: Without arguments, will analyze the most recent error\n\n";
 
-  // User settings
   std::cout << "USER SETTINGS:\n\n";
 
   std::cout << "  user                    Access and manage user settings\n";
@@ -62,7 +60,6 @@ int help_command() {
                "manual update checks\n";
   std::cout << "    Example: 'user update check', 'user testing enable'\n\n";
 
-  // Theme management
   std::cout << "THEME MANAGEMENT:\n\n";
 
   std::cout << "  theme [NAME]            View current theme or switch to a "
@@ -72,7 +69,6 @@ int help_command() {
   std::cout << "    Note: Without arguments, displays the current theme and "
                "available themes\n\n";
 
-  // Plugin management
   std::cout << "PLUGIN MANAGEMENT:\n\n";
 
   std::cout << "  plugin                  Manage shell plugins\n";
@@ -94,7 +90,6 @@ int help_command() {
   std::cout
       << "    Example: 'plugin enable git_tools', 'plugin info markdown'\n\n";
 
-  // Utility commands
   std::cout << "BUILT-IN SHELL COMMANDS:\n\n";
 
   std::cout << "  cd [DIR]                Change the current directory\n";
@@ -129,7 +124,6 @@ int help_command() {
   std::cout << "    Usage: eval expression\n";
   std::cout << "    Example: 'eval echo Hello, World!'\n\n";
 
-  // Common system commands
   std::cout << "COMMON SYSTEM COMMANDS:\n\n";
 
   std::cout << "  clear                   Clear the terminal screen\n";
@@ -141,7 +135,6 @@ int help_command() {
   std::cout << "  help                    Display this help message\n";
   std::cout << "    Usage: help\n";
 
-  // Add new section for file system and configuration
   std::cout << section_separator;
   std::cout << "FILESYSTEM AND CONFIGURATION:\n\n";
 
@@ -165,7 +158,6 @@ int help_command() {
   std::cout << "    3. ~/.cjshrc          (interactive mode only, unless "
                "--no-source specified)\n\n";
 
-  // Add new section for startup arguments
   std::cout << "STARTUP ARGUMENTS:\n\n";
 
   std::cout << "  Login and Execution:\n";
@@ -193,7 +185,6 @@ int help_command() {
   std::cout << "    --splash              Display splash screen and exit\n";
   std::cout << "    -d, --debug           Enable debug mode\n";
 
-  // Command-specific help reminder
   std::cout << section_separator;
   std::cout << "NOTE: Many commands have their own help. Try [command] help "
                "for details.\n";

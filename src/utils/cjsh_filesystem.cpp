@@ -121,22 +121,18 @@ bool initialize_cjsh_directories() {
   try {
     namespace fs = cjsh_filesystem::fs;
 
-    // .config directory exists
     if (!fs::exists(cjsh_filesystem::g_config_path)) {
       fs::create_directories(cjsh_filesystem::g_config_path);
     }
 
-    // .cache directory exists
     if (!fs::exists(cjsh_filesystem::g_cache_path)) {
       fs::create_directories(cjsh_filesystem::g_cache_path);
     }
 
-    // cjsh data directory exists
     if (!fs::exists(cjsh_filesystem::g_cjsh_data_path)) {
       fs::create_directories(cjsh_filesystem::g_cjsh_data_path);
     }
 
-    // cjsh cache directory exists
     if (!fs::exists(cjsh_filesystem::g_cjsh_cache_path)) {
       fs::create_directories(cjsh_filesystem::g_cjsh_cache_path);
     }

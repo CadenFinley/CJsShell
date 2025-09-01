@@ -221,7 +221,6 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "config") {
     if (args.size() <= command_index + 1) {
-      // Show current config
       std::cout << "Current AI config: " << g_ai->get_config_name()
                 << std::endl;
       return 0;
@@ -230,7 +229,6 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     const std::string& subcmd = args[command_index + 1];
 
     if (subcmd == "list") {
-      // List available configs
       std::vector<std::string> configs = g_ai->list_configs();
       if (configs.empty()) {
         std::cout << "No AI configs found." << std::endl;

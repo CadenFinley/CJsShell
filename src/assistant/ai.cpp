@@ -355,11 +355,10 @@ int Ai::add_files(const std::vector<std::string>& user_files) {
 }
 
 void Ai::load_ai_config() {
-  // Determine the config file path based on the config_name
   cjsh_filesystem::fs::path config_file_path;
   if (config_name == "default") {
     config_file_path = cjsh_filesystem::g_cjsh_ai_default_config_path;
-    // If default config doesn't exist, try the old config path
+
     if (!cjsh_filesystem::fs::exists(config_file_path)) {
       config_file_path = cjsh_filesystem::g_cjsh_ai_config_file_path;
     }
@@ -368,12 +367,10 @@ void Ai::load_ai_config() {
         cjsh_filesystem::g_cjsh_ai_config_path / (config_name + ".json");
   }
 
-  // Check if the specified config exists
   if (!cjsh_filesystem::fs::exists(config_file_path)) {
-    // If not found, create default config if it's the default
     if (config_name == "default") {
       create_default_config_file();
-      // After creating, try loading it again
+
       if (cjsh_filesystem::fs::exists(
               cjsh_filesystem::g_cjsh_ai_default_config_path)) {
         config_file_path = cjsh_filesystem::g_cjsh_ai_default_config_path;
@@ -389,7 +386,6 @@ void Ai::load_ai_config() {
     }
   }
 
-  // Load the config file
   std::ifstream config_file(config_file_path);
   if (config_file.is_open()) {
     nlohmann::json config_json;
@@ -465,7 +461,6 @@ void Ai::load_ai_config() {
 }
 
 void Ai::save_ai_config() {
-  // Determine the config file path based on the config_name
   cjsh_filesystem::fs::path config_file_path;
   if (config_name == "default") {
     config_file_path = cjsh_filesystem::g_cjsh_ai_default_config_path;
@@ -538,7 +533,6 @@ void Ai::initialize(const std::string& api_key,
   this->files = user_files;
   set_save_directory(cjsh_filesystem::g_cjsh_data_path);
 
-  // Ensure AI config directory exists
   cjsh_filesystem::fs::path ai_config_dir =
       cjsh_filesystem::g_cjsh_ai_config_path;
   if (!cjsh_filesystem::fs::exists(ai_config_dir)) {
@@ -550,17 +544,14 @@ void Ai::initialize(const std::string& api_key,
     }
   }
 
-  // Check for existing configurations
   bool has_default_config = cjsh_filesystem::fs::exists(
       cjsh_filesystem::g_cjsh_ai_default_config_path);
   bool has_legacy_config =
       cjsh_filesystem::fs::exists(cjsh_filesystem::g_cjsh_ai_config_file_path);
 
-  // Create default config if needed
   if (!has_default_config && !has_legacy_config) {
     create_default_config_file();
   } else if (!has_default_config && has_legacy_config) {
-    // If we have legacy config.json but no default.json, copy it
     try {
       cjsh_filesystem::fs::copy_file(
           cjsh_filesystem::g_cjsh_ai_config_file_path,
@@ -571,7 +562,6 @@ void Ai::initialize(const std::string& api_key,
     }
   }
 
-  // Load the default config
   config_name = "default";
   load_ai_config();
 }
@@ -810,7 +800,7 @@ void Ai::monitor_cancellation(std::atomic<bool>& loading,
 
     if (!loading) break;
   }
-  // Make sure stdin buffer is flushed
+
   tcflush(stdin_fd, TCIFLUSH);
 }
 
@@ -1251,7 +1241,6 @@ bool Ai::process_voice_dictation(const std::string& message) {
   ofs.close();
 
   if (request_cancelled) {
-    // Remove the temporary file if request was cancelled
     if (std::filesystem::exists(temp_file_name)) {
       std::filesystem::remove(temp_file_name);
     }

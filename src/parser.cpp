@@ -36,7 +36,6 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       in_quotes = false;
       quote_char = '\0';
     } else if ((c == '(' || c == ')') && !in_quotes) {
-      // Handle parentheses as separate tokens when not in quotes
       if (!current_token.empty()) {
         tokens.push_back(current_token);
         current_token.clear();
@@ -416,7 +415,6 @@ std::vector<std::string> Parser::parse_semicolon_commands(
       current += command[i];
     } else if (command[i] == ';' && !in_quotes) {
       if (!current.empty()) {
-        // Trim whitespace
         current.erase(0, current.find_first_not_of(" \t\n\r"));
         current.erase(current.find_last_not_of(" \t\n\r") + 1);
         if (!current.empty()) {
