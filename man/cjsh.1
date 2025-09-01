@@ -1,4 +1,4 @@
-.TH CJSH 1 "May 2025" "Version 2.1.8" "CJ's Shell Manual"
+.TH CJSH 1 "September 2025" "Version 2.3.0" "CJ's Shell Manual"
 
 .SH NAME
 cjsh \- CJ's Shell
@@ -92,8 +92,20 @@ CJ's Shell profile configuration. Sourced in login mode.
 CJ's Shell runtime configuration. Sourced in interactive mode unless --no-source is specified.
 
 .TP
-.B ~/.cjsh/colors
+.B ~/.config/cjsh/colors
 Directory where color configurations are stored.
+
+.TP
+.B ~/.config/cjsh/plugins
+Directory where plugins are stored.
+
+.TP
+.B ~/.config/cjsh/themes
+Directory where themes are stored.
+
+.TP
+.B ~/.config/cjsh/ai
+Directory where AI configurations are stored.
 
 .SH FILE SOURCING ORDER
 .PP
@@ -183,7 +195,7 @@ main_process_end - When command processing completes
 plugin_enabled - When a plugin is enabled
 
 .PP
-Plugins are stored in the ~/.cjsh/plugins directory and are automatically discovered at startup.
+Plugins are stored in the ~/.config/cjsh/plugins directory and are automatically discovered at startup.
 Plugin settings are persisted across sessions in JSON configuration files.
 
 .SH JOB CONTROL
@@ -266,6 +278,20 @@ ai model [MODEL] - Set or view the AI model being used
 ai rejectchanges - Reject AI suggested code changes
 .br
 ai timeoutflag [SECS] - Set timeout duration for AI requests
+.br
+ai config - Show current config name
+.br
+ai config list - List available configs
+.br
+ai config switch <NAME> - Switch to another config
+.br
+ai config save <NAME> - Save current config with a new name
+.br
+ai voice [VOICE] - Show or set the voice for dictation
+.br
+ai voicedictation [enable|disable] - Enable or disable voice dictation
+.br
+ai voicedictationinstructions [INSTRUCTIONS] - Set voice dictation instructions
 
 .TP
 .B Context Management
@@ -377,9 +403,9 @@ Start shell without sourcing the .cjshrc file:
 .PP
 .B cjsh --no-source
 .PP
-Display the splash screen and exit:
+Use the AI assistant to analyze files:
 .PP
-.B cjsh --splash
+.B cjsh -c "ai file add myfile.cpp"
 
 .SH AUTHOR
 Caden J Finley - Abilene Christian University
