@@ -12,7 +12,7 @@
 #include <regex>
 #include <sstream>
 
-#include "main.h"
+#include "cjsh.h"
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
   std::vector<std::string> tokens;

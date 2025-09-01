@@ -11,7 +11,7 @@
 #include <thread>
 
 #include "cjsh_filesystem.h"
-#include "main.h"
+#include "cjsh.h"
 
 using json = nlohmann::json;
 

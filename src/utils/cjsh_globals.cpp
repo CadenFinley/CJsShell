@@ -1,6 +1,6 @@
 #include <atomic>
 
-#include "main.h"
+#include "cjsh.h"
 bool g_first_boot = false;
 bool g_debug_mode = false;
 bool g_cached_update = false;

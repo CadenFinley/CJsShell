@@ -1,7 +1,7 @@
 #include "signal_handler.h"
 
 #include "exec.h"
-#include "main.h"
+#include "cjsh.h"
 
 // CADEN DONT TOUCH IT WORKS
 

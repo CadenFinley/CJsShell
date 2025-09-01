@@ -1,6 +1,6 @@
 #include "plugin.h"
 
-#include "main.h"
+#include "cjsh.h"
 #include "pluginapi.h"
 
 static thread_local std::string current_plugin_context;
@@ -23,7 +23,7 @@ extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(
 #include <cstdio>
 #include <cstring>
 
-#include "main.h"
+#include "cjsh.h"
 #ifdef __APPLE__
 #include <sys/sysctl.h>
 #endif

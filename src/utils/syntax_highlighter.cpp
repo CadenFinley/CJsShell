@@ -8,7 +8,7 @@
 #include <unordered_set>
 
 #include "cjsh_filesystem.h"
-#include "main.h"
+#include "cjsh.h"
 
 const std::unordered_set<std::string> SyntaxHighlighter::basic_unix_commands_ =
     {"ls",    "cd",    "pwd",   "echo",  "cat",   "mv",     "cp",

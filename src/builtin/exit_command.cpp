@@ -1,6 +1,6 @@
 #include "exit_command.h"
 
-#include "main.h"
+#include "cjsh.h"
 
 int exit_command(const std::vector<std::string>& args) {
   if (std::find(args.begin(), args.end(), "-f") != args.end() ||

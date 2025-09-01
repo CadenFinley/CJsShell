@@ -1,4 +1,4 @@
-#include "main.h"
+#include "cjsh.h"
 
 #include <errno.h>
 #include <signal.h>

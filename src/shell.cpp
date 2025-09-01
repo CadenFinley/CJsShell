@@ -5,7 +5,7 @@
 #include <sstream>
 
 #include "builtin.h"
-#include "main.h"
+#include "cjsh.h"
 #include "signal_handler.h"
 
 void Shell::process_pending_signals() {

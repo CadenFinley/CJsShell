@@ -18,7 +18,7 @@
 #include "help_command.h"
 #include "history_command.h"
 #include "ls_command.h"
-#include "main.h"
+#include "cjsh.h"
 #include "plugin_command.h"
 #include "restart_command.h"
 #include "theme_command.h"

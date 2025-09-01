@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "cjsh_filesystem.h"
-#include "main.h"
+#include "cjsh.h"
 
 int restart_command(const std::vector<std::string>& args) {
   std::cout << "Restarting shell..." << std::endl;

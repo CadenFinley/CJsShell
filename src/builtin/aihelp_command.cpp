@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 
-#include "main.h"
+#include "cjsh.h"
 #include "system_prompts.h"
 
 int aihelp_command(const std::vector<std::string>& args) {

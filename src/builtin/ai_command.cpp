@@ -10,7 +10,7 @@
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"
-#include "main.h"
+#include "cjsh.h"
 #include "system_prompts.h"
 
 #define PRINT_ERROR(MSG)      \

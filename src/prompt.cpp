@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "main.h"
+#include "cjsh.h"
 #include "theme.h"
 
 Prompt::Prompt() {}

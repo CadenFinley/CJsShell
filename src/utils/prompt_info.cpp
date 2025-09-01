@@ -7,7 +7,7 @@
 #include <regex>
 #include <sstream>
 
-#include "main.h"
+#include "cjsh.h"
 
 /* Available prompt placeholders:
  * -----------------------------

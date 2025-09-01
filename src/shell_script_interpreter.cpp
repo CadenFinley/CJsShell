@@ -11,7 +11,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "main.h"
+#include "cjsh.h"
 #include "shell.h"
 
 ShellScriptInterpreter* g_script_interpreter = nullptr;

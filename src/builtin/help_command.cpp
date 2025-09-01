@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-#include "main.h"
+#include "cjsh.h"
 
 int help_command() {
   if (g_debug_mode) {

@@ -1,6 +1,6 @@
 #include "ai.h"
 
-#include "main.h"
+#include "cjsh.h"
 
 Ai::Ai(const std::string& api_key, const std::string& assistant_type,
        const std::string& initial_instruction) {

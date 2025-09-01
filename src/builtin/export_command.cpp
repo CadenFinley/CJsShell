@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "cjsh_filesystem.h"
-#include "main.h"
+#include "cjsh.h"
 
 #define PRINT_ERROR(MSG)      \
   do {                        \

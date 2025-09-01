@@ -9,7 +9,7 @@
 #include <unordered_set>
 
 #include "colors.h"
-#include "main.h"
+#include "cjsh.h"
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(theme_dir), is_enabled(enabled) {

@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "main.h"
+#include "cjsh.h"
 
 int eval_command(const std::vector<std::string>& args, Shell* shell) {
   if (g_debug_mode) {

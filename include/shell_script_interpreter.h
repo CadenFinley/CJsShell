@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "main.h"
+#include "cjsh.h"
 
 class Shell;
 

@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "main.h"
+#include "cjsh.h"
 
 int version_command(const std::vector<std::string>& args) {
   (void)args;

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "main.h"
+#include "cjsh.h"
 
 #define PRINT_ERROR(MSG)        \
   do {                          \
