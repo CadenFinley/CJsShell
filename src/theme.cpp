@@ -8,8 +8,8 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "colors.h"
 #include "cjsh.h"
+#include "colors.h"
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(theme_dir), is_enabled(enabled) {

@@ -10,8 +10,8 @@
 #include <nlohmann/json.hpp>
 #include <thread>
 
-#include "cjsh_filesystem.h"
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 
 using json = nlohmann::json;
 

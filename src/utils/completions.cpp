@@ -10,9 +10,9 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "isocline/isocline.h"
-#include "cjsh.h"
 #include "shell.h"
 #include "syntax_highlighter.h"
 

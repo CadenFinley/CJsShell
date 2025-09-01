@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "builtin.h"
-#include "cjsh_filesystem.h"
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "system_prompts.h"
 
 #define PRINT_ERROR(MSG)      \
