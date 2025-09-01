@@ -12,7 +12,7 @@
 
 ## CJ's Shell
 
-CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built in AI assistant who only offers help when you ask for it, a super power plugin engine with a super versitile, language agnostic plugin api, super customizable themes, and a vibrant color engine.
+CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built in AI assistant who only offers help when you ask for it, a super power plugin engine with a super versitile, language agnostic plugin api, super customizable themes, and a vibrant color engine. Esentially think zsh + fish + oh my zsh! but like worse than zsh and fish but like 100x better than oh my zsh!
 
 > ⚠️ **WARNING**: This project is still in active development. There are known bugs. Please do not use this unless you are okay with random issues maybe. idk open a pull request or issue if you run into them thanks
 
