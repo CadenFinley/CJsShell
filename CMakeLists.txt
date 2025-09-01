@@ -101,7 +101,7 @@ find_package(Libnghttp2)
 # Set isocline library to use separate objects
 add_definitions(-DIC_SEPARATE_OBJS=1)
 
-# Create a file-specific compile flags for isocline files
+# Create file-specific compile flags for isocline files to disable warnings as errors
 set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/bbcode_colors.c
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/completers.c
@@ -111,7 +111,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/tty.c
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/tty_esc.c
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/wcwidth.c
-  PROPERTIES COMPILE_FLAGS "-Wno-error=unused-variable -Wno-error=unused-function"
+  PROPERTIES COMPILE_FLAGS "-Wno-error"
 )
 
 # Add required include directories

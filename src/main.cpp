@@ -10,10 +10,10 @@
 #include <iostream>
 #include <memory>
 
-#include "isocline/isocline.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
 #include "completions.h"
+#include "isocline/isocline.h"
 #include "shell.h"
 #include "update.h"
 

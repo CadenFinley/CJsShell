@@ -39,6 +39,7 @@ WHITELISTED_FILES=(
 WHITELISTED_DIRS=(
     "plugins/"
     "tests/"
+    "isocline/"
 )
 
 # Function to check if a file is in the whitelist

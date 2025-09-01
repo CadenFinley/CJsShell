@@ -79,7 +79,11 @@ endif()
 if(MSVC)
   add_compile_options(/W4 /WX)
 else()
-  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+  add_compile_options(-Wall -Wextra -Wpedantic)
+  
+  # Add -Werror for all files except isocline
+  # This approach still allows us to catch warnings in our own code
+  add_compile_options($<$<NOT:$<STREQUAL:$<TARGET_PROPERTY:SOURCE_DIR>,${CMAKE_CURRENT_SOURCE_DIR}/src/isocline>>:-Werror>)
 endif()
 
 # Common dependencies
