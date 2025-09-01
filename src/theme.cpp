@@ -270,6 +270,9 @@ std::string Theme::render_line_aligned(
     const std::vector<nlohmann::json>& segments,
     const std::unordered_map<std::string, std::string>& vars) const {
   if (segments.empty()) return "";
+  
+  bool isNewlineSegments = (&segments == &newline_segments);
+  
   bool hasAlign = false;
   for (auto& seg : segments)
     if (seg.contains("align")) {
@@ -362,7 +365,11 @@ std::string Theme::render_line_aligned(
   size_t lR = calculate_raw_length(R);
 
   std::string out;
-  if (!C.empty()) {
+  
+  // For newline segments, skip adding fill characters
+  if (isNewlineSegments) {
+    out = L + C + R;
+  } else if (!C.empty()) {
     size_t desiredCStart = (w > lC ? (w - lC) / 2 : 0);
     size_t padL = (desiredCStart > lL ? desiredCStart - lL : 0);
     size_t afterC = lL + padL + lC;

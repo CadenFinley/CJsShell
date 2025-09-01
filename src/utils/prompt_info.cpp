@@ -99,15 +99,36 @@ std::string PromptInfo::get_basic_title() { return get_current_file_path(); }
 bool PromptInfo::is_variable_used(const std::string& var_name,
                                   const std::vector<nlohmann::json>& segments) {
   std::string placeholder = "{" + var_name + "}";
+  
+  // Use a static cache to avoid repetitive checks for the same variables
+  static std::unordered_map<std::string, bool> cache;
+  static std::mutex cache_mutex;
+  
+  // Create a unique key based on the variable name and segment sizes (rough approximation)
+  std::string cache_key = var_name + "_" + std::to_string(segments.size());
+  
+  {
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    auto it = cache.find(cache_key);
+    if (it != cache.end()) {
+      return it->second;
+    }
+  }
+  
+  // If not in cache, search through all segments
   for (const auto& segment : segments) {
     if (segment.contains("content")) {
       std::string content = segment["content"];
       if (content.find(placeholder) != std::string::npos) {
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        cache[cache_key] = true;
         return true;
       }
     }
   }
 
+  std::lock_guard<std::mutex> lock(cache_mutex);
+  cache[cache_key] = false;
   return false;
 }
 
@@ -115,19 +136,42 @@ bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
   if (g_debug_mode)
     std::cerr << "DEBUG: Checking if path is git repository" << std::endl;
 
-  std::filesystem::path current_path = std::filesystem::current_path();
-  std::filesystem::path git_head_path;
+  // Cache this result using the current path as the key
+  std::string current_path_str = std::filesystem::current_path().string();
+  std::string cache_key = "is_git_repo_" + current_path_str;
+  
+  std::string cached_result = get_cached_value(
+      cache_key,
+      [this, &repo_root]() -> std::string {
+        std::filesystem::path current_path = std::filesystem::current_path();
+        std::filesystem::path git_head_path;
 
-  repo_root = current_path;
+        repo_root = current_path;
 
-  while (!is_root_path(repo_root)) {
-    git_head_path = repo_root / ".git" / "HEAD";
-    if (std::filesystem::exists(git_head_path)) {
+        while (!is_root_path(repo_root)) {
+          git_head_path = repo_root / ".git" / "HEAD";
+          if (std::filesystem::exists(git_head_path)) {
+            return repo_root.string() + ",true";
+          }
+          repo_root = repo_root.parent_path();
+        }
+
+        return "not_found,false";
+      },
+      300);  // Cache for 5 minutes since repo status rarely changes
+  
+  // Parse the result
+  size_t comma_pos = cached_result.find(',');
+  if (comma_pos != std::string::npos) {
+    std::string path_str = cached_result.substr(0, comma_pos);
+    std::string is_repo_str = cached_result.substr(comma_pos + 1);
+    
+    if (is_repo_str == "true" && path_str != "not_found") {
+      repo_root = std::filesystem::path(path_str);
       return true;
     }
-    repo_root = repo_root.parent_path();
   }
-
+  
   return false;
 }
 
@@ -176,10 +220,13 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
                      now - last_git_status_check)
                      .count();
 
-  if ((elapsed > 30 || cached_git_dir != git_dir) &&
+  // Increase cache time to 60 seconds to reduce overhead
+  if ((elapsed > 60 || cached_git_dir != git_dir) &&
       !is_git_status_check_running) {
     is_git_status_check_running = true;
-    std::string command = "cd " + git_dir + " && git status --porcelain";
+    
+    // Run a faster git status command that exits as soon as it finds a change
+    std::string command = "cd " + git_dir + " && git diff --no-ext-diff --quiet || echo 'modified'";
 
     FILE* pipe = popen(command.c_str(), "r");
     if (pipe) {
@@ -196,7 +243,7 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
 
       std::lock_guard<std::mutex> lock(git_status_mutex);
       cached_git_dir = git_dir;
-      if (result.empty()) {
+      if (result.empty() || result == "\n") {
         cached_status_symbols = "✓";
         cached_is_clean_repo = true;
       } else {
@@ -373,139 +420,197 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
   ahead = 0;
   behind = 0;
 
-  try {
-    std::filesystem::path git_head_path = repo_root / ".git" / "HEAD";
-    std::string branch = get_git_branch(git_head_path);
+  // Cache git ahead/behind for 2 minutes as it's an expensive operation
+  std::string cache_key = "git_ahead_behind_" + repo_root.string();
+  std::string result = get_cached_value(
+      cache_key,
+      [&repo_root]() -> std::string {
+        try {
+          std::filesystem::path git_head_path = repo_root / ".git" / "HEAD";
+          std::string branch;
+          
+          // Read HEAD file directly instead of calling get_git_branch
+          std::ifstream head_file(git_head_path);
+          std::string line;
+          std::regex head_pattern("ref: refs/heads/(.*)");
+          std::smatch match;
+          
+          while (std::getline(head_file, line)) {
+            if (std::regex_search(line, match, head_pattern)) {
+              branch = match[1];
+              break;
+            }
+          }
+          
+          if (branch.empty()) {
+            return "0,0";  // Return default if can't determine branch
+          }
+          
+          std::string command =
+              "cd " + repo_root.string() +
+              " && git rev-list --left-right --count @{u}...HEAD 2>/dev/null";
 
-    if (branch == "unknown") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Unknown branch, cannot get ahead/behind"
-                  << std::endl;
+          FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
+          if (!pipe) {
+            return "0,0";
+          }
+
+          char buffer[128];
+          std::string cmdResult = "";
+
+          while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != nullptr) {
+              cmdResult += buffer;
+            }
+          }
+
+          pclose(pipe);
+          
+          // Trim whitespace
+          cmdResult.erase(cmdResult.find_last_not_of(" \n\r\t") + 1);
+          
+          // Parse result
+          std::istringstream iss(cmdResult);
+          int b, a;
+          iss >> b >> a;
+          
+          return std::to_string(b) + "," + std::to_string(a);
+        } catch (const std::exception& e) {
+          if (g_debug_mode)
+            std::cerr << "DEBUG: Error getting git ahead/behind status: " << e.what()
+                      << std::endl;
+          return "0,0";
+        }
+      },
+      120);  // Cache for 2 minutes
+  
+  // Parse the cached result
+  size_t comma_pos = result.find(',');
+  if (comma_pos != std::string::npos) {
+    try {
+      behind = std::stoi(result.substr(0, comma_pos));
+      ahead = std::stoi(result.substr(comma_pos + 1));
+      return 0;
+    } catch (const std::exception&) {
       return -1;
     }
-
-    std::string command =
-        "cd " + repo_root.string() +
-        " && git rev-list --left-right --count @{u}...HEAD 2>/dev/null";
-
-    FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
-    if (!pipe) {
-      return -1;
-    }
-
-    char buffer[128];
-    std::string result = "";
-
-    while (!feof(pipe)) {
-      if (fgets(buffer, 128, pipe) != nullptr) {
-        result += buffer;
-      }
-    }
-
-    pclose(pipe);
-
-    std::istringstream iss(result);
-    iss >> behind >> ahead;
-
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Git ahead/behind result: ahead=" << ahead
-                << ", behind=" << behind << std::endl;
-    return 0;
-  } catch (const std::exception& e) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Error getting git ahead/behind status: " << e.what()
-                << std::endl;
-    return -1;
   }
+  
+  return -1;
 }
 
 int PromptInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
-  try {
-    std::string command =
-        "cd " + repo_root.string() + " && git stash list | wc -l";
+  // Cache git stash count for 2 minutes
+  std::string cache_key = "git_stash_" + repo_root.string();
+  return std::stoi(get_cached_value(
+      cache_key,
+      [&repo_root]() -> std::string {
+        try {
+          std::string command =
+              "cd " + repo_root.string() + " && git stash list | wc -l";
 
-    FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
-    if (!pipe) {
-      return 0;
-    }
+          FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
+          if (!pipe) {
+            return "0";
+          }
 
-    char buffer[128];
-    std::string result = "";
+          char buffer[128];
+          std::string result = "";
 
-    while (!feof(pipe)) {
-      if (fgets(buffer, 128, pipe) != nullptr) {
-        result += buffer;
-      }
-    }
+          while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != nullptr) {
+              result += buffer;
+            }
+          }
 
-    pclose(pipe);
-
-    return std::stoi(result);
-  } catch (const std::exception& e) {
-    std::cerr << "Error getting git stash count: " << e.what() << std::endl;
-    return 0;
-  }
+          pclose(pipe);
+          
+          // Trim whitespace
+          result.erase(result.find_last_not_of(" \n\r\t") + 1);
+          
+          return result;
+        } catch (const std::exception&) {
+          return "0";
+        }
+      },
+      120));  // Cache for 2 minutes
 }
 
 bool PromptInfo::get_git_has_staged_changes(
     const std::filesystem::path& repo_root) {
-  try {
-    std::string command = "cd " + repo_root.string() +
-                          " && git diff --cached --quiet && echo 0 || echo 1";
+  // Cache staged changes status for 60 seconds
+  std::string cache_key = "git_staged_" + repo_root.string();
+  return get_cached_value(
+      cache_key,
+      [&repo_root]() -> std::string {
+        try {
+          std::string command = "cd " + repo_root.string() +
+                               " && git diff --cached --quiet && echo 0 || echo 1";
 
-    FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
-    if (!pipe) {
-      return false;
-    }
+          FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
+          if (!pipe) {
+            return "0";
+          }
 
-    char buffer[128];
-    std::string result = "";
+          char buffer[128];
+          std::string result = "";
 
-    while (!feof(pipe)) {
-      if (fgets(buffer, 128, pipe) != nullptr) {
-        result += buffer;
-      }
-    }
+          while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != nullptr) {
+              result += buffer;
+            }
+          }
 
-    pclose(pipe);
+          pclose(pipe);
 
-    result.erase(result.find_last_not_of(" \n\r\t") + 1);
+          // Trim whitespace
+          result.erase(result.find_last_not_of(" \n\r\t") + 1);
 
-    return result == "1";
-  } catch (const std::exception& e) {
-    std::cerr << "Error checking git staged changes: " << e.what() << std::endl;
-    return false;
-  }
+          return result;
+        } catch (const std::exception&) {
+          return "0";
+        }
+      },
+      60) == "1";  // Cache for 60 seconds
 }
 
 int PromptInfo::get_git_uncommitted_changes(
     const std::filesystem::path& repo_root) {
-  try {
-    std::string command =
-        "cd " + repo_root.string() + " && git status --porcelain | wc -l";
+  // Use a faster command and cache the result for 60 seconds
+  std::string cache_key = "git_changes_" + repo_root.string();
+  return std::stoi(get_cached_value(
+      cache_key,
+      [&repo_root]() -> std::string {
+        try {
+          // Use --name-only to make the command faster
+          std::string command =
+              "cd " + repo_root.string() + " && git status --porcelain --name-only | wc -l";
 
-    FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
-    if (!pipe) {
-      return 0;
-    }
+          FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
+          if (!pipe) {
+            return "0";
+          }
 
-    char buffer[128];
-    std::string result = "";
+          char buffer[128];
+          std::string result = "";
 
-    while (!feof(pipe)) {
-      if (fgets(buffer, 128, pipe) != nullptr) {
-        result += buffer;
-      }
-    }
+          while (!feof(pipe)) {
+            if (fgets(buffer, 128, pipe) != nullptr) {
+              result += buffer;
+            }
+          }
 
-    pclose(pipe);
-
-    return std::stoi(result);
-  } catch (const std::exception& e) {
-    std::cerr << "Error getting git uncommitted changes: " << e.what()
-              << std::endl;
-    return 0;
-  }
+          pclose(pipe);
+          
+          // Trim whitespace
+          result.erase(result.find_last_not_of(" \n\r\t") + 1);
+          
+          return result;
+        } catch (const std::exception&) {
+          return "0";
+        }
+      },
+      60));  // Cache for 60 seconds
 }
 
 std::unordered_map<std::string, std::string> PromptInfo::get_variables(
@@ -516,98 +621,108 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
               << std::endl;
 
   std::unordered_map<std::string, std::string> vars;
-
-  if (is_variable_used("USERNAME", segments)) {
-    vars["USERNAME"] = get_username();
-  }
-
-  if (is_variable_used("HOSTNAME", segments)) {
-    vars["HOSTNAME"] = get_hostname();
-  }
-
-  if (is_variable_used("PATH", segments)) {
-    vars["PATH"] = get_current_file_path();
-  }
-
-  if (is_variable_used("DIRECTORY", segments)) {
-    vars["DIRECTORY"] = get_current_file_name();
-  }
-
-  if (is_variable_used("TIME", segments)) {
-    vars["TIME"] = get_current_time(false);
-  }
-
-  if (is_variable_used("TIME12", segments)) {
-    vars["TIME12"] = get_current_time(true);
-  }
-
-  if (is_variable_used("TIME", segments)) {
-    vars["TIME"] = get_current_time();
-  }
-
-  if (is_variable_used("DATE", segments)) {
-    vars["DATE"] = get_current_date();
-  }
-
-  if (is_variable_used("SHELL", segments)) {
-    vars["SHELL"] = get_shell();
-  }
-
-  if (is_variable_used("SHELL_VER", segments)) {
-    vars["SHELL_VER"] = get_shell_version();
-  }
-
-  if (is_variable_used("OS_INFO", segments)) {
-    vars["OS_INFO"] = get_os_info();
-  }
-
-  if (is_variable_used("KERNEL_VER", segments)) {
-    vars["KERNEL_VER"] = get_kernel_version();
-  }
-
-  if (is_variable_used("CPU_USAGE", segments)) {
-    vars["CPU_USAGE"] = std::to_string(static_cast<int>(get_cpu_usage())) + "%";
-  }
-
-  if (is_variable_used("MEM_USAGE", segments)) {
-    vars["MEM_USAGE"] =
-        std::to_string(static_cast<int>(get_memory_usage())) + "%";
-  }
-
-  if (is_variable_used("BATTERY", segments)) {
-    vars["BATTERY"] = get_battery_status();
-  }
-
-  if (is_variable_used("UPTIME", segments)) {
-    vars["UPTIME"] = get_uptime();
-  }
-
-  if (is_variable_used("TERM_TYPE", segments)) {
-    vars["TERM_TYPE"] = get_terminal_type();
-  }
-
-  if (is_variable_used("TERM_SIZE", segments)) {
-    auto [width, height] = get_terminal_dimensions();
-    vars["TERM_SIZE"] = std::to_string(width) + "x" + std::to_string(height);
-  }
-
+  
+  // Create a set of needed variables to avoid computing unused ones
+  std::unordered_set<std::string> needed_vars;
   for (const auto& segment : segments) {
     if (segment.contains("content")) {
       std::string content = segment["content"];
-      std::regex lang_pattern("\\{LANG_VER:([^}]+)\\}");
-      std::smatch match;
+      // Look for placeholders like {VAR_NAME}
+      std::regex placeholder_pattern("\\{([^}]+)\\}");
+      std::smatch matches;
       std::string::const_iterator search_start(content.cbegin());
-
-      while (std::regex_search(search_start, content.cend(), match,
-                               lang_pattern)) {
-        std::string lang = match[1];
-        vars["LANG_VER:" + lang] = get_active_language_version(lang);
-        search_start = match.suffix().first;
+      
+      while (std::regex_search(search_start, content.cend(), matches, placeholder_pattern)) {
+        needed_vars.insert(matches[1]);
+        search_start = matches.suffix().first;
       }
     }
   }
 
-  if (is_variable_used("VIRTUAL_ENV", segments)) {
+  // Fast path for basic info that doesn't change often
+  if (needed_vars.count("USERNAME")) {
+    vars["USERNAME"] = get_username();
+  }
+
+  if (needed_vars.count("HOSTNAME")) {
+    vars["HOSTNAME"] = get_hostname();
+  }
+
+  if (needed_vars.count("SHELL")) {
+    vars["SHELL"] = get_shell();
+  }
+
+  if (needed_vars.count("SHELL_VER")) {
+    vars["SHELL_VER"] = get_shell_version();
+  }
+
+  // Path information (moderate cost)
+  if (needed_vars.count("PATH")) {
+    vars["PATH"] = get_current_file_path();
+  }
+
+  if (needed_vars.count("DIRECTORY")) {
+    vars["DIRECTORY"] = get_current_file_name();
+  }
+
+  // Time information (low cost)
+  if (needed_vars.count("TIME") || needed_vars.count("TIME24")) {
+    vars["TIME"] = get_current_time(false);
+    vars["TIME24"] = vars["TIME"];
+  }
+
+  if (needed_vars.count("TIME12")) {
+    vars["TIME12"] = get_current_time(true);
+  }
+
+  if (needed_vars.count("DATE")) {
+    vars["DATE"] = get_current_date();
+  }
+
+  // System information (potentially high cost, already cached)
+  if (needed_vars.count("OS_INFO")) {
+    vars["OS_INFO"] = get_os_info();
+  }
+
+  if (needed_vars.count("KERNEL_VER")) {
+    vars["KERNEL_VER"] = get_kernel_version();
+  }
+
+  if (needed_vars.count("CPU_USAGE")) {
+    vars["CPU_USAGE"] = std::to_string(static_cast<int>(get_cpu_usage())) + "%";
+  }
+
+  if (needed_vars.count("MEM_USAGE")) {
+    vars["MEM_USAGE"] =
+        std::to_string(static_cast<int>(get_memory_usage())) + "%";
+  }
+
+  if (needed_vars.count("BATTERY")) {
+    vars["BATTERY"] = get_battery_status();
+  }
+
+  if (needed_vars.count("UPTIME")) {
+    vars["UPTIME"] = get_uptime();
+  }
+
+  if (needed_vars.count("TERM_TYPE")) {
+    vars["TERM_TYPE"] = get_terminal_type();
+  }
+
+  if (needed_vars.count("TERM_SIZE")) {
+    auto [width, height] = get_terminal_dimensions();
+    vars["TERM_SIZE"] = std::to_string(width) + "x" + std::to_string(height);
+  }
+
+  // Language version checks (high cost)
+  for (const auto& var_name : needed_vars) {
+    if (var_name.substr(0, 9) == "LANG_VER:") {
+      std::string lang = var_name.substr(9);
+      vars[var_name] = get_active_language_version(lang);
+    }
+  }
+
+  if (needed_vars.count("VIRTUAL_ENV")) {
     std::string env_name;
     if (is_in_virtual_environment(env_name)) {
       vars["VIRTUAL_ENV"] = env_name;
@@ -616,50 +731,51 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
   }
 
-  if (is_variable_used("BG_JOBS", segments)) {
+  if (needed_vars.count("BG_JOBS")) {
     int job_count = get_background_jobs_count();
     vars["BG_JOBS"] = job_count > 0 ? std::to_string(job_count) : "";
   }
 
   // Add last exit code placeholder
-  if (is_variable_used("STATUS", segments)) {
+  if (needed_vars.count("STATUS")) {
     char* status_env = getenv("STATUS");
     vars["STATUS"] = status_env ? std::string(status_env) : "0";
   }
 
-  if (is_variable_used("IP_LOCAL", segments)) {
+  // Network information (potentially high cost, already cached)
+  if (needed_vars.count("IP_LOCAL")) {
     vars["IP_LOCAL"] = get_ip_address(false);
   }
 
-  if (is_variable_used("IP_EXTERNAL", segments)) {
+  if (needed_vars.count("IP_EXTERNAL")) {
     vars["IP_EXTERNAL"] = get_ip_address(true);
   }
 
-  if (is_variable_used("VPN_STATUS", segments)) {
+  if (needed_vars.count("VPN_STATUS")) {
     vars["VPN_STATUS"] = is_vpn_active() ? "on" : "off";
   }
 
-  if (is_variable_used("NET_IFACE", segments)) {
+  if (needed_vars.count("NET_IFACE")) {
     vars["NET_IFACE"] = get_active_network_interface();
   }
 
+  // Git information (potentially high cost, already cached)
   if (is_git_repo) {
     std::filesystem::path git_head_path = repo_root / ".git" / "HEAD";
 
-    if (is_variable_used("GIT_BRANCH", segments)) {
+    if (needed_vars.count("GIT_BRANCH")) {
       vars["GIT_BRANCH"] = get_git_branch(git_head_path);
     }
 
-    if (is_variable_used("GIT_STATUS", segments)) {
+    if (needed_vars.count("GIT_STATUS")) {
       vars["GIT_STATUS"] = get_git_status(repo_root);
     }
 
-    if (is_variable_used("LOCAL_PATH", segments)) {
+    if (needed_vars.count("LOCAL_PATH")) {
       vars["LOCAL_PATH"] = get_local_path(repo_root);
     }
 
-    if (is_variable_used("GIT_AHEAD", segments) ||
-        is_variable_used("GIT_BEHIND", segments)) {
+    if (needed_vars.count("GIT_AHEAD") || needed_vars.count("GIT_BEHIND")) {
       int ahead = 0, behind = 0;
       if (get_git_ahead_behind(repo_root, ahead, behind) == 0) {
         vars["GIT_AHEAD"] = std::to_string(ahead);
@@ -670,20 +786,21 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
       }
     }
 
-    if (is_variable_used("GIT_STASHES", segments)) {
+    if (needed_vars.count("GIT_STASHES")) {
       vars["GIT_STASHES"] = std::to_string(get_git_stash_count(repo_root));
     }
 
-    if (is_variable_used("GIT_STAGED", segments)) {
+    if (needed_vars.count("GIT_STAGED")) {
       vars["GIT_STAGED"] = get_git_has_staged_changes(repo_root) ? "✓" : "";
     }
 
-    if (is_variable_used("GIT_CHANGES", segments)) {
+    if (needed_vars.count("GIT_CHANGES")) {
       vars["GIT_CHANGES"] =
           std::to_string(get_git_uncommitted_changes(repo_root));
     }
   }
 
+  // Plugin variables
   if (g_plugin) {
     for (const auto& plugin_name : g_plugin->get_enabled_plugins()) {
       plugin_data* pd = g_plugin->get_plugin_data(plugin_name);
@@ -691,7 +808,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
       for (const auto& kv : pd->prompt_variables) {
         const std::string& tag = kv.first;
         auto func = kv.second;
-        if (vars.find(tag) == vars.end() && is_variable_used(tag, segments)) {
+        if (vars.find(tag) == vars.end() && needed_vars.count(tag)) {
           plugin_string_t res = func();
           std::string value;
           if (res.length > 0)
@@ -706,28 +823,31 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
       }
     }
   }
+  
   return vars;
 }
 
 int PromptInfo::get_background_jobs_count() {
-  FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
-  if (!fp) return 0;
+  // Cache background jobs count for a short period (2 seconds)
+  return std::stoi(get_cached_value(
+      "bg_jobs_count",
+      []() -> std::string {
+        FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
+        if (!fp) return "0";
 
-  char buffer[32];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-  }
-  pclose(fp);
+        char buffer[32];
+        std::string result = "";
+        if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+          result = buffer;
+        }
+        pclose(fp);
 
-  // Trim whitespace
-  result.erase(result.find_last_not_of(" \n\r\t") + 1);
+        // Trim whitespace
+        result.erase(result.find_last_not_of(" \n\r\t") + 1);
 
-  try {
-    return std::stoi(result);
-  } catch (const std::exception&) {
-    return 0;
-  }
+        return result;
+      },
+      2));  // Cache for 2 seconds
 }
 
 std::string PromptInfo::get_os_info() {
@@ -819,162 +939,154 @@ std::string PromptInfo::get_kernel_version() {
 float PromptInfo::get_cpu_usage() {
   if (g_debug_mode) std::cerr << "DEBUG: Getting CPU usage" << std::endl;
 
+  // Cache CPU usage for 5 seconds as it doesn't change that rapidly
+  return std::stof(get_cached_value(
+      "cpu_usage",
+      []() -> std::string {
 #ifdef __APPLE__
-  FILE* fp = popen(
-      "sh -c 'top -l 1 | grep \"CPU usage\" | awk \"{print \\$3}\" | cut "
-      "-d\"%\" -f1'",
-      "r");
+        FILE* fp = popen(
+            "sh -c 'top -l 1 | grep \"CPU usage\" | awk \"{print \\$3}\" | cut "
+            "-d\"%\" -f1'",
+            "r");
 #elif defined(__linux__)
-  FILE* fp = popen(
-      "sh -c 'top -bn1 | grep \"Cpu(s)\" | awk \"{print \\$2 + \\$4}\"'", "r");
+        FILE* fp = popen(
+            "sh -c 'top -bn1 | grep \"Cpu(s)\" | awk \"{print \\$2 + \\$4}\"'", "r");
 #else
-  return 0.0f;
+        return "0.0";
 #endif
 
-  if (!fp) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Failed to popen for CPU usage" << std::endl;
-    return 0.0f;
-  }
+        if (!fp) {
+          if (g_debug_mode)
+            std::cerr << "DEBUG: Failed to popen for CPU usage" << std::endl;
+          return "0.0";
+        }
 
-  char buffer[32];
-  std::string resultStr = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    resultStr += buffer;
-  }
-  pclose(fp);
-
-  try {
-    float result = std::stof(resultStr);
-    if (g_debug_mode)
-      std::cerr << "DEBUG: CPU usage is " << result << "%" << std::endl;
-    return result;
-  } catch (const std::exception& e) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Failed to parse CPU usage: " << e.what()
-                << std::endl;
-    return 0.0f;
-  }
+        char buffer[32];
+        std::string resultStr = "";
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+          resultStr += buffer;
+        }
+        pclose(fp);
+        
+        // Remove newline if present
+        if (!resultStr.empty() && resultStr[resultStr.length() - 1] == '\n') {
+          resultStr.erase(resultStr.length() - 1);
+        }
+        
+        return resultStr;
+      },
+      5));  // Cache for 5 seconds
 }
 
 float PromptInfo::get_memory_usage() {
   if (g_debug_mode) std::cerr << "DEBUG: Getting memory usage" << std::endl;
-
+  
+  // Cache memory usage for 5 seconds as it doesn't change that rapidly
+  return std::stof(get_cached_value(
+      "memory_usage",
+      []() -> std::string {
 #ifdef __APPLE__
-  FILE* fp = popen(
-      "sh -c 'top -l 1 | grep PhysMem | awk \"{print \\$2}\" | cut -d\"M\" "
-      "-f1'",
-      "r");
+        FILE* fp = popen(
+            "sh -c 'top -l 1 | grep PhysMem | awk \"{print \\$2}\" | cut -d\"M\" "
+            "-f1'",
+            "r");
 #elif defined(__linux__)
-  FILE* fp =
-      popen("sh -c 'free | grep Mem | awk \"{print \\$3/\\$2 * 100.0}\"'", "r");
+        FILE* fp =
+            popen("sh -c 'free | grep Mem | awk \"{print \\$3/\\$2 * 100.0}\"'", "r");
 #else
-  return 0.0f;
+        return "0.0";
 #endif
 
-  if (!fp) return 0.0f;
+        if (!fp) return "0.0";
 
-  char buffer[32];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result += buffer;
-  }
-  pclose(fp);
-
-  try {
-    return std::stof(result);
-  } catch (const std::exception&) {
-    return 0.0f;
-  }
+        char buffer[32];
+        std::string result = "";
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+          result += buffer;
+        }
+        pclose(fp);
+        
+        // Remove newline if present
+        if (!result.empty() && result[result.length() - 1] == '\n') {
+          result.erase(result.length() - 1);
+        }
+        
+        return result;
+      },
+      5));  // Cache for 5 seconds
 }
 
 std::string PromptInfo::get_battery_status() {
+  // Cache battery status for 60 seconds - it doesn't need to update frequently
+  return get_cached_value(
+      "battery_status",
+      []() -> std::string {
 #ifdef __APPLE__
-  FILE* fp = popen("sh -c 'pmset -g batt | grep -Eo \"\\\\d+%\"'", "r");
-  if (!fp) return "Unknown";
+        // Combine commands to reduce number of popen calls
+        FILE* fp = popen("sh -c 'pmset -g batt'", "r");
+        if (!fp) return "Unknown";
 
-  char buffer[32];
-  std::string percentage = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    percentage = buffer;
-  }
-  pclose(fp);
+        char buffer[256];
+        std::string output = "";
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+          output += buffer;
+        }
+        pclose(fp);
 
-  // Remove newline
-  if (!percentage.empty() && percentage[percentage.length() - 1] == '\n') {
-    percentage.erase(percentage.length() - 1);
-  }
+        // Extract percentage
+        std::string percentage = "Unknown";
+        std::regex percentage_regex("(\\d+)%");
+        std::smatch matches;
+        if (std::regex_search(output, matches, percentage_regex)) {
+          percentage = matches[1].str() + "%";
+        }
 
-  // Get charging status
-  fp = popen(
-      "sh -c 'pmset -g batt | grep -Eo \";.*\" | cut -d \";\" -f2 | cut -d \" "
-      "\" -f2'",
-      "r");
-  if (!fp) return percentage;
+        // Extract charging status
+        std::string icon = "";
+        if (output.find("charging") != std::string::npos) {
+          icon = "⚡";
+        } else if (output.find("discharging") != std::string::npos) {
+          icon = "🔋";
+        }
 
-  std::string status = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    status = buffer;
-  }
-  pclose(fp);
-
-  // Remove newline
-  if (!status.empty() && status[status.length() - 1] == '\n') {
-    status.erase(status.length() - 1);
-  }
-
-  std::string icon = "";
-  if (status == "charging") {
-    icon = "⚡";
-  } else if (status == "discharging") {
-    icon = "🔋";
-  }
-
-  return percentage + " " + icon;
+        return percentage + " " + icon;
 #elif defined(__linux__)
-  FILE* fp = popen(
-      "sh -c 'cat /sys/class/power_supply/BAT0/capacity 2>/dev/null'", "r");
-  if (!fp) return "Unknown";
-
-  char buffer[32];
-  std::string percentage = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    percentage = buffer;
-  }
-  pclose(fp);
-
-  // Remove newline
-  if (!percentage.empty() && percentage[percentage.length() - 1] == '\n') {
-    percentage.erase(percentage.length() - 1);
-  }
-
-  // Get charging status
-  fp =
-      popen("sh -c 'cat /sys/class/power_supply/BAT0/status 2>/dev/null'", "r");
-  if (!fp) return percentage + "%";
-
-  std::string status = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    status = buffer;
-  }
-  pclose(fp);
-
-  // Remove newline
-  if (!status.empty() && status[status.length() - 1] == '\n') {
-    status.erase(status.length() - 1);
-  }
-
-  std::string icon = "";
-  if (status == "Charging") {
-    icon = "⚡";
-  } else if (status == "Discharging") {
-    icon = "🔋";
-  }
-
-  return percentage + "% " + icon;
+        // Combine commands for Linux as well
+        std::string capacity_path = "/sys/class/power_supply/BAT0/capacity";
+        std::string status_path = "/sys/class/power_supply/BAT0/status";
+        
+        // Check if battery exists
+        if (!std::filesystem::exists(capacity_path)) {
+          return "Unknown";
+        }
+        
+        // Read capacity file directly instead of using popen
+        std::ifstream capacity_file(capacity_path);
+        std::string percentage = "Unknown";
+        if (capacity_file) {
+          std::getline(capacity_file, percentage);
+          percentage += "%";
+        }
+        
+        // Read status file directly
+        std::string icon = "";
+        std::ifstream status_file(status_path);
+        if (status_file) {
+          std::string status;
+          std::getline(status_file, status);
+          if (status == "Charging") {
+            icon = "⚡";
+          } else if (status == "Discharging") {
+            icon = "🔋";
+          }
+        }
+        
+        return percentage + " " + icon;
 #else
-  return "Unknown";
+        return "Unknown";
 #endif
+      },
+      60);  // Cache for 60 seconds
 }
 
 std::string PromptInfo::get_uptime() {
