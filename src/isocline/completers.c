@@ -11,6 +11,22 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+// Ensure we have the stat macros defined
+#ifndef S_IFMT
+#define S_IFMT    0170000    /* type of file */
+#define S_IFIFO   0010000    /* named pipe (fifo) */
+#define S_IFCHR   0020000    /* character special */
+#define S_IFDIR   0040000    /* directory */
+#define S_IFBLK   0060000    /* block special */
+#define S_IFREG   0100000    /* regular */
+#define S_IFLNK   0120000    /* symbolic link */
+#define S_IFSOCK  0140000    /* socket */
+#endif
+
+#ifndef S_ISVTX
+#define S_ISVTX   01000     /* save swapped text even after use */
+#endif
+
 #include "isocline/isocline.h"
 #include "isocline/common.h"
 #include "isocline/env.h"
