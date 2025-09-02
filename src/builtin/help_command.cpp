@@ -4,6 +4,7 @@
 #include <string>
 
 #include "cjsh.h"
+#include "usage.h"
 
 int help_command() {
   if (g_debug_mode) {
@@ -160,30 +161,8 @@ int help_command() {
 
   std::cout << "STARTUP ARGUMENTS:\n\n";
 
-  std::cout << "  Login and Execution:\n";
-  std::cout << "    -l, --login           Start shell in login mode\n";
-  std::cout << "    -c, --command CMD     Execute CMD and exit\n";
-  std::cout << "    --set-as-shell        Show instructions to set as default "
-               "shell\n\n";
-
-  std::cout << "  Feature Toggles:\n";
-  std::cout << "    --no-plugins          Disable plugins\n";
-  std::cout << "    --no-themes           Disable themes\n";
-  std::cout << "    --no-ai               Disable AI features\n";
-  std::cout << "    --no-colors           Disable colors\n";
-  std::cout << "    --no-titleline        Disable title line display\n";
-  std::cout << "    --no-source           Don't source the ~/.cjshrc file\n\n";
-
-  std::cout << "  Updates and Information:\n";
-  std::cout << "    -v, --version         Display version and exit\n";
-  std::cout << "    -h, --help            Display help and exit\n";
-  std::cout << "    --update              Check for updates and install if "
-               "available\n";
-  std::cout << "    --check-update        Check for update\n";
-  std::cout << "    --no-update           Do not check for update on launch\n";
-  std::cout << "    --silent-updates      Enable silent update checks\n";
-  std::cout << "    --splash              Display splash screen and exit\n";
-  std::cout << "    -d, --debug           Enable debug mode\n";
+  // Use our usage function to show command-line options
+  print_usage();
 
   std::cout << section_separator;
   std::cout << "NOTE: Many commands have their own help. Try [command] help "

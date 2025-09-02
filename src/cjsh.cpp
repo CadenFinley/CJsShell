@@ -1,6 +1,7 @@
 #include "cjsh.h"
 
 #include <errno.h>
+#include <getopt.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -17,6 +18,7 @@
 #include "isocline/isocline.h"
 #include "shell.h"
 #include "update.h"
+#include "usage.h"
 
 // to do
 //  spec out shell script interpreter
@@ -49,32 +51,142 @@ int main(int argc, char* argv[]) {
   bool login_mode = false;
   bool interactive_mode = true;
   bool force_interactive = false;
+  bool l_execute_command = false;
+  std::string l_cmd_to_execute = "";
+  bool l_plugins_enabled = true;
+  bool l_themes_enabled = true;
+  bool l_ai_enabled = true;
+  bool l_colors_enabled = true;
+  bool source_enabled = true;
+  bool set_as_shell = false;
+  bool show_version = false;
+  bool show_help = false;
+  bool check_update = false;
+  
+  // Check if started as a login shell
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
     if (g_debug_mode)
       std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0]
                 << std::endl;
   }
-  for (int i = 1; i < argc; i++) {
-    if (std::string(argv[i]) == "--login" || std::string(argv[i]) == "-l" ||
-        std::string(argv[i]) == "-cjsh") {
-      login_mode = true;
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Login mode detected from command-line argument: "
-                  << argv[i] << std::endl;
-    }
-    if (std::string(argv[i]) == "--interactive" ||
-        std::string(argv[i]) == "-i") {
-      force_interactive = true;
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Interactive detected from command-line argument: "
-                  << argv[i] << std::endl;
-    }
-    if (std::string(argv[i]) == "--debug") {
-      g_debug_mode = true;
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Debug mode enabled from command-line argument: "
-                  << argv[i] << std::endl;
+
+  // Setup long options
+  static struct option long_options[] = {
+    {"login", no_argument, 0, 'l'},
+    {"interactive", no_argument, 0, 'i'},
+    {"debug", no_argument, 0, 'd'},
+    {"command", required_argument, 0, 'c'},
+    {"version", no_argument, 0, 'v'},
+    {"help", no_argument, 0, 'h'},
+    {"set-as-shell", no_argument, 0, 's'},
+    {"update", no_argument, 0, 'u'},
+    {"silent-updates", no_argument, 0, 'S'},
+    {"no-plugins", no_argument, 0, 'P'},
+    {"no-themes", no_argument, 0, 'T'},
+    {"no-ai", no_argument, 0, 'A'},
+    {"no-colors", no_argument, 0, 'C'},
+    {"no-update", no_argument, 0, 'U'},
+    {"check-update", no_argument, 0, 'V'},
+    {"no-titleline", no_argument, 0, 'L'},
+    {"no-source", no_argument, 0, 'N'},
+    {0, 0, 0, 0}
+  };
+
+  const char* short_options = "lic:vhdsuSPTACUVLN";
+  int option_index = 0;
+  int c;
+  
+  optind = 1;
+  
+  while ((c = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
+    switch (c) {
+      case 'l': // --login
+        login_mode = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Login mode enabled" << std::endl;
+        break;
+      case 'i': // --interactive
+        force_interactive = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Interactive mode forced" << std::endl;
+        break;
+      case 'd': // --debug
+        g_debug_mode = true;
+        std::cerr << "DEBUG: Debug mode enabled" << std::endl;
+        break;
+      case 'c': // --command
+        l_execute_command = true;
+        l_cmd_to_execute = optarg;
+        interactive_mode = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Command to execute: " << l_cmd_to_execute << std::endl;
+        break;
+      case 'v': // --version
+        show_version = true;
+        interactive_mode = false;
+        break;
+      case 'h': // --help
+        show_help = true;
+        interactive_mode = false;
+        break;
+      case 's': // --set-as-shell
+        set_as_shell = true;
+        interactive_mode = false;
+        break;
+      case 'u': // --update
+        check_update = true;
+        interactive_mode = false;
+        break;
+      case 'S': // --silent-updates
+        g_silent_update_check = true;
+        break;
+      case 'P': // --no-plugins
+        l_plugins_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Plugins disabled" << std::endl;
+        break;
+      case 'T': // --no-themes
+        l_themes_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Themes disabled" << std::endl;
+        break;
+      case 'A': // --no-ai
+        l_ai_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: AI disabled" << std::endl;
+        break;
+      case 'C': // --no-colors
+        l_colors_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Colors disabled" << std::endl;
+        break;
+      case 'U': // --no-update
+        g_check_updates = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Update checks disabled" << std::endl;
+        break;
+      case 'V': // --check-update
+        g_check_updates = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Update checks enabled" << std::endl;
+        break;
+      case 'L': // --no-titleline
+        g_title_line = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Title line disabled" << std::endl;
+        break;
+      case 'N': // --no-source
+        source_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Source file disabled" << std::endl;
+        break;
+      case '?':
+        print_usage();
+        return 127;
+      default:
+        std::cerr << "Unexpected error in argument parsing." << std::endl;
+        return 127;
     }
   }
 
@@ -117,108 +229,52 @@ int main(int argc, char* argv[]) {
     setenv("0", "cjsh", 1);
   }
 
-  bool l_execute_command = false;
-  std::string l_cmd_to_execute = "";
-  bool l_plugins_enabled = true;
-  bool l_themes_enabled = true;
-  bool l_ai_enabled = true;
-  bool l_colors_enabled = true;
-  bool source_enabled = true;
-
-  for (size_t i = 1; i < g_startup_args.size(); i++) {
-    std::string arg = g_startup_args[i];
-    if (arg == "-c" || arg == "--command") {
-      if (i + 1 < g_startup_args.size()) {
-        l_execute_command = true;
-        l_cmd_to_execute = g_startup_args[i + 1];
-        i++;
-      }
-      interactive_mode = false;
-    } else if (arg == "-v" || arg == "--version") {
-      std::cout << c_version << std::endl;
-      interactive_mode = false;
-    } else if (arg == "-h" || arg == "--help") {
-      g_shell->execute_command("help");
-      interactive_mode = false;
-    } else if (arg == "--login" || arg == "-l" || arg == "--interactive" ||
-               arg == "-i" || arg == "-cjsh") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Recognized immeadiate arguement: " << arg
-                  << std::endl;
-    } else if (arg == "--debug") {
-      g_debug_mode = true;
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Recognized immeadiate arguement: " << arg
-                  << std::endl;
-    } else if (arg == "--set-as-shell") {
-      std::cout
-          << "Warning: cjsh is not a POSIX compliant shell. \nSimilar to FISH, "
-             "missuse of cjsh or incorrectly settingcjsh as your login shell "
-             "can \nhave adverse effects and there is no warranty."
-          << std::endl;
-      std::cout << "To set cjsh as your default shell you must run these two "
-                   "commands:"
-                << std::endl;
-      std::cout << "To add cjsh to the list of shells:" << std::endl;
-      std::cout << "sudo sh -c \"echo " << cjsh_filesystem::g_cjsh_path
-                << " >> /etc/shells\"" << std::endl;
-      std::cout << "To set CJ's Shell as your default shell:" << std::endl;
-      std::cout << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
-      std::cout
-          << "Would you like to automatically run these commands? (y/n): ";
-      std::string response;
-      std::getline(std::cin, response);
-      if (response == "y" || response == "Y") {
-        std::string command = "sudo sh -c \"echo " +
-                              cjsh_filesystem::g_cjsh_path.string() +
-                              " >> /etc/shells\"";
-        int result = g_shell->execute_command(command);
-        if (result != 0) {
-          std::cerr << "Error: Failed to add cjsh to /etc/shells." << std::endl;
-        } else {
-          std::cout << "cjsh added to /etc/shells successfully." << std::endl;
-        }
-        command = "sudo chsh -s " + cjsh_filesystem::g_cjsh_path.string();
-        result = g_shell->execute_command(command);
-        if (result == -1) {
-          std::cerr << "Error: Failed to set cjsh as default shell."
-                    << std::endl;
-        } else {
-          std::cout << "cjsh set as default shell successfully." << std::endl;
-        }
+  if (show_version) {
+    std::cout << c_version << std::endl;
+  } else if (show_help) {
+    print_usage();
+  } else if (set_as_shell) {
+    std::cout
+        << "Warning: cjsh is not a POSIX compliant shell. \nSimilar to FISH, "
+           "missuse of cjsh or incorrectly settingcjsh as your login shell "
+           "can \nhave adverse effects and there is no warranty."
+        << std::endl;
+    std::cout << "To set cjsh as your default shell you must run these two "
+                 "commands:"
+              << std::endl;
+    std::cout << "To add cjsh to the list of shells:" << std::endl;
+    std::cout << "sudo sh -c \"echo " << cjsh_filesystem::g_cjsh_path
+              << " >> /etc/shells\"" << std::endl;
+    std::cout << "To set CJ's Shell as your default shell:" << std::endl;
+    std::cout << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
+    std::cout
+        << "Would you like to automatically run these commands? (y/n): ";
+    std::string response;
+    std::getline(std::cin, response);
+    if (response == "y" || response == "Y") {
+      std::string command = "sudo sh -c \"echo " +
+                            cjsh_filesystem::g_cjsh_path.string() +
+                            " >> /etc/shells\"";
+      int result = g_shell->execute_command(command);
+      if (result != 0) {
+        std::cerr << "Error: Failed to add cjsh to /etc/shells." << std::endl;
       } else {
-        std::cout << "cjsh will not be set as your default shell." << std::endl;
+        std::cout << "cjsh added to /etc/shells successfully." << std::endl;
       }
-      interactive_mode = false;
-    } else if (arg == "--update") {
-      execute_update_if_available(check_for_update());
-      interactive_mode = false;
-    } else if (arg == "--silent-updates") {
-      g_silent_update_check = true;
-    } else if (arg == "--no-plugins") {
-      l_plugins_enabled = false;
-    } else if (arg == "--no-themes") {
-      l_themes_enabled = false;
-    } else if (arg == "--no-ai") {
-      l_ai_enabled = false;
-    } else if (arg == "--no-colors") {
-      l_colors_enabled = false;
-    } else if (arg == "--no-update") {
-      g_check_updates = false;
-    } else if (arg == "--check-update") {
-      g_check_updates = true;
-    } else if (arg == "--no-titleline") {
-      g_title_line = false;
-    } else if (arg == "--no-source") {
-      source_enabled = false;
-    } else if (arg.length() > 0 && arg[0] == '-') {
-      std::cerr << "Warning: Unknown startup argument: " << arg << std::endl;
-      g_shell.reset();
-      return 127;
+      command = "sudo chsh -s " + cjsh_filesystem::g_cjsh_path.string();
+      result = g_shell->execute_command(command);
+      if (result == -1) {
+        std::cerr << "Error: Failed to set cjsh as default shell."
+                  << std::endl;
+      } else {
+        std::cout << "cjsh set as default shell successfully." << std::endl;
+      }
+    } else {
+      std::cout << "cjsh will not be set as your default shell." << std::endl;
     }
-  }
-
-  if (l_execute_command) {
+  } else if (check_update) {
+    execute_update_if_available(check_for_update());
+  } else if (l_execute_command) {
     int exit_code = g_shell->execute_command(l_cmd_to_execute);
     if ((!interactive_mode && !force_interactive) || exit_code != 0) {
       if (g_debug_mode)
