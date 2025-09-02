@@ -89,14 +89,6 @@ endif()
 # Common dependencies
 find_package(Threads REQUIRED)
 
-# Add GLib via pkg-config
-find_package(PkgConfig REQUIRED)
-set(PKG_CONFIG_USE_STATIC_LIBS ON)
-pkg_check_modules(GLIB REQUIRED glib-2.0)
-include_directories(${GLIB_INCLUDE_DIRS})
-link_directories(${GLIB_LIBRARY_DIRS})
-add_definitions(${GLIB_CFLAGS_OTHER})
-
 if(UNIX AND NOT APPLE)
   find_library(DL_LIBRARY dl REQUIRED)
 endif()
