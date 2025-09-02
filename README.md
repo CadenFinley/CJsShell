@@ -112,8 +112,11 @@ cjsh -c "ls -la"
 ```
 Available startup flags:
 - `-l`, `--login` Start in login mode  
+- `-i`, `--interactive` Force interactive mode
 - `--set-as-shell` Show instructions to set cjsh as your login shell  
-- `--no-update` Disable automatic update checks  
+- `--no-update` Disable automatic update checks
+- `--check-update` Enable update checks
+- `--update` Check for updates and exit
 - `-d`, `--debug` Enable debug logging  
 - `--no-plugins` Disable the plugin system
 - `--no-themes` Disable theme support
@@ -121,6 +124,9 @@ Available startup flags:
 - `--no-colors` Disable color output
 - `--no-titleline` Disable title line display
 - `--no-source` Don't source the ~/.cjshrc file
+- `--silent-updates` Perform update checks silently
+- `-v`, `--version` Show version information and exit
+- `-h`, `--help` Show help information and exit
 
 ### Common Built‑In Commands
 - `help` Display help and usage information  
@@ -131,10 +137,21 @@ Available startup flags:
 - `aihelp` Invoke the AI assistant  
 - `ai [command]` Use the AI assistant with specific commands
 - `version` Show the current cjsh version  
+- `ls [options] [path]` List directory contents with enhanced formatting
+- `alias [name[=value]]` Create command aliases
+- `history` View and manage command history
+- `eval [expression]` Evaluate a shell expression
+- `restart` Restart the shell
+- `uninstall` Remove cjsh from your system
+- `approot` Display the application installation directory
+- `user` Manage user configuration
 
 ### Configuration Files
 - `~/.cjprofile` Login‑mode setup (env vars, PATH, startup args)  
 - `~/.cjshrc` Interactive‑mode setup (aliases, functions, themes, plugins)  
+- `~/.config/cjsh/plugins/` Directory for installed plugins
+- `~/.config/cjsh/themes/` Directory for installed themes
+- `~/.config/cjsh/ai/` Directory for AI assistant configurations
 
 ### AI Assistant
 The built-in AI assistant provides intelligent help for shell usage and programming tasks:
