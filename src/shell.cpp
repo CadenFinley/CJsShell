@@ -51,7 +51,7 @@ Shell::~Shell() {
 
 void Shell::setup_signal_handlers() {
   if (signal_handler) {
-    signal_handler->setup_signal_handlers();
+    signal_handler->setup_signal_handlers(interactive_mode);
   }
   save_terminal_state();
 }

@@ -29,7 +29,10 @@ Exec::~Exec() {
     Job& job = job_pair.second;
     if (!job.completed) {
       for (pid_t pid : job.pids) {
-        kill(pid, SIGTERM);
+        // Check if the process still exists before sending a signal
+        if (kill(pid, 0) == 0) {
+          kill(pid, SIGTERM);
+        }
       }
     }
   }
@@ -828,18 +831,19 @@ void Exec::terminate_all_child_process() {
   for (auto& job_pair : jobs) {
     Job& job = job_pair.second;
     if (!job.completed) {
-      if (kill(-job.pgid, SIGTERM) < 0) {
-        if (errno != ESRCH) {
-          perror("kill (SIGTERM) in terminate_all_child_process");
+      if (killpg(job.pgid, 0) == 0) {
+        if (kill(-job.pgid, SIGTERM) < 0) {
+          if (errno != ESRCH) {
+            perror("kill (SIGTERM) in terminate_all_child_process");
+          }
         }
+        std::cout << "[" << job_pair.first << "] Terminated\t" << job.command
+                  << std::endl;
       }
 
       job.completed = true;
       job.stopped = false;
       job.status = 0;
-
-      std::cout << "[" << job_pair.first << "] Terminated\t" << job.command
-                << std::endl;
     }
   }
 

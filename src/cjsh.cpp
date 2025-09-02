@@ -385,7 +385,6 @@ int main(int argc, char* argv[]) {
       watchdog_thread.join();
     }
   }
-  std::cout << "Exiting main process loop" << std::endl;
 
   std::cout << "Cleaning up resources..." << std::endl;
 
@@ -400,7 +399,7 @@ int main(int argc, char* argv[]) {
 
   g_shell.reset();
 
-  std::cout << "Cleanup complete, exiting with status 0" << std::endl;
+  std::cout << "Cleanup complete." << std::endl;
   return 0;
 }
 
@@ -525,6 +524,7 @@ void main_process_loop() {
     }
     notify_plugins("main_process_end", c_pid_str);
     if (g_exit_flag) {
+      std::cout << "Exiting main process loop..." << std::endl;
       break;
     }
   }
