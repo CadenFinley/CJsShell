@@ -276,7 +276,7 @@ std::string Ai::chat_gpt(const std::string& message, bool format) {
     chat_cache.push_back(assistant_name + ": " + clean_text);
   }
 
-  return clean_text;
+  return (assistant_type == "code-interpreter" ? clean_text : response);
 }
 
 std::string Ai::force_direct_chat_gpt(const std::string& message, bool format) {
