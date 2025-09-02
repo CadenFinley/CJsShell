@@ -23,7 +23,6 @@
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
-//  startup flags parsing needs to be better
 /*
  * Exit/Return Codes:
  * 0       - Success
