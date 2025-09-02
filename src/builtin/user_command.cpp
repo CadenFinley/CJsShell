@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "update.h"
 
 #define PRINT_ERROR(MSG)        \
   do {                          \
@@ -153,9 +154,11 @@ int user_command(const std::vector<std::string>& args) {
       bool updateAvailable = check_for_update();
       if (updateAvailable) {
         std::cout << "An update is available!" << std::endl;
+        save_update_cache(updateAvailable, g_cached_version);
         execute_update_if_available(updateAvailable);
       } else {
         std::cout << "You are up to date." << std::endl;
+        save_update_cache(false, g_cached_version);
       }
       return 0;
     }
