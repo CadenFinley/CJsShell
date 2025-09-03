@@ -114,6 +114,7 @@ cjsh -c "ls -la"
 Available startup flags:
 - `-l`, `--login` Start in login mode  
 - `-i`, `--interactive` Force interactive mode
+- `-c`, `--command` Execute a command and exit
 - `--set-as-shell` Show instructions to set cjsh as your login shell  
 - `--no-update` Disable automatic update checks
 - `--check-update` Enable update checks
@@ -134,7 +135,7 @@ Available startup flags:
 - `cd [dir]` Change directory  
 - `export VAR=val` Set environment variables  
 - `plugin [subcommand]` Manage plugins (`available`, `enable`, `disable`, `install`, `uninstall`, etc.)  
-- `theme [subcommand]` Manage themes (`list`, `set`, `current`, etc.)  
+- `theme [subcommand]` Manage themes (`list`, `set`, `current`, `preview`, `install`, `uninstall`, etc.)  
 - `aihelp` Invoke the AI assistant  
 - `ai [command]` Use the AI assistant with specific commands
 - `version` Show the current cjsh version  
@@ -146,6 +147,9 @@ Available startup flags:
 - `uninstall` Remove cjsh from your system
 - `approot` Display the application installation directory
 - `user` Manage user configuration
+- `jobs` List all active jobs with their status
+- `fg [JOB_ID]` Bring a job to the foreground
+- `bg [JOB_ID]` Resume a stopped job in the background
 
 ### Configuration Files
 - `~/.cjprofile` Login‑mode setup (env vars, PATH, startup args)  
@@ -164,6 +168,13 @@ The built-in AI assistant provides intelligent help for shell usage and programm
 - `ai model [name]` - View or set the AI model
 - `ai config` - Manage AI configurations
 - `ai voice` - Configure AI voice dictation
+- `ai mode [TYPE]` - Set or view the assistant mode
+- `ai chat` - Access AI chat commands (history, cache)
+- `ai get [KEY]` - Retrieve specific response data
+- `ai dump` - Display all response data and last prompt
+- `ai directory` - Manage save directory for AI-generated files
+- `ai rejectchanges` - Reject AI suggested code changes
+- `ai timeoutflag [SECS]` - Set timeout duration for AI requests
 
 Set your OpenAI API key in the OPENAI_API_KEY environment variable to use the AI assistant.
 
@@ -175,12 +186,21 @@ Manage plugins with the `plugin` command:
 - `plugin disable [NAME]` - Disable a specific plugin
 - `plugin info [NAME]` - Show detailed information about a plugin
 - `plugin install [PATH]` - Install a new plugin from the given path
+- `plugin uninstall [NAME]` - Remove an installed plugin
+- `plugin commands [NAME]` - List commands provided by a plugin
+- `plugin settings [NAME]` - View or modify plugin settings
+- `plugin enableall` - Enable all available plugins
+- `plugin disableall` - Disable all enabled plugins
 
 ### Themes
 Manage themes with the `theme` command:
 - `theme` - Show current theme and list available themes
 - `theme [NAME]` - Switch to the specified theme
 - `theme list` - List all available themes
+- `theme preview [NAME]` - Preview a theme without switching to it
+- `theme install [NAME]` - Install a theme from available remote themes
+- `theme uninstall [NAME]` - Remove an installed theme
+- `theme available` - Show remotely available themes that can be installed
 
 ## Third‑Party Components
 

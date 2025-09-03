@@ -1,4 +1,4 @@
-.TH CJSH 1 "September 2025" "Version 2.3.0" "CJ's Shell Manual"
+.TH CJSH 1 "September 2025" "Version 2.3.6" "CJ's Shell Manual"
 
 .SH NAME
 cjsh \- CJ's Shell
@@ -14,6 +14,10 @@ cjsh \- CJ's Shell
 .TP
 .B \-l, \-\-login
 Start shell in login mode. This enables loading of login configuration files.
+
+.TP
+.B \-i, \-\-interactive
+Force interactive mode even when running scripts or commands.
 
 .TP
 .B \-c, \-\-command \fICMD\fR
@@ -101,7 +105,7 @@ Directory where plugins are stored.
 
 .TP
 .B ~/.config/cjsh/themes
-Directory where themes are stored.
+Directory where themes are stored and managed by the theme command.
 
 .TP
 .B ~/.config/cjsh/ai
@@ -145,6 +149,7 @@ CJ's Shell implements a comprehensive and dynamic plugin system:
 Plugins are dynamically loaded shared libraries (.so/.dll/.dylib) that conform to the plugin API.
 Each plugin can register commands, subscribe to events, and expose configurable settings.
 Plugins have access to a structured API for interacting with the shell environment.
+All plugins must include a standard build.sh script that compiles the plugin according to system requirements.
 
 .TP
 .B Plugin Management
@@ -181,6 +186,10 @@ custom_ls - Enhanced ls command with color highlighting and formatting
 git_tools - Extended Git integration and information
 .br
 AnyShell - Provides shell execution capabilities
+.br
+fast_prompt_tags - Provides faster prompt tag rendering
+.br
+jarvis - An AI-powered assistant for common tasks
 
 .TP
 .B Plugin Events
@@ -193,10 +202,18 @@ main_process_command_processed - After a command has been processed
 main_process_end - When command processing completes
 .br
 plugin_enabled - When a plugin is enabled
+.br
+plugin_disabled - When a plugin is disabled
+.br
+theme_changed - When the shell theme is changed
+.br
+environment_changed - When environment variables are modified
 
 .PP
 Plugins are stored in the ~/.config/cjsh/plugins directory and are automatically discovered at startup.
 Plugin settings are persisted across sessions in JSON configuration files.
+Plugin naming follows standardized conventions, with the plugin directory name matching the shared library name.
+Plugin build scripts are responsible for handling cross-platform compatibility.
 
 .SH JOB CONTROL
 CJ's Shell provides sophisticated job control similar to other Unix shells:
@@ -244,6 +261,8 @@ CJ's Shell includes a sophisticated built-in AI assistant powered by large langu
 .B Assistant Models
 The AI assistant can use multiple models including gpt-3.5-turbo and other OpenAI-compatible models.
 Models can be changed using 'ai model [MODEL]' command.
+The system supports API key management and respects OpenAI API rate limits.
+Configurable timeout settings allow for controlling response times.
 
 .TP
 .B Assistant Types
@@ -298,6 +317,8 @@ ai voicedictationinstructions [INSTRUCTIONS] - Set voice dictation instructions
 The AI can analyze files in the current directory to provide context-aware assistance.
 Files can be added to context using 'ai file add [PATH]'.
 The AI can interpret code, analyze errors, and provide suggestions based on the shell environment.
+Context-aware suggestions consider your current working directory, recent commands, and shell state.
+File searches can be performed through AI to find relevant information in your project.
 
 .PP
 The AI assistant uses a dedicated configuration for the prompt that appears when in AI chat mode.
@@ -310,9 +331,11 @@ CJ's Shell features an extensive theming system for customizing the shell appear
 
 .TP
 .B Theme Structure
-Themes are JSON files stored in ~/.cjsh/themes/ that define various prompt segments.
+Themes are JSON files stored in ~/.config/cjsh/themes/ that define various prompt segments.
 Each theme can customize PS1, git status display, AI prompt, and newline display.
 Terminal title formats can also be customized through themes.
+Themes follow a structured JSON format with well-defined fields for each prompt segment.
+Remote themes can be previewed and installed directly from the official theme repository.
 
 .TP
 .B Prompt Segments
@@ -354,6 +377,12 @@ Themes can incorporate dynamic information using variables:
 .br
 {STATUS} - Last command exit code
 .br
+{JOBS_COUNT} - Number of active jobs
+.br
+{AI_MODE} - Current AI assistant mode
+.br
+{PLUGIN_COUNT} - Number of enabled plugins
+.br
 And many more...
 
 .TP
@@ -367,6 +396,16 @@ Themes can be managed with the 'theme' command:
 theme - Display current theme and list available themes
 .br
 theme [NAME] - Switch to the specified theme
+.br
+theme list - List all installed themes
+.br
+theme preview [NAME] - Preview a theme without switching to it
+.br
+theme install [NAME] - Install a theme from available remote themes
+.br
+theme uninstall [NAME] - Remove an installed theme
+.br
+theme available - Show remotely available themes that can be installed
 .br
 theme load [NAME] - Explicitly load a theme
 .br
@@ -406,6 +445,14 @@ Start shell without sourcing the .cjshrc file:
 Use the AI assistant to analyze files:
 .PP
 .B cjsh -c "ai file add myfile.cpp"
+.PP
+Preview a theme without switching to it:
+.PP
+.B cjsh -c "theme preview powerline_dark"
+.PP
+Install a theme from the remote repository:
+.PP
+.B cjsh -c "theme install cyberpunk"
 
 .SH AUTHOR
 Caden J Finley - Abilene Christian University

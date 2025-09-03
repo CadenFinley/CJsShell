@@ -131,12 +131,14 @@ The repository is organized as follows:
 
 - `/include`: Header files
 - `/src`: Source files
-- `/plugins`: Plugin system
+- `/plugins`: Plugin system and example plugins
 - `/themes`: Theme files
 - `/tests`: Test files
 - `/build`: Build output (not committed)
-- `/vendor`: Any thrid party build dependencies that can be staticly linked
-- `/tool-scripts`: Any scripts used for building or any general automation
+- `/vendor`: Any third party build dependencies that can be statically linked
+- `/tool-scripts`: Scripts used for building or general automation
+- `/man`: Man pages and documentation
+- `/cmake`: CMake configuration files
 
 
 ## Creating Plugins
@@ -144,18 +146,31 @@ The repository is organized as follows:
 CJ's Shell supports a powerful plugin system. To create a plugin:
 
 1. Examine the existing plugins in the `/plugins` directory for reference
-2. Plugins can be written in any language that can compile to a shared library
+2. Plugins can be written in C, C++, or Rust using the provided examples
 3. Use the Plugin API defined in `include/pluginapi.h`
-4. Follow the plugin documentation in the README
+4. Follow the plugin documentation in the `/plugins/README.md`
 
 Example plugin structure:
 ```
 my_plugin/
-├── CMakeLists.txt
+├── build.sh                # Required build script
 ├── src/
 │   └── my_plugin.cpp
+├── include/
+│   └── pluginapi.h         # Copy of the latest plugin API header
 └── README.md
 ```
+
+Plugins must implement all required functions from the Plugin API, including:
+- `plugin_get_info`
+- `plugin_initialize`
+- `plugin_shutdown`
+- `plugin_handle_command`
+- `plugin_get_commands`
+- `plugin_get_subscribed_events`
+- `plugin_get_default_settings`
+- `plugin_update_setting`
+- `plugin_free_memory`
 
 ## Creating Themes
 
@@ -164,7 +179,17 @@ Themes in CJ's Shell are defined using JSON. To create a theme:
 1. Examine existing themes in the `/themes` directory
 2. Create a new JSON file with your theme definition
 3. Include all required theme elements
-4. Test your theme by placing it in the .config/cjsh/themes directory
+4. Test your theme by placing it in the `~/.config/cjsh/themes` directory
+5. Use `theme preview [THEME_NAME]` to view without applying
+6. Submit the theme for inclusion in the official repository
+
+Themes can be managed with the following commands:
+- `theme list` - View installed themes
+- `theme [NAME]` - Switch to a theme
+- `theme preview [NAME]` - Preview a theme without applying it
+- `theme install [NAME]` - Install a theme from available remote themes
+- `theme uninstall [NAME]` - Remove an installed theme
+- `theme available` - Show remotely available themes that can be installed
 
 Example theme structure:
 ```json

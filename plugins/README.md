@@ -240,13 +240,20 @@ To install a plugin:
 
 1. Place the plugin directory in `~/.config/cjsh/plugins/` or in this plugins directory
 2. Run the plugin's `build.sh` script to compile it
-3. Restart CJSH or use the `plugin load` command
+3. Restart CJSH or use the `plugin install` command
 
 ## Enabling and Disabling Plugins
 
 - Enable a plugin: `plugin enable <plugin_name>`
 - Disable a plugin: `plugin disable <plugin_name>`
-- List all plugins: `plugin list`
+- List available plugins: `plugin available`
+- List enabled plugins: `plugin enabled`
+- Enable all plugins: `plugin enableall`
+- Disable all plugins: `plugin disableall`
+- Remove a plugin: `plugin uninstall <plugin_name>`
+- View plugin details: `plugin info <plugin_name>`
+- List plugin commands: `plugin commands <plugin_name>`
+- Configure plugin: `plugin settings <plugin_name>`
 
 ## Debugging Plugins
 
