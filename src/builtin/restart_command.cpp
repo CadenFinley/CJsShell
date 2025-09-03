@@ -31,7 +31,7 @@ int restart_command(const std::vector<std::string>& args) {
     delete g_theme;
     g_theme = nullptr;
   }
-  
+
   // Delete the AI instance before setting the pointer to nullptr
   if (g_ai) {
     delete g_ai;
@@ -44,7 +44,6 @@ int restart_command(const std::vector<std::string>& args) {
     g_plugin = nullptr;
   }
 
-
   // Reset the shell last (this will clean up any additional resources)
   g_shell.reset();
 
@@ -54,7 +53,7 @@ int restart_command(const std::vector<std::string>& args) {
               << std::endl;
     return 1;
   }
-  
+
   // Make sure the path is absolute to avoid any resolution issues
   shell_path = std::filesystem::absolute(shell_path);
 
@@ -86,7 +85,7 @@ int restart_command(const std::vector<std::string>& args) {
   // Keep all the string objects alive for the duration of the function
   std::vector<std::string> arg_strings;
   std::vector<char*> args_vec;
-  
+
   // Add the executable path as the first argument
   arg_strings.push_back(path_str);
   args_vec.push_back(const_cast<char*>(arg_strings.back().c_str()));
@@ -150,7 +149,7 @@ int restart_command(const std::vector<std::string>& args) {
   // Make sure stderr is flushed before the execv call
   std::cerr.flush();
   std::cout.flush();
-  
+
   // Ensure stderr is set to be inherited (not close-on-exec)
   int stderr_fd = fileno(stderr);
   if (stderr_fd != -1) {
@@ -162,13 +161,13 @@ int restart_command(const std::vector<std::string>& args) {
       fcntl(stderr_fd, F_SETFD, flags);
     }
   }
-  
+
   std::cout << "Cleanup complete. Executing new shell process..." << std::endl;
-  
+
   // Use execv to replace the current process
   if (execv(path_cstr, args_vec.data()) == -1) {
     std::string error_message =
-        "Error restarting shell: " + std::string(strerror(errno)) + 
+        "Error restarting shell: " + std::string(strerror(errno)) +
         " (errno: " + std::to_string(errno) + ")";
     std::cerr << error_message << std::endl;
     return 1;

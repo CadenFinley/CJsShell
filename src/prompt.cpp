@@ -17,10 +17,10 @@ std::string Prompt::get_prompt() {
       g_theme->load_theme("default");
     }
   }
-  
+
   std::filesystem::path repo_root;
   bool is_git_repo = info.is_git_repository(repo_root);
-  
+
   // Get all variables
   std::unordered_map<std::string, std::string> vars = get_all_variables();
 
@@ -48,7 +48,7 @@ std::string Prompt::get_ai_prompt() {
 
   // Get all variables
   std::unordered_map<std::string, std::string> vars = get_all_variables();
-  
+
   // Add or update AI-specific variables
   vars["AI_MODEL"] = modelInfo;
   vars["AI_AGENT_TYPE"] = modeInfo;
@@ -71,7 +71,7 @@ std::string Prompt::get_newline_prompt() {
       g_theme->load_theme("default");
     }
   }
-  
+
   // Get all variables
   std::unordered_map<std::string, std::string> vars = get_all_variables();
 
@@ -118,11 +118,15 @@ std::unordered_map<std::string, std::string> Prompt::get_all_variables() {
 
   // Collect all segments to ensure all variables are available
   std::vector<nlohmann::json> all_segments;
-  all_segments.insert(all_segments.end(), g_theme->ps1_segments.begin(), g_theme->ps1_segments.end());
-  all_segments.insert(all_segments.end(), g_theme->git_segments.begin(), g_theme->git_segments.end());
-  all_segments.insert(all_segments.end(), g_theme->ai_segments.begin(), g_theme->ai_segments.end());
-  all_segments.insert(all_segments.end(), g_theme->newline_segments.begin(), g_theme->newline_segments.end());
-  
+  all_segments.insert(all_segments.end(), g_theme->ps1_segments.begin(),
+                      g_theme->ps1_segments.end());
+  all_segments.insert(all_segments.end(), g_theme->git_segments.begin(),
+                      g_theme->git_segments.end());
+  all_segments.insert(all_segments.end(), g_theme->ai_segments.begin(),
+                      g_theme->ai_segments.end());
+  all_segments.insert(all_segments.end(), g_theme->newline_segments.begin(),
+                      g_theme->newline_segments.end());
+
   // Add the terminal title format as a segment to check
   nlohmann::json title_segment;
   title_segment["content"] = g_theme->get_terminal_title_format();

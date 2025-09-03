@@ -34,7 +34,7 @@ Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled) {
   this->enabled = enabled;
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: Plugin constructor - Directory: " << plugins_dir 
+    std::cerr << "DEBUG: Plugin constructor - Directory: " << plugins_dir
               << ", Enabled: " << (enabled ? "true" : "false") << std::endl;
   }
 
@@ -46,26 +46,31 @@ Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled) {
 Plugin::~Plugin() {
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Plugin destructor - Plugins disabled, skipping cleanup" << std::endl;
+      std::cerr
+          << "DEBUG: Plugin destructor - Plugins disabled, skipping cleanup"
+          << std::endl;
     }
     return;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: Plugin destructor - Cleaning up loaded plugins" << std::endl;
+    std::cerr << "DEBUG: Plugin destructor - Cleaning up loaded plugins"
+              << std::endl;
   }
 
   std::unique_lock lock(plugins_mutex);
   for (auto& [name, data] : loaded_plugins) {
     if (data.enabled && data.shutdown) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Plugin destructor - Shutting down plugin: " << name << std::endl;
+        std::cerr << "DEBUG: Plugin destructor - Shutting down plugin: " << name
+                  << std::endl;
       }
       data.shutdown();
     }
     if (data.handle) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Plugin destructor - Closing handle for plugin: " << name << std::endl;
+        std::cerr << "DEBUG: Plugin destructor - Closing handle for plugin: "
+                  << name << std::endl;
       }
       dlclose(data.handle);
     }
@@ -76,13 +81,16 @@ Plugin::~Plugin() {
 bool Plugin::discover_plugins() {
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: discover_plugins - Plugins disabled, skipping discovery" << std::endl;
+      std::cerr
+          << "DEBUG: discover_plugins - Plugins disabled, skipping discovery"
+          << std::endl;
     }
     return false;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: discover_plugins - Starting plugin discovery" << std::endl;
+    std::cerr << "DEBUG: discover_plugins - Starting plugin discovery"
+              << std::endl;
   }
 
   std::unique_lock discovery_lock(discovery_mutex);
@@ -91,8 +99,9 @@ bool Plugin::discover_plugins() {
     std::shared_lock plugins_lock(plugins_mutex);
     if (plugins_discovered && !loaded_plugins.empty()) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: discover_plugins - Plugins already discovered, count: " 
-                  << loaded_plugins.size() << std::endl;
+        std::cerr
+            << "DEBUG: discover_plugins - Plugins already discovered, count: "
+            << loaded_plugins.size() << std::endl;
       }
       return true;
     }
@@ -102,7 +111,8 @@ bool Plugin::discover_plugins() {
     std::cerr << "Plugins directory does not exist: " << plugins_directory
               << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: discover_plugins - Plugin directory not found" << std::endl;
+      std::cerr << "DEBUG: discover_plugins - Plugin directory not found"
+                << std::endl;
     }
     return false;
   }
@@ -110,18 +120,22 @@ bool Plugin::discover_plugins() {
   {
     std::unique_lock plugins_lock(plugins_mutex);
     if (g_debug_mode && !loaded_plugins.empty()) {
-      std::cerr << "DEBUG: discover_plugins - Cleaning up existing plugins before rediscovery" << std::endl;
+      std::cerr << "DEBUG: discover_plugins - Cleaning up existing plugins "
+                   "before rediscovery"
+                << std::endl;
     }
     for (auto& [name, data] : loaded_plugins) {
       if (data.enabled && data.shutdown) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: discover_plugins - Shutting down plugin: " << name << std::endl;
+          std::cerr << "DEBUG: discover_plugins - Shutting down plugin: "
+                    << name << std::endl;
         }
         data.shutdown();
       }
       if (data.handle) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: discover_plugins - Closing handle for plugin: " << name << std::endl;
+          std::cerr << "DEBUG: discover_plugins - Closing handle for plugin: "
+                    << name << std::endl;
         }
         dlclose(data.handle);
       }
@@ -130,7 +144,8 @@ bool Plugin::discover_plugins() {
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: discover_plugins - Scanning directory: " << plugins_directory << std::endl;
+    std::cerr << "DEBUG: discover_plugins - Scanning directory: "
+              << plugins_directory << std::endl;
   }
 
   for (const auto& entry :
@@ -139,17 +154,18 @@ bool Plugin::discover_plugins() {
     if (entry.path().extension() == ".so" ||
         entry.path().extension() == ".dylib") {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: discover_plugins - Found plugin file: " << file_name << std::endl;
+        std::cerr << "DEBUG: discover_plugins - Found plugin file: "
+                  << file_name << std::endl;
       }
       load_plugin(entry.path());
     }
   }
 
   plugins_discovered = true;
-  
+
   if (g_debug_mode) {
     std::shared_lock plugins_lock(plugins_mutex);
-    std::cerr << "DEBUG: discover_plugins - Discovery complete, loaded " 
+    std::cerr << "DEBUG: discover_plugins - Discovery complete, loaded "
               << loaded_plugins.size() << " plugins" << std::endl;
   }
 
@@ -158,13 +174,15 @@ bool Plugin::discover_plugins() {
 
 bool Plugin::load_plugin(const std::filesystem::path& path) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Attempting to load plugin: " << path.filename().string() << std::endl;
+    std::cerr << "DEBUG: load_plugin - Attempting to load plugin: "
+              << path.filename().string() << std::endl;
   }
-  
+
   if (!enabled) {
     std::cerr << "Plugin loading is disabled." << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Plugin loading is disabled" << std::endl;
+      std::cerr << "DEBUG: load_plugin - Plugin loading is disabled"
+                << std::endl;
     }
     return false;
   }
@@ -173,7 +191,7 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   std::string current_arch = get_current_architecture();
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Plugin architecture: " << file_arch 
+    std::cerr << "DEBUG: load_plugin - Plugin architecture: " << file_arch
               << ", System architecture: " << current_arch << std::endl;
   }
 
@@ -182,13 +200,16 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
               << path.filename().string() << " (plugin: " << file_arch
               << ", system: " << current_arch << ")" << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Architecture mismatch, cannot load plugin" << std::endl;
+      std::cerr
+          << "DEBUG: load_plugin - Architecture mismatch, cannot load plugin"
+          << std::endl;
     }
     return false;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Loading dynamic library: " << path << std::endl;
+    std::cerr << "DEBUG: load_plugin - Loading dynamic library: " << path
+              << std::endl;
   }
 
   void* handle = dlopen(path.c_str(), RTLD_LAZY);
@@ -204,7 +225,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   dlerror();
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Looking up plugin_get_info symbol" << std::endl;
+    std::cerr << "DEBUG: load_plugin - Looking up plugin_get_info symbol"
+              << std::endl;
   }
 
   plugin_get_info_func get_info =
@@ -214,30 +236,34 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     std::cerr << "Cannot load symbol 'plugin_get_info': " << dlsym_error
               << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Failed to find plugin_get_info symbol" << std::endl;
+      std::cerr << "DEBUG: load_plugin - Failed to find plugin_get_info symbol"
+                << std::endl;
     }
     dlclose(handle);
     return false;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Calling plugin_get_info function" << std::endl;
+    std::cerr << "DEBUG: load_plugin - Calling plugin_get_info function"
+              << std::endl;
   }
 
   plugin_info_t* info = get_info();
   if (!info) {
     std::cerr << "Failed to get plugin info" << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - plugin_get_info returned NULL" << std::endl;
+      std::cerr << "DEBUG: load_plugin - plugin_get_info returned NULL"
+                << std::endl;
     }
     dlclose(handle);
     return false;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Plugin info retrieved - Name: " << info->name 
-              << ", Version: " << info->version 
-              << ", Interface version: " << info->interface_version << std::endl;
+    std::cerr << "DEBUG: load_plugin - Plugin info retrieved - Name: "
+              << info->name << ", Version: " << info->version
+              << ", Interface version: " << info->interface_version
+              << std::endl;
   }
 
   if (info->interface_version != PLUGIN_INTERFACE_VERSION) {
@@ -245,7 +271,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
               << ". Expected: " << PLUGIN_INTERFACE_VERSION
               << ", Got: " << info->interface_version << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Interface version mismatch" << std::endl;
+      std::cerr << "DEBUG: load_plugin - Interface version mismatch"
+                << std::endl;
     }
     dlclose(handle);
     return false;
@@ -259,7 +286,9 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
       std::cerr << "Plugin '" << name
                 << "' is already loaded. Ignoring duplicate." << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: load_plugin - Plugin already loaded, ignoring duplicate" << std::endl;
+        std::cerr
+            << "DEBUG: load_plugin - Plugin already loaded, ignoring duplicate"
+            << std::endl;
       }
       dlclose(handle);
       return false;
@@ -267,7 +296,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Setting up plugin data structure" << std::endl;
+    std::cerr << "DEBUG: load_plugin - Setting up plugin data structure"
+              << std::endl;
   }
 
   plugin_data data;
@@ -296,11 +326,15 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
       dlsym(handle, "plugin_free_memory"));
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Checking for required functions" << std::endl;
-    std::cerr << "DEBUG: load_plugin - initialize: " << (data.initialize ? "found" : "not found") 
+    std::cerr << "DEBUG: load_plugin - Checking for required functions"
+              << std::endl;
+    std::cerr << "DEBUG: load_plugin - initialize: "
+              << (data.initialize ? "found" : "not found")
               << ", shutdown: " << (data.shutdown ? "found" : "not found")
-              << ", handle_command: " << (data.handle_command ? "found" : "not found")
-              << ", get_commands: " << (data.get_commands ? "found" : "not found") << std::endl;
+              << ", handle_command: "
+              << (data.handle_command ? "found" : "not found")
+              << ", get_commands: "
+              << (data.get_commands ? "found" : "not found") << std::endl;
   }
 
   if (!data.initialize || !data.shutdown || !data.handle_command ||
@@ -308,7 +342,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     std::cerr << "Plugin " << name << " is missing required functions"
               << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Plugin missing required functions" << std::endl;
+      std::cerr << "DEBUG: load_plugin - Plugin missing required functions"
+                << std::endl;
     }
     dlclose(handle);
     return false;
@@ -321,12 +356,14 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     int count = 0;
     plugin_setting_t* settings = data.get_default_settings(&count);
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Found " << count << " default settings" << std::endl;
+      std::cerr << "DEBUG: load_plugin - Found " << count << " default settings"
+                << std::endl;
     }
     for (int i = 0; i < count; i++) {
       data.settings[settings[i].key] = settings[i].value;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: load_plugin - Setting " << settings[i].key << "=" << settings[i].value << std::endl;
+        std::cerr << "DEBUG: load_plugin - Setting " << settings[i].key << "="
+                  << settings[i].value << std::endl;
       }
     }
   }
@@ -334,25 +371,30 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   {
     std::unique_lock plugins_lock(plugins_mutex);
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Adding plugin '" << name << "' to loaded_plugins map" << std::endl;
+      std::cerr << "DEBUG: load_plugin - Adding plugin '" << name
+                << "' to loaded_plugins map" << std::endl;
     }
     loaded_plugins[name] = std::move(data);
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin - Successfully loaded plugin: " << name << std::endl;
+    std::cerr << "DEBUG: load_plugin - Successfully loaded plugin: " << name
+              << std::endl;
   }
   return true;
 }
 
 bool Plugin::uninstall_plugin(const std::string& name) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: uninstall_plugin - Attempting to uninstall plugin: " << name << std::endl;
+    std::cerr << "DEBUG: uninstall_plugin - Attempting to uninstall plugin: "
+              << name << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Plugins disabled, cannot uninstall" << std::endl;
+      std::cerr
+          << "DEBUG: uninstall_plugin - Plugins disabled, cannot uninstall"
+          << std::endl;
     }
     return false;
   }
@@ -362,7 +404,9 @@ bool Plugin::uninstall_plugin(const std::string& name) {
   if (it == loaded_plugins.end()) {
     std::cerr << "Plugin not found: " << name << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Plugin not found in loaded_plugins" << std::endl;
+      std::cerr
+          << "DEBUG: uninstall_plugin - Plugin not found in loaded_plugins"
+          << std::endl;
     }
     return false;
   }
@@ -371,14 +415,18 @@ bool Plugin::uninstall_plugin(const std::string& name) {
     std::cerr << "Please disable the plugin before uninstalling: " << name
               << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Cannot uninstall enabled plugin, disable first" << std::endl;
+      std::cerr << "DEBUG: uninstall_plugin - Cannot uninstall enabled plugin, "
+                   "disable first"
+                << std::endl;
     }
     return false;
   }
   plugins_lock.unlock();
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: uninstall_plugin - Searching for plugin file in plugins directory" << std::endl;
+    std::cerr << "DEBUG: uninstall_plugin - Searching for plugin file in "
+                 "plugins directory"
+              << std::endl;
   }
 
   std::filesystem::path plugin_path;
@@ -390,13 +438,15 @@ bool Plugin::uninstall_plugin(const std::string& name) {
     }
 
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Checking file: " << entry.path().string() << std::endl;
+      std::cerr << "DEBUG: uninstall_plugin - Checking file: "
+                << entry.path().string() << std::endl;
     }
 
     void* temp_handle = dlopen(entry.path().c_str(), RTLD_LAZY);
     if (!temp_handle) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: uninstall_plugin - Failed to open library: " << dlerror() << std::endl;
+        std::cerr << "DEBUG: uninstall_plugin - Failed to open library: "
+                  << dlerror() << std::endl;
       }
       continue;
     }
@@ -405,7 +455,9 @@ bool Plugin::uninstall_plugin(const std::string& name) {
         dlsym(temp_handle, "plugin_get_info"));
     if (!get_info) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: uninstall_plugin - Failed to find plugin_get_info symbol" << std::endl;
+        std::cerr
+            << "DEBUG: uninstall_plugin - Failed to find plugin_get_info symbol"
+            << std::endl;
       }
       dlclose(temp_handle);
       continue;
@@ -414,7 +466,8 @@ bool Plugin::uninstall_plugin(const std::string& name) {
     plugin_info_t* temp_info = get_info();
     if (temp_info && std::string(temp_info->name) == name) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: uninstall_plugin - Found matching plugin file: " << entry.path().string() << std::endl;
+        std::cerr << "DEBUG: uninstall_plugin - Found matching plugin file: "
+                  << entry.path().string() << std::endl;
       }
       plugin_path = entry.path();
       dlclose(temp_handle);
@@ -426,30 +479,36 @@ bool Plugin::uninstall_plugin(const std::string& name) {
   if (plugin_path.empty()) {
     std::cerr << "Could not find plugin file for: " << name << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Could not find plugin file in plugins directory" << std::endl;
+      std::cerr << "DEBUG: uninstall_plugin - Could not find plugin file in "
+                   "plugins directory"
+                << std::endl;
     }
     return false;
   }
 
   try {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Unloading plugin from memory" << std::endl;
+      std::cerr << "DEBUG: uninstall_plugin - Unloading plugin from memory"
+                << std::endl;
     }
     unload_plugin(name);
-    
+
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Removing plugin file: " << plugin_path.string() << std::endl;
+      std::cerr << "DEBUG: uninstall_plugin - Removing plugin file: "
+                << plugin_path.string() << std::endl;
     }
     std::filesystem::remove(plugin_path);
     std::cout << "Successfully uninstalled plugin: " << name << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Successfully uninstalled plugin" << std::endl;
+      std::cerr << "DEBUG: uninstall_plugin - Successfully uninstalled plugin"
+                << std::endl;
     }
     return true;
   } catch (const std::filesystem::filesystem_error& e) {
     std::cerr << "Failed to remove plugin file: " << e.what() << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: uninstall_plugin - Filesystem error: " << e.what() << std::endl;
+      std::cerr << "DEBUG: uninstall_plugin - Filesystem error: " << e.what()
+                << std::endl;
     }
     return false;
   }
@@ -457,12 +516,14 @@ bool Plugin::uninstall_plugin(const std::string& name) {
 
 void Plugin::unload_plugin(const std::string& name) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: unload_plugin - Attempting to unload plugin: " << name << std::endl;
+    std::cerr << "DEBUG: unload_plugin - Attempting to unload plugin: " << name
+              << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: unload_plugin - Plugins disabled, skipping unload" << std::endl;
+      std::cerr << "DEBUG: unload_plugin - Plugins disabled, skipping unload"
+                << std::endl;
     }
     return;
   }
@@ -472,35 +533,46 @@ void Plugin::unload_plugin(const std::string& name) {
   if (it != loaded_plugins.end()) {
     if (it->second.enabled && it->second.shutdown) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: unload_plugin - Calling shutdown function for plugin: " << name << std::endl;
+        std::cerr
+            << "DEBUG: unload_plugin - Calling shutdown function for plugin: "
+            << name << std::endl;
       }
       it->second.shutdown();
     }
 
     if (it->second.handle) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: unload_plugin - Closing library handle for plugin: " << name << std::endl;
+        std::cerr
+            << "DEBUG: unload_plugin - Closing library handle for plugin: "
+            << name << std::endl;
       }
       dlclose(it->second.handle);
     }
 
     if (g_debug_mode) {
-      std::cerr << "DEBUG: unload_plugin - Removing plugin from loaded_plugins map" << std::endl;
+      std::cerr
+          << "DEBUG: unload_plugin - Removing plugin from loaded_plugins map"
+          << std::endl;
     }
     loaded_plugins.erase(it);
   } else if (g_debug_mode) {
-    std::cerr << "DEBUG: unload_plugin - Plugin not found in loaded_plugins map" << std::endl;
+    std::cerr << "DEBUG: unload_plugin - Plugin not found in loaded_plugins map"
+              << std::endl;
   }
 }
 
 std::vector<std::string> Plugin::get_available_plugins() const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_available_plugins - Getting list of available plugins" << std::endl;
+    std::cerr
+        << "DEBUG: get_available_plugins - Getting list of available plugins"
+        << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_available_plugins - Plugins disabled, returning empty list" << std::endl;
+      std::cerr << "DEBUG: get_available_plugins - Plugins disabled, returning "
+                   "empty list"
+                << std::endl;
     }
     return {};
   }
@@ -510,22 +582,26 @@ std::vector<std::string> Plugin::get_available_plugins() const {
   for (const auto& [name, _] : loaded_plugins) {
     plugins.push_back(name);
   }
-  
+
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_available_plugins - Found " << plugins.size() << " available plugins" << std::endl;
+    std::cerr << "DEBUG: get_available_plugins - Found " << plugins.size()
+              << " available plugins" << std::endl;
   }
-  
+
   return plugins;
 }
 
 std::vector<std::string> Plugin::get_enabled_plugins() const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_enabled_plugins - Getting list of enabled plugins" << std::endl;
+    std::cerr << "DEBUG: get_enabled_plugins - Getting list of enabled plugins"
+              << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_enabled_plugins - Plugins disabled, returning empty list" << std::endl;
+      std::cerr << "DEBUG: get_enabled_plugins - Plugins disabled, returning "
+                   "empty list"
+                << std::endl;
     }
     return {};
   }
@@ -537,23 +613,26 @@ std::vector<std::string> Plugin::get_enabled_plugins() const {
       plugins.push_back(name);
     }
   }
-  
+
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_enabled_plugins - Found " << plugins.size() << " enabled plugins" << std::endl;
+    std::cerr << "DEBUG: get_enabled_plugins - Found " << plugins.size()
+              << " enabled plugins" << std::endl;
   }
-  
+
   return plugins;
 }
 
 bool Plugin::enable_plugin(const std::string& name) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: enable_plugin - Attempting to enable plugin: " << name << std::endl;
+    std::cerr << "DEBUG: enable_plugin - Attempting to enable plugin: " << name
+              << std::endl;
   }
 
   if (!enabled) {
     std::cerr << "Plugin system is disabled" << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: enable_plugin - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: enable_plugin - Plugin system is disabled"
+                << std::endl;
     }
     return false;
   }
@@ -565,14 +644,16 @@ bool Plugin::enable_plugin(const std::string& name) {
     if (it != loaded_plugins.end() && it->second.enabled) {
       std::cout << "Plugin already enabled: " << name << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: enable_plugin - Plugin already enabled" << std::endl;
+        std::cerr << "DEBUG: enable_plugin - Plugin already enabled"
+                  << std::endl;
       }
       return true;
     }
     if (it == loaded_plugins.end()) {
       std::cerr << "Plugin not found: " << name << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: enable_plugin - Plugin not found in loaded_plugins" << std::endl;
+        std::cerr << "DEBUG: enable_plugin - Plugin not found in loaded_plugins"
+                  << std::endl;
       }
       return false;
     }
@@ -581,7 +662,8 @@ bool Plugin::enable_plugin(const std::string& name) {
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: enable_plugin - Initializing plugin: " << name << std::endl;
+    std::cerr << "DEBUG: enable_plugin - Initializing plugin: " << name
+              << std::endl;
   }
 
   current_plugin_context = name;
@@ -590,13 +672,15 @@ bool Plugin::enable_plugin(const std::string& name) {
   if (!init_ok) {
     std::cerr << "Failed to initialize plugin: " << name << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: enable_plugin - Plugin initialization failed" << std::endl;
+      std::cerr << "DEBUG: enable_plugin - Plugin initialization failed"
+                << std::endl;
     }
     return false;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: enable_plugin - Plugin initialized successfully" << std::endl;
+    std::cerr << "DEBUG: enable_plugin - Plugin initialized successfully"
+              << std::endl;
   }
 
   int count = 0;
@@ -608,42 +692,52 @@ bool Plugin::enable_plugin(const std::string& name) {
       std::cerr << "Plugin not found after initialization: " << name
                 << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: enable_plugin - Plugin not found after initialization" << std::endl;
+        std::cerr
+            << "DEBUG: enable_plugin - Plugin not found after initialization"
+            << std::endl;
       }
       return false;
     }
     it->second.enabled = true;
     std::cout << "Enabled plugin: " << name << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: enable_plugin - Marked plugin as enabled" << std::endl;
+      std::cerr << "DEBUG: enable_plugin - Marked plugin as enabled"
+                << std::endl;
     }
-    
+
     if (it->second.get_subscribed_events) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: enable_plugin - Getting subscribed events" << std::endl;
+        std::cerr << "DEBUG: enable_plugin - Getting subscribed events"
+                  << std::endl;
       }
       events = it->second.get_subscribed_events(&count);
       if (g_debug_mode) {
-        std::cerr << "DEBUG: enable_plugin - Plugin subscribes to " << count << " events" << std::endl;
+        std::cerr << "DEBUG: enable_plugin - Plugin subscribes to " << count
+                  << " events" << std::endl;
       }
     } else if (g_debug_mode) {
-      std::cerr << "DEBUG: enable_plugin - Plugin doesn't have get_subscribed_events function" << std::endl;
+      std::cerr << "DEBUG: enable_plugin - Plugin doesn't have "
+                   "get_subscribed_events function"
+                << std::endl;
     }
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: enable_plugin - Triggering plugin_enabled event" << std::endl;
+    std::cerr << "DEBUG: enable_plugin - Triggering plugin_enabled event"
+              << std::endl;
   }
   trigger_subscribed_global_event("plugin_enabled", name);
 
   if (events && count > 0) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: enable_plugin - Registering event subscriptions" << std::endl;
+      std::cerr << "DEBUG: enable_plugin - Registering event subscriptions"
+                << std::endl;
     }
     std::unique_lock events_lock(events_mutex);
     for (int i = 0; i < count; i++) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: enable_plugin - Subscribing to event: " << events[i] << std::endl;
+        std::cerr << "DEBUG: enable_plugin - Subscribing to event: "
+                  << events[i] << std::endl;
       }
       subscribed_events[events[i]].push_back(name);
     }
@@ -662,21 +756,24 @@ bool Plugin::enable_plugin(const std::string& name) {
       it->second.free_memory(events);
     }
   }
-  
+
   if (g_debug_mode) {
-    std::cerr << "DEBUG: enable_plugin - Plugin enabled successfully" << std::endl;
+    std::cerr << "DEBUG: enable_plugin - Plugin enabled successfully"
+              << std::endl;
   }
   return true;
 }
 
 bool Plugin::disable_plugin(const std::string& name) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: disable_plugin - Attempting to disable plugin: " << name << std::endl;
+    std::cerr << "DEBUG: disable_plugin - Attempting to disable plugin: "
+              << name << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: disable_plugin - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: disable_plugin - Plugin system is disabled"
+                << std::endl;
     }
     return false;
   }
@@ -688,37 +785,44 @@ bool Plugin::disable_plugin(const std::string& name) {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end() && it->second.enabled) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: disable_plugin - Calling shutdown function" << std::endl;
+        std::cerr << "DEBUG: disable_plugin - Calling shutdown function"
+                  << std::endl;
       }
       it->second.shutdown();
       it->second.enabled = false;
       std::cout << "Disabled plugin: " << name << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: disable_plugin - Plugin marked as disabled" << std::endl;
+        std::cerr << "DEBUG: disable_plugin - Plugin marked as disabled"
+                  << std::endl;
       }
 
       int count = 0;
       char** events = nullptr;
       if (it->second.get_subscribed_events) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: disable_plugin - Getting subscribed events to unsubscribe" << std::endl;
+          std::cerr << "DEBUG: disable_plugin - Getting subscribed events to "
+                       "unsubscribe"
+                    << std::endl;
         }
         events = it->second.get_subscribed_events(&count);
       }
 
       if (events && count > 0) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: disable_plugin - Collected " << count << " events to unsubscribe" << std::endl;
+          std::cerr << "DEBUG: disable_plugin - Collected " << count
+                    << " events to unsubscribe" << std::endl;
         }
         for (int i = 0; i < count; i++) {
           events_to_unsubscribe.push_back(events[i]);
           if (g_debug_mode) {
-            std::cerr << "DEBUG: disable_plugin - Will unsubscribe from event: " << events[i] << std::endl;
+            std::cerr << "DEBUG: disable_plugin - Will unsubscribe from event: "
+                      << events[i] << std::endl;
           }
         }
         if (it->second.free_memory) {
           if (g_debug_mode) {
-            std::cerr << "DEBUG: disable_plugin - Freeing event memory" << std::endl;
+            std::cerr << "DEBUG: disable_plugin - Freeing event memory"
+                      << std::endl;
           }
           for (int i = 0; i < count; i++) {
             it->second.free_memory(events[i]);
@@ -728,27 +832,33 @@ bool Plugin::disable_plugin(const std::string& name) {
       }
     } else {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: disable_plugin - Plugin not found or already disabled" << std::endl;
+        std::cerr
+            << "DEBUG: disable_plugin - Plugin not found or already disabled"
+            << std::endl;
       }
       return false;
     }
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: disable_plugin - Triggering plugin_disabled event" << std::endl;
+    std::cerr << "DEBUG: disable_plugin - Triggering plugin_disabled event"
+              << std::endl;
   }
   trigger_subscribed_global_event("plugin_disabled", name);
 
   {
     std::unique_lock events_lock(events_mutex);
     if (g_debug_mode && !events_to_unsubscribe.empty()) {
-      std::cerr << "DEBUG: disable_plugin - Removing plugin from event subscriptions" << std::endl;
+      std::cerr
+          << "DEBUG: disable_plugin - Removing plugin from event subscriptions"
+          << std::endl;
     }
     for (const auto& event : events_to_unsubscribe) {
       auto eventIt = subscribed_events.find(event);
       if (eventIt != subscribed_events.end()) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: disable_plugin - Removing plugin from event: " << event << std::endl;
+          std::cerr << "DEBUG: disable_plugin - Removing plugin from event: "
+                    << event << std::endl;
         }
         eventIt->second.erase(
             std::remove(eventIt->second.begin(), eventIt->second.end(), name),
@@ -758,7 +868,8 @@ bool Plugin::disable_plugin(const std::string& name) {
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: disable_plugin - Plugin disabled successfully" << std::endl;
+    std::cerr << "DEBUG: disable_plugin - Plugin disabled successfully"
+              << std::endl;
   }
   return true;
 }
@@ -766,8 +877,8 @@ bool Plugin::disable_plugin(const std::string& name) {
 bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
                                    std::vector<std::string>& args) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: handle_plugin_command - Handling command for plugin: " << targeted_plugin 
-              << ", args: ";
+    std::cerr << "DEBUG: handle_plugin_command - Handling command for plugin: "
+              << targeted_plugin << ", args: ";
     for (size_t i = 0; i < args.size(); ++i) {
       std::cerr << "'" << args[i] << "'";
       if (i < args.size() - 1) std::cerr << ", ";
@@ -777,7 +888,8 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: handle_plugin_command - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: handle_plugin_command - Plugin system is disabled"
+                << std::endl;
     }
     return false;
   }
@@ -791,7 +903,9 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
     args_struct.position = 0;
 
     if (g_debug_mode) {
-      std::cerr << "DEBUG: handle_plugin_command - Preparing arguments for plugin" << std::endl;
+      std::cerr
+          << "DEBUG: handle_plugin_command - Preparing arguments for plugin"
+          << std::endl;
     }
 
     for (size_t i = 0; i < args.size(); i++) {
@@ -799,12 +913,15 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
     }
 
     if (g_debug_mode) {
-      std::cerr << "DEBUG: handle_plugin_command - Calling plugin's handle_command function" << std::endl;
+      std::cerr << "DEBUG: handle_plugin_command - Calling plugin's "
+                   "handle_command function"
+                << std::endl;
     }
     int result = it->second.handle_command(&args_struct);
     if (g_debug_mode) {
-      std::cerr << "DEBUG: handle_plugin_command - Result: " 
-                << (result == PLUGIN_SUCCESS ? "success" : "failure") << std::endl;
+      std::cerr << "DEBUG: handle_plugin_command - Result: "
+                << (result == PLUGIN_SUCCESS ? "success" : "failure")
+                << std::endl;
     }
 
     for (int i = 0; i < args_struct.count; i++) {
@@ -814,9 +931,11 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
 
     return result == PLUGIN_SUCCESS;
   }
-  
+
   if (g_debug_mode) {
-    std::cerr << "DEBUG: handle_plugin_command - Plugin not found or not enabled" << std::endl;
+    std::cerr
+        << "DEBUG: handle_plugin_command - Plugin not found or not enabled"
+        << std::endl;
   }
   return false;
 }
@@ -824,12 +943,14 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
 std::vector<std::string> Plugin::get_plugin_commands(
     const std::string& name) const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_plugin_commands - Getting commands for plugin: " << name << std::endl;
+    std::cerr << "DEBUG: get_plugin_commands - Getting commands for plugin: "
+              << name << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_plugin_commands - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: get_plugin_commands - Plugin system is disabled"
+                << std::endl;
     }
     return {};
   }
@@ -838,25 +959,30 @@ std::vector<std::string> Plugin::get_plugin_commands(
   auto it = loaded_plugins.find(name);
   if (it != loaded_plugins.end() && it->second.get_commands) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_plugin_commands - Calling plugin's get_commands function" << std::endl;
+      std::cerr << "DEBUG: get_plugin_commands - Calling plugin's get_commands "
+                   "function"
+                << std::endl;
     }
     int count = 0;
     char** commands = it->second.get_commands(&count);
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_plugin_commands - Found " << count << " commands" << std::endl;
+      std::cerr << "DEBUG: get_plugin_commands - Found " << count << " commands"
+                << std::endl;
     }
 
     std::vector<std::string> result;
     for (int i = 0; i < count; i++) {
       result.push_back(commands[i]);
       if (g_debug_mode) {
-        std::cerr << "DEBUG: get_plugin_commands - Command " << i << ": " << commands[i] << std::endl;
+        std::cerr << "DEBUG: get_plugin_commands - Command " << i << ": "
+                  << commands[i] << std::endl;
       }
     }
 
     if (it->second.free_memory) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: get_plugin_commands - Freeing command memory" << std::endl;
+        std::cerr << "DEBUG: get_plugin_commands - Freeing command memory"
+                  << std::endl;
       }
       for (int i = 0; i < count; i++) {
         it->second.free_memory(commands[i]);
@@ -866,21 +992,25 @@ std::vector<std::string> Plugin::get_plugin_commands(
 
     return result;
   }
-  
+
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_plugin_commands - Plugin not found or missing get_commands function" << std::endl;
+    std::cerr << "DEBUG: get_plugin_commands - Plugin not found or missing "
+                 "get_commands function"
+              << std::endl;
   }
   return {};
 }
 
 std::string Plugin::get_plugin_info(const std::string& name) const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_plugin_info - Getting info for plugin: " << name << std::endl;
+    std::cerr << "DEBUG: get_plugin_info - Getting info for plugin: " << name
+              << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_plugin_info - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: get_plugin_info - Plugin system is disabled"
+                << std::endl;
     }
     return "Plugin system is disabled";
   }
@@ -890,7 +1020,8 @@ std::string Plugin::get_plugin_info(const std::string& name) const {
   if (it != loaded_plugins.end()) {
     const auto& data = it->second;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_plugin_info - Found plugin, returning info" << std::endl;
+      std::cerr << "DEBUG: get_plugin_info - Found plugin, returning info"
+                << std::endl;
     }
     return "Name: " + std::string(data.info->name) + "\n" +
            "Version: " + std::string(data.info->version) + "\n" +
@@ -905,13 +1036,15 @@ bool Plugin::update_plugin_setting(const std::string& plugin_name,
                                    const std::string& key,
                                    const std::string& value) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: update_plugin_setting - Updating setting for plugin: " << plugin_name 
-              << ", key: " << key << ", value: " << value << std::endl;
+    std::cerr << "DEBUG: update_plugin_setting - Updating setting for plugin: "
+              << plugin_name << ", key: " << key << ", value: " << value
+              << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: update_plugin_setting - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: update_plugin_setting - Plugin system is disabled"
+                << std::endl;
     }
     return false;
   }
@@ -920,23 +1053,28 @@ bool Plugin::update_plugin_setting(const std::string& plugin_name,
   auto it = loaded_plugins.find(plugin_name);
   if (it != loaded_plugins.end()) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: update_plugin_setting - Found plugin, updating setting" << std::endl;
+      std::cerr
+          << "DEBUG: update_plugin_setting - Found plugin, updating setting"
+          << std::endl;
     }
     it->second.settings[key] = value;
     if (it->second.update_setting) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: update_plugin_setting - Calling plugin's update_setting function" << std::endl;
+        std::cerr << "DEBUG: update_plugin_setting - Calling plugin's "
+                     "update_setting function"
+                  << std::endl;
       }
-      bool result = it->second.update_setting(key.c_str(), value.c_str()) == PLUGIN_SUCCESS;
+      bool result = it->second.update_setting(key.c_str(), value.c_str()) ==
+                    PLUGIN_SUCCESS;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: update_plugin_setting - Result: " 
+        std::cerr << "DEBUG: update_plugin_setting - Result: "
                   << (result ? "success" : "failure") << std::endl;
       }
       return result;
     }
     return true;
   }
-  
+
   if (g_debug_mode) {
     std::cerr << "DEBUG: update_plugin_setting - Plugin not found" << std::endl;
   }
@@ -946,12 +1084,15 @@ bool Plugin::update_plugin_setting(const std::string& plugin_name,
 std::map<std::string, std::map<std::string, std::string>>
 Plugin::get_all_plugin_settings() const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_all_plugin_settings - Getting settings for all plugins" << std::endl;
+    std::cerr
+        << "DEBUG: get_all_plugin_settings - Getting settings for all plugins"
+        << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_all_plugin_settings - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: get_all_plugin_settings - Plugin system is disabled"
+                << std::endl;
     }
     return {};
   }
@@ -961,8 +1102,9 @@ Plugin::get_all_plugin_settings() const {
   for (const auto& [name, data] : loaded_plugins) {
     allSettings[name] = data.settings;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_all_plugin_settings - Found " << data.settings.size() 
-                << " settings for plugin: " << name << std::endl;
+      std::cerr << "DEBUG: get_all_plugin_settings - Found "
+                << data.settings.size() << " settings for plugin: " << name
+                << std::endl;
     }
   }
   return allSettings;
@@ -971,13 +1113,15 @@ Plugin::get_all_plugin_settings() const {
 void Plugin::trigger_subscribed_global_event(const std::string& event,
                                              const std::string& event_data) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: trigger_subscribed_global_event - Triggering event: " << event
-              << " with data: " << event_data << std::endl;
+    std::cerr << "DEBUG: trigger_subscribed_global_event - Triggering event: "
+              << event << " with data: " << event_data << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: trigger_subscribed_global_event - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: trigger_subscribed_global_event - Plugin system is "
+                   "disabled"
+                << std::endl;
     }
     return;
   }
@@ -989,14 +1133,17 @@ void Plugin::trigger_subscribed_global_event(const std::string& event,
     auto it = subscribed_events.find(event);
     if (it == subscribed_events.end() || it->second.empty()) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: trigger_subscribed_global_event - No plugins subscribed to this event" << std::endl;
+        std::cerr << "DEBUG: trigger_subscribed_global_event - No plugins "
+                     "subscribed to this event"
+                  << std::endl;
       }
       return;
     }
     subscribedPlugins = it->second;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: trigger_subscribed_global_event - Found " << subscribedPlugins.size() 
-                << " plugins subscribed to event" << std::endl;
+      std::cerr << "DEBUG: trigger_subscribed_global_event - Found "
+                << subscribedPlugins.size() << " plugins subscribed to event"
+                << std::endl;
     }
   }
 
@@ -1018,7 +1165,8 @@ void Plugin::trigger_subscribed_global_event(const std::string& event,
 
   for (const auto& plugin_name : subscribedPlugins) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: trigger_subscribed_global_event - Notifying plugin: " << plugin_name << std::endl;
+      std::cerr << "DEBUG: trigger_subscribed_global_event - Notifying plugin: "
+                << plugin_name << std::endl;
     }
     std::shared_lock plugins_lock(plugins_mutex);
     auto plugin_it = loaded_plugins.find(plugin_name);
@@ -1026,18 +1174,24 @@ void Plugin::trigger_subscribed_global_event(const std::string& event,
       plugins_lock.unlock();
 
       if (g_debug_mode) {
-        std::cerr << "DEBUG: trigger_subscribed_global_event - Calling handle_command for plugin" << std::endl;
+        std::cerr << "DEBUG: trigger_subscribed_global_event - Calling "
+                     "handle_command for plugin"
+                  << std::endl;
       }
       current_plugin_context = plugin_name;
       plugin_it->second.handle_command(&args);
       current_plugin_context.clear();
     } else if (g_debug_mode) {
-      std::cerr << "DEBUG: trigger_subscribed_global_event - Plugin not found or not enabled" << std::endl;
+      std::cerr << "DEBUG: trigger_subscribed_global_event - Plugin not found "
+                   "or not enabled"
+                << std::endl;
     }
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: trigger_subscribed_global_event - Cleaning up event args" << std::endl;
+    std::cerr
+        << "DEBUG: trigger_subscribed_global_event - Cleaning up event args"
+        << std::endl;
   }
   for (int i = 0; i < args.count; i++) {
     free(args.args[i]);
@@ -1047,12 +1201,14 @@ void Plugin::trigger_subscribed_global_event(const std::string& event,
 
 plugin_data* Plugin::get_plugin_data(const std::string& name) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_plugin_data - Getting data for plugin: " << name << std::endl;
+    std::cerr << "DEBUG: get_plugin_data - Getting data for plugin: " << name
+              << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_plugin_data - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: get_plugin_data - Plugin system is disabled"
+                << std::endl;
     }
     return nullptr;
   }
@@ -1061,11 +1217,12 @@ plugin_data* Plugin::get_plugin_data(const std::string& name) {
   auto it = loaded_plugins.find(name);
   if (it != loaded_plugins.end()) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_plugin_data - Found plugin, returning data" << std::endl;
+      std::cerr << "DEBUG: get_plugin_data - Found plugin, returning data"
+                << std::endl;
     }
     return &it->second;
   }
-  
+
   if (g_debug_mode) {
     std::cerr << "DEBUG: get_plugin_data - Plugin not found" << std::endl;
   }
@@ -1074,13 +1231,15 @@ plugin_data* Plugin::get_plugin_data(const std::string& name) {
 
 bool Plugin::install_plugin(const std::filesystem::path& source_path) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: install_plugin - Attempting to install plugin from: " << source_path.string() << std::endl;
+    std::cerr << "DEBUG: install_plugin - Attempting to install plugin from: "
+              << source_path.string() << std::endl;
   }
 
   if (!enabled) {
     std::cerr << "Plugin system is disabled" << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: install_plugin - Plugin system is disabled"
+                << std::endl;
     }
     return false;
   }
@@ -1089,7 +1248,8 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
     std::cerr << "Source plugin file does not exist: " << source_path
               << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Source file does not exist" << std::endl;
+      std::cerr << "DEBUG: install_plugin - Source file does not exist"
+                << std::endl;
     }
     return false;
   }
@@ -1098,19 +1258,22 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
   if (extension != ".so" && extension != ".dylib") {
     std::cerr << "Invalid plugin file type. Must be .so or .dylib" << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Invalid file extension: " << extension << std::endl;
+      std::cerr << "DEBUG: install_plugin - Invalid file extension: "
+                << extension << std::endl;
     }
     return false;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: install_plugin - Opening plugin file to verify" << std::endl;
+    std::cerr << "DEBUG: install_plugin - Opening plugin file to verify"
+              << std::endl;
   }
   void* temp_handle = dlopen(source_path.c_str(), RTLD_LAZY);
   if (!temp_handle) {
     std::cerr << "Invalid plugin file: " << dlerror() << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Failed to open plugin file: " << dlerror() << std::endl;
+      std::cerr << "DEBUG: install_plugin - Failed to open plugin file: "
+                << dlerror() << std::endl;
     }
     return false;
   }
@@ -1118,7 +1281,8 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
   dlerror();
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: install_plugin - Looking up plugin_get_info symbol" << std::endl;
+    std::cerr << "DEBUG: install_plugin - Looking up plugin_get_info symbol"
+              << std::endl;
   }
   plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(
       dlsym(temp_handle, "plugin_get_info"));
@@ -1127,7 +1291,8 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
     std::cerr << "Invalid plugin file: missing plugin_get_info symbol: "
               << dlsym_error << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Missing plugin_get_info symbol" << std::endl;
+      std::cerr << "DEBUG: install_plugin - Missing plugin_get_info symbol"
+                << std::endl;
     }
     dlclose(temp_handle);
     return false;
@@ -1136,14 +1301,16 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
   plugin_info_t* temp_info = nullptr;
   try {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Calling plugin_get_info function" << std::endl;
+      std::cerr << "DEBUG: install_plugin - Calling plugin_get_info function"
+                << std::endl;
     }
     temp_info = get_info();
   } catch (const std::exception& e) {
     std::cerr << "Exception while getting plugin info: " << e.what()
               << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Exception in plugin_get_info: " << e.what() << std::endl;
+      std::cerr << "DEBUG: install_plugin - Exception in plugin_get_info: "
+                << e.what() << std::endl;
     }
     dlclose(temp_handle);
     return false;
@@ -1152,16 +1319,18 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
   if (!temp_info) {
     std::cerr << "Failed to get plugin info" << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - plugin_get_info returned NULL" << std::endl;
+      std::cerr << "DEBUG: install_plugin - plugin_get_info returned NULL"
+                << std::endl;
     }
     dlclose(temp_handle);
     return false;
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: install_plugin - Plugin info retrieved - Name: " << temp_info->name 
-              << ", Version: " << temp_info->version 
-              << ", Interface version: " << temp_info->interface_version << std::endl;
+    std::cerr << "DEBUG: install_plugin - Plugin info retrieved - Name: "
+              << temp_info->name << ", Version: " << temp_info->version
+              << ", Interface version: " << temp_info->interface_version
+              << std::endl;
   }
 
   if (temp_info->interface_version != PLUGIN_INTERFACE_VERSION) {
@@ -1169,7 +1338,8 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
               << ". Expected: " << PLUGIN_INTERFACE_VERSION
               << ", Got: " << temp_info->interface_version << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Interface version mismatch" << std::endl;
+      std::cerr << "DEBUG: install_plugin - Interface version mismatch"
+                << std::endl;
     }
     dlclose(temp_handle);
     return false;
@@ -1183,7 +1353,8 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
     if (is_plugin_loaded(plugin_name)) {
       std::cerr << "Plugin already installed: " << plugin_name << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: install_plugin - Plugin already installed" << std::endl;
+        std::cerr << "DEBUG: install_plugin - Plugin already installed"
+                  << std::endl;
       }
       dlclose(temp_handle);
       return false;
@@ -1191,13 +1362,15 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: install_plugin - Closing temporary handle" << std::endl;
+    std::cerr << "DEBUG: install_plugin - Closing temporary handle"
+              << std::endl;
   }
   dlclose(temp_handle);
 
   std::filesystem::path dest_path = plugins_directory / source_path.filename();
   if (g_debug_mode) {
-    std::cerr << "DEBUG: install_plugin - Destination path: " << dest_path.string() << std::endl;
+    std::cerr << "DEBUG: install_plugin - Destination path: "
+              << dest_path.string() << std::endl;
   }
 
   try {
@@ -1214,21 +1387,25 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
       std::cout << "Successfully installed plugin: " << plugin_name << " v"
                 << version << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: install_plugin - Plugin installed successfully" << std::endl;
+        std::cerr << "DEBUG: install_plugin - Plugin installed successfully"
+                  << std::endl;
       }
       return true;
     } else {
       std::filesystem::remove(dest_path);
       std::cerr << "Failed to load installed plugin" << std::endl;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: install_plugin - Failed to load installed plugin, removing file" << std::endl;
+        std::cerr << "DEBUG: install_plugin - Failed to load installed plugin, "
+                     "removing file"
+                  << std::endl;
       }
       return false;
     }
   } catch (const std::filesystem::filesystem_error& e) {
     std::cerr << "Failed to install plugin: " << e.what() << std::endl;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: install_plugin - Filesystem error: " << e.what() << std::endl;
+      std::cerr << "DEBUG: install_plugin - Filesystem error: " << e.what()
+                << std::endl;
     }
     return false;
   }
@@ -1236,12 +1413,14 @@ bool Plugin::install_plugin(const std::filesystem::path& source_path) {
 
 void Plugin::clear_plugin_cache() {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: clear_plugin_cache - Clearing plugin discovery cache" << std::endl;
+    std::cerr << "DEBUG: clear_plugin_cache - Clearing plugin discovery cache"
+              << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: clear_plugin_cache - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: clear_plugin_cache - Plugin system is disabled"
+                << std::endl;
     }
     return;
   }
@@ -1255,12 +1434,14 @@ void Plugin::clear_plugin_cache() {
 
 bool Plugin::is_plugin_loaded(const std::string& name) const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: is_plugin_loaded - Checking if plugin is loaded: " << name << std::endl;
+    std::cerr << "DEBUG: is_plugin_loaded - Checking if plugin is loaded: "
+              << name << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: is_plugin_loaded - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: is_plugin_loaded - Plugin system is disabled"
+                << std::endl;
     }
     return false;
   }
@@ -1268,39 +1449,47 @@ bool Plugin::is_plugin_loaded(const std::string& name) const {
   std::shared_lock plugins_lock(plugins_mutex);
   bool result = loaded_plugins.find(name) != loaded_plugins.end();
   if (g_debug_mode) {
-    std::cerr << "DEBUG: is_plugin_loaded - Result: " << (result ? "found" : "not found") << std::endl;
+    std::cerr << "DEBUG: is_plugin_loaded - Result: "
+              << (result ? "found" : "not found") << std::endl;
   }
   return result;
 }
 
 std::string Plugin::get_current_architecture() const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_current_architecture - Getting current system architecture" << std::endl;
+    std::cerr << "DEBUG: get_current_architecture - Getting current system "
+                 "architecture"
+              << std::endl;
   }
-  
+
   struct utsname system_info;
   uname(&system_info);
 
   std::string arch = system_info.machine;
-  
+
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_current_architecture - Raw architecture: " << arch << std::endl;
+    std::cerr << "DEBUG: get_current_architecture - Raw architecture: " << arch
+              << std::endl;
   }
 
   if (arch == "x86_64" || arch == "amd64") {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_current_architecture - Normalized to: x86_64" << std::endl;
+      std::cerr << "DEBUG: get_current_architecture - Normalized to: x86_64"
+                << std::endl;
     }
     return "x86_64";
   } else if (arch == "arm64" || arch == "aarch64") {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_current_architecture - Normalized to: arm64" << std::endl;
+      std::cerr << "DEBUG: get_current_architecture - Normalized to: arm64"
+                << std::endl;
     }
     return "arm64";
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_current_architecture - Using non-normalized architecture: " << arch << std::endl;
+    std::cerr << "DEBUG: get_current_architecture - Using non-normalized "
+                 "architecture: "
+              << arch << std::endl;
   }
   return arch;
 }
@@ -1308,20 +1497,25 @@ std::string Plugin::get_current_architecture() const {
 std::string Plugin::get_file_architecture(
     const std::filesystem::path& path) const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_file_architecture - Getting architecture for file: " << path.string() << std::endl;
+    std::cerr
+        << "DEBUG: get_file_architecture - Getting architecture for file: "
+        << path.string() << std::endl;
   }
 
   std::string result = "unknown";
 
   std::string cmd = "file -b " + path.string();
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_file_architecture - Running command: " << cmd << std::endl;
+    std::cerr << "DEBUG: get_file_architecture - Running command: " << cmd
+              << std::endl;
   }
-  
+
   FILE* pipe = popen(cmd.c_str(), "r");
   if (!pipe) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_file_architecture - Failed to execute file command" << std::endl;
+      std::cerr
+          << "DEBUG: get_file_architecture - Failed to execute file command"
+          << std::endl;
     }
     return result;
   }
@@ -1336,7 +1530,8 @@ std::string Plugin::get_file_architecture(
   pclose(pipe);
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_file_architecture - File command output: " << output << std::endl;
+    std::cerr << "DEBUG: get_file_architecture - File command output: "
+              << output << std::endl;
   }
 
   if (output.find("x86_64") != std::string::npos) {
@@ -1348,7 +1543,8 @@ std::string Plugin::get_file_architecture(
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_file_architecture - Detected architecture: " << result << std::endl;
+    std::cerr << "DEBUG: get_file_architecture - Detected architecture: "
+              << result << std::endl;
   }
   return result;
 }
@@ -1356,13 +1552,16 @@ std::string Plugin::get_file_architecture(
 bool Plugin::is_architecture_compatible(const std::string& file_arch,
                                         const std::string& current_arch) const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: is_architecture_compatible - Checking compatibility between file: " 
+    std::cerr << "DEBUG: is_architecture_compatible - Checking compatibility "
+                 "between file: "
               << file_arch << " and system: " << current_arch << std::endl;
   }
 
   if (file_arch == current_arch) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: is_architecture_compatible - Architectures match exactly" << std::endl;
+      std::cerr
+          << "DEBUG: is_architecture_compatible - Architectures match exactly"
+          << std::endl;
     }
     return true;
   }
@@ -1371,22 +1570,27 @@ bool Plugin::is_architecture_compatible(const std::string& file_arch,
   if (current_arch == "arm64" && file_arch == "x86_64") {
     bool rosetta = is_rosetta_translated();
     if (g_debug_mode) {
-      std::cerr << "DEBUG: is_architecture_compatible - Apple ARM64 system with x86_64 binary, "
-                << "Rosetta available: " << (rosetta ? "yes" : "no") << std::endl;
+      std::cerr << "DEBUG: is_architecture_compatible - Apple ARM64 system "
+                   "with x86_64 binary, "
+                << "Rosetta available: " << (rosetta ? "yes" : "no")
+                << std::endl;
     }
     return rosetta;
   }
 #endif
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: is_architecture_compatible - Architectures are incompatible" << std::endl;
+    std::cerr
+        << "DEBUG: is_architecture_compatible - Architectures are incompatible"
+        << std::endl;
   }
   return false;
 }
 
 bool Plugin::is_rosetta_translated() const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: is_rosetta_translated - Checking if Rosetta is active" << std::endl;
+    std::cerr << "DEBUG: is_rosetta_translated - Checking if Rosetta is active"
+              << std::endl;
   }
 
 #ifdef __APPLE__
@@ -1394,16 +1598,19 @@ bool Plugin::is_rosetta_translated() const {
   size_t size = sizeof(ret);
   if (sysctlbyname("sysctl.proc_translated", &ret, &size, NULL, 0) != -1) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: is_rosetta_translated - Rosetta status: " 
+      std::cerr << "DEBUG: is_rosetta_translated - Rosetta status: "
                 << (ret == 1 ? "active" : "inactive") << std::endl;
     }
     return ret == 1;
   } else if (g_debug_mode) {
-    std::cerr << "DEBUG: is_rosetta_translated - Failed to query Rosetta status" << std::endl;
+    std::cerr << "DEBUG: is_rosetta_translated - Failed to query Rosetta status"
+              << std::endl;
   }
 #else
   if (g_debug_mode) {
-    std::cerr << "DEBUG: is_rosetta_translated - Not on Apple platform, Rosetta not available" << std::endl;
+    std::cerr << "DEBUG: is_rosetta_translated - Not on Apple platform, "
+                 "Rosetta not available"
+              << std::endl;
   }
 #endif
   return false;

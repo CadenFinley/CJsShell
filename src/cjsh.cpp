@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
   bool show_version = false;
   bool show_help = false;
   bool check_update = false;
-  
+
   // Check if started as a login shell
   if (argv && argv[0] && argv[0][0] == '-') {
     login_mode = true;
@@ -72,110 +72,106 @@ int main(int argc, char* argv[]) {
 
   // Setup long options
   static struct option long_options[] = {
-    {"login", no_argument, 0, 'l'},
-    {"interactive", no_argument, 0, 'i'},
-    {"debug", no_argument, 0, 'd'},
-    {"command", required_argument, 0, 'c'},
-    {"version", no_argument, 0, 'v'},
-    {"help", no_argument, 0, 'h'},
-    {"set-as-shell", no_argument, 0, 's'},
-    {"update", no_argument, 0, 'u'},
-    {"silent-updates", no_argument, 0, 'S'},
-    {"no-plugins", no_argument, 0, 'P'},
-    {"no-themes", no_argument, 0, 'T'},
-    {"no-ai", no_argument, 0, 'A'},
-    {"no-colors", no_argument, 0, 'C'},
-    {"no-update", no_argument, 0, 'U'},
-    {"check-update", no_argument, 0, 'V'},
-    {"no-titleline", no_argument, 0, 'L'},
-    {"no-source", no_argument, 0, 'N'},
-    {0, 0, 0, 0}
-  };
+      {"login", no_argument, 0, 'l'},
+      {"interactive", no_argument, 0, 'i'},
+      {"debug", no_argument, 0, 'd'},
+      {"command", required_argument, 0, 'c'},
+      {"version", no_argument, 0, 'v'},
+      {"help", no_argument, 0, 'h'},
+      {"set-as-shell", no_argument, 0, 's'},
+      {"update", no_argument, 0, 'u'},
+      {"silent-updates", no_argument, 0, 'S'},
+      {"no-plugins", no_argument, 0, 'P'},
+      {"no-themes", no_argument, 0, 'T'},
+      {"no-ai", no_argument, 0, 'A'},
+      {"no-colors", no_argument, 0, 'C'},
+      {"no-update", no_argument, 0, 'U'},
+      {"check-update", no_argument, 0, 'V'},
+      {"no-titleline", no_argument, 0, 'L'},
+      {"no-source", no_argument, 0, 'N'},
+      {0, 0, 0, 0}};
 
   const char* short_options = "lic:vhdsuSPTACUVLN";
   int option_index = 0;
   int c;
-  
+
   optind = 1;
-  
-  while ((c = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
+
+  while ((c = getopt_long(argc, argv, short_options, long_options,
+                          &option_index)) != -1) {
     switch (c) {
-      case 'l': // --login
+      case 'l':  // --login
         login_mode = true;
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Login mode enabled" << std::endl;
+        if (g_debug_mode) std::cerr << "DEBUG: Login mode enabled" << std::endl;
         break;
-      case 'i': // --interactive
+      case 'i':  // --interactive
         force_interactive = true;
         if (g_debug_mode)
           std::cerr << "DEBUG: Interactive mode forced" << std::endl;
         break;
-      case 'd': // --debug
+      case 'd':  // --debug
         g_debug_mode = true;
         std::cerr << "DEBUG: Debug mode enabled" << std::endl;
         break;
-      case 'c': // --command
+      case 'c':  // --command
         l_execute_command = true;
         l_cmd_to_execute = optarg;
         interactive_mode = false;
         if (g_debug_mode)
-          std::cerr << "DEBUG: Command to execute: " << l_cmd_to_execute << std::endl;
+          std::cerr << "DEBUG: Command to execute: " << l_cmd_to_execute
+                    << std::endl;
         break;
-      case 'v': // --version
+      case 'v':  // --version
         show_version = true;
         interactive_mode = false;
         break;
-      case 'h': // --help
+      case 'h':  // --help
         show_help = true;
         interactive_mode = false;
         break;
-      case 's': // --set-as-shell
+      case 's':  // --set-as-shell
         set_as_shell = true;
         interactive_mode = false;
         break;
-      case 'u': // --update
+      case 'u':  // --update
         check_update = true;
         interactive_mode = false;
         break;
-      case 'S': // --silent-updates
+      case 'S':  // --silent-updates
         g_silent_update_check = true;
         break;
-      case 'P': // --no-plugins
+      case 'P':  // --no-plugins
         l_plugins_enabled = false;
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Plugins disabled" << std::endl;
+        if (g_debug_mode) std::cerr << "DEBUG: Plugins disabled" << std::endl;
         break;
-      case 'T': // --no-themes
+      case 'T':  // --no-themes
         l_themes_enabled = false;
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Themes disabled" << std::endl;
+        if (g_debug_mode) std::cerr << "DEBUG: Themes disabled" << std::endl;
         break;
-      case 'A': // --no-ai
+      case 'A':  // --no-ai
         l_ai_enabled = false;
-        if (g_debug_mode)
-          std::cerr << "DEBUG: AI disabled" << std::endl;
+        if (g_debug_mode) std::cerr << "DEBUG: AI disabled" << std::endl;
         break;
-      case 'C': // --no-colors
+      case 'C':  // --no-colors
         l_colors_enabled = false;
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Colors disabled" << std::endl;
+        if (g_debug_mode) std::cerr << "DEBUG: Colors disabled" << std::endl;
         break;
-      case 'U': // --no-update
+      case 'U':  // --no-update
         g_check_updates = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Update checks disabled" << std::endl;
         break;
-      case 'V': // --check-update
+      case 'V':  // --check-update
         g_check_updates = true;
         if (g_debug_mode)
           std::cerr << "DEBUG: Update checks enabled" << std::endl;
         break;
-      case 'L': // --no-titleline
+      case 'L':  // --no-titleline
         g_title_line = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Title line disabled" << std::endl;
         break;
-      case 'N': // --no-source
+      case 'N':  // --no-source
         source_enabled = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Source file disabled" << std::endl;
@@ -246,8 +242,7 @@ int main(int argc, char* argv[]) {
               << " >> /etc/shells\"" << std::endl;
     std::cout << "To set CJ's Shell as your default shell:" << std::endl;
     std::cout << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
-    std::cout
-        << "Would you like to automatically run these commands? (y/n): ";
+    std::cout << "Would you like to automatically run these commands? (y/n): ";
     std::string response;
     std::getline(std::cin, response);
     if (response == "y" || response == "Y") {
@@ -263,8 +258,7 @@ int main(int argc, char* argv[]) {
       command = "sudo chsh -s " + cjsh_filesystem::g_cjsh_path.string();
       result = g_shell->execute_command(command);
       if (result == -1) {
-        std::cerr << "Error: Failed to set cjsh as default shell."
-                  << std::endl;
+        std::cerr << "Error: Failed to set cjsh as default shell." << std::endl;
       } else {
         std::cout << "cjsh set as default shell successfully." << std::endl;
       }
