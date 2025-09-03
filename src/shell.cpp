@@ -120,6 +120,10 @@ int Shell::do_ai_request(const std::string& command) {
 int Shell::execute_command(std::string command) {
   if (g_debug_mode)
     std::cerr << "DEBUG: Executing command: '" << command << std::endl;
+  if(!get_menu_active() && command.empty()) {
+    set_menu_active(true);
+    return 0;
+  }
   if (command.empty()) {
     return 0;
   }
