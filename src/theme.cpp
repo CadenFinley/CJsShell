@@ -290,7 +290,8 @@ size_t Theme::get_terminal_width() const {
       std::cout << "Detected terminal width: " << w.ws_col << " columns"
                 << std::endl;
     }
-    return w.ws_col > 2 ? w.ws_col - 1 : w.ws_col;
+    return w.ws_col;
+    // return w.ws_col > 2 ? w.ws_col - 1 : w.ws_col;
   }
 
   if (g_debug_mode) {
