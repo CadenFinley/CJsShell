@@ -12,6 +12,33 @@
 #include <queue>
 #include "pluginapi.h"
 
+/* Available threaded prompt placeholders:
+ * --------------------------------------
+ * The threaded_prompt plugin provides optimized, non-blocking alternatives
+ * to standard prompt variables. These variables are updated in background
+ * threads for better performance and responsiveness.
+ * 
+ * System information placeholders:
+ * {FAST_CPU}     - Current CPU usage percentage (updated every 5 seconds)
+ * {FAST_MEM}     - Current memory usage percentage (updated every 5 seconds)
+ * {FAST_BATTERY} - Battery percentage and charging status (updated every 30 seconds)
+ * {FAST_TIME}    - Current time (HH:MM:SS) in 24 hour format (updated every second)
+ * {FAST_DATE}    - Current date (YYYY-MM-DD) (updated every 60 seconds)
+ * 
+ * Network information placeholders:
+ * {FAST_IP}      - Local IP address (updated every 60 seconds)
+ * {FAST_NET}     - Active network interface (updated every 60 seconds)
+ * 
+ * Git information placeholders:
+ * {FAST_GIT_STATUS}  - Git status (✓ for clean, * for dirty) (updated every 5 seconds)
+ * {FAST_GIT_BRANCH}  - Current Git branch (updated every 5 seconds)
+ * {FAST_GIT_AHEAD}   - Number of commits ahead of remote (updated every 30 seconds)
+ * {FAST_GIT_BEHIND}  - Number of commits behind remote (updated every 30 seconds)
+ * {FAST_GIT_STASHES} - Number of stashes in the repository (updated every 30 seconds)
+ * {FAST_GIT_STAGED}  - Has staged changes (✓ or empty) (updated every 5 seconds)
+ * {FAST_GIT_CHANGES} - Number of uncommitted changes (updated every 5 seconds)
+ */
+
 // Thread pool for handling background data collection
 class PromptThreadPool {
 private:
@@ -363,8 +390,163 @@ public:
             return result.empty() ? "N/A" : result;
         }
         else if (key.find("GIT_") == 0) {
-            // Handle git-related info with more reliable defaults
-            return "N/A";  // Default for git-related info
+            // Detect if we're in a git repository first
+            FILE* fp = popen("git rev-parse --is-inside-work-tree 2>/dev/null || echo 'false'", "r");
+            if (!fp) return "N/A";
+            
+            char buffer[128];
+            std::string in_git_repo = "";
+            if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                in_git_repo = buffer;
+            }
+            pclose(fp);
+            
+            // Remove newline
+            if (!in_git_repo.empty() && in_git_repo[in_git_repo.length() - 1] == '\n') {
+                in_git_repo.erase(in_git_repo.length() - 1);
+            }
+            
+            // If not in a git repository, return appropriate defaults
+            if (in_git_repo != "true") {
+                if (key == "GIT_STATUS" || key == "GIT_STAGED") {
+                    return "";
+                } else if (key == "GIT_BRANCH") {
+                    return "no git";
+                } else {
+                    return "0";
+                }
+            }
+            
+            // We're in a git repository, handle each key appropriately
+            if (key == "GIT_STATUS") {
+                // Check for unstaged changes
+                FILE* fp = popen("git status --porcelain 2>/dev/null | wc -l | tr -d ' ' || echo '0'", "r");
+                if (!fp) return "✓";
+                
+                char buffer[128];
+                std::string result = "";
+                if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    result = buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!result.empty() && result[result.length() - 1] == '\n') {
+                    result.erase(result.length() - 1);
+                }
+                
+                return (result == "0") ? "✓" : "*";
+            }
+            else if (key == "GIT_BRANCH") {
+                FILE* fp = popen("git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo 'unknown'", "r");
+                if (!fp) return "unknown";
+                
+                char buffer[128];
+                std::string result = "";
+                if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    result = buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!result.empty() && result[result.length() - 1] == '\n') {
+                    result.erase(result.length() - 1);
+                }
+                
+                return result.empty() ? "unknown" : result;
+            }
+            else if (key == "GIT_AHEAD") {
+                FILE* fp = popen("git rev-list --count @{upstream}..HEAD 2>/dev/null || echo '0'", "r");
+                if (!fp) return "0";
+                
+                char buffer[128];
+                std::string result = "";
+                if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    result = buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!result.empty() && result[result.length() - 1] == '\n') {
+                    result.erase(result.length() - 1);
+                }
+                
+                return result.empty() ? "0" : result;
+            }
+            else if (key == "GIT_BEHIND") {
+                FILE* fp = popen("git rev-list --count HEAD..@{upstream} 2>/dev/null || echo '0'", "r");
+                if (!fp) return "0";
+                
+                char buffer[128];
+                std::string result = "";
+                if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    result = buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!result.empty() && result[result.length() - 1] == '\n') {
+                    result.erase(result.length() - 1);
+                }
+                
+                return result.empty() ? "0" : result;
+            }
+            else if (key == "GIT_STASHES") {
+                FILE* fp = popen("git stash list 2>/dev/null | wc -l | tr -d ' ' || echo '0'", "r");
+                if (!fp) return "0";
+                
+                char buffer[128];
+                std::string result = "";
+                if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    result = buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!result.empty() && result[result.length() - 1] == '\n') {
+                    result.erase(result.length() - 1);
+                }
+                
+                return result.empty() ? "0" : result;
+            }
+            else if (key == "GIT_STAGED") {
+                FILE* fp = popen("git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ' || echo '0'", "r");
+                if (!fp) return "0";
+                
+                char buffer[128];
+                std::string result = "";
+                if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    result = buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!result.empty() && result[result.length() - 1] == '\n') {
+                    result.erase(result.length() - 1);
+                }
+                
+                return (result == "0") ? "" : "✓";
+            }
+            else if (key == "GIT_CHANGES") {
+                FILE* fp = popen("git status --porcelain 2>/dev/null | wc -l | tr -d ' ' || echo '0'", "r");
+                if (!fp) return "0";
+                
+                char buffer[128];
+                std::string result = "";
+                if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                    result = buffer;
+                }
+                pclose(fp);
+                
+                // Remove newline
+                if (!result.empty() && result[result.length() - 1] == '\n') {
+                    result.erase(result.length() - 1);
+                }
+                
+                return result.empty() ? "0" : result;
+            }
+            
+            return "N/A";  // Default for unknown git-related info
         }
         
         return "N/A";
