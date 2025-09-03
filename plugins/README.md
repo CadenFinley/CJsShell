@@ -14,10 +14,13 @@ plugins/
 │   │   ├── my_plugin.c         # Main plugin implementation
 │   │   └── ...
 │   ├── include/                # Header files (optional)
+│   │   ├── pluginapi.h         # Latest plugin API header (REQUIRED)
 │   │   └── ...
 │   ├── README.md               # Plugin documentation (recommended)
 │   └── my_plugin.so/dylib      # Compiled plugin (output of build.sh)
 ```
+
+**IMPORTANT:** You must bundle the latest version of `pluginapi.h` with your plugin in its directory. This ensures compatibility even if the plugin API changes in future versions of CJSH. Your plugin will be compiled against the version of the API header you include with it, not the one in the system.
 
 ## Creating a Plugin
 
@@ -27,6 +30,19 @@ plugins/
 - C or C++ programming language
 - The plugin must implement all required functions from the Plugin API
 - A `build.sh` script must be included to build the plugin
+- The latest `pluginapi.h` header file must be bundled with the plugin in its `include` directory
+
+### Preparing Your Plugin Directory
+
+1. Create your plugin directory in the `plugins/` folder
+2. Create the required subdirectories (src, include)
+3. Copy the latest `pluginapi.h` from the main `include/` directory to your plugin's `include/` directory:
+   ```bash
+   mkdir -p my_plugin/include
+   cp /path/to/cjsh/include/pluginapi.h my_plugin/include/
+   ```
+4. Implement your plugin source files in the `src/` directory
+5. Create the `build.sh` script as described below
 
 ### Required Plugin Functions
 
@@ -165,6 +181,7 @@ mkdir -p "$SCRIPT_DIR/build"
 
 # Compile the plugin
 gcc -Wall -fPIC -shared $EXTRA_FLAGS \
+    -I"$SCRIPT_DIR/include" \
     -I"$SCRIPT_DIR/../../include" \
     -o "$SCRIPT_DIR/$PLUGIN_NAME.$FILE_EXT" \
     "$SCRIPT_DIR/src/$PLUGIN_NAME.c"
