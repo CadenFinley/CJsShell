@@ -11,11 +11,10 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
-
 
 # Plugin source
 set(SOURCES
+    pluginapi.h
     jarvis.cpp
 )
 

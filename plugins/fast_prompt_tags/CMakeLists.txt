@@ -10,13 +10,9 @@ find_package(Threads REQUIRED)
 # Get the absolute path to the main project include directory
 get_filename_component(MAIN_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../.. ABSOLUTE)
 
-# Include directories - using absolute paths
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${MAIN_PROJECT_DIR}/include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../include)
-
 # Define the source files
 set(SOURCES
+    pluginapi.h
     fast_prompt_tags.cpp
 )
 

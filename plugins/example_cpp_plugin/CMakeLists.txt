@@ -8,9 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find required packages
 find_package(Threads REQUIRED)
 
-# Get plugin directories
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../include)
-
 # Determine the output file extension based on the platform
 if(APPLE)
     set(PLUGIN_EXTENSION ".dylib")
