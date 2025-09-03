@@ -4,13 +4,14 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$SCRIPT_DIR"
 
-# Create build directory
+# Clean and create build directory
+rm -rf "$PLUGIN_DIR/build"
 mkdir -p "$PLUGIN_DIR/build"
 cd "$PLUGIN_DIR/build"
 
 # Configure with CMake
 echo "Configuring plugin with CMake..."
-cmake ..
+cmake "$PLUGIN_DIR"
 
 # Build
 echo "Building plugin..."
@@ -28,14 +29,9 @@ if [ -f "$PLUGIN_FILE" ]; then
     echo "Build successful!"
     echo "Plugin binary: $PLUGIN_DIR/build/$PLUGIN_FILE"
     
-    # Offer to install
-    read -p "Do you want to install the plugin to ~/.config/cjsh/plugins? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        mkdir -p ~/.config/cjsh/plugins
-        cp "$PLUGIN_FILE" ~/.config/cjsh/plugins/
-        echo "Plugin installed to ~/.config/cjsh/plugins/$PLUGIN_FILE"
-    fi
+    # Copy plugin to script directory
+    cp "$PLUGIN_FILE" "$PLUGIN_DIR/"
+    echo "Plugin copied to $PLUGIN_DIR/$PLUGIN_FILE"
 else
     echo "Build failed!"
     exit 1

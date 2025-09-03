@@ -26,7 +26,6 @@
 //  commands running very slow especially script files
 //  create a way to install and build plugins directly from the repo
 //  create a way to install themes directly from the repo
-//  create a way to preview a theme or all themes
 /*
  * Exit/Return Codes:
  * 0       - Success

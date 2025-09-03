@@ -27,19 +27,25 @@ if command -v cargo &> /dev/null; then
     fi
     
     if [ -f "target/release/liball_features_rust_plugin.$EXT" ]; then
-        # Install the plugin
-        mkdir -p ~/.config/cjsh/plugins
-        cp "target/release/liball_features_rust_plugin.$EXT" ~/.config/cjsh/plugins/
-        echo "Plugin installed to ~/.config/cjsh/plugins/"
+        # Copy the plugin to the script directory
+        cp "target/release/liball_features_rust_plugin.$EXT" "$PLUGIN_DIR/"
+        echo "Plugin copied to $PLUGIN_DIR/"
     else
         echo "Cargo build failed to produce output file. Trying Makefile..."
         make install
     fi
 else
     echo "Cargo not found, building with Makefile..."
-    make install
+    make
     if [ $? -eq 0 ]; then
-        echo "Plugin installed with Make"
+        # Copy the compiled library to the script directory
+        if [[ -f "liball_features_rust_plugin.$EXT" ]]; then
+            cp "liball_features_rust_plugin.$EXT" "$PLUGIN_DIR/"
+            echo "Plugin copied to $PLUGIN_DIR/"
+        else
+            echo "Could not find the compiled library after Make build"
+            exit 1
+        fi
     else
         echo "Make build failed"
         exit 1
