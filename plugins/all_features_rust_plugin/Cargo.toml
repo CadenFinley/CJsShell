@@ -1,0 +1,19 @@
+[package]
+name = "all_features_rust_plugin"
+version = "1.0.0"
+edition = "2021"
+authors = ["Caden Finley"]
+description = "A comprehensive plugin demonstrating all CJSH plugin features in Rust"
+
+[lib]
+name = "all_features_rust_plugin"
+crate-type = ["cdylib"]
+
+[dependencies]
+libc = "0.2"
+lazy_static = "1.4"
+rand = "0.8"
+chrono = "0.4"
+
+[build-dependencies]
+cc = "1.0"
