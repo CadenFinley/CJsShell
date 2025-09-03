@@ -253,6 +253,10 @@ extern "C" PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
         return PLUGIN_SUCCESS;
     } else if (strcmp(args->args[0], "event") == 0) {
       std::cout << "Event received: " << args->args[1] << "\n";
+      std::cout << "With args: ";
+      for (int i = 2; i < args->count; i++) {
+          std::cout << args->args[i] << (i < args->count - 1 ? ", " : "\n");
+      }
       return PLUGIN_SUCCESS;
     }
     
@@ -271,6 +275,7 @@ extern "C" PLUGIN_API char** plugin_get_commands(int* count) {
 // Get events this plugin subscribes to
 extern "C" PLUGIN_API char** plugin_get_subscribed_events(int* count) {
     std::vector<std::string> events = {
+        "main_process_pre_run",
         "main_process_start",
         "main_process_end",
         "main_process_command_processed",
