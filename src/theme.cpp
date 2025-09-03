@@ -13,7 +13,8 @@
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(theme_dir),
-      is_enabled(enabled){
+      is_enabled(enabled),
+      current_theme_name("default") {
   if (!std::filesystem::exists(theme_directory + "/default.json")) {
     create_default_theme();
   }
