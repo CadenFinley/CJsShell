@@ -17,11 +17,12 @@ Ai::Ai(const std::string& api_key, const std::string& assistant_type,
        const std::string& initial_instruction,
        const std::vector<std::string>& user_files,
        const std::string& save_directory, bool enabled) {
+
   (void)save_directory;
   set_enabled(enabled);
   if (enabled) {
     initialize(api_key, assistant_type, initial_instruction, user_files);
-    // set_save_directory(save_directory);
+    //set_save_directory(save_directory);
   }
 }
 

@@ -8,16 +8,6 @@
 #include "system_prompts.h"
 
 int aihelp_command(const std::vector<std::string>& args) {
-  if (g_ai == nullptr) {
-    std::cerr << "AI is not initialized." << std::endl;
-    return 1;
-  }
-
-  if (!g_ai->is_enabled()) {
-    std::cerr << "AI is disabled." << std::endl;
-    return 1;
-  }
-
   if (!g_ai || g_ai->get_api_key().empty()) {
     std::cerr << "Please set your OpenAI API key first." << std::endl;
     return 1;
