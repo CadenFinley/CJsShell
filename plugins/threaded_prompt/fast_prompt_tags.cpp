@@ -10,6 +10,7 @@
 #include <chrono>
 #include <functional>
 #include <queue>
+#include <ctime>
 #include "pluginapi.h"
 
 /* Available threaded prompt placeholders:
@@ -709,7 +710,7 @@ static plugin_string_t git_changes_callback() {
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
     static plugin_info_t info = {
         (char*)"threaded_prompt",
-        (char*)"0.2.0",
+        (char*)"0.3.0",
         (char*)"Fast prompt info using background threads",
         (char*)"Caden Finley",
         PLUGIN_INTERFACE_VERSION
@@ -760,20 +761,23 @@ extern "C" PLUGIN_API int plugin_handle_command(plugin_args_t* /*args*/) {
 }
 
 extern "C" PLUGIN_API char** plugin_get_commands(int* count) {
+    // Allocate heap memory for empty array to conform with API requirements
     *count = 0;
-    return nullptr;
+    return (char**)malloc(0); // Return empty heap-allocated array
 }
 
 // No events subscribed
 extern "C" PLUGIN_API char** plugin_get_subscribed_events(int* count) {
+    // Allocate heap memory for empty array to conform with API requirements
     *count = 0;
-    return nullptr;
+    return (char**)malloc(0); // Return empty heap-allocated array
 }
 
 // No settings
 extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
+    // Allocate heap memory for empty array to conform with API requirements
     *count = 0;
-    return nullptr;
+    return (plugin_setting_t*)malloc(0); // Return empty heap-allocated array
 }
 
 extern "C" PLUGIN_API int plugin_update_setting(const char* /*key*/, const char* /*value*/) {
@@ -782,5 +786,7 @@ extern "C" PLUGIN_API int plugin_update_setting(const char* /*key*/, const char*
 
 // Free memory allocated by the plugin
 extern "C" PLUGIN_API void plugin_free_memory(void* ptr) {
-    std::free(ptr);
+    if (ptr != nullptr) {
+        std::free(ptr);
+    }
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(threaded_prompt)
+project(fast_prompt_tags)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,18 +17,18 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../include)
 
 # Define the source files
 set(SOURCES
-    threaded_prompt.cpp
+    fast_prompt_tags.cpp
 )
 
 # Create a shared library
-add_library(threaded_prompt SHARED ${SOURCES})
+add_library(fast_prompt_tags SHARED ${SOURCES})
 
 # Link with the thread library
-target_link_libraries(threaded_prompt PRIVATE Threads::Threads)
+target_link_libraries(fast_prompt_tags PRIVATE Threads::Threads)
 
 # Set output directory and proper extension/flags
 if(APPLE)
-    set_target_properties(threaded_prompt PROPERTIES
+    set_target_properties(fast_prompt_tags PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
         SUFFIX ".dylib"
         PREFIX ""
@@ -36,7 +36,7 @@ if(APPLE)
         LINK_FLAGS "-undefined dynamic_lookup -flat_namespace"
     )
 else()
-    set_target_properties(threaded_prompt PROPERTIES
+    set_target_properties(fast_prompt_tags PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
         SUFFIX ".so"
         PREFIX ""
@@ -44,6 +44,6 @@ else()
 endif()
 
 # Installation
-install(TARGETS threaded_prompt
+install(TARGETS fast_prompt_tags
     LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/plugins
 )

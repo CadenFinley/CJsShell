@@ -12,8 +12,16 @@
 #include <iostream>
 #include <thread>
 
-#include "main.h"
+#include "cjsh.h"
 #include "pluginapi.h"
+
+/**
+ * Jarvis Plugin for CJ's Shell
+ * 
+ * This plugin creates a Python subprocess that acts as an always-on AI assistant.
+ * It conforms to the PLUGIN_INTERFACE_VERSION 2 requirements, particularly
+ * with respect to memory management for returned arrays and strings.
+ */
 
 static std::thread worker_thread;
 static std::atomic<bool> running{false};
@@ -22,9 +30,13 @@ static pid_t worker_pid = 0;
 
 // Required plugin information
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
-  static plugin_info_t info = {(char*)"jarvis", (char*)"0.1.0",
-                               (char*)"Test prompt variable plugin",
-                               (char*)"caden finley", PLUGIN_INTERFACE_VERSION};
+  static plugin_info_t info = {
+      const_cast<char*>("jarvis"),
+      const_cast<char*>("0.1.0"),
+      const_cast<char*>("Test prompt variable plugin"),
+      const_cast<char*>("caden finley"),
+      PLUGIN_INTERFACE_VERSION
+  };
   return &info;
 }
 
@@ -145,15 +157,18 @@ extern "C" PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
   return PLUGIN_ERROR_NOT_IMPLEMENTED;
 }
 extern "C" PLUGIN_API char** plugin_get_commands(int* count) {
+  // No commands provided by this plugin
   *count = 0;
   return nullptr;
 }
 extern "C" PLUGIN_API char** plugin_get_subscribed_events(int* count) {
+  // No events subscribed by this plugin
   *count = 0;
   return nullptr;
 }
 extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(
     int* count) {
+  // No settings provided by this plugin
   *count = 0;
   return nullptr;
 }
@@ -161,4 +176,9 @@ extern "C" PLUGIN_API int plugin_update_setting(const char* key,
                                                 const char* value) {
   return PLUGIN_ERROR_NOT_IMPLEMENTED;
 }
-extern "C" PLUGIN_API void plugin_free_memory(void* ptr) { std::free(ptr); }
+extern "C" PLUGIN_API void plugin_free_memory(void* ptr) {
+  // Free memory allocated by this plugin
+  if (ptr) {
+    std::free(ptr);
+  }
+}

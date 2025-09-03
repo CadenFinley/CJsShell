@@ -1,6 +1,6 @@
 {
   "requirements": {
-    "plugins": ["threaded_prompt"],
+    "plugins": ["fast_prompt_tags"],
     "colors": "true_color",
     "fonts": ["FiraCode Nerd Font", "Hack Nerd Font", "JetBrains Mono", "Source Code Pro"]
   },
@@ -99,7 +99,7 @@
       "fg_color": "#D7DAE0",
       "separator": "\uE0B4",
       "separator_fg": "#1D2433",
-      "separator_bg": "#3F5173",
+      "separator_bg": "RESET",
       "align": "right",
       "forward_separator": "\uE0B2",
       "forward_separator_fg": "#1D2433",
@@ -200,7 +200,7 @@
       "fg_color": "#D7DAE0",
       "separator": "\uE0B4",
       "separator_fg": "#1D2433",
-      "separator_bg": "#3F5173",
+      "separator_bg": "RESET",
       "align": "right",
       "forward_separator": "\uE0B2",
       "forward_separator_fg": "#1D2433",
@@ -265,7 +265,7 @@
       "tag": "ai_dateseg",
       "content": " {FAST_DATE} ",
       "bg_color": "#3F5173",
-      "fg_color": "#D7DAE0", 
+      "fg_color": "#D7DAE0",
       "separator": "",
       "separator_fg": "#3F5173",
       "separator_bg": "RESET",
@@ -281,9 +281,9 @@
       "fg_color": "#D7DAE0",
       "separator": "\uE0B4",
       "separator_fg": "#1D2433",
-      "separator_bg": "#3F5173",
+      "separator_bg": "RESET",
       "align": "right",
-      "forward_separator": "",
+      "forward_separator": "\uE0B2",
       "forward_separator_fg": "#1D2433",
       "forward_separator_bg": "#3F5173"
     }
@@ -291,16 +291,15 @@
   "newline_segments": [
     {
       "tag": "promptseg",
-      "content": " > ",
+      "content": " ╰─> ",
       "bg_color": "RESET",
       "fg_color": "#7F91B3",
       "separator": "",
       "separator_fg": "RESET",
-      "separator_bg": "RESET",
-      "align": "left"
+      "separator_bg": "RESET"
     }
   ],
   "fill_char": " ",
-  "fill_fg_color": "#333A4A",
+  "fill_fg_color": "RESET",
   "fill_bg_color": "RESET"
 }

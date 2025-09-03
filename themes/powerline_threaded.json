@@ -1,6 +1,6 @@
 {
   "requirements": {
-    "plugins": ["threaded_prompt"],
+    "plugins": ["fast_prompt_tags"],
     "colors": "true_color",
     "fonts": ["FiraCode Nerd Font", "Hack Nerd Font"]
   },
