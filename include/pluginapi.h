@@ -19,6 +19,13 @@ extern "C" {
  * 2. Implement all required functions
  * 3. Compile as a shared library
  * 4. Place the compiled library in the ~/.config/cjsh/plugins directory
+ *
+ * IMPORTANT MEMORY MANAGEMENT REQUIREMENTS:
+ * - The plugin_free_memory function is REQUIRED and must be implemented
+ * - All arrays and strings returned by plugin_get_commands(), plugin_get_subscribed_events(),
+ *   and plugin_get_default_settings() MUST be heap-allocated (using malloc, calloc, etc.)
+ * - The shell will call plugin_free_memory to free this memory
+ * - Never return static arrays or strings from these functions
  */
 
 // Plugin interface version for compatibility checking
@@ -133,9 +140,13 @@ typedef int (*plugin_handle_command_func)(plugin_args_t* args);
  *
  * Return a list of command names that this plugin handles.
  * The shell will register these commands and route them to this plugin.
+ * 
+ * IMPORTANT: The returned array MUST be heap-allocated (using malloc, calloc,
+ * etc.) as the shell will call plugin_free_memory to free this memory. Each
+ * string in the array must also be heap-allocated.
  *
  * @param count Output parameter: set to the number of commands
- * @return Array of command name strings (must remain valid)
+ * @return Array of command name strings (must be heap-allocated)
  */
 typedef char** (*plugin_get_commands_func)(int* count);
 
@@ -145,6 +156,10 @@ typedef char** (*plugin_get_commands_func)(int* count);
  *
  * Return a list of event names this plugin wants to receive.
  * The shell will notify the plugin when these events occur.
+ * 
+ * IMPORTANT: The returned array MUST be heap-allocated (using malloc, calloc,
+ * etc.) as the shell will call plugin_free_memory to free this memory. Each
+ * string in the array must also be heap-allocated.
  *
  * Common events include:
  * - "main_process_pre_run" - Beginning of main process loop
@@ -155,7 +170,7 @@ typedef char** (*plugin_get_commands_func)(int* count);
  * - "plugin_disabled" - When a plugin is disabled
  *
  * @param count Output parameter: set to the number of events
- * @return Array of event name strings (must remain valid)
+ * @return Array of event name strings (must be heap-allocated)
  */
 typedef char** (*plugin_get_subscribed_events_func)(int* count);
 
@@ -165,9 +180,13 @@ typedef char** (*plugin_get_subscribed_events_func)(int* count);
  *
  * Return a list of default settings for this plugin.
  * The shell will initialize the plugin with these settings.
+ * 
+ * IMPORTANT: The returned array MUST be heap-allocated (using malloc, calloc,
+ * etc.) as the shell will call plugin_free_memory to free this memory. Each
+ * key and value string in the structures must also be heap-allocated.
  *
  * @param count Output parameter: set to the number of settings
- * @return Array of plugin_setting_t structures (must remain valid)
+ * @return Array of plugin_setting_t structures (must be heap-allocated)
  */
 typedef plugin_setting_t* (*plugin_get_default_settings_func)(int* count);
 
@@ -190,6 +209,13 @@ typedef int (*plugin_update_setting_func)(const char* key, const char* value);
  *
  * Called by the shell to free memory returned by plugin functions.
  * The plugin is responsible for properly freeing the memory it allocated.
+ * This function will be called for each string and array returned by the 
+ * plugin's get_commands, get_subscribed_events, and get_default_settings functions.
+ * 
+ * IMPORTANT: All arrays and strings returned by plugin functions MUST be 
+ * heap-allocated using malloc, calloc, or similar functions. Do not return
+ * static arrays or strings. This function must correctly handle freeing
+ * memory allocated by the plugin.
  *
  * @param ptr Pointer to memory that should be freed
  */
