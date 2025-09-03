@@ -168,15 +168,15 @@ pub extern "C" fn plugin_initialize() -> c_int {
     unsafe {
         let result = std::panic::catch_unwind(|| {
             plugin_register_prompt_variable(
-                string_to_c_str("CURRENT_TIME_RUST"),
+                string_to_c_str("CURRENT_TIME"),
                 Some(current_time_callback),
             );
             plugin_register_prompt_variable(
-                string_to_c_str("PLUGIN_UPTIME_RUST"),
+                string_to_c_str("PLUGIN_UPTIME"),
                 Some(uptime_callback),
             );
             plugin_register_prompt_variable(
-                string_to_c_str("RANDOM_QUOTE_RUST"),
+                string_to_c_str("RANDOM_QUOTE"),
                 Some(random_quote_callback),
             );
         });
