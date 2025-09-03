@@ -24,8 +24,6 @@
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
 //  commands running very slow especially script files
-//  create a way to install and build plugins directly from the repo
-//  create a way to install themes directly from the repo
 /*
  * Exit/Return Codes:
  * 0       - Success
