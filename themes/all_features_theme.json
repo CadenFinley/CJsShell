@@ -1,0 +1,85 @@
+{
+    "ai_segments": [
+        {
+            "bg_color": "RESET",
+            "content": " {AI_MODEL} ",
+            "fg_color": "#FF55FF",
+            "separator": " / ",
+            "separator_bg": "RESET",
+            "separator_fg": "#FFFFFF",
+            "tag": "model"
+        },
+        {
+            "bg_color": "RESET",
+            "content": "{AI_AGENT_TYPE} ",
+            "fg_color": "#55FFFF",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "mode"
+        }
+    ],
+    "fill_bg_color": "RESET",
+    "fill_char": "",
+    "fill_fg_color": "RESET",
+    "git_segments": [
+        {
+            "bg_color": "RESET",
+            "content": " {LOCAL_PATH} ",
+            "fg_color": "#55FF55",
+            "separator": " ",
+            "separator_bg": "RESET",
+            "separator_fg": "#FFFFFF",
+            "tag": "path"
+        },
+        {
+            "bg_color": "RESET",
+            "content": "{GIT_BRANCH}",
+            "fg_color": "#FFFF55",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "branch"
+        },
+        {
+            "bg_color": "RESET",
+            "content": "{GIT_STATUS}",
+            "fg_color": "#FF5555",
+            "separator": " $ ",
+            "separator_bg": "RESET",
+            "separator_fg": "#FFFFFF",
+            "tag": "status"
+        }
+    ],
+    "newline_segments": [],
+    "ps1_segments": [
+        {
+            "bg_color": "RESET",
+            "content": "{USERNAME}@{HOSTNAME}:",
+            "fg_color": "#5555FF",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "username"
+        },
+        {
+            "bg_color": "RESET",
+            "content": " {DIRECTORY} ",
+            "fg_color": "#55FF55",
+            "separator": " ",
+            "separator_bg": "RESET",
+            "separator_fg": "#FFFFFF",
+            "tag": "directory"
+        },
+        {
+            "bg_color": "RESET",
+            "content": " $ ",
+            "fg_color": "#FFFFFF",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "prompt"
+        }
+    ],
+    "terminal_title": "{RANDOM_QUOTE} : {PLUGIN_UPTIME} : {CURRENT_TIME}"
+}
