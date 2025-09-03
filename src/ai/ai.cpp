@@ -22,6 +22,7 @@ Ai::Ai(const std::string& api_key, const std::string& assistant_type,
   set_enabled(enabled);
   if (enabled) {
     initialize(api_key, assistant_type, initial_instruction, user_files);
+    //set_save_directory(save_directory);
   }
 }
 
