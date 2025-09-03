@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <cstdlib>
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -36,6 +38,8 @@ int theme_command(const std::vector<std::string>& args) {
       std::cout << "  theme info <theme_name>   - Show theme information" << std::endl;
       std::cout << "  theme preview <theme_name> - Preview a theme without loading it" << std::endl;
       std::cout << "  theme preview all         - Preview all available themes" << std::endl;
+      std::cout << "  theme install <theme_name> - Install a theme" << std::endl;
+      std::cout << "  theme uninstall <theme_name> - Uninstall a theme" << std::endl;
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
       return 1;
@@ -202,6 +206,26 @@ int theme_command(const std::vector<std::string>& args) {
     }
   }
 
+  if (args[1] == "install" && args.size() > 2) {
+    if (g_theme) {
+      std::string themeName = args[2];
+      return install_theme(themeName);
+    } else {
+      std::cerr << "Theme manager not initialized" << std::endl;
+      return 1;
+    }
+  }
+
+  if (args[1] == "uninstall" && args.size() > 2) {
+    if (g_theme) {
+      std::string themeName = args[2];
+      return uninstall_theme(themeName);
+    } else {
+      std::cerr << "Theme manager not initialized" << std::endl;
+      return 1;
+    }
+  }
+
   if (args[1] == "load" && args.size() > 2) {
     if (g_theme) {
       std::string themeName = args[2];
@@ -281,4 +305,89 @@ int update_theme_in_rc_file(const std::string& themeName) {
                 rc_path.string());
   }
   return 0;
+}
+
+int install_theme(const std::string& themeName) {
+  std::string github_themes_url = "https://raw.githubusercontent.com/CadenFinley/CJsShell/master/themes/";
+  std::string theme_file_name = themeName + ".json";
+  std::string remote_theme_url = github_themes_url + theme_file_name;
+  
+  std::filesystem::path local_theme_path = cjsh_filesystem::g_cjsh_theme_path / theme_file_name;
+  
+  if (std::filesystem::exists(local_theme_path)) {
+    std::cout << "Theme '" << themeName << "' already exists locally. Replacing with the latest version..." << std::endl;
+  }
+  std::string curl_cmd = "sh -c \"curl -s -f -o \"" + local_theme_path.string() + "\" " + remote_theme_url + "\"";
+  std::cout << "Downloading theme '" << themeName << "' from repository..." << std::endl;
+  
+  int result = std::system(curl_cmd.c_str());
+  if (result != 0) {
+    std::cerr << "Error: Failed to download theme '" << themeName << "' from repository." << std::endl;
+    std::cerr << "The theme may not exist or there might be network issues." << std::endl;
+    return 1;
+  }
+  
+  try {
+    std::ifstream file(local_theme_path);
+    if (!file.is_open()) {
+      std::cerr << "Error: Could not open the downloaded theme file." << std::endl;
+      std::filesystem::remove(local_theme_path);
+      return 1;
+    }
+    
+    nlohmann::json theme_json;
+    file >> theme_json;
+    file.close();
+    
+    std::cout << "Theme '" << themeName << "' installed successfully." << std::endl;
+    return 0;
+  } catch (const std::exception& e) {
+    std::cerr << "Error: Invalid theme file format: " << e.what() << std::endl;
+    std::filesystem::remove(local_theme_path);
+    return 1;
+  }
+}
+
+int uninstall_theme(const std::string& themeName) {
+  // Check if we're trying to uninstall the default theme
+  if (themeName == "default") {
+    std::cerr << "Error: Cannot uninstall the default theme." << std::endl;
+    return 1;
+  }
+  
+  // Theme file path
+  std::string theme_file = cjsh_filesystem::g_cjsh_theme_path.string() + "/" + themeName + ".json";
+  
+  // Check if theme exists
+  if (!std::filesystem::exists(theme_file)) {
+    std::cerr << "Error: Theme '" << themeName << "' not found." << std::endl;
+    return 1;
+  }
+  
+  // Check if theme is currently active
+  bool is_active = (g_current_theme == themeName);
+  
+  // Remove the theme file
+  try {
+    std::filesystem::remove(theme_file);
+    std::cout << "Theme '" << themeName << "' uninstalled successfully." << std::endl;
+    
+    // If theme was active, switch to default
+    if (is_active) {
+      std::cout << "The uninstalled theme was active. Switching to 'default' theme..." << std::endl;
+      if (g_theme && g_theme->load_theme("default")) {
+        g_current_theme = "default";
+        update_theme_in_rc_file("default");
+        std::cout << "Switched to 'default' theme." << std::endl;
+      } else {
+        std::cerr << "Error: Failed to load 'default' theme." << std::endl;
+        return 1;
+      }
+    }
+    
+    return 0;
+  } catch (const std::filesystem::filesystem_error& e) {
+    std::cerr << "Error: Failed to uninstall theme '" << themeName << "': " << e.what() << std::endl;
+    return 1;
+  }
 }

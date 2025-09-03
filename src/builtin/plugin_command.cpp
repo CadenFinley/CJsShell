@@ -103,12 +103,6 @@ int plugin_command(const std::vector<std::string>& args) {
   }
 
   if (cmd == "install" && args.size() > 2) {
-    if (g_plugin) {
-      std::string pluginPath = args[2];
-      g_plugin->install_plugin(pluginPath);
-    } else {
-      std::cerr << "Plugin manager not initialized" << std::endl;
-    }
     return 0;
   }
 

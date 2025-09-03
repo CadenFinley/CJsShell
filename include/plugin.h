@@ -59,7 +59,6 @@ class Plugin {
   ~Plugin();
   bool discover_plugins();
   bool load_plugin(const std::filesystem::path& path);
-  bool install_plugin(const std::filesystem::path& source_path);
   bool uninstall_plugin(const std::string& name);
   std::vector<std::string> get_available_plugins() const;
   std::vector<std::string> get_enabled_plugins() const;
