@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build script for all_features_plugin
+# Build script for example_cpp_plugin
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$SCRIPT_DIR"
@@ -19,9 +19,9 @@ make
 
 # Get plugin file
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    PLUGIN_FILE="all_features_plugin.dylib"
+    PLUGIN_FILE="example_cpp_plugin.dylib"
 else
-    PLUGIN_FILE="all_features_plugin.so"
+    PLUGIN_FILE="example_cpp_plugin.so"
 fi
 
 # Check if build was successful

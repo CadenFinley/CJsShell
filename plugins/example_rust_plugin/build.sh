@@ -29,6 +29,8 @@ if command -v cargo &> /dev/null; then
     if [ -f "target/release/liball_features_rust_plugin.$EXT" ]; then
         # Copy the plugin to the script directory
         cp "target/release/liball_features_rust_plugin.$EXT" "$PLUGIN_DIR/"
+        # Also create a copy with the expected name for plugin installation
+        cp "target/release/liball_features_rust_plugin.$EXT" "$PLUGIN_DIR/example_rust_plugin.$EXT"
         echo "Plugin copied to $PLUGIN_DIR/"
     else
         echo "Cargo build failed to produce output file. Trying Makefile..."
@@ -41,6 +43,8 @@ else
         # Copy the compiled library to the script directory
         if [[ -f "liball_features_rust_plugin.$EXT" ]]; then
             cp "liball_features_rust_plugin.$EXT" "$PLUGIN_DIR/"
+            # Also create a copy with the expected name for plugin installation
+            cp "liball_features_rust_plugin.$EXT" "$PLUGIN_DIR/example_rust_plugin.$EXT"
             echo "Plugin copied to $PLUGIN_DIR/"
         else
             echo "Could not find the compiled library after Make build"
