@@ -12,6 +12,7 @@ class Theme {
   void create_default_theme();
 
   std::string terminal_title_format;
+  std::string current_theme_name{"default"};
 
   void prerender_segments();
   std::string prerender_line(const std::vector<nlohmann::json>& segments) const;

@@ -18,7 +18,7 @@ time_t g_last_update_check = 0;
 int g_update_check_interval = 86400;
 std::string g_cached_version = "";
 std::string g_last_updated = "";
-std::string g_current_theme = "";
+std::string g_current_theme = "default";
 std::string title_line =
     " CJ's Shell v" + c_version + " - Caden J Finley (c) 2025";
 std::string created_line = " Created 2025 @ " + c_title_color +
