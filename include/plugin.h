@@ -80,4 +80,6 @@ class Plugin {
   plugin_data* get_plugin_data(const std::string& name);
   void clear_plugin_cache();
   bool is_plugin_loaded(const std::string& name) const;
+
+  bool get_enabled() const { return enabled; }
 };

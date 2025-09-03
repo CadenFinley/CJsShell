@@ -61,6 +61,8 @@ void main_process_loop();
 void notify_plugins(std::string trigger, std::string data);
 void process_source_file();
 void process_profile_file();
+void process_profile_startup_args();
+void apply_profile_startup_args();
 void create_profile_file();
 void create_source_file();
 bool is_parent_process_alive();

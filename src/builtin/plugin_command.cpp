@@ -25,6 +25,11 @@ int plugin_command(const std::vector<std::string>& args) {
     return 1;
   }
 
+  if (!g_plugin->get_enabled()) {
+    PRINT_ERROR("Plugins are disabled");
+    return 1;
+  }
+
   if (args.size() < 2) {
     PRINT_ERROR("Unknown command. No given ARGS. Try 'help'");
     return 1;

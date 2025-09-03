@@ -90,8 +90,29 @@ int restart_command(const std::vector<std::string>& args) {
   arg_strings.push_back(path_str);
   args_vec.push_back(const_cast<char*>(arg_strings.back().c_str()));
 
-  if (!startup_args.empty()) {
-    for (const auto& arg : startup_args) {
+  // Debug startup_args before processing
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: startup_args before processing:" << std::endl;
+    for (size_t i = 0; i < startup_args.size(); ++i) {
+      std::cerr << "DEBUG: startup_arg " << i << ": " << startup_args[i]
+                << std::endl;
+    }
+  }
+
+  // First, gather all the flag arguments from startup_args
+  std::vector<std::string> flag_args;
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Gathering flags from startup_args:" << std::endl;
+  }
+
+  for (const auto& arg : startup_args) {
+    // Skip empty args or the first arg (executable path)
+    if (arg.empty() || arg == path_str) {
+      continue;
+    }
+
+    // Only include arguments that start with "--"
+    if (arg.size() >= 2 && arg[0] == '-' && arg[1] == '-') {
       bool should_remove = false;
       for (const auto& flag : flags_to_remove) {
         if (arg == flag) {
@@ -104,15 +125,21 @@ int restart_command(const std::vector<std::string>& args) {
       }
 
       if (!should_remove) {
-        arg_strings.push_back(arg);
-        args_vec.push_back(const_cast<char*>(arg_strings.back().c_str()));
+        // Add to our flag args list to be processed
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Adding flag from startup_args: '" << arg << "'"
+                    << std::endl;
+        }
+        flag_args.push_back(arg);
       }
     }
   }
 
+  // Add any additional flags from the restart command args
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
 
+    // Skip removal flags
     if (arg == "--remove") {
       i++;
       continue;
@@ -121,17 +148,79 @@ int restart_command(const std::vector<std::string>& args) {
       continue;
     }
 
-    arg_strings.push_back(arg);
-    args_vec.push_back(const_cast<char*>(arg_strings.back().c_str()));
+    // Add this arg to our flag args
+    if (arg.size() >= 2 && arg[0] == '-' && arg[1] == '-') {
+      flag_args.push_back(arg);
+    }
   }
 
+  // Sort and de-duplicate the flags to avoid repeats
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Before sorting and deduplication:" << std::endl;
+    for (const auto& flag : flag_args) {
+      std::cerr << "DEBUG: Flag: '" << flag << "'" << std::endl;
+    }
+  }
+
+  std::sort(flag_args.begin(), flag_args.end());
+  flag_args.erase(std::unique(flag_args.begin(), flag_args.end()),
+                  flag_args.end());
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: After sorting and deduplication:" << std::endl;
+    for (const auto& flag : flag_args) {
+      std::cerr << "DEBUG: Flag: '" << flag << "'" << std::endl;
+    }
+  };
+
+  // Clear any existing args and rebuild from scratch
+  arg_strings.clear();
+  args_vec.clear();
+
+  // Add the executable path as the first argument
+  arg_strings.push_back(path_str);
+
+  // Now add all the flags to the args vector
+  for (const auto& flag : flag_args) {
+    arg_strings.push_back(flag);
+  }
+
+  // Build the args_vec from the arg_strings
+  for (const auto& arg : arg_strings) {
+    args_vec.push_back(const_cast<char*>(arg.c_str()));
+  }
+
+  // Terminate the args list
   args_vec.push_back(nullptr);
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Final args_vec after rebuilding:" << std::endl;
+    for (size_t i = 0; i < args_vec.size() - 1; ++i) {
+      std::cerr << "DEBUG: args_vec[" << i << "]: '" << args_vec[i] << "'"
+                << std::endl;
+    }
+  }
 
   if (g_debug_mode) {
     std::cerr << "DEBUG: Restarting shell with " << args_vec.size() - 1
               << " args" << std::endl;
+    std::cerr << "DEBUG: Args vector size: " << args_vec.size() << std::endl;
+    std::cerr << "DEBUG: Args string vector size: " << arg_strings.size()
+              << std::endl;
+
     for (size_t i = 0; i < args_vec.size() - 1; ++i) {
-      std::cerr << "DEBUG: Arg " << i << ": " << args_vec[i] << std::endl;
+      if (args_vec[i] == nullptr) {
+        std::cerr << "DEBUG: Arg " << i << ": NULL POINTER" << std::endl;
+      } else {
+        std::cerr << "DEBUG: Arg " << i << ": '" << args_vec[i] << "'"
+                  << std::endl;
+      }
+    }
+
+    // Also print out the flag_args for better debugging
+    std::cerr << "DEBUG: All flags after processing:" << std::endl;
+    for (const auto& flag : flag_args) {
+      std::cerr << "DEBUG: Flag: '" << flag << "'" << std::endl;
     }
   }
 
@@ -165,6 +254,14 @@ int restart_command(const std::vector<std::string>& args) {
   std::cout << "Cleanup complete. Executing new shell process..." << std::endl;
 
   // Use execv to replace the current process
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Final execv call with args:" << std::endl;
+    for (size_t i = 0; i < args_vec.size() - 1; ++i) {
+      std::cerr << "DEBUG: execv arg[" << i << "]: '" << args_vec[i] << "'"
+                << std::endl;
+    }
+  }
+
   if (execv(path_cstr, args_vec.data()) == -1) {
     std::string error_message =
         "Error restarting shell: " + std::string(strerror(errno)) +

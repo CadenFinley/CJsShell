@@ -27,6 +27,12 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (g_ai == nullptr) {
+    PRINT_ERROR("AI is not initialized");
+    return 1;
+  }
+
+  if (!g_ai->is_enabled()) {
+    PRINT_ERROR("AI is disabled");
     return 1;
   }
   unsigned int command_index = 1;

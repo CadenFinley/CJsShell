@@ -19,6 +19,10 @@ int theme_command(const std::vector<std::string>& args) {
     PRINT_ERROR("Theme manager not initialized");
     return 1;
   }
+  if (!g_theme->get_enabled()) {
+    PRINT_ERROR("Themes are disabled");
+    return 1;
+  }
   if (args.size() < 2) {
     if (g_theme) {
       std::cout << "Current theme: " << g_current_theme << std::endl;

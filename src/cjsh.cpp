@@ -41,27 +41,27 @@
  * 255     - Exit status out of range
  */
 
+bool login_mode = false;
+bool interactive_mode = true;
+bool force_interactive = false;
+bool l_execute_command = false;
+std::string l_cmd_to_execute = "";
+bool l_plugins_enabled = true;
+bool l_themes_enabled = true;
+bool l_ai_enabled = true;
+bool l_colors_enabled = true;
+bool source_enabled = true;
+bool set_as_shell = false;
+bool show_version = false;
+bool show_help = false;
+bool check_update = false;
+
 int main(int argc, char* argv[]) {
   if (!initialize_cjsh_path()) {
     std::cerr << "Warning: Unable to determine the executable path. This "
                  "program may not work correctly."
               << std::endl;
   }
-
-  bool login_mode = false;
-  bool interactive_mode = true;
-  bool force_interactive = false;
-  bool l_execute_command = false;
-  std::string l_cmd_to_execute = "";
-  bool l_plugins_enabled = true;
-  bool l_themes_enabled = true;
-  bool l_ai_enabled = true;
-  bool l_colors_enabled = true;
-  bool source_enabled = true;
-  bool set_as_shell = false;
-  bool show_version = false;
-  bool show_help = false;
-  bool check_update = false;
 
   // Check if started as a login shell
   if (argv && argv[0] && argv[0][0] == '-') {
@@ -95,6 +95,11 @@ int main(int argc, char* argv[]) {
   const char* short_options = "lic:vhdsuSPTACUVLN";
   int option_index = 0;
   int c;
+
+  g_startup_args.clear();
+  for (int i = 0; i < argc; i++) {
+    g_startup_args.push_back(std::string(argv[i]));
+  }
 
   optind = 1;
 
@@ -202,7 +207,8 @@ int main(int argc, char* argv[]) {
 
   if (g_debug_mode) {
     std::cerr << "DEBUG: Starting CJ's Shell version " << c_version
-              << " with PID: " << c_pid_str << " with args: " << std::endl;
+              << " with PID: " << c_pid_str
+              << " with command line args: " << std::endl;
     for (const auto& arg : g_startup_args) {
       std::cerr << "DEBUG:   " << arg << std::endl;
     }
@@ -742,6 +748,184 @@ static void capture_profile_env(const std::string& profile_path) {
   }
 }
 
+void process_profile_startup_args() {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Processing startup args from profile" << std::endl;
+
+  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Profile file does not exist, skipping startup args"
+                << std::endl;
+    return;
+  }
+
+  std::ifstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
+  if (!profile_file.is_open()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Failed to open profile file for startup args"
+                << std::endl;
+    return;
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Initial startup args before processing profile:"
+              << std::endl;
+    for (const auto& arg : g_startup_args) {
+      std::cerr << "DEBUG:   " << arg << std::endl;
+    }
+  }
+
+  std::string line;
+  while (std::getline(profile_file, line)) {
+    // Skip completely empty lines
+    if (line.empty()) {
+      continue;
+    }
+
+    // Trim leading whitespace
+    line.erase(0, line.find_first_not_of(" \t\n\r\f\v"));
+
+    // Skip comments that aren't flag-related
+    if (line.empty() ||
+        (line[0] == '#' && (line.size() < 2 || line[1] != '-'))) {
+      continue;
+    }
+
+    // Process lines starting with "--" (flags)
+    if (line.size() >= 2 && line[0] == '-' && line[1] == '-') {
+      std::string flag = line;
+
+      // Handle comments at the end of a flag line
+      size_t comment_pos = flag.find('#');
+      if (comment_pos != std::string::npos) {
+        flag = flag.substr(0, comment_pos);
+        // Trim trailing whitespace after removing comment
+        flag.erase(flag.find_last_not_of(" \t\n\r\f\v") + 1);
+      }
+
+      // Extract just the flag portion (in case there are other spaces or
+      // characters)
+      size_t space_pos = flag.find(' ');
+      if (space_pos != std::string::npos) {
+        flag = flag.substr(0, space_pos);
+      }
+
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Found startup argument in profile: " << flag
+                  << std::endl;
+
+      // Check if this flag already exists in startup args
+      bool already_exists = false;
+      for (const auto& existing_arg : g_startup_args) {
+        if (existing_arg == flag) {
+          already_exists = true;
+          break;
+        }
+      }
+
+      if (!already_exists) {
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Adding new startup argument from profile: "
+                    << flag << std::endl;
+        g_startup_args.push_back(flag);
+      } else {
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Startup argument already exists, skipping: "
+                    << flag << std::endl;
+      }
+    }
+  }
+
+  profile_file.close();
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Final startup args after processing profile:"
+              << std::endl;
+    for (const auto& arg : g_startup_args) {
+      std::cerr << "DEBUG:   " << arg << std::endl;
+    }
+  }
+
+  apply_profile_startup_args();
+}
+
+void apply_profile_startup_args() {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Applying startup args from profile" << std::endl;
+
+  // We process g_startup_args to apply the effects of the flags
+  // This function applies the effects of flags, without changing g_startup_args
+  // which is important for restart to work correctly
+
+  for (const auto& arg : g_startup_args) {
+    // Skip if not a proper flag format
+    if (arg.size() < 2 || arg[0] != '-' || arg[1] != '-') {
+      continue;
+    }
+
+    // Process the flag (removing any comments)
+    std::string flag = arg;
+    size_t comment_pos = flag.find('#');
+    if (comment_pos != std::string::npos) {
+      flag = flag.substr(0, comment_pos);
+      flag.erase(flag.find_last_not_of(" \t\n\r\f\v") + 1);
+    }
+
+    // Extract just the flag portion (in case there are other spaces or
+    // characters)
+    size_t space_pos = flag.find(' ');
+    if (space_pos != std::string::npos) {
+      flag = flag.substr(0, space_pos);
+    }
+
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Processing startup arg: " << flag << std::endl;
+
+    // Apply the appropriate setting based on the flag
+    if (flag == "--no-plugins") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disabling plugins from profile" << std::endl;
+      l_plugins_enabled = false;
+    } else if (flag == "--no-themes") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disabling themes from profile" << std::endl;
+      l_themes_enabled = false;
+    } else if (flag == "--no-ai") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disabling AI from profile" << std::endl;
+      l_ai_enabled = false;
+    } else if (flag == "--no-colors") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disabling colors from profile" << std::endl;
+      l_colors_enabled = false;
+    } else if (flag == "--no-update") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disabling update checks from profile" << std::endl;
+      g_check_updates = false;
+    } else if (flag == "--silent-updates") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Enabling silent updates from profile" << std::endl;
+      g_silent_update_check = true;
+    } else if (flag == "--no-titleline") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disabling title line from profile" << std::endl;
+      g_title_line = false;
+    } else if (flag == "--no-source") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disabling source file from profile" << std::endl;
+      source_enabled = false;
+    } else if (flag == "--debug") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Enabling debug mode from profile" << std::endl;
+      g_debug_mode = true;
+    } else {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Unknown startup arg in profile: " << flag
+                  << std::endl;
+    }
+  }
+}
+
 void process_profile_file() {
   if (g_debug_mode) std::cerr << "DEBUG: Processing profile files" << std::endl;
   std::filesystem::path universal_profile = "/etc/profile";
@@ -760,6 +944,9 @@ void process_profile_file() {
     create_profile_file();
     return;
   }
+
+  process_profile_startup_args();
+
   g_shell->execute_command("source " +
                            cjsh_filesystem::g_cjsh_profile_path.string());
 }
@@ -780,7 +967,15 @@ void create_profile_file() {
     profile_file << "# this file is sourced when the shell starts in login "
                     "mode and is sourced after /etc/profile and ~/.profile\n";
     profile_file << "# this file is the only one that is capable of handling "
-                    "startup args";
+                    "startup args\n";
+    profile_file << "# Add startup args by including lines that start with -- "
+                    "followed by the flag\n";
+    profile_file << "# For example:\n";
+    profile_file << "# --no-colors     # Disable colorized output\n";
+    profile_file << "# --no-themes     # Disable themes\n";
+    profile_file << "# --no-plugins    # Disable plugins\n";
+    profile_file << "# --no-ai         # Disable AI features\n";
+    profile_file << "# --no-source     # Don't source the .cjshrc file\n";
     profile_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the configuration file." << std::endl;

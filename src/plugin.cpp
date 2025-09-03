@@ -40,6 +40,11 @@ Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled) {
 
   if (enabled) {
     plugins_discovered = discover_plugins();
+  } else {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Plugin constructor - Plugins are disabled"
+                << std::endl;
+    }
   }
 }
 
