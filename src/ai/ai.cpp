@@ -17,9 +17,12 @@ Ai::Ai(const std::string& api_key, const std::string& assistant_type,
        const std::string& initial_instruction,
        const std::vector<std::string>& user_files,
        const std::string& save_directory, bool enabled) {
-  initialize(api_key, assistant_type, initial_instruction, user_files);
-  set_save_directory(save_directory);
+
+  (void)save_directory;
   set_enabled(enabled);
+  if (enabled) {
+    initialize(api_key, assistant_type, initial_instruction, user_files);
+  }
 }
 
 Ai::Ai() {}
@@ -531,7 +534,6 @@ void Ai::initialize(const std::string& api_key,
   this->assistant_type = assistant_type;
   this->initial_instruction = initial_instruction;
   this->files = user_files;
-  set_save_directory(cjsh_filesystem::g_cjsh_data_path);
 
   cjsh_filesystem::fs::path ai_config_dir =
       cjsh_filesystem::g_cjsh_ai_config_path;
