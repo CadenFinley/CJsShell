@@ -19,8 +19,6 @@ CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes wi
 
 ## Why Choose CJ's Shell?
 
-### Comparing cjsh with bash, zsh, and fish
-
 CJ's Shell combines the familiarity of traditional POSIX shells with modern developer-focused features:
 
 #### Key Differences
