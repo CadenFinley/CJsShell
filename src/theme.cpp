@@ -12,8 +12,7 @@
 #include "colors.h"
 
 Theme::Theme(std::string theme_dir, bool enabled)
-    : theme_directory(theme_dir),
-      is_enabled(enabled){
+    : theme_directory(theme_dir), is_enabled(enabled), current_theme_name("default") {
   if (!std::filesystem::exists(theme_directory + "/default.json")) {
     create_default_theme();
   }
@@ -134,15 +133,15 @@ bool Theme::load_theme(const std::string& theme_name) {
                 << std::endl;
     }
     if (!check_theme_requirements(theme_json["requirements"])) {
-      std::string fallback_theme = g_current_theme;
-
+      std::string fallback_theme = current_theme_name;
+      
       // If trying to load the current theme and it fails, fall back to default
-      if (theme_name_to_use == g_current_theme) {
+      if (theme_name_to_use == current_theme_name) {
         fallback_theme = "default";
       }
-
+      
       std::cerr << "Theme '" << theme_name_to_use
-                << "' requirements not met, falling back to theme '"
+                << "' requirements not met, falling back to theme '" 
                 << fallback_theme << "'" << std::endl;
       return load_theme(fallback_theme);
     }
@@ -205,7 +204,10 @@ bool Theme::load_theme(const std::string& theme_name) {
       theme_json["fill_bg_color"].is_string()) {
     fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
   }
-
+  
+  // Store the successfully loaded theme name
+  current_theme_name = theme_name_to_use;
+  
   return true;
 }
 
