@@ -8,7 +8,7 @@
 #include "system_prompts.h"
 
 int aihelp_command(const std::vector<std::string>& args) {
-  if(g_ai == nullptr) {
+  if (g_ai == nullptr) {
     std::cerr << "AI is not initialized." << std::endl;
     return 1;
   }

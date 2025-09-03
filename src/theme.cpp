@@ -122,7 +122,6 @@ bool Theme::load_theme(const std::string& theme_name) {
   file >> theme_json;
   file.close();
 
-  // Check theme requirements
   if (theme_json.contains("requirements") &&
       theme_json["requirements"].is_object() &&
       !theme_json["requirements"].empty()) {
@@ -134,13 +133,11 @@ bool Theme::load_theme(const std::string& theme_name) {
     }
     if (!check_theme_requirements(theme_json["requirements"])) {
       std::cerr << "Theme '" << theme_name_to_use
-                << "' requirements not met, falling back to previous theme: '" 
+                << "' requirements not met, falling back to previous theme: '"
                 << g_current_theme << "'" << std::endl;
-      // Only attempt to load the previous theme if it's different from the one we just tried
       if (theme_name_to_use != g_current_theme) {
         return load_theme(g_current_theme);
       } else {
-        // If we're already using this theme or this is the default theme, fallback to default
         if (theme_name_to_use != "default") {
           std::cerr << "Falling back to default theme" << std::endl;
           return load_theme("default");
