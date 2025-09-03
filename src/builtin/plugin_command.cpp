@@ -111,19 +111,25 @@ int plugin_command(const std::vector<std::string>& args) {
       std::string tempDir = std::string(getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp") + "/cjsh_plugin_" + pluginName;
       
       // Create plugin install directory if it doesn't exist
-      std::string pluginInstallDir = (cjsh_filesystem::g_cjsh_plugin_path / pluginName).string();
+      std::string pluginInstallDir = (cjsh_filesystem::g_cjsh_plugin_path).string();
       
       // Ensure temp directory cleanup regardless of how the function exits
       std::string cloneCmd = "mkdir -p " + tempDir + " && " +
                              "trap 'rm -rf " + tempDir + "' EXIT && " +
                              "git clone --depth 1 https://github.com/CadenFinley/CJsShell.git " + tempDir + "/repo && " +
                              "if [ -d " + tempDir + "/repo/plugins/" + pluginName + " ]; then " +
-                             "  mkdir -p " + pluginInstallDir + " && " +
-                             "  cp -r " + tempDir + "/repo/plugins/" + pluginName + "/* " + pluginInstallDir + " && " +
+                             "  mkdir -p " + tempDir + "/build && " +
+                             "  cp -r " + tempDir + "/repo/plugins/" + pluginName + "/* " + tempDir + "/build/ && " +
                              "  echo 'Plugin " + pluginName + " downloaded successfully' && " +
                              // Make build.sh executable and run it
-                             "  chmod +x " + pluginInstallDir + "/build.sh && " +
-                             "  cd " + pluginInstallDir + " && ./build.sh && " +
+                             "  chmod +x " + tempDir + "/build/build.sh && " +
+                             "  cd " + tempDir + "/build && ./build.sh && " +
+                             // Copy only the binary to the plugins directory
+                             "  if [ \"$(uname)\" = \"Darwin\" ]; then " +
+                             "    cp " + tempDir + "/build/" + pluginName + ".dylib " + pluginInstallDir + "/ && " +
+                             "  else " +
+                             "    cp " + tempDir + "/build/" + pluginName + ".so " + pluginInstallDir + "/ && " +
+                             "  fi && " +
                              "  echo 'Plugin " + pluginName + " built and installed successfully'; " +
                              "else " +
                              "  echo 'Plugin " + pluginName + " not found in repository' && " +
