@@ -27,11 +27,12 @@ fi
 # Check if build was successful
 if [ -f "$PLUGIN_FILE" ]; then
     echo "Build successful!"
-    echo "Plugin binary: $PLUGIN_DIR/build/$PLUGIN_FILE"
+    echo "Plugin binary built at: $PLUGIN_DIR/build/$PLUGIN_FILE"
     
-    # Copy plugin to script directory
+    # Copy plugin to script directory (same directory as this script)
+    echo "Copying plugin to script directory..."
     cp "$PLUGIN_FILE" "$PLUGIN_DIR/"
-    echo "Plugin copied to $PLUGIN_DIR/$PLUGIN_FILE"
+    echo "Plugin placed at: $PLUGIN_DIR/$PLUGIN_FILE"
 else
     echo "Build failed!"
     exit 1

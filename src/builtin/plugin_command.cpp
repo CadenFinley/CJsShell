@@ -121,15 +121,11 @@ int plugin_command(const std::vector<std::string>& args) {
                              "  mkdir -p " + tempDir + "/build && " +
                              "  cp -r " + tempDir + "/repo/plugins/" + pluginName + "/* " + tempDir + "/build/ && " +
                              "  echo 'Plugin " + pluginName + " downloaded successfully' && " +
-                             // Make build.sh executable and run it
                              "  chmod +x " + tempDir + "/build/build.sh && " +
                              "  cd " + tempDir + "/build && ./build.sh && " +
-                             // Copy only the binary to the plugins directory
-                             "  if [ \"$(uname)\" = \"Darwin\" ]; then " +
-                             "    cp " + tempDir + "/build/" + pluginName + ".dylib " + pluginInstallDir + "/ && " +
-                             "  else " +
-                             "    cp " + tempDir + "/build/" + pluginName + ".so " + pluginInstallDir + "/ && " +
-                             "  fi && " +
+                             "  BINARY_EXT=\".so\" && " +
+                             "  if [ \"$(uname)\" = \"Darwin\" ]; then BINARY_EXT=\".dylib\"; fi && " +
+                             "  cp " + tempDir + "/build/" + pluginName + "$BINARY_EXT " + pluginInstallDir + "/ && " +
                              "  echo 'Plugin " + pluginName + " built and installed successfully'; " +
                              "else " +
                              "  echo 'Plugin " + pluginName + " not found in repository' && " +
@@ -140,7 +136,7 @@ int plugin_command(const std::vector<std::string>& args) {
       if (result == 0) {
         // Load the plugin
         g_plugin->load_plugin(pluginName);
-        std::cout << "Plugin " << pluginName << " installed and loaded successfully." << std::endl;
+        std::cout << "Plugin " << pluginName << " installed and loaded successfully. Please restart cjsh if you would like to use this plugin." << std::endl;
       } else {
         std::cerr << "Failed to install plugin " << pluginName << std::endl;
         return 1;
