@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 
 #define PRINT_ERROR(MSG)        \
   do {                          \
@@ -49,7 +50,7 @@ int plugin_command(const std::vector<std::string>& args) {
         << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting"
         << std::endl;
     std::cout << " help: Show this help message" << std::endl;
-    std::cout << " install [PATH]: Install a new plugin" << std::endl;
+    std::cout << " install [NAME]: Install a plugin from the GitHub repository" << std::endl;
     std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
     return 0;
   }
@@ -103,6 +104,44 @@ int plugin_command(const std::vector<std::string>& args) {
   }
 
   if (cmd == "install" && args.size() > 2) {
+    if (g_plugin) {
+      std::string pluginName = args[2];
+      
+      // Create temporary directory for download
+      std::string tempDir = std::string(getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp") + "/cjsh_plugin_" + pluginName;
+      
+      // Create plugin install directory if it doesn't exist
+      std::string pluginInstallDir = (cjsh_filesystem::g_cjsh_plugin_path / pluginName).string();
+      
+      // Ensure temp directory cleanup regardless of how the function exits
+      std::string cloneCmd = "mkdir -p " + tempDir + " && " +
+                             "trap 'rm -rf " + tempDir + "' EXIT && " +
+                             "git clone --depth 1 https://github.com/CadenFinley/CJsShell.git " + tempDir + "/repo && " +
+                             "if [ -d " + tempDir + "/repo/plugins/" + pluginName + " ]; then " +
+                             "  mkdir -p " + pluginInstallDir + " && " +
+                             "  cp -r " + tempDir + "/repo/plugins/" + pluginName + "/* " + pluginInstallDir + " && " +
+                             "  echo 'Plugin " + pluginName + " downloaded successfully' && " +
+                             // Make build.sh executable and run it
+                             "  chmod +x " + pluginInstallDir + "/build.sh && " +
+                             "  cd " + pluginInstallDir + " && ./build.sh && " +
+                             "  echo 'Plugin " + pluginName + " built and installed successfully'; " +
+                             "else " +
+                             "  echo 'Plugin " + pluginName + " not found in repository' && " +
+                             "  exit 1; " +
+                             "fi";
+      
+      int result = system(cloneCmd.c_str());
+      if (result == 0) {
+        // Load the plugin
+        g_plugin->load_plugin(pluginName);
+        std::cout << "Plugin " << pluginName << " installed and loaded successfully." << std::endl;
+      } else {
+        std::cerr << "Failed to install plugin " << pluginName << std::endl;
+        return 1;
+      }
+    } else {
+      std::cerr << "Plugin manager not initialized" << std::endl;
+    }
     return 0;
   }
 
