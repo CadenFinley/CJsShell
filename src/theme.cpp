@@ -125,12 +125,6 @@ bool Theme::load_theme(const std::string& theme_name) {
   if (theme_json.contains("requirements") &&
       theme_json["requirements"].is_object() &&
       !theme_json["requirements"].empty()) {
-    if (g_startup_active && theme_json["requirements"].contains("plugins") &&
-        g_debug_mode) {
-      std::cerr << "DEBUG: Theme '" << theme_name_to_use
-                << "' has plugin requirements, these will be checked later"
-                << std::endl;
-    }
     if (!check_theme_requirements(theme_json["requirements"])) {
       std::cerr << "Theme '" << theme_name_to_use
                 << "' requirements not met, falling back to previous theme: '"
@@ -621,29 +615,39 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
   std::vector<std::string> missing_requirements;
 
   if (requirements.contains("plugins") && requirements["plugins"].is_array()) {
-    if (!g_startup_active) {
-      for (const auto& plugin_name : requirements["plugins"]) {
-        if (plugin_name.is_string()) {
-          std::string name = plugin_name.get<std::string>();
+    for (const auto& plugin_name : requirements["plugins"]) {
+      if (plugin_name.is_string()) {
+        std::string name = plugin_name.get<std::string>();
 
-          bool plugin_enabled = false;
-          if (g_plugin != nullptr) {
-            auto enabled_plugins = g_plugin->get_enabled_plugins();
-            plugin_enabled =
-                std::find(enabled_plugins.begin(), enabled_plugins.end(),
-                          name) != enabled_plugins.end();
-          }
+        bool plugin_enabled = false;
+        if (g_plugin != nullptr) {
+          auto enabled_plugins = g_plugin->get_enabled_plugins();
+          plugin_enabled =
+              std::find(enabled_plugins.begin(), enabled_plugins.end(), name) !=
+              enabled_plugins.end();
+        }
 
-          if (!plugin_enabled) {
+        if (!plugin_enabled) {
+          if (g_plugin->get_enabled()) {
+            if (!g_plugin->enable_plugin(name)) {
+              auto available_plugins = g_plugin->get_available_plugins();
+              requirements_met = false;
+              if ((std::find(available_plugins.begin(), available_plugins.end(),
+                             name) == available_plugins.end())) {
+                missing_requirements.push_back("Plugin '" + name +
+                                               "' is required but not found");
+              } else {
+                missing_requirements.push_back("Plugin '" + name +
+                                               "' is required but not enabled");
+              }
+            }
+          } else {
             requirements_met = false;
-            missing_requirements.push_back("Plugin '" + name +
-                                           "' is required but not enabled");
+            missing_requirements.push_back(
+                "Plugin system is disabled");
           }
         }
       }
-    } else if (g_debug_mode) {
-      std::cerr << "DEBUG: Skipping plugin requirements check during startup"
-                << std::endl;
     }
   }
 
@@ -755,7 +759,8 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
       ansi_chars++;
     } else if ((c & 0xF8) == 0xF0) {
       // Handle emoji and other characters in the supplemental planes (U+10000
-      // to U+10FFFF) Most emoji are in this range and take up 2 character cells
+      // to U+10FFFF) Most emoji are in this range and take up 2 character
+      // cells
       raw_length += 2;
       visible_chars++;
 
@@ -800,8 +805,8 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
         unsigned char vs3 = (unsigned char)str[i + 2];
 
         if (vs1 == 0xEF && vs2 == 0xB8 && (vs3 == 0x8E || vs3 == 0x8F)) {
-          // These are variation selectors (VS15/VS16) which modify display but
-          // don't add width
+          // These are variation selectors (VS15/VS16) which modify display
+          // but don't add width
           i += 3;
         }
       }

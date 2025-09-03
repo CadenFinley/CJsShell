@@ -30,6 +30,12 @@ int theme_command(const std::vector<std::string>& args) {
       for (const auto& theme : g_theme->list_themes()) {
         std::cout << "  " << theme << std::endl;
       }
+      std::cout << "\nUsage:" << std::endl;
+      std::cout << "  theme <theme_name>        - Load a theme" << std::endl;
+      std::cout << "  theme load <theme_name>   - Load a theme" << std::endl;
+      std::cout << "  theme info <theme_name>   - Show theme information" << std::endl;
+      std::cout << "  theme preview <theme_name> - Preview a theme without loading it" << std::endl;
+      std::cout << "  theme preview all         - Preview all available themes" << std::endl;
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
       return 1;
@@ -166,6 +172,36 @@ int theme_command(const std::vector<std::string>& args) {
     return 0;
   }
 
+  if (args[1] == "preview") {
+    if(g_theme) {
+      if (args.size() < 3) {
+        std::cerr << "Error: Please specify a theme name to preview or 'all'." << std::endl;
+        return 1;
+      }
+      
+      std::string theme_name = args[2];
+      if(theme_name == "all") {
+        std::vector<std::string> all_themes = g_theme->list_themes();
+        all_themes.erase(std::remove(all_themes.begin(), all_themes.end(), g_current_theme), all_themes.end());
+        bool success = true;
+        
+        for (const auto& theme : all_themes) {
+          std::cout << "\n\n";
+          if (preview_theme(theme) != 0) {
+            success = false;
+          }
+        }
+        
+        return success ? 0 : 1;
+      } else {
+        return preview_theme(theme_name);
+      }
+    } else {
+      std::cerr << "Theme manager not initialized" << std::endl;
+      return 1;
+    }
+  }
+
   if (args[1] == "load" && args.size() > 2) {
     if (g_theme) {
       std::string themeName = args[2];
@@ -176,8 +212,6 @@ int theme_command(const std::vector<std::string>& args) {
       } else {
         std::cerr << "Error: Theme '" << themeName
                   << "' not found or could not be loaded." << std::endl;
-        std::cout << "Staying with current theme: '" << g_current_theme << "'"
-                  << std::endl;
         return 0;
       }
     } else {
@@ -195,8 +229,6 @@ int theme_command(const std::vector<std::string>& args) {
     } else {
       std::cerr << "Error: Theme '" << themeName
                 << "' not found or could not be loaded." << std::endl;
-      std::cout << "Staying with current theme: '" << g_current_theme << "'"
-                << std::endl;
       return 0;
     }
   } else {
