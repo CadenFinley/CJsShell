@@ -143,6 +143,8 @@ bool execute_update_if_available(bool avail) {
     int exit_code = g_shell->execute_command(cmd);
     if (exit_code == 0) {
       std::cout << "Update completed successfully.\n";
+      // Update the cache to reflect the current version after successful update
+      save_update_cache(false, c_version);
       return true;
     } else {
       std::cerr << "Error: Update command failed with exit code " << exit_code
@@ -176,10 +178,23 @@ void startup_update_process() {
     std::filesystem::rename(
         cl, cjsh_filesystem::g_cjsh_cache_path / "latest_changelog.txt");
     g_last_updated = get_current_time_string();
+    // After displaying changelog (which indicates a successful update), update the cache
+    save_update_cache(false, c_version);
   } else if (g_check_updates) {
     bool upd = false;
     if (load_update_cache()) {
-      if (should_check_for_updates()) {
+      // Check if cached version matches current version
+      std::string current = c_version;
+      if (!current.empty() && current[0] == 'v') current.erase(0, 1);
+      std::string cached = g_cached_version;
+      if (!cached.empty() && cached[0] == 'v') cached.erase(0, 1);
+      
+      // If current version matches or is newer than cached version, we're updated
+      if (!cached.empty() && !is_newer_version(cached, current)) {
+        // Reset cache if we're at or beyond the cached version
+        save_update_cache(false, current);
+        upd = false;
+      } else if (should_check_for_updates()) {
         upd = check_for_update();
         save_update_cache(upd, g_cached_version);
       } else if (g_cached_update) {
