@@ -643,8 +643,7 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
             }
           } else {
             requirements_met = false;
-            missing_requirements.push_back(
-                "Plugin system is disabled");
+            missing_requirements.push_back("Plugin system is disabled");
           }
         }
       }

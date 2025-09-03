@@ -50,7 +50,8 @@ int plugin_command(const std::vector<std::string>& args) {
         << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting"
         << std::endl;
     std::cout << " help: Show this help message" << std::endl;
-    std::cout << " install [NAME]: Install a plugin from the GitHub repository" << std::endl;
+    std::cout << " install [NAME]: Install a plugin from the GitHub repository"
+              << std::endl;
     std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
     return 0;
   }
@@ -106,37 +107,43 @@ int plugin_command(const std::vector<std::string>& args) {
   if (cmd == "install" && args.size() > 2) {
     if (g_plugin) {
       std::string pluginName = args[2];
-      
+
       // Create temporary directory for download
-      std::string tempDir = std::string(getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp") + "/cjsh_plugin_" + pluginName;
-      
+      std::string tempDir =
+          std::string(getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp") +
+          "/cjsh_plugin_" + pluginName;
+
       // Create plugin install directory if it doesn't exist
-      std::string pluginInstallDir = (cjsh_filesystem::g_cjsh_plugin_path).string();
-      
+      std::string pluginInstallDir =
+          (cjsh_filesystem::g_cjsh_plugin_path).string();
+
       // Ensure temp directory cleanup regardless of how the function exits
-      std::string cloneCmd = "mkdir -p " + tempDir + " && " +
-                             "trap 'rm -rf " + tempDir + "' EXIT && " +
-                             "git clone --depth 1 https://github.com/CadenFinley/CJsShell.git " + tempDir + "/repo && " +
-                             "if [ -d " + tempDir + "/repo/plugins/" + pluginName + " ]; then " +
-                             "  mkdir -p " + tempDir + "/build && " +
-                             "  cp -r " + tempDir + "/repo/plugins/" + pluginName + "/* " + tempDir + "/build/ && " +
-                             "  echo 'Plugin " + pluginName + " downloaded successfully' && " +
-                             "  chmod +x " + tempDir + "/build/build.sh && " +
-                             "  cd " + tempDir + "/build && ./build.sh && " +
-                             "  BINARY_EXT=\".so\" && " +
-                             "  if [ \"$(uname)\" = \"Darwin\" ]; then BINARY_EXT=\".dylib\"; fi && " +
-                             "  cp " + tempDir + "/build/" + pluginName + "$BINARY_EXT " + pluginInstallDir + "/ && " +
-                             "  echo 'Plugin " + pluginName + " built and installed successfully'; " +
-                             "else " +
-                             "  echo 'Plugin " + pluginName + " not found in repository' && " +
-                             "  exit 1; " +
-                             "fi";
-      
+      std::string cloneCmd =
+          "mkdir -p " + tempDir + " && " + "trap 'rm -rf " + tempDir +
+          "' EXIT && " +
+          "git clone --depth 1 https://github.com/CadenFinley/CJsShell.git " +
+          tempDir + "/repo && " + "if [ -d " + tempDir + "/repo/plugins/" +
+          pluginName + " ]; then " + "  mkdir -p " + tempDir + "/build && " +
+          "  cp -r " + tempDir + "/repo/plugins/" + pluginName + "/* " +
+          tempDir + "/build/ && " + "  echo 'Plugin " + pluginName +
+          " downloaded successfully' && " + "  chmod +x " + tempDir +
+          "/build/build.sh && " + "  cd " + tempDir +
+          "/build && ./build.sh && " + "  BINARY_EXT=\".so\" && " +
+          "  if [ \"$(uname)\" = \"Darwin\" ]; then BINARY_EXT=\".dylib\"; fi "
+          "&& " +
+          "  cp " + tempDir + "/build/" + pluginName + "$BINARY_EXT " +
+          pluginInstallDir + "/ && " + "  echo 'Plugin " + pluginName +
+          " built and installed successfully'; " + "else " + "  echo 'Plugin " +
+          pluginName + " not found in repository' && " + "  exit 1; " + "fi";
+
       int result = system(cloneCmd.c_str());
       if (result == 0) {
         // Load the plugin
         g_plugin->load_plugin(pluginName);
-        std::cout << "Plugin " << pluginName << " installed and loaded successfully. Please restart cjsh if you would like to use this plugin." << std::endl;
+        std::cout << "Plugin " << pluginName
+                  << " installed and loaded successfully. Please restart cjsh "
+                     "if you would like to use this plugin."
+                  << std::endl;
       } else {
         std::cerr << "Failed to install plugin " << pluginName << std::endl;
         return 1;
