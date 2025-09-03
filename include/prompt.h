@@ -13,6 +13,7 @@ class Prompt {
   std::string replace_placeholder(const std::string& format,
                                   const std::string& placeholder,
                                   const std::string& value);
+  std::unordered_map<std::string, std::string> get_all_variables();
 
  public:
   Prompt();
