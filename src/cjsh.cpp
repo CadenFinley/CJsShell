@@ -118,7 +118,8 @@ int main(int argc, char* argv[]) {
         // Check if the argument starts with "jsh" (caused by -cjsh)
         if (optarg && std::string(optarg) == "jsh") {
           login_mode = true;
-          if (g_debug_mode) std::cerr << "DEBUG: Login mode enabled via -cjsh" << std::endl;
+          if (g_debug_mode)
+            std::cerr << "DEBUG: Login mode enabled via -cjsh" << std::endl;
         } else {
           l_execute_command = true;
           l_cmd_to_execute = optarg;

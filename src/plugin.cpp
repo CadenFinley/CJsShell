@@ -76,7 +76,7 @@ Plugin::~Plugin() {
     }
   }
   loaded_plugins.clear();
-  
+
   // Clear subscribed events to avoid memory leaks
   {
     std::unique_lock events_lock(events_mutex);
@@ -345,8 +345,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
               << (data.handle_command ? "found" : "not found")
               << ", get_commands: "
               << (data.get_commands ? "found" : "not found")
-              << ", free_memory: "
-              << (data.free_memory ? "found" : "not found") << std::endl;
+              << ", free_memory: " << (data.free_memory ? "found" : "not found")
+              << std::endl;
   }
 
   if (!data.initialize || !data.shutdown || !data.handle_command ||
@@ -1439,7 +1439,7 @@ void Plugin::clear_plugin_cache() {
 
   std::unique_lock discovery_lock(discovery_mutex);
   plugins_discovered = false;
-  
+
   // Clear subscribed events to avoid accumulating stale subscriptions
   {
     std::unique_lock events_lock(events_mutex);
@@ -1449,7 +1449,7 @@ void Plugin::clear_plugin_cache() {
     }
     subscribed_events.clear();
   }
-  
+
   if (g_debug_mode) {
     std::cerr << "DEBUG: clear_plugin_cache - Cache cleared" << std::endl;
   }

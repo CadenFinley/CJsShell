@@ -17,10 +17,11 @@
 
 /**
  * Jarvis Plugin for CJ's Shell
- * 
- * This plugin creates a Python subprocess that acts as an always-on AI assistant.
- * It conforms to the PLUGIN_INTERFACE_VERSION 2 requirements, particularly
- * with respect to memory management for returned arrays and strings.
+ *
+ * This plugin creates a Python subprocess that acts as an always-on AI
+ * assistant. It conforms to the PLUGIN_INTERFACE_VERSION 2 requirements,
+ * particularly with respect to memory management for returned arrays and
+ * strings.
  */
 
 static std::thread worker_thread;
@@ -31,12 +32,9 @@ static pid_t worker_pid = 0;
 // Required plugin information
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
   static plugin_info_t info = {
-      const_cast<char*>("jarvis"),
-      const_cast<char*>("0.1.0"),
+      const_cast<char*>("jarvis"), const_cast<char*>("0.1.0"),
       const_cast<char*>("Test prompt variable plugin"),
-      const_cast<char*>("caden finley"),
-      PLUGIN_INTERFACE_VERSION
-  };
+      const_cast<char*>("caden finley"), PLUGIN_INTERFACE_VERSION};
   return &info;
 }
 
