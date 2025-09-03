@@ -6,6 +6,7 @@
 
 #include "builtin.h"
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "signal_handler.h"
 
 void Shell::process_pending_signals() {
@@ -114,6 +115,44 @@ void Shell::setup_job_control() {
 }
 
 int Shell::do_ai_request(const std::string& command) {
+  if (command == "exit" || command == "clear" || command == "quit") {
+    return execute_command(command);
+  }
+  std::string first_word;
+  std::istringstream iss(command);
+  iss >> first_word;
+
+  if (!first_word.empty()) {
+    auto cached_executables = cjsh_filesystem::read_cached_executables();
+    std::unordered_set<std::string> available_commands =
+        get_available_commands();
+
+    bool is_executable = false;
+    for (const auto& exec_path : cached_executables) {
+      if (exec_path.filename().string() == first_word) {
+        is_executable = true;
+        break;
+      }
+    }
+
+    if (!is_executable &&
+        available_commands.find(first_word) != available_commands.end()) {
+      is_executable = true;
+    }
+
+    if (is_executable) {
+      std::cout
+          << "It looks like you're trying to run a command '" << first_word
+          << "' in AI mode. Did you mean to run it as a shell command? (y/n): ";
+      std::string response;
+      std::getline(std::cin, response);
+
+      if (!response.empty() && (response[0] == 'y' || response[0] == 'Y')) {
+        return execute_command(command);
+      }
+    }
+  }
+
   return built_ins->do_ai_request(command);
 }
 
