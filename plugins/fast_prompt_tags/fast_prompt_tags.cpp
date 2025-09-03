@@ -717,7 +717,7 @@ static plugin_string_t git_changes_callback() {
 // Required plugin information
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
   static plugin_info_t info = {
-      (char*)"threaded_prompt", (char*)"0.3.0",
+      (char*)"fast_prompt_tags", (char*)"0.3.0",
       (char*)"Fast prompt info using background threads", (char*)"Caden Finley",
       PLUGIN_INTERFACE_VERSION};
   return &info;
