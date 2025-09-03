@@ -138,7 +138,7 @@ pub extern "C" fn plugin_get_info() -> *mut plugin_info_t {
     
     unsafe {
         if !INFO_INITIALIZED {
-            NAME = string_to_c_str("all_features_rust_plugin");
+            NAME = string_to_c_str("example_rust_plugin");
             VERSION = string_to_c_str("1.0.0");
             DESCRIPTION = string_to_c_str("A comprehensive plugin demonstrating all CJSH plugin features in Rust");
             AUTHOR = string_to_c_str("Caden Finley");

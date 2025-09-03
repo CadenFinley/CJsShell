@@ -30,7 +30,7 @@ __attribute__((weak)) plugin_error_t plugin_register_prompt_variable(
 }
 
 // Define the plugin version and name constants
-#define PLUGIN_NAME "all_features_plugin"
+#define PLUGIN_NAME "example_cpp_plugin"
 #define PLUGIN_VERSION "1.0.0"
 
 // Global variables for plugin state
