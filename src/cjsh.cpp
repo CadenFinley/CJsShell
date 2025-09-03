@@ -23,6 +23,7 @@
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
+//  commands running very slow especially script files
 /*
  * Exit/Return Codes:
  * 0       - Success

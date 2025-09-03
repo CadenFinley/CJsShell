@@ -29,7 +29,6 @@ Exec::~Exec() {
     Job& job = job_pair.second;
     if (!job.completed) {
       for (pid_t pid : job.pids) {
-        // Check if the process still exists before sending a signal
         if (kill(pid, 0) == 0) {
           kill(pid, SIGTERM);
         }
@@ -192,6 +191,13 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       if (tcsetpgrp(shell_terminal, child_pid) < 0) {
         perror("tcsetpgrp failed in child");
       }
+    }
+
+    if (dup2(STDOUT_FILENO, STDOUT_FILENO) == -1) {
+        perror("dup2 stdout");
+    }
+    if (dup2(STDERR_FILENO, STDERR_FILENO) == -1) {
+        perror("dup2 stderr");
     }
 
     if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
@@ -506,24 +512,28 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         return EX_OSERR;
       }
 
-      if (pid == 0) {
-        if (i == 0) {
-          pgid = getpid();
-        }
+  if (pid == 0) {
+    if (i == 0) {
+      pgid = getpid();
+    }
 
-        if (setpgid(0, pgid) < 0) {
-          perror("setpgid failed in child");
-          _exit(EXIT_FAILURE);
-        }
+    if (setpgid(0, pgid) < 0) {
+      perror("setpgid failed in child");
+      _exit(EXIT_FAILURE);
+    }
 
-        signal(SIGINT, SIG_DFL);
-        signal(SIGQUIT, SIG_DFL);
-        signal(SIGTSTP, SIG_DFL);
-        signal(SIGTTIN, SIG_DFL);
-        signal(SIGTTOU, SIG_DFL);
-        signal(SIGCHLD, SIG_DFL);
+    if (shell_is_interactive && i == 0) {
+      if (tcsetpgrp(shell_terminal, pgid) < 0) {
+        perror("tcsetpgrp failed in child");
+      }
+    }
 
-        if (i == 0) {
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGTSTP, SIG_DFL);
+    signal(SIGTTIN, SIG_DFL);
+    signal(SIGTTOU, SIG_DFL);
+    signal(SIGCHLD, SIG_DFL);        if (i == 0) {
           if (!cmd.input_file.empty()) {
             int fd = open(cmd.input_file.c_str(), O_RDONLY);
             if (fd == -1) {
@@ -810,6 +820,7 @@ void Exec::wait_for_job(int job_id) {
       if (WIFEXITED(status)) {
         int exit_status = WEXITSTATUS(status);
         last_exit_code = exit_status;
+        job.completed = true;
         if (exit_status == 0) {
           set_error("command completed successfully");
         } else {
