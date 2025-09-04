@@ -79,7 +79,7 @@ class Ai {
   bool load_config(const std::string& config_name);
   bool save_config_as(const std::string& config_name);
 
-  std::string chat_gpt(const std::string& message, bool format);
+  std::string chat_gpt(const std::string& sys_prompt, const std::string& message, bool format);
   std::string force_direct_chat_gpt(const std::string& message, bool format);
   int set_files(const std::vector<std::string>& user_files);
   int set_file(const std::string& user_file);
@@ -103,7 +103,7 @@ class Ai {
                   const std::vector<std::string>& user_files);
   bool is_valid_configuration() const;
   std::string get_invalid_configuration_message() const;
-  std::string build_prompt(const std::string& message);
+  std::string build_prompt(const std::string& sys_prompt, const std::string& message);
   std::string make_call_to_chat_gpt(const std::string& message);
   static std::string filter_message(const std::string& message);
   std::map<std::string, nlohmann::json> parse_json_response(
