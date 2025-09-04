@@ -91,6 +91,12 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 
+# Find internationalization library (needed for json library on some platforms)
+find_library(INTL_LIBRARY intl)
+if(NOT INTL_LIBRARY)
+  message(STATUS "libintl not found as a separate library, assuming it's part of libc")
+endif()
+
 # Optional protocol libraries removed for simpler build
 # find_package(LDAP)
 # find_package(Libssh2)
@@ -131,6 +137,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dl
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
+    ${INTL_LIBRARY}
 )
 
 # Use dynamic linking for libcurl instead of static

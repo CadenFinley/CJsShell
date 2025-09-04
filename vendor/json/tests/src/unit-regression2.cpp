@@ -42,6 +42,22 @@ using ordered_json = nlohmann::ordered_json;
     #elif __has_include(<experimental/optional>)
         #include <experimental/optional>
     #endif
+
+    /////////////////////////////////////////////////////////////////////
+    // for #4804
+    /////////////////////////////////////////////////////////////////////
+    using json_4804 = nlohmann::basic_json<std::map,        // ObjectType
+    std::vector,     // ArrayType
+    std::string,     // StringType
+    bool,            // BooleanType
+    std::int64_t,    // NumberIntegerType
+    std::uint64_t,   // NumberUnsignedType
+    double,          // NumberFloatType
+    std::allocator,  // AllocatorType
+    nlohmann::adl_serializer,  // JSONSerializer
+    std::vector<std::byte>,    // BinaryType
+    void                       // CustomBaseClass
+    >;
 #endif
 
 #ifdef JSON_HAS_CPP_20
@@ -347,7 +363,7 @@ struct for_3204_foo
 
 struct for_3204_bar
 {
-    enum constructed_from_t
+    enum constructed_from_t // NOLINT(cppcoreguidelines-use-enum-class)
     {
         constructed_from_none = 0,
         constructed_from_foo = 1,
@@ -549,7 +565,7 @@ TEST_CASE("regression tests 2")
             {"3", {{"a", "testa_3"}, {"b", "testb_3"}}},
         };
 
-        std::map<std::string, Data> expected
+        const std::map<std::string, Data> expected
         {
             {"1", {"testa_1", "testb_1"}},
             {"2", {"testa_2", "testb_2"}},
@@ -642,7 +658,7 @@ TEST_CASE("regression tests 2")
 #if !(defined(__INTEL_COMPILER) && __cplusplus >= 202000)
         {
             const json j;
-            NonDefaultFromJsonStruct x(j);
+            const NonDefaultFromJsonStruct x(j);
             NonDefaultFromJsonStruct y;
             CHECK(x == y);
         }
@@ -920,7 +936,7 @@ TEST_CASE("regression tests 2")
     SECTION("issue #2982 - to_{binary format} does not provide a mechanism for specifying a custom allocator for the returned type")
     {
         std::vector<std::uint8_t, my_allocator<std::uint8_t>> my_vector;
-        json j = {1, 2, 3, 4};
+        const json j = {1, 2, 3, 4};
         json::to_cbor(j, my_vector);
         json k = json::from_cbor(my_vector);
         CHECK(j == k);
@@ -1019,8 +1035,8 @@ TEST_CASE("regression tests 2")
 
     SECTION("issue #3204 - ambiguous regression")
     {
-        for_3204_bar bar_from_foo([](for_3204_foo) noexcept {}); // NOLINT(performance-unnecessary-value-param)
-        for_3204_bar bar_from_json([](json) noexcept {}); // NOLINT(performance-unnecessary-value-param)
+        const for_3204_bar bar_from_foo([](for_3204_foo) noexcept {}); // NOLINT(performance-unnecessary-value-param)
+        const for_3204_bar bar_from_json([](json) noexcept {}); // NOLINT(performance-unnecessary-value-param)
 
         CHECK(bar_from_foo.constructed_from == for_3204_bar::constructed_from_foo);
         CHECK(bar_from_json.constructed_from == for_3204_bar::constructed_from_json);
@@ -1033,7 +1049,7 @@ TEST_CASE("regression tests 2")
             {"x", 1},
             {"y", 2}
         };
-        for_3333 p = j;
+        const for_3333 p = j;
 
         CHECK(p.x == 1);
         CHECK(p.y == 2);
@@ -1080,6 +1096,96 @@ TEST_CASE("regression tests 2")
         CHECK(t4.port.has_value());
     }
 #endif
+
+#if !defined(_MSVC_LANG)
+    // MSVC returns garbage on invalid enum values, so this test is excluded
+    // there.
+    SECTION("issue #4762 - json exception 302 with unhelpful explanation : type must be number, but is number")
+    {
+        // In #4762, the main issue was that a json object with an invalid type
+        // returned "number" as type_name(), because this was the default case.
+        // This test makes sure we now return "invalid" instead.
+        json j;
+        j.m_data.m_type = static_cast<json::value_t>(100); // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
+        CHECK(j.type_name() == "invalid");
+    }
+#endif
+
+#ifdef JSON_HAS_CPP_17
+    SECTION("issue #4804: from_cbor incompatible with std::vector<std::byte> as binary_t")
+    {
+        const std::vector<std::uint8_t> data = {0x80};
+        const auto decoded = json_4804::from_cbor(data);
+        CHECK((decoded == json_4804::array()));
+    }
+#endif
+}
+
+TEST_CASE_TEMPLATE("issue #4798 - nlohmann::json::to_msgpack() encode float NaN as double", T, double, float) // NOLINT(readability-math-missing-parentheses)
+{
+    // With issue #4798, we encode NaN, infinity, and -infinity as float instead
+    // of double to allow for smaller encodings.
+    const json jx = std::numeric_limits<T>::quiet_NaN();
+    const json jy = std::numeric_limits<T>::infinity();
+    const json jz = -std::numeric_limits<T>::infinity();
+
+    /////////////////////////////////////////////////////////////////////////
+    // MessagePack
+    /////////////////////////////////////////////////////////////////////////
+
+    // expected MessagePack values
+    const std::vector<std::uint8_t> msgpack_x = {{0xCA, 0x7F, 0xC0, 0x00, 0x00}};
+    const std::vector<std::uint8_t> msgpack_y = {{0xCA, 0x7F, 0x80, 0x00, 0x00}};
+    const std::vector<std::uint8_t> msgpack_z = {{0xCA, 0xFF, 0x80, 0x00, 0x00}};
+
+    CHECK(json::to_msgpack(jx) == msgpack_x);
+    CHECK(json::to_msgpack(jy) == msgpack_y);
+    CHECK(json::to_msgpack(jz) == msgpack_z);
+
+    CHECK(std::isnan(json::from_msgpack(msgpack_x).get<T>()));
+    CHECK(json::from_msgpack(msgpack_y).get<T>() == std::numeric_limits<T>::infinity());
+    CHECK(json::from_msgpack(msgpack_z).get<T>() == -std::numeric_limits<T>::infinity());
+
+    // Make sure the other MessagePakc encodings for NaN, infinity, and
+    // -infinity are still supported.
+    const std::vector<std::uint8_t> msgpack_x_2 = {{0xCB, 0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    const std::vector<std::uint8_t> msgpack_y_2 = {{0xCB, 0x7F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    const std::vector<std::uint8_t> msgpack_z_2 = {{0xCB, 0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    CHECK(std::isnan(json::from_msgpack(msgpack_x_2).get<T>()));
+    CHECK(json::from_msgpack(msgpack_y_2).get<T>() == std::numeric_limits<T>::infinity());
+    CHECK(json::from_msgpack(msgpack_z_2).get<T>() == -std::numeric_limits<T>::infinity());
+
+    /////////////////////////////////////////////////////////////////////////
+    // CBOR
+    /////////////////////////////////////////////////////////////////////////
+
+    // expected CBOR values
+    const std::vector<std::uint8_t> cbor_x = {{0xF9, 0x7E, 0x00}};
+    const std::vector<std::uint8_t> cbor_y = {{0xF9, 0x7C, 0x00}};
+    const std::vector<std::uint8_t> cbor_z = {{0xF9, 0xfC, 0x00}};
+
+    CHECK(json::to_cbor(jx) == cbor_x);
+    CHECK(json::to_cbor(jy) == cbor_y);
+    CHECK(json::to_cbor(jz) == cbor_z);
+
+    CHECK(std::isnan(json::from_cbor(cbor_x).get<T>()));
+    CHECK(json::from_cbor(cbor_y).get<T>() == std::numeric_limits<T>::infinity());
+    CHECK(json::from_cbor(cbor_z).get<T>() == -std::numeric_limits<T>::infinity());
+
+    // Make sure the other CBOR encodings for NaN, infinity, and -infinity are
+    // still supported.
+    const std::vector<std::uint8_t> cbor_x_2 = {{0xFA, 0x7F, 0xC0, 0x00, 0x00}};
+    const std::vector<std::uint8_t> cbor_y_2 = {{0xFA, 0x7F, 0x80, 0x00, 0x00}};
+    const std::vector<std::uint8_t> cbor_z_2 = {{0xFA, 0xFF, 0x80, 0x00, 0x00}};
+    const std::vector<std::uint8_t> cbor_x_3 = {{0xFB, 0x7F, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    const std::vector<std::uint8_t> cbor_y_3 = {{0xFB, 0x7F, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    const std::vector<std::uint8_t> cbor_z_3 = {{0xFB, 0xFF, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    CHECK(std::isnan(json::from_cbor(cbor_x_2).get<T>()));
+    CHECK(json::from_cbor(cbor_y_2).get<T>() == std::numeric_limits<T>::infinity());
+    CHECK(json::from_cbor(cbor_z_2).get<T>() == -std::numeric_limits<T>::infinity());
+    CHECK(std::isnan(json::from_cbor(cbor_x_3).get<T>()));
+    CHECK(json::from_cbor(cbor_y_3).get<T>() == std::numeric_limits<T>::infinity());
+    CHECK(json::from_cbor(cbor_z_3).get<T>() == -std::numeric_limits<T>::infinity());
 }
 
 DOCTEST_CLANG_SUPPRESS_WARNING_POP
