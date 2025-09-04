@@ -25,6 +25,7 @@ const std::string c_pid_str = std::to_string(getpid());
 const std::string c_reset_color = "\033[0m";
 const std::string c_title_color = "\033[1;35m";
 
+extern std::string pre_release_line;
 extern bool g_debug_mode;
 extern bool g_cached_update;
 extern bool g_check_updates;
