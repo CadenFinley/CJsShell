@@ -7,14 +7,7 @@
 #include "prompt_info.h"
 #include "theme.h"
 
-enum class PromptType {
-  PS1,
-  GIT,
-  AI,
-  NEWLINE,
-  TITLE,
-  ALL
-};
+enum class PromptType { PS1, GIT, AI, NEWLINE, TITLE, ALL };
 
 class Prompt {
  private:
@@ -23,7 +16,8 @@ class Prompt {
   std::string replace_placeholder(const std::string& format,
                                   const std::string& placeholder,
                                   const std::string& value);
-  std::unordered_map<std::string, std::string> get_variables(PromptType type, bool is_git_repo = false);
+  std::unordered_map<std::string, std::string> get_variables(
+      PromptType type, bool is_git_repo = false);
 
  public:
   Prompt();

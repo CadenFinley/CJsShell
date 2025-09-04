@@ -10,7 +10,6 @@ Prompt::Prompt() : repo_root() {}
 Prompt::~Prompt() {}
 
 std::string Prompt::get_prompt() {
-
   // it should never be empty
   if (g_current_theme.empty()) {
     if (!g_theme->get_enabled()) {
@@ -21,16 +20,18 @@ std::string Prompt::get_prompt() {
   }
 
   if (!g_theme->get_enabled()) {
-      return info.get_basic_prompt();
+    return info.get_basic_prompt();
   }
 
   bool is_git_repo = info.is_git_repository(repo_root);
-  
+
   if (is_git_repo) {
-    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::GIT, true);
+    std::unordered_map<std::string, std::string> vars =
+        get_variables(PromptType::GIT, true);
     return g_theme->get_git_prompt_format(vars);
   } else {
-    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::PS1, false);
+    std::unordered_map<std::string, std::string> vars =
+        get_variables(PromptType::PS1, false);
     return g_theme->get_ps1_prompt_format(vars);
   }
 }
@@ -49,14 +50,15 @@ std::string Prompt::get_ai_prompt() {
   }
 
   if (!g_theme->get_enabled()) {
-      return info.get_basic_ai_prompt();
+    return info.get_basic_ai_prompt();
   }
 
   if (modelInfo.empty()) modelInfo = "Unknown";
   if (modeInfo.empty()) modeInfo = "Chat";
 
   // Get variables only for AI prompt
-  std::unordered_map<std::string, std::string> vars = get_variables(PromptType::AI);
+  std::unordered_map<std::string, std::string> vars =
+      get_variables(PromptType::AI);
 
   // Add or update AI-specific variables
   vars["AI_MODEL"] = modelInfo;
@@ -73,7 +75,6 @@ std::string Prompt::get_ai_prompt() {
 }
 
 std::string Prompt::get_newline_prompt() {
-
   // it should never be empty
   if (g_current_theme.empty()) {
     if (!g_theme->get_enabled()) {
@@ -84,11 +85,12 @@ std::string Prompt::get_newline_prompt() {
   }
 
   if (!g_theme->get_enabled()) {
-      return " ";
-    }
+    return " ";
+  }
 
   // Get variables only for newline prompt
-  std::unordered_map<std::string, std::string> vars = get_variables(PromptType::NEWLINE);
+  std::unordered_map<std::string, std::string> vars =
+      get_variables(PromptType::NEWLINE);
 
   return g_theme->get_newline_prompt(vars);
 }
@@ -108,7 +110,8 @@ std::string Prompt::get_title_prompt() {
   std::string prompt_format = g_theme->get_terminal_title_format();
 
   // Get variables only for title prompt
-  std::unordered_map<std::string, std::string> vars = get_variables(PromptType::TITLE);
+  std::unordered_map<std::string, std::string> vars =
+      get_variables(PromptType::TITLE);
 
   for (const auto& [key, value] : vars) {
     prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
@@ -130,10 +133,11 @@ std::string Prompt::replace_placeholder(const std::string& format,
 }
 
 // Helper method to get variables for a specific prompt type
-std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType type, bool is_git_repo) {
+std::unordered_map<std::string, std::string> Prompt::get_variables(
+    PromptType type, bool is_git_repo) {
   // Collect only the segments needed for the requested prompt type
   std::vector<nlohmann::json> segments;
-  
+
   switch (type) {
     case PromptType::PS1:
       segments.insert(segments.end(), g_theme->ps1_segments.begin(),
@@ -166,7 +170,7 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType ty
                       g_theme->ai_segments.end());
       segments.insert(segments.end(), g_theme->newline_segments.begin(),
                       g_theme->newline_segments.end());
-      
+
       nlohmann::json title_segment;
       title_segment["content"] = g_theme->get_terminal_title_format();
       segments.push_back(title_segment);
