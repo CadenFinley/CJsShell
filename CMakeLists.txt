@@ -92,10 +92,8 @@ find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 
 # Find internationalization library (needed for json library on some platforms)
-find_library(INTL_LIBRARY intl)
-if(NOT INTL_LIBRARY)
-  message(STATUS "libintl not found as a separate library, assuming it's part of libc")
-endif()
+find_library(INTL_LIBRARY NAMES intl REQUIRED)
+# REQUIRED flag will cause an error if not found
 
 # Optional protocol libraries removed for simpler build
 # find_package(LDAP)
