@@ -48,16 +48,6 @@
       "align": "left"
     },
     {
-      "tag": "batteryseg",
-      "content": " {BATTERY} ",
-      "bg_color": "#767676",
-      "fg_color": "#d5c4a1",
-      "separator": "\uE0B0",
-      "separator_fg": "#767676",
-      "separator_bg": "#3a3a3a",
-      "align": "left"
-    },
-    {
       "tag": "netseg",
       "content": " {NET_IFACE} | {IP_LOCAL} ",
       "bg_color": "#3a3a3a",
@@ -160,7 +150,7 @@
     },
     {
       "tag": "sysseg",
-      "content": " {CPU_USAGE}% | {MEM_USAGE}% ",
+      "content": " {CPU_USAGE} | {MEM_USAGE} ",
       "bg_color": "#3a3a3a",
       "fg_color": "#d5c4a1",
       "separator": "\uE0B0",
