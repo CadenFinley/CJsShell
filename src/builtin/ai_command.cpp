@@ -260,7 +260,9 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       }
       std::string config_name = args[command_index + 2];
       if (g_ai->load_config(config_name)) {
-        std::cout << "Switched to AI config: " << config_name << std::endl;
+        if (!g_startup_active) {
+          std::cout << "Switched to AI config: " << config_name << std::endl;
+        }
       } else {
         std::cout << "Failed to switch to AI config: " << config_name
                   << std::endl;

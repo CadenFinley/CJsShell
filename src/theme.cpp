@@ -128,8 +128,7 @@ bool Theme::load_theme(const std::string& theme_name) {
       theme_json["requirements"].is_object() &&
       !theme_json["requirements"].empty()) {
     if (!check_theme_requirements(theme_json["requirements"])) {
-      std::string previous_theme =
-          (g_current_theme == "" ? "default" : g_current_theme);
+      std::string previous_theme = (g_current_theme == "" ? "default" : g_current_theme);
       std::cerr << "Error: Theme '" << theme_name_to_use
                 << "' requirements not met, falling back to previous theme: '"
                 << previous_theme << "'" << std::endl;
@@ -643,7 +642,7 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
     }
   }
 
-  if (requirements.contains("fonts") && requirements["fonts"].is_array()) {
+  if (requirements.contains("fonts") && requirements["fonts"].is_array() && !g_startup_active) {
     std::stringstream font_req;
     font_req << "This theme works best with one of these fonts: ";
     bool first = true;

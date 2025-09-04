@@ -716,7 +716,9 @@ bool Plugin::enable_plugin(const std::string& name) {
       return false;
     }
     it->second.enabled = true;
-    std::cout << "Enabled plugin: " << name << std::endl;
+    if (!g_startup_active) {
+      std::cout << "Enabled plugin: " << name << std::endl;
+    }
     if (g_debug_mode) {
       std::cerr << "DEBUG: enable_plugin - Marked plugin as enabled"
                 << std::endl;
