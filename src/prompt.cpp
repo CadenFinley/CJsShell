@@ -39,12 +39,17 @@ std::string Prompt::get_ai_prompt() {
   std::string modelInfo = g_ai->get_model();
   std::string modeInfo = g_ai->get_assistant_type();
 
+  // it should never be empty
   if (g_current_theme.empty()) {
     if (!g_theme->get_enabled()) {
       return info.get_basic_ai_prompt();
     } else {
       g_theme->load_theme("default");
     }
+  }
+
+  if (!g_theme->get_enabled()) {
+      return info.get_basic_ai_prompt();
   }
 
   if (modelInfo.empty()) modelInfo = "Unknown";
@@ -68,6 +73,8 @@ std::string Prompt::get_ai_prompt() {
 }
 
 std::string Prompt::get_newline_prompt() {
+
+  // it should never be empty
   if (g_current_theme.empty()) {
     if (!g_theme->get_enabled()) {
       return " ";
@@ -75,6 +82,10 @@ std::string Prompt::get_newline_prompt() {
       g_theme->load_theme("default");
     }
   }
+
+  if (!g_theme->get_enabled()) {
+      return " ";
+    }
 
   // Get variables only for newline prompt
   std::unordered_map<std::string, std::string> vars = get_variables(PromptType::NEWLINE);
@@ -89,6 +100,10 @@ std::string Prompt::get_title_prompt() {
     } else {
       g_theme->load_theme("default");
     }
+  }
+
+  if (!g_theme->get_enabled()) {
+    return info.get_basic_title();
   }
   std::string prompt_format = g_theme->get_terminal_title_format();
 
