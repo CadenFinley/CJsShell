@@ -10,6 +10,7 @@
 #include <future>
 #include <iostream>
 #include <map>
+#include "libintl_shim.h"  // Include our shim before JSON
 #include <nlohmann/json.hpp>
 #include <string>
 #include <thread>

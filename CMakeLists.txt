@@ -71,8 +71,13 @@ file(GLOB ISOCLINE_MAIN_C
   "src/isocline/wcwidth.c"
 )
 
+# Add our shim file first in the sources list
+set(SHIM_FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/libintl_shim.cpp"
+)
+
 # Remove files that are included by other files and shouldn't be compiled separately
-list(APPEND SOURCES ${ISOCLINE_MAIN_C})
+list(APPEND SOURCES ${ISOCLINE_MAIN_C} ${SHIM_FILES})
 
 # Find files in sources that should be excluded
 file(GLOB EXCLUDE_FILES
@@ -138,10 +143,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Use dynamic linking for libcurl instead of static
 add_definitions(-DCURL_STATICLIB=0)
 
-# Prevent JSON library from using libintl_snprintf
+# Prevent JSON library from using certain features
 add_definitions(-DJSON_NOEXCEPTION=1)
 add_definitions(-DJSON_USE_IMPLICIT_CONVERSIONS=1)
-add_definitions(-Dlibintl_snprintf=snprintf)
 
 add_custom_target(format
   COMMAND clang-format -i -style=file
