@@ -135,7 +135,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dl
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
-    ${INTL_LIBRARY}
 )
 
 # Use dynamic linking for libcurl instead of static
