@@ -36,7 +36,8 @@ else()
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.${ARCH}.cmake)
 endif()
 
-find_package(PkgConfig REQUIRED)
+# Removed unnecessary pkg-config dependency
+# find_package(PkgConfig REQUIRED)
 
 # File globbing and main target definition
 file(GLOB_RECURSE SOURCES 
@@ -90,13 +91,13 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 
-# Check for optional libraries
-find_package(LDAP)
-find_package(Libssh2)
-find_package(LibRTMP)
-find_package(LibPSL)
-find_package(LibIDN2)
-find_package(Libnghttp2)
+# Optional protocol libraries removed for simpler build
+# find_package(LDAP)
+# find_package(Libssh2)
+# find_package(LibRTMP)
+# find_package(LibPSL)
+# find_package(LibIDN2)
+# find_package(Libnghttp2)
 
 # Set isocline library to use separate objects
 add_definitions(-DIC_SEPARATE_OBJS=1)
@@ -115,10 +116,10 @@ set_source_files_properties(
 )
 
 # Add required include directories
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json
+    # Include vendored JSON library
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json/include
     ${OPENSSL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
@@ -131,26 +132,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
 )
-
-# Add optional libraries if found
-if(LDAP_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LDAP_LIBRARIES})
-endif()
-if(LIBSSH2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBSSH2_LIBRARIES})
-endif()
-if(LIBRTMP_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRTMP_LIBRARIES})
-endif()
-if(LIBPSL_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBPSL_LIBRARIES})
-endif()
-if(LIBIDN2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBIDN2_LIBRARIES})
-endif()
-if(LIBNGHTTP2_FOUND)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBNGHTTP2_LIBRARIES})
-endif()
 
 # Use dynamic linking for libcurl instead of static
 add_definitions(-DCURL_STATICLIB=0)
