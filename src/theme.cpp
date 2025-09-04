@@ -134,7 +134,8 @@ bool Theme::load_theme(const std::string& theme_name) {
                 << "' requirements not met, falling back to previous theme: '"
                 << previous_theme << "'" << std::endl;
       if (theme_name_to_use != previous_theme) {
-        return load_theme(previous_theme);
+        g_current_theme = previous_theme;
+        return load_theme(g_current_theme);
       } else {
         if (theme_name_to_use != "default") {
           std::cerr << "Falling back to default theme" << std::endl;
