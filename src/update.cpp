@@ -132,26 +132,12 @@ bool execute_update_if_available(bool avail) {
     std::cout << "\nYou are up to date!.\n";
     return false;
   }
-  std::cout << "\nAn update is available. Please run:\n"
-            << "  brew upgrade cadenfinley/tap/cjsh\n";
-  std::cout << "or would you like to automattically run that command? (y/n): ";
-  std::string response;
-  std::getline(std::cin, response);
-  if (response == "y" || response == "Y") {
-    std::string cmd = "brew upgrade cadenfinley/tap/cjsh";
-    std::cout << "Running command: " << cmd << "\n";
-    int exit_code = g_shell->execute_command(cmd);
-    if (exit_code == 0) {
-      std::cout << "Update completed successfully.\n";
-      // Update the cache to reflect the current version after successful update
-      save_update_cache(false, c_version);
-      return true;
-    } else {
-      std::cerr << "Error: Update command failed with exit code " << exit_code
-                << "\n";
-      return false;
-    }
-  }
+  std::cout << "\nAn update is available." << std::endl;
+  // if on mac run brew upgrade cadenfinley/tap/cjsh
+  // if on linux tell the user to rebuild using the latest release from the repository
+  std::cout << "Please run the appropriate command for your system to update:\n"
+            << "  macOS: brew upgrade cadenfinley/tap/cjsh\n"
+            << "  Linux: Rebuild using the latest release from the repository\n";
   return false;
 }
 
@@ -172,6 +158,9 @@ void startup_update_process() {
     mark_first_boot_complete();
     g_title_line = false;
   }
+  if (PRE_RELEASE) {
+    return;
+  }
   auto cl = (cjsh_filesystem::g_cjsh_cache_path / "CHANGELOG.txt").string();
   if (std::filesystem::exists(cl)) {
     display_changelog(cl);
@@ -186,7 +175,15 @@ void startup_update_process() {
       if (!current.empty() && current[0] == 'v') current.erase(0, 1);
       std::string cached = g_cached_version;
       if (!cached.empty() && cached[0] == 'v') cached.erase(0, 1);
-      if (!cached.empty() && !is_newer_version(cached, current)) {
+
+      // If current version is newer than cached version, update the cache
+      if (!cached.empty() && is_newer_version(current, cached)) {
+        if (g_debug_mode)
+          std::cout << "Current version " << current << " is newer than cached version " 
+                    << cached << ". Updating cache.\n";
+        save_update_cache(false, current);
+        upd = false;
+      } else if (!cached.empty() && !is_newer_version(cached, current)) {
         save_update_cache(false, current);
         upd = false;
       } else if (should_check_for_updates()) {
