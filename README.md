@@ -25,10 +25,9 @@ CJ's Shell combines the familiarity of traditional POSIX shells with modern deve
 
 - **Built-in AI Assistant**: First-class AI integration with context-aware code assistance, file searching, and multi-model support directly in your terminal—no external plugins required.
 - **Dynamic Plugin Engine**: Language-agnostic plugin API with compiled shared libraries, centralized management, and event hooks for deep integration—beyond just "sourced" scripts.
-- **Rich Theme System**: JSON-based themes with segmented prompts, dynamic variables (git status, CPU/memory usage), and right-aligned fields managed through a built-in theme command.
+- **Rich Theme System**: JSON-based themes with segmented prompts, dynamic variables (git status, CPU/memory usage), and aligned fields managed through a built-in theme command.
 - **Batteries Included**: Built-in commands for enhanced `ls`, version checking, updates, and plugin/theme management without external dependencies.
 - **Modern Interactive Experience**: Syntax highlighting, programmable completions, and clean configuration files with clear separation between login and interactive settings.
-- **Self-Updating**: Built-in `--update` and `--check-update` commands to stay current without relying on package managers.
 
 #### Core Similarities
 
