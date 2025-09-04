@@ -36,8 +36,6 @@ else()
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.${ARCH}.cmake)
 endif()
 
-# Removed unnecessary pkg-config dependency
-# find_package(PkgConfig REQUIRED)
 
 # File globbing and main target definition
 file(GLOB_RECURSE SOURCES 
@@ -95,14 +93,6 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # Find additional libraries needed for libcurl
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
-
-# Optional protocol libraries removed for simpler build
-# find_package(LDAP)
-# find_package(Libssh2)
-# find_package(LibRTMP)
-# find_package(LibPSL)
-# find_package(LibIDN2)
-# find_package(Libnghttp2)
 
 # Set isocline library to use separate objects
 add_definitions(-DIC_SEPARATE_OBJS=1)
@@ -189,8 +179,4 @@ if(BUILD_TESTS)
   )
 
   add_test(NAME ParserTests COMMAND parser_tests --gtest_color=yes)
-  
-  # Optional: To see more detailed output, uncomment one of these:
-  # set_tests_properties(ParserTests PROPERTIES ENVIRONMENT "GTEST_OUTPUT=xml:${CMAKE_BINARY_DIR}/test_results/")
-  # set_tests_properties(ParserTests PROPERTIES ENVIRONMENT "CTEST_OUTPUT_ON_FAILURE=1")
 endif()

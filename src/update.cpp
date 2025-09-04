@@ -133,11 +133,11 @@ bool execute_update_if_available(bool avail) {
     return false;
   }
   std::cout << "\nAn update is available." << std::endl;
-  // if on mac run brew upgrade cadenfinley/tap/cjsh
-  // if on linux tell the user to rebuild using the latest release from the repository
-  std::cout << "Please run the appropriate command for your system to update:\n"
-            << "  macOS: brew upgrade cadenfinley/tap/cjsh\n"
-            << "  Linux: Rebuild using the latest release from the repository\n";
+  std::cout << "If you have homebrew installed, you can update with:\n"
+            << "  brew upgrade cadenfinley/tap/cjsh\n";
+  std::cout << "Otherwise you need to head to the GitHub releases page to "
+               "download the latest source code and build it yourself."
+            << std::endl;
   return false;
 }
 
@@ -179,8 +179,9 @@ void startup_update_process() {
       // If current version is newer than cached version, update the cache
       if (!cached.empty() && is_newer_version(current, cached)) {
         if (g_debug_mode)
-          std::cout << "Current version " << current << " is newer than cached version " 
-                    << cached << ". Updating cache.\n";
+          std::cout << "Current version " << current
+                    << " is newer than cached version " << cached
+                    << ". Updating cache.\n";
         save_update_cache(false, current);
         upd = false;
       } else if (!cached.empty() && !is_newer_version(cached, current)) {
