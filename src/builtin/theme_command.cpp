@@ -449,8 +449,8 @@ int list_available_themes() {
   std::array<char, 128> buffer;
   std::string result;
   std::string curl_command = "curl -s --connect-timeout 10 " + github_api_url;
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(
-      popen(curl_command.c_str(), "r"), pclose);
+  FILE* raw_pipe = popen(curl_command.c_str(), "r");
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(raw_pipe, pclose);
 
   if (!pipe) {
     std::cerr << "Error: Failed to connect to GitHub repository." << std::endl;
@@ -567,11 +567,11 @@ int preview_remote_theme(const std::string& themeName) {
       themeName + ".json";
 
   // Use curl to fetch the theme file
-  std::array<char, 128> buffer;
+  std::array<char, 128> buffer2;
   std::string result;
   std::string curl_command = "curl -s --connect-timeout 10 " + github_theme_url;
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(
-      popen(curl_command.c_str(), "r"), pclose);
+  FILE* raw_pipe = popen(curl_command.c_str(), "r");
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(raw_pipe, pclose);
 
   if (!pipe) {
     std::cerr << "Error: Failed to connect to GitHub repository." << std::endl;
@@ -580,8 +580,8 @@ int preview_remote_theme(const std::string& themeName) {
     return 1;
   }
 
-  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-    result += buffer.data();
+  while (fgets(buffer2.data(), buffer2.size(), pipe.get()) != nullptr) {
+    result += buffer2.data();
   }
 
   // Check if we got a valid response
