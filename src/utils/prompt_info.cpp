@@ -721,10 +721,10 @@ int PromptInfo::get_git_uncommitted_changes(
       cache_key,
       [&repo_root]() -> std::string {
         try {
-          // Use --name-only to make the command faster
+          // Use --porcelain for machine-readable output
           std::string command =
               "cd " + repo_root.string() +
-              " && git status --porcelain --name-only | wc -l";
+              " && git status --porcelain | wc -l";
 
           FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
           if (!pipe) {
