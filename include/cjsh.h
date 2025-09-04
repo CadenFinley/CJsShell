@@ -35,7 +35,7 @@ extern int g_shell_terminal;
 extern pid_t g_shell_pgid;
 extern struct termios g_shell_tmodes;
 extern bool g_job_control_enabled;
-extern std::atomic_bool g_exit_flag;
+extern bool g_exit_flag;
 extern time_t g_last_update_check;
 extern int g_update_check_interval;
 extern std::string g_cached_version;

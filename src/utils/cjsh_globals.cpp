@@ -13,7 +13,7 @@ int g_shell_terminal;
 pid_t g_shell_pgid = 0;
 struct termios g_shell_tmodes;
 bool g_job_control_enabled = false;
-std::atomic_bool g_exit_flag{false};
+bool g_exit_flag = false;
 time_t g_last_update_check = 0;
 int g_update_check_interval = 86400;
 std::string g_cached_version = "";
