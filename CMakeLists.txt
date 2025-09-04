@@ -133,7 +133,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
     nlohmann_json::nlohmann_json
-    intl
 )
 
 # Use dynamic linking for libcurl instead of static
@@ -142,6 +141,7 @@ add_definitions(-DCURL_STATICLIB=0)
 # Prevent JSON library from using libintl_snprintf
 add_definitions(-DJSON_NOEXCEPTION=1)
 add_definitions(-DJSON_USE_IMPLICIT_CONVERSIONS=1)
+add_definitions(-Dlibintl_snprintf=snprintf)
 
 add_custom_target(format
   COMMAND clang-format -i -style=file
