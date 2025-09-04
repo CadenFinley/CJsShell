@@ -456,25 +456,8 @@ void main_process_loop() {
     }
 
     if (g_theme->uses_newline()) {
-      if (write(STDOUT_FILENO, "", 0) < 0) {
-        if (errno == EIO || errno == EPIPE) {
-          if (g_debug_mode)
-            std::cerr << "DEBUG: Terminal disconnected (EIO/EPIPE on stdout)"
-                      << std::endl;
-          g_exit_flag = true;
-          break;
-        }
-      }
       std::cout << prompt << std::endl;
       prompt = g_shell->get_newline_prompt();
-    }
-
-    if (!isatty(STDIN_FILENO)) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Terminal disconnected (stdin no longer a TTY)"
-                  << std::endl;
-      g_exit_flag = true;
-      break;
     }
 
     char* input = ic_readline(prompt.c_str());
@@ -511,7 +494,6 @@ void main_process_loop() {
           }
           setenv("STATUS", status_str.c_str(), 1);
         }
-        update_terminal_title();
       }
       if (g_exit_flag) {
         break;
@@ -624,6 +606,7 @@ void setup_environment_variables() {
     setenv("_", cjsh_filesystem::g_cjsh_path.c_str(), 1);
     std::string status_str = std::to_string(0);
     setenv("STATUS", status_str.c_str(), 1);
+    setenv("VERSION", c_version.c_str(), 1);
   }
 }
 
