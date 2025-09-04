@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #define COLOR_RESET "\033[0m"
@@ -108,16 +109,16 @@ std::string format_size_human_readable(uintmax_t size) {
     unit_index++;
   }
 
-  char buffer[20];
+  std::ostringstream result;
   if (unit_index == 0) {
-    snprintf(buffer, sizeof(buffer), "%ju", size);
+    result << size;
   } else if (size_d < 10) {
-    snprintf(buffer, sizeof(buffer), "%.1f%s", size_d, units[unit_index]);
+    result << std::fixed << std::setprecision(1) << size_d << units[unit_index];
   } else {
-    snprintf(buffer, sizeof(buffer), "%.0f%s", size_d, units[unit_index]);
+    result << std::fixed << std::setprecision(0) << size_d << units[unit_index];
   }
 
-  return std::string(buffer);
+  return result.str();
 }
 
 std::string format_size(uintmax_t size, bool human_readable) {

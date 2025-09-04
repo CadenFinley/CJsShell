@@ -203,7 +203,8 @@ void trim(std::string& s) {
   rtrim(s);
 }
 
-std::string Ai::chat_gpt(const std::string& sys_prompt, const std::string& message, bool format) {
+std::string Ai::chat_gpt(const std::string& sys_prompt,
+                         const std::string& message, bool format) {
   if (!enabled) {
     return "AI functionality is currently disabled.";
   }
@@ -218,13 +219,14 @@ std::string Ai::chat_gpt(const std::string& sys_prompt, const std::string& messa
     return get_invalid_configuration_message();
   }
 
-  std::string response = make_call_to_chat_gpt(build_prompt(sys_prompt, message));
+  std::string response =
+      make_call_to_chat_gpt(build_prompt(sys_prompt, message));
 
   if (max_prompt_precision && max_prompt_length > 0 &&
       response.length() >
           static_cast<std::string::size_type>(max_prompt_length)) {
-    std::string shorter = make_call_to_chat_gpt(build_prompt(sys_prompt, message) +
-                                                " Please shorten your answer.");
+    std::string shorter = make_call_to_chat_gpt(
+        build_prompt(sys_prompt, message) + " Please shorten your answer.");
     if (shorter.length() <= static_cast<std::size_t>(max_prompt_length))
       response = shorter;
   }
@@ -598,7 +600,8 @@ std::string Ai::get_invalid_configuration_message() const {
   return "Invalid configuration.";
 }
 
-std::string Ai::build_prompt(const std::string& sys_prompt, const std::string& message) {
+std::string Ai::build_prompt(const std::string& sys_prompt,
+                             const std::string& message) {
   std::stringstream prompt;
   process_file_contents();
   if (!assistant_name.empty()) {

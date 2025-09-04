@@ -614,42 +614,6 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
   bool requirements_met = true;
   std::vector<std::string> missing_requirements;
 
-  if (requirements.contains("plugins") && requirements["plugins"].is_array()) {
-    for (const auto& plugin_name : requirements["plugins"]) {
-      if (plugin_name.is_string()) {
-        std::string name = plugin_name.get<std::string>();
-
-        bool plugin_enabled = false;
-        if (g_plugin != nullptr) {
-          auto enabled_plugins = g_plugin->get_enabled_plugins();
-          plugin_enabled =
-              std::find(enabled_plugins.begin(), enabled_plugins.end(), name) !=
-              enabled_plugins.end();
-        }
-
-        if (!plugin_enabled) {
-          if (g_plugin->get_enabled()) {
-            if (!g_plugin->enable_plugin(name)) {
-              auto available_plugins = g_plugin->get_available_plugins();
-              requirements_met = false;
-              if ((std::find(available_plugins.begin(), available_plugins.end(),
-                             name) == available_plugins.end())) {
-                missing_requirements.push_back("Plugin '" + name +
-                                               "' is required but not found");
-              } else {
-                missing_requirements.push_back("Plugin '" + name +
-                                               "' is required but not enabled");
-              }
-            }
-          } else {
-            requirements_met = false;
-            missing_requirements.push_back("Plugin system is disabled");
-          }
-        }
-      }
-    }
-  }
-
   if (requirements.contains("colors") && requirements["colors"].is_string()) {
     std::string required_capability = requirements["colors"].get<std::string>();
 
@@ -680,6 +644,50 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
     }
 
     std::cout << font_req.str() << std::endl;
+  }
+
+  if (requirements.contains("plugins") && requirements["plugins"].is_array()) {
+    for (const auto& plugin_name : requirements["plugins"]) {
+      if (plugin_name.is_string()) {
+        std::string name = plugin_name.get<std::string>();
+
+        bool plugin_enabled = false;
+        if (g_plugin != nullptr) {
+          auto enabled_plugins = g_plugin->get_enabled_plugins();
+          plugin_enabled =
+              std::find(enabled_plugins.begin(), enabled_plugins.end(), name) !=
+              enabled_plugins.end();
+        }
+
+        if (!plugin_enabled) {
+          if (g_plugin->get_enabled()) {
+            if (requirements_met) {
+              if (!g_plugin->enable_plugin(name)) {
+                auto available_plugins = g_plugin->get_available_plugins();
+                requirements_met = false;
+                if ((std::find(available_plugins.begin(),
+                               available_plugins.end(),
+                               name) == available_plugins.end())) {
+                  missing_requirements.push_back("Plugin '" + name +
+                                                 "' is required but not found");
+                } else {
+                  missing_requirements.push_back(
+                      "Plugin '" + name + "' is required but not enabled");
+                }
+              }
+            } else {
+              missing_requirements.push_back(
+                  "Other requirements are not passing. Not attempting to "
+                  "enable plugin '" +
+                  name + "'");
+            }
+          } else {
+            requirements_met = false;
+            missing_requirements.push_back("Plugin system is disabled");
+          }
+        }
+      }
+    }
   }
 
   if (requirements.contains("custom") && requirements["custom"].is_object()) {
