@@ -139,6 +139,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Use dynamic linking for libcurl instead of static
 add_definitions(-DCURL_STATICLIB=0)
 
+# Prevent JSON library from using libintl_snprintf
+add_definitions(-DJSON_NOEXCEPTION=1)
+add_definitions(-DJSON_USE_IMPLICIT_CONVERSIONS=1)
+
 add_custom_target(format
   COMMAND clang-format -i -style=file
     ${PROJECT_SOURCE_DIR}/src/*.cpp
