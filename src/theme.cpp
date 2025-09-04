@@ -101,7 +101,7 @@ void Theme::create_default_theme() {
 
 bool Theme::load_theme(const std::string& theme_name) {
   std::string theme_name_to_use = theme_name;
-  if (!is_enabled) {
+  if (!is_enabled || theme_name_to_use == "") {
     theme_name_to_use = "default";
   }
 
@@ -114,6 +114,8 @@ bool Theme::load_theme(const std::string& theme_name) {
   std::string theme_file = theme_directory + "/" + theme_name_to_use + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
+    std::cerr << "Error: Theme '" << theme_name_to_use << "' not found."
+              << std::endl;
     return false;
   }
 
@@ -126,16 +128,20 @@ bool Theme::load_theme(const std::string& theme_name) {
       theme_json["requirements"].is_object() &&
       !theme_json["requirements"].empty()) {
     if (!check_theme_requirements(theme_json["requirements"])) {
-      std::cerr << "Theme '" << theme_name_to_use
+      std::string previous_theme =
+          (g_current_theme == "" ? "default" : g_current_theme);
+      std::cerr << "Error: Theme '" << theme_name_to_use
                 << "' requirements not met, falling back to previous theme: '"
-                << g_current_theme << "'" << std::endl;
-      if (theme_name_to_use != g_current_theme) {
-        return load_theme(g_current_theme);
+                << previous_theme << "'" << std::endl;
+      if (theme_name_to_use != previous_theme) {
+        return load_theme(previous_theme);
       } else {
         if (theme_name_to_use != "default") {
           std::cerr << "Falling back to default theme" << std::endl;
           return load_theme("default");
         }
+        std::cerr << "Error: Theme '" << theme_name_to_use << "' not found."
+                  << std::endl;
         return false;
       }
     }
@@ -179,6 +185,8 @@ bool Theme::load_theme(const std::string& theme_name) {
 
   if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
       has_duplicate_tags(ai_segments) || has_duplicate_tags(newline_segments)) {
+    std::cerr << "Error: Duplicate tags found in theme segments. Theme:"
+              << theme_name_to_use << " could not be loaded." << std::endl;
     return false;
   }
 
@@ -621,12 +629,16 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
         colors::g_color_capability != colors::ColorCapability::TRUE_COLOR) {
       requirements_met = false;
       missing_requirements.push_back(
-          "True color (24-bit) terminal support is required");
+          "True color (24-bit) terminal support is required. Current terminal "
+          "support: " +
+          colors::get_color_capability_string(colors::g_color_capability));
     } else if (required_capability == "256_color" &&
                colors::g_color_capability <
                    colors::ColorCapability::XTERM_256_COLOR) {
       requirements_met = false;
-      missing_requirements.push_back("256-color terminal support is required");
+      missing_requirements.push_back(
+          "256-color terminal support is required. Current terminal support: " +
+          colors::get_color_capability_string(colors::g_color_capability));
     }
   }
 

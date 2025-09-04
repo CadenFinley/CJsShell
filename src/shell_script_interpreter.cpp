@@ -135,7 +135,8 @@ std::string ShellScriptInterpreter::escape_debug_string(
       result += "\\t";
     else if (c < 32 || c > 126) {
       std::stringstream ss;
-      ss << "\\x" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') 
+      ss << "\\x" << std::hex << std::uppercase << std::setw(2)
+         << std::setfill('0')
          << static_cast<int>(static_cast<unsigned char>(c));
       result += ss.str();
     } else {

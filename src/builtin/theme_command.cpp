@@ -263,9 +263,7 @@ int theme_command(const std::vector<std::string>& args) {
         update_theme_in_rc_file(themeName);
         return 0;
       } else {
-        std::cerr << "Error: Theme '" << themeName
-                  << "' not found or could not be loaded." << std::endl;
-        return 0;
+        return 2;
       }
     } else {
       std::cerr << "Theme manager not initialized" << std::endl;
@@ -280,9 +278,7 @@ int theme_command(const std::vector<std::string>& args) {
       update_theme_in_rc_file(themeName);
       return 0;
     } else {
-      std::cerr << "Error: Theme '" << themeName
-                << "' not found or could not be loaded." << std::endl;
-      return 0;
+      return 2;
     }
   } else {
     std::cerr << "Theme manager not initialized" << std::endl;
@@ -450,7 +446,7 @@ int list_available_themes() {
   std::string result;
   std::string curl_command = "curl -s --connect-timeout 10 " + github_api_url;
   FILE* raw_pipe = popen(curl_command.c_str(), "r");
-  
+
   // Using a custom deleter function instead of direct decltype(&pclose)
   auto pipe_deleter = [](FILE* f) { pclose(f); };
   std::unique_ptr<FILE, decltype(pipe_deleter)> pipe(raw_pipe, pipe_deleter);
@@ -574,7 +570,7 @@ int preview_remote_theme(const std::string& themeName) {
   std::string result;
   std::string curl_command = "curl -s --connect-timeout 10 " + github_theme_url;
   FILE* raw_pipe = popen(curl_command.c_str(), "r");
-  
+
   // Using a custom deleter function instead of direct decltype(&pclose)
   auto pipe_deleter = [](FILE* f) { pclose(f); };
   std::unique_ptr<FILE, decltype(pipe_deleter)> pipe(raw_pipe, pipe_deleter);

@@ -1,8 +1,8 @@
 #ifndef LIBINTL_SHIM_H
 #define LIBINTL_SHIM_H
 
-#include <cstdio>
 #include <cstdarg>
+#include <cstdio>
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,4 +15,4 @@ int libintl_snprintf(char* str, size_t size, const char* format, ...);
 }
 #endif
 
-#endif // LIBINTL_SHIM_H
+#endif  // LIBINTL_SHIM_H

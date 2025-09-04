@@ -123,6 +123,9 @@ RGB xterm256_to_rgb(uint8_t index);
 RGB get_color_by_name(const std::string& name);
 std::unordered_map<std::string, std::string> get_color_map();
 
+// Convert color capability enum to string representation
+std::string get_color_capability_string(ColorCapability capability);
+
 // ANSI escape sequence constants
 namespace ansi {
 const std::string ESC = "\033[";

@@ -63,6 +63,21 @@ void initialize_color_support(bool enabled) {
   g_color_capability = detect_color_capability();
 }
 
+std::string get_color_capability_string(ColorCapability capability) {
+  switch (capability) {
+    case ColorCapability::NO_COLOR:
+      return "No Color";
+    case ColorCapability::BASIC_COLOR:
+      return "Basic ANSI Colors (16 colors)";
+    case ColorCapability::XTERM_256_COLOR:
+      return "256 Colors";
+    case ColorCapability::TRUE_COLOR:
+      return "True Color (24-bit RGB)";
+    default:
+      return "Unknown";
+  }
+}
+
 uint8_t get_closest_ansi_color(const RGB& color) {
   const std::array<RGB, 16> basic_colors = {{{0, 0, 0},
                                              {170, 0, 0},
