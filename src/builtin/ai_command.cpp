@@ -146,6 +146,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       std::cout << "Directory set to default." << std::endl;
       return 0;
     }
+    PRINT_ERROR("Error: Invalid directory command. Use 'set' or 'clear'.");
     return 1;
   }
 
