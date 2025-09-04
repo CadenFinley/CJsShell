@@ -128,14 +128,12 @@ bool Theme::load_theme(const std::string& theme_name) {
       theme_json["requirements"].is_object() &&
       !theme_json["requirements"].empty()) {
     if (!check_theme_requirements(theme_json["requirements"])) {
-      std::string previous_theme =
-          (g_current_theme == "" ? "default" : g_current_theme);
+      std::string previous_theme = (g_current_theme == "" ? "default" : g_current_theme);
       std::cerr << "Error: Theme '" << theme_name_to_use
                 << "' requirements not met, falling back to previous theme: '"
                 << previous_theme << "'" << std::endl;
       if (theme_name_to_use != previous_theme) {
-        g_current_theme = previous_theme;
-        return load_theme(g_current_theme);
+        return load_theme(previous_theme);
       } else {
         if (theme_name_to_use != "default") {
           std::cerr << "Falling back to default theme" << std::endl;
@@ -207,6 +205,7 @@ bool Theme::load_theme(const std::string& theme_name) {
       theme_json["fill_bg_color"].is_string()) {
     fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
   }
+  g_current_theme = theme_name_to_use;
   return true;
 }
 

@@ -259,8 +259,7 @@ int theme_command(const std::vector<std::string>& args) {
     if (g_theme) {
       std::string themeName = args[2];
       if (g_theme->load_theme(themeName)) {
-        g_current_theme = themeName;
-        update_theme_in_rc_file(themeName);
+        update_theme_in_rc_file(g_current_theme);
         return 0;
       } else {
         return 2;
@@ -274,8 +273,7 @@ int theme_command(const std::vector<std::string>& args) {
   if (g_theme) {
     std::string themeName = args[1];
     if (g_theme->load_theme(themeName)) {
-      g_current_theme = themeName;
-      update_theme_in_rc_file(themeName);
+      update_theme_in_rc_file(g_current_theme);
       return 0;
     } else {
       return 2;
