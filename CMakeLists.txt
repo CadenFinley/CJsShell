@@ -111,7 +111,22 @@ set_source_files_properties(
 )
 
 # Find nlohmann JSON library
-find_package(nlohmann_json REQUIRED)
+find_package(nlohmann_json QUIET)
+
+if(NOT nlohmann_json_FOUND)
+  # Fallback: Use the single header file if package not found
+  message(STATUS "nlohmann_json package not found, using single header file approach")
+  
+  # Check if the external/nlohmann/json.hpp file exists
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann/json.hpp")
+    message(STATUS "Using json.hpp from external/nlohmann directory")
+    add_library(nlohmann_json INTERFACE)
+    add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
+    target_include_directories(nlohmann_json INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/external")
+  else()
+    message(FATAL_ERROR "nlohmann_json header not found. Please run 'mkdir -p external/nlohmann && wget -O external/nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp'")
+  endif()
+endif()
 
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
