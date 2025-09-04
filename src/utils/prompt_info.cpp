@@ -64,15 +64,23 @@
  */
 
 PromptInfo::PromptInfo() {
+  if (g_debug_mode) std::cerr << "DEBUG: PromptInfo constructor START" << std::endl;
+  
   last_git_status_check =
       std::chrono::steady_clock::now() - std::chrono::seconds(30);
   is_git_status_check_running = false;
   cached_is_clean_repo = true;
+  
+  if (g_debug_mode) std::cerr << "DEBUG: PromptInfo constructor END" << std::endl;
 }
 
-PromptInfo::~PromptInfo() {}
+PromptInfo::~PromptInfo() {
+  if (g_debug_mode) std::cerr << "DEBUG: PromptInfo destructor" << std::endl;
+}
 
 std::string PromptInfo::get_basic_prompt() {
+  if (g_debug_mode) std::cerr << "DEBUG: get_basic_prompt START" << std::endl;
+  
   std::string prompt = "";
   std::string username = get_username();
   std::string hostname = get_hostname();
@@ -80,24 +88,36 @@ std::string PromptInfo::get_basic_prompt() {
 
   prompt += username + "@" + hostname + " : " + cwd + " $ ";
 
+  if (g_debug_mode) std::cerr << "DEBUG: get_basic_prompt END" << std::endl;
   return prompt;
 }
 
 std::string PromptInfo::get_basic_ai_prompt() {
+  if (g_debug_mode) std::cerr << "DEBUG: get_basic_ai_prompt START" << std::endl;
+  
   std::string prompt = "";
-  std::string username = get_username();
-  std::string hostname = get_hostname();
   std::string cwd = get_current_file_path();
+  std::string ai_model = g_ai->get_model();
+  std::string ai_context = g_ai->get_save_directory();
+  std::string ai_type = g_ai->get_assistant_type();
+  std::string ai_context_comparison = (std::filesystem::current_path().string() + "/" == ai_context) ? "✔" : "✖";
 
-  prompt += username + "@" + hostname + " : " + cwd + " > ";
 
+  prompt += ai_model + " " + ai_context + " " + ai_context_comparison + " " + cwd + " " + ai_type + " > ";
+
+  if (g_debug_mode) std::cerr << "DEBUG: get_basic_ai_prompt END" << std::endl;
   return prompt;
 }
 
-std::string PromptInfo::get_basic_title() { return get_current_file_path(); }
+std::string PromptInfo::get_basic_title() { 
+  if (g_debug_mode) std::cerr << "DEBUG: get_basic_title START/END" << std::endl;
+  return get_current_file_path(); 
+}
 
 bool PromptInfo::is_variable_used(const std::string& var_name,
                                   const std::vector<nlohmann::json>& segments) {
+  if (g_debug_mode) std::cerr << "DEBUG: is_variable_used START: " << var_name << std::endl;
+  
   std::string placeholder = "{" + var_name + "}";
 
   // Use a static cache to avoid repetitive checks for the same variables
@@ -112,6 +132,7 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
     std::lock_guard<std::mutex> lock(cache_mutex);
     auto it = cache.find(cache_key);
     if (it != cache.end()) {
+      if (g_debug_mode) std::cerr << "DEBUG: is_variable_used END (cached): " << var_name << " = " << (it->second ? "true" : "false") << std::endl;
       return it->second;
     }
   }
@@ -123,6 +144,7 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
       if (content.find(placeholder) != std::string::npos) {
         std::lock_guard<std::mutex> lock(cache_mutex);
         cache[cache_key] = true;
+        if (g_debug_mode) std::cerr << "DEBUG: is_variable_used END: " << var_name << " = true" << std::endl;
         return true;
       }
     }
@@ -130,12 +152,13 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
 
   std::lock_guard<std::mutex> lock(cache_mutex);
   cache[cache_key] = false;
+  if (g_debug_mode) std::cerr << "DEBUG: is_variable_used END: " << var_name << " = false" << std::endl;
   return false;
 }
 
 bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Checking if path is git repository" << std::endl;
+    std::cerr << "DEBUG: is_git_repository START" << std::endl;
 
   // Cache this result using the current path as the key
   std::string current_path_str = std::filesystem::current_path().string();
@@ -169,18 +192,21 @@ bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
 
     if (is_repo_str == "true" && path_str != "not_found") {
       repo_root = std::filesystem::path(path_str);
+      if (g_debug_mode)
+        std::cerr << "DEBUG: is_git_repository END: true, repo_root=" << repo_root.string() << std::endl;
       return true;
     }
   }
 
+  if (g_debug_mode)
+    std::cerr << "DEBUG: is_git_repository END: false" << std::endl;
   return false;
 }
 
 std::string PromptInfo::get_git_branch(
     const std::filesystem::path& git_head_path) {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Getting git branch from " << git_head_path.string()
-              << std::endl;
+    std::cerr << "DEBUG: get_git_branch START: " << git_head_path.string() << std::endl;
 
   try {
     std::ifstream head_file(git_head_path);
@@ -200,17 +226,20 @@ std::string PromptInfo::get_git_branch(
       branch_name = "unknown";
     }
 
+    if (g_debug_mode)
+      std::cerr << "DEBUG: get_git_branch END: " << branch_name << std::endl;
     return branch_name;
   } catch (const std::exception& e) {
     std::cerr << "Error reading git HEAD file: " << e.what() << std::endl;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: get_git_branch END: exception occurred" << std::endl;
     return "unknown";
   }
 }
 
 std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Getting git status for " << repo_root.string()
-              << std::endl;
+    std::cerr << "DEBUG: get_git_status START: " << repo_root.string() << std::endl;
 
   std::string status_symbols = "";
   std::string git_dir = repo_root.string();
@@ -271,6 +300,9 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
     is_clean_repo = cached_is_clean_repo;
   }
 
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_git_status END: is_clean_repo=" << (is_clean_repo ? "true" : "false") << std::endl;
+    
   if (is_clean_repo) {
     return " ✓";
   } else {
@@ -279,13 +311,17 @@ std::string PromptInfo::get_git_status(const std::filesystem::path& repo_root) {
 }
 
 std::string PromptInfo::get_local_path(const std::filesystem::path& repo_root) {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_local_path START: repo_root=" << repo_root.string() << std::endl;
+    
   std::filesystem::path cwd = std::filesystem::current_path();
   std::string repo_root_path = repo_root.string();
   std::string repo_root_name = repo_root.filename().string();
   std::string current_path_str = cwd.string();
 
+  std::string result;
   if (current_path_str == repo_root_path) {
-    return repo_root_name;
+    result = repo_root_name;
   } else if (current_path_str.find(repo_root_path + "/") == 0) {
     std::string relative_path =
         current_path_str.substr(repo_root_path.length());
@@ -294,20 +330,31 @@ std::string PromptInfo::get_local_path(const std::filesystem::path& repo_root) {
     }
     relative_path =
         repo_root_name + (relative_path.empty() ? "" : "/" + relative_path);
-    return relative_path;
+    result = relative_path;
   } else {
-    return "/";
+    result = "/";
   }
+  
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_local_path END: " << result << std::endl;
+  return result;
 }
 
 bool PromptInfo::is_root_path(const std::filesystem::path& path) {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: is_root_path: " << path.string() << " = " << (path == path.root_path() ? "true" : "false") << std::endl;
   return path == path.root_path();
 }
 
 std::string PromptInfo::get_current_file_path() {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_file_path START" << std::endl;
+    
   std::string path = std::filesystem::current_path().string();
 
   if (path == "/") {
+    if (g_debug_mode) 
+      std::cerr << "DEBUG: get_current_file_path END: /" << std::endl;
     return "/";
   }
 
@@ -315,58 +362,100 @@ std::string PromptInfo::get_current_file_path() {
   if (home_dir) {
     std::string home_path = home_dir;
     if (path == home_path) {
+      if (g_debug_mode) 
+        std::cerr << "DEBUG: get_current_file_path END: ~" << std::endl;
       return "~";
     } else if (path.find(home_path + "/") == 0) {
-      return "~" + path.substr(home_path.length());
+      std::string result = "~" + path.substr(home_path.length());
+      if (g_debug_mode) 
+        std::cerr << "DEBUG: get_current_file_path END: " << result << std::endl;
+      return result;
     }
   }
 
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_file_path END: " << path << std::endl;
   return path;
 }
 
 std::string PromptInfo::get_current_file_name() {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_file_name START" << std::endl;
+    
   std::string current_directory = get_current_file_path();
 
   if (current_directory == "/") {
+    if (g_debug_mode) 
+      std::cerr << "DEBUG: get_current_file_name END: /" << std::endl;
     return "/";
   }
 
   if (current_directory == "~") {
+    if (g_debug_mode) 
+      std::cerr << "DEBUG: get_current_file_name END: ~" << std::endl;
     return "~";
   }
 
   if (current_directory.find("~/") == 0) {
     std::string relative_path = current_directory.substr(2);
     if (relative_path.empty()) {
+      if (g_debug_mode) 
+        std::cerr << "DEBUG: get_current_file_name END: ~" << std::endl;
       return "~";
     }
     size_t last_slash = relative_path.find_last_of('/');
     if (last_slash != std::string::npos) {
-      return relative_path.substr(last_slash + 1);
+      std::string result = relative_path.substr(last_slash + 1);
+      if (g_debug_mode) 
+        std::cerr << "DEBUG: get_current_file_name END: " << result << std::endl;
+      return result;
     }
+    if (g_debug_mode) 
+      std::cerr << "DEBUG: get_current_file_name END: " << relative_path << std::endl;
     return relative_path;
   }
 
   std::string current_file_name =
       std::filesystem::path(current_directory).filename().string();
   if (current_file_name.empty()) {
+    if (g_debug_mode) 
+      std::cerr << "DEBUG: get_current_file_name END: /" << std::endl;
     return "/";
   }
+  
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_file_name END: " << current_file_name << std::endl;
   return current_file_name;
 }
 
 std::string PromptInfo::get_username() {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_username START" << std::endl;
+    
   struct passwd* pw = getpwuid(getuid());
-  return pw ? pw->pw_name : "user";
+  std::string result = pw ? pw->pw_name : "user";
+  
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_username END: " << result << std::endl;
+  return result;
 }
 
 std::string PromptInfo::get_hostname() {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_hostname START" << std::endl;
+    
   char hostname[256];
   gethostname(hostname, 256);
+  
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_hostname END: " << hostname << std::endl;
   return hostname;
 }
 
 std::string PromptInfo::get_current_time(bool twelve_hour_format) {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_time START: twelve_hour_format=" << (twelve_hour_format ? "true" : "false") << std::endl;
+    
   auto now = std::chrono::system_clock::now();
   auto time_now = std::chrono::system_clock::to_time_t(now);
   struct tm time_info;
@@ -393,10 +482,16 @@ std::string PromptInfo::get_current_time(bool twelve_hour_format) {
     time_stream << suffix;
   }
 
-  return time_stream.str();
+  std::string result = time_stream.str();
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_time END: " << result << std::endl;
+  return result;
 }
 
 std::string PromptInfo::get_current_date() {
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_date START" << std::endl;
+    
   auto now = std::chrono::system_clock::now();
   auto time_now = std::chrono::system_clock::to_time_t(now);
   struct tm time_info;
@@ -407,18 +502,28 @@ std::string PromptInfo::get_current_date() {
               << std::setw(2) << (time_info.tm_mon + 1) << "-"
               << std::setfill('0') << std::setw(2) << time_info.tm_mday;
 
-  return date_stream.str();
+  std::string result = date_stream.str();
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_current_date END: " << result << std::endl;
+  return result;
 }
 
-std::string PromptInfo::get_shell() { return "cjsh"; }
+std::string PromptInfo::get_shell() { 
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_shell START/END: cjsh" << std::endl;
+  return "cjsh"; 
+}
 
-std::string PromptInfo::get_shell_version() { return c_version; }
+std::string PromptInfo::get_shell_version() { 
+  if (g_debug_mode) 
+    std::cerr << "DEBUG: get_shell_version START/END: " << c_version << std::endl;
+  return c_version; 
+}
 
 int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
                                      int& ahead, int& behind) {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Getting git ahead/behind for " << repo_root.string()
-              << std::endl;
+    std::cerr << "DEBUG: get_git_ahead_behind START: " << repo_root.string() << std::endl;
 
   ahead = 0;
   behind = 0;
@@ -493,12 +598,18 @@ int PromptInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
     try {
       behind = std::stoi(result.substr(0, comma_pos));
       ahead = std::stoi(result.substr(comma_pos + 1));
+      if (g_debug_mode)
+        std::cerr << "DEBUG: get_git_ahead_behind END: ahead=" << ahead << ", behind=" << behind << std::endl;
       return 0;
     } catch (const std::exception&) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: get_git_ahead_behind END: exception during parsing" << std::endl;
       return -1;
     }
   }
 
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_git_ahead_behind END: failed" << std::endl;
   return -1;
 }
 

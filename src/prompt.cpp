@@ -10,12 +10,18 @@ Prompt::Prompt() : repo_root() {}
 Prompt::~Prompt() {}
 
 std::string Prompt::get_prompt() {
+
+  // it should never be empty
   if (g_current_theme.empty()) {
     if (!g_theme->get_enabled()) {
       return info.get_basic_prompt();
     } else {
       g_theme->load_theme("default");
     }
+  }
+
+  if (!g_theme->get_enabled()) {
+      return info.get_basic_prompt();
   }
 
   bool is_git_repo = info.is_git_repository(repo_root);
@@ -35,7 +41,7 @@ std::string Prompt::get_ai_prompt() {
 
   if (g_current_theme.empty()) {
     if (!g_theme->get_enabled()) {
-      return " > ";
+      return info.get_basic_ai_prompt();
     } else {
       g_theme->load_theme("default");
     }
