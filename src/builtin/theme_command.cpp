@@ -450,7 +450,10 @@ int list_available_themes() {
   std::string result;
   std::string curl_command = "curl -s --connect-timeout 10 " + github_api_url;
   FILE* raw_pipe = popen(curl_command.c_str(), "r");
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(raw_pipe, pclose);
+  
+  // Using a custom deleter function instead of direct decltype(&pclose)
+  auto pipe_deleter = [](FILE* f) { pclose(f); };
+  std::unique_ptr<FILE, decltype(pipe_deleter)> pipe(raw_pipe, pipe_deleter);
 
   if (!pipe) {
     std::cerr << "Error: Failed to connect to GitHub repository." << std::endl;
@@ -571,7 +574,10 @@ int preview_remote_theme(const std::string& themeName) {
   std::string result;
   std::string curl_command = "curl -s --connect-timeout 10 " + github_theme_url;
   FILE* raw_pipe = popen(curl_command.c_str(), "r");
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(raw_pipe, pclose);
+  
+  // Using a custom deleter function instead of direct decltype(&pclose)
+  auto pipe_deleter = [](FILE* f) { pclose(f); };
+  std::unique_ptr<FILE, decltype(pipe_deleter)> pipe(raw_pipe, pipe_deleter);
 
   if (!pipe) {
     std::cerr << "Error: Failed to connect to GitHub repository." << std::endl;
