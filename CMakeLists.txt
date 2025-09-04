@@ -145,6 +145,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   HAVE_ARRAY=1
   HAVE_CSTDDEF=1
   HAVE_UTILITY=1
+  NLOHMANN_JSON_DISABLE_I18N=1
 )
 
 add_custom_target(format
