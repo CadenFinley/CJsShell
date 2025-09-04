@@ -5,7 +5,7 @@
 #include "cjsh.h"
 #include "theme.h"
 
-Prompt::Prompt() {}
+Prompt::Prompt() : repo_root() {}
 
 Prompt::~Prompt() {}
 
@@ -18,15 +18,13 @@ std::string Prompt::get_prompt() {
     }
   }
 
-  std::filesystem::path repo_root;
   bool is_git_repo = info.is_git_repository(repo_root);
-
-  // Get all variables
-  std::unordered_map<std::string, std::string> vars = get_all_variables();
-
+  
   if (is_git_repo) {
+    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::GIT, true);
     return g_theme->get_git_prompt_format(vars);
   } else {
+    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::PS1, false);
     return g_theme->get_ps1_prompt_format(vars);
   }
 }
@@ -46,8 +44,8 @@ std::string Prompt::get_ai_prompt() {
   if (modelInfo.empty()) modelInfo = "Unknown";
   if (modeInfo.empty()) modeInfo = "Chat";
 
-  // Get all variables
-  std::unordered_map<std::string, std::string> vars = get_all_variables();
+  // Get variables only for AI prompt
+  std::unordered_map<std::string, std::string> vars = get_variables(PromptType::AI);
 
   // Add or update AI-specific variables
   vars["AI_MODEL"] = modelInfo;
@@ -72,8 +70,8 @@ std::string Prompt::get_newline_prompt() {
     }
   }
 
-  // Get all variables
-  std::unordered_map<std::string, std::string> vars = get_all_variables();
+  // Get variables only for newline prompt
+  std::unordered_map<std::string, std::string> vars = get_variables(PromptType::NEWLINE);
 
   return g_theme->get_newline_prompt(vars);
 }
@@ -88,8 +86,8 @@ std::string Prompt::get_title_prompt() {
   }
   std::string prompt_format = g_theme->get_terminal_title_format();
 
-  // Get all variables
-  std::unordered_map<std::string, std::string> vars = get_all_variables();
+  // Get variables only for title prompt
+  std::unordered_map<std::string, std::string> vars = get_variables(PromptType::TITLE);
 
   for (const auto& [key, value] : vars) {
     prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
@@ -110,28 +108,50 @@ std::string Prompt::replace_placeholder(const std::string& format,
   return result;
 }
 
-// Helper method to get all available variables from all segment types
-std::unordered_map<std::string, std::string> Prompt::get_all_variables() {
-  // Get git repository info if available
-  std::filesystem::path repo_root;
-  bool is_git_repo = info.is_git_repository(repo_root);
-
-  // Collect all segments to ensure all variables are available
-  std::vector<nlohmann::json> all_segments;
-  all_segments.insert(all_segments.end(), g_theme->ps1_segments.begin(),
+// Helper method to get variables for a specific prompt type
+std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType type, bool is_git_repo) {
+  // Collect only the segments needed for the requested prompt type
+  std::vector<nlohmann::json> segments;
+  
+  switch (type) {
+    case PromptType::PS1:
+      segments.insert(segments.end(), g_theme->ps1_segments.begin(),
                       g_theme->ps1_segments.end());
-  all_segments.insert(all_segments.end(), g_theme->git_segments.begin(),
+      break;
+    case PromptType::GIT:
+      segments.insert(segments.end(), g_theme->git_segments.begin(),
                       g_theme->git_segments.end());
-  all_segments.insert(all_segments.end(), g_theme->ai_segments.begin(),
+      break;
+    case PromptType::AI:
+      segments.insert(segments.end(), g_theme->ai_segments.begin(),
                       g_theme->ai_segments.end());
-  all_segments.insert(all_segments.end(), g_theme->newline_segments.begin(),
+      break;
+    case PromptType::NEWLINE:
+      segments.insert(segments.end(), g_theme->newline_segments.begin(),
                       g_theme->newline_segments.end());
+      break;
+    case PromptType::TITLE: {
+      nlohmann::json title_segment;
+      title_segment["content"] = g_theme->get_terminal_title_format();
+      segments.push_back(title_segment);
+      break;
+    }
+    case PromptType::ALL:
+      segments.insert(segments.end(), g_theme->ps1_segments.begin(),
+                      g_theme->ps1_segments.end());
+      segments.insert(segments.end(), g_theme->git_segments.begin(),
+                      g_theme->git_segments.end());
+      segments.insert(segments.end(), g_theme->ai_segments.begin(),
+                      g_theme->ai_segments.end());
+      segments.insert(segments.end(), g_theme->newline_segments.begin(),
+                      g_theme->newline_segments.end());
+      
+      nlohmann::json title_segment;
+      title_segment["content"] = g_theme->get_terminal_title_format();
+      segments.push_back(title_segment);
+      break;
+  }
 
-  // Add the terminal title format as a segment to check
-  nlohmann::json title_segment;
-  title_segment["content"] = g_theme->get_terminal_title_format();
-  all_segments.push_back(title_segment);
-
-  // Get all variables
-  return info.get_variables(all_segments, is_git_repo, repo_root);
+  // Get variables only for the specified segments
+  return info.get_variables(segments, is_git_repo, repo_root);
 }
