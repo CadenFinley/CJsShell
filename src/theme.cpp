@@ -134,8 +134,7 @@ bool Theme::load_theme(const std::string& theme_name) {
                 << "' requirements not met, falling back to previous theme: '"
                 << previous_theme << "'" << std::endl;
       if (theme_name_to_use != previous_theme) {
-        g_current_theme = previous_theme;
-        return load_theme(g_current_theme);
+        return load_theme(previous_theme);
       } else {
         if (theme_name_to_use != "default") {
           std::cerr << "Falling back to default theme" << std::endl;
@@ -689,10 +688,17 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
                 }
               }
             } else {
-              missing_requirements.push_back(
-                  "Other requirements are not passing. Not attempting to "
-                  "enable plugin '" +
-                  name + "'");
+              auto available_plugins = g_plugin->get_available_plugins();
+              if ((std::find(available_plugins.begin(), available_plugins.end(),
+                             name) == available_plugins.end())) {
+                missing_requirements.push_back("Plugin '" + name +
+                                               "' is required but not found");
+              } else {
+                missing_requirements.push_back(
+                    "Other requirements are not passing. Not attempting to "
+                    "enable plugin '" +
+                    name + "'");
+              }
             }
           } else {
             requirements_met = false;
