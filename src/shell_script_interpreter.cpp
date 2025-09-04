@@ -134,9 +134,10 @@ std::string ShellScriptInterpreter::escape_debug_string(
     else if (c == '\t')
       result += "\\t";
     else if (c < 32 || c > 126) {
-      char buf[5];
-      snprintf(buf, sizeof(buf), "\\x%02X", static_cast<unsigned char>(c));
-      result += buf;
+      std::stringstream ss;
+      ss << "\\x" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') 
+         << static_cast<int>(static_cast<unsigned char>(c));
+      result += ss.str();
     } else {
       result += c;
     }
@@ -988,9 +989,9 @@ std::string ShellScriptInterpreter::capture_command_output(
     const std::string& cmd) {
   debug_print("Capturing output for command: " + escape_debug_string(cmd),
               DebugLevel::VERBOSE);
-  char temp_filename[256];
-  snprintf(temp_filename, sizeof(temp_filename), "/tmp/cjsh_cmd_output_%d",
-           getpid());
+  std::stringstream temp_filename_ss;
+  temp_filename_ss << "/tmp/cjsh_cmd_output_" << getpid();
+  std::string temp_filename = temp_filename_ss.str();
 
   std::string redirect_cmd = cmd + " > " + temp_filename + " 2>&1";
   debug_print("Redirected command: " + escape_debug_string(redirect_cmd),
@@ -1012,7 +1013,7 @@ std::string ShellScriptInterpreter::capture_command_output(
     }
     file.close();
 
-    unlink(temp_filename);
+    unlink(temp_filename.c_str());
     while (!result.empty() &&
            (result.back() == '\n' || result.back() == '\r')) {
       result.pop_back();
