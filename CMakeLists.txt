@@ -91,10 +91,6 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 
-# Find internationalization library (needed for json library on some platforms)
-find_library(INTL_LIBRARY NAMES intl REQUIRED)
-# REQUIRED flag will cause an error if not found
-
 # Optional protocol libraries removed for simpler build
 # find_package(LDAP)
 # find_package(Libssh2)
@@ -119,11 +115,12 @@ set_source_files_properties(
   PROPERTIES COMPILE_FLAGS "-Wno-error"
 )
 
+# Find nlohmann JSON library
+find_package(nlohmann_json REQUIRED)
+
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    # Include vendored JSON library
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json/include
     ${OPENSSL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
@@ -135,18 +132,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dl
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )
 
 # Use dynamic linking for libcurl instead of static
 add_definitions(-DCURL_STATICLIB=0)
-
-# Ensure standard headers needed by json library
-target_compile_definitions(${PROJECT_NAME} PRIVATE 
-  HAVE_ARRAY=1
-  HAVE_CSTDDEF=1
-  HAVE_UTILITY=1
-  NLOHMANN_JSON_DISABLE_I18N=1
-)
 
 add_custom_target(format
   COMMAND clang-format -i -style=file
