@@ -117,17 +117,16 @@ set_source_files_properties(
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/external
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/json/include  # Explicitly include the json/include directory
     ${OPENSSL_INCLUDE_DIR}
     ${ZLIB_INCLUDE_DIRS}
 )
 
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    curl
-    pthread
-    dl
+    ${CURL_LIBRARIES}
+    Threads::Threads
+    ${CMAKE_DL_LIBS}
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
 )
@@ -160,6 +159,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   HAVE_ARRAY=1
   HAVE_CSTDDEF=1
   HAVE_UTILITY=1
+  NLOHMANN_JSON_FROM_VENDOR=1  # Mark that we're using the vendored json
 )
 
 add_custom_target(format
@@ -200,7 +200,7 @@ if(BUILD_TESTS)
 
   target_link_libraries(parser_tests PRIVATE
     gtest_main
-    pthread
+    Threads::Threads
   )
 
   add_test(NAME ParserTests COMMAND parser_tests --gtest_color=yes)

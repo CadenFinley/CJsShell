@@ -91,6 +91,9 @@ find_package(Threads REQUIRED)
 
 if(UNIX AND NOT APPLE)
   find_library(DL_LIBRARY dl REQUIRED)
+  set(CMAKE_DL_LIBS ${DL_LIBRARY})
+else()
+  set(CMAKE_DL_LIBS "")
 endif()
 
 # Try to find CURL
