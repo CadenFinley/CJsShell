@@ -133,6 +133,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${OPENSSL_LIBRARIES}
     ${ZLIB_LIBRARIES}
     nlohmann_json::nlohmann_json
+    intl
 )
 
 # Use dynamic linking for libcurl instead of static
