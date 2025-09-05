@@ -81,7 +81,7 @@
     },
     {
       "tag": "dateseg",
-      "content": " {FAST_DATE} ",
+      "content": " {MONTH_NAME} {DAY}, {YEAR} ",
       "bg_color": "#504945",
       "fg_color": "#ebdbb2",
       "separator": "",
@@ -94,7 +94,7 @@
     },
     {
       "tag": "timeseg",
-      "content": " {FAST_TIME} ",
+      "content": " {TIME12} ",
       "bg_color": "#282828",
       "fg_color": "#ebdbb2",
       "separator": "\uE0B4",
@@ -182,7 +182,7 @@
     },
     {
       "tag": "dateseg",
-      "content": " {FAST_DATE} ",
+      "content": " {MONTH_NAME} {DAY}, {YEAR} ",
       "bg_color": "#504945",
       "fg_color": "#ebdbb2",
       "separator": "",
@@ -195,7 +195,7 @@
     },
     {
       "tag": "timeseg",
-      "content": " {FAST_TIME} ",
+      "content": " {TIME12} ",
       "bg_color": "#282828",
       "fg_color": "#ebdbb2",
       "separator": "\uE0B4",
@@ -263,7 +263,7 @@
     },
     {
       "tag": "ai_dateseg",
-      "content": " {FAST_DATE} ",
+      "content": " {MONTH_NAME} {DAY}, {YEAR} ",
       "bg_color": "#504945",
       "fg_color": "#ebdbb2",
       "separator": "",
@@ -276,7 +276,7 @@
     },
     {
       "tag": "ai_timeseg",
-      "content": " {FAST_TIME} ",
+      "content": " {TIME_12} ",
       "bg_color": "#282828",
       "fg_color": "#ebdbb2",
       "separator": "\uE0B4",
