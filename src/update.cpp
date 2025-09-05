@@ -12,6 +12,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "tutorial.h"
 
 using json = nlohmann::json;
 
@@ -152,12 +153,14 @@ void display_changelog(const std::string& path) {
 }
 
 void startup_update_process() {
-  g_first_boot = !std::filesystem::exists(cjsh_filesystem::g_cjsh_cache_path /
-                                          ".first_boot_complete");
-  if (g_first_boot) {
+  if (is_first_boot()) {
     std::cout << "\n" << get_colorized_splash() << "\nWelcome to CJ's Shell!\n";
     mark_first_boot_complete();
     g_title_line = false;
+  }
+  if (!is_tutorial_complete()) {
+    start_tutorial();
+    mark_tutorial_complete();
   }
   if (PRE_RELEASE) {
     return;
@@ -218,5 +221,18 @@ void mark_first_boot_complete() {
   std::filesystem::path first_boot_flag =
       cjsh_filesystem::g_cjsh_cache_path / ".first_boot_complete";
   std::ofstream flag_file(first_boot_flag);
+  flag_file.close();
+}
+
+bool is_tutorial_complete() {
+  std::filesystem::path tutorial_flag =
+      cjsh_filesystem::g_cjsh_cache_path / ".tutorial_complete";
+  return std::filesystem::exists(tutorial_flag);
+}
+
+void mark_tutorial_complete() {
+  std::filesystem::path tutorial_flag =
+      cjsh_filesystem::g_cjsh_cache_path / ".tutorial_complete";
+  std::ofstream flag_file(tutorial_flag);
   flag_file.close();
 }

@@ -22,3 +22,5 @@ void display_changelog(const std::string& changelog_path);
 void startup_update_process();
 bool is_first_boot();
 void mark_first_boot_complete();
+bool is_tutorial_complete();
+void mark_tutorial_complete();

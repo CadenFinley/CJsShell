@@ -46,6 +46,8 @@ int plugin_command(const std::vector<std::string>& args) {
     std::cout << " disable [NAME]: Disable a plugin" << std::endl;
     std::cout << " info [NAME]: Show plugin information" << std::endl;
     std::cout << " commands [NAME]: List commands for a plugin" << std::endl;
+    std::cout << " enableall: Enable all available plugins" << std::endl;
+    std::cout << " disableall: Disable all enabled plugins" << std::endl;
     std::cout
         << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting"
         << std::endl;

@@ -25,5 +25,9 @@ cd "$project_root"
     printf "%6d lines: %s\n" "$count" "$file_path"
   done
 
+  # Count the total number of files
+  file_count=$(echo "$files" | wc -l)
+  echo "Total files included in count: $file_count"
+
   total=$(echo "$files" | xargs cat 2>/dev/null | wc -l)
   echo -e "$total"
