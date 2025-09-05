@@ -25,8 +25,8 @@
 //  local session history files, that combine into main one upon process close
 //  commands running very slow especially script files
 
-//  need to make linux build much simpler
-//  need to create a equivalent to requirements.txt script kinda thing
+//  rewrite theme engine to not use nlohman json instead to yaml or similar
+
 //  need to figure out why compilation is so slow or maybe i just have a lot of
 //  code who knows
 
