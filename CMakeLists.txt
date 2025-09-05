@@ -90,10 +90,6 @@ list(REMOVE_ITEM SOURCES ${EXCLUDE_FILES})
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Find additional libraries needed for libcurl
-find_package(OpenSSL REQUIRED)
-find_package(ZLIB REQUIRED)
-
 # Set isocline library to use separate objects
 add_definitions(-DIC_SEPARATE_OBJS=1)
 
@@ -131,8 +127,6 @@ endif()
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${OPENSSL_INCLUDE_DIR}
-    ${ZLIB_INCLUDE_DIRS}
 )
 
 # Link against libraries
@@ -140,13 +134,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     curl
     pthread
     dl
-    ${OPENSSL_LIBRARIES}
-    ${ZLIB_LIBRARIES}
     nlohmann_json::nlohmann_json
 )
-
-# Use dynamic linking for libcurl instead of static
-add_definitions(-DCURL_STATICLIB=0)
 
 # Prevent JSON library from using certain features
 add_definitions(-DJSON_NOEXCEPTION=1)
