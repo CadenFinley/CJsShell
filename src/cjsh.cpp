@@ -27,8 +27,7 @@
 
 //  ccache + Ninja
 
-//  create an interactive tutorial that users can be prompted to run on their
-//  first boot
+//  plugin system needs help but I just couldnt be bothered
 
 /*
  * Exit/Return Codes:
