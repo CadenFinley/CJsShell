@@ -42,6 +42,10 @@ class PromptInfo {
   std::string get_git_branch(const std::filesystem::path& git_head_path);
   std::string get_git_status(const std::filesystem::path& repo_root);
   std::string get_local_path(const std::filesystem::path& repo_root);
+  std::string get_git_remote(const std::filesystem::path& repo_root);
+  std::string get_git_tag(const std::filesystem::path& repo_root);
+  std::string get_git_last_commit(const std::filesystem::path& repo_root);
+  std::string get_git_author(const std::filesystem::path& repo_root);
   int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead,
                            int& behind);
   int get_git_stash_count(const std::filesystem::path& repo_root);
@@ -57,6 +61,9 @@ class PromptInfo {
   float get_memory_usage();
   std::string get_battery_status();
   std::string get_uptime();
+  std::string get_disk_usage(const std::filesystem::path& path = "/");
+  std::string get_swap_usage();
+  std::string get_load_avg();
   std::string get_terminal_type();
   std::pair<int, int> get_terminal_dimensions();
   std::string get_active_language_version(const std::string& language);

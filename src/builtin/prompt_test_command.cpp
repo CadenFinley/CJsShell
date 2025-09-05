@@ -52,6 +52,9 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "LANG_VER:ruby: " << pi.get_active_language_version("ruby") << "\n";
     std::cout << "LANG_VER:go: " << pi.get_active_language_version("go") << "\n";
     std::cout << "LANG_VER:rust: " << pi.get_active_language_version("rust") << "\n";
+    std::cout << "DISK_USAGE: " << pi.get_disk_usage(std::filesystem::current_path()) << "\n";
+    std::cout << "SWAP_USAGE: " << pi.get_swap_usage() << "\n";
+    std::cout << "LOAD_AVG: " << pi.get_load_avg() << "\n";
     std::string venv_name;
     std::cout << "VIRTUAL_ENV: " << (pi.is_in_virtual_environment(venv_name) ? venv_name : "") << "\n";
     std::cout << "BG_JOBS: " << pi.get_background_jobs_count() << "\n";

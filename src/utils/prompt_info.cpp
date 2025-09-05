@@ -36,6 +36,10 @@
  * {GIT_STASHES} - Number of stashes in the repository
  * {GIT_STAGED} - Has staged changes (✓ or empty)
  * {GIT_CHANGES} - Number of uncommitted changes
+  * {GIT_REMOTE} - Remote URL of the current repo
+  * {GIT_TAG} - Current Git tag (if any)
+  * {GIT_LAST_COMMIT} - Last commit hash or message
+  * {GIT_AUTHOR} - Author of the last commit
  *
  * System information placeholders:
  * {OS_INFO}     - Operating system name and version
@@ -44,6 +48,9 @@
  * {MEM_USAGE}   - Current memory usage percentage
  * {BATTERY}     - Battery percentage and charging status
  * {UPTIME}      - System uptime
+  * {DISK_USAGE}  - Disk usage of current directory or root
+  * {SWAP_USAGE}  - Swap memory usage
+  * {LOAD_AVG}    - System load average
  *
  * Environment information placeholders:
  * {TERM_TYPE}   - Terminal type (e.g., xterm, screen)
@@ -67,6 +74,94 @@
  * {AI_CONTEXT_COMPARISON} - Check mark for when the context is local and equal
  * to current directory, ✔ and ✖ for when it is not
  */
+std::string PromptInfo::get_git_remote(const std::filesystem::path& repo_root) {
+  std::string cmd = "git -C '" + repo_root.string() + "' remote get-url origin 2>/dev/null";
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) return "";
+  char buffer[256];
+  std::string result = "";
+  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  pclose(fp);
+  if (!result.empty() && result.back() == '\n') result.pop_back();
+  return result;
+}
+
+std::string PromptInfo::get_git_tag(const std::filesystem::path& repo_root) {
+  std::string cmd = "git -C '" + repo_root.string() + "' describe --tags --abbrev=0 2>/dev/null";
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) return "";
+  char buffer[128];
+  std::string result = "";
+  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  pclose(fp);
+  if (!result.empty() && result.back() == '\n') result.pop_back();
+  return result;
+}
+
+std::string PromptInfo::get_git_last_commit(const std::filesystem::path& repo_root) {
+  std::string cmd = "git -C '" + repo_root.string() + "' log -1 --pretty=format:%h:%s 2>/dev/null";
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) return "";
+  char buffer[256];
+  std::string result = "";
+  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  pclose(fp);
+  return result;
+}
+
+std::string PromptInfo::get_git_author(const std::filesystem::path& repo_root) {
+  std::string cmd = "git -C '" + repo_root.string() + "' log -1 --pretty=format:%an 2>/dev/null";
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) return "";
+  char buffer[128];
+  std::string result = "";
+  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  pclose(fp);
+  if (!result.empty() && result.back() == '\n') result.pop_back();
+  return result;
+}
+
+std::string PromptInfo::get_disk_usage(const std::filesystem::path& path) {
+  std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) return "";
+  char buffer[32];
+  std::string result = "";
+  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  pclose(fp);
+  if (!result.empty() && result.back() == '\n') result.pop_back();
+  return result;
+}
+
+std::string PromptInfo::get_swap_usage() {
+#ifdef __APPLE__
+  std::string cmd = "sysctl vm.swapusage | awk '{print $3}'";
+#elif defined(__linux__)
+  std::string cmd = "free | grep Swap | awk '{print $3 "/" $2}'";
+#else
+  return "Unknown";
+#endif
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) return "";
+  char buffer[32];
+  std::string result = "";
+  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  pclose(fp);
+  if (!result.empty() && result.back() == '\n') result.pop_back();
+  return result;
+}
+
+std::string PromptInfo::get_load_avg() {
+  std::string cmd = "uptime | awk -F'load averages?: ' '{print $2}'";
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) return "";
+  char buffer[64];
+  std::string result = "";
+  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  pclose(fp);
+  if (!result.empty() && result.back() == '\n') result.pop_back();
+  return result;
+}
 
 PromptInfo::PromptInfo() {
   if (g_debug_mode)
