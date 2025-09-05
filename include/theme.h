@@ -16,6 +16,7 @@ class Theme {
   void prerender_segments();
   std::string prerender_line(const std::vector<nlohmann::json>& segments) const;
   bool check_theme_requirements(const nlohmann::json& requirements) const;
+  int update_theme_in_rc_file(const std::string& themeName);
 
   std::string prerendered_ps1_format;
   std::string prerendered_git_format;
@@ -52,7 +53,8 @@ class Theme {
   std::vector<nlohmann::json> ai_segments;
   std::vector<nlohmann::json> newline_segments;
 
-  bool load_theme(const std::string& theme_name);
+  bool load_theme(const std::string& theme_name, bool save_in_file,
+                  bool allow_fallback);
   std::vector<std::string> list_themes();
 
   bool uses_newline() const;

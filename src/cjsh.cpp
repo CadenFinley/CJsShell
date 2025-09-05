@@ -25,12 +25,11 @@
 //  local session history files, that combine into main one upon process close
 //  commands running very slow especially script files
 
-//  rewrite theme engine to not use nlohman json instead to yaml or similar
-
 //  need to figure out why compilation is so slow or maybe i just have a lot of
 //  code who knows
 
-//  on startup if a theme has to fallback to default it shouldnt write that to the cjshrc
+//  create an interactive tutorial that users can be prompted to run on their
+//  first boot
 
 /*
  * Exit/Return Codes:

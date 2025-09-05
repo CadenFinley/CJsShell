@@ -99,7 +99,8 @@ void Theme::create_default_theme() {
   file.close();
 }
 
-bool Theme::load_theme(const std::string& theme_name) {
+bool Theme::load_theme(const std::string& theme_name, bool save_in_file,
+                       bool allow_fallback) {
   std::string theme_name_to_use = theme_name;
   if (!is_enabled || theme_name_to_use == "") {
     theme_name_to_use = "default";
@@ -128,17 +129,22 @@ bool Theme::load_theme(const std::string& theme_name) {
       theme_json["requirements"].is_object() &&
       !theme_json["requirements"].empty()) {
     if (!check_theme_requirements(theme_json["requirements"])) {
+      if (!allow_fallback) {
+        std::cerr << "Error: Theme '" << theme_name_to_use
+                  << "' requirements not met, cannot load theme." << std::endl;
+        return false;
+      }
       std::string previous_theme =
           (g_current_theme == "" ? "default" : g_current_theme);
       std::cerr << "Error: Theme '" << theme_name_to_use
                 << "' requirements not met, falling back to previous theme: '"
                 << previous_theme << "'" << std::endl;
       if (theme_name_to_use != previous_theme) {
-        return load_theme(previous_theme);
+        return load_theme(previous_theme, false, allow_fallback);
       } else {
         if (theme_name_to_use != "default") {
           std::cerr << "Falling back to default theme" << std::endl;
-          return load_theme("default");
+          return load_theme("default", false, allow_fallback);
         }
         std::cerr << "Error: Theme '" << theme_name_to_use << "' not found."
                   << std::endl;
@@ -207,6 +213,7 @@ bool Theme::load_theme(const std::string& theme_name) {
     fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
   }
   g_current_theme = theme_name_to_use;
+  if (save_in_file) update_theme_in_rc_file(g_current_theme);
   return true;
 }
 
@@ -894,4 +901,50 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
   }
 
   return raw_length;
+}
+
+int Theme::update_theme_in_rc_file(const std::string& themeName) {
+  std::filesystem::path rc_path = cjsh_filesystem::g_cjsh_source_path;
+
+  std::vector<std::string> lines;
+  std::string line;
+  std::ifstream read_file(rc_path);
+
+  bool theme_line_found = false;
+  size_t last_theme_line_idx = 0;
+
+  if (read_file.is_open()) {
+    while (std::getline(read_file, line)) {
+      lines.push_back(line);
+      if (line.find("theme ") == 0) {
+        theme_line_found = true;
+        last_theme_line_idx = lines.size() - 1;
+      }
+    }
+    read_file.close();
+  }
+
+  std::string new_theme_line = "theme load " + themeName;
+
+  if (theme_line_found) {
+    lines[last_theme_line_idx] = new_theme_line;
+  } else {
+    lines.push_back(new_theme_line);
+  }
+
+  std::ofstream write_file(rc_path);
+  if (write_file.is_open()) {
+    for (const auto& l : lines) {
+      write_file << l << std::endl;
+    }
+    write_file.close();
+
+    if (g_debug_mode) {
+      std::cout << "Theme setting updated in " << rc_path.string() << std::endl;
+    }
+  } else {
+    std::cerr << "Error: Unable to open .cjshrc file for writing at "
+              << rc_path.string() << std::endl;
+  }
+  return 0;
 }

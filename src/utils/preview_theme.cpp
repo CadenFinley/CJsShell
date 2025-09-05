@@ -23,7 +23,7 @@ int preview_theme(const std::string& theme_name) {
     return 1;
   }
 
-  if (!temp_theme->load_theme(theme_name)) {
+  if (!temp_theme->load_theme(theme_name, false, false)) {
     std::cerr << "Error: Failed to load theme '" << theme_name << "'."
               << std::endl;
     return 1;
