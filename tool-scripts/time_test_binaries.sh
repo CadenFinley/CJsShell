@@ -3,7 +3,7 @@
 RUNS=100
 COMMAND="-c exit"
 BASELINE_SHELLS=("fish" "bash" "zsh")
-cjsh_binary_types=("_speed03" "_space" "_speed02")
+cjsh_binary_types=("")
 
 ENABLE_BASELINE_TESTS=true
 
@@ -78,4 +78,46 @@ echo "----------------------------------------------------------------------"
 # Average time for ./cjsh_speed02: .02895336000000000000 seconds
 # Average time for fish: .03511248000000000000 seconds
 # Average time for ./cjsh_noopt: .04083061000000000000 seconds
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: -c ls
+# Results after 100 run(s):
+# ----------------------------------------------------------------------
+# Average time for bash: .02808041000000000000 seconds
+# Average time for ./cjsh_space: .03001573000000000000 seconds
+# Average time for ./cjsh_speed03: .03066605000000000000 seconds
+# Average time for zsh: .03146028000000000000 seconds
+# Average time for ./cjsh_speed02: .03168991000000000000 seconds
+# Average time for fish: .06480153000000000000 seconds
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: -c whoami
+# Results after 100 run(s):
+# ----------------------------------------------------------------------
+# Average time for bash: .02900256000000000000 seconds
+# Average time for zsh: .03189920000000000000 seconds
+# Average time for ./cjsh_speed03: .04088379000000000000 seconds
+# Average time for ./cjsh_speed02: .04122752000000000000 seconds
+# Average time for ./cjsh_space: .04170941000000000000 seconds
+# Average time for fish: .04537877000000000000 seconds
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: --no-source --startup-test
+# Results after 100 run(s):
+# ----------------------------------------------------------------------
+# Average time for ./cjsh_space: .06142443000000000000 seconds
+# Average time for ./cjsh_speed03: .06148954000000000000 seconds
+# Average time for ./cjsh_speed02: .06186601000000000000 seconds
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: --no-source --startup-test --no-plugins --no-ai --no-themes
+# Results after 100 run(s):
+# ----------------------------------------------------------------------
+# Average time for ./cjsh_speed03: .03040521000000000000 seconds
+# Average time for ./cjsh_speed02: .03085385000000000000 seconds
+# Average time for ./cjsh_space: .03094124000000000000 seconds
 # ----------------------------------------------------------------------

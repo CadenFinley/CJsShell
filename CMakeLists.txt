@@ -88,7 +88,10 @@ file(GLOB EXCLUDE_FILES
 # Remove the excluded files from the sources list
 list(REMOVE_ITEM SOURCES ${EXCLUDE_FILES})
 
+
+# Set -Os for the default binary
 add_executable(${PROJECT_NAME} ${SOURCES})
+target_compile_options(${PROJECT_NAME} PRIVATE -Os)
 
 # Set isocline library to use separate objects
 add_definitions(-DIC_SEPARATE_OBJS=1)
@@ -186,7 +189,7 @@ if(BUILD_TESTS)
 endif()
 
 # Add option for building multiple binaries with different optimizations
-option(BUILD_MULTIPLE_BINARIES "Build multiple binaries with different optimizations" ON)
+option(BUILD_MULTIPLE_BINARIES "Build multiple binaries with different optimizations" OFF)
 
 if(BUILD_MULTIPLE_BINARIES)
   # Speed-optimized binary 03
