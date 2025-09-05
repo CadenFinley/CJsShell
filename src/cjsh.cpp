@@ -60,6 +60,7 @@ bool set_as_shell = false;
 bool show_version = false;
 bool show_help = false;
 bool check_update = false;
+bool startup_test = false;
 
 int main(int argc, char* argv[]) {
   if (!initialize_cjsh_path()) {
@@ -95,9 +96,10 @@ int main(int argc, char* argv[]) {
       {"check-update", no_argument, 0, 'V'},
       {"no-titleline", no_argument, 0, 'L'},
       {"no-source", no_argument, 0, 'N'},
+      {"startup-test", no_argument, 0, 'X'},
       {0, 0, 0, 0}};
 
-  const char* short_options = "lic:vhdsuSPTACUVLN";
+  const char* short_options = "lic:vhdsuSPTACUVLNX";
   int option_index = 0;
   int c;
 
@@ -193,6 +195,11 @@ int main(int argc, char* argv[]) {
         source_enabled = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Source file disabled" << std::endl;
+        break;
+      case 'X':  // --startup-test
+        startup_test = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Startup test mode enabled" << std::endl;
         break;
       case '?':
         print_usage();
@@ -372,7 +379,7 @@ int main(int argc, char* argv[]) {
   }
 
   g_startup_active = false;
-  if (!g_exit_flag) {
+  if (!g_exit_flag && !startup_test) {
     startup_update_process();
     if (g_title_line) {
       std::cout << title_line << std::endl;

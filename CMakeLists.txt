@@ -184,3 +184,52 @@ if(BUILD_TESTS)
 
   add_test(NAME ParserTests COMMAND parser_tests --gtest_color=yes)
 endif()
+
+# Add option for building multiple binaries with different optimizations
+option(BUILD_MULTIPLE_BINARIES "Build multiple binaries with different optimizations" ON)
+
+if(BUILD_MULTIPLE_BINARIES)
+  # Speed-optimized binary 03
+  add_executable(${PROJECT_NAME}_speed03 ${SOURCES})
+  target_compile_options(${PROJECT_NAME}_speed03 PRIVATE -O3)
+  target_link_libraries(${PROJECT_NAME}_speed03 PRIVATE
+      curl
+      pthread
+      dl
+      nlohmann_json::nlohmann_json
+  )
+  install(TARGETS ${PROJECT_NAME}_speed03 DESTINATION bin)
+
+    # Speed-optimized binary 02
+  add_executable(${PROJECT_NAME}_speed02 ${SOURCES})
+  target_compile_options(${PROJECT_NAME}_speed02 PRIVATE -O2)
+  target_link_libraries(${PROJECT_NAME}_speed02 PRIVATE
+      curl
+      pthread
+      dl
+      nlohmann_json::nlohmann_json
+  )
+  install(TARGETS ${PROJECT_NAME}_speed02 DESTINATION bin)
+
+  # Space-optimized binary
+  add_executable(${PROJECT_NAME}_space ${SOURCES})
+  target_compile_options(${PROJECT_NAME}_space PRIVATE -Os)
+  target_link_libraries(${PROJECT_NAME}_space PRIVATE
+      curl
+      pthread
+      dl
+      nlohmann_json::nlohmann_json
+  )
+  install(TARGETS ${PROJECT_NAME}_space DESTINATION bin)
+
+  # No optimization binary
+  add_executable(${PROJECT_NAME}_noopt ${SOURCES})
+  target_compile_options(${PROJECT_NAME}_noopt PRIVATE -O0)
+  target_link_libraries(${PROJECT_NAME}_noopt PRIVATE
+      curl
+      pthread
+      dl
+      nlohmann_json::nlohmann_json
+  )
+  install(TARGETS ${PROJECT_NAME}_noopt DESTINATION bin)
+endif()
