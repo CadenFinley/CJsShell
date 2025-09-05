@@ -19,6 +19,11 @@
  * {TIME12}     - Current time (HH:MM:SS) in 12 hour format
  * {TIME24}, {TIME} - Current time (HH:MM:SS) in 24 hour format
  * {DATE}       - Current date (YYYY-MM-DD)
+ * {DAY}        - Current day of the month (1-31)
+ * {MONTH}      - Current month (1-12)
+ * {YEAR}       - Current year (YYYY)
+ * {DAY_NAME}   - Name of the current day (e.g., Monday)
+ * {MONTH_NAME} - Name of the current month (e.g., September)
  * {SHELL}      - Name of the shell
  * {SHELL_VER}  - Version of the shell
  *
@@ -526,6 +531,48 @@ std::string PromptInfo::get_current_date() {
   if (g_debug_mode)
     std::cerr << "DEBUG: get_current_date END: " << result << std::endl;
   return result;
+}
+
+int PromptInfo::get_current_day() {
+  auto now = std::chrono::system_clock::now();
+  auto time_now = std::chrono::system_clock::to_time_t(now);
+  struct tm time_info;
+  localtime_r(&time_now, &time_info);
+  return time_info.tm_mday;
+}
+
+int PromptInfo::get_current_month() {
+  auto now = std::chrono::system_clock::now();
+  auto time_now = std::chrono::system_clock::to_time_t(now);
+  struct tm time_info;
+  localtime_r(&time_now, &time_info);
+  return time_info.tm_mon + 1;
+}
+
+int PromptInfo::get_current_year() {
+  auto now = std::chrono::system_clock::now();
+  auto time_now = std::chrono::system_clock::to_time_t(now);
+  struct tm time_info;
+  localtime_r(&time_now, &time_info);
+  return time_info.tm_year + 1900;
+}
+
+std::string PromptInfo::get_current_day_name() {
+  static const char* day_names[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+  auto now = std::chrono::system_clock::now();
+  auto time_now = std::chrono::system_clock::to_time_t(now);
+  struct tm time_info;
+  localtime_r(&time_now, &time_info);
+  return day_names[time_info.tm_wday];
+}
+
+std::string PromptInfo::get_current_month_name() {
+  static const char* month_names[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+  auto now = std::chrono::system_clock::now();
+  auto time_now = std::chrono::system_clock::to_time_t(now);
+  struct tm time_info;
+  localtime_r(&time_now, &time_info);
+  return month_names[time_info.tm_mon];
 }
 
 std::string PromptInfo::get_shell() {

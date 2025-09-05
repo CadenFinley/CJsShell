@@ -19,6 +19,11 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "TIME12: " << pi.get_current_time(true) << "\n";
     std::cout << "TIME24: " << pi.get_current_time(false) << "\n";
     std::cout << "DATE: " << pi.get_current_date() << "\n";
+    std::cout << "DAY: " << pi.get_current_day() << "\n";
+    std::cout << "MONTH: " << pi.get_current_month() << "\n";
+    std::cout << "YEAR: " << pi.get_current_year() << "\n";
+    std::cout << "DAY_NAME: " << pi.get_current_day_name() << "\n";
+    std::cout << "MONTH_NAME: " << pi.get_current_month_name() << "\n";
     std::cout << "SHELL: " << pi.get_shell() << "\n";
     std::cout << "SHELL_VER: " << pi.get_shell_version() << "\n";
     if (is_git_repo) {
