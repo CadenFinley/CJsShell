@@ -223,3 +223,4 @@ This project is licensed under the MIT License.
 ## Author
 
 Caden Finley @ Abilene Christian University (c) 2025
+cadenfinley.com
