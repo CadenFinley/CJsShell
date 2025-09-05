@@ -285,11 +285,11 @@ int theme_command(const std::vector<std::string>& args) {
 int install_theme(const std::string& themeName) {
   std::string github_themes_url =
       "https://raw.githubusercontent.com/CadenFinley/CJsShell/master/themes/";
-  std::string theme_file_name = themeName + ".json";
+  std::string theme_file_name = themeName + "/" + themeName + ".json";
   std::string remote_theme_url = github_themes_url + theme_file_name;
 
   std::filesystem::path local_theme_path =
-      cjsh_filesystem::g_cjsh_theme_path / theme_file_name;
+      cjsh_filesystem::g_cjsh_theme_path / (themeName + ".json");
 
   if (std::filesystem::exists(local_theme_path)) {
     std::cout
@@ -419,8 +419,7 @@ int list_available_themes() {
   }
 
   // Parse JSON response
-  std::vector<std::pair<std::string, std::string>>
-      available_themes;  // <name, download_url>
+  std::vector<std::string> available_themes;  // Theme names
   try {
     nlohmann::json contents = nlohmann::json::parse(result);
 
@@ -430,22 +429,13 @@ int list_available_themes() {
     }
 
     for (const auto& item : contents) {
-      if (item.contains("name") && item["name"].is_string() &&
-          item.contains("download_url") && item["download_url"].is_string()) {
-        std::string filename = item["name"].get<std::string>();
-        std::string download_url = item["download_url"].get<std::string>();
+      if (item.contains("name") && item["name"].is_string()) {
+        std::string theme_name = item["name"].get<std::string>();
 
-        // Check if the file is a JSON file
-        if (filename.size() >= 5 &&
-            filename.substr(filename.size() - 5) == ".json") {
-          // Extract theme name by removing the .json extension
-          std::string theme_name = filename.substr(0, filename.size() - 5);
-
-          // Skip special theme files
-          if (theme_name != "all_features_theme" &&
-              theme_name != "plugin_test") {
-            available_themes.push_back({theme_name, download_url});
-          }
+        // Skip special theme files
+        if (theme_name != "all_features_theme" &&
+            theme_name != "plugin_test") {
+          available_themes.push_back(theme_name);
         }
       }
     }
@@ -463,8 +453,7 @@ int list_available_themes() {
   }
 
   // Sort themes alphabetically by name
-  std::sort(available_themes.begin(), available_themes.end(),
-            [](const auto& a, const auto& b) { return a.first < b.first; });
+  std::sort(available_themes.begin(), available_themes.end());
 
   // Get list of locally installed themes
   std::vector<std::string> installed_themes;
@@ -483,7 +472,7 @@ int list_available_themes() {
 
   // Print available themes
   std::cout << "Available themes to install:" << std::endl;
-  for (const auto& [theme, url] : available_themes) {
+  for (const auto& theme : available_themes) {
     bool is_installed =
         std::find(installed_themes.begin(), installed_themes.end(), theme) !=
         installed_themes.end();
