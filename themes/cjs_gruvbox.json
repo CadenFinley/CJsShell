@@ -152,7 +152,7 @@
     },
     {
       "tag": "gitdetailsseg",
-      "content": " ↑{FAST_GIT_AHEAD} ↓{GIT_BEHIND} S:{GIT_STASHES} ✓{GIT_STAGED} Δ{GIT_CHANGES} ",
+      "content": " Δ{GIT_CHANGES} ({GIT_STAGED}) ",
       "bg_color": "#7c6f64",
       "fg_color": "#ebdbb2",
       "separator": "\uE0B0",
