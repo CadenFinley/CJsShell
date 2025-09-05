@@ -956,6 +956,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["DIRECTORY"] = get_current_file_name();
   }
 
+
   // Time information (low cost)
   if (needed_vars.count("TIME") || needed_vars.count("TIME24")) {
     vars["TIME"] = get_current_time(false);
@@ -968,6 +969,22 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
   if (needed_vars.count("DATE")) {
     vars["DATE"] = get_current_date();
+  }
+
+  if (needed_vars.count("DAY")) {
+    vars["DAY"] = std::to_string(get_current_day());
+  }
+  if (needed_vars.count("MONTH")) {
+    vars["MONTH"] = std::to_string(get_current_month());
+  }
+  if (needed_vars.count("YEAR")) {
+    vars["YEAR"] = std::to_string(get_current_year());
+  }
+  if (needed_vars.count("DAY_NAME")) {
+    vars["DAY_NAME"] = get_current_day_name();
+  }
+  if (needed_vars.count("MONTH_NAME")) {
+    vars["MONTH_NAME"] = get_current_month_name();
   }
 
   // System information (potentially high cost, already cached)
