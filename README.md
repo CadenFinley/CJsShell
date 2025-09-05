@@ -207,14 +207,8 @@ Manage themes with the `theme` command:
 - **nlohmann/json**  
   https://github.com/nlohmann/json (MIT License)
  
-- **libcurl**  
+- **curl**  
   https://github.com/curl/curl (MIT License)
- 
-- **OpenSSL** (optional, for SSL support)  
-  https://www.openssl.org (Apache License 2.0)
-  
-- **Vosk** (optional, for voice transcription)  
-  https://github.com/alphacep/vosk-api (Apache License 2.0)
 
 ## License
 
