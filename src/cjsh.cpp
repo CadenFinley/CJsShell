@@ -900,6 +900,7 @@ void apply_profile_startup_args() {
 }
 
 void process_profile_file() {
+  // sourcing if in login shell
   if (g_debug_mode) std::cerr << "DEBUG: Processing profile files" << std::endl;
   std::filesystem::path universal_profile = "/etc/profile";
   if (std::filesystem::exists(universal_profile)) {
@@ -925,6 +926,7 @@ void process_profile_file() {
 }
 
 void process_source_file() {
+  // processed if in interactive shell
   if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path)) {
     create_source_file();
     return;
