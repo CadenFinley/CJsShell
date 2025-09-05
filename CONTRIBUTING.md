@@ -280,4 +280,30 @@ Example theme structure:
 }
 ```
 
----
+## Contributing Themes
+
+If you would like to contribute a new theme to CJ's Shell, please follow these steps:
+
+1. **Create the Theme File**:
+   - Themes should be defined in a `.json` file.
+   - Ensure the theme file includes all required elements as outlined in the [Creating Themes](#creating-themes) section.
+
+2. **Include an Image of the Theme**:
+   - Take a screenshot of the theme in use.
+   - Save the image in a common format (e.g., `.png` or `.jpg`).
+   - Include the image in your pull request to showcase the theme's appearance.
+
+3. **Submit a Pull Request**:
+   - Create a directory in the `/themes/` directory named after your theme (e.g., `/themes/<theme_name>`).
+   - Place the `.json` theme file in this directory.
+   - Add the image to the same directory.
+   - Create a pull request with a clear description of your theme, including:
+     - The theme's name.
+     - A brief explanation of its design or inspiration.
+     - The screenshot of the theme.
+
+4. **Testing**:
+   - Test your theme locally to ensure it works as expected.
+   - Use the `theme preview [THEME_NAME]` command to verify its appearance.
+
+By following these steps, you help maintain the quality and consistency of themes in CJ's Shell. Thank you for your contribution!
