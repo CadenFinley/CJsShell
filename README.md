@@ -49,48 +49,38 @@ CJ's Shell maintains compatibility with familiar shell concepts:
 
 ## Installation
 
-### MACOS Install
+### macOS/Linux Install
 
-This installs cjsh from a custom brew tap hosted at: https://github.com/CadenFinley/homebrew-tap
+For macOS and Linux users, the recommended installation method is via Homebrew:
 
 ```bash
 brew install cadenfinley/tap/cjsh
 ```
 
-### LINUX Install
+### Manual Build and Install
 
-To install cjsh on your Linux distribution:
+For manual build and installation, you can build and install from a release on GitHub:
 
-1. First follow the manual installation steps below to build the project and then navigate to the tool-scripts directory in the root of the repo
-2. Make the installation script executable:
+1. Download the source code from the [Releases page](https://github.com/CadenFinley/CJsShell/releases).
+2. Extract the archive and navigate to the project directory.
+3. Build the project:
+
    ```bash
-   chmod +x ./tool-scripts/linux_install_from_local.sh
+   mkdir build && cd build
+   cmake ..
+   make -j
    ```
-3. After the build is complete, run the installation script with sudo privileges:
+4. Move the `cjsh` binary to a directory in your `PATH` (e.g., `/usr/local/bin`):
+
    ```bash
-   sudo ./tool-scripts/linux_install_from_local.sh
+   sudo mv build/cjsh /usr/local/bin/
    ```
 
-This script will:
-- Install the cjsh binary to `/usr/local/bin/`
-- Install the man page if available
-- Create the necessary `.config/cjsh` directory structure in your home folder
-- Show instructions for setting cjsh as your default shell
+5. Verify that `cjsh` is accessible from anywhere by running:
 
-### Manual Installation
-
-You can also build and install from source:
-
-```bash
-# Clone the repository
-git clone https://github.com/CadenFinley/CJsShell.git
-cd CJsShell
-
-# Build the project
-mkdir build && cd build
-cmake ..
-make
-```
+   ```bash
+   cjsh --version
+   ```
 
 ## Usage
 
@@ -99,7 +89,6 @@ Start an interactive session:
 ```bash
 cjsh
 ```
-
 Start a login session:
 ```bash
 cjsh --login
