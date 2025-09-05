@@ -20,12 +20,12 @@
 #include "history_command.h"
 #include "ls_command.h"
 #include "plugin_command.h"
+#include "prompt_test_command.h"
 #include "restart_command.h"
 #include "theme_command.h"
 #include "uninstall_command.h"
 #include "user_command.h"
 #include "version_command.h"
-#include "prompt_test_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \

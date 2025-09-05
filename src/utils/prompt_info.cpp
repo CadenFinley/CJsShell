@@ -36,10 +36,10 @@
  * {GIT_STASHES} - Number of stashes in the repository
  * {GIT_STAGED} - Has staged changes (✓ or empty)
  * {GIT_CHANGES} - Number of uncommitted changes
-  * {GIT_REMOTE} - Remote URL of the current repo
-  * {GIT_TAG} - Current Git tag (if any)
-  * {GIT_LAST_COMMIT} - Last commit hash or message
-  * {GIT_AUTHOR} - Author of the last commit
+ * {GIT_REMOTE} - Remote URL of the current repo
+ * {GIT_TAG} - Current Git tag (if any)
+ * {GIT_LAST_COMMIT} - Last commit hash or message
+ * {GIT_AUTHOR} - Author of the last commit
  *
  * System information placeholders:
  * {OS_INFO}     - Operating system name and version
@@ -48,9 +48,9 @@
  * {MEM_USAGE}   - Current memory usage percentage
  * {BATTERY}     - Battery percentage and charging status
  * {UPTIME}      - System uptime
-  * {DISK_USAGE}  - Disk usage of current directory or root
-  * {SWAP_USAGE}  - Swap memory usage
-  * {LOAD_AVG}    - System load average
+ * {DISK_USAGE}  - Disk usage of current directory or root
+ * {SWAP_USAGE}  - Swap memory usage
+ * {LOAD_AVG}    - System load average
  *
  * Environment information placeholders:
  * {TERM_TYPE}   - Terminal type (e.g., xterm, screen)
@@ -75,7 +75,8 @@
  * to current directory, ✔ and ✖ for when it is not
  */
 std::string PromptInfo::get_git_remote(const std::filesystem::path& repo_root) {
-  std::string cmd = "git -C '" + repo_root.string() + "' remote get-url origin 2>/dev/null";
+  std::string cmd =
+      "git -C '" + repo_root.string() + "' remote get-url origin 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
   if (!fp) return "";
   char buffer[256];
@@ -87,7 +88,8 @@ std::string PromptInfo::get_git_remote(const std::filesystem::path& repo_root) {
 }
 
 std::string PromptInfo::get_git_tag(const std::filesystem::path& repo_root) {
-  std::string cmd = "git -C '" + repo_root.string() + "' describe --tags --abbrev=0 2>/dev/null";
+  std::string cmd = "git -C '" + repo_root.string() +
+                    "' describe --tags --abbrev=0 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
   if (!fp) return "";
   char buffer[128];
@@ -98,8 +100,10 @@ std::string PromptInfo::get_git_tag(const std::filesystem::path& repo_root) {
   return result;
 }
 
-std::string PromptInfo::get_git_last_commit(const std::filesystem::path& repo_root) {
-  std::string cmd = "git -C '" + repo_root.string() + "' log -1 --pretty=format:%h:%s 2>/dev/null";
+std::string PromptInfo::get_git_last_commit(
+    const std::filesystem::path& repo_root) {
+  std::string cmd = "git -C '" + repo_root.string() +
+                    "' log -1 --pretty=format:%h:%s 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
   if (!fp) return "";
   char buffer[256];
@@ -110,7 +114,8 @@ std::string PromptInfo::get_git_last_commit(const std::filesystem::path& repo_ro
 }
 
 std::string PromptInfo::get_git_author(const std::filesystem::path& repo_root) {
-  std::string cmd = "git -C '" + repo_root.string() + "' log -1 --pretty=format:%an 2>/dev/null";
+  std::string cmd = "git -C '" + repo_root.string() +
+                    "' log -1 --pretty=format:%an 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
   if (!fp) return "";
   char buffer[128];
@@ -137,7 +142,7 @@ std::string PromptInfo::get_swap_usage() {
 #ifdef __APPLE__
   std::string cmd = "sysctl vm.swapusage | awk '{print $3}'";
 #elif defined(__linux__)
-  std::string cmd = "free | grep Swap | awk '{print $3 "/" $2}'";
+  std::string cmd = "free | grep Swap | awk '{print $3 " / " $2}'";
 #else
   return "Unknown";
 #endif
@@ -653,7 +658,9 @@ int PromptInfo::get_current_year() {
 }
 
 std::string PromptInfo::get_current_day_name() {
-  static const char* day_names[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+  static const char* day_names[] = {"Sunday",    "Monday",   "Tuesday",
+                                    "Wednesday", "Thursday", "Friday",
+                                    "Saturday"};
   auto now = std::chrono::system_clock::now();
   auto time_now = std::chrono::system_clock::to_time_t(now);
   struct tm time_info;
@@ -662,7 +669,9 @@ std::string PromptInfo::get_current_day_name() {
 }
 
 std::string PromptInfo::get_current_month_name() {
-  static const char* month_names[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+  static const char* month_names[] = {
+      "January", "February", "March",     "April",   "May",      "June",
+      "July",    "August",   "September", "October", "November", "December"};
   auto now = std::chrono::system_clock::now();
   auto time_now = std::chrono::system_clock::to_time_t(now);
   struct tm time_info;
@@ -865,8 +874,7 @@ int PromptInfo::get_git_uncommitted_changes(
         try {
           // Use --porcelain for machine-readable output
           std::string command =
-              "cd " + repo_root.string() +
-              " && git status --porcelain | wc -l";
+              "cd " + repo_root.string() + " && git status --porcelain | wc -l";
 
           FILE* pipe = popen(("sh -c '" + command + "'").c_str(), "r");
           if (!pipe) {
@@ -1413,15 +1421,25 @@ std::string PromptInfo::get_active_language_version(
     const std::string& language) {
   std::string cmd;
   if (language == "python") {
-    cmd = "command -v python >/dev/null 2>&1 && python --version 2>&1 || echo 'Not installed'";
+    cmd =
+        "command -v python >/dev/null 2>&1 && python --version 2>&1 || echo "
+        "'Not installed'";
   } else if (language == "node" || language == "nodejs") {
-    cmd = "command -v node >/dev/null 2>&1 && node --version 2>&1 || echo 'Not installed'";
+    cmd =
+        "command -v node >/dev/null 2>&1 && node --version 2>&1 || echo 'Not "
+        "installed'";
   } else if (language == "ruby") {
-    cmd = "command -v ruby >/dev/null 2>&1 && ruby --version 2>&1 || echo 'Not installed'";
+    cmd =
+        "command -v ruby >/dev/null 2>&1 && ruby --version 2>&1 || echo 'Not "
+        "installed'";
   } else if (language == "go") {
-    cmd = "command -v go >/dev/null 2>&1 && go version 2>&1 || echo 'Not installed'";
+    cmd =
+        "command -v go >/dev/null 2>&1 && go version 2>&1 || echo 'Not "
+        "installed'";
   } else if (language == "rust") {
-    cmd = "command -v rustc >/dev/null 2>&1 && rustc --version 2>&1 || echo 'Not installed'";
+    cmd =
+        "command -v rustc >/dev/null 2>&1 && rustc --version 2>&1 || echo 'Not "
+        "installed'";
   } else {
     return "Unknown";
   }
