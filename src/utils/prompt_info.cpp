@@ -142,7 +142,7 @@ std::string PromptInfo::get_swap_usage() {
 #ifdef __APPLE__
   std::string cmd = "sysctl vm.swapusage | awk '{print $3}'";
 #elif defined(__linux__)
-  std::string cmd = "free | grep Swap | awk '{print $3 " / " $2}'";
+  std::string cmd = "free | grep Swap | awk '{print $3 \" / \" $2}'";
 #else
   return "Unknown";
 #endif
