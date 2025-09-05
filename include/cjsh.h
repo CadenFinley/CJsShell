@@ -16,7 +16,7 @@
 #include "update.h"
 
 const bool PRE_RELEASE = false;
-const std::string c_version = "2.3.8";
+const std::string c_version = "2.3.9";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url =
     "https://api.github.com/repos/cadenfinley/CJsShell/releases/latest";
