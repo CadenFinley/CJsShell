@@ -56,6 +56,7 @@ class Theme {
   bool load_theme(const std::string& theme_name, bool save_in_file,
                   bool allow_fallback);
   std::vector<std::string> list_themes();
+  void view_theme_requirements(const std::string& theme) const;
 
   bool uses_newline() const;
 

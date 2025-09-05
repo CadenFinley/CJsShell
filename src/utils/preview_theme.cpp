@@ -29,8 +29,9 @@ int preview_theme(const std::string& theme_name) {
     return 1;
   }
 
-  std::cout << "Preview of theme '" << theme_name << "':" << std::endl;
-  std::cout << "==========================================" << std::endl;
+  std::cout << "\nPreview of theme '" << theme_name << "':" << std::endl;
+  temp_theme->view_theme_requirements(theme_name);
+  std::cout << "==========================================\n" << std::endl;
 
   PromptInfo prompt_info;
 
@@ -97,7 +98,7 @@ int preview_theme(const std::string& theme_name) {
 
   std::cout << "==========================================" << std::endl;
   std::cout << "Note: Actual appearance may vary based on your terminal and "
-               "environment."
+               "environment.\n"
             << std::endl;
 
   return 0;

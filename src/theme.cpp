@@ -626,6 +626,74 @@ std::string Theme::render_line(
   return result;
 }
 
+void Theme::view_theme_requirements(const std::string& theme) const {
+  std::string theme_file = theme_directory + "/" + theme + ".json";
+
+  if (!std::filesystem::exists(theme_file)) {
+    std::cerr << "Error: Theme '" << theme << "' not found." << std::endl;
+    return;
+  }
+  std::ifstream file(theme_file);
+  nlohmann::json theme_json;
+  file >> theme_json;
+  file.close();
+
+  if (theme_json.contains("requirements") &&
+      theme_json["requirements"].is_object() &&
+      !theme_json["requirements"].empty()) {
+    const nlohmann::json& requirements = theme_json["requirements"];
+
+    if (requirements.contains("colors") && requirements["colors"].is_string()) {
+      std::string required_capability =
+          requirements["colors"].get<std::string>();
+      std::cout << "Terminal color support for " << required_capability
+                << " is required." << std::endl;
+    }
+
+    if (requirements.contains("fonts") && requirements["fonts"].is_array()) {
+      std::stringstream font_req;
+      font_req << "This theme works best with one of these fonts: ";
+      bool first = true;
+
+      for (const auto& font : requirements["fonts"]) {
+        if (font.is_string()) {
+          if (!first) font_req << ", ";
+          font_req << font.get<std::string>();
+          first = false;
+        }
+      }
+
+      std::cout << font_req.str() << std::endl;
+    }
+
+    if (requirements.contains("plugins") &&
+        requirements["plugins"].is_array()) {
+      for (const auto& plugin_name : requirements["plugins"]) {
+        if (plugin_name.is_string()) {
+          std::string name = plugin_name.get<std::string>();
+          std::cout << "Plugin requirement for this theme: " << name
+                    << std::endl;
+        }
+      }
+    }
+
+    if (requirements.contains("custom") && requirements["custom"].is_object()) {
+      for (auto it = requirements["custom"].begin();
+           it != requirements["custom"].end(); ++it) {
+        std::string requirement_name = it.key();
+        if (it.value().is_string()) {
+          std::string requirement_value = it.value().get<std::string>();
+          std::cout << "Custom requirement: " << requirement_name << " = "
+                    << requirement_value << std::endl;
+        }
+      }
+    }
+  } else {
+    std::cout << "No specific requirements found for theme " << theme
+              << std::endl;
+  }
+}
+
 bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
   bool requirements_met = true;
   std::vector<std::string> missing_requirements;
@@ -650,22 +718,22 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
     }
   }
 
-  if (requirements.contains("fonts") && requirements["fonts"].is_array() &&
-      !g_startup_active) {
-    std::stringstream font_req;
-    font_req << "This theme works best with one of these fonts: ";
-    bool first = true;
+  // if (requirements.contains("fonts") && requirements["fonts"].is_array() &&
+  //     !g_startup_active) {
+  //   std::stringstream font_req;
+  //   font_req << "This theme works best with one of these fonts: ";
+  //   bool first = true;
 
-    for (const auto& font : requirements["fonts"]) {
-      if (font.is_string()) {
-        if (!first) font_req << ", ";
-        font_req << font.get<std::string>();
-        first = false;
-      }
-    }
+  //   for (const auto& font : requirements["fonts"]) {
+  //     if (font.is_string()) {
+  //       if (!first) font_req << ", ";
+  //       font_req << font.get<std::string>();
+  //       first = false;
+  //     }
+  //   }
 
-    std::cout << font_req.str() << std::endl;
-  }
+  //   std::cout << font_req.str() << std::endl;
+  // }
 
   if (requirements.contains("plugins") && requirements["plugins"].is_array()) {
     for (const auto& plugin_name : requirements["plugins"]) {
