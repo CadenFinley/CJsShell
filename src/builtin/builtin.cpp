@@ -25,6 +25,7 @@
 #include "uninstall_command.h"
 #include "user_command.h"
 #include "version_command.h"
+#include "prompt_test_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -119,6 +120,11 @@ Built_ins::Built_ins()
               (void)args;
                shell->set_menu_active(true);
                return 0;
+             }},
+            {"prompt_test",
+             [](const std::vector<std::string>& args) {
+               extern int prompt_test_command(const std::vector<std::string>&);
+               return prompt_test_command(args);
              }},
         },
         shell(nullptr) {}

@@ -1271,15 +1271,15 @@ std::string PromptInfo::get_active_language_version(
     const std::string& language) {
   std::string cmd;
   if (language == "python") {
-    cmd = "python --version 2>&1";
+    cmd = "command -v python >/dev/null 2>&1 && python --version 2>&1 || echo 'Not installed'";
   } else if (language == "node" || language == "nodejs") {
-    cmd = "node --version";
+    cmd = "command -v node >/dev/null 2>&1 && node --version 2>&1 || echo 'Not installed'";
   } else if (language == "ruby") {
-    cmd = "ruby --version | awk '{print $2}'";
+    cmd = "command -v ruby >/dev/null 2>&1 && ruby --version 2>&1 || echo 'Not installed'";
   } else if (language == "go") {
-    cmd = "go version | awk '{print $3}' | sed 's/go//'";
+    cmd = "command -v go >/dev/null 2>&1 && go version 2>&1 || echo 'Not installed'";
   } else if (language == "rust") {
-    cmd = "rustc --version | awk '{print $2}'";
+    cmd = "command -v rustc >/dev/null 2>&1 && rustc --version 2>&1 || echo 'Not installed'";
   } else {
     return "Unknown";
   }
@@ -1297,6 +1297,16 @@ std::string PromptInfo::get_active_language_version(
   // Remove newline
   if (!result.empty() && result[result.length() - 1] == '\n') {
     result.erase(result.length() - 1);
+  }
+
+  // If result contains 'Not installed', return that
+  if (result.find("Not installed") != std::string::npos) {
+    return "Not installed";
+  }
+
+  // If result is empty, return 'Unknown'
+  if (result.empty()) {
+    return "Unknown";
   }
 
   return result;
