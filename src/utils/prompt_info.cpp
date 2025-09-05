@@ -1376,7 +1376,7 @@ std::string PromptInfo::get_battery_status() {
 
         return percentage + " " + icon;
 #else
-        return "Unknown";
+        return "";
 #endif
       },
       60);  // Cache for 60 seconds
