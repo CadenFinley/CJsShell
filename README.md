@@ -13,11 +13,17 @@
 
 ## CJ's Shell
 
-CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built-in AI assistant who only offers help when you ask for it, a powerful plugin engine with a versatile language-agnostic plugin API, highly customizable themes, and a vibrant color engine.
+This is CJ's Shell! This is a custom login shell that I wrote after I got fed up with bash's inability to evolve and un-accessable customazation, oh-my-zsh's bloat and overall sluggishness, zsh's challening customization making you rely on frameworks to install and build, and fish's small community making issues or bugs hard to diagnose or seek help with. And throughout all of this, plugins and themes were always a pain on all 3! CJ's Shell aims to fix all of these for you, and I should know. I use CJ's Shell (cjsh) everyday without the assistance or backup of another shell open. While I do have zsh, bash, fish, etc installed on my machine I do not rely on them to make cjsh function or to help me get any work done. I hope you give cjsh a shot and I hope you enjoy! Thank you!
+ 
+-Caden 'cj' Finley
 
 > ⚠️ **WARNING**: This project is still in active development. There may be occasional bugs. Please report any issues you encounter by opening a pull request or issue.
 
-## Why Choose CJ's Shell?
+## What is CJ's Shell?
+
+CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built-in AI assistant who only offers help when you ask for it, a powerful plugin engine with a versatile language-agnostic plugin API, highly customizable themes, and a vibrant color engine.
+
+## Why Should YOU Choose CJ's Shell?
 
 CJ's Shell combines the familiarity of traditional POSIX shells with modern developer-focused features:
 
@@ -39,7 +45,7 @@ CJ's Shell maintains compatibility with familiar shell concepts:
 - Basic shell functions and aliases
 - Core built-ins like `cd`, `exit`, `export`, and `history`
 
-### Why Developers Choose cjsh
+### Why Developers Should Choose cjsh
 
 - **Streamlined Workflow**: AI assistance and rich tooling directly in your terminal means fewer context switches and external tools.
 - **Extensibility**: The formal plugin API lets you create powerful integrations in multiple languages, not just shell scripts.
@@ -55,6 +61,8 @@ To install cjsh run:
 ```bash
 brew install cadenfinley/tap/cjsh
 ```
+
+With the Homebrew installation you will be able to update and uninstall cjsh with ease with the following commands:
 
 To upgrade cjsh run:
 ```bash

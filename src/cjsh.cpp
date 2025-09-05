@@ -30,6 +30,8 @@
 //  need to figure out why compilation is so slow or maybe i just have a lot of
 //  code who knows
 
+//  on startup if a theme has to fallback to default it shouldnt write that to the cjshrc
+
 /*
  * Exit/Return Codes:
  * 0       - Success
