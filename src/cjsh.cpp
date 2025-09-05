@@ -246,7 +246,7 @@ int main(int argc, char* argv[]) {
   }
 
   if (show_version) {
-    std::cout << c_version << std::endl;
+    std::cout << c_version << (PRE_RELEASE ? "-PRERELEASE" : "") << std::endl;
   } else if (show_help) {
     print_usage();
   } else if (set_as_shell) {
