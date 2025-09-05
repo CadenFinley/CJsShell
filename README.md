@@ -23,7 +23,7 @@ This is CJ's Shell! This is a custom login shell that I wrote after I got fed up
 
 CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built-in AI assistant who only offers help when you ask for it, a powerful plugin engine with a versatile language-agnostic plugin API, highly customizable themes, and a vibrant color engine.
 
-## Why Should YOU Choose CJ's Shell?
+## Why Should You Choose CJ's Shell?
 
 CJ's Shell combines the familiarity of traditional POSIX shells with modern developer-focused features:
 
