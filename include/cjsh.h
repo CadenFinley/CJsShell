@@ -15,7 +15,7 @@
 #include "theme.h"
 #include "update.h"
 
-const bool PRE_RELEASE = true;
+const bool PRE_RELEASE = false;
 const std::string c_version = "2.3.11";
 const std::string c_github_url = "https://github.com/CadenFinley/CJsShell";
 const std::string c_update_url =

@@ -433,8 +433,7 @@ int list_available_themes() {
         std::string theme_name = item["name"].get<std::string>();
 
         // Skip special theme files
-        if (theme_name != "all_features_theme" &&
-            theme_name != "plugin_test") {
+        if (theme_name != "all_features_theme" && theme_name != "plugin_test") {
           available_themes.push_back(theme_name);
         }
       }
