@@ -133,7 +133,8 @@ bool execute_update_if_available(bool avail) {
     return false;
   }
   std::cout << "\nAn update is available." << std::endl;
-  std::cout << "If you have homebrew installed, you can update with:\n"
+  std::cout << "If you have homebrew installed and installed cjsh with it, you "
+               "can update with:\n"
             << "  brew upgrade cadenfinley/tap/cjsh\n";
   std::cout << "Otherwise you need to head to the GitHub releases page to "
                "download the latest source code and build it yourself."

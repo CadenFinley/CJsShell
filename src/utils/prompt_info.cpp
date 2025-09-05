@@ -956,7 +956,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["DIRECTORY"] = get_current_file_name();
   }
 
-
   // Time information (low cost)
   if (needed_vars.count("TIME") || needed_vars.count("TIME24")) {
     vars["TIME"] = get_current_time(false);
