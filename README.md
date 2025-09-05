@@ -9,7 +9,7 @@ This is CJ's Shell! This is a custom login shell that I wrote after I got fed up
  
 -Caden 'cj' Finley
 
-> ⚠️ **WARNING**: This project is still in active development. There may be occasional bugs. Please report any issues you encounter by opening a pull request or issue.
+> ⚠️ **WARNING**: This project is still in active development. There may be occasional bugs or some things that just don't work quite right yet. Please report any issues you encounter by opening a pull request or issue.
 
 ## What is CJ's Shell?
 
