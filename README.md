@@ -44,17 +44,26 @@ CJ's Shell maintains compatibility with familiar shell concepts:
 - **Streamlined Workflow**: AI assistance and rich tooling directly in your terminal means fewer context switches and external tools.
 - **Extensibility**: The formal plugin API lets you create powerful integrations in multiple languages, not just shell scripts.
 - **Modern UX with Familiar Syntax**: Enjoy advanced features without abandoning the POSIX syntax you already know.
-- **Consistent Cross-Platform Experience**: Works consistently across macOS, Linux, and Windows (via WSL).
-- **Customization Without Configuration Hell**: Structured JSON themes and clean plugin management eliminate fragile shell script hacks.
+- **Consistent Cross-Platform Experience**: Works consistently across macOS, Linux, and Windows (via WSL or Cygwin).
+- **Customization Without Configuration Pain**: Structured JSON themes and clean plugin management eliminate fragile shell script hacks.
 
 ## Installation
 
-### macOS/Linux Install
+### Homebrew Installation (Recomended)
 
-For macOS and Linux users, the recommended installation method is via Homebrew:
-
+To install cjsh run:
 ```bash
 brew install cadenfinley/tap/cjsh
+```
+
+To upgrade cjsh run:
+```bash
+brew upgrade cadenfinley/tap/cjsh
+```
+
+To uninstall cjsh run:
+```bash
+brew uninstall cadenfinley/tap/cjsh
 ```
 
 ### Manual Build and Install
