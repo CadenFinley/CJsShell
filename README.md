@@ -5,7 +5,7 @@
 
 ## CJ's Shell
 
-Are you scard of the command line? Does working in a terminal bring you dread? Then I have the thing for you!
+Are you scared of the command line? Does working in a terminal bring you dread? Then I have the thing for you!
 
 This is CJ's Shell! This is a custom login shell that I wrote after I got fed up with bash's inability to evolve and un-accessable customazation, oh-my-zsh's bloat and overall sluggishness, zsh's challening customization making you rely on frameworks to install and build, and fish's small community making issues or bugs hard to diagnose or seek help with. And throughout all of this, plugins and themes were always a pain on all 3! CJ's Shell aims to fix all of these for you, and I should know. I use CJ's Shell (cjsh) everyday without the assistance or backup of another shell open. While I do have zsh, bash, fish, etc installed on my machine I do not rely on them to make cjsh function or to help me get any work done. I hope you give cjsh a shot and I hope you enjoy! Thank you!
  
