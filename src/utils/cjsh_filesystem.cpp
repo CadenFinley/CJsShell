@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <cstring>  // For strdup
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -67,16 +68,6 @@ bool file_exists(const fs::path& path) { return fs::exists(path); }
 #include <mach-o/dyld.h>
 #endif
 
-#ifdef __linux__
-#include <string.h>
-extern char* program_invocation_name;
-#else
-// Define program_invocation_name for non-Linux platforms
-namespace cjsh_filesystem {
-char* program_invocation_name = nullptr;
-}
-#endif
-
 bool initialize_cjsh_path() {
   char path[PATH_MAX];
 #ifdef __linux__
@@ -102,37 +93,17 @@ bool initialize_cjsh_path() {
 #endif
 
   if (g_cjsh_path.empty()) {
-#ifdef __linux__
-    char* exePath = realpath(program_invocation_name, NULL);
-    if (exePath) {
-      g_cjsh_path = exePath;
-      free(exePath);
-      return true;
-    } else {
-      g_cjsh_path = "/usr/local/bin/cjsh";
-      return true;
-    }
-#else
-    char* exePath = program_invocation_name ? 
-                   realpath(program_invocation_name, NULL) : nullptr;
-    if (exePath) {
-      g_cjsh_path = exePath;
-      free(exePath);
-      return true;
-    } else {
-      g_cjsh_path = "/usr/local/bin/cjsh";
-      return true;
-    }
-#endif
+    // Last resort fallback - just use a default path
+    g_cjsh_path = "/usr/local/bin/cjsh";
+    return true;
   }
-  g_cjsh_path = "No path found";
-  return false;
+  
+  return true;
 }
 
 bool initialize_cjsh_directories() {
   try {
-    // We're already in the cjsh_filesystem namespace, so we can use fs directly
-    namespace fs = std::filesystem;
+    // We're already in the cjsh_filesystem namespace, so fs is already defined
 
     if (!fs::exists(g_config_path)) {
       fs::create_directories(g_config_path);
