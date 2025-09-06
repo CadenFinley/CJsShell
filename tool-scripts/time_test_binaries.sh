@@ -1,7 +1,7 @@
 #!/bin/bash
 
-RUNS=50
-COMMAND="--version"
+RUNS=100
+COMMAND="-c ls"
 BASELINE_SHELLS=("fish" "bash" "zsh")
 cjsh_binary_types=("")
 
@@ -133,6 +133,8 @@ rm "$temp_file"
 #   Min time: .026469000 seconds
 #   Max time: .031983000 seconds
 # ----------------------------------------------------------------------
+
+
 
 # ----------------------------------------------------------------------
 # Command used to test: -c ls

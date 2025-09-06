@@ -3,14 +3,18 @@
 #include <ctime>
 #include <sstream>
 #include <string>
+#include <string_view>
+
+inline constexpr std::string_view COMMON_SYSTEM_PROMPT =
+    "You are an AI assistant for CJ's Shell (cjsh), a Unix-like shell "
+    "with special features. "
+    "CJ's Shell is a custom shell with built-in AI capabilities, "
+    "theming, plugins, and job control. "
+    "It supports standard Unix commands and shell features like "
+    "pipes, redirection, and background jobs.";
 
 std::string get_common_system_prompt() {
-  return "You are an AI assistant for CJ's Shell (cjsh), a Unix-like shell "
-         "with special features. "
-         "CJ's Shell is a custom shell with built-in AI capabilities, "
-         "theming, plugins, and job control. "
-         "It supports standard Unix commands and shell features like "
-         "pipes, redirection, and background jobs.";
+  return std::string(COMMON_SYSTEM_PROMPT);
 }
 
 std::string build_system_prompt() {
@@ -60,44 +64,39 @@ std::string build_system_prompt() {
   return prompt.str();
 }
 
+inline constexpr std::string_view HELP_SYSTEM_PROMPT = R"(
+ABOUT CJ'S SHELL:
+- Configuration files: ~/.cjprofile (login mode), ~/.cjshrc (interactive mode)
+- Main directories: ~/.config/cjsh/, with subdirectories for plugins, themes, and colors
+
+KEY FEATURES:
+1. AI Integration - Commands: ai (chat mode), aihelp (troubleshooting)
+2. Plugin System - Managed via 'plugin' command (enable, disable, settings)
+3. Theming - Visual customization via 'theme' command
+4. Job Control - Standard fg, bg, jobs commands with process group management
+5. Environment - Uses STATUS variable for last command exit code
+
+COMMON ISSUES:
+- Path issues: Check PATH variable using 'export' without arguments
+- Permission errors: Check file permissions with 'ls -la'
+- Command not found: May need to install package or check typos
+- Plugin errors: Try 'plugin disable NAME' to see if a plugin is causing issues
+- AI features unavailable: Check API key configuration with 'ai apikey'
+
+When responding:
+1. Be concise and clear with your explanations
+2. Provide commands the user can run to fix their issues
+3. Explain why the error occurred when possible
+4. Focus on practical solutions specific to cjsh when relevant
+)";
+
 std::string create_help_system_prompt() {
   std::stringstream prompt;
 
   prompt << get_common_system_prompt() << "\n";
   prompt << "Help users troubleshoot and fix issues with their commands or "
             "shell usage.\n\n";
-
-  prompt
-      << "ABOUT CJ'S SHELL:"
-      << "\n- Configuration files: ~/.cjprofile (login mode), ~/.cjshrc "
-      << "(interactive mode)"
-      << "\n- Main directories: ~/.config/cjsh/, with subdirectories for "
-      << "plugins, themes, and colors"
-
-      << "\n\nKEY FEATURES:"
-      << "\n1. AI Integration - Commands: ai (chat mode), aihelp "
-      << "(troubleshooting)"
-      << "\n2. Plugin System - Managed via 'plugin' command (enable, disable, "
-      << "settings)"
-      << "\n3. Theming - Visual customization via 'theme' command"
-      << "\n4. Job Control - Standard fg, bg, jobs commands with process group "
-      << "management"
-      << "\n5. Environment - Uses STATUS variable for last command exit code"
-
-      << "\n\nCOMMON ISSUES:"
-      << "\n- Path issues: Check PATH variable using 'export' without arguments"
-      << "\n- Permission errors: Check file permissions with 'ls -la'"
-      << "\n- Command not found: May need to install package or check typos"
-      << "\n- Plugin errors: Try 'plugin disable NAME' to see if a plugin is "
-      << "causing issues"
-      << "\n- AI features unavailable: Check API key configuration with 'ai "
-      << "apikey'"
-
-      << "\n\nWhen responding:"
-      << "\n1. Be concise and clear with your explanations"
-      << "\n2. Provide commands the user can run to fix their issues"
-      << "\n3. Explain why the error occurred when possible"
-      << "\n4. Focus on practical solutions specific to cjsh when relevant";
+  prompt << HELP_SYSTEM_PROMPT;
 
   return prompt.str();
 }

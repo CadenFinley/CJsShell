@@ -70,6 +70,9 @@ bool file_exists(const fs::path& path) { return fs::exists(path); }
 #ifdef __linux__
 #include <string.h>
 extern char* program_invocation_name;
+#else
+// Define program_invocation_name for non-Linux platforms
+char* program_invocation_name = nullptr;
 #endif
 
 bool initialize_cjsh_path() {

@@ -114,7 +114,7 @@ uint8_t get_closest_ansi_color(const RGB& color) {
   return closest_index;
 }
 
-HSL rgb_to_hsl(const RGB& rgb) {
+constexpr HSL rgb_to_hsl(const RGB& rgb) {
   float r = rgb.r / 255.0f;
   float g = rgb.g / 255.0f;
   float b = rgb.b / 255.0f;
@@ -141,7 +141,7 @@ HSL rgb_to_hsl(const RGB& rgb) {
   return HSL(h * 360.0f, s, l);
 }
 
-RGB hsl_to_rgb(const HSL& hsl) {
+constexpr RGB hsl_to_rgb(const HSL& hsl) {
   float h = hsl.h / 360.0f;
   float s = hsl.s;
   float l = hsl.l;
@@ -262,38 +262,38 @@ std::string bg_color(uint8_t index) {
 }
 
 std::string style(const std::string& text, const RGB& fg) {
-  return fg_color(fg) + text + ansi::RESET;
+  return fg_color(fg) + text + std::string(ansi::RESET);
 }
 
 std::string style(const std::string& text, const RGB& fg, const RGB& bg) {
-  return fg_color(fg) + bg_color(bg) + text + ansi::RESET;
+  return fg_color(fg) + bg_color(bg) + text + std::string(ansi::RESET);
 }
 
 std::string style_bold(const std::string& text) {
-  return ansi::BOLD + text + ansi::RESET;
+  return std::string(ansi::BOLD) + text + std::string(ansi::RESET);
 }
 
 std::string style_italic(const std::string& text) {
-  return ansi::ITALIC + text + ansi::RESET;
+  return std::string(ansi::ITALIC) + text + std::string(ansi::RESET);
 }
 
 std::string style_underline(const std::string& text) {
-  return ansi::UNDERLINE + text + ansi::RESET;
+  return std::string(ansi::UNDERLINE) + text + std::string(ansi::RESET);
 }
 
 std::string style_blink(const std::string& text) {
-  return ansi::BLINK + text + ansi::RESET;
+  return std::string(ansi::BLINK) + text + std::string(ansi::RESET);
 }
 
 std::string style_reverse(const std::string& text) {
-  return ansi::REVERSE + text + ansi::RESET;
+  return std::string(ansi::REVERSE) + text + std::string(ansi::RESET);
 }
 
 std::string style_hidden(const std::string& text) {
-  return ansi::HIDDEN + text + ansi::RESET;
+  return std::string(ansi::HIDDEN) + text + std::string(ansi::RESET);
 }
 
-std::string style_reset() { return ansi::RESET; }
+std::string style_reset() { return std::string(ansi::RESET); }
 
 RGB blend(const RGB& color1, const RGB& color2, float factor) {
   return RGB(static_cast<uint8_t>(color1.r * (1 - factor) + color2.r * factor),
@@ -348,7 +348,7 @@ std::string gradient_text(const std::string& text, const RGB& start,
   return result;
 }
 
-uint8_t rgb_to_xterm256(const RGB& color) {
+constexpr uint8_t rgb_to_xterm256(const RGB& color) {
   int r = static_cast<int>(round(color.r / 255.0 * 5.0));
   int g = static_cast<int>(round(color.g / 255.0 * 5.0));
   int b = static_cast<int>(round(color.b / 255.0 * 5.0));
@@ -356,7 +356,7 @@ uint8_t rgb_to_xterm256(const RGB& color) {
   return static_cast<uint8_t>(16 + 36 * r + 6 * g + b);
 }
 
-RGB xterm256_to_rgb(uint8_t index) {
+constexpr RGB xterm256_to_rgb(uint8_t index) {
   if (index < 16) {
     switch (index) {
       case 0:
@@ -478,15 +478,27 @@ RGB get_color_by_name(const std::string& name) {
     return custom_it->second;
   }
 
+  // Use linear search for the constexpr array
+  for (const auto& named_color : g_basic_colors) {
+    if (named_color.name == upper_name) {
+      return named_color.color;
+    }
+  }
+
   return RGB(0, 0, 0);
 }
 
 std::unordered_map<std::string, std::string> get_color_map() {
-  std::unordered_map<std::string, std::string> color_map = {
-      {"BOLD", ansi::BOLD},           {"ITALIC", ansi::ITALIC},
-      {"UNDERLINE", ansi::UNDERLINE}, {"BLINK", ansi::BLINK},
-      {"REVERSE", ansi::REVERSE},     {"HIDDEN", ansi::HIDDEN},
-      {"RESET", ansi::RESET}};
+  std::unordered_map<std::string, std::string> color_map;
+
+  // Initialize with string literals instead of string_view
+  color_map["BOLD"] = ansi::BOLD;
+  color_map["ITALIC"] = ansi::ITALIC;
+  color_map["UNDERLINE"] = ansi::UNDERLINE;
+  color_map["BLINK"] = ansi::BLINK;
+  color_map["REVERSE"] = ansi::REVERSE;
+  color_map["HIDDEN"] = ansi::HIDDEN;
+  color_map["RESET"] = ansi::RESET;
 
   if (g_color_capability != ColorCapability::NO_COLOR) {
     for (const auto& [name, rgb] : g_custom_colors) {

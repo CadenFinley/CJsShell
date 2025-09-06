@@ -96,112 +96,92 @@ int main(int argc, char* argv[]) {
   int c;
   optind = 1;
 
-  // Define flag handlers in a map for faster lookup
-  using FlagHandler = std::function<void(const char*)>;
-  std::unordered_map<char, FlagHandler> flag_handlers = {
-      {'l',
-       [](const char*) {
-         config::login_mode = true;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Login mode enabled" << std::endl;
-       }},
-      {'i',
-       [](const char*) {
-         config::force_interactive = true;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Interactive mode forced" << std::endl;
-       }},
-      {'d',
-       [](const char*) {
-         g_debug_mode = true;
-         std::cerr << "DEBUG: Debug mode enabled" << std::endl;
-       }},
-      {'c',
-       [](const char* arg) {
-         config::execute_command = true;
-         config::cmd_to_execute = arg;
-         config::interactive_mode = false;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Command to execute: " << config::cmd_to_execute
-                     << std::endl;
-       }},
-      {'v',
-       [](const char*) {
-         config::show_version = true;
-         config::interactive_mode = false;
-       }},
-      {'h',
-       [](const char*) {
-         config::show_help = true;
-         config::interactive_mode = false;
-       }},
-      {'u',
-       [](const char*) {
-         config::check_update = true;
-         config::interactive_mode = false;
-       }},
-      {'S', [](const char*) { g_silent_update_check = true; }},
-      {'P',
-       [](const char*) {
-         config::plugins_enabled = false;
-         if (g_debug_mode) std::cerr << "DEBUG: Plugins disabled" << std::endl;
-       }},
-      {'T',
-       [](const char*) {
-         config::themes_enabled = false;
-         if (g_debug_mode) std::cerr << "DEBUG: Themes disabled" << std::endl;
-       }},
-      {'A',
-       [](const char*) {
-         config::ai_enabled = false;
-         if (g_debug_mode) std::cerr << "DEBUG: AI disabled" << std::endl;
-       }},
-      {'C',
-       [](const char*) {
-         config::colors_enabled = false;
-         if (g_debug_mode) std::cerr << "DEBUG: Colors disabled" << std::endl;
-       }},
-      {'U',
-       [](const char*) {
-         g_check_updates = false;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Update checks disabled" << std::endl;
-       }},
-      {'V',
-       [](const char*) {
-         g_check_updates = true;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Update checks enabled" << std::endl;
-       }},
-      {'L',
-       [](const char*) {
-         g_title_line = false;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Title line disabled" << std::endl;
-       }},
-      {'N',
-       [](const char*) {
-         config::source_enabled = false;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Source file disabled" << std::endl;
-       }},
-      {'X', [](const char*) {
-         config::startup_test = true;
-         if (g_debug_mode)
-           std::cerr << "DEBUG: Startup test mode enabled" << std::endl;
-       }}};
-
   while ((c = getopt_long(argc, argv, short_options, long_options,
                           &option_index)) != -1) {
-    auto it = flag_handlers.find(c);
-    if (it != flag_handlers.end()) {
-      it->second(optarg);
-    } else if (c == '?') {
-      print_usage();
-      return 127;
-    } else {
-      std::cerr << "Unexpected error in argument parsing." << std::endl;
-      return 127;
+    switch (c) {
+      case 'l':
+        config::login_mode = true;
+        if (g_debug_mode) std::cerr << "DEBUG: Login mode enabled" << std::endl;
+        break;
+      case 'i':
+        config::force_interactive = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Interactive mode forced" << std::endl;
+        break;
+      case 'd':
+        g_debug_mode = true;
+        std::cerr << "DEBUG: Debug mode enabled" << std::endl;
+        break;
+      case 'c':
+        config::execute_command = true;
+        config::cmd_to_execute = optarg;
+        config::interactive_mode = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Command to execute: " << config::cmd_to_execute
+                    << std::endl;
+        break;
+      case 'v':
+        config::show_version = true;
+        config::interactive_mode = false;
+        break;
+      case 'h':
+        config::show_help = true;
+        config::interactive_mode = false;
+        break;
+      case 'u':
+        config::check_update = true;
+        config::interactive_mode = false;
+        break;
+      case 'S':
+        g_silent_update_check = true;
+        break;
+      case 'P':
+        config::plugins_enabled = false;
+        if (g_debug_mode) std::cerr << "DEBUG: Plugins disabled" << std::endl;
+        break;
+      case 'T':
+        config::themes_enabled = false;
+        if (g_debug_mode) std::cerr << "DEBUG: Themes disabled" << std::endl;
+        break;
+      case 'A':
+        config::ai_enabled = false;
+        if (g_debug_mode) std::cerr << "DEBUG: AI disabled" << std::endl;
+        break;
+      case 'C':
+        config::colors_enabled = false;
+        if (g_debug_mode) std::cerr << "DEBUG: Colors disabled" << std::endl;
+        break;
+      case 'U':
+        g_check_updates = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Update checks disabled" << std::endl;
+        break;
+      case 'V':
+        g_check_updates = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Update checks enabled" << std::endl;
+        break;
+      case 'L':
+        g_title_line = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Title line disabled" << std::endl;
+        break;
+      case 'N':
+        config::source_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Source file disabled" << std::endl;
+        break;
+      case 'X':
+        config::startup_test = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Startup test mode enabled" << std::endl;
+        break;
+      case '?':
+        print_usage();
+        return 127;
+      default:
+        std::cerr << "Unexpected error in argument parsing." << std::endl;
+        return 127;
     }
   }
 
