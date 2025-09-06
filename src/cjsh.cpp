@@ -44,6 +44,8 @@ bool startup_test = false;
 //  local session history files, that combine into main one upon process close
 //  clean up code base
 //  rework ai system to always retrieve api key from envvar
+//  really learn rust
+//  learn nvim fr this time
 
 /*
  * Exit/Return Codes:
