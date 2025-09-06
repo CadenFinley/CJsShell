@@ -202,6 +202,7 @@ int Shell::execute_command(std::string command) {
 
   std::vector<std::string> args = shell_parser->parse_command(command);
 
+  // handle semicolon separated commands
   if (command.find(';') != std::string::npos) {
     std::vector<std::string> cmds =
         shell_parser->parse_semicolon_commands(command);
@@ -212,6 +213,7 @@ int Shell::execute_command(std::string command) {
     return exit_code;
   }
 
+  // handle <>="" env var assignments
   std::string var_name, var_value;
   if (shell_parser->is_env_assignment(command, var_name, var_value)) {
     env_vars[var_name] = var_value;
@@ -221,6 +223,7 @@ int Shell::execute_command(std::string command) {
     return 0;
   }
 
+  // handle logical operators
   if (command.find("&&") != std::string::npos ||
       command.find("||") != std::string::npos) {
     auto logical_commands = shell_parser->parse_logical_commands(command);
@@ -244,6 +247,7 @@ int Shell::execute_command(std::string command) {
     return exit_code;
   }
 
+  // handle shell script constructs
   if (command.find('<') != std::string::npos ||
       command.find('>') != std::string::npos ||
       command.find('|') != std::string::npos) {
@@ -257,6 +261,7 @@ int Shell::execute_command(std::string command) {
     return result;
   }
 
+  // run built in command
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     int code = built_ins->builtin_command(args);
     last_terminal_output_error = built_ins->get_last_error();
@@ -264,6 +269,7 @@ int Shell::execute_command(std::string command) {
     return code;
   }
 
+  // run plugin command
   if (g_plugin) {
     std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
     if (!args.empty() && !enabled_plugins.empty()) {
@@ -278,6 +284,7 @@ int Shell::execute_command(std::string command) {
     }
   }
 
+  // run shell commands
   if (run_in_background) {
     shell_exec->execute_command_async(args);
     last_terminal_output_error = "Background command launched";
