@@ -213,26 +213,4 @@ if(BUILD_MULTIPLE_BINARIES)
       nlohmann_json::nlohmann_json
   )
   install(TARGETS ${PROJECT_NAME}_speed02 DESTINATION bin)
-
-  # Space-optimized binary
-  add_executable(${PROJECT_NAME}_space ${SOURCES})
-  target_compile_options(${PROJECT_NAME}_space PRIVATE -Os)
-  target_link_libraries(${PROJECT_NAME}_space PRIVATE
-      curl
-      pthread
-      dl
-      nlohmann_json::nlohmann_json
-  )
-  install(TARGETS ${PROJECT_NAME}_space DESTINATION bin)
-
-  # No optimization binary
-  add_executable(${PROJECT_NAME}_noopt ${SOURCES})
-  target_compile_options(${PROJECT_NAME}_noopt PRIVATE -O0)
-  target_link_libraries(${PROJECT_NAME}_noopt PRIVATE
-      curl
-      pthread
-      dl
-      nlohmann_json::nlohmann_json
-  )
-  install(TARGETS ${PROJECT_NAME}_noopt DESTINATION bin)
 endif()

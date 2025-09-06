@@ -112,7 +112,6 @@ Available startup flags:
 - `-l`, `--login` Start in login mode  
 - `-i`, `--interactive` Force interactive mode
 - `-c`, `--command` Execute a command and exit
-- `--set-as-shell` Show instructions to set cjsh as your login shell  
 - `--no-update` Disable automatic update checks
 - `--check-update` Enable update checks
 - `--update` Check for updates and exit
