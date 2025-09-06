@@ -1,7 +1,7 @@
 #!/bin/bash
 
 RUNS=100
-COMMAND="--no-source --startup-test --no-plugins --no-themes --no-ai"
+COMMAND="--no-source --startup-test"
 BASELINE_SHELLS=("fish" "bash" "zsh")
 cjsh_binary_types=("")
 
