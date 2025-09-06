@@ -1,7 +1,7 @@
 #!/bin/bash
 
 RUNS=100
-COMMAND="-c not_a_command_"
+COMMAND="--version"
 BASELINE_SHELLS=("fish" "bash" "zsh")
 cjsh_binary_types=("")
 
@@ -175,3 +175,20 @@ rm "$temp_file"
 # Average time for ./cjsh: .03347663000000000000 seconds
 # Average time for fish: .03887924000000000000 seconds
 # ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: --version
+# Results after 100 run\(s\):
+# ----------------------------------------------------------------------
+# Average time for zsh: .01920669000000000000 seconds
+#   Min time: .018665000 seconds
+#   Max time: .034859000 seconds
+# Average time for bash: .02067930000000000000 seconds
+#   Min time: .019473000 seconds
+#   Max time: .064844000 seconds
+# Average time for fish: .02331709000000000000 seconds
+#   Min time: .022737000 seconds
+#   Max time: .027127000 seconds
+# Average time for ./cjsh: .02847991000000000000 seconds
+#   Min time: .027094000 seconds
+#   Max time: .062480000 seconds
