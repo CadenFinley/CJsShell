@@ -62,45 +62,20 @@ void Shell::setup_interactive_handlers() {
 void Shell::save_terminal_state() {
   if (g_debug_mode) std::cerr << "DEBUG: Saving terminal state" << std::endl;
 
-  // Only save if STDIN is a TTY
   if (isatty(STDIN_FILENO)) {
-    // Use TCGETS or tcgetattr to get terminal attributes
     if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
       terminal_state_saved = true;
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Terminal state saved successfully" << std::endl;
-    } else {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Failed to save terminal state: " << strerror(errno)
-                  << std::endl;
-      }
     }
-  } else if (g_debug_mode) {
-    std::cerr << "DEBUG: STDIN is not a TTY, skipping terminal state save"
-              << std::endl;
   }
 }
 
 void Shell::restore_terminal_state() {
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Restoring terminal state, saved="
-              << (terminal_state_saved ? "true" : "false") << std::endl;
+  if (interactive_mode && g_debug_mode) {
+    std::cerr << "Restoring terminal state" << std::endl;
   }
 
-  // Only restore if we have saved state and STDIN is still a TTY
-  if (terminal_state_saved && isatty(STDIN_FILENO)) {
-    if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) == 0) {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Terminal state restored successfully" << std::endl;
-      }
-    } else {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Failed to restore terminal state: "
-                  << strerror(errno) << std::endl;
-      }
-    }
-  } else if (g_debug_mode && !terminal_state_saved) {
-    std::cerr << "DEBUG: No saved terminal state to restore" << std::endl;
+  if (terminal_state_saved) {
+    tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes);
   }
 }
 
