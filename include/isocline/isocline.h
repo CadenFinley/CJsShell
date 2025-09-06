@@ -147,6 +147,8 @@ void ic_history_clear(void);
 
 /// Add an entry to the history
 void ic_history_add(const char* entry);
+/// Force save in-memory history to the history file.
+void ic_history_save(void);
 
 /// \}
 

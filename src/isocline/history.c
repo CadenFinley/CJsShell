@@ -259,18 +259,26 @@ ic_private void history_load(history_t* h) {
   fclose(f);
 }
 
+// Append-only history save with timestamp, similar to fish shell
+// Writes only the most recent entry with a timestamp to the history file
+// Timestamp lines (starting with '#') are ignored on load.
+#include <time.h>
 ic_private void history_save(const history_t* h) {
   if (h->fname == NULL) return;
-  FILE* f = fopen(h->fname, "w");
+  if (h->count <= 0) return;
+  // append mode
+  FILE* f = fopen(h->fname, "a");
   if (f == NULL) return;
 #ifndef _WIN32
   chmod(h->fname, S_IRUSR | S_IWUSR);
 #endif
+  // write timestamp line
+  time_t t = time(NULL);
+  fprintf(f, "# %lld\n", (long long)t);
+  // write only the latest entry
   stringbuf_t* sbuf = sbuf_new(h->mem);
   if (sbuf != NULL) {
-    for (int i = 0; i < h->count; i++) {
-      if (!history_write_entry(h->elems[i], f, sbuf)) break;  // error
-    }
+    history_write_entry(h->elems[h->count - 1], f, sbuf);
     sbuf_free(sbuf);
   }
   fclose(f);

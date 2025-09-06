@@ -244,6 +244,8 @@ ic_public void ic_history_add(const char* entry) {
   ic_env_t* env = ic_get_env();
   if (env == NULL) return;
   history_push(env->history, entry);
+  // append to history file immediately (with timestamp)
+  history_save(env->history);
 }
 
 ic_public void ic_history_clear(void) {
@@ -601,7 +603,7 @@ static void ic_env_free(ic_env_t* env) {
   if (env->term != NULL) {
     term_write(env->term, "\x1b[?2004l");
   }
-  history_save(env->history);
+  // history_save is append-only on each command; no full rewrite on exit
   history_free(env->history);
   completions_free(env->completions);
   bbcode_free(env->bbcode);

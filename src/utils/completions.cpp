@@ -50,10 +50,17 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   if (ic_stop_completing(cenv)) return;
 
-  size_t prefix_len = std::strlen(prefix);
+  // case-insensitive prefix matching
+  std::string prefix_lower(prefix);
+  std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  size_t prefix_len = prefix_lower.length();
   auto cmds = g_shell->get_available_commands();
   for (const auto& cmd : cmds) {
-    if (cmd.rfind(prefix, 0) == 0) {
+    std::string cmd_lower(cmd);
+    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
       std::string suffix = cmd.substr(prefix_len);
       if (g_debug_mode)
         std::cerr << "DEBUG: Command completion found: '" << cmd
@@ -75,7 +82,11 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   if (ic_stop_completing(cenv)) return;
 
-  size_t prefix_len = std::strlen(prefix);
+  // case-insensitive history prefix matching
+  std::string prefix_lower(prefix);
+  std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  size_t prefix_len = prefix_lower.length();
   if (prefix_len == 0) {
     if (g_debug_mode)
       std::cerr << "DEBUG: History completer skipped (empty prefix)"
@@ -95,7 +106,11 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   std::vector<std::pair<std::string, int>> matches;
 
   while (std::getline(history_file, line)) {
-    if (line.rfind(prefix, 0) == 0 && line != prefix) {
+    // lowercase for matching
+    std::string line_lower(line);
+    std::transform(line_lower.begin(), line_lower.end(), line_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (line_lower.rfind(prefix_lower, 0) == 0 && line != prefix) {
       if (g_completion_frequency.find(line) == g_completion_frequency.end()) {
         g_completion_frequency[line] = 1;
       }

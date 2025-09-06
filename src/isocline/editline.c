@@ -481,7 +481,7 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
   // and see if we can construct a hint (displayed after a delay)
   ssize_t count = completions_generate(env, env->completions,
                                        sbuf_string(eb->input), eb->pos, 2);
-  if (count == 1) {
+  if (count >= 1) {
     const char* help = NULL;
     const char* hint = completions_get_hint(env->completions, 0, &help);
     if (hint != NULL) {
@@ -1133,12 +1133,11 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     res = sbuf_strdup(eb.input);
   }
 
-  // update history
+  // update history in memory (file saving handled after execution)
   history_update(env->history, sbuf_string(eb.input));
   if (res == NULL || sbuf_len(eb.input) <= 1) {
     ic_history_remove_last();
-  }  // no empty or single-char entries
-  history_save(env->history);
+  }
 
   // free resources
   editstate_done(env->mem, &eb.undo);
