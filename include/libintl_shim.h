@@ -8,7 +8,6 @@
 extern "C" {
 #endif
 
-// This function is needed to satisfy the linker
 int libintl_snprintf(char* str, size_t size, const char* format, ...);
 
 #ifdef __cplusplus

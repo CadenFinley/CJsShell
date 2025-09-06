@@ -1,11 +1,11 @@
 #!/bin/bash
 
 RUNS=100
-COMMAND="--no-source --startup-test"
-BASELINE_SHELLS=("fish" "bash" "zsh")
+COMMAND="--version"
+BASELINE_SHELLS=("fish" "bash" "zsh" "cjsh")
 cjsh_binary_types=("")
 
-ENABLE_BASELINE_TESTS=false
+ENABLE_BASELINE_TESTS=true
 
 shells=()
 averages=()

@@ -221,24 +221,6 @@ int Shell::execute_command(std::string command) {
     return 0;
   }
 
-  if (!args.empty() && args[0] == "export") {
-    if (args.size() > 1) {
-      for (size_t i = 1; i < args.size(); i++) {
-        std::string var_name, var_value;
-        if (shell_parser->is_env_assignment(args[i], var_name, var_value)) {
-          env_vars[var_name] = var_value;
-          setenv(var_name.c_str(), var_value.c_str(), 1);
-        } else if (env_vars.find(args[i]) != env_vars.end()) {
-          setenv(args[i].c_str(), env_vars[args[i]].c_str(), 1);
-        }
-      }
-      shell_parser->set_env_vars(env_vars);
-      last_terminal_output_error = "Variables exported successfully";
-      last_command = command;
-      return 0;
-    }
-  }
-
   if (command.find("&&") != std::string::npos ||
       command.find("||") != std::string::npos) {
     auto logical_commands = shell_parser->parse_logical_commands(command);
@@ -296,20 +278,6 @@ int Shell::execute_command(std::string command) {
     }
   }
 
-  if (args.size() > 0 && args[0] == "source") {
-    if (args.size() > 1) {
-      if (shell_script_interpreter != nullptr) {
-        shell_script_interpreter->execute_script(args[1]);
-      } else {
-        last_terminal_output_error = "Script interpreter not available";
-        return 1;
-      }
-    } else {
-      last_terminal_output_error = "No source file specified";
-      return 1;
-    }
-    return 0;
-  }
   if (run_in_background) {
     shell_exec->execute_command_async(args);
     last_terminal_output_error = "Background command launched";

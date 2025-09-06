@@ -143,7 +143,7 @@ bool initialize_cjsh_directories() {
 }
 
 std::filesystem::path get_cjsh_path() {
-  if (g_cjsh_path.empty()) {
+  if (g_cjsh_path.empty() || g_cjsh_path == ".") {
     initialize_cjsh_path();
   }
   return g_cjsh_path;

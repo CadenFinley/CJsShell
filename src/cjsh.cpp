@@ -568,9 +568,14 @@ void setup_environment_variables() {
 
     // Current directory and shell info
     std::string current_path = std::filesystem::current_path().string();
+    std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
+    
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Setting SHELL to: " << shell_path << std::endl;
+    }
+    
     env_vars.emplace_back("PWD", current_path.c_str());
-    env_vars.emplace_back("SHELL",
-                          cjsh_filesystem::get_cjsh_path().string().c_str());
+    env_vars.emplace_back("SHELL", shell_path.c_str());
     env_vars.emplace_back("IFS", " \t\n");
 
     // Language settings
@@ -601,8 +606,11 @@ void setup_environment_variables() {
     env_vars.emplace_back("SHLVL", shlvl_str.c_str());
 
     // Miscellaneous
-    env_vars.emplace_back("_",
-                          cjsh_filesystem::get_cjsh_path().string().c_str());
+    std::string cjsh_path = cjsh_filesystem::get_cjsh_path().string();
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Setting _ to: " << cjsh_path << std::endl;
+    }
+    env_vars.emplace_back("_", cjsh_path.c_str());
     std::string status_str = std::to_string(0);
     env_vars.emplace_back("STATUS", status_str.c_str());
     env_vars.emplace_back("VERSION", c_version.c_str());

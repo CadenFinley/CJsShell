@@ -22,6 +22,7 @@
 #include "plugin_command.h"
 #include "prompt_test_command.h"
 #include "restart_command.h"
+#include "source_command.h"
 #include "theme_command.h"
 #include "uninstall_command.h"
 #include "user_command.h"
@@ -66,6 +67,10 @@ Built_ins::Built_ins()
             {"user",
              [](const std::vector<std::string>& args) {
                return ::user_command(args);
+             }},
+            {"source",
+             [](const std::vector<std::string>& args) {
+               return ::source_command(args);
              }},
             {"theme",
              [](const std::vector<std::string>& args) {
