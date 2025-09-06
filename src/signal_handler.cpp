@@ -9,10 +9,11 @@
 // ty to Fish shell for lookup table
 
 std::atomic<SignalHandler*> SignalHandler::s_instance(nullptr);
-volatile sig_atomic_t SignalHandler::s_sigint_received = 0;
-volatile sig_atomic_t SignalHandler::s_sigchld_received = 0;
-volatile sig_atomic_t SignalHandler::s_sighup_received = 0;
-volatile sig_atomic_t SignalHandler::s_sigterm_received = 0;
+SignalEvent SignalHandler::s_sigint_event;
+SignalEvent SignalHandler::s_sigchld_event;
+SignalEvent SignalHandler::s_sighup_event;
+SignalEvent SignalHandler::s_sigterm_event;
+SignalEvent SignalHandler::s_sigwinch_event;
 pid_t SignalHandler::s_main_pid = getpid();
 std::vector<int> SignalHandler::s_observed_signals;
 
@@ -220,7 +221,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
   switch (signum) {
     case SIGINT: {
-      s_sigint_received = 1;
+      s_sigint_event.set();
       // Only write newline and handle terminal interrupt if signal is not being
       // observed by a script
       if (!is_observed) {
@@ -233,14 +234,14 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
     }
 
     case SIGCHLD: {
-      s_sigchld_received = 1;
+      s_sigchld_event.set();
       if (g_debug_mode)
         std::cerr << "DEBUG: SIGCHLD handler executed" << std::endl;
       break;
     }
 
     case SIGHUP: {
-      s_sighup_received = 1;
+      s_sighup_event.set();
       // Only exit if signal is not being observed
       if (!is_observed) {
         if (g_debug_mode)
@@ -251,7 +252,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
     }
 
     case SIGTERM: {
-      s_sigterm_received = 1;
+      s_sigterm_event.set();
       // Only exit if signal is not being observed
       if (!is_observed) {
         if (g_debug_mode)
@@ -264,6 +265,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 #ifdef SIGWINCH
     case SIGWINCH: {
       // Window size changed - notify terminal
+      s_sigwinch_event.set();
       if (g_debug_mode)
         std::cerr << "DEBUG: SIGWINCH handler executed" << std::endl;
       // Simply let it be processed in process_pending_signals
@@ -350,19 +352,20 @@ void SignalHandler::restore_original_handlers() {
 }
 
 void SignalHandler::process_pending_signals(Exec* shell_exec) {
-  if (g_debug_mode && (s_sigint_received || s_sigchld_received ||
-                       s_sighup_received || s_sigterm_received)) {
+  if (g_debug_mode && (s_sigint_event.is_set() || s_sigchld_event.is_set() ||
+                       s_sighup_event.is_set() || s_sigterm_event.is_set() ||
+                       s_sigwinch_event.is_set())) {
     std::cerr << "DEBUG: Processing pending signals: "
-              << "SIGINT=" << s_sigint_received << ", "
-              << "SIGCHLD=" << s_sigchld_received << ", "
-              << "SIGHUP=" << s_sighup_received << ", "
-              << "SIGTERM=" << s_sigterm_received << std::endl;
+              << "SIGINT=" << s_sigint_event.is_set() << ", "
+              << "SIGCHLD=" << s_sigchld_event.is_set() << ", "
+              << "SIGHUP=" << s_sighup_event.is_set() << ", "
+              << "SIGTERM=" << s_sigterm_event.is_set() << ", "
+              << "SIGWINCH=" << s_sigwinch_event.is_set() << std::endl;
   }
 
-  // Check for all signals that might have been received
-  if (s_sigint_received) {
-    s_sigint_received = 0;
-
+  // Process signals using atomic test-and-clear operation to prevent race
+  // conditions
+  if (s_sigint_event.test_and_clear()) {
     // Check if SIGINT is being observed by scripts
     bool is_observed = is_signal_observed(SIGINT);
 
@@ -390,9 +393,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
     fflush(stdout);
   }
 
-  if (s_sigchld_received) {
-    s_sigchld_received = 0;
-
+  if (s_sigchld_event.test_and_clear()) {
     if (shell_exec) {
       pid_t pid;
       int status;
@@ -408,9 +409,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
     }
   }
 
-  if (s_sighup_received) {
-    s_sighup_received = 0;
-
+  if (s_sighup_event.test_and_clear()) {
     // If observed, notify plugin system
     if (is_signal_observed(SIGHUP) && g_plugin) {
       std::string signal_name = get_signal_name(SIGHUP);
@@ -418,13 +417,19 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
     }
   }
 
-  if (s_sigterm_received) {
-    s_sigterm_received = 0;
-
+  if (s_sigterm_event.test_and_clear()) {
     // If observed, notify plugin system
     if (is_signal_observed(SIGTERM) && g_plugin) {
       std::string signal_name = get_signal_name(SIGTERM);
       notify_plugins("signal_received", signal_name);
+    }
+  }
+
+  if (s_sigwinch_event.test_and_clear()) {
+    // Handle window size changes
+    // This could trigger a terminal resize event or update console dimensions
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Processing SIGWINCH event" << std::endl;
     }
   }
 }
