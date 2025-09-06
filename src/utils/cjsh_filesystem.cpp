@@ -72,9 +72,7 @@ bool file_exists(const fs::path& path) { return fs::exists(path); }
 extern char* program_invocation_name;
 #else
 // Define program_invocation_name for non-Linux platforms
-namespace cjsh_filesystem {
 char* program_invocation_name = nullptr;
-}  // namespace cjsh_filesystem
 #endif
 
 bool initialize_cjsh_path() {
@@ -113,8 +111,8 @@ bool initialize_cjsh_path() {
       return true;
     }
 #else
-    char* exePath = cjsh_filesystem::program_invocation_name ? 
-                   realpath(cjsh_filesystem::program_invocation_name, NULL) : nullptr;
+    char* exePath = program_invocation_name ? 
+                   realpath(program_invocation_name, NULL) : nullptr;
     if (exePath) {
       g_cjsh_path = exePath;
       free(exePath);
