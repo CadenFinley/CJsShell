@@ -10,8 +10,6 @@
 #include <memory>
 #include <vector>
 
-#include "cjsh.h"
-
 Exec::Exec() {
   last_terminal_output_error = "";
   shell_terminal = STDIN_FILENO;
@@ -100,89 +98,21 @@ std::string Exec::get_error() {
   return last_terminal_output_error;
 }
 
-// Helper function to clean up resources for pipelines
-void Exec::cleanup_pipeline_resources(
-    const std::vector<std::array<int, 2>>& pipes,
-    const std::vector<pid_t>& pids) {
-  // Close all pipe file descriptors
-  for (const auto& pipe : pipes) {
-    close(pipe[0]);
-    close(pipe[1]);
-  }
-
-  // Terminate any child processes
-  for (pid_t pid : pids) {
-    if (kill(pid, 0) == 0) {  // Check if process exists
-      kill(pid, SIGTERM);
-    }
-  }
-}
-
 void Exec::set_process_priority(pid_t pid, bool is_foreground) {
-  if (pid <= 0) {
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: Invalid PID for set_process_priority: " << pid
-                << std::endl;
-    }
-    return;
-  }
-
   if (is_foreground) {
-    // Try to set high priority for foreground processes first
     if (setpriority(PRIO_PGRP, pid, -10) == 0) {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Set high priority for foreground process " << pid
-                  << std::endl;
-      }
       return;
     }
-
-    // Fall back to normal priority if high priority fails
-    if (g_debug_mode && errno != EACCES) {
-      std::cerr << "DEBUG: Failed to set high priority, fallback to normal: "
-                << strerror(errno) << std::endl;
-    }
-
-    // Try process group first, then individual process
-    if (setpriority(PRIO_PGRP, pid, 0) < 0 &&
-        setpriority(PRIO_PROCESS, pid, 0) < 0) {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Failed to set normal priority for " << pid << ": "
-                  << strerror(errno) << std::endl;
-      }
-    }
+    setpriority(PRIO_PGRP, pid, 0);
+    setpriority(PRIO_PROCESS, pid, 0);
 
 #ifdef _GNU_SOURCE
-    // On Linux, use SCHED_BATCH for background processes
-    // and SCHED_OTHER (default) for foreground
     struct sched_param param;
     param.sched_priority = 0;
-    if (sched_setscheduler(pid, SCHED_OTHER, &param) < 0 && g_debug_mode) {
-      std::cerr << "DEBUG: Failed to set scheduler policy for " << pid << ": "
-                << strerror(errno) << std::endl;
-    }
+    sched_setscheduler(pid, SCHED_BATCH, &param);
 #endif
   } else {
-    // For background processes, use lower priority
-    if (setpriority(PRIO_PGRP, pid, 4) < 0) {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Failed to set low priority for background process "
-                  << pid << ": " << strerror(errno) << std::endl;
-      }
-    } else if (g_debug_mode) {
-      std::cerr << "DEBUG: Set low priority for background process " << pid
-                << std::endl;
-    }
-
-#ifdef _GNU_SOURCE
-    // Use SCHED_BATCH for background processes on Linux
-    struct sched_param param;
-    param.sched_priority = 0;
-    if (sched_setscheduler(pid, SCHED_BATCH, &param) < 0 && g_debug_mode) {
-      std::cerr << "DEBUG: Failed to set batch scheduler for " << pid << ": "
-                << strerror(errno) << std::endl;
-    }
-#endif
+    setpriority(PRIO_PGRP, pid, 4);
   }
 }
 
@@ -270,7 +200,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       perror("dup2 stderr");
     }
 
-    // Set proper process priority for a foreground process
     if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
       perror("setpriority failed in child");
     }
@@ -320,9 +249,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   job.pids.push_back(pid);
 
   int job_id = add_job(job);
-
-  // Set priority for the foreground process
-  set_process_priority(pid, true);
 
   put_job_in_foreground(job_id, false);
 
@@ -450,9 +376,6 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     int job_id = add_job(job);
 
-    // Set priority for background process
-    set_process_priority(pid, false);
-
     set_error("Background job started");
 
     std::cout << "[" << job_id << "] " << pid << std::endl;
@@ -572,8 +495,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         set_error("cjsh: Empty command in pipeline");
         std::cerr << last_terminal_output_error << std::endl;
 
-        // Clean up resources
-        cleanup_pipeline_resources(pipes, pids);
+        for (size_t j = 0; j < commands.size() - 1; j++) {
+          close(pipes[j][0]);
+          close(pipes[j][1]);
+        }
+
         return 1;
       }
 
@@ -702,7 +628,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
   } catch (const std::exception& e) {
     std::cerr << "Error executing pipeline: " << e.what() << std::endl;
-    cleanup_pipeline_resources(pipes, pids);
+    for (pid_t pid : pids) {
+      kill(pid, SIGTERM);
+    }
     return 1;
   }
 
@@ -717,13 +645,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
   int job_id = add_job(job);
 
   if (job.background) {
-    // Set background priority for the process group
-    set_process_priority(pgid, false);
     put_job_in_background(job_id, false);
     std::cout << "[" << job_id << "] " << pgid << std::endl;
   } else {
-    // Set foreground priority for the process group
-    set_process_priority(pgid, true);
     put_job_in_foreground(job_id, false);
   }
 

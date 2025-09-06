@@ -18,20 +18,6 @@ struct SignalInfo {
   const char* description;  // Signal description
 };
 
-// Thread-safe signal event class to replace volatile sig_atomic_t
-class SignalEvent {
- private:
-  std::atomic<bool> received{false};
-
- public:
-  void set() { received.store(true, std::memory_order_relaxed); }
-  bool test_and_clear() {
-    bool was_set = received.exchange(false, std::memory_order_relaxed);
-    return was_set;
-  }
-  bool is_set() const { return received.load(std::memory_order_relaxed); }
-};
-
 class SignalHandler {
  public:
   SignalHandler();
@@ -75,12 +61,10 @@ class SignalHandler {
 
  private:
   static std::atomic<SignalHandler*> s_instance;
-  // Thread-safe signal events instead of volatile flags
-  static SignalEvent s_sigint_event;
-  static SignalEvent s_sigchld_event;
-  static SignalEvent s_sighup_event;
-  static SignalEvent s_sigterm_event;
-  static SignalEvent s_sigwinch_event;
+  static volatile sig_atomic_t s_sigint_received;
+  static volatile sig_atomic_t s_sigchld_received;
+  static volatile sig_atomic_t s_sighup_received;
+  static volatile sig_atomic_t s_sigterm_received;
   static const std::vector<SignalInfo> s_signal_table;
   static pid_t s_main_pid;
   static std::vector<int>
