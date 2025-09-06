@@ -25,8 +25,8 @@ class SignalHandler {
 
   void signal_unblock_all();
 
-  /// Setup signal handlers based on the shell mode
-  void setup_signal_handlers(bool interactive_mode = true);
+  /// Setup signal handlers
+  void setup_signal_handlers();
 
   /// Setup interactive-specific signal handlers
   void setup_interactive_handlers();

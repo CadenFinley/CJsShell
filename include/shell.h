@@ -73,6 +73,7 @@ class Shell {
   }
 
   void setup_signal_handlers();
+  void setup_interactive_handlers();
   void save_terminal_state();
   void restore_terminal_state();
   void setup_job_control();
@@ -89,6 +90,13 @@ class Shell {
   std::string get_previous_directory() const;
 
   Built_ins* get_built_ins() { return built_ins; }
+
+  // Terminal and job control getters
+  int get_terminal() const { return shell_terminal; }
+  pid_t get_pgid() const { return shell_pgid; }
+  struct termios get_terminal_modes() const { return shell_tmodes; }
+  bool is_terminal_state_saved() const { return terminal_state_saved; }
+  bool is_job_control_enabled() const { return job_control_enabled; }
 
   Built_ins* built_ins = nullptr;
 

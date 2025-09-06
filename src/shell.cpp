@@ -35,6 +35,7 @@ Shell::Shell(bool login_mode) {
 
   setup_signal_handlers();
   g_signal_handler = signal_handler.get();
+  setup_job_control();
 }
 
 Shell::~Shell() {
@@ -45,15 +46,16 @@ Shell::~Shell() {
   delete built_ins;
   delete shell_script_interpreter;
   shell_exec->terminate_all_child_process();
-  if (login_mode) {
-    restore_terminal_state();
-  }
+  restore_terminal_state();
 }
 
 void Shell::setup_signal_handlers() {
-  if (signal_handler) {
-    signal_handler->setup_signal_handlers(interactive_mode);
-  }
+  signal_handler->setup_signal_handlers();
+  save_terminal_state();
+}
+
+void Shell::setup_interactive_handlers() {
+  signal_handler->setup_interactive_handlers();
   save_terminal_state();
 }
 

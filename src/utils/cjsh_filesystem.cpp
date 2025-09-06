@@ -94,10 +94,10 @@ bool initialize_cjsh_path() {
 
   if (g_cjsh_path.empty()) {
     // Last resort fallback - just use a default path
-    g_cjsh_path = "/usr/local/bin/cjsh";
+    g_cjsh_path = "cjsh";
     return true;
   }
-  
+
   return true;
 }
 

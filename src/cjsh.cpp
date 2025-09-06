@@ -22,7 +22,6 @@
 #include "update.h"
 #include "usage.h"
 
-// Implementation of the config namespace variables declared in cjsh.h
 namespace config {
 bool login_mode = false;
 bool interactive_mode = true;
@@ -43,6 +42,8 @@ bool startup_test = false;
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
+//  clean up code base
+//  rework ai system to always retrieve api key from envvar
 
 /*
  * Exit/Return Codes:
@@ -62,7 +63,7 @@ bool startup_test = false;
  */
 
 int main(int argc, char* argv[]) {
-  // Check if started as a login shell
+  // Check if started as a login shell -cjsh
   if (argv && argv[0] && argv[0][0] == '-') {
     config::login_mode = true;
     if (g_debug_mode)
@@ -90,12 +91,12 @@ int main(int argc, char* argv[]) {
       {"no-source", no_argument, 0, 'N'},
       {"startup-test", no_argument, 0, 'X'},
       {0, 0, 0, 0}};
-
   const char* short_options = "lic:vhduSPTACUVLNX";
   int option_index = 0;
   int c;
   optind = 1;
 
+  // First, process any profile startup args to ensure they are included
   while ((c = getopt_long(argc, argv, short_options, long_options,
                           &option_index)) != -1) {
     switch (c) {
@@ -185,8 +186,10 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // create the shell component
   g_shell = std::make_unique<Shell>(config::login_mode);
 
+  // load startup args to save for restarts
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
     g_startup_args.push_back(std::string(argv[i]));
@@ -201,6 +204,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // create the cjsh login environment if needed
   if (g_shell->get_login_mode()) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing login environment" << std::endl;
@@ -211,12 +215,15 @@ int main(int argc, char* argv[]) {
       g_shell.reset();
       return 1;
     }
+    // create cjsh login environment
     process_profile_file();
-    initialize_login_environment();
-    setup_environment_variables();
-    g_shell->setup_job_control();
   }
 
+  // create the shell environment
+  initialize_shell_environment();
+  setup_environment_variables();
+
+  // set env vars to reflect cjsh being the shell
   if (argv[0]) {
     if (g_debug_mode) std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
     setenv("0", argv[0], 1);
@@ -225,13 +232,14 @@ int main(int argc, char* argv[]) {
     setenv("0", "cjsh", 1);
   }
 
-  if (config::show_version) {
+  // start processing simple flags
+  if (config::show_version) {  // -v --version
     std::cout << c_version << (PRE_RELEASE ? "-PRERELEASE" : "") << std::endl;
-  } else if (config::show_help) {
+  } else if (config::show_help) {  // -h --help
     print_usage();
-  } else if (config::check_update) {
+  } else if (config::check_update) {  // -u --update
     execute_update_if_available(check_for_update());
-  } else if (config::execute_command) {
+  } else if (config::execute_command) {  // -c --command
     int exit_code = g_shell->execute_command(config::cmd_to_execute);
     if ((!config::interactive_mode && !config::force_interactive) ||
         exit_code != 0) {
@@ -250,6 +258,9 @@ int main(int argc, char* argv[]) {
     return 0;
   }
 
+  // at this point we have not called any flags or caused any issues to make the
+  // shell close and exit making it non interactive so past this point we are in
+  // interactive mode
   g_shell->set_interactive_mode(true);
   if (!init_interactive_filesystem()) {
     std::cerr << "Error: Failed to initialize or verify file system or files "
@@ -258,19 +269,16 @@ int main(int argc, char* argv[]) {
     g_shell.reset();
     return 1;
   }
+  g_shell->setup_interactive_handlers();
 
-  setup_environment_variables();
-
+  // create colors module
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing colors with enabled="
               << config::colors_enabled << std::endl;
   colors::initialize_color_support(config::colors_enabled);
 
-  std::unique_ptr<Plugin> plugin;
-  std::unique_ptr<Theme> theme;
-  std::unique_ptr<Ai> ai;
-
   // Only create Plugin object if plugins are enabled
+  std::unique_ptr<Plugin> plugin;
   if (config::plugins_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing plugin system with enabled="
@@ -284,6 +292,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Only create Theme object if themes are enabled
+  std::unique_ptr<Theme> theme;
   if (config::themes_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing theme system with enabled="
@@ -296,6 +305,7 @@ int main(int argc, char* argv[]) {
   }
 
   // Only create Ai object if AI is enabled
+  std::unique_ptr<Ai> ai;
   if (config::ai_enabled) {
     std::string api_key = "";
     const char* env_key = getenv("OPENAI_API_KEY");
@@ -315,11 +325,13 @@ int main(int argc, char* argv[]) {
     std::cerr << "DEBUG: AI disabled, skipping initialization" << std::endl;
   }
 
+  // Save the current directory before processing the source file
   std::string saved_current_dir = std::filesystem::current_path().string();
   if (g_debug_mode)
     std::cerr << "DEBUG: Saved current directory: " << saved_current_dir
               << std::endl;
 
+  // process the source file .cjshrc
   if (config::source_enabled) {
     if (g_debug_mode) std::cerr << "DEBUG: Processing source file" << std::endl;
     process_source_file();
@@ -334,9 +346,10 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // startup is complete and we enter the main process loop
   g_startup_active = false;
   if (!g_exit_flag && !config::startup_test) {
-    startup_update_process();
+    startup_update_process();  // check for updates after startup is complete
     if (g_title_line) {
       std::cout << title_line << std::endl;
       std::cout << created_line << std::endl;
@@ -381,6 +394,7 @@ void update_terminal_title() {
 }
 
 void reprint_prompt() {
+  // unused function for current implementation, useful for plugins
   if (g_debug_mode) {
     std::cerr << "DEBUG: Reprinting prompt" << std::endl;
   }
@@ -415,17 +429,18 @@ void main_process_loop() {
     }
     notify_plugins("main_process_start", c_pid_str);
 
+    // Check and handle any pending signals before prompting for input
     g_shell->process_pending_signals();
 
     update_terminal_title();
 
+    // gather and create the prompt
     std::string prompt;
     if (g_shell->get_menu_active()) {
       prompt = g_shell->get_prompt();
     } else {
       prompt = g_shell->get_ai_prompt();
     }
-
     if (g_theme && g_theme->uses_newline()) {
       std::cout << prompt << std::endl;
       prompt = g_shell->get_newline_prompt();
@@ -439,10 +454,10 @@ void main_process_loop() {
       ic_free(input);
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
-        update_completion_frequency(command);
         {
           std::string status_str;
 
+          // process the command
           if (g_shell->get_menu_active()) {
             status_str = std::to_string(g_shell->execute_command(command));
           } else {
@@ -457,12 +472,8 @@ void main_process_loop() {
           if (g_debug_mode)
             std::cerr << "DEBUG: Command exit status: " << status_str
                       << std::endl;
-          if (status_str != "127") {
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Adding command to history: " << command
-                        << std::endl;
-            ic_history_add(command.c_str());
-          }
+          update_completion_frequency(command);
+          ic_history_add(command.c_str());
           setenv("STATUS", status_str.c_str(), 1);
         }
       }
@@ -481,6 +492,7 @@ void main_process_loop() {
 }
 
 void notify_plugins(std::string trigger, std::string data) {
+  // notify all enabled plugins of the event with data
   if (g_plugin == nullptr) {
     if (g_debug_mode)
       std::cerr << "DEBUG: notify_plugins: plugin manager is nullptr"
@@ -500,6 +512,7 @@ void notify_plugins(std::string trigger, std::string data) {
 }
 
 bool init_login_filesystem() {
+  // verify and create if needed the cjsh login filesystem
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
   try {
@@ -522,6 +535,7 @@ bool init_login_filesystem() {
 }
 
 void setup_environment_variables() {
+  // setup essential environment variables for the shell session
   if (g_debug_mode)
     std::cerr << "DEBUG: Setting up environment variables" << std::endl;
 
@@ -604,34 +618,17 @@ void setup_environment_variables() {
   }
 }
 
-void initialize_login_environment() {
-  if (g_shell->get_login_mode()) {
-    g_shell_terminal = STDIN_FILENO;
-
-    if (!isatty(g_shell_terminal)) {
-      std::cerr << "Warning: Not running on a terminal device" << std::endl;
-    }
-
-    g_shell_pgid = getpid();
-
-    if (setpgid(g_shell_pgid, g_shell_pgid) < 0) {
-      if (errno != EPERM) {
-        perror("setpgid failed");
-      }
-    }
-
-    if (isatty(g_shell_terminal)) {
-      if (tcsetpgrp(g_shell_terminal, g_shell_pgid) < 0) {
-        perror("tcsetpgrp failed in initialize_login_environment");
-      }
-    }
-
-    struct termios term_attrs;
-    if (tcgetattr(g_shell_terminal, &term_attrs) == 0) {
-      g_shell_tmodes = term_attrs;
-      g_terminal_state_saved = true;
-    }
+void initialize_shell_environment() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Initializing shell environment" << std::endl;
   }
+
+  // Copy the shell's terminal settings to global variables for compatibility
+  g_shell_terminal = g_shell->get_terminal();
+  g_shell_pgid = g_shell->get_pgid();
+  g_shell_tmodes = g_shell->get_terminal_modes();
+  g_terminal_state_saved = g_shell->is_terminal_state_saved();
+  g_job_control_enabled = g_shell->is_job_control_enabled();
 }
 
 bool init_interactive_filesystem() {
@@ -672,6 +669,7 @@ bool init_interactive_filesystem() {
       history_file.close();
     }
 
+    // .cjshrc
     if (!source_exists) {
       if (g_debug_mode) std::cerr << "DEBUG: Creating source file" << std::endl;
       create_source_file();
@@ -696,6 +694,7 @@ bool init_interactive_filesystem() {
 }
 
 static void capture_profile_env(const std::string& profile_path) {
+  // wprk around until shell script interpreter is fully implemented
   int pipefd[2];
   if (pipe(pipefd) != 0) {
     perror("pipe failed");
@@ -735,6 +734,8 @@ static void capture_profile_env(const std::string& profile_path) {
 }
 
 void process_profile_startup_args() {
+  // gather flags from profile file and add to g_startup_args if not already
+  // present
   if (g_debug_mode)
     std::cerr << "DEBUG: Processing startup args from profile" << std::endl;
 

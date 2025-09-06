@@ -1,11 +1,11 @@
 #!/bin/bash
 
 RUNS=100
-COMMAND="-c ls"
+COMMAND="--no-source --startup-test --no-plugins --no-themes --no-ai"
 BASELINE_SHELLS=("fish" "bash" "zsh")
 cjsh_binary_types=("")
 
-ENABLE_BASELINE_TESTS=true
+ENABLE_BASELINE_TESTS=false
 
 shells=()
 averages=()

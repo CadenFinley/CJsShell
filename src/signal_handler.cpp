@@ -273,10 +273,9 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
   }
 }
 
-void SignalHandler::setup_signal_handlers(bool interactive_mode) {
+void SignalHandler::setup_signal_handlers() {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Setting up signal handlers (interactive_mode="
-              << (interactive_mode ? "true" : "false") << ")" << std::endl;
+    std::cerr << "DEBUG: Setting up signal handlers." << std::endl;
 
   struct sigaction sa;
   sigemptyset(&sa.sa_mask);
@@ -310,11 +309,6 @@ void SignalHandler::setup_signal_handlers(bool interactive_mode) {
   sa.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction(SIGHUP, &sa, &m_old_sighup_handler);
   sigaction(SIGTERM, &sa, &m_old_sigterm_handler);
-
-  // Setup additional handlers for interactive mode
-  if (interactive_mode) {
-    setup_interactive_handlers();
-  }
 }
 
 void SignalHandler::setup_interactive_handlers() {
