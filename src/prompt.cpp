@@ -12,14 +12,14 @@ Prompt::~Prompt() {}
 std::string Prompt::get_prompt() {
   // it should never be empty
   if (g_current_theme.empty()) {
-    if (!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled() || !g_theme) {
       return info.get_basic_prompt();
     } else {
       g_theme->load_theme("default", true, true);
     }
   }
 
-  if (!g_theme->get_enabled()) {
+  if (!g_theme->get_enabled() || !g_theme) {
     return info.get_basic_prompt();
   }
 
@@ -42,14 +42,14 @@ std::string Prompt::get_ai_prompt() {
 
   // it should never be empty
   if (g_current_theme.empty()) {
-    if (!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled() || !g_theme) {
       return info.get_basic_ai_prompt();
     } else {
       g_theme->load_theme("default", true, true);
     }
   }
 
-  if (!g_theme->get_enabled()) {
+  if (!g_theme->get_enabled() || !g_theme) {
     return info.get_basic_ai_prompt();
   }
 
@@ -77,14 +77,14 @@ std::string Prompt::get_ai_prompt() {
 std::string Prompt::get_newline_prompt() {
   // it should never be empty
   if (g_current_theme.empty()) {
-    if (!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled() || !g_theme) {
       return " ";
     } else {
       g_theme->load_theme("default", true, true);
     }
   }
 
-  if (!g_theme->get_enabled()) {
+  if (!g_theme->get_enabled() || !g_theme) {
     return " ";
   }
 
@@ -97,14 +97,14 @@ std::string Prompt::get_newline_prompt() {
 
 std::string Prompt::get_title_prompt() {
   if (g_current_theme.empty()) {
-    if (!g_theme->get_enabled()) {
+    if (!g_theme->get_enabled() || !g_theme) {
       return info.get_basic_title();
     } else {
       g_theme->load_theme("default", true, true);
     }
   }
 
-  if (!g_theme->get_enabled()) {
+  if (!g_theme->get_enabled() || !g_theme) {
     return info.get_basic_title();
   }
   std::string prompt_format = g_theme->get_terminal_title_format();
