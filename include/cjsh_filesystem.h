@@ -72,6 +72,11 @@ const fs::path g_cjsh_found_executables_path =
     "cached_executables.txt";  // where the found executables are stored for
                                // syntax highlighting and completions
 
+#ifndef __linux__
+// Declare program_invocation_name for non-Linux platforms
+extern char* program_invocation_name;
+#endif
+
 std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();
 bool file_exists(const cjsh_filesystem::fs::path& path);
