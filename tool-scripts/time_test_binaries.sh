@@ -1,7 +1,7 @@
 #!/bin/bash
 
 RUNS=100
-COMMAND="-c exit"
+COMMAND="-c cd"
 BASELINE_SHELLS=("fish" "bash" "zsh")
 cjsh_binary_types=("")
 
@@ -58,7 +58,7 @@ sorted_results=$(printf "%s\n" "${results[@]}" | sort -t: -k2 -n)
 
 # Print sorted results
 echo "Command used to test: $COMMAND"
-echo "Results after $RUNS run(s):"
+echo "Results after $RUNS run\(s\):"
 echo "----------------------------------------------------------------------"
 while IFS= read -r result; do
   echo "$result"
@@ -68,29 +68,67 @@ echo "----------------------------------------------------------------------"
 
 
 # ----------------------------------------------------------------------
-# Command used to test: -c exit
-# Results after 100 run(s):
+# Command used to test: -c ls
+# Results after 100 run\(s\):
 # ----------------------------------------------------------------------
-# Average time for bash: .02011879000000000000 seconds
-# Average time for zsh: .02325702000000000000 seconds
-# Average time for ./cjsh_space: .02830989000000000000 seconds
-# Average time for ./cjsh_speed03: .02843293000000000000 seconds
-# Average time for ./cjsh_speed02: .02895336000000000000 seconds
-# Average time for fish: .03511248000000000000 seconds
-# Average time for ./cjsh_noopt: .04083061000000000000 seconds
+# Average time for bash: .02784732000000000000 seconds
+# Average time for ./cjsh: .02892087000000000000 seconds
+# Average time for zsh: .03072579000000000000 seconds
+# Average time for fish: .06455507000000000000 seconds
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
-# Command used to test: -c ls
-# Results after 100 run(s):
+# Command used to test: -c exit
+# Results after 100 run\(s\):
 # ----------------------------------------------------------------------
-# Average time for bash: .02808041000000000000 seconds
-# Average time for ./cjsh_space: .03001573000000000000 seconds
-# Average time for ./cjsh_speed03: .03066605000000000000 seconds
-# Average time for zsh: .03146028000000000000 seconds
-# Average time for ./cjsh_speed02: .03168991000000000000 seconds
-# Average time for fish: .06480153000000000000 seconds
+# Average time for bash: .01964337000000000000 seconds
+# Average time for zsh: .02233893000000000000 seconds
+# Average time for ./cjsh: .03027081000000000000 seconds
+# Average time for fish: .03632348000000000000 seconds
 # ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: -c whoami
+# Results after 100 run\(s\):
+# ----------------------------------------------------------------------
+# Average time for bash: .02864360000000000000 seconds
+# Average time for zsh: .03195121000000000000 seconds
+# Average time for ./cjsh: .04345792000000000000 seconds
+# Average time for fish: .04902014000000000000 seconds
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: -c LS
+# Results after 100 run\(s\):
+# ----------------------------------------------------------------------
+# Average time for bash: .02781995000000000000 seconds
+# Average time for zsh: .03193810000000000000 seconds
+# Average time for ./cjsh: .04050259000000000000 seconds
+# Average time for fish: .04628635000000000000 seconds
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: -c cd
+# Results after 100 run\(s\):
+# ----------------------------------------------------------------------
+# Average time for bash: .01957051000000000000 seconds
+# Average time for zsh: .02334886000000000000 seconds
+# Average time for ./cjsh: .02748185000000000000 seconds
+# Average time for fish: .03580358000000000000 seconds
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Command used to test: -c pwd
+# Results after 100 run\(s\):
+# ----------------------------------------------------------------------
+# Average time for bash: .02025657000000000000 seconds
+# Average time for zsh: .02473795000000000000 seconds
+# Average time for fish: .03639285000000000000 seconds
+# Average time for ./cjsh: .04022909000000000000 seconds
+# ----------------------------------------------------------------------
+
+
+
 
 # ----------------------------------------------------------------------
 # Command used to test: -c whoami
@@ -120,14 +158,4 @@ echo "----------------------------------------------------------------------"
 # Average time for ./cjsh_speed03: .03040521000000000000 seconds
 # Average time for ./cjsh_speed02: .03085385000000000000 seconds
 # Average time for ./cjsh_space: .03094124000000000000 seconds
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
-# Command used to test: -c exit
-# Results after 100 run(s):
-# ----------------------------------------------------------------------
-# Average time for bash: .02023480000000000000 seconds
-# Average time for zsh: .02292637000000000000 seconds
-# Average time for ./cjsh_0s: .02885475000000000000 seconds
-# Average time for fish: .03547243000000000000 seconds
 # ----------------------------------------------------------------------
