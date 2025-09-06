@@ -8,8 +8,10 @@
 
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"
@@ -20,41 +22,9 @@
 #include "update.h"
 #include "usage.h"
 
-#include <functional>
-#include <unordered_map>
-
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
-//  commands running very slow especially script files
-
-//  ccache + Ninja
-
-// Lazy Initialization of Subsystems:
-// Only initialize plugins, themes, and AI if they are actually enabled and needed.
-// Defer their construction until just before use, especially in interactive mode.
-
-// Batch Environment Setup:
-// Group related environment variable setups to minimize system calls.
-
-// Parallelize Expensive I/O:
-// If you have multiple independent file reads (e.g., checking for history, source, and profile files), consider parallelizing them (using threads or async I/O).
-
-// Avoid Redundant File System Checks:
-// Cache results of file existence checks if possible, or batch them together to reduce repeated I/O.
-
-// Reduce Repeated Environment Variable Setting:
-// Only set environment variables if their values are actually changing.
-
-// Minimize Use of std::filesystem Where Possible:
-// std::filesystem can be slow for repeated operations. Minimize its use in the hot path.
-// Profile and Remove Unnecessary std::cerr/std::cout in Release:
-// Debug output can slow down startup. Make sure it's disabled in release builds.
-
-// Optimize Source/Profile File Processing:
-// If the profile/source files are large, consider reading them more efficiently (e.g., memory-mapped I/O or reading in larger chunks).
-// Move Non-Essential Initialization Out of the Hot Path:
-// For example, update checks or splash screens can be done after the shell is responsive.
 
 /*
  * Exit/Return Codes:
@@ -134,86 +104,109 @@ int main(int argc, char* argv[]) {
   // Define flag handlers in a map for faster lookup
   using FlagHandler = std::function<void(const char*)>;
   std::unordered_map<char, FlagHandler> flag_handlers = {
-    {'l', [](const char*) { 
-      login_mode = true; 
-      if (g_debug_mode) std::cerr << "DEBUG: Login mode enabled" << std::endl;
-    }},
-    {'i', [](const char*) { 
-      force_interactive = true; 
-      if (g_debug_mode) std::cerr << "DEBUG: Interactive mode forced" << std::endl;
-    }},
-    {'d', [](const char*) { 
-      g_debug_mode = true; 
-      std::cerr << "DEBUG: Debug mode enabled" << std::endl;
-    }},
-    {'c', [](const char* arg) {
-      // Check if the argument starts with "jsh" (caused by -cjsh)
-      if (arg && std::string(arg) == "jsh") {
-        login_mode = true;
-        if (g_debug_mode) std::cerr << "DEBUG: Login mode enabled via -cjsh" << std::endl;
-      } else {
-        l_execute_command = true;
-        l_cmd_to_execute = arg;
-        interactive_mode = false;
-        if (g_debug_mode) std::cerr << "DEBUG: Command to execute: " << l_cmd_to_execute << std::endl;
-      }
-    }},
-    {'v', [](const char*) { 
-      show_version = true; 
-      interactive_mode = false; 
-    }},
-    {'h', [](const char*) { 
-      show_help = true; 
-      interactive_mode = false; 
-    }},
-    {'s', [](const char*) { 
-      set_as_shell = true; 
-      interactive_mode = false; 
-    }},
-    {'u', [](const char*) { 
-      check_update = true; 
-      interactive_mode = false; 
-    }},
-    {'S', [](const char*) { 
-      g_silent_update_check = true; 
-    }},
-    {'P', [](const char*) { 
-      l_plugins_enabled = false; 
-      if (g_debug_mode) std::cerr << "DEBUG: Plugins disabled" << std::endl;
-    }},
-    {'T', [](const char*) { 
-      l_themes_enabled = false; 
-      if (g_debug_mode) std::cerr << "DEBUG: Themes disabled" << std::endl;
-    }},
-    {'A', [](const char*) { 
-      l_ai_enabled = false; 
-      if (g_debug_mode) std::cerr << "DEBUG: AI disabled" << std::endl;
-    }},
-    {'C', [](const char*) { 
-      l_colors_enabled = false; 
-      if (g_debug_mode) std::cerr << "DEBUG: Colors disabled" << std::endl;
-    }},
-    {'U', [](const char*) { 
-      g_check_updates = false; 
-      if (g_debug_mode) std::cerr << "DEBUG: Update checks disabled" << std::endl;
-    }},
-    {'V', [](const char*) { 
-      g_check_updates = true; 
-      if (g_debug_mode) std::cerr << "DEBUG: Update checks enabled" << std::endl;
-    }},
-    {'L', [](const char*) { 
-      g_title_line = false; 
-      if (g_debug_mode) std::cerr << "DEBUG: Title line disabled" << std::endl;
-    }},
-    {'N', [](const char*) { 
-      source_enabled = false; 
-      if (g_debug_mode) std::cerr << "DEBUG: Source file disabled" << std::endl;
-    }},
-    {'X', [](const char*) { 
-      startup_test = true; 
-      if (g_debug_mode) std::cerr << "DEBUG: Startup test mode enabled" << std::endl;
-    }}
-  };
+      {'l',
+       [](const char*) {
+         login_mode = true;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Login mode enabled" << std::endl;
+       }},
+      {'i',
+       [](const char*) {
+         force_interactive = true;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Interactive mode forced" << std::endl;
+       }},
+      {'d',
+       [](const char*) {
+         g_debug_mode = true;
+         std::cerr << "DEBUG: Debug mode enabled" << std::endl;
+       }},
+      {'c',
+       [](const char* arg) {
+         // Check if the argument starts with "jsh" (caused by -cjsh)
+         if (arg && std::string(arg) == "jsh") {
+           login_mode = true;
+           if (g_debug_mode)
+             std::cerr << "DEBUG: Login mode enabled via -cjsh" << std::endl;
+         } else {
+           l_execute_command = true;
+           l_cmd_to_execute = arg;
+           interactive_mode = false;
+           if (g_debug_mode)
+             std::cerr << "DEBUG: Command to execute: " << l_cmd_to_execute
+                       << std::endl;
+         }
+       }},
+      {'v',
+       [](const char*) {
+         show_version = true;
+         interactive_mode = false;
+       }},
+      {'h',
+       [](const char*) {
+         show_help = true;
+         interactive_mode = false;
+       }},
+      {'s',
+       [](const char*) {
+         set_as_shell = true;
+         interactive_mode = false;
+       }},
+      {'u',
+       [](const char*) {
+         check_update = true;
+         interactive_mode = false;
+       }},
+      {'S', [](const char*) { g_silent_update_check = true; }},
+      {'P',
+       [](const char*) {
+         l_plugins_enabled = false;
+         if (g_debug_mode) std::cerr << "DEBUG: Plugins disabled" << std::endl;
+       }},
+      {'T',
+       [](const char*) {
+         l_themes_enabled = false;
+         if (g_debug_mode) std::cerr << "DEBUG: Themes disabled" << std::endl;
+       }},
+      {'A',
+       [](const char*) {
+         l_ai_enabled = false;
+         if (g_debug_mode) std::cerr << "DEBUG: AI disabled" << std::endl;
+       }},
+      {'C',
+       [](const char*) {
+         l_colors_enabled = false;
+         if (g_debug_mode) std::cerr << "DEBUG: Colors disabled" << std::endl;
+       }},
+      {'U',
+       [](const char*) {
+         g_check_updates = false;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Update checks disabled" << std::endl;
+       }},
+      {'V',
+       [](const char*) {
+         g_check_updates = true;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Update checks enabled" << std::endl;
+       }},
+      {'L',
+       [](const char*) {
+         g_title_line = false;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Title line disabled" << std::endl;
+       }},
+      {'N',
+       [](const char*) {
+         source_enabled = false;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Source file disabled" << std::endl;
+       }},
+      {'X', [](const char*) {
+         startup_test = true;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Startup test mode enabled" << std::endl;
+       }}};
 
   while ((c = getopt_long(argc, argv, short_options, long_options,
                           &option_index)) != -1) {
@@ -359,7 +352,8 @@ int main(int argc, char* argv[]) {
                                       l_plugins_enabled);
     g_plugin = plugin.get();
   } else if (g_debug_mode) {
-    std::cerr << "DEBUG: Plugins disabled, skipping initialization" << std::endl;
+    std::cerr << "DEBUG: Plugins disabled, skipping initialization"
+              << std::endl;
   }
 
   // Only create Theme object if themes are enabled
@@ -609,45 +603,46 @@ void setup_environment_variables() {
   if (pw != nullptr) {
     // Prepare all environment variables in a batch
     std::vector<std::pair<const char*, const char*>> env_vars;
-    
+
     // User info variables
     env_vars.emplace_back("USER", pw->pw_name);
     env_vars.emplace_back("LOGNAME", pw->pw_name);
     env_vars.emplace_back("HOME", pw->pw_dir);
-    
+
     // Check PATH and add if needed
     const char* path_env = getenv("PATH");
     if (!path_env || path_env[0] == '\0') {
-      env_vars.emplace_back("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
+      env_vars.emplace_back("PATH",
+                            "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
     }
-    
+
     // System info
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) == 0) {
       env_vars.emplace_back("HOSTNAME", hostname);
     }
-    
+
     // Current directory and shell info
     std::string current_path = std::filesystem::current_path().string();
     env_vars.emplace_back("PWD", current_path.c_str());
     env_vars.emplace_back("SHELL", cjsh_filesystem::g_cjsh_path.c_str());
     env_vars.emplace_back("IFS", " \t\n");
-    
+
     // Language settings
     const char* lang_env = getenv("LANG");
     if (!lang_env || lang_env[0] == '\0') {
       env_vars.emplace_back("LANG", "en_US.UTF-8");
     }
-    
+
     // Optional variables
     if (getenv("PAGER") == nullptr) {
       env_vars.emplace_back("PAGER", "less");
     }
-    
+
     if (getenv("TMPDIR") == nullptr) {
       env_vars.emplace_back("TMPDIR", "/tmp");
     }
-    
+
     // Shell level
     int shlvl = 1;
     if (const char* current_shlvl = getenv("SHLVL")) {
@@ -659,18 +654,19 @@ void setup_environment_variables() {
     }
     std::string shlvl_str = std::to_string(shlvl);
     env_vars.emplace_back("SHLVL", shlvl_str.c_str());
-    
+
     // Miscellaneous
     env_vars.emplace_back("_", cjsh_filesystem::g_cjsh_path.c_str());
     std::string status_str = std::to_string(0);
     env_vars.emplace_back("STATUS", status_str.c_str());
     env_vars.emplace_back("VERSION", c_version.c_str());
-    
+
     // Set all environment variables in one batch
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Setting " << env_vars.size() << " environment variables" << std::endl;
+      std::cerr << "DEBUG: Setting " << env_vars.size()
+                << " environment variables" << std::endl;
     }
-    
+
     // Actually set the environment variables
     for (const auto& [name, value] : env_vars) {
       setenv(name, value, 1);
@@ -711,29 +707,33 @@ void initialize_login_environment() {
 bool init_interactive_filesystem() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
-  
+
   // Cache current path to avoid multiple filesystem calls
   std::string current_path = std::filesystem::current_path().string();
   if (g_debug_mode)
     std::cerr << "DEBUG: Current path: " << current_path << std::endl;
   setenv("PWD", current_path.c_str(), 1);
-  
+
   try {
     // Cache file existence results to avoid repeated checks
-    bool home_exists = std::filesystem::exists(cjsh_filesystem::g_user_home_path);
-    bool history_exists = std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path);
-    bool source_exists = std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path);
-    bool should_refresh_cache = cjsh_filesystem::should_refresh_executable_cache();
-    
+    bool home_exists =
+        std::filesystem::exists(cjsh_filesystem::g_user_home_path);
+    bool history_exists =
+        std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path);
+    bool source_exists =
+        std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path);
+    bool should_refresh_cache =
+        cjsh_filesystem::should_refresh_executable_cache();
+
     if (!home_exists) {
       std::cerr << "cjsh: the users home path could not be determined."
                 << std::endl;
       return false;
     }
-    
+
     // Initialize directories once
     initialize_cjsh_directories();
-    
+
     // Create files if needed based on cached existence checks
     if (!history_exists) {
       if (g_debug_mode)
@@ -741,10 +741,9 @@ bool init_interactive_filesystem() {
       std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
       history_file.close();
     }
-    
+
     if (!source_exists) {
-      if (g_debug_mode) 
-        std::cerr << "DEBUG: Creating source file" << std::endl;
+      if (g_debug_mode) std::cerr << "DEBUG: Creating source file" << std::endl;
       create_source_file();
     }
 

@@ -331,8 +331,8 @@ plugin_error_t plugin_register_prompt_variable(
  * }
  *
  * PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
- *     plugin_setting_t* settings = (plugin_setting_t*)malloc(3 * sizeof(plugin_setting_t));
- *     settings[0].key = strdup("setting1");
+ *     plugin_setting_t* settings = (plugin_setting_t*)malloc(3 *
+ * sizeof(plugin_setting_t)); settings[0].key = strdup("setting1");
  *     settings[0].value = strdup("default1");
  *     settings[1].key = strdup("setting2");
  *     settings[1].value = strdup("default2");

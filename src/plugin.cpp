@@ -387,11 +387,11 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     int settings_count = 0;
     settings = data.get_default_settings(&settings_count);
     if (settings) {
-        for (int i = 0; i < settings_count; ++i) {
-            free(settings[i].key);
-            free(settings[i].value);
-        }
-        data.free_memory(settings);
+      for (int i = 0; i < settings_count; ++i) {
+        free(settings[i].key);
+        free(settings[i].value);
+      }
+      data.free_memory(settings);
     }
   }
 

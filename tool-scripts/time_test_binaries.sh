@@ -7,7 +7,10 @@ cjsh_binary_types=("")
 
 ENABLE_BASELINE_TESTS=true
 
-results=()
+shells=()
+averages=()
+min_times=()
+max_times=()
 
 echo "----------------------------------------------------------------------"
 
@@ -16,16 +19,31 @@ for type in "${cjsh_binary_types[@]}"; do
   echo "Timing ./cjsh${type} $COMMAND"
   echo
   total_time=0
+  min_time=9999999
+  max_time=0
+  
   for i in $(seq 1 $RUNS); do
     start_time=$(date +%s.%N)
     ./build/cjsh${type} $COMMAND
     end_time=$(date +%s.%N)
     elapsed_time=$(echo "$end_time - $start_time" | bc)
+
+    if (( $(echo "$elapsed_time < $min_time" | bc -l) )); then
+      min_time=$elapsed_time
+    fi
+    if (( $(echo "$elapsed_time > $max_time" | bc -l) )); then
+      max_time=$elapsed_time
+    fi
+    
     total_time=$(echo "$total_time + $elapsed_time" | bc)
   done
 
   average_time=$(echo "$total_time / $RUNS" | bc -l)
-  results+=("Average time for ./cjsh${type}: $average_time seconds")
+  shell_name="./cjsh${type}"
+  shells+=("$shell_name")
+  averages+=("$average_time")
+  min_times+=("$min_time")
+  max_times+=("$max_time")
 done
 
 echo "----------------------------------------------------------------------"
@@ -36,6 +54,8 @@ if [ "$ENABLE_BASELINE_TESTS" = true ]; then
     echo "Timing $shell $COMMAND"
     echo
     total_time=0
+    min_time=9999999
+    max_time=0
 
     for i in $(seq 1 $RUNS); do
       start_time=$(date +%s.%N)
@@ -43,27 +63,46 @@ if [ "$ENABLE_BASELINE_TESTS" = true ]; then
       end_time=$(date +%s.%N)
 
       elapsed_time=$(echo "$end_time - $start_time" | bc)
+      
+      if (( $(echo "$elapsed_time < $min_time" | bc -l) )); then
+        min_time=$elapsed_time
+      fi
+      if (( $(echo "$elapsed_time > $max_time" | bc -l) )); then
+        max_time=$elapsed_time
+      fi
+      
       total_time=$(echo "$total_time + $elapsed_time" | bc)
     done
 
     average_time=$(echo "$total_time / $RUNS" | bc -l)
-    results+=("Average time for $shell: $average_time seconds")
+    shells+=("$shell")
+    averages+=("$average_time")
+    min_times+=("$min_time")
+    max_times+=("$max_time")
   done
 fi
 
 echo "----------------------------------------------------------------------"
 
-# Sort results in ascending order of time
-sorted_results=$(printf "%s\n" "${results[@]}" | sort -t: -k2 -n)
+temp_file=$(mktemp)
 
-# Print sorted results
+for i in "${!shells[@]}"; do
+  echo "${shells[$i]}:${averages[$i]}:${min_times[$i]}:${max_times[$i]}" >> "$temp_file"
+done
+
+sorted_results=$(sort -t: -k2 -n "$temp_file")
+
 echo "Command used to test: $COMMAND"
 echo "Results after $RUNS run\(s\):"
 echo "----------------------------------------------------------------------"
-while IFS= read -r result; do
-  echo "$result"
+while IFS=: read -r shell average min max; do
+  echo "Average time for $shell: $average seconds"
+  echo "  Min time: $min seconds"
+  echo "  Max time: $max seconds"
 done <<< "$sorted_results"
 echo "----------------------------------------------------------------------"
+
+rm "$temp_file"
 
 
 
