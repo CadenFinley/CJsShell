@@ -23,7 +23,7 @@ int restart_command(const std::vector<std::string>& args) {
   std::cout << "Cleaning up resources before restart..." << std::endl;
 
   // Save important global state
-  std::filesystem::path shell_path = cjsh_filesystem::g_cjsh_path;
+  std::filesystem::path shell_path = cjsh_filesystem::get_cjsh_path();
   std::vector<std::string> startup_args = g_startup_args;
 
   // Clean up global resources in reverse order of initialization

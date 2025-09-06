@@ -15,7 +15,6 @@ void print_usage() {
       << "  -c, --command=COMMAND      Execute the specified command and exit\n"
       << "  -v, --version              Print version information and exit\n"
       << "  -h, --help                 Display this help message and exit\n"
-      << "  -s, --set-as-shell         Set cjsh as your default shell\n"
       << "  -u, --update               Check for updates and install if "
          "available\n"
       << "  -S, --silent-updates       Don't show update notifications\n"

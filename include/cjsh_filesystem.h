@@ -23,7 +23,8 @@ const fs::path g_user_home_path = []() {
   return fs::path(home);
 }();
 
-extern fs::path g_cjsh_path;  // where the executable is located
+// This needs to be non-const because it's initialized at runtime
+extern fs::path g_cjsh_path;
 
 // used if login
 const fs::path g_cjsh_profile_path =
@@ -75,6 +76,7 @@ std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();
 bool file_exists(const cjsh_filesystem::fs::path& path);
 bool should_refresh_executable_cache();
-}  // namespace cjsh_filesystem
 bool initialize_cjsh_path();
 bool initialize_cjsh_directories();
+std::filesystem::path get_cjsh_path();
+}  // namespace cjsh_filesystem

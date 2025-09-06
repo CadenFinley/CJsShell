@@ -22,6 +22,24 @@
 #include "update.h"
 #include "usage.h"
 
+// Implementation of the config namespace variables declared in cjsh.h
+namespace config {
+bool login_mode = false;
+bool interactive_mode = true;
+bool force_interactive = false;
+bool execute_command = false;
+std::string cmd_to_execute = "";
+bool plugins_enabled = true;
+bool themes_enabled = true;
+bool ai_enabled = true;
+bool colors_enabled = true;
+bool source_enabled = true;
+bool show_version = false;
+bool show_help = false;
+bool check_update = false;
+bool startup_test = false;
+}  // namespace config
+
 // to do
 //  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
@@ -43,32 +61,10 @@
  * 255     - Exit status out of range
  */
 
-bool login_mode = false;
-bool interactive_mode = true;
-bool force_interactive = false;
-bool l_execute_command = false;
-std::string l_cmd_to_execute = "";
-bool l_plugins_enabled = true;
-bool l_themes_enabled = true;
-bool l_ai_enabled = true;
-bool l_colors_enabled = true;
-bool source_enabled = true;
-bool set_as_shell = false;
-bool show_version = false;
-bool show_help = false;
-bool check_update = false;
-bool startup_test = false;
-
 int main(int argc, char* argv[]) {
-  if (!initialize_cjsh_path()) {
-    std::cerr << "Warning: Unable to determine the executable path. This "
-                 "program may not work correctly."
-              << std::endl;
-  }
-
   // Check if started as a login shell
   if (argv && argv[0] && argv[0][0] == '-') {
-    login_mode = true;
+    config::login_mode = true;
     if (g_debug_mode)
       std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0]
                 << std::endl;
@@ -82,7 +78,6 @@ int main(int argc, char* argv[]) {
       {"command", required_argument, 0, 'c'},
       {"version", no_argument, 0, 'v'},
       {"help", no_argument, 0, 'h'},
-      {"set-as-shell", no_argument, 0, 's'},
       {"update", no_argument, 0, 'u'},
       {"silent-updates", no_argument, 0, 'S'},
       {"no-plugins", no_argument, 0, 'P'},
@@ -96,7 +91,7 @@ int main(int argc, char* argv[]) {
       {"startup-test", no_argument, 0, 'X'},
       {0, 0, 0, 0}};
 
-  const char* short_options = "lic:vhdsuSPTACUVLNX";
+  const char* short_options = "lic:vhduSPTACUVLNX";
   int option_index = 0;
   int c;
   optind = 1;
@@ -106,13 +101,13 @@ int main(int argc, char* argv[]) {
   std::unordered_map<char, FlagHandler> flag_handlers = {
       {'l',
        [](const char*) {
-         login_mode = true;
+         config::login_mode = true;
          if (g_debug_mode)
            std::cerr << "DEBUG: Login mode enabled" << std::endl;
        }},
       {'i',
        [](const char*) {
-         force_interactive = true;
+         config::force_interactive = true;
          if (g_debug_mode)
            std::cerr << "DEBUG: Interactive mode forced" << std::endl;
        }},
@@ -123,59 +118,47 @@ int main(int argc, char* argv[]) {
        }},
       {'c',
        [](const char* arg) {
-         // Check if the argument starts with "jsh" (caused by -cjsh)
-         if (arg && std::string(arg) == "jsh") {
-           login_mode = true;
-           if (g_debug_mode)
-             std::cerr << "DEBUG: Login mode enabled via -cjsh" << std::endl;
-         } else {
-           l_execute_command = true;
-           l_cmd_to_execute = arg;
-           interactive_mode = false;
-           if (g_debug_mode)
-             std::cerr << "DEBUG: Command to execute: " << l_cmd_to_execute
-                       << std::endl;
-         }
+         config::execute_command = true;
+         config::cmd_to_execute = arg;
+         config::interactive_mode = false;
+         if (g_debug_mode)
+           std::cerr << "DEBUG: Command to execute: " << config::cmd_to_execute
+                     << std::endl;
        }},
       {'v',
        [](const char*) {
-         show_version = true;
-         interactive_mode = false;
+         config::show_version = true;
+         config::interactive_mode = false;
        }},
       {'h',
        [](const char*) {
-         show_help = true;
-         interactive_mode = false;
-       }},
-      {'s',
-       [](const char*) {
-         set_as_shell = true;
-         interactive_mode = false;
+         config::show_help = true;
+         config::interactive_mode = false;
        }},
       {'u',
        [](const char*) {
-         check_update = true;
-         interactive_mode = false;
+         config::check_update = true;
+         config::interactive_mode = false;
        }},
       {'S', [](const char*) { g_silent_update_check = true; }},
       {'P',
        [](const char*) {
-         l_plugins_enabled = false;
+         config::plugins_enabled = false;
          if (g_debug_mode) std::cerr << "DEBUG: Plugins disabled" << std::endl;
        }},
       {'T',
        [](const char*) {
-         l_themes_enabled = false;
+         config::themes_enabled = false;
          if (g_debug_mode) std::cerr << "DEBUG: Themes disabled" << std::endl;
        }},
       {'A',
        [](const char*) {
-         l_ai_enabled = false;
+         config::ai_enabled = false;
          if (g_debug_mode) std::cerr << "DEBUG: AI disabled" << std::endl;
        }},
       {'C',
        [](const char*) {
-         l_colors_enabled = false;
+         config::colors_enabled = false;
          if (g_debug_mode) std::cerr << "DEBUG: Colors disabled" << std::endl;
        }},
       {'U',
@@ -198,12 +181,12 @@ int main(int argc, char* argv[]) {
        }},
       {'N',
        [](const char*) {
-         source_enabled = false;
+         config::source_enabled = false;
          if (g_debug_mode)
            std::cerr << "DEBUG: Source file disabled" << std::endl;
        }},
       {'X', [](const char*) {
-         startup_test = true;
+         config::startup_test = true;
          if (g_debug_mode)
            std::cerr << "DEBUG: Startup test mode enabled" << std::endl;
        }}};
@@ -222,7 +205,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  g_shell = std::make_unique<Shell>(login_mode);
+  g_shell = std::make_unique<Shell>(config::login_mode);
 
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
@@ -262,61 +245,25 @@ int main(int argc, char* argv[]) {
     setenv("0", "cjsh", 1);
   }
 
-  if (show_version) {
+  if (config::show_version) {
     std::cout << c_version << (PRE_RELEASE ? "-PRERELEASE" : "") << std::endl;
-  } else if (show_help) {
+  } else if (config::show_help) {
     print_usage();
-  } else if (set_as_shell) {
-    std::cout
-        << "Warning: cjsh is not a POSIX compliant shell. \nSimilar to FISH, "
-           "missuse of cjsh or incorrectly settingcjsh as your login shell "
-           "can \nhave adverse effects and there is no warranty."
-        << std::endl;
-    std::cout << "To set cjsh as your default shell you must run these two "
-                 "commands:"
-              << std::endl;
-    std::cout << "To add cjsh to the list of shells:" << std::endl;
-    std::cout << "sudo sh -c \"echo " << cjsh_filesystem::g_cjsh_path
-              << " >> /etc/shells\"" << std::endl;
-    std::cout << "To set CJ's Shell as your default shell:" << std::endl;
-    std::cout << "sudo chsh -s " << cjsh_filesystem::g_cjsh_path << std::endl;
-    std::cout << "Would you like to automatically run these commands? (y/n): ";
-    std::string response;
-    std::getline(std::cin, response);
-    if (response == "y" || response == "Y") {
-      std::string command = "sudo sh -c \"echo " +
-                            cjsh_filesystem::g_cjsh_path.string() +
-                            " >> /etc/shells\"";
-      int result = g_shell->execute_command(command);
-      if (result != 0) {
-        std::cerr << "Error: Failed to add cjsh to /etc/shells." << std::endl;
-      } else {
-        std::cout << "cjsh added to /etc/shells successfully." << std::endl;
-      }
-      command = "sudo chsh -s " + cjsh_filesystem::g_cjsh_path.string();
-      result = g_shell->execute_command(command);
-      if (result == -1) {
-        std::cerr << "Error: Failed to set cjsh as default shell." << std::endl;
-      } else {
-        std::cout << "cjsh set as default shell successfully." << std::endl;
-      }
-    } else {
-      std::cout << "cjsh will not be set as your default shell." << std::endl;
-    }
-  } else if (check_update) {
+  } else if (config::check_update) {
     execute_update_if_available(check_for_update());
-  } else if (l_execute_command) {
-    int exit_code = g_shell->execute_command(l_cmd_to_execute);
-    if ((!interactive_mode && !force_interactive) || exit_code != 0) {
+  } else if (config::execute_command) {
+    int exit_code = g_shell->execute_command(config::cmd_to_execute);
+    if ((!config::interactive_mode && !config::force_interactive) ||
+        exit_code != 0) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Exiting after executing command: "
-                  << l_cmd_to_execute << std::endl;
+                  << config::cmd_to_execute << std::endl;
       g_shell.reset();
       return exit_code;
     }
   }
 
-  if (!interactive_mode && !force_interactive) {
+  if (!config::interactive_mode && !config::force_interactive) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Interactive mode not enabled" << std::endl;
     g_shell.reset();
@@ -335,21 +282,21 @@ int main(int argc, char* argv[]) {
   setup_environment_variables();
 
   if (g_debug_mode)
-    std::cerr << "DEBUG: Initializing colors with enabled=" << l_colors_enabled
-              << std::endl;
-  colors::initialize_color_support(l_colors_enabled);
+    std::cerr << "DEBUG: Initializing colors with enabled="
+              << config::colors_enabled << std::endl;
+  colors::initialize_color_support(config::colors_enabled);
 
   std::unique_ptr<Plugin> plugin;
   std::unique_ptr<Theme> theme;
   std::unique_ptr<Ai> ai;
 
   // Only create Plugin object if plugins are enabled
-  if (l_plugins_enabled) {
+  if (config::plugins_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing plugin system with enabled="
-                << l_plugins_enabled << std::endl;
+                << config::plugins_enabled << std::endl;
     plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
-                                      l_plugins_enabled);
+                                      config::plugins_enabled);
     g_plugin = plugin.get();
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: Plugins disabled, skipping initialization"
@@ -357,19 +304,19 @@ int main(int argc, char* argv[]) {
   }
 
   // Only create Theme object if themes are enabled
-  if (l_themes_enabled) {
+  if (config::themes_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing theme system with enabled="
-                << l_themes_enabled << std::endl;
+                << config::themes_enabled << std::endl;
     theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path,
-                                    l_themes_enabled);
+                                    config::themes_enabled);
     g_theme = theme.get();
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: Themes disabled, skipping initialization" << std::endl;
   }
 
   // Only create Ai object if AI is enabled
-  if (l_ai_enabled) {
+  if (config::ai_enabled) {
     std::string api_key = "";
     const char* env_key = getenv("OPENAI_API_KEY");
     if (env_key) {
@@ -377,11 +324,12 @@ int main(int argc, char* argv[]) {
     }
 
     if (g_debug_mode)
-      std::cerr << "DEBUG: Initializing AI with enabled=" << l_ai_enabled
+      std::cerr << "DEBUG: Initializing AI with enabled=" << config::ai_enabled
                 << std::endl;
     ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
                               std::vector<std::string>{},
-                              cjsh_filesystem::g_cjsh_data_path, l_ai_enabled);
+                              cjsh_filesystem::g_cjsh_data_path,
+                              config::ai_enabled);
     g_ai = ai.get();
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: AI disabled, skipping initialization" << std::endl;
@@ -392,7 +340,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "DEBUG: Saved current directory: " << saved_current_dir
               << std::endl;
 
-  if (source_enabled) {
+  if (config::source_enabled) {
     if (g_debug_mode) std::cerr << "DEBUG: Processing source file" << std::endl;
     process_source_file();
   } else {
@@ -407,7 +355,7 @@ int main(int argc, char* argv[]) {
   }
 
   g_startup_active = false;
-  if (!g_exit_flag && !startup_test) {
+  if (!g_exit_flag && !config::startup_test) {
     startup_update_process();
     if (g_title_line) {
       std::cout << title_line << std::endl;
@@ -625,7 +573,8 @@ void setup_environment_variables() {
     // Current directory and shell info
     std::string current_path = std::filesystem::current_path().string();
     env_vars.emplace_back("PWD", current_path.c_str());
-    env_vars.emplace_back("SHELL", cjsh_filesystem::g_cjsh_path.c_str());
+    env_vars.emplace_back("SHELL",
+                          cjsh_filesystem::get_cjsh_path().string().c_str());
     env_vars.emplace_back("IFS", " \t\n");
 
     // Language settings
@@ -656,7 +605,8 @@ void setup_environment_variables() {
     env_vars.emplace_back("SHLVL", shlvl_str.c_str());
 
     // Miscellaneous
-    env_vars.emplace_back("_", cjsh_filesystem::g_cjsh_path.c_str());
+    env_vars.emplace_back("_",
+                          cjsh_filesystem::get_cjsh_path().string().c_str());
     std::string status_str = std::to_string(0);
     env_vars.emplace_back("STATUS", status_str.c_str());
     env_vars.emplace_back("VERSION", c_version.c_str());
@@ -732,7 +682,7 @@ bool init_interactive_filesystem() {
     }
 
     // Initialize directories once
-    initialize_cjsh_directories();
+    cjsh_filesystem::initialize_cjsh_directories();
 
     // Create files if needed based on cached existence checks
     if (!history_exists) {
@@ -941,19 +891,19 @@ void apply_profile_startup_args() {
     if (flag == "--no-plugins") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling plugins from profile" << std::endl;
-      l_plugins_enabled = false;
+      config::plugins_enabled = false;
     } else if (flag == "--no-themes") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling themes from profile" << std::endl;
-      l_themes_enabled = false;
+      config::themes_enabled = false;
     } else if (flag == "--no-ai") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling AI from profile" << std::endl;
-      l_ai_enabled = false;
+      config::ai_enabled = false;
     } else if (flag == "--no-colors") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling colors from profile" << std::endl;
-      l_colors_enabled = false;
+      config::colors_enabled = false;
     } else if (flag == "--no-update") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling update checks from profile" << std::endl;
@@ -969,7 +919,7 @@ void apply_profile_startup_args() {
     } else if (flag == "--no-source") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling source file from profile" << std::endl;
-      source_enabled = false;
+      config::source_enabled = false;
     } else if (flag == "--debug") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Enabling debug mode from profile" << std::endl;

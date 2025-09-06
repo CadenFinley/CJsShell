@@ -8,6 +8,9 @@
 
 namespace cjsh_filesystem {
 
+// Definition of g_cjsh_path
+fs::path g_cjsh_path;
+
 bool should_refresh_executable_cache() {
   namespace fs = cjsh_filesystem::fs;
   try {
@@ -60,8 +63,6 @@ std::vector<fs::path> read_cached_executables() {
 
 bool file_exists(const fs::path& path) { return fs::exists(path); }
 
-}  // namespace cjsh_filesystem
-
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
@@ -70,8 +71,6 @@ bool file_exists(const fs::path& path) { return fs::exists(path); }
 #include <string.h>
 extern char* program_invocation_name;
 #endif
-
-cjsh_filesystem::fs::path cjsh_filesystem::g_cjsh_path;
 
 bool initialize_cjsh_path() {
   char path[PATH_MAX];
@@ -157,3 +156,12 @@ bool initialize_cjsh_directories() {
     return false;
   }
 }
+
+std::filesystem::path get_cjsh_path() {
+  if (cjsh_filesystem::g_cjsh_path.empty()) {
+    cjsh_filesystem::initialize_cjsh_path();
+  }
+  return cjsh_filesystem::g_cjsh_path;
+}
+
+}  // namespace cjsh_filesystem
