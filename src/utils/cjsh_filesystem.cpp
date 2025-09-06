@@ -12,7 +12,7 @@ namespace cjsh_filesystem {
 fs::path g_cjsh_path;
 
 bool should_refresh_executable_cache() {
-  namespace fs = cjsh_filesystem::fs;
+  // We're already in the cjsh_filesystem namespace, so fs is already defined
   try {
     if (!fs::exists(g_cjsh_found_executables_path)) return true;
     auto last = fs::last_write_time(g_cjsh_found_executables_path);
@@ -81,7 +81,7 @@ bool initialize_cjsh_path() {
   char path[PATH_MAX];
 #ifdef __linux__
   if (readlink("/proc/self/exe", path, PATH_MAX) != -1) {
-    cjsh_filesystem::g_cjsh_path = path;
+    g_cjsh_path = path;
     return true;
   }
 #endif
@@ -91,90 +91,91 @@ bool initialize_cjsh_path() {
   if (_NSGetExecutablePath(path, &size) == 0) {
     char* resolved_path = realpath(path, NULL);
     if (resolved_path != nullptr) {
-      cjsh_filesystem::g_cjsh_path = resolved_path;
+      g_cjsh_path = resolved_path;
       free(resolved_path);
       return true;
     } else {
-      cjsh_filesystem::g_cjsh_path = path;
+      g_cjsh_path = path;
       return true;
     }
   }
 #endif
 
-  if (cjsh_filesystem::g_cjsh_path.empty()) {
+  if (g_cjsh_path.empty()) {
 #ifdef __linux__
     char* exePath = realpath(program_invocation_name, NULL);
     if (exePath) {
-      cjsh_filesystem::g_cjsh_path = exePath;
+      g_cjsh_path = exePath;
       free(exePath);
       return true;
     } else {
-      cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
+      g_cjsh_path = "/usr/local/bin/cjsh";
       return true;
     }
 #else
     char* exePath = cjsh_filesystem::program_invocation_name ? 
                    realpath(cjsh_filesystem::program_invocation_name, NULL) : nullptr;
     if (exePath) {
-      cjsh_filesystem::g_cjsh_path = exePath;
+      g_cjsh_path = exePath;
       free(exePath);
       return true;
     } else {
-      cjsh_filesystem::g_cjsh_path = "/usr/local/bin/cjsh";
+      g_cjsh_path = "/usr/local/bin/cjsh";
       return true;
     }
 #endif
   }
-  cjsh_filesystem::g_cjsh_path = "No path found";
+  g_cjsh_path = "No path found";
   return false;
 }
 
 bool initialize_cjsh_directories() {
   try {
-    namespace fs = cjsh_filesystem::fs;
+    // We're already in the cjsh_filesystem namespace, so we can use fs directly
+    namespace fs = std::filesystem;
 
-    if (!fs::exists(cjsh_filesystem::g_config_path)) {
-      fs::create_directories(cjsh_filesystem::g_config_path);
-    }
-
-    if (!fs::exists(cjsh_filesystem::g_cache_path)) {
-      fs::create_directories(cjsh_filesystem::g_cache_path);
+    if (!fs::exists(g_config_path)) {
+      fs::create_directories(g_config_path);
     }
 
-    if (!fs::exists(cjsh_filesystem::g_cjsh_data_path)) {
-      fs::create_directories(cjsh_filesystem::g_cjsh_data_path);
+    if (!fs::exists(g_cache_path)) {
+      fs::create_directories(g_cache_path);
     }
 
-    if (!fs::exists(cjsh_filesystem::g_cjsh_cache_path)) {
-      fs::create_directories(cjsh_filesystem::g_cjsh_cache_path);
+    if (!fs::exists(g_cjsh_data_path)) {
+      fs::create_directories(g_cjsh_data_path);
     }
 
-    if (!fs::exists(cjsh_filesystem::g_cjsh_plugin_path)) {
-      fs::create_directories(cjsh_filesystem::g_cjsh_plugin_path);
-    }
-    if (!fs::exists(cjsh_filesystem::g_cjsh_theme_path)) {
-      fs::create_directories(cjsh_filesystem::g_cjsh_theme_path);
+    if (!fs::exists(g_cjsh_cache_path)) {
+      fs::create_directories(g_cjsh_cache_path);
     }
 
-    if (!fs::exists(cjsh_filesystem::g_cjsh_ai_config_path)) {
-      fs::create_directories(cjsh_filesystem::g_cjsh_ai_config_path);
+    if (!fs::exists(g_cjsh_plugin_path)) {
+      fs::create_directories(g_cjsh_plugin_path);
     }
-    if (!fs::exists(cjsh_filesystem::g_cjsh_ai_conversations_path)) {
-      fs::create_directories(cjsh_filesystem::g_cjsh_ai_conversations_path);
+    if (!fs::exists(g_cjsh_theme_path)) {
+      fs::create_directories(g_cjsh_theme_path);
+    }
+
+    if (!fs::exists(g_cjsh_ai_config_path)) {
+      fs::create_directories(g_cjsh_ai_config_path);
+    }
+    if (!fs::exists(g_cjsh_ai_conversations_path)) {
+      fs::create_directories(g_cjsh_ai_conversations_path);
     }
 
     return true;
-  } catch (const cjsh_filesystem::fs::filesystem_error& e) {
+  } catch (const fs::filesystem_error& e) {
     std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;
     return false;
   }
 }
 
 std::filesystem::path get_cjsh_path() {
-  if (cjsh_filesystem::g_cjsh_path.empty()) {
-    cjsh_filesystem::initialize_cjsh_path();
+  if (g_cjsh_path.empty()) {
+    initialize_cjsh_path();
   }
-  return cjsh_filesystem::g_cjsh_path;
+  return g_cjsh_path;
 }
 
 }  // namespace cjsh_filesystem
