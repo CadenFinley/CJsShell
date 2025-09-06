@@ -1,7 +1,7 @@
 #!/bin/bash
 
 RUNS=100
-COMMAND="-c cd"
+COMMAND="-c not_a_command_"
 BASELINE_SHELLS=("fish" "bash" "zsh")
 cjsh_binary_types=("")
 
@@ -127,35 +127,12 @@ echo "----------------------------------------------------------------------"
 # Average time for ./cjsh: .04022909000000000000 seconds
 # ----------------------------------------------------------------------
 
-
-
-
 # ----------------------------------------------------------------------
-# Command used to test: -c whoami
-# Results after 100 run(s):
+# Command used to test: -c not_a_command_
+# Results after 100 run\(s\):
 # ----------------------------------------------------------------------
-# Average time for bash: .02900256000000000000 seconds
-# Average time for zsh: .03189920000000000000 seconds
-# Average time for ./cjsh_speed03: .04088379000000000000 seconds
-# Average time for ./cjsh_speed02: .04122752000000000000 seconds
-# Average time for ./cjsh_space: .04170941000000000000 seconds
-# Average time for fish: .04537877000000000000 seconds
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
-# Command used to test: --no-source --startup-test
-# Results after 100 run(s):
-# ----------------------------------------------------------------------
-# Average time for ./cjsh_space: .06142443000000000000 seconds
-# Average time for ./cjsh_speed03: .06148954000000000000 seconds
-# Average time for ./cjsh_speed02: .06186601000000000000 seconds
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
-# Command used to test: --no-source --startup-test --no-plugins --no-ai --no-themes
-# Results after 100 run(s):
-# ----------------------------------------------------------------------
-# Average time for ./cjsh_speed03: .03040521000000000000 seconds
-# Average time for ./cjsh_speed02: .03085385000000000000 seconds
-# Average time for ./cjsh_space: .03094124000000000000 seconds
+# Average time for bash: .02066980000000000000 seconds
+# Average time for zsh: .02492144000000000000 seconds
+# Average time for ./cjsh: .03347663000000000000 seconds
+# Average time for fish: .03887924000000000000 seconds
 # ----------------------------------------------------------------------
