@@ -57,6 +57,8 @@ class Exec {
   void set_exit_code(int code) { last_exit_code = code; }
   void terminate_all_child_process();
   void set_process_priority(pid_t pid, bool is_foreground);
+  void cleanup_pipeline_resources(const std::vector<std::array<int, 2>>& pipes,
+                                  const std::vector<pid_t>& pids);
 
   std::string last_terminal_output_error;
 };
