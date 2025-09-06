@@ -113,12 +113,6 @@ rm "$temp_file"
 # Average time for ./cjsh: .05827370000000000000 seconds
 #   Min time: .056715000 seconds
 #   Max time: .062637000 seconds
-# Average time for ./cjsh_speed02: .05926848000000000000 seconds
-#   Min time: .058684000 seconds
-#   Max time: .060290000 seconds
-# Average time for ./cjsh_speed03: .05939758000000000000 seconds
-#   Min time: .058837000 seconds
-#   Max time: .060352000 seconds
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
@@ -138,12 +132,6 @@ rm "$temp_file"
 # Average time for ./cjsh: .02683664000000000000 seconds
 #   Min time: .026469000 seconds
 #   Max time: .031983000 seconds
-# Average time for ./cjsh_speed03: .02710878000000000000 seconds
-#   Min time: .026743000 seconds
-#   Max time: .028118000 seconds
-# Average time for ./cjsh_speed02: .02764498000000000000 seconds
-#   Min time: .026960000 seconds
-#   Max time: .032996000 seconds
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
@@ -157,12 +145,6 @@ rm "$temp_file"
 # Average time for ./cjsh: .02794312000000000000 seconds
 #   Min time: .026916000 seconds
 #   Max time: .032809000 seconds
-# Average time for ./cjsh_speed03: .02840304000000000000 seconds
-#   Min time: .028085000 seconds
-#   Max time: .029779000 seconds
-# Average time for ./cjsh_speed02: .02844904000000000000 seconds
-#   Min time: .028041000 seconds
-#   Max time: .029946000 seconds
 # Average time for zsh: .02963912000000000000 seconds
 #   Min time: .029228000 seconds
 #   Max time: .031571000 seconds
