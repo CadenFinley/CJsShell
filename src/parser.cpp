@@ -631,13 +631,16 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       cmd_part.erase(cmd_part.find_last_not_of(" \t\n\r") + 1);
     }
 
-    // Special handling for subshell commands
-    if (!cmd_part.empty() && cmd_part.find('(') == 0) {
-      size_t close_paren = cmd_part.find(')', 1);
-      if (close_paren != std::string::npos) {
-        // This is a subshell command - treat it specially
-        std::string subshell_content = cmd_part.substr(1, close_paren - 1);
-        std::string remaining = cmd_part.substr(close_paren + 1);
+    // Special handling for subshell commands (allow leading whitespace)
+    if (!cmd_part.empty()) {
+      size_t lead = cmd_part.find_first_not_of(" \t\r\n");
+      if (lead != std::string::npos && cmd_part[lead] == '(') {
+        size_t close_paren = cmd_part.find(')', lead + 1);
+        if (close_paren != std::string::npos) {
+          // This is a subshell command - treat it specially
+          std::string subshell_content =
+              cmd_part.substr(lead + 1, close_paren - (lead + 1));
+          std::string remaining = cmd_part.substr(close_paren + 1);
 
         // Create a special command that represents the subshell
         cmd.args.push_back("sh");
@@ -664,8 +667,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           }
         }
 
-        commands.push_back(cmd);
-        continue;
+          commands.push_back(cmd);
+          continue;
+        }
       }
     }
 
@@ -756,13 +760,17 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
   current_here_docs = preprocessed.here_documents;
 
   // Check if this is a SUBSHELL{} command
-  if (preprocessed.processed_text.find("SUBSHELL{") == 0) {
+  // Allow leading whitespace before SUBSHELL marker
+  {
+    const std::string& pt = preprocessed.processed_text;
+    size_t lead = pt.find_first_not_of(" \t\r\n");
+    if (lead != std::string::npos && pt.find("SUBSHELL{", lead) == lead) {
     size_t start = preprocessed.processed_text.find('{') + 1;
     size_t end = preprocessed.processed_text.find('}', start);
     if (end != std::string::npos) {
       std::string subshell_content =
           preprocessed.processed_text.substr(start, end - start);
-      std::string remaining = preprocessed.processed_text.substr(end + 1);
+        std::string remaining = preprocessed.processed_text.substr(end + 1);
 
       // Convert to a normal command so downstream parsing (pipes/redirs)
       // continues to work: sh -c '...'<remaining>
@@ -780,7 +788,10 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
       };
 
       std::string rebuilt = "sh -c '" + escape_single_quotes(subshell_content) + "'" + remaining;
-      preprocessed.processed_text = rebuilt;
+        // Preserve the original leading whitespace
+        std::string prefix = preprocessed.processed_text.substr(0, lead);
+        preprocessed.processed_text = prefix + rebuilt;
+    }
     }
   }
 

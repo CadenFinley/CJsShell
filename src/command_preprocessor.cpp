@@ -114,17 +114,21 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
   std::string result = command;
 
   // Look for subshell pattern at start: (command) or { command; }
-  // possibly followed by redirection
-  if (result.empty() || (result[0] != '(' && result[0] != '{')) {
+  // possibly followed by redirection. Allow leading whitespace.
+  if (result.empty()) {
+    return result;
+  }
+  size_t lead = result.find_first_not_of(" \t\r\n");
+  if (lead == std::string::npos || (result[lead] != '(' && result[lead] != '{')) {
     return result;
   }
 
   size_t close_pos = std::string::npos;
   
-  if (result[0] == '(') {
-    close_pos = find_matching_paren(result, 0);
-  } else if (result[0] == '{') {
-    close_pos = find_matching_brace(result, 0);
+  if (result[lead] == '(') {
+    close_pos = find_matching_paren(result, lead);
+  } else if (result[lead] == '{') {
+    close_pos = find_matching_brace(result, lead);
   }
   
   if (close_pos == std::string::npos) {
@@ -132,11 +136,11 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
   }
 
   // Extract subshell/brace content
-  std::string subshell_content = result.substr(1, close_pos - 1);
+  std::string subshell_content = result.substr(lead + 1, close_pos - (lead + 1));
   std::string remaining = result.substr(close_pos + 1);
 
   // For braces, trim leading/trailing whitespace and ensure trailing semicolon is handled
-  if (result[0] == '{') {
+  if (result[lead] == '{') {
     // Trim whitespace
     size_t start = subshell_content.find_first_not_of(" \t\n\r");
     size_t end = subshell_content.find_last_not_of(" \t\n\r");
@@ -156,10 +160,11 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
 
   // Instead of using sh -c, we'll return a marker that the shell can handle
   // The shell script interpreter should handle subshells directly
-  result = "SUBSHELL{" + subshell_content + "}" + remaining;
+  std::string prefix = result.substr(0, lead);
+  result = prefix + "SUBSHELL{" + subshell_content + "}" + remaining;
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: Converted " << (result[0] == '(' ? "subshell" : "brace group") 
+    std::cerr << "DEBUG: Converted " << ((result[lead] == '(') ? "subshell" : "brace group")
               << " (" << subshell_content << ") to internal subshell marker" << std::endl;
   }
 
