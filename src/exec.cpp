@@ -406,7 +406,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         return EX_OSERR;
       }
 
-      if (pid == 0) {
+  if (pid == 0) {
         pid_t child_pid = getpid();
         if (setpgid(child_pid, child_pid) < 0) {
           perror("setpgid failed in child");
@@ -424,7 +424,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(fd);
         }
 
-        if (!cmd.output_file.empty()) {
+  if (!cmd.output_file.empty()) {
           int fd =
               open(cmd.output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
           if (fd == -1) {
@@ -436,7 +436,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(fd);
         }
 
-        if (!cmd.append_file.empty()) {
+  if (!cmd.append_file.empty()) {
           int fd = open(cmd.append_file.c_str(), O_WRONLY | O_CREAT | O_APPEND,
                         0644);
           if (fd == -1) {
@@ -446,6 +446,28 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
           dup2(fd, STDOUT_FILENO);
           close(fd);
+        }
+        
+        // stderr redirections
+        if (!cmd.stderr_file.empty()) {
+          int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+          int fd = open(cmd.stderr_file.c_str(), flags, 0644);
+          if (fd == -1) {
+            std::cerr << "cjsh: " << cmd.stderr_file << ": "
+                      << strerror(errno) << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+          if (dup2(fd, STDERR_FILENO) == -1) {
+            perror("dup2 stderr");
+            close(fd);
+            _exit(EXIT_FAILURE);
+          }
+          close(fd);
+        } else if (cmd.stderr_to_stdout) {
+          if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
+            perror("dup2 2>&1");
+            _exit(EXIT_FAILURE);
+          }
         }
 
         std::vector<char*> c_args;
@@ -459,12 +481,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       }
 
       Job job;
-      job.pgid = pid;
+  job.pgid = pid;
       job.command = cmd.args[0];
       job.background = false;
       job.completed = false;
       job.stopped = false;
       job.pids.push_back(pid);
+  job.last_pid = pid;
 
       int job_id = add_job(job);
 
@@ -512,7 +535,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         return EX_OSERR;
       }
 
-      if (pid == 0) {
+  if (pid == 0) {
         if (i == 0) {
           pgid = getpid();
         }
@@ -593,6 +616,28 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
         }
 
+        // Apply stderr redirections for every command in pipeline
+        if (!cmd.stderr_file.empty()) {
+          int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+          int fd = open(cmd.stderr_file.c_str(), flags, 0644);
+          if (fd == -1) {
+            std::cerr << "cjsh: " << cmd.stderr_file << ": "
+                      << strerror(errno) << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+          if (dup2(fd, STDERR_FILENO) == -1) {
+            perror("dup2 stderr");
+            close(fd);
+            _exit(EXIT_FAILURE);
+          }
+          close(fd);
+        } else if (cmd.stderr_to_stdout) {
+          if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
+            perror("dup2 2>&1");
+            _exit(EXIT_FAILURE);
+          }
+        }
+
         for (size_t j = 0; j < commands.size() - 1; j++) {
           close(pipes[j][0]);
           close(pipes[j][1]);
@@ -618,7 +663,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
       }
 
-      pids.push_back(pid);
+  pids.push_back(pid);
     }
 
     for (size_t i = 0; i < commands.size() - 1; i++) {
@@ -641,17 +686,29 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
   job.completed = false;
   job.stopped = false;
   job.pids = pids;
+  job.last_pid = pids.empty() ? -1 : pids.back();
 
   int job_id = add_job(job);
 
   if (job.background) {
     put_job_in_background(job_id, false);
     std::cout << "[" << job_id << "] " << pgid << std::endl;
+    last_exit_code = 0;
   } else {
     put_job_in_foreground(job_id, false);
+    // After foreground wait, compute exit code based on last process
+    std::lock_guard<std::mutex> lock(jobs_mutex);
+    auto it = jobs.find(job_id);
+    if (it != jobs.end()) {
+      int st = it->second.last_status;
+      if (WIFEXITED(st))
+        last_exit_code = WEXITSTATUS(st);
+      else if (WIFSIGNALED(st))
+        last_exit_code = 128 + WTERMSIG(st);
+    }
   }
 
-  return 0;
+  return last_exit_code;
 }
 
 int Exec::add_job(const Job& job) {
@@ -769,6 +826,7 @@ void Exec::wait_for_job(int job_id) {
 
   pid_t job_pgid = it->second.pgid;
   std::vector<pid_t> remaining_pids = it->second.pids;
+  pid_t last_pid = it->second.last_pid;
 
   lock.unlock();
 
@@ -776,6 +834,8 @@ void Exec::wait_for_job(int job_id) {
   pid_t pid;
 
   bool job_stopped = false;
+  bool saw_last = false;
+  int last_status = 0;
 
   while (!remaining_pids.empty()) {
     pid = waitpid(-job_pgid, &status, WUNTRACED);
@@ -795,6 +855,16 @@ void Exec::wait_for_job(int job_id) {
     auto pid_it = std::find(remaining_pids.begin(), remaining_pids.end(), pid);
     if (pid_it != remaining_pids.end()) {
       remaining_pids.erase(pid_it);
+    }
+
+    // Track last process status separately for correct pipeline exit code
+    if (pid == last_pid) {
+      // status captured in variable 'status'
+    }
+
+    if (pid == last_pid) {
+      saw_last = true;
+      last_status = status;
     }
 
     if (WIFSTOPPED(status)) {
@@ -818,8 +888,12 @@ void Exec::wait_for_job(int job_id) {
       job.stopped = false;
       job.status = status;
 
-      if (WIFEXITED(status)) {
-        int exit_status = WEXITSTATUS(status);
+  // Prefer exit status of the last command in pipeline if available
+  int final_status = saw_last ? last_status : status;
+  job.last_status = final_status;
+
+      if (WIFEXITED(final_status)) {
+        int exit_status = WEXITSTATUS(final_status);
         last_exit_code = exit_status;
         job.completed = true;
         if (exit_status == 0) {
@@ -828,10 +902,10 @@ void Exec::wait_for_job(int job_id) {
           set_error("command failed with exit code " +
                     std::to_string(exit_status));
         }
-      } else if (WIFSIGNALED(status)) {
-        last_exit_code = 128 + WTERMSIG(status);
+      } else if (WIFSIGNALED(final_status)) {
+        last_exit_code = 128 + WTERMSIG(final_status);
         set_error("command terminated by signal " +
-                  std::to_string(WTERMSIG(status)));
+                  std::to_string(WTERMSIG(final_status)));
       }
     }
   }

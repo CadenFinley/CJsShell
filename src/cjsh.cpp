@@ -567,11 +567,11 @@ void setup_environment_variables() {
     // Current directory and shell info
     std::string current_path = std::filesystem::current_path().string();
     std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
-    
+
     if (g_debug_mode) {
       std::cerr << "DEBUG: Setting SHELL to: " << shell_path << std::endl;
     }
-    
+
     env_vars.emplace_back("PWD", current_path.c_str());
     env_vars.emplace_back("SHELL", shell_path.c_str());
     env_vars.emplace_back("IFS", " \t\n");
@@ -943,8 +943,7 @@ void process_profile_file() {
 
   process_profile_startup_args();
 
-  g_shell->execute("source " +
-                           cjsh_filesystem::g_cjsh_profile_path.string());
+  g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
 }
 
 void process_source_file() {
@@ -953,8 +952,7 @@ void process_source_file() {
     create_source_file();
     return;
   }
-  g_shell->execute("source " +
-                           cjsh_filesystem::g_cjsh_source_path.string());
+  g_shell->execute("source " + cjsh_filesystem::g_cjsh_source_path.string());
 }
 
 void create_profile_file() {

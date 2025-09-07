@@ -325,8 +325,10 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     return;
   }
 
-  // Fish-like behavior: if prefix ends with '/', only complete subdirectories, not files
-  if (!ic_stop_completing(cenv) && !prefix_str.empty() && prefix_str.back() == '/') {
+  // Fish-like behavior: if prefix ends with '/', only complete subdirectories,
+  // not files
+  if (!ic_stop_completing(cenv) && !prefix_str.empty() &&
+      prefix_str.back() == '/') {
     namespace fs = std::filesystem;
     fs::path dir_path(prefix_str);
     try {
@@ -336,7 +338,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string name = entry.path().filename().string();
             std::string suffix = name + "/";
             if (g_debug_mode)
-              std::cerr << "DEBUG: Directory-only completion: '" << suffix << "'" << std::endl;
+              std::cerr << "DEBUG: Directory-only completion: '" << suffix
+                        << "'" << std::endl;
             if (!ic_add_completion(cenv, suffix.c_str())) return;
             if (ic_stop_completing(cenv)) return;
           }
@@ -344,7 +347,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
-        std::cerr << "DEBUG: Error reading directory for directory-only completion: " << e.what() << std::endl;
+        std::cerr
+            << "DEBUG: Error reading directory for directory-only completion: "
+            << e.what() << std::endl;
     }
     return;
   }

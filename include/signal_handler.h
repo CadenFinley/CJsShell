@@ -45,8 +45,7 @@ class SignalHandler {
   static volatile sig_atomic_t s_sigterm_received;
   static const std::vector<SignalInfo> s_signal_table;
   static pid_t s_main_pid;
-  static std::vector<int>
-      s_observed_signals;
+  static std::vector<int> s_observed_signals;
 
   struct sigaction m_old_sigint_handler;
   struct sigaction m_old_sigchld_handler;

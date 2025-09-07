@@ -64,8 +64,7 @@ int Shell::execute(const std::string& script) {
     std::cerr << "DEBUG: Executing script with " << lines.size()
               << " lines:" << std::endl;
     for (size_t i = 0; i < lines.size(); i++) {
-      std::cerr << "DEBUG:   Line " << (i + 1) << ": " << lines[i]
-                << std::endl;
+      std::cerr << "DEBUG:   Line " << (i + 1) << ": " << lines[i] << std::endl;
     }
   }
 
@@ -150,7 +149,7 @@ void Shell::setup_job_control() {
 
 int Shell::do_ai_request(const std::string& command) {
   if (command == "exit" || command == "clear" || command == "quit") {
-  return execute(command);
+    return execute(command);
   }
   std::string first_word;
   std::istringstream iss(command);
@@ -182,7 +181,7 @@ int Shell::do_ai_request(const std::string& command) {
       std::getline(std::cin, response);
 
       if (!response.empty() && (response[0] == 'y' || response[0] == 'Y')) {
-  return execute(command);
+        return execute(command);
       }
     }
   }
@@ -190,27 +189,28 @@ int Shell::do_ai_request(const std::string& command) {
   return built_ins->do_ai_request(command);
 }
 
-int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
+int Shell::execute_command(std::vector<std::string> args,
+                           bool run_in_background) {
   if (g_debug_mode)
     std::cerr << "DEBUG: Executing command: '" << args[0] << "'" << std::endl;
 
   if (args.empty()) {
-  last_exit_code = 0;
-  return last_exit_code;
+    last_exit_code = 0;
+    return last_exit_code;
   }
   if (!shell_exec || !built_ins) {
-  last_exit_code = 1;
-  g_exit_flag = true;
-  std::cerr << "Error: Shell not properly initialized" << std::endl;
-  return last_exit_code;
+    last_exit_code = 1;
+    g_exit_flag = true;
+    std::cerr << "Error: Shell not properly initialized" << std::endl;
+    return last_exit_code;
   }
 
   // run built in command
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     int code = built_ins->builtin_command(args);
     last_terminal_output_error = built_ins->get_last_error();
-  last_exit_code = code;
-  return last_exit_code;
+    last_exit_code = code;
+    return last_exit_code;
   }
 
   // run plugin command
@@ -232,13 +232,13 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
   if (run_in_background) {
     shell_exec->execute_command_async(args);
     last_terminal_output_error = "Background command launched";
-  last_exit_code = 0;
-  return last_exit_code;
+    last_exit_code = 0;
+    return last_exit_code;
   } else {
     shell_exec->execute_command_sync(args);
     last_terminal_output_error = shell_exec->get_error();
-  last_exit_code = shell_exec->get_exit_code();
-  return last_exit_code;
+    last_exit_code = shell_exec->get_exit_code();
+    return last_exit_code;
   }
 }
 

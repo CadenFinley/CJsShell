@@ -28,7 +28,7 @@ class ShellScriptInterpreter {
     return shell_parser->parse_into_lines(script);
   }
 
-  private:
-    DebugLevel debug_level;
-    Parser* shell_parser = nullptr;
+ private:
+  DebugLevel debug_level;
+  Parser* shell_parser = nullptr;
 };

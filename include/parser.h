@@ -15,6 +15,8 @@ struct Command {
   std::string append_file;        // >> redirection
   bool background = false;        // & at the end
   bool stderr_to_stdout = false;  // 2>&1 redirection
+  std::string stderr_file;        // 2> redirection (stderr to file)
+  bool stderr_append = false;     // 2>> append redirection
   std::string here_doc;           // << HERE document
 };
 

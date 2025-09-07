@@ -14,7 +14,6 @@
 
 #include "cjsh.h"
 
-
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   // Split script content on unquoted newlines into logical lines.
   // Semicolons, background '&', and logical ops are handled later.
@@ -77,7 +76,8 @@ inline bool is_double_quoted_token(const std::string& s) {
 }
 
 inline std::string strip_quote_tag(const std::string& s) {
-  if (s.size() >= 2 && s[0] == QUOTE_PREFIX && (s[1] == QUOTE_SINGLE || s[1] == QUOTE_DOUBLE)) {
+  if (s.size() >= 2 && s[0] == QUOTE_PREFIX &&
+      (s[1] == QUOTE_SINGLE || s[1] == QUOTE_DOUBLE)) {
     return s.substr(2);
   }
   return s;
@@ -90,8 +90,9 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   bool in_quotes = false;
   char quote_char = '\0';
   bool escaped = false;
-  // Track how the token was quoted overall; if a token contains any single quotes
-  // and no double quotes, mark as single; if any double quotes and no single quotes, mark as double.
+  // Track how the token was quoted overall; if a token contains any single
+  // quotes and no double quotes, mark as single; if any double quotes and no
+  // single quotes, mark as double.
   bool token_saw_single = false;
   bool token_saw_double = false;
 
@@ -107,7 +108,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     } else if ((c == '"' || c == '\'') && !in_quotes) {
       in_quotes = true;
       quote_char = c;
-      if (c == '\'') token_saw_single = true; else token_saw_double = true;
+      if (c == '\'')
+        token_saw_single = true;
+      else
+        token_saw_double = true;
     } else if (c == quote_char && in_quotes) {
       in_quotes = false;
       quote_char = '\0';
@@ -115,9 +119,11 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       if (!current_token.empty()) {
         // Apply quote tag if any
         if (token_saw_single && !token_saw_double) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + current_token);
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                           current_token);
         } else if (token_saw_double && !token_saw_single) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + current_token);
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                           current_token);
         } else {
           tokens.push_back(current_token);
         }
@@ -128,9 +134,11 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     } else if (std::isspace(c) && !in_quotes) {
       if (!current_token.empty()) {
         if (token_saw_single && !token_saw_double) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + current_token);
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                           current_token);
         } else if (token_saw_double && !token_saw_single) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + current_token);
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                           current_token);
         } else {
           tokens.push_back(current_token);
         }
@@ -144,9 +152,11 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
 
   if (!current_token.empty()) {
     if (token_saw_single && !token_saw_double) {
-      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + current_token);
+      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                       current_token);
     } else if (token_saw_double && !token_saw_single) {
-      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + current_token);
+      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                       current_token);
     } else {
       tokens.push_back(current_token);
     }
@@ -205,20 +215,25 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       // behavior here unless tests require otherwise. Preserve quote tags.
       if (is_single) {
         for (auto& b : brace_expansions) {
-          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + b);
+          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                                  b);
         }
       } else if (is_double) {
         for (auto& b : brace_expansions) {
-          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + b);
+          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                                  b);
         }
       } else {
-        expanded_args.insert(expanded_args.end(), brace_expansions.begin(), brace_expansions.end());
+        expanded_args.insert(expanded_args.end(), brace_expansions.begin(),
+                             brace_expansions.end());
       }
     } else {
       if (is_single) {
-        expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + arg);
+        expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                                arg);
       } else if (is_double) {
-        expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + arg);
+        expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                                arg);
       } else {
         expanded_args.push_back(arg);
       }
@@ -226,11 +241,13 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
   args = expanded_args;
   for (auto& raw_arg : args) {
-    // Do not expand env vars inside single quotes; expand inside double or unquoted.
+    // Do not expand env vars inside single quotes; expand inside double or
+    // unquoted.
     if (!is_single_quoted_token(raw_arg)) {
       std::string tmp = strip_quote_tag(raw_arg);
       expand_env_vars(tmp);
-      // Reapply quote tag for double-quoted tokens so we can still skip globbing later
+      // Reapply quote tag for double-quoted tokens so we can still skip
+      // globbing later
       if (is_double_quoted_token(raw_arg)) {
         raw_arg = std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + tmp;
       } else {
@@ -270,9 +287,11 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       }
     } else {
       if (is_single) {
-        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + arg);
+        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                      QUOTE_SINGLE + arg);
       } else if (is_double) {
-        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + arg);
+        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                      QUOTE_DOUBLE + arg);
       } else {
         tilde_expanded_args.push_back(arg);
       }
@@ -448,22 +467,58 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       cmd_part.erase(cmd_part.find_last_not_of(" \t\n\r") + 1);
     }
 
-    std::vector<std::string> tokens = tokenize_command(cmd_part);
-    std::vector<std::string> filtered_args;
+  std::vector<std::string> tokens = tokenize_command(cmd_part);
+  std::vector<std::string> filtered_args;  // may contain quote tags
 
     for (size_t i = 0; i < tokens.size(); ++i) {
-      if (tokens[i] == "<" && i + 1 < tokens.size()) {
-        cmd.input_file = strip_quote_tag(tokens[++i]);
-      } else if (tokens[i] == ">" && i + 1 < tokens.size()) {
-        cmd.output_file = strip_quote_tag(tokens[++i]);
-      } else if (tokens[i] == ">>" && i + 1 < tokens.size()) {
-        cmd.append_file = strip_quote_tag(tokens[++i]);
+      const std::string tok = strip_quote_tag(tokens[i]);
+      if (tok == "<" && i + 1 < tokens.size()) {
+        // Expand env vars in redirection targets (even if originally quoted)
+        std::string val = strip_quote_tag(tokens[++i]);
+        expand_env_vars(val);
+        cmd.input_file = val;
+      } else if (tok == ">" && i + 1 < tokens.size()) {
+        std::string val = strip_quote_tag(tokens[++i]);
+        expand_env_vars(val);
+        cmd.output_file = val;
+      } else if (tok == ">>" && i + 1 < tokens.size()) {
+        std::string val = strip_quote_tag(tokens[++i]);
+        expand_env_vars(val);
+        cmd.append_file = val;
+      } else if ((tok == "2>" || tok == "2>>") && i + 1 < tokens.size()) {
+        std::string val = strip_quote_tag(tokens[++i]);
+        expand_env_vars(val);
+        cmd.stderr_file = val;
+        cmd.stderr_append = (tok == "2>>");
+      } else if (tok == "2>&1") {
+        cmd.stderr_to_stdout = true;
       } else {
-        filtered_args.push_back(strip_quote_tag(tokens[i]));
+        // Preserve quote tags for later wildcard handling
+        filtered_args.push_back(tokens[i]);
       }
     }
 
-    cmd.args = filtered_args;
+    // Expand wildcards on unquoted args only, then strip quote tags
+    std::vector<std::string> final_args_local;
+    for (const auto& raw : filtered_args) {
+      bool is_single = is_single_quoted_token(raw);
+      bool is_double = is_double_quoted_token(raw);
+      std::string val = strip_quote_tag(raw);
+      // Expand env vars in args unless single-quoted
+      if (!is_single) {
+        expand_env_vars(val);
+      }
+      if (!is_single && !is_double &&
+          val.find_first_of("*?[]") != std::string::npos) {
+        auto expanded = expand_wildcards(val);
+        final_args_local.insert(final_args_local.end(), expanded.begin(),
+                                expanded.end());
+      } else {
+        final_args_local.push_back(val);
+      }
+    }
+
+    cmd.args = final_args_local;
 
     const char* home = getenv("HOME");
     if (home) {
@@ -476,6 +531,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       }
       if (!cmd.append_file.empty() && cmd.append_file[0] == '~') {
         cmd.append_file = h + cmd.append_file.substr(1);
+      }
+      if (!cmd.stderr_file.empty() && cmd.stderr_file[0] == '~') {
+        cmd.stderr_file = h + cmd.stderr_file.substr(1);
       }
     }
 

@@ -26,11 +26,13 @@ class Shell {
   Shell(bool login_mode = false);
   ~Shell();
 
-  // High-level entry: treat any string as a shell script line and execute via the
-  // script interpreter (supports semicolons, conditionals, etc.). Returns last exit code.
+  // High-level entry: treat any string as a shell script line and execute via
+  // the script interpreter (supports semicolons, conditionals, etc.). Returns
+  // last exit code.
   int execute(const std::string& script);
 
-  int execute_command(std::vector<std::string> args, bool run_in_background = false);
+  int execute_command(std::vector<std::string> args,
+                      bool run_in_background = false);
   int do_ai_request(const std::string& command);
   void process_pending_signals();
 
@@ -99,7 +101,9 @@ class Shell {
   struct termios get_terminal_modes() const { return shell_tmodes; }
   bool is_terminal_state_saved() const { return terminal_state_saved; }
   bool is_job_control_enabled() const { return job_control_enabled; }
-  ShellScriptInterpreter* get_shell_script_interpreter() { return shell_script_interpreter; }
+  ShellScriptInterpreter* get_shell_script_interpreter() {
+    return shell_script_interpreter;
+  }
 
   Built_ins* built_ins = nullptr;
   Parser* shell_parser = nullptr;
