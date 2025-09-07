@@ -44,6 +44,7 @@ bool startup_test = false;
 //  rework ai system to always retrieve api key from envvar
 //  rework builtins to be more POSIX compliant syntax wise
 //  remove all system() calls in cjsh
+//  make echo, print and printf builtins
 
 /*
  * Exit/Return Codes:
