@@ -165,11 +165,54 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   return tokens;
 }
 
+// Post-process tokens to merge redirection operators
+std::vector<std::string> merge_redirection_tokens(const std::vector<std::string>& tokens) {
+  std::vector<std::string> result;
+  
+  for (size_t i = 0; i < tokens.size(); ++i) {
+    const std::string& token = tokens[i];
+    
+    // Handle 2>&1, 2>>, 2> patterns
+    if (token == "2" && i + 1 < tokens.size()) {
+      if (tokens[i + 1] == ">&1") {
+        result.push_back("2>&1");
+        i++; // skip next token
+      } else if (tokens[i + 1] == ">>" || tokens[i + 1] == ">") {
+        result.push_back("2" + tokens[i + 1]);
+        i++; // skip next token
+      } else {
+        result.push_back(token);
+      }
+    }
+    // Handle >>&1, >&1 patterns  
+    else if ((token == ">>" || token == ">") && i + 1 < tokens.size() && tokens[i + 1] == "&1") {
+      result.push_back(token + "&1");
+      i++; // skip next token
+    }
+    // Handle cases where 2>&1 might be split as "2" "&" "1"
+    else if (token == "2" && i + 2 < tokens.size() && tokens[i + 1] == "&" && tokens[i + 2] == "1") {
+      result.push_back("2>&1");
+      i += 2; // skip next two tokens
+    }
+    // Handle cases where 2> might be split as "2" ">"
+    else if (token == "2" && i + 1 < tokens.size() && (tokens[i + 1] == ">" || tokens[i + 1] == ">>")) {
+      result.push_back("2" + tokens[i + 1]);
+      i++; // skip next token  
+    }
+    else {
+      result.push_back(token);
+    }
+  }
+  
+  return result;
+}
+
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   std::vector<std::string> args;
 
   try {
-    args = tokenize_command(cmdline);
+    std::vector<std::string> raw_args = tokenize_command(cmdline);
+    args = merge_redirection_tokens(raw_args);
   } catch (const std::exception& e) {
     if (g_debug_mode) {
       std::cerr << "DEBUG: tokenize_command failed: " << e.what() << std::endl;
@@ -183,7 +226,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       std::vector<std::string> alias_args;
 
       try {
-        alias_args = tokenize_command(alias_it->second);
+        std::vector<std::string> raw_alias_args = tokenize_command(alias_it->second);
+        alias_args = merge_redirection_tokens(raw_alias_args);
 
         if (!alias_args.empty()) {
           std::vector<std::string> new_args;
@@ -385,25 +429,34 @@ void Parser::expand_env_vars(std::string& arg) {
       continue;
     }
     if (arg[i] == '$' && (i + 1 < arg.length()) &&
-        (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]))) {
+        (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]) || arg[i + 1] == '?')) {
       in_var = true;
       var_name.clear();
       continue;
     } else if (in_var) {
       if (isalnum(arg[i]) || arg[i] == '_' ||
-          (var_name.empty() && isdigit(arg[i]))) {
+          (var_name.empty() && isdigit(arg[i])) ||
+          (var_name.empty() && arg[i] == '?')) {
         var_name += arg[i];
       } else {
         in_var = false;
-        auto it = env_vars.find(var_name);
-        if (it != env_vars.end()) {
-          result += it->second;
+        std::string value;
+        // Handle special variable $?
+        if (var_name == "?") {
+          const char* status_env = getenv("STATUS");
+          value = status_env ? status_env : "0";
         } else {
-          const char* env_val = getenv(var_name.c_str());
-          if (env_val) {
-            result += env_val;
+          auto it = env_vars.find(var_name);
+          if (it != env_vars.end()) {
+            value = it->second;
+          } else {
+            const char* env_val = getenv(var_name.c_str());
+            if (env_val) {
+              value = env_val;
+            }
           }
         }
+        result += value;
         result += arg[i];
       }
     } else {
@@ -412,15 +465,23 @@ void Parser::expand_env_vars(std::string& arg) {
   }
 
   if (in_var) {
-    auto it = env_vars.find(var_name);
-    if (it != env_vars.end()) {
-      result += it->second;
+    std::string value;
+    // Handle special variable $?
+    if (var_name == "?") {
+      const char* status_env = getenv("STATUS");
+      value = status_env ? status_env : "0";
     } else {
-      const char* env_val = getenv(var_name.c_str());
-      if (env_val) {
-        result += env_val;
+      auto it = env_vars.find(var_name);
+      if (it != env_vars.end()) {
+        value = it->second;
+      } else {
+        const char* env_val = getenv(var_name.c_str());
+        if (env_val) {
+          value = env_val;
+        }
       }
     }
+    result += value;
   }
 
   arg = result;
@@ -467,28 +528,20 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       cmd_part.erase(cmd_part.find_last_not_of(" \t\n\r") + 1);
     }
 
-  std::vector<std::string> tokens = tokenize_command(cmd_part);
+  std::vector<std::string> raw_tokens = tokenize_command(cmd_part);
+  std::vector<std::string> tokens = merge_redirection_tokens(raw_tokens);
   std::vector<std::string> filtered_args;  // may contain quote tags
 
     for (size_t i = 0; i < tokens.size(); ++i) {
       const std::string tok = strip_quote_tag(tokens[i]);
       if (tok == "<" && i + 1 < tokens.size()) {
-        // Expand env vars in redirection targets (even if originally quoted)
-        std::string val = strip_quote_tag(tokens[++i]);
-        expand_env_vars(val);
-        cmd.input_file = val;
+        cmd.input_file = strip_quote_tag(tokens[++i]);
       } else if (tok == ">" && i + 1 < tokens.size()) {
-        std::string val = strip_quote_tag(tokens[++i]);
-        expand_env_vars(val);
-        cmd.output_file = val;
+        cmd.output_file = strip_quote_tag(tokens[++i]);
       } else if (tok == ">>" && i + 1 < tokens.size()) {
-        std::string val = strip_quote_tag(tokens[++i]);
-        expand_env_vars(val);
-        cmd.append_file = val;
+        cmd.append_file = strip_quote_tag(tokens[++i]);
       } else if ((tok == "2>" || tok == "2>>") && i + 1 < tokens.size()) {
-        std::string val = strip_quote_tag(tokens[++i]);
-        expand_env_vars(val);
-        cmd.stderr_file = val;
+        cmd.stderr_file = strip_quote_tag(tokens[++i]);
         cmd.stderr_append = (tok == "2>>");
       } else if (tok == "2>&1") {
         cmd.stderr_to_stdout = true;
@@ -504,10 +557,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       bool is_single = is_single_quoted_token(raw);
       bool is_double = is_double_quoted_token(raw);
       std::string val = strip_quote_tag(raw);
-      // Expand env vars in args unless single-quoted
-      if (!is_single) {
-        expand_env_vars(val);
-      }
       if (!is_single && !is_double &&
           val.find_first_of("*?[]") != std::string::npos) {
         auto expanded = expand_wildcards(val);

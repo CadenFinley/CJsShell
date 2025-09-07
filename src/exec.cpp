@@ -2,6 +2,7 @@
 
 #include <sys/resource.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <array>
@@ -9,6 +10,8 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+
+#include "cjsh.h"
 
 Exec::Exec() {
   last_terminal_output_error = "";
@@ -193,13 +196,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       }
     }
 
-    if (dup2(STDOUT_FILENO, STDOUT_FILENO) == -1) {
-      perror("dup2 stdout");
-    }
-    if (dup2(STDERR_FILENO, STDERR_FILENO) == -1) {
-      perror("dup2 stderr");
-    }
-
     if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
       perror("setpriority failed in child");
     }
@@ -221,7 +217,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
     std::vector<char*> c_args;
     for (auto& arg : cmd_args) {
-      c_args.push_back(const_cast<char*>(arg.data()));
+      c_args.push_back(const_cast<char*>(arg.c_str()));
     }
     c_args.push_back(nullptr);
 
@@ -355,7 +351,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     std::vector<char*> c_args;
     for (auto& arg : cmd_args) {
-      c_args.push_back(const_cast<char*>(arg.data()));
+      c_args.push_back(const_cast<char*>(arg.c_str()));
     }
     c_args.push_back(nullptr);
 
@@ -413,6 +409,31 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           _exit(EXIT_FAILURE);
         }
 
+        if (shell_is_interactive) {
+          if (tcsetpgrp(shell_terminal, child_pid) < 0) {
+            perror("tcsetpgrp failed in child");
+          }
+        }
+
+        if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
+          perror("setpriority failed in child");
+        }
+
+        signal(SIGINT, SIG_DFL);
+        signal(SIGQUIT, SIG_DFL);
+        signal(SIGTSTP, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
+        signal(SIGCHLD, SIG_DFL);
+
+        sigset_t set;
+        sigemptyset(&set);
+        sigaddset(&set, SIGINT);
+        sigaddset(&set, SIGQUIT);
+        sigaddset(&set, SIGTSTP);
+        sigaddset(&set, SIGCHLD);
+        sigprocmask(SIG_UNBLOCK, &set, nullptr);
+
         if (!cmd.input_file.empty()) {
           int fd = open(cmd.input_file.c_str(), O_RDONLY);
           if (fd == -1) {
@@ -420,7 +441,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                       << std::endl;
             _exit(EXIT_FAILURE);
           }
-          dup2(fd, STDIN_FILENO);
+          if (dup2(fd, STDIN_FILENO) == -1) {
+            std::cerr << "cjsh: dup2 failed for stdin redirection: " << strerror(errno) << std::endl;
+            close(fd);
+            _exit(EXIT_FAILURE);
+          }
           close(fd);
         }
 
@@ -432,7 +457,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                       << std::endl;
             _exit(EXIT_FAILURE);
           }
-          dup2(fd, STDOUT_FILENO);
+          if (dup2(fd, STDOUT_FILENO) == -1) {
+            std::cerr << "cjsh: dup2 failed for stdout redirection: " << strerror(errno) << std::endl;
+            close(fd);
+            _exit(EXIT_FAILURE);
+          }
           close(fd);
         }
 
@@ -444,7 +473,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                       << std::endl;
             _exit(EXIT_FAILURE);
           }
-          dup2(fd, STDOUT_FILENO);
+          if (dup2(fd, STDOUT_FILENO) == -1) {
+            std::cerr << "cjsh: dup2 failed for append redirection: " << strerror(errno) << std::endl;
+            close(fd);
+            _exit(EXIT_FAILURE);
+          }
           close(fd);
         }
         
@@ -472,7 +505,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         std::vector<char*> c_args;
         for (auto& arg : cmd.args) {
-          c_args.push_back(const_cast<char*>(arg.data()));
+          c_args.push_back(const_cast<char*>(arg.c_str()));
         }
         c_args.push_back(nullptr);
 
@@ -492,6 +525,17 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       int job_id = add_job(job);
 
       put_job_in_foreground(job_id, false);
+      
+      // If there were redirections, ensure file buffers are flushed
+      if (!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) {
+        sync();
+      }
+      
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: execute_pipeline single-command returning last_exit_code=" << last_exit_code << std::endl;
+      }
+      
+      return last_exit_code;
     }
 
     return 0;
@@ -645,7 +689,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         std::vector<char*> c_args;
         for (auto& arg : cmd.args) {
-          c_args.push_back(const_cast<char*>(arg.data()));
+          c_args.push_back(const_cast<char*>(arg.c_str()));
         }
         c_args.push_back(nullptr);
 
@@ -896,6 +940,9 @@ void Exec::wait_for_job(int job_id) {
         int exit_status = WEXITSTATUS(final_status);
         last_exit_code = exit_status;
         job.completed = true;
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: wait_for_job setting last_exit_code=" << exit_status << " from final_status=" << final_status << std::endl;
+        }
         if (exit_status == 0) {
           set_error("command completed successfully");
         } else {
