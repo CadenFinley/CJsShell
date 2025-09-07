@@ -447,7 +447,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
 
           // Write here document content to pipe
-          ssize_t bytes_written = write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
+          ssize_t bytes_written =
+              write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
           if (bytes_written == -1) {
             perror("write here document content");
             close(here_pipe[1]);
@@ -690,7 +691,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             // Write here document content to pipe
-            ssize_t bytes_written = write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
+            ssize_t bytes_written = write(here_pipe[1], cmd.here_doc.c_str(),
+                                          cmd.here_doc.length());
             if (bytes_written == -1) {
               perror("write here document content");
               close(here_pipe[1]);
