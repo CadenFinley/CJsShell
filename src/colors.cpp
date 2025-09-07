@@ -152,11 +152,16 @@ constexpr RGB hsl_to_rgb(const HSL& hsl) {
   }
 
   auto hue_to_rgb = [](float p, float q, float t) {
-    if (t < 0) t += 1;
-    if (t > 1) t -= 1;
-    if (t < 1.0f / 6.0f) return p + (q - p) * 6.0f * t;
-    if (t < 1.0f / 2.0f) return q;
-    if (t < 2.0f / 3.0f) return p + (q - p) * (2.0f / 3.0f - t) * 6.0f;
+    if (t < 0)
+      t += 1;
+    if (t > 1)
+      t -= 1;
+    if (t < 1.0f / 6.0f)
+      return p + (q - p) * 6.0f * t;
+    if (t < 1.0f / 2.0f)
+      return q;
+    if (t < 2.0f / 3.0f)
+      return p + (q - p) * (2.0f / 3.0f - t) * 6.0f;
     return p;
   };
 
@@ -293,7 +298,9 @@ std::string style_hidden(const std::string& text) {
   return std::string(ansi::HIDDEN) + text + std::string(ansi::RESET);
 }
 
-std::string style_reset() { return std::string(ansi::RESET); }
+std::string style_reset() {
+  return std::string(ansi::RESET);
+}
 
 RGB blend(const RGB& color1, const RGB& color2, float factor) {
   return RGB(static_cast<uint8_t>(color1.r * (1 - factor) + color2.r * factor),
@@ -315,8 +322,10 @@ std::vector<RGB> gradient(const RGB& start, const RGB& end, size_t steps) {
 
 std::string gradient_text(const std::string& text, const RGB& start,
                           const RGB& end) {
-  if (text.empty()) return "";
-  if (g_color_capability == ColorCapability::NO_COLOR) return text;
+  if (text.empty())
+    return "";
+  if (g_color_capability == ColorCapability::NO_COLOR)
+    return text;
 
   std::string result;
   size_t steps = text.length();

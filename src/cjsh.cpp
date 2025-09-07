@@ -101,7 +101,8 @@ int main(int argc, char* argv[]) {
     switch (c) {
       case 'l':
         config::login_mode = true;
-        if (g_debug_mode) std::cerr << "DEBUG: Login mode enabled" << std::endl;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Login mode enabled" << std::endl;
         break;
       case 'i':
         config::force_interactive = true;
@@ -137,19 +138,23 @@ int main(int argc, char* argv[]) {
         break;
       case 'P':
         config::plugins_enabled = false;
-        if (g_debug_mode) std::cerr << "DEBUG: Plugins disabled" << std::endl;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Plugins disabled" << std::endl;
         break;
       case 'T':
         config::themes_enabled = false;
-        if (g_debug_mode) std::cerr << "DEBUG: Themes disabled" << std::endl;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Themes disabled" << std::endl;
         break;
       case 'A':
         config::ai_enabled = false;
-        if (g_debug_mode) std::cerr << "DEBUG: AI disabled" << std::endl;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: AI disabled" << std::endl;
         break;
       case 'C':
         config::colors_enabled = false;
-        if (g_debug_mode) std::cerr << "DEBUG: Colors disabled" << std::endl;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Colors disabled" << std::endl;
         break;
       case 'U':
         g_check_updates = false;
@@ -232,10 +237,12 @@ int main(int argc, char* argv[]) {
 
   // set env vars to reflect cjsh being the shell
   if (argv[0]) {
-    if (g_debug_mode) std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
     setenv("0", argv[0], 1);
   } else {
-    if (g_debug_mode) std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
     setenv("0", "cjsh", 1);
   }
 
@@ -362,7 +369,8 @@ int main(int argc, char* argv[]) {
 
   // process the source file .cjshrc
   if (config::source_enabled) {
-    if (g_debug_mode) std::cerr << "DEBUG: Processing source file" << std::endl;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Processing source file" << std::endl;
     process_source_file();
   } else {
     if (g_debug_mode)
@@ -708,7 +716,8 @@ bool init_interactive_filesystem() {
 
     // .cjshrc
     if (!source_exists) {
-      if (g_debug_mode) std::cerr << "DEBUG: Creating source file" << std::endl;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Creating source file" << std::endl;
       create_source_file();
     }
 
@@ -912,7 +921,8 @@ void apply_profile_startup_args() {
 
 void process_profile_file() {
   // sourcing if in login shell
-  if (g_debug_mode) std::cerr << "DEBUG: Processing profile files" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Processing profile files" << std::endl;
   std::filesystem::path universal_profile = "/etc/profile";
   if (std::filesystem::exists(universal_profile)) {
     if (g_debug_mode)

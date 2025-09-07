@@ -5,9 +5,11 @@
 #include "cjsh.h"
 #include "theme.h"
 
-Prompt::Prompt() : repo_root() {}
+Prompt::Prompt() : repo_root() {
+}
 
-Prompt::~Prompt() {}
+Prompt::~Prompt() {
+}
 
 std::string Prompt::get_prompt() {
   // it should never be empty
@@ -53,8 +55,10 @@ std::string Prompt::get_ai_prompt() {
     return info.get_basic_ai_prompt();
   }
 
-  if (modelInfo.empty()) modelInfo = "Unknown";
-  if (modeInfo.empty()) modeInfo = "Chat";
+  if (modelInfo.empty())
+    modelInfo = "Unknown";
+  if (modeInfo.empty())
+    modeInfo = "Chat";
 
   // Get variables only for AI prompt
   std::unordered_map<std::string, std::string> vars =

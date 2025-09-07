@@ -36,23 +36,37 @@ class Shell {
   int do_ai_request(const std::string& command);
   void process_pending_signals();
 
-  std::string get_prompt() { return shell_prompt->get_prompt(); }
+  std::string get_prompt() {
+    return shell_prompt->get_prompt();
+  }
 
-  std::string get_ai_prompt() { return shell_prompt->get_ai_prompt(); }
+  std::string get_ai_prompt() {
+    return shell_prompt->get_ai_prompt();
+  }
 
   std::string get_newline_prompt() {
     return shell_prompt->get_newline_prompt();
   }
 
-  std::string get_title_prompt() { return shell_prompt->get_title_prompt(); }
+  std::string get_title_prompt() {
+    return shell_prompt->get_title_prompt();
+  }
 
-  void set_interactive_mode(bool flag) { interactive_mode = flag; }
+  void set_interactive_mode(bool flag) {
+    interactive_mode = flag;
+  }
 
-  bool get_interactive_mode() { return interactive_mode; }
+  bool get_interactive_mode() {
+    return interactive_mode;
+  }
 
-  bool get_login_mode() { return login_mode; }
+  bool get_login_mode() {
+    return login_mode;
+  }
 
-  int get_last_exit_code() const { return last_exit_code; }
+  int get_last_exit_code() const {
+    return last_exit_code;
+  }
 
   void set_aliases(
       const std::unordered_map<std::string, std::string>& new_aliases) {
@@ -88,19 +102,35 @@ class Shell {
   std::string last_command;
   std::unique_ptr<Exec> shell_exec;
 
-  bool get_menu_active() { return menu_active; }
+  bool get_menu_active() {
+    return menu_active;
+  }
 
-  void set_menu_active(bool active) { menu_active = active; }
+  void set_menu_active(bool active) {
+    menu_active = active;
+  }
   std::unordered_set<std::string> get_available_commands() const;
 
   std::string get_previous_directory() const;
 
-  Built_ins* get_built_ins() { return built_ins; }
-  int get_terminal() const { return shell_terminal; }
-  pid_t get_pgid() const { return shell_pgid; }
-  struct termios get_terminal_modes() const { return shell_tmodes; }
-  bool is_terminal_state_saved() const { return terminal_state_saved; }
-  bool is_job_control_enabled() const { return job_control_enabled; }
+  Built_ins* get_built_ins() {
+    return built_ins;
+  }
+  int get_terminal() const {
+    return shell_terminal;
+  }
+  pid_t get_pgid() const {
+    return shell_pgid;
+  }
+  struct termios get_terminal_modes() const {
+    return shell_tmodes;
+  }
+  bool is_terminal_state_saved() const {
+    return terminal_state_saved;
+  }
+  bool is_job_control_enabled() const {
+    return job_control_enabled;
+  }
   ShellScriptInterpreter* get_shell_script_interpreter() {
     return shell_script_interpreter;
   }
@@ -108,7 +138,9 @@ class Shell {
   Built_ins* built_ins = nullptr;
   Parser* shell_parser = nullptr;
 
-  Parser* get_parser() { return shell_parser; }
+  Parser* get_parser() {
+    return shell_parser;
+  }
 
  private:
   bool interactive_mode = false;

@@ -65,7 +65,9 @@ class Plugin {
   bool is_plugin_enabled(const std::string& name) const;
   bool enable_plugin(const std::string& name);
   bool disable_plugin(const std::string& name);
-  int get_interface_version() const { return PLUGIN_INTERFACE_VERSION; }
+  int get_interface_version() const {
+    return PLUGIN_INTERFACE_VERSION;
+  }
   bool handle_plugin_command(const std::string& targeted_plugin,
                              std::vector<std::string>& args);
   std::vector<std::string> get_plugin_commands(const std::string& name) const;
@@ -80,5 +82,7 @@ class Plugin {
   void clear_plugin_cache();
   bool is_plugin_loaded(const std::string& name) const;
 
-  bool get_enabled() const { return enabled; }
+  bool get_enabled() const {
+    return enabled;
+  }
 };

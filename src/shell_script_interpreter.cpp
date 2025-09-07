@@ -59,7 +59,8 @@ int ShellScriptInterpreter::execute_block(
 
   auto trim = [](const std::string& s) -> std::string {
     size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) return "";
+    if (start == std::string::npos)
+      return "";
     size_t end = s.find_last_not_of(" \t\n\r");
     return s.substr(start, end - start + 1);
   };
@@ -91,19 +92,22 @@ int ShellScriptInterpreter::execute_block(
   };
 
   auto should_interpret_as_cjsh = [&](const std::string& path) -> bool {
-    if (!is_readable_file(path)) return false;
+    if (!is_readable_file(path))
+      return false;
     // Heuristics: .cjsh extension, or shebang mentions cjsh, or first line
     // contains 'cjsh'
     if (path.size() >= 5 && path.substr(path.size() - 5) == ".cjsh")
       return true;
     std::ifstream f(path);
-    if (!f) return false;
+    if (!f)
+      return false;
     std::string first_line;
     std::getline(f, first_line);
     if (first_line.rfind("#!", 0) == 0 &&
         first_line.find("cjsh") != std::string::npos)
       return true;
-    if (first_line.find("cjsh") != std::string::npos) return true;
+    if (first_line.find("cjsh") != std::string::npos)
+      return true;
     return false;
   };
 
@@ -114,7 +118,8 @@ int ShellScriptInterpreter::execute_block(
     // Decide between simple exec via Shell::execute_command vs
     // Exec::execute_pipeline
     std::string text = trim(strip_inline_comment(cmd_text));
-    if (text.empty()) return 0;
+    if (text.empty())
+      return 0;
 
     // Note: SUBSHELL{} markers are now converted by the parser's
     // parse_pipeline_with_preprocessing() into an equivalent
@@ -129,7 +134,8 @@ int ShellScriptInterpreter::execute_block(
       // Create a unique temp file path
       char tmpl[] = "/tmp/cjsh_subst_XXXXXX";
       int fd = mkstemp(tmpl);
-      if (fd >= 0) close(fd);
+      if (fd >= 0)
+        close(fd);
       std::string path = tmpl;
 
       // For command substitution, we need to execute the content with full
@@ -189,7 +195,12 @@ int ShellScriptInterpreter::execute_block(
     auto eval_arith = [&](const std::string& expr) -> long long {
       // Shunting-yard for +,-,*,/,% and parentheses; variables via getenv
       struct Tok {
-        enum T { NUM, OP, LP, RP } t;
+        enum T {
+          NUM,
+          OP,
+          LP,
+          RP
+        } t;
         long long v;
         char op;
       };
@@ -197,8 +208,10 @@ int ShellScriptInterpreter::execute_block(
         return c == ' ' || c == '\t' || c == '\n' || c == '\r';
       };
       auto prec = [](char op) {
-        if (op == '+' || op == '-') return 1;
-        if (op == '*' || op == '/' || op == '%') return 2;
+        if (op == '+' || op == '-')
+          return 1;
+        if (op == '*' || op == '/' || op == '%')
+          return 2;
         return 0;
       };
       auto apply = [](long long a, long long b, char op) -> long long {
@@ -238,7 +251,8 @@ int ShellScriptInterpreter::execute_block(
         }
         if (isalpha(expr[i]) || expr[i] == '_') {
           size_t j = i;
-          while (j < expr.size() && (isalnum(expr[j]) || expr[j] == '_')) ++j;
+          while (j < expr.size() && (isalnum(expr[j]) || expr[j] == '_'))
+            ++j;
           std::string name = expr.substr(i, j - i);
           const char* ev = getenv(name.c_str());
           long long val = 0;
@@ -264,7 +278,8 @@ int ShellScriptInterpreter::execute_block(
             ops.pop_back();
             output.push_back({Tok::OP, 0, op});
           }
-          if (!ops.empty() && ops.back() == '(') ops.pop_back();
+          if (!ops.empty() && ops.back() == '(')
+            ops.pop_back();
           ++i;
           continue;
         }
@@ -286,7 +301,8 @@ int ShellScriptInterpreter::execute_block(
       while (!ops.empty()) {
         char op = ops.back();
         ops.pop_back();
-        if (op != '(') output.push_back({Tok::OP, 0, op});
+        if (op != '(')
+          output.push_back({Tok::OP, 0, op});
       }
       // Eval RPN
       std::vector<long long> st;
@@ -613,8 +629,10 @@ int ShellScriptInterpreter::execute_block(
         // Already converted to sh -c by preprocessing
         if (g_debug_mode) {
           std::cerr << "DEBUG: Executing preprocessed grouped command: ";
-          for (const auto& a : c.args) std::cerr << "[" << a << "]";
-          if (c.background) std::cerr << " &";
+          for (const auto& a : c.args)
+            std::cerr << "[" << a << "]";
+          if (c.background)
+            std::cerr << " &";
           std::cerr << std::endl;
         }
         int exit_code = g_shell->execute_command(c.args, c.background);
@@ -625,11 +643,14 @@ int ShellScriptInterpreter::execute_block(
         // parse_command performs alias expansion while parse_pipeline does not.
         std::vector<std::string> expanded_args =
             shell_parser->parse_command(text);
-        if (expanded_args.empty()) return 0;
+        if (expanded_args.empty())
+          return 0;
         if (g_debug_mode) {
           std::cerr << "DEBUG: Simple exec: ";
-          for (const auto& a : expanded_args) std::cerr << "[" << a << "]";
-          if (c.background) std::cerr << " &";
+          for (const auto& a : expanded_args)
+            std::cerr << "[" << a << "]";
+          if (c.background)
+            std::cerr << " &";
           std::cerr << std::endl;
         }
         int exit_code = g_shell->execute_command(expanded_args, c.background);
@@ -640,7 +661,8 @@ int ShellScriptInterpreter::execute_block(
     }
 
     // Pipeline or with redirections
-    if (cmds.empty()) return 0;
+    if (cmds.empty())
+      return 0;
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing pipeline of size " << cmds.size()
                 << std::endl;
@@ -682,8 +704,10 @@ int ShellScriptInterpreter::execute_block(
         } else {
           // finalize current as background segment
           std::string seg = trim(cur);
-          if (!seg.empty() && seg.back() != '&') seg += " &";
-          if (!seg.empty()) parts.push_back(seg);
+          if (!seg.empty() && seg.back() != '&')
+            seg += " &";
+          if (!seg.empty())
+            parts.push_back(seg);
           cur.clear();
         }
       } else {
@@ -691,7 +715,8 @@ int ShellScriptInterpreter::execute_block(
       }
     }
     std::string tail = trim(cur);
-    if (!tail.empty()) parts.push_back(tail);
+    if (!tail.empty())
+      parts.push_back(tail);
     return parts;
   };
 
@@ -728,13 +753,15 @@ int ShellScriptInterpreter::execute_block(
         }
         auto p = cur.rfind("; then");
         if (p != std::string::npos) {
-          if (!cond_accum.empty()) cond_accum += " ";
+          if (!cond_accum.empty())
+            cond_accum += " ";
           cond_accum += cur.substr(0, p);
           then_found = true;
           break;
         }
         if (!cur.empty()) {
-          if (!cond_accum.empty()) cond_accum += " ";
+          if (!cond_accum.empty())
+            cond_accum += " ";
           cond_accum += cur;
         }
       }
@@ -778,7 +805,8 @@ int ShellScriptInterpreter::execute_block(
           if (else_pos == std::string::npos) {
             // also allow ' else ' without leading semicolon
             size_t alt = body.find(" else ");
-            if (alt != std::string::npos) else_pos = alt;
+            if (alt != std::string::npos)
+              else_pos = alt;
           }
           if (else_pos != std::string::npos) {
             then_body = trim(body.substr(0, else_pos));
@@ -790,14 +818,16 @@ int ShellScriptInterpreter::execute_block(
             for (const auto& c : cmds) {
               int rc2 = execute_simple_or_pipeline(c);
               body_rc = rc2;
-              if (rc2 != 0) break;
+              if (rc2 != 0)
+                break;
             }
           } else if (!else_body.empty()) {
             auto cmds = shell_parser->parse_semicolon_commands(else_body);
             for (const auto& c : cmds) {
               int rc2 = execute_simple_or_pipeline(c);
               body_rc = rc2;
-              if (rc2 != 0) break;
+              if (rc2 != 0)
+                break;
             }
           }
           // single-line; do not advance idx
@@ -822,7 +852,8 @@ int ShellScriptInterpreter::execute_block(
         depth++;
       else if (cur == "fi") {
         depth--;
-        if (depth == 0) break;
+        if (depth == 0)
+          break;
       } else if (depth == 1 && cur == "else") {
         in_else = true;
         k++;
@@ -858,7 +889,8 @@ int ShellScriptInterpreter::execute_block(
   auto handle_for_block = [&](const std::vector<std::string>& src_lines,
                               size_t& idx) -> int {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!(first == "for" || first.rfind("for ", 0) == 0)) return 1;
+    if (!(first == "for" || first.rfind("for ", 0) == 0))
+      return 1;
 
     std::string var;
     std::vector<std::string> items;
@@ -867,13 +899,16 @@ int ShellScriptInterpreter::execute_block(
       // Tokenize header to extract var and list after 'in'
       std::vector<std::string> toks = shell_parser->parse_command(header);
       size_t i = 0;
-      if (i < toks.size() && toks[i] == "for") ++i;
-      if (i >= toks.size()) return false;
+      if (i < toks.size() && toks[i] == "for")
+        ++i;
+      if (i >= toks.size())
+        return false;
       var = toks[i++];
       if (i < toks.size() && toks[i] == "in") {
         ++i;
         for (; i < toks.size(); ++i) {
-          if (toks[i] == ";" || toks[i] == "do") break;
+          if (toks[i] == ";" || toks[i] == "do")
+            break;
           items.push_back(toks[i]);
         }
       }
@@ -884,10 +919,12 @@ int ShellScriptInterpreter::execute_block(
     if (first.find("; do") != std::string::npos) {
       size_t do_pos = first.find("; do");
       std::string header = trim(first.substr(0, do_pos));
-      if (!parse_header(header)) return 1;
+      if (!parse_header(header))
+        return 1;
       std::string tail = trim(first.substr(do_pos + 4));
       size_t done_pos = tail.rfind("; done");
-      if (done_pos == std::string::npos) done_pos = tail.rfind("done");
+      if (done_pos == std::string::npos)
+        done_pos = tail.rfind("done");
       std::string body =
           done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
       int rc = 0;
@@ -896,9 +933,11 @@ int ShellScriptInterpreter::execute_block(
         auto cmds = shell_parser->parse_semicolon_commands(body);
         for (const auto& c : cmds) {
           rc = execute_simple_or_pipeline(c);
-          if (rc != 0) break;
+          if (rc != 0)
+            break;
         }
-        if (rc != 0) break;
+        if (rc != 0)
+          break;
       }
       return rc;
     }
@@ -944,9 +983,11 @@ int ShellScriptInterpreter::execute_block(
         depth++;
       else if (cur == "done") {
         depth--;
-        if (depth == 0) break;
+        if (depth == 0)
+          break;
       }
-      if (depth > 0) body_lines.push_back(cur_raw);
+      if (depth > 0)
+        body_lines.push_back(cur_raw);
       k++;
     }
     if (depth != 0) {
@@ -958,7 +999,8 @@ int ShellScriptInterpreter::execute_block(
     for (const auto& it : items) {
       setenv(var.c_str(), it.c_str(), 1);
       rc = execute_block(body_lines);
-      if (rc != 0) break;
+      if (rc != 0)
+        break;
     }
     idx = k;  // at 'done'
     return rc;
@@ -968,7 +1010,8 @@ int ShellScriptInterpreter::execute_block(
   auto handle_case_block = [&](const std::vector<std::string>& src_lines,
                                size_t& idx) -> int {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!(first == "case" || first.rfind("case ", 0) == 0)) return 1;
+    if (!(first == "case" || first.rfind("case ", 0) == 0))
+      return 1;
 
     // Extract the case value
     std::string case_value;
@@ -1014,7 +1057,8 @@ int ShellScriptInterpreter::execute_block(
       // Check each pattern for a match
       int matched_exit_code = 0;
       for (const auto& section : pattern_sections) {
-        if (section.empty()) continue;
+        if (section.empty())
+          continue;
 
         size_t paren_pos = section.find(')');
         if (paren_pos != std::string::npos) {
@@ -1132,7 +1176,8 @@ int ShellScriptInterpreter::execute_block(
         // Process each pattern section
         for (const auto& section : pattern_sections) {
           std::string pattern_line = trim(section);
-          if (pattern_line.empty()) continue;
+          if (pattern_line.empty())
+            continue;
 
           size_t paren_pos = pattern_line.find(')');
           if (paren_pos != std::string::npos) {
@@ -1268,7 +1313,8 @@ int ShellScriptInterpreter::execute_block(
           // Execute the matched case commands
           for (const auto& cmd : case_commands) {
             matched_exit_code = execute_simple_or_pipeline(cmd);
-            if (matched_exit_code != 0) break;
+            if (matched_exit_code != 0)
+              break;
           }
 
           // Skip remaining patterns
@@ -1295,7 +1341,8 @@ int ShellScriptInterpreter::execute_block(
   auto handle_while_block = [&](const std::vector<std::string>& src_lines,
                                 size_t& idx) -> int {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!(first == "while" || first.rfind("while ", 0) == 0)) return 1;
+    if (!(first == "while" || first.rfind("while ", 0) == 0))
+      return 1;
 
     auto parse_cond_from = [&](const std::string& s, std::string& cond,
                                bool& inline_do, std::string& body_inline) {
@@ -1306,7 +1353,8 @@ int ShellScriptInterpreter::execute_block(
       if (tmp == "while") {
         return true;
       }
-      if (tmp.rfind("while ", 0) == 0) tmp = tmp.substr(6);
+      if (tmp.rfind("while ", 0) == 0)
+        tmp = tmp.substr(6);
       size_t do_pos = tmp.find("; do");
       if (do_pos != std::string::npos) {
         cond = trim(tmp.substr(0, do_pos));
@@ -1339,7 +1387,8 @@ int ShellScriptInterpreter::execute_block(
           break;
         }
         if (!cur.empty()) {
-          if (!cond.empty()) cond += " ";
+          if (!cond.empty())
+            cond += " ";
           cond += cur;
         }
       }
@@ -1353,7 +1402,8 @@ int ShellScriptInterpreter::execute_block(
     if (!body_inline.empty()) {
       std::string bi = body_inline;
       size_t done_pos = bi.rfind("; done");
-      if (done_pos != std::string::npos) bi = trim(bi.substr(0, done_pos));
+      if (done_pos != std::string::npos)
+        bi = trim(bi.substr(0, done_pos));
       body_lines = shell_parser->parse_into_lines(bi);
     } else {
       size_t k = j + 1;
@@ -1365,9 +1415,11 @@ int ShellScriptInterpreter::execute_block(
           depth++;
         else if (cur == "done") {
           depth--;
-          if (depth == 0) break;
+          if (depth == 0)
+            break;
         }
-        if (depth > 0) body_lines.push_back(cur_raw);
+        if (depth > 0)
+          body_lines.push_back(cur_raw);
         k++;
       }
       if (depth != 0) {
@@ -1385,9 +1437,11 @@ int ShellScriptInterpreter::execute_block(
       if (!cond.empty()) {
         c = execute_simple_or_pipeline(cond);
       }
-      if (c != 0) break;
+      if (c != 0)
+        break;
       rc = execute_block(body_lines);
-      if (rc != 0) break;
+      if (rc != 0)
+        break;
       if (++guard > GUARD_MAX) {
         std::cerr << "cjsh: while loop aborted (guard)" << std::endl;
         rc = 1;
@@ -1421,14 +1475,16 @@ int ShellScriptInterpreter::execute_block(
     // Control structure: for ...; do ...; done
     if (line == "for" || line.rfind("for ", 0) == 0) {
       int rc = handle_for_block(lines, line_index);
-      if (rc != 0) return rc;
+      if (rc != 0)
+        return rc;
       continue;
     }
 
     // Control structure: while ...; do ...; done
     if (line == "while" || line.rfind("while ", 0) == 0) {
       int rc = handle_while_block(lines, line_index);
-      if (rc != 0) return rc;
+      if (rc != 0)
+        return rc;
       continue;
     }
 
@@ -1460,7 +1516,8 @@ int ShellScriptInterpreter::execute_block(
             size_t end_brace = after_brace.find('}');
             if (end_brace != std::string::npos) {
               std::string body_part = trim(after_brace.substr(0, end_brace));
-              if (!body_part.empty()) body_lines.push_back(body_part);
+              if (!body_part.empty())
+                body_lines.push_back(body_part);
               // register function and continue
               functions[func_name] = body_lines;
               if (g_debug_mode)
@@ -1495,7 +1552,8 @@ int ShellScriptInterpreter::execute_block(
                 size_t pos = func_line.find('}');
                 if (pos != std::string::npos) {
                   std::string before = trim(func_line.substr(0, pos));
-                  if (!before.empty()) body_lines.push_back(before);
+                  if (!before.empty())
+                    body_lines.push_back(before);
                 }
                 break;
               } else if (!func_line.empty()) {
@@ -1519,7 +1577,8 @@ int ShellScriptInterpreter::execute_block(
     // order
     std::vector<LogicalCommand> lcmds =
         shell_parser->parse_logical_commands(line);
-    if (lcmds.empty()) continue;
+    if (lcmds.empty())
+      continue;
 
     last_code = 0;
     for (size_t i = 0; i < lcmds.size(); ++i) {
@@ -1567,7 +1626,8 @@ int ShellScriptInterpreter::execute_block(
       for (size_t k = 0; k < semis.size(); ++k) {
         const std::string& semi = semis[k];
         auto segs = split_ampersand(semi);
-        if (segs.empty()) segs.push_back(semi);
+        if (segs.empty())
+          segs.push_back(semi);
         for (size_t si = 0; si < segs.size(); ++si) {
           const std::string& cmd_text = segs[si];
           // Handle inline for/while blocks within this semicolon segment
@@ -1607,12 +1667,15 @@ int ShellScriptInterpreter::execute_block(
               std::vector<std::string> toks =
                   shell_parser->parse_command(header);
               size_t i = 0;
-              if (i < toks.size() && toks[i] == "for") ++i;
-              if (i >= toks.size()) return false;
+              if (i < toks.size() && toks[i] == "for")
+                ++i;
+              if (i >= toks.size())
+                return false;
               var = toks[i++];
               if (i < toks.size() && toks[i] == "in") {
                 ++i;
-                for (; i < toks.size(); ++i) items.push_back(toks[i]);
+                for (; i < toks.size(); ++i)
+                  items.push_back(toks[i]);
               }
               return !var.empty();
             };
@@ -1644,7 +1707,8 @@ int ShellScriptInterpreter::execute_block(
                 }
                 // Allow accumulating more body from subsequent segments if no
                 // 'done' yet
-                if (!body_inline.empty()) body_inline += "; ";
+                if (!body_inline.empty())
+                  body_inline += "; ";
                 body_inline += seg;
               }
               if (!found_done) {
@@ -1659,9 +1723,11 @@ int ShellScriptInterpreter::execute_block(
                     shell_parser->parse_semicolon_commands(body_inline);
                 for (const auto& c2 : cmds2) {
                   rc2 = execute_simple_or_pipeline(c2);
-                  if (rc2 != 0) break;
+                  if (rc2 != 0)
+                    break;
                 }
-                if (rc2 != 0) break;
+                if (rc2 != 0)
+                  break;
               }
               last_code = rc2;
               // Skip consumed segments: 'do'..'done'
@@ -1696,7 +1762,8 @@ int ShellScriptInterpreter::execute_block(
                   found_done = true;
                   break;
                 }
-                if (!body_inline.empty()) body_inline += "; ";
+                if (!body_inline.empty())
+                  body_inline += "; ";
                 body_inline += seg;
               }
               if (!found_done) {
@@ -1712,14 +1779,17 @@ int ShellScriptInterpreter::execute_block(
                 if (!cond.empty()) {
                   cnd = execute_simple_or_pipeline(cond);
                 }
-                if (cnd != 0) break;
+                if (cnd != 0)
+                  break;
                 auto cmds2 =
                     shell_parser->parse_semicolon_commands(body_inline);
                 for (const auto& c2 : cmds2) {
                   rc2 = execute_simple_or_pipeline(c2);
-                  if (rc2 != 0) break;
+                  if (rc2 != 0)
+                    break;
                 }
-                if (rc2 != 0) break;
+                if (rc2 != 0)
+                  break;
                 if (++guard > GUARD_MAX) {
                   std::cerr << "cjsh: while loop aborted (guard)" << std::endl;
                   rc2 = 1;
@@ -1748,7 +1818,8 @@ int ShellScriptInterpreter::execute_block(
               // Execute function body
               code = execute_block(functions[first_toks[0]]);
               // Restore positional params (unset)
-              for (const auto& n : param_names) unsetenv(n.c_str());
+              for (const auto& n : param_names)
+                unsetenv(n.c_str());
             } else {
               code = execute_simple_or_pipeline(cmd_text);
             }

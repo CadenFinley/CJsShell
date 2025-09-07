@@ -130,7 +130,8 @@ int theme_command(const std::vector<std::string>& args) {
         std::cout << "  Plugins: ";
         bool first = true;
         for (const auto& plugin : theme_json["requirements"]["plugins"]) {
-          if (!first) std::cout << ", ";
+          if (!first)
+            std::cout << ", ";
           std::cout << plugin.get<std::string>();
           first = false;
         }
@@ -149,7 +150,8 @@ int theme_command(const std::vector<std::string>& args) {
         std::cout << "  Fonts: ";
         bool first = true;
         for (const auto& font : theme_json["requirements"]["fonts"]) {
-          if (!first) std::cout << ", ";
+          if (!first)
+            std::cout << ", ";
           std::cout << font.get<std::string>();
           first = false;
         }
@@ -546,7 +548,8 @@ int preview_remote_theme(const std::string& themeName) {
         std::cout << "  Plugins: ";
         bool first = true;
         for (const auto& plugin : theme_json["requirements"]["plugins"]) {
-          if (!first) std::cout << ", ";
+          if (!first)
+            std::cout << ", ";
           std::cout << plugin.get<std::string>();
           first = false;
         }
@@ -565,7 +568,8 @@ int preview_remote_theme(const std::string& themeName) {
         std::cout << "  Fonts: ";
         bool first = true;
         for (const auto& font : theme_json["requirements"]["fonts"]) {
-          if (!first) std::cout << ", ";
+          if (!first)
+            std::cout << ", ";
           std::cout << font.get<std::string>();
           first = false;
         }

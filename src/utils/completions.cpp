@@ -17,7 +17,11 @@
 #include "syntax_highlighter.h"
 
 std::map<std::string, int> g_completion_frequency;
-enum CompletionContext { CONTEXT_COMMAND, CONTEXT_ARGUMENT, CONTEXT_PATH };
+enum CompletionContext {
+  CONTEXT_COMMAND,
+  CONTEXT_ARGUMENT,
+  CONTEXT_PATH
+};
 
 CompletionContext detect_completion_context(const char* prefix) {
   std::string prefix_str(prefix);
@@ -28,7 +32,8 @@ CompletionContext detect_completion_context(const char* prefix) {
 
   if (prefix_str.find('/') == 0 || prefix_str.find("./") == 0 ||
       prefix_str.find("../") == 0) {
-    if (g_debug_mode) std::cerr << "DEBUG: Context detected: PATH" << std::endl;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Context detected: PATH" << std::endl;
     return CONTEXT_PATH;
   }
 
@@ -48,7 +53,8 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::cerr << "DEBUG: Command completer called with prefix: '" << prefix
               << "'" << std::endl;
 
-  if (ic_stop_completing(cenv)) return;
+  if (ic_stop_completing(cenv))
+    return;
 
   // case-insensitive prefix matching
   std::string prefix_lower(prefix);
@@ -65,9 +71,11 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Command completion found: '" << cmd
                   << "' (adding suffix: '" << suffix << "')" << std::endl;
-      if (!ic_add_completion(cenv, suffix.c_str())) return;
+      if (!ic_add_completion(cenv, suffix.c_str()))
+        return;
     }
-    if (ic_stop_completing(cenv)) return;
+    if (ic_stop_completing(cenv))
+      return;
   }
 
   if (g_debug_mode && !ic_has_completions(cenv))
@@ -80,7 +88,8 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::cerr << "DEBUG: History completer called with prefix: '" << prefix
               << "'" << std::endl;
 
-  if (ic_stop_completing(cenv)) return;
+  if (ic_stop_completing(cenv))
+    return;
 
   // case-insensitive history prefix matching
   std::string prefix_lower(prefix);
@@ -132,8 +141,10 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding history completion: '" << match.first
                 << "' (freq: " << match.second << ")" << std::endl;
-    if (!ic_add_completion(cenv, suffix.c_str())) return;
-    if (++count >= max_suggestions || ic_stop_completing(cenv)) return;
+    if (!ic_add_completion(cenv, suffix.c_str()))
+      return;
+    if (++count >= max_suggestions || ic_stop_completing(cenv))
+      return;
   }
 }
 
@@ -142,7 +153,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::cerr << "DEBUG: Filename completer called with prefix: '" << prefix
               << "'" << std::endl;
 
-  if (ic_stop_completing(cenv)) return;
+  if (ic_stop_completing(cenv))
+    return;
 
   std::string prefix_str(prefix);
   size_t last_space = prefix_str.find_last_of(" \t");
@@ -237,7 +249,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               std::cerr << "DEBUG: Adding tilde completion: '"
                         << completion_suffix << "'" << std::endl;
 
-            if (!ic_add_completion(cenv, completion_suffix.c_str())) return;
+            if (!ic_add_completion(cenv, completion_suffix.c_str()))
+              return;
           }
         }
       }
@@ -316,7 +329,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               std::cerr << "DEBUG: Adding dash completion: '"
                         << completion_suffix << "'" << std::endl;
 
-            if (!ic_add_completion(cenv, completion_suffix.c_str())) return;
+            if (!ic_add_completion(cenv, completion_suffix.c_str()))
+              return;
           }
         }
       }
@@ -348,8 +362,10 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             if (g_debug_mode)
               std::cerr << "DEBUG: Directory-only completion: '" << suffix
                         << "'" << std::endl;
-            if (!ic_add_completion(cenv, suffix.c_str())) return;
-            if (ic_stop_completing(cenv)) return;
+            if (!ic_add_completion(cenv, suffix.c_str()))
+              return;
+            if (ic_stop_completing(cenv))
+              return;
           }
         }
       }
@@ -384,16 +400,19 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::cerr << "DEBUG: Default completer called with prefix: '" << prefix
               << "'" << std::endl;
 
-  if (ic_stop_completing(cenv)) return;
+  if (ic_stop_completing(cenv))
+    return;
   CompletionContext context = detect_completion_context(prefix);
 
   switch (context) {
     case CONTEXT_COMMAND:
       cjsh_history_completer(cenv, prefix);
-      if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+      if (ic_has_completions(cenv) && ic_stop_completing(cenv))
+        return;
 
       cjsh_command_completer(cenv, prefix);
-      if (ic_has_completions(cenv) && ic_stop_completing(cenv)) return;
+      if (ic_has_completions(cenv) && ic_stop_completing(cenv))
+        return;
 
       cjsh_filename_completer(cenv, prefix);
       break;

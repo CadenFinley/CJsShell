@@ -85,7 +85,9 @@ class PromptThreadPool {
   }
 
   // Get reference to the stop flag for tasks to check
-  std::atomic<bool>& getStopFlag() { return stop; }
+  std::atomic<bool>& getStopFlag() {
+    return stop;
+  }
 
   ~PromptThreadPool() {
     // Set stop flag and clear any pending tasks
@@ -220,7 +222,8 @@ class PromptInfoCache {
           }
 
           // Check stop flag again before updating cache
-          if (threadpool_stop) break;
+          if (threadpool_stop)
+            break;
 
           {
             std::lock_guard<std::mutex> lock(cache_mutex);
@@ -231,7 +234,8 @@ class PromptInfoCache {
           }
         } catch (...) {
           // Catch any exceptions during data fetching to prevent thread crashes
-          if (threadpool_stop) break;
+          if (threadpool_stop)
+            break;
 
           std::lock_guard<std::mutex> lock(cache_mutex);
           cache[key].expires =
@@ -244,7 +248,8 @@ class PromptInfoCache {
         }
 
         // Final check before looping
-        if (threadpool_stop) break;
+        if (threadpool_stop)
+          break;
       }
     });
   }
@@ -257,7 +262,8 @@ class PromptInfoCache {
           "top -l 1 | grep 'CPU usage' | awk '{print $3}' | tr -d '%' || echo "
           "'0'",
           "r");
-      if (!fp) return "0";
+      if (!fp)
+        return "0";
 
       char buffer[128];
       std::string result = "";
@@ -276,7 +282,8 @@ class PromptInfoCache {
       FILE* fp = popen(
           "ps -A -o %mem | awk '{ sum += $1 } END { print sum }' || echo '0'",
           "r");
-      if (!fp) return "0";
+      if (!fp)
+        return "0";
 
       char buffer[128];
       std::string result = "";
@@ -295,7 +302,8 @@ class PromptInfoCache {
       // Get battery percentage on macOS with fallback
       FILE* fp = popen(
           "pmset -g batt | grep -Eo '\\d+%' | cut -d% -f1 || echo 'N/A'", "r");
-      if (!fp) return "N/A";
+      if (!fp)
+        return "N/A";
 
       char buffer[128];
       std::string percent = "";
@@ -309,7 +317,8 @@ class PromptInfoCache {
         percent.erase(percent.length() - 1);
       }
 
-      if (percent == "N/A") return "N/A";
+      if (percent == "N/A")
+        return "N/A";
 
       // Check if charging with better error handling
       fp = popen("pmset -g batt | grep -o 'charging' || echo ''", "r");
@@ -349,7 +358,8 @@ class PromptInfoCache {
           "ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 "
           "2>/dev/null || echo 'N/A'",
           "r");
-      if (!fp) return "N/A";
+      if (!fp)
+        return "N/A";
 
       char buffer[128];
       std::string result = "";
@@ -369,7 +379,8 @@ class PromptInfoCache {
           "route -n get default 2>/dev/null | grep interface | awk '{print "
           "$2}' || echo 'N/A'",
           "r");
-      if (!fp) return "N/A";
+      if (!fp)
+        return "N/A";
 
       char buffer[128];
       std::string result = "";
@@ -389,7 +400,8 @@ class PromptInfoCache {
       FILE* fp = popen(
           "git rev-parse --is-inside-work-tree 2>/dev/null || echo 'false'",
           "r");
-      if (!fp) return "N/A";
+      if (!fp)
+        return "N/A";
 
       char buffer[128];
       std::string in_git_repo = "";
@@ -422,7 +434,8 @@ class PromptInfoCache {
             "git status --porcelain 2>/dev/null | wc -l | tr -d ' ' || echo "
             "'0'",
             "r");
-        if (!fp) return "✓";
+        if (!fp)
+          return "✓";
 
         char buffer[128];
         std::string result = "";
@@ -442,7 +455,8 @@ class PromptInfoCache {
             "git symbolic-ref --short HEAD 2>/dev/null || git rev-parse "
             "--short HEAD 2>/dev/null || echo 'unknown'",
             "r");
-        if (!fp) return "unknown";
+        if (!fp)
+          return "unknown";
 
         char buffer[128];
         std::string result = "";
@@ -461,7 +475,8 @@ class PromptInfoCache {
         FILE* fp = popen(
             "git rev-list --count @{upstream}..HEAD 2>/dev/null || echo '0'",
             "r");
-        if (!fp) return "0";
+        if (!fp)
+          return "0";
 
         char buffer[128];
         std::string result = "";
@@ -480,7 +495,8 @@ class PromptInfoCache {
         FILE* fp = popen(
             "git rev-list --count HEAD..@{upstream} 2>/dev/null || echo '0'",
             "r");
-        if (!fp) return "0";
+        if (!fp)
+          return "0";
 
         char buffer[128];
         std::string result = "";
@@ -498,7 +514,8 @@ class PromptInfoCache {
       } else if (key == "GIT_STASHES") {
         FILE* fp = popen(
             "git stash list 2>/dev/null | wc -l | tr -d ' ' || echo '0'", "r");
-        if (!fp) return "0";
+        if (!fp)
+          return "0";
 
         char buffer[128];
         std::string result = "";
@@ -518,7 +535,8 @@ class PromptInfoCache {
             "git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ' || "
             "echo '0'",
             "r");
-        if (!fp) return "0";
+        if (!fp)
+          return "0";
 
         char buffer[128];
         std::string result = "";
@@ -538,7 +556,8 @@ class PromptInfoCache {
             "git status --porcelain 2>/dev/null | wc -l | tr -d ' ' || echo "
             "'0'",
             "r");
-        if (!fp) return "0";
+        if (!fp)
+          return "0";
 
         char buffer[128];
         std::string result = "";

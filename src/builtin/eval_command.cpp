@@ -17,7 +17,8 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
 
   std::string command_to_eval;
   for (size_t i = 1; i < args.size(); ++i) {
-    if (i > 1) command_to_eval += " ";
+    if (i > 1)
+      command_to_eval += " ";
     command_to_eval += args[i];
   }
 

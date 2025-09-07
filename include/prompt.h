@@ -7,7 +7,14 @@
 #include "prompt_info.h"
 #include "theme.h"
 
-enum class PromptType { PS1, GIT, AI, NEWLINE, TITLE, ALL };
+enum class PromptType {
+  PS1,
+  GIT,
+  AI,
+  NEWLINE,
+  TITLE,
+  ALL
+};
 
 class Prompt {
  private:

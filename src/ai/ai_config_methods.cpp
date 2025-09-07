@@ -14,7 +14,9 @@ void Ai::set_config_name(const std::string& config_name) {
   this->config_name = config_name;
 }
 
-std::string Ai::get_config_name() const { return config_name; }
+std::string Ai::get_config_name() const {
+  return config_name;
+}
 
 std::vector<std::string> Ai::list_configs() const {
   std::vector<std::string> configs;

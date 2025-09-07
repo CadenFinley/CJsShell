@@ -66,7 +66,9 @@ static inline code_t key_char(char c) {
   return ((uint8_t)c);
 }
 
-static inline code_t key_unicode(unicode_t u) { return u; }
+static inline code_t key_unicode(unicode_t u) {
+  return u;
+}
 
 #define KEY_MOD_SHIFT (0x10000000U)
 #define KEY_MOD_ALT (0x20000000U)

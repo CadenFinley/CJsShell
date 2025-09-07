@@ -910,7 +910,8 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
               << targeted_plugin << ", args: ";
     for (size_t i = 0; i < args.size(); ++i) {
       std::cerr << "'" << args[i] << "'";
-      if (i < args.size() - 1) std::cerr << ", ";
+      if (i < args.size() - 1)
+        std::cerr << ", ";
     }
     std::cerr << std::endl;
   }

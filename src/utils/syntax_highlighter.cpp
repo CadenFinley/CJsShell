@@ -35,7 +35,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
     ic_highlight(henv, 0, 1, "cjsh-colon");
 
     size_t i = 0;
-    while (i < len && !std::isspace((unsigned char)input[i])) ++i;
+    while (i < len && !std::isspace((unsigned char)input[i]))
+      ++i;
     std::string token(input, i);
 
     if (token.size() > 1) {
@@ -125,7 +126,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
              std::isspace((unsigned char)cmd_str[arg_start])) {
         arg_start++;
       }
-      if (arg_start >= cmd_str.length()) break;
+      if (arg_start >= cmd_str.length())
+        break;
 
       size_t arg_end = arg_start;
       while (arg_end < cmd_str.length() &&

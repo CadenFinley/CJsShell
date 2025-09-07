@@ -12,7 +12,8 @@ std::string format_printf_arg(const std::string& format_spec,
                               const std::string& arg) {
   std::ostringstream result;
 
-  if (format_spec.empty()) return arg;
+  if (format_spec.empty())
+    return arg;
 
   char spec = format_spec.back();
 

@@ -32,8 +32,10 @@ struct RGB {
   uint8_t g;
   uint8_t b;
 
-  constexpr RGB() noexcept : r(0), g(0), b(0) {}
-  constexpr RGB(uint8_t r, uint8_t g, uint8_t b) noexcept : r(r), g(g), b(b) {}
+  constexpr RGB() noexcept : r(0), g(0), b(0) {
+  }
+  constexpr RGB(uint8_t r, uint8_t g, uint8_t b) noexcept : r(r), g(g), b(b) {
+  }
 
   // Operator overloads for color manipulation
   constexpr RGB operator+(const RGB& other) const noexcept {
@@ -61,8 +63,10 @@ struct HSL {
   float s;  // Saturation [0-1]
   float l;  // Lightness [0-1]
 
-  constexpr HSL() noexcept : h(0), s(0), l(0) {}
-  constexpr HSL(float h, float s, float l) noexcept : h(h), s(s), l(l) {}
+  constexpr HSL() noexcept : h(0), s(0), l(0) {
+  }
+  constexpr HSL(float h, float s, float l) noexcept : h(h), s(s), l(l) {
+  }
 };
 
 // Color conversion functions

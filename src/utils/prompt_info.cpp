@@ -78,12 +78,15 @@ std::string PromptInfo::get_git_remote(const std::filesystem::path& repo_root) {
   std::string cmd =
       "git -C '" + repo_root.string() + "' remote get-url origin 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) return "";
+  if (!fp)
+    return "";
   char buffer[256];
   std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    result += buffer;
   pclose(fp);
-  if (!result.empty() && result.back() == '\n') result.pop_back();
+  if (!result.empty() && result.back() == '\n')
+    result.pop_back();
   return result;
 }
 
@@ -91,12 +94,15 @@ std::string PromptInfo::get_git_tag(const std::filesystem::path& repo_root) {
   std::string cmd = "git -C '" + repo_root.string() +
                     "' describe --tags --abbrev=0 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) return "";
+  if (!fp)
+    return "";
   char buffer[128];
   std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    result += buffer;
   pclose(fp);
-  if (!result.empty() && result.back() == '\n') result.pop_back();
+  if (!result.empty() && result.back() == '\n')
+    result.pop_back();
   return result;
 }
 
@@ -105,10 +111,12 @@ std::string PromptInfo::get_git_last_commit(
   std::string cmd = "git -C '" + repo_root.string() +
                     "' log -1 --pretty=format:%h:%s 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) return "";
+  if (!fp)
+    return "";
   char buffer[256];
   std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    result += buffer;
   pclose(fp);
   return result;
 }
@@ -117,24 +125,30 @@ std::string PromptInfo::get_git_author(const std::filesystem::path& repo_root) {
   std::string cmd = "git -C '" + repo_root.string() +
                     "' log -1 --pretty=format:%an 2>/dev/null";
   FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) return "";
+  if (!fp)
+    return "";
   char buffer[128];
   std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    result += buffer;
   pclose(fp);
-  if (!result.empty() && result.back() == '\n') result.pop_back();
+  if (!result.empty() && result.back() == '\n')
+    result.pop_back();
   return result;
 }
 
 std::string PromptInfo::get_disk_usage(const std::filesystem::path& path) {
   std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
   FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) return "";
+  if (!fp)
+    return "";
   char buffer[32];
   std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    result += buffer;
   pclose(fp);
-  if (!result.empty() && result.back() == '\n') result.pop_back();
+  if (!result.empty() && result.back() == '\n')
+    result.pop_back();
   return result;
 }
 
@@ -147,24 +161,30 @@ std::string PromptInfo::get_swap_usage() {
   return "Unknown";
 #endif
   FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) return "";
+  if (!fp)
+    return "";
   char buffer[32];
   std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    result += buffer;
   pclose(fp);
-  if (!result.empty() && result.back() == '\n') result.pop_back();
+  if (!result.empty() && result.back() == '\n')
+    result.pop_back();
   return result;
 }
 
 std::string PromptInfo::get_load_avg() {
   std::string cmd = "uptime | awk -F'load averages?: ' '{print $2}'";
   FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) return "";
+  if (!fp)
+    return "";
   char buffer[64];
   std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) result += buffer;
+  while (fgets(buffer, sizeof(buffer), fp) != NULL)
+    result += buffer;
   pclose(fp);
-  if (!result.empty() && result.back() == '\n') result.pop_back();
+  if (!result.empty() && result.back() == '\n')
+    result.pop_back();
   return result;
 }
 
@@ -182,11 +202,13 @@ PromptInfo::PromptInfo() {
 }
 
 PromptInfo::~PromptInfo() {
-  if (g_debug_mode) std::cerr << "DEBUG: PromptInfo destructor" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: PromptInfo destructor" << std::endl;
 }
 
 std::string PromptInfo::get_basic_prompt() {
-  if (g_debug_mode) std::cerr << "DEBUG: get_basic_prompt START" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_basic_prompt START" << std::endl;
 
   std::string prompt = "";
   std::string username = get_username();
@@ -195,7 +217,8 @@ std::string PromptInfo::get_basic_prompt() {
 
   prompt += username + "@" + hostname + " : " + cwd + " $ ";
 
-  if (g_debug_mode) std::cerr << "DEBUG: get_basic_prompt END" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_basic_prompt END" << std::endl;
   return prompt;
 }
 
@@ -215,7 +238,8 @@ std::string PromptInfo::get_basic_ai_prompt() {
   prompt += ai_model + " " + ai_context + " " + ai_context_comparison + " " +
             cwd + " " + ai_type + " > ";
 
-  if (g_debug_mode) std::cerr << "DEBUG: get_basic_ai_prompt END" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_basic_ai_prompt END" << std::endl;
   return prompt;
 }
 
@@ -275,7 +299,8 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
 }
 
 bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
-  if (g_debug_mode) std::cerr << "DEBUG: is_git_repository START" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: is_git_repository START" << std::endl;
 
   // Cache this result using the current path as the key
   std::string current_path_str = std::filesystem::current_path().string();
@@ -556,7 +581,8 @@ std::string PromptInfo::get_current_file_name() {
 }
 
 std::string PromptInfo::get_username() {
-  if (g_debug_mode) std::cerr << "DEBUG: get_username START" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_username START" << std::endl;
 
   struct passwd* pw = getpwuid(getuid());
   std::string result = pw ? pw->pw_name : "user";
@@ -567,7 +593,8 @@ std::string PromptInfo::get_username() {
 }
 
 std::string PromptInfo::get_hostname() {
-  if (g_debug_mode) std::cerr << "DEBUG: get_hostname START" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_hostname START" << std::endl;
 
   char hostname[256];
   gethostname(hostname, 256);
@@ -615,7 +642,8 @@ std::string PromptInfo::get_current_time(bool twelve_hour_format) {
 }
 
 std::string PromptInfo::get_current_date() {
-  if (g_debug_mode) std::cerr << "DEBUG: get_current_date START" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: get_current_date START" << std::endl;
 
   auto now = std::chrono::system_clock::now();
   auto time_now = std::chrono::system_clock::to_time_t(now);
@@ -1111,7 +1139,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
   if (g_plugin) {
     for (const auto& plugin_name : g_plugin->get_enabled_plugins()) {
       plugin_data* pd = g_plugin->get_plugin_data(plugin_name);
-      if (!pd) continue;
+      if (!pd)
+        continue;
       for (const auto& kv : pd->prompt_variables) {
         const std::string& tag = kv.first;
         auto func = kv.second;
@@ -1124,7 +1153,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             value = std::string(res.data);
           else
             value = "";
-          if (pd->free_memory && res.data) pd->free_memory(res.data);
+          if (pd->free_memory && res.data)
+            pd->free_memory(res.data);
           vars[tag] = value;
         }
       }
@@ -1140,7 +1170,8 @@ int PromptInfo::get_background_jobs_count() {
       "bg_jobs_count",
       []() -> std::string {
         FILE* fp = popen("sh -c 'jobs -p | wc -l'", "r");
-        if (!fp) return "0";
+        if (!fp)
+          return "0";
 
         char buffer[32];
         std::string result = "";
@@ -1163,7 +1194,8 @@ std::string PromptInfo::get_os_info() {
       []() -> std::string {
 #ifdef __APPLE__
         FILE* fp = popen("sh -c 'sw_vers -productName'", "r");
-        if (!fp) return "Unknown";
+        if (!fp)
+          return "Unknown";
 
         char buffer[128];
         std::string result = "";
@@ -1197,7 +1229,8 @@ std::string PromptInfo::get_os_info() {
             "sh -c 'cat /etc/os-release | grep PRETTY_NAME | cut -d \"\\\"\" "
             "-f 2'",
             "r");
-        if (!fp) return "Linux";
+        if (!fp)
+          return "Linux";
 
         char buffer[128];
         std::string result = "";
@@ -1224,7 +1257,8 @@ std::string PromptInfo::get_kernel_version() {
       "kernel_version",
       []() -> std::string {
         FILE* fp = popen("sh -c 'uname -r'", "r");
-        if (!fp) return "Unknown";
+        if (!fp)
+          return "Unknown";
 
         char buffer[128];
         std::string result = "";
@@ -1244,7 +1278,8 @@ std::string PromptInfo::get_kernel_version() {
 }
 
 float PromptInfo::get_cpu_usage() {
-  if (g_debug_mode) std::cerr << "DEBUG: Getting CPU usage" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Getting CPU usage" << std::endl;
 
   // Cache CPU usage for 5 seconds as it doesn't change that rapidly
   return std::stof(get_cached_value(
@@ -1287,7 +1322,8 @@ float PromptInfo::get_cpu_usage() {
 }
 
 float PromptInfo::get_memory_usage() {
-  if (g_debug_mode) std::cerr << "DEBUG: Getting memory usage" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Getting memory usage" << std::endl;
 
   // Cache memory usage for 5 seconds as it doesn't change that rapidly
   return std::stof(get_cached_value(
@@ -1306,7 +1342,8 @@ float PromptInfo::get_memory_usage() {
         return "0.0";
 #endif
 
-        if (!fp) return "0.0";
+        if (!fp)
+          return "0.0";
 
         char buffer[32];
         std::string result = "";
@@ -1333,7 +1370,8 @@ std::string PromptInfo::get_battery_status() {
 #ifdef __APPLE__
         // Combine commands to reduce number of popen calls
         FILE* fp = popen("sh -c 'pmset -g batt'", "r");
-        if (!fp) return "Unknown";
+        if (!fp)
+          return "Unknown";
 
         char buffer[256];
         std::string output = "";
@@ -1401,7 +1439,8 @@ std::string PromptInfo::get_battery_status() {
 std::string PromptInfo::get_uptime() {
   FILE* fp = popen(
       "sh -c 'uptime | awk \"{print \\$3 \\$4 \\$5}\" | sed \"s/,//g\"'", "r");
-  if (!fp) return "Unknown";
+  if (!fp)
+    return "Unknown";
 
   char buffer[128];
   std::string result = "";
@@ -1461,7 +1500,8 @@ std::string PromptInfo::get_active_language_version(
   }
 
   FILE* fp = popen(("sh -c '" + cmd + "'").c_str(), "r");
-  if (!fp) return "Unknown";
+  if (!fp)
+    return "Unknown";
 
   char buffer[128];
   std::string result = "";
@@ -1530,7 +1570,8 @@ std::string PromptInfo::get_ip_address(bool external) {
         if (external) {
           FILE* fp = popen("sh -c 'curl -s -m 2 icanhazip.com'",
                            "r");  // Add timeout to curl
-          if (!fp) return "Unknown";
+          if (!fp)
+            return "Unknown";
 
           char buffer[64];
           std::string result = "";
@@ -1557,7 +1598,8 @@ std::string PromptInfo::get_ip_address(bool external) {
           return "Unknown";
 #endif
 
-          if (!fp) return "Unknown";
+          if (!fp)
+            return "Unknown";
 
           char buffer[64];
           std::string result = "";
@@ -1592,7 +1634,8 @@ bool PromptInfo::is_vpn_active() {
                return "0";
 #endif
 
-               if (!fp) return "0";
+               if (!fp)
+                 return "0";
 
                char buffer[16];
                std::string result = "";
@@ -1627,7 +1670,8 @@ std::string PromptInfo::get_active_network_interface() {
         return "Unknown";
 #endif
 
-        if (!fp) return "Unknown";
+        if (!fp)
+          return "Unknown";
 
         char buffer[32];
         std::string result = "";

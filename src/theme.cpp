@@ -19,7 +19,8 @@ Theme::Theme(std::string theme_dir, bool enabled)
   is_enabled = enabled;
 }
 
-Theme::~Theme() {}
+Theme::~Theme() {
+}
 
 void Theme::create_default_theme() {
   nlohmann::json default_theme;
@@ -202,7 +203,8 @@ bool Theme::load_theme(const std::string& theme_name, bool save_in_file,
 
   if (theme_json.contains("fill_char") && theme_json["fill_char"].is_string()) {
     auto s = theme_json["fill_char"].get<std::string>();
-    if (!s.empty()) fill_char_ = s;
+    if (!s.empty())
+      fill_char_ = s;
   }
   if (theme_json.contains("fill_fg_color") &&
       theme_json["fill_fg_color"].is_string()) {
@@ -213,7 +215,8 @@ bool Theme::load_theme(const std::string& theme_name, bool save_in_file,
     fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
   }
   g_current_theme = theme_name_to_use;
-  if (save_in_file) update_theme_in_rc_file(g_current_theme);
+  if (save_in_file)
+    update_theme_in_rc_file(g_current_theme);
   return true;
 }
 
@@ -322,7 +325,8 @@ size_t Theme::get_terminal_width() const {
 std::string Theme::render_line_aligned(
     const std::vector<nlohmann::json>& segments,
     const std::unordered_map<std::string, std::string>& vars) const {
-  if (segments.empty()) return "";
+  if (segments.empty())
+    return "";
 
   bool isNewlineSegments = (&segments == &newline_segments);
 
@@ -587,7 +591,9 @@ std::vector<std::string> Theme::list_themes() {
   return themes;
 }
 
-bool Theme::uses_newline() const { return !newline_segments.empty(); }
+bool Theme::uses_newline() const {
+  return !newline_segments.empty();
+}
 
 std::string Theme::get_terminal_title_format() const {
   return terminal_title_format;
@@ -657,7 +663,8 @@ void Theme::view_theme_requirements(const std::string& theme) const {
 
       for (const auto& font : requirements["fonts"]) {
         if (font.is_string()) {
-          if (!first) font_req << ", ";
+          if (!first)
+            font_req << ", ";
           font_req << font.get<std::string>();
           first = false;
         }

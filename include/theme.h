@@ -62,17 +62,31 @@ class Theme {
 
   std::string get_terminal_title_format() const;
 
-  std::string get_rendered_ps1_format() const { return prerendered_ps1_format; }
-  std::string get_rendered_git_format() const { return prerendered_git_format; }
-  std::string get_rendered_ai_format() const { return prerendered_ai_format; }
+  std::string get_rendered_ps1_format() const {
+    return prerendered_ps1_format;
+  }
+  std::string get_rendered_git_format() const {
+    return prerendered_git_format;
+  }
+  std::string get_rendered_ai_format() const {
+    return prerendered_ai_format;
+  }
   std::string get_rendered_newline_format() const {
     return prerendered_newline_format;
   }
 
-  size_t get_ps1_raw_length() const { return last_ps1_raw_length; }
-  size_t get_git_raw_length() const { return last_git_raw_length; }
-  size_t get_ai_raw_length() const { return last_ai_raw_length; }
-  size_t get_newline_raw_length() const { return last_newline_raw_length; }
+  size_t get_ps1_raw_length() const {
+    return last_ps1_raw_length;
+  }
+  size_t get_git_raw_length() const {
+    return last_git_raw_length;
+  }
+  size_t get_ai_raw_length() const {
+    return last_ai_raw_length;
+  }
+  size_t get_newline_raw_length() const {
+    return last_newline_raw_length;
+  }
 
   std::string get_newline_prompt(
       const std::unordered_map<std::string, std::string>& vars) const;
@@ -83,5 +97,7 @@ class Theme {
   std::string get_ai_prompt_format(
       const std::unordered_map<std::string, std::string>& vars) const;
 
-  bool get_enabled() const { return is_enabled; }
+  bool get_enabled() const {
+    return is_enabled;
+  }
 };

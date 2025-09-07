@@ -25,7 +25,8 @@ Ai::Ai(const std::string& api_key, const std::string& assistant_type,
   }
 }
 
-Ai::Ai() {}
+Ai::Ai() {
+}
 
 void Ai::set_api_key(const std::string& api_key) {
   setenv("OPENAI_API_KEY", api_key.c_str(), 1);
@@ -44,53 +45,77 @@ void Ai::set_initial_instruction(const std::string& instruction) {
   initial_instruction = instruction;
 }
 
-std::string Ai::get_initial_instruction() const { return initial_instruction; }
+std::string Ai::get_initial_instruction() const {
+  return initial_instruction;
+}
 
-void Ai::set_assistant_name(const std::string& name) { assistant_name = name; }
+void Ai::set_assistant_name(const std::string& name) {
+  assistant_name = name;
+}
 
-std::string Ai::get_assistant_name() { return assistant_name; }
+std::string Ai::get_assistant_name() {
+  return assistant_name;
+}
 
 void Ai::set_assistant_type(const std::string& assistant_type) {
   this->assistant_type = assistant_type;
 }
 
-std::string Ai::get_assistant_type() const { return assistant_type; }
+std::string Ai::get_assistant_type() const {
+  return assistant_type;
+}
 
 void Ai::set_max_prompt_length(int max_prompt_length) {
   this->max_prompt_length = max_prompt_length;
 }
 
-int Ai::get_max_prompt_length() const { return max_prompt_length; }
+int Ai::get_max_prompt_length() const {
+  return max_prompt_length;
+}
 
 void Ai::set_cache_tokens(bool cache_tokens) {
   this->cache_tokens = cache_tokens;
 }
 
-bool Ai::get_cache_tokens() const { return cache_tokens; }
+bool Ai::get_cache_tokens() const {
+  return cache_tokens;
+}
 
-void Ai::toggle_cache_tokens() { cache_tokens = !cache_tokens; }
+void Ai::toggle_cache_tokens() {
+  cache_tokens = !cache_tokens;
+}
 
 void Ai::clear_all_cached_tokens() {
   make_call_to_chat_gpt("Clear all cached tokens.");
 }
 
-std::vector<std::string> Ai::get_files() const { return files; }
+std::vector<std::string> Ai::get_files() const {
+  return files;
+}
 
-std::string Ai::get_file_contents() const { return file_contents; }
+std::string Ai::get_file_contents() const {
+  return file_contents;
+}
 
-std::vector<std::string> Ai::get_chat_cache() const { return chat_cache; }
+std::vector<std::string> Ai::get_chat_cache() const {
+  return chat_cache;
+}
 
 void Ai::set_chat_cache(const std::vector<std::string>& chat_cache) {
   this->chat_cache = chat_cache;
 }
 
-void Ai::clear_chat_cache() { chat_cache.clear(); }
+void Ai::clear_chat_cache() {
+  chat_cache.clear();
+}
 
 void Ai::set_dynamic_prompt_length(bool dynamic_prompt_length) {
   this->dynamic_prompt_length = dynamic_prompt_length;
 }
 
-bool Ai::get_dynamic_prompt_length() const { return dynamic_prompt_length; }
+bool Ai::get_dynamic_prompt_length() const {
+  return dynamic_prompt_length;
+}
 
 void Ai::toggle_dynamic_prompt_length() {
   dynamic_prompt_length = !dynamic_prompt_length;
@@ -108,13 +133,17 @@ std::string Ai::get_response_data(const std::string& key) const {
   return "";
 }
 
-std::string Ai::get_last_prompt_used() const { return last_prompt_used; }
+std::string Ai::get_last_prompt_used() const {
+  return last_prompt_used;
+}
 
 void Ai::remove_file(const std::string& user_file) {
   files.erase(std::remove(files.begin(), files.end(), user_file), files.end());
 }
 
-void Ai::clear_files() { files.clear(); }
+void Ai::clear_files() {
+  files.clear();
+}
 
 void Ai::refresh_files() {
   std::vector<std::string> active_files = get_files();
@@ -130,7 +159,9 @@ void Ai::set_max_prompt_precision(bool max_prompt_precision) {
   this->max_prompt_precision = max_prompt_precision;
 }
 
-bool Ai::get_max_prompt_precision() const { return max_prompt_precision; }
+bool Ai::get_max_prompt_precision() const {
+  return max_prompt_precision;
+}
 
 void Ai::toggle_max_prompt_precision() {
   max_prompt_precision = !max_prompt_precision;
@@ -143,7 +174,9 @@ void Ai::set_timeout_flag_seconds(float timeout_flag_seconds) {
   this->timeout_flag_seconds = timeout_flag_seconds;
 }
 
-float Ai::get_timeout_flag_seconds() const { return timeout_flag_seconds; }
+float Ai::get_timeout_flag_seconds() const {
+  return timeout_flag_seconds;
+}
 
 void Ai::set_model(const std::string& model) {
   if (g_debug_mode)
@@ -151,7 +184,9 @@ void Ai::set_model(const std::string& model) {
   current_model = model;
 }
 
-std::string Ai::get_model() const { return current_model; }
+std::string Ai::get_model() const {
+  return current_model;
+}
 
 void Ai::set_dynamic_prompt_length_scale(float dynamic_prompt_length_scale) {
   this->dynamic_prompt_length_scale = dynamic_prompt_length_scale;
@@ -172,7 +207,9 @@ void Ai::set_save_directory(const std::string& directory) {
   }
 }
 
-std::string Ai::get_save_directory() const { return save_directory; }
+std::string Ai::get_save_directory() const {
+  return save_directory;
+}
 
 void Ai::set_enabled(bool enabled) {
   if (g_debug_mode)
@@ -181,7 +218,9 @@ void Ai::set_enabled(bool enabled) {
   this->enabled = enabled;
 }
 
-bool Ai::is_enabled() const { return enabled; }
+bool Ai::is_enabled() const {
+  return enabled;
+}
 
 void ltrim(std::string& s) {
   size_t start = 0;
@@ -238,7 +277,8 @@ std::string Ai::chat_gpt(const std::string& sys_prompt,
     std::ostringstream oss;
     std::string ln;
     std::string next;
-    if (!std::getline(ss, ln)) ln = "";
+    if (!std::getline(ss, ln))
+      ln = "";
     while (true) {
       if (!std::getline(ss, next)) {
         if (!in_code_block && !ln.empty() && ln.rfind("```", 0) != 0) {
@@ -803,7 +843,8 @@ void Ai::monitor_cancellation(std::atomic<bool>& loading,
       break;
     }
 
-    if (!loading) break;
+    if (!loading)
+      break;
   }
 
   tcflush(stdin_fd, TCIFLUSH);
@@ -1180,13 +1221,15 @@ size_t write_data(void* ptr, size_t size, size_t nmemb, void* userdata) {
 
 bool Ai::process_voice_dictation(const std::string& message) {
   CURL* curl = curl_easy_init();
-  if (!curl) return false;
+  if (!curl)
+    return false;
   std::string temp_file_name =
       cjsh_filesystem::g_cjsh_ai_conversations_path.string() + "/" +
       current_model + "_" + assistant_type + ".mp3";
 
   std::ofstream ofs(temp_file_name, std::ios::binary);
-  if (!ofs.is_open()) return false;
+  if (!ofs.is_open())
+    return false;
 
   struct curl_slist* headers = nullptr;
   headers = curl_slist_append(
@@ -1275,7 +1318,9 @@ void Ai::set_voice_dictation_enabled(bool enabled) {
   voice_dictation_enabled = enabled;
 }
 
-bool Ai::get_voice_dictation_enabled() const { return voice_dictation_enabled; }
+bool Ai::get_voice_dictation_enabled() const {
+  return voice_dictation_enabled;
+}
 
 void Ai::set_voice_dictation_voice(const std::string& voice) {
   voice_dictation_voice = voice;

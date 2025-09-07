@@ -91,7 +91,8 @@ void Shell::setup_interactive_handlers() {
 }
 
 void Shell::save_terminal_state() {
-  if (g_debug_mode) std::cerr << "DEBUG: Saving terminal state" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Saving terminal state" << std::endl;
 
   if (isatty(STDIN_FILENO)) {
     if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
@@ -111,7 +112,8 @@ void Shell::restore_terminal_state() {
 }
 
 void Shell::setup_job_control() {
-  if (g_debug_mode) std::cerr << "DEBUG: Setting up job control" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Setting up job control" << std::endl;
 
   if (!isatty(STDIN_FILENO)) {
     job_control_enabled = false;

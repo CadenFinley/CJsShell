@@ -123,7 +123,8 @@ SignalHandler::SignalHandler() {
 }
 
 SignalHandler::~SignalHandler() {
-  if (g_debug_mode) std::cerr << "DEBUG: Destroying SignalHandler" << std::endl;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Destroying SignalHandler" << std::endl;
   restore_original_handlers();
   s_instance.store(nullptr);
 }
@@ -180,7 +181,9 @@ int SignalHandler::name_to_signal(const std::string& name) {
   }
 }
 
-bool SignalHandler::is_forked_child() { return getpid() != s_main_pid; }
+bool SignalHandler::is_forked_child() {
+  return getpid() != s_main_pid;
+}
 
 void SignalHandler::signal_unblock_all() {
   sigset_t iset;

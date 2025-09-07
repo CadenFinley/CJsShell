@@ -274,7 +274,8 @@ extern "C" PLUGIN_API int plugin_initialize() {
     char buffer[256];
     while (running && fgets(buffer, sizeof(buffer), worker_pipe)) {
       std::string line(buffer);
-      if (!line.empty() && line.back() == '\n') line.pop_back();
+      if (!line.empty() && line.back() == '\n')
+        line.pop_back();
       if (!line.empty()) {
         if (line[0] == '[' || line[0] == ' ') {
           std::cerr << line << std::endl;
@@ -320,7 +321,8 @@ extern "C" PLUGIN_API void plugin_shutdown() {
   }
 
   // Wait for thread to finish
-  if (worker_thread.joinable()) worker_thread.join();
+  if (worker_thread.joinable())
+    worker_thread.join();
 
   std::cerr << "[jarvis] Shutdown complete\n";
 }

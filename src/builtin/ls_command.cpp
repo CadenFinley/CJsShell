@@ -154,8 +154,10 @@ int list_directory(const std::string& path, bool show_hidden, bool long_format,
       bool b_is_dir = std::filesystem::is_directory(b);
 
       if (!reverse_order) {
-        if (a_is_dir && !b_is_dir) return true;
-        if (!a_is_dir && b_is_dir) return false;
+        if (a_is_dir && !b_is_dir)
+          return true;
+        if (!a_is_dir && b_is_dir)
+          return false;
       }
 
       if (sort_by_time) {

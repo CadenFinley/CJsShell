@@ -181,10 +181,12 @@ Built_ins::Built_ins()
                return shell->execute(subshell_content);
              }},
         },
-        shell(nullptr) {}
+        shell(nullptr) {
+}
 
 int Built_ins::builtin_command(const std::vector<std::string>& args) {
-  if (args.empty()) return 1;
+  if (args.empty())
+    return 1;
 
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {

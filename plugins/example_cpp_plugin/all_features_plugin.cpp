@@ -48,9 +48,11 @@ static plugin_string_t random_quote_callback();
 
 // Helper function to create a heap-allocated copy of a string
 char* create_string_copy(const char* src) {
-  if (!src) return nullptr;
+  if (!src)
+    return nullptr;
   char* dest = (char*)std::malloc(std::strlen(src) + 1);
-  if (dest) std::strcpy(dest, src);
+  if (dest)
+    std::strcpy(dest, src);
   return dest;
 }
 
@@ -58,7 +60,8 @@ char* create_string_copy(const char* src) {
 char** create_string_array(const std::vector<std::string>& strings,
                            int* count) {
   *count = strings.size();
-  if (*count == 0) return nullptr;
+  if (*count == 0)
+    return nullptr;
 
   char** arr = (char**)std::malloc(*count * sizeof(char*));
   for (int i = 0; i < *count; i++) {
@@ -72,7 +75,8 @@ std::string join_args(plugin_args_t* args, int start_pos = 1,
                       const std::string& separator = " ") {
   std::string result;
   for (int i = start_pos; i < args->count; i++) {
-    if (i > start_pos) result += separator;
+    if (i > start_pos)
+      result += separator;
     result += args->args[i];
   }
   return result;

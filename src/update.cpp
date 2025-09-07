@@ -33,8 +33,10 @@ static bool is_newer_version(const std::string& latest,
   a.resize(n);
   b.resize(n);
   for (size_t i = 0; i < n; i++) {
-    if (a[i] > b[i]) return true;
-    if (a[i] < b[i]) return false;
+    if (a[i] > b[i])
+      return true;
+    if (a[i] < b[i])
+      return false;
   }
   return false;
 }
@@ -49,15 +51,18 @@ bool check_for_update() {
     return false;
   }
   char buf[128];
-  while (fgets(buf, sizeof(buf), pipe)) result += buf;
+  while (fgets(buf, sizeof(buf), pipe))
+    result += buf;
   pclose(pipe);
   try {
     auto data = json::parse(result);
     if (data.contains("tag_name")) {
       std::string latest = data["tag_name"].get<std::string>();
-      if (!latest.empty() && latest[0] == 'v') latest.erase(0, 1);
+      if (!latest.empty() && latest[0] == 'v')
+        latest.erase(0, 1);
       std::string current = c_version;
-      if (!current.empty() && current[0] == 'v') current.erase(0, 1);
+      if (!current.empty() && current[0] == 'v')
+        current.erase(0, 1);
       g_cached_version = latest;
       if (is_newer_version(latest, current)) {
         std::cout << "\nLast Updated: " << g_last_updated << "\n"
@@ -73,9 +78,11 @@ bool check_for_update() {
 
 bool load_update_cache() {
   auto& path = cjsh_filesystem::g_cjsh_update_cache_path;
-  if (!std::filesystem::exists(path)) return false;
+  if (!std::filesystem::exists(path))
+    return false;
   std::ifstream f(path);
-  if (!f.is_open()) return false;
+  if (!f.is_open())
+    return false;
   try {
     json cache;
     f >> cache;
@@ -105,7 +112,8 @@ void save_update_cache(bool upd, const std::string& latest) {
 
   std::ofstream f(path);
   if (f.is_open()) {
-    if (g_debug_mode) std::cout << "Writing update cache to: " << path << "\n";
+    if (g_debug_mode)
+      std::cout << "Writing update cache to: " << path << "\n";
     f << cache.dump(4) << "\n";
     f.close();
     g_cached_update = upd;
@@ -118,7 +126,8 @@ void save_update_cache(bool upd, const std::string& latest) {
 }
 
 bool should_check_for_updates() {
-  if (g_last_update_check == 0) return true;
+  if (g_last_update_check == 0)
+    return true;
   time_t now = std::time(nullptr);
   time_t elapsed = now - g_last_update_check;
   if (g_debug_mode) {
@@ -145,7 +154,8 @@ bool execute_update_if_available(bool avail) {
 
 void display_changelog(const std::string& path) {
   std::ifstream f(path);
-  if (!f.is_open()) return;
+  if (!f.is_open())
+    return;
   std::string content((std::istreambuf_iterator<char>(f)), {});
   f.close();
   std::cout << "\n===== CHANGELOG =====\n"
@@ -176,9 +186,11 @@ void startup_update_process() {
     bool upd = false;
     if (load_update_cache()) {
       std::string current = c_version;
-      if (!current.empty() && current[0] == 'v') current.erase(0, 1);
+      if (!current.empty() && current[0] == 'v')
+        current.erase(0, 1);
       std::string cached = g_cached_version;
-      if (!cached.empty() && cached[0] == 'v') cached.erase(0, 1);
+      if (!cached.empty() && cached[0] == 'v')
+        cached.erase(0, 1);
 
       // If current version is newer than cached version, update the cache
       if (!cached.empty() && is_newer_version(current, cached)) {
