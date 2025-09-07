@@ -9,8 +9,10 @@
 #include <csignal>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
+#include "builtin.h"
 #include "cjsh.h"
 
 Exec::Exec() {
@@ -397,6 +399,125 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     if (cmd.background) {
       execute_command_async(cmd.args);
     } else {
+      // Check if this is a builtin command - builtins need special handling
+      // with redirections because they must run in the parent process
+      if (!cmd.args.empty() && g_shell && g_shell->built_ins && 
+          g_shell->built_ins->is_builtin_command(cmd.args[0])) {
+        
+        // Only handle __INTERNAL_SUBSHELL__ as a builtin with redirections
+        // Other builtins can fall back to external commands when redirections are involved
+        if (cmd.args[0] == "__INTERNAL_SUBSHELL__") {
+          // For builtin commands with redirections, we need to handle redirections
+          // in the parent process, not fork a child
+          
+          // Save original file descriptors
+          int orig_stdin = dup(STDIN_FILENO);
+          int orig_stdout = dup(STDOUT_FILENO);
+          int orig_stderr = dup(STDERR_FILENO);
+          
+          if (orig_stdin == -1 || orig_stdout == -1 || orig_stderr == -1) {
+            set_error("cjsh: Failed to save original file descriptors");
+            last_exit_code = EX_OSERR;
+            return EX_OSERR;
+          }
+          
+          int exit_code = 0;
+          
+          try {
+            // Apply redirections in parent process
+            
+            // Handle input redirection
+            if (!cmd.input_file.empty()) {
+              int fd = open(cmd.input_file.c_str(), O_RDONLY);
+              if (fd == -1) {
+                throw std::runtime_error("Failed to open input file: " + cmd.input_file);
+              }
+              if (dup2(fd, STDIN_FILENO) == -1) {
+                close(fd);
+                throw std::runtime_error("Failed to redirect stdin");
+              }
+              close(fd);
+            }
+            
+            // Handle output redirection
+            if (!cmd.output_file.empty()) {
+              int fd = open(cmd.output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+              if (fd == -1) {
+                throw std::runtime_error("Failed to open output file: " + cmd.output_file);
+              }
+              if (dup2(fd, STDOUT_FILENO) == -1) {
+                close(fd);
+                throw std::runtime_error("Failed to redirect stdout");
+              }
+              close(fd);
+            }
+            
+            // Handle append redirection
+            if (!cmd.append_file.empty()) {
+              int fd = open(cmd.append_file.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+              if (fd == -1) {
+                throw std::runtime_error("Failed to open append file: " + cmd.append_file);
+              }
+              if (dup2(fd, STDOUT_FILENO) == -1) {
+                close(fd);
+                throw std::runtime_error("Failed to redirect stdout for append");
+              }
+              close(fd);
+            }
+            
+            // Handle stderr redirection to file
+            if (!cmd.stderr_file.empty()) {
+              int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+              int fd = open(cmd.stderr_file.c_str(), flags, 0644);
+              if (fd == -1) {
+                throw std::runtime_error("Failed to open stderr file: " + cmd.stderr_file);
+              }
+              if (dup2(fd, STDERR_FILENO) == -1) {
+                close(fd);
+                throw std::runtime_error("Failed to redirect stderr");
+              }
+              close(fd);
+            }
+            
+            // Handle stderr to stdout redirection (2>&1)
+            if (cmd.stderr_to_stdout) {
+              if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
+                throw std::runtime_error("Failed to redirect stderr to stdout");
+              }
+            }
+            
+            // Handle stdout to stderr redirection (>&2)
+            if (cmd.stdout_to_stderr) {
+              if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
+                throw std::runtime_error("Failed to redirect stdout to stderr");
+              }
+            }
+            
+            // Execute the builtin command
+            exit_code = g_shell->built_ins->builtin_command(cmd.args);
+            
+          } catch (const std::exception& e) {
+            set_error("cjsh: " + std::string(e.what()));
+            exit_code = EX_OSERR;
+          }
+          
+          // Restore original file descriptors
+          dup2(orig_stdin, STDIN_FILENO);
+          dup2(orig_stdout, STDOUT_FILENO);
+          dup2(orig_stderr, STDERR_FILENO);
+          close(orig_stdin);
+          close(orig_stdout);
+          close(orig_stderr);
+          
+          set_error(exit_code == 0 ? "builtin command completed successfully"
+                                   : "builtin command failed with exit code " + 
+                                     std::to_string(exit_code));
+          last_exit_code = exit_code;
+          return exit_code;
+        }
+      }
+      
+      // Not a special builtin that needs parent-process execution - proceed with normal fork/exec
       pid_t pid = fork();
 
       if (pid == -1) {
@@ -806,14 +927,28 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(pipes[j][1]);
         }
 
-        std::vector<char*> c_args;
-        for (auto& arg : cmd.args) {
-          c_args.push_back(const_cast<char*>(arg.c_str()));
-        }
-        c_args.push_back(nullptr);
+        // Check if this is a builtin command first
+        if (g_shell && g_shell->built_ins && 
+            g_shell->built_ins->is_builtin_command(cmd.args[0])) {
+          // Execute builtin in child process
+          int exit_code = g_shell->built_ins->builtin_command(cmd.args);
+          
+          // Ensure output is flushed before exit
+          fflush(stdout);
+          fflush(stderr);
+          
+          _exit(exit_code);
+        } else {
+          // Execute external command
+          std::vector<char*> c_args;
+          for (auto& arg : cmd.args) {
+            c_args.push_back(const_cast<char*>(arg.c_str()));
+          }
+          c_args.push_back(nullptr);
 
-        execvp(cmd.args[0].c_str(), c_args.data());
-        _exit(127);
+          execvp(cmd.args[0].c_str(), c_args.data());
+          _exit(127);
+        }
       }
 
       if (i == 0) {

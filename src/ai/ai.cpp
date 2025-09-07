@@ -1304,8 +1304,7 @@ bool Ai::process_voice_dictation(const std::string& message) {
   std::string command =
       "(afplay \"" + temp_file_name + "\" && rm \"" + temp_file_name + "\")";
   std::vector<std::string> args;
-  args.push_back("sh");
-  args.push_back("-c");
+  args.push_back("__INTERNAL_SUBSHELL__");
   args.push_back(command);
   if (g_shell && g_shell->shell_exec) {
     g_shell->shell_exec->execute_command_async(args);

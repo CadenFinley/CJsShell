@@ -1,6 +1,7 @@
 #include "shell_script_interpreter.h"
 
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -115,6 +116,9 @@ int ShellScriptInterpreter::execute_block(
   std::function<int(const std::string&)> execute_simple_or_pipeline;
 
   execute_simple_or_pipeline = [&](const std::string& cmd_text) -> int {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: execute_simple_or_pipeline called with: " << cmd_text << std::endl;
+    }
     // Decide between simple exec via Shell::execute_command vs
     // Exec::execute_pipeline
     std::string text = trim(strip_inline_comment(cmd_text));
@@ -123,7 +127,7 @@ int ShellScriptInterpreter::execute_block(
 
     // Note: SUBSHELL{} markers are now converted by the parser's
     // parse_pipeline_with_preprocessing() into an equivalent
-    // "sh -c '...'" command with any trailing redirections/pipes preserved.
+    // "__INTERNAL_SUBSHELL__" command with any trailing redirections/pipes preserved.
     // We intentionally do not special-case SUBSHELL{} here to avoid
     // dropping following constructs like "2>&1 | ...".
 
@@ -148,21 +152,49 @@ int ShellScriptInterpreter::execute_block(
       // Open our temp file for writing
       FILE* temp_file = fopen(path.c_str(), "w");
       if (!temp_file) {
-        // Fallback to sh if file operations fail
-        std::string cmd = "/bin/sh -c '" + content + "'";
-        FILE* fp = popen(cmd.c_str(), "r");
-        std::string result;
-        if (fp) {
+        // Fallback: use internal execution with pipe capture instead of /bin/sh
+        int pipefd[2];
+        if (pipe(pipefd) != 0) {
+          return "";  // Unable to create pipe
+        }
+        
+        pid_t pid = fork();
+        if (pid == 0) {
+          // Child process: redirect stdout to pipe and execute internally
+          close(pipefd[0]);  // Close read end
+          dup2(pipefd[1], STDOUT_FILENO);
+          close(pipefd[1]);
+          
+          // Execute the content using internal execution mechanism
+          int exit_code = execute_simple_or_pipeline(content);
+          exit(exit_code);
+        } else if (pid > 0) {
+          // Parent process: read from pipe
+          close(pipefd[1]);  // Close write end
+          std::string result;
           char buf[4096];
-          size_t n;
-          while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
+          ssize_t n;
+          while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
             result.append(buf, n);
-          pclose(fp);
+          }
+          close(pipefd[0]);
+          
+          // Wait for child to complete
+          int status;
+          waitpid(pid, &status, 0);
+          
+          // Trim trailing newlines
           while (!result.empty() &&
                  (result.back() == '\n' || result.back() == '\r'))
             result.pop_back();
+          
+          return result;
+        } else {
+          // Fork failed
+          close(pipefd[0]);
+          close(pipefd[1]);
+          return "";
         }
-        return result;
       }
 
       // Redirect stdout to our temp file
@@ -619,25 +651,33 @@ int ShellScriptInterpreter::execute_block(
 
       // Check if this is an internal subshell command
       if (!c.args.empty() && c.args[0] == "__INTERNAL_SUBSHELL__") {
-        // Use the preprocessed command directly
-        int exit_code = g_shell->execute_command(c.args, c.background);
-        // Update STATUS environment variable for $? expansion
-        setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-        return exit_code;
-      } else if (!c.args.empty() && c.args[0] == "sh" && c.args.size() >= 2 &&
-                 c.args[1] == "-c") {
-        // Already converted to sh -c by preprocessing
+        // If the subshell command has redirections, we need to use pipeline execution
+        // to properly handle them, not simple command execution
+        bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr || 
+                         !c.input_file.empty() || !c.output_file.empty() || 
+                         !c.append_file.empty() || !c.stderr_file.empty() || 
+                         !c.here_doc.empty();
+        
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Executing preprocessed grouped command: ";
-          for (const auto& a : c.args)
-            std::cerr << "[" << a << "]";
-          if (c.background)
-            std::cerr << " &";
-          std::cerr << std::endl;
+          std::cerr << "DEBUG: INTERNAL_SUBSHELL has_redir=" << has_redir 
+                    << " stderr_to_stdout=" << c.stderr_to_stdout << std::endl;
         }
-        int exit_code = g_shell->execute_command(c.args, c.background);
-        setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-        return exit_code;
+        
+        if (has_redir) {
+          // Use pipeline execution to handle redirections properly
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Executing subshell with redirections via pipeline" << std::endl;
+          }
+          int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
+          setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+          return exit_code;
+        } else {
+          // No redirections, use simple command execution
+          int exit_code = g_shell->execute_command(c.args, c.background);
+          // Update STATUS environment variable for $? expansion
+          setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+          return exit_code;
+        }
       } else {
         // Re-parse the original text to apply alias/env/brace/tilde expansions
         // parse_command performs alias expansion while parse_pipeline does not.
@@ -666,6 +706,14 @@ int ShellScriptInterpreter::execute_block(
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing pipeline of size " << cmds.size()
                 << std::endl;
+      for (size_t i = 0; i < cmds.size(); i++) {
+        const auto& cmd = cmds[i];
+        std::cerr << "DEBUG: Command " << i << ": ";
+        for (const auto& arg : cmd.args) {
+          std::cerr << "'" << arg << "' ";
+        }
+        std::cerr << " stderr_to_stdout=" << cmd.stderr_to_stdout << std::endl;
+      }
     }
     int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
     // Update STATUS environment variable for $? expansion

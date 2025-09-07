@@ -176,9 +176,36 @@ Built_ins::Built_ins()
              [this](const std::vector<std::string>& args) {
                if (args.size() < 2) return 1;
                
-               // Execute the subshell content
+               // Execute the subshell content in a subprocess
+               // This is necessary for proper redirection handling
                std::string subshell_content = args[1];
-               return shell->execute(subshell_content);
+               
+               pid_t pid = fork();
+               if (pid == -1) {
+                 perror("fork failed in subshell");
+                 return 1;
+               }
+               
+               if (pid == 0) {
+                 // Child process: execute the subshell content
+                 int exit_code = shell->execute(subshell_content);
+                 _exit(exit_code);
+               } else {
+                 // Parent process: wait for child
+                 int status;
+                 if (waitpid(pid, &status, 0) == -1) {
+                   perror("waitpid failed in subshell");
+                   return 1;
+                 }
+                 
+                 if (WIFEXITED(status)) {
+                   return WEXITSTATUS(status);
+                 } else if (WIFSIGNALED(status)) {
+                   return 128 + WTERMSIG(status);
+                 } else {
+                   return 1;
+                 }
+               }
              }},
         },
         shell(nullptr) {

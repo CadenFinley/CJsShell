@@ -299,9 +299,8 @@ int install_theme(const std::string& themeName) {
         << "' already exists locally. Replacing with the latest version..."
         << std::endl;
   }
-  std::string curl_cmd = "sh -c \"curl -s -f -o \"" +
-                         local_theme_path.string() + "\" " + remote_theme_url +
-                         "\"";
+  std::string curl_cmd = "curl -s -f -o \"" +
+                         local_theme_path.string() + "\" " + remote_theme_url;
   std::cout << "Downloading theme '" << themeName << "' from repository..."
             << std::endl;
 

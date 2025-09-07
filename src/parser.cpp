@@ -772,23 +772,23 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
             preprocessed.processed_text.substr(start, end - start);
         std::string remaining = preprocessed.processed_text.substr(end + 1);
 
-        // Convert to a normal command so downstream parsing (pipes/redirs)
-        // continues to work: sh -c '...'<remaining>
-        auto escape_single_quotes = [](const std::string& s) {
+        // Convert to an internal subshell command so downstream parsing 
+        // (pipes/redirs) continues to work: __INTERNAL_SUBSHELL__ "content"<remaining>
+        // Need to quote the content to preserve it as a single argument
+        auto escape_double_quotes = [](const std::string& s) {
           std::string out;
           out.reserve(s.size() + 16);
           for (char c : s) {
-            if (c == '\'') {
-              out += "'\\''";  // close ', insert \'', reopen '
-            } else {
-              out += c;
+            if (c == '"' || c == '\\') {
+              out += '\\';
             }
+            out += c;
           }
           return out;
         };
-
-        std::string rebuilt = "sh -c '" +
-                              escape_single_quotes(subshell_content) + "'" +
+        
+        std::string rebuilt = "__INTERNAL_SUBSHELL__ \"" +
+                              escape_double_quotes(subshell_content) + "\"" +
                               remaining;
         // Preserve the original leading whitespace
         std::string prefix = preprocessed.processed_text.substr(0, lead);
