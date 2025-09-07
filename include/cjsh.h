@@ -15,8 +15,8 @@
 #include "theme.h"
 #include "update.h"
 
-const bool PRE_RELEASE = false;
-const std::string c_version = "2.3.13";
+const bool PRE_RELEASE = true;
+const std::string c_version = "2.3.14";
 const pid_t c_pid = getpid();
 const std::string c_pid_str = std::to_string(getpid());
 const std::string c_reset_color = "\033[0m";

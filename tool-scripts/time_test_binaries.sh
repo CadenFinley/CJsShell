@@ -1,7 +1,7 @@
 #!/bin/bash
 
 RUNS=100
-COMMAND="--version"
+COMMAND="-c exit"
 BASELINE_SHELLS=("fish" "bash" "zsh" "cjsh")
 cjsh_binary_types=("")
 
