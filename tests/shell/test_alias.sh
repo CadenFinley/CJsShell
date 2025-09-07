@@ -15,7 +15,7 @@ if [ "$OUT2" != "world" ]; then
   exit 1
 fi
 
-OUT3=$("$CJSH_PATH" -c "alias hi='echo hello'; unalias hi; command -v hi >/dev/null 2>&1; echo $?" 2>/dev/null)
+OUT3=$("$CJSH_PATH" -c "alias hi='echo hello'; unalias hi; command -v hi >/dev/null 2>&1; echo \$?" 2>/dev/null)
 if [ "$OUT3" = "0" ]; then
   echo "FAIL: unalias did not remove alias"
   exit 1

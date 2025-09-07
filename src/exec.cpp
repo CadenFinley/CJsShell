@@ -69,6 +69,10 @@ void Exec::handle_child_signal(pid_t pid, int status) {
 
     auto it = std::find(job.pids.begin(), job.pids.end(), pid);
     if (it != job.pids.end()) {
+      // Track the status of the last process in the job as soon as we see it
+      if (pid == job.last_pid) {
+        job.last_status = status;
+      }
       if (WIFSTOPPED(status)) {
         job.stopped = true;
         job.status = status;
@@ -395,7 +399,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     } else {
       pid_t pid = fork();
 
-      if (pid == -1) {
+  if (pid == -1) {
         set_error("cjsh: Failed to fork process: " +
                   std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
@@ -513,29 +517,59 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         _exit(127);
       }
 
-      Job job;
-  job.pgid = pid;
-      job.command = cmd.args[0];
-      job.background = false;
-      job.completed = false;
-      job.stopped = false;
-      job.pids.push_back(pid);
-  job.last_pid = pid;
+  // Parent branch
+  if (g_shell && !g_shell->get_interactive_mode()) {
+        // In non-interactive mode (e.g., -c), wait synchronously for the child
+        // and propagate its real exit status to avoid races with job control.
+        int status = 0;
+        pid_t wpid;
+        do {
+          wpid = waitpid(pid, &status, 0);
+        } while (wpid == -1 && errno == EINTR);
 
-      int job_id = add_job(job);
+        int exit_code = 0;
+        if (wpid == -1) {
+          // If wait failed unexpectedly, report generic failure
+          exit_code = EX_OSERR;
+        } else if (WIFEXITED(status)) {
+          exit_code = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+          exit_code = 128 + WTERMSIG(status);
+        }
 
-      put_job_in_foreground(job_id, false);
-      
-      // If there were redirections, ensure file buffers are flushed
-      if (!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) {
-        sync();
+        set_error(exit_code == 0 ? "command completed successfully"
+                                 : "command failed with exit code " +
+                                       std::to_string(exit_code));
+        last_exit_code = exit_code;
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: execute_pipeline single-command (non-interactive) exit="
+                    << last_exit_code << std::endl;
+        }
+        return last_exit_code;
+      } else {
+        // Interactive mode: use job control and foreground waiting
+        Job job;
+        job.pgid = pid;
+        job.command = cmd.args[0];
+        job.background = false;
+        job.completed = false;
+        job.stopped = false;
+        job.pids.push_back(pid);
+        job.last_pid = pid;
+
+        int job_id = add_job(job);
+        put_job_in_foreground(job_id, false);
+
+        // If there were redirections, ensure file buffers are flushed
+        if (!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) {
+          sync();
+        }
+
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: execute_pipeline single-command returning last_exit_code=" << last_exit_code << std::endl;
+        }
+        return last_exit_code;
       }
-      
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: execute_pipeline single-command returning last_exit_code=" << last_exit_code << std::endl;
-      }
-      
-      return last_exit_code;
     }
 
     return 0;
@@ -920,7 +954,7 @@ void Exec::wait_for_job(int job_id) {
   lock.lock();
 
   it = jobs.find(job_id);
-  if (it != jobs.end()) {
+    if (it != jobs.end()) {
     Job& job = it->second;
 
     if (job_stopped) {
@@ -932,9 +966,15 @@ void Exec::wait_for_job(int job_id) {
       job.stopped = false;
       job.status = status;
 
-  // Prefer exit status of the last command in pipeline if available
-  int final_status = saw_last ? last_status : status;
-  job.last_status = final_status;
+        // Prefer exit status of the last command in pipeline if available.
+        // If the SIGCHLD handler already reaped the child, our local 'status'
+        // may be uninitialized (e.g., 0). In that case, fall back to the
+        // recorded job.last_status or job.status captured by the signal handler.
+        int final_status = saw_last ? last_status : status;
+        if (!(WIFEXITED(final_status) || WIFSIGNALED(final_status))) {
+          final_status = (job.last_status != 0) ? job.last_status : job.status;
+        }
+        job.last_status = final_status;
 
       if (WIFEXITED(final_status)) {
         int exit_status = WEXITSTATUS(final_status);
