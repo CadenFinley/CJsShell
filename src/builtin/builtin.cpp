@@ -72,6 +72,10 @@ Built_ins::Built_ins()
              [](const std::vector<std::string>& args) {
                return ::source_command(args);
              }},
+            {".",
+             [](const std::vector<std::string>& args) {
+               return ::source_command(args);
+             }},
             {"theme",
              [](const std::vector<std::string>& args) {
                return ::theme_command(args);
