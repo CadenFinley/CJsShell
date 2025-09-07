@@ -187,6 +187,13 @@ int main(int argc, char* argv[]) {
   // create the shell component
   g_shell = std::make_unique<Shell>(config::login_mode);
 
+  // Check if stdin is a terminal - if not, disable interactive mode
+  if (!config::force_interactive && !isatty(STDIN_FILENO)) {
+    config::interactive_mode = false;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Disabling interactive mode (stdin is not a terminal)" << std::endl;
+  }
+
   // load startup args to save for restarts
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
@@ -249,7 +256,23 @@ int main(int argc, char* argv[]) {
 
   if (!config::interactive_mode && !config::force_interactive) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Interactive mode not enabled" << std::endl;
+      std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
+    
+    // Read and execute input from stdin
+    std::string line;
+    std::string script_content;
+    while (std::getline(std::cin, line)) {
+      script_content += line + "\n";
+    }
+    
+    if (!script_content.empty()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Executing piped script content" << std::endl;
+      int code = g_shell ? g_shell->execute(script_content) : 1;
+      g_shell.reset();
+      return code;
+    }
+    
     g_shell.reset();
     return 0;
   }

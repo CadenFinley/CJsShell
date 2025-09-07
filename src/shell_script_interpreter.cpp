@@ -152,6 +152,13 @@ int ShellScriptInterpreter::execute_block(
           modified += " >> ";
           modified += path;
         }
+        
+        // Force pipeline execution to handle redirection properly
+        std::vector<Command> redirect_cmds = shell_parser->parse_pipeline(modified);
+        if (!redirect_cmds.empty()) {
+          int exit_code = g_shell->shell_exec->execute_pipeline(redirect_cmds);
+          return exit_code;
+        }
         return execute_simple_or_pipeline(modified);
       };
 
