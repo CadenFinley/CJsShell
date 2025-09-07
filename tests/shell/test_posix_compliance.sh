@@ -13,8 +13,12 @@ TOTAL=0
 PASSED=0
 FAILED=0
 
-# Shell to test
+# Shell to test, change this to test a different shell
 SHELL_TO_TEST="${1:-./build/cjsh}"
+#SHELL_TO_TEST="/usr/local/Cellar/fish/4.0.2/bin/fish"
+#SHELL_TO_TEST="/bin/zsh"
+#SHELL_TO_TEST="/bin/bash"
+#SHELL_TO_TEST="/usr/local/Cellar/bash/5.3.3/bin/bash"
 
 log_test() {
     TOTAL=$((TOTAL + 1))
@@ -310,7 +314,7 @@ fi
 
 # Test 29: Error redirection (2>)
 log_test "Error redirection (2>)"
-"$SHELL_TO_TEST" -c "echo error >&2 2> /tmp/error_test_$$" 2>/dev/null
+"$SHELL_TO_TEST" -c "echo error >&2" 2> "/tmp/error_test_$$"
 if [ -f "/tmp/error_test_$$" ] && [ "$(cat /tmp/error_test_$$)" = "error" ]; then
     pass
     rm -f "/tmp/error_test_$$"

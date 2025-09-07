@@ -13,6 +13,7 @@
 #include "cd_command.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "echo_command.h"
 #include "eval_command.h"
 #include "exit_command.h"
 #include "export_command.h"
@@ -20,6 +21,7 @@
 #include "history_command.h"
 #include "ls_command.h"
 #include "plugin_command.h"
+#include "printf_command.h"
 #include "prompt_test_command.h"
 #include "restart_command.h"
 #include "source_command.h"
@@ -37,6 +39,14 @@
 
 Built_ins::Built_ins()
       : builtins{
+            {"echo",
+             [](const std::vector<std::string>& args) {
+               return ::echo_command(args);
+             }},
+            {"printf",
+             [](const std::vector<std::string>& args) {
+               return ::printf_command(args);
+             }},
             {"cd",
              [this](const std::vector<std::string>& args) {
               return ::change_directory(args.size() > 1 ? args[1] : current_directory, current_directory, previous_directory, last_terminal_output_error);
