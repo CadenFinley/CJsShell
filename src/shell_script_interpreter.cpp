@@ -481,7 +481,7 @@ int ShellScriptInterpreter::execute_block(
       const auto& c = cmds[0];
       has_redir_or_pipe = c.background || !c.input_file.empty() ||
                           !c.output_file.empty() || !c.append_file.empty() ||
-                          c.stderr_to_stdout || !c.stderr_file.empty() || 
+                          c.stderr_to_stdout || !c.stderr_file.empty() ||
                           !c.here_doc.empty();
     }
 
@@ -542,7 +542,8 @@ int ShellScriptInterpreter::execute_block(
         // handled earlier)
         if (i + 1 < s.size() && s[i + 1] == '&') {
           cur += c;  // let logical splitter handle it; shouldn't happen here
-        } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() && std::isdigit(s[i + 1])) {
+        } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
+                   std::isdigit(s[i + 1])) {
           // This is a redirection like >&1 or 2>&1, not a background operator
           cur += c;
         } else {

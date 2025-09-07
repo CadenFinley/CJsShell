@@ -40,12 +40,8 @@ bool startup_test = false;
 }  // namespace config
 
 // to do
-//  spec out shell script interpreter
 //  local session history files, that combine into main one upon process close
-//  clean up code base
 //  rework ai system to always retrieve api key from envvar
-//  really learn rust
-//  learn nvim fr this time
 
 /*
  * Exit/Return Codes:
@@ -701,46 +697,6 @@ bool init_interactive_filesystem() {
   return true;
 }
 
-static void capture_profile_env(const std::string& profile_path) {
-  // wprk around until shell script interpreter is fully implemented
-  int pipefd[2];
-  if (pipe(pipefd) != 0) {
-    perror("pipe failed");
-    return;
-  }
-  pid_t pid = fork();
-  if (pid < 0) {
-    perror("fork failed");
-    close(pipefd[0]);
-    close(pipefd[1]);
-    return;
-  }
-  if (pid == 0) {
-    close(pipefd[0]);
-    dup2(pipefd[1], STDOUT_FILENO);
-    execlp("sh", "sh", "-c",
-           (std::string(". \"") + profile_path + "\"; env -0").c_str(),
-           (char*)NULL);
-    _exit(1);
-  }
-  close(pipefd[1]);
-  std::string data;
-  char buf[4096];
-  ssize_t n;
-  while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) data.append(buf, n);
-  close(pipefd[0]);
-  waitpid(pid, nullptr, 0);
-  for (size_t start = 0; start < data.size();) {
-    auto pos = data.find('\0', start);
-    if (pos == std::string::npos) break;
-    std::string entry = data.substr(start, pos - start);
-    auto eq = entry.find('=');
-    if (eq != std::string::npos)
-      ::setenv(entry.substr(0, eq).c_str(), entry.substr(eq + 1).c_str(), 1);
-    start = pos + 1;
-  }
-}
-
 void process_profile_startup_args() {
   // gather flags from profile file and add to g_startup_args if not already
   // present
@@ -926,7 +882,10 @@ void process_profile_file() {
   if (g_debug_mode) std::cerr << "DEBUG: Processing profile files" << std::endl;
   std::filesystem::path universal_profile = "/etc/profile";
   if (std::filesystem::exists(universal_profile)) {
-    capture_profile_env(universal_profile.string());
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Found universal profile: "
+                << universal_profile.string() << std::endl;
+    g_shell->execute("source " + universal_profile.string());
   }
   std::filesystem::path user_profile =
       cjsh_filesystem::g_user_home_path / ".profile";
@@ -934,7 +893,7 @@ void process_profile_file() {
     if (g_debug_mode)
       std::cerr << "DEBUG: Found user profile: " << user_profile.string()
                 << std::endl;
-    capture_profile_env(user_profile.string());
+    g_shell->execute("source " + user_profile.string());
   }
   if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
     create_profile_file();

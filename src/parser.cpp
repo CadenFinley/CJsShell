@@ -166,44 +166,47 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
 }
 
 // Post-process tokens to merge redirection operators
-std::vector<std::string> merge_redirection_tokens(const std::vector<std::string>& tokens) {
+std::vector<std::string> merge_redirection_tokens(
+    const std::vector<std::string>& tokens) {
   std::vector<std::string> result;
-  
+
   for (size_t i = 0; i < tokens.size(); ++i) {
     const std::string& token = tokens[i];
-    
+
     // Handle 2>&1, 2>>, 2> patterns
     if (token == "2" && i + 1 < tokens.size()) {
       if (tokens[i + 1] == ">&1") {
         result.push_back("2>&1");
-        i++; // skip next token
+        i++;  // skip next token
       } else if (tokens[i + 1] == ">>" || tokens[i + 1] == ">") {
         result.push_back("2" + tokens[i + 1]);
-        i++; // skip next token
+        i++;  // skip next token
       } else {
         result.push_back(token);
       }
     }
-    // Handle >>&1, >&1 patterns  
-    else if ((token == ">>" || token == ">") && i + 1 < tokens.size() && tokens[i + 1] == "&1") {
+    // Handle >>&1, >&1 patterns
+    else if ((token == ">>" || token == ">") && i + 1 < tokens.size() &&
+             tokens[i + 1] == "&1") {
       result.push_back(token + "&1");
-      i++; // skip next token
+      i++;  // skip next token
     }
     // Handle cases where 2>&1 might be split as "2" "&" "1"
-    else if (token == "2" && i + 2 < tokens.size() && tokens[i + 1] == "&" && tokens[i + 2] == "1") {
+    else if (token == "2" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
+             tokens[i + 2] == "1") {
       result.push_back("2>&1");
-      i += 2; // skip next two tokens
+      i += 2;  // skip next two tokens
     }
     // Handle cases where 2> might be split as "2" ">"
-    else if (token == "2" && i + 1 < tokens.size() && (tokens[i + 1] == ">" || tokens[i + 1] == ">>")) {
+    else if (token == "2" && i + 1 < tokens.size() &&
+             (tokens[i + 1] == ">" || tokens[i + 1] == ">>")) {
       result.push_back("2" + tokens[i + 1]);
-      i++; // skip next token  
-    }
-    else {
+      i++;  // skip next token
+    } else {
       result.push_back(token);
     }
   }
-  
+
   return result;
 }
 
@@ -226,7 +229,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       std::vector<std::string> alias_args;
 
       try {
-        std::vector<std::string> raw_alias_args = tokenize_command(alias_it->second);
+        std::vector<std::string> raw_alias_args =
+            tokenize_command(alias_it->second);
         alias_args = merge_redirection_tokens(raw_alias_args);
 
         if (!alias_args.empty()) {
@@ -429,7 +433,8 @@ void Parser::expand_env_vars(std::string& arg) {
       continue;
     }
     if (arg[i] == '$' && (i + 1 < arg.length()) &&
-        (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]) || arg[i + 1] == '?')) {
+        (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]) ||
+         arg[i + 1] == '?')) {
       in_var = true;
       var_name.clear();
       continue;
@@ -528,9 +533,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       cmd_part.erase(cmd_part.find_last_not_of(" \t\n\r") + 1);
     }
 
-  std::vector<std::string> raw_tokens = tokenize_command(cmd_part);
-  std::vector<std::string> tokens = merge_redirection_tokens(raw_tokens);
-  std::vector<std::string> filtered_args;  // may contain quote tags
+    std::vector<std::string> raw_tokens = tokenize_command(cmd_part);
+    std::vector<std::string> tokens = merge_redirection_tokens(raw_tokens);
+    std::vector<std::string> filtered_args;  // may contain quote tags
 
     for (size_t i = 0; i < tokens.size(); ++i) {
       const std::string tok = strip_quote_tag(tokens[i]);

@@ -399,14 +399,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     } else {
       pid_t pid = fork();
 
-  if (pid == -1) {
+      if (pid == -1) {
         set_error("cjsh: Failed to fork process: " +
                   std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
         return EX_OSERR;
       }
 
-  if (pid == 0) {
+      if (pid == 0) {
         pid_t child_pid = getpid();
         if (setpgid(child_pid, child_pid) < 0) {
           perror("setpgid failed in child");
@@ -446,14 +446,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDIN_FILENO) == -1) {
-            std::cerr << "cjsh: dup2 failed for stdin redirection: " << strerror(errno) << std::endl;
+            std::cerr << "cjsh: dup2 failed for stdin redirection: "
+                      << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
           close(fd);
         }
 
-  if (!cmd.output_file.empty()) {
+        if (!cmd.output_file.empty()) {
           int fd =
               open(cmd.output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
           if (fd == -1) {
@@ -462,14 +463,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDOUT_FILENO) == -1) {
-            std::cerr << "cjsh: dup2 failed for stdout redirection: " << strerror(errno) << std::endl;
+            std::cerr << "cjsh: dup2 failed for stdout redirection: "
+                      << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
           close(fd);
         }
 
-  if (!cmd.append_file.empty()) {
+        if (!cmd.append_file.empty()) {
           int fd = open(cmd.append_file.c_str(), O_WRONLY | O_CREAT | O_APPEND,
                         0644);
           if (fd == -1) {
@@ -478,20 +480,22 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDOUT_FILENO) == -1) {
-            std::cerr << "cjsh: dup2 failed for append redirection: " << strerror(errno) << std::endl;
+            std::cerr << "cjsh: dup2 failed for append redirection: "
+                      << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
           close(fd);
         }
-        
+
         // stderr redirections
         if (!cmd.stderr_file.empty()) {
-          int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+          int flags =
+              O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
           int fd = open(cmd.stderr_file.c_str(), flags, 0644);
           if (fd == -1) {
-            std::cerr << "cjsh: " << cmd.stderr_file << ": "
-                      << strerror(errno) << std::endl;
+            std::cerr << "cjsh: " << cmd.stderr_file << ": " << strerror(errno)
+                      << std::endl;
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDERR_FILENO) == -1) {
@@ -517,8 +521,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         _exit(127);
       }
 
-  // Parent branch
-  if (g_shell && !g_shell->get_interactive_mode()) {
+      // Parent branch
+      if (g_shell && !g_shell->get_interactive_mode()) {
         // In non-interactive mode (e.g., -c), wait synchronously for the child
         // and propagate its real exit status to avoid races with job control.
         int status = 0;
@@ -542,7 +546,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                                        std::to_string(exit_code));
         last_exit_code = exit_code;
         if (g_debug_mode) {
-          std::cerr << "DEBUG: execute_pipeline single-command (non-interactive) exit="
+          std::cerr << "DEBUG: execute_pipeline single-command "
+                       "(non-interactive) exit="
                     << last_exit_code << std::endl;
         }
         return last_exit_code;
@@ -561,12 +566,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         put_job_in_foreground(job_id, false);
 
         // If there were redirections, ensure file buffers are flushed
-        if (!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) {
+        if (!cmd.output_file.empty() || !cmd.append_file.empty() ||
+            !cmd.stderr_file.empty()) {
           sync();
         }
 
         if (g_debug_mode) {
-          std::cerr << "DEBUG: execute_pipeline single-command returning last_exit_code=" << last_exit_code << std::endl;
+          std::cerr << "DEBUG: execute_pipeline single-command returning "
+                       "last_exit_code="
+                    << last_exit_code << std::endl;
         }
         return last_exit_code;
       }
@@ -613,7 +621,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         return EX_OSERR;
       }
 
-  if (pid == 0) {
+      if (pid == 0) {
         if (i == 0) {
           pgid = getpid();
         }
@@ -696,11 +704,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         // Apply stderr redirections for every command in pipeline
         if (!cmd.stderr_file.empty()) {
-          int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+          int flags =
+              O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
           int fd = open(cmd.stderr_file.c_str(), flags, 0644);
           if (fd == -1) {
-            std::cerr << "cjsh: " << cmd.stderr_file << ": "
-                      << strerror(errno) << std::endl;
+            std::cerr << "cjsh: " << cmd.stderr_file << ": " << strerror(errno)
+                      << std::endl;
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDERR_FILENO) == -1) {
@@ -741,7 +750,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
       }
 
-  pids.push_back(pid);
+      pids.push_back(pid);
     }
 
     for (size_t i = 0; i < commands.size() - 1; i++) {
@@ -954,7 +963,7 @@ void Exec::wait_for_job(int job_id) {
   lock.lock();
 
   it = jobs.find(job_id);
-    if (it != jobs.end()) {
+  if (it != jobs.end()) {
     Job& job = it->second;
 
     if (job_stopped) {
@@ -966,22 +975,24 @@ void Exec::wait_for_job(int job_id) {
       job.stopped = false;
       job.status = status;
 
-        // Prefer exit status of the last command in pipeline if available.
-        // If the SIGCHLD handler already reaped the child, our local 'status'
-        // may be uninitialized (e.g., 0). In that case, fall back to the
-        // recorded job.last_status or job.status captured by the signal handler.
-        int final_status = saw_last ? last_status : status;
-        if (!(WIFEXITED(final_status) || WIFSIGNALED(final_status))) {
-          final_status = (job.last_status != 0) ? job.last_status : job.status;
-        }
-        job.last_status = final_status;
+      // Prefer exit status of the last command in pipeline if available.
+      // If the SIGCHLD handler already reaped the child, our local 'status'
+      // may be uninitialized (e.g., 0). In that case, fall back to the
+      // recorded job.last_status or job.status captured by the signal handler.
+      int final_status = saw_last ? last_status : status;
+      if (!(WIFEXITED(final_status) || WIFSIGNALED(final_status))) {
+        final_status = (job.last_status != 0) ? job.last_status : job.status;
+      }
+      job.last_status = final_status;
 
       if (WIFEXITED(final_status)) {
         int exit_status = WEXITSTATUS(final_status);
         last_exit_code = exit_status;
         job.completed = true;
         if (g_debug_mode) {
-          std::cerr << "DEBUG: wait_for_job setting last_exit_code=" << exit_status << " from final_status=" << final_status << std::endl;
+          std::cerr << "DEBUG: wait_for_job setting last_exit_code="
+                    << exit_status << " from final_status=" << final_status
+                    << std::endl;
         }
         if (exit_status == 0) {
           set_error("command completed successfully");
