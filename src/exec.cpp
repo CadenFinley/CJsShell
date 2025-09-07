@@ -438,7 +438,26 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         sigaddset(&set, SIGCHLD);
         sigprocmask(SIG_UNBLOCK, &set, nullptr);
 
-        if (!cmd.input_file.empty()) {
+        // Handle here document (create temp pipe)
+        if (!cmd.here_doc.empty()) {
+          int here_pipe[2];
+          if (pipe(here_pipe) == -1) {
+            perror("pipe for here document");
+            _exit(EXIT_FAILURE);
+          }
+          
+          // Write here document content to pipe
+          write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
+          write(here_pipe[1], "\n", 1);  // Add final newline
+          close(here_pipe[1]);
+          
+          if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
+            perror("dup2 here document");
+            close(here_pipe[0]);
+            _exit(EXIT_FAILURE);
+          }
+          close(here_pipe[0]);
+        } else if (!cmd.input_file.empty()) {
           int fd = open(cmd.input_file.c_str(), O_RDONLY);
           if (fd == -1) {
             std::cerr << "cjsh: " << cmd.input_file << ": " << strerror(errno)
@@ -507,6 +526,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         } else if (cmd.stderr_to_stdout) {
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
+            _exit(EXIT_FAILURE);
+          }
+        }
+        
+        // Handle stdout to stderr redirection (>&2)
+        if (cmd.stdout_to_stderr) {
+          if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
+            perror("dup2 >&2");
             _exit(EXIT_FAILURE);
           }
         }
@@ -644,7 +671,26 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         signal(SIGTTOU, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         if (i == 0) {
-          if (!cmd.input_file.empty()) {
+          // Handle here document for first command in pipeline
+          if (!cmd.here_doc.empty()) {
+            int here_pipe[2];
+            if (pipe(here_pipe) == -1) {
+              perror("pipe for here document");
+              _exit(EXIT_FAILURE);
+            }
+            
+            // Write here document content to pipe
+            write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
+            write(here_pipe[1], "\n", 1);  // Add final newline
+            close(here_pipe[1]);
+            
+            if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
+              perror("dup2 here document");
+              close(here_pipe[0]);
+              _exit(EXIT_FAILURE);
+            }
+            close(here_pipe[0]);
+          } else if (!cmd.input_file.empty()) {
             int fd = open(cmd.input_file.c_str(), O_RDONLY);
             if (fd == -1) {
               std::cerr << "cjsh: " << cmd.input_file << ": " << strerror(errno)
@@ -721,6 +767,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         } else if (cmd.stderr_to_stdout) {
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
+            _exit(EXIT_FAILURE);
+          }
+        }
+        
+        // Handle stdout to stderr redirection (>&2)
+        if (cmd.stdout_to_stderr) {
+          if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
+            perror("dup2 >&2");
             _exit(EXIT_FAILURE);
           }
         }

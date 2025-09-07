@@ -604,8 +604,9 @@ int ShellScriptInterpreter::execute_block(
       }
     }
 
-    // Use pipeline parser to capture redirections, background, and pipes
-    std::vector<Command> cmds = shell_parser->parse_pipeline(text);
+    // Use enhanced pipeline parser with preprocessing to handle here docs and subshells
+    std::vector<Command> cmds = shell_parser->parse_pipeline_with_preprocessing(text);
+    
     bool has_redir_or_pipe = cmds.size() > 1;
     if (!has_redir_or_pipe && !cmds.empty()) {
       const auto& c = cmds[0];
