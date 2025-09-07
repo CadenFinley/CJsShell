@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "cjsh.h"
 
@@ -31,4 +32,6 @@ class ShellScriptInterpreter {
  private:
   DebugLevel debug_level;
   Parser* shell_parser = nullptr;
+  // Simple function registry: name -> body lines
+  std::unordered_map<std::string, std::vector<std::string>> functions;
 };

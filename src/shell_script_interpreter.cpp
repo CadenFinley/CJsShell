@@ -606,7 +606,18 @@ int ShellScriptInterpreter::execute_block(
         // Update STATUS environment variable for $? expansion
         setenv("STATUS", std::to_string(exit_code).c_str(), 1);
         return exit_code;
-      } else {
+      } else if (!c.args.empty() && c.args[0] == "sh" && c.args.size() >= 2 && c.args[1] == "-c") {
+        // Already converted to sh -c by preprocessing
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Executing preprocessed grouped command: ";
+          for (const auto& a : c.args) std::cerr << "[" << a << "]";
+          if (c.background) std::cerr << " &";
+          std::cerr << std::endl;
+        }
+        int exit_code = g_shell->execute_command(c.args, c.background);
+        setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+        return exit_code;
+  } else {
         // Re-parse the original text to apply alias/env/brace/tilde expansions
         // parse_command performs alias expansion while parse_pipeline does not.
         std::vector<std::string> expanded_args =
@@ -1423,33 +1434,64 @@ int ShellScriptInterpreter::execute_block(
 
     // Function definition: name() { ... }
     if (line.find("()") != std::string::npos && line.find("{") != std::string::npos) {
-      // Simple function definition detection
-      size_t paren_pos = line.find("()");
+      size_t name_end = line.find("()");
       size_t brace_pos = line.find("{");
-      if (paren_pos < brace_pos) {
-        std::string func_name = trim(line.substr(0, paren_pos));
-        
-        // Check if function name is valid (no spaces, not empty)
+      if (name_end != std::string::npos && brace_pos != std::string::npos && name_end < brace_pos) {
+        std::string func_name = trim(line.substr(0, name_end));
         if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
-          // This looks like a function definition
-          // For now, just skip it with a warning since function implementation is complex
-          if (g_debug_mode)
-            std::cerr << "DEBUG: Function definition '" << func_name 
-                      << "' detected but not implemented" << std::endl;
-          
-          // Skip to the closing brace
-          if (line.find("}") != std::string::npos) {
-            // Single line function - just ignore it
-            continue;
-          } else {
-            // Multi-line function - skip until closing brace
-            while (++line_index < lines.size()) {
-              std::string func_line = trim(strip_inline_comment(lines[line_index]));
-              if (func_line.find("}") != std::string::npos) {
+          // Collect body including multiline until matching '}'
+          std::vector<std::string> body_lines;
+          bool handled_single_line = false;
+          std::string after_brace = trim(line.substr(brace_pos + 1));
+          if (!after_brace.empty()) {
+            // Check if the closing brace is on the same line
+            size_t end_brace = after_brace.find('}');
+            if (end_brace != std::string::npos) {
+              std::string body_part = trim(after_brace.substr(0, end_brace));
+              if (!body_part.empty()) body_lines.push_back(body_part);
+              // register function and continue
+              functions[func_name] = body_lines;
+              if (g_debug_mode)
+                std::cerr << "DEBUG: Defined function '" << func_name << "' (single-line)" << std::endl;
+              // If there's trailing content after the closing '}', process it now
+              std::string remainder = trim(after_brace.substr(end_brace + 1));
+              if (!remainder.empty()) {
+                // Replace current line with the remainder and fall through
+                line = remainder;
+              }
+              handled_single_line = true;
+            } else if (!after_brace.empty()) {
+              body_lines.push_back(after_brace);
+            }
+          }
+          if (!handled_single_line) {
+            // Multiline: gather until closing '}' with simple depth tracking
+            int depth = 1;
+            while (++line_index < lines.size() && depth > 0) {
+              std::string func_line_raw = lines[line_index];
+              std::string func_line = trim(strip_inline_comment(func_line_raw));
+              for (char ch : func_line) {
+                if (ch == '{') depth++;
+                else if (ch == '}') depth--;
+              }
+              if (depth <= 0) {
+                // remove any trailing content before final '}'
+                size_t pos = func_line.find('}');
+                if (pos != std::string::npos) {
+                  std::string before = trim(func_line.substr(0, pos));
+                  if (!before.empty()) body_lines.push_back(before);
+                }
                 break;
+              } else if (!func_line.empty()) {
+                body_lines.push_back(func_line_raw);
               }
             }
+            functions[func_name] = body_lines;
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Defined function '" << func_name << "' with " << body_lines.size() << " lines" << std::endl;
             continue;
+          } else {
+            // Already registered single-line function; proceed to parse the remainder in 'line'
           }
         }
       }
@@ -1669,7 +1711,27 @@ int ShellScriptInterpreter::execute_block(
               break;
             }
           }
-          int code = execute_simple_or_pipeline(cmd_text);
+          // Detect function invocation: first token matches defined function
+          int code = 0;
+          {
+            std::vector<std::string> first_toks = shell_parser->parse_command(cmd_text);
+            if (!first_toks.empty() && functions.count(first_toks[0])) {
+              // Set positional params as environment variables $1..$9 minimally
+              // Save originals to restore after
+              std::vector<std::string> param_names;
+              for (size_t pi = 1; pi < first_toks.size() && pi <= 9; ++pi) {
+                std::string name = std::to_string(pi);
+                param_names.push_back(name);
+                setenv(name.c_str(), first_toks[pi].c_str(), 1);
+              }
+              // Execute function body
+              code = execute_block(functions[first_toks[0]]);
+              // Restore positional params (unset)
+              for (const auto& n : param_names) unsetenv(n.c_str());
+            } else {
+              code = execute_simple_or_pipeline(cmd_text);
+            }
+          }
           last_code = code;
           if (code != 0 && debug_level >= DebugLevel::BASIC) {
             std::cerr << "DEBUG: Command failed (" << code << ") -> '"
