@@ -252,7 +252,7 @@ int main(int argc, char* argv[]) {
       std::cerr << "DEBUG: Executing -c via Shell::execute: "
                 << config::cmd_to_execute << std::endl;
     }
-    
+
     // The preprocessing is now handled in the parser layer
     int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
     g_shell.reset();

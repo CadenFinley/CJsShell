@@ -29,7 +29,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
   for (size_t i = 0; i < script.size(); ++i) {
     char c = script[i];
-    
+
     if (in_here_doc) {
       if (c == '\n') {
         // Check if this line is the delimiter
@@ -37,7 +37,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         // Trim whitespace
         trimmed_line.erase(0, trimmed_line.find_first_not_of(" \t"));
         trimmed_line.erase(trimmed_line.find_last_not_of(" \t\r") + 1);
-        
+
         if (trimmed_line == here_doc_delimiter) {
           // End of here document - reconstruct the command with content
           std::string segment = script.substr(start, i - start);
@@ -49,18 +49,21 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           if (here_pos != std::string::npos) {
             std::string before_here = segment.substr(0, here_pos + 2);
             // Create a temporary content marker that will be processed later
-            segment = before_here + " __HEREDOC_CONTENT__" + std::to_string(lines.size());
+            segment = before_here + " __HEREDOC_CONTENT__" +
+                      std::to_string(lines.size());
           }
-          
+
           // Store the here document content in a special way
-          std::string content_line = "__HEREDOC_DATA__" + std::to_string(lines.size()) + "__" + here_doc_content;
+          std::string content_line = "__HEREDOC_DATA__" +
+                                     std::to_string(lines.size()) + "__" +
+                                     here_doc_content;
           lines.push_back(content_line);
-          
+
           if (!segment.empty() && segment.back() == '\r') {
             segment.pop_back();
           }
           lines.push_back(segment);
-          
+
           in_here_doc = false;
           here_doc_delimiter.clear();
           here_doc_content.clear();
@@ -78,7 +81,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
       }
       continue;
     }
-    
+
     if (!in_quotes && (c == '"' || c == '\'')) {
       in_quotes = true;
       quote_char = c;
@@ -93,23 +96,26 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         if (here_pos != std::string::npos) {
           // Extract delimiter
           size_t delim_start = here_pos + 2;
-          while (delim_start < segment.size() && std::isspace(segment[delim_start])) {
+          while (delim_start < segment.size() &&
+                 std::isspace(segment[delim_start])) {
             delim_start++;
           }
           size_t delim_end = delim_start;
-          while (delim_end < segment.size() && !std::isspace(segment[delim_end])) {
+          while (delim_end < segment.size() &&
+                 !std::isspace(segment[delim_end])) {
             delim_end++;
           }
           if (delim_start < delim_end) {
-            here_doc_delimiter = segment.substr(delim_start, delim_end - delim_start);
+            here_doc_delimiter =
+                segment.substr(delim_start, delim_end - delim_start);
             in_here_doc = true;
             here_doc_content.clear();
             current_here_doc_line.clear();
-            continue; // Don't process this as a regular line yet
+            continue;  // Don't process this as a regular line yet
           }
         }
       }
-      
+
       // Extract line [start, i) - regular line processing
       if (!segment.empty() && segment.back() == '\r') {
         segment.pop_back();
@@ -127,7 +133,8 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
       }
       lines.push_back(tail);
     } else if (!tail.empty()) {
-      // Even if still in quotes or here doc (unterminated), push remainder as a line
+      // Even if still in quotes or here doc (unterminated), push remainder as a
+      // line
       if (!tail.empty() && tail.back() == '\r') {
         tail.pop_back();
       }
@@ -263,7 +270,7 @@ std::vector<std::string> merge_redirection_tokens(
         result.push_back(token);
       }
     }
-    // Handle >>&1, >&1, >&2 patterns  
+    // Handle >>&1, >&1, >&2 patterns
     else if ((token == ">>" || token == ">") && i + 1 < tokens.size() &&
              (tokens[i + 1] == "&1" || tokens[i + 1] == "&2")) {
       result.push_back(token + tokens[i + 1]);
@@ -631,30 +638,32 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         // This is a subshell command - treat it specially
         std::string subshell_content = cmd_part.substr(1, close_paren - 1);
         std::string remaining = cmd_part.substr(close_paren + 1);
-        
+
         // Create a special command that represents the subshell
         cmd.args.push_back("sh");
         cmd.args.push_back("-c");
         cmd.args.push_back(subshell_content);
-        
+
         // Parse any redirection that comes after the subshell
         if (!remaining.empty()) {
           std::vector<std::string> redir_tokens = tokenize_command(remaining);
-          std::vector<std::string> merged_redir = merge_redirection_tokens(redir_tokens);
-          
+          std::vector<std::string> merged_redir =
+              merge_redirection_tokens(redir_tokens);
+
           for (size_t i = 0; i < merged_redir.size(); ++i) {
             const std::string tok = strip_quote_tag(merged_redir[i]);
             if (tok == "2>&1") {
               cmd.stderr_to_stdout = true;
             } else if (tok == ">&2") {
               cmd.stdout_to_stderr = true;
-            } else if ((tok == "2>" || tok == "2>>") && i + 1 < merged_redir.size()) {
+            } else if ((tok == "2>" || tok == "2>>") &&
+                       i + 1 < merged_redir.size()) {
               cmd.stderr_file = strip_quote_tag(merged_redir[++i]);
               cmd.stderr_append = (tok == "2>>");
             }
           }
         }
-        
+
         commands.push_back(cmd);
         continue;
       }
@@ -677,8 +686,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         // Check if this is a special here document content marker
         if (delimiter.find("__HEREDOC_CONTENT__") == 0) {
           // Extract the line number and find the corresponding content
-          std::string line_num = delimiter.substr(19); // after "__HEREDOC_CONTENT__"
-          cmd.here_doc = delimiter; // Store the marker for now
+          std::string line_num =
+              delimiter.substr(19);  // after "__HEREDOC_CONTENT__"
+          cmd.here_doc = delimiter;  // Store the marker for now
         } else {
           cmd.here_doc = delimiter;
         }
@@ -737,34 +747,37 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   return commands;
 }
 
-std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string& command) {
+std::vector<Command> Parser::parse_pipeline_with_preprocessing(
+    const std::string& command) {
   // Use the new preprocessor to handle complex cases
   auto preprocessed = CommandPreprocessor::preprocess(command);
-  
+
   // Store here document context for this parsing session
   current_here_docs = preprocessed.here_documents;
-  
+
   // Parse the preprocessed command normally
   std::vector<Command> commands = parse_pipeline(preprocessed.processed_text);
-  
+
   // Resolve any here document placeholders in the commands
   for (auto& cmd : commands) {
     // Check if input_file is actually a here document placeholder
-    if (!cmd.input_file.empty() && cmd.input_file.find("HEREDOC_PLACEHOLDER_") == 0) {
+    if (!cmd.input_file.empty() &&
+        cmd.input_file.find("HEREDOC_PLACEHOLDER_") == 0) {
       auto it = current_here_docs.find(cmd.input_file);
       if (it != current_here_docs.end()) {
         // Move from input_file to here_doc
         cmd.here_doc = it->second;
-        cmd.input_file.clear(); // Clear the placeholder
+        cmd.input_file.clear();  // Clear the placeholder
       }
     }
-    
-    // Also check the here_doc field for placeholders (in case of direct parsing)
+
+    // Also check the here_doc field for placeholders (in case of direct
+    // parsing)
     if (!cmd.here_doc.empty() && current_here_docs.count(cmd.here_doc)) {
       cmd.here_doc = current_here_docs[cmd.here_doc];
     }
   }
-  
+
   return commands;
 }
 

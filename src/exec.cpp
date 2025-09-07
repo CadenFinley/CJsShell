@@ -445,12 +445,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             perror("pipe for here document");
             _exit(EXIT_FAILURE);
           }
-          
+
           // Write here document content to pipe
           write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
           write(here_pipe[1], "\n", 1);  // Add final newline
           close(here_pipe[1]);
-          
+
           if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
             perror("dup2 here document");
             close(here_pipe[0]);
@@ -529,7 +529,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
         }
-        
+
         // Handle stdout to stderr redirection (>&2)
         if (cmd.stdout_to_stderr) {
           if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
@@ -678,12 +678,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               perror("pipe for here document");
               _exit(EXIT_FAILURE);
             }
-            
+
             // Write here document content to pipe
             write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
             write(here_pipe[1], "\n", 1);  // Add final newline
             close(here_pipe[1]);
-            
+
             if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
               perror("dup2 here document");
               close(here_pipe[0]);
@@ -770,7 +770,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
         }
-        
+
         // Handle stdout to stderr redirection (>&2)
         if (cmd.stdout_to_stderr) {
           if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
