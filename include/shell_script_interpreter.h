@@ -17,50 +17,18 @@ class ShellScriptInterpreter {
   ShellScriptInterpreter();
   ~ShellScriptInterpreter();
 
-  bool execute_script(const std::string& filename);
-
-  bool execute_line(const std::string& line);
-
-  bool execute_block(const std::vector<std::string>& lines);
-
-  void set_command_executor(
-      std::function<bool(const std::string&, bool)> executor);
-
   void set_debug_level(DebugLevel level);
   DebugLevel get_debug_level() const;
-  void debug_print(const std::string& message,
-                   DebugLevel level = DebugLevel::BASIC) const;
-  void dump_variables() const;
 
- private:
-  bool parse_conditional(std::vector<std::string>::iterator& it,
-                         const std::vector<std::string>::const_iterator& end);
-  bool parse_loop(std::vector<std::string>::iterator& it,
-                  const std::vector<std::string>::const_iterator& end);
-  bool evaluate_condition(const std::string& condition);
-  bool process_startup_argument(const std::string& line);
+  // Provide parser dependency explicitly to avoid relying on global g_shell
+  void set_parser(Parser* parser) { this->shell_parser = parser; }
 
-  std::string expand_variables(const std::string& str);
-  std::string execute_command_substitution(const std::string& cmd);
+  int execute_block(const std::vector<std::string>& lines);
+  std::vector<std::string> parse_into_lines(const std::string& script) {
+    return shell_parser->parse_into_lines(script);
+  }
 
-  std::string trim_string(const std::string& str);
-  std::vector<std::string> split_command(const std::string& cmd);
-
-  bool handle_debug_command(const std::string& command);
-  std::string escape_debug_string(const std::string& input) const;
-
-  bool handle_path_helper();
-
-  std::string capture_command_output(const std::string& cmd);
-
-  std::map<std::string, std::string> local_variables;
-  std::function<bool(const std::string&, bool)> command_executor;
-  bool in_then_block;
-
-  DebugLevel debug_level;
-  bool show_command_output;
-  int debug_indent_level;
-  mutable int cached_indent_level;
-  mutable std::string cached_indentation;
-  std::string get_indentation() const;
+  private:
+    DebugLevel debug_level;
+    Parser* shell_parser = nullptr;
 };

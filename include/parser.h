@@ -25,6 +25,8 @@ struct LogicalCommand {
 
 class Parser {
  public:
+  std::vector<std::string> parse_into_lines(const std::string& scripts);
+
   std::vector<std::string> parse_command(const std::string& cmdline);
   std::vector<Command> parse_pipeline(const std::string& command);
   std::vector<std::string> expand_wildcards(const std::string& pattern);

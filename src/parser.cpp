@@ -14,6 +14,40 @@
 
 #include "cjsh.h"
 
+
+std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
+ // Split command string on unquoted semicolons into script lines
+    std::vector<std::string> lines;
+    {
+      size_t start = 0;
+      bool in_quotes = false;
+      char quote_char = '\0';
+      for (size_t i = 0; i < script.size(); ++i) {
+        char c = script[i];
+        if (!in_quotes && (c == '"' || c == '\'')) {
+          in_quotes = true;
+          quote_char = c;
+        } else if (in_quotes && c == quote_char) {
+          in_quotes = false;
+        } else if (!in_quotes && (c == ';' || c == '&')) {
+          // split on semicolon or background operator
+          std::string segment = script.substr(start, i - start);
+          if (c == '&') {
+            // preserve & for background execution
+            segment.push_back('&');
+          }
+          lines.push_back(segment);
+          start = i + 1;
+        }
+      }
+      if (start < script.size()) {
+        lines.push_back(script.substr(start));
+      }
+    }
+
+  return lines;
+}
+
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
   std::vector<std::string> tokens;
   std::string current_token;

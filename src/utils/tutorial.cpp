@@ -108,7 +108,7 @@ bool tutorial_input(const std::string& expected_input,
         return false;
       }
       if (strcmp(input, expected_input.c_str()) == 0) {
-        g_shell->execute_command(input);
+        g_shell->execute(input);
         free(input);
         return true;
       } else {

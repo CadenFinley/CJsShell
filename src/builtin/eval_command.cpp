@@ -26,7 +26,7 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
   }
 
   if (shell) {
-    int result = shell->execute_command(command_to_eval);
+    int result = shell->execute(command_to_eval);
     if (g_debug_mode) {
       std::cerr << "DEBUG: eval command returned: " << result << std::endl;
     }

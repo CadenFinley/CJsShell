@@ -26,7 +26,11 @@ class Shell {
   Shell(bool login_mode = false);
   ~Shell();
 
-  int execute_command(std::string command);
+  // High-level entry: treat any string as a shell script line and execute via the
+  // script interpreter (supports semicolons, conditionals, etc.). Returns last exit code.
+  int execute(const std::string& script);
+
+  int execute_command(std::vector<std::string> args, bool run_in_background = false);
   int do_ai_request(const std::string& command);
   void process_pending_signals();
 
@@ -98,6 +102,9 @@ class Shell {
   ShellScriptInterpreter* get_shell_script_interpreter() { return shell_script_interpreter; }
 
   Built_ins* built_ins = nullptr;
+  Parser* shell_parser = nullptr;
+
+  Parser* get_parser() { return shell_parser; }
 
  private:
   bool interactive_mode = false;
@@ -113,7 +120,6 @@ class Shell {
   std::unique_ptr<Prompt> shell_prompt;
   std::unique_ptr<SignalHandler> signal_handler;
   ShellScriptInterpreter* shell_script_interpreter = nullptr;
-  Parser* shell_parser = nullptr;
 
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;

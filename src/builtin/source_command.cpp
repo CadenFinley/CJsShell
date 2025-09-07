@@ -13,7 +13,9 @@ int source_command(const std::vector<std::string>& args) {
     }
     
     if (g_shell && g_shell->get_shell_script_interpreter()) {
-        return g_shell->get_shell_script_interpreter()->execute_script(args[1]) ? 0 : 1;
+        //return g_shell->get_shell_script_interpreter()->execute_script(args[1]) ? 0 : 1;
+        std::cout << " currently disabled" << std::endl;
+        return 0;
     } else {
         std::cerr << "Script interpreter not available" << std::endl;
         return 1;

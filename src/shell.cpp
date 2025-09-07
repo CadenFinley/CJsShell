@@ -27,6 +27,10 @@ Shell::Shell(bool login_mode) {
   built_ins = new Built_ins();
 
   shell_script_interpreter = new ShellScriptInterpreter();
+  // Provide the parser to the script interpreter now that it exists
+  if (shell_script_interpreter && shell_parser) {
+    shell_script_interpreter->set_parser(shell_parser);
+  }
   built_ins->set_shell(this);
   built_ins->set_current_directory();
   this->login_mode = login_mode;
@@ -47,6 +51,34 @@ Shell::~Shell() {
   delete shell_script_interpreter;
   shell_exec->terminate_all_child_process();
   restore_terminal_state();
+}
+
+int Shell::execute(const std::string& script) {
+  last_command = script;
+  std::vector<std::string> lines;
+
+  lines = shell_parser->parse_into_lines(script);
+
+  // print all lines
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Executing script with " << lines.size()
+              << " lines:" << std::endl;
+    for (size_t i = 0; i < lines.size(); i++) {
+      std::cerr << "DEBUG:   Line " << (i + 1) << ": " << lines[i]
+                << std::endl;
+    }
+  }
+
+  // so now we have a series of lines basically a pseudo script
+  // so now we need to create a script interpreter and execute the block
+  if (shell_script_interpreter) {
+    return shell_script_interpreter->execute_block(lines);
+  } else {
+    std::cerr << "Error: No script interpreter available" << std::endl;
+    last_exit_code = 1;
+  }
+
+  return last_exit_code;
 }
 
 void Shell::setup_signal_handlers() {
@@ -118,7 +150,7 @@ void Shell::setup_job_control() {
 
 int Shell::do_ai_request(const std::string& command) {
   if (command == "exit" || command == "clear" || command == "quit") {
-    return execute_command(command);
+  return execute(command);
   }
   std::string first_word;
   std::istringstream iss(command);
@@ -150,7 +182,7 @@ int Shell::do_ai_request(const std::string& command) {
       std::getline(std::cin, response);
 
       if (!response.empty() && (response[0] == 'y' || response[0] == 'Y')) {
-        return execute_command(command);
+  return execute(command);
       }
     }
   }
@@ -158,115 +190,27 @@ int Shell::do_ai_request(const std::string& command) {
   return built_ins->do_ai_request(command);
 }
 
-int Shell::execute_command(std::string command) {
+int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Executing command: '" << command << std::endl;
-  if (!get_menu_active() && command.empty()) {
-    set_menu_active(true);
-    return 0;
-  }
-  if (command.empty()) {
-    return 0;
-  }
-  if (command[0] == '#') {
-    return 0;
-  }
-  if (!shell_exec || !shell_parser || !built_ins || !shell_script_interpreter) {
-    return 1;
-  }
+    std::cerr << "DEBUG: Executing command: '" << args[0] << "'" << std::endl;
 
-  while (!command.empty() && std::isspace(command.back())) {
-    command.pop_back();
+  if (args.empty()) {
+  last_exit_code = 0;
+  return last_exit_code;
   }
-
-  bool run_in_background = false;
-  if (!command.empty() && command.back() == '&') {
-    run_in_background = true;
-    command.pop_back();
-    while (!command.empty() && std::isspace(command.back())) {
-      command.pop_back();
-    }
-  }
-
-  if (command.empty()) {
-    return 0;
-  }
-
-  if (menu_active && command.find('\n') != std::string::npos) {
-    for (size_t i = 0; i < command.size(); ++i) {
-      if (command[i] == '\n') {
-        command[i] = ';';
-      }
-    }
-  }
-
-  std::vector<std::string> args = shell_parser->parse_command(command);
-
-  // handle semicolon separated commands
-  if (command.find(';') != std::string::npos) {
-    std::vector<std::string> cmds =
-        shell_parser->parse_semicolon_commands(command);
-    int exit_code = 0;
-    for (const auto& cmd : cmds) {
-      exit_code = execute_command(cmd);
-    }
-    return exit_code;
-  }
-
-  // handle <>="" env var assignments
-  std::string var_name, var_value;
-  if (shell_parser->is_env_assignment(command, var_name, var_value)) {
-    env_vars[var_name] = var_value;
-    shell_parser->set_env_vars(env_vars);
-    last_terminal_output_error = "Variable set successfully";
-    last_command = command;
-    return 0;
-  }
-
-  // handle logical operators
-  if (command.find("&&") != std::string::npos ||
-      command.find("||") != std::string::npos) {
-    auto logical_commands = shell_parser->parse_logical_commands(command);
-    bool prev_success = true;
-    int exit_code = 0;
-    for (size_t i = 0; i < logical_commands.size(); ++i) {
-      const auto& segment = logical_commands[i];
-      if (i > 0) {
-        const std::string& prev_op = logical_commands[i - 1].op;
-        if ((prev_op == "&&" && !prev_success) ||
-            (prev_op == "||" && prev_success)) {
-          break;
-        }
-      }
-      exit_code = execute_command(segment.command);
-      prev_success = (exit_code == 0);
-    }
-    last_command = command;
-    last_terminal_output_error =
-        prev_success ? "command completed successfully" : "command failed";
-    return exit_code;
-  }
-
-  // handle shell script constructs
-  if (command.find('<') != std::string::npos ||
-      command.find('>') != std::string::npos ||
-      command.find('|') != std::string::npos) {
-    auto pipeline = shell_parser->parse_pipeline(command);
-    if (run_in_background && !pipeline.empty()) {
-      pipeline.back().background = true;
-    }
-    int result = shell_exec->execute_pipeline(pipeline);
-    last_terminal_output_error = shell_exec->get_error();
-    last_command = command + (run_in_background ? " &" : "");
-    return result;
+  if (!shell_exec || !built_ins) {
+  last_exit_code = 1;
+  g_exit_flag = true;
+  std::cerr << "Error: Shell not properly initialized" << std::endl;
+  return last_exit_code;
   }
 
   // run built in command
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     int code = built_ins->builtin_command(args);
     last_terminal_output_error = built_ins->get_last_error();
-    last_command = command + (run_in_background ? " &" : "");
-    return code;
+  last_exit_code = code;
+  return last_exit_code;
   }
 
   // run plugin command
@@ -288,13 +232,13 @@ int Shell::execute_command(std::string command) {
   if (run_in_background) {
     shell_exec->execute_command_async(args);
     last_terminal_output_error = "Background command launched";
-    last_command = command + (run_in_background ? " &" : "");
-    return 0;
+  last_exit_code = 0;
+  return last_exit_code;
   } else {
     shell_exec->execute_command_sync(args);
     last_terminal_output_error = shell_exec->get_error();
-    last_command = command + (run_in_background ? " &" : "");
-    return shell_exec->get_exit_code();
+  last_exit_code = shell_exec->get_exit_code();
+  return last_exit_code;
   }
 }
 

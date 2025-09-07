@@ -242,46 +242,13 @@ int main(int argc, char* argv[]) {
   } else if (config::check_update) {  // -u --update
     execute_update_if_available(check_for_update());
   } else if (config::execute_command) {  // -c --command
-    // Execute -c via CJSH's native script interpreter (no external /bin/sh)
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Executing -c command in script interpreter: "
+      std::cerr << "DEBUG: Executing -c via Shell::execute: "
                 << config::cmd_to_execute << std::endl;
     }
-    // Split command string on unquoted semicolons into script lines
-    std::vector<std::string> lines;
-    {
-      const std::string& script = config::cmd_to_execute;
-      size_t start = 0;
-      bool in_quotes = false;
-      char quote_char = '\0';
-      for (size_t i = 0; i < script.size(); ++i) {
-        char c = script[i];
-        if (!in_quotes && (c == '"' || c == '\'')) {
-          in_quotes = true;
-          quote_char = c;
-        } else if (in_quotes && c == quote_char) {
-          in_quotes = false;
-        } else if (!in_quotes && (c == ';' || c == '&')) {
-          // split on semicolon or background operator
-          std::string segment = script.substr(start, i - start);
-          if (c == '&') {
-            // preserve & for background execution
-            segment.push_back('&');
-          }
-          lines.push_back(segment);
-          start = i + 1;
-        }
-      }
-      if (start < script.size()) {
-        lines.push_back(script.substr(start));
-      }
-    }
-    bool success = false;
-    if (g_shell && g_shell->get_shell_script_interpreter()) {
-      success = g_shell->get_shell_script_interpreter()->execute_block(lines);
-    }
+    int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
     g_shell.reset();
-    return success ? 0 : 1;
+    return code;
   }
 
   if (!config::interactive_mode && !config::force_interactive) {
@@ -492,11 +459,11 @@ void main_process_loop() {
 
           // process the command
           if (g_shell->get_menu_active()) {
-            status_str = std::to_string(g_shell->execute_command(command));
+            status_str = std::to_string(g_shell->execute(command));
           } else {
             if (command[0] == ':') {
               command.erase(0, 1);
-              status_str = std::to_string(g_shell->execute_command(command));
+              status_str = std::to_string(g_shell->execute(command));
             } else {
               status_str = std::to_string(g_shell->do_ai_request(command));
             }
@@ -976,7 +943,7 @@ void process_profile_file() {
 
   process_profile_startup_args();
 
-  g_shell->execute_command("source " +
+  g_shell->execute("source " +
                            cjsh_filesystem::g_cjsh_profile_path.string());
 }
 
@@ -986,7 +953,7 @@ void process_source_file() {
     create_source_file();
     return;
   }
-  g_shell->execute_command("source " +
+  g_shell->execute("source " +
                            cjsh_filesystem::g_cjsh_source_path.string());
 }
 
