@@ -41,6 +41,8 @@ endif()
 file(GLOB_RECURSE SOURCES 
   "src/*.cpp" 
   "src/*.c" 
+  "src/builtin/*.cpp" 
+  "src/builtin/*.c" 
   "src/builtins/*.cpp" 
   "src/builtins/*.c" 
   "src/utils/*.cpp" 

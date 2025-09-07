@@ -741,8 +741,11 @@ int ShellScriptInterpreter::execute_block(
       return 1;
     }
 
-    int cond_rc =
-        cond_accum.empty() ? 1 : execute_simple_or_pipeline(cond_accum);
+    // Execute condition with output suppressed
+    int cond_rc = 1;
+    if (!cond_accum.empty()) {
+      cond_rc = execute_simple_or_pipeline(cond_accum);
+    }
 
     // If '; then' was on the same line, check if it's a complete inline statement
     if (pos != std::string::npos) {
@@ -1044,7 +1047,10 @@ int ShellScriptInterpreter::execute_block(
     int guard = 0;
     const int GUARD_MAX = 100000;
     while (true) {
-      int c = cond.empty() ? 0 : execute_simple_or_pipeline(cond);
+      int c = 0;
+      if (!cond.empty()) {
+        c = execute_simple_or_pipeline(cond);
+      }
       if (c != 0) break;
       rc = execute_block(body_lines);
       if (rc != 0) break;
@@ -1266,7 +1272,10 @@ int ShellScriptInterpreter::execute_block(
               int guard = 0;
               const int GUARD_MAX = 100000;
               while (true) {
-                int cnd = cond.empty() ? 0 : execute_simple_or_pipeline(cond);
+                int cnd = 0;
+                if (!cond.empty()) {
+                  cnd = execute_simple_or_pipeline(cond);
+                }
                 if (cnd != 0) break;
                 auto cmds2 =
                     shell_parser->parse_semicolon_commands(body_inline);

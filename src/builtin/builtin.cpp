@@ -23,6 +23,7 @@
 #include "prompt_test_command.h"
 #include "restart_command.h"
 #include "source_command.h"
+#include "test_command.h"
 #include "theme_command.h"
 #include "uninstall_command.h"
 #include "user_command.h"
@@ -134,6 +135,14 @@ Built_ins::Built_ins()
              [](const std::vector<std::string>& args) {
                extern int prompt_test_command(const std::vector<std::string>&);
                return prompt_test_command(args);
+             }},
+            {"test",
+             [](const std::vector<std::string>& args) {
+               return ::test_command(args);
+             }},
+            {"[",
+             [](const std::vector<std::string>& args) {
+               return ::test_command(args);
              }},
         },
         shell(nullptr) {}

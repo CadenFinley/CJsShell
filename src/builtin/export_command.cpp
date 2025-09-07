@@ -32,23 +32,19 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
       setenv(name.c_str(), value.c_str(), 1);
 
-      if (shell && shell->get_login_mode()) {
-        save_env_var_to_file(name, value, shell->get_login_mode());
-      } else if (g_debug_mode) {
-        std::cout << "Note: Environment variable set for this session only "
-                     "(not in login mode)"
-                  << std::endl;
-      }
-
       if (g_debug_mode) {
         std::cout << "Set environment variable: " << name << "='" << value
                   << "'" << std::endl;
       }
     } else {
+      // Just export the existing variable (make it available to child processes)
       const char* env_val = getenv(args[i].c_str());
       if (env_val) {
-        std::cout << "export " << args[i] << "='" << env_val << "'"
-                  << std::endl;
+        // Variable exists, just mark it for export (it's already exported via setenv)
+        env_vars[args[i]] = env_val;
+        if (g_debug_mode) {
+          std::cout << "Exported existing variable: " << args[i] << "='" << env_val << "'" << std::endl;
+        }
       } else {
         PRINT_ERROR("export: " + args[i] + ": not found");
         all_successful = false;
@@ -82,10 +78,6 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
                   strerror(errno));
       success = false;
     } else {
-      if (shell && shell->get_login_mode()) {
-        remove_env_var_from_file(name, shell->get_login_mode());
-      }
-
       if (g_debug_mode) {
         std::cout << "Unset environment variable: " << name << std::endl;
       }
