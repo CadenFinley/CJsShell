@@ -8,4 +8,4 @@
 // Implements the POSIX test command functionality
 int test_command(const std::vector<std::string>& args);
 
-#endif // TEST_COMMAND_H
+#endif  // TEST_COMMAND_H

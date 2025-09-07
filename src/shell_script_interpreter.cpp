@@ -152,9 +152,10 @@ int ShellScriptInterpreter::execute_block(
           modified += " >> ";
           modified += path;
         }
-        
+
         // Force pipeline execution to handle redirection properly
-        std::vector<Command> redirect_cmds = shell_parser->parse_pipeline(modified);
+        std::vector<Command> redirect_cmds =
+            shell_parser->parse_pipeline(modified);
         if (!redirect_cmds.empty()) {
           int exit_code = g_shell->shell_exec->execute_pipeline(redirect_cmds);
           return exit_code;
@@ -414,7 +415,8 @@ int ShellScriptInterpreter::execute_block(
               q = '\0';
             }
           }
-          if ((!in_quotes || q == '"') && c == '`' && (i == 0 || s[i - 1] != '\\')) {
+          if ((!in_quotes || q == '"') && c == '`' &&
+              (i == 0 || s[i - 1] != '\\')) {
             // find the matching unescaped backtick
             size_t j = i + 1;
             bool found = false;
@@ -436,7 +438,8 @@ int ShellScriptInterpreter::execute_block(
               std::string content;
               content.reserve(inner.size());
               for (size_t k = 0; k < inner.size(); ++k) {
-                if (inner[k] == '\\' && k + 1 < inner.size() && inner[k + 1] == '`') {
+                if (inner[k] == '\\' && k + 1 < inner.size() &&
+                    inner[k + 1] == '`') {
                   content.push_back('`');
                   ++k;
                 } else {
@@ -549,13 +552,13 @@ int ShellScriptInterpreter::execute_block(
             if (found) {
               std::string param_expr = s.substr(i + 2, j - (i + 2));
               std::string repl;
-              
+
               // Check for ${VAR-default} or ${VAR:-default} syntax
               size_t dash_pos = param_expr.find('-');
               if (dash_pos != std::string::npos) {
                 std::string var_name = param_expr.substr(0, dash_pos);
                 std::string default_val = param_expr.substr(dash_pos + 1);
-                
+
                 const char* env_val = getenv(var_name.c_str());
                 if (env_val && strlen(env_val) > 0) {
                   repl = env_val;
@@ -567,7 +570,7 @@ int ShellScriptInterpreter::execute_block(
                 const char* env_val = getenv(param_expr.c_str());
                 repl = env_val ? env_val : "";
               }
-              
+
               s.replace(i, (j - i + 1), repl);
               changed = true;
               break;
@@ -747,7 +750,8 @@ int ShellScriptInterpreter::execute_block(
       cond_rc = execute_simple_or_pipeline(cond_accum);
     }
 
-    // If '; then' was on the same line, check if it's a complete inline statement
+    // If '; then' was on the same line, check if it's a complete inline
+    // statement
     if (pos != std::string::npos) {
       std::string rem = trim(first.substr(pos + 6));  // after '; then'
       // Only handle as inline if there's content and it ends with fi
@@ -760,7 +764,7 @@ int ShellScriptInterpreter::execute_block(
             fi_pos = rem.size() - 2;  // assume no preceding semicolon
           }
         }
-        
+
         // Only process as inline if we found 'fi' on the same line
         if (fi_pos != std::string::npos) {
           std::string body = trim(rem.substr(0, fi_pos));
@@ -1078,7 +1082,8 @@ int ShellScriptInterpreter::execute_block(
       int rc = handle_if_block(lines, line_index);
       last_code = rc;
       if (g_debug_mode)
-        std::cerr << "DEBUG: if block completed with exit code: " << rc << std::endl;
+        std::cerr << "DEBUG: if block completed with exit code: " << rc
+                  << std::endl;
       // line_index now points at 'fi'; for loop will ++ to next line
       continue;
     }
@@ -1313,7 +1318,7 @@ int ShellScriptInterpreter::execute_block(
                   << last_code << std::endl;
       return last_code;
     } else if (last_code != 0 && g_debug_mode) {
-      std::cerr << "DEBUG: Command failed with exit code " << last_code 
+      std::cerr << "DEBUG: Command failed with exit code " << last_code
                 << " but continuing execution" << std::endl;
     }
   }

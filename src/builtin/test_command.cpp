@@ -10,38 +10,38 @@
 // Supports common test operations used in shell scripts
 int test_command(const std::vector<std::string>& args) {
   // test command returns 0 for true, 1 for false
-  
+
   // Handle empty arguments
   if (args.empty()) {
     return 1;  // false
   }
-  
+
   // Handle [ command - remove the trailing ] if present
   std::vector<std::string> test_args = args;
   if (args[0] == "[" && args.size() > 1 && args.back() == "]") {
-    test_args.pop_back();  // Remove trailing ]
+    test_args.pop_back();                // Remove trailing ]
     test_args.erase(test_args.begin());  // Remove leading [
   } else if (args[0] == "test") {
     test_args.erase(test_args.begin());  // Remove "test"
   } else if (args[0] == "[") {
     test_args.erase(test_args.begin());  // Remove "["
   }
-  
+
   // Handle no arguments after [ or test
   if (test_args.empty()) {
     return 1;  // false
   }
-  
+
   // Single argument - test if non-empty string
   if (test_args.size() == 1) {
     return test_args[0].empty() ? 1 : 0;
   }
-  
+
   // Two arguments - unary operators
   if (test_args.size() == 2) {
     const std::string& op = test_args[0];
     const std::string& arg = test_args[1];
-    
+
     if (op == "-z") {
       // String is empty
       return arg.empty() ? 0 : 1;
@@ -77,7 +77,7 @@ int test_command(const std::vector<std::string>& args) {
       return arg.empty() ? 0 : 1;
     }
   }
-  
+
   // Three arguments - binary operators or negation
   if (test_args.size() == 3) {
     if (test_args[0] == "!") {
@@ -85,11 +85,11 @@ int test_command(const std::vector<std::string>& args) {
       std::vector<std::string> neg_args = {"test", test_args[1], test_args[2]};
       return test_command(neg_args) == 0 ? 1 : 0;  // Invert result
     }
-    
+
     const std::string& arg1 = test_args[0];
     const std::string& op = test_args[1];
     const std::string& arg2 = test_args[2];
-    
+
     if (op == "=") {
       // String equality
       return arg1 == arg2 ? 0 : 1;
@@ -152,14 +152,15 @@ int test_command(const std::vector<std::string>& args) {
       }
     }
   }
-  
+
   // Four arguments - negation with binary operator
   if (test_args.size() == 4 && test_args[0] == "!") {
     // Negation - recursively call test on the remaining arguments
-    std::vector<std::string> neg_args = {"test", test_args[1], test_args[2], test_args[3]};
+    std::vector<std::string> neg_args = {"test", test_args[1], test_args[2],
+                                         test_args[3]};
     return test_command(neg_args) == 0 ? 1 : 0;  // Invert result
   }
-  
+
   // Unsupported or invalid syntax
   return 1;  // false
 }

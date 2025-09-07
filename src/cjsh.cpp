@@ -42,6 +42,8 @@ bool startup_test = false;
 // to do
 //  local session history files, that combine into main one upon process close
 //  rework ai system to always retrieve api key from envvar
+//  rework builtins to be more POSIX compliant syntax wise
+//  remove all system() calls in cjsh
 
 /*
  * Exit/Return Codes:
@@ -191,7 +193,8 @@ int main(int argc, char* argv[]) {
   if (!config::force_interactive && !isatty(STDIN_FILENO)) {
     config::interactive_mode = false;
     if (g_debug_mode)
-      std::cerr << "DEBUG: Disabling interactive mode (stdin is not a terminal)" << std::endl;
+      std::cerr << "DEBUG: Disabling interactive mode (stdin is not a terminal)"
+                << std::endl;
   }
 
   // load startup args to save for restarts
@@ -257,14 +260,14 @@ int main(int argc, char* argv[]) {
   if (!config::interactive_mode && !config::force_interactive) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
-    
+
     // Read and execute input from stdin
     std::string line;
     std::string script_content;
     while (std::getline(std::cin, line)) {
       script_content += line + "\n";
     }
-    
+
     if (!script_content.empty()) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Executing piped script content" << std::endl;
@@ -272,7 +275,7 @@ int main(int argc, char* argv[]) {
       g_shell.reset();
       return code;
     }
-    
+
     g_shell.reset();
     return 0;
   }

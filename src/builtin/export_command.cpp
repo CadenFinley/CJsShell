@@ -37,13 +37,16 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                   << "'" << std::endl;
       }
     } else {
-      // Just export the existing variable (make it available to child processes)
+      // Just export the existing variable (make it available to child
+      // processes)
       const char* env_val = getenv(args[i].c_str());
       if (env_val) {
-        // Variable exists, just mark it for export (it's already exported via setenv)
+        // Variable exists, just mark it for export (it's already exported via
+        // setenv)
         env_vars[args[i]] = env_val;
         if (g_debug_mode) {
-          std::cout << "Exported existing variable: " << args[i] << "='" << env_val << "'" << std::endl;
+          std::cout << "Exported existing variable: " << args[i] << "='"
+                    << env_val << "'" << std::endl;
         }
       } else {
         PRINT_ERROR("export: " + args[i] + ": not found");
