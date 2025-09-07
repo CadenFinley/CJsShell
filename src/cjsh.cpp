@@ -43,8 +43,6 @@ bool startup_test = false;
 //  local session history files, that combine into main one upon process close
 //  rework ai system to always retrieve api key from envvar
 //  rework builtins to be more POSIX compliant syntax wise
-//  remove all system() calls in cjsh
-//  make echo, print and printf builtins
 
 /*
  * Exit/Return Codes:

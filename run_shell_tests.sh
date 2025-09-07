@@ -138,7 +138,7 @@ fi
 
 if [ $FAIL -eq 0 ]; then
     echo ""
-    echo "${GREEN}All tests passed! 🎉${NC}"
+    echo "${GREEN}All tests passed!${NC}"
     exit 0
 else
     echo ""

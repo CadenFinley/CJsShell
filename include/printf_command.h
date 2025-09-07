@@ -1,8 +1,8 @@
 #ifndef PRINTF_COMMAND_H
 #define PRINTF_COMMAND_H
 
-#include <vector>
 #include <string>
+#include <vector>
 
 int printf_command(const std::vector<std::string>& args);
 

@@ -642,30 +642,30 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
               cmd_part.substr(lead + 1, close_paren - (lead + 1));
           std::string remaining = cmd_part.substr(close_paren + 1);
 
-        // Create a special command that represents the subshell
-        cmd.args.push_back("sh");
-        cmd.args.push_back("-c");
-        cmd.args.push_back(subshell_content);
+          // Create a special command that represents the subshell
+          cmd.args.push_back("sh");
+          cmd.args.push_back("-c");
+          cmd.args.push_back(subshell_content);
 
-        // Parse any redirection that comes after the subshell
-        if (!remaining.empty()) {
-          std::vector<std::string> redir_tokens = tokenize_command(remaining);
-          std::vector<std::string> merged_redir =
-              merge_redirection_tokens(redir_tokens);
+          // Parse any redirection that comes after the subshell
+          if (!remaining.empty()) {
+            std::vector<std::string> redir_tokens = tokenize_command(remaining);
+            std::vector<std::string> merged_redir =
+                merge_redirection_tokens(redir_tokens);
 
-          for (size_t i = 0; i < merged_redir.size(); ++i) {
-            const std::string tok = strip_quote_tag(merged_redir[i]);
-            if (tok == "2>&1") {
-              cmd.stderr_to_stdout = true;
-            } else if (tok == ">&2") {
-              cmd.stdout_to_stderr = true;
-            } else if ((tok == "2>" || tok == "2>>") &&
-                       i + 1 < merged_redir.size()) {
-              cmd.stderr_file = strip_quote_tag(merged_redir[++i]);
-              cmd.stderr_append = (tok == "2>>");
+            for (size_t i = 0; i < merged_redir.size(); ++i) {
+              const std::string tok = strip_quote_tag(merged_redir[i]);
+              if (tok == "2>&1") {
+                cmd.stderr_to_stdout = true;
+              } else if (tok == ">&2") {
+                cmd.stdout_to_stderr = true;
+              } else if ((tok == "2>" || tok == "2>>") &&
+                         i + 1 < merged_redir.size()) {
+                cmd.stderr_file = strip_quote_tag(merged_redir[++i]);
+                cmd.stderr_append = (tok == "2>>");
+              }
             }
           }
-        }
 
           commands.push_back(cmd);
           continue;
@@ -765,33 +765,35 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
     const std::string& pt = preprocessed.processed_text;
     size_t lead = pt.find_first_not_of(" \t\r\n");
     if (lead != std::string::npos && pt.find("SUBSHELL{", lead) == lead) {
-    size_t start = preprocessed.processed_text.find('{') + 1;
-    size_t end = preprocessed.processed_text.find('}', start);
-    if (end != std::string::npos) {
-      std::string subshell_content =
-          preprocessed.processed_text.substr(start, end - start);
+      size_t start = preprocessed.processed_text.find('{') + 1;
+      size_t end = preprocessed.processed_text.find('}', start);
+      if (end != std::string::npos) {
+        std::string subshell_content =
+            preprocessed.processed_text.substr(start, end - start);
         std::string remaining = preprocessed.processed_text.substr(end + 1);
 
-      // Convert to a normal command so downstream parsing (pipes/redirs)
-      // continues to work: sh -c '...'<remaining>
-      auto escape_single_quotes = [](const std::string& s) {
-        std::string out;
-        out.reserve(s.size() + 16);
-        for (char c : s) {
-          if (c == '\'') {
-            out += "'\\''";  // close ', insert \'', reopen '
-          } else {
-            out += c;
+        // Convert to a normal command so downstream parsing (pipes/redirs)
+        // continues to work: sh -c '...'<remaining>
+        auto escape_single_quotes = [](const std::string& s) {
+          std::string out;
+          out.reserve(s.size() + 16);
+          for (char c : s) {
+            if (c == '\'') {
+              out += "'\\''";  // close ', insert \'', reopen '
+            } else {
+              out += c;
+            }
           }
-        }
-        return out;
-      };
+          return out;
+        };
 
-      std::string rebuilt = "sh -c '" + escape_single_quotes(subshell_content) + "'" + remaining;
+        std::string rebuilt = "sh -c '" +
+                              escape_single_quotes(subshell_content) + "'" +
+                              remaining;
         // Preserve the original leading whitespace
         std::string prefix = preprocessed.processed_text.substr(0, lead);
         preprocessed.processed_text = prefix + rebuilt;
-    }
+      }
     }
   }
 

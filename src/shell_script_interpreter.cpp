@@ -116,11 +116,11 @@ int ShellScriptInterpreter::execute_block(
     std::string text = trim(strip_inline_comment(cmd_text));
     if (text.empty()) return 0;
 
-  // Note: SUBSHELL{} markers are now converted by the parser's
-  // parse_pipeline_with_preprocessing() into an equivalent
-  // "sh -c '...'" command with any trailing redirections/pipes preserved.
-  // We intentionally do not special-case SUBSHELL{} here to avoid
-  // dropping following constructs like "2>&1 | ...".
+    // Note: SUBSHELL{} markers are now converted by the parser's
+    // parse_pipeline_with_preprocessing() into an equivalent
+    // "sh -c '...'" command with any trailing redirections/pipes preserved.
+    // We intentionally do not special-case SUBSHELL{} here to avoid
+    // dropping following constructs like "2>&1 | ...".
 
     // Expand command substitution $(...) and arithmetic $((...)) without using
     // external sh
@@ -132,12 +132,13 @@ int ShellScriptInterpreter::execute_block(
       if (fd >= 0) close(fd);
       std::string path = tmpl;
 
-      // For command substitution, we need to execute the content with full expansion
-      // and capture the output. The simplest approach is to redirect stdout to a file.
-      
+      // For command substitution, we need to execute the content with full
+      // expansion and capture the output. The simplest approach is to redirect
+      // stdout to a file.
+
       // Save current stdout
       int saved_stdout = dup(STDOUT_FILENO);
-      
+
       // Open our temp file for writing
       FILE* temp_file = fopen(path.c_str(), "w");
       if (!temp_file) {
@@ -151,36 +152,37 @@ int ShellScriptInterpreter::execute_block(
           while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
             result.append(buf, n);
           pclose(fp);
-          while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
+          while (!result.empty() &&
+                 (result.back() == '\n' || result.back() == '\r'))
             result.pop_back();
         }
         return result;
       }
-      
+
       // Redirect stdout to our temp file
       int temp_fd = fileno(temp_file);
       dup2(temp_fd, STDOUT_FILENO);
-      
+
       // Execute the content with full expansion
       execute_simple_or_pipeline(content);
-      
+
       // Restore stdout
       fflush(stdout);
       fclose(temp_file);
       dup2(saved_stdout, STDOUT_FILENO);
       close(saved_stdout);
-      
+
       // Read the result
       std::ifstream ifs(path);
       std::stringstream buffer;
       buffer << ifs.rdbuf();
       std::string out = buffer.str();
       ::unlink(path.c_str());
-      
+
       // Trim trailing newlines
       while (!out.empty() && (out.back() == '\n' || out.back() == '\r'))
         out.pop_back();
-        
+
       return out;
     };
 
@@ -598,7 +600,7 @@ int ShellScriptInterpreter::execute_block(
       // Simple command path - leverage Shell::execute_command for
       // builtins/plugins/env-assignments
       const auto& c = cmds[0];
-      
+
       // Check if this is an internal subshell command
       if (!c.args.empty() && c.args[0] == "__INTERNAL_SUBSHELL__") {
         // Use the preprocessed command directly
@@ -606,7 +608,8 @@ int ShellScriptInterpreter::execute_block(
         // Update STATUS environment variable for $? expansion
         setenv("STATUS", std::to_string(exit_code).c_str(), 1);
         return exit_code;
-      } else if (!c.args.empty() && c.args[0] == "sh" && c.args.size() >= 2 && c.args[1] == "-c") {
+      } else if (!c.args.empty() && c.args[0] == "sh" && c.args.size() >= 2 &&
+                 c.args[1] == "-c") {
         // Already converted to sh -c by preprocessing
         if (g_debug_mode) {
           std::cerr << "DEBUG: Executing preprocessed grouped command: ";
@@ -617,7 +620,7 @@ int ShellScriptInterpreter::execute_block(
         int exit_code = g_shell->execute_command(c.args, c.background);
         setenv("STATUS", std::to_string(exit_code).c_str(), 1);
         return exit_code;
-  } else {
+      } else {
         // Re-parse the original text to apply alias/env/brace/tilde expansions
         // parse_command performs alias expansion while parse_pipeline does not.
         std::vector<std::string> expanded_args =
@@ -970,26 +973,28 @@ int ShellScriptInterpreter::execute_block(
     // Extract the case value
     std::string case_value;
     std::string header_accum = first;
-    
+
     // Check if the entire case statement is on one line
-    if (first.find(" in ") != std::string::npos && first.find("esac") != std::string::npos) {
+    if (first.find(" in ") != std::string::npos &&
+        first.find("esac") != std::string::npos) {
       // Single-line case statement: "case VALUE in PATTERN) COMMAND;; ... esac"
       size_t in_pos = first.find(" in ");
       std::string case_part = first.substr(0, in_pos);
-      std::string patterns_part = first.substr(in_pos + 4); // Skip " in "
-      
+      std::string patterns_part = first.substr(in_pos + 4);  // Skip " in "
+
       // Extract case value
-      std::vector<std::string> case_toks = shell_parser->parse_command(case_part);
+      std::vector<std::string> case_toks =
+          shell_parser->parse_command(case_part);
       if (case_toks.size() >= 2 && case_toks[0] == "case") {
         case_value = case_toks[1];
       }
-      
+
       // Remove "esac" from the end
       size_t esac_pos = patterns_part.find("esac");
       if (esac_pos != std::string::npos) {
         patterns_part = patterns_part.substr(0, esac_pos);
       }
-      
+
       // Process pattern sections
       std::vector<std::string> pattern_sections;
       size_t start = 0;
@@ -1001,20 +1006,21 @@ int ShellScriptInterpreter::execute_block(
           }
           break;
         }
-        pattern_sections.push_back(trim(patterns_part.substr(start, sep_pos - start)));
+        pattern_sections.push_back(
+            trim(patterns_part.substr(start, sep_pos - start)));
         start = sep_pos + 2;
       }
-      
+
       // Check each pattern for a match
       int matched_exit_code = 0;
       for (const auto& section : pattern_sections) {
         if (section.empty()) continue;
-        
+
         size_t paren_pos = section.find(')');
         if (paren_pos != std::string::npos) {
           std::string pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
-          
+
           // Check if pattern matches case_value
           bool pattern_matches = false;
           if (pattern == "*") {
@@ -1022,36 +1028,38 @@ int ShellScriptInterpreter::execute_block(
           } else if (pattern == case_value) {
             pattern_matches = true;  // exact match
           }
-          
+
           if (pattern_matches) {
             if (!command_part.empty()) {
               matched_exit_code = execute_simple_or_pipeline(command_part);
             }
-            // Stay on the same line since it's all one line  
+            // Stay on the same line since it's all one line
             return matched_exit_code;
           }
         }
       }
-      
+
       // No match found, return 0
       return 0;
     }
-    
+
     // Multi-line case statement processing
     // Parse: case VALUE in
-    std::vector<std::string> header_toks = shell_parser->parse_command(header_accum);
+    std::vector<std::string> header_toks =
+        shell_parser->parse_command(header_accum);
     size_t tok_idx = 0;
-    if (tok_idx < header_toks.size() && header_toks[tok_idx] == "case") ++tok_idx;
+    if (tok_idx < header_toks.size() && header_toks[tok_idx] == "case")
+      ++tok_idx;
     if (tok_idx < header_toks.size()) {
       case_value = header_toks[tok_idx++];
     }
-    
+
     // Check if "in" is on the same line or next lines
     bool found_in = false;
     if (tok_idx < header_toks.size() && header_toks[tok_idx] == "in") {
       found_in = true;
     }
-    
+
     size_t j = idx;
     if (!found_in) {
       // Look for "in" on subsequent lines
@@ -1074,28 +1082,28 @@ int ShellScriptInterpreter::execute_block(
         }
       }
     }
-    
+
     if (!found_in || case_value.empty()) {
       if (debug_level >= DebugLevel::BASIC)
         std::cerr << "DEBUG: case without valid syntax" << std::endl;
       idx = j;
       return 1;
     }
-    
+
     // Expand the case value (handle variables, etc.)
-    // For now, just use the literal value - variable expansion would need 
+    // For now, just use the literal value - variable expansion would need
     // access to expand_substitutions which is defined later
     // case_value = expand_substitutions(case_value);
-    
+
     // Parse case patterns and their commands until "esac"
     size_t k = j + 1;
     int matched_exit_code = 0;
     bool found_match = false;
-    
+
     // Handle single-line case statement
     if (k < src_lines.size()) {
       std::string remaining_line = src_lines[k];
-      
+
       // Check if this line contains "esac" - might be a single-line case
       if (remaining_line.find("esac") != std::string::npos) {
         // Single line case: parse all patterns in one line
@@ -1103,9 +1111,9 @@ int ShellScriptInterpreter::execute_block(
         std::string work_line = remaining_line;
         size_t esac_pos = work_line.find("esac");
         if (esac_pos != std::string::npos) {
-          work_line = work_line.substr(0, esac_pos); // Remove "esac"
+          work_line = work_line.substr(0, esac_pos);  // Remove "esac"
         }
-        
+
         // Split on ";;" to get pattern sections
         std::vector<std::string> pattern_sections;
         size_t start = 0;
@@ -1120,17 +1128,17 @@ int ShellScriptInterpreter::execute_block(
           pattern_sections.push_back(work_line.substr(start, sep_pos - start));
           start = sep_pos + 2;
         }
-        
+
         // Process each pattern section
         for (const auto& section : pattern_sections) {
           std::string pattern_line = trim(section);
           if (pattern_line.empty()) continue;
-          
+
           size_t paren_pos = pattern_line.find(')');
           if (paren_pos != std::string::npos) {
             std::string pattern = trim(pattern_line.substr(0, paren_pos));
             std::string command_part = trim(pattern_line.substr(paren_pos + 1));
-            
+
             // Check if pattern matches case_value
             bool pattern_matches = false;
             if (pattern == "*") {
@@ -1149,29 +1157,30 @@ int ShellScriptInterpreter::execute_block(
                 } else if (pattern.front() == '*') {
                   std::string suffix = pattern.substr(1);
                   if (case_value.length() >= suffix.length() &&
-                      case_value.substr(case_value.length() - suffix.length()) == suffix) {
+                      case_value.substr(case_value.length() -
+                                        suffix.length()) == suffix) {
                     pattern_matches = true;
                   }
                 }
               }
             }
-            
+
             if (pattern_matches && !found_match) {
               found_match = true;
               if (!command_part.empty()) {
                 matched_exit_code = execute_simple_or_pipeline(command_part);
               }
-              break; // Found match, stop looking
+              break;  // Found match, stop looking
             }
           }
         }
-        
+
         // Skip to after esac
         idx = k;
         return matched_exit_code;
       }
     }
-    
+
     // Multi-line case statement handling
     while (k < src_lines.size()) {
       std::string line = trim(strip_inline_comment(src_lines[k]));
@@ -1182,13 +1191,13 @@ int ShellScriptInterpreter::execute_block(
       if (line == "esac") {
         break;
       }
-      
+
       // Look for pattern) syntax
       size_t paren_pos = line.find(')');
       if (paren_pos != std::string::npos) {
         std::string pattern = trim(line.substr(0, paren_pos));
         std::string command_part = trim(line.substr(paren_pos + 1));
-        
+
         // Check if pattern matches case_value
         bool pattern_matches = false;
         if (pattern == "*") {
@@ -1207,22 +1216,23 @@ int ShellScriptInterpreter::execute_block(
             } else if (pattern.front() == '*') {
               std::string suffix = pattern.substr(1);
               if (case_value.length() >= suffix.length() &&
-                  case_value.substr(case_value.length() - suffix.length()) == suffix) {
+                  case_value.substr(case_value.length() - suffix.length()) ==
+                      suffix) {
                 pattern_matches = true;
               }
             }
           }
         }
-        
+
         if (pattern_matches && !found_match) {
           found_match = true;
-          
+
           // Execute commands until we hit ";;" or another pattern
           std::vector<std::string> case_commands;
           if (!command_part.empty()) {
             case_commands.push_back(command_part);
           }
-          
+
           // Continue reading lines until ";;" or next pattern or "esac"
           k++;
           while (k < src_lines.size()) {
@@ -1248,26 +1258,26 @@ int ShellScriptInterpreter::execute_block(
             }
             // Check if this line contains a new pattern (has ")" in it)
             if (cmd_line.find(')') != std::string::npos) {
-              k--; // Back up to re-process this line as a new pattern
+              k--;  // Back up to re-process this line as a new pattern
               break;
             }
             case_commands.push_back(cmd_line);
             k++;
           }
-          
+
           // Execute the matched case commands
           for (const auto& cmd : case_commands) {
             matched_exit_code = execute_simple_or_pipeline(cmd);
             if (matched_exit_code != 0) break;
           }
-          
+
           // Skip remaining patterns
           break;
         }
       }
       k++;
     }
-    
+
     // Find the closing "esac"
     while (k < src_lines.size()) {
       std::string line = trim(strip_inline_comment(src_lines[k]));
@@ -1276,8 +1286,8 @@ int ShellScriptInterpreter::execute_block(
       }
       k++;
     }
-    
-    idx = k; // Position at "esac"
+
+    idx = k;  // Position at "esac"
     return matched_exit_code;
   };
 
@@ -1433,10 +1443,12 @@ int ShellScriptInterpreter::execute_block(
     }
 
     // Function definition: name() { ... }
-    if (line.find("()") != std::string::npos && line.find("{") != std::string::npos) {
+    if (line.find("()") != std::string::npos &&
+        line.find("{") != std::string::npos) {
       size_t name_end = line.find("()");
       size_t brace_pos = line.find("{");
-      if (name_end != std::string::npos && brace_pos != std::string::npos && name_end < brace_pos) {
+      if (name_end != std::string::npos && brace_pos != std::string::npos &&
+          name_end < brace_pos) {
         std::string func_name = trim(line.substr(0, name_end));
         if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
           // Collect body including multiline until matching '}'
@@ -1452,8 +1464,10 @@ int ShellScriptInterpreter::execute_block(
               // register function and continue
               functions[func_name] = body_lines;
               if (g_debug_mode)
-                std::cerr << "DEBUG: Defined function '" << func_name << "' (single-line)" << std::endl;
-              // If there's trailing content after the closing '}', process it now
+                std::cerr << "DEBUG: Defined function '" << func_name
+                          << "' (single-line)" << std::endl;
+              // If there's trailing content after the closing '}', process it
+              // now
               std::string remainder = trim(after_brace.substr(end_brace + 1));
               if (!remainder.empty()) {
                 // Replace current line with the remainder and fall through
@@ -1471,8 +1485,10 @@ int ShellScriptInterpreter::execute_block(
               std::string func_line_raw = lines[line_index];
               std::string func_line = trim(strip_inline_comment(func_line_raw));
               for (char ch : func_line) {
-                if (ch == '{') depth++;
-                else if (ch == '}') depth--;
+                if (ch == '{')
+                  depth++;
+                else if (ch == '}')
+                  depth--;
               }
               if (depth <= 0) {
                 // remove any trailing content before final '}'
@@ -1488,10 +1504,12 @@ int ShellScriptInterpreter::execute_block(
             }
             functions[func_name] = body_lines;
             if (g_debug_mode)
-              std::cerr << "DEBUG: Defined function '" << func_name << "' with " << body_lines.size() << " lines" << std::endl;
+              std::cerr << "DEBUG: Defined function '" << func_name << "' with "
+                        << body_lines.size() << " lines" << std::endl;
             continue;
           } else {
-            // Already registered single-line function; proceed to parse the remainder in 'line'
+            // Already registered single-line function; proceed to parse the
+            // remainder in 'line'
           }
         }
       }
@@ -1521,18 +1539,20 @@ int ShellScriptInterpreter::execute_block(
         }
       }
 
-      // Check for command grouping (parentheses or braces) before semicolon splitting
+      // Check for command grouping (parentheses or braces) before semicolon
+      // splitting
       std::string cmd_to_parse = lc.command;
       std::string trimmed_cmd = trim(strip_inline_comment(cmd_to_parse));
-      
+
       // Handle grouping constructs that should be treated as a single unit
-      if (!trimmed_cmd.empty() && (trimmed_cmd[0] == '(' || trimmed_cmd[0] == '{')) {
+      if (!trimmed_cmd.empty() &&
+          (trimmed_cmd[0] == '(' || trimmed_cmd[0] == '{')) {
         // This is a grouped command - execute it as a single unit
         int code = execute_simple_or_pipeline(cmd_to_parse);
         last_code = code;
         if (code != 0 && debug_level >= DebugLevel::BASIC) {
-          std::cerr << "DEBUG: Grouped command failed (" << code << ") -> '" << cmd_to_parse
-                    << "'" << std::endl;
+          std::cerr << "DEBUG: Grouped command failed (" << code << ") -> '"
+                    << cmd_to_parse << "'" << std::endl;
         }
         continue;
       }
@@ -1714,7 +1734,8 @@ int ShellScriptInterpreter::execute_block(
           // Detect function invocation: first token matches defined function
           int code = 0;
           {
-            std::vector<std::string> first_toks = shell_parser->parse_command(cmd_text);
+            std::vector<std::string> first_toks =
+                shell_parser->parse_command(cmd_text);
             if (!first_toks.empty() && functions.count(first_toks[0])) {
               // Set positional params as environment variables $1..$9 minimally
               // Save originals to restore after
