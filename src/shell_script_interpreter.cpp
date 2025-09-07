@@ -23,7 +23,12 @@ ShellScriptInterpreter::ShellScriptInterpreter() {
   command_executor = [](const std::string& cmd, bool) -> bool {
     if (g_debug_mode)
       std::cerr << "DEBUG: Executing shell command: " << cmd << std::endl;
-    return system(cmd.c_str()) == 0;
+    if (g_shell) {
+      g_shell->execute_command(cmd);
+      return g_shell->get_last_exit_code() == 0;
+    }
+    std::cerr << "Error: No shell available for command execution" << std::endl;
+    return false;
   };
 
   in_then_block = false;
@@ -240,9 +245,60 @@ bool ShellScriptInterpreter::execute_block(
       debug_print("Found if statement: " + escape_debug_string(trimmed),
                   DebugLevel::VERBOSE);
 
-      if (trimmed.find("; then") != std::string::npos) {
-        debug_print("Found 'then' on same line", DebugLevel::VERBOSE);
+    if (trimmed.find("; then") != std::string::npos) {
+      debug_print("Found 'then' on same line", DebugLevel::VERBOSE);
+    }
+    // Handle one-liner inline if ...; then ...; [else ...;] fi
+    {
+      size_t thenPos = trimmed.find("; then");
+      size_t fiPos = trimmed.rfind("; fi");
+      if (thenPos != std::string::npos && fiPos != std::string::npos && fiPos > thenPos) {
+        std::string condition = trim_string(trimmed.substr(3, thenPos - 3));
+        debug_print("Extracted inline condition: " + escape_debug_string(condition), DebugLevel::VERBOSE);
+        bool condition_met = evaluate_condition(condition);
+        debug_print(std::string("Inline condition result: ") + (condition_met ? "true" : "false"), DebugLevel::VERBOSE);
+        local_variables["?"] = condition_met ? "0" : "1";
+        size_t elsePos = trimmed.find("; else", thenPos + 6);
+        auto split_cmds = [&](const std::string& s) {
+          std::vector<std::string> cmds;
+          size_t start = 0;
+          bool in_q = false;
+          char q_char = '\0';
+          for (size_t i = 0; i < s.size(); ++i) {
+            char c = s[i];
+            if (!in_q && (c == '"' || c == '\'')) { in_q = true; q_char = c; }
+            else if (in_q && c == q_char) { in_q = false; }
+            else if (!in_q && c == ';') {
+              cmds.push_back(trim_string(s.substr(start, i - start)));
+              start = i + 1;
+            }
+          }
+          if (start < s.size()) {
+            cmds.push_back(trim_string(s.substr(start)));
+          }
+          return cmds;
+        };
+        if (elsePos != std::string::npos && elsePos < fiPos) {
+          std::string thenPart = trimmed.substr(thenPos + 6, elsePos - (thenPos + 6));
+          std::string elsePart = trimmed.substr(elsePos + 6, fiPos - (elsePos + 6));
+          auto thenCmds = split_cmds(thenPart);
+          auto elseCmds = split_cmds(elsePart);
+          if (condition_met) {
+            if (!execute_block(thenCmds)) return false;
+          } else {
+            if (!execute_block(elseCmds)) return false;
+          }
+        } else {
+          std::string thenPart = trimmed.substr(thenPos + 6, fiPos - (thenPos + 6));
+          auto thenCmds = split_cmds(thenPart);
+          if (condition_met) {
+            if (!execute_block(thenCmds)) return false;
+          }
+        }
+        ++it;
+        continue;
       }
+    }
 
       if (!parse_conditional(it, lines_copy.end())) {
         return false;
@@ -401,8 +457,8 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
             debug_print(
                 "Using shell to execute result: " + escape_debug_string(result),
                 DebugLevel::VERBOSE);
-            g_shell->execute_command(result);
-            return g_shell->get_last_exit_code() == 0;
+            int code = g_shell->execute_command(result);
+            return code == 0;
           } else {
             return command_executor(result, true);
           }
@@ -427,8 +483,8 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
           debug_print("Using shell to execute eval command: " +
                           escape_debug_string(expanded_cmd),
                       DebugLevel::VERBOSE);
-          g_shell->execute_command(expanded_cmd);
-          return g_shell->get_last_exit_code() == 0;
+          int code = g_shell->execute_command(expanded_cmd);
+          return code == 0;
         } else {
           return command_executor(expanded_cmd, true);
         }
@@ -450,8 +506,8 @@ bool ShellScriptInterpreter::execute_line(const std::string& line) {
       debug_print("Using shell to execute command: " +
                       escape_debug_string(expanded_cmd),
                   DebugLevel::VERBOSE);
-      g_shell->execute_command(expanded_cmd);
-      return g_shell->get_last_exit_code() == 0;
+      int code = g_shell->execute_command(expanded_cmd);
+      return code == 0;
     } else {
       return command_executor(expanded_cmd, true);
     }
@@ -470,6 +526,10 @@ bool ShellScriptInterpreter::evaluate_condition(const std::string& condition) {
     std::string test_condition =
         trim_string(condition.substr(1, condition.size() - 2));
     debug_print("Test condition: " + escape_debug_string(test_condition),
+                DebugLevel::VERBOSE);
+    // Expand variables in condition for accurate comparisons
+    test_condition = expand_variables(test_condition);
+    debug_print("Expanded test condition: " + escape_debug_string(test_condition),
                 DebugLevel::VERBOSE);
 
     if (test_condition.find("-x ") == 0) {
@@ -503,7 +563,37 @@ bool ShellScriptInterpreter::evaluate_condition(const std::string& condition) {
                   DebugLevel::VERBOSE);
       return result;
     }
-
+    // numeric comparisons: -eq, -ne, -lt, -le, -gt, -ge
+    {
+      std::vector<std::string> parts;
+      std::istringstream iss(test_condition);
+      std::string tok;
+      while (iss >> tok) parts.push_back(tok);
+      if (parts.size() == 3) {
+        long lhs = 0, rhs = 0;
+        try {
+          lhs = std::stol(parts[0]);
+          rhs = std::stol(parts[2]);
+        } catch (...) {
+          // non-integer, fall through
+        }
+        const std::string& op = parts[1];
+        bool num_result = false;
+        if (op == "-eq") num_result = (lhs == rhs);
+        else if (op == "-ne") num_result = (lhs != rhs);
+        else if (op == "-lt") num_result = (lhs < rhs);
+        else if (op == "-le") num_result = (lhs <= rhs);
+        else if (op == "-gt") num_result = (lhs > rhs);
+        else if (op == "-ge") num_result = (lhs >= rhs);
+        if (op == "-eq" || op == "-ne" || op == "-lt" || op == "-le" ||
+            op == "-gt" || op == "-ge") {
+          debug_print("Numeric compare: '" + parts[0] + "' " + op + " '" + parts[2] + "' -> " +
+                      std::string(num_result ? "true" : "false"),
+                      DebugLevel::VERBOSE);
+          return num_result;
+        }
+      }
+    }
     size_t eq_pos = test_condition.find(" = ");
     if (eq_pos != std::string::npos) {
       std::string lhs =
@@ -624,20 +714,38 @@ bool ShellScriptInterpreter::parse_conditional(
         "Conditional processing line: " + escape_debug_string(current_line),
         DebugLevel::TRACE);
 
-    if (current_line == "then") {
+    // Handle 'then' with optional inline command and 'else' with inline command
+    if (current_line.find("then") == 0 &&
+        (current_line.size() == 4 ||
+         (current_line.size() > 4 && std::isspace(current_line[4])))) {
       debug_print("Found 'then' statement", DebugLevel::VERBOSE);
       in_then_block = true;
+      // inline command after 'then'
+      if (current_line.size() > 4) {
+        std::string rest = trim_string(current_line.substr(4));
+        if (executing_block) {
+          current_block.push_back(rest);
+        }
+      }
       ++it;
       continue;
-    } else if (current_line == "else") {
+    } else if (current_line.find("else") == 0 &&
+               (current_line.size() == 4 ||
+                (current_line.size() > 4 && std::isspace(current_line[4])))) {
       if (condition_met && !current_block.empty()) {
         debug_print("Executing 'then' block", DebugLevel::VERBOSE);
         execute_block(current_block);
       }
-
       current_block.clear();
       executing_block = !condition_met;
       found_else = true;
+      // inline command after 'else'
+      if (current_line.size() > 4) {
+        std::string rest = trim_string(current_line.substr(4));
+        if (executing_block) {
+          current_block.push_back(rest);
+        }
+      }
       ++it;
       continue;
     } else if (current_line == "fi") {
@@ -687,7 +795,8 @@ bool ShellScriptInterpreter::parse_conditional(
 bool ShellScriptInterpreter::parse_loop(
     std::vector<std::string>::iterator& it,
     const std::vector<std::string>::const_iterator& end) {
-  std::string loop_line = *it;
+  // Trim leading/trailing whitespace for loop declaration
+  std::string loop_line = trim_string(*it);
   bool is_for_loop = loop_line.find("for ") == 0;
 
   std::vector<std::string> loop_body;
@@ -698,13 +807,25 @@ bool ShellScriptInterpreter::parse_loop(
   while (it != end) {
     std::string line = trim_string(*it);
 
-    if (line == "do") {
+    // Detect start of do block (support inline do with command)
+    if (!in_do_block && (line == "do" || (line.size() > 3 && line.rfind("do ", 0) == 0))) {
       in_do_block = true;
+      // Inline do with command on same line
+      if (line.size() > 3 && line.rfind("do ", 0) == 0) {
+        std::string after = trim_string(line.substr(3));
+        if (!after.empty()) {
+          loop_body.push_back(after);
+        }
+      }
       ++it;
       continue;
-    } else if (line == "done") {
+    }
+    // Detect end of loop
+    if (line == "done") {
       break;
-    } else if (in_do_block) {
+    }
+    // Collect loop body lines
+    if (in_do_block) {
       loop_body.push_back(line);
     }
 
@@ -779,6 +900,25 @@ std::string ShellScriptInterpreter::expand_variables(const std::string& str) {
 
   pos = 0;
   while ((pos = result.find('$', pos)) != std::string::npos) {
+    // Skip variable expansion inside single quotes
+    {
+      bool in_single = false;
+      for (size_t k = 0; k < pos; ++k) {
+        if (result[k] == 39) in_single = !in_single;
+      }
+      if (in_single) {
+        pos++;
+        continue;
+      }
+    }
+    // Skip escaped dollar (\$)
+    if (pos > 0 && result[pos - 1] == '\\') {
+      // Remove escape character and treat $ literally
+      result.erase(pos - 1, 1);
+      // Move past the literal $
+      pos++;
+      continue;
+    }
     if (pos + 1 < result.size() && result[pos + 1] == '{') {
       pos += 2;
       continue;
@@ -810,7 +950,58 @@ std::string ShellScriptInterpreter::expand_variables(const std::string& str) {
       pos++;
     }
   }
-
+  
+  // Handle arithmetic expansion: $((expression))
+  pos = 0;
+  while ((pos = result.find("$((", pos)) != std::string::npos) {
+    // Only treat double parentheses as arithmetic, skip single $( for command substitution
+    // Find matching ))
+    size_t start = pos + 3; // after '$(('
+    size_t depth = 2;
+    size_t end_pos = start;
+    while (end_pos < result.size() && depth > 0) {
+      if (result[end_pos] == '(') depth++;
+      else if (result[end_pos] == ')') depth--;
+      end_pos++;
+    }
+    if (depth == 0) {
+      // Extract inner expression without surrounding parentheses
+      size_t expr_start = pos + 3;
+      size_t expr_len = end_pos - pos - 5; // subtract '$((' and '))'
+      std::string expr = trim_string(result.substr(expr_start, expr_len));
+      // Evaluate simple arithmetic: support + and -
+      int value = 0;
+      size_t op_pos = expr.find_first_of("+-");
+      if (op_pos != std::string::npos) {
+        char op = expr[op_pos];
+        std::string left = trim_string(expr.substr(0, op_pos));
+        std::string right = trim_string(expr.substr(op_pos + 1));
+        int lhs = 0, rhs = 0;
+        auto lit = local_variables.find(left);
+        if (lit != local_variables.end()) lhs = std::stoi(lit->second);
+        else lhs = std::stoi(left);
+        auto rit = local_variables.find(right);
+        if (rit != local_variables.end()) rhs = std::stoi(rit->second);
+        else rhs = std::stoi(right);
+        if (op == '+') value = lhs + rhs;
+        else if (op == '-') value = lhs - rhs;
+      } else {
+        // Single value
+        std::string token = expr;
+        auto itv = local_variables.find(token);
+        if (itv != local_variables.end()) value = std::stoi(itv->second);
+        else value = std::stoi(token);
+      }
+      std::string valstr = std::to_string(value);
+      // Replace the arithmetic expansion with its value
+      result.replace(pos, end_pos - pos, valstr);
+      pos += valstr.length();
+      continue;
+    }
+    // Unmatched parentheses, skip past '$(('
+    pos += 3;
+  }
+  
   pos = 0;
   while ((pos = result.find("$(", pos)) != std::string::npos) {
     size_t depth = 1;

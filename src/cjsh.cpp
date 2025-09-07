@@ -242,15 +242,46 @@ int main(int argc, char* argv[]) {
   } else if (config::check_update) {  // -u --update
     execute_update_if_available(check_for_update());
   } else if (config::execute_command) {  // -c --command
-    int exit_code = g_shell->execute_command(config::cmd_to_execute);
-    if ((!config::interactive_mode && !config::force_interactive) ||
-        exit_code != 0) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Exiting after executing command: "
-                  << config::cmd_to_execute << std::endl;
-      g_shell.reset();
-      return exit_code;
+    // Execute -c via CJSH's native script interpreter (no external /bin/sh)
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Executing -c command in script interpreter: "
+                << config::cmd_to_execute << std::endl;
     }
+    // Split command string on unquoted semicolons into script lines
+    std::vector<std::string> lines;
+    {
+      const std::string& script = config::cmd_to_execute;
+      size_t start = 0;
+      bool in_quotes = false;
+      char quote_char = '\0';
+      for (size_t i = 0; i < script.size(); ++i) {
+        char c = script[i];
+        if (!in_quotes && (c == '"' || c == '\'')) {
+          in_quotes = true;
+          quote_char = c;
+        } else if (in_quotes && c == quote_char) {
+          in_quotes = false;
+        } else if (!in_quotes && (c == ';' || c == '&')) {
+          // split on semicolon or background operator
+          std::string segment = script.substr(start, i - start);
+          if (c == '&') {
+            // preserve & for background execution
+            segment.push_back('&');
+          }
+          lines.push_back(segment);
+          start = i + 1;
+        }
+      }
+      if (start < script.size()) {
+        lines.push_back(script.substr(start));
+      }
+    }
+    bool success = false;
+    if (g_shell && g_shell->get_shell_script_interpreter()) {
+      success = g_shell->get_shell_script_interpreter()->execute_block(lines);
+    }
+    g_shell.reset();
+    return success ? 0 : 1;
   }
 
   if (!config::interactive_mode && !config::force_interactive) {

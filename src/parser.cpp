@@ -27,7 +27,8 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     if (escaped) {
       current_token += c;
       escaped = false;
-    } else if (c == '\\') {
+    } else if (c == '\\' && (!in_quotes || quote_char != '\'')) {
+      // Backslash escapes next character, except within single quotes
       escaped = true;
     } else if ((c == '"' || c == '\'') && !in_quotes) {
       in_quotes = true;
@@ -213,6 +214,14 @@ void Parser::expand_env_vars(std::string& arg) {
   std::string var_name;
 
   for (size_t i = 0; i < arg.length(); ++i) {
+    // Handle escaped dollar (e.g., \$var): treat $ literally and remove escape
+    if (!in_var && arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
+      if (!result.empty() && result.back() == '\\') {
+        result.pop_back();
+      }
+      result += '$';
+      continue;
+    }
     if (arg[i] == '$' && (i + 1 < arg.length()) &&
         (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]))) {
       in_var = true;
