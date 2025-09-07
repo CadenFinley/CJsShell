@@ -163,6 +163,10 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       has_dash = true;
       prefix_before = prefix_str.substr(0, last_space + 1);
       special_part = prefix_str.substr(last_space + 1);
+    } else {
+      // Handle regular paths after space (e.g., "cd /", "ls /usr/")
+      prefix_before = prefix_str.substr(0, last_space + 1);
+      special_part = prefix_str.substr(last_space + 1);
     }
   } else if (prefix_str[0] == '~') {
     has_tilde = true;
@@ -327,10 +331,14 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   // Fish-like behavior: if prefix ends with '/', only complete subdirectories,
   // not files
-  if (!ic_stop_completing(cenv) && !prefix_str.empty() &&
-      prefix_str.back() == '/') {
+  // Use the special_part if we extracted a path from after a space, otherwise
+  // use the full prefix
+  std::string path_to_check = special_part.empty() ? prefix_str : special_part;
+
+  if (!ic_stop_completing(cenv) && !path_to_check.empty() &&
+      path_to_check.back() == '/') {
     namespace fs = std::filesystem;
-    fs::path dir_path(prefix_str);
+    fs::path dir_path(path_to_check);
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
         for (auto& entry : fs::directory_iterator(dir_path)) {
@@ -353,7 +361,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
     return;
   }
-  ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
+  // For regular path completion (when path doesn't end with '/'), use the
+  // extracted path part
+  if (!special_part.empty()) {
+    ic_complete_filename(cenv, special_part.c_str(), '/', nullptr, nullptr);
+  } else {
+    ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
+  }
 
   if (g_debug_mode) {
     if (ic_has_completions(cenv))
