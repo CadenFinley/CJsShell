@@ -16,34 +16,47 @@
 
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
- // Split command string on unquoted semicolons into script lines
-    std::vector<std::string> lines;
-    {
-      size_t start = 0;
-      bool in_quotes = false;
-      char quote_char = '\0';
-      for (size_t i = 0; i < script.size(); ++i) {
-        char c = script[i];
-        if (!in_quotes && (c == '"' || c == '\'')) {
-          in_quotes = true;
-          quote_char = c;
-        } else if (in_quotes && c == quote_char) {
-          in_quotes = false;
-        } else if (!in_quotes && (c == ';' || c == '&')) {
-          // split on semicolon or background operator
-          std::string segment = script.substr(start, i - start);
-          if (c == '&') {
-            // preserve & for background execution
-            segment.push_back('&');
-          }
-          lines.push_back(segment);
-          start = i + 1;
-        }
+  // Split script content on unquoted newlines into logical lines.
+  // Semicolons, background '&', and logical ops are handled later.
+  std::vector<std::string> lines;
+  size_t start = 0;
+  bool in_quotes = false;
+  char quote_char = '\0';
+
+  for (size_t i = 0; i < script.size(); ++i) {
+    char c = script[i];
+    if (!in_quotes && (c == '"' || c == '\'')) {
+      in_quotes = true;
+      quote_char = c;
+    } else if (in_quotes && c == quote_char) {
+      in_quotes = false;
+    } else if (!in_quotes && c == '\n') {
+      // Extract line [start, i)
+      std::string segment = script.substr(start, i - start);
+      // Trim trailing CR for CRLF
+      if (!segment.empty() && segment.back() == '\r') {
+        segment.pop_back();
       }
-      if (start < script.size()) {
-        lines.push_back(script.substr(start));
-      }
+      lines.push_back(segment);
+      start = i + 1;
     }
+  }
+
+  if (start <= script.size()) {
+    std::string tail = script.substr(start);
+    if (!tail.empty() && !in_quotes) {
+      if (!tail.empty() && tail.back() == '\r') {
+        tail.pop_back();
+      }
+      lines.push_back(tail);
+    } else if (!tail.empty()) {
+      // Even if still in quotes (unterminated), push remainder as a line
+      if (!tail.empty() && tail.back() == '\r') {
+        tail.pop_back();
+      }
+      lines.push_back(tail);
+    }
+  }
 
   return lines;
 }

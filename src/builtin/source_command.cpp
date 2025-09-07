@@ -1,23 +1,39 @@
 #include "source_command.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
+#include <fstream>
 #include <iostream>
+#include <sstream>
 
 // Forward declaration
 extern std::unique_ptr<Shell> g_shell;
 
 int source_command(const std::vector<std::string>& args) {
     if (args.size() < 2) {
-        std::cerr << "No source file specified" << std::endl;
+        std::cerr << "source: missing file operand" << std::endl;
         return 1;
     }
-    
-    if (g_shell && g_shell->get_shell_script_interpreter()) {
-        //return g_shell->get_shell_script_interpreter()->execute_script(args[1]) ? 0 : 1;
-        std::cout << " currently disabled" << std::endl;
-        return 0;
-    } else {
-        std::cerr << "Script interpreter not available" << std::endl;
+
+    if (!g_shell) {
+        std::cerr << "source: shell not initialized" << std::endl;
         return 1;
     }
+
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    if (!interpreter) {
+        std::cerr << "source: script interpreter not available" << std::endl;
+        return 1;
+    }
+
+    const std::string& path = args[1];
+    std::ifstream file(path);
+    if (!file) {
+        std::cerr << "source: cannot open file '" << path << "'" << std::endl;
+        return 1;
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    auto lines = interpreter->parse_into_lines(buffer.str());
+    return interpreter->execute_block(lines);
 }
