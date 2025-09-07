@@ -9,19 +9,27 @@ fi
 echo "Test: performance and stress..."
 
 # Test startup time (should be reasonable)
-start_time=$(date +%s%N 2>/dev/null || date +%s)
-"$CJSH_PATH" -c "true" >/dev/null 2>&1
-end_time=$(date +%s%N 2>/dev/null || date +%s)
-
-if [ "$start_time" != "$end_time" ]; then
-    # Only check if we can measure nanoseconds
-    if echo "$start_time" | grep -q N; then
-        echo "NOTE: Startup time measurement not available"
-    else
-        duration=$((end_time - start_time))
-        if [ "$duration" -gt 5 ]; then
-            echo "WARNING: Shell startup took more than 5 seconds"
-        fi
+# Try nanosecond precision first, fall back to seconds
+if date +%s%N >/dev/null 2>&1; then
+    # Nanosecond precision available
+    start_time=$(date +%s%N)
+    "$CJSH_PATH" -c "true" >/dev/null 2>&1
+    end_time=$(date +%s%N)
+    duration_ns=$((end_time - start_time))
+    duration_sec=$((duration_ns / 1000000000))
+    if [ "$duration_sec" -gt 5 ]; then
+        echo "WARNING: Shell startup took more than 5 seconds ($duration_sec seconds)"
+    fi
+else
+    # Second precision only
+    start_time=$(date +%s)
+    "$CJSH_PATH" -c "true" >/dev/null 2>&1
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    if [ "$duration" -gt 5 ]; then
+        echo "WARNING: Shell startup took more than 5 seconds ($duration seconds)"
+    elif [ "$duration" -eq 0 ]; then
+        echo "NOTE: Startup time measurement not precise enough (completed in <1 second)"
     fi
 fi
 
