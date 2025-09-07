@@ -244,10 +244,16 @@ int main(int argc, char* argv[]) {
   // start processing simple flags
   if (config::show_version) {  // -v --version
     std::cout << c_version << (PRE_RELEASE ? "-PRERELEASE" : "") << std::endl;
+    g_shell.reset();
+    return 0;
   } else if (config::show_help) {  // -h --help
     print_usage();
+    g_shell.reset();
+    return 0;
   } else if (config::check_update) {  // -u --update
     execute_update_if_available(check_for_update());
+    g_shell.reset();
+    return 0;
   } else if (config::execute_command) {  // -c --command
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing -c via Shell::execute: "
