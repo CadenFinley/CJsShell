@@ -116,36 +116,11 @@ int ShellScriptInterpreter::execute_block(
     std::string text = trim(strip_inline_comment(cmd_text));
     if (text.empty()) return 0;
 
-    // Handle SUBSHELL{} markers from preprocessor
-    if (text.find("SUBSHELL{") == 0) {
-      size_t start = text.find('{') + 1;
-      size_t end = text.find('}', start);
-      if (end != std::string::npos) {
-        std::string subshell_content = text.substr(start, end - start);
-        std::string remaining = text.substr(end + 1);
-        
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Executing subshell: " << subshell_content << std::endl;
-        }
-        
-        // Execute the subshell content in a sub-environment
-        // Parse the content into multiple commands if needed
-        auto subshell_cmds = shell_parser->parse_semicolon_commands(subshell_content);
-        int result = 0;
-        for (const auto& subcmd : subshell_cmds) {
-          result = execute_simple_or_pipeline(subcmd);
-          if (result != 0) break;
-        }
-        
-        // If there's remaining content (like redirections), handle it
-        if (!remaining.empty()) {
-          // For now, just ignore remaining content or handle it separately
-          // This would need more sophisticated handling for complex cases
-        }
-        
-        return result;
-      }
-    }
+  // Note: SUBSHELL{} markers are now converted by the parser's
+  // parse_pipeline_with_preprocessing() into an equivalent
+  // "sh -c '...'" command with any trailing redirections/pipes preserved.
+  // We intentionally do not special-case SUBSHELL{} here to avoid
+  // dropping following constructs like "2>&1 | ...".
 
     // Expand command substitution $(...) and arithmetic $((...)) without using
     // external sh
@@ -975,6 +950,326 @@ int ShellScriptInterpreter::execute_block(
     return rc;
   };
 
+  // Minimal case VALUE in PATTERN) ...; esac handler
+  auto handle_case_block = [&](const std::vector<std::string>& src_lines,
+                               size_t& idx) -> int {
+    std::string first = trim(strip_inline_comment(src_lines[idx]));
+    if (!(first == "case" || first.rfind("case ", 0) == 0)) return 1;
+
+    // Extract the case value
+    std::string case_value;
+    std::string header_accum = first;
+    
+    // Check if the entire case statement is on one line
+    if (first.find(" in ") != std::string::npos && first.find("esac") != std::string::npos) {
+      // Single-line case statement: "case VALUE in PATTERN) COMMAND;; ... esac"
+      size_t in_pos = first.find(" in ");
+      std::string case_part = first.substr(0, in_pos);
+      std::string patterns_part = first.substr(in_pos + 4); // Skip " in "
+      
+      // Extract case value
+      std::vector<std::string> case_toks = shell_parser->parse_command(case_part);
+      if (case_toks.size() >= 2 && case_toks[0] == "case") {
+        case_value = case_toks[1];
+      }
+      
+      // Remove "esac" from the end
+      size_t esac_pos = patterns_part.find("esac");
+      if (esac_pos != std::string::npos) {
+        patterns_part = patterns_part.substr(0, esac_pos);
+      }
+      
+      // Process pattern sections
+      std::vector<std::string> pattern_sections;
+      size_t start = 0;
+      while (start < patterns_part.length()) {
+        size_t sep_pos = patterns_part.find(";;", start);
+        if (sep_pos == std::string::npos) {
+          if (start < patterns_part.length()) {
+            pattern_sections.push_back(trim(patterns_part.substr(start)));
+          }
+          break;
+        }
+        pattern_sections.push_back(trim(patterns_part.substr(start, sep_pos - start)));
+        start = sep_pos + 2;
+      }
+      
+      // Check each pattern for a match
+      int matched_exit_code = 0;
+      for (const auto& section : pattern_sections) {
+        if (section.empty()) continue;
+        
+        size_t paren_pos = section.find(')');
+        if (paren_pos != std::string::npos) {
+          std::string pattern = trim(section.substr(0, paren_pos));
+          std::string command_part = trim(section.substr(paren_pos + 1));
+          
+          // Check if pattern matches case_value
+          bool pattern_matches = false;
+          if (pattern == "*") {
+            pattern_matches = true;  // wildcard matches everything
+          } else if (pattern == case_value) {
+            pattern_matches = true;  // exact match
+          }
+          
+          if (pattern_matches) {
+            if (!command_part.empty()) {
+              matched_exit_code = execute_simple_or_pipeline(command_part);
+            }
+            // Stay on the same line since it's all one line  
+            return matched_exit_code;
+          }
+        }
+      }
+      
+      // No match found, return 0
+      return 0;
+    }
+    
+    // Multi-line case statement processing
+    // Parse: case VALUE in
+    std::vector<std::string> header_toks = shell_parser->parse_command(header_accum);
+    size_t tok_idx = 0;
+    if (tok_idx < header_toks.size() && header_toks[tok_idx] == "case") ++tok_idx;
+    if (tok_idx < header_toks.size()) {
+      case_value = header_toks[tok_idx++];
+    }
+    
+    // Check if "in" is on the same line or next lines
+    bool found_in = false;
+    if (tok_idx < header_toks.size() && header_toks[tok_idx] == "in") {
+      found_in = true;
+    }
+    
+    size_t j = idx;
+    if (!found_in) {
+      // Look for "in" on subsequent lines
+      while (!found_in && ++j < src_lines.size()) {
+        std::string cur = trim(strip_inline_comment(src_lines[j]));
+        if (cur == "in") {
+          found_in = true;
+          break;
+        }
+        if (!cur.empty()) {
+          header_accum += " " + cur;
+          // Re-parse to check for "in"
+          header_toks = shell_parser->parse_command(header_accum);
+          for (size_t h = 0; h < header_toks.size(); ++h) {
+            if (header_toks[h] == "in") {
+              found_in = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    if (!found_in || case_value.empty()) {
+      if (debug_level >= DebugLevel::BASIC)
+        std::cerr << "DEBUG: case without valid syntax" << std::endl;
+      idx = j;
+      return 1;
+    }
+    
+    // Expand the case value (handle variables, etc.)
+    // For now, just use the literal value - variable expansion would need 
+    // access to expand_substitutions which is defined later
+    // case_value = expand_substitutions(case_value);
+    
+    // Parse case patterns and their commands until "esac"
+    size_t k = j + 1;
+    int matched_exit_code = 0;
+    bool found_match = false;
+    
+    // Handle single-line case statement
+    if (k < src_lines.size()) {
+      std::string remaining_line = src_lines[k];
+      
+      // Check if this line contains "esac" - might be a single-line case
+      if (remaining_line.find("esac") != std::string::npos) {
+        // Single line case: parse all patterns in one line
+        // Split by "))" to separate pattern sections
+        std::string work_line = remaining_line;
+        size_t esac_pos = work_line.find("esac");
+        if (esac_pos != std::string::npos) {
+          work_line = work_line.substr(0, esac_pos); // Remove "esac"
+        }
+        
+        // Split on ";;" to get pattern sections
+        std::vector<std::string> pattern_sections;
+        size_t start = 0;
+        while (start < work_line.length()) {
+          size_t sep_pos = work_line.find(";;", start);
+          if (sep_pos == std::string::npos) {
+            if (start < work_line.length()) {
+              pattern_sections.push_back(work_line.substr(start));
+            }
+            break;
+          }
+          pattern_sections.push_back(work_line.substr(start, sep_pos - start));
+          start = sep_pos + 2;
+        }
+        
+        // Process each pattern section
+        for (const auto& section : pattern_sections) {
+          std::string pattern_line = trim(section);
+          if (pattern_line.empty()) continue;
+          
+          size_t paren_pos = pattern_line.find(')');
+          if (paren_pos != std::string::npos) {
+            std::string pattern = trim(pattern_line.substr(0, paren_pos));
+            std::string command_part = trim(pattern_line.substr(paren_pos + 1));
+            
+            // Check if pattern matches case_value
+            bool pattern_matches = false;
+            if (pattern == "*") {
+              pattern_matches = true;  // wildcard matches everything
+            } else if (pattern == case_value) {
+              pattern_matches = true;  // exact match
+            } else {
+              // Simple glob pattern matching for basic patterns
+              if (pattern.find('*') != std::string::npos) {
+                // Very basic glob: pattern like "test*" matches "testing"
+                if (pattern.back() == '*') {
+                  std::string prefix = pattern.substr(0, pattern.length() - 1);
+                  if (case_value.substr(0, prefix.length()) == prefix) {
+                    pattern_matches = true;
+                  }
+                } else if (pattern.front() == '*') {
+                  std::string suffix = pattern.substr(1);
+                  if (case_value.length() >= suffix.length() &&
+                      case_value.substr(case_value.length() - suffix.length()) == suffix) {
+                    pattern_matches = true;
+                  }
+                }
+              }
+            }
+            
+            if (pattern_matches && !found_match) {
+              found_match = true;
+              if (!command_part.empty()) {
+                matched_exit_code = execute_simple_or_pipeline(command_part);
+              }
+              break; // Found match, stop looking
+            }
+          }
+        }
+        
+        // Skip to after esac
+        idx = k;
+        return matched_exit_code;
+      }
+    }
+    
+    // Multi-line case statement handling
+    while (k < src_lines.size()) {
+      std::string line = trim(strip_inline_comment(src_lines[k]));
+      if (line.empty()) {
+        k++;
+        continue;
+      }
+      if (line == "esac") {
+        break;
+      }
+      
+      // Look for pattern) syntax
+      size_t paren_pos = line.find(')');
+      if (paren_pos != std::string::npos) {
+        std::string pattern = trim(line.substr(0, paren_pos));
+        std::string command_part = trim(line.substr(paren_pos + 1));
+        
+        // Check if pattern matches case_value
+        bool pattern_matches = false;
+        if (pattern == "*") {
+          pattern_matches = true;  // wildcard matches everything
+        } else if (pattern == case_value) {
+          pattern_matches = true;  // exact match
+        } else {
+          // Simple glob pattern matching for basic patterns
+          if (pattern.find('*') != std::string::npos) {
+            // Very basic glob: pattern like "test*" matches "testing"
+            if (pattern.back() == '*') {
+              std::string prefix = pattern.substr(0, pattern.length() - 1);
+              if (case_value.substr(0, prefix.length()) == prefix) {
+                pattern_matches = true;
+              }
+            } else if (pattern.front() == '*') {
+              std::string suffix = pattern.substr(1);
+              if (case_value.length() >= suffix.length() &&
+                  case_value.substr(case_value.length() - suffix.length()) == suffix) {
+                pattern_matches = true;
+              }
+            }
+          }
+        }
+        
+        if (pattern_matches && !found_match) {
+          found_match = true;
+          
+          // Execute commands until we hit ";;" or another pattern
+          std::vector<std::string> case_commands;
+          if (!command_part.empty()) {
+            case_commands.push_back(command_part);
+          }
+          
+          // Continue reading lines until ";;" or next pattern or "esac"
+          k++;
+          while (k < src_lines.size()) {
+            std::string cmd_line = trim(strip_inline_comment(src_lines[k]));
+            if (cmd_line.empty()) {
+              k++;
+              continue;
+            }
+            if (cmd_line == "esac") {
+              break;
+            }
+            if (cmd_line == ";;" || cmd_line.find(";;") != std::string::npos) {
+              // Handle ";;" terminator
+              if (cmd_line != ";;") {
+                // Commands before ";;" on same line
+                size_t sep_pos = cmd_line.find(";;");
+                std::string before_sep = trim(cmd_line.substr(0, sep_pos));
+                if (!before_sep.empty()) {
+                  case_commands.push_back(before_sep);
+                }
+              }
+              break;
+            }
+            // Check if this line contains a new pattern (has ")" in it)
+            if (cmd_line.find(')') != std::string::npos) {
+              k--; // Back up to re-process this line as a new pattern
+              break;
+            }
+            case_commands.push_back(cmd_line);
+            k++;
+          }
+          
+          // Execute the matched case commands
+          for (const auto& cmd : case_commands) {
+            matched_exit_code = execute_simple_or_pipeline(cmd);
+            if (matched_exit_code != 0) break;
+          }
+          
+          // Skip remaining patterns
+          break;
+        }
+      }
+      k++;
+    }
+    
+    // Find the closing "esac"
+    while (k < src_lines.size()) {
+      std::string line = trim(strip_inline_comment(src_lines[k]));
+      if (line == "esac") {
+        break;
+      }
+      k++;
+    }
+    
+    idx = k; // Position at "esac"
+    return matched_exit_code;
+  };
+
   // Minimal while CONDITION; do ...; done handler
   auto handle_while_block = [&](const std::vector<std::string>& src_lines,
                                 size_t& idx) -> int {
@@ -1114,6 +1409,50 @@ int ShellScriptInterpreter::execute_block(
       int rc = handle_while_block(lines, line_index);
       if (rc != 0) return rc;
       continue;
+    }
+
+    // Control structure: case ... in ... esac
+    if (line == "case" || line.rfind("case ", 0) == 0) {
+      int rc = handle_case_block(lines, line_index);
+      last_code = rc;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: case block completed with exit code: " << rc
+                  << std::endl;
+      continue;
+    }
+
+    // Function definition: name() { ... }
+    if (line.find("()") != std::string::npos && line.find("{") != std::string::npos) {
+      // Simple function definition detection
+      size_t paren_pos = line.find("()");
+      size_t brace_pos = line.find("{");
+      if (paren_pos < brace_pos) {
+        std::string func_name = trim(line.substr(0, paren_pos));
+        
+        // Check if function name is valid (no spaces, not empty)
+        if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
+          // This looks like a function definition
+          // For now, just skip it with a warning since function implementation is complex
+          if (g_debug_mode)
+            std::cerr << "DEBUG: Function definition '" << func_name 
+                      << "' detected but not implemented" << std::endl;
+          
+          // Skip to the closing brace
+          if (line.find("}") != std::string::npos) {
+            // Single line function - just ignore it
+            continue;
+          } else {
+            // Multi-line function - skip until closing brace
+            while (++line_index < lines.size()) {
+              std::string func_line = trim(strip_inline_comment(lines[line_index]));
+              if (func_line.find("}") != std::string::npos) {
+                break;
+              }
+            }
+            continue;
+          }
+        }
+      }
     }
 
     // Break the line into logical command segments (&&, ||) while preserving

@@ -760,14 +760,27 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
     size_t start = preprocessed.processed_text.find('{') + 1;
     size_t end = preprocessed.processed_text.find('}', start);
     if (end != std::string::npos) {
-      std::string subshell_content = preprocessed.processed_text.substr(start, end - start);
-      
-      // Create a special command that represents internal subshell execution
-      Command cmd;
-      cmd.args.push_back("__INTERNAL_SUBSHELL__");
-      cmd.args.push_back(subshell_content);
-      
-      return {cmd};
+      std::string subshell_content =
+          preprocessed.processed_text.substr(start, end - start);
+      std::string remaining = preprocessed.processed_text.substr(end + 1);
+
+      // Convert to a normal command so downstream parsing (pipes/redirs)
+      // continues to work: sh -c '...'<remaining>
+      auto escape_single_quotes = [](const std::string& s) {
+        std::string out;
+        out.reserve(s.size() + 16);
+        for (char c : s) {
+          if (c == '\'') {
+            out += "'\\''";  // close ', insert \'', reopen '
+          } else {
+            out += c;
+          }
+        }
+        return out;
+      };
+
+      std::string rebuilt = "sh -c '" + escape_single_quotes(subshell_content) + "'" + remaining;
+      preprocessed.processed_text = rebuilt;
     }
   }
 
