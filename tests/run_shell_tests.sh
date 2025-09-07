@@ -2,8 +2,8 @@
 # Run all shell tests for cjsh
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 # Use the built cjsh binary for testing
-export CJSH="$SCRIPT_DIR/build/cjsh"
-SHELL_TESTS_DIR="$SCRIPT_DIR/tests/shell"
+export CJSH="$SCRIPT_DIR/../build/cjsh"
+SHELL_TESTS_DIR="$SCRIPT_DIR/shell"
 
 # Colors for output
 RED='\033[0;31m'

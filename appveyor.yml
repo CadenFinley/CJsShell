@@ -74,8 +74,8 @@ after_build:
 test_script:
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER
-      chmod +x run_shell_tests.sh
-      ./run_shell_tests.sh
+      chmod +x tests/run_shell_tests.sh
+      ./tests/run_shell_tests.sh
 
 # Artifacts to save
 artifacts:
