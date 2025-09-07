@@ -45,3 +45,5 @@ exclude_patterns:
   - vendor/**
   - plugins/**
   - themes/**
+  - tests/**
+  - tool-scripts/**
