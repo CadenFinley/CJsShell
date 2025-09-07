@@ -70,11 +70,12 @@ after_build:
       tar -czf CJsShell-Unix.tar.gz cjsh
       appveyor PushArtifact CJsShell-Unix.tar.gz
 
-# Run the tests if you have them
+# Run the shell tests
 test_script:
   - sh: |
-      cd $APPVEYOR_BUILD_FOLDER/build
-      ctest -C $configuration -VV
+      cd $APPVEYOR_BUILD_FOLDER
+      chmod +x run_shell_tests.sh
+      ./run_shell_tests.sh
 
 # Artifacts to save
 artifacts:
