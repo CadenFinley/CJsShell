@@ -154,6 +154,32 @@ Built_ins::Built_ins()
              [](const std::vector<std::string>& args) {
                return ::test_command(args);
              }},
+            {"exec",
+             [this](const std::vector<std::string>& args) {
+               if (args.size() <= 1) {
+                 // exec with no arguments should succeed
+                 return 0;
+               }
+               // exec command [args...] - replace the current shell process
+               std::vector<std::string> exec_args(args.begin() + 1, args.end());
+               
+               // For now, we'll simulate exec by executing the command
+               // In a real implementation, this would replace the shell process
+               return shell->execute_command(exec_args, false);
+             }},
+            {":",
+             [](const std::vector<std::string>&) {
+               // null command - always succeeds
+               return 0;
+             }},
+            {"__INTERNAL_SUBSHELL__",
+             [this](const std::vector<std::string>& args) {
+               if (args.size() < 2) return 1;
+               
+               // Execute the subshell content
+               std::string subshell_content = args[1];
+               return shell->execute(subshell_content);
+             }},
         },
         shell(nullptr) {}
 

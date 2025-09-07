@@ -116,6 +116,37 @@ int ShellScriptInterpreter::execute_block(
     std::string text = trim(strip_inline_comment(cmd_text));
     if (text.empty()) return 0;
 
+    // Handle SUBSHELL{} markers from preprocessor
+    if (text.find("SUBSHELL{") == 0) {
+      size_t start = text.find('{') + 1;
+      size_t end = text.find('}', start);
+      if (end != std::string::npos) {
+        std::string subshell_content = text.substr(start, end - start);
+        std::string remaining = text.substr(end + 1);
+        
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Executing subshell: " << subshell_content << std::endl;
+        }
+        
+        // Execute the subshell content in a sub-environment
+        // Parse the content into multiple commands if needed
+        auto subshell_cmds = shell_parser->parse_semicolon_commands(subshell_content);
+        int result = 0;
+        for (const auto& subcmd : subshell_cmds) {
+          result = execute_simple_or_pipeline(subcmd);
+          if (result != 0) break;
+        }
+        
+        // If there's remaining content (like redirections), handle it
+        if (!remaining.empty()) {
+          // For now, just ignore remaining content or handle it separately
+          // This would need more sophisticated handling for complex cases
+        }
+        
+        return result;
+      }
+    }
+
     // Expand command substitution $(...) and arithmetic $((...)) without using
     // external sh
     auto capture_internal_output =
@@ -126,85 +157,55 @@ int ShellScriptInterpreter::execute_block(
       if (fd >= 0) close(fd);
       std::string path = tmpl;
 
-      auto append_redirect = [&](const std::string& segment) -> int {
-        // Avoid interfering with existing stdout redirections in simple cases
-        bool has_stdout_redir = false;
-        bool in_quotes = false;
-        char q = '\0';
-        for (size_t i = 0; i < segment.size(); ++i) {
-          char c = segment[i];
-          if ((c == '"' || c == '\'') && (i == 0 || segment[i - 1] != '\\')) {
-            if (!in_quotes) {
-              in_quotes = true;
-              q = c;
-            } else if (q == c) {
-              in_quotes = false;
-              q = '\0';
-            }
-          }
-          if (!in_quotes && c == '>') {
-            has_stdout_redir = true;
-            break;
-          }
+      // For command substitution, we need to execute the content with full expansion
+      // and capture the output. The simplest approach is to redirect stdout to a file.
+      
+      // Save current stdout
+      int saved_stdout = dup(STDOUT_FILENO);
+      
+      // Open our temp file for writing
+      FILE* temp_file = fopen(path.c_str(), "w");
+      if (!temp_file) {
+        // Fallback to sh if file operations fail
+        std::string cmd = "/bin/sh -c '" + content + "'";
+        FILE* fp = popen(cmd.c_str(), "r");
+        std::string result;
+        if (fp) {
+          char buf[4096];
+          size_t n;
+          while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
+            result.append(buf, n);
+          pclose(fp);
+          while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
+            result.pop_back();
         }
-        std::string modified = segment;
-        if (!has_stdout_redir) {
-          modified += " >> ";
-          modified += path;
-        }
-
-        // Force pipeline execution to handle redirection properly
-        std::vector<Command> redirect_cmds =
-            shell_parser->parse_pipeline(modified);
-        if (!redirect_cmds.empty()) {
-          int exit_code = g_shell->shell_exec->execute_pipeline(redirect_cmds);
-          return exit_code;
-        }
-        return execute_simple_or_pipeline(modified);
-      };
-
-      // Split into logical/semicolon parts and run with append redirection
-      std::vector<LogicalCommand> lcmds =
-          shell_parser->parse_logical_commands(content);
-      int rc = 0;
-      for (size_t i = 0; i < lcmds.size(); ++i) {
-        const auto& lc = lcmds[i];
-        auto parts = shell_parser->parse_semicolon_commands(lc.command);
-        for (const auto& part : parts) {
-          rc = append_redirect(part);
-          if (rc != 0) break;
-        }
-        if (rc != 0) break;
+        return result;
       }
-
-      // Read file
+      
+      // Redirect stdout to our temp file
+      int temp_fd = fileno(temp_file);
+      dup2(temp_fd, STDOUT_FILENO);
+      
+      // Execute the content with full expansion
+      execute_simple_or_pipeline(content);
+      
+      // Restore stdout
+      fflush(stdout);
+      fclose(temp_file);
+      dup2(saved_stdout, STDOUT_FILENO);
+      close(saved_stdout);
+      
+      // Read the result
       std::ifstream ifs(path);
       std::stringstream buffer;
       buffer << ifs.rdbuf();
       std::string out = buffer.str();
-      // Cleanup
       ::unlink(path.c_str());
+      
       // Trim trailing newlines
       while (!out.empty() && (out.back() == '\n' || out.back() == '\r'))
         out.pop_back();
-      // Fallback: if empty, try executing with /bin/sh -c and capture stdout
-      // via popen
-      if (out.empty()) {
-        std::string cmd = "/bin/sh -c '" + content + "'";
-        FILE* fp = popen(cmd.c_str(), "r");
-        if (fp) {
-          char buf[4096];
-          size_t n;
-          std::string tmpOut;
-          while ((n = fread(buf, 1, sizeof(buf), fp)) > 0)
-            tmpOut.append(buf, n);
-          pclose(fp);
-          while (!tmpOut.empty() &&
-                 (tmpOut.back() == '\n' || tmpOut.back() == '\r'))
-            tmpOut.pop_back();
-          out = tmpOut;
-        }
-      }
+        
       return out;
     };
 
@@ -622,21 +623,31 @@ int ShellScriptInterpreter::execute_block(
       // Simple command path - leverage Shell::execute_command for
       // builtins/plugins/env-assignments
       const auto& c = cmds[0];
-      // Re-parse the original text to apply alias/env/brace/tilde expansions
-      // parse_command performs alias expansion while parse_pipeline does not.
-      std::vector<std::string> expanded_args =
-          shell_parser->parse_command(text);
-      if (expanded_args.empty()) return 0;
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Simple exec: ";
-        for (const auto& a : expanded_args) std::cerr << "[" << a << "]";
-        if (c.background) std::cerr << " &";
-        std::cerr << std::endl;
+      
+      // Check if this is an internal subshell command
+      if (!c.args.empty() && c.args[0] == "__INTERNAL_SUBSHELL__") {
+        // Use the preprocessed command directly
+        int exit_code = g_shell->execute_command(c.args, c.background);
+        // Update STATUS environment variable for $? expansion
+        setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+        return exit_code;
+      } else {
+        // Re-parse the original text to apply alias/env/brace/tilde expansions
+        // parse_command performs alias expansion while parse_pipeline does not.
+        std::vector<std::string> expanded_args =
+            shell_parser->parse_command(text);
+        if (expanded_args.empty()) return 0;
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Simple exec: ";
+          for (const auto& a : expanded_args) std::cerr << "[" << a << "]";
+          if (c.background) std::cerr << " &";
+          std::cerr << std::endl;
+        }
+        int exit_code = g_shell->execute_command(expanded_args, c.background);
+        // Update STATUS environment variable for $? expansion
+        setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+        return exit_code;
       }
-      int exit_code = g_shell->execute_command(expanded_args, c.background);
-      // Update STATUS environment variable for $? expansion
-      setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-      return exit_code;
     }
 
     // Pipeline or with redirections
@@ -1127,6 +1138,22 @@ int ShellScriptInterpreter::execute_block(
             std::cerr << "DEBUG: Skipping due to || short-circuit" << std::endl;
           continue;
         }
+      }
+
+      // Check for command grouping (parentheses or braces) before semicolon splitting
+      std::string cmd_to_parse = lc.command;
+      std::string trimmed_cmd = trim(strip_inline_comment(cmd_to_parse));
+      
+      // Handle grouping constructs that should be treated as a single unit
+      if (!trimmed_cmd.empty() && (trimmed_cmd[0] == '(' || trimmed_cmd[0] == '{')) {
+        // This is a grouped command - execute it as a single unit
+        int code = execute_simple_or_pipeline(cmd_to_parse);
+        last_code = code;
+        if (code != 0 && debug_level >= DebugLevel::BASIC) {
+          std::cerr << "DEBUG: Grouped command failed (" << code << ") -> '" << cmd_to_parse
+                    << "'" << std::endl;
+        }
+        continue;
       }
 
       // Split each logical segment further by semicolons, then single '&'

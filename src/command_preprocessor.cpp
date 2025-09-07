@@ -113,38 +113,54 @@ std::string CommandPreprocessor::process_here_documents(
 std::string CommandPreprocessor::process_subshells(const std::string& command) {
   std::string result = command;
 
-  // Look for subshell pattern at start: (command) possibly followed by
-  // redirection
-  if (result.empty() || result[0] != '(') {
+  // Look for subshell pattern at start: (command) or { command; }
+  // possibly followed by redirection
+  if (result.empty() || (result[0] != '(' && result[0] != '{')) {
     return result;
   }
 
-  size_t close_paren = find_matching_paren(result, 0);
-  if (close_paren == std::string::npos) {
-    return result;  // No matching closing parenthesis
+  size_t close_pos = std::string::npos;
+  
+  if (result[0] == '(') {
+    close_pos = find_matching_paren(result, 0);
+  } else if (result[0] == '{') {
+    close_pos = find_matching_brace(result, 0);
+  }
+  
+  if (close_pos == std::string::npos) {
+    return result;  // No matching closing character
   }
 
-  // Extract subshell content
-  std::string subshell_content = result.substr(1, close_paren - 1);
-  std::string remaining = result.substr(close_paren + 1);
+  // Extract subshell/brace content
+  std::string subshell_content = result.substr(1, close_pos - 1);
+  std::string remaining = result.substr(close_pos + 1);
 
-  // Convert to sh -c equivalent
-  // Need to properly escape the content for shell execution
-  std::string escaped_content = subshell_content;
-
-  // Escape single quotes by replacing ' with '\''
-  size_t pos = 0;
-  while ((pos = escaped_content.find('\'', pos)) != std::string::npos) {
-    escaped_content.replace(pos, 1, "'\\''");
-    pos += 4;
+  // For braces, trim leading/trailing whitespace and ensure trailing semicolon is handled
+  if (result[0] == '{') {
+    // Trim whitespace
+    size_t start = subshell_content.find_first_not_of(" \t\n\r");
+    size_t end = subshell_content.find_last_not_of(" \t\n\r");
+    if (start != std::string::npos && end != std::string::npos) {
+      subshell_content = subshell_content.substr(start, end - start + 1);
+    }
+    // Remove trailing semicolon if present (braces require it but subshell execution doesn't need it)
+    if (!subshell_content.empty() && subshell_content.back() == ';') {
+      subshell_content.pop_back();
+      // Trim any whitespace after removing semicolon
+      end = subshell_content.find_last_not_of(" \t\n\r");
+      if (end != std::string::npos) {
+        subshell_content = subshell_content.substr(0, end + 1);
+      }
+    }
   }
 
-  result = "sh -c '" + escaped_content + "'" + remaining;
+  // Instead of using sh -c, we'll return a marker that the shell can handle
+  // The shell script interpreter should handle subshells directly
+  result = "SUBSHELL{" + subshell_content + "}" + remaining;
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: Converted subshell (" << subshell_content
-              << ") to: sh -c '" << escaped_content << "'" << remaining
-              << std::endl;
+    std::cerr << "DEBUG: Converted " << (result[0] == '(' ? "subshell" : "brace group") 
+              << " (" << subshell_content << ") to internal subshell marker" << std::endl;
   }
 
   return result;
@@ -169,6 +185,31 @@ size_t CommandPreprocessor::find_matching_paren(const std::string& text,
     if (text[i] == '(') {
       depth++;
     } else if (text[i] == ')') {
+      depth--;
+      if (depth == 0) {
+        return i;
+      }
+    }
+  }
+
+  return std::string::npos;
+}
+
+size_t CommandPreprocessor::find_matching_brace(const std::string& text,
+                                                size_t start_pos) {
+  if (start_pos >= text.length() || text[start_pos] != '{') {
+    return std::string::npos;
+  }
+
+  int depth = 0;
+  for (size_t i = start_pos; i < text.length(); ++i) {
+    if (is_inside_quotes(text, i)) {
+      continue;
+    }
+
+    if (text[i] == '{') {
+      depth++;
+    } else if (text[i] == '}') {
       depth--;
       if (depth == 0) {
         return i;

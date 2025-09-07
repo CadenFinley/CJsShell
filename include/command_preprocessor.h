@@ -64,6 +64,14 @@ class CommandPreprocessor {
   static size_t find_matching_paren(const std::string& text, size_t start_pos);
 
   /**
+   * Find matching braces considering quotes and escaping
+   * @param text Text to search
+   * @param start_pos Starting position
+   * @return Position of matching closing brace or string::npos
+   */
+  static size_t find_matching_brace(const std::string& text, size_t start_pos);
+
+  /**
    * Check if a position in the string is inside quotes
    * @param text The string to check
    * @param pos Position to check

@@ -755,6 +755,22 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
   // Store here document context for this parsing session
   current_here_docs = preprocessed.here_documents;
 
+  // Check if this is a SUBSHELL{} command
+  if (preprocessed.processed_text.find("SUBSHELL{") == 0) {
+    size_t start = preprocessed.processed_text.find('{') + 1;
+    size_t end = preprocessed.processed_text.find('}', start);
+    if (end != std::string::npos) {
+      std::string subshell_content = preprocessed.processed_text.substr(start, end - start);
+      
+      // Create a special command that represents internal subshell execution
+      Command cmd;
+      cmd.args.push_back("__INTERNAL_SUBSHELL__");
+      cmd.args.push_back(subshell_content);
+      
+      return {cmd};
+    }
+  }
+
   // Parse the preprocessed command normally
   std::vector<Command> commands = parse_pipeline(preprocessed.processed_text);
 
