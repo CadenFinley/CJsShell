@@ -61,12 +61,39 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   return lines;
 }
 
+namespace {
+// Sentinel-based quote tagging so we can preserve how a token was quoted
+// through parsing stages without changing public APIs.
+static const char QUOTE_PREFIX = '\x1F';
+static const char QUOTE_SINGLE = 'S';
+static const char QUOTE_DOUBLE = 'D';
+
+inline bool is_single_quoted_token(const std::string& s) {
+  return s.size() >= 2 && s[0] == QUOTE_PREFIX && s[1] == QUOTE_SINGLE;
+}
+
+inline bool is_double_quoted_token(const std::string& s) {
+  return s.size() >= 2 && s[0] == QUOTE_PREFIX && s[1] == QUOTE_DOUBLE;
+}
+
+inline std::string strip_quote_tag(const std::string& s) {
+  if (s.size() >= 2 && s[0] == QUOTE_PREFIX && (s[1] == QUOTE_SINGLE || s[1] == QUOTE_DOUBLE)) {
+    return s.substr(2);
+  }
+  return s;
+}
+}  // namespace
+
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
   std::vector<std::string> tokens;
   std::string current_token;
   bool in_quotes = false;
   char quote_char = '\0';
   bool escaped = false;
+  // Track how the token was quoted overall; if a token contains any single quotes
+  // and no double quotes, mark as single; if any double quotes and no single quotes, mark as double.
+  bool token_saw_single = false;
+  bool token_saw_double = false;
 
   for (size_t i = 0; i < cmdline.length(); ++i) {
     char c = cmdline[i];
@@ -80,19 +107,35 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     } else if ((c == '"' || c == '\'') && !in_quotes) {
       in_quotes = true;
       quote_char = c;
+      if (c == '\'') token_saw_single = true; else token_saw_double = true;
     } else if (c == quote_char && in_quotes) {
       in_quotes = false;
       quote_char = '\0';
     } else if ((c == '(' || c == ')') && !in_quotes) {
       if (!current_token.empty()) {
-        tokens.push_back(current_token);
+        // Apply quote tag if any
+        if (token_saw_single && !token_saw_double) {
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + current_token);
+        } else if (token_saw_double && !token_saw_single) {
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + current_token);
+        } else {
+          tokens.push_back(current_token);
+        }
         current_token.clear();
+        token_saw_single = token_saw_double = false;
       }
       tokens.push_back(std::string(1, c));
     } else if (std::isspace(c) && !in_quotes) {
       if (!current_token.empty()) {
-        tokens.push_back(current_token);
+        if (token_saw_single && !token_saw_double) {
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + current_token);
+        } else if (token_saw_double && !token_saw_single) {
+          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + current_token);
+        } else {
+          tokens.push_back(current_token);
+        }
         current_token.clear();
+        token_saw_single = token_saw_double = false;
       }
     } else {
       current_token += c;
@@ -100,7 +143,13 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   }
 
   if (!current_token.empty()) {
-    tokens.push_back(current_token);
+    if (token_saw_single && !token_saw_double) {
+      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + current_token);
+    } else if (token_saw_double && !token_saw_single) {
+      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + current_token);
+    } else {
+      tokens.push_back(current_token);
+    }
   }
 
   return tokens;
@@ -145,22 +194,55 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
 
   std::vector<std::string> expanded_args;
-  for (const auto& arg : args) {
+  for (const auto& raw_arg : args) {
+    const bool is_single = is_single_quoted_token(raw_arg);
+    const bool is_double = is_double_quoted_token(raw_arg);
+    const std::string arg = strip_quote_tag(raw_arg);
     if (arg.find('{') != std::string::npos &&
         arg.find('}') != std::string::npos) {
       std::vector<std::string> brace_expansions = expand_braces(arg);
-      expanded_args.insert(expanded_args.end(), brace_expansions.begin(),
-                           brace_expansions.end());
+      // NOTE: Real shells inhibit brace expansion inside quotes; keeping simple
+      // behavior here unless tests require otherwise. Preserve quote tags.
+      if (is_single) {
+        for (auto& b : brace_expansions) {
+          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + b);
+        }
+      } else if (is_double) {
+        for (auto& b : brace_expansions) {
+          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + b);
+        }
+      } else {
+        expanded_args.insert(expanded_args.end(), brace_expansions.begin(), brace_expansions.end());
+      }
     } else {
-      expanded_args.push_back(arg);
+      if (is_single) {
+        expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + arg);
+      } else if (is_double) {
+        expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + arg);
+      } else {
+        expanded_args.push_back(arg);
+      }
     }
   }
   args = expanded_args;
-  for (auto& arg : args) {
-    expand_env_vars(arg);
+  for (auto& raw_arg : args) {
+    // Do not expand env vars inside single quotes; expand inside double or unquoted.
+    if (!is_single_quoted_token(raw_arg)) {
+      std::string tmp = strip_quote_tag(raw_arg);
+      expand_env_vars(tmp);
+      // Reapply quote tag for double-quoted tokens so we can still skip globbing later
+      if (is_double_quoted_token(raw_arg)) {
+        raw_arg = std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + tmp;
+      } else {
+        raw_arg = tmp;
+      }
+    }
   }
   std::vector<std::string> tilde_expanded_args;
-  for (auto& arg : args) {
+  for (auto& raw_arg : args) {
+    const bool is_single = is_single_quoted_token(raw_arg);
+    const bool is_double = is_double_quoted_token(raw_arg);
+    std::string arg = strip_quote_tag(raw_arg);
     bool has_tilde = false;
     if (!arg.empty()) {
       if (arg[0] == '~') {
@@ -175,7 +257,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       }
     }
 
-    if (has_tilde) {
+    // Inhibit tilde expansion in any quoted token
+    if (has_tilde && !is_single && !is_double) {
       char* home_dir = std::getenv("HOME");
       if (home_dir) {
         std::string home_str(home_dir);
@@ -186,14 +269,27 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         tilde_expanded_args.push_back(arg);
       }
     } else {
-      tilde_expanded_args.push_back(arg);
+      if (is_single) {
+        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + arg);
+      } else if (is_double) {
+        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + arg);
+      } else {
+        tilde_expanded_args.push_back(arg);
+      }
     }
   }
 
   std::vector<std::string> final_args;
-  for (const auto& arg : tilde_expanded_args) {
-    auto gw = expand_wildcards(arg);
-    final_args.insert(final_args.end(), gw.begin(), gw.end());
+  for (const auto& raw_arg : tilde_expanded_args) {
+    const bool is_single = is_single_quoted_token(raw_arg);
+    const bool is_double = is_double_quoted_token(raw_arg);
+    std::string arg = strip_quote_tag(raw_arg);
+    if (!is_single && !is_double) {
+      auto gw = expand_wildcards(arg);
+      final_args.insert(final_args.end(), gw.begin(), gw.end());
+    } else {
+      final_args.push_back(arg);
+    }
   }
   return final_args;
 }
@@ -357,13 +453,13 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
     for (size_t i = 0; i < tokens.size(); ++i) {
       if (tokens[i] == "<" && i + 1 < tokens.size()) {
-        cmd.input_file = tokens[++i];
+        cmd.input_file = strip_quote_tag(tokens[++i]);
       } else if (tokens[i] == ">" && i + 1 < tokens.size()) {
-        cmd.output_file = tokens[++i];
+        cmd.output_file = strip_quote_tag(tokens[++i]);
       } else if (tokens[i] == ">>" && i + 1 < tokens.size()) {
-        cmd.append_file = tokens[++i];
+        cmd.append_file = strip_quote_tag(tokens[++i]);
       } else {
-        filtered_args.push_back(tokens[i]);
+        filtered_args.push_back(strip_quote_tag(tokens[i]));
       }
     }
 
