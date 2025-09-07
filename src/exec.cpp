@@ -447,8 +447,18 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
 
           // Write here document content to pipe
-          write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
-          write(here_pipe[1], "\n", 1);  // Add final newline
+          ssize_t bytes_written = write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
+          if (bytes_written == -1) {
+            perror("write here document content");
+            close(here_pipe[1]);
+            _exit(EXIT_FAILURE);
+          }
+          bytes_written = write(here_pipe[1], "\n", 1);  // Add final newline
+          if (bytes_written == -1) {
+            perror("write here document newline");
+            close(here_pipe[1]);
+            _exit(EXIT_FAILURE);
+          }
           close(here_pipe[1]);
 
           if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
@@ -680,8 +690,18 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             // Write here document content to pipe
-            write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
-            write(here_pipe[1], "\n", 1);  // Add final newline
+            ssize_t bytes_written = write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
+            if (bytes_written == -1) {
+              perror("write here document content");
+              close(here_pipe[1]);
+              _exit(EXIT_FAILURE);
+            }
+            bytes_written = write(here_pipe[1], "\n", 1);  // Add final newline
+            if (bytes_written == -1) {
+              perror("write here document newline");
+              close(here_pipe[1]);
+              _exit(EXIT_FAILURE);
+            }
             close(here_pipe[1]);
 
             if (dup2(here_pipe[0], STDIN_FILENO) == -1) {

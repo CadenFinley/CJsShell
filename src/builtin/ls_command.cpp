@@ -160,6 +160,8 @@ int list_directory(const std::string& path, bool show_hidden, bool long_format,
 
       if (sort_by_time) {
         struct stat a_stat, b_stat;
+        memset(&a_stat, 0, sizeof(a_stat));
+        memset(&b_stat, 0, sizeof(b_stat));
         stat(a.path().c_str(), &a_stat);
         stat(b.path().c_str(), &b_stat);
         if (a_stat.st_mtime != b_stat.st_mtime) {
@@ -262,6 +264,7 @@ int list_directory(const std::string& path, bool show_hidden, bool long_format,
       }
 
       struct stat file_stat;
+      memset(&file_stat, 0, sizeof(file_stat));
       stat(entry.path().c_str(), &file_stat);
 
       if (long_format) {
