@@ -27,6 +27,8 @@
 #include "plugin_command.h"
 #include "printf_command.h"
 #include "prompt_test_command.h"
+#include "pwd_command.h"
+#include "read_command.h"
 #include "readonly_command.h"
 #include "restart_command.h"
 #include "set_command.h"
@@ -56,6 +58,10 @@ Built_ins::Built_ins()
             {"printf",
              [](const std::vector<std::string>& args) {
                return ::printf_command(args);
+             }},
+            {"pwd",
+             [](const std::vector<std::string>& args) {
+               return ::pwd_command(args);
              }},
             {"cd",
              [this](const std::vector<std::string>& args) {
@@ -302,6 +308,10 @@ Built_ins::Built_ins()
             {"readonly",
              [this](const std::vector<std::string>& args) {
                return ::readonly_command(args, shell);
+             }},
+            {"read",
+             [this](const std::vector<std::string>& args) {
+               return ::read_command(args, shell);
              }},
             {"umask",
              [](const std::vector<std::string>& args) {
