@@ -111,37 +111,20 @@ bool initialize_cjsh_path() {
 
 bool initialize_cjsh_directories() {
   try {
-    // We're already in the cjsh_filesystem namespace, so fs is already defined
-
-    if (!fs::exists(g_config_path)) {
-      fs::create_directories(g_config_path);
-    }
-
-    if (!fs::exists(g_cache_path)) {
-      fs::create_directories(g_cache_path);
-    }
-
-    if (!fs::exists(g_cjsh_data_path)) {
-      fs::create_directories(g_cjsh_data_path);
-    }
-
-    if (!fs::exists(g_cjsh_cache_path)) {
-      fs::create_directories(g_cjsh_cache_path);
-    }
-
-    if (!fs::exists(g_cjsh_plugin_path)) {
-      fs::create_directories(g_cjsh_plugin_path);
-    }
-    if (!fs::exists(g_cjsh_theme_path)) {
-      fs::create_directories(g_cjsh_theme_path);
-    }
-
-    if (!fs::exists(g_cjsh_ai_config_path)) {
-      fs::create_directories(g_cjsh_ai_config_path);
-    }
-    if (!fs::exists(g_cjsh_ai_conversations_path)) {
-      fs::create_directories(g_cjsh_ai_conversations_path);
-    }
+    // Optimize by creating directories without checking existence first.
+    // fs::create_directories() is idempotent and will succeed if directories already exist.
+    // This reduces filesystem calls from 16 (8 exists + 8 create) to just 8 (create only).
+    
+    // Create all directories in optimal order (parent directories first)
+    // This ensures minimal filesystem operations
+    fs::create_directories(g_config_path);
+    fs::create_directories(g_cache_path);
+    fs::create_directories(g_cjsh_data_path);
+    fs::create_directories(g_cjsh_cache_path);
+    fs::create_directories(g_cjsh_plugin_path);
+    fs::create_directories(g_cjsh_theme_path);
+    fs::create_directories(g_cjsh_ai_config_path);
+    fs::create_directories(g_cjsh_ai_conversations_path);
 
     return true;
   } catch (const fs::filesystem_error& e) {
