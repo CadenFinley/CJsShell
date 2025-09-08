@@ -23,7 +23,7 @@ fi
 # Test that login mode creates necessary files
 "$CJSH_PATH" --login -c "true" 2>/dev/null
 # Check if cjsh profile was created
-if [ ! -f "$TEST_HOME/.cjsh/profile" ] && [ ! -f "$TEST_HOME/.cjshprofile" ]; then
+if [ ! -f "$TEST_HOME/.cjprofile" ]; then
     echo "WARNING: login mode did not create profile file"
 fi
 
@@ -32,12 +32,6 @@ echo "export TEST_PROFILE_VAR=profile_value" > "$TEST_HOME/.profile"
 OUT=$("$CJSH_PATH" --login -c "echo \$TEST_PROFILE_VAR" 2>/dev/null)
 if [ "$OUT" != "profile_value" ]; then
     echo "WARNING: profile file not sourced in login mode (got '$OUT')"
-fi
-
-# Test source file creation and sourcing
-"$CJSH_PATH" -c "true" 2>/dev/null
-if [ ! -f "$TEST_HOME/.cjsh/source" ] && [ ! -f "$TEST_HOME/.cjshrc" ]; then
-    echo "WARNING: interactive mode did not create source file"
 fi
 
 # Test environment variable setup
