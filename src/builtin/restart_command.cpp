@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <string.h>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <string>

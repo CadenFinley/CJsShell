@@ -3,7 +3,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <iomanip>
 
 #include "ai_command.h"

@@ -20,8 +20,8 @@ extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(
 
 #include <sys/utsname.h>
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
 #include "cjsh.h"
 #ifdef __APPLE__

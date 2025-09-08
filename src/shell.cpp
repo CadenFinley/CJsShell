@@ -1,6 +1,6 @@
 #include "shell.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <set>
 #include <sstream>
 

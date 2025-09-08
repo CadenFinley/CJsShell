@@ -1,6 +1,6 @@
 #include "read_command.h"
 #include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include "readonly_command.h"

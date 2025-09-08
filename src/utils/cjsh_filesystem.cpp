@@ -1,8 +1,8 @@
 #include "cjsh_filesystem.h"
 
 #include <chrono>
-#include <stdlib.h>
-#include <string.h>  // For strdup
+#include <cstdlib>
+#include <cstring>  // For strdup
 #include <fstream>
 #include <sstream>
 #include <vector>

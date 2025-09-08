@@ -1,6 +1,6 @@
 #include "export_command.h"
 
-#include <string.h>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <vector>

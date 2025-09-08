@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 #include <atomic>
-#include <time.h>
+#include <ctime>
 
 #include "ai.h"
 #include "plugin.h"

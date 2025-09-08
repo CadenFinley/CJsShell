@@ -1,6 +1,6 @@
 #include "aihelp_command.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 

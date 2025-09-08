@@ -1,7 +1,7 @@
 #include "theme_command.h"
 
 #include <algorithm>
-#include <stdlib.h>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>

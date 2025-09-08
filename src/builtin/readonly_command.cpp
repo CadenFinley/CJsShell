@@ -1,6 +1,6 @@
 #include "readonly_command.h"
 #include <algorithm>
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include "shell.h"
 
