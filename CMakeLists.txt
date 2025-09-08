@@ -132,6 +132,11 @@ endif()
 # Add required include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/isocline
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/builtin
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
 )
 
 # Link against libraries

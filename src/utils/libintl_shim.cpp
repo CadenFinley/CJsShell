@@ -1,4 +1,4 @@
-#include "../include/libintl_shim.h"
+#include "libintl_shim.h"
 
 #include <cstdarg>
 #include <cstdio>

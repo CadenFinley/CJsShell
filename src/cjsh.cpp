@@ -17,7 +17,7 @@
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
-#include "completions.h"
+#include "cjsh_completions.h"
 #include "isocline/isocline.h"
 #include "job_control.h"
 #include "shell.h"
