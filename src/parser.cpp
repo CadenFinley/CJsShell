@@ -1109,6 +1109,54 @@ std::vector<std::string> Parser::parse_semicolon_commands(
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
+  int control_depth = 0;  // Track control structure nesting
+
+  // Pre-scan to detect control structures and avoid splitting them
+  std::vector<bool> is_semicolon_split_point(command.length(), false);
+  
+  for (size_t i = 0; i < command.length(); ++i) {
+    if (command[i] == '"' || command[i] == '\'') {
+      if (!in_quotes) {
+        in_quotes = true;
+        quote_char = command[i];
+      } else if (quote_char == command[i]) {
+        in_quotes = false;
+      }
+    } else if (!in_quotes && command[i] == '(') {
+      paren_depth++;
+    } else if (!in_quotes && command[i] == ')') {
+      paren_depth--;
+    } else if (!in_quotes && paren_depth == 0) {
+      // Check for control structure keywords
+      if (command[i] == ' ' || command[i] == '\t' || i == 0) {
+        size_t word_start = i;
+        if (command[i] == ' ' || command[i] == '\t') word_start = i + 1;
+        
+        std::string word;
+        size_t j = word_start;
+        while (j < command.length() && std::isalpha(command[j])) {
+          word += command[j];
+          j++;
+        }
+        
+        if (word == "if" || word == "for" || word == "while" || word == "until" || 
+            word == "case") {
+          control_depth++;
+        } else if ((word == "fi" || word == "done" || word == "esac") && control_depth > 0) {
+          control_depth--;
+        }
+      }
+      
+      if (command[i] == ';' && control_depth == 0) {
+        is_semicolon_split_point[i] = true;
+      }
+    }
+  }
+
+  // Reset state for actual parsing
+  in_quotes = false;
+  quote_char = '\0';
+  current.clear();
 
   for (size_t i = 0; i < command.length(); ++i) {
     if (command[i] == '"' || command[i] == '\'') {
@@ -1119,13 +1167,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(
         in_quotes = false;
       }
       current += command[i];
-    } else if (!in_quotes && command[i] == '(') {
-      paren_depth++;
-      current += command[i];
-    } else if (!in_quotes && command[i] == ')') {
-      paren_depth--;
-      current += command[i];
-    } else if (command[i] == ';' && !in_quotes && paren_depth == 0) {
+    } else if (command[i] == ';' && is_semicolon_split_point[i]) {
       if (!current.empty()) {
         current.erase(0, current.find_first_not_of(" \t\n\r"));
         current.erase(current.find_last_not_of(" \t\n\r") + 1);

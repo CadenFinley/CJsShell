@@ -2256,6 +2256,18 @@ int ShellScriptInterpreter::execute_block(
             }
             continue;
           }
+          if ((t.rfind("until ", 0) == 0 || t == "until") &&
+              t.find("; do") != std::string::npos) {
+            size_t local_idx = 0;
+            std::vector<std::string> one{t};
+            int code = handle_until_block(one, local_idx);
+            last_code = code;
+            if (code != 0 && debug_level >= DebugLevel::BASIC) {
+              std::cerr << "DEBUG: until block failed (" << code << ") -> '"
+                        << t << "'" << std::endl;
+            }
+            continue;
+          }
           // Case B: header/body/end split across separate semicolon segments in
           // same line
           if ((t.rfind("for ", 0) == 0 || t == "for")) {

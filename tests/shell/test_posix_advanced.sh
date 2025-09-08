@@ -336,10 +336,10 @@ rm -rf "/tmp/glob_test_$$"
 log_test "Exit status of pipeline"
 "$SHELL_TO_TEST" -c "false | true" 2>/dev/null
 exit_code=$?
-if [ $exit_code -ne 0 ]; then
+if [ $exit_code -eq 0 ]; then
     pass
 else
-    fail "Pipeline should return exit status of last command"
+    fail "Pipeline should return exit status of last command (true=0)"
 fi
 
 # Test 30: Set built-in with options
