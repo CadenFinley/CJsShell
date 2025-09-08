@@ -72,25 +72,25 @@ int ShellScriptInterpreter::execute_block(
     char quote = '\0';
     for (size_t i = 0; i < s.size(); ++i) {
       char c = s[i];
-      
+
       // Track brace expansion ${...}
       if (!in_quotes && c == '$' && i + 1 < s.size() && s[i + 1] == '{') {
         in_brace_expansion = true;
       } else if (in_brace_expansion && c == '}') {
         in_brace_expansion = false;
       }
-      
+
       // Track special variables like $#, $?, $$, $*, $@, $!
       if (!in_quotes && !in_brace_expansion && c == '$' && i + 1 < s.size()) {
         char next = s[i + 1];
-        if (next == '#' || next == '?' || next == '$' || next == '*' || 
+        if (next == '#' || next == '?' || next == '$' || next == '*' ||
             next == '@' || next == '!' || isdigit(next)) {
           // Skip the next character as it's part of the variable
           ++i;
           continue;
         }
       }
-      
+
       if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
         if (!in_quotes) {
           in_quotes = true;
@@ -638,33 +638,35 @@ int ShellScriptInterpreter::execute_block(
 
     // Use enhanced pipeline parser with preprocessing to handle here docs and
     // subshells
-    
+
     // Handle case statements before preprocessing to avoid expansion issues
     if ((text == "case" || text.rfind("case ", 0) == 0) &&
         (text.find(" in ") != std::string::npos) &&
         (text.find("esac") != std::string::npos)) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Handling inline case statement directly: " << text << std::endl;
+        std::cerr << "DEBUG: Handling inline case statement directly: " << text
+                  << std::endl;
       }
-      
+
       // Simple inline case statement handler
       size_t in_pos = text.find(" in ");
       std::string case_part = text.substr(0, in_pos);
       std::string patterns_part = text.substr(in_pos + 4);  // Skip " in "
-      
+
       // Extract case value with variable expansion but no glob expansion
-      std::vector<std::string> case_toks = shell_parser->parse_command(case_part);
+      std::vector<std::string> case_toks =
+          shell_parser->parse_command(case_part);
       std::string case_value;
       if (case_toks.size() >= 2 && case_toks[0] == "case") {
         case_value = case_toks[1];
       }
-      
+
       // Remove "esac" from the end
       size_t esac_pos = patterns_part.find("esac");
       if (esac_pos != std::string::npos) {
         patterns_part = patterns_part.substr(0, esac_pos);
       }
-      
+
       // Process pattern sections
       std::vector<std::string> pattern_sections;
       size_t start = 0;
@@ -676,19 +678,21 @@ int ShellScriptInterpreter::execute_block(
           }
           break;
         }
-        pattern_sections.push_back(trim(patterns_part.substr(start, sep_pos - start)));
+        pattern_sections.push_back(
+            trim(patterns_part.substr(start, sep_pos - start)));
         start = sep_pos + 2;
       }
-      
+
       // Check each pattern for a match
       for (const auto& section : pattern_sections) {
-        if (section.empty()) continue;
-        
+        if (section.empty())
+          continue;
+
         size_t paren_pos = section.find(')');
         if (paren_pos != std::string::npos) {
           std::string pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
-          
+
           // Check if pattern matches case_value
           bool pattern_matches = false;
           if (pattern == "*") {
@@ -705,11 +709,12 @@ int ShellScriptInterpreter::execute_block(
               // Pattern starts with *, check if case_value ends with the suffix
               std::string suffix = pattern.substr(1);
               if (case_value.size() >= suffix.size()) {
-                pattern_matches = (case_value.substr(case_value.size() - suffix.size()) == suffix);
+                pattern_matches = (case_value.substr(case_value.size() -
+                                                     suffix.size()) == suffix);
               }
             }
           }
-          
+
           if (pattern_matches) {
             if (!command_part.empty()) {
               return execute_simple_or_pipeline(command_part);
@@ -718,11 +723,11 @@ int ShellScriptInterpreter::execute_block(
           }
         }
       }
-      
+
       // No match found
       return 0;
     }
-    
+
     std::vector<Command> cmds =
         shell_parser->parse_pipeline_with_preprocessing(text);
 
@@ -765,15 +770,16 @@ int ShellScriptInterpreter::execute_block(
           setenv("STATUS", std::to_string(exit_code).c_str(), 1);
           return exit_code;
         } else {
-          // No redirections, but subshells should still execute in a separate process
-          // for proper variable scoping (POSIX compliance)
+          // No redirections, but subshells should still execute in a separate
+          // process for proper variable scoping (POSIX compliance)
           if (c.args.size() >= 2) {
             std::string subshell_content = c.args[1];
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Executing subshell content in child process: "
-                        << subshell_content << std::endl;
+              std::cerr
+                  << "DEBUG: Executing subshell content in child process: "
+                  << subshell_content << std::endl;
             }
-            
+
             // Fork for proper variable isolation
             pid_t pid = fork();
             if (pid == 0) {
@@ -1049,8 +1055,9 @@ int ShellScriptInterpreter::execute_block(
 
         // First branch is the 'then' part
         size_t pos = 0;
-        bool condition_met = false;  // Track if any condition has been satisfied
-        
+        bool condition_met =
+            false;  // Track if any condition has been satisfied
+
         while (pos < remaining.length()) {
           size_t elif_pos = remaining.find("; elif ", pos);
           size_t else_pos = remaining.find("; else ", pos);
@@ -1109,7 +1116,8 @@ int ShellScriptInterpreter::execute_block(
               std::string elif_cond =
                   trim(remaining.substr(pos, elif_then - pos));
               int elif_result = execute_simple_or_pipeline(elif_cond);
-              // Execute elif branch only if its condition is true AND no previous condition was met
+              // Execute elif branch only if its condition is true AND no
+              // previous condition was met
               if (elif_result == 0 && !condition_met) {
                 // Execute commands after this elif's then
                 size_t elif_body_start = elif_then + 6;  // Skip "; then"
@@ -1160,7 +1168,8 @@ int ShellScriptInterpreter::execute_block(
               pos = elif_then + 6;
             }
           } else if (else_pos != std::string::npos && next_pos == else_pos) {
-            // This is the else branch - only execute if no previous conditions were met
+            // This is the else branch - only execute if no previous conditions
+            // were met
             if (!condition_met && cond_result != 0) {
               // Execute the commands after else
               pos = next_pos + 7;  // Skip "; else "
@@ -1299,7 +1308,8 @@ int ShellScriptInterpreter::execute_block(
               goto for_loop_break;
             } else {
               // Pass break up to higher level loop
-              setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+              setenv("CJSH_BREAK_LEVEL",
+                     std::to_string(break_level - 1).c_str(), 1);
               goto for_loop_break;
             }
           } else if (rc == 254) {  // continue signal
@@ -1314,16 +1324,17 @@ int ShellScriptInterpreter::execute_block(
               goto for_loop_continue;
             } else {
               // Pass continue up to higher level loop
-              setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+              setenv("CJSH_CONTINUE_LEVEL",
+                     std::to_string(continue_level - 1).c_str(), 1);
               goto for_loop_break;
             }
           } else if (rc != 0) {
             break;
           }
         }
-for_loop_continue:;
+      for_loop_continue:;
       }
-for_loop_break:;
+    for_loop_break:;
       return rc;
     }
 
@@ -1397,7 +1408,8 @@ for_loop_break:;
           break;
         } else {
           // Pass break up to higher level loop
-          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
+                 1);
           break;
         }
       } else if (rc == 254) {  // continue signal
@@ -1412,7 +1424,8 @@ for_loop_break:;
           continue;
         } else {
           // Pass continue up to higher level loop
-          setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+          setenv("CJSH_CONTINUE_LEVEL",
+                 std::to_string(continue_level - 1).c_str(), 1);
           break;
         }
       } else if (rc != 0) {
@@ -1869,7 +1882,8 @@ for_loop_break:;
           break;
         } else {
           // Pass break up to higher level loop
-          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
+                 1);
           break;
         }
       } else if (rc == 254) {  // continue signal
@@ -1884,7 +1898,8 @@ for_loop_break:;
           continue;
         } else {
           // Pass continue up to higher level loop
-          setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+          setenv("CJSH_CONTINUE_LEVEL",
+                 std::to_string(continue_level - 1).c_str(), 1);
           break;
         }
       } else if (rc != 0) {
@@ -2016,7 +2031,8 @@ for_loop_break:;
           break;
         } else {
           // Pass break up to higher level loop
-          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
+                 1);
           break;
         }
       } else if (rc == 254) {  // continue signal
@@ -2031,7 +2047,8 @@ for_loop_break:;
           continue;
         } else {
           // Pass continue up to higher level loop
-          setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+          setenv("CJSH_CONTINUE_LEVEL",
+                 std::to_string(continue_level - 1).c_str(), 1);
           break;
         }
       } else if (rc != 0) {
@@ -2183,13 +2200,14 @@ for_loop_break:;
       continue;
 
     last_code = 0;
-      for (size_t i = 0; i < lcmds.size(); ++i) {
+    for (size_t i = 0; i < lcmds.size(); ++i) {
       const auto& lc = lcmds[i];
       // Short-circuiting based on previous op
       if (i > 0) {
         const std::string& prev_op = lcmds[i - 1].op;
         // Don't short-circuit if previous command was a control flow signal
-        bool is_control_flow = (last_code == 253 || last_code == 254 || last_code == 255);
+        bool is_control_flow =
+            (last_code == 253 || last_code == 254 || last_code == 255);
         if (prev_op == "&&" && last_code != 0 && !is_control_flow) {
           if (g_debug_mode)
             std::cerr << "DEBUG: Skipping due to && short-circuit" << std::endl;
@@ -2200,13 +2218,16 @@ for_loop_break:;
             std::cerr << "DEBUG: Skipping due to || short-circuit" << std::endl;
           continue;
         }
-        // If we hit a control flow signal, break out of logical command processing
+        // If we hit a control flow signal, break out of logical command
+        // processing
         if (is_control_flow) {
           if (g_debug_mode)
-            std::cerr << "DEBUG: Breaking logical command sequence due to control flow: " << last_code << std::endl;
+            std::cerr << "DEBUG: Breaking logical command sequence due to "
+                         "control flow: "
+                      << last_code << std::endl;
           break;
         }
-      }      // Check for command grouping (parentheses or braces) before semicolon
+      }  // Check for command grouping (parentheses or braces) before semicolon
       // splitting
       std::string cmd_to_parse = lc.command;
       std::string trimmed_cmd = trim(strip_inline_comment(cmd_to_parse));
@@ -2248,7 +2269,8 @@ for_loop_break:;
           (trimmed_cmd.find("esac") != std::string::npos)) {
         // This is an inline case statement - execute it as a single unit
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Detected inline case statement: " << trimmed_cmd << std::endl;
+          std::cerr << "DEBUG: Detected inline case statement: " << trimmed_cmd
+                    << std::endl;
         }
         size_t local_idx = 0;
         std::vector<std::string> one{trimmed_cmd};
@@ -2316,14 +2338,15 @@ for_loop_break:;
           }
           // Handle inline if statements
           if ((t.rfind("if ", 0) == 0 || t == "if") &&
-              t.find("; then") != std::string::npos && t.find(" fi") != std::string::npos) {
+              t.find("; then") != std::string::npos &&
+              t.find(" fi") != std::string::npos) {
             size_t local_idx = 0;
             std::vector<std::string> one{t};
             int code = handle_if_block(one, local_idx);
             last_code = code;
             if (code != 0 && debug_level >= DebugLevel::BASIC) {
-              std::cerr << "DEBUG: if block failed (" << code << ") -> '"
-                        << t << "'" << std::endl;
+              std::cerr << "DEBUG: if block failed (" << code << ") -> '" << t
+                        << "'" << std::endl;
             }
             continue;
           }
@@ -2487,7 +2510,7 @@ for_loop_break:;
               }
               // Execute function body
               code = execute_block(functions[first_toks[0]]);
-              
+
               // Check if function returned via 'return' command
               if (code == 253) {  // Special exit code for return
                 const char* return_code_env = getenv("CJSH_RETURN_CODE");
@@ -2501,7 +2524,7 @@ for_loop_break:;
                   }
                 }
               }
-              
+
               // Restore positional params (unset)
               for (const auto& n : param_names)
                 unsetenv(n.c_str());
@@ -2510,16 +2533,17 @@ for_loop_break:;
             }
           }
           last_code = code;
-          
+
           // Check for control flow signals (break, continue, return)
           if (code == 253 || code == 254 || code == 255) {
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Control flow signal detected: " << code << std::endl;
+              std::cerr << "DEBUG: Control flow signal detected: " << code
+                        << std::endl;
             }
             // Break out of all nested loops to propagate control flow
             goto control_flow_exit;
           }
-          
+
           if (code != 0 && debug_level >= DebugLevel::BASIC) {
             std::cerr << "DEBUG: Command failed (" << code << ") -> '"
                       << cmd_text << "'" << std::endl;
@@ -2527,10 +2551,11 @@ for_loop_break:;
         }
       }
     }
-    
-control_flow_exit:
+
+  control_flow_exit:
     // Only stop script execution for critical errors (127 = command not found)
-    // Or for special control flow codes (253 = return, 254 = continue, 255 = break)
+    // Or for special control flow codes (253 = return, 254 = continue, 255 =
+    // break)
     if (last_code == 127) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Stopping script block due to critical error: "
@@ -2539,8 +2564,8 @@ control_flow_exit:
     } else if (last_code == 253 || last_code == 254 || last_code == 255) {
       // Pass through special control flow signals
       if (g_debug_mode)
-        std::cerr << "DEBUG: Passing through control flow code: " 
-                  << last_code << std::endl;
+        std::cerr << "DEBUG: Passing through control flow code: " << last_code
+                  << std::endl;
       return last_code;
     } else if (last_code != 0 && g_debug_mode) {
       std::cerr << "DEBUG: Command failed with exit code " << last_code
@@ -2551,7 +2576,8 @@ control_flow_exit:
   return last_code;
 }
 
-std::string ShellScriptInterpreter::expand_parameter_expression(const std::string& param_expr) {
+std::string ShellScriptInterpreter::expand_parameter_expression(
+    const std::string& param_expr) {
   if (param_expr.empty()) {
     return "";
   }
@@ -2582,7 +2608,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
   // Find the operator position
   size_t op_pos = std::string::npos;
   std::string op;
-  
+
   // Check for two-character operators first
   for (size_t i = 1; i < param_expr.length(); ++i) {
     if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
@@ -2603,7 +2629,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         op = param_expr.substr(i, 1);
         break;
       }
-    } else if (param_expr[i] == '-' || param_expr[i] == '=' || 
+    } else if (param_expr[i] == '-' || param_expr[i] == '=' ||
                param_expr[i] == '?' || param_expr[i] == '+') {
       op_pos = i;
       op = param_expr.substr(i, 1);
@@ -2645,14 +2671,18 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
   } else if (op == ":?") {
     // Error if unset or empty
     if (!is_set || var_value.empty()) {
-      std::cerr << "cjsh: " << var_name << ": " << (operand.empty() ? "parameter null or not set" : operand) << std::endl;
+      std::cerr << "cjsh: " << var_name << ": "
+                << (operand.empty() ? "parameter null or not set" : operand)
+                << std::endl;
       exit(1);
     }
     return var_value;
   } else if (op == "?") {
     // Error if unset
     if (!is_set) {
-      std::cerr << "cjsh: " << var_name << ": " << (operand.empty() ? "parameter not set" : operand) << std::endl;
+      std::cerr << "cjsh: " << var_name << ": "
+                << (operand.empty() ? "parameter not set" : operand)
+                << std::endl;
       exit(1);
     }
     return var_value;
@@ -2680,7 +2710,8 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
   return var_value;
 }
 
-std::string ShellScriptInterpreter::get_variable_value(const std::string& var_name) {
+std::string ShellScriptInterpreter::get_variable_value(
+    const std::string& var_name) {
   // Handle special variables
   if (var_name == "?") {
     const char* status_env = getenv("STATUS");
@@ -2699,7 +2730,8 @@ std::string ShellScriptInterpreter::get_variable_value(const std::string& var_na
       auto params = g_shell->get_positional_parameters();
       std::string result;
       for (size_t i = 0; i < params.size(); ++i) {
-        if (i > 0) result += " ";
+        if (i > 0)
+          result += " ";
         result += params[i];
       }
       return result;
@@ -2715,7 +2747,7 @@ std::string ShellScriptInterpreter::get_variable_value(const std::string& var_na
     if (env_val) {
       return env_val;
     }
-    
+
     // Then check shell positional parameters (for script arguments)
     int param_num = var_name[0] - '0';
     if (g_shell && param_num > 0) {
@@ -2734,7 +2766,7 @@ std::string ShellScriptInterpreter::get_variable_value(const std::string& var_na
 
 bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
   // Handle special variables (they are always "set")
-  if (var_name == "?" || var_name == "$" || var_name == "#" || 
+  if (var_name == "?" || var_name == "$" || var_name == "#" ||
       var_name == "*" || var_name == "@" || var_name == "!") {
     return true;
   } else if (var_name.length() == 1 && isdigit(var_name[0])) {
@@ -2743,8 +2775,8 @@ bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
     if (getenv(var_name.c_str()) != nullptr) {
       return true;
     }
-    
-    // Then check shell positional parameters (for script arguments)  
+
+    // Then check shell positional parameters (for script arguments)
     int param_num = var_name[0] - '0';
     if (g_shell && param_num > 0) {
       auto params = g_shell->get_positional_parameters();
@@ -2757,7 +2789,8 @@ bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
   return getenv(var_name.c_str()) != nullptr;
 }
 
-std::string ShellScriptInterpreter::pattern_match_prefix(const std::string& value, const std::string& pattern, bool longest) {
+std::string ShellScriptInterpreter::pattern_match_prefix(
+    const std::string& value, const std::string& pattern, bool longest) {
   if (value.empty() || pattern.empty()) {
     return value;
   }
@@ -2765,7 +2798,7 @@ std::string ShellScriptInterpreter::pattern_match_prefix(const std::string& valu
   // Simple glob pattern matching for prefix removal
   // For now, implement basic * and ? wildcard support
   size_t best_match = 0;
-  
+
   for (size_t i = 0; i <= value.length(); ++i) {
     std::string prefix = value.substr(0, i);
     if (matches_pattern(prefix, pattern)) {
@@ -2777,18 +2810,19 @@ std::string ShellScriptInterpreter::pattern_match_prefix(const std::string& valu
       }
     }
   }
-  
+
   return value.substr(best_match);
 }
 
-std::string ShellScriptInterpreter::pattern_match_suffix(const std::string& value, const std::string& pattern, bool longest) {
+std::string ShellScriptInterpreter::pattern_match_suffix(
+    const std::string& value, const std::string& pattern, bool longest) {
   if (value.empty() || pattern.empty()) {
     return value;
   }
 
   // Simple glob pattern matching for suffix removal
   size_t best_match = value.length();
-  
+
   for (size_t i = 0; i <= value.length(); ++i) {
     std::string suffix = value.substr(value.length() - i);
     if (matches_pattern(suffix, pattern)) {
@@ -2800,19 +2834,21 @@ std::string ShellScriptInterpreter::pattern_match_suffix(const std::string& valu
       }
     }
   }
-  
+
   return value.substr(0, best_match);
 }
 
-bool ShellScriptInterpreter::matches_pattern(const std::string& text, const std::string& pattern) {
+bool ShellScriptInterpreter::matches_pattern(const std::string& text,
+                                             const std::string& pattern) {
   // Simple glob pattern matching: supports * and ? wildcards
   // This is a basic implementation - could be enhanced later
-  
+
   size_t ti = 0, pi = 0;
   size_t star_idx = std::string::npos, match_idx = 0;
-  
+
   while (ti < text.length()) {
-    if (pi < pattern.length() && (pattern[pi] == '?' || pattern[pi] == text[ti])) {
+    if (pi < pattern.length() &&
+        (pattern[pi] == '?' || pattern[pi] == text[ti])) {
       // Direct match or ? wildcard
       ti++;
       pi++;
@@ -2829,11 +2865,11 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text, const std:
       return false;
     }
   }
-  
+
   // Consume any trailing * in pattern
   while (pi < pattern.length() && pattern[pi] == '*') {
     pi++;
   }
-  
+
   return pi == pattern.length();
 }

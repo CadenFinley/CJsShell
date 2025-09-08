@@ -560,7 +560,7 @@ bool init_login_filesystem() {
                 << std::endl;
       return false;
     }
-    
+
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Creating profile file" << std::endl;

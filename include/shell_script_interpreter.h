@@ -46,7 +46,11 @@ class ShellScriptInterpreter {
   std::string expand_parameter_expression(const std::string& param_expr);
   std::string get_variable_value(const std::string& var_name);
   bool variable_is_set(const std::string& var_name);
-  std::string pattern_match_prefix(const std::string& value, const std::string& pattern, bool longest = false);
-  std::string pattern_match_suffix(const std::string& value, const std::string& pattern, bool longest = false);
+  std::string pattern_match_prefix(const std::string& value,
+                                   const std::string& pattern,
+                                   bool longest = false);
+  std::string pattern_match_suffix(const std::string& value,
+                                   const std::string& pattern,
+                                   bool longest = false);
   bool matches_pattern(const std::string& text, const std::string& pattern);
 };

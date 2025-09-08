@@ -28,16 +28,18 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 2; i < args.size(); ++i) {
       positional_params.push_back(args[i]);
     }
-    
+
     shell->set_positional_parameters(positional_params);
-    
+
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Set " << positional_params.size() << " positional parameters" << std::endl;
+      std::cerr << "DEBUG: Set " << positional_params.size()
+                << " positional parameters" << std::endl;
       for (size_t i = 0; i < positional_params.size(); ++i) {
-        std::cerr << "DEBUG: $" << (i + 1) << "=" << positional_params[i] << std::endl;
+        std::cerr << "DEBUG: $" << (i + 1) << "=" << positional_params[i]
+                  << std::endl;
       }
     }
-    
+
     return 0;
   }
 
@@ -54,7 +56,7 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
   }
 
   int shift_count = 1;
-  
+
   // Parse shift count if provided
   if (args.size() > 1) {
     try {

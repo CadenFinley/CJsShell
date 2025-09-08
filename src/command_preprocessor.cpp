@@ -104,7 +104,7 @@ std::string CommandPreprocessor::process_here_documents(
   // Generate placeholder using a simple marker approach
   std::string placeholder =
       "HEREDOC_PLACEHOLDER_" + std::to_string(++placeholder_counter);
-  
+
   // Store content with expansion flag
   std::string stored_content = content;
   if (!delimiter_quoted) {

@@ -30,7 +30,8 @@ Shell::Shell(bool login_mode) {
   // Provide the parser to the script interpreter now that it exists
   if (shell_script_interpreter && shell_parser) {
     shell_script_interpreter->set_parser(shell_parser);
-    shell_parser->set_shell(this);  // Set shell reference for positional parameters
+    shell_parser->set_shell(
+        this);  // Set shell reference for positional parameters
   }
   built_ins->set_shell(this);
   built_ins->set_current_directory();
@@ -213,14 +214,14 @@ int Shell::execute_command(std::vector<std::string> args,
     int code = built_ins->builtin_command(args);
     last_terminal_output_error = built_ins->get_last_error();
     last_exit_code = code;
-    
+
     // For loop control commands, pass the exit code directly
     if (args[0] == "break" || args[0] == "continue" || args[0] == "return") {
       if (g_debug_mode)
-        std::cerr << "DEBUG: Detected loop control command: " << args[0] 
+        std::cerr << "DEBUG: Detected loop control command: " << args[0]
                   << " with exit code " << code << std::endl;
     }
-    
+
     return last_exit_code;
   }
 
@@ -285,14 +286,14 @@ int Shell::shift_positional_parameters(int count) {
   if (count < 0) {
     return 1;  // Error: negative shift count
   }
-  
+
   if (static_cast<size_t>(count) >= positional_parameters.size()) {
     positional_parameters.clear();
   } else {
-    positional_parameters.erase(positional_parameters.begin(), 
+    positional_parameters.erase(positional_parameters.begin(),
                                 positional_parameters.begin() + count);
   }
-  
+
   return 0;
 }
 

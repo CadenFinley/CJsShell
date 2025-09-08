@@ -23,10 +23,10 @@ int break_command(const std::vector<std::string>& args) {
       return 1;
     }
   }
-  
+
   // Set environment variable to signal break to script interpreter
   setenv("CJSH_BREAK_LEVEL", std::to_string(level).c_str(), 1);
-  
+
   // Return special exit code to indicate break
   return 255;  // Special exit code for break
 }
@@ -46,10 +46,10 @@ int continue_command(const std::vector<std::string>& args) {
       return 1;
     }
   }
-  
+
   // Set environment variable to signal continue to script interpreter
   setenv("CJSH_CONTINUE_LEVEL", std::to_string(level).c_str(), 1);
-  
+
   // Return special exit code to indicate continue
   return 254;  // Special exit code for continue
 }
@@ -70,10 +70,10 @@ int return_command(const std::vector<std::string>& args) {
       return 1;
     }
   }
-  
+
   // Set environment variable to signal return to script interpreter
   setenv("CJSH_RETURN_CODE", std::to_string(exit_code).c_str(), 1);
-  
+
   // Return special exit code to indicate return
   return 253;  // Special exit code for return
 }
