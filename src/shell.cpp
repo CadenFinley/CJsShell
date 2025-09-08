@@ -213,6 +213,14 @@ int Shell::execute_command(std::vector<std::string> args,
     int code = built_ins->builtin_command(args);
     last_terminal_output_error = built_ins->get_last_error();
     last_exit_code = code;
+    
+    // For loop control commands, pass the exit code directly
+    if (args[0] == "break" || args[0] == "continue" || args[0] == "return") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Detected loop control command: " << args[0] 
+                  << " with exit code " << code << std::endl;
+    }
+    
     return last_exit_code;
   }
 

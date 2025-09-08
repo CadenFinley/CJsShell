@@ -1049,6 +1049,8 @@ int ShellScriptInterpreter::execute_block(
 
         // First branch is the 'then' part
         size_t pos = 0;
+        bool condition_met = false;  // Track if any condition has been satisfied
+        
         while (pos < remaining.length()) {
           size_t elif_pos = remaining.find("; elif ", pos);
           size_t else_pos = remaining.find("; else ", pos);
@@ -1089,11 +1091,12 @@ int ShellScriptInterpreter::execute_block(
             // Store current commands for previous condition
             if (pos == 0) {
               // This is the first 'then' branch
-              if (cond_result == 0) {
+              if (cond_result == 0 && !condition_met) {
                 auto cmds = shell_parser->parse_semicolon_commands(commands);
                 for (const auto& c : cmds) {
                   execute_simple_or_pipeline(c);
                 }
+                condition_met = true;
                 idx = 0;  // Don't advance since we processed everything
                 return 0;
               }
@@ -1106,7 +1109,8 @@ int ShellScriptInterpreter::execute_block(
               std::string elif_cond =
                   trim(remaining.substr(pos, elif_then - pos));
               int elif_result = execute_simple_or_pipeline(elif_cond);
-              if (elif_result == 0) {
+              // Execute elif branch only if its condition is true AND no previous condition was met
+              if (elif_result == 0 && !condition_met) {
                 // Execute commands after this elif's then
                 size_t elif_body_start = elif_then + 6;  // Skip "; then"
 
@@ -1142,7 +1146,12 @@ int ShellScriptInterpreter::execute_block(
                   auto cmds =
                       shell_parser->parse_semicolon_commands(elif_commands);
                   for (const auto& c : cmds) {
-                    execute_simple_or_pipeline(c);
+                    int rc = execute_simple_or_pipeline(c);
+                    // Check for special return codes from control flow commands
+                    if (rc == 253 || rc == 254 || rc == 255) {
+                      idx = 0;
+                      return rc;
+                    }
                   }
                   idx = 0;
                   return 0;
@@ -1151,8 +1160,8 @@ int ShellScriptInterpreter::execute_block(
               pos = elif_then + 6;
             }
           } else if (else_pos != std::string::npos && next_pos == else_pos) {
-            // This is the else branch
-            if (cond_result != 0) {
+            // This is the else branch - only execute if no previous conditions were met
+            if (!condition_met && cond_result != 0) {
               // Execute the commands after else
               pos = next_pos + 7;  // Skip "; else "
               size_t fi_end = remaining.find(" fi", pos);
@@ -2014,9 +2023,8 @@ int ShellScriptInterpreter::execute_block(
       continue;
     }
 
-    // Control structure: if/then/else/fi
-    if (line == "if" || line.rfind("if ", 0) == 0 ||
-        line.find("; then") != std::string::npos) {
+    // Control structure: if/then/else/fi (only if line starts with if)
+    if (line == "if" || line.rfind("if ", 0) == 0) {
       int rc = handle_if_block(lines, line_index);
       last_code = rc;
       if (g_debug_mode)
@@ -2268,6 +2276,19 @@ int ShellScriptInterpreter::execute_block(
             }
             continue;
           }
+          // Handle inline if statements
+          if ((t.rfind("if ", 0) == 0 || t == "if") &&
+              t.find("; then") != std::string::npos && t.find(" fi") != std::string::npos) {
+            size_t local_idx = 0;
+            std::vector<std::string> one{t};
+            int code = handle_if_block(one, local_idx);
+            last_code = code;
+            if (code != 0 && debug_level >= DebugLevel::BASIC) {
+              std::cerr << "DEBUG: if block failed (" << code << ") -> '"
+                        << t << "'" << std::endl;
+            }
+            continue;
+          }
           // Case B: header/body/end split across separate semicolon segments in
           // same line
           if ((t.rfind("for ", 0) == 0 || t == "for")) {
@@ -2461,10 +2482,16 @@ int ShellScriptInterpreter::execute_block(
     }
 
     // Only stop script execution for critical errors (127 = command not found)
-    // Allow other errors to continue, as is typical in shell scripts
+    // Or for special control flow codes (253 = return, 254 = continue, 255 = break)
     if (last_code == 127) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Stopping script block due to critical error: "
+                  << last_code << std::endl;
+      return last_code;
+    } else if (last_code == 253 || last_code == 254 || last_code == 255) {
+      // Pass through special control flow signals
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Passing through control flow code: " 
                   << last_code << std::endl;
       return last_code;
     } else if (last_code != 0 && g_debug_mode) {
