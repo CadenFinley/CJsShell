@@ -1,11 +1,15 @@
 #!/bin/bash
 
-RUNS=100
-COMMANDS=("-c ls" "--version" "-c 'echo hello world'" "-c pwd")
+RUNS=10
+COMMANDS=("-c ls" "--version" "-c 'echo hello world'" "-c pwd" "-c 'echo $(date)'" "-c 'echo $SHELL'")
 BASELINE_SHELLS=("fish" "bash" "zsh" "cjsh")
 cjsh_binary_types=("")
 
 ENABLE_BASELINE_TESTS=true
+
+# Global arrays to store all results
+ALL_RESULTS=()
+ALL_COMMANDS=()
 
 # Function to test a single command across all shells
 test_command() {
@@ -95,19 +99,37 @@ test_command() {
 
   sorted_results=$(sort -t: -k2 -n "$temp_file")
 
-  echo "Command used to test: $COMMAND"
-  echo "Results after $RUNS run\(s\):"
-  ./build/cjsh --version
-  echo "----------------------------------------------------------------------"
-  while IFS=: read -r shell average min max; do
-    echo "Average time for $shell: $average seconds"
-    echo "  Min time: $min seconds"
-    echo "  Max time: $max seconds"
-  done <<< "$sorted_results"
-  echo "----------------------------------------------------------------------"
+  # Store results for summary at the end
+  ALL_COMMANDS+=("$COMMAND")
+  ALL_RESULTS+=("$sorted_results")
+
+  echo "Completed testing: $COMMAND"
   echo
 
   rm "$temp_file"
+}
+
+# Function to print all results summary
+print_summary() {
+  echo "======================================================================"
+  echo "                           FINAL RESULTS SUMMARY"
+  echo "======================================================================"
+  echo "Total runs per command: $RUNS"
+  ./build/cjsh --version
+  echo "======================================================================"
+  
+  for i in "${!ALL_COMMANDS[@]}"; do
+    echo
+    echo "Command: ${ALL_COMMANDS[$i]}"
+    echo "----------------------------------------------------------------------"
+    while IFS=: read -r shell average min max; do
+      echo "Average time for $shell: $average seconds"
+      echo "  Min time: $min seconds"
+      echo "  Max time: $max seconds"
+    done <<< "${ALL_RESULTS[$i]}"
+    echo "----------------------------------------------------------------------"
+  done
+  echo "======================================================================"
 }
 
 # Main execution: test all commands
@@ -115,52 +137,5 @@ for command in "${COMMANDS[@]}"; do
   test_command "$command"
 done
 
-# ----------------------------------------------------------------------
-# Command used to test: --startup-test --no-source
-# Results after 50 run\(s\):
-# 2.3.13-PRERELEASE
-# ----------------------------------------------------------------------
-# Average time for ./cjsh: .05827370000000000000 seconds
-#   Min time: .056715000 seconds
-#   Max time: .062637000 seconds
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
-# Command used to test: --version
-# Results after 50 run\(s\):
-# 2.3.13-PRERELEASE
-# ----------------------------------------------------------------------
-# Average time for zsh: .01953018000000000000 seconds
-#   Min time: .018906000 seconds
-#   Max time: .026451000 seconds
-# Average time for bash: .01969208000000000000 seconds
-#   Min time: .019451000 seconds
-#   Max time: .020413000 seconds
-# Average time for fish: .02294484000000000000 seconds
-#   Min time: .022452000 seconds
-#   Max time: .031500000 seconds
-# Average time for ./cjsh: .02683664000000000000 seconds
-#   Min time: .026469000 seconds
-#   Max time: .031983000 seconds
-# ----------------------------------------------------------------------
-
-
-
-# ----------------------------------------------------------------------
-# Command used to test: -c ls
-# Results after 50 run\(s\):
-# 2.3.13-PRERELEASE
-# ----------------------------------------------------------------------
-# Average time for bash: .02672126000000000000 seconds
-#   Min time: .026359000 seconds
-#   Max time: .027498000 seconds
-# Average time for ./cjsh: .02794312000000000000 seconds
-#   Min time: .026916000 seconds
-#   Max time: .032809000 seconds
-# Average time for zsh: .02963912000000000000 seconds
-#   Min time: .029228000 seconds
-#   Max time: .031571000 seconds
-# Average time for fish: .06182280000000000000 seconds
-#   Min time: .060772000 seconds
-#   Max time: .072573000 seconds
-# ----------------------------------------------------------------------
+# Print final summary
+print_summary
