@@ -967,7 +967,39 @@ void process_profile_file() {
 
   process_profile_startup_args();
 
-  g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
+  // Source the profile file, but skip lines that are startup flags
+  std::ifstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
+  if (profile_file.is_open()) {
+    std::string line;
+    std::string filtered_content;
+    
+    while (std::getline(profile_file, line)) {
+      // Skip completely empty lines or whitespace-only lines for filtering
+      std::string trimmed_line = line;
+      trimmed_line.erase(0, trimmed_line.find_first_not_of(" \t\n\r\f\v"));
+      
+      // Skip startup flag lines (lines that start with --)
+      if (!trimmed_line.empty() && trimmed_line.size() >= 2 && 
+          trimmed_line[0] == '-' && trimmed_line[1] == '-') {
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Skipping startup flag line in profile: " << line << std::endl;
+        continue;
+      }
+      
+      // Include all other lines (including comments, shell commands, etc.)
+      filtered_content += line + "\n";
+    }
+    profile_file.close();
+    
+    // Execute the filtered content if there's anything to execute
+    if (!filtered_content.empty()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Executing filtered profile content" << std::endl;
+      g_shell->execute(filtered_content);
+    }
+  } else {
+    std::cerr << "cjsh: Failed to open profile file for sourcing" << std::endl;
+  }
 }
 
 void process_source_file() {
