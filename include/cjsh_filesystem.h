@@ -79,4 +79,5 @@ bool should_refresh_executable_cache();
 bool initialize_cjsh_path();
 bool initialize_cjsh_directories();
 std::filesystem::path get_cjsh_path();
+std::string find_executable_in_path(const std::string& name);
 }  // namespace cjsh_filesystem

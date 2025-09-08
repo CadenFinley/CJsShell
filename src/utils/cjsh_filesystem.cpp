@@ -157,4 +157,36 @@ std::filesystem::path get_cjsh_path() {
   return g_cjsh_path;
 }
 
+std::string find_executable_in_path(const std::string& name) {
+  const char* path_env = std::getenv("PATH");
+  if (!path_env) {
+    return "";
+  }
+  
+  std::stringstream ss(path_env);
+  std::string dir;
+  
+  while (std::getline(ss, dir, ':')) {
+    if (dir.empty()) continue;
+    
+    fs::path executable_path = fs::path(dir) / name;
+    
+    try {
+      if (fs::exists(executable_path) && fs::is_regular_file(executable_path)) {
+        auto perms = fs::status(executable_path).permissions();
+        if ((perms & fs::perms::owner_exec) != fs::perms::none ||
+            (perms & fs::perms::group_exec) != fs::perms::none ||
+            (perms & fs::perms::others_exec) != fs::perms::none) {
+          return executable_path.string();
+        }
+      }
+    } catch (const fs::filesystem_error&) {
+      // Ignore errors and continue searching
+      continue;
+    }
+  }
+  
+  return "";
+}
+
 }  // namespace cjsh_filesystem

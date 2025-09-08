@@ -4,6 +4,7 @@
 
 #include "cjsh.h"
 #include "exec.h"
+#include "job_control.h"
 
 // CADEN DONT TOUCH IT WORKS
 // ty to Fish shell for lookup table
@@ -399,8 +400,42 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
     if (shell_exec) {
       pid_t pid;
       int status;
-      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0) {
         shell_exec->handle_child_signal(pid, status);
+        
+        // Also update JobManager for job control integration
+        auto& job_manager = JobManager::instance();
+        auto job = job_manager.get_job_by_pgid(pid);
+        if (!job) {
+          // Check if this PID is part of any job
+          auto all_jobs = job_manager.get_all_jobs();
+          for (auto& j : all_jobs) {
+            auto it = std::find(j->pids.begin(), j->pids.end(), pid);
+            if (it != j->pids.end()) {
+              job = j;
+              break;
+            }
+          }
+        }
+        
+        if (job) {
+          if (WIFEXITED(status) || WIFSIGNALED(status)) {
+            job->state = WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED;
+            job->exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
+            
+            // Remove finished PID from job
+            job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid), job->pids.end());
+            
+            // If all PIDs are done, mark job for cleanup
+            if (job->pids.empty()) {
+              job->notified = true;
+            }
+          } else if (WIFSTOPPED(status)) {
+            job->state = JobState::STOPPED;
+          } else if (WIFCONTINUED(status)) {
+            job->state = JobState::RUNNING;
+          }
+        }
       }
     }
 

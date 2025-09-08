@@ -82,6 +82,13 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& name = args[i];
 
+    // Check if variable is readonly
+    if (ReadonlyManager::instance().is_readonly(name)) {
+      std::cerr << "unset: " << name << ": readonly variable" << std::endl;
+      success = false;
+      continue;
+    }
+
     env_vars.erase(name);
 
     if (unsetenv(name.c_str()) != 0) {

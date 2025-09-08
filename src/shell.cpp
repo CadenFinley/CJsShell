@@ -215,6 +215,25 @@ int Shell::execute_command(std::vector<std::string> args,
     return last_exit_code;
   }
 
+  // Check if this is a standalone variable assignment
+  if (args.size() == 1 && shell_parser) {
+    std::string var_name, var_value;
+    if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
+      // This was a standalone variable assignment
+      // is_env_assignment already checked readonly and printed error
+      // If it returned true, the assignment is allowed
+      setenv(var_name.c_str(), var_value.c_str(), 1);
+      last_exit_code = 0;
+      return last_exit_code;
+    }
+    // If is_env_assignment returned false and it was a valid assignment format,
+    // it means it was rejected (likely readonly), so return error
+    if (args[0].find('=') != std::string::npos) {
+      last_exit_code = 1;
+      return last_exit_code;
+    }
+  }
+
   // run built in command
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     int code = built_ins->builtin_command(args);

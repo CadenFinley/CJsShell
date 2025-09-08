@@ -112,8 +112,21 @@ void JobManager::cleanup_finished_jobs() {
   
   for (const auto& pair : jobs) {
     auto job = pair.second;
-    if ((job->state == JobState::DONE || job->state == JobState::TERMINATED) && job->notified) {
-      to_remove.push_back(job->job_id);
+    if (job->state == JobState::DONE || job->state == JobState::TERMINATED) {
+      // Show completion notification for background jobs if not already notified
+      if (!job->notified) {
+        if (job->state == JobState::DONE) {
+          std::cerr << "\n[" << job->job_id << "] Done\t" << job->command << std::endl;
+        } else {
+          std::cerr << "\n[" << job->job_id << "] Terminated\t" << job->command << std::endl;
+        }
+        job->notified = true;
+      }
+      
+      // Mark for removal if notified
+      if (job->notified) {
+        to_remove.push_back(job->job_id);
+      }
     }
   }
   
@@ -251,9 +264,11 @@ int fg_command(const std::vector<std::string>& args) {
   }
   
   // Move job to foreground
-  if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
-    perror("fg: tcsetpgrp");
-    return 1;
+  if (isatty(STDIN_FILENO)) {
+    if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
+      perror("fg: tcsetpgrp");
+      return 1;
+    }
   }
   
   // Continue the job if stopped
@@ -276,7 +291,9 @@ int fg_command(const std::vector<std::string>& args) {
   }
   
   // Restore shell to foreground
-  tcsetpgrp(STDIN_FILENO, getpgrp());
+  if (isatty(STDIN_FILENO)) {
+    tcsetpgrp(STDIN_FILENO, getpgrp());
+  }
   
   if (WIFEXITED(status)) {
     job_manager.remove_job(job_id);

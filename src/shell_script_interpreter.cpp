@@ -16,6 +16,8 @@
 
 #include "cjsh.h"
 #include "shell.h"
+#include "job_control.h"
+#include "readonly_command.h"
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
   if (g_debug_mode)
@@ -2663,6 +2665,11 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
   } else if (op == ":=") {
     // Assign default if unset or empty
     if (!is_set || var_value.empty()) {
+      // Check if variable is readonly before assignment
+      if (ReadonlyManager::instance().is_readonly(var_name)) {
+        std::cerr << "cjsh: " << var_name << ": readonly variable" << std::endl;
+        return var_value;  // Return original value, don't assign
+      }
       setenv(var_name.c_str(), operand.c_str(), 1);
       return operand;
     }
@@ -2670,6 +2677,11 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
   } else if (op == "=") {
     // Assign default if unset
     if (!is_set) {
+      // Check if variable is readonly before assignment
+      if (ReadonlyManager::instance().is_readonly(var_name)) {
+        std::cerr << "cjsh: " << var_name << ": readonly variable" << std::endl;
+        return var_value;  // Return original value, don't assign
+      }
       setenv(var_name.c_str(), operand.c_str(), 1);
       return operand;
     }
@@ -2744,8 +2756,19 @@ std::string ShellScriptInterpreter::get_variable_value(
     }
     return "";
   } else if (var_name == "!") {
-    // Last background process PID (not implemented yet)
-    return "";
+    // Last background process PID
+    const char* last_bg_pid = getenv("!");
+    if (last_bg_pid) {
+      return last_bg_pid;
+    } else {
+      // Fall back to JobManager if no env var set
+      pid_t last_pid = JobManager::instance().get_last_background_pid();
+      if (last_pid > 0) {
+        return std::to_string(last_pid);
+      } else {
+        return "";
+      }
+    }
   } else if (var_name.length() == 1 && isdigit(var_name[0])) {
     // Positional parameter $1, $2, etc.
     // First check environment variables (for function parameters)

@@ -17,6 +17,8 @@
 #include "eval_command.h"
 #include "exit_command.h"
 #include "export_command.h"
+#include "getopts_command.h"
+#include "hash_command.h"
 #include "help_command.h"
 #include "history_command.h"
 #include "job_control.h"
@@ -31,7 +33,9 @@
 #include "source_command.h"
 #include "test_command.h"
 #include "theme_command.h"
+#include "times_command.h"
 #include "trap_command.h"
+#include "type_command.h"
 #include "umask_command.h"
 #include "uninstall_command.h"
 #include "user_command.h"
@@ -302,6 +306,22 @@ Built_ins::Built_ins()
             {"umask",
              [](const std::vector<std::string>& args) {
                return ::umask_command(args);
+             }},
+            {"getopts",
+             [this](const std::vector<std::string>& args) {
+               return ::getopts_command(args, shell);
+             }},
+            {"times",
+             [](const std::vector<std::string>& args) {
+               return ::times_command(args, nullptr);
+             }},
+            {"type",
+             [this](const std::vector<std::string>& args) {
+               return ::type_command(args, shell);
+             }},
+            {"hash",
+             [](const std::vector<std::string>& args) {
+               return ::hash_command(args, nullptr);
              }},
         },
         shell(nullptr) {

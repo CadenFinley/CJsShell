@@ -14,6 +14,8 @@
 
 #include "cjsh.h"
 #include "command_preprocessor.h"
+#include "job_control.h"
+#include "readonly_command.h"
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   // Split script content on unquoted newlines into logical lines.
@@ -705,8 +707,19 @@ void Parser::expand_env_vars(std::string& arg) {
         value = result;
       }
     } else if (var_name == "!") {
-      // Process ID of last background command (not implemented yet)
-      value = "";
+      // Process ID of last background command
+      const char* last_bg_pid = getenv("!");
+      if (last_bg_pid) {
+        value = last_bg_pid;
+      } else {
+        // Fall back to JobManager if no env var set
+        pid_t last_pid = JobManager::instance().get_last_background_pid();
+        if (last_pid > 0) {
+          value = std::to_string(last_pid);
+        } else {
+          value = "";
+        }
+      }
     } else if (isdigit(var_name[0]) && var_name.length() == 1) {
       // Positional parameter $1, $2, etc.
       // First check environment variables (for function parameters)
@@ -1052,6 +1065,12 @@ bool Parser::is_env_assignment(const std::string& command,
   if (std::regex_match(command, match, env_regex)) {
     var_name = match[1].str();
     var_value = match[2].str();
+
+    // Check if the variable is readonly before allowing assignment
+    if (ReadonlyManager::instance().is_readonly(var_name)) {
+      std::cerr << "cjsh: " << var_name << ": readonly variable" << std::endl;
+      return false;  // Reject readonly variable assignments
+    }
 
     if (var_value.size() >= 2) {
       if ((var_value.front() == '"' && var_value.back() == '"') ||
