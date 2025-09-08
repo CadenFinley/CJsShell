@@ -2496,10 +2496,12 @@ int ShellScriptInterpreter::execute_block(
           }
           // Detect function invocation: first token matches defined function
           int code = 0;
+          bool is_function_call = false;
           {
             std::vector<std::string> first_toks =
                 shell_parser->parse_command(cmd_text);
             if (!first_toks.empty() && functions.count(first_toks[0])) {
+              is_function_call = true;
               // Set positional params as environment variables $1..$9 minimally
               // Save originals to restore after
               std::vector<std::string> param_names;
@@ -2533,9 +2535,13 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           last_code = code;
+          
+          // Update STATUS environment variable for $? expansion
+          setenv("STATUS", std::to_string(last_code).c_str(), 1);
 
           // Check for control flow signals (break, continue, return)
-          if (code == 253 || code == 254 || code == 255) {
+          // Don't treat processed function returns as control flow signals
+          if (!is_function_call && (code == 253 || code == 254 || code == 255)) {
             if (g_debug_mode) {
               std::cerr << "DEBUG: Control flow signal detected: " << code
                         << std::endl;

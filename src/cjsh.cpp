@@ -8,6 +8,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -199,6 +200,15 @@ int main(int argc, char* argv[]) {
   initialize_shell_environment();
   setup_environment_variables();
 
+  // Check if there are script files to execute
+  std::string script_file = "";
+  if (optind < argc) {
+    script_file = argv[optind];
+    config::interactive_mode = false;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Script file specified: " << script_file << std::endl;
+  }
+
   // Check if stdin is a terminal - if not, disable interactive mode
   if (!config::force_interactive && !isatty(STDIN_FILENO)) {
     config::interactive_mode = false;
@@ -277,16 +287,41 @@ int main(int argc, char* argv[]) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
 
-    // Read and execute input from stdin
-    std::string line;
     std::string script_content;
-    while (std::getline(std::cin, line)) {
-      script_content += line + "\n";
+    
+    // If a script file was specified, read it
+    if (!script_file.empty()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
+      
+      std::ifstream file(script_file);
+      if (!file.is_open()) {
+        std::cerr << "cjsh: " << script_file << ": No such file or directory" << std::endl;
+        g_shell.reset();
+        return 127;
+      }
+      
+      std::string line;
+      while (std::getline(file, line)) {
+        script_content += line + "\n";
+      }
+      file.close();
+    } else {
+      // Read and execute input from stdin
+      std::string line;
+      while (std::getline(std::cin, line)) {
+        script_content += line + "\n";
+      }
     }
 
     if (!script_content.empty()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Executing piped script content" << std::endl;
+      if (g_debug_mode) {
+        if (!script_file.empty()) {
+          std::cerr << "DEBUG: Executing script file content" << std::endl;
+        } else {
+          std::cerr << "DEBUG: Executing piped script content" << std::endl;
+        }
+      }
       int code = g_shell ? g_shell->execute(script_content) : 1;
       g_shell.reset();
       return code;
