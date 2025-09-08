@@ -12,6 +12,7 @@ cd "$project_root"
     -not -path "./cmake/*" \
     -not -path "./build/*" \
     -not -path "./tool-scripts/*" \
+    -not -path "./tests/*" \
     \( -name '*.c' -o -name '*.h' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.cc' -o -name '*.sh' \))
   
   declare -a file_info
