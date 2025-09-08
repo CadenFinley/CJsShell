@@ -39,7 +39,15 @@ int help_command() {
       << "      model [MODEL]       Set or view the AI model being used\n";
   std::cout << "      rejectchanges       Reject AI suggested code changes\n";
   std::cout
-      << "      timeoutflag [SECS]  Set timeout duration for AI requests\n\n";
+      << "      timeoutflag [SECS]  Set timeout duration for AI requests\n";
+  std::cout << "      initialinstruction [TEXT] Set or view initial system instruction\n";
+  std::cout << "      name [NAME]         Set or view assistant name\n";
+  std::cout << "      saveconfig          Save current AI configuration\n";
+  std::cout << "      config              Manage AI configurations (list, switch, save)\n";
+  std::cout << "      voice [VOICE]       Set or view voice for dictation\n";
+  std::cout << "      voicedictation [enable|disable] Enable/disable voice dictation\n";
+  std::cout << "      voicedictationinstructions [TEXT] Set voice dictation instructions\n";
+  std::cout << "      help                Show detailed AI command help\n\n";
 
   std::cout << "  aihelp [QUERY]          Get troubleshooting help from AI\n";
   std::cout << "    Usage: aihelp [optional error description]\n";
@@ -79,10 +87,51 @@ int help_command() {
 
   std::cout << "BUILT-IN SHELL COMMANDS:\n\n";
 
+  std::cout << "Core Shell Commands:\n";
   std::cout << "  cd [DIR]                Change the current directory\n";
   std::cout << "    Usage: cd [directory]\n";
   std::cout << "    Examples: 'cd /path/to/dir', 'cd ~', 'cd ..' (parent "
                "directory), 'cd' (home directory)\n\n";
+
+  std::cout << "  pwd                     Print the current working directory\n";
+  std::cout << "    Usage: pwd\n\n";
+
+  std::cout << "  echo [ARGS...]          Display arguments to standard output\n";
+  std::cout << "    Usage: echo [text...]\n";
+  std::cout << "    Example: 'echo Hello, World!'\n\n";
+
+  std::cout << "  printf FORMAT [ARGS...] Format and print arguments\n";
+  std::cout << "    Usage: printf format [arguments...]\n";
+  std::cout << "    Example: 'printf \"Hello %s\\n\" World'\n\n";
+
+  std::cout << "  ls [OPTIONS] [FILES...] List directory contents\n";
+  std::cout << "    Usage: ls [options] [files/directories]\n";
+  std::cout << "    Example: 'ls -la', 'ls ~/Documents'\n\n";
+
+  std::cout << "  help                    Display this help message\n";
+  std::cout << "    Usage: help\n\n";
+
+  std::cout << "  exit [N], quit [N]      Exit the shell with optional status\n";
+  std::cout << "    Usage: exit [exit_code] or quit [exit_code]\n";
+  std::cout << "    Example: 'exit 0', 'quit'\n\n";
+
+  std::cout << "Variable and Environment Management:\n";
+  std::cout << "  export [NAME=VALUE]     Set or display environment variables\n";
+  std::cout << "    Usage: export [name=value]\n";
+  std::cout << "    Examples: 'export' (show all), 'export "
+               "PATH=\"$PATH:/new/path\"'\n\n";
+
+  std::cout << "  unset [NAME]            Remove an environment variable\n";
+  std::cout << "    Usage: unset name\n";
+  std::cout << "    Example: 'unset TEMP_VAR'\n\n";
+
+  std::cout << "  set [OPTIONS] [ARGS...] Set shell options and positional parameters\n";
+  std::cout << "    Usage: set [options] [arguments]\n";
+  std::cout << "    Example: 'set -x' (enable debug mode)\n\n";
+
+  std::cout << "  readonly [NAME=VALUE]   Mark variables as read-only\n";
+  std::cout << "    Usage: readonly [name[=value]]\n";
+  std::cout << "    Example: 'readonly PATH'\n\n";
 
   std::cout << "  alias [NAME=VALUE]      Create or display command aliases\n";
   std::cout << "    Usage: alias [name=value]\n";
@@ -93,34 +142,126 @@ int help_command() {
   std::cout << "    Usage: unalias name\n";
   std::cout << "    Example: 'unalias ll'\n\n";
 
-  std::cout
-      << "  export [NAME=VALUE]     Set or display environment variables\n";
-  std::cout << "    Usage: export [name=value]\n";
-  std::cout << "    Examples: 'export' (show all), 'export "
-               "PATH=\"$PATH:/new/path\"'\n\n";
-
-  std::cout << "  unset [NAME]            Remove an environment variable\n";
-  std::cout << "    Usage: unset name\n";
-  std::cout << "    Example: 'unset TEMP_VAR'\n\n";
-
-  std::cout << "  source [FILE]           Execute commands from a file\n";
-  std::cout << "    Usage: source path/to/file\n";
-  std::cout << "    Example: 'source ~/.cjshrc'\n\n";
+  std::cout << "Script and Command Execution:\n";
+  std::cout << "  source [FILE], . [FILE] Execute commands from a file\n";
+  std::cout << "    Usage: source path/to/file or . path/to/file\n";
+  std::cout << "    Example: 'source ~/.cjshrc', '. ~/.bashrc'\n\n";
 
   std::cout << "  eval [EXPRESSION]       Evaluate a shell expression\n";
   std::cout << "    Usage: eval expression\n";
   std::cout << "    Example: 'eval echo Hello, World!'\n\n";
 
+  std::cout << "  exec [COMMAND [ARGS...]] Replace shell with command\n";
+  std::cout << "    Usage: exec command [arguments]\n";
+  std::cout << "    Example: 'exec bash' (replace shell with bash)\n\n";
+
+  std::cout << "  test [EXPR], [ EXPR ]   Evaluate conditional expressions\n";
+  std::cout << "    Usage: test expression or [ expression ]\n";
+  std::cout << "    Examples: 'test -f file.txt', '[ -d directory ]'\n\n";
+
+  std::cout << "  :                       Null command (always succeeds)\n";
+  std::cout << "    Usage: :\n";
+  std::cout << "    Note: Returns exit status 0\n\n";
+
+  std::cout << "Flow Control:\n";
+  std::cout << "  break [N]               Break out of loops\n";
+  std::cout << "    Usage: break [levels]\n";
+  std::cout << "    Example: 'break', 'break 2'\n\n";
+
+  std::cout << "  continue [N]            Continue loop iteration\n";
+  std::cout << "    Usage: continue [levels]\n";
+  std::cout << "    Example: 'continue', 'continue 2'\n\n";
+
+  std::cout << "  return [N]              Return from function\n";
+  std::cout << "    Usage: return [exit_status]\n";
+  std::cout << "    Example: 'return 0', 'return 1'\n\n";
+
+  std::cout << "  if [CONDITION]          Conditional command execution\n";
+  std::cout << "    Usage: if [condition]; then [commands]; fi\n";
+  std::cout << "    Example: 'if [ -f file ]; then echo found; fi'\n\n";
+
+  std::cout << "Job Control:\n";
+  std::cout << "  jobs                    List active jobs\n";
+  std::cout << "    Usage: jobs\n\n";
+
+  std::cout << "  fg [JOBSPEC]            Bring job to foreground\n";
+  std::cout << "    Usage: fg [job_id]\n";
+  std::cout << "    Example: 'fg', 'fg %1'\n\n";
+
+  std::cout << "  bg [JOBSPEC]            Resume job in background\n";
+  std::cout << "    Usage: bg [job_id]\n";
+  std::cout << "    Example: 'bg', 'bg %1'\n\n";
+
+  std::cout << "  wait [JOBSPEC...]       Wait for jobs to complete\n";
+  std::cout << "    Usage: wait [job_ids...]\n";
+  std::cout << "    Example: 'wait', 'wait %1 %2'\n\n";
+
+  std::cout << "  kill [SIGNAL] JOBSPEC   Send signal to job\n";
+  std::cout << "    Usage: kill [-signal] job_id\n";
+  std::cout << "    Example: 'kill %1', 'kill -9 %1'\n\n";
+
+  std::cout << "Input/Output and Options:\n";
+  std::cout << "  read [OPTIONS] [NAME...] Read input into variables\n";
+  std::cout << "    Usage: read [options] variable_name\n";
+  std::cout << "    Example: 'read name', 'read -p \"Enter: \" value'\n\n";
+
+  std::cout << "  getopts OPTSTRING NAME  Parse command options\n";
+  std::cout << "    Usage: getopts optstring variable\n";
+  std::cout << "    Example: 'getopts \"abc:\" opt'\n\n";
+
+  std::cout << "  shift [N]               Shift positional parameters\n";
+  std::cout << "    Usage: shift [count]\n";
+  std::cout << "    Example: 'shift', 'shift 2'\n\n";
+
+  std::cout << "System and Process Information:\n";
+  std::cout << "  type [NAME...]          Display command type information\n";
+  std::cout << "    Usage: type command_name\n";
+  std::cout << "    Example: 'type ls', 'type cd'\n\n";
+
+  std::cout << "  hash [COMMAND...]       Manage command hash table\n";
+  std::cout << "    Usage: hash [command]\n";
+  std::cout << "    Example: 'hash', 'hash ls'\n\n";
+
+  std::cout << "  times                   Display process times\n";
+  std::cout << "    Usage: times\n\n";
+
+  std::cout << "  umask [MODE]            Set file creation mask\n";
+  std::cout << "    Usage: umask [mode]\n";
+  std::cout << "    Example: 'umask', 'umask 022'\n\n";
+
+  std::cout << "  history [OPTIONS]       Command history management\n";
+  std::cout << "    Usage: history [options]\n";
+  std::cout << "    Example: 'history', 'history 10'\n\n";
+
+  std::cout << "Signal Handling:\n";
+  std::cout << "  trap [ACTION] [SIGNAL...] Set signal handlers\n";
+  std::cout << "    Usage: trap [action] [signals]\n";
+  std::cout << "    Example: 'trap \"echo caught\" INT'\n\n";
+
+  std::cout << "Shell-Specific Commands:\n";
+  std::cout << "  version [OPTIONS]       Display version information\n";
+  std::cout << "    Usage: version [options]\n\n";
+
+  std::cout << "  restart [OPTIONS]       Restart the shell\n";
+  std::cout << "    Usage: restart [options]\n\n";
+
+  std::cout << "  uninstall               Uninstall the shell\n";
+  std::cout << "    Usage: uninstall\n\n";
+
+  std::cout << "  approot                 Change to application root\n";
+  std::cout << "    Usage: approot\n\n";
+
+  std::cout << "  terminal                Activate terminal menu\n";
+  std::cout << "    Usage: terminal\n\n";
+
+  std::cout << "  prompt_test [OPTIONS]   Test prompt configurations\n";
+  std::cout << "    Usage: prompt_test [options]\n\n";
+
   std::cout << "COMMON SYSTEM COMMANDS:\n\n";
 
   std::cout << "  clear                   Clear the terminal screen\n";
-  std::cout << "    Usage: clear\n\n";
-
-  std::cout << "  exit or quit            Exit the application\n";
-  std::cout << "    Usage: exit or quit\n\n";
-
-  std::cout << "  help                    Display this help message\n";
-  std::cout << "    Usage: help\n";
+  std::cout << "    Usage: clear\n";
+  std::cout << "    Note: This is typically an external command, not a builtin\n\n";
 
   std::cout << section_separator;
   std::cout << "FILESYSTEM AND CONFIGURATION:\n\n";
