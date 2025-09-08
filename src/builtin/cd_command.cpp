@@ -19,7 +19,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
                      std::string& last_terminal_output_error) {
   std::string target_dir = dir;
 
-  if (target_dir.empty()) {
+  if (target_dir.empty() || target_dir == "~") {
     const char* home_dir = getenv("HOME");
     if (!home_dir) {
       PRINT_ERROR("cjsh: HOME environment variable is not set");

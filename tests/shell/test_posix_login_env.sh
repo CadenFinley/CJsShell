@@ -14,7 +14,19 @@ PASSED=0
 FAILED=0
 
 # Shell to test
-SHELL_TO_TEST="${1:-./build/cjsh}"
+if [ -n "$1" ]; then
+    # Use the provided shell path
+    if [ "${1#/}" = "$1" ]; then
+        # Convert relative path to absolute
+        SHELL_TO_TEST="$(pwd)/$1"
+    else
+        # Already absolute
+        SHELL_TO_TEST="$1"
+    fi
+else
+    # Default to ./build/cjsh but make it absolute
+    SHELL_TO_TEST="$(pwd)/build/cjsh"
+fi
 
 log_test() {
     TOTAL=$((TOTAL + 1))

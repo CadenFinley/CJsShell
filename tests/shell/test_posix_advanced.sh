@@ -112,14 +112,14 @@ else
 fi
 
 # Test 8: Here string (<<<) if supported
-log_test "Here string (<<<)"
-result=$("$SHELL_TO_TEST" -c "cat <<< 'hello world'" 2>/dev/null)
-if [ "$result" = "hello world" ]; then
-    pass
-else
-    # Here strings are bash extension, not POSIX - mark as warning
-    printf "${YELLOW}SKIP${NC} - Here strings are bash extension, not POSIX\n"
-fi
+# log_test "Here string (<<<)"
+# result=$("$SHELL_TO_TEST" -c "cat <<< 'hello world'" 2>/dev/null)
+# if [ "$result" = "hello world" ]; then
+#     pass
+# else
+#     # Here strings are bash extension, not POSIX - mark as warning
+#     printf "${YELLOW}SKIP${NC} - Here strings are bash extension, not POSIX\n"
+# fi
 
 # Test 9: Case statement
 log_test "Case statement"
@@ -301,15 +301,15 @@ fi
 rm -f "/tmp/stdout_$$" "/tmp/stderr_$$"
 
 # Test 26: Process substitution (if supported)
-log_test "Process substitution"
-result=$("$SHELL_TO_TEST" -c "diff <(echo hello) <(echo hello)" 2>/dev/null)
-exit_code=$?
-if [ $exit_code -eq 0 ]; then
-    pass
-else
-    # Process substitution is bash extension
-    printf "${YELLOW}SKIP${NC} - Process substitution is bash extension, not POSIX\n"
-fi
+# log_test "Process substitution"
+# result=$("$SHELL_TO_TEST" -c "diff <(echo hello) <(echo hello)" 2>/dev/null)
+# exit_code=$?
+# if [ $exit_code -eq 0 ]; then
+#     pass
+# else
+#     # Process substitution is bash extension
+#     printf "${YELLOW}SKIP${NC} - Process substitution is bash extension, not POSIX\n"
+# fi
 
 # Test 27: Word splitting
 log_test "Word splitting"

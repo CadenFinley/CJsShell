@@ -195,6 +195,9 @@ int main(int argc, char* argv[]) {
 
   // create the shell component
   g_shell = std::make_unique<Shell>(config::login_mode);
+  // create the shell environment
+  initialize_shell_environment();
+  setup_environment_variables();
 
   // Check if stdin is a terminal - if not, disable interactive mode
   if (!config::force_interactive && !isatty(STDIN_FILENO)) {
@@ -233,10 +236,6 @@ int main(int argc, char* argv[]) {
     // create cjsh login environment
     process_profile_file();
   }
-
-  // create the shell environment
-  initialize_shell_environment();
-  setup_environment_variables();
 
   // set env vars to reflect cjsh being the shell
   if (argv[0]) {
