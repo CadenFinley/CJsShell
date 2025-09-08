@@ -8,6 +8,9 @@
 
 #include "command_preprocessor.h"
 
+// Forward declaration to avoid circular dependency
+class Shell;
+
 std::vector<std::string> tokenize_command(const std::string& cmdline);
 
 struct Command {
@@ -56,10 +59,15 @@ class Parser {
     this->env_vars = new_env_vars;
   }
 
+  void set_shell(Shell* shell) {
+    this->shell = shell;
+  }
+
  private:
   std::vector<std::string> expand_braces(const std::string& pattern);
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
+  Shell* shell = nullptr;
 
   // Store current preprocessing context
   std::map<std::string, std::string> current_here_docs;

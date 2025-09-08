@@ -92,6 +92,12 @@ class Shell {
     return env_vars;
   }
 
+  // Positional parameters support
+  void set_positional_parameters(const std::vector<std::string>& params);
+  int shift_positional_parameters(int count = 1);
+  std::vector<std::string> get_positional_parameters() const;
+  size_t get_positional_parameter_count() const;
+
   void setup_signal_handlers();
   void setup_interactive_handlers();
   void save_terminal_state();
@@ -159,4 +165,5 @@ class Shell {
 
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
+  std::vector<std::string> positional_parameters;
 };

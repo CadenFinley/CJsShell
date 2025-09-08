@@ -154,42 +154,6 @@ add_custom_target(format
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
-option(BUILD_TESTS "Build the tests" OFF)
-if(BUILD_TESTS)
-  # Fetch GoogleTest
-  include(FetchContent)
-  FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG        v1.17.0
-  )
-  FetchContent_MakeAvailable(googletest)
-
-  enable_testing()
-
-  # Collect parser sources
-  set(PARSER_SRCS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/parser.cpp
-  )
-
-  # Define parser_tests executable
-  add_executable(parser_tests
-    tests/parser_tests.cpp
-    ${PARSER_SRCS}
-  )
-
-  target_include_directories(parser_tests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-  )
-
-  target_link_libraries(parser_tests PRIVATE
-    gtest_main
-    pthread
-  )
-
-  add_test(NAME ParserTests COMMAND parser_tests --gtest_color=yes)
-endif()
-
 # Add option for building multiple binaries with different optimizations
 option(BUILD_MULTIPLE_BINARIES "Build multiple binaries with different optimizations" OFF)
 

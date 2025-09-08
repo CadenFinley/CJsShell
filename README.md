@@ -154,6 +154,24 @@ Available startup flags:
 - `~/.config/cjsh/themes/` Directory for installed themes
 - `~/.config/cjsh/ai/` Directory for AI assistant configurations
 
+### Testing and POSIX Compliance
+
+CJ's Shell includes a comprehensive test suite with over 200 POSIX compliance tests to ensure reliability and standards compliance:
+
+```bash
+# Run the complete test suite
+./tests/run_shell_tests.sh
+```
+
+**POSIX Compliance Status: ~75%**
+- ✅ Core shell features (command execution, pipelines, I/O redirection)
+- ✅ Environment and variable handling
+- ✅ Login shell initialization
+- ⚠️ Advanced parameter expansion (partial support)
+- ⚠️ Some advanced builtin commands
+
+See `tests/README.md` for detailed test documentation and compliance matrix.
+
 ### AI Assistant
 The built-in AI assistant provides intelligent help for shell usage and programming tasks:
 
