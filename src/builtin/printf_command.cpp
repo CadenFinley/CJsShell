@@ -242,11 +242,11 @@ int printf_command(const std::vector<std::string>& args) {
   }
 
   size_t arg_index = 0;
-  
+
   // POSIX printf: reuse format string until all arguments are consumed
   while (arg_index < printf_args.size()) {
     bool consumed_arg_this_iteration = false;
-    
+
     for (size_t i = 0; i < format.length(); ++i) {
       if (format[i] == '%' && i + 1 < format.length()) {
         if (format[i + 1] == '%') {
@@ -273,7 +273,8 @@ int printf_command(const std::vector<std::string>& args) {
           // Skip precision
           if (i < format.length() && format[i] == '.') {
             i++;
-            while (i < format.length() && format[i] >= '0' && format[i] <= '9') {
+            while (i < format.length() && format[i] >= '0' &&
+                   format[i] <= '9') {
               i++;
             }
           }
@@ -288,7 +289,7 @@ int printf_command(const std::vector<std::string>& args) {
             std::cout << format_printf_arg(format_spec, arg);
             arg_index++;
             consumed_arg_this_iteration = true;
-            
+
             // If we've consumed all arguments, stop processing
             if (arg_index >= printf_args.size()) {
               return 0;
@@ -299,8 +300,9 @@ int printf_command(const std::vector<std::string>& args) {
         std::cout << format[i];
       }
     }
-    
-    // If the format string didn't consume any arguments, break to avoid infinite loop
+
+    // If the format string didn't consume any arguments, break to avoid
+    // infinite loop
     if (!consumed_arg_this_iteration) {
       break;
     }

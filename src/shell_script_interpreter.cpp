@@ -68,9 +68,29 @@ int ShellScriptInterpreter::execute_block(
 
   auto strip_inline_comment = [](const std::string& s) -> std::string {
     bool in_quotes = false;
+    bool in_brace_expansion = false;
     char quote = '\0';
     for (size_t i = 0; i < s.size(); ++i) {
       char c = s[i];
+      
+      // Track brace expansion ${...}
+      if (!in_quotes && c == '$' && i + 1 < s.size() && s[i + 1] == '{') {
+        in_brace_expansion = true;
+      } else if (in_brace_expansion && c == '}') {
+        in_brace_expansion = false;
+      }
+      
+      // Track special variables like $#, $?, $$, $*, $@, $!
+      if (!in_quotes && !in_brace_expansion && c == '$' && i + 1 < s.size()) {
+        char next = s[i + 1];
+        if (next == '#' || next == '?' || next == '$' || next == '*' || 
+            next == '@' || next == '!' || isdigit(next)) {
+          // Skip the next character as it's part of the variable
+          ++i;
+          continue;
+        }
+      }
+      
       if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
         if (!in_quotes) {
           in_quotes = true;
@@ -79,7 +99,7 @@ int ShellScriptInterpreter::execute_block(
           in_quotes = false;
           quote = '\0';
         }
-      } else if (!in_quotes && c == '#') {
+      } else if (!in_quotes && !in_brace_expansion && c == '#') {
         return s.substr(0, i);
       }
     }
@@ -117,7 +137,8 @@ int ShellScriptInterpreter::execute_block(
 
   execute_simple_or_pipeline = [&](const std::string& cmd_text) -> int {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: execute_simple_or_pipeline called with: " << cmd_text << std::endl;
+      std::cerr << "DEBUG: execute_simple_or_pipeline called with: " << cmd_text
+                << std::endl;
     }
     // Decide between simple exec via Shell::execute_command vs
     // Exec::execute_pipeline
@@ -127,8 +148,8 @@ int ShellScriptInterpreter::execute_block(
 
     // Note: SUBSHELL{} markers are now converted by the parser's
     // parse_pipeline_with_preprocessing() into an equivalent
-    // "__INTERNAL_SUBSHELL__" command with any trailing redirections/pipes preserved.
-    // We intentionally do not special-case SUBSHELL{} here to avoid
+    // "__INTERNAL_SUBSHELL__" command with any trailing redirections/pipes
+    // preserved. We intentionally do not special-case SUBSHELL{} here to avoid
     // dropping following constructs like "2>&1 | ...".
 
     // Expand command substitution $(...) and arithmetic $((...)) without using
@@ -157,14 +178,14 @@ int ShellScriptInterpreter::execute_block(
         if (pipe(pipefd) != 0) {
           return "";  // Unable to create pipe
         }
-        
+
         pid_t pid = fork();
         if (pid == 0) {
           // Child process: redirect stdout to pipe and execute internally
           close(pipefd[0]);  // Close read end
           dup2(pipefd[1], STDOUT_FILENO);
           close(pipefd[1]);
-          
+
           // Execute the content using internal execution mechanism
           int exit_code = execute_simple_or_pipeline(content);
           exit(exit_code);
@@ -178,16 +199,16 @@ int ShellScriptInterpreter::execute_block(
             result.append(buf, n);
           }
           close(pipefd[0]);
-          
+
           // Wait for child to complete
           int status;
           waitpid(pid, &status, 0);
-          
+
           // Trim trailing newlines
           while (!result.empty() &&
                  (result.back() == '\n' || result.back() == '\r'))
             result.pop_back();
-          
+
           return result;
         } else {
           // Fork failed
@@ -579,23 +600,8 @@ int ShellScriptInterpreter::execute_block(
               std::string param_expr = s.substr(i + 2, j - (i + 2));
               std::string repl;
 
-              // Check for ${VAR-default} or ${VAR:-default} syntax
-              size_t dash_pos = param_expr.find('-');
-              if (dash_pos != std::string::npos) {
-                std::string var_name = param_expr.substr(0, dash_pos);
-                std::string default_val = param_expr.substr(dash_pos + 1);
-
-                const char* env_val = getenv(var_name.c_str());
-                if (env_val && strlen(env_val) > 0) {
-                  repl = env_val;
-                } else {
-                  repl = default_val;
-                }
-              } else {
-                // Simple ${VAR} expansion
-                const char* env_val = getenv(param_expr.c_str());
-                repl = env_val ? env_val : "";
-              }
+              // Parse parameter expansion expressions
+              repl = expand_parameter_expression(param_expr);
 
               s.replace(i, (j - i + 1), repl);
               changed = true;
@@ -651,22 +657,24 @@ int ShellScriptInterpreter::execute_block(
 
       // Check if this is an internal subshell command
       if (!c.args.empty() && c.args[0] == "__INTERNAL_SUBSHELL__") {
-        // If the subshell command has redirections, we need to use pipeline execution
-        // to properly handle them, not simple command execution
-        bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr || 
-                         !c.input_file.empty() || !c.output_file.empty() || 
-                         !c.append_file.empty() || !c.stderr_file.empty() || 
+        // If the subshell command has redirections, we need to use pipeline
+        // execution to properly handle them, not simple command execution
+        bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr ||
+                         !c.input_file.empty() || !c.output_file.empty() ||
+                         !c.append_file.empty() || !c.stderr_file.empty() ||
                          !c.here_doc.empty();
-        
+
         if (g_debug_mode) {
-          std::cerr << "DEBUG: INTERNAL_SUBSHELL has_redir=" << has_redir 
+          std::cerr << "DEBUG: INTERNAL_SUBSHELL has_redir=" << has_redir
                     << " stderr_to_stdout=" << c.stderr_to_stdout << std::endl;
         }
-        
+
         if (has_redir) {
           // Use pipeline execution to handle redirections properly
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Executing subshell with redirections via pipeline" << std::endl;
+            std::cerr
+                << "DEBUG: Executing subshell with redirections via pipeline"
+                << std::endl;
           }
           int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
           setenv("STATUS", std::to_string(exit_code).c_str(), 1);
@@ -677,7 +685,8 @@ int ShellScriptInterpreter::execute_block(
           if (c.args.size() >= 2) {
             std::string subshell_content = c.args[1];
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Executing subshell content directly: " << subshell_content << std::endl;
+              std::cerr << "DEBUG: Executing subshell content directly: "
+                        << subshell_content << std::endl;
             }
             int exit_code = g_shell->execute(subshell_content);
             setenv("STATUS", std::to_string(exit_code).c_str(), 1);
@@ -795,7 +804,8 @@ int ShellScriptInterpreter::execute_block(
     size_t j = idx;
     bool then_found = false;
     // If current line has '; then' suffix, split it
-    auto pos = first.find("; then");  // Use find() to get the FIRST occurrence, not rfind()
+    auto pos = first.find(
+        "; then");  // Use find() to get the FIRST occurrence, not rfind()
     if (pos != std::string::npos) {
       // Condition is everything between 'if ' and '; then'
       cond_accum = trim(first.substr(3, pos - 3));
@@ -906,69 +916,74 @@ int ShellScriptInterpreter::execute_block(
     bool in_else = false;
     std::vector<std::string> then_lines;
     std::vector<std::string> else_lines;
-    
+
     // For inline if statements, we need to parse the single line differently
     if (src_lines.size() == 1 && src_lines[0].find("fi") != std::string::npos) {
       // This is a single line with the complete if statement
       // We need to parse it properly
       std::string full_line = src_lines[0];
-      
+
       // For now, let's split it into parts and execute it as separate commands
       // This is a simplified approach - a full parser would be better
       std::vector<std::string> parts;
-      
+
       // Extract the condition
       size_t if_pos = full_line.find("if ");
       size_t then_pos = full_line.find("; then");
       if (if_pos != std::string::npos && then_pos != std::string::npos) {
-        std::string condition = trim(full_line.substr(if_pos + 3, then_pos - (if_pos + 3)));
-        
+        std::string condition =
+            trim(full_line.substr(if_pos + 3, then_pos - (if_pos + 3)));
+
         // Execute condition
         int cond_result = execute_simple_or_pipeline(condition);
-        
+
         // Now we need to find which branch to execute
         // Look for elif/else/fi structure
         std::string remaining = trim(full_line.substr(then_pos + 6));
-        
+
         // Simple parser for if/elif/else/fi
-        std::vector<std::pair<std::string, std::string>> branches; // condition, commands
+        std::vector<std::pair<std::string, std::string>>
+            branches;  // condition, commands
         std::string current_commands;
-        
+
         // First branch is the 'then' part
         size_t pos = 0;
         while (pos < remaining.length()) {
           size_t elif_pos = remaining.find("; elif ", pos);
           size_t else_pos = remaining.find("; else ", pos);
-          
+
           // Look for fi at word boundary (preceded by space or semicolon)
           size_t fi_pos = std::string::npos;
           size_t search_pos = pos;
           while (search_pos < remaining.length()) {
             size_t candidate = remaining.find("fi", search_pos);
-            if (candidate == std::string::npos) break;
-            
-            // Check if this is a word boundary (fi at end or followed by space/semicolon)
-            bool is_word_end = (candidate + 2 >= remaining.length()) || 
-                              (remaining[candidate + 2] == ' ') || 
-                              (remaining[candidate + 2] == ';');
-            bool is_word_start = (candidate == 0) || 
-                                (remaining[candidate - 1] == ' ') || 
-                                (remaining[candidate - 1] == ';');
-            
+            if (candidate == std::string::npos)
+              break;
+
+            // Check if this is a word boundary (fi at end or followed by
+            // space/semicolon)
+            bool is_word_end = (candidate + 2 >= remaining.length()) ||
+                               (remaining[candidate + 2] == ' ') ||
+                               (remaining[candidate + 2] == ';');
+            bool is_word_start = (candidate == 0) ||
+                                 (remaining[candidate - 1] == ' ') ||
+                                 (remaining[candidate - 1] == ';');
+
             if (is_word_start && is_word_end) {
               fi_pos = candidate;
               break;
             }
             search_pos = candidate + 1;
           }
-          
+
           // Find the earliest occurrence
           size_t next_pos = std::min({elif_pos, else_pos, fi_pos});
-          if (next_pos == std::string::npos) break;
-          
+          if (next_pos == std::string::npos)
+            break;
+
           // Extract commands up to this point
           std::string commands = trim(remaining.substr(pos, next_pos - pos));
-          
+
           if (elif_pos != std::string::npos && next_pos == elif_pos) {
             // Store current commands for previous condition
             if (pos == 0) {
@@ -978,21 +993,22 @@ int ShellScriptInterpreter::execute_block(
                 for (const auto& c : cmds) {
                   execute_simple_or_pipeline(c);
                 }
-                idx = 0; // Don't advance since we processed everything
+                idx = 0;  // Don't advance since we processed everything
                 return 0;
               }
             }
-            
+
             // Find the elif condition
-            pos = next_pos + 7; // Skip "; elif "
+            pos = next_pos + 7;  // Skip "; elif "
             size_t elif_then = remaining.find("; then", pos);
             if (elif_then != std::string::npos) {
-              std::string elif_cond = trim(remaining.substr(pos, elif_then - pos));
+              std::string elif_cond =
+                  trim(remaining.substr(pos, elif_then - pos));
               int elif_result = execute_simple_or_pipeline(elif_cond);
               if (elif_result == 0) {
                 // Execute commands after this elif's then
-                size_t elif_body_start = elif_then + 6; // Skip "; then"
-                
+                size_t elif_body_start = elif_then + 6;  // Skip "; then"
+
                 // Find the end of this elif's body (next elif, else, or fi)
                 size_t next_elif = remaining.find("; elif ", elif_body_start);
                 size_t next_else = remaining.find("; else ", elif_body_start);
@@ -1000,26 +1016,30 @@ int ShellScriptInterpreter::execute_block(
                 size_t search_fi = elif_body_start;
                 while (search_fi < remaining.length()) {
                   size_t candidate = remaining.find("fi", search_fi);
-                  if (candidate == std::string::npos) break;
-                  
-                  bool is_word_end = (candidate + 2 >= remaining.length()) || 
-                                    (remaining[candidate + 2] == ' ') || 
-                                    (remaining[candidate + 2] == ';');
-                  bool is_word_start = (candidate == 0) || 
-                                      (remaining[candidate - 1] == ' ') || 
-                                      (remaining[candidate - 1] == ';');
-                  
+                  if (candidate == std::string::npos)
+                    break;
+
+                  bool is_word_end = (candidate + 2 >= remaining.length()) ||
+                                     (remaining[candidate + 2] == ' ') ||
+                                     (remaining[candidate + 2] == ';');
+                  bool is_word_start = (candidate == 0) ||
+                                       (remaining[candidate - 1] == ' ') ||
+                                       (remaining[candidate - 1] == ';');
+
                   if (is_word_start && is_word_end) {
                     next_fi = candidate;
                     break;
                   }
                   search_fi = candidate + 1;
                 }
-                
-                size_t elif_body_end = std::min({next_elif, next_else, next_fi});
+
+                size_t elif_body_end =
+                    std::min({next_elif, next_else, next_fi});
                 if (elif_body_end != std::string::npos) {
-                  std::string elif_commands = trim(remaining.substr(elif_body_start, elif_body_end - elif_body_start));
-                  auto cmds = shell_parser->parse_semicolon_commands(elif_commands);
+                  std::string elif_commands = trim(remaining.substr(
+                      elif_body_start, elif_body_end - elif_body_start));
+                  auto cmds =
+                      shell_parser->parse_semicolon_commands(elif_commands);
                   for (const auto& c : cmds) {
                     execute_simple_or_pipeline(c);
                   }
@@ -1033,11 +1053,13 @@ int ShellScriptInterpreter::execute_block(
             // This is the else branch
             if (cond_result != 0) {
               // Execute the commands after else
-              pos = next_pos + 7; // Skip "; else "
+              pos = next_pos + 7;  // Skip "; else "
               size_t fi_end = remaining.find(" fi", pos);
               if (fi_end != std::string::npos) {
-                std::string else_commands = trim(remaining.substr(pos, fi_end - pos));
-                auto cmds = shell_parser->parse_semicolon_commands(else_commands);
+                std::string else_commands =
+                    trim(remaining.substr(pos, fi_end - pos));
+                auto cmds =
+                    shell_parser->parse_semicolon_commands(else_commands);
                 for (const auto& c : cmds) {
                   execute_simple_or_pipeline(c);
                 }
@@ -1048,7 +1070,8 @@ int ShellScriptInterpreter::execute_block(
             break;
           } else {
             // This is fi - we're done
-            // If we reached fi and no previous condition was true, execute these commands
+            // If we reached fi and no previous condition was true, execute
+            // these commands
             if (commands.length() > 0) {
               auto cmds = shell_parser->parse_semicolon_commands(commands);
               for (const auto& c : cmds) {
@@ -1058,12 +1081,12 @@ int ShellScriptInterpreter::execute_block(
             break;
           }
         }
-        
-        idx = 0; // Don't advance since we processed everything
+
+        idx = 0;  // Don't advance since we processed everything
         return 0;
       }
     }
-    
+
     while (k < src_lines.size() && depth > 0) {
       std::string cur_raw = src_lines[k];
       std::string cur = trim(strip_inline_comment(cur_raw));
@@ -1671,6 +1694,122 @@ int ShellScriptInterpreter::execute_block(
     return rc;
   };
 
+  // Minimal until CONDITION; do ...; done handler
+  auto handle_until_block = [&](const std::vector<std::string>& src_lines,
+                                size_t& idx) -> int {
+    std::string first = trim(strip_inline_comment(src_lines[idx]));
+    if (!(first == "until" || first.rfind("until ", 0) == 0))
+      return 1;
+
+    auto parse_cond_from = [&](const std::string& s, std::string& cond,
+                               bool& inline_do, std::string& body_inline) {
+      inline_do = false;
+      body_inline.clear();
+      cond.clear();
+      std::string tmp = s;
+      if (tmp == "until") {
+        return true;
+      }
+      if (tmp.rfind("until ", 0) == 0)
+        tmp = tmp.substr(6);
+      size_t do_pos = tmp.find("; do");
+      if (do_pos != std::string::npos) {
+        cond = trim(tmp.substr(0, do_pos));
+        inline_do = true;
+        body_inline = trim(tmp.substr(do_pos + 4));
+        return true;
+      }
+      if (tmp == "do") {
+        inline_do = true;
+        return true;
+      }
+      cond = trim(tmp);
+      return true;
+    };
+
+    std::string cond;
+    bool inline_do = false;
+    std::string body_inline;
+    parse_cond_from(first, cond, inline_do, body_inline);
+    size_t j = idx;
+    if (!inline_do) {
+      while (++j < src_lines.size()) {
+        std::string cur = trim(strip_inline_comment(src_lines[j]));
+        if (cur == "do") {
+          inline_do = true;
+          break;
+        }
+        if (cur.find("; do") != std::string::npos) {
+          parse_cond_from(cur, cond, inline_do, body_inline);
+          break;
+        }
+        if (!cur.empty()) {
+          if (!cond.empty())
+            cond += " ";
+          cond += cur;
+        }
+      }
+    }
+    if (!inline_do) {
+      idx = j;
+      return 1;
+    }
+
+    std::vector<std::string> body_lines;
+    if (!body_inline.empty()) {
+      std::string bi = body_inline;
+      size_t done_pos = bi.rfind("; done");
+      if (done_pos != std::string::npos)
+        bi = trim(bi.substr(0, done_pos));
+      body_lines = shell_parser->parse_into_lines(bi);
+    } else {
+      size_t k = j + 1;
+      int depth = 1;
+      while (k < src_lines.size() && depth > 0) {
+        std::string cur_raw = src_lines[k];
+        std::string cur = trim(strip_inline_comment(cur_raw));
+        if (cur == "until" || cur.rfind("until ", 0) == 0)
+          depth++;
+        else if (cur == "done") {
+          depth--;
+          if (depth == 0)
+            break;
+        }
+        if (depth > 0)
+          body_lines.push_back(cur_raw);
+        k++;
+      }
+      if (depth != 0) {
+        idx = k;
+        return 1;
+      }
+      idx = k;  // at 'done'
+    }
+
+    int rc = 0;
+    int guard = 0;
+    const int GUARD_MAX = 100000;
+    while (true) {
+      int c = 0;
+      if (!cond.empty()) {
+        c = execute_simple_or_pipeline(cond);
+      }
+      // The key difference: until loops while condition is false (non-zero)
+      // while loops while condition is true (zero)
+      if (c == 0)
+        break;
+      rc = execute_block(body_lines);
+      if (rc != 0)
+        break;
+      if (++guard > GUARD_MAX) {
+        std::cerr << "cjsh: until loop aborted (guard)" << std::endl;
+        rc = 1;
+        break;
+      }
+    }
+    return rc;
+  };
+
   for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
     const auto& raw_line = lines[line_index];
     std::string line = trim(strip_inline_comment(raw_line));
@@ -1703,6 +1842,14 @@ int ShellScriptInterpreter::execute_block(
     // Control structure: while ...; do ...; done
     if (line == "while" || line.rfind("while ", 0) == 0) {
       int rc = handle_while_block(lines, line_index);
+      if (rc != 0)
+        return rc;
+      continue;
+    }
+
+    // Control structure: until ...; do ...; done
+    if (line == "until" || line.rfind("until ", 0) == 0) {
+      int rc = handle_until_block(lines, line_index);
       if (rc != 0)
         return rc;
       continue;
@@ -2085,4 +2232,278 @@ int ShellScriptInterpreter::execute_block(
   }
 
   return last_code;
+}
+
+std::string ShellScriptInterpreter::expand_parameter_expression(const std::string& param_expr) {
+  if (param_expr.empty()) {
+    return "";
+  }
+
+  // Handle different parameter expansion forms:
+  // ${var}           - simple expansion
+  // ${var:-default}  - use default if unset or empty
+  // ${var-default}   - use default if unset
+  // ${var:=default}  - assign default if unset or empty
+  // ${var=default}   - assign default if unset
+  // ${var:?message}  - error if unset or empty
+  // ${var?message}   - error if unset
+  // ${var:+value}    - use value if set and non-empty
+  // ${var+value}     - use value if set
+  // ${#var}          - string length
+  // ${var#pattern}   - remove shortest prefix match
+  // ${var##pattern}  - remove longest prefix match
+  // ${var%pattern}   - remove shortest suffix match
+  // ${var%%pattern}  - remove longest suffix match
+
+  // Check for string length expansion ${#var}
+  if (param_expr[0] == '#') {
+    std::string var_name = param_expr.substr(1);
+    std::string value = get_variable_value(var_name);
+    return std::to_string(value.length());
+  }
+
+  // Find the operator position
+  size_t op_pos = std::string::npos;
+  std::string op;
+  
+  // Check for two-character operators first
+  for (size_t i = 1; i < param_expr.length(); ++i) {
+    if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
+      char next = param_expr[i + 1];
+      if (next == '-' || next == '=' || next == '?' || next == '+') {
+        op_pos = i;
+        op = param_expr.substr(i, 2);
+        break;
+      }
+    } else if (param_expr[i] == '#' || param_expr[i] == '%') {
+      // Check for ## or %%
+      if (i + 1 < param_expr.length() && param_expr[i + 1] == param_expr[i]) {
+        op_pos = i;
+        op = param_expr.substr(i, 2);
+        break;
+      } else {
+        op_pos = i;
+        op = param_expr.substr(i, 1);
+        break;
+      }
+    } else if (param_expr[i] == '-' || param_expr[i] == '=' || 
+               param_expr[i] == '?' || param_expr[i] == '+') {
+      op_pos = i;
+      op = param_expr.substr(i, 1);
+      break;
+    }
+  }
+
+  std::string var_name = param_expr.substr(0, op_pos);
+  std::string var_value = get_variable_value(var_name);
+  bool is_set = variable_is_set(var_name);
+
+  if (op_pos == std::string::npos) {
+    // Simple ${var} expansion
+    return var_value;
+  }
+
+  std::string operand = param_expr.substr(op_pos + op.length());
+
+  if (op == ":-") {
+    // Use default if unset or empty
+    return (is_set && !var_value.empty()) ? var_value : operand;
+  } else if (op == "-") {
+    // Use default if unset
+    return is_set ? var_value : operand;
+  } else if (op == ":=") {
+    // Assign default if unset or empty
+    if (!is_set || var_value.empty()) {
+      setenv(var_name.c_str(), operand.c_str(), 1);
+      return operand;
+    }
+    return var_value;
+  } else if (op == "=") {
+    // Assign default if unset
+    if (!is_set) {
+      setenv(var_name.c_str(), operand.c_str(), 1);
+      return operand;
+    }
+    return var_value;
+  } else if (op == ":?") {
+    // Error if unset or empty
+    if (!is_set || var_value.empty()) {
+      std::cerr << "cjsh: " << var_name << ": " << (operand.empty() ? "parameter null or not set" : operand) << std::endl;
+      exit(1);
+    }
+    return var_value;
+  } else if (op == "?") {
+    // Error if unset
+    if (!is_set) {
+      std::cerr << "cjsh: " << var_name << ": " << (operand.empty() ? "parameter not set" : operand) << std::endl;
+      exit(1);
+    }
+    return var_value;
+  } else if (op == ":+") {
+    // Use value if set and non-empty
+    return (is_set && !var_value.empty()) ? operand : "";
+  } else if (op == "+") {
+    // Use value if set
+    return is_set ? operand : "";
+  } else if (op == "#") {
+    // Remove shortest prefix match
+    return pattern_match_prefix(var_value, operand, false);
+  } else if (op == "##") {
+    // Remove longest prefix match
+    return pattern_match_prefix(var_value, operand, true);
+  } else if (op == "%") {
+    // Remove shortest suffix match
+    return pattern_match_suffix(var_value, operand, false);
+  } else if (op == "%%") {
+    // Remove longest suffix match
+    return pattern_match_suffix(var_value, operand, true);
+  }
+
+  // Unknown operator, return as-is
+  return var_value;
+}
+
+std::string ShellScriptInterpreter::get_variable_value(const std::string& var_name) {
+  // Handle special variables
+  if (var_name == "?") {
+    const char* status_env = getenv("STATUS");
+    return status_env ? status_env : "0";
+  } else if (var_name == "$") {
+    return std::to_string(getpid());
+  } else if (var_name == "#") {
+    // Number of positional parameters - need to get from shell
+    if (g_shell) {
+      return std::to_string(g_shell->get_positional_parameter_count());
+    }
+    return "0";
+  } else if (var_name == "*" || var_name == "@") {
+    // Positional parameters
+    if (g_shell) {
+      auto params = g_shell->get_positional_parameters();
+      std::string result;
+      for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) result += " ";
+        result += params[i];
+      }
+      return result;
+    }
+    return "";
+  } else if (var_name == "!") {
+    // Last background process PID (not implemented yet)
+    return "";
+  } else if (var_name.length() == 1 && isdigit(var_name[0])) {
+    // Positional parameter $1, $2, etc.
+    int param_num = var_name[0] - '0';
+    if (g_shell && param_num > 0) {
+      auto params = g_shell->get_positional_parameters();
+      if (static_cast<size_t>(param_num - 1) < params.size()) {
+        return params[param_num - 1];
+      }
+    }
+    return "";
+  }
+
+  // Regular environment variable
+  const char* env_val = getenv(var_name.c_str());
+  return env_val ? env_val : "";
+}
+
+bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
+  // Handle special variables (they are always "set")
+  if (var_name == "?" || var_name == "$" || var_name == "#" || 
+      var_name == "*" || var_name == "@" || var_name == "!") {
+    return true;
+  } else if (var_name.length() == 1 && isdigit(var_name[0])) {
+    // Positional parameter - check if it exists
+    int param_num = var_name[0] - '0';
+    if (g_shell && param_num > 0) {
+      auto params = g_shell->get_positional_parameters();
+      return static_cast<size_t>(param_num - 1) < params.size();
+    }
+    return false;
+  }
+
+  // Regular environment variable
+  return getenv(var_name.c_str()) != nullptr;
+}
+
+std::string ShellScriptInterpreter::pattern_match_prefix(const std::string& value, const std::string& pattern, bool longest) {
+  if (value.empty() || pattern.empty()) {
+    return value;
+  }
+
+  // Simple glob pattern matching for prefix removal
+  // For now, implement basic * and ? wildcard support
+  size_t best_match = 0;
+  
+  for (size_t i = 0; i <= value.length(); ++i) {
+    std::string prefix = value.substr(0, i);
+    if (matches_pattern(prefix, pattern)) {
+      if (longest) {
+        best_match = i;  // Keep looking for longer matches
+      } else {
+        // Shortest match - return immediately
+        return value.substr(i);
+      }
+    }
+  }
+  
+  return value.substr(best_match);
+}
+
+std::string ShellScriptInterpreter::pattern_match_suffix(const std::string& value, const std::string& pattern, bool longest) {
+  if (value.empty() || pattern.empty()) {
+    return value;
+  }
+
+  // Simple glob pattern matching for suffix removal
+  size_t best_match = value.length();
+  
+  for (size_t i = 0; i <= value.length(); ++i) {
+    std::string suffix = value.substr(value.length() - i);
+    if (matches_pattern(suffix, pattern)) {
+      if (longest) {
+        best_match = value.length() - i;  // Keep looking for longer matches
+      } else {
+        // Shortest match - return immediately
+        return value.substr(0, value.length() - i);
+      }
+    }
+  }
+  
+  return value.substr(0, best_match);
+}
+
+bool ShellScriptInterpreter::matches_pattern(const std::string& text, const std::string& pattern) {
+  // Simple glob pattern matching: supports * and ? wildcards
+  // This is a basic implementation - could be enhanced later
+  
+  size_t ti = 0, pi = 0;
+  size_t star_idx = std::string::npos, match_idx = 0;
+  
+  while (ti < text.length()) {
+    if (pi < pattern.length() && (pattern[pi] == '?' || pattern[pi] == text[ti])) {
+      // Direct match or ? wildcard
+      ti++;
+      pi++;
+    } else if (pi < pattern.length() && pattern[pi] == '*') {
+      // Star wildcard - record position
+      star_idx = pi++;
+      match_idx = ti;
+    } else if (star_idx != std::string::npos) {
+      // No direct match, but we have a previous * - backtrack
+      pi = star_idx + 1;
+      ti = ++match_idx;
+    } else {
+      // No match and no previous *
+      return false;
+    }
+  }
+  
+  // Consume any trailing * in pattern
+  while (pi < pattern.length() && pattern[pi] == '*') {
+    pi++;
+  }
+  
+  return pi == pattern.length();
 }

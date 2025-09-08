@@ -19,11 +19,13 @@
 #include "export_command.h"
 #include "help_command.h"
 #include "history_command.h"
+#include "loop_control_commands.h"
 #include "ls_command.h"
 #include "plugin_command.h"
 #include "printf_command.h"
 #include "prompt_test_command.h"
 #include "restart_command.h"
+#include "set_command.h"
 #include "source_command.h"
 #include "test_command.h"
 #include "theme_command.h"
@@ -70,6 +72,26 @@ Built_ins::Built_ins()
             {"unset",
              [this](const std::vector<std::string>& args) {
                return ::unset_command(args, shell);
+             }},
+            {"set",
+             [this](const std::vector<std::string>& args) {
+               return ::set_command(args, shell);
+             }},
+            {"shift",
+             [this](const std::vector<std::string>& args) {
+               return ::shift_command(args, shell);
+             }},
+            {"break",
+             [](const std::vector<std::string>& args) {
+               return ::break_command(args);
+             }},
+            {"continue",
+             [](const std::vector<std::string>& args) {
+               return ::continue_command(args);
+             }},
+            {"return",
+             [](const std::vector<std::string>& args) {
+               return ::return_command(args);
              }},
             {"ai",
              [this](const std::vector<std::string>& args) {

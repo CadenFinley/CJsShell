@@ -30,6 +30,7 @@ Shell::Shell(bool login_mode) {
   // Provide the parser to the script interpreter now that it exists
   if (shell_script_interpreter && shell_parser) {
     shell_script_interpreter->set_parser(shell_parser);
+    shell_parser->set_shell(this);  // Set shell reference for positional parameters
   }
   built_ins->set_shell(this);
   built_ins->set_current_directory();
@@ -265,4 +266,32 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
 
 std::string Shell::get_previous_directory() const {
   return built_ins->get_previous_directory();
+}
+
+// Positional parameters support
+void Shell::set_positional_parameters(const std::vector<std::string>& params) {
+  positional_parameters = params;
+}
+
+int Shell::shift_positional_parameters(int count) {
+  if (count < 0) {
+    return 1;  // Error: negative shift count
+  }
+  
+  if (static_cast<size_t>(count) >= positional_parameters.size()) {
+    positional_parameters.clear();
+  } else {
+    positional_parameters.erase(positional_parameters.begin(), 
+                                positional_parameters.begin() + count);
+  }
+  
+  return 0;
+}
+
+std::vector<std::string> Shell::get_positional_parameters() const {
+  return positional_parameters;
+}
+
+size_t Shell::get_positional_parameter_count() const {
+  return positional_parameters.size();
 }

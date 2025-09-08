@@ -525,23 +525,70 @@ void Parser::expand_env_vars(std::string& arg) {
     }
     if (arg[i] == '$' && (i + 1 < arg.length()) &&
         (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]) ||
-         arg[i + 1] == '?')) {
+         arg[i + 1] == '?' || arg[i + 1] == '$' || arg[i + 1] == '#' ||
+         arg[i + 1] == '*' || arg[i + 1] == '@' || arg[i + 1] == '!')) {
       in_var = true;
       var_name.clear();
       continue;
     } else if (in_var) {
       if (isalnum(arg[i]) || arg[i] == '_' ||
           (var_name.empty() && isdigit(arg[i])) ||
-          (var_name.empty() && arg[i] == '?')) {
+          (var_name.empty() && (arg[i] == '?' || arg[i] == '$' || arg[i] == '#' ||
+                                arg[i] == '*' || arg[i] == '@' || arg[i] == '!'))) {
         var_name += arg[i];
       } else {
         in_var = false;
         std::string value;
-        // Handle special variable $?
+        // Handle special variables
         if (var_name == "?") {
           const char* status_env = getenv("STATUS");
           value = status_env ? status_env : "0";
+        } else if (var_name == "$") {
+          // Process ID
+          value = std::to_string(getpid());
+        } else if (var_name == "#") {
+          // Number of positional parameters
+          if (shell) {
+            value = std::to_string(shell->get_positional_parameter_count());
+          } else {
+            value = "0";
+          }
+        } else if (var_name == "*") {
+          // All positional parameters as single string
+          if (shell) {
+            auto params = shell->get_positional_parameters();
+            std::string result;
+            for (size_t i = 0; i < params.size(); ++i) {
+              if (i > 0) result += " ";
+              result += params[i];
+            }
+            value = result;
+          }
+        } else if (var_name == "@") {
+          // All positional parameters as separate words (same as * for basic expansion)
+          if (shell) {
+            auto params = shell->get_positional_parameters();
+            std::string result;
+            for (size_t i = 0; i < params.size(); ++i) {
+              if (i > 0) result += " ";
+              result += params[i];
+            }
+            value = result;
+          }
+        } else if (var_name == "!") {
+          // Process ID of last background command (not implemented yet)
+          value = "";
+        } else if (isdigit(var_name[0]) && var_name.length() == 1) {
+          // Positional parameter $1, $2, etc.
+          int param_num = var_name[0] - '0';
+          if (shell && param_num > 0) {
+            auto params = shell->get_positional_parameters();
+            if (static_cast<size_t>(param_num - 1) < params.size()) {
+              value = params[param_num - 1];
+            }
+          }
         } else {
+          // Regular environment variable
           auto it = env_vars.find(var_name);
           if (it != env_vars.end()) {
             value = it->second;
@@ -562,11 +609,56 @@ void Parser::expand_env_vars(std::string& arg) {
 
   if (in_var) {
     std::string value;
-    // Handle special variable $?
+    // Handle special variables
     if (var_name == "?") {
       const char* status_env = getenv("STATUS");
       value = status_env ? status_env : "0";
+    } else if (var_name == "$") {
+      // Process ID
+      value = std::to_string(getpid());
+    } else if (var_name == "#") {
+      // Number of positional parameters
+      if (shell) {
+        value = std::to_string(shell->get_positional_parameter_count());
+      } else {
+        value = "0";
+      }
+    } else if (var_name == "*") {
+      // All positional parameters as single string
+      if (shell) {
+        auto params = shell->get_positional_parameters();
+        std::string result;
+        for (size_t i = 0; i < params.size(); ++i) {
+          if (i > 0) result += " ";
+          result += params[i];
+        }
+        value = result;
+      }
+    } else if (var_name == "@") {
+      // All positional parameters as separate words (same as * for basic expansion)
+      if (shell) {
+        auto params = shell->get_positional_parameters();
+        std::string result;
+        for (size_t i = 0; i < params.size(); ++i) {
+          if (i > 0) result += " ";
+          result += params[i];
+        }
+        value = result;
+      }
+    } else if (var_name == "!") {
+      // Process ID of last background command (not implemented yet)
+      value = "";
+    } else if (isdigit(var_name[0]) && var_name.length() == 1) {
+      // Positional parameter $1, $2, etc.
+      int param_num = var_name[0] - '0';
+      if (shell && param_num > 0) {
+        auto params = shell->get_positional_parameters();
+        if (static_cast<size_t>(param_num - 1) < params.size()) {
+          value = params[param_num - 1];
+        }
+      }
     } else {
+      // Regular environment variable
       auto it = env_vars.find(var_name);
       if (it != env_vars.end()) {
         value = it->second;
@@ -772,9 +864,10 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
             preprocessed.processed_text.substr(start, end - start);
         std::string remaining = preprocessed.processed_text.substr(end + 1);
 
-        // Convert to an internal subshell command so downstream parsing 
-        // (pipes/redirs) continues to work: __INTERNAL_SUBSHELL__ "content"<remaining>
-        // Need to quote the content to preserve it as a single argument
+        // Convert to an internal subshell command so downstream parsing
+        // (pipes/redirs) continues to work: __INTERNAL_SUBSHELL__
+        // "content"<remaining> Need to quote the content to preserve it as a
+        // single argument
         auto escape_double_quotes = [](const std::string& s) {
           std::string out;
           out.reserve(s.size() + 16);
@@ -786,7 +879,7 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
           }
           return out;
         };
-        
+
         std::string rebuilt = "__INTERNAL_SUBSHELL__ \"" +
                               escape_double_quotes(subshell_content) + "\"" +
                               remaining;
@@ -808,7 +901,16 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
       auto it = current_here_docs.find(cmd.input_file);
       if (it != current_here_docs.end()) {
         // Move from input_file to here_doc
-        cmd.here_doc = it->second;
+        std::string content = it->second;
+        
+        // Check if variable expansion is needed (unquoted delimiter)
+        if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {
+          content = content.substr(10);  // Remove marker
+          // Expand variables in here document content
+          expand_env_vars(content);
+        }
+        
+        cmd.here_doc = content;
         cmd.input_file.clear();  // Clear the placeholder
       }
     }
@@ -816,7 +918,16 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
     // Also check the here_doc field for placeholders (in case of direct
     // parsing)
     if (!cmd.here_doc.empty() && current_here_docs.count(cmd.here_doc)) {
-      cmd.here_doc = current_here_docs[cmd.here_doc];
+      std::string content = current_here_docs[cmd.here_doc];
+      
+      // Check if variable expansion is needed (unquoted delimiter)
+      if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {
+        content = content.substr(10);  // Remove marker
+        // Expand variables in here document content
+        expand_env_vars(content);
+      }
+      
+      cmd.here_doc = content;
     }
   }
 

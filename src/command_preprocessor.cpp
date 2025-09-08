@@ -71,6 +71,17 @@ std::string CommandPreprocessor::process_here_documents(
 
   std::string delimiter = result.substr(delim_start, delim_end - delim_start);
 
+  // Check if delimiter is quoted
+  bool delimiter_quoted = false;
+  if (delimiter.length() >= 2) {
+    if ((delimiter.front() == '\'' && delimiter.back() == '\'') ||
+        (delimiter.front() == '"' && delimiter.back() == '"')) {
+      delimiter_quoted = true;
+      // Remove quotes from delimiter for matching
+      delimiter = delimiter.substr(1, delimiter.length() - 2);
+    }
+  }
+
   // Find the content between delimiter lines
   size_t content_start = result.find('\n', delim_end);
   if (content_start == std::string::npos) {
@@ -93,7 +104,14 @@ std::string CommandPreprocessor::process_here_documents(
   // Generate placeholder using a simple marker approach
   std::string placeholder =
       "HEREDOC_PLACEHOLDER_" + std::to_string(++placeholder_counter);
-  here_docs[placeholder] = content;
+  
+  // Store content with expansion flag
+  std::string stored_content = content;
+  if (!delimiter_quoted) {
+    // Mark for variable expansion by prefixing with special marker
+    stored_content = "__EXPAND__" + content;
+  }
+  here_docs[placeholder] = stored_content;
 
   // Replace here document with input redirection to placeholder
   std::string before_here = result.substr(0, here_pos);
