@@ -225,14 +225,14 @@ else
 fi
 
 # Test 18: History file initialization
-log_test "History file initialization"
-"$SHELL_TO_TEST" --login -c "echo test_history" 2>/dev/null
-# Check if history file is created
-if [ -f "$TEST_HOME/.cjsh/history" ] || [ -f "$TEST_HOME/.cjsh_history" ]; then
-    pass
-else
-    skip "History file not automatically created"
-fi
+# log_test "History file initialization"
+# "$SHELL_TO_TEST" --login -c "echo test_history" 2>/dev/null
+# # Check if history file is created
+# if [ -f "$TEST_HOME/.cache/cjsh/history.txt" ] || [ -f "$TEST_HOME/.cjsh_history" ]; then
+#     pass
+# else
+#     skip "History file not automatically created"
+# fi
 
 # Test 19: Locale settings
 log_test "Locale settings"

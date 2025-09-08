@@ -15,6 +15,7 @@ NC='\033[0m' # No Color
 TOTAL=0
 PASS=0
 FAIL=0
+SKIP=0
 WARNINGS=0
 
 # Check if cjsh binary exists
@@ -48,21 +49,41 @@ run_test_category() {
     
     for test_name in $tests; do
         test_file="$SHELL_TESTS_DIR/${test_name}.sh"
+        TOTAL=$((TOTAL+1))
+        printf "  %-30s " "$test_name:"
+        
         if [ -f "$test_file" ]; then
-            TOTAL=$((TOTAL+1))
-            printf "  %-30s " "$test_name:"
-            
             # Capture both output and exit code
             output=$(sh "$test_file" 2>&1)
             exit_code=$?
             
+            # Count subtests within the test file
+            subtests_passed=$(echo "$output" | grep -c "PASS")
+            subtests_failed=$(echo "$output" | grep -c "FAIL")
+            subtests_skipped=$(echo "$output" | grep -c "SKIP")
+            subtests_total=$((subtests_passed + subtests_failed + subtests_skipped))
+            
             if [ $exit_code -eq 0 ]; then
-                echo "${GREEN}PASS${NC}"
+                if [ $subtests_skipped -gt 0 ]; then
+                    echo "${GREEN}PASS${NC} (${subtests_passed}/${subtests_total}, ${subtests_skipped} skipped)"
+                else
+                    echo "${GREEN}PASS${NC} (${subtests_passed}/${subtests_total})"
+                fi
                 PASS=$((PASS+1))
             else
-                echo "${RED}FAIL${NC}"
+                echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
                 echo "    Output: $output"
                 FAIL=$((FAIL+1))
+            fi
+            
+            # Show skipped tests details
+            if [ $subtests_skipped -gt 0 ]; then
+                skip_lines=$(echo "$output" | grep "SKIP")
+                if [ -n "$skip_lines" ]; then
+                    echo "$skip_lines" | while IFS= read -r line; do
+                        echo "    ${YELLOW}$line${NC}"
+                    done
+                fi
             fi
             
             # Check for warnings in output
@@ -71,7 +92,8 @@ run_test_category() {
                 echo "    ${YELLOW}$(echo "$output" | grep "WARNING")${NC}"
             fi
         else
-            echo "  ${YELLOW}SKIP${NC} $test_name (file not found)"
+            echo "${YELLOW}SKIP${NC} (file not found)"
+            SKIP=$((SKIP+1))
         fi
     done
     echo ""

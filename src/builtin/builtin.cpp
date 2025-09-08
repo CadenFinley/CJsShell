@@ -194,6 +194,44 @@ Built_ins::Built_ins()
                // null command - always succeeds
                return 0;
              }},
+            {"if",
+             [this](const std::vector<std::string>& args) {
+               // Simple inline if statement handler for basic cases
+               // Format: if [ condition ]; then command; fi
+               if (args.size() < 2) {
+                 PRINT_ERROR("if: syntax error");
+                 return 2;
+               }
+               
+               // Join all arguments back into a string for parsing
+               std::string full_cmd;
+               for (size_t i = 1; i < args.size(); ++i) {
+                 if (i > 1) full_cmd += " ";
+                 full_cmd += args[i];
+               }
+               
+               // Basic parsing for "[ condition ]; then command; fi"
+               size_t then_pos = full_cmd.find("; then ");
+               size_t fi_pos = full_cmd.rfind("; fi");
+               
+               if (then_pos == std::string::npos || fi_pos == std::string::npos) {
+                 PRINT_ERROR("if: syntax error - expected '; then' and '; fi'");
+                 return 2;
+               }
+               
+               std::string condition = full_cmd.substr(0, then_pos);
+               std::string then_cmd = full_cmd.substr(then_pos + 7, fi_pos - (then_pos + 7));
+               
+               // Execute condition
+               int cond_result = shell->execute(condition);
+               
+               // If condition succeeded, execute then command
+               if (cond_result == 0) {
+                 return shell->execute(then_cmd);
+               }
+               
+               return 0;  // if condition failed, return success
+             }},
             {"__INTERNAL_SUBSHELL__",
              [this](const std::vector<std::string>& args) {
                if (args.size() < 2) return 1;

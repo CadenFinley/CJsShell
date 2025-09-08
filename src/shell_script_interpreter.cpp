@@ -1286,12 +1286,44 @@ int ShellScriptInterpreter::execute_block(
         auto cmds = shell_parser->parse_semicolon_commands(body);
         for (const auto& c : cmds) {
           rc = execute_simple_or_pipeline(c);
-          if (rc != 0)
+          if (rc == 255) {  // break signal
+            // Check if break level is intended for this loop
+            const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+            int break_level = 1;
+            if (break_level_str) {
+              break_level = std::stoi(break_level_str);
+              unsetenv("CJSH_BREAK_LEVEL");
+            }
+            if (break_level == 1) {
+              rc = 0;  // break is successful
+              goto for_loop_break;
+            } else {
+              // Pass break up to higher level loop
+              setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+              goto for_loop_break;
+            }
+          } else if (rc == 254) {  // continue signal
+            const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+            int continue_level = 1;
+            if (continue_level_str) {
+              continue_level = std::stoi(continue_level_str);
+              unsetenv("CJSH_CONTINUE_LEVEL");
+            }
+            if (continue_level == 1) {
+              rc = 0;  // continue is successful
+              goto for_loop_continue;
+            } else {
+              // Pass continue up to higher level loop
+              setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+              goto for_loop_break;
+            }
+          } else if (rc != 0) {
             break;
+          }
         }
-        if (rc != 0)
-          break;
+for_loop_continue:;
       }
+for_loop_break:;
       return rc;
     }
 
@@ -2151,12 +2183,14 @@ int ShellScriptInterpreter::execute_block(
       continue;
 
     last_code = 0;
-    for (size_t i = 0; i < lcmds.size(); ++i) {
+      for (size_t i = 0; i < lcmds.size(); ++i) {
       const auto& lc = lcmds[i];
       // Short-circuiting based on previous op
       if (i > 0) {
         const std::string& prev_op = lcmds[i - 1].op;
-        if (prev_op == "&&" && last_code != 0) {
+        // Don't short-circuit if previous command was a control flow signal
+        bool is_control_flow = (last_code == 253 || last_code == 254 || last_code == 255);
+        if (prev_op == "&&" && last_code != 0 && !is_control_flow) {
           if (g_debug_mode)
             std::cerr << "DEBUG: Skipping due to && short-circuit" << std::endl;
           continue;
@@ -2166,9 +2200,13 @@ int ShellScriptInterpreter::execute_block(
             std::cerr << "DEBUG: Skipping due to || short-circuit" << std::endl;
           continue;
         }
-      }
-
-      // Check for command grouping (parentheses or braces) before semicolon
+        // If we hit a control flow signal, break out of logical command processing
+        if (is_control_flow) {
+          if (g_debug_mode)
+            std::cerr << "DEBUG: Breaking logical command sequence due to control flow: " << last_code << std::endl;
+          break;
+        }
+      }      // Check for command grouping (parentheses or braces) before semicolon
       // splitting
       std::string cmd_to_parse = lc.command;
       std::string trimmed_cmd = trim(strip_inline_comment(cmd_to_parse));
@@ -2473,6 +2511,15 @@ int ShellScriptInterpreter::execute_block(
           }
           last_code = code;
           
+          // Check for control flow signals (break, continue, return)
+          if (code == 253 || code == 254 || code == 255) {
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Control flow signal detected: " << code << std::endl;
+            }
+            // Break out of all nested loops to propagate control flow
+            goto control_flow_exit;
+          }
+          
           if (code != 0 && debug_level >= DebugLevel::BASIC) {
             std::cerr << "DEBUG: Command failed (" << code << ") -> '"
                       << cmd_text << "'" << std::endl;
@@ -2480,7 +2527,8 @@ int ShellScriptInterpreter::execute_block(
         }
       }
     }
-
+    
+control_flow_exit:
     // Only stop script execution for critical errors (127 = command not found)
     // Or for special control flow codes (253 = return, 254 = continue, 255 = break)
     if (last_code == 127) {
