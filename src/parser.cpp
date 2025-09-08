@@ -379,6 +379,25 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
   }
   args = expanded_args;
+  // Handle special case for quoted $@ expansion before regular env var expansion
+  std::vector<std::string> pre_expanded_args;
+  for (const auto& raw_arg : args) {
+    if (is_double_quoted_token(raw_arg)) {
+      std::string tmp = strip_quote_tag(raw_arg);
+      // Check if this is exactly "$@" within double quotes
+      if (tmp == "$@" && shell) {
+        // Special handling: split into separate arguments, each double-quoted
+        auto params = shell->get_positional_parameters();
+        for (const auto& param : params) {
+          pre_expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + param);
+        }
+        continue;
+      }
+    }
+    pre_expanded_args.push_back(raw_arg);
+  }
+  args = pre_expanded_args;
+  
   for (auto& raw_arg : args) {
     // Do not expand env vars inside single quotes; expand inside double or
     // unquoted.
@@ -394,6 +413,19 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       }
     }
   }
+  
+  // Apply IFS word splitting to unquoted arguments that may contain expanded variables
+  std::vector<std::string> ifs_expanded_args;
+  for (const auto& raw_arg : args) {
+    if (!is_single_quoted_token(raw_arg) && !is_double_quoted_token(raw_arg)) {
+      // Unquoted argument - apply IFS word splitting
+      std::vector<std::string> split_words = split_by_ifs(raw_arg);
+      ifs_expanded_args.insert(ifs_expanded_args.end(), split_words.begin(), split_words.end());
+    } else {
+      ifs_expanded_args.push_back(raw_arg);
+    }
+  }
+  args = ifs_expanded_args;
   std::vector<std::string> tilde_expanded_args;
   for (auto& raw_arg : args) {
     const bool is_single = is_single_quoted_token(raw_arg);
@@ -565,7 +597,8 @@ void Parser::expand_env_vars(std::string& arg) {
             value = result;
           }
         } else if (var_name == "@") {
-          // All positional parameters as separate words (same as * for basic expansion)
+          // All positional parameters as separate words
+          // Note: This is the basic expansion; quoted "$@" needs special handling
           if (shell) {
             auto params = shell->get_positional_parameters();
             std::string result;
@@ -580,11 +613,18 @@ void Parser::expand_env_vars(std::string& arg) {
           value = "";
         } else if (isdigit(var_name[0]) && var_name.length() == 1) {
           // Positional parameter $1, $2, etc.
-          int param_num = var_name[0] - '0';
-          if (shell && param_num > 0) {
-            auto params = shell->get_positional_parameters();
-            if (static_cast<size_t>(param_num - 1) < params.size()) {
-              value = params[param_num - 1];
+          // First check environment variables (for function parameters)
+          const char* env_val = getenv(var_name.c_str());
+          if (env_val) {
+            value = env_val;
+          } else {
+            // Then check shell positional parameters (for script arguments)
+            int param_num = var_name[0] - '0';
+            if (shell && param_num > 0) {
+              auto params = shell->get_positional_parameters();
+              if (static_cast<size_t>(param_num - 1) < params.size()) {
+                value = params[param_num - 1];
+              }
             }
           }
         } else {
@@ -600,7 +640,13 @@ void Parser::expand_env_vars(std::string& arg) {
           }
         }
         result += value;
-        result += arg[i];
+        // Don't add the character that ended the variable if it's '$' (start of next variable)
+        if (arg[i] != '$') {
+          result += arg[i];
+        } else {
+          // This is a '$' starting a new variable, so we need to reprocess it
+          i--; // Back up one position so the '$' gets processed again
+        }
       }
     } else {
       result += arg[i];
@@ -650,11 +696,18 @@ void Parser::expand_env_vars(std::string& arg) {
       value = "";
     } else if (isdigit(var_name[0]) && var_name.length() == 1) {
       // Positional parameter $1, $2, etc.
-      int param_num = var_name[0] - '0';
-      if (shell && param_num > 0) {
-        auto params = shell->get_positional_parameters();
-        if (static_cast<size_t>(param_num - 1) < params.size()) {
-          value = params[param_num - 1];
+      // First check environment variables (for function parameters)
+      const char* env_val = getenv(var_name.c_str());
+      if (env_val) {
+        value = env_val;
+      } else {
+        // Then check shell positional parameters (for script arguments)
+        int param_num = var_name[0] - '0';
+        if (shell && param_num > 0) {
+          auto params = shell->get_positional_parameters();
+          if (static_cast<size_t>(param_num - 1) < params.size()) {
+            value = params[param_num - 1];
+          }
         }
       }
     } else {
@@ -673,6 +726,50 @@ void Parser::expand_env_vars(std::string& arg) {
   }
 
   arg = result;
+}
+
+std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
+  std::vector<std::string> result;
+  
+  // Get IFS from environment, default to space, tab, newline
+  const char* ifs_env = getenv("IFS");
+  std::string ifs = ifs_env ? ifs_env : " \t\n";
+  
+  if (input.empty()) {
+    return result;
+  }
+  
+  // If IFS is empty, return the whole string as one element
+  if (ifs.empty()) {
+    result.push_back(input);
+    return result;
+  }
+  
+  std::string current_word;
+  bool in_word = false;
+  
+  for (char c : input) {
+    if (ifs.find(c) != std::string::npos) {
+      // Found IFS character
+      if (in_word) {
+        result.push_back(current_word);
+        current_word.clear();
+        in_word = false;
+      }
+      // Skip consecutive IFS characters
+    } else {
+      // Non-IFS character
+      current_word += c;
+      in_word = true;
+    }
+  }
+  
+  // Add the last word if we were building one
+  if (in_word) {
+    result.push_back(current_word);
+  }
+  
+  return result;
 }
 
 std::vector<Command> Parser::parse_pipeline(const std::string& command) {

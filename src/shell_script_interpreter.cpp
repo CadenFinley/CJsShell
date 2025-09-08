@@ -680,17 +680,33 @@ int ShellScriptInterpreter::execute_block(
           setenv("STATUS", std::to_string(exit_code).c_str(), 1);
           return exit_code;
         } else {
-          // No redirections, execute subshell content directly in same process
-          // This is necessary for command substitution to work properly
+          // No redirections, but subshells should still execute in a separate process
+          // for proper variable scoping (POSIX compliance)
           if (c.args.size() >= 2) {
             std::string subshell_content = c.args[1];
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Executing subshell content directly: "
+              std::cerr << "DEBUG: Executing subshell content in child process: "
                         << subshell_content << std::endl;
             }
-            int exit_code = g_shell->execute(subshell_content);
-            setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-            return exit_code;
+            
+            // Fork for proper variable isolation
+            pid_t pid = fork();
+            if (pid == 0) {
+              // Child process - execute subshell content
+              int exit_code = g_shell->execute(subshell_content);
+              exit(exit_code);
+            } else if (pid > 0) {
+              // Parent process - wait for child
+              int status;
+              waitpid(pid, &status, 0);
+              int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+              setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+              return exit_code;
+            } else {
+              // Fork failed
+              std::cerr << "Failed to fork for subshell execution" << std::endl;
+              return 1;
+            }
           } else {
             // Invalid subshell command
             return 1;
@@ -2202,6 +2218,21 @@ int ShellScriptInterpreter::execute_block(
               }
               // Execute function body
               code = execute_block(functions[first_toks[0]]);
+              
+              // Check if function returned via 'return' command
+              if (code == 253) {  // Special exit code for return
+                const char* return_code_env = getenv("CJSH_RETURN_CODE");
+                if (return_code_env) {
+                  try {
+                    code = std::stoi(return_code_env);
+                    unsetenv("CJSH_RETURN_CODE");  // Clean up
+                  } catch (const std::exception&) {
+                    // If parsing fails, use 0
+                    code = 0;
+                  }
+                }
+              }
+              
               // Restore positional params (unset)
               for (const auto& n : param_names)
                 unsetenv(n.c_str());
@@ -2393,6 +2424,13 @@ std::string ShellScriptInterpreter::get_variable_value(const std::string& var_na
     return "";
   } else if (var_name.length() == 1 && isdigit(var_name[0])) {
     // Positional parameter $1, $2, etc.
+    // First check environment variables (for function parameters)
+    const char* env_val = getenv(var_name.c_str());
+    if (env_val) {
+      return env_val;
+    }
+    
+    // Then check shell positional parameters (for script arguments)
     int param_num = var_name[0] - '0';
     if (g_shell && param_num > 0) {
       auto params = g_shell->get_positional_parameters();
@@ -2415,6 +2453,12 @@ bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
     return true;
   } else if (var_name.length() == 1 && isdigit(var_name[0])) {
     // Positional parameter - check if it exists
+    // First check environment variables (for function parameters)
+    if (getenv(var_name.c_str()) != nullptr) {
+      return true;
+    }
+    
+    // Then check shell positional parameters (for script arguments)  
     int param_num = var_name[0] - '0';
     if (g_shell && param_num > 0) {
       auto params = g_shell->get_positional_parameters();
