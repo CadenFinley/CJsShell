@@ -200,7 +200,13 @@ fi
 
 # Test 18: jobs builtin
 log_test "jobs builtin"
-skip "jobs builtin requires job control implementation"
+# Test jobs with no background jobs (should succeed with no output)
+"$SHELL_TO_TEST" -c "jobs" >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+    pass
+else
+    fail "jobs builtin not working"
+fi
 
 # Test 19: kill builtin
 log_test "kill builtin"
