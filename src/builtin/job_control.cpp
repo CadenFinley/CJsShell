@@ -381,6 +381,7 @@ int wait_command(const std::vector<std::string>& args) {
   }
   
   // Wait for specific job or PID
+  int last_exit_status = 0;
   for (size_t i = 1; i < args.size(); ++i) {
     std::string target = args[i];
     
@@ -396,7 +397,13 @@ int wait_command(const std::vector<std::string>& args) {
         
         int status;
         for (pid_t pid : job->pids) {
-          waitpid(pid, &status, 0);
+          if (waitpid(pid, &status, 0) > 0) {
+            if (WIFEXITED(status)) {
+              last_exit_status = WEXITSTATUS(status);
+            } else if (WIFSIGNALED(status)) {
+              last_exit_status = 128 + WTERMSIG(status);
+            }
+          }
         }
         
         job_manager.remove_job(job_id);
@@ -413,6 +420,12 @@ int wait_command(const std::vector<std::string>& args) {
           perror("wait");
           return 1;
         }
+        
+        if (WIFEXITED(status)) {
+          last_exit_status = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+          last_exit_status = 128 + WTERMSIG(status);
+        }
       } catch (...) {
         std::cerr << "wait: " << target << ": arguments must be process or job IDs" << std::endl;
         return 1;
@@ -420,7 +433,7 @@ int wait_command(const std::vector<std::string>& args) {
     }
   }
   
-  return 0;
+  return last_exit_status;
 }
 
 int kill_command(const std::vector<std::string>& args) {
