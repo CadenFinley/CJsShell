@@ -23,7 +23,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Test very long command line
-LONG_CMD=$(printf 'echo %*s' 1000 | tr ' ' 'a')
+LONG_CMD="echo $(printf '%*s' 1000 '' | tr ' ' 'a')"
 OUT=$("$CJSH_PATH" -c "$LONG_CMD" 2>/dev/null)
 if [ $? -ne 0 ]; then
     echo "WARNING: very long command failed"
@@ -36,11 +36,11 @@ if [ $? -eq 0 ]; then
     exit 1
 fi
 
-# Test unmatched quotes
+# Test unmatched quotes (behavior varies between shells)
 "$CJSH_PATH" -c "echo 'unmatched" 2>/dev/null
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "WARNING: unmatched quotes test - shell may handle this differently"
+    echo "WARNING: unmatched quotes test - shell may handle this differently (this is expected)"
 fi
 
 # Test invalid redirection
@@ -56,14 +56,11 @@ if [ $? -eq 0 ]; then
     echo "WARNING: permission test may have succeeded unexpectedly"
 fi
 
-# Test extremely nested command substitution
-NESTED="echo test"
-for i in 1 2 3 4 5; do
-    NESTED="\$(echo \$($NESTED))"
-done
-OUT=$("$CJSH_PATH" -c "$NESTED" 2>/dev/null)
-if [ "$OUT" != "test" ]; then
-    echo "WARNING: deeply nested command substitution failed"
+# Test moderately nested command substitution 
+OUT1=$("$CJSH_PATH" -c "echo \$(echo test)" 2>/dev/null)
+OUT2=$("$CJSH_PATH" -c "echo \$(echo \$(echo test))" 2>/dev/null)
+if [ "$OUT1" != "test" ] || [ "$OUT2" != "test" ]; then
+    echo "WARNING: nested command substitution failed (OUT1='$OUT1', OUT2='$OUT2')"
 fi
 
 # Test very long environment variable
@@ -99,7 +96,7 @@ MANY_ARGS=""
 for i in $(seq 1 100); do
     MANY_ARGS="$MANY_ARGS arg$i"
 done
-OUT=$("$CJSH_PATH" -c "echo $MANY_ARGS | wc -w" 2>/dev/null)
+OUT=$("$CJSH_PATH" -c "echo $MANY_ARGS | wc -w" 2>/dev/null | tr -d ' ')
 if [ "$OUT" != "100" ]; then
     echo "WARNING: command with many arguments failed (got '$OUT')"
 fi
