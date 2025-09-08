@@ -1,6 +1,6 @@
 #include "signal_handler.h"
 
-#include <algorithm>  // For std::find
+#include <algorithm>
 
 #include "cjsh.h"
 #include "exec.h"
