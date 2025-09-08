@@ -7,7 +7,9 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "job_control.h"
 #include "signal_handler.h"
+#include "trap_command.h"
 
 void Shell::process_pending_signals() {
   if (signal_handler && shell_exec) {
@@ -38,6 +40,10 @@ Shell::Shell(bool login_mode) {
   this->login_mode = login_mode;
 
   shell_terminal = STDIN_FILENO;
+
+  // Initialize managers
+  JobManager::instance().set_shell(this);
+  TrapManager::instance().set_shell(this);
 
   setup_signal_handlers();
   g_signal_handler = signal_handler.get();
@@ -242,7 +248,24 @@ int Shell::execute_command(std::vector<std::string> args,
 
   // run shell commands
   if (run_in_background) {
-    shell_exec->execute_command_async(args);
+    int job_id = shell_exec->execute_command_async(args);
+    if (job_id > 0) {
+      // Get the job and set background PID
+      auto jobs = shell_exec->get_jobs();
+      auto it = jobs.find(job_id);
+      if (it != jobs.end() && !it->second.pids.empty()) {
+        pid_t last_pid = it->second.pids.back();
+        setenv("!", std::to_string(last_pid).c_str(), 1);
+        
+        // Also notify the job manager
+        JobManager::instance().set_last_background_pid(last_pid);
+        
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Background job " << job_id 
+                    << " started with PID " << last_pid << std::endl;
+        }
+      }
+    }
     last_terminal_output_error = "Background command launched";
     last_exit_code = 0;
     return last_exit_code;

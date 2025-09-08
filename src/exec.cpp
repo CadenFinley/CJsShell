@@ -14,6 +14,7 @@
 
 #include "builtin.h"
 #include "cjsh.h"
+#include "job_control.h"
 
 Exec::Exec() {
   last_terminal_output_error = "";
@@ -251,6 +252,14 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   job.pids.push_back(pid);
 
   int job_id = add_job(job);
+  
+  // Also add to the new JobManager for foreground processes
+  std::string full_command;
+  for (size_t i = 0; i < args.size(); ++i) {
+    if (i > 0) full_command += " ";
+    full_command += args[i];
+  }
+  int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command);
 
   put_job_in_foreground(job_id, false);
 
@@ -265,6 +274,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     } else if (WIFSIGNALED(status)) {
       exit_code = 128 + WTERMSIG(status);
     }
+    
+    // Remove from JobManager when completed
+    JobManager::instance().remove_job(new_job_id);
   }
 
   set_error(exit_code == 0
@@ -377,12 +389,21 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     job.pids.push_back(pid);
 
     int job_id = add_job(job);
+    
+    // Also add to the new JobManager
+    std::string full_command;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i > 0) full_command += " ";
+      full_command += args[i];
+    }
+    JobManager::instance().add_job(pid, {pid}, full_command);
+    JobManager::instance().set_last_background_pid(pid);
 
     set_error("Background job started");
 
     std::cerr << "[" << job_id << "] " << pid << std::endl;
     last_exit_code = 0;
-    return 0;
+    return job_id;  // Return job_id instead of 0
   }
 }
 
@@ -996,6 +1017,21 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
   job.last_pid = pids.empty() ? -1 : pids.back();
 
   int job_id = add_job(job);
+  
+  // Also add to the new JobManager
+  std::string pipeline_command;
+  for (size_t i = 0; i < commands.size(); ++i) {
+    if (i > 0) pipeline_command += " | ";
+    for (size_t j = 0; j < commands[i].args.size(); ++j) {
+      if (j > 0) pipeline_command += " ";
+      pipeline_command += commands[i].args[j];
+    }
+  }
+  int new_job_id = JobManager::instance().add_job(pgid, pids, pipeline_command);
+  
+  if (job.background) {
+    JobManager::instance().set_last_background_pid(pids.empty() ? -1 : pids.back());
+  }
 
   if (job.background) {
     put_job_in_background(job_id, false);
@@ -1007,6 +1043,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
     auto it = jobs.find(job_id);
     if (it != jobs.end()) {
+      // Remove from JobManager when completed
+      JobManager::instance().remove_job(new_job_id);
+      
       int st = it->second.last_status;
       if (WIFEXITED(st))
         last_exit_code = WEXITSTATUS(st);

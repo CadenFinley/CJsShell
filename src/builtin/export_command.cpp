@@ -7,6 +7,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "readonly_command.h"
 
 #define PRINT_ERROR(MSG)      \
   do {                        \
@@ -28,6 +29,13 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
     if (parse_env_assignment(args[i], name, value)) {
+      // Check if variable is readonly
+      if (ReadonlyManager::instance().is_readonly(name)) {
+        std::cerr << "export: " << name << ": readonly variable" << std::endl;
+        all_successful = false;
+        continue;
+      }
+      
       env_vars[name] = value;
 
       setenv(name.c_str(), value.c_str(), 1);

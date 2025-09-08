@@ -19,6 +19,7 @@
 #include "colors.h"
 #include "completions.h"
 #include "isocline/isocline.h"
+#include "job_control.h"
 #include "shell.h"
 #include "update.h"
 #include "usage.h"
@@ -505,6 +506,10 @@ void main_process_loop() {
 
     // Check and handle any pending signals before prompting for input
     g_shell->process_pending_signals();
+    
+    // Update job status and clean up finished jobs
+    JobManager::instance().update_job_status();
+    JobManager::instance().cleanup_finished_jobs();
 
     update_terminal_title();
 

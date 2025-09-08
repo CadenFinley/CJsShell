@@ -19,16 +19,20 @@
 #include "export_command.h"
 #include "help_command.h"
 #include "history_command.h"
+#include "job_control.h"
 #include "loop_control_commands.h"
 #include "ls_command.h"
 #include "plugin_command.h"
 #include "printf_command.h"
 #include "prompt_test_command.h"
+#include "readonly_command.h"
 #include "restart_command.h"
 #include "set_command.h"
 #include "source_command.h"
 #include "test_command.h"
 #include "theme_command.h"
+#include "trap_command.h"
+#include "umask_command.h"
 #include "uninstall_command.h"
 #include "user_command.h"
 #include "version_command.h"
@@ -266,6 +270,38 @@ Built_ins::Built_ins()
                    return 1;
                  }
                }
+             }},
+            {"trap",
+             [](const std::vector<std::string>& args) {
+               return ::trap_command(args);
+             }},
+            {"jobs",
+             [](const std::vector<std::string>& args) {
+               return ::jobs_command(args);
+             }},
+            {"fg",
+             [](const std::vector<std::string>& args) {
+               return ::fg_command(args);
+             }},
+            {"bg",
+             [](const std::vector<std::string>& args) {
+               return ::bg_command(args);
+             }},
+            {"wait",
+             [](const std::vector<std::string>& args) {
+               return ::wait_command(args);
+             }},
+            {"kill",
+             [](const std::vector<std::string>& args) {
+               return ::kill_command(args);
+             }},
+            {"readonly",
+             [this](const std::vector<std::string>& args) {
+               return ::readonly_command(args, shell);
+             }},
+            {"umask",
+             [](const std::vector<std::string>& args) {
+               return ::umask_command(args);
              }},
         },
         shell(nullptr) {
