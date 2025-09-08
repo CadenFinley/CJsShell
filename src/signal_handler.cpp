@@ -384,13 +384,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
       }
     }
 
-    // If observed, notify plugin system or script handlers
-    if (is_observed && g_plugin) {
-      // Trigger a global event for SIGINT
-      std::string signal_name = get_signal_name(SIGINT);
-      notify_plugins("signal_received", signal_name);
-    }
-
     fflush(stdout);
   }
 
@@ -443,32 +436,14 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         }
       }
     }
-
-    // If observed, notify plugin system
-    if (is_signal_observed(SIGCHLD) && g_plugin) {
-      std::string signal_name = get_signal_name(SIGCHLD);
-      notify_plugins("signal_received", signal_name);
-    }
   }
 
   if (s_sighup_received) {
     s_sighup_received = 0;
-
-    // If observed, notify plugin system
-    if (is_signal_observed(SIGHUP) && g_plugin) {
-      std::string signal_name = get_signal_name(SIGHUP);
-      notify_plugins("signal_received", signal_name);
-    }
   }
 
   if (s_sigterm_received) {
     s_sigterm_received = 0;
-
-    // If observed, notify plugin system
-    if (is_signal_observed(SIGTERM) && g_plugin) {
-      std::string signal_name = get_signal_name(SIGTERM);
-      notify_plugins("signal_received", signal_name);
-    }
   }
 }
 
