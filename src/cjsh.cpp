@@ -6,7 +6,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <cstring>
+#include <string.h>
 #include <filesystem>
 #include <fstream>
 #include <functional>

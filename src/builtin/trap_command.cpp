@@ -1,6 +1,6 @@
 #include "trap_command.h"
 #include <algorithm>
-#include <csignal>
+#include <signal.h>
 #include <iostream>
 #include <sstream>
 #include "cjsh.h"

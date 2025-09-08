@@ -5,9 +5,9 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <cctype>
-#include <cstdlib>
-#include <cstring>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 #include <fstream>
 #include <functional>
 #include <iomanip>

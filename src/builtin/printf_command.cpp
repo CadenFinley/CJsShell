@@ -1,7 +1,7 @@
 #include "printf_command.h"
 
-#include <climits>
-#include <cstdlib>
+#include <limits.h>
+#include <stdlib.h>
 #include <iomanip>
 #include <iostream>
 #include <sstream>

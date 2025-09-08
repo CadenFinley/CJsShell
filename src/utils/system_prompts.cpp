@@ -1,6 +1,6 @@
 #include "system_prompts.h"
 
-#include <ctime>
+#include <time.h>
 #include <sstream>
 #include <string>
 #include <string_view>

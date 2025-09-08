@@ -1,6 +1,6 @@
 #include "prompt_info.h"
 
-#include <ctime>
+#include <time.h>
 #include <fstream>
 #include <iomanip>
 #include <iostream>

@@ -1,6 +1,6 @@
 #include "user_command.h"
 
-#include <ctime>
+#include <time.h>
 #include <iostream>
 #include <string>
 #include <vector>

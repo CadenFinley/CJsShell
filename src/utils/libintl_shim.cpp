@@ -1,7 +1,7 @@
 #include "../include/libintl_shim.h"
 
-#include <cstdarg>
-#include <cstdio>
+#include <stdarg.h>
+#include <stdio.h>
 
 // Implementation of libintl_snprintf that simply forwards to standard snprintf
 extern "C" int libintl_snprintf(char* str, size_t size, const char* format,

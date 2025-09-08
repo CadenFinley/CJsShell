@@ -1,8 +1,8 @@
 #pragma once
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <cstdint>
+#include <math.h>
+#include <stdint.h>
 #include <functional>
 #include <string>
 #include <string_view>

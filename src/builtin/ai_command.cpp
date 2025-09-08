@@ -1,6 +1,6 @@
 #include "ai_command.h"
 
-#include <ctime>
+#include <time.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ctime>
+#include <time.h>
 #include <string>
 
 extern bool g_cached_update;

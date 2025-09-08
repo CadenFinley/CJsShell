@@ -1,8 +1,8 @@
 #include "syntax_highlighter.h"
 
 #include <algorithm>
-#include <cctype>
-#include <cstring>
+#include <ctype.h>
+#include <string.h>
 #include <filesystem>
 #include <string>
 #include <unordered_set>

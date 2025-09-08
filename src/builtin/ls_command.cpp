@@ -5,8 +5,8 @@
 #include <sys/stat.h>
 
 #include <algorithm>
-#include <cstring>
-#include <ctime>
+#include <string.h>
+#include <time.h>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>

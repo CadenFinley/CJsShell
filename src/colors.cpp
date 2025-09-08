@@ -1,10 +1,10 @@
 #include "colors.h"
 
 #include <algorithm>
-#include <cctype>
-#include <climits>
-#include <cmath>
-#include <cstdlib>
+#include <ctype.h>
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
 #include <fstream>
 #include <iomanip>
 #include <regex>

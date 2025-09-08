@@ -1,8 +1,8 @@
 #ifndef LIBINTL_SHIM_H
 #define LIBINTL_SHIM_H
 
-#include <cstdarg>
-#include <cstdio>
+#include <stdarg.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {

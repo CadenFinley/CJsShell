@@ -1,8 +1,8 @@
 #include "update.h"
 
 #include <chrono>
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>

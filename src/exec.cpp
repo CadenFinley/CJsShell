@@ -6,7 +6,7 @@
 
 #include <algorithm>
 #include <array>
-#include <csignal>
+#include <signal.h>
 #include <iostream>
 #include <memory>
 #include <stdexcept>

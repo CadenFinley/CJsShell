@@ -1,8 +1,8 @@
 #include "completions.h"
 
 #include <algorithm>
-#include <cctype>
-#include <cstring>
+#include <ctype.h>
+#include <string.h>
 #include <fstream>
 #include <iostream>
 #include <map>

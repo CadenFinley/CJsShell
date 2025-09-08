@@ -5,7 +5,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include <cstring>
+#include <string.h>
 #include <map>
 #include <mutex>
 #include <string>

@@ -3,8 +3,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <cstdlib>
-#include <cstring>
+#include <stdlib.h>
+#include <string.h>
 #include <filesystem>
 #include <iostream>
 

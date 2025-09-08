@@ -1,7 +1,7 @@
 #include "pwd_command.h"
 #include <limits.h>
 #include <unistd.h>
-#include <cstdlib>
+#include <stdlib.h>
 #include <iostream>
 
 int pwd_command(const std::vector<std::string>& args) {

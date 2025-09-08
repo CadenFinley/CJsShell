@@ -6,8 +6,8 @@
 #include <unistd.h>
 
 #include <array>
-#include <cstdlib>
-#include <cstring>
+#include <stdlib.h>
+#include <string.h>
 #include <memory>
 #include <regex>
 #include <sstream>

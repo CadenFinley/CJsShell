@@ -1,5 +1,5 @@
 #include "getopts_command.h"
-#include <cstdlib>
+#include <stdlib.h>
 #include <iostream>
 #include "cjsh.h"
 #include "shell.h"
