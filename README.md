@@ -7,45 +7,30 @@
 
 Are you scared of the command line? Does working in a terminal bring you dread? Then I have the thing for you!
 
-This is CJ's Shell! This is a custom login shell that I wrote after I got fed up with bash's inability to evolve and un-accessable customazation, oh-my-zsh's bloat and overall sluggishness, zsh's challening customization making you rely on frameworks to install and build, and fish's small community making issues or bugs hard to diagnose or seek help with. And throughout all of this, plugins and themes were always a pain on all 3! CJ's Shell aims to fix all of these for you, and I should know. I use CJ's Shell (cjsh) everyday without the assistance or backup of another shell open. While I do have zsh, bash, fish, etc installed on my machine I do not rely on them to make cjsh function or to help me get any work done. I hope you give cjsh a shot and I hope you enjoy! Thank you!
+This is CJ's Shell! This is a custom login shell that I wrote after I got fed up with bash's un-usable customazation, oh-my-zsh's bloat and overall sluggishness, zsh's challening customization making you rely on frameworks to install and build, and fish's small community making issues or bugs hard to diagnose or seek help with and its comes with own propietary scripting language for you to have to learn. And throughout all of this, plugins and themes were always a pain on all 3! CJ's Shell aims to fix all of these for you, and I should know. I use CJ's Shell (cjsh) everyday without the assistance or backup of another shell open. While I do have zsh, bash, fish, etc installed on my machine I do not rely on them to make cjsh function or to help me get any work done. I hope you give cjsh a shot and I hope you enjoy! Thank you!
  
 -Caden 'cj' Finley
 
-> ⚠️ **WARNING**: This project is still in active development. There may be occasional bugs or some things that just don't work quite right yet. Please report any issues you encounter by opening a pull request or issue.
+> ⚠️ **WARNING**: CJ's Shell is not a 100% POSIX compliant shell. I also would not use it as your primary shell script interpreter.
 
 ## What is CJ's Shell?
 
 CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built-in AI assistant who only offers help when you ask for it, a powerful plugin engine with a versatile language-agnostic plugin API, highly customizable themes, and a vibrant color engine.
 
-## Why Should You Choose CJ's Shell?
-
-CJ's Shell combines the familiarity of traditional POSIX shells with modern developer-focused features:
-
-#### Key Differences
+### Why Should You Choose CJ's Shell?
 
 - **Built-in AI Assistant**: First-class AI integration with context-aware code assistance, file searching, and multi-model support directly in your terminal—no external plugins required.
 - **Dynamic Plugin Engine**: Language-agnostic plugin API with compiled shared libraries, centralized management, and event hooks for deep integration—beyond just "sourced" scripts.
 - **Rich Theme System**: JSON-based themes with segmented prompts, dynamic variables (git status, CPU/memory usage), and aligned fields managed through a built-in theme command.
-- **Batteries Included**: Built-in commands for enhanced `ls`, version checking, updates, and plugin/theme management without external dependencies.
 - **Modern Interactive Experience**: Syntax highlighting, programmable completions, and clean configuration files with clear separation between login and interactive settings.
-
-#### Core Similarities
-
-CJ's Shell maintains compatibility with familiar shell concepts:
-- Standard tokenization, quoting, and escaping
-- Environment variable expansion and tilde expansion
-- Pipelines, I/O redirection, and background jobs
-- Logical operators and command separators
-- Basic shell functions and aliases
-- Core built-ins like `cd`, `exit`, `export`, and `history`
 
 ### Why Developers Should Choose cjsh
 
 - **Streamlined Workflow**: AI assistance and rich tooling directly in your terminal means fewer context switches and external tools.
 - **Extensibility**: The formal plugin API lets you create powerful integrations in multiple languages, not just shell scripts.
-- **Modern UX with Familiar Syntax**: Enjoy advanced features without abandoning the POSIX syntax you already know.
+- **Modern UX with Familiar Syntax**: Advanced features without leaving the POSIX syntax you already know.
 - **Consistent Cross-Platform Experience**: Works consistently across macOS, Linux, and Windows (via WSL or Cygwin).
-- **Customization Without Configuration Pain**: Structured JSON themes and clean plugin management eliminate fragile shell script hacks.
+- **Customization Without Configuration Pain**: Structured JSON themes and clean plugin management eliminate aannoying shell scripts.
 
 ## Installation
 
@@ -54,18 +39,6 @@ CJ's Shell maintains compatibility with familiar shell concepts:
 To install cjsh run:
 ```bash
 brew install cadenfinley/tap/cjsh
-```
-
-With the Homebrew installation you will be able to update and uninstall cjsh with ease with the following commands:
-
-To upgrade cjsh run:
-```bash
-brew upgrade cadenfinley/tap/cjsh
-```
-
-To uninstall cjsh run:
-```bash
-brew uninstall cadenfinley/tap/cjsh
 ```
 
 ### Manual Build and Install
@@ -173,12 +146,6 @@ CJ's Shell includes a comprehensive test suite with over 200 POSIX compliance te
 - ⚠️ Advanced file descriptor operations (noclobber, tab stripping)
 - ⚠️ Some interactive-only features require terminal sessions
 
-**Test Results Summary:**
-- 29 test suites with 200+ individual tests
-- 100% test suite pass rate
-- Comprehensive coverage of POSIX shell features
-- Edge case and performance testing included
-
 See `tests/README.md` for detailed test documentation and compliance matrix.
 
 ### AI Assistant
@@ -248,3 +215,4 @@ This project is licensed under the MIT License.
 
 Caden Finley @ Abilene Christian University (c) 2025
 cadenfinley.com
+caden@cadenfinley.com
