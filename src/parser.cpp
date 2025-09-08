@@ -555,14 +555,7 @@ void Parser::expand_env_vars(std::string& arg) {
       result += '$';
       continue;
     }
-    if (arg[i] == '$' && (i + 1 < arg.length()) &&
-        (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]) ||
-         arg[i + 1] == '?' || arg[i + 1] == '$' || arg[i + 1] == '#' ||
-         arg[i + 1] == '*' || arg[i + 1] == '@' || arg[i + 1] == '!')) {
-      in_var = true;
-      var_name.clear();
-      continue;
-    } else if (in_var) {
+    if (in_var) {
       if (isalnum(arg[i]) || arg[i] == '_' ||
           (var_name.empty() && isdigit(arg[i])) ||
           (var_name.empty() && (arg[i] == '?' || arg[i] == '$' || arg[i] == '#' ||
@@ -648,6 +641,13 @@ void Parser::expand_env_vars(std::string& arg) {
           i--; // Back up one position so the '$' gets processed again
         }
       }
+    } else if (arg[i] == '$' && (i + 1 < arg.length()) &&
+        (isalpha(arg[i + 1]) || arg[i + 1] == '_' || isdigit(arg[i + 1]) ||
+         arg[i + 1] == '?' || arg[i + 1] == '$' || arg[i + 1] == '#' ||
+         arg[i + 1] == '*' || arg[i + 1] == '@' || arg[i + 1] == '!')) {
+      in_var = true;
+      var_name.clear();
+      continue;
     } else {
       result += arg[i];
     }
