@@ -124,7 +124,8 @@ fi
 # Test 9: echo with -n option
 log_test "echo builtin with -n"
 result=$("$SHELL_TO_TEST" -c "echo -n hello" 2>/dev/null)
-if [ "$result" = "hello" ] && [ "$(echo "$result" | wc -l)" = "1" ]; then
+lines=$(printf '%s' "$result" | wc -l | tr -d ' ')
+if [ "$result" = "hello" ] && [ "$lines" = "0" ]; then
     pass
 else
     fail "Echo -n option failed"

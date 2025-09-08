@@ -70,6 +70,9 @@ int main(int argc, char* argv[]) {
                 << std::endl;
   }
 
+  // Initialize directories (creates all necessary directories)
+  cjsh_filesystem::initialize_cjsh_directories();
+
   // Setup long options
   static struct option long_options[] = {
       {"login", no_argument, 0, 'l'},
@@ -558,6 +561,7 @@ bool init_login_filesystem() {
                 << std::endl;
       return false;
     }
+    
     if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Creating profile file" << std::endl;
@@ -702,9 +706,6 @@ bool init_interactive_filesystem() {
                 << std::endl;
       return false;
     }
-
-    // Initialize directories once
-    cjsh_filesystem::initialize_cjsh_directories();
 
     // Create files if needed based on cached existence checks
     if (!history_exists) {

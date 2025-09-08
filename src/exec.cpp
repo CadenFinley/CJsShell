@@ -87,7 +87,7 @@ void Exec::handle_child_signal(pid_t pid, int status) {
           job.status = status;
 
           if (job.background) {
-            std::cout << "\n[" << job_id << "] Done\t" << job.command
+            std::cerr << "\n[" << job_id << "] Done\t" << job.command
                       << std::endl;
           }
         }
@@ -380,7 +380,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     set_error("Background job started");
 
-    std::cout << "[" << job_id << "] " << pid << std::endl;
+    std::cerr << "[" << job_id << "] " << pid << std::endl;
     last_exit_code = 0;
     return 0;
   }
@@ -999,7 +999,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
   if (job.background) {
     put_job_in_background(job_id, false);
-    std::cout << "[" << job_id << "] " << pgid << std::endl;
+    std::cerr << "[" << job_id << "] " << pgid << std::endl;
     last_exit_code = 0;
   } else {
     put_job_in_foreground(job_id, false);
@@ -1241,7 +1241,7 @@ void Exec::terminate_all_child_process() {
             perror("kill (SIGTERM) in terminate_all_child_process");
           }
         }
-        std::cout << "[" << job_pair.first << "] Terminated\t" << job.command
+        std::cerr << "[" << job_pair.first << "] Terminated\t" << job.command
                   << std::endl;
       }
 

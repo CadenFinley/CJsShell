@@ -638,6 +638,91 @@ int ShellScriptInterpreter::execute_block(
 
     // Use enhanced pipeline parser with preprocessing to handle here docs and
     // subshells
+    
+    // Handle case statements before preprocessing to avoid expansion issues
+    if ((text == "case" || text.rfind("case ", 0) == 0) &&
+        (text.find(" in ") != std::string::npos) &&
+        (text.find("esac") != std::string::npos)) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Handling inline case statement directly: " << text << std::endl;
+      }
+      
+      // Simple inline case statement handler
+      size_t in_pos = text.find(" in ");
+      std::string case_part = text.substr(0, in_pos);
+      std::string patterns_part = text.substr(in_pos + 4);  // Skip " in "
+      
+      // Extract case value with variable expansion but no glob expansion
+      std::vector<std::string> case_toks = shell_parser->parse_command(case_part);
+      std::string case_value;
+      if (case_toks.size() >= 2 && case_toks[0] == "case") {
+        case_value = case_toks[1];
+      }
+      
+      // Remove "esac" from the end
+      size_t esac_pos = patterns_part.find("esac");
+      if (esac_pos != std::string::npos) {
+        patterns_part = patterns_part.substr(0, esac_pos);
+      }
+      
+      // Process pattern sections
+      std::vector<std::string> pattern_sections;
+      size_t start = 0;
+      while (start < patterns_part.length()) {
+        size_t sep_pos = patterns_part.find(";;", start);
+        if (sep_pos == std::string::npos) {
+          if (start < patterns_part.length()) {
+            pattern_sections.push_back(trim(patterns_part.substr(start)));
+          }
+          break;
+        }
+        pattern_sections.push_back(trim(patterns_part.substr(start, sep_pos - start)));
+        start = sep_pos + 2;
+      }
+      
+      // Check each pattern for a match
+      for (const auto& section : pattern_sections) {
+        if (section.empty()) continue;
+        
+        size_t paren_pos = section.find(')');
+        if (paren_pos != std::string::npos) {
+          std::string pattern = trim(section.substr(0, paren_pos));
+          std::string command_part = trim(section.substr(paren_pos + 1));
+          
+          // Check if pattern matches case_value
+          bool pattern_matches = false;
+          if (pattern == "*") {
+            pattern_matches = true;  // wildcard matches everything
+          } else if (pattern == case_value) {
+            pattern_matches = true;  // exact match
+          } else if (pattern.find('*') != std::string::npos) {
+            // Simple pattern matching for wildcards
+            if (pattern.back() == '*' && pattern.size() > 1) {
+              // Pattern ends with *, check if case_value starts with the prefix
+              std::string prefix = pattern.substr(0, pattern.size() - 1);
+              pattern_matches = (case_value.substr(0, prefix.size()) == prefix);
+            } else if (pattern.front() == '*' && pattern.size() > 1) {
+              // Pattern starts with *, check if case_value ends with the suffix
+              std::string suffix = pattern.substr(1);
+              if (case_value.size() >= suffix.size()) {
+                pattern_matches = (case_value.substr(case_value.size() - suffix.size()) == suffix);
+              }
+            }
+          }
+          
+          if (pattern_matches) {
+            if (!command_part.empty()) {
+              return execute_simple_or_pipeline(command_part);
+            }
+            return 0;
+          }
+        }
+      }
+      
+      // No match found
+      return 0;
+    }
+    
     std::vector<Command> cmds =
         shell_parser->parse_pipeline_with_preprocessing(text);
 
@@ -1258,8 +1343,40 @@ int ShellScriptInterpreter::execute_block(
     for (const auto& it : items) {
       setenv(var.c_str(), it.c_str(), 1);
       rc = execute_block(body_lines);
-      if (rc != 0)
+      if (rc == 255) {  // break signal
+        // Check if break level is intended for this loop
+        const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+        int break_level = 1;
+        if (break_level_str) {
+          break_level = std::stoi(break_level_str);
+          unsetenv("CJSH_BREAK_LEVEL");
+        }
+        if (break_level == 1) {
+          rc = 0;  // break is successful
+          break;
+        } else {
+          // Pass break up to higher level loop
+          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+          break;
+        }
+      } else if (rc == 254) {  // continue signal
+        const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+        int continue_level = 1;
+        if (continue_level_str) {
+          continue_level = std::stoi(continue_level_str);
+          unsetenv("CJSH_CONTINUE_LEVEL");
+        }
+        if (continue_level == 1) {
+          rc = 0;  // continue is successful
+          continue;
+        } else {
+          // Pass continue up to higher level loop
+          setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+          break;
+        }
+      } else if (rc != 0) {
         break;
+      }
     }
     idx = k;  // at 'done'
     return rc;
@@ -1699,8 +1816,39 @@ int ShellScriptInterpreter::execute_block(
       if (c != 0)
         break;
       rc = execute_block(body_lines);
-      if (rc != 0)
+      if (rc == 255) {  // break signal
+        const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+        int break_level = 1;
+        if (break_level_str) {
+          break_level = std::stoi(break_level_str);
+          unsetenv("CJSH_BREAK_LEVEL");
+        }
+        if (break_level == 1) {
+          rc = 0;  // break is successful
+          break;
+        } else {
+          // Pass break up to higher level loop
+          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+          break;
+        }
+      } else if (rc == 254) {  // continue signal
+        const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+        int continue_level = 1;
+        if (continue_level_str) {
+          continue_level = std::stoi(continue_level_str);
+          unsetenv("CJSH_CONTINUE_LEVEL");
+        }
+        if (continue_level == 1) {
+          rc = 0;  // continue is successful
+          continue;
+        } else {
+          // Pass continue up to higher level loop
+          setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+          break;
+        }
+      } else if (rc != 0) {
         break;
+      }
       if (++guard > GUARD_MAX) {
         std::cerr << "cjsh: while loop aborted (guard)" << std::endl;
         rc = 1;
@@ -1815,8 +1963,39 @@ int ShellScriptInterpreter::execute_block(
       if (c == 0)
         break;
       rc = execute_block(body_lines);
-      if (rc != 0)
+      if (rc == 255) {  // break signal
+        const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+        int break_level = 1;
+        if (break_level_str) {
+          break_level = std::stoi(break_level_str);
+          unsetenv("CJSH_BREAK_LEVEL");
+        }
+        if (break_level == 1) {
+          rc = 0;  // break is successful
+          break;
+        } else {
+          // Pass break up to higher level loop
+          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(), 1);
+          break;
+        }
+      } else if (rc == 254) {  // continue signal
+        const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+        int continue_level = 1;
+        if (continue_level_str) {
+          continue_level = std::stoi(continue_level_str);
+          unsetenv("CJSH_CONTINUE_LEVEL");
+        }
+        if (continue_level == 1) {
+          rc = 0;  // continue is successful
+          continue;
+        } else {
+          // Pass continue up to higher level loop
+          setenv("CJSH_CONTINUE_LEVEL", std::to_string(continue_level - 1).c_str(), 1);
+          break;
+        }
+      } else if (rc != 0) {
         break;
+      }
       if (++guard > GUARD_MAX) {
         std::cerr << "cjsh: until loop aborted (guard)" << std::endl;
         rc = 1;
@@ -2012,6 +2191,25 @@ int ShellScriptInterpreter::execute_block(
         last_code = code;
         if (code != 0 && debug_level >= DebugLevel::BASIC) {
           std::cerr << "DEBUG: if block failed (" << code << ") -> '"
+                    << trimmed_cmd << "'" << std::endl;
+        }
+        continue;
+      }
+
+      // Handle inline case statements that should be treated as a single unit
+      if ((trimmed_cmd == "case" || trimmed_cmd.rfind("case ", 0) == 0) &&
+          (trimmed_cmd.find(" in ") != std::string::npos) &&
+          (trimmed_cmd.find("esac") != std::string::npos)) {
+        // This is an inline case statement - execute it as a single unit
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Detected inline case statement: " << trimmed_cmd << std::endl;
+        }
+        size_t local_idx = 0;
+        std::vector<std::string> one{trimmed_cmd};
+        int code = handle_case_block(one, local_idx);
+        last_code = code;
+        if (code != 0 && debug_level >= DebugLevel::BASIC) {
+          std::cerr << "DEBUG: case block failed (" << code << ") -> '"
                     << trimmed_cmd << "'" << std::endl;
         }
         continue;
@@ -2241,6 +2439,7 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           last_code = code;
+          
           if (code != 0 && debug_level >= DebugLevel::BASIC) {
             std::cerr << "DEBUG: Command failed (" << code << ") -> '"
                       << cmd_text << "'" << std::endl;
