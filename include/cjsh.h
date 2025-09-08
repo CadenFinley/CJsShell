@@ -14,7 +14,7 @@
 #include "shell.h"
 #include "theme.h"
 
-const bool PRE_RELEASE = true;
+const bool PRE_RELEASE = false;
 // using semver.org principles MAJOR.MINOR.PATCHs
 const std::string c_version = "3.0.0";
 const pid_t c_pid = getpid();
