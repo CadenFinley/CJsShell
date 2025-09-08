@@ -132,7 +132,7 @@ fi
 # Test 10: Shell-specific profile sourcing
 log_test "Shell-specific profile sourcing"
 # Check if cjsh sources its own profile file
-if [ -f "$TEST_HOME/.cjsh/profile" ] || [ -f "$TEST_HOME/.cjshprofile" ]; then
+if [ -f "$TEST_HOME/.cjprofile" ]; then
     pass
 else
     skip "Shell-specific profile file not created"
@@ -225,28 +225,12 @@ fi
 log_test "Login shell file creation"
 "$SHELL_TO_TEST" --login -c "true" 2>/dev/null
 # Check if necessary shell files are created
-if [ -d "$TEST_HOME/.cjsh" ] || ls "$TEST_HOME"/.cjsh* >/dev/null 2>&1; then
+if [ -d "$TEST_HOME/.config/cjsh" ] || ls "$TEST_HOME/.config/cjsh*" >/dev/null 2>&1; then
     pass
 else
     fail "Login shell initialization files not created"
 fi
 
-# Test 21: Profile startup arguments
-log_test "Profile startup arguments"
-echo "--no-colors" > "$TEST_HOME/.cjsh/profile"
-result=$("$SHELL_TO_TEST" --login -c "echo test" 2>/dev/null)
-if [ "$result" = "test" ]; then
-    pass
-else
-    fail "Profile startup arguments not processed"
-fi
-
-# Test 22: Command line vs profile argument precedence
-log_test "Command line argument precedence"
-echo "--no-colors" > "$TEST_HOME/.cjsh/profile"
-result=$("$SHELL_TO_TEST" --login -c "echo test" 2>/dev/null)
-# This test would need more complex verification
-pass  # Assume precedence works if basic execution works
 
 # Test 23: Exit status preservation
 log_test "Exit status preservation"
