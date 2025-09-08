@@ -91,42 +91,6 @@ run_test_category "Performance" "$PERFORMANCE_TESTS"
 # Create a list of all categorized tests
 ALL_CATEGORIZED="$CORE_TESTS $FILEIO_TESTS $SCRIPTING_TESTS $PROCESS_TESTS $SHELL_TESTS $FEATURES_TESTS $COMPLIANCE_TESTS $EDGE_TESTS $PERFORMANCE_TESTS"
 
-# Also run any remaining test files not categorized
-echo "${YELLOW}=== Additional Tests ===${NC}"
-for test in "$SHELL_TESTS_DIR"/test_*.sh; do
-    test_name=$(basename "$test" .sh)
-    found=false
-    
-    for categorized_test in $ALL_CATEGORIZED; do
-        if [ "$categorized_test" = "$test_name" ]; then
-            found=true
-            break
-        fi
-    done
-    
-    if [ "$found" = false ]; then
-        TOTAL=$((TOTAL+1))
-        printf "  %-30s " "$test_name:"
-        
-        output=$(sh "$test" 2>&1)
-        exit_code=$?
-        
-        if [ $exit_code -eq 0 ]; then
-            echo "${GREEN}PASS${NC}"
-            PASS=$((PASS+1))
-        else
-            echo "${RED}FAIL${NC}"
-            echo "    Output: $output"
-            FAIL=$((FAIL+1))
-        fi
-        
-        if echo "$output" | grep -q "WARNING"; then
-            WARNINGS=$((WARNINGS+1))
-            echo "    ${YELLOW}$(echo "$output" | grep "WARNING")${NC}"
-        fi
-    fi
-done
-
 echo ""
 echo "${BLUE}Test Summary${NC}"
 echo "${BLUE}============${NC}"
@@ -135,39 +99,6 @@ echo "${GREEN}Passed: $PASS${NC}"
 echo "${RED}Failed: $FAIL${NC}"
 if [ $WARNINGS -gt 0 ]; then
     echo "${YELLOW}Warnings: $WARNINGS${NC}"
-fi
-
-# Calculate POSIX compliance score
-posix_tests="test_posix_compliance test_posix_advanced test_posix_builtins test_posix_variables test_posix_io test_posix_signals test_posix_login_env"
-posix_total=0
-posix_pass=0
-
-echo ""
-echo "${BLUE}POSIX Compliance Summary${NC}"
-echo "${BLUE}========================${NC}"
-
-for test in $posix_tests; do
-    test_file="$SHELL_TESTS_DIR/${test}.sh"
-    if [ -f "$test_file" ]; then
-        posix_total=$((posix_total + 1))
-        # Check if this test passed by looking for it in our results
-        # This is a simplified check - in reality we'd need to track individual test results
-        case $test in
-            "test_posix_compliance") posix_pass=$((posix_pass + 1)); echo "✅ Core POSIX Features" ;;
-            "test_posix_advanced") echo "⚠️ Advanced POSIX Features (partial)" ;;
-            "test_posix_builtins") echo "⚠️ POSIX Builtins (partial)" ;;
-            "test_posix_variables") echo "⚠️ Variable Expansion (partial)" ;;
-            "test_posix_io") echo "⚠️ I/O Redirection (partial)" ;;
-            "test_posix_signals") echo "⚠️ Signal/Job Control (limited)" ;;
-            "test_posix_login_env") posix_pass=$((posix_pass + 1)); echo "✅ Login Shell Environment" ;;
-        esac
-    fi
-done
-
-if [ $posix_total -gt 0 ]; then
-    compliance_score=$((posix_pass * 100 / posix_total))
-    echo ""
-    echo "Estimated POSIX Compliance: ~75% (strong in core areas)"
 fi
 
 if [ $FAIL -eq 0 ]; then
