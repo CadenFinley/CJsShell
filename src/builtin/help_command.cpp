@@ -47,20 +47,6 @@ int help_command() {
   std::cout
       << "    Note: Without arguments, will analyze the most recent error\n\n";
 
-  std::cout << "USER SETTINGS:\n\n";
-
-  std::cout << "  user                    Access and manage user settings\n";
-  std::cout << "    Usage: user [subcommand] [options]\n";
-  std::cout << "    Subcommands:\n";
-  std::cout << "      testing             Toggle debug mode (enable/disable)\n";
-  std::cout
-      << "      checkforupdates     Control whether updates are checked\n";
-  std::cout << "      silentupdatecheck   Toggle silent update checking\n";
-  std::cout << "      titleline           Toggle title line display\n";
-  std::cout << "      update              Manage update settings and perform "
-               "manual update checks\n";
-  std::cout << "    Example: 'user update check', 'user testing enable'\n\n";
-
   std::cout << "THEME MANAGEMENT:\n\n";
 
   std::cout << "  theme [NAME]            View current theme or switch to a "
@@ -167,7 +153,7 @@ int help_command() {
   std::cout << section_separator;
   std::cout << "NOTE: Many commands have their own help. Try [command] help "
                "for details.\n";
-  std::cout << "Examples: 'ai help', 'user help', 'plugin help', etc.\n";
+  std::cout << "Examples: 'ai help', 'plugin help', 'theme help', etc.\n";
   std::cout << section_separator;
 
   return 0;
