@@ -32,7 +32,6 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
     std::string name, value;
     if (parse_assignment(args[i], name, value)) {
       aliases[name] = value;
-      save_alias_to_file(name, value);
       if (g_debug_mode) {
         std::cout << "Added alias: " << name << "='" << value << "'"
                   << std::endl;
@@ -65,7 +64,6 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (it != aliases.end()) {
       aliases.erase(it);
-      remove_alias_from_file(name);
       if (g_debug_mode) {
         std::cout << "Removed alias: " << name << std::endl;
       }
@@ -100,81 +98,4 @@ bool parse_assignment(const std::string& arg, std::string& name,
   }
 
   return true;
-}
-
-int save_alias_to_file(const std::string& name, const std::string& value) {
-  std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
-
-  std::vector<std::string> lines;
-  std::string line;
-  std::ifstream read_file(source_path);
-
-  bool alias_found = false;
-
-  if (read_file.is_open()) {
-    while (std::getline(read_file, line)) {
-      if (line.find("alias " + name + "=") == 0) {
-        lines.push_back("alias " + name + "='" + value + "'");
-        alias_found = true;
-      } else {
-        lines.push_back(line);
-      }
-    }
-    read_file.close();
-  }
-
-  if (!alias_found) {
-    lines.push_back("alias " + name + "='" + value + "'");
-  }
-
-  std::ofstream write_file(source_path);
-  if (write_file.is_open()) {
-    for (const auto& l : lines) {
-      write_file << l << std::endl;
-    }
-    write_file.close();
-
-    if (g_debug_mode) {
-      std::cout << "Alias " << name << " saved to " << source_path.string()
-                << std::endl;
-    }
-  } else {
-    PRINT_ERROR("Error: Unable to open source file for writing at " +
-                source_path.string());
-  }
-  return 0;
-}
-
-int remove_alias_from_file(const std::string& name) {
-  std::filesystem::path source_path = cjsh_filesystem::g_cjsh_source_path;
-
-  std::vector<std::string> lines;
-  std::string line;
-  std::ifstream read_file(source_path);
-
-  if (read_file.is_open()) {
-    while (std::getline(read_file, line)) {
-      if (line.find("alias " + name + "=") != 0) {
-        lines.push_back(line);
-      }
-    }
-    read_file.close();
-  }
-
-  std::ofstream write_file(source_path);
-  if (write_file.is_open()) {
-    for (const auto& l : lines) {
-      write_file << l << std::endl;
-    }
-    write_file.close();
-
-    if (g_debug_mode) {
-      std::cout << "Alias " << name << " removed from " << source_path.string()
-                << std::endl;
-    }
-  } else {
-    PRINT_ERROR("Error: Unable to open source file for writing at " +
-                source_path.string());
-  }
-  return 0;
 }
