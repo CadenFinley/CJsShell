@@ -63,10 +63,6 @@ const fs::path g_cjsh_ai_conversations_path =
     g_cjsh_cache_path /
     "conversations";  // where the ai conversations are stored
 
-const fs::path g_cjsh_update_cache_path =
-    g_cjsh_cache_path /
-    "update_cache.json";  // where the update cache is stored
-
 const fs::path g_cjsh_found_executables_path =
     g_cjsh_cache_path /
     "cached_executables.txt";  // where the found executables are stored for

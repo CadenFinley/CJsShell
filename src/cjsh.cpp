@@ -15,13 +15,13 @@
 #include <unordered_map>
 
 #include "builtin.h"
+#include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
-#include "cjsh_completions.h"
 #include "isocline/isocline.h"
 #include "job_control.h"
 #include "shell.h"
-#include "update.h"
+#include "tutorial.h"
 #include "usage.h"
 
 namespace config {
@@ -37,7 +37,6 @@ bool colors_enabled = true;
 bool source_enabled = true;
 bool show_version = false;
 bool show_help = false;
-bool check_update = false;
 bool startup_test = false;
 }  // namespace config
 
@@ -76,26 +75,21 @@ int main(int argc, char* argv[]) {
   cjsh_filesystem::initialize_cjsh_directories();
 
   // Setup long options
-  static struct option long_options[] = {
-      {"login", no_argument, 0, 'l'},
-      {"interactive", no_argument, 0, 'i'},
-      {"debug", no_argument, 0, 'd'},
-      {"command", required_argument, 0, 'c'},
-      {"version", no_argument, 0, 'v'},
-      {"help", no_argument, 0, 'h'},
-      {"update", no_argument, 0, 'u'},
-      {"silent-updates", no_argument, 0, 'S'},
-      {"no-plugins", no_argument, 0, 'P'},
-      {"no-themes", no_argument, 0, 'T'},
-      {"no-ai", no_argument, 0, 'A'},
-      {"no-colors", no_argument, 0, 'C'},
-      {"no-update", no_argument, 0, 'U'},
-      {"check-update", no_argument, 0, 'V'},
-      {"no-titleline", no_argument, 0, 'L'},
-      {"no-source", no_argument, 0, 'N'},
-      {"startup-test", no_argument, 0, 'X'},
-      {0, 0, 0, 0}};
-  const char* short_options = "lic:vhduSPTACUVLNX";
+  static struct option long_options[] = {{"login", no_argument, 0, 'l'},
+                                         {"interactive", no_argument, 0, 'i'},
+                                         {"debug", no_argument, 0, 'd'},
+                                         {"command", required_argument, 0, 'c'},
+                                         {"version", no_argument, 0, 'v'},
+                                         {"help", no_argument, 0, 'h'},
+                                         {"no-plugins", no_argument, 0, 'P'},
+                                         {"no-themes", no_argument, 0, 'T'},
+                                         {"no-ai", no_argument, 0, 'A'},
+                                         {"no-colors", no_argument, 0, 'C'},
+                                         {"no-titleline", no_argument, 0, 'L'},
+                                         {"no-source", no_argument, 0, 'N'},
+                                         {"startup-test", no_argument, 0, 'X'},
+                                         {0, 0, 0, 0}};
+  const char* short_options = "lic:vhdPTACLNX";
   int option_index = 0;
   int c;
   optind = 1;
@@ -134,13 +128,6 @@ int main(int argc, char* argv[]) {
         config::show_help = true;
         config::interactive_mode = false;
         break;
-      case 'u':
-        config::check_update = true;
-        config::interactive_mode = false;
-        break;
-      case 'S':
-        g_silent_update_check = true;
-        break;
       case 'P':
         config::plugins_enabled = false;
         if (g_debug_mode)
@@ -160,16 +147,6 @@ int main(int argc, char* argv[]) {
         config::colors_enabled = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Colors disabled" << std::endl;
-        break;
-      case 'U':
-        g_check_updates = false;
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Update checks disabled" << std::endl;
-        break;
-      case 'V':
-        g_check_updates = true;
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Update checks enabled" << std::endl;
         break;
       case 'L':
         g_title_line = false;
@@ -266,10 +243,6 @@ int main(int argc, char* argv[]) {
     return 0;
   } else if (config::show_help) {  // -h --help
     print_usage();
-    g_shell.reset();
-    return 0;
-  } else if (config::check_update) {  // -u --update
-    execute_update_if_available(check_for_update());
     g_shell.reset();
     return 0;
   } else if (config::execute_command) {  // -c --command
@@ -425,12 +398,28 @@ int main(int argc, char* argv[]) {
   // startup is complete and we enter the main process loop
   g_startup_active = false;
   if (!g_exit_flag && !config::startup_test) {
-    startup_update_process();  // check for updates after startup is complete
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_cache_path /
+                                 ".first_boot_complete")) {
+      std::cout << "\n"
+                << get_colorized_splash() << "\nWelcome to CJ's Shell!\n";
+      std::filesystem::path first_boot_flag =
+          cjsh_filesystem::g_cjsh_cache_path / ".first_boot_complete";
+      std::ofstream flag_file(first_boot_flag);
+      flag_file.close();
+      g_title_line = false;
+    }
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_cache_path /
+                                 ".tutorial_complete")) {
+      start_tutorial();
+      std::filesystem::path tutorial_flag =
+          cjsh_filesystem::g_cjsh_cache_path / ".tutorial_complete";
+      std::ofstream flag_file(tutorial_flag);
+      flag_file.close();
+    }
     if (g_title_line) {
       std::cout << title_line << std::endl;
       std::cout << created_line << std::endl;
     }
-
     main_process_loop();
   }
 
@@ -932,14 +921,6 @@ void apply_profile_startup_args() {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling colors from profile" << std::endl;
       config::colors_enabled = false;
-    } else if (flag == "--no-update") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Disabling update checks from profile" << std::endl;
-      g_check_updates = false;
-    } else if (flag == "--silent-updates") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Enabling silent updates from profile" << std::endl;
-      g_silent_update_check = true;
     } else if (flag == "--no-titleline") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling title line from profile" << std::endl;

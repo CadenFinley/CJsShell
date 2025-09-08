@@ -13,7 +13,6 @@
 #include "plugin.h"
 #include "shell.h"
 #include "theme.h"
-#include "update.h"
 
 const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCHs

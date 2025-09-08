@@ -355,8 +355,9 @@ int uninstall_theme(const std::string& themeName) {
 
   // Check if theme is currently active and prevent uninstallation
   if (g_current_theme == themeName) {
-    std::cerr << "Error: Cannot uninstall the currently active theme '" 
-              << themeName << "'. Please switch to a different theme first." << std::endl;
+    std::cerr << "Error: Cannot uninstall the currently active theme '"
+              << themeName << "'. Please switch to a different theme first."
+              << std::endl;
     return 1;
   }
 
@@ -365,7 +366,9 @@ int uninstall_theme(const std::string& themeName) {
     std::filesystem::remove(theme_file);
     std::cout << "Theme '" << themeName << "' uninstalled successfully."
               << std::endl;
-    std::cout << "If you are loading this theme from your .cjshrc file or another source file, please remove that line." << std::endl;
+    std::cout << "If you are loading this theme from your .cjshrc file or "
+                 "another source file, please remove that line."
+              << std::endl;
     return 0;
   } catch (const std::filesystem::filesystem_error& e) {
     std::cerr << "Error: Failed to uninstall theme '" << themeName

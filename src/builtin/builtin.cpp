@@ -40,7 +40,6 @@
 #include "type_command.h"
 #include "umask_command.h"
 #include "uninstall_command.h"
-#include "user_command.h"
 #include "version_command.h"
 
 #define PRINT_ERROR(MSG)                             \
@@ -110,10 +109,6 @@ Built_ins::Built_ins()
             {"ai",
              [this](const std::vector<std::string>& args) {
                return ::ai_command(args, this);
-             }},
-            {"user",
-             [](const std::vector<std::string>& args) {
-               return ::user_command(args);
              }},
             {"source",
              [](const std::vector<std::string>& args) {

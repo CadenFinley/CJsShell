@@ -26,6 +26,7 @@ void print_usage() {
       << "  -V, --check-update         Enable update checks\n"
       << "  -L, --no-titleline         Disable title line\n"
       << "  -N, --no-source            Don't source the .cjshrc file\n\n"
-      << "For more information, visit: " << c_github_url
+      << "For more information, visit: "
+         "https://github.com/CadenFinley/CJsShell\n"
       << " Or run cjsh --help" << std::endl;
 }
