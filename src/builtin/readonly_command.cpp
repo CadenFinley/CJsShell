@@ -1,7 +1,7 @@
 #include "readonly_command.h"
-#include <iostream>
 #include <algorithm>
 #include <cstdlib>
+#include <iostream>
 #include "shell.h"
 
 ReadonlyManager& ReadonlyManager::instance() {
@@ -32,13 +32,13 @@ void ReadonlyManager::clear_all() {
 }
 
 int readonly_command(const std::vector<std::string>& args, Shell* shell) {
-  (void)shell; // Suppress unused parameter warning
+  (void)shell;  // Suppress unused parameter warning
   auto& readonly_manager = ReadonlyManager::instance();
-  
+
   if (args.size() == 1) {
     // List all readonly variables
     auto readonly_vars = readonly_manager.get_readonly_variables();
-    
+
     for (const std::string& var : readonly_vars) {
       const char* value = getenv(var.c_str());
       if (value) {
@@ -49,11 +49,11 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
     }
     return 0;
   }
-  
+
   bool print_mode = false;
   bool function_mode = false;
   size_t start_index = 1;
-  
+
   // Parse options
   for (size_t i = 1; i < args.size(); ++i) {
     if (args[i] == "-p") {
@@ -69,11 +69,11 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       break;
     }
   }
-  
+
   if (print_mode) {
     // Print in a format suitable for input
     auto readonly_vars = readonly_manager.get_readonly_variables();
-    
+
     for (const std::string& var : readonly_vars) {
       const char* value = getenv(var.c_str());
       if (value) {
@@ -84,35 +84,35 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
     }
     return 0;
   }
-  
+
   if (function_mode) {
     // Function readonly is not implemented yet
     std::cerr << "readonly: -f option not implemented" << std::endl;
     return 1;
   }
-  
+
   // Process variable assignments
   for (size_t i = start_index; i < args.size(); ++i) {
     std::string arg = args[i];
-    
+
     size_t eq_pos = arg.find('=');
     if (eq_pos != std::string::npos) {
       // Variable assignment
       std::string name = arg.substr(0, eq_pos);
       std::string value = arg.substr(eq_pos + 1);
-      
+
       // Check if already readonly
       if (readonly_manager.is_readonly(name)) {
         std::cerr << "readonly: " << name << ": readonly variable" << std::endl;
         return 1;
       }
-      
+
       // Set the variable value
       if (setenv(name.c_str(), value.c_str(), 1) != 0) {
         perror("readonly: setenv");
         return 1;
       }
-      
+
       // Mark as readonly
       readonly_manager.set_readonly(name);
     } else {
@@ -125,11 +125,11 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
           return 1;
         }
       }
-      
+
       readonly_manager.set_readonly(arg);
     }
   }
-  
+
   return 0;
 }
 

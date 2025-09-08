@@ -35,7 +35,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         all_successful = false;
         continue;
       }
-      
+
       env_vars[name] = value;
 
       setenv(name.c_str(), value.c_str(), 1);

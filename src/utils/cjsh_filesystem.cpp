@@ -162,15 +162,16 @@ std::string find_executable_in_path(const std::string& name) {
   if (!path_env) {
     return "";
   }
-  
+
   std::stringstream ss(path_env);
   std::string dir;
-  
+
   while (std::getline(ss, dir, ':')) {
-    if (dir.empty()) continue;
-    
+    if (dir.empty())
+      continue;
+
     fs::path executable_path = fs::path(dir) / name;
-    
+
     try {
       if (fs::exists(executable_path) && fs::is_regular_file(executable_path)) {
         auto perms = fs::status(executable_path).permissions();
@@ -185,7 +186,7 @@ std::string find_executable_in_path(const std::string& name) {
       continue;
     }
   }
-  
+
   return "";
 }
 

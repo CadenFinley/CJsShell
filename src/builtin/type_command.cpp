@@ -1,10 +1,10 @@
 #include "type_command.h"
-#include <iostream>
-#include <unistd.h>
 #include <sys/stat.h>
-#include "shell.h"
+#include <unistd.h>
+#include <iostream>
 #include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "shell.h"
 
 int type_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() < 2) {
@@ -17,9 +17,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
   bool show_type_only = false;
   bool inhibit_functions = false;
   bool no_path_search = false;
-  
+
   size_t start_index = 1;
-  
+
   // Parse options
   for (size_t i = 1; i < args.size() && args[i][0] == '-'; ++i) {
     const std::string& option = args[i];
@@ -27,7 +27,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
       start_index = i + 1;
       break;
     }
-    
+
     for (size_t j = 1; j < option.length(); ++j) {
       switch (option[j]) {
         case 'a':
@@ -62,11 +62,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
     // Check if it's a shell keyword
     if (!force_path && !inhibit_functions) {
       const std::vector<std::string> keywords = {
-        "if", "then", "else", "elif", "fi", "case", "esac", "for", "select", 
-        "while", "until", "do", "done", "function", "{", "}", "[[", "]]",
-        "time", "!", "in"
-      };
-      
+          "if",  "then",   "else",  "elif",  "fi",   "case", "esac",
+          "for", "select", "while", "until", "do",   "done", "function",
+          "{",   "}",      "[[",    "]]",    "time", "!",    "in"};
+
       for (const auto& keyword : keywords) {
         if (name == keyword) {
           if (show_type_only) {
@@ -75,21 +74,24 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
             std::cout << name << " is a shell keyword" << std::endl;
           }
           found = true;
-          if (!show_all) break;
+          if (!show_all)
+            break;
         }
       }
     }
 
     // Check if it's a builtin command
     if (!found || show_all) {
-      if (!force_path && shell && shell->get_built_ins()->is_builtin_command(name)) {
+      if (!force_path && shell &&
+          shell->get_built_ins()->is_builtin_command(name)) {
         if (show_type_only) {
           std::cout << "builtin" << std::endl;
         } else {
           std::cout << name << " is a shell builtin" << std::endl;
         }
         found = true;
-        if (!show_all && found) continue;
+        if (!show_all && found)
+          continue;
       }
     }
 
@@ -102,10 +104,12 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
           if (show_type_only) {
             std::cout << "alias" << std::endl;
           } else {
-            std::cout << name << " is aliased to `" << alias_it->second << "'" << std::endl;
+            std::cout << name << " is aliased to `" << alias_it->second << "'"
+                      << std::endl;
           }
           found = true;
-          if (!show_all) continue;
+          if (!show_all)
+            continue;
         }
       }
     }

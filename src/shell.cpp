@@ -275,12 +275,12 @@ int Shell::execute_command(std::vector<std::string> args,
       if (it != jobs.end() && !it->second.pids.empty()) {
         pid_t last_pid = it->second.pids.back();
         setenv("!", std::to_string(last_pid).c_str(), 1);
-        
+
         // Also notify the job manager
         JobManager::instance().set_last_background_pid(last_pid);
-        
+
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Background job " << job_id 
+          std::cerr << "DEBUG: Background job " << job_id
                     << " started with PID " << last_pid << std::endl;
         }
       }

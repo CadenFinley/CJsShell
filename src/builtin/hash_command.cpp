@@ -9,13 +9,13 @@ static std::unordered_map<std::string, int> command_hits;
 
 int hash_command(const std::vector<std::string>& args, Shell* shell) {
   (void)shell;  // Suppress unused parameter warning
-  
+
   // No arguments - display all cached commands
   if (args.size() == 1) {
     if (command_hash.empty()) {
       return 0;
     }
-    
+
     std::cout << "hits\tcommand" << std::endl;
     for (const auto& pair : command_hash) {
       int hits = command_hits.count(pair.first) ? command_hits[pair.first] : 0;
@@ -35,7 +35,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
       start_index = i + 1;
       break;
     }
-    
+
     if (option == "-r") {
       remove_mode = true;
     } else if (option == "-d") {
@@ -43,7 +43,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
     } else if (option == "-l") {
       // List mode (default behavior with arguments)
     } else if (option == "-p") {
-      // Print mode 
+      // Print mode
     } else if (option == "-t") {
       // Type mode (simplified)
     } else {
@@ -63,7 +63,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
   // Process each command name
   for (size_t i = start_index; i < args.size(); ++i) {
     const std::string& name = args[i];
-    
+
     if (remove_mode) {
       // Remove from hash table
       command_hash.erase(name);
@@ -80,7 +80,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
         if (command_hits.count(name) == 0) {
           command_hits[name] = 0;
         }
-        
+
         // Display the result
         std::cout << path << std::endl;
       } else {

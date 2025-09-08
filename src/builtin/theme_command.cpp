@@ -260,7 +260,7 @@ int theme_command(const std::vector<std::string>& args) {
   if (args[1] == "load" && args.size() > 2) {
     if (g_theme) {
       std::string themeName = args[2];
-      if (g_theme->load_theme(themeName, true, true)) {
+      if (g_theme->load_theme(themeName, false, true)) {
         return 0;
       } else {
         return 2;
@@ -273,7 +273,7 @@ int theme_command(const std::vector<std::string>& args) {
 
   if (g_theme) {
     std::string themeName = args[1];
-    if (g_theme->load_theme(themeName, true, true)) {
+    if (g_theme->load_theme(themeName, false, true)) {
       return 0;
     } else {
       return 2;
@@ -353,28 +353,19 @@ int uninstall_theme(const std::string& themeName) {
     return 1;
   }
 
-  // Check if theme is currently active
-  bool is_active = (g_current_theme == themeName);
+  // Check if theme is currently active and prevent uninstallation
+  if (g_current_theme == themeName) {
+    std::cerr << "Error: Cannot uninstall the currently active theme '" 
+              << themeName << "'. Please switch to a different theme first." << std::endl;
+    return 1;
+  }
 
   // Remove the theme file
   try {
     std::filesystem::remove(theme_file);
     std::cout << "Theme '" << themeName << "' uninstalled successfully."
               << std::endl;
-
-    // If theme was active, switch to default
-    if (is_active) {
-      std::cout
-          << "The uninstalled theme was active. Switching to 'default' theme..."
-          << std::endl;
-      if (g_theme && g_theme->load_theme("default", true, true)) {
-        std::cout << "Switched to 'default' theme." << std::endl;
-      } else {
-        std::cerr << "Error: Failed to load 'default' theme." << std::endl;
-        return 1;
-      }
-    }
-
+    std::cout << "If you are loading this theme from your .cjshrc file or another source file, please remove that line." << std::endl;
     return 0;
   } catch (const std::filesystem::filesystem_error& e) {
     std::cerr << "Error: Failed to uninstall theme '" << themeName

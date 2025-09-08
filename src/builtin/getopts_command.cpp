@@ -1,8 +1,8 @@
 #include "getopts_command.h"
-#include <iostream>
 #include <cstdlib>
-#include "shell.h"
+#include <iostream>
 #include "cjsh.h"
+#include "shell.h"
 
 int getopts_command(const std::vector<std::string>& args, Shell* shell) {
   if (!shell) {
@@ -11,7 +11,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
   }
 
   if (args.size() < 2) {
-    std::cerr << "getopts: usage: getopts optstring name [args...]" << std::endl;
+    std::cerr << "getopts: usage: getopts optstring name [args...]"
+              << std::endl;
     return 1;
   }
 
@@ -93,7 +94,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     char_index = 1;
     setenv("OPTIND", std::to_string(optind).c_str(), 1);
     setenv("GETOPTS_POS", "1", 1);
-    
+
     // Recursively call to process next argument
     return getopts_command(args, shell);
   }
@@ -106,11 +107,11 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
   if (opt_pos == std::string::npos) {
     // Invalid option
     setenv(name.c_str(), "?", 1);
-    
+
     // Set OPTARG to the invalid option character
     std::string optarg_val(1, opt);
     setenv("OPTARG", optarg_val.c_str(), 1);
-    
+
     // Update position
     if (char_index >= static_cast<int>(current_arg.size())) {
       optind++;
@@ -118,13 +119,13 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     }
     setenv("OPTIND", std::to_string(optind).c_str(), 1);
     setenv("GETOPTS_POS", std::to_string(char_index).c_str(), 1);
-    
+
     // Check if optstring starts with ':' (silent error reporting)
     if (!optstring.empty() && optstring[0] == ':') {
       setenv(name.c_str(), "?", 1);
       return 0;  // Return success for silent mode
     }
-    
+
     std::cerr << "getopts: illegal option -- " << opt << std::endl;
     return 0;  // getopts returns 0 when an option is found (even invalid)
   }
@@ -137,7 +138,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
   if (opt_pos + 1 < optstring.size() && optstring[opt_pos + 1] == ':') {
     // Option requires an argument
     std::string optarg;
-    
+
     if (char_index < static_cast<int>(current_arg.size())) {
       // Argument is remainder of current argument
       optarg = current_arg.substr(char_index);
@@ -156,7 +157,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
           setenv(name.c_str(), ":", 1);
           setenv("OPTARG", opt_val.c_str(), 1);
         } else {
-          std::cerr << "getopts: option requires an argument -- " << opt << std::endl;
+          std::cerr << "getopts: option requires an argument -- " << opt
+                    << std::endl;
           setenv(name.c_str(), "?", 1);
           setenv("OPTARG", opt_val.c_str(), 1);
         }
@@ -166,12 +168,12 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
       }
       char_index = 1;
     }
-    
+
     setenv("OPTARG", optarg.c_str(), 1);
   } else {
     // Option doesn't require an argument
     unsetenv("OPTARG");
-    
+
     // Update position within current argument
     if (char_index >= static_cast<int>(current_arg.size())) {
       optind++;

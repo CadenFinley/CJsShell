@@ -289,19 +289,20 @@ int main(int argc, char* argv[]) {
       std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
 
     std::string script_content;
-    
+
     // If a script file was specified, read it
     if (!script_file.empty()) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
-      
+
       std::ifstream file(script_file);
       if (!file.is_open()) {
-        std::cerr << "cjsh: " << script_file << ": No such file or directory" << std::endl;
+        std::cerr << "cjsh: " << script_file << ": No such file or directory"
+                  << std::endl;
         g_shell.reset();
         return 127;
       }
-      
+
       std::string line;
       while (std::getline(file, line)) {
         script_content += line + "\n";
@@ -506,7 +507,7 @@ void main_process_loop() {
 
     // Check and handle any pending signals before prompting for input
     g_shell->process_pending_signals();
-    
+
     // Update job status and clean up finished jobs
     JobManager::instance().update_job_status();
     JobManager::instance().cleanup_finished_jobs();
@@ -1031,8 +1032,8 @@ void create_source_file() {
     source_file << "# Alias examples\n";
     source_file << "alias ll='ls -la'\n";
 
-    source_file << "# theme examples\n";
-    source_file << "theme default\n";
+    source_file << "# you can change this to load any installed theme\n";
+    source_file << "theme load default\n";
 
     source_file << "# plugin examples\n";
     source_file << "# plugin example_plugin enable\n";

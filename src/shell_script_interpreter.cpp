@@ -15,9 +15,9 @@
 #include <sstream>
 
 #include "cjsh.h"
-#include "shell.h"
 #include "job_control.h"
 #include "readonly_command.h"
+#include "shell.h"
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
   if (g_debug_mode)
@@ -2537,13 +2537,14 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           last_code = code;
-          
+
           // Update STATUS environment variable for $? expansion
           setenv("STATUS", std::to_string(last_code).c_str(), 1);
 
           // Check for control flow signals (break, continue, return)
           // Don't treat processed function returns as control flow signals
-          if (!is_function_call && (code == 253 || code == 254 || code == 255)) {
+          if (!is_function_call &&
+              (code == 253 || code == 254 || code == 255)) {
             if (g_debug_mode) {
               std::cerr << "DEBUG: Control flow signal detected: " << code
                         << std::endl;
