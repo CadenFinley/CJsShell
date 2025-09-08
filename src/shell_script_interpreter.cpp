@@ -672,11 +672,20 @@ int ShellScriptInterpreter::execute_block(
           setenv("STATUS", std::to_string(exit_code).c_str(), 1);
           return exit_code;
         } else {
-          // No redirections, use simple command execution
-          int exit_code = g_shell->execute_command(c.args, c.background);
-          // Update STATUS environment variable for $? expansion
-          setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-          return exit_code;
+          // No redirections, execute subshell content directly in same process
+          // This is necessary for command substitution to work properly
+          if (c.args.size() >= 2) {
+            std::string subshell_content = c.args[1];
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Executing subshell content directly: " << subshell_content << std::endl;
+            }
+            int exit_code = g_shell->execute(subshell_content);
+            setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+            return exit_code;
+          } else {
+            // Invalid subshell command
+            return 1;
+          }
         }
       } else {
         // Re-parse the original text to apply alias/env/brace/tilde expansions
@@ -786,7 +795,7 @@ int ShellScriptInterpreter::execute_block(
     size_t j = idx;
     bool then_found = false;
     // If current line has '; then' suffix, split it
-    auto pos = first.rfind("; then");
+    auto pos = first.find("; then");  // Use find() to get the FIRST occurrence, not rfind()
     if (pos != std::string::npos) {
       // Condition is everything between 'if ' and '; then'
       cond_accum = trim(first.substr(3, pos - 3));
@@ -843,43 +852,48 @@ int ShellScriptInterpreter::execute_block(
           }
         }
 
-        // Only process as inline if we found 'fi' on the same line
-        if (fi_pos != std::string::npos) {
-          std::string body = trim(rem.substr(0, fi_pos));
-          // Split optional else: look for '; else'
-          std::string then_body = body;
-          std::string else_body;
-          size_t else_pos = body.find("; else");
-          if (else_pos == std::string::npos) {
-            // also allow ' else ' without leading semicolon
-            size_t alt = body.find(" else ");
-            if (alt != std::string::npos)
-              else_pos = alt;
-          }
-          if (else_pos != std::string::npos) {
-            then_body = trim(body.substr(0, else_pos));
-            else_body = trim(body.substr(else_pos + 6));  // after '; else'
-          }
-          int body_rc = 0;
-          if (cond_rc == 0) {
-            auto cmds = shell_parser->parse_semicolon_commands(then_body);
-            for (const auto& c : cmds) {
-              int rc2 = execute_simple_or_pipeline(c);
-              body_rc = rc2;
-              if (rc2 != 0)
-                break;
+        // Check if this looks like an elif statement (complex case)
+        if (rem.find("elif") != std::string::npos) {
+          // Fall through to multiline processing for elif statements
+        } else {
+          // Only process as inline if we found 'fi' on the same line
+          if (fi_pos != std::string::npos) {
+            std::string body = trim(rem.substr(0, fi_pos));
+            // Split optional else: look for '; else'
+            std::string then_body = body;
+            std::string else_body;
+            size_t else_pos = body.find("; else");
+            if (else_pos == std::string::npos) {
+              // also allow ' else ' without leading semicolon
+              size_t alt = body.find(" else ");
+              if (alt != std::string::npos)
+                else_pos = alt;
             }
-          } else if (!else_body.empty()) {
-            auto cmds = shell_parser->parse_semicolon_commands(else_body);
-            for (const auto& c : cmds) {
-              int rc2 = execute_simple_or_pipeline(c);
-              body_rc = rc2;
-              if (rc2 != 0)
-                break;
+            if (else_pos != std::string::npos) {
+              then_body = trim(body.substr(0, else_pos));
+              else_body = trim(body.substr(else_pos + 6));  // after '; else'
             }
+            int body_rc = 0;
+            if (cond_rc == 0) {
+              auto cmds = shell_parser->parse_semicolon_commands(then_body);
+              for (const auto& c : cmds) {
+                int rc2 = execute_simple_or_pipeline(c);
+                body_rc = rc2;
+                if (rc2 != 0)
+                  break;
+              }
+            } else if (!else_body.empty()) {
+              auto cmds = shell_parser->parse_semicolon_commands(else_body);
+              for (const auto& c : cmds) {
+                int rc2 = execute_simple_or_pipeline(c);
+                body_rc = rc2;
+                if (rc2 != 0)
+                  break;
+              }
+            }
+            // single-line; do not advance idx
+            return body_rc;
           }
-          // single-line; do not advance idx
-          return body_rc;
         }
       }
       // If we reach here, it's a multiline if with '; then' on the first line
@@ -892,6 +906,164 @@ int ShellScriptInterpreter::execute_block(
     bool in_else = false;
     std::vector<std::string> then_lines;
     std::vector<std::string> else_lines;
+    
+    // For inline if statements, we need to parse the single line differently
+    if (src_lines.size() == 1 && src_lines[0].find("fi") != std::string::npos) {
+      // This is a single line with the complete if statement
+      // We need to parse it properly
+      std::string full_line = src_lines[0];
+      
+      // For now, let's split it into parts and execute it as separate commands
+      // This is a simplified approach - a full parser would be better
+      std::vector<std::string> parts;
+      
+      // Extract the condition
+      size_t if_pos = full_line.find("if ");
+      size_t then_pos = full_line.find("; then");
+      if (if_pos != std::string::npos && then_pos != std::string::npos) {
+        std::string condition = trim(full_line.substr(if_pos + 3, then_pos - (if_pos + 3)));
+        
+        // Execute condition
+        int cond_result = execute_simple_or_pipeline(condition);
+        
+        // Now we need to find which branch to execute
+        // Look for elif/else/fi structure
+        std::string remaining = trim(full_line.substr(then_pos + 6));
+        
+        // Simple parser for if/elif/else/fi
+        std::vector<std::pair<std::string, std::string>> branches; // condition, commands
+        std::string current_commands;
+        
+        // First branch is the 'then' part
+        size_t pos = 0;
+        while (pos < remaining.length()) {
+          size_t elif_pos = remaining.find("; elif ", pos);
+          size_t else_pos = remaining.find("; else ", pos);
+          
+          // Look for fi at word boundary (preceded by space or semicolon)
+          size_t fi_pos = std::string::npos;
+          size_t search_pos = pos;
+          while (search_pos < remaining.length()) {
+            size_t candidate = remaining.find("fi", search_pos);
+            if (candidate == std::string::npos) break;
+            
+            // Check if this is a word boundary (fi at end or followed by space/semicolon)
+            bool is_word_end = (candidate + 2 >= remaining.length()) || 
+                              (remaining[candidate + 2] == ' ') || 
+                              (remaining[candidate + 2] == ';');
+            bool is_word_start = (candidate == 0) || 
+                                (remaining[candidate - 1] == ' ') || 
+                                (remaining[candidate - 1] == ';');
+            
+            if (is_word_start && is_word_end) {
+              fi_pos = candidate;
+              break;
+            }
+            search_pos = candidate + 1;
+          }
+          
+          // Find the earliest occurrence
+          size_t next_pos = std::min({elif_pos, else_pos, fi_pos});
+          if (next_pos == std::string::npos) break;
+          
+          // Extract commands up to this point
+          std::string commands = trim(remaining.substr(pos, next_pos - pos));
+          
+          if (elif_pos != std::string::npos && next_pos == elif_pos) {
+            // Store current commands for previous condition
+            if (pos == 0) {
+              // This is the first 'then' branch
+              if (cond_result == 0) {
+                auto cmds = shell_parser->parse_semicolon_commands(commands);
+                for (const auto& c : cmds) {
+                  execute_simple_or_pipeline(c);
+                }
+                idx = 0; // Don't advance since we processed everything
+                return 0;
+              }
+            }
+            
+            // Find the elif condition
+            pos = next_pos + 7; // Skip "; elif "
+            size_t elif_then = remaining.find("; then", pos);
+            if (elif_then != std::string::npos) {
+              std::string elif_cond = trim(remaining.substr(pos, elif_then - pos));
+              int elif_result = execute_simple_or_pipeline(elif_cond);
+              if (elif_result == 0) {
+                // Execute commands after this elif's then
+                size_t elif_body_start = elif_then + 6; // Skip "; then"
+                
+                // Find the end of this elif's body (next elif, else, or fi)
+                size_t next_elif = remaining.find("; elif ", elif_body_start);
+                size_t next_else = remaining.find("; else ", elif_body_start);
+                size_t next_fi = std::string::npos;
+                size_t search_fi = elif_body_start;
+                while (search_fi < remaining.length()) {
+                  size_t candidate = remaining.find("fi", search_fi);
+                  if (candidate == std::string::npos) break;
+                  
+                  bool is_word_end = (candidate + 2 >= remaining.length()) || 
+                                    (remaining[candidate + 2] == ' ') || 
+                                    (remaining[candidate + 2] == ';');
+                  bool is_word_start = (candidate == 0) || 
+                                      (remaining[candidate - 1] == ' ') || 
+                                      (remaining[candidate - 1] == ';');
+                  
+                  if (is_word_start && is_word_end) {
+                    next_fi = candidate;
+                    break;
+                  }
+                  search_fi = candidate + 1;
+                }
+                
+                size_t elif_body_end = std::min({next_elif, next_else, next_fi});
+                if (elif_body_end != std::string::npos) {
+                  std::string elif_commands = trim(remaining.substr(elif_body_start, elif_body_end - elif_body_start));
+                  auto cmds = shell_parser->parse_semicolon_commands(elif_commands);
+                  for (const auto& c : cmds) {
+                    execute_simple_or_pipeline(c);
+                  }
+                  idx = 0;
+                  return 0;
+                }
+              }
+              pos = elif_then + 6;
+            }
+          } else if (else_pos != std::string::npos && next_pos == else_pos) {
+            // This is the else branch
+            if (cond_result != 0) {
+              // Execute the commands after else
+              pos = next_pos + 7; // Skip "; else "
+              size_t fi_end = remaining.find(" fi", pos);
+              if (fi_end != std::string::npos) {
+                std::string else_commands = trim(remaining.substr(pos, fi_end - pos));
+                auto cmds = shell_parser->parse_semicolon_commands(else_commands);
+                for (const auto& c : cmds) {
+                  execute_simple_or_pipeline(c);
+                }
+                idx = 0;
+                return 0;
+              }
+            }
+            break;
+          } else {
+            // This is fi - we're done
+            // If we reached fi and no previous condition was true, execute these commands
+            if (commands.length() > 0) {
+              auto cmds = shell_parser->parse_semicolon_commands(commands);
+              for (const auto& c : cmds) {
+                execute_simple_or_pipeline(c);
+              }
+            }
+            break;
+          }
+        }
+        
+        idx = 0; // Don't advance since we processed everything
+        return 0;
+      }
+    }
+    
     while (k < src_lines.size() && depth > 0) {
       std::string cur_raw = src_lines[k];
       std::string cur = trim(strip_inline_comment(cur_raw));
@@ -1660,6 +1832,24 @@ int ShellScriptInterpreter::execute_block(
         if (code != 0 && debug_level >= DebugLevel::BASIC) {
           std::cerr << "DEBUG: Grouped command failed (" << code << ") -> '"
                     << cmd_to_parse << "'" << std::endl;
+        }
+        continue;
+      }
+
+      // Handle inline if statements that should be treated as a single unit
+      if ((trimmed_cmd == "if" || trimmed_cmd.rfind("if ", 0) == 0) &&
+          (trimmed_cmd.find("; then") != std::string::npos) &&
+          (trimmed_cmd.find(" fi") != std::string::npos ||
+           trimmed_cmd.find("; fi") != std::string::npos ||
+           trimmed_cmd.rfind("fi") == trimmed_cmd.length() - 2)) {
+        // This is an inline if statement - execute it as a single unit
+        size_t local_idx = 0;
+        std::vector<std::string> one{trimmed_cmd};
+        int code = handle_if_block(one, local_idx);
+        last_code = code;
+        if (code != 0 && debug_level >= DebugLevel::BASIC) {
+          std::cerr << "DEBUG: if block failed (" << code << ") -> '"
+                    << trimmed_cmd << "'" << std::endl;
         }
         continue;
       }

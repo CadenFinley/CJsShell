@@ -235,56 +235,76 @@ int printf_command(const std::vector<std::string>& args) {
     printf_args.push_back(args[i]);
   }
 
+  // If no arguments to format, just print the format string and return
+  if (printf_args.empty()) {
+    std::cout << format;
+    return 0;
+  }
+
   size_t arg_index = 0;
-  std::string result;
-
-  for (size_t i = 0; i < format.length(); ++i) {
-    if (format[i] == '%' && i + 1 < format.length()) {
-      if (format[i + 1] == '%') {
-        // Literal %
-        result += '%';
-        i++;
-      } else {
-        // Parse format specifier
-        size_t spec_start = i;
-        i++;  // Skip %
-
-        // Skip flags
-        while (i < format.length() &&
-               (format[i] == '-' || format[i] == '+' || format[i] == ' ' ||
-                format[i] == '#' || format[i] == '0')) {
+  
+  // POSIX printf: reuse format string until all arguments are consumed
+  while (arg_index < printf_args.size()) {
+    bool consumed_arg_this_iteration = false;
+    
+    for (size_t i = 0; i < format.length(); ++i) {
+      if (format[i] == '%' && i + 1 < format.length()) {
+        if (format[i + 1] == '%') {
+          // Literal %
+          std::cout << '%';
           i++;
-        }
+        } else {
+          // Parse format specifier
+          size_t spec_start = i;
+          i++;  // Skip %
 
-        // Skip width
-        while (i < format.length() && format[i] >= '0' && format[i] <= '9') {
-          i++;
-        }
+          // Skip flags
+          while (i < format.length() &&
+                 (format[i] == '-' || format[i] == '+' || format[i] == ' ' ||
+                  format[i] == '#' || format[i] == '0')) {
+            i++;
+          }
 
-        // Skip precision
-        if (i < format.length() && format[i] == '.') {
-          i++;
+          // Skip width
           while (i < format.length() && format[i] >= '0' && format[i] <= '9') {
             i++;
           }
-        }
 
-        // Get conversion specifier
-        if (i < format.length()) {
-          std::string format_spec =
-              format.substr(spec_start + 1, i - spec_start);
-          std::string arg =
-              (arg_index < printf_args.size()) ? printf_args[arg_index] : "";
+          // Skip precision
+          if (i < format.length() && format[i] == '.') {
+            i++;
+            while (i < format.length() && format[i] >= '0' && format[i] <= '9') {
+              i++;
+            }
+          }
 
-          result += format_printf_arg(format_spec, arg);
-          arg_index++;
+          // Get conversion specifier
+          if (i < format.length()) {
+            std::string format_spec =
+                format.substr(spec_start + 1, i - spec_start);
+            std::string arg =
+                (arg_index < printf_args.size()) ? printf_args[arg_index] : "";
+
+            std::cout << format_printf_arg(format_spec, arg);
+            arg_index++;
+            consumed_arg_this_iteration = true;
+            
+            // If we've consumed all arguments, stop processing
+            if (arg_index >= printf_args.size()) {
+              return 0;
+            }
+          }
         }
+      } else {
+        std::cout << format[i];
       }
-    } else {
-      result += format[i];
+    }
+    
+    // If the format string didn't consume any arguments, break to avoid infinite loop
+    if (!consumed_arg_this_iteration) {
+      break;
     }
   }
 
-  std::cout << result;
   return 0;
 }
