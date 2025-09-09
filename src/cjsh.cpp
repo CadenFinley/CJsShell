@@ -840,109 +840,6 @@ bool init_interactive_filesystem() {
   return true;
 }
 
-void process_profile_startup_args() {
-  // gather flags from profile file and add to g_startup_args if not already
-  // present
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Processing startup args from profile" << std::endl;
-
-  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Profile file does not exist, skipping startup args"
-                << std::endl;
-    return;
-  }
-
-  std::ifstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
-  if (!profile_file.is_open()) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Failed to open profile file for startup args"
-                << std::endl;
-    return;
-  }
-
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Initial startup args before processing profile:"
-              << std::endl;
-    for (const auto& arg : g_startup_args) {
-      std::cerr << "DEBUG:   " << arg << std::endl;
-    }
-  }
-
-  std::string line;
-  while (std::getline(profile_file, line)) {
-    // Skip completely empty lines
-    if (line.empty()) {
-      continue;
-    }
-
-    // Trim leading whitespace
-    line.erase(0, line.find_first_not_of(" \t\n\r\f\v"));
-
-    // Skip comments that aren't flag-related
-    if (line.empty() ||
-        (line[0] == '#' && (line.size() < 2 || line[1] != '-'))) {
-      continue;
-    }
-
-    // Process lines starting with "--" (flags)
-    if (line.size() >= 2 && line[0] == '-' && line[1] == '-') {
-      std::string flag = line;
-
-      // Handle comments at the end of a flag line
-      size_t comment_pos = flag.find('#');
-      if (comment_pos != std::string::npos) {
-        flag = flag.substr(0, comment_pos);
-        // Trim trailing whitespace after removing comment
-        flag.erase(flag.find_last_not_of(" \t\n\r\f\v") + 1);
-      }
-
-      // Extract just the flag portion (in case there are other spaces or
-      // characters)
-      size_t space_pos = flag.find(' ');
-      if (space_pos != std::string::npos) {
-        flag = flag.substr(0, space_pos);
-      }
-
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Found startup argument in profile: " << flag
-                  << std::endl;
-
-      // Check if this flag already exists in startup args
-      bool already_exists = false;
-      for (const auto& existing_arg : g_startup_args) {
-        if (existing_arg == flag) {
-          already_exists = true;
-          break;
-        }
-      }
-
-      if (!already_exists) {
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Adding new startup argument from profile: "
-                    << flag << std::endl;
-        g_startup_args.push_back(flag);
-      } else {
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Startup argument already exists, skipping: "
-                    << flag << std::endl;
-      }
-    }
-  }
-
-  profile_file.close();
-
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Final startup args after processing profile:"
-              << std::endl;
-    for (const auto& arg : g_startup_args) {
-      std::cerr << "DEBUG:   " << arg << std::endl;
-    }
-  }
-
-  apply_profile_startup_args();
-}
-
 void apply_profile_startup_args() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Applying startup args from profile" << std::endl;
@@ -976,7 +873,19 @@ void apply_profile_startup_args() {
       std::cerr << "DEBUG: Processing startup arg: " << flag << std::endl;
 
     // Apply the appropriate setting based on the flag
-    if (flag == "--no-plugins") {
+    if (flag == "--login") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Enabling login mode from profile" << std::endl;
+      config::login_mode = true;
+    } else if (flag == "--interactive") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Forcing interactive mode from profile" << std::endl;
+      config::force_interactive = true;
+    } else if (flag == "--debug") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Enabling debug mode from profile" << std::endl;
+      g_debug_mode = true;
+    } else if (flag == "--no-plugins") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Disabling plugins from profile" << std::endl;
       config::plugins_enabled = false;
@@ -1004,6 +913,10 @@ void apply_profile_startup_args() {
       if (g_debug_mode)
         std::cerr << "DEBUG: Enabling debug mode from profile" << std::endl;
       g_debug_mode = true;
+    } else if (flag == "--startup-test") {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Enabling startup test mode from profile" << std::endl;
+      config::startup_test = true;
     } else {
       if (g_debug_mode)
         std::cerr << "DEBUG: Unknown startup arg in profile: " << flag
@@ -1036,42 +949,11 @@ void process_profile_file() {
     return;
   }
 
-  process_profile_startup_args();
-
-  // Source the profile file, but skip lines that are startup flags
-  std::ifstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
-  if (profile_file.is_open()) {
-    std::string line;
-    std::string filtered_content;
-
-    while (std::getline(profile_file, line)) {
-      // Skip completely empty lines or whitespace-only lines for filtering
-      std::string trimmed_line = line;
-      trimmed_line.erase(0, trimmed_line.find_first_not_of(" \t\n\r\f\v"));
-
-      // Skip startup flag lines (lines that start with --)
-      if (!trimmed_line.empty() && trimmed_line.size() >= 2 &&
-          trimmed_line[0] == '-' && trimmed_line[1] == '-') {
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Skipping startup flag line in profile: " << line
-                    << std::endl;
-        continue;
-      }
-
-      // Include all other lines (including comments, shell commands, etc.)
-      filtered_content += line + "\n";
-    }
-    profile_file.close();
-
-    // Execute the filtered content if there's anything to execute
-    if (!filtered_content.empty()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Executing filtered profile content" << std::endl;
-      g_shell->execute(filtered_content);
-    }
-  } else {
-    std::cerr << "cjsh: Failed to open profile file for sourcing" << std::endl;
-  }
+  // Source the profile file normally
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Sourcing profile file: " << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
+  // this will also need to be able to set conditional flags for the shell
+  g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
 }
 
 void process_source_file() {
@@ -1089,16 +971,31 @@ void create_profile_file() {
     profile_file << "# cjsh Configuration File\n";
     profile_file << "# this file is sourced when the shell starts in login "
                     "mode and is sourced after /etc/profile and ~/.profile\n";
-    profile_file << "# this file is the only one that is capable of handling "
-                    "startup args\n";
-    profile_file << "# Add startup args by including lines that start with -- "
-                    "followed by the flag\n";
-    profile_file << "# For example:\n";
-    profile_file << "# --no-colors     # Disable colorized output\n";
-    profile_file << "# --no-themes     # Disable themes\n";
-    profile_file << "# --no-plugins    # Disable plugins\n";
-    profile_file << "# --no-ai         # Disable AI features\n";
-    profile_file << "# --no-source     # Don't source the .cjshrc file\n";
+    profile_file << "# this file supports full shell scripting including conditional logic\n";
+    profile_file << "# Use the 'startup-flag' builtin command to set startup flags conditionally\n";
+    profile_file << "\n";
+    profile_file << "# Example: Conditional startup flags based on environment\n";
+    profile_file << "# if test -n \"$TMUX\"; then\n";
+    profile_file << "#     echo \"In tmux session, no flags required\"\n";
+    profile_file << "# else\n";
+    profile_file << "#     startup-flag --no-plugins\n";
+    profile_file << "#     startup-flag --no-themes\n";
+    profile_file << "#     startup-flag --no-ai\n";
+    profile_file << "#     startup-flag --no-colors\n";
+    profile_file << "#     startup-flag --no-titleline\n";
+    profile_file << "# fi\n";
+    profile_file << "\n";
+    profile_file << "# Available startup flags:\n";
+    profile_file << "# startup-flag --login         # Enable login mode\n";
+    profile_file << "# startup-flag --interactive   # Force interactive mode\n";
+    profile_file << "# startup-flag --debug         # Enable debug mode\n";
+    profile_file << "# startup-flag --no-plugins    # Disable plugins\n";
+    profile_file << "# startup-flag --no-themes     # Disable themes\n";
+    profile_file << "# startup-flag --no-ai         # Disable AI features\n";
+    profile_file << "# startup-flag --no-colors     # Disable colorized output\n";
+    profile_file << "# startup-flag --no-titleline  # Disable title line\n";
+    profile_file << "# startup-flag --no-source     # Don't source the .cjshrc file\n";
+    profile_file << "# startup-flag --startup-test  # Enable startup test mode\n";
     profile_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the configuration file." << std::endl;

@@ -41,6 +41,7 @@
 #include "umask_command.h"
 #include "uninstall_command.h"
 #include "version_command.h"
+#include "startup_flag_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
@@ -113,6 +114,11 @@ Built_ins::Built_ins()
             {"source",
              [](const std::vector<std::string>& args) {
                return ::source_command(args);
+             }},
+            {"login-startup-arg",
+             [](const std::vector<std::string>& args) {
+              // while this is a builtin, it is only intended for internal use during startup for the .cjprofile
+               return ::startup_flag_command(args);
              }},
             {".",
              [](const std::vector<std::string>& args) {
