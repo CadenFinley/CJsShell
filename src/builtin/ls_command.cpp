@@ -6,6 +6,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// Include sys/sysmacros.h for major/minor macros on Linux
+#ifdef __linux__
+#include <sys/sysmacros.h>
+#endif
+
 #include <algorithm>
 #include <cstring>
 #include <ctime>
@@ -20,11 +25,11 @@
 
 #include "shell.h"
 
-// For macOS compatibility
-#ifndef major
+// For macOS compatibility - only define if not already available
+#if defined(__APPLE__) && !defined(major)
 #define major(dev) ((int)(((dev) >> 24) & 0xff))
 #endif
-#ifndef minor  
+#if defined(__APPLE__) && !defined(minor)
 #define minor(dev) ((int)((dev) & 0xffffff))
 #endif
 
