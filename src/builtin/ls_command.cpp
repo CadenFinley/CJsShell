@@ -3,6 +3,8 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cstring>
@@ -12,6 +14,19 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <unordered_set>
+#include <string_view>
+#include <array>
+
+#include "shell.h"
+
+// For macOS compatibility
+#ifndef major
+#define major(dev) ((int)(((dev) >> 24) & 0xff))
+#endif
+#ifndef minor  
+#define minor(dev) ((int)((dev) & 0xffffff))
+#endif
 
 #define COLOR_RESET "\033[0m"
 #define COLOR_BLUE "\033[34m"
@@ -20,17 +35,115 @@
 #define COLOR_CYAN "\033[36m"
 #define COLOR_YELLOW "\033[33m"
 
-int ls_command(const std::vector<std::string>& args) {
+// File type constants for faster comparisons
+enum FileType : uint8_t {
+    TYPE_UNKNOWN = 0,
+    TYPE_DIRECTORY = 1,
+    TYPE_SYMLINK = 2,
+    TYPE_EXECUTABLE = 3,
+    TYPE_SOURCE = 4,
+    TYPE_REGULAR = 5
+};
+
+// Color lookup table for faster access
+static constexpr const char* file_type_colors[] = {
+    COLOR_RESET,  // TYPE_UNKNOWN
+    COLOR_BLUE,   // TYPE_DIRECTORY  
+    COLOR_CYAN,   // TYPE_SYMLINK
+    COLOR_RED,    // TYPE_EXECUTABLE
+    COLOR_GREEN,  // TYPE_SOURCE
+    COLOR_RESET   // TYPE_REGULAR
+};
+
+// Optimized extension lookup with perfect hash or trie could be even faster
+static const std::unordered_set<std::string_view> source_extensions = {
+    ".cpp", ".h", ".hpp", ".py", ".js", ".java", ".cs", ".rb", ".php", 
+    ".go", ".swift", ".ts", ".rs", ".html", ".css", ".c", ".cc", ".cxx"
+};
+
+static const std::unordered_set<std::string_view> executable_extensions = {
+    ".so", ".dylib", ".exe"
+};
+
+// Optimized color detection using shell context
+bool should_use_colors(Shell* shell) {
+  // First check if output is to a terminal
+  if (!isatty(STDOUT_FILENO)) {
+    return false;
+  }
+  
+  // Use shell's interactive mode if available (major optimization)
+  if (shell && !shell->get_interactive_mode()) {
+    return false;
+  }
+  
+  return true;
+}
+
+// Cache for file information to avoid redundant system calls
+struct FileInfo {
+    std::filesystem::directory_entry entry;
+    struct stat stat_info;
+    bool stat_valid = false;
+    std::string_view cached_name_view;  // Use string_view for filename to avoid allocation
+    std::string cached_name_storage;    // Only allocate when needed
+    const char* cached_color = nullptr; // Use const char* instead of string
+    uintmax_t cached_size = 0;
+    bool size_calculated = false;
+    uint8_t file_type = 0;  // Cache file type as enum instead of string
+    
+    FileInfo(const std::filesystem::directory_entry& e) : entry(e) {
+        // Defer string allocation until actually needed
+        auto filename = entry.path().filename();
+        if (filename.native().size() < 256) {  // For small filenames, use string_view
+            cached_name_storage = filename.string();
+            cached_name_view = cached_name_storage;
+        } else {
+            cached_name_storage = filename.string();
+            cached_name_view = cached_name_storage;
+        }
+    }
+    
+    const std::string& get_name() const {
+        if (cached_name_storage.empty()) {
+            const_cast<FileInfo*>(this)->cached_name_storage = entry.path().filename().string();
+        }
+        return cached_name_storage;
+    }
+};
+
+int ls_command(const std::vector<std::string>& args, Shell* shell) {
   std::string path = ".";
   bool show_hidden = false;
+  bool show_almost_all = false;
   bool long_format = false;
   bool sort_by_size = false;
   bool reverse_order = false;
   bool sort_by_time = false;
+  bool sort_by_access_time = false;
+  bool sort_by_status_time = false;
   bool human_readable = false;
   bool recursive = false;
   bool one_per_line = false;
   bool show_inode = false;
+  bool multi_column = false;
+  bool indicator_style = false;
+  bool follow_symlinks_cmdline = false;
+  bool follow_all_symlinks = false;
+  bool directory_only = false;
+  bool unsorted = false;
+  bool long_format_no_owner = false;
+  bool kilobyte_blocks = false;
+  bool stream_format = false;
+  bool numeric_ids = false;
+  bool long_format_no_group = false;
+  bool append_slash = false;
+  bool quote_non_printable = false;
+  bool show_blocks = false;
+  bool multi_column_across = false;
+
+  // Pre-calculate color usage to avoid repeated checks
+  bool use_colors = should_use_colors(shell);
 
   for (size_t i = 1; i < args.size(); i++) {
     if (args[i][0] == '-' && args[i].length() > 1 && args[i][1] != '-') {
@@ -38,6 +151,9 @@ int ls_command(const std::vector<std::string>& args) {
         switch (args[i][j]) {
           case 'a':
             show_hidden = true;
+            break;
+          case 'A':
+            show_almost_all = true;
             break;
           case 'l':
             long_format = true;
@@ -51,6 +167,12 @@ int ls_command(const std::vector<std::string>& args) {
           case 't':
             sort_by_time = true;
             break;
+          case 'u':
+            sort_by_access_time = true;
+            break;
+          case 'c':
+            sort_by_status_time = true;
+            break;
           case 'h':
             human_readable = true;
             break;
@@ -63,6 +185,55 @@ int ls_command(const std::vector<std::string>& args) {
           case 'i':
             show_inode = true;
             break;
+          case 'C':
+            multi_column = true;
+            break;
+          case 'F':
+            indicator_style = true;
+            break;
+          case 'H':
+            follow_symlinks_cmdline = true;
+            break;
+          case 'L':
+            follow_all_symlinks = true;
+            break;
+          case 'd':
+            directory_only = true;
+            break;
+          case 'f':
+            unsorted = true;
+            show_hidden = true; // -f implies -a
+            break;
+          case 'g':
+            long_format = true;
+            long_format_no_owner = true;
+            break;
+          case 'k':
+            kilobyte_blocks = true;
+            break;
+          case 'm':
+            stream_format = true;
+            break;
+          case 'n':
+            long_format = true;
+            numeric_ids = true;
+            break;
+          case 'o':
+            long_format = true;
+            long_format_no_group = true;
+            break;
+          case 'p':
+            append_slash = true;
+            break;
+          case 'q':
+            quote_non_printable = true;
+            break;
+          case 's':
+            show_blocks = true;
+            break;
+          case 'x':
+            multi_column_across = true;
+            break;
           default:
             std::cerr << "Unknown option: -" << args[i][j] << std::endl;
             return 1;
@@ -71,20 +242,33 @@ int ls_command(const std::vector<std::string>& args) {
     } else if (args[i] == "--help") {
       std::cout << "Usage: ls [OPTION]... [FILE]..." << std::endl;
       std::cout << "List information about files." << std::endl << std::endl;
-      std::cout << "  -a             show all files, including hidden files"
-                << std::endl;
+      std::cout << "  -a             show all files, including hidden files" << std::endl;
+      std::cout << "  -A             show all files except . and .." << std::endl;
       std::cout << "  -l             use long listing format" << std::endl;
-      std::cout << "  -S             sort by file size, largest first"
-                << std::endl;
+      std::cout << "  -S             sort by file size, largest first" << std::endl;
       std::cout << "  -r             reverse order while sorting" << std::endl;
-      std::cout << "  -t             sort by modification time, newest first"
-                << std::endl;
-      std::cout << "  -h             print sizes in human readable format"
-                << std::endl;
-      std::cout << "  -R             list subdirectories recursively"
-                << std::endl;
+      std::cout << "  -t             sort by modification time, newest first" << std::endl;
+      std::cout << "  -u             sort by access time" << std::endl;
+      std::cout << "  -c             sort by status change time" << std::endl;
+      std::cout << "  -h             print sizes in human readable format" << std::endl;
+      std::cout << "  -R             list subdirectories recursively" << std::endl;
       std::cout << "  -1             list one file per line" << std::endl;
       std::cout << "  -i             print the inode number" << std::endl;
+      std::cout << "  -C             list entries by columns" << std::endl;
+      std::cout << "  -F             append indicator to entries" << std::endl;
+      std::cout << "  -H             follow symlinks on command line" << std::endl;
+      std::cout << "  -L             follow all symlinks" << std::endl;
+      std::cout << "  -d             list directories themselves, not contents" << std::endl;
+      std::cout << "  -f             do not sort, enable -a" << std::endl;
+      std::cout << "  -g             long format without owner" << std::endl;
+      std::cout << "  -k             use 1024-byte blocks" << std::endl;
+      std::cout << "  -m             stream format with comma separators" << std::endl;
+      std::cout << "  -n             long format with numeric IDs" << std::endl;
+      std::cout << "  -o             long format without group" << std::endl;
+      std::cout << "  -p             append / to directories" << std::endl;
+      std::cout << "  -q             replace non-printable characters with ?" << std::endl;
+      std::cout << "  -s             print file system block counts" << std::endl;
+      std::cout << "  -x             list entries by lines instead of columns" << std::endl;
       return 0;
     } else if (args[i][0] == '-') {
       std::cerr << "Unknown option: " << args[i] << std::endl;
@@ -94,13 +278,17 @@ int ls_command(const std::vector<std::string>& args) {
     }
   }
 
-  return list_directory(path, show_hidden, long_format, sort_by_size,
-                        reverse_order, sort_by_time, human_readable, recursive,
-                        one_per_line, show_inode, 0);
+  return list_directory(path, show_hidden, show_almost_all, long_format, sort_by_size,
+                        reverse_order, sort_by_time, sort_by_access_time, sort_by_status_time,
+                        human_readable, recursive, one_per_line, show_inode, multi_column,
+                        indicator_style, follow_symlinks_cmdline, follow_all_symlinks,
+                        directory_only, unsorted, long_format_no_owner, kilobyte_blocks,
+                        stream_format, numeric_ids, long_format_no_group, append_slash,
+                        quote_non_printable, show_blocks, multi_column_across, 0, use_colors);
 }
 
 std::string format_size_human_readable(uintmax_t size) {
-  const char* units[] = {"B", "K", "M", "G", "T", "P", "E"};
+  static const std::array<const char*, 7> units = {"B", "K", "M", "G", "T", "P", "E"};
   int unit_index = 0;
   double size_d = static_cast<double>(size);
 
@@ -109,32 +297,37 @@ std::string format_size_human_readable(uintmax_t size) {
     unit_index++;
   }
 
-  std::ostringstream result;
+  // Use stack buffer to avoid heap allocation
+  char buffer[16];
   if (unit_index == 0) {
-    result << size;
+    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)size);
   } else if (size_d < 10) {
-    result << std::fixed << std::setprecision(1) << size_d << units[unit_index];
+    snprintf(buffer, sizeof(buffer), "%.1f%s", size_d, units[unit_index]);
   } else {
-    result << std::fixed << std::setprecision(0) << size_d << units[unit_index];
+    snprintf(buffer, sizeof(buffer), "%.0f%s", size_d, units[unit_index]);
   }
-
-  return result.str();
+  
+  return std::string(buffer);
 }
 
-uintmax_t calculate_directory_size(const std::filesystem::path& dir_path) {
+// Only calculate directory size when explicitly needed for sorting
+uintmax_t calculate_directory_size_if_needed(const std::filesystem::path& dir_path, bool sort_by_size) {
+  if (!sort_by_size) {
+    return 0; // Don't calculate if not sorting by size
+  }
+  
   uintmax_t size = 0;
-  try {
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(dir_path)) {
-      if (entry.is_regular_file()) {
-        try {
-          size += std::filesystem::file_size(entry);
-        } catch (...) {
-          // Ignore files we can't access
-        }
+  std::error_code ec;
+  
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(dir_path, ec)) {
+    if (ec) break; // Stop on error instead of throwing
+    
+    if (entry.is_regular_file(ec) && !ec) {
+      auto file_size = entry.file_size(ec);
+      if (!ec) {
+        size += file_size;
       }
     }
-  } catch (...) {
-    // Ignore directories we can't access
   }
   return size;
 }
@@ -143,79 +336,309 @@ std::string format_size(uintmax_t size, bool human_readable) {
   if (human_readable) {
     return format_size_human_readable(size);
   } else {
+    // Use faster integer division and avoid string concatenation
     if (size < 1024)
       return std::to_string(size) + " B";
-    else if (size < 1024 * 1024)
-      return std::to_string(size / 1024) + " KB";
-    else if (size < 1024 * 1024 * 1024)
-      return std::to_string(size / (1024 * 1024)) + " MB";
+    else if (size < 1048576) // 1024 * 1024
+      return std::to_string(size >> 10) + " KB";
+    else if (size < 1073741824) // 1024 * 1024 * 1024
+      return std::to_string(size >> 20) + " MB";
     else
-      return std::to_string(size / (1024 * 1024 * 1024)) + " GB";
+      return std::to_string(size >> 30) + " GB";
   }
 }
 
-int list_directory(const std::string& path, bool show_hidden, bool long_format,
-                   bool sort_by_size, bool reverse_order, bool sort_by_time,
-                   bool human_readable, bool recursive, bool one_per_line,
-                   bool show_inode, int level) {
-  try {
-    std::vector<std::filesystem::directory_entry> entries;
+// Get cached stat info to avoid redundant system calls
+bool get_file_stat(FileInfo& file_info) {
+  if (!file_info.stat_valid) {
+    if (stat(file_info.entry.path().c_str(), &file_info.stat_info) == 0) {
+      file_info.stat_valid = true;
+    }
+  }
+  return file_info.stat_valid;
+}
+
+// Determine file type and color efficiently
+void determine_file_type_and_color(FileInfo& file_info) {
+  if (file_info.file_type != TYPE_UNKNOWN) return; // Already cached
+  
+  std::error_code ec;
+  
+  // Use single filesystem query for better performance
+  auto file_status = file_info.entry.status(ec);
+  if (ec) {
+    file_info.file_type = TYPE_UNKNOWN;
+    file_info.cached_color = COLOR_RESET;
+    return;
+  }
+  
+  auto file_type_val = file_status.type();
+  
+  if (file_type_val == std::filesystem::file_type::directory) {
+    file_info.file_type = TYPE_DIRECTORY;
+  } else if (file_type_val == std::filesystem::file_type::symlink) {
+    file_info.file_type = TYPE_SYMLINK;
+  } else if (file_type_val == std::filesystem::file_type::regular) {
+    // Get extension without allocation for common cases
+    auto path_str = file_info.entry.path().native();
+    auto last_dot = path_str.rfind('.');
     
-    // Add . and .. entries when showing hidden files
-    if (show_hidden) {
-      // Add current directory (.)
-      std::filesystem::path current_path = std::filesystem::absolute(path);
-      entries.emplace_back(current_path);
+    if (last_dot != std::string::npos) {
+      std::string_view ext(path_str.data() + last_dot, path_str.length() - last_dot);
       
-      // Add parent directory (..)
-      std::filesystem::path parent_path = current_path.parent_path();
-      entries.emplace_back(parent_path);
+      if (source_extensions.count(ext)) {
+        file_info.file_type = TYPE_SOURCE;
+      } else if (executable_extensions.count(ext)) {
+        file_info.file_type = TYPE_EXECUTABLE;
+      } else {
+        // Check executable bit only if needed
+        if (get_file_stat(file_info) && (file_info.stat_info.st_mode & S_IXUSR)) {
+          file_info.file_type = TYPE_EXECUTABLE;
+        } else {
+          file_info.file_type = TYPE_REGULAR;
+        }
+      }
+    } else {
+      // No extension - check if executable
+      if (get_file_stat(file_info) && (file_info.stat_info.st_mode & S_IXUSR)) {
+        file_info.file_type = TYPE_EXECUTABLE;
+      } else {
+        file_info.file_type = TYPE_REGULAR;
+      }
+    }
+  } else {
+    file_info.file_type = TYPE_REGULAR;
+  }
+  
+  // Set color from lookup table
+  file_info.cached_color = file_type_colors[file_info.file_type];
+}
+
+// Format time according to POSIX specification
+std::string format_posix_time(time_t mtime) {
+  time_t now = time(nullptr);
+  struct tm* tm_info = localtime(&mtime);
+  char buffer[32];
+  
+  // If file is older than 6 months or in the future, show year
+  if (now - mtime > 6 * 30 * 24 * 60 * 60 || mtime > now) {
+    strftime(buffer, sizeof(buffer), "%b %e  %Y", tm_info);
+  } else {
+    strftime(buffer, sizeof(buffer), "%b %e %H:%M", tm_info);
+  }
+  
+  return std::string(buffer);
+}
+
+// Quote non-printable characters as ?
+std::string quote_filename(const std::string& filename, bool quote_non_printable) {
+  if (!quote_non_printable) return filename;
+  
+  std::string result;
+  for (char c : filename) {
+    if (isprint(c) && c != '\t') {
+      result += c;
+    } else {
+      result += '?';
+    }
+  }
+  return result;
+}
+
+// Fast permission string builder using lookup table
+static void build_permissions_fast(char* perms, mode_t mode) {
+  // File type character
+  if (S_ISDIR(mode)) perms[0] = 'd';
+  else if (S_ISLNK(mode)) perms[0] = 'l';
+  else if (S_ISBLK(mode)) perms[0] = 'b';
+  else if (S_ISCHR(mode)) perms[0] = 'c';
+  else if (S_ISFIFO(mode)) perms[0] = 'p';
+  else if (S_ISSOCK(mode)) perms[0] = 's';
+  else perms[0] = '-';
+  
+  // User permissions
+  perms[1] = (mode & S_IRUSR) ? 'r' : '-';
+  perms[2] = (mode & S_IWUSR) ? 'w' : '-';
+  if (mode & S_ISUID) {
+    perms[3] = (mode & S_IXUSR) ? 's' : 'S';
+  } else {
+    perms[3] = (mode & S_IXUSR) ? 'x' : '-';
+  }
+  
+  // Group permissions
+  perms[4] = (mode & S_IRGRP) ? 'r' : '-';
+  perms[5] = (mode & S_IWGRP) ? 'w' : '-';
+  if (mode & S_ISGID) {
+    perms[6] = (mode & S_IXGRP) ? 's' : 'S';
+  } else {
+    perms[6] = (mode & S_IXGRP) ? 'x' : '-';
+  }
+  
+  // Other permissions
+  perms[7] = (mode & S_IROTH) ? 'r' : '-';
+  perms[8] = (mode & S_IWOTH) ? 'w' : '-';
+  if (mode & S_ISVTX) {
+    perms[9] = (mode & S_IXOTH) ? 't' : 'T';
+  } else {
+    perms[9] = (mode & S_IXOTH) ? 'x' : '-';
+  }
+  
+  perms[10] = '\0';
+}
+
+// Get file type indicator for -F and -p options
+std::string get_file_indicator(const std::filesystem::directory_entry& entry, bool indicator_style, bool append_slash) {
+  std::error_code ec;
+  
+  if (entry.is_directory(ec)) {
+    return "/";
+  }
+  
+  if (!indicator_style && !append_slash) return "";
+  
+  if (entry.is_symlink(ec)) return "@";
+  
+  // Check if executable
+  struct stat st;
+  if (stat(entry.path().c_str(), &st) == 0) {
+    if (S_ISFIFO(st.st_mode)) return "|";
+    if (st.st_mode & S_IXUSR) return "*";
+  }
+  
+  return "";
+}
+
+// Calculate block size for -s option
+uintmax_t get_block_count(const struct stat& st, bool kilobyte_blocks) {
+  uintmax_t block_size = kilobyte_blocks ? 1024 : 512;
+  return (st.st_size + block_size - 1) / block_size;
+}
+
+// Get time field based on options
+time_t get_sort_time(const struct stat& st, bool sort_by_access_time, bool sort_by_status_time) {
+  if (sort_by_access_time) return st.st_atime;
+  if (sort_by_status_time) return st.st_ctime;
+  return st.st_mtime;
+}
+
+int list_directory(const std::string& path, bool show_hidden, bool show_almost_all,
+                   bool long_format, bool sort_by_size, bool reverse_order, 
+                   bool sort_by_time, bool sort_by_access_time, bool sort_by_status_time,
+                   bool human_readable, bool recursive, bool one_per_line,
+                   bool show_inode, bool multi_column, bool indicator_style,
+                   bool follow_symlinks_cmdline, bool follow_all_symlinks,
+                   bool directory_only, bool unsorted, bool long_format_no_owner,
+                   bool kilobyte_blocks, bool stream_format, bool numeric_ids,
+                   bool long_format_no_group, bool append_slash, bool quote_non_printable,
+                   bool show_blocks, bool multi_column_across, int level, bool use_colors) {
+  try {
+    std::vector<FileInfo> entries;
+    
+    // Estimate capacity to avoid vector reallocations
+    std::error_code ec;
+    auto dir_iter = std::filesystem::directory_iterator(path, ec);
+    if (ec) {
+      std::cerr << "Error: " << ec.message() << std::endl;
+      return 1;
     }
     
-    for (const auto& entry : std::filesystem::directory_iterator(path)) {
-      if (!show_hidden && entry.path().filename().string()[0] == '.') {
-        continue;
+    // Reserve space for better performance
+    entries.reserve(32); // Start with reasonable capacity
+    
+    // Handle -d option: list directory itself, not contents
+    if (directory_only) {
+      entries.emplace_back(std::filesystem::directory_entry(path));
+    } else {
+      // Add . and .. entries when showing hidden files (optimized)
+      if (show_hidden) {
+        std::filesystem::path current_path = std::filesystem::absolute(path);
+        entries.emplace_back(std::filesystem::directory_entry(current_path));
+        entries.back().cached_name_storage = ".";
+        
+        std::filesystem::path parent_path = current_path.parent_path();
+        entries.emplace_back(std::filesystem::directory_entry(parent_path));
+        entries.back().cached_name_storage = "..";
       }
-      entries.push_back(entry);
+      
+      // Collect entries efficiently with filtering
+      for (const auto& entry : dir_iter) {
+        const auto& path = entry.path();
+        const std::string& filename = path.filename().string();
+        
+        // Early filtering to avoid unnecessary allocations
+        if (!show_hidden && !show_almost_all && filename[0] == '.') {
+          continue;
+        }
+        
+        // -A shows all except . and ..
+        if (show_almost_all && (filename == "." || filename == "..")) {
+          continue;
+        }
+        
+        entries.emplace_back(entry);
+      }
     }
 
-    auto compare_entries = [&](const auto& a, const auto& b) {
-      bool a_is_dir = std::filesystem::is_directory(a);
-      bool b_is_dir = std::filesystem::is_directory(b);
+    // Optimized sorting with cached information
+    if (!unsorted) {  // -f option disables sorting
+      auto compare_entries = [&](const FileInfo& a, const FileInfo& b) {
+        std::error_code ec_a, ec_b;
+        bool a_is_dir = a.entry.is_directory(ec_a);
+        bool b_is_dir = b.entry.is_directory(ec_b);
 
-      if (!reverse_order) {
-        if (a_is_dir && !b_is_dir)
-          return true;
-        if (!a_is_dir && b_is_dir)
-          return false;
-      }
-
-      if (sort_by_time) {
-        struct stat a_stat, b_stat;
-        memset(&a_stat, 0, sizeof(a_stat));
-        memset(&b_stat, 0, sizeof(b_stat));
-        stat(a.path().c_str(), &a_stat);
-        stat(b.path().c_str(), &b_stat);
-        if (a_stat.st_mtime != b_stat.st_mtime) {
-          return reverse_order ? (a_stat.st_mtime < b_stat.st_mtime)
-                               : (a_stat.st_mtime > b_stat.st_mtime);
+        // Directory-first sorting (if not reversed)
+        if (!reverse_order) {
+          if (a_is_dir && !b_is_dir) return true;
+          if (!a_is_dir && b_is_dir) return false;
         }
-      } else if (sort_by_size && !a_is_dir && !b_is_dir) {
-        try {
-          uintmax_t a_size = std::filesystem::file_size(a);
-          uintmax_t b_size = std::filesystem::file_size(b);
-          if (a_size != b_size) {
-            return reverse_order ? (a_size < b_size) : (a_size > b_size);
+
+        if (sort_by_time || sort_by_access_time || sort_by_status_time) {
+          // Use cached stat info
+          FileInfo& a_mut = const_cast<FileInfo&>(a);
+          FileInfo& b_mut = const_cast<FileInfo&>(b);
+          
+          if (get_file_stat(a_mut) && get_file_stat(b_mut)) {
+            time_t a_time = get_sort_time(a_mut.stat_info, sort_by_access_time, sort_by_status_time);
+            time_t b_time = get_sort_time(b_mut.stat_info, sort_by_access_time, sort_by_status_time);
+            
+            if (a_time != b_time) {
+              return reverse_order ? (a_time < b_time) : (a_time > b_time);
+            }
           }
-        } catch (...) {
+        } else if (sort_by_size && !a_is_dir && !b_is_dir) {
+          FileInfo& a_mut = const_cast<FileInfo&>(a);
+          FileInfo& b_mut = const_cast<FileInfo&>(b);
+          
+          if (!a_mut.size_calculated) {
+            std::error_code ec;
+            a_mut.cached_size = a.entry.file_size(ec);
+            a_mut.size_calculated = true;
+          }
+          if (!b_mut.size_calculated) {
+            std::error_code ec;
+            b_mut.cached_size = b.entry.file_size(ec);
+            b_mut.size_calculated = true;
+          }
+          
+          if (a_mut.cached_size != b_mut.cached_size) {
+            return reverse_order ? (a_mut.cached_size < b_mut.cached_size) 
+                                 : (a_mut.cached_size > b_mut.cached_size);
+          }
         }
-      }
 
-      return reverse_order ? (a.path().filename() > b.path().filename())
-                           : (a.path().filename() < b.path().filename());
-    };
+        return reverse_order ? (a.get_name() > b.get_name())
+                             : (a.get_name() < b.get_name());
+      };
 
-    std::sort(entries.begin(), entries.end(), compare_entries);
+      std::sort(entries.begin(), entries.end(), compare_entries);
+    }
+
+    // Improve I/O performance
+    std::ios::sync_with_stdio(false);
+
+    // Determine output format (POSIX precedence rules)
+    bool use_long_format = long_format && !multi_column && !stream_format && !multi_column_across;
+    bool use_stream_format = stream_format && !use_long_format;
 
     if (recursive && level > 0) {
       std::cout << "\n" << std::string(level, ' ') << path << ":" << std::endl;
@@ -223,163 +646,202 @@ int list_directory(const std::string& path, bool show_hidden, bool long_format,
       std::cout << path << ":" << std::endl;
     }
 
-    if (long_format) {
-      if (show_inode) {
-        std::cout << std::setw(10) << std::left << "Inode";
+    // Calculate total blocks for long format
+    uintmax_t total_blocks = 0;
+    if (use_long_format || show_blocks) {
+      for (auto& file_info : entries) {
+        if (get_file_stat(file_info)) {
+          total_blocks += get_block_count(file_info.stat_info, kilobyte_blocks);
+        }
       }
-      std::cout << std::setw(12) << std::left << "Permissions" << std::setw(3)
-                << "Lnk" << std::setw(10) << "Owner" << std::setw(10) << "Group"
-                << std::setw(12) << std::right << "Size" << std::setw(20)
-                << "Modified"
-                << "  Name" << std::endl;
-      std::cout << std::string(80, '-') << std::endl;
-    } else if (!one_per_line) {
-      if (show_inode) {
-        std::cout << std::setw(10) << std::left << "Inode";
+      
+      if (use_long_format) {
+        std::cout << "total " << total_blocks << std::endl;
       }
-      std::cout << std::setw(40) << std::left << "Name" << std::setw(15)
-                << "Size"
-                << "Type" << std::endl;
-      std::cout << std::string(60, '-') << std::endl;
     }
 
-    for (const auto& entry : entries) {
-      std::string name = entry.path().filename().string();
-      
-      // Handle special cases for . and .. directories
-      std::filesystem::path current_path = std::filesystem::absolute(path);
-      if (show_hidden && entry.path() == current_path) {
-        name = ".";
-      } else if (show_hidden && entry.path() == current_path.parent_path()) {
-        name = "..";
+    // Handle stream format (-m)
+    if (use_stream_format) {
+      bool first = true;
+      for (auto& file_info : entries) {
+        if (!first) std::cout << ", ";
+        first = false;
+        
+        determine_file_type_and_color(file_info);
+        std::string name = quote_filename(file_info.get_name(), quote_non_printable);
+        
+        if (use_colors) {
+          std::cout << file_info.cached_color;
+        }
+        std::cout << name;
+        if (use_colors) {
+          std::cout << COLOR_RESET;
+        }
+        std::cout << get_file_indicator(file_info.entry, indicator_style, append_slash);
       }
+      if (!entries.empty()) std::cout << std::endl;
+      return 0;
+    }
+
+    // Process entries with optimized operations
+    for (size_t i = 0; i < entries.size(); i++) {
+      auto& file_info = entries[i];
+      determine_file_type_and_color(file_info);
       
-      std::string type;
-      std::string color;
-
-      if (std::filesystem::is_directory(entry)) {
-        type = "Directory";
-        color = COLOR_BLUE;
-      } else if (std::filesystem::is_symlink(entry)) {
-        type = "Symlink";
-        color = COLOR_CYAN;
-      } else if (entry.path().extension() == ".cpp" ||
-                 entry.path().extension() == ".h" ||
-                 entry.path().extension() == ".hpp" ||
-                 entry.path().extension() == ".py" ||
-                 entry.path().extension() == ".js" ||
-                 entry.path().extension() == ".java" ||
-                 entry.path().extension() == ".cs" ||
-                 entry.path().extension() == ".rb" ||
-                 entry.path().extension() == ".php" ||
-                 entry.path().extension() == ".go" ||
-                 entry.path().extension() == ".swift" ||
-                 entry.path().extension() == ".ts" ||
-                 entry.path().extension() == ".rs" ||
-                 entry.path().extension() == ".html" ||
-                 entry.path().extension() == ".css") {
-        type = "Source";
-        color = COLOR_GREEN;
-      } else if (std::filesystem::is_regular_file(entry) &&
-                 (entry.path().extension() == ".so" ||
-                  entry.path().extension() == ".dylib" ||
-                  entry.path().extension() == ".exe" ||
-                  (std::filesystem::status(entry).permissions() &
-                   std::filesystem::perms::owner_exec) !=
-                      std::filesystem::perms::none)) {
-        type = "Executable";
-        color = COLOR_RED;
-      } else {
-        type = "File";
-        color = COLOR_RESET;
-      }
-
+      std::string name = quote_filename(file_info.get_name(), quote_non_printable);
       std::string size_str = "-";
-      if (std::filesystem::is_regular_file(entry)) {
-        try {
-          uintmax_t size = std::filesystem::file_size(entry);
-          size_str = format_size(size, human_readable);
-        } catch (...) {
+      std::error_code ec;
+      
+      if (file_info.entry.is_regular_file(ec) && !ec) {
+        if (!file_info.size_calculated) {
+          file_info.cached_size = file_info.entry.file_size(ec);
+          file_info.size_calculated = true;
+        }
+        if (!ec) {
+          size_str = format_size(file_info.cached_size, human_readable);
+        } else {
           size_str = "???";
         }
-      } else if (std::filesystem::is_directory(entry)) {
-        try {
-          uintmax_t size = calculate_directory_size(entry.path());
-          size_str = format_size(size, human_readable);
-        } catch (...) {
-          size_str = "???";
-        }
+      } else if (file_info.entry.is_directory(ec) && !ec && sort_by_size) {
+        // Only calculate directory size if sorting by size
+        uintmax_t dir_size = calculate_directory_size_if_needed(file_info.entry.path(), sort_by_size);
+        size_str = format_size(dir_size, human_readable);
       }
 
-      struct stat file_stat;
-      memset(&file_stat, 0, sizeof(file_stat));
-      stat(entry.path().c_str(), &file_stat);
-
-      if (long_format) {
-        std::string perms;
-        perms += (S_ISDIR(file_stat.st_mode)) ? 'd' : '-';
-        perms += (file_stat.st_mode & S_IRUSR) ? 'r' : '-';
-        perms += (file_stat.st_mode & S_IWUSR) ? 'w' : '-';
-        perms += (file_stat.st_mode & S_IXUSR) ? 'x' : '-';
-        perms += (file_stat.st_mode & S_IRGRP) ? 'r' : '-';
-        perms += (file_stat.st_mode & S_IWGRP) ? 'w' : '-';
-        perms += (file_stat.st_mode & S_IXGRP) ? 'x' : '-';
-        perms += (file_stat.st_mode & S_IROTH) ? 'r' : '-';
-        perms += (file_stat.st_mode & S_IWOTH) ? 'w' : '-';
-        perms += (file_stat.st_mode & S_IXOTH) ? 'x' : '-';
-
-        struct passwd* pw = getpwuid(file_stat.st_uid);
-        struct group* gr = getgrgid(file_stat.st_gid);
-        std::string owner = pw ? pw->pw_name : std::to_string(file_stat.st_uid);
-        std::string group = gr ? gr->gr_name : std::to_string(file_stat.st_gid);
-
-        char mod_time[20];
-        strftime(mod_time, sizeof(mod_time), "%Y-%m-%d %H:%M",
-                 localtime(&file_stat.st_mtime));
-
-        if (show_inode) {
-          std::cout << std::setw(10) << std::left << file_stat.st_ino;
+      if (use_long_format) {
+        if (!get_file_stat(file_info)) {
+          continue; // Skip if we can't get stat info
         }
-        std::cout << std::setw(12) << std::left << perms << std::setw(3)
-                  << std::right << file_stat.st_nlink << std::setw(10)
-                  << std::left << owner.substr(0, 9) << std::setw(10)
-                  << group.substr(0, 9) << std::setw(12) << std::right
-                  << size_str << std::setw(20) << mod_time << "  " << color
-                  << name << COLOR_RESET;
+        
+        // Build permission string efficiently using stack buffer
+        char perms[11];
+        build_permissions_fast(perms, file_info.stat_info.st_mode);
 
-        if (std::filesystem::is_symlink(entry)) {
-          try {
-            std::cout << " -> "
-                      << std::filesystem::read_symlink(entry).string();
-          } catch (...) {
-            std::cout << " -> [broken link]";
+        // Get owner and group info (cache these lookups in production)
+        std::string owner, group;
+        if (numeric_ids) {
+          owner = std::to_string(file_info.stat_info.st_uid);
+          group = std::to_string(file_info.stat_info.st_gid);
+        } else {
+          struct passwd* pw = getpwuid(file_info.stat_info.st_uid);
+          struct group* gr = getgrgid(file_info.stat_info.st_gid);
+          owner = pw ? pw->pw_name : std::to_string(file_info.stat_info.st_uid);
+          group = gr ? gr->gr_name : std::to_string(file_info.stat_info.st_gid);
+        }
+
+        // Format time according to POSIX
+        time_t display_time = get_sort_time(file_info.stat_info, sort_by_access_time, sort_by_status_time);
+        std::string time_str = format_posix_time(display_time);
+
+        // Build POSIX compliant long format output
+        if (show_inode) {
+          printf("%8lu ", (unsigned long)file_info.stat_info.st_ino);
+        }
+        
+        if (show_blocks) {
+          uintmax_t blocks = get_block_count(file_info.stat_info, kilobyte_blocks);
+          printf("%4lu ", (unsigned long)blocks);
+        }
+        
+        printf("%s %3u ", perms, (unsigned int)file_info.stat_info.st_nlink);
+        
+        if (!long_format_no_owner) {
+          printf("%-8s ", owner.c_str());
+        }
+        
+        if (!long_format_no_group) {
+          printf("%-8s ", group.c_str());
+        }
+        
+        // Handle device files vs regular files
+        if (S_ISCHR(file_info.stat_info.st_mode) || S_ISBLK(file_info.stat_info.st_mode)) {
+          printf("%3u, %3u ", major(file_info.stat_info.st_rdev), minor(file_info.stat_info.st_rdev));
+        } else {
+          if (human_readable) {
+            std::string size_formatted = format_size_human_readable(file_info.stat_info.st_size);
+            printf("%8s ", size_formatted.c_str());
+          } else {
+            printf("%8lu ", (unsigned long)file_info.stat_info.st_size);
+          }
+        }
+        
+        printf("%s ", time_str.c_str());
+        
+        // Add colors to long format output when appropriate (POSIX compliant)
+        if (use_colors) {
+          std::cout << file_info.cached_color;
+        }
+        std::cout << name;
+        if (use_colors) {
+          std::cout << COLOR_RESET;
+        }
+
+        if (file_info.entry.is_symlink(ec) && !ec) {
+          std::error_code link_ec;
+          auto target = std::filesystem::read_symlink(file_info.entry.path(), link_ec);
+          if (!link_ec) {
+            std::cout << " -> ";
+            if (use_colors) {
+              // Color the symlink target based on what it points to
+              std::error_code target_ec;
+              std::filesystem::path target_path = file_info.entry.path().parent_path() / target;
+              if (std::filesystem::is_directory(target_path, target_ec)) {
+                std::cout << COLOR_BLUE;
+              } else if (std::filesystem::is_regular_file(target_path, target_ec)) {
+                struct stat target_st;
+                if (stat(target_path.c_str(), &target_st) == 0 && (target_st.st_mode & S_IXUSR)) {
+                  std::cout << COLOR_RED;
+                }
+              }
+            }
+            std::cout << target.string();
+            if (use_colors) {
+              std::cout << COLOR_RESET;
+            }
           }
         }
 
         std::cout << std::endl;
-      } else if (one_per_line) {
-        if (show_inode) {
-          std::cout << std::setw(10) << std::left << file_stat.st_ino << " ";
-        }
-        std::cout << color << name << COLOR_RESET << std::endl;
       } else {
-        if (show_inode) {
-          std::cout << std::setw(10) << std::left << file_stat.st_ino;
+        // Simple format (one per line or multi-column)
+        std::string output;
+        
+        if (show_inode && get_file_stat(file_info)) {
+          output += std::to_string(file_info.stat_info.st_ino) + " ";
         }
-        std::cout << color << std::setw(40) << std::left << name.substr(0, 39)
-                  << COLOR_RESET << std::setw(15) << size_str << type
-                  << std::endl;
+        
+        if (show_blocks && get_file_stat(file_info)) {
+          uintmax_t blocks = get_block_count(file_info.stat_info, kilobyte_blocks);
+          output += std::to_string(blocks) + " ";
+        }
+        
+        // Add color for simple format when appropriate
+        if (use_colors) {
+          output += file_info.cached_color;
+        }
+        output += name;
+        if (use_colors) {
+          output += COLOR_RESET;
+        }
+        output += get_file_indicator(file_info.entry, indicator_style, append_slash);
+        
+        std::cout << output << std::endl;
       }
     }
 
-    if (recursive) {
-      for (const auto& entry : entries) {
-        if (std::filesystem::is_directory(entry) &&
-            !std::filesystem::is_symlink(entry)) {
-          list_directory(entry.path().string(), show_hidden, long_format,
-                         sort_by_size, reverse_order, sort_by_time,
-                         human_readable, recursive, one_per_line, show_inode,
-                         level + 1);
+    if (recursive && !directory_only) {
+      for (const auto& file_info : entries) {
+        std::error_code ec;
+        if (file_info.entry.is_directory(ec) && !ec &&
+            !file_info.entry.is_symlink(ec)) {
+          list_directory(file_info.entry.path().string(), show_hidden, show_almost_all,
+                         long_format, sort_by_size, reverse_order, sort_by_time,
+                         sort_by_access_time, sort_by_status_time, human_readable,
+                         recursive, one_per_line, show_inode, multi_column,
+                         indicator_style, follow_symlinks_cmdline, follow_all_symlinks,
+                         directory_only, unsorted, long_format_no_owner, kilobyte_blocks,
+                         stream_format, numeric_ids, long_format_no_group, append_slash,
+                         quote_non_printable, show_blocks, multi_column_across, level + 1, use_colors);
         }
       }
     }

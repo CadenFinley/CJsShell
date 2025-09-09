@@ -67,8 +67,8 @@ Built_ins::Built_ins()
               return ::change_directory(args.size() > 1 ? args[1] : current_directory, current_directory, previous_directory, last_terminal_output_error);
              }},
             {"ls",
-             [](const std::vector<std::string>& args) {
-               return ::ls_command(args);
+             [this](const std::vector<std::string>& args) {
+               return ::ls_command(args, shell);
              }},
             {"alias",
              [this](const std::vector<std::string>& args) {

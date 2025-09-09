@@ -15,7 +15,8 @@ COMMANDS = [
     "-c 'echo hello world'",
     "-c pwd",
     "-c 'echo $(date)'",
-    "-c 'echo $SHELL'"
+    "-c 'echo $SHELL'",
+    "-c 'ls -lhaS'"
 ]
 BASELINE_SHELLS = ["fish", "bash", "zsh", "cjsh"]
 CJSH_BINARY_TYPES = [""]  # Empty string means no suffix
