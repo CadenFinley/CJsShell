@@ -16,7 +16,7 @@
 
 const bool PRE_RELEASE = false;
 // using semver.org principles MAJOR.MINOR.PATCH
-const std::string c_version = "3.1.1";
+const std::string c_version = "3.0.0";
 const pid_t c_pid = getpid();
 const std::string c_pid_str = std::to_string(getpid());
 const std::string c_reset_color = "\033[0m";
