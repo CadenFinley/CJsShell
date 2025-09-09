@@ -46,6 +46,14 @@ extern Plugin* g_plugin;
 extern std::vector<std::string> g_startup_args;
 
 int main(int argc, char* argv[]);
+int parse_command_line_arguments(int argc, char* argv[]);
+int handle_early_exit_commands();
+int execute_non_interactive_mode(const std::string& script_file);
+void initialize_interactive_components();
+std::string determine_execution_mode(int argc, char* argv[]);
+void save_startup_arguments(int argc, char* argv[]);
+void check_login_shell_mode(char* argv[]);
+void initialize_basic_setup();
 bool init_login_filesystem();
 bool init_interactive_filesystem();
 void main_process_loop();

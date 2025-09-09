@@ -88,6 +88,127 @@ bool startup_test = false;
  */
 
 int main(int argc, char* argv[]) {
+  // Basic initialization
+  check_login_shell_mode(argv);
+  initialize_basic_setup();
+
+  // Parse command line arguments
+  // any args that were placed in .cjprofile will be parsed and handled later
+  int parse_result = parse_command_line_arguments(argc, argv);
+  if (parse_result != 0) {
+    return parse_result;
+  }
+
+  // Create shell and setup environment
+  g_shell = std::make_unique<Shell>(config::login_mode);
+  initialize_shell_environment();
+  setup_environment_variables();
+
+  // Determine script file and execution mode
+  std::string script_file = determine_execution_mode(argc, argv);
+  save_startup_arguments(argc, argv);
+
+  // Handle login mode setup
+  if (g_shell->get_login_mode()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Initializing login environment" << std::endl;
+    if (!init_login_filesystem()) {
+      std::cerr << "Error: Failed to initialize or verify file system or files "
+                   "within the file system."
+                << std::endl;
+      g_shell.reset();
+      return 1;
+    }
+    // here is where we would process .cjprofile and any startup args in it
+    process_profile_file();
+  }
+
+  // Set shell environment variable $0
+  if (argv[0]) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
+    setenv("0", argv[0], 1);
+  } else {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
+    setenv("0", "cjsh", 1);
+  }
+
+  // Handle early exit commands (version, help, single command)
+  int early_exit_result = handle_early_exit_commands();
+  if (early_exit_result > -1) {
+    return early_exit_result;
+  }
+
+  // Handle non-interactive mode (script files or stdin)
+  if (!config::interactive_mode && !config::force_interactive) {
+    return execute_non_interactive_mode(script_file);
+  }
+
+  // by this point all startup args have been parsed and processed
+  // and we are in interactive mode fully beyond this point unless --startup-test
+
+  // Setup interactive mode
+  g_shell->set_interactive_mode(true);
+  if (!init_interactive_filesystem()) {
+    std::cerr << "Error: Failed to initialize or verify file system or files "
+                 "within the file system."
+              << std::endl;
+    g_shell.reset();
+    return 1;
+  }
+  g_shell->setup_interactive_handlers();
+
+  // Initialize interactive components AI, Themes, Plugins, Colors
+  initialize_interactive_components();
+
+  // Process source file .cjshrc
+  std::string saved_current_dir = std::filesystem::current_path().string();
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Saved current directory: " << saved_current_dir
+              << std::endl;
+
+  if (config::source_enabled) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Processing source file" << std::endl;
+    process_source_file();
+  } else {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Restoring current directory due to --no-source: "
+                << saved_current_dir << std::endl;
+    if (std::filesystem::current_path() != saved_current_dir) {
+      std::filesystem::current_path(saved_current_dir);
+      setenv("PWD", saved_current_dir.c_str(), 1);
+      g_shell->get_built_ins()->set_current_directory();
+    }
+  }
+
+  // Start main interactive loop
+  g_startup_active = false;
+  if (!g_exit_flag && !config::startup_test) {
+    if (g_title_line) {
+      std::cout << title_line << std::endl;
+      std::cout << created_line << std::endl;
+    }
+    main_process_loop();
+  }
+
+  std::cout << "Cleaning up resources..." << std::endl;
+  cleanup_resources();
+  std::cout << "Shutdown complete." << std::endl;
+
+  // Check if an exit code was set by the exit command
+  const char* exit_code_str = getenv("EXIT_CODE");
+  int exit_code = 0;
+  if (exit_code_str) {
+    exit_code = std::atoi(exit_code_str);
+    unsetenv("EXIT_CODE");
+  }
+
+  return exit_code;
+}
+
+void check_login_shell_mode(char* argv[]) {
   // Check if started as a login shell -cjsh
   if (argv && argv[0] && argv[0][0] == '-') {
     config::login_mode = true;
@@ -95,13 +216,17 @@ int main(int argc, char* argv[]) {
       std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0]
                 << std::endl;
   }
+}
 
+void initialize_basic_setup() {
   // Initialize directories (creates all necessary directories)
   cjsh_filesystem::initialize_cjsh_directories();
 
   // Register emergency cleanup function for unexpected exits
   std::atexit(emergency_cleanup);
+}
 
+int parse_command_line_arguments(int argc, char* argv[]) {
   // Setup long options
   static struct option long_options[] = {{"login", no_argument, 0, 'l'},
                                          {"interactive", no_argument, 0, 'i'},
@@ -122,7 +247,7 @@ int main(int argc, char* argv[]) {
   int c;
   optind = 1;
 
-  // First, process any profile startup args to ensure they are included
+  // Process command line arguments
   while ((c = getopt_long(argc, argv, short_options, long_options,
                           &option_index)) != -1) {
     switch (c) {
@@ -199,15 +324,118 @@ int main(int argc, char* argv[]) {
         return 127;
     }
   }
+  return 0;
+}
 
-  // create the shell component
-  g_shell = std::make_unique<Shell>(config::login_mode);
-  // create the shell environment
-  initialize_shell_environment();
-  setup_environment_variables();
+void initialize_shell_environment() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Initializing shell environment" << std::endl;
+  }
 
-  // Check if there are script files to execute
+  // Copy the shell's terminal settings to global variables for compatibility
+  g_shell_terminal = g_shell->get_terminal();
+  g_shell_pgid = g_shell->get_pgid();
+  g_shell_tmodes = g_shell->get_terminal_modes();
+  g_terminal_state_saved = g_shell->is_terminal_state_saved();
+  g_job_control_enabled = g_shell->is_job_control_enabled();
+}
+
+void setup_environment_variables() {
+  // setup essential environment variables for the shell session
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Setting up environment variables" << std::endl;
+
+  uid_t uid = getuid();
+  struct passwd* pw = getpwuid(uid);
+
+  if (pw != nullptr) {
+    // Prepare all environment variables in a batch
+    std::vector<std::pair<const char*, const char*>> env_vars;
+
+    // User info variables
+    env_vars.emplace_back("USER", pw->pw_name);
+    env_vars.emplace_back("LOGNAME", pw->pw_name);
+    env_vars.emplace_back("HOME", pw->pw_dir);
+
+    // Check PATH and add if needed
+    const char* path_env = getenv("PATH");
+    if (!path_env || path_env[0] == '\0') {
+      env_vars.emplace_back("PATH",
+                            "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
+    }
+
+    // System info
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+      env_vars.emplace_back("HOSTNAME", hostname);
+    }
+
+    // Current directory and shell info
+    std::string current_path = std::filesystem::current_path().string();
+    std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
+
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Setting SHELL to: " << shell_path << std::endl;
+    }
+
+    env_vars.emplace_back("PWD", current_path.c_str());
+    env_vars.emplace_back("SHELL", shell_path.c_str());
+    env_vars.emplace_back("IFS", " \t\n");
+
+    // Language settings
+    const char* lang_env = getenv("LANG");
+    if (!lang_env || lang_env[0] == '\0') {
+      env_vars.emplace_back("LANG", "en_US.UTF-8");
+    }
+
+    // Optional variables
+    if (getenv("PAGER") == nullptr) {
+      env_vars.emplace_back("PAGER", "less");
+    }
+
+    if (getenv("TMPDIR") == nullptr) {
+      env_vars.emplace_back("TMPDIR", "/tmp");
+    }
+
+    // Shell level
+    int shlvl = 1;
+    if (const char* current_shlvl = getenv("SHLVL")) {
+      try {
+        shlvl = std::stoi(current_shlvl) + 1;
+      } catch (...) {
+        shlvl = 1;
+      }
+    }
+    std::string shlvl_str = std::to_string(shlvl);
+    env_vars.emplace_back("SHLVL", shlvl_str.c_str());
+
+    // Miscellaneous
+    std::string cjsh_path = cjsh_filesystem::get_cjsh_path().string();
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Setting _ to: " << cjsh_path << std::endl;
+    }
+    env_vars.emplace_back("_", cjsh_path.c_str());
+    std::string status_str = std::to_string(0);
+    env_vars.emplace_back("STATUS", status_str.c_str());
+    env_vars.emplace_back("VERSION", c_version.c_str());
+
+    // Set all environment variables in one batch
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Setting " << env_vars.size()
+                << " environment variables" << std::endl;
+    }
+
+    // Actually set the environment variables
+    for (const auto& [name, value] : env_vars) {
+      setenv(name, value, 1);
+    }
+  }
+}
+
+std::string determine_execution_mode(int argc, char* argv[]) {
   std::string script_file = "";
+  
+  // Check if there are script files to execute
   if (optind < argc) {
     script_file = argv[optind];
     config::interactive_mode = false;
@@ -222,7 +450,11 @@ int main(int argc, char* argv[]) {
       std::cerr << "DEBUG: Disabling interactive mode (stdin is not a terminal)"
                 << std::endl;
   }
+  
+  return script_file;
+}
 
+void save_startup_arguments(int argc, char* argv[]) {
   // load startup args to save for restarts
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
@@ -237,33 +469,59 @@ int main(int argc, char* argv[]) {
       std::cerr << "DEBUG:   " << arg << std::endl;
     }
   }
+}
 
-  // create the cjsh login environment if needed
-  if (g_shell->get_login_mode()) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Initializing login environment" << std::endl;
-    if (!init_login_filesystem()) {
-      std::cerr << "Error: Failed to initialize or verify file system or files "
-                   "within the file system."
+bool init_login_filesystem() {
+  // verify and create if needed the cjsh login filesystem
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
+  try {
+    if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
+      std::cerr << "cjsh: the users home path could not be determined."
                 << std::endl;
-      g_shell.reset();
-      return 1;
+      return false;
     }
-    // create cjsh login environment
-    process_profile_file();
-  }
 
-  // set env vars to reflect cjsh being the shell
-  if (argv[0]) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
-    setenv("0", argv[0], 1);
-  } else {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
-    setenv("0", "cjsh", 1);
+    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Creating profile file" << std::endl;
+      create_profile_file();
+    }
+  } catch (const std::exception& e) {
+    std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: "
+              << e.what() << std::endl;
+    return false;
   }
+  return true;
+}
 
+void process_profile_file() {
+  // sourcing if in login shell
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Processing profile files" << std::endl;
+  std::filesystem::path universal_profile = "/etc/profile";
+  if (std::filesystem::exists(universal_profile)) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Found universal profile: "
+                << universal_profile.string() << std::endl;
+    g_shell->execute("source " + universal_profile.string());
+  }
+  std::filesystem::path user_profile =
+      cjsh_filesystem::g_user_home_path / ".profile";
+  if (std::filesystem::exists(user_profile)) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Found user profile: " << user_profile.string()
+                << std::endl;
+    g_shell->execute("source " + user_profile.string());
+  }
+  // Source the profile file normally
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Sourcing profile file: "
+              << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
+  g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
+}
+
+int handle_early_exit_commands() {
   // start processing simple flags
   if (config::show_version) {  // -v --version
     std::cout << c_version << (PRE_RELEASE ? "-PRERELEASE" : "") << std::endl;
@@ -298,77 +556,129 @@ int main(int argc, char* argv[]) {
     g_shell.reset();
     return code;
   }
+  
+  // Return -1 to indicate no early exit
+  return -1;
+}
 
-  if (!config::interactive_mode && !config::force_interactive) {
+int execute_non_interactive_mode(const std::string& script_file) {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
+
+  std::string script_content;
+
+  // If a script file was specified, read it
+  if (!script_file.empty()) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
+      std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
 
-    std::string script_content;
-
-    // If a script file was specified, read it
-    if (!script_file.empty()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
-
-      std::ifstream file(script_file);
-      if (!file.is_open()) {
-        std::cerr << "cjsh: " << script_file << ": No such file or directory"
-                  << std::endl;
-        g_shell.reset();
-        return 127;
-      }
-
-      std::string line;
-      while (std::getline(file, line)) {
-        script_content += line + "\n";
-      }
-      file.close();
-    } else {
-      // Read and execute input from stdin
-      std::string line;
-      while (std::getline(std::cin, line)) {
-        script_content += line + "\n";
-      }
-    }
-
-    if (!script_content.empty()) {
-      if (g_debug_mode) {
-        if (!script_file.empty()) {
-          std::cerr << "DEBUG: Executing script file content" << std::endl;
-        } else {
-          std::cerr << "DEBUG: Executing piped script content" << std::endl;
-        }
-      }
-      int code = g_shell ? g_shell->execute(script_content) : 1;
-
-      // Check if an exit code was set by the exit command
-      const char* exit_code_str = getenv("EXIT_CODE");
-      if (exit_code_str) {
-        code = std::atoi(exit_code_str);
-        unsetenv("EXIT_CODE");
-      }
-
+    std::ifstream file(script_file);
+    if (!file.is_open()) {
+      std::cerr << "cjsh: " << script_file << ": No such file or directory"
+                << std::endl;
       g_shell.reset();
-      return code;
+      return 127;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+      script_content += line + "\n";
+    }
+    file.close();
+  } else {
+    // Read and execute input from stdin
+    std::string line;
+    while (std::getline(std::cin, line)) {
+      script_content += line + "\n";
+    }
+  }
+
+  if (!script_content.empty()) {
+    if (g_debug_mode) {
+      if (!script_file.empty()) {
+        std::cerr << "DEBUG: Executing script file content" << std::endl;
+      } else {
+        std::cerr << "DEBUG: Executing piped script content" << std::endl;
+      }
+    }
+    int code = g_shell ? g_shell->execute(script_content) : 1;
+
+    // Check if an exit code was set by the exit command
+    const char* exit_code_str = getenv("EXIT_CODE");
+    if (exit_code_str) {
+      code = std::atoi(exit_code_str);
+      unsetenv("EXIT_CODE");
     }
 
     g_shell.reset();
-    return 0;
+    return code;
   }
 
-  // at this point we have not called any flags or caused any issues to make the
-  // shell close and exit making it non interactive so past this point we are in
-  // interactive mode
-  g_shell->set_interactive_mode(true);
-  if (!init_interactive_filesystem()) {
-    std::cerr << "Error: Failed to initialize or verify file system or files "
-                 "within the file system."
-              << std::endl;
-    g_shell.reset();
-    return 1;
-  }
-  g_shell->setup_interactive_handlers();
+  g_shell.reset();
+  return 0;
+}
 
+bool init_interactive_filesystem() {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
+
+  // Cache current path to avoid multiple filesystem calls
+  std::string current_path = std::filesystem::current_path().string();
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Current path: " << current_path << std::endl;
+  setenv("PWD", current_path.c_str(), 1);
+
+  try {
+    // Cache file existence results to avoid repeated checks
+    bool home_exists =
+        std::filesystem::exists(cjsh_filesystem::g_user_home_path);
+    bool history_exists =
+        std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path);
+    bool source_exists =
+        std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path);
+    bool should_refresh_cache =
+        cjsh_filesystem::should_refresh_executable_cache();
+
+    if (!home_exists) {
+      std::cerr << "cjsh: the users home path could not be determined."
+                << std::endl;
+      return false;
+    }
+
+    // Create files if needed based on cached existence checks
+    if (!history_exists) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Creating history file" << std::endl;
+      std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
+      history_file.close();
+    }
+
+    // .cjshrc
+    if (!source_exists) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Creating source file" << std::endl;
+      create_source_file();
+    }
+
+    // Only refresh executable cache if needed
+    if (should_refresh_cache) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Refreshing executable cache" << std::endl;
+      cjsh_filesystem::build_executable_cache();
+    } else {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Using existing executable cache" << std::endl;
+    }
+
+  } catch (const std::exception& e) {
+    std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: "
+              << e.what() << std::endl;
+    return false;
+  }
+  return true;
+}
+
+void initialize_interactive_components() {
   // create colors module
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing colors with enabled="
@@ -422,52 +732,10 @@ int main(int argc, char* argv[]) {
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: AI disabled, skipping initialization" << std::endl;
   }
+}
 
-  // Save the current directory before processing the source file
-  std::string saved_current_dir = std::filesystem::current_path().string();
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Saved current directory: " << saved_current_dir
-              << std::endl;
-
-  // process the source file .cjshrc
-  if (config::source_enabled) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Processing source file" << std::endl;
-    process_source_file();
-  } else {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Restoring current directory due to --no-source: "
-                << saved_current_dir << std::endl;
-    if (std::filesystem::current_path() != saved_current_dir) {
-      std::filesystem::current_path(saved_current_dir);
-      setenv("PWD", saved_current_dir.c_str(), 1);
-      g_shell->get_built_ins()->set_current_directory();
-    }
-  }
-
-  // startup is complete and we enter the main process loop
-  g_startup_active = false;
-  if (!g_exit_flag && !config::startup_test) {
-    if (g_title_line) {
-      std::cout << title_line << std::endl;
-      std::cout << created_line << std::endl;
-    }
-    main_process_loop();
-  }
-
-  std::cout << "Cleaning up resources..." << std::endl;
-  cleanup_resources();
-  std::cout << "Shutdown complete." << std::endl;
-
-  // Check if an exit code was set by the exit command
-  const char* exit_code_str = getenv("EXIT_CODE");
-  int exit_code = 0;
-  if (exit_code_str) {
-    exit_code = std::atoi(exit_code_str);
-    unsetenv("EXIT_CODE");
-  }
-
-  return exit_code;
+void process_source_file() {
+  g_shell->execute("source " + cjsh_filesystem::g_cjsh_source_path.string());
 }
 
 void update_terminal_title() {
@@ -655,225 +923,6 @@ void cleanup_resources() {
   if (g_debug_mode) {
     std::cerr << "DEBUG: Cleanup complete." << std::endl;
   }
-}
-
-bool init_login_filesystem() {
-  // verify and create if needed the cjsh login filesystem
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
-  try {
-    if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
-      std::cerr << "cjsh: the users home path could not be determined."
-                << std::endl;
-      return false;
-    }
-
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Creating profile file" << std::endl;
-      create_profile_file();
-    }
-  } catch (const std::exception& e) {
-    std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: "
-              << e.what() << std::endl;
-    return false;
-  }
-  return true;
-}
-
-void setup_environment_variables() {
-  // setup essential environment variables for the shell session
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Setting up environment variables" << std::endl;
-
-  uid_t uid = getuid();
-  struct passwd* pw = getpwuid(uid);
-
-  if (pw != nullptr) {
-    // Prepare all environment variables in a batch
-    std::vector<std::pair<const char*, const char*>> env_vars;
-
-    // User info variables
-    env_vars.emplace_back("USER", pw->pw_name);
-    env_vars.emplace_back("LOGNAME", pw->pw_name);
-    env_vars.emplace_back("HOME", pw->pw_dir);
-
-    // Check PATH and add if needed
-    const char* path_env = getenv("PATH");
-    if (!path_env || path_env[0] == '\0') {
-      env_vars.emplace_back("PATH",
-                            "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
-    }
-
-    // System info
-    char hostname[256];
-    if (gethostname(hostname, sizeof(hostname)) == 0) {
-      env_vars.emplace_back("HOSTNAME", hostname);
-    }
-
-    // Current directory and shell info
-    std::string current_path = std::filesystem::current_path().string();
-    std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
-
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: Setting SHELL to: " << shell_path << std::endl;
-    }
-
-    env_vars.emplace_back("PWD", current_path.c_str());
-    env_vars.emplace_back("SHELL", shell_path.c_str());
-    env_vars.emplace_back("IFS", " \t\n");
-
-    // Language settings
-    const char* lang_env = getenv("LANG");
-    if (!lang_env || lang_env[0] == '\0') {
-      env_vars.emplace_back("LANG", "en_US.UTF-8");
-    }
-
-    // Optional variables
-    if (getenv("PAGER") == nullptr) {
-      env_vars.emplace_back("PAGER", "less");
-    }
-
-    if (getenv("TMPDIR") == nullptr) {
-      env_vars.emplace_back("TMPDIR", "/tmp");
-    }
-
-    // Shell level
-    int shlvl = 1;
-    if (const char* current_shlvl = getenv("SHLVL")) {
-      try {
-        shlvl = std::stoi(current_shlvl) + 1;
-      } catch (...) {
-        shlvl = 1;
-      }
-    }
-    std::string shlvl_str = std::to_string(shlvl);
-    env_vars.emplace_back("SHLVL", shlvl_str.c_str());
-
-    // Miscellaneous
-    std::string cjsh_path = cjsh_filesystem::get_cjsh_path().string();
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: Setting _ to: " << cjsh_path << std::endl;
-    }
-    env_vars.emplace_back("_", cjsh_path.c_str());
-    std::string status_str = std::to_string(0);
-    env_vars.emplace_back("STATUS", status_str.c_str());
-    env_vars.emplace_back("VERSION", c_version.c_str());
-
-    // Set all environment variables in one batch
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: Setting " << env_vars.size()
-                << " environment variables" << std::endl;
-    }
-
-    // Actually set the environment variables
-    for (const auto& [name, value] : env_vars) {
-      setenv(name, value, 1);
-    }
-  }
-}
-
-void initialize_shell_environment() {
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Initializing shell environment" << std::endl;
-  }
-
-  // Copy the shell's terminal settings to global variables for compatibility
-  g_shell_terminal = g_shell->get_terminal();
-  g_shell_pgid = g_shell->get_pgid();
-  g_shell_tmodes = g_shell->get_terminal_modes();
-  g_terminal_state_saved = g_shell->is_terminal_state_saved();
-  g_job_control_enabled = g_shell->is_job_control_enabled();
-}
-
-bool init_interactive_filesystem() {
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
-
-  // Cache current path to avoid multiple filesystem calls
-  std::string current_path = std::filesystem::current_path().string();
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Current path: " << current_path << std::endl;
-  setenv("PWD", current_path.c_str(), 1);
-
-  try {
-    // Cache file existence results to avoid repeated checks
-    bool home_exists =
-        std::filesystem::exists(cjsh_filesystem::g_user_home_path);
-    bool history_exists =
-        std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path);
-    bool source_exists =
-        std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path);
-    bool should_refresh_cache =
-        cjsh_filesystem::should_refresh_executable_cache();
-
-    if (!home_exists) {
-      std::cerr << "cjsh: the users home path could not be determined."
-                << std::endl;
-      return false;
-    }
-
-    // Create files if needed based on cached existence checks
-    if (!history_exists) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Creating history file" << std::endl;
-      std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
-      history_file.close();
-    }
-
-    // .cjshrc
-    if (!source_exists) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Creating source file" << std::endl;
-      create_source_file();
-    }
-
-    // Only refresh executable cache if needed
-    if (should_refresh_cache) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Refreshing executable cache" << std::endl;
-      cjsh_filesystem::build_executable_cache();
-    } else {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Using existing executable cache" << std::endl;
-    }
-
-  } catch (const std::exception& e) {
-    std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: "
-              << e.what() << std::endl;
-    return false;
-  }
-  return true;
-}
-
-void process_profile_file() {
-  // sourcing if in login shell
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Processing profile files" << std::endl;
-  std::filesystem::path universal_profile = "/etc/profile";
-  if (std::filesystem::exists(universal_profile)) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Found universal profile: "
-                << universal_profile.string() << std::endl;
-    g_shell->execute("source " + universal_profile.string());
-  }
-  std::filesystem::path user_profile =
-      cjsh_filesystem::g_user_home_path / ".profile";
-  if (std::filesystem::exists(user_profile)) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Found user profile: " << user_profile.string()
-                << std::endl;
-    g_shell->execute("source " + user_profile.string());
-  }
-  // Source the profile file normally
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Sourcing profile file: "
-              << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
-  g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
-}
-
-void process_source_file() {
-  g_shell->execute("source " + cjsh_filesystem::g_cjsh_source_path.string());
 }
 
 void create_profile_file() {
