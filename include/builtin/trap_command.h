@@ -36,10 +36,17 @@ class TrapManager {
   // Set shell reference for executing trap commands
   void set_shell(Shell* shell);
 
+  // Execute special shell traps
+  void execute_exit_trap();
+  void execute_err_trap();
+  void execute_debug_trap();
+  void execute_return_trap();
+
  private:
   TrapManager() = default;
   std::unordered_map<int, std::string> traps;
   Shell* shell_ref = nullptr;
+  bool exit_trap_executed = false;
 };
 
 // Convert signal name to signal number

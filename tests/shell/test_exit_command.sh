@@ -141,7 +141,7 @@ fi
 
 # Test 11: Signal handling - SIGTERM graceful exit
 log_test "SIGTERM signal handling (graceful exit)"
-if command -v timeout >/dev/null 2>&1; then
+if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
     # Start shell in background and send SIGTERM
     "$SHELL_TO_TEST" -c "sleep 10" &
     shell_pid=$!
@@ -161,7 +161,7 @@ fi
 
 # Test 12: Signal handling - SIGHUP graceful exit
 log_test "SIGHUP signal handling (graceful exit)"
-if command -v timeout >/dev/null 2>&1; then
+if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
     # Start shell in background and send SIGHUP
     "$SHELL_TO_TEST" -c "sleep 10" &
     shell_pid=$!

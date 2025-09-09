@@ -22,6 +22,7 @@
 #include "isocline/isocline.h"
 #include "job_control.h"
 #include "shell.h"
+#include "trap_command.h"
 #include "tutorial.h"
 #include "usage.h"
 
@@ -44,7 +45,6 @@ bool startup_test = false;
 // to do
 //  local session history files, that combine into main one upon process close
 //  rework ai system to always retrieve api key from envvar
-//  rework builtins to be more POSIX compliant syntax wise
 
 /*
  * Exit/Return Codes:
@@ -62,54 +62,6 @@ bool startup_test = false;
  * 143     - Process terminated (SIGTERM)
  * 255     - Exit status out of range
  */
-
-void emergency_cleanup() {
-  // This function is called during emergency exits (like atexit())
-  // We can only do minimal cleanup here
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Emergency cleanup triggered" << std::endl;
-  }
-  
-  // Reset global pointers to prevent segfaults during destruction
-  g_ai = nullptr;
-  g_theme = nullptr;
-  g_plugin = nullptr;
-  
-  // The smart pointers will clean themselves up during program termination
-}
-
-void cleanup_resources() {
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
-  }
-
-  // Notify plugins of shutdown event
-  notify_plugins("shell_shutdown", c_pid_str);
-
-  // Only cleanup AI if it was initialized
-  if (g_ai) {
-    g_ai = nullptr;
-  }
-
-  // Only cleanup Theme if it was initialized
-  if (g_theme) {
-    g_theme = nullptr;
-  }
-
-  // Only cleanup Plugin if it was initialized
-  if (g_plugin) {
-    g_plugin = nullptr;
-  }
-
-  // Reset the shell last (this will clean up any additional resources)
-  if (g_shell) {
-    g_shell.reset();
-  }
-
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Cleanup complete." << std::endl;
-  }
-}
 
 int main(int argc, char* argv[]) {
   // Check if started as a login shell -cjsh
@@ -311,6 +263,12 @@ int main(int argc, char* argv[]) {
     if (exit_code_str) {
       code = std::atoi(exit_code_str);
       unsetenv("EXIT_CODE");
+    }
+    
+    // Execute EXIT trap before resetting shell for -c commands
+    if (g_shell) {
+      TrapManager::instance().set_shell(g_shell.get());
+      TrapManager::instance().execute_exit_trap();
     }
     
     g_shell.reset();
@@ -640,6 +598,57 @@ void notify_plugins(std::string trigger, std::string data) {
               << " with data: " << data << std::endl;
   }
   g_plugin->trigger_subscribed_global_event(trigger, data);
+}
+
+void emergency_cleanup() {
+  // This function is called during emergency exits (like atexit())
+  // We can only do minimal cleanup here
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Emergency cleanup triggered" << std::endl;
+  }
+  
+  // Reset global pointers to prevent segfaults during destruction
+  g_ai = nullptr;
+  g_theme = nullptr;
+  g_plugin = nullptr;
+  
+  // The smart pointers will clean themselves up during program termination
+}
+
+void cleanup_resources() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
+  }
+
+  // Execute EXIT trap before cleanup (while shell is still available)
+  if (g_shell) {
+    TrapManager::instance().set_shell(g_shell.get());
+    TrapManager::instance().execute_exit_trap();
+  }
+
+  // Only cleanup AI if it was initialized
+  if (g_ai) {
+    g_ai = nullptr;
+  }
+
+  // Only cleanup Theme if it was initialized
+  if (g_theme) {
+    g_theme = nullptr;
+  }
+
+  // Only cleanup Plugin if it was initialized
+  if (g_plugin) {
+    g_plugin = nullptr;
+  }
+
+  // Reset the shell last (this will clean up any additional resources)
+  if (g_shell) {
+    g_shell.reset();
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Cleanup complete." << std::endl;
+  }
 }
 
 bool init_login_filesystem() {

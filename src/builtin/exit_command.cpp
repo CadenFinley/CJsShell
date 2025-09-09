@@ -1,6 +1,7 @@
 #include "exit_command.h"
 
 #include "cjsh.h"
+#include "trap_command.h"
 
 int exit_command(const std::vector<std::string>& args) {
   int exit_code = 0;
@@ -31,6 +32,7 @@ int exit_command(const std::vector<std::string>& args) {
   }
 
   // For normal exit, set the flag and store the exit code
+  // EXIT trap will be executed in cleanup_resources()
   // The exit code will be used when the main loop exits
   g_exit_flag = true;
   setenv("EXIT_CODE", std::to_string(exit_code).c_str(), 1);

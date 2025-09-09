@@ -130,9 +130,15 @@ fi
 # Test 3: SIGINT handling in interactive mode
 log_test "SIGINT handling in interactive mode"
 # Note: SIGINT should not cause immediate exit in interactive mode
-if command -v timeout >/dev/null 2>&1; then
+if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
     # Use timeout to test SIGINT behavior
-    timeout 2s sh -c "echo 'sleep 1' | $SHELL_TO_TEST" 2>/dev/null
+    # Try gtimeout first, then timeout
+    if command -v gtimeout >/dev/null 2>&1; then
+        TIMEOUT_CMD="gtimeout"
+    else
+        TIMEOUT_CMD="timeout"
+    fi
+    $TIMEOUT_CMD 2s sh -c "echo 'sleep 1' | $SHELL_TO_TEST" 2>/dev/null
     exit_code=$?
     # timeout returns 124 if command timed out, which is expected for interactive shell
     if [ $exit_code -eq 0 ] || [ $exit_code -eq 124 ]; then

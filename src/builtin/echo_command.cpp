@@ -133,8 +133,17 @@ int echo_command(const std::vector<std::string>& args) {
   if (!suppress_newline) {
     if (redirect_to_stderr) {
       std::cerr << "\n";
+      std::cerr.flush();
     } else {
       std::cout << "\n";
+      std::cout.flush();
+    }
+  } else {
+    // Flush even when suppressing newline to ensure output appears
+    if (redirect_to_stderr) {
+      std::cerr.flush();
+    } else {
+      std::cout.flush();
     }
   }
 
