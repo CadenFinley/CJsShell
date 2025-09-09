@@ -93,13 +93,29 @@ int ShellScriptInterpreter::execute_block(
         }
       }
 
-      if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
-        if (!in_quotes) {
-          in_quotes = true;
-          quote = c;
-        } else if (quote == c) {
-          in_quotes = false;
-          quote = '\0';
+      // Improved escaped quote handling - count preceding backslashes
+      if (c == '"' || c == '\'') {
+        // Count consecutive backslashes before this quote
+        size_t backslash_count = 0;
+        for (size_t j = i; j > 0; --j) {
+          if (s[j - 1] == '\\') {
+            backslash_count++;
+          } else {
+            break;
+          }
+        }
+        
+        // Quote is escaped if there's an odd number of backslashes before it
+        bool is_escaped = (backslash_count % 2) == 1;
+        
+        if (!is_escaped) {
+          if (!in_quotes) {
+            in_quotes = true;
+            quote = c;
+          } else if (quote == c) {
+            in_quotes = false;
+            quote = '\0';
+          }
         }
       } else if (!in_quotes && !in_brace_expansion && c == '#') {
         return s.substr(0, i);

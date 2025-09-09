@@ -8,6 +8,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <regex>
 #include <sstream>
@@ -20,6 +21,44 @@
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   // Split script content on unquoted newlines into logical lines.
   // Handle here documents specially by collecting content until delimiter.
+  
+  // Helper function to strip inline comments
+  auto strip_inline_comment = [](const std::string& s) -> std::string {
+    bool in_quotes = false;
+    char quote = '\0';
+    for (size_t i = 0; i < s.size(); ++i) {
+      char c = s[i];
+      
+      // Count consecutive backslashes before this quote
+      if (c == '"' || c == '\'') {
+        size_t backslash_count = 0;
+        for (size_t j = i; j > 0; --j) {
+          if (s[j - 1] == '\\') {
+            backslash_count++;
+          } else {
+            break;
+          }
+        }
+        
+        // Quote is escaped if there's an odd number of backslashes before it
+        bool is_escaped = (backslash_count % 2) == 1;
+        
+        if (!is_escaped) {
+          if (!in_quotes) {
+            in_quotes = true;
+            quote = c;
+          } else if (quote == c) {
+            in_quotes = false;
+            quote = '\0';
+          }
+        }
+      } else if (!in_quotes && c == '#') {
+        return s.substr(0, i);
+      }
+    }
+    return s;
+  };
+
   std::vector<std::string> lines;
   size_t start = 0;
   bool in_quotes = false;
@@ -43,23 +82,21 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         if (trimmed_line == here_doc_delimiter) {
           // End of here document - reconstruct the command with content
           std::string segment = script.substr(start, i - start);
-          // Find << delimiter and replace with content
+          // Find << delimiter and replace with placeholder
           size_t here_pos = segment.find("<< " + here_doc_delimiter);
           if (here_pos == std::string::npos) {
             here_pos = segment.find("<<" + here_doc_delimiter);
           }
           if (here_pos != std::string::npos) {
             std::string before_here = segment.substr(0, here_pos + 2);
-            // Create a temporary content marker that will be processed later
-            segment = before_here + " __HEREDOC_CONTENT__" +
-                      std::to_string(lines.size());
+            // Create a placeholder that matches CommandPreprocessor format
+            std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
+            segment = before_here + " " + placeholder;
+            
+            // Store the here document content in the current_here_docs map
+            // This makes it accessible to the pipeline parser
+            current_here_docs[placeholder] = here_doc_content;
           }
-
-          // Store the here document content in a special way
-          std::string content_line = "__HEREDOC_DATA__" +
-                                     std::to_string(lines.size()) + "__" +
-                                     here_doc_content;
-          lines.push_back(content_line);
 
           if (!segment.empty() && segment.back() == '\r') {
             segment.pop_back();
@@ -93,23 +130,26 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
       // Check if this line contains a here document start
       std::string segment = script.substr(start, i - start);
       if (!in_quotes && segment.find("<<") != std::string::npos) {
+        // Strip comments before parsing here document delimiter
+        std::string segment_no_comment = strip_inline_comment(segment);
+        
         // Look for << followed by delimiter
-        size_t here_pos = segment.find("<<");
+        size_t here_pos = segment_no_comment.find("<<");
         if (here_pos != std::string::npos) {
           // Extract delimiter
           size_t delim_start = here_pos + 2;
-          while (delim_start < segment.size() &&
-                 std::isspace(segment[delim_start])) {
+          while (delim_start < segment_no_comment.size() &&
+                 std::isspace(segment_no_comment[delim_start])) {
             delim_start++;
           }
           size_t delim_end = delim_start;
-          while (delim_end < segment.size() &&
-                 !std::isspace(segment[delim_end])) {
+          while (delim_end < segment_no_comment.size() &&
+                 !std::isspace(segment_no_comment[delim_end])) {
             delim_end++;
           }
           if (delim_start < delim_end) {
             here_doc_delimiter =
-                segment.substr(delim_start, delim_end - delim_start);
+                segment_no_comment.substr(delim_start, delim_end - delim_start);
             in_here_doc = true;
             here_doc_content.clear();
             current_here_doc_line.clear();
@@ -982,8 +1022,11 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
   // Use the new preprocessor to handle complex cases
   auto preprocessed = CommandPreprocessor::preprocess(command);
 
-  // Store here document context for this parsing session
-  current_here_docs = preprocessed.here_documents;
+  // Merge here document context: keep existing documents and add new ones
+  // This preserves here docs from parse_into_lines() for script files
+  for (const auto& pair : preprocessed.here_documents) {
+    current_here_docs[pair.first] = pair.second;
+  }
 
   // Check if this is a SUBSHELL{} command
   // Allow leading whitespace before SUBSHELL marker
