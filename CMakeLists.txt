@@ -5,32 +5,38 @@ project(cjsh VERSION 2.1.13 LANGUAGES C CXX)
 # Add option for forcing 32-bit build
 option(FORCE_32BIT "Force 32-bit build" OFF)
 
-# Detect architecture
-if(APPLE)
-  execute_process(COMMAND uname -m OUTPUT_VARIABLE ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if(ARCH STREQUAL "arm64")
-    set(ARCH "arm64" CACHE INTERNAL "Architecture" FORCE)
-    message(STATUS "Detected Apple Silicon (arm64)")
-  else()
-    set(ARCH "x86_64" CACHE INTERNAL "Architecture" FORCE)
-    message(STATUS "Detected macOS x86_64")
-  endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
-  set(ARCH "arm64" CACHE INTERNAL "Architecture" FORCE)
-  message(STATUS "Detected ARM64 architecture")
-elseif(FORCE_32BIT OR CMAKE_SIZEOF_VOID_P EQUAL 4)
-  set(ARCH "x86" CACHE INTERNAL "Architecture" FORCE)
-  message(STATUS "Configuring for x86 (32-bit) architecture")
+# Detect architecture using shell script
+if(FORCE_32BIT)
+  execute_process(
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detect_arch.sh true
+    OUTPUT_VARIABLE ARCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE ARCH_DETECTION_RESULT
+  )
 else()
+  execute_process(
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detect_arch.sh
+    OUTPUT_VARIABLE ARCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE ARCH_DETECTION_RESULT
+  )
+endif()
+
+# Check if architecture detection was successful
+if(ARCH_DETECTION_RESULT EQUAL 0)
+  set(ARCH "${ARCH}" CACHE INTERNAL "Architecture" FORCE)
+  message(STATUS "Detected architecture: ${ARCH}")
+else()
+  # Fallback to x86_64 if script fails
   set(ARCH "x86_64" CACHE INTERNAL "Architecture" FORCE)
-  message(STATUS "Assuming x86_64 architecture")
+  message(WARNING "Architecture detection script failed, defaulting to x86_64")
 endif()
 
 # Include common settings
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.common.cmake)
 
 # Include architecture-specific settings
-if(FORCE_32BIT OR CMAKE_SIZEOF_VOID_P EQUAL 4)
+if(ARCH STREQUAL "x86")
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.x86.cmake)
 else()
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CMakeLists.${ARCH}.cmake)
