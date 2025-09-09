@@ -972,25 +972,26 @@ void process_profile_file() {
   if (profile_file.is_open()) {
     std::string line;
     std::string filtered_content;
-    
+
     while (std::getline(profile_file, line)) {
       // Skip completely empty lines or whitespace-only lines for filtering
       std::string trimmed_line = line;
       trimmed_line.erase(0, trimmed_line.find_first_not_of(" \t\n\r\f\v"));
-      
+
       // Skip startup flag lines (lines that start with --)
-      if (!trimmed_line.empty() && trimmed_line.size() >= 2 && 
+      if (!trimmed_line.empty() && trimmed_line.size() >= 2 &&
           trimmed_line[0] == '-' && trimmed_line[1] == '-') {
         if (g_debug_mode)
-          std::cerr << "DEBUG: Skipping startup flag line in profile: " << line << std::endl;
+          std::cerr << "DEBUG: Skipping startup flag line in profile: " << line
+                    << std::endl;
         continue;
       }
-      
+
       // Include all other lines (including comments, shell commands, etc.)
       filtered_content += line + "\n";
     }
     profile_file.close();
-    
+
     // Execute the filtered content if there's anything to execute
     if (!filtered_content.empty()) {
       if (g_debug_mode)

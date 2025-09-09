@@ -52,8 +52,7 @@ class Theme {
   std::vector<nlohmann::json> ai_segments;
   std::vector<nlohmann::json> newline_segments;
 
-  bool load_theme(const std::string& theme_name,
-                  bool allow_fallback);
+  bool load_theme(const std::string& theme_name, bool allow_fallback);
   std::vector<std::string> list_themes();
   void view_theme_requirements(const std::string& theme) const;
 

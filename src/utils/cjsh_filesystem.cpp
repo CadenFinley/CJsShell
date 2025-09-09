@@ -111,12 +111,6 @@ bool initialize_cjsh_path() {
 
 bool initialize_cjsh_directories() {
   try {
-    // Optimize by creating directories without checking existence first.
-    // fs::create_directories() is idempotent and will succeed if directories already exist.
-    // This reduces filesystem calls from 16 (8 exists + 8 create) to just 8 (create only).
-    
-    // Create all directories in optimal order (parent directories first)
-    // This ensures minimal filesystem operations
     fs::create_directories(g_config_path);
     fs::create_directories(g_cache_path);
     fs::create_directories(g_cjsh_data_path);

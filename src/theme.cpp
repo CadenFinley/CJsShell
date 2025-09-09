@@ -100,8 +100,7 @@ void Theme::create_default_theme() {
   file.close();
 }
 
-bool Theme::load_theme(const std::string& theme_name,
-                       bool allow_fallback) {
+bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
   std::string theme_name_to_use = theme_name;
   if (!is_enabled || theme_name_to_use == "") {
     theme_name_to_use = "default";

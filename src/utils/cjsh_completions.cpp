@@ -343,9 +343,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     return;
   }
 
-  // Standard behavior: if prefix ends with '/', complete all files and directories
-  // Use the special_part if we extracted a path from after a space, otherwise
-  // use the full prefix
+  // Standard behavior: if prefix ends with '/', complete all files and
+  // directories Use the special_part if we extracted a path from after a space,
+  // otherwise use the full prefix
   std::string path_to_check = special_part.empty() ? prefix_str : special_part;
 
   if (!ic_stop_completing(cenv) && !path_to_check.empty() &&
@@ -361,8 +361,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             suffix += "/";
           }
           if (g_debug_mode)
-            std::cerr << "DEBUG: All files completion: '" << suffix
-                      << "'" << std::endl;
+            std::cerr << "DEBUG: All files completion: '" << suffix << "'"
+                      << std::endl;
           if (!ic_add_completion(cenv, suffix.c_str()))
             return;
           if (ic_stop_completing(cenv))
@@ -371,9 +371,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
-        std::cerr
-            << "DEBUG: Error reading directory for all files completion: "
-            << e.what() << std::endl;
+        std::cerr << "DEBUG: Error reading directory for all files completion: "
+                  << e.what() << std::endl;
     }
     return;
   }

@@ -40,13 +40,17 @@ int help_command() {
   std::cout << "      rejectchanges       Reject AI suggested code changes\n";
   std::cout
       << "      timeoutflag [SECS]  Set timeout duration for AI requests\n";
-  std::cout << "      initialinstruction [TEXT] Set or view initial system instruction\n";
+  std::cout << "      initialinstruction [TEXT] Set or view initial system "
+               "instruction\n";
   std::cout << "      name [NAME]         Set or view assistant name\n";
   std::cout << "      saveconfig          Save current AI configuration\n";
-  std::cout << "      config              Manage AI configurations (list, switch, save)\n";
+  std::cout << "      config              Manage AI configurations (list, "
+               "switch, save)\n";
   std::cout << "      voice [VOICE]       Set or view voice for dictation\n";
-  std::cout << "      voicedictation [enable|disable] Enable/disable voice dictation\n";
-  std::cout << "      voicedictationinstructions [TEXT] Set voice dictation instructions\n";
+  std::cout << "      voicedictation [enable|disable] Enable/disable voice "
+               "dictation\n";
+  std::cout << "      voicedictationinstructions [TEXT] Set voice dictation "
+               "instructions\n";
   std::cout << "      help                Show detailed AI command help\n\n";
 
   std::cout << "  aihelp [QUERY]          Get troubleshooting help from AI\n";
@@ -93,10 +97,12 @@ int help_command() {
   std::cout << "    Examples: 'cd /path/to/dir', 'cd ~', 'cd ..' (parent "
                "directory), 'cd' (home directory)\n\n";
 
-  std::cout << "  pwd                     Print the current working directory\n";
+  std::cout
+      << "  pwd                     Print the current working directory\n";
   std::cout << "    Usage: pwd\n\n";
 
-  std::cout << "  echo [ARGS...]          Display arguments to standard output\n";
+  std::cout
+      << "  echo [ARGS...]          Display arguments to standard output\n";
   std::cout << "    Usage: echo [text...]\n";
   std::cout << "    Example: 'echo Hello, World!'\n\n";
 
@@ -111,12 +117,14 @@ int help_command() {
   std::cout << "  help                    Display this help message\n";
   std::cout << "    Usage: help\n\n";
 
-  std::cout << "  exit [N], quit [N]      Exit the shell with optional status\n";
+  std::cout
+      << "  exit [N], quit [N]      Exit the shell with optional status\n";
   std::cout << "    Usage: exit [exit_code] or quit [exit_code]\n";
   std::cout << "    Example: 'exit 0', 'quit'\n\n";
 
   std::cout << "Variable and Environment Management:\n";
-  std::cout << "  export [NAME=VALUE]     Set or display environment variables\n";
+  std::cout
+      << "  export [NAME=VALUE]     Set or display environment variables\n";
   std::cout << "    Usage: export [name=value]\n";
   std::cout << "    Examples: 'export' (show all), 'export "
                "PATH=\"$PATH:/new/path\"'\n\n";
@@ -125,7 +133,8 @@ int help_command() {
   std::cout << "    Usage: unset name\n";
   std::cout << "    Example: 'unset TEMP_VAR'\n\n";
 
-  std::cout << "  set [OPTIONS] [ARGS...] Set shell options and positional parameters\n";
+  std::cout << "  set [OPTIONS] [ARGS...] Set shell options and positional "
+               "parameters\n";
   std::cout << "    Usage: set [options] [arguments]\n";
   std::cout << "    Example: 'set -x' (enable debug mode)\n\n";
 
@@ -261,7 +270,8 @@ int help_command() {
 
   std::cout << "  clear                   Clear the terminal screen\n";
   std::cout << "    Usage: clear\n";
-  std::cout << "    Note: This is typically an external command, not a builtin\n\n";
+  std::cout
+      << "    Note: This is typically an external command, not a builtin\n\n";
 
   std::cout << section_separator;
   std::cout << "FILESYSTEM AND CONFIGURATION:\n\n";
