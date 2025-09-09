@@ -2074,11 +2074,13 @@ int ShellScriptInterpreter::execute_block(
       continue;
     }
 
-    // Handle orphaned control structure keywords (these should be no-ops when encountered standalone)
-    if (line == "fi" || line == "then" || line == "else" || line == "done" || 
+    // Handle orphaned control structure keywords (these should be no-ops when
+    // encountered standalone)
+    if (line == "fi" || line == "then" || line == "else" || line == "done" ||
         line == "esac" || line == "}" || line == ";;") {
       if (g_debug_mode)
-        std::cerr << "DEBUG: ignoring orphaned control structure keyword: " << line << std::endl;
+        std::cerr << "DEBUG: ignoring orphaned control structure keyword: "
+                  << line << std::endl;
       continue;
     }
 

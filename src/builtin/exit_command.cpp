@@ -6,11 +6,11 @@
 int exit_command(const std::vector<std::string>& args) {
   int exit_code = 0;
   bool force_exit = false;
-  
+
   // Check for force flags
   force_exit = std::find(args.begin(), args.end(), "-f") != args.end() ||
                std::find(args.begin(), args.end(), "--force") != args.end();
-  
+
   // Parse numeric exit code from any argument position
   for (size_t i = 1; i < args.size(); i++) {
     const std::string& val = args[i];
@@ -24,7 +24,7 @@ int exit_command(const std::vector<std::string>& args) {
       }
     }
   }
-  
+
   // Forced exit - clean up and exit immediately
   if (force_exit) {
     cleanup_resources();

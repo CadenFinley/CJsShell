@@ -8,21 +8,40 @@
 
 // Signal name to number mapping
 static const std::unordered_map<std::string, int> signal_map = {
-    {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},
-    {"ILL", SIGILL},       {"TRAP", SIGTRAP}, {"ABRT", SIGABRT},
-    {"BUS", SIGBUS},       {"FPE", SIGFPE},   {"KILL", SIGKILL},
-    {"USR1", SIGUSR1},     {"SEGV", SIGSEGV}, {"USR2", SIGUSR2},
-    {"PIPE", SIGPIPE},     {"ALRM", SIGALRM}, {"TERM", SIGTERM},
-    {"CHLD", SIGCHLD},     {"CONT", SIGCONT}, {"STOP", SIGSTOP},
-    {"TSTP", SIGTSTP},     {"TTIN", SIGTTIN}, {"TTOU", SIGTTOU},
-    {"URG", SIGURG},       {"XCPU", SIGXCPU}, {"XFSZ", SIGXFSZ},
-    {"VTALRM", SIGVTALRM}, {"PROF", SIGPROF}, {"WINCH", SIGWINCH},
-    {"IO", SIGIO},         {"SYS", SIGSYS},
+    {"HUP", SIGHUP},
+    {"INT", SIGINT},
+    {"QUIT", SIGQUIT},
+    {"ILL", SIGILL},
+    {"TRAP", SIGTRAP},
+    {"ABRT", SIGABRT},
+    {"BUS", SIGBUS},
+    {"FPE", SIGFPE},
+    {"KILL", SIGKILL},
+    {"USR1", SIGUSR1},
+    {"SEGV", SIGSEGV},
+    {"USR2", SIGUSR2},
+    {"PIPE", SIGPIPE},
+    {"ALRM", SIGALRM},
+    {"TERM", SIGTERM},
+    {"CHLD", SIGCHLD},
+    {"CONT", SIGCONT},
+    {"STOP", SIGSTOP},
+    {"TSTP", SIGTSTP},
+    {"TTIN", SIGTTIN},
+    {"TTOU", SIGTTOU},
+    {"URG", SIGURG},
+    {"XCPU", SIGXCPU},
+    {"XFSZ", SIGXFSZ},
+    {"VTALRM", SIGVTALRM},
+    {"PROF", SIGPROF},
+    {"WINCH", SIGWINCH},
+    {"IO", SIGIO},
+    {"SYS", SIGSYS},
     // POSIX special signals
-    {"EXIT", 0},           // EXIT signal (executed on shell exit)
-    {"ERR", -2},           // ERR signal (executed on command error) 
-    {"DEBUG", -3},         // DEBUG signal (executed before each command)
-    {"RETURN", -4}         // RETURN signal (executed on function return)
+    {"EXIT", 0},    // EXIT signal (executed on shell exit)
+    {"ERR", -2},    // ERR signal (executed on command error)
+    {"DEBUG", -3},  // DEBUG signal (executed before each command)
+    {"RETURN", -4}  // RETURN signal (executed on function return)
 };
 
 // Reverse mapping for signal number to name
@@ -126,7 +145,7 @@ void TrapManager::execute_exit_trap() {
     return;  // Already executed, don't run again
   }
   exit_trap_executed = true;
-  
+
   auto it = traps.find(0);  // EXIT signal is 0
   if (it != traps.end() && shell_ref) {
     if (g_debug_mode) {
@@ -211,12 +230,16 @@ int signal_name_to_number(const std::string& signal_name) {
 std::string signal_number_to_name(int signal_number) {
   // Handle special POSIX signals
   switch (signal_number) {
-    case 0: return "EXIT";
-    case -2: return "ERR";
-    case -3: return "DEBUG";
-    case -4: return "RETURN";
+    case 0:
+      return "EXIT";
+    case -2:
+      return "ERR";
+    case -3:
+      return "DEBUG";
+    case -4:
+      return "RETURN";
   }
-  
+
   init_reverse_signal_map();
   auto it = reverse_signal_map.find(signal_number);
   return it != reverse_signal_map.end() ? it->second

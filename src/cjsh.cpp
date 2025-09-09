@@ -6,8 +6,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -24,6 +24,31 @@
 #include "shell.h"
 #include "trap_command.h"
 #include "usage.h"
+
+// Global variable definitions
+std::string pre_release_line;
+bool g_debug_mode = false;
+bool g_title_line = true;
+struct termios g_original_termios;
+bool g_terminal_state_saved = false;
+int g_shell_terminal = 0;
+pid_t g_shell_pgid = 0;
+struct termios g_shell_tmodes;
+bool g_job_control_enabled = false;
+bool g_exit_flag = false;
+std::string g_cached_version = "";
+std::string g_current_theme = "";
+std::string title_line = " CJ's Shell v" + c_version +
+                         (PRE_RELEASE ? pre_release_line : "") +
+                         " - Caden J Finley (c) 2025";
+std::string created_line = " Created 2025 @ " + c_title_color +
+                           "Abilene Christian University" + c_reset_color;
+Ai* g_ai = nullptr;
+bool g_startup_active = true;
+std::unique_ptr<Shell> g_shell = nullptr;
+Theme* g_theme = nullptr;
+Plugin* g_plugin = nullptr;
+std::vector<std::string> g_startup_args;
 
 namespace config {
 bool login_mode = false;
@@ -256,20 +281,20 @@ int main(int argc, char* argv[]) {
 
     // The preprocessing is now handled in the parser layer
     int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
-    
+
     // Check if an exit code was set by the exit command
     const char* exit_code_str = getenv("EXIT_CODE");
     if (exit_code_str) {
       code = std::atoi(exit_code_str);
       unsetenv("EXIT_CODE");
     }
-    
+
     // Execute EXIT trap before resetting shell for -c commands
     if (g_shell) {
       TrapManager::instance().set_shell(g_shell.get());
       TrapManager::instance().execute_exit_trap();
     }
-    
+
     g_shell.reset();
     return code;
   }
@@ -315,14 +340,14 @@ int main(int argc, char* argv[]) {
         }
       }
       int code = g_shell ? g_shell->execute(script_content) : 1;
-      
+
       // Check if an exit code was set by the exit command
       const char* exit_code_str = getenv("EXIT_CODE");
       if (exit_code_str) {
         code = std::atoi(exit_code_str);
         unsetenv("EXIT_CODE");
       }
-      
+
       g_shell.reset();
       return code;
     }
@@ -433,7 +458,7 @@ int main(int argc, char* argv[]) {
   std::cout << "Cleaning up resources..." << std::endl;
   cleanup_resources();
   std::cout << "Shutdown complete." << std::endl;
-  
+
   // Check if an exit code was set by the exit command
   const char* exit_code_str = getenv("EXIT_CODE");
   int exit_code = 0;
@@ -441,7 +466,7 @@ int main(int argc, char* argv[]) {
     exit_code = std::atoi(exit_code_str);
     unsetenv("EXIT_CODE");
   }
-  
+
   return exit_code;
 }
 
@@ -587,12 +612,12 @@ void emergency_cleanup() {
   if (g_debug_mode) {
     std::cerr << "DEBUG: Emergency cleanup triggered" << std::endl;
   }
-  
+
   // Reset global pointers to prevent segfaults during destruction
   g_ai = nullptr;
   g_theme = nullptr;
   g_plugin = nullptr;
-  
+
   // The smart pointers will clean themselves up during program termination
 }
 
@@ -821,91 +846,6 @@ bool init_interactive_filesystem() {
   return true;
 }
 
-void apply_profile_startup_args() {
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Applying startup args from profile" << std::endl;
-
-  // We process g_startup_args to apply the effects of the flags
-  // This function applies the effects of flags, without changing g_startup_args
-  // which is important for restart to work correctly
-
-  for (const auto& arg : g_startup_args) {
-    // Skip if not a proper flag format
-    if (arg.size() < 2 || arg[0] != '-' || arg[1] != '-') {
-      continue;
-    }
-
-    // Process the flag (removing any comments)
-    std::string flag = arg;
-    size_t comment_pos = flag.find('#');
-    if (comment_pos != std::string::npos) {
-      flag = flag.substr(0, comment_pos);
-      flag.erase(flag.find_last_not_of(" \t\n\r\f\v") + 1);
-    }
-
-    // Extract just the flag portion (in case there are other spaces or
-    // characters)
-    size_t space_pos = flag.find(' ');
-    if (space_pos != std::string::npos) {
-      flag = flag.substr(0, space_pos);
-    }
-
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Processing startup arg: " << flag << std::endl;
-
-    // Apply the appropriate setting based on the flag
-    if (flag == "--login") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Enabling login mode from profile" << std::endl;
-      config::login_mode = true;
-    } else if (flag == "--interactive") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Forcing interactive mode from profile" << std::endl;
-      config::force_interactive = true;
-    } else if (flag == "--debug") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Enabling debug mode from profile" << std::endl;
-      g_debug_mode = true;
-    } else if (flag == "--no-plugins") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Disabling plugins from profile" << std::endl;
-      config::plugins_enabled = false;
-    } else if (flag == "--no-themes") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Disabling themes from profile" << std::endl;
-      config::themes_enabled = false;
-    } else if (flag == "--no-ai") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Disabling AI from profile" << std::endl;
-      config::ai_enabled = false;
-    } else if (flag == "--no-colors") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Disabling colors from profile" << std::endl;
-      config::colors_enabled = false;
-    } else if (flag == "--no-titleline") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Disabling title line from profile" << std::endl;
-      g_title_line = false;
-    } else if (flag == "--no-source") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Disabling source file from profile" << std::endl;
-      config::source_enabled = false;
-    } else if (flag == "--debug") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Enabling debug mode from profile" << std::endl;
-      g_debug_mode = true;
-    } else if (flag == "--startup-test") {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Enabling startup test mode from profile" << std::endl;
-      config::startup_test = true;
-    } else {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Unknown startup arg in profile: " << flag
-                  << std::endl;
-    }
-  }
-}
-
 void process_profile_file() {
   // sourcing if in login shell
   if (g_debug_mode)
@@ -925,24 +865,14 @@ void process_profile_file() {
                 << std::endl;
     g_shell->execute("source " + user_profile.string());
   }
-  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
-    create_profile_file();
-    return;
-  }
-
   // Source the profile file normally
   if (g_debug_mode)
-    std::cerr << "DEBUG: Sourcing profile file: " << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
-  // this will also need to be able to set conditional flags for the shell
+    std::cerr << "DEBUG: Sourcing profile file: "
+              << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
   g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
 }
 
 void process_source_file() {
-  // processed if in interactive shell
-  if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path)) {
-    create_source_file();
-    return;
-  }
   g_shell->execute("source " + cjsh_filesystem::g_cjsh_source_path.string());
 }
 
@@ -952,31 +882,40 @@ void create_profile_file() {
     profile_file << "# cjsh Configuration File\n";
     profile_file << "# this file is sourced when the shell starts in login "
                     "mode and is sourced after /etc/profile and ~/.profile\n";
-    profile_file << "# this file supports full shell scripting including conditional logic\n";
-    profile_file << "# Use the 'startup-flag' builtin command to set startup flags conditionally\n";
+    profile_file << "# this file supports full shell scripting including "
+                    "conditional logic\n";
+    profile_file << "# Use the 'login-startup-arg' builtin command to set "
+                    "startup flags conditionally\n";
     profile_file << "\n";
-    profile_file << "# Example: Conditional startup flags based on environment\n";
+    profile_file
+        << "# Example: Conditional startup flags based on environment\n";
     profile_file << "# if test -n \"$TMUX\"; then\n";
     profile_file << "#     echo \"In tmux session, no flags required\"\n";
     profile_file << "# else\n";
-    profile_file << "#     startup-flag --no-plugins\n";
-    profile_file << "#     startup-flag --no-themes\n";
-    profile_file << "#     startup-flag --no-ai\n";
-    profile_file << "#     startup-flag --no-colors\n";
-    profile_file << "#     startup-flag --no-titleline\n";
+    profile_file << "#     login-startup-arg --no-plugins\n";
+    profile_file << "#     login-startup-arg --no-themes\n";
+    profile_file << "#     login-startup-arg --no-ai\n";
+    profile_file << "#     login-startup-arg --no-colors\n";
+    profile_file << "#     login-startup-arg --no-titleline\n";
     profile_file << "# fi\n";
     profile_file << "\n";
     profile_file << "# Available startup flags:\n";
-    profile_file << "# startup-flag --login         # Enable login mode\n";
-    profile_file << "# startup-flag --interactive   # Force interactive mode\n";
-    profile_file << "# startup-flag --debug         # Enable debug mode\n";
-    profile_file << "# startup-flag --no-plugins    # Disable plugins\n";
-    profile_file << "# startup-flag --no-themes     # Disable themes\n";
-    profile_file << "# startup-flag --no-ai         # Disable AI features\n";
-    profile_file << "# startup-flag --no-colors     # Disable colorized output\n";
-    profile_file << "# startup-flag --no-titleline  # Disable title line\n";
-    profile_file << "# startup-flag --no-source     # Don't source the .cjshrc file\n";
-    profile_file << "# startup-flag --startup-test  # Enable startup test mode\n";
+    profile_file << "# login-startup-arg --login         # Enable login mode\n";
+    profile_file
+        << "# login-startup-arg --interactive   # Force interactive mode\n";
+    profile_file << "# login-startup-arg --debug         # Enable debug mode\n";
+    profile_file << "# login-startup-arg --no-plugins    # Disable plugins\n";
+    profile_file << "# login-startup-arg --no-themes     # Disable themes\n";
+    profile_file
+        << "# login-startup-arg --no-ai         # Disable AI features\n";
+    profile_file
+        << "# login-startup-arg --no-colors     # Disable colorized output\n";
+    profile_file
+        << "# login-startup-arg --no-titleline  # Disable title line\n";
+    profile_file << "# login-startup-arg --no-source     # Don't source the "
+                    ".cjshrc file\n";
+    profile_file
+        << "# login-startup-arg --startup-test  # Enable startup test mode\n";
     profile_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
@@ -1004,54 +943,4 @@ void create_source_file() {
   } else {
     std::cerr << "cjsh: Failed to create the source file." << std::endl;
   }
-}
-
-bool is_parent_process_alive() {
-  pid_t ppid = getppid();
-  return ppid != 1;
-}
-
-std::string get_current_time_string() {
-  std::time_t now = std::time(nullptr);
-  std::tm* now_tm = std::localtime(&now);
-  char buffer[100];
-  std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", now_tm);
-  return std::string(buffer);
-}
-
-std::string get_colorized_splash() {
-  std::vector<std::string> splash_lines = {
-      "   ______       __   _____    __  __",
-      "  / ____/      / /  / ___/   / / / /",
-      " / /      __  / /   \\__ \\   / /_/ / ",
-      "/ /___   / /_/ /   ___/ /  / __  /  ",
-      "\\____/   \\____/   /____/  /_/ /_/   ",
-      "  CJ's Shell v" + c_version};
-
-  std::string colorized_splash;
-  if (colors::g_color_capability == colors::ColorCapability::NO_COLOR) {
-    for (const auto& line : splash_lines) {
-      colorized_splash += line + "\n";
-    }
-    return colorized_splash;
-  }
-  std::vector<std::pair<colors::RGB, colors::RGB>> line_gradients = {
-      {colors::RGB(255, 0, 127), colors::RGB(0, 255, 255)},  // Pink to Cyan
-      {colors::RGB(0, 255, 255), colors::RGB(255, 0, 255)},  // Cyan to Magenta
-      {colors::RGB(255, 0, 255),
-       colors::RGB(255, 255, 0)},  // Magenta to Yellow
-      {colors::RGB(255, 255, 0), colors::RGB(0, 127, 255)},  // Yellow to Azure
-      {colors::RGB(0, 127, 255), colors::RGB(255, 0, 127)},  // Azure to Pink
-      {colors::RGB(255, 128, 0),
-       colors::RGB(0, 255, 128)}  // Orange to Spring Green
-  };
-
-  for (size_t i = 0; i < splash_lines.size(); i++) {
-    colorized_splash +=
-        colors::gradient_text(splash_lines[i], line_gradients[i].first,
-                              line_gradients[i].second) +
-        "\n";
-  }
-
-  return colorized_splash;
 }

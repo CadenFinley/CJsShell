@@ -21,7 +21,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
     std::cerr << "  --no-ai          Disable AI features" << std::endl;
     std::cerr << "  --no-colors      Disable colors" << std::endl;
     std::cerr << "  --no-titleline   Disable title line" << std::endl;
-    std::cerr << "  --no-source      Disable source file processing" << std::endl;
+    std::cerr << "  --no-source      Disable source file processing"
+              << std::endl;
     std::cerr << "  --startup-test   Enable startup test mode" << std::endl;
     return 1;
   }
@@ -35,9 +36,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
   // Validate the flag
   if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
       flag == "--no-plugins" || flag == "--no-themes" || flag == "--no-ai" ||
-      flag == "--no-colors" || flag == "--no-titleline" || flag == "--no-source" ||
-      flag == "--startup-test") {
-    
+      flag == "--no-colors" || flag == "--no-titleline" ||
+      flag == "--no-source" || flag == "--startup-test") {
     // Check if the flag is already in g_startup_args
     bool flag_exists = false;
     for (const auto& existing_flag : g_startup_args) {
@@ -46,15 +46,17 @@ int startup_flag_command(const std::vector<std::string>& args) {
         break;
       }
     }
-    
+
     // Only add the flag if it's not already present
     if (!flag_exists) {
       g_startup_args.push_back(flag);
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Added '" << flag << "' to startup args" << std::endl;
+        std::cerr << "DEBUG: Added '" << flag << "' to startup args"
+                  << std::endl;
       }
     } else if (g_debug_mode) {
-      std::cerr << "DEBUG: Flag '" << flag << "' already exists in startup args" << std::endl;
+      std::cerr << "DEBUG: Flag '" << flag << "' already exists in startup args"
+                << std::endl;
     }
   } else {
     std::cerr << "startup-flag: unknown flag '" << flag << "'" << std::endl;

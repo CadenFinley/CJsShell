@@ -248,7 +248,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
       // Only exit if signal is not being observed
       if (!is_observed) {
         if (g_debug_mode)
-          std::cerr << "DEBUG: SIGHUP handler executed, setting exit flag" << std::endl;
+          std::cerr << "DEBUG: SIGHUP handler executed, setting exit flag"
+                    << std::endl;
         g_exit_flag = true;
       }
       break;
@@ -259,7 +260,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
       // Only exit if signal is not being observed
       if (!is_observed) {
         if (g_debug_mode)
-          std::cerr << "DEBUG: SIGTERM handler executed, setting exit flag" << std::endl;
+          std::cerr << "DEBUG: SIGTERM handler executed, setting exit flag"
+                    << std::endl;
         g_exit_flag = true;
       }
       break;

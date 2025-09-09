@@ -33,6 +33,7 @@
 #include "restart_command.h"
 #include "set_command.h"
 #include "source_command.h"
+#include "startup_flag_command.h"
 #include "test_command.h"
 #include "theme_command.h"
 #include "times_command.h"
@@ -41,7 +42,6 @@
 #include "umask_command.h"
 #include "uninstall_command.h"
 #include "version_command.h"
-#include "startup_flag_command.h"
 
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
