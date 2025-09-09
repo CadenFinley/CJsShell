@@ -79,29 +79,29 @@ std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
 
 void JobManager::update_job_status() {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: JobManager::update_job_status() called with " 
+    std::cerr << "DEBUG: JobManager::update_job_status() called with "
               << jobs.size() << " jobs" << std::endl;
   }
-  
+
   for (auto& pair : jobs) {
     auto job = pair.second;
-    
+
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Checking job " << job->job_id 
-                << " with " << job->pids.size() << " PIDs" << std::endl;
+      std::cerr << "DEBUG: Checking job " << job->job_id << " with "
+                << job->pids.size() << " PIDs" << std::endl;
     }
-    
+
     int status;
     for (pid_t pid : job->pids) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: Calling waitpid for PID " << pid << std::endl;
       }
-      
+
       pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
 
       if (g_debug_mode) {
-        std::cerr << "DEBUG: waitpid returned " << result 
-                  << " for PID " << pid << std::endl;
+        std::cerr << "DEBUG: waitpid returned " << result << " for PID " << pid
+                  << std::endl;
       }
 
       if (result > 0) {
@@ -110,35 +110,36 @@ void JobManager::update_job_status() {
               WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED;
           job->exit_status =
               WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
-              
+
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Job " << job->job_id 
-                      << " PID " << pid << " finished" << std::endl;
+            std::cerr << "DEBUG: Job " << job->job_id << " PID " << pid
+                      << " finished" << std::endl;
           }
         } else if (WIFSTOPPED(status)) {
           job->state = JobState::STOPPED;
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Job " << job->job_id 
-                      << " PID " << pid << " stopped" << std::endl;
+            std::cerr << "DEBUG: Job " << job->job_id << " PID " << pid
+                      << " stopped" << std::endl;
           }
         } else if (WIFCONTINUED(status)) {
           job->state = JobState::RUNNING;
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Job " << job->job_id 
-                      << " PID " << pid << " continued" << std::endl;
+            std::cerr << "DEBUG: Job " << job->job_id << " PID " << pid
+                      << " continued" << std::endl;
           }
         }
       } else if (result == -1) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: waitpid error for PID " << pid 
-                    << ": " << strerror(errno) << std::endl;
+          std::cerr << "DEBUG: waitpid error for PID " << pid << ": "
+                    << strerror(errno) << std::endl;
         }
       }
     }
   }
-  
+
   if (g_debug_mode) {
-    std::cerr << "DEBUG: JobManager::update_job_status() completed" << std::endl;
+    std::cerr << "DEBUG: JobManager::update_job_status() completed"
+              << std::endl;
   }
 }
 

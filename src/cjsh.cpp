@@ -50,6 +50,25 @@ std::unique_ptr<Theme> g_theme = nullptr;
 std::unique_ptr<Plugin> g_plugin = nullptr;
 std::vector<std::string> g_startup_args;
 
+static int parse_command_line_arguments(int argc, char* argv[],
+                                        std::string& script_file);
+static int handle_early_exit_modes();
+static int handle_non_interactive_mode(const std::string& script_file);
+static int initialize_interactive_components();
+static void detect_login_mode(char* argv[]);
+static void save_startup_arguments(int argc, char* argv[]);
+static void main_process_loop();
+static bool init_login_filesystem();
+static bool init_interactive_filesystem();
+static void notify_plugins(std::string trigger, std::string data);
+static void process_source_file();
+static void process_profile_file();
+static void apply_profile_startup_flags();
+static void create_profile_file();
+static void create_source_file();
+static void setup_environment_variables();
+static void initialize_shell_environment();
+
 namespace config {
 bool login_mode = false;
 bool interactive_mode = true;
@@ -86,14 +105,6 @@ bool startup_test = false;
  * 143     - Process terminated (SIGTERM)
  * 255     - Exit status out of range
  */
-
-// Forward declarations for refactored functions
-static int parse_command_line_arguments(int argc, char* argv[], std::string& script_file);
-static int handle_early_exit_modes();
-static int handle_non_interactive_mode(const std::string& script_file);
-static int initialize_interactive_components();
-static void detect_login_mode(char* argv[]);
-static void save_startup_arguments(int argc, char* argv[]);
 
 int main(int argc, char* argv[]) {
   // Detect login mode from argv[0]
@@ -191,7 +202,8 @@ static void detect_login_mode(char* argv[]) {
   }
 }
 
-static int parse_command_line_arguments(int argc, char* argv[], std::string& script_file) {
+static int parse_command_line_arguments(int argc, char* argv[],
+                                        std::string& script_file) {
   static struct option long_options[] = {{"login", no_argument, 0, 'l'},
                                          {"interactive", no_argument, 0, 'i'},
                                          {"debug", no_argument, 0, 'd'},
@@ -328,14 +340,14 @@ static int handle_early_exit_modes() {
     std::cout << c_version << (PRE_RELEASE ? "-PRERELEASE" : "") << std::endl;
     g_shell.reset();
     return 0;
-  } 
-  
+  }
+
   if (config::show_help) {  // -h --help
     print_usage();
     g_shell.reset();
     return 0;
-  } 
-  
+  }
+
   if (config::execute_command) {  // -c --command
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing -c via Shell::execute: "
@@ -361,7 +373,7 @@ static int handle_early_exit_modes() {
     return code;
   }
 
-  return -1; // Continue execution
+  return -1;  // Continue execution
 }
 
 static int handle_non_interactive_mode(const std::string& script_file) {
@@ -424,7 +436,7 @@ static int handle_non_interactive_mode(const std::string& script_file) {
 static int initialize_interactive_components() {
   // Set interactive mode
   g_shell->set_interactive_mode(true);
-  
+
   if (!init_interactive_filesystem()) {
     std::cerr << "Error: Failed to initialize or verify file system or files "
                  "within the file system."
@@ -432,7 +444,7 @@ static int initialize_interactive_components() {
     g_shell.reset();
     return 1;
   }
-  
+
   g_shell->setup_interactive_handlers();
 
   // Initialize colors module
@@ -508,7 +520,7 @@ static int initialize_interactive_components() {
   return 0;
 }
 
-void update_terminal_title() {
+static void update_terminal_title() {
   if (g_debug_mode) {
     std::cout << "\033]0;" << "<<<DEBUG MODE ENABLED>>>" << "\007";
     std::cout.flush();
@@ -539,7 +551,7 @@ void reprint_prompt() {
   ic_print_prompt(prompt.c_str(), false);
 }
 
-void main_process_loop() {
+static void main_process_loop() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Entering main process loop" << std::endl;
   notify_plugins("main_process_pre_run", c_pid_str);
@@ -558,11 +570,13 @@ void main_process_loop() {
 
     // Update job status and clean up finished jobs
     if (g_debug_mode)
-      std::cerr << "DEBUG: Calling JobManager::update_job_status()" << std::endl;
+      std::cerr << "DEBUG: Calling JobManager::update_job_status()"
+                << std::endl;
     JobManager::instance().update_job_status();
-    
+
     if (g_debug_mode)
-      std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()" << std::endl;
+      std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()"
+                << std::endl;
     JobManager::instance().cleanup_finished_jobs();
 
     if (g_debug_mode)
@@ -584,7 +598,8 @@ void main_process_loop() {
     }
 
     if (g_debug_mode)
-      std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt << "'" << std::endl;
+      std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt
+                << "'" << std::endl;
     char* input = ic_readline(prompt.c_str());
     if (g_debug_mode)
       std::cerr << "DEBUG: ic_readline returned" << std::endl;
@@ -637,7 +652,7 @@ void main_process_loop() {
   }
 }
 
-void notify_plugins(std::string trigger, std::string data) {
+static void notify_plugins(std::string trigger, std::string data) {
   // notify all enabled plugins of the event with data
   if (g_plugin == nullptr) {
     if (g_debug_mode)
@@ -691,12 +706,12 @@ void cleanup_resources() {
   if (g_debug_mode) {
     std::cerr << "DEBUG: Cleanup complete." << std::endl;
   }
-  if(config::interactive_mode) {
+  if (config::interactive_mode) {
     std::cout << "Shutdown complete." << std::endl;
   }
 }
 
-bool init_login_filesystem() {
+static bool init_login_filesystem() {
   // verify and create if needed the cjsh login filesystem
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
@@ -720,7 +735,7 @@ bool init_login_filesystem() {
   return true;
 }
 
-void setup_environment_variables() {
+static void setup_environment_variables() {
   // setup essential environment variables for the shell session
   if (g_debug_mode)
     std::cerr << "DEBUG: Setting up environment variables" << std::endl;
@@ -812,7 +827,7 @@ void setup_environment_variables() {
   }
 }
 
-void initialize_shell_environment() {
+static void initialize_shell_environment() {
   if (g_debug_mode) {
     std::cerr << "DEBUG: Initializing shell environment" << std::endl;
   }
@@ -825,7 +840,7 @@ void initialize_shell_environment() {
   g_job_control_enabled = g_shell->is_job_control_enabled();
 }
 
-bool init_interactive_filesystem() {
+static bool init_interactive_filesystem() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
 
@@ -885,7 +900,7 @@ bool init_interactive_filesystem() {
   return true;
 }
 
-void process_profile_file() {
+static void process_profile_file() {
   // sourcing if in login shell
   if (g_debug_mode)
     std::cerr << "DEBUG: Processing profile files" << std::endl;
@@ -911,15 +926,15 @@ void process_profile_file() {
   g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
 }
 
-void apply_profile_startup_flags() {
+static void apply_profile_startup_flags() {
   // Apply startup flags that were collected during profile processing
   if (g_debug_mode)
     std::cerr << "DEBUG: Applying profile startup flags" << std::endl;
-  
+
   for (const std::string& flag : g_startup_args) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Processing startup flag: " << flag << std::endl;
-    
+
     if (flag == "--debug") {
       g_debug_mode = true;
       if (g_debug_mode)
@@ -951,7 +966,8 @@ void apply_profile_startup_flags() {
     } else if (flag == "--startup-test") {
       config::startup_test = true;
       if (g_debug_mode)
-        std::cerr << "DEBUG: Startup test mode enabled via profile" << std::endl;
+        std::cerr << "DEBUG: Startup test mode enabled via profile"
+                  << std::endl;
     } else if (flag == "--interactive") {
       config::force_interactive = true;
       if (g_debug_mode)
@@ -959,16 +975,18 @@ void apply_profile_startup_flags() {
     } else if (flag == "--login") {
       // Login mode is already set during initial argument processing
       if (g_debug_mode)
-        std::cerr << "DEBUG: Login mode flag found in profile (already processed)" << std::endl;
+        std::cerr
+            << "DEBUG: Login mode flag found in profile (already processed)"
+            << std::endl;
     }
   }
 }
 
-void process_source_file() {
+static void process_source_file() {
   g_shell->execute("source " + cjsh_filesystem::g_cjsh_source_path.string());
 }
 
-void create_profile_file() {
+static void create_profile_file() {
   std::ofstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
   if (profile_file.is_open()) {
     profile_file << "# cjsh Configuration File\n";
@@ -1014,7 +1032,7 @@ void create_profile_file() {
   }
 }
 
-void create_source_file() {
+static void create_source_file() {
   std::ofstream source_file(cjsh_filesystem::g_cjsh_source_path);
   if (source_file.is_open()) {
     source_file << "# cjsh Source File\n";
