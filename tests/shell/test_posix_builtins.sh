@@ -266,7 +266,7 @@ wait $! 2>/dev/null
 if [ $? -eq 0 ] || [ $? -eq 143 ]; then  # 143 is SIGTERM exit code
     pass
 else
-    fail "read builtin not available"
+    fail "read builtin failed. expected exit code 0 or 143, got $?"
 fi
 
 # Test 23: readonly builtin
