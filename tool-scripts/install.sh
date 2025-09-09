@@ -130,19 +130,11 @@ main() {
     print_section "Installation Process"
     echo -e "  ${BLUE}${ARROW}${NC} Installing to: ${BRIGHT_BLUE}${target}${NC}"
     
-    # Copy executable with progress indication
-    if sudo cp "$executable_path" "$target" 2>/dev/null; then
-        print_status "Binary copied successfully"
+    # Install executable with proper attributes
+    if sudo install -m 755 "$executable_path" "$target" 2>/dev/null; then
+        print_status "Binary installed successfully"
     else
-        print_error "Failed to copy binary"
-        exit 1
-    fi
-    
-    # Set permissions
-    if sudo chmod +x "$target" 2>/dev/null; then
-        print_status "Executable permissions set"
-    else
-        print_error "Failed to set permissions"
+        print_error "Failed to install binary"
         exit 1
     fi
     
