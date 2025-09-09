@@ -121,6 +121,24 @@ std::string format_size_human_readable(uintmax_t size) {
   return result.str();
 }
 
+uintmax_t calculate_directory_size(const std::filesystem::path& dir_path) {
+  uintmax_t size = 0;
+  try {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(dir_path)) {
+      if (entry.is_regular_file()) {
+        try {
+          size += std::filesystem::file_size(entry);
+        } catch (...) {
+          // Ignore files we can't access
+        }
+      }
+    }
+  } catch (...) {
+    // Ignore directories we can't access
+  }
+  return size;
+}
+
 std::string format_size(uintmax_t size, bool human_readable) {
   if (human_readable) {
     return format_size_human_readable(size);
@@ -142,6 +160,18 @@ int list_directory(const std::string& path, bool show_hidden, bool long_format,
                    bool show_inode, int level) {
   try {
     std::vector<std::filesystem::directory_entry> entries;
+    
+    // Add . and .. entries when showing hidden files
+    if (show_hidden) {
+      // Add current directory (.)
+      std::filesystem::path current_path = std::filesystem::absolute(path);
+      entries.emplace_back(current_path);
+      
+      // Add parent directory (..)
+      std::filesystem::path parent_path = current_path.parent_path();
+      entries.emplace_back(parent_path);
+    }
+    
     for (const auto& entry : std::filesystem::directory_iterator(path)) {
       if (!show_hidden && entry.path().filename().string()[0] == '.') {
         continue;
@@ -215,6 +245,15 @@ int list_directory(const std::string& path, bool show_hidden, bool long_format,
 
     for (const auto& entry : entries) {
       std::string name = entry.path().filename().string();
+      
+      // Handle special cases for . and .. directories
+      std::filesystem::path current_path = std::filesystem::absolute(path);
+      if (show_hidden && entry.path() == current_path) {
+        name = ".";
+      } else if (show_hidden && entry.path() == current_path.parent_path()) {
+        name = "..";
+      }
+      
       std::string type;
       std::string color;
 
@@ -259,6 +298,13 @@ int list_directory(const std::string& path, bool show_hidden, bool long_format,
       if (std::filesystem::is_regular_file(entry)) {
         try {
           uintmax_t size = std::filesystem::file_size(entry);
+          size_str = format_size(size, human_readable);
+        } catch (...) {
+          size_str = "???";
+        }
+      } else if (std::filesystem::is_directory(entry)) {
+        try {
+          uintmax_t size = calculate_directory_size(entry.path());
           size_str = format_size(size, human_readable);
         } catch (...) {
           size_str = "???";
