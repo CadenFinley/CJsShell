@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <cstring>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -62,6 +63,54 @@ bool startup_test = false;
  * 255     - Exit status out of range
  */
 
+void emergency_cleanup() {
+  // This function is called during emergency exits (like atexit())
+  // We can only do minimal cleanup here
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Emergency cleanup triggered" << std::endl;
+  }
+  
+  // Reset global pointers to prevent segfaults during destruction
+  g_ai = nullptr;
+  g_theme = nullptr;
+  g_plugin = nullptr;
+  
+  // The smart pointers will clean themselves up during program termination
+}
+
+void cleanup_resources() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
+  }
+
+  // Notify plugins of shutdown event
+  notify_plugins("shell_shutdown", c_pid_str);
+
+  // Only cleanup AI if it was initialized
+  if (g_ai) {
+    g_ai = nullptr;
+  }
+
+  // Only cleanup Theme if it was initialized
+  if (g_theme) {
+    g_theme = nullptr;
+  }
+
+  // Only cleanup Plugin if it was initialized
+  if (g_plugin) {
+    g_plugin = nullptr;
+  }
+
+  // Reset the shell last (this will clean up any additional resources)
+  if (g_shell) {
+    g_shell.reset();
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Cleanup complete." << std::endl;
+  }
+}
+
 int main(int argc, char* argv[]) {
   // Check if started as a login shell -cjsh
   if (argv && argv[0] && argv[0][0] == '-') {
@@ -73,6 +122,9 @@ int main(int argc, char* argv[]) {
 
   // Initialize directories (creates all necessary directories)
   cjsh_filesystem::initialize_cjsh_directories();
+
+  // Register emergency cleanup function for unexpected exits
+  std::atexit(emergency_cleanup);
 
   // Setup long options
   static struct option long_options[] = {{"login", no_argument, 0, 'l'},
@@ -253,6 +305,14 @@ int main(int argc, char* argv[]) {
 
     // The preprocessing is now handled in the parser layer
     int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
+    
+    // Check if an exit code was set by the exit command
+    const char* exit_code_str = getenv("EXIT_CODE");
+    if (exit_code_str) {
+      code = std::atoi(exit_code_str);
+      unsetenv("EXIT_CODE");
+    }
+    
     g_shell.reset();
     return code;
   }
@@ -298,6 +358,14 @@ int main(int argc, char* argv[]) {
         }
       }
       int code = g_shell ? g_shell->execute(script_content) : 1;
+      
+      // Check if an exit code was set by the exit command
+      const char* exit_code_str = getenv("EXIT_CODE");
+      if (exit_code_str) {
+        code = std::atoi(exit_code_str);
+        unsetenv("EXIT_CODE");
+      }
+      
       g_shell.reset();
       return code;
     }
@@ -424,29 +492,18 @@ int main(int argc, char* argv[]) {
   }
 
   std::cout << "Cleaning up resources..." << std::endl;
-
-  // Only cleanup AI if it was initialized
-  if (ai) {
-    g_ai = nullptr;
-    ai.reset();
-  }
-
-  // Only cleanup Theme if it was initialized
-  if (theme) {
-    g_theme = nullptr;
-    theme.reset();
-  }
-
-  // Only cleanup Plugin if it was initialized
-  if (plugin) {
-    g_plugin = nullptr;
-    plugin.reset();
-  }
-
-  g_shell.reset();
-
+  cleanup_resources();
   std::cout << "Cleanup complete." << std::endl;
-  return 0;
+  
+  // Check if an exit code was set by the exit command
+  const char* exit_code_str = getenv("EXIT_CODE");
+  int exit_code = 0;
+  if (exit_code_str) {
+    exit_code = std::atoi(exit_code_str);
+    unsetenv("EXIT_CODE");
+  }
+  
+  return exit_code;
 }
 
 void update_terminal_title() {
@@ -550,7 +607,12 @@ void main_process_loop() {
         break;
       }
     } else {
-      continue;
+      // EOF received (Ctrl+D or end of input)
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: EOF received, setting exit flag" << std::endl;
+      }
+      g_exit_flag = true;
+      break;
     }
     notify_plugins("main_process_end", c_pid_str);
     if (g_exit_flag) {
