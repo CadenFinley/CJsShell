@@ -99,8 +99,8 @@ int main(int argc, char* argv[]) {
   // Initialize directories (creates all necessary directories)
   cjsh_filesystem::initialize_cjsh_directories();
 
-  // Register emergency cleanup function for unexpected exits
-  std::atexit(emergency_cleanup);
+  // Register cleanup function for unexpected exits
+  std::atexit(cleanup_resources);
 
   // Setup long options
   static struct option long_options[] = {{"login", no_argument, 0, 'l'},
@@ -201,7 +201,7 @@ int main(int argc, char* argv[]) {
   }
 
   // create the shell component
-  g_shell = std::make_unique<Shell>(config::login_mode);
+  g_shell = std::make_unique<Shell>();
   // create the shell environment
   initialize_shell_environment();
   setup_environment_variables();
@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
   }
 
   // create the cjsh login environment if needed
-  if (g_shell->get_login_mode()) {
+  if (config::login_mode) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing login environment" << std::endl;
     if (!init_login_filesystem()) {
@@ -457,9 +457,7 @@ int main(int argc, char* argv[]) {
     main_process_loop();
   }
 
-  std::cout << "Cleaning up resources..." << std::endl;
-  cleanup_resources();
-  std::cout << "Shutdown complete." << std::endl;
+  std::cout << "Cleaning up resources." << std::endl;
 
   // Check if an exit code was set by the exit command
   const char* exit_code_str = getenv("EXIT_CODE");
@@ -608,21 +606,6 @@ void notify_plugins(std::string trigger, std::string data) {
   g_plugin->trigger_subscribed_global_event(trigger, data);
 }
 
-void emergency_cleanup() {
-  // This function is called during emergency exits (like atexit())
-  // We can only do minimal cleanup here
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Emergency cleanup triggered" << std::endl;
-  }
-
-  // Reset global pointers to prevent segfaults during destruction
-  g_ai = nullptr;
-  g_theme = nullptr;
-  g_plugin = nullptr;
-
-  // The smart pointers will clean themselves up during program termination
-}
-
 void cleanup_resources() {
   if (g_debug_mode) {
     std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
@@ -656,6 +639,9 @@ void cleanup_resources() {
 
   if (g_debug_mode) {
     std::cerr << "DEBUG: Cleanup complete." << std::endl;
+  }
+  if(config::interactive_mode) {
+    std::cout << "Shutdown complete." << std::endl;
   }
 }
 

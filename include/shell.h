@@ -23,7 +23,7 @@ class ShellScriptInterpreter;
 
 class Shell {
  public:
-  Shell(bool login_mode = false);
+  Shell();
   ~Shell();
 
   // High-level entry: treat any string as a shell script line and execute via
@@ -58,10 +58,6 @@ class Shell {
 
   bool get_interactive_mode() {
     return interactive_mode;
-  }
-
-  bool get_login_mode() {
-    return login_mode;
   }
 
   int get_last_exit_code() const {
@@ -150,7 +146,6 @@ class Shell {
 
  private:
   bool interactive_mode = false;
-  bool login_mode = false;
   bool menu_active = true;
   int shell_terminal;
   pid_t shell_pgid;

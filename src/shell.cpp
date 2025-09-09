@@ -17,10 +17,9 @@ void Shell::process_pending_signals() {
   }
 }
 
-Shell::Shell(bool login_mode) {
+Shell::Shell() {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Constructing Shell, login_mode=" << login_mode
-              << std::endl;
+    std::cerr << "DEBUG: Constructing Shell" << std::endl;
 
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
@@ -37,7 +36,6 @@ Shell::Shell(bool login_mode) {
   }
   built_ins->set_shell(this);
   built_ins->set_current_directory();
-  this->login_mode = login_mode;
 
   shell_terminal = STDIN_FILENO;
 
@@ -51,8 +49,8 @@ Shell::Shell(bool login_mode) {
 }
 
 Shell::~Shell() {
-  if (interactive_mode && g_debug_mode) {
-    std::cerr << "Destroying Shell" << std::endl;
+  if (interactive_mode) {
+    std::cerr << "Destroying Shell." << std::endl;
   }
   delete shell_parser;
   delete built_ins;
@@ -117,8 +115,8 @@ void Shell::save_terminal_state() {
 }
 
 void Shell::restore_terminal_state() {
-  if (interactive_mode && g_debug_mode) {
-    std::cerr << "Restoring terminal state" << std::endl;
+  if (interactive_mode) {
+    std::cerr << "Restoring terminal state." << std::endl;
   }
 
   if (terminal_state_saved) {
