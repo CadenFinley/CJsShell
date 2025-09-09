@@ -23,7 +23,6 @@
 #include "job_control.h"
 #include "shell.h"
 #include "trap_command.h"
-#include "tutorial.h"
 #include "usage.h"
 
 namespace config {
@@ -424,24 +423,6 @@ int main(int argc, char* argv[]) {
   // startup is complete and we enter the main process loop
   g_startup_active = false;
   if (!g_exit_flag && !config::startup_test) {
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_cache_path /
-                                 ".first_boot_complete")) {
-      std::cout << "\n"
-                << get_colorized_splash() << "\nWelcome to CJ's Shell!\n";
-      std::filesystem::path first_boot_flag =
-          cjsh_filesystem::g_cjsh_cache_path / ".first_boot_complete";
-      std::ofstream flag_file(first_boot_flag);
-      flag_file.close();
-      g_title_line = false;
-    }
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_cache_path /
-                                 ".tutorial_complete")) {
-      start_tutorial();
-      std::filesystem::path tutorial_flag =
-          cjsh_filesystem::g_cjsh_cache_path / ".tutorial_complete";
-      std::ofstream flag_file(tutorial_flag);
-      flag_file.close();
-    }
     if (g_title_line) {
       std::cout << title_line << std::endl;
       std::cout << created_line << std::endl;
@@ -451,7 +432,7 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Cleaning up resources..." << std::endl;
   cleanup_resources();
-  std::cout << "Cleanup complete." << std::endl;
+  std::cout << "Shutdown complete." << std::endl;
   
   // Check if an exit code was set by the exit command
   const char* exit_code_str = getenv("EXIT_CODE");
