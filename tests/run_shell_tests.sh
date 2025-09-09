@@ -54,7 +54,7 @@ run_test_category() {
         
         if [ -f "$test_file" ]; then
             # Capture both output and exit code
-            output=$(sh "$test_file" 2>&1)
+            output=$(sh "$test_file" "$CJSH" 2>&1)
             exit_code=$?
             
             # Count subtests within the test file

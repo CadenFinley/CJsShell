@@ -48,7 +48,7 @@ For latest stable patch, you can build and install from a release on GitHub:
 4. Run the install script from the root of the repository:
 
    ```bash
-   ./tool_scripts/install.sh
+   sudo ./tool_scripts/install.sh
    ```
 
 5. Verify that `cjsh` is accessible from anywhere by running:
@@ -60,7 +60,7 @@ For latest stable patch, you can build and install from a release on GitHub:
 
 CJ's Shell includes a comprehensive test suite with over 200 POSIX compliance tests to ensure reliability and standards compliance:
 
-This test can be ran from the root of the repository.
+This test can be ran from the root of the repository, and is recommended to run before setting cjsh as you default login shell.
 
 ```bash
 # Run the complete test suite
