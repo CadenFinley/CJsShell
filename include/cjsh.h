@@ -36,13 +36,13 @@ extern std::string g_cached_version;
 extern std::string g_current_theme;
 extern std::string title_line;
 extern std::string created_line;
-extern Ai* g_ai;
 extern bool g_startup_active;
 
 class Shell;
 extern std::unique_ptr<Shell> g_shell;
-extern Theme* g_theme;
-extern Plugin* g_plugin;
+extern std::unique_ptr<Theme> g_theme;
+extern std::unique_ptr<Ai> g_ai;
+extern std::unique_ptr<Plugin> g_plugin;
 extern std::vector<std::string> g_startup_args;
 
 int main(int argc, char* argv[]);

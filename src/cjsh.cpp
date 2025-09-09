@@ -43,11 +43,11 @@ std::string title_line = " CJ's Shell v" + c_version +
                          " - Caden J Finley (c) 2025";
 std::string created_line = " Created 2025 @ " + c_title_color +
                            "Abilene Christian University" + c_reset_color;
-Ai* g_ai = nullptr;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
-Theme* g_theme = nullptr;
-Plugin* g_plugin = nullptr;
+std::unique_ptr<Ai> g_ai = nullptr;
+std::unique_ptr<Theme> g_theme = nullptr;
+std::unique_ptr<Plugin> g_plugin = nullptr;
 std::vector<std::string> g_startup_args;
 
 namespace config {
@@ -87,22 +87,111 @@ bool startup_test = false;
  * 255     - Exit status out of range
  */
 
+// Forward declarations for refactored functions
+static int parse_command_line_arguments(int argc, char* argv[], std::string& script_file);
+static int handle_early_exit_modes();
+static int handle_non_interactive_mode(const std::string& script_file);
+static int initialize_interactive_components();
+static void detect_login_mode(char* argv[]);
+static void save_startup_arguments(int argc, char* argv[]);
+
 int main(int argc, char* argv[]) {
-  // Check if started as a login shell -cjsh
+  // Detect login mode from argv[0]
+  detect_login_mode(argv);
+
+  // Initialize directories and register cleanup
+  cjsh_filesystem::initialize_cjsh_directories();
+  std::atexit(cleanup_resources);
+
+  // Parse command line arguments
+  std::string script_file;
+  int parse_result = parse_command_line_arguments(argc, argv, script_file);
+  if (parse_result != 0) {
+    return parse_result;
+  }
+
+  // Initialize core shell components
+  g_shell = std::make_unique<Shell>();
+  initialize_shell_environment();
+  setup_environment_variables();
+  save_startup_arguments(argc, argv);
+
+  // Handle login mode initialization
+  if (config::login_mode) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Initializing login environment" << std::endl;
+    if (!init_login_filesystem()) {
+      std::cerr << "Error: Failed to initialize or verify file system or files "
+                   "within the file system."
+                << std::endl;
+      g_shell.reset();
+      return 1;
+    }
+    process_profile_file();
+    apply_profile_startup_flags();
+  }
+
+  // Set shell environment variable
+  if (argv[0]) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
+    setenv("0", argv[0], 1);
+  } else {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
+    setenv("0", "cjsh", 1);
+  }
+
+  // Handle early exit modes (version, help, command execution)
+  int early_exit_result = handle_early_exit_modes();
+  if (early_exit_result >= 0) {
+    return early_exit_result;
+  }
+
+  // Handle non-interactive mode (script files or stdin)
+  if (!config::interactive_mode && !config::force_interactive) {
+    return handle_non_interactive_mode(script_file);
+  }
+
+  // Initialize interactive mode
+  int interactive_result = initialize_interactive_components();
+  if (interactive_result != 0) {
+    return interactive_result;
+  }
+
+  // Enter main process loop
+  g_startup_active = false;
+  if (!g_exit_flag && !config::startup_test) {
+    if (g_title_line) {
+      std::cout << title_line << std::endl;
+      std::cout << created_line << std::endl;
+    }
+    main_process_loop();
+  }
+
+  std::cout << "Cleaning up resources." << std::endl;
+
+  // Check for exit code set by exit command
+  const char* exit_code_str = getenv("EXIT_CODE");
+  int exit_code = 0;
+  if (exit_code_str) {
+    exit_code = std::atoi(exit_code_str);
+    unsetenv("EXIT_CODE");
+  }
+
+  return exit_code;
+}
+
+static void detect_login_mode(char* argv[]) {
   if (argv && argv[0] && argv[0][0] == '-') {
     config::login_mode = true;
     if (g_debug_mode)
       std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0]
                 << std::endl;
   }
+}
 
-  // Initialize directories (creates all necessary directories)
-  cjsh_filesystem::initialize_cjsh_directories();
-
-  // Register cleanup function for unexpected exits
-  std::atexit(cleanup_resources);
-
-  // Setup long options
+static int parse_command_line_arguments(int argc, char* argv[], std::string& script_file) {
   static struct option long_options[] = {{"login", no_argument, 0, 'l'},
                                          {"interactive", no_argument, 0, 'i'},
                                          {"debug", no_argument, 0, 'd'},
@@ -122,7 +211,6 @@ int main(int argc, char* argv[]) {
   int c;
   optind = 1;
 
-  // First, process any profile startup args to ensure they are included
   while ((c = getopt_long(argc, argv, short_options, long_options,
                           &option_index)) != -1) {
     switch (c) {
@@ -200,14 +288,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  // create the shell component
-  g_shell = std::make_unique<Shell>();
-  // create the shell environment
-  initialize_shell_environment();
-  setup_environment_variables();
-
   // Check if there are script files to execute
-  std::string script_file = "";
   if (optind < argc) {
     script_file = argv[optind];
     config::interactive_mode = false;
@@ -223,7 +304,10 @@ int main(int argc, char* argv[]) {
                 << std::endl;
   }
 
-  // load startup args to save for restarts
+  return 0;
+}
+
+static void save_startup_arguments(int argc, char* argv[]) {
   g_startup_args.clear();
   for (int i = 0; i < argc; i++) {
     g_startup_args.push_back(std::string(argv[i]));
@@ -237,51 +321,27 @@ int main(int argc, char* argv[]) {
       std::cerr << "DEBUG:   " << arg << std::endl;
     }
   }
+}
 
-  // create the cjsh login environment if needed
-  if (config::login_mode) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Initializing login environment" << std::endl;
-    if (!init_login_filesystem()) {
-      std::cerr << "Error: Failed to initialize or verify file system or files "
-                   "within the file system."
-                << std::endl;
-      g_shell.reset();
-      return 1;
-    }
-    // create cjsh login environment
-    process_profile_file();
-    // Apply any startup flags set in the profile
-    apply_profile_startup_flags();
-  }
-
-  // set env vars to reflect cjsh being the shell
-  if (argv[0]) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
-    setenv("0", argv[0], 1);
-  } else {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
-    setenv("0", "cjsh", 1);
-  }
-
-  // start processing simple flags
+static int handle_early_exit_modes() {
   if (config::show_version) {  // -v --version
     std::cout << c_version << (PRE_RELEASE ? "-PRERELEASE" : "") << std::endl;
     g_shell.reset();
     return 0;
-  } else if (config::show_help) {  // -h --help
+  } 
+  
+  if (config::show_help) {  // -h --help
     print_usage();
     g_shell.reset();
     return 0;
-  } else if (config::execute_command) {  // -c --command
+  } 
+  
+  if (config::execute_command) {  // -c --command
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing -c via Shell::execute: "
                 << config::cmd_to_execute << std::endl;
     }
 
-    // The preprocessing is now handled in the parser layer
     int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
 
     // Check if an exit code was set by the exit command
@@ -301,67 +361,70 @@ int main(int argc, char* argv[]) {
     return code;
   }
 
-  if (!config::interactive_mode && !config::force_interactive) {
+  return -1; // Continue execution
+}
+
+static int handle_non_interactive_mode(const std::string& script_file) {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
+
+  std::string script_content;
+
+  // If a script file was specified, read it
+  if (!script_file.empty()) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
+      std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
 
-    std::string script_content;
-
-    // If a script file was specified, read it
-    if (!script_file.empty()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
-
-      std::ifstream file(script_file);
-      if (!file.is_open()) {
-        std::cerr << "cjsh: " << script_file << ": No such file or directory"
-                  << std::endl;
-        g_shell.reset();
-        return 127;
-      }
-
-      std::string line;
-      while (std::getline(file, line)) {
-        script_content += line + "\n";
-      }
-      file.close();
-    } else {
-      // Read and execute input from stdin
-      std::string line;
-      while (std::getline(std::cin, line)) {
-        script_content += line + "\n";
-      }
+    std::ifstream file(script_file);
+    if (!file.is_open()) {
+      std::cerr << "cjsh: " << script_file << ": No such file or directory"
+                << std::endl;
+      g_shell.reset();
+      return 127;
     }
 
-    if (!script_content.empty()) {
-      if (g_debug_mode) {
-        if (!script_file.empty()) {
-          std::cerr << "DEBUG: Executing script file content" << std::endl;
-        } else {
-          std::cerr << "DEBUG: Executing piped script content" << std::endl;
-        }
-      }
-      int code = g_shell ? g_shell->execute(script_content) : 1;
+    std::string line;
+    while (std::getline(file, line)) {
+      script_content += line + "\n";
+    }
+    file.close();
+  } else {
+    // Read and execute input from stdin
+    std::string line;
+    while (std::getline(std::cin, line)) {
+      script_content += line + "\n";
+    }
+  }
 
-      // Check if an exit code was set by the exit command
-      const char* exit_code_str = getenv("EXIT_CODE");
-      if (exit_code_str) {
-        code = std::atoi(exit_code_str);
-        unsetenv("EXIT_CODE");
+  if (!script_content.empty()) {
+    if (g_debug_mode) {
+      if (!script_file.empty()) {
+        std::cerr << "DEBUG: Executing script file content" << std::endl;
+      } else {
+        std::cerr << "DEBUG: Executing piped script content" << std::endl;
       }
+    }
+    int code = g_shell ? g_shell->execute(script_content) : 1;
 
-      g_shell.reset();
-      return code;
+    // Check if an exit code was set by the exit command
+    const char* exit_code_str = getenv("EXIT_CODE");
+    if (exit_code_str) {
+      code = std::atoi(exit_code_str);
+      unsetenv("EXIT_CODE");
     }
 
     g_shell.reset();
-    return 0;
+    return code;
   }
 
-  // at this point we have not called any flags or caused any issues to make the
-  // shell close and exit making it non interactive so past this point we are in
-  // interactive mode
+  g_shell.reset();
+  return 0;
+}
+
+static int initialize_interactive_components() {
+  // Set interactive mode
   g_shell->set_interactive_mode(true);
+  
   if (!init_interactive_filesystem()) {
     std::cerr << "Error: Failed to initialize or verify file system or files "
                  "within the file system."
@@ -369,43 +432,39 @@ int main(int argc, char* argv[]) {
     g_shell.reset();
     return 1;
   }
+  
   g_shell->setup_interactive_handlers();
 
-  // create colors module
+  // Initialize colors module
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing colors with enabled="
               << config::colors_enabled << std::endl;
   colors::initialize_color_support(config::colors_enabled);
 
-  // Only create Plugin object if plugins are enabled
-  std::unique_ptr<Plugin> plugin;
+  // Initialize plugins if enabled
   if (config::plugins_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing plugin system with enabled="
                 << config::plugins_enabled << std::endl;
-    plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
-                                      config::plugins_enabled);
-    g_plugin = plugin.get();
+    g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
+                                        config::plugins_enabled);
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: Plugins disabled, skipping initialization"
               << std::endl;
   }
 
-  // Only create Theme object if themes are enabled
-  std::unique_ptr<Theme> theme;
+  // Initialize themes if enabled
   if (config::themes_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing theme system with enabled="
                 << config::themes_enabled << std::endl;
-    theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path,
-                                    config::themes_enabled);
-    g_theme = theme.get();
+    g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path,
+                                      config::themes_enabled);
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: Themes disabled, skipping initialization" << std::endl;
   }
 
-  // Only create Ai object if AI is enabled
-  std::unique_ptr<Ai> ai;
+  // Initialize AI if enabled
   if (config::ai_enabled) {
     std::string api_key = "";
     const char* env_key = getenv("OPENAI_API_KEY");
@@ -416,11 +475,10 @@ int main(int argc, char* argv[]) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing AI with enabled=" << config::ai_enabled
                 << std::endl;
-    ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
-                              std::vector<std::string>{},
-                              cjsh_filesystem::g_cjsh_data_path,
-                              config::ai_enabled);
-    g_ai = ai.get();
+    g_ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
+                                std::vector<std::string>{},
+                                cjsh_filesystem::g_cjsh_data_path,
+                                config::ai_enabled);
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: AI disabled, skipping initialization" << std::endl;
   }
@@ -431,7 +489,7 @@ int main(int argc, char* argv[]) {
     std::cerr << "DEBUG: Saved current directory: " << saved_current_dir
               << std::endl;
 
-  // process the source file .cjshrc
+  // Process the source file .cjshrc
   if (config::source_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Processing source file" << std::endl;
@@ -447,27 +505,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  // startup is complete and we enter the main process loop
-  g_startup_active = false;
-  if (!g_exit_flag && !config::startup_test) {
-    if (g_title_line) {
-      std::cout << title_line << std::endl;
-      std::cout << created_line << std::endl;
-    }
-    main_process_loop();
-  }
-
-  std::cout << "Cleaning up resources." << std::endl;
-
-  // Check if an exit code was set by the exit command
-  const char* exit_code_str = getenv("EXIT_CODE");
-  int exit_code = 0;
-  if (exit_code_str) {
-    exit_code = std::atoi(exit_code_str);
-    unsetenv("EXIT_CODE");
-  }
-
-  return exit_code;
+  return 0;
 }
 
 void update_terminal_title() {
@@ -519,11 +557,20 @@ void main_process_loop() {
     g_shell->process_pending_signals();
 
     // Update job status and clean up finished jobs
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Calling JobManager::update_job_status()" << std::endl;
     JobManager::instance().update_job_status();
+    
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()" << std::endl;
     JobManager::instance().cleanup_finished_jobs();
 
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Calling update_terminal_title()" << std::endl;
     update_terminal_title();
 
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Generating prompt" << std::endl;
     // gather and create the prompt
     std::string prompt;
     if (g_shell->get_menu_active()) {
@@ -536,7 +583,11 @@ void main_process_loop() {
       prompt = g_shell->get_newline_prompt();
     }
 
+    if (g_debug_mode)
+      std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt << "'" << std::endl;
     char* input = ic_readline(prompt.c_str());
+    if (g_debug_mode)
+      std::cerr << "DEBUG: ic_readline returned" << std::endl;
     if (input != nullptr) {
       std::string command(input);
       if (g_debug_mode)
@@ -619,17 +670,17 @@ void cleanup_resources() {
 
   // Only cleanup AI if it was initialized
   if (g_ai) {
-    g_ai = nullptr;
+    g_ai.reset();
   }
 
   // Only cleanup Theme if it was initialized
   if (g_theme) {
-    g_theme = nullptr;
+    g_theme.reset();
   }
 
   // Only cleanup Plugin if it was initialized
   if (g_plugin) {
-    g_plugin = nullptr;
+    g_plugin.reset();
   }
 
   // Reset the shell last (this will clean up any additional resources)

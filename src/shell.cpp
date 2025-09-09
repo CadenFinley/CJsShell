@@ -21,6 +21,9 @@ Shell::Shell() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Constructing Shell" << std::endl;
 
+  // Save terminal state BEFORE any modifications
+  save_terminal_state();
+
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
   signal_handler = std::make_unique<SignalHandler>();
@@ -95,12 +98,10 @@ int Shell::execute(const std::string& script) {
 
 void Shell::setup_signal_handlers() {
   signal_handler->setup_signal_handlers();
-  save_terminal_state();
 }
 
 void Shell::setup_interactive_handlers() {
   signal_handler->setup_interactive_handlers();
-  save_terminal_state();
 }
 
 void Shell::save_terminal_state() {
@@ -151,10 +152,8 @@ void Shell::setup_job_control() {
       }
     }
 
-    if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
-      perror("Couldn't get terminal attributes");
-    }
-
+    // Don't overwrite the saved terminal state with tcgetattr
+    // The terminal state was already saved before any modifications
     job_control_enabled = true;
   } catch (const std::exception& e) {
     std::cerr << "Error setting up terminal: " << e.what() << std::endl;

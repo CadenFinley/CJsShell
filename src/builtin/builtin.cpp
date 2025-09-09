@@ -30,7 +30,6 @@
 #include "pwd_command.h"
 #include "read_command.h"
 #include "readonly_command.h"
-#include "restart_command.h"
 #include "set_command.h"
 #include "source_command.h"
 #include "startup_flag_command.h"
@@ -151,10 +150,6 @@ Built_ins::Built_ins()
             {"uninstall",
              [](const std::vector<std::string>&) {
                return ::uninstall_command();
-             }},
-            {"restart",
-             [](const std::vector<std::string>& args) {
-               return ::restart_command(args);
              }},
             {"eval",
              [this](const std::vector<std::string>& args) {
