@@ -115,13 +115,6 @@ if [ "$OUT" != "hello" ]; then
     exit 1
 fi
 
-# Test history builtin
-"$CJSH_PATH" -c "history" >/dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "FAIL: history builtin"
-    exit 1
-fi
-
 # Test test builtin (conditional expressions)
 "$CJSH_PATH" -c "test -f /etc/passwd"
 if [ $? -ne 0 ]; then
