@@ -52,6 +52,7 @@ void main_process_loop();
 void notify_plugins(std::string trigger, std::string data);
 void process_source_file();
 void process_profile_file();
+void apply_profile_startup_flags();
 void create_profile_file();
 void create_source_file();
 void setup_environment_variables();

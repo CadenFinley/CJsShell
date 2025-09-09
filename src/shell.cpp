@@ -63,6 +63,13 @@ Shell::~Shell() {
 
 int Shell::execute(const std::string& script) {
   last_command = script;
+  if (!get_menu_active()) {
+    if (script == ":") {
+      last_exit_code = 0;
+      set_menu_active(true);
+      return last_exit_code;
+    }
+  }
   std::vector<std::string> lines;
 
   lines = shell_parser->parse_into_lines(script);

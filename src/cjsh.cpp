@@ -251,6 +251,8 @@ int main(int argc, char* argv[]) {
     }
     // create cjsh login environment
     process_profile_file();
+    // Apply any startup flags set in the profile
+    apply_profile_startup_flags();
   }
 
   // set env vars to reflect cjsh being the shell
@@ -870,6 +872,59 @@ void process_profile_file() {
     std::cerr << "DEBUG: Sourcing profile file: "
               << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
   g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
+}
+
+void apply_profile_startup_flags() {
+  // Apply startup flags that were collected during profile processing
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Applying profile startup flags" << std::endl;
+  
+  for (const std::string& flag : g_startup_args) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Processing startup flag: " << flag << std::endl;
+    
+    if (flag == "--debug") {
+      g_debug_mode = true;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Debug mode enabled via profile" << std::endl;
+    } else if (flag == "--no-plugins") {
+      config::plugins_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Plugins disabled via profile" << std::endl;
+    } else if (flag == "--no-themes") {
+      config::themes_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Themes disabled via profile" << std::endl;
+    } else if (flag == "--no-ai") {
+      config::ai_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: AI disabled via profile" << std::endl;
+    } else if (flag == "--no-colors") {
+      config::colors_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Colors disabled via profile" << std::endl;
+    } else if (flag == "--no-titleline") {
+      g_title_line = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Title line disabled via profile" << std::endl;
+    } else if (flag == "--no-source") {
+      config::source_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Source file disabled via profile" << std::endl;
+    } else if (flag == "--startup-test") {
+      config::startup_test = true;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Startup test mode enabled via profile" << std::endl;
+    } else if (flag == "--interactive") {
+      config::force_interactive = true;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Interactive mode forced via profile" << std::endl;
+    } else if (flag == "--login") {
+      // Login mode is already set during initial argument processing
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Login mode flag found in profile (already processed)" << std::endl;
+    }
+  }
 }
 
 void process_source_file() {
