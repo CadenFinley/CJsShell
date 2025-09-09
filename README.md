@@ -34,16 +34,7 @@ CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes wi
 
 ## Installation
 
-### Homebrew Installation (Recomended)
-
-To install cjsh run:
-```bash
-brew install cadenfinley/tap/cjsh
-```
-
-### Manual Build and Install
-
-For manual build and installation, you can build and install from a release on GitHub:
+For latest stable patch, you can build and install from a release on GitHub:
 
 1. Download the source code from the [Releases page](https://github.com/CadenFinley/CJsShell/releases).
 2. Extract the archive and navigate to the project directory.
@@ -54,10 +45,10 @@ For manual build and installation, you can build and install from a release on G
    cmake ..
    make -j
    ```
-4. Move the `cjsh` binary to a directory in your `PATH` (e.g., `/usr/local/bin`):
+4. Run the install script from the root of the repository:
 
    ```bash
-   sudo mv build/cjsh /usr/local/bin/
+   ./tool_scripts/install.sh
    ```
 
 5. Verify that `cjsh` is accessible from anywhere by running:
@@ -65,10 +56,11 @@ For manual build and installation, you can build and install from a release on G
    ```bash
    cjsh --version
    ```
-
 ### Testing and POSIX Compliance
 
 CJ's Shell includes a comprehensive test suite with over 200 POSIX compliance tests to ensure reliability and standards compliance:
+
+This test can be ran from the root of the repository.
 
 ```bash
 # Run the complete test suite

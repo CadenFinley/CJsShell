@@ -9,7 +9,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 
-echo -e "${YELLOW}Installing cjsh_prerelease...${NC}"
+echo -e "${YELLOW}Installing cjsh...${NC}"
 
 EXECUTABLE_PATH="$SCRIPT_DIR/../build/cjsh"
 
@@ -19,15 +19,15 @@ if [ ! -f "$EXECUTABLE_PATH" ]; then
 fi
 
 INSTALL_DIR="/usr/local/bin"
-TARGET="$INSTALL_DIR/cjsh_prerelease"
+TARGET="$INSTALL_DIR/cjsh"
 
 echo -e "${YELLOW}Installing to $TARGET...${NC}"
 sudo cp "$EXECUTABLE_PATH" "$TARGET"
 sudo chmod +x "$TARGET"
 
 if [ -f "$TARGET" ]; then
-    echo -e "${GREEN}cjsh_prerelease has been successfully installed to $INSTALL_DIR${NC}"
-    echo -e "${GREEN}You can now run it by typing 'cjsh_prerelease' in your terminal${NC}"
+    echo -e "${GREEN}cjsh has been successfully installed to $INSTALL_DIR${NC}"
+    echo -e "${GREEN}You can now run it by typing 'cjsh' in your terminal${NC}"
 else
     echo -e "${YELLOW}Error: Installation failed.${NC}"
     exit 1

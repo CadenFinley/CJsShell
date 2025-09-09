@@ -163,8 +163,6 @@ add_custom_target(format
     ${PROJECT_SOURCE_DIR}/include/*.h
 )
 
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
-
 # Add option for building multiple binaries with different optimizations
 option(BUILD_MULTIPLE_BINARIES "Build multiple binaries with different optimizations" OFF)
 
@@ -178,7 +176,6 @@ if(BUILD_MULTIPLE_BINARIES)
       dl
       nlohmann_json::nlohmann_json
   )
-  install(TARGETS ${PROJECT_NAME}_speed03 DESTINATION bin)
 
     # Speed-optimized binary 02
   add_executable(${PROJECT_NAME}_speed02 ${SOURCES})
@@ -189,5 +186,4 @@ if(BUILD_MULTIPLE_BINARIES)
       dl
       nlohmann_json::nlohmann_json
   )
-  install(TARGETS ${PROJECT_NAME}_speed02 DESTINATION bin)
 endif()
