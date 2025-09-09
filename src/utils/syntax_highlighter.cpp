@@ -97,12 +97,22 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
     bool is_sudo_command = (token == "sudo");
 
     if (!token.empty()) {
-      if (token.rfind("./", 0) == 0) {
-        if (!std::filesystem::exists(token) ||
-            !std::filesystem::is_regular_file(token)) {
-          ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
-        } else {
+      if (token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 || token.rfind("~/", 0) == 0 || token.rfind("-/", 0) == 0 || token[0] == '/' || token.find('/') != std::string::npos) {
+        std::string path_to_check = token;
+        if (token.rfind("~/", 0) == 0) {
+          path_to_check = cjsh_filesystem::g_user_home_path.string() + token.substr(1);
+        } else if (token.rfind("-/", 0) == 0) {
+          std::string prev_dir = g_shell->get_previous_directory();
+          if (!prev_dir.empty()) {
+            path_to_check = prev_dir + token.substr(1);
+          }
+        } else if (token[0] != '/' && token.rfind("./", 0) != 0 && token.rfind("../", 0) != 0 && token.rfind("~/", 0) != 0 && token.rfind("-/", 0) != 0) {
+          path_to_check = std::filesystem::current_path().string() + "/" + token;
+        }
+        if (std::filesystem::exists(path_to_check)) {
           ic_highlight(henv, cmd_start, token_end, "cjsh-known-command");
+        } else {
+          ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
         }
       } else {
         auto cmds = g_shell->get_available_commands();
@@ -116,7 +126,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
           ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
         }
       }
-    }
+    } // <-- Correct closing for if (!token.empty())
 
     bool is_cd_command = (token == "cd");
     size_t arg_start = token_end;
@@ -170,7 +180,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
                      "cjsh-path-exists");
       } else if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
                  arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
-                 arg.rfind("-/", 0) == 0) {
+                 arg.rfind("-/", 0) == 0 || arg.find('/') != std::string::npos) {
         std::string path_to_check = arg;
 
         if (arg.rfind("~/", 0) == 0) {

@@ -343,8 +343,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     return;
   }
 
-  // Fish-like behavior: if prefix ends with '/', only complete subdirectories,
-  // not files
+  // Standard behavior: if prefix ends with '/', complete all files and directories
   // Use the special_part if we extracted a path from after a space, otherwise
   // use the full prefix
   std::string path_to_check = special_part.empty() ? prefix_str : special_part;
@@ -356,23 +355,24 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
         for (auto& entry : fs::directory_iterator(dir_path)) {
+          std::string name = entry.path().filename().string();
+          std::string suffix = name;
           if (entry.is_directory()) {
-            std::string name = entry.path().filename().string();
-            std::string suffix = name + "/";
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Directory-only completion: '" << suffix
-                        << "'" << std::endl;
-            if (!ic_add_completion(cenv, suffix.c_str()))
-              return;
-            if (ic_stop_completing(cenv))
-              return;
+            suffix += "/";
           }
+          if (g_debug_mode)
+            std::cerr << "DEBUG: All files completion: '" << suffix
+                      << "'" << std::endl;
+          if (!ic_add_completion(cenv, suffix.c_str()))
+            return;
+          if (ic_stop_completing(cenv))
+            return;
         }
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
         std::cerr
-            << "DEBUG: Error reading directory for directory-only completion: "
+            << "DEBUG: Error reading directory for all files completion: "
             << e.what() << std::endl;
     }
     return;
@@ -447,12 +447,12 @@ void initialize_completion_system() {
   ic_enable_hint(true);
   ic_set_hint_delay(0);
   ic_enable_highlight(true);
-  ic_enable_history_duplicates(false);
+  ic_enable_history_duplicates(true);
   ic_enable_inline_help(false);
   ic_enable_multiline_indent(false);
   ic_enable_multiline(true);
   ic_set_prompt_marker("", NULL);
-  ic_enable_auto_tab(true);
+  ic_enable_auto_tab(false);
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
   ic_enable_completion_preview(true);
 }
