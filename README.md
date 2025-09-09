@@ -48,7 +48,8 @@ For latest stable patch, you can build and install from a release on GitHub:
 4. Run the install script from the root of the repository:
 
    ```bash
-   ./tool_scripts/install.sh
+   chmod +x tool-scripts/install.sh
+   ./tool-scripts/install.sh
    ```
 
 5. Verify that `cjsh` is accessible from anywhere by running:
