@@ -584,6 +584,64 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::string content = pattern.substr(open_pos + 1, close_pos - open_pos - 1);
   std::string suffix = pattern.substr(close_pos + 1);
 
+  // Check for numeric range expansion {start..end}
+  size_t range_pos = content.find("..");
+  if (range_pos != std::string::npos) {
+    std::string start_str = content.substr(0, range_pos);
+    std::string end_str = content.substr(range_pos + 2);
+    
+    // Try to parse as integers
+    try {
+      int start = std::stoi(start_str);
+      int end = std::stoi(end_str);
+      
+      if (start <= end) {
+        for (int i = start; i <= end; ++i) {
+          std::vector<std::string> expanded_results =
+              expand_braces(prefix + std::to_string(i) + suffix);
+          result.insert(result.end(), expanded_results.begin(),
+                        expanded_results.end());
+        }
+      } else {
+        // Reverse range
+        for (int i = start; i >= end; --i) {
+          std::vector<std::string> expanded_results =
+              expand_braces(prefix + std::to_string(i) + suffix);
+          result.insert(result.end(), expanded_results.begin(),
+                        expanded_results.end());
+        }
+      }
+      return result;
+    } catch (const std::exception&) {
+      // Not numeric, check for alphabetic range
+      if (start_str.length() == 1 && end_str.length() == 1 &&
+          std::isalpha(start_str[0]) && std::isalpha(end_str[0])) {
+        char start_char = start_str[0];
+        char end_char = end_str[0];
+        
+        if (start_char <= end_char) {
+          for (char c = start_char; c <= end_char; ++c) {
+            std::vector<std::string> expanded_results =
+                expand_braces(prefix + std::string(1, c) + suffix);
+            result.insert(result.end(), expanded_results.begin(),
+                          expanded_results.end());
+          }
+        } else {
+          // Reverse alphabetic range
+          for (char c = start_char; c >= end_char; --c) {
+            std::vector<std::string> expanded_results =
+                expand_braces(prefix + std::string(1, c) + suffix);
+            result.insert(result.end(), expanded_results.begin(),
+                          expanded_results.end());
+          }
+        }
+        return result;
+      }
+      // Fall through to comma-separated expansion
+    }
+  }
+
+  // Handle comma-separated options
   std::vector<std::string> options;
   size_t start = 0;
   depth = 0;
