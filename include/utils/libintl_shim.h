@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 int libintl_snprintf(char* str, size_t size, const char* format, ...);
+int libintl_printf(const char* format, ...);
 
 #ifdef __cplusplus
 }
