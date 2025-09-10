@@ -11,7 +11,7 @@ from typing import List, Tuple, Dict
 RUNS = 20
 COMMANDS = [
     "-c ls",
-    "--version", 
+    "--version",
     "-c 'echo hello world'",
     "-c pwd",
     "-c 'echo $(date)'",
