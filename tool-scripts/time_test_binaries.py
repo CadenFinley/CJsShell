@@ -17,10 +17,11 @@ COMMANDS = [
     "-c 'echo $(date)'",
     "-c 'echo $SHELL'",
     "-c 'ls -lhaS'",
-    "-c 'for i in {1..100}; do echo $i; done'"
+    "-c 'for i in {1..1000}; do echo $i; done'"
 ]
 BASELINE_SHELLS = ["fish", "bash", "zsh", "cjsh"]
-CJSH_BINARY_TYPES = [""]  # Empty string means no suffix
+#CJSH_BINARY_TYPES = ["", "_speed03", "_speed02", "_debug"]  # Empty string means no suffix
+CJSH_BINARY_TYPES = [""]
 
 ENABLE_BASELINE_TESTS = True
 

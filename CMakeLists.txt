@@ -170,6 +170,14 @@ if(BUILD_MULTIPLE_BINARIES)
   # Speed-optimized binary 03
   add_executable(${PROJECT_NAME}_speed03 ${SOURCES})
   target_compile_options(${PROJECT_NAME}_speed03 PRIVATE -O3)
+  target_include_directories(${PROJECT_NAME}_speed03 PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/isocline
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/builtin
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
+  )
   target_link_libraries(${PROJECT_NAME}_speed03 PRIVATE
       curl
       pthread
@@ -180,7 +188,33 @@ if(BUILD_MULTIPLE_BINARIES)
     # Speed-optimized binary 02
   add_executable(${PROJECT_NAME}_speed02 ${SOURCES})
   target_compile_options(${PROJECT_NAME}_speed02 PRIVATE -O2)
+  target_include_directories(${PROJECT_NAME}_speed02 PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/isocline
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/builtin
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
+  )
   target_link_libraries(${PROJECT_NAME}_speed02 PRIVATE
+      curl
+      pthread
+      dl
+      nlohmann_json::nlohmann_json
+  )
+
+  # Debug binary with no optimizations
+  add_executable(${PROJECT_NAME}_debug ${SOURCES})
+  target_compile_options(${PROJECT_NAME}_debug PRIVATE -O0 -g)
+  target_include_directories(${PROJECT_NAME}_debug PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/isocline
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/builtin
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/utils
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
+      ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
+  )
+  target_link_libraries(${PROJECT_NAME}_debug PRIVATE
       curl
       pthread
       dl
