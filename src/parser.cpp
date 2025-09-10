@@ -21,17 +21,17 @@
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   // Split script content on unquoted newlines into logical lines.
   // Handle here documents specially by collecting content until delimiter.
-  
+
   // Helper function to strip inline comments - use string_view for efficiency
   auto strip_inline_comment = [](const std::string& s) -> std::string {
     bool in_quotes = false;
     char quote = '\0';
     const char* data = s.c_str();
     size_t size = s.size();
-    
+
     for (size_t i = 0; i < size; ++i) {
       char c = data[i];
-      
+
       // Count consecutive backslashes before this quote
       if (c == '"' || c == '\'') {
         size_t backslash_count = 0;
@@ -42,10 +42,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             break;
           }
         }
-        
+
         // Quote is escaped if there's an odd number of backslashes before it
         bool is_escaped = (backslash_count % 2) == 1;
-        
+
         if (!is_escaped) {
           if (!in_quotes) {
             in_quotes = true;
@@ -97,9 +97,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           if (here_pos != std::string::npos) {
             std::string before_here = segment.substr(0, here_pos + 2);
             // Create a placeholder that matches CommandPreprocessor format
-            std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
+            std::string placeholder =
+                "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
             segment = before_here + " " + placeholder;
-            
+
             // Store the here document content in the current_here_docs map
             // This makes it accessible to the pipeline parser
             current_here_docs[placeholder] = here_doc_content;
@@ -139,7 +140,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
       if (!in_quotes && segment.find("<<") != std::string::npos) {
         // Strip comments before parsing here document delimiter
         std::string segment_no_comment = strip_inline_comment(segment);
-        
+
         // Look for << followed by delimiter
         size_t here_pos = segment_no_comment.find("<<");
         if (here_pos != std::string::npos) {
@@ -589,12 +590,12 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   if (range_pos != std::string::npos) {
     std::string start_str = content.substr(0, range_pos);
     std::string end_str = content.substr(range_pos + 2);
-    
+
     // Try to parse as integers
     try {
       int start = std::stoi(start_str);
       int end = std::stoi(end_str);
-      
+
       if (start <= end) {
         for (int i = start; i <= end; ++i) {
           std::vector<std::string> expanded_results =
@@ -618,7 +619,7 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
           std::isalpha(start_str[0]) && std::isalpha(end_str[0])) {
         char start_char = start_str[0];
         char end_char = end_str[0];
-        
+
         if (start_char <= end_char) {
           for (char c = start_char; c <= end_char; ++c) {
             std::vector<std::string> expanded_results =

@@ -88,7 +88,8 @@ static void initialize_title_strings() {
                  " - Caden J Finley (c) 2025";
   }
   if (created_line.empty()) {
-    created_line = " Created 2025 @\033[1;35mAbilene Christian University\033[0m";
+    created_line =
+        " Created 2025 @\033[1;35mAbilene Christian University\033[0m";
   }
 }
 
@@ -344,7 +345,8 @@ static void save_startup_arguments(int argc, char* argv[]) {
 
 static int handle_early_exit_modes() {
   if (config::show_version) {  // -v --version
-    std::cout << c_version << (PRE_RELEASE ? pre_release_line : "") << std::endl;
+    std::cout << c_version << (PRE_RELEASE ? pre_release_line : "")
+              << std::endl;
     return 0;
   }
 
@@ -456,7 +458,8 @@ static int initialize_interactive_components() {
   // Configure isocline colors based on color settings
   if (!config::colors_enabled) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Disabling isocline colors and resetting prompt style" << std::endl;
+      std::cerr << "DEBUG: Disabling isocline colors and resetting prompt style"
+                << std::endl;
     ic_enable_color(false);
     // Override the default green prompt style with no color
     ic_style_def("ic-prompt", "");

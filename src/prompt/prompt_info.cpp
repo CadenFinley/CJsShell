@@ -215,10 +215,11 @@ std::string PromptInfo::get_basic_prompt() {
   std::string cwd = get_current_file_path();
 
   // Pre-calculate size and reserve to avoid reallocations
-  size_t size = username.length() + hostname.length() + cwd.length() + 10; // extra for formatting
+  size_t size = username.length() + hostname.length() + cwd.length() +
+                10;  // extra for formatting
   std::string prompt;
   prompt.reserve(size);
-  
+
   prompt = username + "@" + hostname + " : " + cwd + " $ ";
 
   if (g_debug_mode)
@@ -235,16 +236,17 @@ std::string PromptInfo::get_basic_ai_prompt() {
   std::string ai_context = g_ai->get_save_directory();
   std::string ai_type = g_ai->get_assistant_type();
   std::string ai_context_comparison =
-      (std::filesystem::current_path().string() + "/" == ai_context) ? "✔" : "✖";
+      (std::filesystem::current_path().string() + "/" == ai_context) ? "✔"
+                                                                     : "✖";
 
   // Pre-calculate size and reserve to avoid reallocations
-  size_t size = ai_model.length() + ai_context.length() + cwd.length() + 
+  size_t size = ai_model.length() + ai_context.length() + cwd.length() +
                 ai_type.length() + ai_context_comparison.length() + 10;
   std::string prompt;
   prompt.reserve(size);
-  
+
   prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " +
-            cwd + " " + ai_type + " > ";
+           cwd + " " + ai_type + " > ";
 
   if (g_debug_mode)
     std::cerr << "DEBUG: get_basic_ai_prompt END" << std::endl;

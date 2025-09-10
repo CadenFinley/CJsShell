@@ -26,9 +26,10 @@ class SignalMask {
       active = true;
     }
   }
-  
+
   SignalMask(const std::vector<int>& signals) : active(false) {
-    if (signals.empty()) return;  // Avoid syscall for empty vector
+    if (signals.empty())
+      return;  // Avoid syscall for empty vector
     sigset_t mask;
     sigemptyset(&mask);
     for (int sig : signals) {
@@ -38,13 +39,13 @@ class SignalMask {
       active = true;
     }
   }
-  
+
   ~SignalMask() {
     if (active) {
       sigprocmask(SIG_SETMASK, &old_mask, nullptr);
     }
   }
-  
+
   // Non-copyable
   SignalMask(const SignalMask&) = delete;
   SignalMask& operator=(const SignalMask&) = delete;

@@ -199,7 +199,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
   // Check if we're in a forked child - if so, reset to default handler and
   // re-raise
   if (is_forked_child()) {
-    // Use sigaction for atomic signal handler replacement to avoid race conditions
+    // Use sigaction for atomic signal handler replacement to avoid race
+    // conditions
     struct sigaction sa;
     sa.sa_handler = SIG_DFL;
     sigemptyset(&sa.sa_mask);
@@ -252,7 +253,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
 #ifdef SIGWINCH
     case SIGWINCH: {
-      // Window size changed - simply let it be processed in process_pending_signals
+      // Window size changed - simply let it be processed in
+      // process_pending_signals
       break;
     }
 #endif
@@ -348,7 +350,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
   // Check for all signals that might have been received
   if (s_sigint_received) {
     s_sigint_received = 0;
-    
+
     if (g_debug_mode) {
       std::cerr << "DEBUG: Processing SIGINT signal" << std::endl;
     }
@@ -384,9 +386,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
       pid_t pid;
       int status;
       int reaped_count = 0;
-      
+
       // Aggressively reap all available children to prevent zombies
-      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0) {
+      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) >
+             0) {
         reaped_count++;
         shell_exec->handle_child_signal(pid, status);
 
@@ -428,12 +431,13 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
           }
         }
       }
-      
+
       // Reduce debug output frequency to avoid performance impact
       if (g_debug_mode && reaped_count > 0 && reaped_count <= 3) {
-        std::cerr << "DEBUG: SIGCHLD handler reaped " << reaped_count << " children" << std::endl;
+        std::cerr << "DEBUG: SIGCHLD handler reaped " << reaped_count
+                  << " children" << std::endl;
       }
-      
+
       // If waitpid returned -1 with ECHILD, all children have been reaped
       if (pid == -1 && errno == ECHILD && g_debug_mode) {
         static int echild_count = 0;
@@ -446,21 +450,24 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
   if (s_sighup_received) {
     s_sighup_received = 0;
-    
+
     // Terminate all background jobs when SIGHUP is received
     if (shell_exec && g_exit_flag) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: SIGHUP received, terminating background jobs" << std::endl;
+        std::cerr << "DEBUG: SIGHUP received, terminating background jobs"
+                  << std::endl;
       }
       shell_exec->terminate_all_child_process();
-      
+
       // Also clean up through JobManager
       auto& job_manager = JobManager::instance();
       auto all_jobs = job_manager.get_all_jobs();
       for (auto& job : all_jobs) {
-        if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+        if (job->state == JobState::RUNNING ||
+            job->state == JobState::STOPPED) {
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Terminating job " << job->job_id << " via JobManager" << std::endl;
+            std::cerr << "DEBUG: Terminating job " << job->job_id
+                      << " via JobManager" << std::endl;
           }
           if (killpg(job->pgid, SIGTERM) == 0) {
             job->state = JobState::TERMINATED;
@@ -472,21 +479,24 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
   if (s_sigterm_received) {
     s_sigterm_received = 0;
-    
+
     // Terminate all background jobs when SIGTERM is received
     if (shell_exec && g_exit_flag) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: SIGTERM received, terminating background jobs" << std::endl;
+        std::cerr << "DEBUG: SIGTERM received, terminating background jobs"
+                  << std::endl;
       }
       shell_exec->terminate_all_child_process();
-      
+
       // Also clean up through JobManager
       auto& job_manager = JobManager::instance();
       auto all_jobs = job_manager.get_all_jobs();
       for (auto& job : all_jobs) {
-        if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+        if (job->state == JobState::RUNNING ||
+            job->state == JobState::STOPPED) {
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Terminating job " << job->job_id << " via JobManager" << std::endl;
+            std::cerr << "DEBUG: Terminating job " << job->job_id
+                      << " via JobManager" << std::endl;
           }
           if (killpg(job->pgid, SIGTERM) == 0) {
             job->state = JobState::TERMINATED;

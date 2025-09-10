@@ -104,10 +104,10 @@ int ShellScriptInterpreter::execute_block(
             break;
           }
         }
-        
+
         // Quote is escaped if there's an odd number of backslashes before it
         bool is_escaped = (backslash_count % 2) == 1;
-        
+
         if (!is_escaped) {
           if (!in_quotes) {
             in_quotes = true;
@@ -807,17 +807,17 @@ int ShellScriptInterpreter::execute_block(
               if (setpgid(0, 0) < 0) {
                 perror("setpgid failed in subshell child");
               }
-              
+
               // Execute subshell content
               int exit_code = g_shell->execute(subshell_content);
-              
+
               // Ensure all child processes are reaped before exiting
               // This helps prevent zombies from grandchildren
               int child_status;
               while (waitpid(-1, &child_status, WNOHANG) > 0) {
                 // Reap any remaining children
               }
-              
+
               exit(exit_code);
             } else if (pid > 0) {
               // Parent process - wait for child

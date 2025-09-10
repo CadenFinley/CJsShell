@@ -24,11 +24,12 @@ Shell::Shell() {
   // Save terminal state BEFORE any modifications
   save_terminal_state();
 
-  // Use make_unique for better exception safety and potentially better memory layout
+  // Use make_unique for better exception safety and potentially better memory
+  // layout
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
   signal_handler = std::make_unique<SignalHandler>();
-  
+
   // Use make_unique for all objects for consistent memory management
   shell_parser = std::make_unique<Parser>();
   built_ins = std::make_unique<Built_ins>();
