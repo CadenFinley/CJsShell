@@ -17,7 +17,7 @@ COMMANDS = [
     "-c 'echo $(date)'",
     "-c 'echo $SHELL'",
     "-c 'ls -lhaS'",
-    "-c 'for i in 1 2 3 4 5; do echo $i; done'"
+    "-c 'for i in {1..100}; do echo $i; done'"
 ]
 BASELINE_SHELLS = ["fish", "bash", "zsh", "cjsh"]
 CJSH_BINARY_TYPES = [""]  # Empty string means no suffix
