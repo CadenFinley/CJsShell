@@ -45,6 +45,11 @@ count_zombies() {
     fi
 }
 
+# Get baseline zombie count
+get_baseline_zombies() {
+    count_zombies
+}
+
 # Helper function to wait for process to start
 wait_for_process() {
     local max_wait=20
@@ -69,9 +74,12 @@ fi
 echo "Testing Signal Exit and Cleanup Behavior for: $SHELL_TO_TEST"
 echo "============================================================"
 
+# Capture baseline zombie count
+BASELINE_ZOMBIES=$(get_baseline_zombies)
+echo "Baseline zombie count: $BASELINE_ZOMBIES"
+
 # Test 1: SIGTERM triggers graceful cleanup
 log_test "SIGTERM triggers graceful cleanup"
-zombies_before=$(count_zombies)
 
 # Start shell with a long-running command
 "$SHELL_TO_TEST" -c "sleep 5" &
@@ -85,10 +93,11 @@ if wait_for_process $shell_pid; then
     # Check if process is gone
     if ! kill -0 $shell_pid 2>/dev/null; then
         zombies_after=$(count_zombies)
-        if [ $zombies_after -le $zombies_before ]; then
+        new_zombies=$((zombies_after - BASELINE_ZOMBIES))
+        if [ $new_zombies -le 0 ]; then
             pass
         else
-            fail "SIGTERM cleanup left zombies (before: $zombies_before, after: $zombies_after)"
+            fail "SIGTERM cleanup left new zombies (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
         fi
     else
         kill -KILL $shell_pid 2>/dev/null
@@ -100,7 +109,6 @@ fi
 
 # Test 2: SIGHUP triggers graceful cleanup
 log_test "SIGHUP triggers graceful cleanup"
-zombies_before=$(count_zombies)
 
 # Start shell with a long-running command
 "$SHELL_TO_TEST" -c "sleep 5" &
@@ -114,10 +122,11 @@ if wait_for_process $shell_pid; then
     # Check if process is gone
     if ! kill -0 $shell_pid 2>/dev/null; then
         zombies_after=$(count_zombies)
-        if [ $zombies_after -le $zombies_before ]; then
+        new_zombies=$((zombies_after - BASELINE_ZOMBIES))
+        if [ $new_zombies -le 0 ]; then
             pass
         else
-            fail "SIGHUP cleanup left zombies (before: $zombies_before, after: $zombies_after)"
+            fail "SIGHUP cleanup left new zombies (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
         fi
     else
         kill -KILL $shell_pid 2>/dev/null
@@ -166,6 +175,9 @@ fi
 # Test 5: Background processes cleanup on signal exit
 log_test "Background processes cleanup on signal exit"
 if command -v ps >/dev/null 2>&1; then
+    # Count sleep processes before test
+    sleep_before=$(ps axo comm 2>/dev/null | grep -c "sleep" 2>/dev/null || echo 0)
+    
     # Start shell with background process
     "$SHELL_TO_TEST" -c "sleep 10 & sleep 5" &
     shell_pid=$!
@@ -175,14 +187,15 @@ if command -v ps >/dev/null 2>&1; then
         kill -TERM $shell_pid 2>/dev/null
         sleep 0.5
         
-        # Check for orphaned sleep processes
-        orphans=$(ps axo ppid,comm 2>/dev/null | grep "sleep" | wc -l 2>/dev/null || echo 0)
-        orphans=$(echo "$orphans" | tr -d ' \n')
+        # Count sleep processes after test
+        sleep_after=$(ps axo comm 2>/dev/null | grep -c "sleep" 2>/dev/null || echo 0)
         
-        if [ $orphans -le 1 ]; then  # Allow for our own test sleep commands
+        # Check if we have more sleep processes than we started with
+        if [ $sleep_after -le $sleep_before ]; then
             pass
         else
-            fail "Signal exit left orphaned background processes ($orphans found)"
+            sleep_orphans=$((sleep_after - sleep_before))
+            fail "Signal exit left orphaned background processes ($sleep_orphans found)"
         fi
     else
         fail "Shell with background process did not start"
@@ -193,24 +206,22 @@ fi
 
 # Test 6: Resource cleanup on forced exit
 log_test "Resource cleanup on forced exit"
-zombies_before=$(count_zombies)
 
 # Test forced exit cleanup
 "$SHELL_TO_TEST" -c "sleep 0.1 & exit --force" 2>/dev/null
 sleep 0.3  # Give time for cleanup
 
 zombies_after=$(count_zombies)
-if [ $zombies_after -le $zombies_before ]; then
+new_zombies=$((zombies_after - BASELINE_ZOMBIES))
+if [ $new_zombies -le 0 ]; then
     pass
 else
-    fail "Forced exit cleanup failed (zombies: before=$zombies_before, after=$zombies_after)"
+    fail "Forced exit cleanup failed (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
 fi
 
 # Test 7: Emergency cleanup on unexpected termination
 log_test "Emergency cleanup on unexpected termination"
 if command -v ps >/dev/null 2>&1; then
-    zombies_before=$(count_zombies)
-    
     # Start shell and kill it abruptly
     "$SHELL_TO_TEST" -c "sleep 2" &
     shell_pid=$!
@@ -221,11 +232,12 @@ if command -v ps >/dev/null 2>&1; then
         sleep 0.3
         
         zombies_after=$(count_zombies)
-        if [ $zombies_after -le $zombies_before ]; then
+        new_zombies=$((zombies_after - BASELINE_ZOMBIES))
+        if [ $new_zombies -le 0 ]; then
             pass
         else
             # Note: SIGKILL may not allow proper cleanup, so this might be expected
-            skip "SIGKILL may prevent proper cleanup (zombies: before=$zombies_before, after=$zombies_after)"
+            skip "SIGKILL may prevent proper cleanup (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
         fi
     else
         fail "Shell process did not start for emergency cleanup test"
