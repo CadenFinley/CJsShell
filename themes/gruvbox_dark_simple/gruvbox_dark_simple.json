@@ -1,0 +1,163 @@
+{
+  "requirements": {
+    "colors": "true_color",
+    "fonts": ["FiraCode Nerd Font", "Hack Nerd Font", "JetBrains Mono", "Source Code Pro"]
+  },
+  "terminal_title": "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME}",
+  "ps1_segments": [
+    {
+      "tag": "userseg",
+      "content": " {USERNAME} ",
+      "bg_color": "#282828",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#282828",
+      "separator_bg": "#3c3836",
+      "forward_separator": "\uE0B6",
+      "forward_separator_fg": "#282828",
+      "forward_separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "hostseg",
+      "content": " {HOSTNAME} ",
+      "bg_color": "#3c3836",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#3c3836",
+      "separator_bg": "#504945",
+      "align": "left"
+    },
+    {
+      "tag": "dirseg",
+      "content": " {PATH} ",
+      "bg_color": "#504945",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#504945",
+      "separator_bg": "#3c3836",
+      "align": "left"
+    },
+    {
+      "tag": "statusseg",
+      "content": " [{STATUS}] ",
+      "bg_color": "#3c3836",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#3c3836",
+      "separator_bg": "RESET",
+      "align": "left"
+    }
+  ],
+  "git_segments": [
+    {
+      "tag": "userseg",
+      "content": " {USERNAME} ",
+      "bg_color": "#282828",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#282828",
+      "separator_bg": "#3c3836",
+      "forward_separator": "\uE0B6",
+      "forward_separator_fg": "#282828",
+      "forward_separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "dirseg",
+      "content": " {LOCAL_PATH} ",
+      "bg_color": "#3c3836",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#3c3836",
+      "separator_bg": "#504945",
+      "align": "left"
+    },
+    {
+      "tag": "gitseg",
+      "content": " {GIT_BRANCH} ",
+      "bg_color": "#504945",
+      "fg_color": "#fabd2f",
+      "separator": "\uE0B0",
+      "separator_fg": "#504945",
+      "separator_bg": "#665c54",
+      "align": "left"
+    },
+    {
+      "tag": "gitstatusseg",
+      "content": " {GIT_STATUS} ",
+      "bg_color": "#665c54",
+      "fg_color": "#b8bb26",
+      "separator": "\uE0B0",
+      "separator_fg": "#665c54",
+      "separator_bg": "#3c3836",
+      "align": "left"
+    },
+    {
+      "tag": "statusseg",
+      "content": " [{STATUS}] ",
+      "bg_color": "#3c3836",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#3c3836",
+      "separator_bg": "RESET",
+      "align": "left"
+    }
+  ],
+  "ai_segments": [
+    {
+      "tag": "ai_userseg",
+      "content": " {AI_MODEL} ",
+      "bg_color": "#282828",
+      "fg_color": "#d3869b",
+      "separator": "\uE0B0",
+      "separator_fg": "#282828",
+      "separator_bg": "#3c3836",
+      "forward_separator": "\uE0B6",
+      "forward_separator_fg": "#282828",
+      "forward_separator_bg": "RESET",
+      "align": "left"
+    },
+    {
+      "tag": "ai_typeseg",
+      "content": " {AI_AGENT_TYPE} ",
+      "bg_color": "#3c3836",
+      "fg_color": "#8ec07c",
+      "separator": "\uE0B0",
+      "separator_fg": "#3c3836",
+      "separator_bg": "#504945",
+      "align": "left"
+    },
+    {
+      "tag": "ai_dirseg",
+      "content": " {DIRECTORY} ",
+      "bg_color": "#504945",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#504945",
+      "separator_bg": "#3c3836",
+      "align": "left"
+    },
+    {
+      "tag": "ai_contextseg",
+      "content": " {AI_CONTEXT_COMPARISON} ",
+      "bg_color": "#3c3836",
+      "fg_color": "#ebdbb2",
+      "separator": "\uE0B0",
+      "separator_fg": "#3c3836",
+      "separator_bg": "RESET",
+      "align": "left"
+    }
+  ],
+  "newline_segments": [
+    {
+      "tag": "promptseg",
+      "content": " > ",
+      "bg_color": "RESET",
+      "fg_color": "#b8bb26",
+      "separator": "",
+      "separator_fg": "RESET",
+      "separator_bg": "RESET"
+    }
+  ]
+}
