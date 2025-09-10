@@ -8,7 +8,7 @@ import os
 from typing import List, Tuple, Dict
 
 # Configuration
-RUNS = 10
+RUNS = 20
 COMMANDS = [
     "-c ls",
     "--version", 
@@ -16,7 +16,8 @@ COMMANDS = [
     "-c pwd",
     "-c 'echo $(date)'",
     "-c 'echo $SHELL'",
-    "-c 'ls -lhaS'"
+    "-c 'ls -lhaS'",
+    "-c 'for i in 1 2 3 4 5; do echo $i; done'"
 ]
 BASELINE_SHELLS = ["fish", "bash", "zsh", "cjsh"]
 CJSH_BINARY_TYPES = [""]  # Empty string means no suffix
