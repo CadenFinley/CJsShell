@@ -17,12 +17,8 @@
 const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCH
 const std::string c_version = "3.1.5";
-const pid_t c_pid = getpid();
-const std::string c_pid_str = std::to_string(getpid());
-const std::string c_reset_color = "\033[0m";
-const std::string c_title_color = "\033[1;35m";
+const std::string pre_release_line = " (pre-release)";
 
-extern std::string pre_release_line;
 extern bool g_debug_mode;
 extern bool g_title_line;
 extern struct termios g_original_termios;

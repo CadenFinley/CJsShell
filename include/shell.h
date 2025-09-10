@@ -116,7 +116,7 @@ class Shell {
   std::string get_previous_directory() const;
 
   Built_ins* get_built_ins() {
-    return built_ins;
+    return built_ins.get();
   }
   int get_terminal() const {
     return shell_terminal;
@@ -134,14 +134,11 @@ class Shell {
     return job_control_enabled;
   }
   ShellScriptInterpreter* get_shell_script_interpreter() {
-    return shell_script_interpreter;
+    return shell_script_interpreter.get();
   }
 
-  Built_ins* built_ins = nullptr;
-  Parser* shell_parser = nullptr;
-
   Parser* get_parser() {
-    return shell_parser;
+    return shell_parser.get();
   }
 
  private:
@@ -156,7 +153,9 @@ class Shell {
 
   std::unique_ptr<Prompt> shell_prompt;
   std::unique_ptr<SignalHandler> signal_handler;
-  ShellScriptInterpreter* shell_script_interpreter = nullptr;
+  std::unique_ptr<Built_ins> built_ins;
+  std::unique_ptr<Parser> shell_parser;
+  std::unique_ptr<ShellScriptInterpreter> shell_script_interpreter;
 
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;

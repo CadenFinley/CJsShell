@@ -48,8 +48,11 @@
     std::cerr << last_terminal_output_error << '\n'; \
   } while (0)
 
-Built_ins::Built_ins()
-      : builtins{
+Built_ins::Built_ins() : shell(nullptr) {
+  // Reserve space for builtins to avoid rehashing
+  builtins.reserve(64);
+  
+  builtins = {
             {"echo",
              [](const std::vector<std::string>& args) {
                return ::echo_command(args);
@@ -329,8 +332,7 @@ Built_ins::Built_ins()
              [](const std::vector<std::string>& args) {
                return ::hash_command(args, nullptr);
              }},
-        },
-        shell(nullptr) {
+        };
 }
 
 int Built_ins::builtin_command(const std::vector<std::string>& args) {

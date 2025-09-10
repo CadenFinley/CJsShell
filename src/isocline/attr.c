@@ -212,7 +212,7 @@ static bool attrbuf_ensure_capacity(attrbuf_t* ab, ssize_t needed) {
   if (needed <= ab->capacity) return true;
   ssize_t newcap =
       (ab->capacity <= 0
-           ? 240
+           ? 512  // Increased from 240 to 512
            : (ab->capacity > 1000 ? ab->capacity + 1000 : 2 * ab->capacity));
   if (needed > newcap) {
     newcap = needed;

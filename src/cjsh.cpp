@@ -26,7 +26,6 @@
 #include "usage.h"
 
 // Global variable definitions
-std::string pre_release_line;
 bool g_debug_mode = false;
 bool g_title_line = true;
 struct termios g_original_termios;
@@ -89,8 +88,7 @@ static void initialize_title_strings() {
                  " - Caden J Finley (c) 2025";
   }
   if (created_line.empty()) {
-    created_line = " Created 2025 @ " + c_title_color +
-                   "Abilene Christian University" + c_reset_color;
+    created_line = " Created 2025 @\033[1;35mAbilene Christian University\033[0m";
   }
 }
 
@@ -337,7 +335,7 @@ static void save_startup_arguments(int argc, char* argv[]) {
 
   if (g_debug_mode) {
     std::cerr << "DEBUG: Starting CJ's Shell version " << c_version
-              << " with PID: " << c_pid_str
+              << " with PID: " << getpid()
               << " with command line args: " << std::endl;
     for (const auto& arg : g_startup_args) {
       std::cerr << "DEBUG:   " << arg << std::endl;
@@ -463,6 +461,15 @@ static int initialize_interactive_components() {
               << config::colors_enabled << std::endl;
   colors::initialize_color_support(config::colors_enabled);
 
+  // Configure isocline colors based on color settings
+  if (!config::colors_enabled) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Disabling isocline colors and resetting prompt style" << std::endl;
+    ic_enable_color(false);
+    // Override the default green prompt style with no color
+    ic_style_def("ic-prompt", "");
+  }
+
   // Initialize plugins if enabled
   if (config::plugins_enabled) {
     if (g_debug_mode)
@@ -564,7 +571,7 @@ void reprint_prompt() {
 static void main_process_loop() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Entering main process loop" << std::endl;
-  notify_plugins("main_process_pre_run", c_pid_str);
+  notify_plugins("main_process_pre_run", "");
 
   initialize_completion_system();
 
@@ -573,7 +580,7 @@ static void main_process_loop() {
       std::cerr << "---------------------------------------" << std::endl;
       std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
     }
-    notify_plugins("main_process_start", c_pid_str);
+    notify_plugins("main_process_start", "");
 
     // Check and handle any pending signals before prompting for input
     g_shell->process_pending_signals();
@@ -654,7 +661,7 @@ static void main_process_loop() {
       g_exit_flag = true;
       break;
     }
-    notify_plugins("main_process_end", c_pid_str);
+    notify_plugins("main_process_end", "");
     if (g_exit_flag) {
       std::cout << "Exiting main process loop..." << std::endl;
       break;

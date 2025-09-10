@@ -29,14 +29,14 @@ Shell::Shell() {
   shell_exec = std::make_unique<Exec>();
   signal_handler = std::make_unique<SignalHandler>();
   
-  // Allocate on stack-based objects for better cache locality
-  shell_parser = new Parser();
-  built_ins = new Built_ins();
-  shell_script_interpreter = new ShellScriptInterpreter();
+  // Use make_unique for all objects for consistent memory management
+  shell_parser = std::make_unique<Parser>();
+  built_ins = std::make_unique<Built_ins>();
+  shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
 
   // Provide the parser to the script interpreter now that it exists
   if (shell_script_interpreter && shell_parser) {
-    shell_script_interpreter->set_parser(shell_parser);
+    shell_script_interpreter->set_parser(shell_parser.get());
     shell_parser->set_shell(
         this);  // Set shell reference for positional parameters
   }
@@ -58,9 +58,7 @@ Shell::~Shell() {
   if (interactive_mode) {
     std::cerr << "Destroying Shell." << std::endl;
   }
-  delete shell_parser;
-  delete built_ins;
-  delete shell_script_interpreter;
+  // unique_ptr automatically handles cleanup
   shell_exec->terminate_all_child_process();
   restore_terminal_state();
 }

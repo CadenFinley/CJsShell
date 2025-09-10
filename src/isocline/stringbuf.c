@@ -569,9 +569,9 @@ static ssize_t str_get_pos_at_rc(const char* s, ssize_t len, ssize_t termw,
 static bool sbuf_ensure_extra(stringbuf_t* s, ssize_t extra) {
   if (s->buflen >= s->count + extra) return true;
   // reallocate; pick good initial size and multiples to increase reuse on
-  // allocation
+  // allocation. Use larger initial size for better performance.
   ssize_t newlen =
-      (s->buflen <= 0 ? 120
+      (s->buflen <= 0 ? 256  // Increased from 120 to 256
                       : (s->buflen > 1000 ? s->buflen + 1000 : 2 * s->buflen));
   if (newlen < s->count + extra) newlen = s->count + extra;
   if (s->buflen > 0) {

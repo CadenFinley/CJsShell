@@ -801,8 +801,23 @@ int ShellScriptInterpreter::execute_block(
             // Fork for proper variable isolation
             pid_t pid = fork();
             if (pid == 0) {
-              // Child process - execute subshell content
+              // Child process - set up new process group to avoid zombie issues
+              // This ensures that any grandchildren created by the subshell
+              // are properly managed and don't become zombies in the parent
+              if (setpgid(0, 0) < 0) {
+                perror("setpgid failed in subshell child");
+              }
+              
+              // Execute subshell content
               int exit_code = g_shell->execute(subshell_content);
+              
+              // Ensure all child processes are reaped before exiting
+              // This helps prevent zombies from grandchildren
+              int child_status;
+              while (waitpid(-1, &child_status, WNOHANG) > 0) {
+                // Reap any remaining children
+              }
+              
               exit(exit_code);
             } else if (pid > 0) {
               // Parent process - wait for child

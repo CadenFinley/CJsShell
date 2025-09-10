@@ -424,8 +424,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     } else {
       // Check if this is a builtin command - builtins need special handling
       // with redirections because they must run in the parent process
-      if (!cmd.args.empty() && g_shell && g_shell->built_ins &&
-          g_shell->built_ins->is_builtin_command(cmd.args[0])) {
+      if (!cmd.args.empty() && g_shell && g_shell->get_built_ins() &&
+          g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
         // Only handle __INTERNAL_SUBSHELL__ as a builtin with redirections
         // Other builtins can fall back to external commands when redirections
         // are involved
@@ -525,7 +525,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             // Execute the builtin command
-            exit_code = g_shell->built_ins->builtin_command(cmd.args);
+            exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
 
           } catch (const std::exception& e) {
             set_error("cjsh: " + std::string(e.what()));
@@ -960,10 +960,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         // Check if this is a builtin command first
-        if (g_shell && g_shell->built_ins &&
-            g_shell->built_ins->is_builtin_command(cmd.args[0])) {
+        if (g_shell && g_shell->get_built_ins() &&
+            g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
           // Execute builtin in child process
-          int exit_code = g_shell->built_ins->builtin_command(cmd.args);
+          int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
 
           // Ensure output is flushed before exit
           fflush(stdout);

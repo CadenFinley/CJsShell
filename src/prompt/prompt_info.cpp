@@ -210,12 +210,16 @@ std::string PromptInfo::get_basic_prompt() {
   if (g_debug_mode)
     std::cerr << "DEBUG: get_basic_prompt START" << std::endl;
 
-  std::string prompt = "";
   std::string username = get_username();
   std::string hostname = get_hostname();
   std::string cwd = get_current_file_path();
 
-  prompt += username + "@" + hostname + " : " + cwd + " $ ";
+  // Pre-calculate size and reserve to avoid reallocations
+  size_t size = username.length() + hostname.length() + cwd.length() + 10; // extra for formatting
+  std::string prompt;
+  prompt.reserve(size);
+  
+  prompt = username + "@" + hostname + " : " + cwd + " $ ";
 
   if (g_debug_mode)
     std::cerr << "DEBUG: get_basic_prompt END" << std::endl;
@@ -226,16 +230,20 @@ std::string PromptInfo::get_basic_ai_prompt() {
   if (g_debug_mode)
     std::cerr << "DEBUG: get_basic_ai_prompt START" << std::endl;
 
-  std::string prompt = "";
   std::string cwd = get_current_file_path();
   std::string ai_model = g_ai->get_model();
   std::string ai_context = g_ai->get_save_directory();
   std::string ai_type = g_ai->get_assistant_type();
   std::string ai_context_comparison =
-      (std::filesystem::current_path().string() + "/" == ai_context) ? "✔"
-                                                                     : "✖";
+      (std::filesystem::current_path().string() + "/" == ai_context) ? "✔" : "✖";
 
-  prompt += ai_model + " " + ai_context + " " + ai_context_comparison + " " +
+  // Pre-calculate size and reserve to avoid reallocations
+  size_t size = ai_model.length() + ai_context.length() + cwd.length() + 
+                ai_type.length() + ai_context_comparison.length() + 10;
+  std::string prompt;
+  prompt.reserve(size);
+  
+  prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " +
             cwd + " " + ai_type + " > ";
 
   if (g_debug_mode)
@@ -246,7 +254,7 @@ std::string PromptInfo::get_basic_ai_prompt() {
 std::string PromptInfo::get_basic_title() {
   if (g_debug_mode)
     std::cerr << "DEBUG: get_basic_title START/END" << std::endl;
-  return get_current_file_path();
+  return "cjsh v" + c_version + " " + get_current_file_path();
 }
 
 bool PromptInfo::is_variable_used(const std::string& var_name,

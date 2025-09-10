@@ -71,7 +71,9 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   std::string here_doc_delimiter;
   here_doc_delimiter.reserve(64);  // Reserve space for delimiter
   std::string here_doc_content;
+  here_doc_content.reserve(1024);  // Reserve space for here document content
   std::string current_here_doc_line;
+  current_here_doc_line.reserve(256);  // Reserve space for current line
 
   for (size_t i = 0; i < script.size(); ++i) {
     char c = script[i];
@@ -609,8 +611,10 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
 
 void Parser::expand_env_vars(std::string& arg) {
   std::string result;
+  result.reserve(arg.length() * 1.5);  // Reserve extra space for expansions
   bool in_var = false;
   std::string var_name;
+  var_name.reserve(64);  // Reserve space for variable names
 
   for (size_t i = 0; i < arg.length(); ++i) {
     // Handle escaped dollar (e.g., \$var): treat $ literally and remove escape
