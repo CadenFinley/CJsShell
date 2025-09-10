@@ -92,7 +92,7 @@ fi
 
 # Test 6: Job control with SIGTERM
 log_test "Process termination with SIGTERM"
-"$SHELL_TO_TEST" -c "sleep 10 & PID=\$!; kill \$PID; wait \$PID" 2>/dev/null
+"$SHELL_TO_TEST" -c "sleep 2 & PID=\$!; kill \$PID; wait \$PID" 2>/dev/null
 exit_code=$?
 if [ $exit_code -ne 0 ]; then
     pass  # Process should exit with non-zero after being killed
@@ -116,7 +116,7 @@ skip "SIGINT handling requires interactive testing"
 
 # Test 9: Pipeline signal propagation
 log_test "Pipeline signal propagation"
-"$SHELL_TO_TEST" -c "sleep 10 | sleep 10 & PID=\$!; kill \$PID" 2>/dev/null
+"$SHELL_TO_TEST" -c "sleep 2 | sleep 2 & PID=\$!; kill \$PID" 2>/dev/null
 if [ $? -eq 0 ]; then
     pass
 else

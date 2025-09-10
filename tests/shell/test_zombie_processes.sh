@@ -116,7 +116,7 @@ fi
 log_test "Killed background process cleanup"
 ZOMBIES_BEFORE=$(count_zombies)
 # Start a background process, get its PID, kill it, then check for zombies
-RESULT=$("$CJSH_PATH" -c "sleep 10 & echo \$!; kill %1; wait %1 2>/dev/null; echo done" 2>/dev/null)
+RESULT=$("$CJSH_PATH" -c "sleep 2 & echo \$!; kill %1; wait %1 2>/dev/null; echo done" 2>/dev/null)
 sleep 0.2  # Give time for cleanup
 ZOMBIES_AFTER=$(count_zombies)
 if [ "$ZOMBIES_AFTER" -le "$ZOMBIES_BEFORE" ]; then
@@ -225,7 +225,7 @@ fi
 log_test "Signal handling doesn't interfere with cleanup"
 ZOMBIES_BEFORE=$(count_zombies)
 # Start process, send signal, wait for cleanup
-"$CJSH_PATH" -c "sleep 10 & PID=\$!; kill -TERM \$PID; wait \$PID 2>/dev/null"
+"$CJSH_PATH" -c "sleep 2 & PID=\$!; kill -TERM \$PID; wait \$PID 2>/dev/null"
 sleep 0.1  # Give time for cleanup
 ZOMBIES_AFTER=$(count_zombies)
 if [ "$ZOMBIES_AFTER" -le "$ZOMBIES_BEFORE" ]; then

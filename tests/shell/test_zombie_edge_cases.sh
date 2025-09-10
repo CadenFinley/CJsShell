@@ -101,7 +101,7 @@ else
 fi
 
 # Test 11: Background process terminated by signal
-"$CJSH_PATH" -c 'sleep 10 & PID=$!; kill -TERM $PID; wait $PID 2>/dev/null'
+"$CJSH_PATH" -c 'sleep 2 & PID=$!; kill -TERM $PID; wait $PID 2>/dev/null'
 if [ $? -ne 0 ]; then  # Should fail because process was terminated
     echo "PASS: background process with signal handling"
 else

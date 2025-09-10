@@ -95,7 +95,7 @@ else
 fi
 
 # Test 7: Background job with signal
-"$CJSH_PATH" -c 'sleep 10 & PID=$!; sleep 0.1; kill -TERM $PID; wait $PID 2>/dev/null'
+"$CJSH_PATH" -c 'sleep 2 & PID=$!; sleep 0.1; kill -TERM $PID; wait $PID 2>/dev/null'
 if check_for_zombies 3 "$BASELINE_ZOMBIES"; then
     echo "PASS: background job with signal handler"
 else

@@ -143,7 +143,7 @@ fi
 log_test "SIGTERM signal handling (graceful exit)"
 if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
     # Start shell in background and send SIGTERM
-    "$SHELL_TO_TEST" -c "sleep 10" &
+    "$SHELL_TO_TEST" -c "sleep 2" &
     shell_pid=$!
     sleep 0.1  # Give shell time to start
     kill -TERM $shell_pid 2>/dev/null
@@ -163,7 +163,7 @@ fi
 log_test "SIGHUP signal handling (graceful exit)"
 if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
     # Start shell in background and send SIGHUP
-    "$SHELL_TO_TEST" -c "sleep 10" &
+    "$SHELL_TO_TEST" -c "sleep 2" &
     shell_pid=$!
     sleep 0.1  # Give shell time to start
     kill -HUP $shell_pid 2>/dev/null

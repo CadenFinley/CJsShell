@@ -25,11 +25,31 @@ if [ ! -x "$CJSH" ]; then
     exit 1
 fi
 
+# Check for and terminate any existing cjsh processes
+echo "Checking for existing cjsh processes..."
+EXISTING_CJSH=$(pgrep -f "cjsh" 2>/dev/null || true)
+if [ -n "$EXISTING_CJSH" ]; then
+    echo "${YELLOW}Warning: Found running cjsh process(es): $EXISTING_CJSH${NC}"
+    echo "Terminating existing cjsh processes..."
+    pkill -f "cjsh" 2>/dev/null || true
+    sleep 1
+    # Force kill if still running
+    STILL_RUNNING=$(pgrep -f "cjsh" 2>/dev/null || true)
+    if [ -n "$STILL_RUNNING" ]; then
+        echo "${YELLOW}Force killing stubborn cjsh processes: $STILL_RUNNING${NC}"
+        pkill -9 -f "cjsh" 2>/dev/null || true
+        sleep 1
+    fi
+    echo "${GREEN}Existing cjsh processes terminated.${NC}"
+else
+    echo "No existing cjsh processes found."
+fi
+
 echo "${BLUE}Running CJ's Shell Test Suite${NC}"
 echo "${BLUE}=============================${NC}"
 echo "Testing binary: $CJSH"
 echo "Includes comprehensive POSIX compliance tests"
-echo "This can take several minutes to complete..."
+echo "This can take a second to complete. Hold tight."
 echo ""
 
 # Define test categories and their tests (using simple variables instead of associative arrays)

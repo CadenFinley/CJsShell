@@ -82,7 +82,7 @@ echo "Baseline zombie count: $BASELINE_ZOMBIES"
 log_test "SIGTERM triggers graceful cleanup"
 
 # Start shell with a long-running command
-"$SHELL_TO_TEST" -c "sleep 5" &
+"$SHELL_TO_TEST" -c "sleep 2" &
 shell_pid=$!
 
 if wait_for_process $shell_pid; then
@@ -111,7 +111,7 @@ fi
 log_test "SIGHUP triggers graceful cleanup"
 
 # Start shell with a long-running command
-"$SHELL_TO_TEST" -c "sleep 5" &
+"$SHELL_TO_TEST" -c "sleep 2" &
 shell_pid=$!
 
 if wait_for_process $shell_pid; then
@@ -180,7 +180,7 @@ if command -v ps >/dev/null 2>&1; then
     sleep_before=$(echo "$sleep_before" | tr -d ' \n')
     
     # Start shell with background process
-    "$SHELL_TO_TEST" -c "sleep 10 & sleep 5" &
+    "$SHELL_TO_TEST" -c "sleep 2 & sleep 2" &
     shell_pid=$!
     
     if wait_for_process $shell_pid; then
@@ -262,7 +262,7 @@ fi
 # Test 9: Multiple signal handling
 log_test "Multiple signal resistance"
 # Send multiple signals and ensure only the first causes exit
-"$SHELL_TO_TEST" -c "sleep 3" &
+"$SHELL_TO_TEST" -c "sleep 1" &
 shell_pid=$!
 
 if wait_for_process $shell_pid; then
