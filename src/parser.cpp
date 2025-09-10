@@ -22,18 +22,21 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   // Split script content on unquoted newlines into logical lines.
   // Handle here documents specially by collecting content until delimiter.
   
-  // Helper function to strip inline comments
+  // Helper function to strip inline comments - use string_view for efficiency
   auto strip_inline_comment = [](const std::string& s) -> std::string {
     bool in_quotes = false;
     char quote = '\0';
-    for (size_t i = 0; i < s.size(); ++i) {
-      char c = s[i];
+    const char* data = s.c_str();
+    size_t size = s.size();
+    
+    for (size_t i = 0; i < size; ++i) {
+      char c = data[i];
       
       // Count consecutive backslashes before this quote
       if (c == '"' || c == '\'') {
         size_t backslash_count = 0;
         for (size_t j = i; j > 0; --j) {
-          if (s[j - 1] == '\\') {
+          if (data[j - 1] == '\\') {
             backslash_count++;
           } else {
             break;
@@ -60,11 +63,13 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   };
 
   std::vector<std::string> lines;
+  lines.reserve(32);  // Reserve space to reduce reallocations
   size_t start = 0;
   bool in_quotes = false;
   char quote_char = '\0';
   bool in_here_doc = false;
   std::string here_doc_delimiter;
+  here_doc_delimiter.reserve(64);  // Reserve space for delimiter
   std::string here_doc_content;
   std::string current_here_doc_line;
 
@@ -213,7 +218,9 @@ inline std::string strip_quote_tag(const std::string& s) {
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
   std::vector<std::string> tokens;
+  tokens.reserve(16);  // Reserve space for typical command with arguments
   std::string current_token;
+  current_token.reserve(128);  // Reserve space for typical token
   bool in_quotes = false;
   char quote_char = '\0';
   bool escaped = false;
@@ -307,6 +314,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
 std::vector<std::string> merge_redirection_tokens(
     const std::vector<std::string>& tokens) {
   std::vector<std::string> result;
+  result.reserve(tokens.size());  // Reserve at least as much space as input
 
   for (size_t i = 0; i < tokens.size(); ++i) {
     const std::string& token = tokens[i];
@@ -356,6 +364,7 @@ std::vector<std::string> merge_redirection_tokens(
 
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   std::vector<std::string> args;
+  args.reserve(8);  // Reserve space for typical command with arguments
 
   try {
     std::vector<std::string> raw_args = tokenize_command(cmdline);

@@ -36,13 +36,10 @@ pid_t g_shell_pgid = 0;
 struct termios g_shell_tmodes;
 bool g_job_control_enabled = false;
 bool g_exit_flag = false;
-std::string g_cached_version = "";
-std::string g_current_theme = "";
-std::string title_line = " CJ's Shell v" + c_version +
-                         (PRE_RELEASE ? pre_release_line : "") +
-                         " - Caden J Finley (c) 2025";
-std::string created_line = " Created 2025 @ " + c_title_color +
-                           "Abilene Christian University" + c_reset_color;
+std::string g_cached_version;
+std::string g_current_theme;
+std::string title_line;
+std::string created_line;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
 std::unique_ptr<Ai> g_ai = nullptr;
@@ -84,6 +81,18 @@ bool show_version = false;
 bool show_help = false;
 bool startup_test = false;
 }  // namespace config
+
+static void initialize_title_strings() {
+  if (title_line.empty()) {
+    title_line = " CJ's Shell v" + c_version +
+                 (PRE_RELEASE ? pre_release_line : "") +
+                 " - Caden J Finley (c) 2025";
+  }
+  if (created_line.empty()) {
+    created_line = " Created 2025 @ " + c_title_color +
+                   "Abilene Christian University" + c_reset_color;
+  }
+}
 
 // to do
 //  local session history files, that combine into main one upon process close
@@ -174,6 +183,7 @@ int main(int argc, char* argv[]) {
   g_startup_active = false;
   if (!g_exit_flag && !config::startup_test) {
     if (g_title_line) {
+      initialize_title_strings();
       std::cout << title_line << std::endl;
       std::cout << created_line << std::endl;
     }

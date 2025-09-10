@@ -24,13 +24,16 @@ Shell::Shell() {
   // Save terminal state BEFORE any modifications
   save_terminal_state();
 
+  // Use make_unique for better exception safety and potentially better memory layout
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
   signal_handler = std::make_unique<SignalHandler>();
+  
+  // Allocate on stack-based objects for better cache locality
   shell_parser = new Parser();
   built_ins = new Built_ins();
-
   shell_script_interpreter = new ShellScriptInterpreter();
+
   // Provide the parser to the script interpreter now that it exists
   if (shell_script_interpreter && shell_parser) {
     shell_script_interpreter->set_parser(shell_parser);
