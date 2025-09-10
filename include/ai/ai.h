@@ -1,6 +1,5 @@
 #pragma once
 
-#include <curl/curl.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -120,13 +119,11 @@ class Ai {
   std::string process_code_blocks_for_code_interpreter(
       const std::string& message);
   static std::string format_markdown(const std::string& text);
-  static size_t write_callback(void* contents, size_t size, size_t nmemb,
-                               std::string* userp);
   std::vector<std::string> split_string(const std::string& str, char delimiter);
   std::string sanitize_file_name(const std::string& file_name);
   static void monitor_cancellation(std::atomic<bool>& loading,
                                    std::atomic<bool>& request_cancelled);
-  static void handle_error_response(CURL* curl, long response_code,
+  static void handle_error_response(int status_code,
                                     const std::string& error_body);
 
   void load_ai_config();

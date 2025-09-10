@@ -624,18 +624,7 @@ static void main_process_loop() {
         notify_plugins("main_process_command_processed", command);
         {
           std::string status_str;
-
-          // process the command
-          if (g_shell->get_menu_active()) {
-            status_str = std::to_string(g_shell->execute(command));
-          } else {
-            if (command[0] == ':') {
-              command.erase(0, 1);
-              status_str = std::to_string(g_shell->execute(command));
-            } else {
-              status_str = std::to_string(g_shell->do_ai_request(command));
-            }
-          }
+          status_str = std::to_string(g_shell->execute(command));
 
           if (g_debug_mode)
             std::cerr << "DEBUG: Command exit status: " << status_str

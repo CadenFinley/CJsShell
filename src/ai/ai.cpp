@@ -1,6 +1,7 @@
 #include "ai.h"
 
 #include "cjsh.h"
+#include "http_client.h"
 
 Ai::Ai(const std::string& api_key, const std::string& assistant_type,
        const std::string& initial_instruction) {
@@ -704,22 +705,11 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
   std::string filtered_message = filter_message(message);
   last_prompt_used = filtered_message;
 
-  CURL* curl = curl_easy_init();
-  if (!curl) {
-    return "";
-  }
-
-  struct curl_slist* headers = nullptr;
-  headers = curl_slist_append(
-      headers, ("Authorization: Bearer " + user_api_key).c_str());
-  headers = curl_slist_append(headers, "Content-Type: application/json");
-
   nlohmann::json request_body = {
       {"model", current_model},
       {"messages", {{{"role", "user"}, {"content", filtered_message}}}}};
 
   std::string request_body_str = request_body.dump();
-  std::string response_data;
 
   std::atomic<bool> loading(true);
   std::atomic<bool> request_cancelled(false);
@@ -739,17 +729,15 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     std::cout << "\r                    \r" << std::flush;
   });
 
-  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body_str.c_str());
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT,
-                   static_cast<long>(timeout_flag_seconds));
+  // Prepare headers
+  std::map<std::string, std::string> headers;
+  headers["Authorization"] = "Bearer " + user_api_key;
+  headers["Content-Type"] = "application/json";
 
-  CURLcode res = CURLE_OK;
+  // Make HTTP request
+  HttpResponse response;
   if (!request_cancelled) {
-    res = curl_easy_perform(curl);
+    response = HttpClient::post(url, request_body_str, headers, static_cast<int>(timeout_flag_seconds));
   }
 
   loading = false;
@@ -763,35 +751,23 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     cancellation_thread.join();
   }
 
-  long response_code = 0;
-  if (res == CURLE_OK) {
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-
-    if (response_code < 200 || response_code >= 300) {
-      handle_error_response(curl, response_code, response_data);
-      curl_slist_free_all(headers);
-      curl_easy_cleanup(curl);
-      return "Error: API request failed with status code " +
-             std::to_string(response_code) + ". See console for details.";
-    }
-  }
-
-  curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
-
   if (request_cancelled) {
     return "Request cancelled by user.";
   }
 
-  if (res != CURLE_OK) {
-    std::cerr << "Curl error: " << curl_easy_strerror(res) << std::endl;
-    return "Error: Failed to connect to API server. Please check you internet "
-           "connection. " +
-           std::string(curl_easy_strerror(res));
+  if (!response.success) {
+    if (response.status_code >= 400) {
+      handle_error_response(response.status_code, response.body);
+      return "Error: API request failed with status code " +
+             std::to_string(response.status_code) + ". See console for details.";
+    } else {
+      std::cerr << "HTTP error: " << response.error_message << std::endl;
+      return "Error: Failed to connect to API server. Please check your internet connection. " + response.error_message;
+    }
   }
 
   try {
-    auto json_response = nlohmann::json::parse(response_data);
+    auto json_response = nlohmann::json::parse(response.body);
     last_response_received = json_response["choices"][0]["message"]["content"];
 
     auto end = std::chrono::steady_clock::now();
@@ -812,7 +788,7 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     return last_response_received;
   } catch (const nlohmann::json::exception& e) {
     std::cerr << "JSON parsing error: " << e.what() << std::endl;
-    std::cerr << "Raw response: " << response_data << std::endl;
+    std::cerr << "Raw response: " << response.body << std::endl;
     return "Error: Failed to parse API response. The service might be "
            "experiencing issues.";
   }
@@ -848,12 +824,6 @@ void Ai::monitor_cancellation(std::atomic<bool>& loading,
   }
 
   tcflush(stdin_fd, TCIFLUSH);
-}
-
-size_t Ai::write_callback(void* contents, size_t size, size_t nmemb,
-                          std::string* userp) {
-  userp->append((char*)contents, size * nmemb);
-  return size * nmemb;
 }
 
 std::string Ai::filter_message(const std::string& message) {
@@ -1168,28 +1138,14 @@ std::string Ai::format_markdown(const std::string& text) {
 
 bool Ai::test_api_key(const std::string& api_key) {
   std::string url = "https://api.openai.com/v1/engines";
-  CURL* curl = curl_easy_init();
-  if (!curl) {
-    return false;
-  }
+  
+  std::map<std::string, std::string> headers;
+  headers["Authorization"] = "Bearer " + api_key;
+  headers["Content-Type"] = "application/json";
 
-  struct curl_slist* headers = nullptr;
-  headers =
-      curl_slist_append(headers, ("Authorization: Bearer " + api_key).c_str());
-  headers = curl_slist_append(headers, "Content-Type: application/json");
-
-  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-
-  CURLcode res = curl_easy_perform(curl);
-  long response_code;
-  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-
-  curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
-
-  return (res == CURLE_OK && response_code == 200);
+  HttpResponse response = HttpClient::head(url, headers, 30);
+  
+  return response.success && response.status_code == 200;
 }
 
 std::string Ai::sanitize_file_name(const std::string& file_name) {
@@ -1213,16 +1169,7 @@ std::vector<std::string> Ai::split_string(const std::string& str,
   return tokens;
 }
 
-size_t write_data(void* ptr, size_t size, size_t nmemb, void* userdata) {
-  std::ofstream* ofs = static_cast<std::ofstream*>(userdata);
-  ofs->write(static_cast<char*>(ptr), size * nmemb);
-  return size * nmemb;
-}
-
 bool Ai::process_voice_dictation(const std::string& message) {
-  CURL* curl = curl_easy_init();
-  if (!curl)
-    return false;
   std::string temp_file_name =
       cjsh_filesystem::g_cjsh_ai_conversations_path.string() + "/" +
       current_model + "_" + assistant_type + ".mp3";
@@ -1231,10 +1178,6 @@ bool Ai::process_voice_dictation(const std::string& message) {
   if (!ofs.is_open())
     return false;
 
-  struct curl_slist* headers = nullptr;
-  headers = curl_slist_append(
-      headers, ("Authorization: Bearer " + user_api_key).c_str());
-  headers = curl_slist_append(headers, "Content-Type: application/json");
   json body = {{"model", "gpt-4o-mini-tts"},
                {"input", message},
                {"voice", voice_dictation_voice},
@@ -1260,17 +1203,16 @@ bool Ai::process_voice_dictation(const std::string& message) {
     std::cout << "\r                         \r" << std::flush;
   });
 
-  curl_easy_setopt(curl, CURLOPT_URL, "https://api.openai.com/v1/audio/speech");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ofs);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT,
-                   static_cast<long>(timeout_flag_seconds));
+  // Prepare headers
+  std::map<std::string, std::string> headers;
+  headers["Authorization"] = "Bearer " + user_api_key;
+  headers["Content-Type"] = "application/json";
 
-  CURLcode res = CURLE_OK;
+  // Make HTTP request
+  HttpResponse response;
   if (!request_cancelled) {
-    res = curl_easy_perform(curl);
+    response = HttpClient::post("https://api.openai.com/v1/audio/speech", 
+                               jsonData, headers, static_cast<int>(timeout_flag_seconds));
   }
 
   loading = false;
@@ -1284,22 +1226,23 @@ bool Ai::process_voice_dictation(const std::string& message) {
     cancellation_thread.join();
   }
 
-  curl_slist_free_all(headers);
-  curl_easy_cleanup(curl);
-  ofs.close();
-
   if (request_cancelled) {
+    ofs.close();
     if (std::filesystem::exists(temp_file_name)) {
       std::filesystem::remove(temp_file_name);
     }
     return false;
   }
 
-  if (res != CURLE_OK) {
-    std::cerr << "Curl error generating audio: " << curl_easy_strerror(res)
-              << std::endl;
+  if (!response.success) {
+    ofs.close();
+    std::cerr << "HTTP error generating audio: " << response.error_message << std::endl;
     return false;
   }
+
+  // Write the audio data to file
+  ofs.write(response.body.c_str(), response.body.length());
+  ofs.close();
 
   std::string command =
       "(afplay \"" + temp_file_name + "\" && rm \"" + temp_file_name + "\")";
@@ -1310,7 +1253,7 @@ bool Ai::process_voice_dictation(const std::string& message) {
     g_shell->shell_exec->execute_command_async(args);
   }
 
-  return (res == CURLE_OK);
+  return response.success;
 }
 
 void Ai::set_voice_dictation_enabled(bool enabled) {
@@ -1337,12 +1280,11 @@ std::string Ai::get_voice_dictation_instructions() const {
   return voice_dictation_instructions;
 }
 
-void Ai::handle_error_response(CURL* curl, long response_code,
+void Ai::handle_error_response(int status_code,
                                const std::string& error_body) {
   std::string error_message;
-  (void)curl;
 
-  switch (response_code) {
+  switch (status_code) {
     case 400:
       error_message =
           "Bad Request: The server could not understand the request due to "
@@ -1410,7 +1352,7 @@ void Ai::handle_error_response(CURL* curl, long response_code,
       break;
     default:
       error_message = "Unexpected Error: Received HTTP response code " +
-                      std::to_string(response_code);
+                      std::to_string(status_code);
   }
 
   error_message += "\nDetails: " + error_body;

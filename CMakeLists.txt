@@ -147,7 +147,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    curl
     pthread
     dl
     nlohmann_json::nlohmann_json
@@ -179,7 +178,6 @@ if(BUILD_MULTIPLE_BINARIES)
       ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
   )
   target_link_libraries(${PROJECT_NAME}_speed03 PRIVATE
-      curl
       pthread
       dl
       nlohmann_json::nlohmann_json
@@ -197,7 +195,6 @@ if(BUILD_MULTIPLE_BINARIES)
       ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
   )
   target_link_libraries(${PROJECT_NAME}_speed02 PRIVATE
-      curl
       pthread
       dl
       nlohmann_json::nlohmann_json
@@ -215,7 +212,6 @@ if(BUILD_MULTIPLE_BINARIES)
       ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
   )
   target_link_libraries(${PROJECT_NAME}_debug PRIVATE
-      curl
       pthread
       dl
       nlohmann_json::nlohmann_json

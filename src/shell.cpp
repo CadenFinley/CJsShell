@@ -65,17 +65,26 @@ Shell::~Shell() {
 }
 
 int Shell::execute(const std::string& script) {
+  if (script.empty()) {
+      last_exit_code = 0;
+      return last_exit_code;
+  }
   last_command = script;
+  std::string processed_script = script;
   if (!get_menu_active()) {
     if (script == ":") {
       last_exit_code = 0;
       set_menu_active(true);
       return last_exit_code;
+    } else if (script[0] == ':') {
+      processed_script = script.substr(1);
+    } else {
+      return do_ai_request(script);
     }
   }
   std::vector<std::string> lines;
 
-  lines = shell_parser->parse_into_lines(script);
+  lines = shell_parser->parse_into_lines(processed_script);
 
   // print all lines
   if (g_debug_mode) {

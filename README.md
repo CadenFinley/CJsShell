@@ -77,9 +77,6 @@ See `tests/README.md` for detailed test documentation and compliance matrix.
  
 - **nlohmann/json**  
   https://github.com/nlohmann/json (MIT License)
- 
-- **curl**  
-  https://github.com/curl/curl (MIT License)
 
 ## License
 
