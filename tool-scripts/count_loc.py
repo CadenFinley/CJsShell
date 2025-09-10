@@ -99,7 +99,7 @@ def main():
     os.chdir(project_root)
     
     # Set up excluded directories
-    excluded_dirs = {'vendor', 'plugins', 'themes', 'cmake', 'build', 'tool-scripts', 'tests'}
+    excluded_dirs = {'vendor', 'plugins', 'themes', 'cmake', 'build'}
     if args.exclude_dirs:
         excluded_dirs.update(args.exclude_dirs)
     if args.include_dirs:
