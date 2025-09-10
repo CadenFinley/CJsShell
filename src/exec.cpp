@@ -15,6 +15,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "job_control.h"
+#include "signal_handler.h"
 
 Exec::Exec() {
   last_terminal_output_error = "";
@@ -31,15 +32,26 @@ Exec::Exec() {
 }
 
 Exec::~Exec() {
-  for (auto& job_pair : jobs) {
-    Job& job = job_pair.second;
-    if (!job.completed) {
-      for (pid_t pid : job.pids) {
-        if (kill(pid, 0) == 0) {
-          kill(pid, SIGTERM);
-        }
-      }
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Exec destructor called" << std::endl;
+  }
+  
+  // Note: Shell::~Shell() already calls terminate_all_child_process()
+  // so we don't need to do it again here. Just do a final zombie sweep
+  // in case any processes exited between Shell cleanup and Exec destruction.
+  
+  int status;
+  pid_t pid;
+  int zombie_count = 0;
+  while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+    zombie_count++;
+    if (g_debug_mode && zombie_count <= 3) {
+      std::cerr << "DEBUG: Exec destructor reaped zombie " << pid << std::endl;
     }
+  }
+  
+  if (g_debug_mode && zombie_count > 0) {
+    std::cerr << "DEBUG: Exec destructor reaped " << zombie_count << " zombies" << std::endl;
   }
 }
 
@@ -64,6 +76,20 @@ void Exec::init_shell() {
 }
 
 void Exec::handle_child_signal(pid_t pid, int status) {
+  // Only mask SIGCHLD if we're in a high-concurrency situation
+  // For normal interactive use, the mutex should be sufficient
+  static bool use_signal_masking = false;
+  static int signal_count = 0;
+  
+  if (++signal_count > 10) {  // Enable masking if we're getting many signals
+    use_signal_masking = true;
+  }
+  
+  std::unique_ptr<SignalMask> mask;
+  if (use_signal_masking) {
+    mask = std::make_unique<SignalMask>(SIGCHLD);
+  }
+  
   std::lock_guard<std::mutex> lock(jobs_mutex);
 
   for (auto& job_pair : jobs) {
@@ -1063,6 +1089,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 }
 
 int Exec::add_job(const Job& job) {
+  // For add_job, signal masking is usually not needed since it's called
+  // from the main thread before processes are started
   std::lock_guard<std::mutex> lock(jobs_mutex);
 
   int job_id = next_job_id++;
@@ -1072,6 +1100,7 @@ int Exec::add_job(const Job& job) {
 }
 
 void Exec::remove_job(int job_id) {
+  // Job removal is typically safe without signal masking
   std::lock_guard<std::mutex> lock(jobs_mutex);
 
   auto it = jobs.find(job_id);
@@ -1276,22 +1305,72 @@ void Exec::wait_for_job(int job_id) {
 void Exec::terminate_all_child_process() {
   std::lock_guard<std::mutex> lock(jobs_mutex);
 
+  if (g_debug_mode && !jobs.empty()) {
+    std::cerr << "DEBUG: Starting graceful termination of " << jobs.size() << " jobs" << std::endl;
+  }
+
+  // First pass: send SIGTERM to all job process groups
+  bool any_jobs_terminated = false;
   for (auto& job_pair : jobs) {
     Job& job = job_pair.second;
     if (!job.completed) {
       if (killpg(job.pgid, 0) == 0) {
-        if (kill(-job.pgid, SIGTERM) < 0) {
+        if (killpg(job.pgid, SIGTERM) == 0) {
+          any_jobs_terminated = true;
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Sent SIGTERM to job " << job_pair.first 
+                      << " (pgid " << job.pgid << ")" << std::endl;
+          }
+        } else {
           if (errno != ESRCH) {
-            perror("kill (SIGTERM) in terminate_all_child_process");
+            perror("killpg (SIGTERM) in terminate_all_child_process");
           }
         }
         std::cerr << "[" << job_pair.first << "] Terminated\t" << job.command
                   << std::endl;
       }
+    }
+  }
 
+  // Only add delay if we actually terminated some jobs
+  if (any_jobs_terminated) {
+    // Give processes a brief moment to exit gracefully (non-blocking)
+    // Use a much shorter delay to avoid sluggishness
+    usleep(50000); // 50ms instead of 100ms
+  }
+
+  // Second pass: send SIGKILL to any remaining processes
+  for (auto& job_pair : jobs) {
+    Job& job = job_pair.second;
+    if (!job.completed) {
+      if (killpg(job.pgid, 0) == 0) {
+        if (killpg(job.pgid, SIGKILL) == 0) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Sent SIGKILL to stubborn job " << job_pair.first 
+                      << " (pgid " << job.pgid << ")" << std::endl;
+          }
+        } else {
+          if (errno != ESRCH) {
+            perror("killpg (SIGKILL) in terminate_all_child_process");
+          }
+        }
+      }
+      
+      // Mark job as completed regardless
       job.completed = true;
       job.stopped = false;
       job.status = 0;
+    }
+  }
+
+  // Final cleanup: reap any remaining zombies (quick pass)
+  int status;
+  pid_t pid;
+  int zombie_count = 0;
+  while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < 10) {
+    zombie_count++;
+    if (g_debug_mode && zombie_count <= 3) {  // Limit debug output
+      std::cerr << "DEBUG: Reaped zombie process " << pid << std::endl;
     }
   }
 

@@ -199,28 +199,21 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
   // Check if we're in a forked child - if so, reset to default handler and
   // re-raise
   if (is_forked_child()) {
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: Signal " << signum << " (" << get_signal_name(signum)
-                << ") received in forked child, re-raising with default handler"
-                << std::endl;
-    }
-    signal(signum, SIG_DFL);
+    // Use sigaction for atomic signal handler replacement to avoid race conditions
+    struct sigaction sa;
+    sa.sa_handler = SIG_DFL;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(signum, &sa, nullptr);
     raise(signum);
     return;
   }
 
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Signal received: " << signum << " ("
-              << get_signal_name(signum) << " - "
-              << get_signal_description(signum) << ")" << std::endl;
-  }
+  // Only use async-signal-safe operations in signal handler
+  // Defer complex operations and debugging output to process_pending_signals()
 
   // Check if this signal is being observed by scripts
   bool is_observed = is_signal_observed(signum);
-  if (is_observed && g_debug_mode) {
-    std::cerr << "DEBUG: Signal " << signum << " is being observed by scripts"
-              << std::endl;
-  }
 
   switch (signum) {
     case SIGINT: {
@@ -231,15 +224,11 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
         (void)bytes_written;
       }
-      if (g_debug_mode)
-        std::cerr << "DEBUG: SIGINT handler executed" << std::endl;
       break;
     }
 
     case SIGCHLD: {
       s_sigchld_received = 1;
-      if (g_debug_mode)
-        std::cerr << "DEBUG: SIGCHLD handler executed" << std::endl;
       break;
     }
 
@@ -247,9 +236,6 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
       s_sighup_received = 1;
       // Only exit if signal is not being observed
       if (!is_observed) {
-        if (g_debug_mode)
-          std::cerr << "DEBUG: SIGHUP handler executed, setting exit flag"
-                    << std::endl;
         g_exit_flag = true;
       }
       break;
@@ -259,9 +245,6 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
       s_sigterm_received = 1;
       // Only exit if signal is not being observed
       if (!is_observed) {
-        if (g_debug_mode)
-          std::cerr << "DEBUG: SIGTERM handler executed, setting exit flag"
-                    << std::endl;
         g_exit_flag = true;
       }
       break;
@@ -269,10 +252,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
 #ifdef SIGWINCH
     case SIGWINCH: {
-      // Window size changed - notify terminal
-      if (g_debug_mode)
-        std::cerr << "DEBUG: SIGWINCH handler executed" << std::endl;
-      // Simply let it be processed in process_pending_signals
+      // Window size changed - simply let it be processed in process_pending_signals
       break;
     }
 #endif
@@ -368,6 +348,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
   // Check for all signals that might have been received
   if (s_sigint_received) {
     s_sigint_received = 0;
+    
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Processing SIGINT signal" << std::endl;
+    }
 
     // Check if SIGINT is being observed by scripts
     bool is_observed = is_signal_observed(SIGINT);
@@ -392,11 +376,18 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
   if (s_sigchld_received) {
     s_sigchld_received = 0;
 
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Processing SIGCHLD signal" << std::endl;
+    }
+
     if (shell_exec) {
       pid_t pid;
       int status;
-      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) >
-             0) {
+      int reaped_count = 0;
+      
+      // Aggressively reap all available children to prevent zombies
+      while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0) {
+        reaped_count++;
         shell_exec->handle_child_signal(pid, status);
 
         // Also update JobManager for job control integration
@@ -435,6 +426,19 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
           } else if (WIFCONTINUED(status)) {
             job->state = JobState::RUNNING;
           }
+        }
+      }
+      
+      // Reduce debug output frequency to avoid performance impact
+      if (g_debug_mode && reaped_count > 0 && reaped_count <= 3) {
+        std::cerr << "DEBUG: SIGCHLD handler reaped " << reaped_count << " children" << std::endl;
+      }
+      
+      // If waitpid returned -1 with ECHILD, all children have been reaped
+      if (pid == -1 && errno == ECHILD && g_debug_mode) {
+        static int echild_count = 0;
+        if (++echild_count <= 5) {  // Limit this debug message
+          std::cerr << "DEBUG: All children have been reaped" << std::endl;
         }
       }
     }

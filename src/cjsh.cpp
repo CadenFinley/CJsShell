@@ -142,7 +142,6 @@ int main(int argc, char* argv[]) {
       std::cerr << "Error: Failed to initialize or verify file system or files "
                    "within the file system."
                 << std::endl;
-      g_shell.reset();
       return 1;
     }
     process_profile_file();
@@ -346,13 +345,11 @@ static void save_startup_arguments(int argc, char* argv[]) {
 static int handle_early_exit_modes() {
   if (config::show_version) {  // -v --version
     std::cout << c_version << (PRE_RELEASE ? pre_release_line : "") << std::endl;
-    g_shell.reset();
     return 0;
   }
 
   if (config::show_help) {  // -h --help
     print_usage();
-    g_shell.reset();
     return 0;
   }
 
@@ -375,15 +372,8 @@ static int handle_early_exit_modes() {
     if (g_shell) {
       TrapManager::instance().set_shell(g_shell.get());
       TrapManager::instance().execute_exit_trap();
-      
-      // Ensure background processes are terminated before exit
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Terminating background processes before -c exit" << std::endl;
-      }
-      g_shell->shell_exec->terminate_all_child_process();
     }
 
-    g_shell.reset();
     return code;
   }
 
@@ -405,7 +395,6 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     if (!file.is_open()) {
       std::cerr << "cjsh: " << script_file << ": No such file or directory"
                 << std::endl;
-      g_shell.reset();
       return 127;
     }
 
@@ -439,11 +428,9 @@ static int handle_non_interactive_mode(const std::string& script_file) {
       unsetenv("EXIT_CODE");
     }
 
-    g_shell.reset();
     return code;
   }
 
-  g_shell.reset();
   return 0;
 }
 
@@ -455,7 +442,6 @@ static int initialize_interactive_components() {
     std::cerr << "Error: Failed to initialize or verify file system or files "
                  "within the file system."
               << std::endl;
-    g_shell.reset();
     return 1;
   }
 
@@ -721,7 +707,7 @@ void cleanup_resources() {
     g_plugin.reset();
   }
 
-  // Reset the shell last (this will clean up any additional resources)
+  // Reset the shell last - its destructor will handle process cleanup
   if (g_shell) {
     g_shell.reset();
   }
