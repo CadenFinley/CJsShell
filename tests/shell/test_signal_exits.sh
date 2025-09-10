@@ -177,6 +177,7 @@ log_test "Background processes cleanup on signal exit"
 if command -v ps >/dev/null 2>&1; then
     # Count sleep processes before test
     sleep_before=$(ps axo comm 2>/dev/null | grep -c "sleep" 2>/dev/null || echo 0)
+    sleep_before=$(echo "$sleep_before" | tr -d ' \n')
     
     # Start shell with background process
     "$SHELL_TO_TEST" -c "sleep 10 & sleep 5" &
@@ -189,12 +190,13 @@ if command -v ps >/dev/null 2>&1; then
         
         # Count sleep processes after test
         sleep_after=$(ps axo comm 2>/dev/null | grep -c "sleep" 2>/dev/null || echo 0)
+        sleep_after=$(echo "$sleep_after" | tr -d ' \n')
         
         # Check if we have more sleep processes than we started with
-        if [ $sleep_after -le $sleep_before ]; then
+        if [ "$sleep_after" -le "$sleep_before" ]; then
             pass
         else
-            sleep_orphans=$((sleep_after - sleep_before))
+            sleep_orphans=$(($sleep_after - $sleep_before))
             fail "Signal exit left orphaned background processes ($sleep_orphans found)"
         fi
     else
