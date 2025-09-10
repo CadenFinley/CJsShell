@@ -442,10 +442,54 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
   if (s_sighup_received) {
     s_sighup_received = 0;
+    
+    // Terminate all background jobs when SIGHUP is received
+    if (shell_exec && g_exit_flag) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: SIGHUP received, terminating background jobs" << std::endl;
+      }
+      shell_exec->terminate_all_child_process();
+      
+      // Also clean up through JobManager
+      auto& job_manager = JobManager::instance();
+      auto all_jobs = job_manager.get_all_jobs();
+      for (auto& job : all_jobs) {
+        if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Terminating job " << job->job_id << " via JobManager" << std::endl;
+          }
+          if (killpg(job->pgid, SIGTERM) == 0) {
+            job->state = JobState::TERMINATED;
+          }
+        }
+      }
+    }
   }
 
   if (s_sigterm_received) {
     s_sigterm_received = 0;
+    
+    // Terminate all background jobs when SIGTERM is received
+    if (shell_exec && g_exit_flag) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: SIGTERM received, terminating background jobs" << std::endl;
+      }
+      shell_exec->terminate_all_child_process();
+      
+      // Also clean up through JobManager
+      auto& job_manager = JobManager::instance();
+      auto all_jobs = job_manager.get_all_jobs();
+      for (auto& job : all_jobs) {
+        if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Terminating job " << job->job_id << " via JobManager" << std::endl;
+          }
+          if (killpg(job->pgid, SIGTERM) == 0) {
+            job->state = JobState::TERMINATED;
+          }
+        }
+      }
+    }
   }
 }
 

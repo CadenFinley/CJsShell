@@ -375,6 +375,12 @@ static int handle_early_exit_modes() {
     if (g_shell) {
       TrapManager::instance().set_shell(g_shell.get());
       TrapManager::instance().execute_exit_trap();
+      
+      // Ensure background processes are terminated before exit
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Terminating background processes before -c exit" << std::endl;
+      }
+      g_shell->shell_exec->terminate_all_child_process();
     }
 
     g_shell.reset();
