@@ -25,22 +25,14 @@ if [ ! -x "$CJSH" ]; then
     exit 1
 fi
 
-# Check for and terminate any existing cjsh processes
+# Check for existing cjsh processes
 echo "Checking for existing cjsh processes..."
 EXISTING_CJSH=$(pgrep -f "cjsh" 2>/dev/null || true)
 if [ -n "$EXISTING_CJSH" ]; then
-    echo "${YELLOW}Warning: Found running cjsh process(es): $EXISTING_CJSH${NC}"
-    echo "Terminating existing cjsh processes..."
-    pkill -f "cjsh" 2>/dev/null || true
-    sleep 1
-    # Force kill if still running
-    STILL_RUNNING=$(pgrep -f "cjsh" 2>/dev/null || true)
-    if [ -n "$STILL_RUNNING" ]; then
-        echo "${YELLOW}Force killing stubborn cjsh processes: $STILL_RUNNING${NC}"
-        pkill -9 -f "cjsh" 2>/dev/null || true
-        sleep 1
-    fi
-    echo "${GREEN}Existing cjsh processes terminated.${NC}"
+    echo "${RED}Error: Found running cjsh process(es): $EXISTING_CJSH${NC}"
+    echo "Please terminate any running cjsh instances before running tests."
+    echo "You can use: pkill -f cjsh"
+    exit 1
 else
     echo "No existing cjsh processes found."
 fi
