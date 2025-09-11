@@ -101,6 +101,10 @@ ic_private bool unicode_is_raw(unicode_t u, uint8_t* c);
 
 ic_private bool utf8_is_cont(uint8_t c);
 
+// Enhanced Unicode functions using utf8proc
+ic_private ssize_t unicode_char_width_utf8proc(const char* s, ssize_t len);
+ic_private bool unicode_is_combining_utf8proc(const char* s, ssize_t len);
+
 //-------------------------------------------------------------
 // Colors
 //-------------------------------------------------------------

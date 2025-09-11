@@ -28,12 +28,6 @@ install:
       sudo apt-get update
       sudo apt-get install -y build-essential cmake
       # Install 32-bit libraries if building for x86
-      # Install nlohmann/json from GitHub
-      mkdir -p external/nlohmann
-      wget -O external/nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp
-      # Verify json.hpp was downloaded correctly
-      ls -la external/nlohmann/
-      head -n 10 external/nlohmann/json.hpp
       sudo apt-get install -y libcurl4-openssl-dev
       # Make sure we have the dynamic loading library
       sudo apt-get install -y libdl-dev || echo "libdl is part of glibc-dev, continuing..."
@@ -48,9 +42,9 @@ before_build:
         export CFLAGS="-m32"
         export CXXFLAGS="-m32"
         # Force the arch to be x86
-        cmake .. -DCMAKE_BUILD_TYPE=$configuration -DCMAKE_CXX_FLAGS="-m32" -DCMAKE_C_FLAGS="-m32" -DFORCE_32BIT=ON -DNLOHMANN_JSON_INCLUDE_DIR="$APPVEYOR_BUILD_FOLDER/external"
+        cmake .. -DCMAKE_BUILD_TYPE=$configuration -DCMAKE_CXX_FLAGS="-m32" -DCMAKE_C_FLAGS="-m32" -DFORCE_32BIT=ON
       else
-        cmake .. -DCMAKE_BUILD_TYPE=$configuration -DNLOHMANN_JSON_INCLUDE_DIR="$APPVEYOR_BUILD_FOLDER/external"
+        cmake .. -DCMAKE_BUILD_TYPE=$configuration
       fi
       if [ $? -ne 0 ]; then exit 1; fi
 

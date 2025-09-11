@@ -58,7 +58,7 @@ file(GLOB_RECURSE SOURCES
 )
 
 # Explicitly list isocline .c files that should be compiled
-file(GLOB ISOCLINE_MAIN_C 
+set(ISOCLINE_MAIN_C 
   "src/isocline/attr.c" 
   "src/isocline/bbcode.c" 
   "src/isocline/bbcode_colors.c" 
@@ -73,8 +73,8 @@ file(GLOB ISOCLINE_MAIN_C
   "src/isocline/term.c" 
   "src/isocline/tty.c" 
   "src/isocline/tty_esc.c" 
-  "src/isocline/undo.c" 
-  "src/isocline/wcwidth.c"
+  "src/isocline/undo.c"
+  # "src/isocline/wcwidth.c" - Removed: now using utf8proc for Unicode width calculations
 )
 
 # Add our shim file first in the sources list
@@ -91,6 +91,7 @@ file(GLOB EXCLUDE_FILES
   "src/isocline/editline_help.c"
   "src/isocline/editline_history.c"
   "src/isocline/term_color.c"
+  "src/isocline/wcwidth.c"
 )
 
 # Remove the excluded files from the sources list
@@ -113,7 +114,7 @@ set_source_files_properties(
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/term_color.c
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/tty.c
   ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/tty_esc.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/wcwidth.c
+  # ${CMAKE_CURRENT_SOURCE_DIR}/src/isocline/wcwidth.c - Removed: using utf8proc
   PROPERTIES COMPILE_FLAGS "-Wno-error"
 )
 
@@ -121,18 +122,55 @@ set_source_files_properties(
 find_package(nlohmann_json QUIET)
 
 if(NOT nlohmann_json_FOUND)
-  # Fallback: Use the single header file if package not found
-  message(STATUS "nlohmann_json package not found, using single header file approach")
+  # Fallback: Use FetchContent to download nlohmann JSON
+  message(STATUS "nlohmann_json package not found, downloading from source")
+  include(FetchContent)
+  FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+    GIT_SHALLOW TRUE
+  )
   
-  # Check if the external/nlohmann/json.hpp file exists
-  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/nlohmann/json.hpp")
-    message(STATUS "Using json.hpp from external/nlohmann directory")
-    add_library(nlohmann_json INTERFACE)
-    add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
-    target_include_directories(nlohmann_json INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/external")
-  else()
-    message(FATAL_ERROR "nlohmann_json header not found. Please run 'mkdir -p external/nlohmann && wget -O external/nlohmann/json.hpp https://github.com/nlohmann/json/releases/download/v3.11.2/json.hpp'")
+  # Set nlohmann_json options
+  set(JSON_BuildTests OFF CACHE BOOL "Disable nlohmann_json testing")
+  set(JSON_Install OFF CACHE BOOL "Disable nlohmann_json installation")
+  
+  FetchContent_MakeAvailable(nlohmann_json)
+  
+  # The target nlohmann_json::nlohmann_json is automatically created by FetchContent
+endif()
+
+# Find utf8proc library
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+  pkg_check_modules(UTF8PROC QUIET utf8proc)
+endif()
+
+if(NOT UTF8PROC_FOUND)
+  # Fallback: Use FetchContent to download and build utf8proc
+  message(STATUS "utf8proc package not found, downloading and building from source")
+  include(FetchContent)
+  FetchContent_Declare(
+    utf8proc
+    GIT_REPOSITORY https://github.com/JuliaStrings/utf8proc.git
+    GIT_TAG v2.10.0
+    GIT_SHALLOW TRUE
+  )
+  
+  # Set utf8proc options
+  set(UTF8PROC_ENABLE_TESTING OFF CACHE BOOL "Disable utf8proc testing")
+  
+  FetchContent_MakeAvailable(utf8proc)
+  
+  # Create an alias for consistency
+  if(TARGET utf8proc)
+    add_library(utf8proc::utf8proc ALIAS utf8proc)
+    set(UTF8PROC_LIBRARIES utf8proc::utf8proc)
   endif()
+else()
+  message(STATUS "Found utf8proc via pkg-config")
+  set(UTF8PROC_LIBRARIES ${UTF8PROC_LIBRARIES})
 endif()
 
 # Add required include directories
@@ -150,6 +188,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     pthread
     dl
     nlohmann_json::nlohmann_json
+    ${UTF8PROC_LIBRARIES}
 )
 
 # Prevent JSON library from using certain features
@@ -181,6 +220,7 @@ if(BUILD_MULTIPLE_BINARIES)
       pthread
       dl
       nlohmann_json::nlohmann_json
+      ${UTF8PROC_LIBRARIES}
   )
 
     # Speed-optimized binary 02
@@ -198,6 +238,7 @@ if(BUILD_MULTIPLE_BINARIES)
       pthread
       dl
       nlohmann_json::nlohmann_json
+      ${UTF8PROC_LIBRARIES}
   )
 
   # Debug binary with no optimizations
@@ -215,5 +256,6 @@ if(BUILD_MULTIPLE_BINARIES)
       pthread
       dl
       nlohmann_json::nlohmann_json
+      ${UTF8PROC_LIBRARIES}
   )
 endif()

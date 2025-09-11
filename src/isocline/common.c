@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Include utf8proc for enhanced Unicode support
+#include <utf8proc.h>
+
 //-------------------------------------------------------------
 // String wrappers for ssize_t
 //-------------------------------------------------------------
@@ -250,6 +253,36 @@ ic_private unicode_t unicode_from_qutf8(const uint8_t* s, ssize_t len,
 fail:
   if (count != NULL) *count = 1;
   return unicode_from_raw(s[0]);
+}
+
+// Enhanced Unicode functions using utf8proc
+ic_private ssize_t unicode_char_width_utf8proc(const char* s, ssize_t len) {
+  if (len <= 0 || s == NULL) return 0;
+  
+  utf8proc_int32_t codepoint;
+  ssize_t bytes_read = utf8proc_iterate((const utf8proc_uint8_t*)s, len, &codepoint);
+  
+  if (bytes_read < 0) {
+    // Invalid UTF-8, fallback to single width
+    return 1;
+  }
+  
+  int width = utf8proc_charwidth(codepoint);
+  return (width < 0) ? 0 : (ssize_t)width;
+}
+
+ic_private bool unicode_is_combining_utf8proc(const char* s, ssize_t len) {
+  if (len <= 0 || s == NULL) return false;
+  
+  utf8proc_int32_t codepoint;
+  ssize_t bytes_read = utf8proc_iterate((const utf8proc_uint8_t*)s, len, &codepoint);
+  
+  if (bytes_read < 0) return false;
+  
+  utf8proc_category_t category = utf8proc_category(codepoint);
+  return (category == UTF8PROC_CATEGORY_MN || 
+          category == UTF8PROC_CATEGORY_MC || 
+          category == UTF8PROC_CATEGORY_ME);
 }
 
 //-------------------------------------------------------------

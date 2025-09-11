@@ -8,6 +8,8 @@
 #include <iostream>
 #include <unordered_set>
 
+#include "utils/utf8_utils.h"
+
 #include "cjsh.h"
 #include "colors.h"
 
@@ -814,156 +816,11 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
 }
 
 size_t Theme::calculate_raw_length(const std::string& str) const {
-  size_t raw_length = 0;
-
-  size_t visible_chars = 0;
   size_t ansi_chars = 0;
-
-  for (size_t i = 0; i < str.size();) {
-    unsigned char c = static_cast<unsigned char>(str[i]);
-
-    if (c == '\033') {
-      ansi_chars++;
-      if (i + 1 < str.size()) {
-        unsigned char next = static_cast<unsigned char>(str[i + 1]);
-        if (next == '[') {
-          i += 2;
-          ansi_chars += 2;
-          while (i < str.size() && !(str[i] >= '@' && str[i] <= '~')) {
-            ++i;
-            ansi_chars++;
-          }
-          if (i < str.size()) {
-            ++i;
-            ansi_chars++;
-          }
-          continue;
-        } else if (next == ']') {
-          i += 2;
-          ansi_chars += 2;
-          while (i < str.size()) {
-            if (str[i] == '\a') {
-              ++i;
-              ansi_chars++;
-              break;
-            }
-            if (str[i] == '\033' && i + 1 < str.size() && str[i + 1] == '\\') {
-              i += 2;
-              ansi_chars += 2;
-              break;
-            }
-            ++i;
-            ansi_chars++;
-          }
-          continue;
-        } else {
-          i += 2;
-          ansi_chars += 2;
-          continue;
-        }
-      }
-      ++i;
-      ansi_chars++;
-    } else if ((c & 0xF8) == 0xF0) {
-      // Handle emoji and other characters in the supplemental planes (U+10000
-      // to U+10FFFF) Most emoji are in this range and take up 2 character
-      // cells
-      raw_length += 2;
-      visible_chars++;
-
-      // Check for emoji modifiers, ZWJ sequences, and variation selectors
-      size_t original_i = i;
-      i += 4;  // Move past the base character (4 bytes)
-
-      // Check for emoji modifiers (skin tones) which are 4 bytes
-      if (i + 3 < str.size() && (unsigned char)str[i] == 0xF0 &&
-          (unsigned char)str[i + 1] == 0x9F &&
-          (unsigned char)str[i + 2] == 0x8F &&
-          ((unsigned char)str[i + 3] >= 0xBB &&
-           (unsigned char)str[i + 3] <= 0xBF)) {
-        i += 4;
-      }
-
-      // Check for ZWJ (Zero Width Joiner) sequences - emoji composed with ZWJ
-      while (i + 2 < str.size() && (unsigned char)str[i] == 0xE2 &&
-             (unsigned char)str[i + 1] == 0x80 &&
-             (unsigned char)str[i + 2] == 0x8D) {
-        i += 3;  // Skip over ZWJ
-
-        // Skip the next character in the sequence (could be 3 or 4 bytes)
-        if (i < str.size()) {
-          unsigned char next_c = (unsigned char)str[i];
-          if ((next_c & 0xF8) == 0xF0) {
-            i += 4;  // 4-byte character
-          } else if ((next_c & 0xF0) == 0xE0) {
-            i += 3;  // 3-byte character
-          } else if ((next_c & 0xE0) == 0xC0) {
-            i += 2;  // 2-byte character
-          } else {
-            i += 1;  // 1-byte character
-          }
-        }
-      }
-
-      // Check for variation selectors (VS15, VS16 - text/emoji style)
-      if (i + 2 < str.size()) {
-        unsigned char vs1 = (unsigned char)str[i];
-        unsigned char vs2 = (unsigned char)str[i + 1];
-        unsigned char vs3 = (unsigned char)str[i + 2];
-
-        if (vs1 == 0xEF && vs2 == 0xB8 && (vs3 == 0x8E || vs3 == 0x8F)) {
-          // These are variation selectors (VS15/VS16) which modify display
-          // but don't add width
-          i += 3;
-        }
-      }
-
-      // If we've advanced past modifiers, we still count it as a single emoji
-      if (i > original_i + 4) {
-        // We already added the width, so don't add more
-      }
-    } else if ((c & 0xF0) == 0xE0) {
-      if (i + 2 < str.size()) {
-        unsigned char c1 = static_cast<unsigned char>(str[i + 1]);
-        unsigned char c2 = static_cast<unsigned char>(str[i + 2]);
-
-        // Check for specific emoji in the 3-byte range
-        bool is_emoji =
-            (c == 0xE2 && c1 == 0x9C && c2 >= 0x85 &&
-             c2 <= 0x88) ||  // clock emoji
-            (c == 0xE2 && c1 == 0x98 && c2 >= 0x80 &&
-             c2 <= 0x8F) ||  // weather symbols
-            (c == 0xE2 && c1 == 0x9D && c2 >= 0x84 &&
-             c2 <= 0x8C) ||  // geometric shapes
-            (c == 0xE2 && c1 == 0x9A &&
-             c2 == 0xA1) ||  // lightning bolt ⚡ (U+26A1)
-            (c == 0xE2 && ((c1 == 0x9A || c1 == 0x9B) && c2 >= 0x80 &&
-                           c2 <= 0xBF));  // miscellaneous symbols
-
-        // Check for wide CJK characters
-        bool is_wide =
-            (c == 0xE3 && c1 >= 0x80 && c1 <= 0xBF) ||
-            (c == 0xE4 && c1 >= 0xB8) ||
-            (c == 0xE5 || c == 0xE6 || c == 0xE7 || c == 0xE8 || c == 0xE9);
-
-        raw_length += (is_wide || is_emoji ? 2 : 1);
-      } else {
-        raw_length += 1;
-      }
-      visible_chars++;
-      i += 3;
-    } else if ((c & 0xE0) == 0xC0) {
-      raw_length += 1;
-      visible_chars++;
-      i += 2;
-    } else {
-      if ((c & 0xC0) != 0x80) {
-        raw_length++;
-        visible_chars++;
-      }
-      ++i;
-    }
-  }
+  size_t visible_chars = 0;
+  
+  // Use utf8proc-based width calculation
+  size_t raw_length = utf8_utils::calculate_display_width(str, &ansi_chars, &visible_chars);
 
   if (g_debug_mode) {
     std::cout << "String length: " << str.size()

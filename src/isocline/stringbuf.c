@@ -6,22 +6,9 @@
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
 
-// get `wcwidth` for the column width of unicode characters
-// note: for now the OS provided one is unused as we see quite a bit of
-// variation among platforms and including our own seems more reliable.
-/*
-#if defined(__linux__) || defined(__freebsd__)
-// use the system supplied one
-#if !defined(_XOPEN_SOURCE)
-#define  _XOPEN_SOURCE  700    // so wcwidth is visible
-#endif
-#include <wchar.h>
-#else
-*/
-// use our own (also on APPLE as that fails within vscode)
-#define wcwidth(c) mk_wcwidth(c)
-#include "wcwidth.c"
-// #endif
+// Use utf8proc for Unicode character width calculations
+// This provides more accurate and up-to-date Unicode support
+#include <utf8proc.h>
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -45,36 +32,29 @@ struct stringbuf_s {
 // String column width
 //-------------------------------------------------------------
 
-// column width of a utf8 single character sequence.
+// column width of a utf8 single character sequence using utf8proc.
 static ssize_t utf8_char_width(const char* s, ssize_t n) {
   if (n <= 0) return 0;
 
-  uint8_t b = (uint8_t)s[0];
-  int32_t c;
-  if (b < ' ') {
-    return 0;
-  } else if (b <= 0x7F) {
-    return 1;
-  } else if (b <=
-             0xC1) {  // invalid continuation byte or invalid 0xC0, 0xC1 (check
-                      // is strictly not necessary as we don't validate..)
-    return 1;
-  } else if (b <= 0xDF && n >= 2) {  // b >= 0xC2  // 2 bytes
-    c = (((b & 0x1F) << 6) | (s[1] & 0x3F));
-    assert(c < 0xD800 || c > 0xDFFF);
-    int w = wcwidth(c);
-    return w;
-  } else if (b <= 0xEF && n >= 3) {  // b >= 0xE0  // 3 bytes
-    c = (((b & 0x0F) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F));
-    return wcwidth(c);
-  } else if (b <= 0xF4 && n >= 4) {  // b >= 0xF0  // 4 bytes
-    c = (((b & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) |
-         (s[3] & 0x3F));
-    return wcwidth(c);
-  } else {
-    // failed
+  // Use utf8proc to iterate and get character width
+  utf8proc_int32_t codepoint;
+  ssize_t bytes_read = utf8proc_iterate((const utf8proc_uint8_t*)s, n, &codepoint);
+  
+  if (bytes_read < 0) {
+    // Invalid UTF-8, treat as single-width
     return 1;
   }
+  
+  // Get character width using utf8proc
+  int width = utf8proc_charwidth(codepoint);
+  
+  // Handle special cases
+  if (width < 0) {
+    // Control characters - return 0 for most, but 1 for some
+    return 0;
+  }
+  
+  return (ssize_t)width;
 }
 
 // The column width of a codepoint (0, 1, or 2)
