@@ -1,6 +1,5 @@
 #include "exec.h"
 
-#include <sys/resource.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -135,24 +134,6 @@ std::string Exec::get_error() {
   return last_terminal_output_error;
 }
 
-void Exec::set_process_priority(pid_t pid, bool is_foreground) {
-  if (is_foreground) {
-    if (setpriority(PRIO_PGRP, pid, -10) == 0) {
-      return;
-    }
-    setpriority(PRIO_PGRP, pid, 0);
-    setpriority(PRIO_PROCESS, pid, 0);
-
-#ifdef _GNU_SOURCE
-    struct sched_param param;
-    param.sched_priority = 0;
-    sched_setscheduler(pid, SCHED_BATCH, &param);
-#endif
-  } else {
-    setpriority(PRIO_PGRP, pid, 4);
-  }
-}
-
 int Exec::execute_command_sync(const std::vector<std::string>& args) {
   if (args.empty()) {
     set_error("cjsh: Failed to parse command");
@@ -228,10 +209,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       if (tcsetpgrp(shell_terminal, child_pid) < 0) {
         perror("tcsetpgrp failed in child");
       }
-    }
-
-    if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
-      perror("setpriority failed in child");
     }
 
     signal(SIGINT, SIG_DFL);
@@ -383,10 +360,6 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     if (setpgid(0, 0) < 0) {
       perror("setpgid failed in child");
       _exit(EXIT_FAILURE);
-    }
-
-    if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
-      perror("setpriority failed in child");
     }
 
     signal(SIGINT, SIG_IGN);
@@ -597,10 +570,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           if (tcsetpgrp(shell_terminal, child_pid) < 0) {
             perror("tcsetpgrp failed in child");
           }
-        }
-
-        if (setpriority(PRIO_PROCESS, 0, 0) < 0) {
-          perror("setpriority failed in child");
         }
 
         signal(SIGINT, SIG_DFL);
@@ -1143,8 +1112,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
     }
   }
 
-  set_process_priority(job.pgid, true);
-
   if (cont && job.stopped) {
     if (kill(-job.pgid, SIGCONT) < 0) {
       perror("kill (SIGCONT)");
@@ -1185,8 +1152,6 @@ void Exec::put_job_in_background(int job_id, bool cont) {
   }
 
   Job& job = it->second;
-
-  set_process_priority(job.pgid, false);
 
   if (cont && job.stopped) {
     if (kill(-job.pgid, SIGCONT) < 0) {

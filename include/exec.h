@@ -62,7 +62,6 @@ class Exec {
     last_exit_code = code;
   }
   void terminate_all_child_process();
-  void set_process_priority(pid_t pid, bool is_foreground);
 
   std::string last_terminal_output_error;
 };

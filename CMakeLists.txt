@@ -122,21 +122,46 @@ set_source_files_properties(
 find_package(nlohmann_json QUIET)
 
 if(NOT nlohmann_json_FOUND)
-  # Fallback: Use FetchContent to download nlohmann JSON
+  # Fallback: Use FetchContent to download nlohmann JSON (CMake 3.11+) or manual download (CMake 3.10)
   message(STATUS "nlohmann_json package not found, downloading from source")
-  include(FetchContent)
-  FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.3
-    GIT_SHALLOW TRUE
-  )
   
-  # Set nlohmann_json options
-  set(JSON_BuildTests OFF CACHE BOOL "Disable nlohmann_json testing")
-  set(JSON_Install OFF CACHE BOOL "Disable nlohmann_json installation")
-  
-  FetchContent_MakeAvailable(nlohmann_json)
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.11")
+    # Use FetchContent for CMake 3.11+
+    include(FetchContent)
+    FetchContent_Declare(
+      nlohmann_json
+      GIT_REPOSITORY https://github.com/nlohmann/json.git
+      GIT_TAG v3.11.3
+      GIT_SHALLOW TRUE
+    )
+    
+    # Set nlohmann_json options
+    set(JSON_BuildTests OFF CACHE BOOL "Disable nlohmann_json testing")
+    set(JSON_Install OFF CACHE BOOL "Disable nlohmann_json installation")
+    
+    FetchContent_MakeAvailable(nlohmann_json)
+  else()
+    # For CMake 3.10, download the single header version
+    set(NLOHMANN_JSON_DIR ${CMAKE_BINARY_DIR}/nlohmann_json)
+    set(NLOHMANN_JSON_HEADER ${NLOHMANN_JSON_DIR}/nlohmann/json.hpp)
+    
+    if(NOT EXISTS ${NLOHMANN_JSON_HEADER})
+      message(STATUS "Downloading nlohmann/json single header...")
+      file(MAKE_DIRECTORY ${NLOHMANN_JSON_DIR}/nlohmann)
+      file(DOWNLOAD 
+        https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
+        ${NLOHMANN_JSON_HEADER}
+        SHOW_PROGRESS
+        EXPECTED_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+      )
+    endif()
+    
+    # Create an interface library to mimic the nlohmann_json target
+    add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+    set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${NLOHMANN_JSON_DIR}"
+    )
+  endif()
   
   # The target nlohmann_json::nlohmann_json is automatically created by FetchContent
 endif()
