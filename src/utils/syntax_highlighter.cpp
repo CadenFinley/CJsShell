@@ -11,28 +11,28 @@
 #include "cjsh_filesystem.h"
 
 const std::unordered_set<std::string> SyntaxHighlighter::basic_unix_commands_ =
-    {"cat",   "mv",     "cp",    "rm",    "mkdir", "rmdir", "touch", 
-     "grep",  "find",   "chmod", "chown", "ps",    "man",   "which", "whereis"};
+    {"cat",  "mv",    "cp",    "rm", "mkdir", "rmdir", "touch",  "grep",
+     "find", "chmod", "chown", "ps", "man",   "which", "whereis"};
 std::unordered_set<std::string> SyntaxHighlighter::external_executables_;
 const std::unordered_set<std::string> SyntaxHighlighter::command_operators_ = {
     "&&", "||", "|", ";"};
 
 // Shell control structure keywords
 const std::unordered_set<std::string> SyntaxHighlighter::shell_keywords_ = {
-    "if", "then", "else", "elif", "fi",
-    "case", "in", "esac", 
-    "while", "until", "for", "do", "done",
-    "function", "select", "time", "coproc",
-    "{", "}", "[[", "]]", "(", ")", ":"};
+    "if",     "then",  "else", "elif", "fi",   "case",     "in",     "esac",
+    "while",  "until", "for",  "do",   "done", "function", "select", "time",
+    "coproc", "{",     "}",    "[[",   "]]",   "(",        ")",      ":"};
 
 // CJsShell built-in commands
 const std::unordered_set<std::string> SyntaxHighlighter::shell_built_ins_ = {
-    "echo", "printf", "pwd", "cd", "ls", "alias", "export", "unalias", "unset",
-    "set", "shift", "break", "continue", "return", "ai", "source", ".", "theme",
-    "plugin", "help", "approot", "aihelp", "version", "uninstall", "eval",
-    "syntax", "history", "exit", "quit", "terminal", "prompt_test", "test", "[",
-    "exec", "trap", "jobs", "fg", "bg", "wait", "kill", "readonly",
-    "read", "umask", "getopts", "times", "type", "hash"};
+    "echo",        "printf",  "pwd",     "cd",     "ls",       "alias",
+    "export",      "unalias", "unset",   "set",    "shift",    "break",
+    "continue",    "return",  "ai",      "source", ".",        "theme",
+    "plugin",      "help",    "approot", "aihelp", "version",  "uninstall",
+    "eval",        "syntax",  "history", "exit",   "quit",     "terminal",
+    "prompt_test", "test",    "[",       "exec",   "trap",     "jobs",
+    "fg",          "bg",      "wait",    "kill",   "readonly", "read",
+    "umask",       "getopts", "times",   "type",   "hash"};
 
 void SyntaxHighlighter::initialize() {
   for (const auto& e : cjsh_filesystem::read_cached_executables()) {
@@ -50,70 +50,80 @@ bool SyntaxHighlighter::is_shell_builtin(const std::string& token) {
 
 bool SyntaxHighlighter::is_variable_reference(const std::string& token) {
   // Check for various forms of variable references
-  if (token.empty()) return false;
-  
+  if (token.empty())
+    return false;
+
   // $VAR or ${VAR} or $1, $2, etc.
-  if (token[0] == '$') return true;
-  
+  if (token[0] == '$')
+    return true;
+
   // Environment variable assignment: VAR=value
   size_t eq_pos = token.find('=');
   if (eq_pos != std::string::npos && eq_pos > 0) {
     std::string var_name = token.substr(0, eq_pos);
     // Variable names must start with letter or underscore
-    if (!var_name.empty() && (std::isalpha(var_name[0]) || var_name[0] == '_')) {
+    if (!var_name.empty() &&
+        (std::isalpha(var_name[0]) || var_name[0] == '_')) {
       return true;
     }
   }
-  
+
   return false;
 }
 
-bool SyntaxHighlighter::is_quoted_string(const std::string& token, char& quote_type) {
-  if (token.length() < 2) return false;
-  
+bool SyntaxHighlighter::is_quoted_string(const std::string& token,
+                                         char& quote_type) {
+  if (token.length() < 2)
+    return false;
+
   char first = token[0];
   char last = token[token.length() - 1];
-  
+
   if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
     quote_type = first;
     return true;
   }
-  
+
   return false;
 }
 
 bool SyntaxHighlighter::is_redirection_operator(const std::string& token) {
   static const std::unordered_set<std::string> redirection_ops = {
-    ">", ">>", "<", "<<", "<<<", "&>", "&>>", "<&", ">&", "|&",
-    "2>", "2>>", "1>", "1>>", "2>&1", "1>&2", ">&2", "<>", 
-    "1<", "2<", "0<", "0>", "3>", "4>", "5>", "6>", "7>", "8>", "9>"
-  };
+      ">",  ">>",  "<",  "<<",  "<<<",  "&>",   "&>>", "<&", ">&", "|&",
+      "2>", "2>>", "1>", "1>>", "2>&1", "1>&2", ">&2", "<>", "1<", "2<",
+      "0<", "0>",  "3>", "4>",  "5>",   "6>",   "7>",  "8>", "9>"};
   return redirection_ops.count(token) > 0;
 }
 
-void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv, 
-                                                      const char* input, 
-                                                      size_t start, 
-                                                      size_t length) {
-  if (length == 0) return;
-  
+bool SyntaxHighlighter::is_glob_pattern(const std::string& token) {
+  // Check if the token contains glob metacharacters
+  return token.find_first_of("*?[]{}") != std::string::npos;
+}
+
+void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
+                                                       const char* input,
+                                                       size_t start,
+                                                       size_t length) {
+  if (length == 0)
+    return;
+
   bool in_single_quote = false;
   bool in_double_quote = false;
   bool escaped = false;
-  
+
   for (size_t i = 0; i < length; ++i) {
     char c = input[start + i];
-    
+
     if (escaped) {
       escaped = false;
       continue;
     }
-    
+
     if (c == '\\' && (!in_single_quote)) {
       escaped = true;
       continue;
     }
-    
+
     if (c == '\'' && !in_double_quote) {
       if (!in_single_quote) {
         in_single_quote = true;
@@ -124,9 +134,10 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
           quote_end++;
         }
         if (quote_end < length) {
-          quote_end++; // Include the closing quote
-          ic_highlight(henv, start + quote_start, quote_end - quote_start, "cjsh-string");
-          i = quote_end - 1; // Skip to after the closing quote
+          quote_end++;  // Include the closing quote
+          ic_highlight(henv, start + quote_start, quote_end - quote_start,
+                       "cjsh-string");
+          i = quote_end - 1;  // Skip to after the closing quote
           in_single_quote = false;
         }
       }
@@ -149,9 +160,10 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
           quote_end++;
         }
         if (quote_end < length) {
-          quote_end++; // Include the closing quote
-          ic_highlight(henv, start + quote_start, quote_end - quote_start, "cjsh-string");
-          i = quote_end - 1; // Skip to after the closing quote
+          quote_end++;  // Include the closing quote
+          ic_highlight(henv, start + quote_start, quote_end - quote_start,
+                       "cjsh-string");
+          i = quote_end - 1;  // Skip to after the closing quote
           in_double_quote = false;
         }
       }
@@ -159,7 +171,7 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
       // Variable reference
       size_t var_start = i;
       size_t var_end = i + 1;
-      
+
       if (var_end < length && input[start + var_end] == '{') {
         // ${VAR} form
         var_end++;
@@ -167,22 +179,24 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
           var_end++;
         }
         if (var_end < length) {
-          var_end++; // Include the closing brace
+          var_end++;  // Include the closing brace
         }
       } else {
         // $VAR form
         while (var_end < length) {
           char vc = input[start + var_end];
-          if (std::isalnum(vc) || vc == '_' || (var_end == var_start + 1 && std::isdigit(vc))) {
+          if (std::isalnum(vc) || vc == '_' ||
+              (var_end == var_start + 1 && std::isdigit(vc))) {
             var_end++;
           } else {
             break;
           }
         }
       }
-      
+
       if (var_end > var_start + 1) {
-        ic_highlight(henv, start + var_start, var_end - var_start, "cjsh-variable");
+        ic_highlight(henv, start + var_start, var_end - var_start,
+                     "cjsh-variable");
         i = var_end - 1;
       }
     }
@@ -200,20 +214,20 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
   bool in_quotes = false;
   char quote_char = '\0';
   bool escaped = false;
-  
+
   for (size_t i = 0; i < len; ++i) {
     char c = input[i];
-    
+
     if (escaped) {
       escaped = false;
       continue;
     }
-    
+
     if (c == '\\' && (!in_quotes || quote_char != '\'')) {
       escaped = true;
       continue;
     }
-    
+
     if ((c == '"' || c == '\'') && !in_quotes) {
       in_quotes = true;
       quote_char = c;
@@ -221,7 +235,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
       in_quotes = false;
       quote_char = '\0';
     }
-    
+
     if (!in_quotes && c == '#') {
       // Comment from # to end of line
       ic_highlight(henv, i, len - i, "cjsh-comment");
@@ -363,17 +377,20 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
 
       // Check for redirection operators first
       if (is_redirection_operator(arg)) {
-        ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-operator");
+        ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                     "cjsh-operator");
       }
       // Check for variable references
       else if (is_variable_reference(arg)) {
-        ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-variable");
+        ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                     "cjsh-variable");
       }
       // Check for quoted strings
       else {
         char quote_type;
         if (is_quoted_string(arg, quote_type)) {
-          ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-string");
+          ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                       "cjsh-string");
         } else if (is_sudo_command && arg_start == token_end + 1) {
           if (arg.rfind("./", 0) == 0) {
             if (!std::filesystem::exists(arg) ||
@@ -403,6 +420,10 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
         } else if (is_cd_command && (arg == "~" || arg == "-")) {
           ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
                        "cjsh-path-exists");
+        } else if (is_glob_pattern(arg)) {
+          // Highlight glob patterns with a special style
+          ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                       "cjsh-glob-pattern");
         } else if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
                    arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
                    arg.rfind("-/", 0) == 0 ||
@@ -417,10 +438,11 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
             if (!prev_dir.empty()) {
               path_to_check = prev_dir + arg.substr(1);
             }
-          } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
-                     arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
-                     arg.rfind("-/", 0) != 0) {
-            path_to_check = std::filesystem::current_path().string() + "/" + arg;
+          } else if (is_cd_command && arg[0] != '/' &&
+                     arg.rfind("./", 0) != 0 && arg.rfind("../", 0) != 0 &&
+                     arg.rfind("~/", 0) != 0 && arg.rfind("-/", 0) != 0) {
+            path_to_check =
+                std::filesystem::current_path().string() + "/" + arg;
           }
 
           if (std::filesystem::exists(path_to_check)) {
@@ -433,9 +455,11 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
         }
       }
 
-      // After highlighting the argument token, check for embedded variables in strings
+      // After highlighting the argument token, check for embedded variables in
+      // strings
       if (!is_variable_reference(arg) && arg.find('$') != std::string::npos) {
-        highlight_quotes_and_variables(henv, input, cmd_start + arg_start, arg_end - arg_start);
+        highlight_quotes_and_variables(henv, input, cmd_start + arg_start,
+                                       arg_end - arg_start);
       }
 
       arg_start = arg_end;
@@ -467,7 +491,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
       } else if (input[pos] == '>' || input[pos] == '<') {
         ic_highlight(henv, pos, 1, "cjsh-operator");
         pos += 1;
-      } else if (input[pos] == '&' && (pos == len - 1 || input[pos + 1] != '&')) {
+      } else if (input[pos] == '&' &&
+                 (pos == len - 1 || input[pos + 1] != '&')) {
         // Background operator &
         ic_highlight(henv, pos, 1, "cjsh-operator");
         pos += 1;
