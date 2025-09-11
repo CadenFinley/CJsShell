@@ -89,7 +89,7 @@ static void initialize_title_strings() {
   }
   if (created_line.empty()) {
     created_line =
-        " Created 2025 @\033[1;35mAbilene Christian University\033[0m";
+        " Created 2025 @ \033[1;35mAbilene Christian University\033[0m";
   }
 }
 
