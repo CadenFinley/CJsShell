@@ -429,13 +429,18 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 void initialize_completion_system() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing completion system" << std::endl;
-
-  ic_style_def("cjsh-unknown-command", "bold color=#FF0000");
-
-  ic_style_def("cjsh-colon", "bold color=#00FFFF");
-  ic_style_def("cjsh-path-exists", "color=#00FF00");
-  ic_style_def("cjsh-path-not-exists", "color=#FF0000");
-  ic_style_def("cjsh-operator", "bold color=#FFCC00");
+  ic_style_def("cjsh-unknown-command", "bold color=#F44747");      // Red for errors/unknown
+  ic_style_def("cjsh-colon", "bold color=#569CD6");               // Blue for special syntax
+  ic_style_def("cjsh-path-exists", "color=#4EC9B0");              // Cyan for valid paths
+  ic_style_def("cjsh-path-not-exists", "color=#F44747");          // Red for invalid paths
+  ic_style_def("cjsh-operator", "bold color=#D4D4D4");            // Light gray for operators
+  ic_style_def("cjsh-keyword", "bold color=#C586C0");             // Purple for keywords (if, then, else, etc.)
+  ic_style_def("cjsh-builtin", "color=#DCDCAA");                  // Yellow for built-in commands
+  ic_style_def("cjsh-variable", "color=#9CDCFE");                 // Light blue for variables ($VAR, ${VAR})
+  ic_style_def("cjsh-string", "color=#CE9178");                   // Orange for quoted strings
+  ic_style_def("cjsh-comment", "color=#6A9955");                  // Green for comments
+  ic_style_def("cjsh-known-command", "color=#569CD6");            // Blue for known commands
+  ic_style_def("cjsh-external-command", "color=#4EC9B0");         // Cyan for external executables
 
   ic_set_default_completer(cjsh_default_completer, NULL);
 
