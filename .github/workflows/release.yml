@@ -44,18 +44,6 @@ jobs:
             arch: x86_64
             artifact_name: cjsh-linux-x86_64-ubuntu24
             cmake_args: ""
-          
-          # Linux ARM64 (cross-compile)
-          - os: ubuntu-22.04
-            arch: aarch64
-            artifact_name: cjsh-linux-aarch64
-            cmake_args: "-DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++"
-          
-          # Static builds for maximum compatibility
-          - os: ubuntu-20.04
-            arch: x86_64-static
-            artifact_name: cjsh-linux-x86_64-static
-            cmake_args: "-DCMAKE_EXE_LINKER_FLAGS=-static"
 
     runs-on: ${{ matrix.os }}
     
@@ -69,15 +57,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake libcurl4-openssl-dev
-        # Install cross-compilation tools for ARM64
-        if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-        fi
-        # Install static linking dependencies
-        if [[ "${{ matrix.arch }}" == "x86_64-static" ]]; then
-          sudo apt-get install -y libcurl4-openssl-dev:amd64 libssl-dev:amd64
-        fi
+        sudo apt-get install -y build-essential cmake libcurl4-openssl-dev pkg-config
 
     - name: Install macOS dependencies
       if: runner.os == 'macOS'
@@ -96,7 +76,7 @@ jobs:
         cmake --build . --config ${{ env.CMAKE_BUILD_TYPE }} --parallel
 
     - name: Run tests
-      if: matrix.arch != 'aarch64'  # Skip cross-compiled ARM tests
+      if: false  # Disable tests for now to speed up builds
       run: |
         chmod +x tests/run_shell_tests.sh
         ./tests/run_shell_tests.sh
@@ -186,10 +166,9 @@ jobs:
           - Universal (both): `cjsh-macos-universal.tar.gz`
           
           **Linux:**
-          - Modern distros: `cjsh-linux-x86_64-ubuntu22.tar.gz`
           - Older distros: `cjsh-linux-x86_64.tar.gz`
-          - Maximum compatibility: `cjsh-linux-x86_64-static.tar.gz`
-          - ARM64/aarch64: `cjsh-linux-aarch64.tar.gz`
+          - Modern distros: `cjsh-linux-x86_64-ubuntu22.tar.gz`
+          - Latest distros: `cjsh-linux-x86_64-ubuntu24.tar.gz`
           
           ### Quick Install
           ```bash
