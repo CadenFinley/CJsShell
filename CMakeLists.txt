@@ -125,7 +125,7 @@ if(NOT nlohmann_json_FOUND)
   # Fallback: Use FetchContent to download nlohmann JSON (CMake 3.11+) or manual download (CMake 3.10)
   message(STATUS "nlohmann_json package not found, downloading from source")
   
-  if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.11")
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.11")
     # Use FetchContent for CMake 3.11+
     include(FetchContent)
     FetchContent_Declare(
@@ -152,7 +152,7 @@ if(NOT nlohmann_json_FOUND)
         https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
         ${NLOHMANN_JSON_HEADER}
         SHOW_PROGRESS
-        EXPECTED_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+        EXPECTED_HASH SHA256=9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6
       )
     endif()
     
