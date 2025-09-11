@@ -69,7 +69,6 @@ int Shell::execute(const std::string& script) {
       last_exit_code = 0;
       return last_exit_code;
   }
-  last_command = script;
   std::string processed_script = script;
   if (!get_menu_active()) {
     if (script == ":") {
@@ -98,7 +97,9 @@ int Shell::execute(const std::string& script) {
   // so now we have a series of lines basically a pseudo script
   // so now we need to create a script interpreter and execute the block
   if (shell_script_interpreter) {
-    return shell_script_interpreter->execute_block(lines);
+    last_exit_code = shell_script_interpreter->execute_block(lines);
+    last_command = processed_script;
+    return last_exit_code;
   } else {
     std::cerr << "Error: No script interpreter available" << std::endl;
     last_exit_code = 1;
