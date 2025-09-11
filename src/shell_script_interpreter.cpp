@@ -43,6 +43,363 @@ DebugLevel ShellScriptInterpreter::get_debug_level() const {
   return debug_level;
 }
 
+std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_script_syntax(
+    const std::vector<std::string>& lines) {
+  std::vector<SyntaxError> errors;
+  
+  // Helper function
+  auto trim = [](const std::string& s) -> std::string {
+    size_t start = s.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos)
+      return "";
+    size_t end = s.find_last_not_of(" \t\n\r");
+    return s.substr(start, end - start + 1);
+  };
+  
+  // Track control structure nesting
+  std::vector<std::pair<std::string, size_t>> control_stack; // (keyword, line_number)
+  
+  for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
+    const std::string& line = lines[line_num];
+    size_t display_line = line_num + 1;
+    
+    // Skip empty lines and comments
+    std::string trimmed = line;
+    size_t first_non_space = trimmed.find_first_not_of(" \t");
+    if (first_non_space == std::string::npos || trimmed[first_non_space] == '#') {
+      continue;
+    }
+    trimmed = trimmed.substr(first_non_space);
+    
+    // Check for unclosed quotes
+    bool in_quotes = false;
+    char quote_char = '\0';
+    bool escaped = false;
+    
+    for (size_t i = 0; i < line.length(); ++i) {
+      char c = line[i];
+      
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      
+      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
+        escaped = true;
+        continue;
+      }
+      
+      if ((c == '"' || c == '\'') && !in_quotes) {
+        in_quotes = true;
+        quote_char = c;
+      } else if (c == quote_char && in_quotes) {
+        in_quotes = false;
+        quote_char = '\0';
+      }
+    }
+    
+    if (in_quotes) {
+      errors.push_back({display_line, 
+                       "Unclosed quote: missing closing " + std::string(1, quote_char), 
+                       line});
+    }
+    
+    // Check for unmatched parentheses (but skip case pattern syntax)
+    int paren_balance = 0;
+    in_quotes = false;
+    quote_char = '\0';
+    escaped = false;
+    bool in_case_block = false;
+    
+    // Check if we're inside a case statement or this line contains a case statement
+    for (const auto& stack_item : control_stack) {
+      if (stack_item.first == "case") {
+        in_case_block = true;
+        break;
+      }
+    }
+    
+    // Also check if this line itself contains a case statement
+    bool line_has_case = trimmed.find("case ") != std::string::npos && 
+                         trimmed.find(" in ") != std::string::npos;
+    
+    // Skip parenthesis checking for case patterns like "start)" or "*)"
+    bool looks_like_case_pattern = (in_case_block || line_has_case) && 
+                                   (trimmed.find(")") != std::string::npos);
+    
+    // For case patterns, the closing parenthesis is valid even without ;; on same line
+    if (in_case_block && trimmed.find(")") != std::string::npos) {
+      // Check if this line looks like a case pattern (word/string followed by ))
+      size_t paren_pos = trimmed.find(")");
+      if (paren_pos != std::string::npos) {
+        std::string before_paren = trimmed.substr(0, paren_pos);
+        // Remove quotes and whitespace to check if it's a simple pattern
+        before_paren = trim(before_paren);
+        if (!before_paren.empty() && 
+            (before_paren.front() == '"' || before_paren.front() == '\'' || 
+             before_paren == "*" || isalnum(before_paren.front()))) {
+          looks_like_case_pattern = true;
+        }
+      }
+    }
+    
+    if (!looks_like_case_pattern) {
+      for (size_t i = 0; i < line.length(); ++i) {
+        char c = line[i];
+        
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        
+        if (c == '\\' && (!in_quotes || quote_char != '\'')) {
+          escaped = true;
+          continue;
+        }
+        
+        if ((c == '"' || c == '\'') && !in_quotes) {
+          in_quotes = true;
+          quote_char = c;
+        } else if (c == quote_char && in_quotes) {
+          in_quotes = false;
+          quote_char = '\0';
+        }
+        
+        if (!in_quotes) {
+          if (c == '(') paren_balance++;
+          else if (c == ')') paren_balance--;
+        }
+      }
+      
+      if (paren_balance != 0) {
+        if (paren_balance > 0) {
+          errors.push_back({display_line, "Unmatched opening parenthesis", line});
+        } else {
+          errors.push_back({display_line, "Unmatched closing parenthesis", line});
+        }
+      }
+    }
+    
+    // Check control structure syntax
+    std::string trimmed_for_parsing = trimmed;
+    // Remove trailing semicolons for parsing
+    if (!trimmed_for_parsing.empty() && trimmed_for_parsing.back() == ';') {
+      trimmed_for_parsing.pop_back();
+      trimmed_for_parsing = trim(trimmed_for_parsing);
+    }
+    
+    // Check for compound statements on single line like "if [ ... ]; then"
+    if (trimmed_for_parsing.find("if ") == 0 && trimmed_for_parsing.find("; then") != std::string::npos) {
+      // Check if it's a complete single-line if statement with fi
+      if (trimmed_for_parsing.find(" fi") != std::string::npos || 
+          trimmed_for_parsing.find(";fi") != std::string::npos ||
+          trimmed_for_parsing.find("fi;") != std::string::npos) {
+        // Complete single-line if statement, no need to track in control stack
+      } else {
+        control_stack.push_back({"then", display_line});
+      }
+    } else if (trimmed_for_parsing.find("while ") == 0 && trimmed_for_parsing.find("; do") != std::string::npos) {
+      // Check if it's a complete single-line while statement with done
+      if (trimmed_for_parsing.find(" done") != std::string::npos ||
+          trimmed_for_parsing.find(";done") != std::string::npos ||
+          trimmed_for_parsing.find("done;") != std::string::npos) {
+        // Complete single-line while statement, no need to track in control stack
+      } else {
+        control_stack.push_back({"do", display_line});
+      }
+    } else if (trimmed_for_parsing.find("until ") == 0 && trimmed_for_parsing.find("; do") != std::string::npos) {
+      // Check if it's a complete single-line until statement with done
+      if (trimmed_for_parsing.find(" done") != std::string::npos ||
+          trimmed_for_parsing.find(";done") != std::string::npos ||
+          trimmed_for_parsing.find("done;") != std::string::npos) {
+        // Complete single-line until statement, no need to track in control stack
+      } else {
+        control_stack.push_back({"do", display_line});
+      }
+    } else if (trimmed_for_parsing.find("for ") == 0 && trimmed_for_parsing.find("; do") != std::string::npos) {
+      // Check if it's a complete single-line for statement with done
+      if (trimmed_for_parsing.find(" done") != std::string::npos ||
+          trimmed_for_parsing.find(";done") != std::string::npos ||
+          trimmed_for_parsing.find("done;") != std::string::npos) {
+        // Complete single-line for statement, no need to track in control stack
+      } else {
+        control_stack.push_back({"do", display_line});
+      }
+    } else {
+      std::vector<std::string> tokens;
+      std::stringstream ss(trimmed_for_parsing);
+      std::string token;
+      while (ss >> token) {
+        tokens.push_back(token);
+      }
+      
+      if (!tokens.empty()) {
+        const std::string& first_token = tokens[0];
+        
+        // Check if-then-fi structure
+        if (first_token == "if") {
+          control_stack.push_back({"if", display_line});
+        } else if (first_token == "then") {
+          if (control_stack.empty() || control_stack.back().first != "if") {
+            errors.push_back({display_line, "'then' without matching 'if'", line});
+          } else {
+            control_stack.back().first = "then";
+          }
+        } else if (first_token == "elif") {
+          if (control_stack.empty() || 
+              (control_stack.back().first != "then" && control_stack.back().first != "elif")) {
+            errors.push_back({display_line, "'elif' without matching 'if...then'", line});
+          } else {
+            control_stack.back().first = "elif";
+          }
+        } else if (first_token == "else") {
+          if (control_stack.empty() || 
+              (control_stack.back().first != "then" && control_stack.back().first != "elif")) {
+            errors.push_back({display_line, "'else' without matching 'if...then'", line});
+          } else {
+            control_stack.back().first = "else";
+          }
+        } else if (first_token == "fi") {
+          if (control_stack.empty() || 
+              (control_stack.back().first != "then" && control_stack.back().first != "elif" && control_stack.back().first != "else")) {
+            errors.push_back({display_line, "'fi' without matching 'if'", line});
+          } else {
+            control_stack.pop_back();
+          }
+        }
+        
+        // Check while-do-done structure
+        else if (first_token == "while" || first_token == "until") {
+          control_stack.push_back({first_token, display_line});
+        } else if (first_token == "do") {
+          if (control_stack.empty() || 
+              (control_stack.back().first != "while" && control_stack.back().first != "until" && control_stack.back().first != "for")) {
+            errors.push_back({display_line, "'do' without matching 'while', 'until', or 'for'", line});
+          } else {
+            control_stack.back().first = "do";
+          }
+        } else if (first_token == "done") {
+          if (control_stack.empty() || control_stack.back().first != "do") {
+            errors.push_back({display_line, "'done' without matching 'do'", line});
+          } else {
+            control_stack.pop_back();
+          }
+        }
+        
+        // Check for-in-do-done structure
+        else if (first_token == "for") {
+          if (tokens.size() >= 3 && std::find(tokens.begin(), tokens.end(), "in") != tokens.end()) {
+            // Valid for...in construct
+          } else if (tokens.size() < 3) {
+            // Could be a multi-line for statement - allow it
+          } else {
+            errors.push_back({display_line, "'for' statement missing 'in' clause", line});
+          }
+          control_stack.push_back({"for", display_line});
+        }
+        
+        // Check case-in-esac structure
+        else if (first_token == "case") {
+          if (tokens.size() >= 3 && std::find(tokens.begin(), tokens.end(), "in") != tokens.end()) {
+            // Valid case...in construct
+          } else if (tokens.size() < 3) {
+            // Could be a multi-line case statement - allow it
+          } else {
+            errors.push_back({display_line, "'case' statement missing 'in' clause", line});
+          }
+          
+          // Check if it's a complete single-line case statement with esac
+          if (trimmed_for_parsing.find(" esac") != std::string::npos || 
+              trimmed_for_parsing.find(";esac") != std::string::npos ||
+              trimmed_for_parsing.find("esac;") != std::string::npos) {
+            // Complete single-line case statement, no need to track in control stack
+          } else {
+            control_stack.push_back({"case", display_line});
+          }
+        } else if (first_token == "esac") {
+          if (control_stack.empty() || control_stack.back().first != "case") {
+            errors.push_back({display_line, "'esac' without matching 'case'", line});
+          } else {
+            control_stack.pop_back();
+          }
+        }
+        
+        // Check function syntax
+        else if (first_token == "function") {
+          if (tokens.size() < 2) {
+            errors.push_back({display_line, "'function' missing function name", line});
+          }
+          if (!trimmed.empty() && trimmed.back() == '{') {
+            control_stack.push_back({"{", display_line});
+          } else {
+            control_stack.push_back({"function", display_line});
+          }
+        } else if (tokens.size() >= 2 && tokens[1] == "()") {
+          // Function definition like: funcname()
+          if (!trimmed.empty() && trimmed.back() == '{') {
+            control_stack.push_back({"{", display_line});
+          } else {
+            control_stack.push_back({"function", display_line});
+          }
+        }
+        
+        // Handle compound commands that end with '{'
+        else if (!trimmed.empty() && trimmed.back() == '{') {
+          control_stack.push_back({"{", display_line});
+        } else if (first_token == "}") {
+          if (control_stack.empty()) {
+            errors.push_back({display_line, "Unmatched closing brace '}'", line});
+          } else if (control_stack.back().first == "{" || control_stack.back().first == "function") {
+            control_stack.pop_back();
+          } else {
+            errors.push_back({display_line, "Unmatched closing brace '}'", line});
+          }
+        }
+      }
+    }
+  }
+  
+  // Check for unclosed control structures
+  while (!control_stack.empty()) {
+    auto& unclosed = control_stack.back();
+    std::string expected_close;
+    
+    if (unclosed.first == "if" || unclosed.first == "then" || 
+        unclosed.first == "elif" || unclosed.first == "else") {
+      expected_close = "fi";
+    } else if (unclosed.first == "while" || unclosed.first == "for" || unclosed.first == "do") {
+      expected_close = "done";
+    } else if (unclosed.first == "case") {
+      expected_close = "esac";
+    } else if (unclosed.first == "{" || unclosed.first == "function") {
+      expected_close = "}";
+    }
+    
+    errors.push_back({unclosed.second, 
+                     "Unclosed '" + unclosed.first + "' - missing '" + expected_close + "'", 
+                     ""});
+    control_stack.pop_back();
+  }
+  
+  return errors;
+}
+
+bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& lines, bool print_errors) {
+  std::vector<SyntaxError> errors = validate_script_syntax(lines);
+  
+  if (!errors.empty() && print_errors) {
+    std::cerr << "Syntax errors found:" << std::endl;
+    for (const auto& error : errors) {
+      std::cerr << "  Line " << error.line_number << ": " << error.message << std::endl;
+      if (!error.line_content.empty()) {
+        std::cerr << "    " << error.line_content << std::endl;
+      }
+    }
+  }
+  
+  return !errors.empty();
+}
+
 int ShellScriptInterpreter::execute_block(
     const std::vector<std::string>& lines) {
   if (g_debug_mode)
@@ -58,6 +415,12 @@ int ShellScriptInterpreter::execute_block(
     std::cerr << "Error: Script interpreter not initialized with a Parser"
               << std::endl;
     return 1;
+  }
+
+  // Validate syntax before execution
+  if (has_syntax_errors(lines)) {
+    std::cerr << "Script execution aborted due to syntax errors." << std::endl;
+    return 2; // Return error code 2 for syntax errors
   }
 
   auto trim = [](const std::string& s) -> std::string {

@@ -36,6 +36,16 @@ class ShellScriptInterpreter {
     return shell_parser->parse_into_lines(script);
   }
 
+  // Syntax validation functions
+  struct SyntaxError {
+    size_t line_number;
+    std::string message;
+    std::string line_content;
+  };
+  
+  std::vector<SyntaxError> validate_script_syntax(const std::vector<std::string>& lines);
+  bool has_syntax_errors(const std::vector<std::string>& lines, bool print_errors = true);
+
  private:
   DebugLevel debug_level;
   Parser* shell_parser = nullptr;

@@ -12,6 +12,7 @@
 #include <memory>
 #include <regex>
 #include <sstream>
+#include <stdexcept>
 
 #include "cjsh.h"
 #include "command_preprocessor.h"
@@ -308,6 +309,11 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     } else {
       tokens.push_back(current_token);
     }
+  }
+
+  // Check for unclosed quotes
+  if (in_quotes) {
+    throw std::runtime_error("Unclosed quote: missing closing " + std::string(1, quote_char));
   }
 
   return tokens;

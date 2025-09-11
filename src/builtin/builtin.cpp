@@ -33,6 +33,7 @@
 #include "set_command.h"
 #include "source_command.h"
 #include "startup_flag_command.h"
+#include "syntax_command.h"
 #include "test_command.h"
 #include "theme_command.h"
 #include "times_command.h"
@@ -157,6 +158,10 @@ Built_ins::Built_ins() : shell(nullptr) {
       {"eval",
        [this](const std::vector<std::string>& args) {
          return ::eval_command(args, shell);
+       }},
+      {"syntax",
+       [this](const std::vector<std::string>& args) {
+         return ::syntax_command(args, shell);
        }},
       {"history",
        [](const std::vector<std::string>& args) {
