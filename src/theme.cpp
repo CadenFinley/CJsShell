@@ -818,9 +818,10 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
 size_t Theme::calculate_raw_length(const std::string& str) const {
   size_t ansi_chars = 0;
   size_t visible_chars = 0;
-  
+
   // Use utf8proc-based width calculation
-  size_t raw_length = utf8_utils::calculate_display_width(str, &ansi_chars, &visible_chars);
+  size_t raw_length =
+      utf8_utils::calculate_display_width(str, &ansi_chars, &visible_chars);
 
   if (g_debug_mode) {
     std::cout << "String length: " << str.size()

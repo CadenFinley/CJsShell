@@ -737,7 +737,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
   // Make HTTP request
   HttpResponse response;
   if (!request_cancelled) {
-    response = HttpClient::post(url, request_body_str, headers, static_cast<int>(timeout_flag_seconds));
+    response = HttpClient::post(url, request_body_str, headers,
+                                static_cast<int>(timeout_flag_seconds));
   }
 
   loading = false;
@@ -759,10 +760,13 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     if (response.status_code >= 400) {
       handle_error_response(response.status_code, response.body);
       return "Error: API request failed with status code " +
-             std::to_string(response.status_code) + ". See console for details.";
+             std::to_string(response.status_code) +
+             ". See console for details.";
     } else {
       std::cerr << "HTTP error: " << response.error_message << std::endl;
-      return "Error: Failed to connect to API server. Please check your internet connection. " + response.error_message;
+      return "Error: Failed to connect to API server. Please check your "
+             "internet connection. " +
+             response.error_message;
     }
   }
 
@@ -1138,13 +1142,13 @@ std::string Ai::format_markdown(const std::string& text) {
 
 bool Ai::test_api_key(const std::string& api_key) {
   std::string url = "https://api.openai.com/v1/engines";
-  
+
   std::map<std::string, std::string> headers;
   headers["Authorization"] = "Bearer " + api_key;
   headers["Content-Type"] = "application/json";
 
   HttpResponse response = HttpClient::head(url, headers, 30);
-  
+
   return response.success && response.status_code == 200;
 }
 
@@ -1211,8 +1215,9 @@ bool Ai::process_voice_dictation(const std::string& message) {
   // Make HTTP request
   HttpResponse response;
   if (!request_cancelled) {
-    response = HttpClient::post("https://api.openai.com/v1/audio/speech", 
-                               jsonData, headers, static_cast<int>(timeout_flag_seconds));
+    response =
+        HttpClient::post("https://api.openai.com/v1/audio/speech", jsonData,
+                         headers, static_cast<int>(timeout_flag_seconds));
   }
 
   loading = false;
@@ -1236,7 +1241,8 @@ bool Ai::process_voice_dictation(const std::string& message) {
 
   if (!response.success) {
     ofs.close();
-    std::cerr << "HTTP error generating audio: " << response.error_message << std::endl;
+    std::cerr << "HTTP error generating audio: " << response.error_message
+              << std::endl;
     return false;
   }
 
@@ -1280,8 +1286,7 @@ std::string Ai::get_voice_dictation_instructions() const {
   return voice_dictation_instructions;
 }
 
-void Ai::handle_error_response(int status_code,
-                               const std::string& error_body) {
+void Ai::handle_error_response(int status_code, const std::string& error_body) {
   std::string error_message;
 
   switch (status_code) {

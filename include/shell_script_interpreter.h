@@ -42,9 +42,11 @@ class ShellScriptInterpreter {
     std::string message;
     std::string line_content;
   };
-  
-  std::vector<SyntaxError> validate_script_syntax(const std::vector<std::string>& lines);
-  bool has_syntax_errors(const std::vector<std::string>& lines, bool print_errors = true);
+
+  std::vector<SyntaxError> validate_script_syntax(
+      const std::vector<std::string>& lines);
+  bool has_syntax_errors(const std::vector<std::string>& lines,
+                         bool print_errors = true);
 
  private:
   DebugLevel debug_level;

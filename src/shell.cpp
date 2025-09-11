@@ -66,8 +66,8 @@ Shell::~Shell() {
 
 int Shell::execute(const std::string& script) {
   if (script.empty()) {
-      last_exit_code = 0;
-      return last_exit_code;
+    last_exit_code = 0;
+    return last_exit_code;
   }
   std::string processed_script = script;
   if (!get_menu_active()) {

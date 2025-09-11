@@ -313,7 +313,8 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
 
   // Check for unclosed quotes
   if (in_quotes) {
-    throw std::runtime_error("Unclosed quote: missing closing " + std::string(1, quote_char));
+    throw std::runtime_error("Unclosed quote: missing closing " +
+                             std::string(1, quote_char));
   }
 
   return tokens;
