@@ -78,6 +78,10 @@ See `tests/README.md` for detailed test documentation and compliance matrix.
 - **nlohmann/json**  
   https://github.com/nlohmann/json (MIT License)
 
+- **utf8proc**  
+  https://github.com/JuliaStrings/utf8proc (MIT License)  
+  Unicode text processing library for proper character width calculations and text handling. Automatically downloaded and built if not found on system.
+
 ## License
 
 This project is licensed under the MIT License.
