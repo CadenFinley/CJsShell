@@ -458,23 +458,40 @@ void initialize_completion_system() {
   ic_style_def("cjsh-external-command",
                "color=#8BE9FD");  // Bright cyan for external executables
 
-  ic_set_default_completer(cjsh_default_completer, NULL);
+  // Set up completions if enabled
+  if (config::completions_enabled) {
+    ic_set_default_completer(cjsh_default_completer, NULL);
+    ic_enable_completion_preview(true);
+    ic_enable_hint(true);
+    ic_set_hint_delay(0);
+    ic_enable_auto_tab(false);
+    ic_enable_completion_preview(true);
+  } else {
+    // Disable completions
+    ic_set_default_completer(nullptr, NULL);
+    ic_enable_completion_preview(false);
+    ic_enable_hint(false);
+    ic_enable_auto_tab(false);
+  }
 
-  SyntaxHighlighter::initialize();
-  ic_set_default_highlighter(SyntaxHighlighter::highlight, NULL);
+  // Set up syntax highlighting if enabled
+  if (config::syntax_highlighting_enabled) {
+    SyntaxHighlighter::initialize();
+    ic_set_default_highlighter(SyntaxHighlighter::highlight, NULL);
+    ic_enable_highlight(true);
+  } else {
+    // Disable syntax highlighting
+    ic_set_default_highlighter(nullptr, NULL);
+    ic_enable_highlight(false);
+  }
 
-  ic_enable_completion_preview(true);
-  ic_enable_hint(true);
-  ic_set_hint_delay(0);
-  ic_enable_highlight(true);
+  // Common settings that apply regardless of completion/highlighting state
   ic_enable_history_duplicates(false);
   ic_enable_inline_help(false);
   ic_enable_multiline_indent(false);
   ic_enable_multiline(true);
   ic_set_prompt_marker("", NULL);
-  ic_enable_auto_tab(false);
   ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), -1);
-  ic_enable_completion_preview(true);
 }
 
 void update_completion_frequency(const std::string& command) {

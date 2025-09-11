@@ -76,6 +76,8 @@ bool themes_enabled = true;
 bool ai_enabled = true;
 bool colors_enabled = true;
 bool source_enabled = true;
+bool completions_enabled = true;
+bool syntax_highlighting_enabled = true;
 bool show_version = false;
 bool show_help = false;
 bool startup_test = false;
@@ -224,9 +226,11 @@ static int parse_command_line_arguments(int argc, char* argv[],
                                          {"no-colors", no_argument, 0, 'C'},
                                          {"no-titleline", no_argument, 0, 'L'},
                                          {"no-source", no_argument, 0, 'N'},
+                                         {"no-completions", no_argument, 0, 'O'},
+                                         {"no-syntax-highlighting", no_argument, 0, 'S'},
                                          {"startup-test", no_argument, 0, 'X'},
                                          {0, 0, 0, 0}};
-  const char* short_options = "lic:vhdPTACLNX";
+  const char* short_options = "lic:vhdPTACLNOSX";
   int option_index = 0;
   int c;
   optind = 1;
@@ -293,6 +297,16 @@ static int parse_command_line_arguments(int argc, char* argv[],
         config::source_enabled = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Source file disabled" << std::endl;
+        break;
+      case 'O':
+        config::completions_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Completions disabled" << std::endl;
+        break;
+      case 'S':
+        config::syntax_highlighting_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Syntax highlighting disabled" << std::endl;
         break;
       case 'X':
         config::startup_test = true;
@@ -964,6 +978,15 @@ static void apply_profile_startup_flags() {
       config::source_enabled = false;
       if (g_debug_mode)
         std::cerr << "DEBUG: Source file disabled via profile" << std::endl;
+    } else if (flag == "--no-completions") {
+      config::completions_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Completions disabled via profile" << std::endl;
+    } else if (flag == "--no-syntax-highlighting") {
+      config::syntax_highlighting_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Syntax highlighting disabled via profile"
+                  << std::endl;
     } else if (flag == "--startup-test") {
       config::startup_test = true;
       if (g_debug_mode)

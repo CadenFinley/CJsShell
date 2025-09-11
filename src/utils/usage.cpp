@@ -20,7 +20,9 @@ void print_usage() {
       << "  -A, --no-ai                Disable AI features\n"
       << "  -C, --no-colors            Disable color output\n"
       << "  -L, --no-titleline         Disable title line\n"
-      << "  -N, --no-source            Don't source the .cjshrc file\n\n"
+      << "  -N, --no-source            Don't source the .cjshrc file\n"
+      << "  -O, --no-completions       Disable tab completions\n"
+      << "  -S, --no-syntax-highlighting Disable syntax highlighting\n\n"
       << "For more information, visit: "
          "https://github.com/CadenFinley/CJsShell\n"
       << " Or run cjsh --help" << std::endl;

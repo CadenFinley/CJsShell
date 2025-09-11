@@ -40,5 +40,24 @@ extern std::unique_ptr<Theme> g_theme;
 extern std::unique_ptr<Ai> g_ai;
 extern std::unique_ptr<Plugin> g_plugin;
 extern std::vector<std::string> g_startup_args;
+
+namespace config {
+extern bool login_mode;
+extern bool interactive_mode;
+extern bool force_interactive;
+extern bool execute_command;
+extern std::string cmd_to_execute;
+extern bool plugins_enabled;
+extern bool themes_enabled;
+extern bool ai_enabled;
+extern bool colors_enabled;
+extern bool source_enabled;
+extern bool completions_enabled;
+extern bool syntax_highlighting_enabled;
+extern bool show_version;
+extern bool show_help;
+extern bool startup_test;
+}  // namespace config
+
 void reprint_prompt();
 void cleanup_resources();
