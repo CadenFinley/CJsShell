@@ -173,26 +173,35 @@ if(PkgConfig_FOUND)
 endif()
 
 if(NOT UTF8PROC_FOUND)
-  # Fallback: Use FetchContent to download and build utf8proc
+  # Fallback: Use ExternalProject to download and build utf8proc (compatible with CMake 3.10)
   message(STATUS "utf8proc package not found, downloading and building from source")
-  include(FetchContent)
-  FetchContent_Declare(
-    utf8proc
+  include(ExternalProject)
+  
+  # Define the external project
+  ExternalProject_Add(
+    utf8proc_external
     GIT_REPOSITORY https://github.com/JuliaStrings/utf8proc.git
     GIT_TAG v2.10.0
     GIT_SHALLOW TRUE
+    CMAKE_ARGS
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+      -DUTF8PROC_ENABLE_TESTING=OFF
+      -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+      -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
+      -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+      -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+      -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+    BUILD_BYPRODUCTS <INSTALL_DIR>/lib/libutf8proc${CMAKE_STATIC_LIBRARY_SUFFIX}
   )
   
-  # Set utf8proc options
-  set(UTF8PROC_ENABLE_TESTING OFF CACHE BOOL "Disable utf8proc testing")
+  # Get the install directory
+  ExternalProject_Get_Property(utf8proc_external install_dir)
   
-  FetchContent_MakeAvailable(utf8proc)
-  
-  # Create an alias for consistency
-  if(TARGET utf8proc)
-    add_library(utf8proc::utf8proc ALIAS utf8proc)
-    set(UTF8PROC_LIBRARIES utf8proc::utf8proc)
-  endif()
+  # Set variables for linking - we'll use the raw library path
+  set(UTF8PROC_LIBRARIES ${install_dir}/lib/libutf8proc${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set(UTF8PROC_INCLUDE_DIRS ${install_dir}/include)
 else()
   message(STATUS "Found utf8proc via pkg-config")
   set(UTF8PROC_LIBRARIES ${UTF8PROC_LIBRARIES})
@@ -208,6 +217,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
 )
 
+# Add utf8proc include directories if built from source
+if(NOT UTF8PROC_FOUND)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${UTF8PROC_INCLUDE_DIRS})
+endif()
+
 # Link against libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
     pthread
@@ -215,6 +229,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     nlohmann_json::nlohmann_json
     ${UTF8PROC_LIBRARIES}
 )
+
+# Add dependency for external utf8proc if it was built from source
+if(NOT UTF8PROC_FOUND)
+  add_dependencies(${PROJECT_NAME} utf8proc_external)
+endif()
 
 # Prevent JSON library from using certain features
 add_definitions(-DJSON_NOEXCEPTION=1)
@@ -241,12 +260,22 @@ if(BUILD_MULTIPLE_BINARIES)
       ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
       ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
   )
+  
+  # Add utf8proc include directories if built from source
+  if(NOT UTF8PROC_FOUND)
+    target_include_directories(${PROJECT_NAME}_speed03 PRIVATE ${UTF8PROC_INCLUDE_DIRS})
+  endif()
   target_link_libraries(${PROJECT_NAME}_speed03 PRIVATE
       pthread
       dl
       nlohmann_json::nlohmann_json
       ${UTF8PROC_LIBRARIES}
   )
+  
+  # Add dependency for external utf8proc if it was built from source
+  if(NOT UTF8PROC_FOUND)
+    add_dependencies(${PROJECT_NAME}_speed03 utf8proc_external)
+  endif()
 
     # Speed-optimized binary 02
   add_executable(${PROJECT_NAME}_speed02 ${SOURCES})
@@ -259,12 +288,22 @@ if(BUILD_MULTIPLE_BINARIES)
       ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
       ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
   )
+  
+  # Add utf8proc include directories if built from source
+  if(NOT UTF8PROC_FOUND)
+    target_include_directories(${PROJECT_NAME}_speed02 PRIVATE ${UTF8PROC_INCLUDE_DIRS})
+  endif()
   target_link_libraries(${PROJECT_NAME}_speed02 PRIVATE
       pthread
       dl
       nlohmann_json::nlohmann_json
       ${UTF8PROC_LIBRARIES}
   )
+  
+  # Add dependency for external utf8proc if it was built from source
+  if(NOT UTF8PROC_FOUND)
+    add_dependencies(${PROJECT_NAME}_speed02 utf8proc_external)
+  endif()
 
   # Debug binary with no optimizations
   add_executable(${PROJECT_NAME}_debug ${SOURCES})
@@ -277,10 +316,20 @@ if(BUILD_MULTIPLE_BINARIES)
       ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
       ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
   )
+  
+  # Add utf8proc include directories if built from source
+  if(NOT UTF8PROC_FOUND)
+    target_include_directories(${PROJECT_NAME}_debug PRIVATE ${UTF8PROC_INCLUDE_DIRS})
+  endif()
   target_link_libraries(${PROJECT_NAME}_debug PRIVATE
       pthread
       dl
       nlohmann_json::nlohmann_json
       ${UTF8PROC_LIBRARIES}
   )
+  
+  # Add dependency for external utf8proc if it was built from source
+  if(NOT UTF8PROC_FOUND)
+    add_dependencies(${PROJECT_NAME}_debug utf8proc_external)
+  endif()
 endif()
