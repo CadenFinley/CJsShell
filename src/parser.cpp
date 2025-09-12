@@ -13,6 +13,9 @@
 #include <regex>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
+#include <algorithm>
+#include <execution>
 
 #include "cjsh.h"
 #include "command_preprocessor.h"
@@ -24,10 +27,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   // Handle here documents specially by collecting content until delimiter.
 
   // Helper function to strip inline comments - use string_view for efficiency
-  auto strip_inline_comment = [](const std::string& s) -> std::string {
+  auto strip_inline_comment = [](std::string_view s) -> std::string {
     bool in_quotes = false;
     char quote = '\0';
-    const char* data = s.c_str();
+    const char* data = s.data();
     size_t size = s.size();
 
     for (size_t i = 0; i < size; ++i) {
@@ -57,10 +60,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           }
         }
       } else if (!in_quotes && c == '#') {
-        return s.substr(0, i);
+        return std::string(s.substr(0, i));
       }
     }
-    return s;
+    return std::string(s);
   };
 
   std::vector<std::string> lines;
@@ -90,40 +93,47 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
         if (trimmed_line == here_doc_delimiter) {
           // End of here document - reconstruct the command with content
-          std::string segment = script.substr(start, i - start);
+          std::string_view segment_view{script.data() + start, i - start};
           // Find <<- or << delimiter and replace with placeholder
           size_t here_pos = std::string::npos;
           
           // First try to find <<- with various spacing
-          here_pos = segment.find("<<- " + here_doc_delimiter);
+          here_pos = segment_view.find("<<- " + here_doc_delimiter);
           if (here_pos == std::string::npos) {
-            here_pos = segment.find("<<-" + here_doc_delimiter);
+            here_pos = segment_view.find("<<-" + here_doc_delimiter);
             if (here_pos == std::string::npos) {
               // Fall back to << variants
-              here_pos = segment.find("<< " + here_doc_delimiter);
+              here_pos = segment_view.find("<< " + here_doc_delimiter);
               if (here_pos == std::string::npos) {
-                here_pos = segment.find("<<" + here_doc_delimiter);
+                here_pos = segment_view.find("<<" + here_doc_delimiter);
               }
             }
           }
           
           if (here_pos != std::string::npos) {
-            std::string before_here = segment.substr(0, here_pos);
+            std::string before_here{segment_view.substr(0, here_pos)};
             // Create a placeholder that matches CommandPreprocessor format
             std::string placeholder =
                 "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
             // For here documents, we replace the entire operator with input redirection
-            segment = before_here + "< " + placeholder;
+            std::string segment = before_here + "< " + placeholder;
 
             // Store the here document content in the current_here_docs map
             // This makes it accessible to the pipeline parser
             current_here_docs[placeholder] = here_doc_content;
+            
+            if (!segment.empty() && segment.back() == '\r') {
+              segment.pop_back();
+            }
+            lines.push_back(std::move(segment));
+          } else {
+            // Fallback to original behavior
+            std::string segment{segment_view};
+            if (!segment.empty() && segment.back() == '\r') {
+              segment.pop_back();
+            }
+            lines.push_back(std::move(segment));
           }
-
-          if (!segment.empty() && segment.back() == '\r') {
-            segment.pop_back();
-          }
-          lines.push_back(segment);
 
           in_here_doc = false;
           strip_tabs = false;
@@ -162,10 +172,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
       in_quotes = false;
     } else if (!in_quotes && c == '\n') {
       // Check if this line contains a here document start
-      std::string segment = script.substr(start, i - start);
-      if (!in_quotes && segment.find("<<") != std::string::npos) {
+      std::string_view segment_view{script.data() + start, i - start};
+      if (!in_quotes && segment_view.find("<<") != std::string_view::npos) {
         // Strip comments before parsing here document delimiter
-        std::string segment_no_comment = strip_inline_comment(segment);
+        std::string segment_no_comment = strip_inline_comment(segment_view);
 
         // Look for <<- or << followed by delimiter
         // Check for <<- first (more specific), then <<
@@ -208,28 +218,31 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
       normal_line_processing:
       // Extract line [start, i) - regular line processing
+      std::string segment{script.data() + start, i - start};
       if (!segment.empty() && segment.back() == '\r') {
         segment.pop_back();
       }
-      lines.push_back(segment);
+      lines.push_back(std::move(segment));
       start = i + 1;
     }
   }
 
   if (start <= script.size()) {
-    std::string tail = script.substr(start);
-    if (!tail.empty() && !in_quotes && !in_here_doc) {
+    std::string_view tail_view{script.data() + start, script.size() - start};
+    if (!tail_view.empty() && !in_quotes && !in_here_doc) {
+      std::string tail{tail_view};
       if (!tail.empty() && tail.back() == '\r') {
         tail.pop_back();
       }
-      lines.push_back(tail);
-    } else if (!tail.empty()) {
+      lines.push_back(std::move(tail));
+    } else if (!tail_view.empty()) {
       // Even if still in quotes or here doc (unterminated), push remainder as a
       // line
+      std::string tail{tail_view};
       if (!tail.empty() && tail.back() == '\r') {
         tail.pop_back();
       }
-      lines.push_back(tail);
+      lines.push_back(std::move(tail));
     }
   }
 
@@ -547,6 +560,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
 
   std::vector<std::string> expanded_args;
+  expanded_args.reserve(args.size() * 2); // Reserve space for potential expansions
   for (const auto& raw_arg : args) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
@@ -554,21 +568,23 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     if (arg.find('{') != std::string::npos &&
         arg.find('}') != std::string::npos) {
       std::vector<std::string> brace_expansions = expand_braces(arg);
+      brace_expansions.reserve(8); // Reserve space for common brace expansions
       // NOTE: Real shells inhibit brace expansion inside quotes; keeping simple
       // behavior here unless tests require otherwise. Preserve quote tags.
       if (is_single) {
         for (auto& b : brace_expansions) {
           expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                                  b);
+                                  std::move(b));
         }
       } else if (is_double) {
         for (auto& b : brace_expansions) {
           expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                                  b);
+                                  std::move(b));
         }
       } else {
-        expanded_args.insert(expanded_args.end(), brace_expansions.begin(),
-                             brace_expansions.end());
+        expanded_args.insert(expanded_args.end(),
+                             std::make_move_iterator(brace_expansions.begin()),
+                             std::make_move_iterator(brace_expansions.end()));
       }
     } else {
       if (is_single) {
@@ -582,7 +598,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       }
     }
   }
-  args = expanded_args;
+  args = std::move(expanded_args);
   // Handle special case for quoted $@ expansion before regular env var
   // expansion
   std::vector<std::string> pre_expanded_args;
@@ -623,17 +639,19 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   // Apply IFS word splitting to unquoted arguments that may contain expanded
   // variables
   std::vector<std::string> ifs_expanded_args;
+  ifs_expanded_args.reserve(args.size() * 2); // Reserve for potential splits
   for (const auto& raw_arg : args) {
     if (!is_single_quoted_token(raw_arg) && !is_double_quoted_token(raw_arg)) {
       // Unquoted argument - apply IFS word splitting
       std::vector<std::string> split_words = split_by_ifs(raw_arg);
-      ifs_expanded_args.insert(ifs_expanded_args.end(), split_words.begin(),
-                               split_words.end());
+      ifs_expanded_args.insert(ifs_expanded_args.end(),
+                               std::make_move_iterator(split_words.begin()),
+                               std::make_move_iterator(split_words.end()));
     } else {
       ifs_expanded_args.push_back(raw_arg);
     }
   }
-  args = ifs_expanded_args;
+  args = std::move(ifs_expanded_args);
   std::vector<std::string> tilde_expanded_args;
   for (auto& raw_arg : args) {
     const bool is_single = is_single_quoted_token(raw_arg);
@@ -658,9 +676,14 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       char* home_dir = std::getenv("HOME");
       if (home_dir) {
         std::string home_str(home_dir);
-        std::string expanded_arg =
-            std::regex_replace(arg, std::regex("^~"), home_str);
-        tilde_expanded_args.push_back(expanded_arg);
+        // Replace regex with faster string manipulation
+        std::string expanded_arg;
+        if (arg.front() == '~') {
+          expanded_arg = home_str + arg.substr(1);
+        } else {
+          expanded_arg = arg;
+        }
+        tilde_expanded_args.push_back(std::move(expanded_arg));
       } else {
         tilde_expanded_args.push_back(arg);
       }
@@ -678,6 +701,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
 
   std::vector<std::string> final_args;
+  final_args.reserve(tilde_expanded_args.size() * 2); // Reserve for potential glob expansions
   for (const auto& raw_arg : tilde_expanded_args) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
@@ -693,6 +717,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 }
 std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
+  result.reserve(8); // Reserve space for common brace expansions
 
   size_t open_pos = pattern.find('{');
   if (open_pos == std::string::npos) {
@@ -739,16 +764,18 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
         for (int i = start; i <= end; ++i) {
           std::vector<std::string> expanded_results =
               expand_braces(prefix + std::to_string(i) + suffix);
-          result.insert(result.end(), expanded_results.begin(),
-                        expanded_results.end());
+          result.insert(result.end(),
+                        std::make_move_iterator(expanded_results.begin()),
+                        std::make_move_iterator(expanded_results.end()));
         }
       } else {
         // Reverse range
         for (int i = start; i >= end; --i) {
           std::vector<std::string> expanded_results =
               expand_braces(prefix + std::to_string(i) + suffix);
-          result.insert(result.end(), expanded_results.begin(),
-                        expanded_results.end());
+          result.insert(result.end(),
+                        std::make_move_iterator(expanded_results.begin()),
+                        std::make_move_iterator(expanded_results.end()));
         }
       }
       return result;
@@ -771,8 +798,9 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
           for (char c = start_char; c >= end_char; --c) {
             std::vector<std::string> expanded_results =
                 expand_braces(prefix + std::string(1, c) + suffix);
-            result.insert(result.end(), expanded_results.begin(),
-                          expanded_results.end());
+            result.insert(result.end(),
+                          std::make_move_iterator(expanded_results.begin()),
+                          std::make_move_iterator(expanded_results.end()));
           }
         }
         return result;
@@ -783,12 +811,13 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
 
   // Handle comma-separated options
   std::vector<std::string> options;
+  options.reserve(8); // Reserve space for common option counts
   size_t start = 0;
   depth = 0;
 
   for (size_t i = 0; i <= content.size(); ++i) {
     if (i == content.size() || (content[i] == ',' && depth == 0)) {
-      options.push_back(content.substr(start, i - start));
+      options.emplace_back(content.substr(start, i - start));
       start = i + 1;
     } else if (content[i] == '{') {
       depth++;
@@ -800,8 +829,9 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   for (const auto& option : options) {
     std::vector<std::string> expanded_results =
         expand_braces(prefix + option + suffix);
-    result.insert(result.end(), expanded_results.begin(),
-                  expanded_results.end());
+    result.insert(result.end(),
+                  std::make_move_iterator(expanded_results.begin()),
+                  std::make_move_iterator(expanded_results.end()));
   }
 
   return result;
@@ -1062,9 +1092,12 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
 
 std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   std::vector<Command> commands;
+  commands.reserve(4); // Reserve space for common pipeline lengths
   std::vector<std::string> command_parts;
+  command_parts.reserve(4); // Reserve space for common pipeline parts
 
   std::string current;
+  current.reserve(command.length() / 4); // Reserve reasonable space
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
@@ -1086,8 +1119,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       current += command[i];
     } else if (command[i] == '|' && !in_quotes && paren_depth == 0) {
       if (!current.empty()) {
-        command_parts.push_back(current);
+        command_parts.push_back(std::move(current));
         current.clear();
+        current.reserve(command.length() / 4);
       }
     } else {
       current += command[i];
@@ -1095,7 +1129,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   }
 
   if (!current.empty()) {
-    command_parts.push_back(current);
+    command_parts.push_back(std::move(current));
   }
 
   for (const auto& cmd_str : command_parts) {
