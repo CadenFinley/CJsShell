@@ -193,13 +193,14 @@ if(NOT UTF8PROC_FOUND)
       -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
       -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+      -DCMAKE_INSTALL_LIBDIR=lib
     BUILD_BYPRODUCTS <INSTALL_DIR>/lib/libutf8proc${CMAKE_STATIC_LIBRARY_SUFFIX}
   )
   
   # Get the install directory
   ExternalProject_Get_Property(utf8proc_external install_dir)
   
-  # Set variables for linking - we'll use the raw library path
+  # Set variables for linking
   set(UTF8PROC_LIBRARIES ${install_dir}/lib/libutf8proc${CMAKE_STATIC_LIBRARY_SUFFIX})
   set(UTF8PROC_INCLUDE_DIRS ${install_dir}/include)
 else()
