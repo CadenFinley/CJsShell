@@ -774,7 +774,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(fd);
         } else if (cmd.stderr_to_stdout) {
           if (g_debug_mode) {
-            (void)write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in single command\n", 53);
+            (void)write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in single command\n", 52);
           }
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
@@ -1081,7 +1081,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(fd);
         } else if (cmd.stderr_to_stdout) {
           if (g_debug_mode) {
-            (void)write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in pipeline\n", 47);
+            (void)write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in pipeline\n", 46);
           }
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
