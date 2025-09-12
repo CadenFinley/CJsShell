@@ -15,7 +15,6 @@
 #include <stdexcept>
 #include <string_view>
 #include <algorithm>
-#include <execution>
 
 #include "cjsh.h"
 #include "command_preprocessor.h"
