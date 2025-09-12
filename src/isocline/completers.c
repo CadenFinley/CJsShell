@@ -5,6 +5,7 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
+#define _GNU_SOURCE  // Required for lstat on some Linux systems
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
