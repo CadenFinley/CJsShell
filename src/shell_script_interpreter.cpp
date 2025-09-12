@@ -1158,7 +1158,9 @@ int ShellScriptInterpreter::execute_block(
       has_redir_or_pipe = c.background || !c.input_file.empty() ||
                           !c.output_file.empty() || !c.append_file.empty() ||
                           c.stderr_to_stdout || !c.stderr_file.empty() ||
-                          !c.here_doc.empty();
+                          !c.here_doc.empty() || c.both_output ||
+                          !c.here_string.empty() || !c.fd_redirections.empty() ||
+                          !c.fd_duplications.empty();
     }
 
     if (!has_redir_or_pipe && !cmds.empty()) {
@@ -1309,6 +1311,9 @@ int ShellScriptInterpreter::execute_block(
         } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
                    std::isdigit(s[i + 1])) {
           // This is a redirection like >&1 or 2>&1, not a background operator
+          cur += c;
+        } else if (i + 1 < s.size() && s[i + 1] == '>') {
+          // This is &> redirection, not a background operator
           cur += c;
         } else {
           // finalize current as background segment

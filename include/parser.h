@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -24,6 +25,17 @@ struct Command {
   std::string stderr_file;        // 2> redirection (stderr to file)
   bool stderr_append = false;     // 2>> append redirection
   std::string here_doc;           // << HERE document
+  std::string here_string;        // <<< here string
+  bool both_output = false;       // &> redirection (stdout and stderr to same file)
+  std::string both_output_file;   // file for &> redirection
+  bool force_overwrite = false;   // >| force overwrite (noclobber bypass)
+  
+  // File descriptor redirections (fd_num -> target)
+  std::map<int, std::string> fd_redirections;  // e.g., 3< file.txt
+  std::map<int, int> fd_duplications;          // e.g., 2>&1, 3>&2
+  
+  // Process substitutions
+  std::vector<std::string> process_substitutions;  // <(cmd) or >(cmd)
 };
 
 struct LogicalCommand {

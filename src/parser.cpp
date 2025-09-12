@@ -304,7 +304,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     } else if (c == quote_char && in_quotes) {
       in_quotes = false;
       quote_char = '\0';
-    } else if ((c == '(' || c == ')') && !in_quotes) {
+    } else if ((c == '(' || c == ')' || c == '<' || c == '>' || c == '&' || c == '|') && !in_quotes) {
       if (!current_token.empty()) {
         // Apply quote tag if any
         if (token_saw_single && !token_saw_double) {
@@ -366,6 +366,14 @@ std::vector<std::string> merge_redirection_tokens(
   std::vector<std::string> result;
   result.reserve(tokens.size());  // Reserve at least as much space as input
 
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: merge_redirection_tokens input: ";
+    for (const auto& token : tokens) {
+      std::cerr << "'" << token << "' ";
+    }
+    std::cerr << std::endl;
+  }
+
   for (size_t i = 0; i < tokens.size(); ++i) {
     const std::string& token = tokens[i];
 
@@ -374,12 +382,64 @@ std::vector<std::string> merge_redirection_tokens(
       if (tokens[i + 1] == ">&1") {
         result.push_back("2>&1");
         i++;  // skip next token
-      } else if (tokens[i + 1] == ">>" || tokens[i + 1] == ">") {
-        result.push_back("2" + tokens[i + 1]);
+      } else if (i + 3 < tokens.size() && tokens[i + 1] == ">" && 
+                 tokens[i + 2] == "&" && tokens[i + 3] == "1") {
+        // Handle 2>&1 tokenized as ["2", ">", "&", "1"]
+        result.push_back("2>&1");
+        i += 3;  // skip next three tokens
+      } else if (i + 2 < tokens.size() && tokens[i + 1] == ">" && tokens[i + 2] == ">") {
+        // Handle 2>> tokenized as ["2", ">", ">"]
+        result.push_back("2>>");
+        i += 2;  // skip next two tokens
+      } else if (i + 1 < tokens.size() && tokens[i + 1] == ">") {
+        // Handle 2> tokenized as ["2", ">"]
+        result.push_back("2>");
         i++;  // skip next token
       } else {
         result.push_back(token);
       }
+    }
+    // Handle &> pattern (both stdout and stderr to file)
+    else if (token == "&" && i + 1 < tokens.size() && tokens[i + 1] == ">") {
+      result.push_back("&>");
+      i++;  // skip next token
+    }
+    // Handle >| pattern (force overwrite)
+    else if (token == ">" && i + 1 < tokens.size() && tokens[i + 1] == "|") {
+      result.push_back(">|");
+      i++;  // skip next token
+    }
+    // Handle <<< pattern (here strings) - check for < < < sequence FIRST
+    else if (token == "<" && i + 2 < tokens.size() && 
+             tokens[i + 1] == "<" && tokens[i + 2] == "<") {
+      result.push_back("<<<");
+      i += 2;  // skip next two tokens
+    }
+    // Handle <<- pattern (here document with tab stripping) - check for < < - sequence  
+    else if (token == "<" && i + 2 < tokens.size() && 
+             tokens[i + 1] == "<" && tokens[i + 2] == "-") {
+      result.push_back("<<-");
+      i += 2;  // skip next two tokens
+    }
+    // Handle << pattern (here documents) - check for < < sequence AFTER more specific patterns
+    else if (token == "<" && i + 1 < tokens.size() && tokens[i + 1] == "<") {
+      result.push_back("<<");
+      i++;  // skip next token
+    }
+    // Handle <<< pattern (here strings) - original logic for pre-merged tokens
+    else if (token == "<<" && i + 1 < tokens.size() && tokens[i + 1] == "<") {
+      result.push_back("<<<");
+      i++;  // skip next token
+    }
+    // Handle <<- pattern (here document with tab stripping) - original logic
+    else if (token == "<<" && i + 1 < tokens.size() && tokens[i + 1] == "-") {
+      result.push_back("<<-");
+      i++;  // skip next token
+    }
+    // Handle >> pattern (append redirection)
+    else if (token == ">" && i + 1 < tokens.size() && tokens[i + 1] == ">") {
+      result.push_back(">>");
+      i++;  // skip next token
     }
     // Handle >>&1, >&1, >&2 patterns
     else if ((token == ">>" || token == ">") && i + 1 < tokens.size() &&
@@ -393,6 +453,12 @@ std::vector<std::string> merge_redirection_tokens(
       result.push_back(">&2");
       i += 2;  // skip next two tokens
     }
+    // Handle cases where >&1 might be split as ">" "&" "1"
+    else if (token == ">" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
+             tokens[i + 2] == "1") {
+      result.push_back(">&1");
+      i += 2;  // skip next two tokens
+    }
     // Handle cases where 2>&1 might be split as "2" "&" "1"
     else if (token == "2" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
              tokens[i + 2] == "1") {
@@ -404,9 +470,35 @@ std::vector<std::string> merge_redirection_tokens(
              (tokens[i + 1] == ">" || tokens[i + 1] == ">>")) {
       result.push_back("2" + tokens[i + 1]);
       i++;  // skip next token
+    }
+    // Handle file descriptor redirections like 3<, 3>, 4>&1, etc.
+    else if (std::isdigit(token[0]) && token.length() > 1) {
+      // Check if this is a file descriptor redirection
+      size_t first_non_digit = 0;
+      while (first_non_digit < token.length() && std::isdigit(token[first_non_digit])) {
+        first_non_digit++;
+      }
+      if (first_non_digit > 0 && first_non_digit < token.length()) {
+        std::string rest = token.substr(first_non_digit);
+        if (rest == "<" || rest == ">" || rest.find(">&") == 0) {
+          result.push_back(token);
+        } else {
+          result.push_back(token);
+        }
+      } else {
+        result.push_back(token);
+      }
     } else {
       result.push_back(token);
     }
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: merge_redirection_tokens output: ";
+    for (const auto& token : result) {
+      std::cerr << "'" << token << "' ";
+    }
+    std::cerr << std::endl;
   }
 
   return result;
@@ -1010,9 +1102,39 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     Command cmd;
     std::string cmd_part = cmd_str;
 
-    if (!cmd_part.empty() && cmd_part.back() == '&') {
+    // Check for background execution - look for & at the very end after whitespace
+    bool is_background = false;
+    std::string trimmed = cmd_part;
+    // Remove trailing whitespace
+    trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
+    
+    if (!trimmed.empty() && trimmed.back() == '&') {
+      // Make sure this & is not part of &>
+      // Check if there's a > immediately after this & in the original string
+      size_t amp_pos = cmd_part.rfind('&');
+      if (amp_pos != std::string::npos && amp_pos + 1 < cmd_part.length()) {
+        // Check what follows the &
+        size_t next_non_ws = amp_pos + 1;
+        while (next_non_ws < cmd_part.length() && std::isspace(cmd_part[next_non_ws])) {
+          next_non_ws++;
+        }
+        
+        if (next_non_ws < cmd_part.length() && cmd_part[next_non_ws] == '>') {
+          // This is &> redirection, not background
+          is_background = false;
+        } else {
+          // This is genuine background
+          is_background = true;
+        }
+      } else {
+        // & is truly at the end
+        is_background = true;
+      }
+    }
+    
+    if (is_background) {
       cmd.background = true;
-      cmd_part.pop_back();
+      cmd_part = trimmed.substr(0, trimmed.length() - 1);
       cmd_part.erase(cmd_part.find_last_not_of(" \t\n\r") + 1);
     }
 
@@ -1070,6 +1192,14 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         cmd.output_file = strip_quote_tag(tokens[++i]);
       } else if (tok == ">>" && i + 1 < tokens.size()) {
         cmd.append_file = strip_quote_tag(tokens[++i]);
+      } else if (tok == ">|" && i + 1 < tokens.size()) {
+        // Force overwrite (noclobber bypass)
+        cmd.output_file = strip_quote_tag(tokens[++i]);
+        cmd.force_overwrite = true;
+      } else if (tok == "&>" && i + 1 < tokens.size()) {
+        // Both stdout and stderr to file
+        cmd.both_output_file = strip_quote_tag(tokens[++i]);
+        cmd.both_output = true;
       } else if (tok == "<<" && i + 1 < tokens.size()) {
         std::string delimiter = strip_quote_tag(tokens[++i]);
         // Check if this is a special here document content marker
@@ -1081,6 +1211,21 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         } else {
           cmd.here_doc = delimiter;
         }
+      } else if (tok == "<<-" && i + 1 < tokens.size()) {
+        // Here document with tab stripping
+        std::string delimiter = strip_quote_tag(tokens[++i]);
+        // Check if this is a special here document content marker
+        if (delimiter.find("__HEREDOC_CONTENT__") == 0) {
+          // Extract the line number and find the corresponding content
+          std::string line_num =
+              delimiter.substr(19);  // after "__HEREDOC_CONTENT__"
+          cmd.here_doc = delimiter;  // Store the marker for now
+        } else {
+          cmd.here_doc = delimiter;
+        }
+      } else if (tok == "<<<" && i + 1 < tokens.size()) {
+        // Here string
+        cmd.here_string = strip_quote_tag(tokens[++i]);
       } else if ((tok == "2>" || tok == "2>>") && i + 1 < tokens.size()) {
         cmd.stderr_file = strip_quote_tag(tokens[++i]);
         cmd.stderr_append = (tok == "2>>");
@@ -1089,9 +1234,47 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       } else if (tok == ">&2") {
         // stdout to stderr - we need a new field for this
         cmd.stdout_to_stderr = true;
+      } else if (tok.find(">&") == 0 && tok.length() > 2) {
+        // Handle redirections like 3>&1, 4>&2, etc.
+        try {
+          int src_fd = std::stoi(tok.substr(0, tok.find(">&")));
+          int dst_fd = std::stoi(tok.substr(tok.find(">&") + 2));
+          cmd.fd_duplications[src_fd] = dst_fd;
+        } catch (const std::exception&) {
+          // Invalid redirection, treat as regular argument
+          filtered_args.push_back(tokens[i]);
+        }
+      } else if (tok.find("<") == tok.length() - 1 && tok.length() > 1 && 
+                 std::isdigit(tok[0]) && i + 1 < tokens.size()) {
+        // Handle file descriptor input redirections like 3< file.txt
+        try {
+          int fd = std::stoi(tok.substr(0, tok.length() - 1));
+          std::string file = strip_quote_tag(tokens[++i]);
+          cmd.fd_redirections[fd] = "input:" + file;
+        } catch (const std::exception&) {
+          // Invalid redirection, treat as regular argument
+          filtered_args.push_back(tokens[i]);
+        }
+      } else if (tok.find(">") == tok.length() - 1 && tok.length() > 1 && 
+                 std::isdigit(tok[0]) && i + 1 < tokens.size()) {
+        // Handle file descriptor output redirections like 3> file.txt
+        try {
+          int fd = std::stoi(tok.substr(0, tok.length() - 1));
+          std::string file = strip_quote_tag(tokens[++i]);
+          cmd.fd_redirections[fd] = "output:" + file;
+        } catch (const std::exception&) {
+          // Invalid redirection, treat as regular argument
+          filtered_args.push_back(tokens[i]);
+        }
       } else {
-        // Preserve quote tags for later wildcard handling
-        filtered_args.push_back(tokens[i]);
+        // Check for process substitution <(cmd) or >(cmd)
+        if ((tok.find("<(") == 0 && tok.back() == ')') ||
+            (tok.find(">(") == 0 && tok.back() == ')')) {
+          cmd.process_substitutions.push_back(tok);
+        } else {
+          // Preserve quote tags for later wildcard handling
+          filtered_args.push_back(tokens[i]);
+        }
       }
     }
 
@@ -1127,6 +1310,15 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       }
       if (!cmd.stderr_file.empty() && cmd.stderr_file[0] == '~') {
         cmd.stderr_file = h + cmd.stderr_file.substr(1);
+      }
+      if (!cmd.both_output_file.empty() && cmd.both_output_file[0] == '~') {
+        cmd.both_output_file = h + cmd.both_output_file.substr(1);
+      }
+      // Handle ~ expansion in file descriptor redirections
+      for (auto& fd_redir : cmd.fd_redirections) {
+        if (!fd_redir.second.empty() && fd_redir.second[0] == '~') {
+          fd_redir.second = h + fd_redir.second.substr(1);
+        }
       }
     }
 

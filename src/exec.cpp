@@ -463,6 +463,29 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
+            // Handle here strings
+            if (!cmd.here_string.empty()) {
+              int here_pipe[2];
+              if (pipe(here_pipe) == -1) {
+                throw std::runtime_error("Failed to create pipe for here string");
+              }
+              
+              std::string content = cmd.here_string + "\n";
+              ssize_t bytes_written = write(here_pipe[1], content.c_str(), content.length());
+              if (bytes_written == -1) {
+                close(here_pipe[1]);
+                close(here_pipe[0]);
+                throw std::runtime_error("Failed to write here string content");
+              }
+              close(here_pipe[1]);
+              
+              if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
+                close(here_pipe[0]);
+                throw std::runtime_error("Failed to redirect stdin for here string");
+              }
+              close(here_pipe[0]);
+            }
+
             // Handle output redirection
             if (!cmd.output_file.empty()) {
               int fd = open(cmd.output_file.c_str(),
@@ -474,6 +497,23 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               if (dup2(fd, STDOUT_FILENO) == -1) {
                 close(fd);
                 throw std::runtime_error("Failed to redirect stdout");
+              }
+              close(fd);
+            }
+
+            // Handle &> redirection (both stdout and stderr to same file)
+            if (cmd.both_output && !cmd.both_output_file.empty()) {
+              int fd = open(cmd.both_output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+              if (fd == -1) {
+                throw std::runtime_error("Failed to open &> output file: " + cmd.both_output_file);
+              }
+              if (dup2(fd, STDOUT_FILENO) == -1) {
+                close(fd);
+                throw std::runtime_error("Failed to redirect stdout for &>");
+              }
+              if (dup2(fd, STDERR_FILENO) == -1) {
+                close(fd);
+                throw std::runtime_error("Failed to redirect stderr for &>");
               }
               close(fd);
             }
@@ -617,6 +657,31 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
           close(here_pipe[0]);
+        } 
+        // Handle here strings (<<<)
+        else if (!cmd.here_string.empty()) {
+          int here_pipe[2];
+          if (pipe(here_pipe) == -1) {
+            perror("pipe for here string");
+            _exit(EXIT_FAILURE);
+          }
+
+          // Write here string content to pipe (with newline)
+          std::string content = cmd.here_string + "\n";
+          ssize_t bytes_written = write(here_pipe[1], content.c_str(), content.length());
+          if (bytes_written == -1) {
+            perror("write here string content");
+            close(here_pipe[1]);
+            _exit(EXIT_FAILURE);
+          }
+          close(here_pipe[1]);
+
+          if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
+            perror("dup2 here string");
+            close(here_pipe[0]);
+            _exit(EXIT_FAILURE);
+          }
+          close(here_pipe[0]);
         } else if (!cmd.input_file.empty()) {
           int fd = open(cmd.input_file.c_str(), O_RDONLY);
           if (fd == -1) {
@@ -634,8 +699,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (!cmd.output_file.empty()) {
-          int fd =
-              open(cmd.output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+          int flags = O_WRONLY | O_CREAT | O_TRUNC;
+          // Note: force_overwrite (>|) would bypass noclobber, but we don't implement noclobber yet
+          int fd = open(cmd.output_file.c_str(), flags, 0644);
           if (fd == -1) {
             std::cerr << "cjsh: " << cmd.output_file << ": " << strerror(errno)
                       << std::endl;
@@ -643,6 +709,29 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
           if (dup2(fd, STDOUT_FILENO) == -1) {
             std::cerr << "cjsh: dup2 failed for stdout redirection: "
+                      << strerror(errno) << std::endl;
+            close(fd);
+            _exit(EXIT_FAILURE);
+          }
+          close(fd);
+        }
+
+        // Handle &> redirection (both stdout and stderr to same file)
+        if (cmd.both_output && !cmd.both_output_file.empty()) {
+          int fd = open(cmd.both_output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+          if (fd == -1) {
+            std::cerr << "cjsh: " << cmd.both_output_file << ": " << strerror(errno)
+                      << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+          if (dup2(fd, STDOUT_FILENO) == -1) {
+            std::cerr << "cjsh: dup2 failed for stdout in &> redirection: "
+                      << strerror(errno) << std::endl;
+            close(fd);
+            _exit(EXIT_FAILURE);
+          }
+          if (dup2(fd, STDERR_FILENO) == -1) {
+            std::cerr << "cjsh: dup2 failed for stderr in &> redirection: "
                       << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
@@ -684,6 +773,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
           close(fd);
         } else if (cmd.stderr_to_stdout) {
+          if (g_debug_mode) {
+            write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in single command\n", 53);
+          }
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
             _exit(EXIT_FAILURE);
@@ -697,6 +789,58 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
         }
+
+        // Handle file descriptor redirections (e.g., 3< file.txt, 4> file.txt)
+        for (const auto& fd_redir : cmd.fd_redirections) {
+          int fd_num = fd_redir.first;
+          const std::string& spec = fd_redir.second;
+          
+          int file_fd;
+          if (spec.find("input:") == 0) {
+            // Input redirection
+            std::string file = spec.substr(6); // Remove "input:" prefix
+            file_fd = open(file.c_str(), O_RDONLY);
+          } else if (spec.find("output:") == 0) {
+            // Output redirection
+            std::string file = spec.substr(7); // Remove "output:" prefix
+            file_fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+          } else {
+            // Legacy format - try to guess based on fd number
+            if (fd_num == 0) {
+              file_fd = open(spec.c_str(), O_RDONLY);
+            } else {
+              file_fd = open(spec.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            }
+          }
+          
+          if (file_fd == -1) {
+            std::cerr << "cjsh: " << spec << ": " << strerror(errno) << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+          
+          if (dup2(file_fd, fd_num) == -1) {
+            std::cerr << "cjsh: dup2 failed for file descriptor " << fd_num
+                      << ": " << strerror(errno) << std::endl;
+            close(file_fd);
+            _exit(EXIT_FAILURE);
+          }
+          close(file_fd);
+        }
+
+        // Handle file descriptor duplications (e.g., 3>&1, 4>&2)
+        for (const auto& fd_dup : cmd.fd_duplications) {
+          int src_fd = fd_dup.first;
+          int dst_fd = fd_dup.second;
+          
+          if (dup2(dst_fd, src_fd) == -1) {
+            std::cerr << "cjsh: dup2 failed for " << src_fd << ">&" << dst_fd
+                      << ": " << strerror(errno) << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+        }
+
+        // Note: Process substitution would require more complex implementation
+        // with named pipes or temporary files, not implemented yet
 
         std::vector<char*> c_args;
         for (auto& arg : cmd.args) {
@@ -936,6 +1080,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
           close(fd);
         } else if (cmd.stderr_to_stdout) {
+          if (g_debug_mode) {
+            write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in pipeline\n", 47);
+          }
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
             _exit(EXIT_FAILURE);
