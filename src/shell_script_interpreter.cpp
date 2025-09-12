@@ -3050,6 +3050,20 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
   // ${var##pattern}  - remove longest prefix match
   // ${var%pattern}   - remove shortest suffix match
   // ${var%%pattern}  - remove longest suffix match
+  // ${var/pattern/replacement} - replace first occurrence
+  // ${var//pattern/replacement} - replace all occurrences
+  // ${var^pattern}   - uppercase first character matching pattern
+  // ${var^^pattern}  - uppercase all characters matching pattern
+  // ${var,pattern}   - lowercase first character matching pattern
+  // ${var,,pattern}  - lowercase all characters matching pattern
+  // ${!var}          - indirect expansion
+
+  // Check for indirect expansion ${!var}
+  if (param_expr[0] == '!') {
+    std::string var_name = param_expr.substr(1);
+    std::string indirect_name = get_variable_value(var_name);
+    return get_variable_value(indirect_name);
+  }
 
   // Check for string length expansion ${#var}
   if (param_expr[0] == '#') {
@@ -3062,31 +3076,75 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
   size_t op_pos = std::string::npos;
   std::string op;
 
-  // Check for two-character operators first
+  // Check for pattern substitution operators first (/, //)
   for (size_t i = 1; i < param_expr.length(); ++i) {
-    if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
-      char next = param_expr[i + 1];
-      if (next == '-' || next == '=' || next == '?' || next == '+') {
+    if (param_expr[i] == '/') {
+      if (i + 1 < param_expr.length() && param_expr[i + 1] == '/') {
         op_pos = i;
-        op = param_expr.substr(i, 2);
-        break;
-      }
-    } else if (param_expr[i] == '#' || param_expr[i] == '%') {
-      // Check for ## or %%
-      if (i + 1 < param_expr.length() && param_expr[i + 1] == param_expr[i]) {
-        op_pos = i;
-        op = param_expr.substr(i, 2);
+        op = "//";
         break;
       } else {
+        op_pos = i;
+        op = "/";
+        break;
+      }
+    }
+  }
+
+  // Check for case conversion operators (^, ^^, ,, ,,)
+  if (op_pos == std::string::npos) {
+    for (size_t i = 1; i < param_expr.length(); ++i) {
+      if (param_expr[i] == '^') {
+        if (i + 1 < param_expr.length() && param_expr[i + 1] == '^') {
+          op_pos = i;
+          op = "^^";
+          break;
+        } else {
+          op_pos = i;
+          op = "^";
+          break;
+        }
+      } else if (param_expr[i] == ',') {
+        if (i + 1 < param_expr.length() && param_expr[i + 1] == ',') {
+          op_pos = i;
+          op = ",,";
+          break;
+        } else {
+          op_pos = i;
+          op = ",";
+          break;
+        }
+      }
+    }
+  }
+
+  // Check for two-character operators
+  if (op_pos == std::string::npos) {
+    for (size_t i = 1; i < param_expr.length(); ++i) {
+      if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
+        char next = param_expr[i + 1];
+        if (next == '-' || next == '=' || next == '?' || next == '+') {
+          op_pos = i;
+          op = param_expr.substr(i, 2);
+          break;
+        }
+      } else if (param_expr[i] == '#' || param_expr[i] == '%') {
+        // Check for ## or %%
+        if (i + 1 < param_expr.length() && param_expr[i + 1] == param_expr[i]) {
+          op_pos = i;
+          op = param_expr.substr(i, 2);
+          break;
+        } else {
+          op_pos = i;
+          op = param_expr.substr(i, 1);
+          break;
+        }
+      } else if (param_expr[i] == '-' || param_expr[i] == '=' ||
+                 param_expr[i] == '?' || param_expr[i] == '+') {
         op_pos = i;
         op = param_expr.substr(i, 1);
         break;
       }
-    } else if (param_expr[i] == '-' || param_expr[i] == '=' ||
-               param_expr[i] == '?' || param_expr[i] == '+') {
-      op_pos = i;
-      op = param_expr.substr(i, 1);
-      break;
     }
   }
 
@@ -3167,6 +3225,24 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
   } else if (op == "%%") {
     // Remove longest suffix match
     return pattern_match_suffix(var_value, operand, true);
+  } else if (op == "/") {
+    // Replace first occurrence
+    return pattern_substitute(var_value, operand, false);
+  } else if (op == "//") {
+    // Replace all occurrences  
+    return pattern_substitute(var_value, operand, true);
+  } else if (op == "^") {
+    // Uppercase first character matching pattern
+    return case_convert(var_value, operand, true, false);
+  } else if (op == "^^") {
+    // Uppercase all characters matching pattern
+    return case_convert(var_value, operand, true, true);
+  } else if (op == ",") {
+    // Lowercase first character matching pattern  
+    return case_convert(var_value, operand, false, false);
+  } else if (op == ",,") {
+    // Lowercase all characters matching pattern
+    return case_convert(var_value, operand, false, true);
   }
 
   // Unknown operator, return as-is
@@ -3346,4 +3422,110 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
   }
 
   return pi == pattern.length();
+}
+
+std::string ShellScriptInterpreter::pattern_substitute(
+    const std::string& value, const std::string& replacement_expr,
+    bool global) {
+  if (value.empty() || replacement_expr.empty()) {
+    return value;
+  }
+
+  // Parse pattern/replacement from replacement_expr
+  // Format: pattern/replacement
+  size_t slash_pos = replacement_expr.find('/');
+  if (slash_pos == std::string::npos) {
+    return value;  // No replacement pattern found
+  }
+
+  std::string pattern = replacement_expr.substr(0, slash_pos);
+  std::string replacement = replacement_expr.substr(slash_pos + 1);
+
+  if (pattern.empty()) {
+    return value;
+  }
+
+  std::string result = value;
+
+  // For simple patterns (no wildcards), use direct string replacement
+  if (pattern.find('*') == std::string::npos && 
+      pattern.find('?') == std::string::npos) {
+    if (global) {
+      // Replace all occurrences
+      size_t pos = 0;
+      while ((pos = result.find(pattern, pos)) != std::string::npos) {
+        result.replace(pos, pattern.length(), replacement);
+        pos += replacement.length();
+      }
+    } else {
+      // Replace first occurrence only
+      size_t pos = result.find(pattern);
+      if (pos != std::string::npos) {
+        result.replace(pos, pattern.length(), replacement);
+      }
+    }
+  } else {
+    // For patterns with wildcards, use more complex matching
+    // This is a simplified implementation
+    if (!global && matches_pattern(result, pattern)) {
+      result = replacement;
+    }
+  }
+
+  return result;
+}
+
+std::string ShellScriptInterpreter::case_convert(
+    const std::string& value, const std::string& pattern,
+    bool uppercase, bool all_chars) {
+  if (value.empty()) {
+    return value;
+  }
+
+  std::string result = value;
+
+  // If pattern is empty, convert according to flags
+  if (pattern.empty()) {
+    if (all_chars) {
+      // Convert all characters
+      for (char& c : result) {
+        if (uppercase) {
+          c = std::toupper(c);
+        } else {
+          c = std::tolower(c);
+        }
+      }
+    } else {
+      // Convert first character only
+      if (!result.empty()) {
+        if (uppercase) {
+          result[0] = std::toupper(result[0]);
+        } else {
+          result[0] = std::tolower(result[0]);
+        }
+      }
+    }
+  } else {
+    // Pattern-based conversion (simplified implementation)
+    // For now, just convert based on flags if pattern matches
+    if (all_chars) {
+      for (char& c : result) {
+        if (uppercase) {
+          c = std::toupper(c);
+        } else {
+          c = std::tolower(c);
+        }
+      }
+    } else {
+      if (!result.empty()) {
+        if (uppercase) {
+          result[0] = std::toupper(result[0]);
+        } else {
+          result[0] = std::tolower(result[0]);
+        }
+      }
+    }
+  }
+
+  return result;
 }
