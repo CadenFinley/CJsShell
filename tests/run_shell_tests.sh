@@ -46,14 +46,14 @@ echo ""
 
 # Define test categories and their tests (using simple variables instead of associative arrays)
 CORE_TESTS="test_builtin_commands test_environment_vars test_command_line_options test_syntax_command"
-FILEIO_TESTS="test_file_operations test_redirections test_posix_io"
+FILEIO_TESTS="test_file_operations test_redirections test_posix_io test_advanced_io_redirection"
 SCRIPTING_TESTS="test_scripting test_control_structures test_quoting_expansions test_posix_variables test_comprehensive_comments test_syntax_validation test_advanced_parameter_expansion"
 PROCESS_TESTS="test_sigchld_handling test_process_management test_pipeline test_job_control test_and_or test_posix_signals test_zombie_processes test_zombie_edge_cases test_exit_command test_signal_exits test_trap_posix"
 SHELL_TESTS="test_alias test_cd test_cd_edges test_export"
 FEATURES_TESTS="test_login_shell test_posix_login_env"
 COMPLIANCE_TESTS="test_posix_compliance test_posix_advanced test_posix_builtins test_globbing"
-EDGE_TESTS="test_error_handling test_error_edge_cases test_misc_edges"
-PERFORMANCE_TESTS="test_performance"
+EDGE_TESTS="test_error_handling test_error_edge_cases test_misc_edges test_enhanced_error_handling"
+PERFORMANCE_TESTS="test_performance test_performance_optimizations"
 
 run_test_category() {
     category=$1

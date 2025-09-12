@@ -69,6 +69,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   bool in_quotes = false;
   char quote_char = '\0';
   bool in_here_doc = false;
+  bool strip_tabs = false;  // Flag for <<- vs << here documents
   std::string here_doc_delimiter;
   here_doc_delimiter.reserve(64);  // Reserve space for delimiter
   std::string here_doc_content;
@@ -90,17 +91,29 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         if (trimmed_line == here_doc_delimiter) {
           // End of here document - reconstruct the command with content
           std::string segment = script.substr(start, i - start);
-          // Find << delimiter and replace with placeholder
-          size_t here_pos = segment.find("<< " + here_doc_delimiter);
+          // Find <<- or << delimiter and replace with placeholder
+          size_t here_pos = std::string::npos;
+          
+          // First try to find <<- with various spacing
+          here_pos = segment.find("<<- " + here_doc_delimiter);
           if (here_pos == std::string::npos) {
-            here_pos = segment.find("<<" + here_doc_delimiter);
+            here_pos = segment.find("<<-" + here_doc_delimiter);
+            if (here_pos == std::string::npos) {
+              // Fall back to << variants
+              here_pos = segment.find("<< " + here_doc_delimiter);
+              if (here_pos == std::string::npos) {
+                here_pos = segment.find("<<" + here_doc_delimiter);
+              }
+            }
           }
+          
           if (here_pos != std::string::npos) {
-            std::string before_here = segment.substr(0, here_pos + 2);
+            std::string before_here = segment.substr(0, here_pos);
             // Create a placeholder that matches CommandPreprocessor format
             std::string placeholder =
                 "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
-            segment = before_here + " " + placeholder;
+            // For here documents, we replace the entire operator with input redirection
+            segment = before_here + "< " + placeholder;
 
             // Store the here document content in the current_here_docs map
             // This makes it accessible to the pipeline parser
@@ -113,6 +126,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           lines.push_back(segment);
 
           in_here_doc = false;
+          strip_tabs = false;
           here_doc_delimiter.clear();
           here_doc_content.clear();
           start = i + 1;
@@ -121,7 +135,18 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           if (!here_doc_content.empty()) {
             here_doc_content += "\n";
           }
-          here_doc_content += current_here_doc_line;
+          // If this is a <<- here document, strip leading tabs from content
+          std::string line_to_add = current_here_doc_line;
+          if (strip_tabs) {
+            // Strip leading tabs
+            size_t first_non_tab = line_to_add.find_first_not_of('\t');
+            if (first_non_tab != std::string::npos) {
+              line_to_add = line_to_add.substr(first_non_tab);
+            } else {
+              line_to_add.clear(); // Line is all tabs
+            }
+          }
+          here_doc_content += line_to_add;
         }
         current_here_doc_line.clear();
       } else {
@@ -142,31 +167,46 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         // Strip comments before parsing here document delimiter
         std::string segment_no_comment = strip_inline_comment(segment);
 
-        // Look for << followed by delimiter
-        size_t here_pos = segment_no_comment.find("<<");
+        // Look for <<- or << followed by delimiter
+        // Check for <<- first (more specific), then <<
+        size_t here_pos = segment_no_comment.find("<<-");
+        bool is_strip_tabs = false;
+        size_t operator_len = 2;
+        
         if (here_pos != std::string::npos) {
-          // Extract delimiter
-          size_t delim_start = here_pos + 2;
-          while (delim_start < segment_no_comment.size() &&
-                 std::isspace(segment_no_comment[delim_start])) {
-            delim_start++;
+          is_strip_tabs = true;
+          operator_len = 3;
+        } else {
+          here_pos = segment_no_comment.find("<<");
+          if (here_pos == std::string::npos) {
+            // No here document found
+            goto normal_line_processing;
           }
-          size_t delim_end = delim_start;
-          while (delim_end < segment_no_comment.size() &&
-                 !std::isspace(segment_no_comment[delim_end])) {
-            delim_end++;
-          }
-          if (delim_start < delim_end) {
-            here_doc_delimiter =
-                segment_no_comment.substr(delim_start, delim_end - delim_start);
-            in_here_doc = true;
-            here_doc_content.clear();
-            current_here_doc_line.clear();
-            continue;  // Don't process this as a regular line yet
-          }
+        }
+        
+        // Extract delimiter
+        size_t delim_start = here_pos + operator_len;
+        while (delim_start < segment_no_comment.size() &&
+               std::isspace(segment_no_comment[delim_start])) {
+          delim_start++;
+        }
+        size_t delim_end = delim_start;
+        while (delim_end < segment_no_comment.size() &&
+               !std::isspace(segment_no_comment[delim_end])) {
+          delim_end++;
+        }
+        if (delim_start < delim_end) {
+          here_doc_delimiter =
+              segment_no_comment.substr(delim_start, delim_end - delim_start);
+          in_here_doc = true;
+          strip_tabs = is_strip_tabs;
+          here_doc_content.clear();
+          current_here_doc_line.clear();
+          continue;  // Don't process this as a regular line yet
         }
       }
 
+      normal_line_processing:
       // Extract line [start, i) - regular line processing
       if (!segment.empty() && segment.back() == '\r') {
         segment.pop_back();

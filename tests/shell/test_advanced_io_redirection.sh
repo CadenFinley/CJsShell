@@ -190,13 +190,17 @@ else
 fi
 
 # Test 15: Here document with indentation
-OUT=$("$CJSH_PATH" -c "cat <<- EOF
+cat > "$TEST_DIR/heredoc_indent.sh" << 'EOF'
+cat <<- DELIMITER
 	indented line
 	another line
-EOF" 2>&1)
+DELIMITER
+EOF
+
+OUT=$("$CJSH_PATH" "$TEST_DIR/heredoc_indent.sh" 2>&1)
 EXPECTED="indented line
 another line"
-if [ "$OUT" = "$EXPECTED" ] || echo "$OUT" | grep -q "indented line"; then
+if [ "$OUT" = "$EXPECTED" ]; then
     echo "PASS: here document with indentation handling"
 else
     echo "FAIL: here document indentation failed (got: '$OUT')"
