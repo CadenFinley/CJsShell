@@ -10,6 +10,14 @@ fi
 
 echo "Test: advanced zombie process scenarios..."
 
+# Helper function to count zombie processes
+count_zombies() {
+    ps aux | awk '$8 ~ /^Z/ { count++ } END { print count+0 }'
+}
+
+# Establish baseline zombie count to account for system zombies
+BASELINE_ZOMBIES=$(count_zombies)
+
 # Test 1: Rapid process forking doesn't overwhelm SIGCHLD handler
 "$CJSH_PATH" -c 'true & true & true & true & true & wait'
 if [ $? -eq 0 ]; then
@@ -138,13 +146,14 @@ else
 fi
 
 # Test 15: Verify no zombie accumulation after all tests
-ZOMBIE_COUNT=$(ps aux | awk '$8 ~ /^Z/ { count++ } END { print count+0 }')
-if [ "$ZOMBIE_COUNT" -eq 0 ]; then
+ZOMBIE_COUNT=$(count_zombies)
+ZOMBIE_INCREASE=$((ZOMBIE_COUNT - BASELINE_ZOMBIES))
+if [ "$ZOMBIE_INCREASE" -le 0 ]; then
     echo "PASS: no zombie accumulation after tests"
 else
-    echo "FAIL: found $ZOMBIE_COUNT zombie processes after tests"
-    # Show the zombies for debugging
-    echo "Zombie processes found:"
+    echo "FAIL: found $ZOMBIE_INCREASE new zombie processes after tests (baseline: $BASELINE_ZOMBIES, current: $ZOMBIE_COUNT)"
+    # Show only zombies that might be related to our tests
+    echo "All zombie processes found:"
     ps aux | awk '$8 ~ /^Z/ { print }'
     exit 1
 fi
