@@ -925,7 +925,10 @@ static void process_profile_file() {
     if (g_debug_mode)
       std::cerr << "DEBUG: Found universal profile: "
                 << universal_profile.string() << std::endl;
-    g_shell->execute("source " + universal_profile.string());
+    int result = g_shell->execute_tolerant("source " + universal_profile.string());
+    if (result != 0 && g_debug_mode) {
+      std::cerr << "DEBUG: Universal profile had syntax errors but continuing startup" << std::endl;
+    }
   }
   std::filesystem::path user_profile =
       cjsh_filesystem::g_user_home_path / ".profile";
@@ -933,7 +936,10 @@ static void process_profile_file() {
     if (g_debug_mode)
       std::cerr << "DEBUG: Found user profile: " << user_profile.string()
                 << std::endl;
-    g_shell->execute("source " + user_profile.string());
+    int result = g_shell->execute_tolerant("source " + user_profile.string());
+    if (result != 0 && g_debug_mode) {
+      std::cerr << "DEBUG: User profile had syntax errors but continuing startup" << std::endl;
+    }
   }
   // Source the profile file normally
   if (g_debug_mode)
