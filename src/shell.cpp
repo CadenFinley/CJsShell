@@ -108,58 +108,6 @@ int Shell::execute(const std::string& script) {
   return last_exit_code;
 }
 
-int Shell::execute_tolerant(const std::string& script) {
-  if (script.empty()) {
-    last_exit_code = 0;
-    return last_exit_code;
-  }
-  std::string processed_script = script;
-  if (!get_menu_active()) {
-    if (script == ":") {
-      last_exit_code = 0;
-      set_menu_active(true);
-      return last_exit_code;
-    } else if (script[0] == ':') {
-      processed_script = script.substr(1);
-    } else {
-      return do_ai_request(script);
-    }
-  }
-  std::vector<std::string> lines;
-
-  lines = shell_parser->parse_into_lines(processed_script);
-
-  // print all lines in debug mode
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Executing tolerant script with " << lines.size()
-              << " lines:" << std::endl;
-    for (size_t i = 0; i < lines.size(); i++) {
-      std::cerr << "DEBUG:   Line " << (i + 1) << ": " << lines[i] << std::endl;
-    }
-  }
-
-  // Execute with syntax error tolerance
-  if (shell_script_interpreter) {
-    // Check for syntax errors before execution but don't abort on them
-    if (shell_script_interpreter->has_syntax_errors(lines)) {
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Syntax errors detected in tolerant execution, but continuing..." << std::endl;
-      }
-      last_exit_code = 1;  // Return error but don't abort
-      return last_exit_code;
-    }
-    
-    last_exit_code = shell_script_interpreter->execute_block(lines);
-    last_command = processed_script;
-    return last_exit_code;
-  } else {
-    std::cerr << "Error: No script interpreter available" << std::endl;
-    last_exit_code = 1;
-  }
-
-  return last_exit_code;
-}
-
 void Shell::setup_signal_handlers() {
   signal_handler->setup_signal_handlers();
 }

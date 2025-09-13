@@ -31,10 +31,6 @@ class Shell {
   // last exit code.
   int execute(const std::string& script);
 
-  // Tolerant execute: like execute() but catches syntax errors and returns
-  // non-zero instead of aborting. Used for profile script processing.
-  int execute_tolerant(const std::string& script);
-
   int execute_command(std::vector<std::string> args,
                       bool run_in_background = false);
   int do_ai_request(const std::string& command);
