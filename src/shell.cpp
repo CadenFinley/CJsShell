@@ -362,3 +362,20 @@ std::vector<std::string> Shell::get_positional_parameters() const {
 size_t Shell::get_positional_parameter_count() const {
   return positional_parameters.size();
 }
+
+void Shell::set_shell_option(const std::string& option, bool value) {
+  shell_options[option] = value;
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Set shell option '" << option << "' to " 
+              << (value ? "true" : "false") << std::endl;
+  }
+}
+
+bool Shell::get_shell_option(const std::string& option) const {
+  auto it = shell_options.find(option);
+  return it != shell_options.end() ? it->second : false;
+}
+
+bool Shell::is_errexit_enabled() const {
+  return get_shell_option("errexit");
+}

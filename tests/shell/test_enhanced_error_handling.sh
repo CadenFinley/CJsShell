@@ -161,7 +161,7 @@ if true; then
     # Simulate loop iteration 2
     echo "outer loop 2"
     if [ "2" = "1" ]; then
-        false  # Error in nested structure (won't execute)
+        false  # Error in nested structure (will not execute)
     fi
     echo "after inner error 2"
     

@@ -57,6 +57,38 @@ ShellScriptInterpreter::validate_script_syntax(
     return s.substr(start, end - start + 1);
   };
 
+  // Helper function to strip inline comments - use string_view for efficiency
+  auto strip_inline_comment = [](const std::string& s) -> std::string {
+    bool in_quotes = false;
+    char quote = '\0';
+    bool escaped = false;
+
+    for (size_t i = 0; i < s.size(); ++i) {
+      char c = s[i];
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (c == '\\' && (!in_quotes || quote != '\'')) {
+        escaped = true;
+        continue;
+      }
+
+      if ((c == '"' || c == '\'') && !in_quotes) {
+        in_quotes = true;
+        quote = c;
+      } else if (c == quote && in_quotes) {
+        in_quotes = false;
+        quote = '\0';
+      } else if (!in_quotes && c == '#') {
+        return s.substr(0, i);
+      }
+    }
+    return s;
+  };
+
   // Track control structure nesting
   std::vector<std::pair<std::string, size_t>>
       control_stack;  // (keyword, line_number)
@@ -74,13 +106,14 @@ ShellScriptInterpreter::validate_script_syntax(
     }
     trimmed = trimmed.substr(first_non_space);
 
-    // Check for unclosed quotes
+    // Check for unclosed quotes (ignore comments)
+    std::string line_without_comments = strip_inline_comment(line);
     bool in_quotes = false;
     char quote_char = '\0';
     bool escaped = false;
 
-    for (size_t i = 0; i < line.length(); ++i) {
-      char c = line[i];
+    for (size_t i = 0; i < line_without_comments.length(); ++i) {
+      char c = line_without_comments[i];
 
       if (escaped) {
         escaped = false;
@@ -151,8 +184,8 @@ ShellScriptInterpreter::validate_script_syntax(
     }
 
     if (!looks_like_case_pattern) {
-      for (size_t i = 0; i < line.length(); ++i) {
-        char c = line[i];
+      for (size_t i = 0; i < line_without_comments.length(); ++i) {
+        char c = line_without_comments[i];
 
         if (escaped) {
           escaped = false;
@@ -192,7 +225,7 @@ ShellScriptInterpreter::validate_script_syntax(
     }
 
     // Check control structure syntax
-    std::string trimmed_for_parsing = trimmed;
+    std::string trimmed_for_parsing = strip_inline_comment(trimmed);
     // Remove trailing semicolons for parsing
     if (!trimmed_for_parsing.empty() && trimmed_for_parsing.back() == ';') {
       trimmed_for_parsing.pop_back();
@@ -208,7 +241,10 @@ ShellScriptInterpreter::validate_script_syntax(
           trimmed_for_parsing.find("fi;") != std::string::npos) {
         // Complete single-line if statement, no need to track in control stack
       } else {
-        control_stack.push_back({"then", display_line});
+        // Push "if" first, then change to "then" to match the normal flow
+        control_stack.push_back({"if", display_line});
+        // Immediately transition to "then" state since both if and then are on same line
+        control_stack.back().first = "then";
       }
     } else if (trimmed_for_parsing.find("while ") == 0 &&
                trimmed_for_parsing.find("; do") != std::string::npos) {
@@ -1719,7 +1755,7 @@ int ShellScriptInterpreter::execute_block(
     };
 
     // Inline form: for i in 1 2; do body; done
-    if (first.find("; do") != std::string::npos) {
+    if (first.find("; do") != std::string::npos && first.find("done") != std::string::npos) {
       size_t do_pos = first.find("; do");
       std::string header = trim(first.substr(0, do_pos));
       if (!parse_header(header))
@@ -1770,7 +1806,12 @@ int ShellScriptInterpreter::execute_block(
               goto for_loop_break;
             }
           } else if (rc != 0) {
-            break;
+            // Check if errexit (set -e) is enabled
+            if (g_shell && g_shell->is_errexit_enabled()) {
+              break; // Exit loop on error if set -e is enabled
+            }
+            // Otherwise continue to next iteration
+            break; // Exit command loop to continue to next iteration
           }
         }
       for_loop_continue:;
@@ -1783,21 +1824,30 @@ int ShellScriptInterpreter::execute_block(
     std::string header_accum = first;
     size_t j = idx;
     bool have_do = false;
-    while (!have_do && ++j < src_lines.size()) {
-      std::string cur = trim(strip_inline_comment(src_lines[j]));
-      if (cur == "do") {
-        have_do = true;
-        break;
-      }
-      if (cur.find("; do") != std::string::npos) {
-        header_accum += " ";
-        header_accum += cur;
-        have_do = true;
-        break;
-      }
-      if (!cur.empty()) {
-        header_accum += " ";
-        header_accum += cur;
+    
+    // Check if the first line already contains "; do" at the end
+    if (first.find("; do") != std::string::npos && first.rfind("; do") == first.length() - 4) {
+      // The "do" is already on the first line
+      have_do = true;
+      header_accum = first.substr(0, first.length() - 4); // Remove "; do"
+    } else {
+      // Look for "do" on subsequent lines
+      while (!have_do && ++j < src_lines.size()) {
+        std::string cur = trim(strip_inline_comment(src_lines[j]));
+        if (cur == "do") {
+          have_do = true;
+          break;
+        }
+        if (cur.find("; do") != std::string::npos) {
+          header_accum += " ";
+          header_accum += cur;
+          have_do = true;
+          break;
+        }
+        if (!cur.empty()) {
+          header_accum += " ";
+          header_accum += cur;
+        }
       }
     }
     if (!parse_header(header_accum)) {
@@ -1870,7 +1920,12 @@ int ShellScriptInterpreter::execute_block(
           break;
         }
       } else if (rc != 0) {
-        break;
+        // Check if errexit (set -e) is enabled
+        if (g_shell && g_shell->is_errexit_enabled()) {
+          break; // Exit loop on error if set -e is enabled
+        }
+        // Otherwise continue to next iteration
+        continue; // Continue to next iteration
       }
     }
     idx = k;  // at 'done'
@@ -2344,7 +2399,11 @@ int ShellScriptInterpreter::execute_block(
           break;
         }
       } else if (rc != 0) {
-        break;
+        // Check if errexit (set -e) is enabled
+        if (g_shell && g_shell->is_errexit_enabled()) {
+          break; // Exit loop on error if set -e is enabled
+        }
+        // Otherwise continue to next iteration
       }
       if (++guard > GUARD_MAX) {
         std::cerr << "cjsh: while loop aborted (guard)" << std::endl;
@@ -2493,7 +2552,11 @@ int ShellScriptInterpreter::execute_block(
           break;
         }
       } else if (rc != 0) {
-        break;
+        // Check if errexit (set -e) is enabled
+        if (g_shell && g_shell->is_errexit_enabled()) {
+          break; // Exit loop on error if set -e is enabled
+        }
+        // Otherwise continue to next iteration
       }
       if (++guard > GUARD_MAX) {
         std::cerr << "cjsh: until loop aborted (guard)" << std::endl;
@@ -2989,6 +3052,19 @@ int ShellScriptInterpreter::execute_block(
 
           // Update STATUS environment variable for $? expansion
           setenv("STATUS", std::to_string(last_code).c_str(), 1);
+
+          // Check for errexit (set -e) option
+          if (g_shell && g_shell->is_errexit_enabled() && code != 0) {
+            // Don't exit on error in conditionals (if statements, && , ||)
+            // Also don't exit for control flow signals
+            if (code != 253 && code != 254 && code != 255) {
+              if (g_debug_mode) {
+                std::cerr << "DEBUG: errexit triggered, exiting due to error code: " 
+                          << code << std::endl;
+              }
+              return code;
+            }
+          }
 
           // Check for control flow signals (break, continue, return)
           // Don't treat processed function returns as control flow signals

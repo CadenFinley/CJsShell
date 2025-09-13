@@ -94,6 +94,11 @@ class Shell {
   std::vector<std::string> get_positional_parameters() const;
   size_t get_positional_parameter_count() const;
 
+  // Shell options support
+  void set_shell_option(const std::string& option, bool value);
+  bool get_shell_option(const std::string& option) const;
+  bool is_errexit_enabled() const;
+
   void setup_signal_handlers();
   void setup_interactive_handlers();
   void save_terminal_state();
@@ -160,4 +165,5 @@ class Shell {
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
   std::vector<std::string> positional_parameters;
+  std::unordered_map<std::string, bool> shell_options;
 };
