@@ -30,6 +30,7 @@ extern std::unique_ptr<Theme> g_theme;
 extern std::unique_ptr<Ai> g_ai;
 extern std::unique_ptr<Plugin> g_plugin;
 extern std::vector<std::string> g_startup_args;
+extern std::vector<std::string> g_profile_startup_args;
 
 namespace config {
 extern bool login_mode;

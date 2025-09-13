@@ -45,6 +45,7 @@ std::unique_ptr<Ai> g_ai = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;
 std::unique_ptr<Plugin> g_plugin = nullptr;
 std::vector<std::string> g_startup_args;
+std::vector<std::string> g_profile_startup_args;
 
 static int parse_command_line_arguments(int argc, char* argv[],
                                         std::string& script_file);
@@ -349,7 +350,7 @@ static void save_startup_arguments(int argc, char* argv[]) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: Starting CJ's Shell version " << c_version
               << " with PID: " << getpid()
-              << " with command line args: " << std::endl;
+              << " with original command line args: " << std::endl;
     for (const auto& arg : g_startup_args) {
       std::cerr << "DEBUG:   " << arg << std::endl;
     }
@@ -929,12 +930,21 @@ static void process_profile_file() {
 
 static void apply_profile_startup_flags() {
   // Apply startup flags that were collected during profile processing
-  if (g_debug_mode)
+  if (g_debug_mode) {
     std::cerr << "DEBUG: Applying profile startup flags" << std::endl;
+    if (g_profile_startup_args.empty()) {
+      std::cerr << "DEBUG: No profile startup flags to process" << std::endl;
+    } else {
+      std::cerr << "DEBUG: Profile startup flags to process:" << std::endl;
+      for (const auto& flag : g_profile_startup_args) {
+        std::cerr << "DEBUG:   " << flag << std::endl;
+      }
+    }
+  }
 
-  for (const std::string& flag : g_startup_args) {
+  for (const std::string& flag : g_profile_startup_args) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Processing startup flag: " << flag << std::endl;
+      std::cerr << "DEBUG: Processing profile startup flag: " << flag << std::endl;
 
     if (flag == "--debug") {
       g_debug_mode = true;

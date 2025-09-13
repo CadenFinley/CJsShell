@@ -6,7 +6,7 @@
 
 // External declarations from cjsh.cpp
 extern bool g_debug_mode;
-extern std::vector<std::string> g_startup_args;
+extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
@@ -38,9 +38,9 @@ int startup_flag_command(const std::vector<std::string>& args) {
       flag == "--no-plugins" || flag == "--no-themes" || flag == "--no-ai" ||
       flag == "--no-colors" || flag == "--no-titleline" ||
       flag == "--no-source" || flag == "--startup-test") {
-    // Check if the flag is already in g_startup_args
+    // Check if the flag is already in g_profile_startup_args
     bool flag_exists = false;
-    for (const auto& existing_flag : g_startup_args) {
+    for (const auto& existing_flag : g_profile_startup_args) {
       if (existing_flag == flag) {
         flag_exists = true;
         break;
@@ -49,13 +49,13 @@ int startup_flag_command(const std::vector<std::string>& args) {
 
     // Only add the flag if it's not already present
     if (!flag_exists) {
-      g_startup_args.push_back(flag);
+      g_profile_startup_args.push_back(flag);
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Added '" << flag << "' to startup args"
+        std::cerr << "DEBUG: Added '" << flag << "' to profile startup args"
                   << std::endl;
       }
     } else if (g_debug_mode) {
-      std::cerr << "DEBUG: Flag '" << flag << "' already exists in startup args"
+      std::cerr << "DEBUG: Flag '" << flag << "' already exists in profile startup args"
                 << std::endl;
     }
   } else {
