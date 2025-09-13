@@ -13,7 +13,6 @@
 #include "cd_command.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
-#include "double_bracket_test_command.h"
 #include "echo_command.h"
 #include "eval_command.h"
 #include "exit_command.h"
@@ -200,10 +199,6 @@ Built_ins::Built_ins() : shell(nullptr) {
       {"[",
        [](const std::vector<std::string>& args) {
          return ::test_command(args);
-       }},
-      {"[[",
-       [](const std::vector<std::string>& args) {
-         return ::double_bracket_test_command(args);
        }},
       {"exec",
        [this](const std::vector<std::string>& args) {
