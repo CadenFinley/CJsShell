@@ -20,18 +20,8 @@ const std::string c_version = "3.2.1";
 const std::string pre_release_line = " (pre-release)";
 
 extern bool g_debug_mode;
-extern bool g_title_line;
-extern struct termios g_original_termios;
-extern bool g_terminal_state_saved;
-extern int g_shell_terminal;
-extern pid_t g_shell_pgid;
-extern struct termios g_shell_tmodes;
-extern bool g_job_control_enabled;
 extern bool g_exit_flag;
-extern std::string g_cached_version;
 extern std::string g_current_theme;
-extern std::string title_line;
-extern std::string created_line;
 extern bool g_startup_active;
 
 class Shell;

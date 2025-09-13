@@ -63,7 +63,6 @@ static void apply_profile_startup_flags();
 static void create_profile_file();
 static void create_source_file();
 static void setup_environment_variables();
-static void initialize_shell_environment();
 
 namespace config {
 bool login_mode = false;
@@ -133,7 +132,6 @@ int main(int argc, char* argv[]) {
 
   // Initialize core shell components
   g_shell = std::make_unique<Shell>();
-  initialize_shell_environment();
   setup_environment_variables();
   save_startup_arguments(argc, argv);
 
@@ -841,19 +839,6 @@ static void setup_environment_variables() {
       setenv(name, value, 1);
     }
   }
-}
-
-static void initialize_shell_environment() {
-  if (g_debug_mode) {
-    std::cerr << "DEBUG: Initializing shell environment" << std::endl;
-  }
-
-  // Copy the shell's terminal settings to global variables for compatibility
-  g_shell_terminal = g_shell->get_terminal();
-  g_shell_pgid = g_shell->get_pgid();
-  g_shell_tmodes = g_shell->get_terminal_modes();
-  g_terminal_state_saved = g_shell->is_terminal_state_saved();
-  g_job_control_enabled = g_shell->is_job_control_enabled();
 }
 
 static bool init_interactive_filesystem() {
