@@ -652,12 +652,7 @@ static void main_process_loop() {
         break;
       }
     } else {
-      // EOF received (Ctrl+D or end of input)
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: EOF received, setting exit flag" << std::endl;
-      }
-      g_exit_flag = true;
-      break;
+      continue;
     }
     notify_plugins("main_process_end", "");
     if (g_exit_flag) {
