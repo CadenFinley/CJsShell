@@ -243,7 +243,8 @@ ShellScriptInterpreter::validate_script_syntax(
       } else {
         // Push "if" first, then change to "then" to match the normal flow
         control_stack.push_back({"if", display_line});
-        // Immediately transition to "then" state since both if and then are on same line
+        // Immediately transition to "then" state since both if and then are on
+        // same line
         control_stack.back().first = "then";
       }
     } else if (trimmed_for_parsing.find("while ") == 0 &&
@@ -1191,12 +1192,12 @@ int ShellScriptInterpreter::execute_block(
     bool has_redir_or_pipe = cmds.size() > 1;
     if (!has_redir_or_pipe && !cmds.empty()) {
       const auto& c = cmds[0];
-      has_redir_or_pipe = c.background || !c.input_file.empty() ||
-                          !c.output_file.empty() || !c.append_file.empty() ||
-                          c.stderr_to_stdout || !c.stderr_file.empty() ||
-                          !c.here_doc.empty() || c.both_output ||
-                          !c.here_string.empty() || !c.fd_redirections.empty() ||
-                          !c.fd_duplications.empty();
+      has_redir_or_pipe =
+          c.background || !c.input_file.empty() || !c.output_file.empty() ||
+          !c.append_file.empty() || c.stderr_to_stdout ||
+          !c.stderr_file.empty() || !c.here_doc.empty() || c.both_output ||
+          !c.here_string.empty() || !c.fd_redirections.empty() ||
+          !c.fd_duplications.empty();
     }
 
     if (!has_redir_or_pipe && !cmds.empty()) {
@@ -1755,7 +1756,8 @@ int ShellScriptInterpreter::execute_block(
     };
 
     // Inline form: for i in 1 2; do body; done
-    if (first.find("; do") != std::string::npos && first.find("done") != std::string::npos) {
+    if (first.find("; do") != std::string::npos &&
+        first.find("done") != std::string::npos) {
       size_t do_pos = first.find("; do");
       std::string header = trim(first.substr(0, do_pos));
       if (!parse_header(header))
@@ -1808,10 +1810,10 @@ int ShellScriptInterpreter::execute_block(
           } else if (rc != 0) {
             // Check if errexit (set -e) is enabled
             if (g_shell && g_shell->is_errexit_enabled()) {
-              break; // Exit loop on error if set -e is enabled
+              break;  // Exit loop on error if set -e is enabled
             }
             // Otherwise continue to next iteration
-            break; // Exit command loop to continue to next iteration
+            break;  // Exit command loop to continue to next iteration
           }
         }
       for_loop_continue:;
@@ -1824,12 +1826,13 @@ int ShellScriptInterpreter::execute_block(
     std::string header_accum = first;
     size_t j = idx;
     bool have_do = false;
-    
+
     // Check if the first line already contains "; do" at the end
-    if (first.find("; do") != std::string::npos && first.rfind("; do") == first.length() - 4) {
+    if (first.find("; do") != std::string::npos &&
+        first.rfind("; do") == first.length() - 4) {
       // The "do" is already on the first line
       have_do = true;
-      header_accum = first.substr(0, first.length() - 4); // Remove "; do"
+      header_accum = first.substr(0, first.length() - 4);  // Remove "; do"
     } else {
       // Look for "do" on subsequent lines
       while (!have_do && ++j < src_lines.size()) {
@@ -1922,10 +1925,10 @@ int ShellScriptInterpreter::execute_block(
       } else if (rc != 0) {
         // Check if errexit (set -e) is enabled
         if (g_shell && g_shell->is_errexit_enabled()) {
-          break; // Exit loop on error if set -e is enabled
+          break;  // Exit loop on error if set -e is enabled
         }
         // Otherwise continue to next iteration
-        continue; // Continue to next iteration
+        continue;  // Continue to next iteration
       }
     }
     idx = k;  // at 'done'
@@ -2401,7 +2404,7 @@ int ShellScriptInterpreter::execute_block(
       } else if (rc != 0) {
         // Check if errexit (set -e) is enabled
         if (g_shell && g_shell->is_errexit_enabled()) {
-          break; // Exit loop on error if set -e is enabled
+          break;  // Exit loop on error if set -e is enabled
         }
         // Otherwise continue to next iteration
       }
@@ -2554,7 +2557,7 @@ int ShellScriptInterpreter::execute_block(
       } else if (rc != 0) {
         // Check if errexit (set -e) is enabled
         if (g_shell && g_shell->is_errexit_enabled()) {
-          break; // Exit loop on error if set -e is enabled
+          break;  // Exit loop on error if set -e is enabled
         }
         // Otherwise continue to next iteration
       }
@@ -3059,8 +3062,9 @@ int ShellScriptInterpreter::execute_block(
             // Also don't exit for control flow signals
             if (code != 253 && code != 254 && code != 255) {
               if (g_debug_mode) {
-                std::cerr << "DEBUG: errexit triggered, exiting due to error code: " 
-                          << code << std::endl;
+                std::cerr
+                    << "DEBUG: errexit triggered, exiting due to error code: "
+                    << code << std::endl;
               }
               return code;
             }
@@ -3310,7 +3314,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
     // Replace first occurrence
     return pattern_substitute(var_value, operand, false);
   } else if (op == "//") {
-    // Replace all occurrences  
+    // Replace all occurrences
     return pattern_substitute(var_value, operand, true);
   } else if (op == "^") {
     // Uppercase first character matching pattern
@@ -3319,7 +3323,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
     // Uppercase all characters matching pattern
     return case_convert(var_value, operand, true, true);
   } else if (op == ",") {
-    // Lowercase first character matching pattern  
+    // Lowercase first character matching pattern
     return case_convert(var_value, operand, false, false);
   } else if (op == ",,") {
     // Lowercase all characters matching pattern
@@ -3529,7 +3533,7 @@ std::string ShellScriptInterpreter::pattern_substitute(
   std::string result = value;
 
   // For simple patterns (no wildcards), use direct string replacement
-  if (pattern.find('*') == std::string::npos && 
+  if (pattern.find('*') == std::string::npos &&
       pattern.find('?') == std::string::npos) {
     if (global) {
       // Replace all occurrences
@@ -3556,9 +3560,10 @@ std::string ShellScriptInterpreter::pattern_substitute(
   return result;
 }
 
-std::string ShellScriptInterpreter::case_convert(
-    const std::string& value, const std::string& pattern,
-    bool uppercase, bool all_chars) {
+std::string ShellScriptInterpreter::case_convert(const std::string& value,
+                                                 const std::string& pattern,
+                                                 bool uppercase,
+                                                 bool all_chars) {
   if (value.empty()) {
     return value;
   }

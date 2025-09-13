@@ -214,22 +214,23 @@ static void detect_login_mode(char* argv[]) {
 
 static int parse_command_line_arguments(int argc, char* argv[],
                                         std::string& script_file) {
-  static struct option long_options[] = {{"login", no_argument, 0, 'l'},
-                                         {"interactive", no_argument, 0, 'i'},
-                                         {"debug", no_argument, 0, 'd'},
-                                         {"command", required_argument, 0, 'c'},
-                                         {"version", no_argument, 0, 'v'},
-                                         {"help", no_argument, 0, 'h'},
-                                         {"no-plugins", no_argument, 0, 'P'},
-                                         {"no-themes", no_argument, 0, 'T'},
-                                         {"no-ai", no_argument, 0, 'A'},
-                                         {"no-colors", no_argument, 0, 'C'},
-                                         {"no-titleline", no_argument, 0, 'L'},
-                                         {"no-source", no_argument, 0, 'N'},
-                                         {"no-completions", no_argument, 0, 'O'},
-                                         {"no-syntax-highlighting", no_argument, 0, 'S'},
-                                         {"startup-test", no_argument, 0, 'X'},
-                                         {0, 0, 0, 0}};
+  static struct option long_options[] = {
+      {"login", no_argument, 0, 'l'},
+      {"interactive", no_argument, 0, 'i'},
+      {"debug", no_argument, 0, 'd'},
+      {"command", required_argument, 0, 'c'},
+      {"version", no_argument, 0, 'v'},
+      {"help", no_argument, 0, 'h'},
+      {"no-plugins", no_argument, 0, 'P'},
+      {"no-themes", no_argument, 0, 'T'},
+      {"no-ai", no_argument, 0, 'A'},
+      {"no-colors", no_argument, 0, 'C'},
+      {"no-titleline", no_argument, 0, 'L'},
+      {"no-source", no_argument, 0, 'N'},
+      {"no-completions", no_argument, 0, 'O'},
+      {"no-syntax-highlighting", no_argument, 0, 'S'},
+      {"startup-test", no_argument, 0, 'X'},
+      {0, 0, 0, 0}};
   const char* short_options = "lic:vhdPTACLNOSX";
   int option_index = 0;
   int c;

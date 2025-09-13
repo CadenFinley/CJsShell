@@ -366,7 +366,7 @@ size_t Shell::get_positional_parameter_count() const {
 void Shell::set_shell_option(const std::string& option, bool value) {
   shell_options[option] = value;
   if (g_debug_mode) {
-    std::cerr << "DEBUG: Set shell option '" << option << "' to " 
+    std::cerr << "DEBUG: Set shell option '" << option << "' to "
               << (value ? "true" : "false") << std::endl;
   }
 }

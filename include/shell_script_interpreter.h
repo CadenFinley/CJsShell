@@ -67,8 +67,7 @@ class ShellScriptInterpreter {
   std::string pattern_substitute(const std::string& value,
                                  const std::string& replacement_expr,
                                  bool global = false);
-  std::string case_convert(const std::string& value,
-                           const std::string& pattern,
+  std::string case_convert(const std::string& value, const std::string& pattern,
                            bool uppercase, bool all_chars);
   bool matches_pattern(const std::string& text, const std::string& pattern);
 };

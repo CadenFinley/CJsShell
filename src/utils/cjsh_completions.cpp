@@ -450,9 +450,8 @@ void initialize_completion_system() {
                "color=#8BE9FD");  // Bright cyan for variables ($VAR, ${VAR})
   ic_style_def("cjsh-string",
                "color=#F1FA8C");  // Bright yellow for quoted strings
-  ic_style_def(
-      "cjsh-comment",
-      "color=#6272A4");  // Muted blue-gray for comments
+  ic_style_def("cjsh-comment",
+               "color=#6272A4");  // Muted blue-gray for comments
   ic_style_def("cjsh-known-command",
                "color=#50FA7B");  // Bright green for known commands
   ic_style_def("cjsh-external-command",

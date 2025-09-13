@@ -25,19 +25,21 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
   // Handle set options
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
-    
-    if (arg == "-e" || (arg == "-o" && i + 1 < args.size() && args[i + 1] == "errexit")) {
+
+    if (arg == "-e" ||
+        (arg == "-o" && i + 1 < args.size() && args[i + 1] == "errexit")) {
       shell->set_shell_option("errexit", true);
       if (arg == "-o") {
-        ++i; // Skip the "errexit" argument
+        ++i;  // Skip the "errexit" argument
       }
       if (g_debug_mode) {
         std::cerr << "DEBUG: Enabled errexit option" << std::endl;
       }
-    } else if (arg == "+e" || (arg == "+o" && i + 1 < args.size() && args[i + 1] == "errexit")) {
+    } else if (arg == "+e" || (arg == "+o" && i + 1 < args.size() &&
+                               args[i + 1] == "errexit")) {
       shell->set_shell_option("errexit", false);
       if (arg == "+o") {
-        ++i; // Skip the "errexit" argument
+        ++i;  // Skip the "errexit" argument
       }
       if (g_debug_mode) {
         std::cerr << "DEBUG: Disabled errexit option" << std::endl;

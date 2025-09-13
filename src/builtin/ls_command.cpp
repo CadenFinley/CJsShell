@@ -319,7 +319,8 @@ std::string format_size_human_readable(uintmax_t size) {
   // Use stack buffer to avoid heap allocation
   char buffer[16];
   if (unit_index == 0) {
-    snprintf(buffer, sizeof(buffer), "%lu%s", (unsigned long)size, units[unit_index]);
+    snprintf(buffer, sizeof(buffer), "%lu%s", (unsigned long)size,
+             units[unit_index]);
   } else if (size_d < 10) {
     snprintf(buffer, sizeof(buffer), "%.1f%s", size_d, units[unit_index]);
   } else {
@@ -668,20 +669,24 @@ int list_directory(const std::string& path, bool show_hidden,
           if (!a_mut.size_calculated) {
             std::error_code ec;
             if (a_is_dir) {
-              a_mut.cached_size = calculate_directory_size_for_sorting(a.entry.path());
+              a_mut.cached_size =
+                  calculate_directory_size_for_sorting(a.entry.path());
             } else {
               a_mut.cached_size = a.entry.file_size(ec);
-              if (ec) a_mut.cached_size = 0;
+              if (ec)
+                a_mut.cached_size = 0;
             }
             a_mut.size_calculated = true;
           }
           if (!b_mut.size_calculated) {
             std::error_code ec;
             if (b_is_dir) {
-              b_mut.cached_size = calculate_directory_size_for_sorting(b.entry.path());
+              b_mut.cached_size =
+                  calculate_directory_size_for_sorting(b.entry.path());
             } else {
               b_mut.cached_size = b.entry.file_size(ec);
-              if (ec) b_mut.cached_size = 0;
+              if (ec)
+                b_mut.cached_size = 0;
             }
             b_mut.size_calculated = true;
           }
@@ -724,7 +729,8 @@ int list_directory(const std::string& path, bool show_hidden,
 
       if (use_long_format) {
         if (human_readable) {
-          std::cout << "total " << format_size_human_readable(total_blocks) << std::endl;
+          std::cout << "total " << format_size_human_readable(total_blocks)
+                    << std::endl;
         } else {
           std::cout << "total " << total_blocks << std::endl;
         }
@@ -779,12 +785,14 @@ int list_directory(const std::string& path, bool show_hidden,
           size_str = "???";
         }
       } else if (file_info.entry.is_directory(ec) && !ec) {
-        // For directories, show the directory entry size (not recursive content size)
-        // unless we're sorting by size and already calculated the recursive size
+        // For directories, show the directory entry size (not recursive content
+        // size) unless we're sorting by size and already calculated the
+        // recursive size
         if (sort_by_size && file_info.size_calculated) {
           size_str = format_size(file_info.cached_size, human_readable);
         } else {
-          // Use the directory's own size from stat (typically block size like 4096)
+          // Use the directory's own size from stat (typically block size like
+          // 4096)
           if (get_file_stat(file_info)) {
             size_str = format_size(file_info.stat_info.st_size, human_readable);
           } else {
@@ -828,7 +836,8 @@ int list_directory(const std::string& path, bool show_hidden,
           uintmax_t blocks =
               get_block_count(file_info.stat_info, kilobyte_blocks);
           if (human_readable) {
-            std::string blocks_formatted = format_blocks(blocks, human_readable);
+            std::string blocks_formatted =
+                format_blocks(blocks, human_readable);
             printf("%8s ", blocks_formatted.c_str());
           } else {
             printf("%4lu ", (unsigned long)blocks);
