@@ -136,7 +136,7 @@ if [ -f "/tmp/test_fd3_$$" ]; then
     pass
     rm -f "/tmp/test_fd3_$$"
 else
-    skip "Custom file descriptor redirection not supported"
+    fail "Custom file descriptor redirection not supported"
     rm -f "/tmp/test_fd3_$$"
 fi
 

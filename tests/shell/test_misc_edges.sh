@@ -24,7 +24,7 @@ if [ "$OUT2" != "hi" ]; then
   exit 1
 fi
 
-# Pipeline exit status: probe behavior; skip if pipeline exit codes not supported
+# Pipeline exit status: probe behavior; fail if pipeline exit codes not supported
 "$CJSH_PATH" -c "false | true"
 EC1=$?
 "$CJSH_PATH" -c "true | false"
@@ -32,7 +32,8 @@ EC2=$?
 if [ $EC1 -eq 0 ] && [ $EC2 -ne 0 ]; then
   : # behavior matches POSIX shells
 else
-  echo "SKIP: pipeline exit status semantics differ or unsupported"
+  echo "FAIL: pipeline exit status semantics differ or unsupported"
+  exit 1
 fi
 
 echo "PASS"

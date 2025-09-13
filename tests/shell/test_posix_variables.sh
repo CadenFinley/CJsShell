@@ -246,7 +246,7 @@ result=$("$SHELL_TO_TEST" -c "sleep 0.1 & echo \$!" 2>/dev/null)
 if [ -n "$result" ] && [ "$result" -gt 0 ] 2>/dev/null; then
     pass
 else
-    skip "Background PID not implemented"
+    fail "Background PID not implemented"
 fi
 
 # Test 23: Variable in arithmetic context
@@ -295,7 +295,7 @@ log_test "Readonly variables"
 if [ $? -ne 0 ]; then
     pass
 else
-    skip "Readonly not enforced"
+    fail "Readonly not enforced"
 fi
 
 # Test 28: Unsetting variables

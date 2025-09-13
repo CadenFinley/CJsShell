@@ -60,7 +60,7 @@ result=$("$SHELL_TO_TEST" -c "sleep 0.1 & echo \$!" 2>/dev/null)
 if [ -n "$result" ] && [ "$result" -gt 0 ] 2>/dev/null; then
     pass
 else
-    skip "Background job PID not implemented"
+    fail "Background job PID not implemented"
 fi
 
 # Test 3: Wait for background job
@@ -69,7 +69,7 @@ log_test "Wait for background job"
 if [ $? -eq 0 ]; then
     pass
 else
-    skip "Wait builtin not fully implemented"
+    fail "Wait builtin not fully implemented"
 fi
 
 # Test 4: Wait for specific job
@@ -78,7 +78,7 @@ log_test "Wait for specific job PID"
 if [ $? -eq 0 ]; then
     pass
 else
-    skip "Wait with PID not implemented"
+    fail "Wait with PID not implemented"
 fi
 
 # Test 5: Jobs builtin
@@ -87,7 +87,7 @@ result=$("$SHELL_TO_TEST" -i -c "sleep 1 & jobs" 2>/dev/null)
 if echo "$result" | grep -q "sleep"; then
     pass
 else
-    skip "Jobs builtin not implemented"
+    fail "Jobs builtin not implemented"
 fi
 
 # Test 6: Job control with SIGTERM
@@ -97,7 +97,7 @@ exit_code=$?
 if [ $exit_code -ne 0 ]; then
     pass  # Process should exit with non-zero after being killed
 else
-    skip "Kill/wait interaction not properly implemented"
+    fail "Kill/wait interaction not properly implemented"
 fi
 
 # Test 7: Signal handling with trap
@@ -106,7 +106,7 @@ result=$("$SHELL_TO_TEST" -c "trap 'echo caught' USR1; kill -USR1 \$\$; sleep 0.
 if echo "$result" | grep -q "caught"; then
     pass
 else
-    skip "Signal trapping not implemented"
+    fail "Signal trapping not implemented"
 fi
 
 # Test 8: Exit on SIGINT (Ctrl+C simulation)
@@ -120,7 +120,7 @@ log_test "Pipeline signal propagation"
 if [ $? -eq 0 ]; then
     pass
 else
-    skip "Pipeline signal propagation complex to test"
+    fail "Pipeline signal propagation complex to test"
 fi
 
 # Test 10: Background job completion status
@@ -130,7 +130,7 @@ exit_code=$?
 if [ $exit_code -eq 1 ]; then
     pass
 else
-    skip "Background job status tracking not implemented"
+    fail "Background job status tracking not implemented"
 fi
 
 # Test 11: Multiple background jobs
@@ -139,7 +139,7 @@ log_test "Multiple background jobs"
 if [ $? -eq 0 ]; then
     pass
 else
-    skip "Multiple background jobs handling incomplete"
+    fail "Multiple background jobs handling incomplete"
 fi
 
 # Test 12: Foreground/background job switching (fg/bg)
@@ -153,7 +153,7 @@ else
     if echo "$result" | grep -q "no such job\|not stopped"; then
         pass  # bg command exists and gives reasonable error
     else
-        skip "fg/bg commands require interactive job control"
+        fail "fg/bg commands require interactive job control"
     fi
 fi
 
@@ -165,7 +165,7 @@ bg_pid=$(cat "/tmp/bg_pid_$$" 2>/dev/null)
 if [ -n "$shell_pid" ] && [ -n "$bg_pid" ] && [ "$shell_pid" != "$bg_pid" ]; then
     pass
 else
-    skip "Process group handling complex to verify"
+    fail "Process group handling complex to verify"
 fi
 rm -f "/tmp/shell_pid_$$" "/tmp/bg_pid_$$"
 
@@ -180,7 +180,7 @@ else
     if echo "$result" | grep -q "trapped"; then
         pass  # Basic trap is working, inheritance test structure may need adjustment
     else
-        skip "Signal inheritance complex to test"
+        fail "Signal inheritance complex to test"
     fi
 fi
 
@@ -191,7 +191,7 @@ log_test "Child process cleanup"
 if [ $? -eq 0 ]; then
     pass
 else
-    skip "Child process cleanup verification complex"
+    fail "Child process cleanup verification complex"
 fi
 
 # Test 18: Pipeline process group
@@ -253,11 +253,11 @@ if [ -n "$result" ]; then
         if [ $? -ne 0 ]; then
             pass  # Basic pipeline signal handling works
         else
-            skip "Process group inspection not available, basic pipeline test insufficient"
+            fail "Process group inspection not available, basic pipeline test insufficient"
         fi
     fi
 else
-    skip "Pipeline process group test requires process inspection"
+    fail "Pipeline process group test requires process inspection"
 fi
 rm -f "$test_script"
 
@@ -294,7 +294,7 @@ else
     if echo "$result2" | grep -q "COMPLETED"; then
         pass  # Basic background pipeline works
     else
-        skip "Background pipeline process group isolation complex"
+        fail "Background pipeline process group isolation complex"
     fi
 fi
 rm -f "$bg_test_script"
@@ -306,7 +306,7 @@ exit_code=$?
 if [ $exit_code -eq 42 ]; then
     pass
 else
-    skip "Exit status preservation not implemented"
+    fail "Exit status preservation not implemented"
 fi
 
 # Test 22: Background job output handling
@@ -324,7 +324,7 @@ log_test "Zombie process prevention"
 if [ $? -eq 0 ]; then
     pass
 else
-    skip "Zombie prevention complex to verify"
+    fail "Zombie prevention complex to verify"
 fi
 
 # Test 25: Job table management
@@ -338,7 +338,7 @@ else
     if echo "$result" | grep -q "sleep"; then
         pass  # Basic job table is working
     else
-        skip "Job table requires interactive shell features"
+        fail "Job table requires interactive shell features"
     fi
 fi
 

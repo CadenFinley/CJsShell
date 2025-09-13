@@ -44,7 +44,7 @@ EOF
 OUT=$("$CJSH_PATH" "$TEST_DIR/exit_on_error.sh" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ] || echo "$OUT" | grep -q "this should not print"; then
-    echo "SKIP: set -e not implemented yet (expected behavior)"
+    echo "FAIL: set -e not implemented yet (expected behavior)"
 else
     echo "PASS: set -e exits on error"
 fi
@@ -119,7 +119,7 @@ after loop"
 if [ "$OUT" = "$EXPECTED" ]; then
     echo "PASS: loop continues after error"
 elif echo "$OUT" | grep -q "after loop"; then
-    echo "SKIP: loop error handling has known limitations (got partial output)"
+    echo "FAIL: loop error handling has known limitations (got partial output)"
 else
     echo "FAIL: loop should continue after non-fatal error (got: '$OUT')"
     rm -rf "$TEST_DIR"
@@ -180,7 +180,7 @@ script complete"
 if [ "$OUT" = "$EXPECTED" ]; then
     echo "PASS: nested error handling works"
 else
-    echo "SKIP: nested error handling test modified due to loop limitations (got: '$OUT')"
+    echo "FAIL: nested error handling test modified due to loop limitations (got: '$OUT')"
 fi
 
 # Cleanup

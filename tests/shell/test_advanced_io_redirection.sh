@@ -56,7 +56,7 @@ OUT=$("$CJSH_PATH" -c "cat <<< 'hello world'" 2>&1)
 if [ "$OUT" = "hello world" ]; then
     echo "PASS: here strings work"
 else
-    echo "SKIP: here strings not implemented (got: '$OUT')"
+    echo "FAIL: here strings not implemented (got: '$OUT')"
 fi
 
 # Test 5: Here strings with variable expansion
@@ -72,7 +72,7 @@ fi
 if [ -f "$TEST_DIR/both_output.txt" ] && [ "$(cat "$TEST_DIR/both_output.txt")" = "test" ]; then
     echo "PASS: &> redirection works"
 else
-    echo "SKIP: &> redirection not implemented"
+    echo "FAIL: &> redirection not implemented"
 fi
 
 # Test 7: Append redirection >>

@@ -7,13 +7,13 @@ TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT INT TERM
 touch "$TMPDIR/a.txt" "$TMPDIR/ab.txt" "$TMPDIR/b.txt"
 
-# First check if globbing is supported; if not, skip
+# First check if globbing is supported; if not, fail
 PROBE=$("$CJSH_PATH" -c "cd '$TMPDIR'; echo *.txt")
 # If probe still contains a literal '*', globbing isn't supported
 case "$(printf %s "$PROBE" | tr -d "'\"")" in
   *\**)
-    echo "SKIP: globbing not supported by cjsh"
-    exit 0
+    echo "FAIL: globbing not supported by cjsh"
+    exit 1
     ;;
 esac
 

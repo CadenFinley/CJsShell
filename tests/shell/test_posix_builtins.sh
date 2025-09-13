@@ -382,7 +382,7 @@ else
     if [ $? -eq 0 ]; then
         pass
     else
-        skip "ulimit builtin not implemented"
+        fail "ulimit builtin not implemented"
     fi
 fi
 

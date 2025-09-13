@@ -13,7 +13,7 @@ OUT=$("$CJSH_PATH" -c "var='hello world hello'; echo \${var/hello/hi}" 2>&1)
 if [ "$OUT" = "hi world hello" ]; then
     echo "PASS: single pattern substitution"
 else
-    echo "SKIP: single pattern substitution not implemented (got: '$OUT')"
+    echo "FAIL: single pattern substitution not implemented (got: '$OUT')"
 fi
 
 # Test 2: Global pattern substitution ${parameter//pattern/string}
@@ -21,7 +21,7 @@ OUT=$("$CJSH_PATH" -c "var='hello world hello'; echo \${var//hello/hi}" 2>&1)
 if [ "$OUT" = "hi world hi" ]; then
     echo "PASS: global pattern substitution"
 else
-    echo "SKIP: global pattern substitution not implemented (got: '$OUT')"
+    echo "FAIL: global pattern substitution not implemented (got: '$OUT')"
 fi
 
 # Test 3: Uppercase first character ${parameter^pattern}
@@ -29,7 +29,7 @@ OUT=$("$CJSH_PATH" -c "var='hello world'; echo \${var^}" 2>&1)
 if [ "$OUT" = "Hello world" ]; then
     echo "PASS: uppercase first character"
 else
-    echo "SKIP: uppercase first character not implemented (got: '$OUT')"
+    echo "FAIL: uppercase first character not implemented (got: '$OUT')"
 fi
 
 # Test 4: Uppercase all ${parameter^^pattern}
@@ -37,7 +37,7 @@ OUT=$("$CJSH_PATH" -c "var='hello world'; echo \${var^^}" 2>&1)
 if [ "$OUT" = "HELLO WORLD" ]; then
     echo "PASS: uppercase all characters"
 else
-    echo "SKIP: uppercase all characters not implemented (got: '$OUT')"
+    echo "FAIL: uppercase all characters not implemented (got: '$OUT')"
 fi
 
 # Test 5: Lowercase first character ${parameter,pattern}
@@ -45,7 +45,7 @@ OUT=$("$CJSH_PATH" -c "var='HELLO WORLD'; echo \${var,}" 2>&1)
 if [ "$OUT" = "hELLO WORLD" ]; then
     echo "PASS: lowercase first character"
 else
-    echo "SKIP: lowercase first character not implemented (got: '$OUT')"
+    echo "FAIL: lowercase first character not implemented (got: '$OUT')"
 fi
 
 # Test 6: Lowercase all ${parameter,,pattern}
@@ -53,7 +53,7 @@ OUT=$("$CJSH_PATH" -c "var='HELLO WORLD'; echo \${var,,}" 2>&1)
 if [ "$OUT" = "hello world" ]; then
     echo "PASS: lowercase all characters"
 else
-    echo "SKIP: lowercase all characters not implemented (got: '$OUT')"
+    echo "FAIL: lowercase all characters not implemented (got: '$OUT')"
 fi
 
 # Test 7: Existing parameter expansions (should work)
@@ -106,7 +106,7 @@ OUT=$("$CJSH_PATH" -c "var=PATH; echo \${!var}" 2>&1)
 if echo "$OUT" | grep -q "/"; then
     echo "PASS: indirect expansion works"
 else
-    echo "SKIP: indirect expansion not implemented (got: '$OUT')"
+    echo "FAIL: indirect expansion not implemented (got: '$OUT')"
 fi
 
 # Test 13: Array-like expansion (basic indexed arrays)

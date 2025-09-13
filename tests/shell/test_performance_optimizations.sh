@@ -78,7 +78,7 @@ EXPANSION_TIME=$((END_TIME - START_TIME))
 if echo "$OUT" | grep -q "hello world test string"; then
     echo "PASS: variable expansion performance (time: ${EXPANSION_TIME}ns)"
 else
-    echo "SKIP: advanced parameter expansion not supported (got: '$OUT')"
+    echo "FAIL: advanced parameter expansion not supported (got: '$OUT')"
 fi
 
 # Test 4: Command substitution performance
@@ -97,7 +97,7 @@ SUBSTITUTION_TIME=$((END_TIME - START_TIME))
 if echo "$OUT" | grep -q "Result: test 1"; then
     echo "PASS: command substitution performance (time: ${SUBSTITUTION_TIME}ns)"
 else
-    echo "SKIP: command substitution has parsing issues (got: '$OUT')"
+    echo "FAIL: command substitution has parsing issues (got: '$OUT')"
 fi
 
 # Test 5: Large loop performance
@@ -215,7 +215,7 @@ IO_TIME=$((END_TIME - START_TIME))
 if echo "$OUT" | grep -q "line1"; then
     echo "PASS: file I/O performance (time: ${IO_TIME}ns)"
 else
-    echo "SKIP: file I/O test modified due to loop limitations (got: '$OUT')"
+    echo "FAIL: file I/O test modified due to loop limitations (got: '$OUT')"
 fi
 
 # Test 9: Arithmetic performance

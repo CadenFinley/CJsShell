@@ -151,7 +151,7 @@ log_test "Shell-specific profile sourcing"
 if [ -f "$TEST_HOME/.cjprofile" ]; then
     pass
 else
-    skip "Shell-specific profile file not created"
+    fail "Shell-specific profile file not created"
 fi
 
 # Test 11: Non-login shell behavior
@@ -190,7 +190,7 @@ result=$("$SHELL_TO_TEST" --login -c "umask" 2>/dev/null)
 if [ -n "$result" ]; then
     pass
 else
-    skip "umask builtin not implemented"
+    fail "umask builtin not implemented"
 fi
 
 # Test 15: Terminal settings preservation
@@ -240,7 +240,7 @@ result=$("$SHELL_TO_TEST" --login -c "echo \$LANG" 2>/dev/null)
 if [ -n "$result" ]; then
     pass
 else
-    skip "LANG variable not set by shell"
+    fail "LANG variable not set by shell"
 fi
 
 # Test 20: Login shell file creation
@@ -275,7 +275,7 @@ subshell_shlvl=$("$SHELL_TO_TEST" --login -c "($SHELL_TO_TEST -c 'echo \$SHLVL')
 if [ "$subshell_shlvl" -gt "$login_shlvl" ] 2>/dev/null; then
     pass
 else
-    skip "SHLVL increment in subshell complex to verify"
+    fail "SHLVL increment in subshell complex to verify"
 fi
 
 echo "========================================================"
