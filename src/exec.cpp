@@ -205,12 +205,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       _exit(EXIT_FAILURE);
     }
 
-    if (shell_is_interactive) {
-      if (tcsetpgrp(shell_terminal, child_pid) < 0) {
-        perror("tcsetpgrp failed in child");
-      }
-    }
-
+    // Don't force terminal control in child - let parent manage it
+    // This prevents conflicts with complex interactive programs
+    
     signal(SIGINT, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
     signal(SIGTSTP, SIG_DFL);
@@ -1260,11 +1257,21 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   Job& job = it->second;
 
-  if (shell_is_interactive) {
-    if (isatty(shell_terminal)) {
-      if (tcsetpgrp(shell_terminal, job.pgid) < 0) {
-        if (errno != ENOTTY && errno != EINVAL) {
-          perror("tcsetpgrp (job to fg)");
+  // Try to give the job terminal control, but don't force it
+  bool terminal_control_acquired = false;
+  if (shell_is_interactive && isatty(shell_terminal)) {
+    if (tcsetpgrp(shell_terminal, job.pgid) == 0) {
+      terminal_control_acquired = true;
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Gave terminal control to job " << job_id 
+                  << " (pgid: " << job.pgid << ")" << std::endl;
+      }
+    } else {
+      // Only log errors that aren't expected for non-interactive processes
+      if (errno != ENOTTY && errno != EINVAL && errno != EPERM) {
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Could not give terminal control to job " << job_id 
+                    << ": " << strerror(errno) << std::endl;
         }
       }
     }
@@ -1283,18 +1290,17 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   jobs_mutex.lock();
 
-  if (shell_is_interactive) {
-    if (isatty(shell_terminal)) {
-      if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-        if (errno != ENOTTY && errno != EINVAL) {
-          perror("tcsetpgrp (shell to fg)");
-        }
+  // Only restore terminal control if we successfully acquired it
+  if (terminal_control_acquired && shell_is_interactive && isatty(shell_terminal)) {
+    if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+      if (errno != ENOTTY && errno != EINVAL) {
+        perror("tcsetpgrp (shell to fg)");
       }
+    }
 
-      if (tcgetattr(shell_terminal, &shell_tmodes) == 0) {
-        if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
-          perror("tcsetattr");
-        }
+    if (tcgetattr(shell_terminal, &shell_tmodes) == 0) {
+      if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+        perror("tcsetattr");
       }
     }
   }
