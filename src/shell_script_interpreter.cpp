@@ -836,52 +836,115 @@ int ShellScriptInterpreter::execute_block(
     };
 
     auto expand_substitutions = [&](const std::string& in) -> std::string {
-      std::string s = in;
-      // First, Arithmetic $(( ... ))
-      bool changed = true;
-      while (changed) {
-        changed = false;
-        bool in_quotes = false;
-        char q = '\0';
-        for (size_t i = 0; i + 2 < s.size(); ++i) {
-          char c = s[i];
-          if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
-            if (!in_quotes) {
-              in_quotes = true;
-              q = c;
-            } else if (q == c) {
-              in_quotes = false;
-              q = '\0';
+      // Single-pass, non-recursive expansion. We expand constructs found in
+      // the original input string only; replacement text is not re-scanned.
+      std::string out;
+      out.reserve(in.size());
+
+      bool in_quotes = false;
+      char q = '\0';
+      bool escaped = false;
+
+      auto find_matching = [&](const std::string& s, size_t start,
+                               char open_c, char close_c,
+                               size_t& end_out) -> bool {
+        int depth = 1;
+        bool local_in_q = false;
+        char local_q = '\0';
+        for (size_t j = start; j < s.size(); ++j) {
+          char d = s[j];
+          if ((d == '"' || d == '\'') && (j == start || s[j - 1] != '\\')) {
+            if (!local_in_q) {
+              local_in_q = true;
+              local_q = d;
+            } else if (local_q == d) {
+              local_in_q = false;
+              local_q = '\0';
+            }
+          } else if (!local_in_q) {
+            if (d == open_c)
+              depth++;
+            else if (d == close_c) {
+              depth--;
+              if (depth == 0) {
+                end_out = j;
+                return true;
+              }
             }
           }
-          // Allow inside double quotes ("...$((...))...") but not single quotes
-          if ((!in_quotes || q == '"') && c == '$' && s[i + 1] == '(' &&
-              s[i + 2] == '(') {
-            // find matching )) with parenthesis depth
-            size_t j = i + 3;
+        }
+        return false;
+      };
+
+      for (size_t i = 0; i < in.size(); ++i) {
+        char c = in[i];
+
+        if (escaped) {
+          // Inside double quotes, only certain characters are escaped per POSIX
+          if (in_quotes && q == '"') {
+            if (c == '$' || c == '`' || c == '"' || c == '\\' || c == '\n') {
+              out += c;
+            } else {
+              out += '\\';
+              out += c;
+            }
+          } else {
+            out += c;
+          }
+          escaped = false;
+          continue;
+        }
+
+        if (c == '\\' && (!in_quotes || q != '\'')) {
+          escaped = true;
+          continue;
+        }
+
+        if ((c == '"' || c == '\'') && (!in_quotes)) {
+          in_quotes = true;
+          q = c;
+          out += c;
+          continue;
+        }
+        if (in_quotes && c == q) {
+          in_quotes = false;
+          q = '\0';
+          out += c;
+          continue;
+        }
+
+        // Expansions are allowed unquoted, or inside double quotes.
+        if (!in_quotes || q == '"') {
+          // Arithmetic: $(( ... ))
+          if (c == '$' && i + 2 < in.size() && in[i + 1] == '(' &&
+              in[i + 2] == '(') {
+            size_t end_idx = 0;
+            // Find matching "))" where depth returns to zero and next char is ')'
+            size_t inner_start = i + 3;
             int depth = 1;
+            bool local_in_q = false;
+            char local_q = '\0';
+            size_t j = inner_start;
             bool found = false;
-            bool in_q = false;
-            char qq = '\0';
-            for (; j < s.size(); ++j) {
-              char d = s[j];
-              if ((d == '"' || d == '\'') && (j == i + 3 || s[j - 1] != '\\')) {
-                if (!in_q) {
-                  in_q = true;
-                  qq = d;
-                } else if (qq == d) {
-                  in_q = false;
-                  qq = '\0';
+            for (; j < in.size(); ++j) {
+              char d = in[j];
+              if ((d == '"' || d == '\'') && (j == inner_start || in[j - 1] != '\\')) {
+                if (!local_in_q) {
+                  local_in_q = true;
+                  local_q = d;
+                } else if (local_q == d) {
+                  local_in_q = false;
+                  local_q = '\0';
                 }
-              } else if (!in_q) {
+              } else if (!local_in_q) {
                 if (d == '(')
                   depth++;
                 else if (d == ')') {
                   depth--;
                   if (depth == 0) {
-                    if (j + 1 < s.size() && s[j + 1] == ')') {
+                    if (j + 1 < in.size() && in[j + 1] == ')') {
+                      end_idx = j + 1;  // include both ) )
                       found = true;
-                      j++;
                     }
                     break;
                   }
@@ -889,62 +952,71 @@ int ShellScriptInterpreter::execute_block(
               }
             }
             if (found) {
-              // j currently points at the second ')' closing the arithmetic.
-              size_t expr_start = i + 3;
-              size_t expr_len = (j > i + 4) ? (j - i - 4) : 0;
-              std::string expr = s.substr(expr_start, expr_len);
-              std::string repl = std::to_string(eval_arith(expr));
-              s.replace(i, (j - i + 1), repl);
-              changed = true;
-              break;
+              size_t expr_len = (j > inner_start + 1) ? (j - inner_start) : 0;
+              std::string expr = in.substr(inner_start, expr_len);
+              out += std::to_string(eval_arith(expr));
+              i = end_idx;  // advance to second ')'
+              continue;
             }
           }
-        }
-      }
-      // Next, legacy backtick command substitution: ` ... `
-      // Allowed inside double quotes, but not inside single quotes. Handles
-      // simple escaping of \` within the content.
-      changed = true;
-      while (changed) {
-        changed = false;
-        bool in_quotes = false;
-        char q = '\0';
-        for (size_t i = 0; i < s.size(); ++i) {
-          char c = s[i];
-          if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
-            if (!in_quotes) {
-              in_quotes = true;
-              q = c;
-            } else if (q == c) {
-              in_quotes = false;
-              q = '\0';
+
+          // Command substitution: $( ... ) (but not arithmetic handled above)
+          if (c == '$' && i + 1 < in.size() && in[i + 1] == '(' &&
+              !(i + 2 < in.size() && in[i + 2] == '(')) {
+            size_t end_paren = 0;
+            if (find_matching(in, i + 2, '(', ')', end_paren)) {
+              std::string inner = in.substr(i + 2, end_paren - (i + 2));
+              std::string repl = capture_internal_output(inner);
+              if (in_quotes && q == '"') {
+                // Escape only characters that would terminate or confuse the
+                // current double-quoted token: '"' and '\\'. We intentionally
+                // do NOT escape '$' so sh -c can see and expand variables.
+                std::string esc;
+                esc.reserve(repl.size() * 1.1);
+                for (char rc : repl) {
+                  if (rc == '"' || rc == '\\') {
+                    esc += '\\';
+                  }
+                  esc += rc;
+                }
+                // Wrap with a sentinel so Parser can skip env-var expansion
+                // later but still remove these markers before exec.
+                out += "\x1E__NOENV_START__\x1E";
+                out += esc;
+                out += "\x1E__NOENV_END__\x1E";
+              } else {
+                out += repl;  // Do not rescan replacement
+              }
+              i = end_paren;  // consume up to ')'
+              continue;
             }
           }
-          if ((!in_quotes || q == '"') && c == '`' &&
-              (i == 0 || s[i - 1] != '\\')) {
-            // find the matching unescaped backtick
+
+          // Legacy backticks: ` ... `
+          if (c == '`') {
             size_t j = i + 1;
             bool found = false;
-            for (; j < s.size(); ++j) {
-              if (s[j] == '\\') {  // skip escaped character
-                if (j + 1 < s.size()) {
-                  ++j;
+            while (j < in.size()) {
+              if (in[j] == '\\') {
+                // Skip escaped character
+                if (j + 1 < in.size()) {
+                  j += 2;
                   continue;
                 }
               }
-              if (s[j] == '`' && s[j - 1] != '\\') {
+              if (in[j] == '`' && (j == 0 || in[j - 1] != '\\')) {
                 found = true;
                 break;
               }
+              ++j;
             }
             if (found) {
-              std::string inner = s.substr(i + 1, j - (i + 1));
+              std::string inner = in.substr(i + 1, j - (i + 1));
               // Unescape \` inside content
               std::string content;
               content.reserve(inner.size());
               for (size_t k = 0; k < inner.size(); ++k) {
-                if (inner[k] == '\\' && k + 1 < inner.size() &&
-                    inner[k + 1] == '`') {
+                if (inner[k] == '\\' && k + 1 < inner.size() && inner[k + 1] == '`') {
                   content.push_back('`');
                   ++k;
                 } else {
@@ -952,123 +1024,43 @@ int ShellScriptInterpreter::execute_block(
                 }
               }
               std::string repl = capture_internal_output(content);
-              s.replace(i, (j - i + 1), repl);
-              changed = true;
-              break;
-            }
-          }
-        }
-      }
-      // Then, $( ... ) command substitution. Skip $(( which was already
-      // handled.
-      changed = true;
-      while (changed) {
-        changed = false;
-        bool in_quotes = false;
-        char q = '\0';
-        for (size_t i = 0; i + 1 < s.size(); ++i) {
-          char c = s[i];
-          if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
-            if (!in_quotes) {
-              in_quotes = true;
-              q = c;
-            } else if (q == c) {
-              in_quotes = false;
-              q = '\0';
-            }
-          }
-          // Allow inside double quotes ("...$(...)...") but not single quotes
-          if ((!in_quotes || q == '"') && c == '$' && s[i + 1] == '(') {
-            if (i + 2 < s.size() && s[i + 2] == '(')
-              continue;  // arithmetic already
-            // find matching ) with nesting
-            size_t j = i + 2;
-            int depth = 1;
-            bool found = false;
-            bool in_q = false;
-            char qq = '\0';
-            for (; j < s.size(); ++j) {
-              char d = s[j];
-              if ((d == '"' || d == '\'') && (j == i + 2 || s[j - 1] != '\\')) {
-                if (!in_q) {
-                  in_q = true;
-                  qq = d;
-                } else if (qq == d) {
-                  in_q = false;
-                  qq = '\0';
-                }
-              } else if (!in_q) {
-                if (d == '(')
-                  depth++;
-                else if (d == ')') {
-                  depth--;
-                  if (depth == 0) {
-                    found = true;
-                    break;
+              if (in_quotes && q == '"') {
+                std::string esc;
+                esc.reserve(repl.size() * 1.1);
+                for (char rc : repl) {
+                  if (rc == '"' || rc == '\\') {
+                    esc += '\\';
                   }
+                  esc += rc;
                 }
+                out += "\x1E__NOENV_START__\x1E";
+                out += esc;
+                out += "\x1E__NOENV_END__\x1E";
+              } else {
+                out += repl;  // Do not rescan replacement
               }
+              i = j;  // consume closing backtick
+              continue;
             }
-            if (found) {
-              std::string inner = s.substr(i + 2, j - (i + 2));
-              std::string repl = capture_internal_output(inner);
-              s.replace(i, (j - i + 1), repl);
-              changed = true;
-              break;
+          }
+
+          // Parameter expansion: ${ ... }
+          if (c == '$' && i + 1 < in.size() && in[i + 1] == '{') {
+            size_t end_brace = 0;
+            if (find_matching(in, i + 2, '{', '}', end_brace)) {
+              std::string param_expr = in.substr(i + 2, end_brace - (i + 2));
+              out += expand_parameter_expression(param_expr);
+              i = end_brace;  // consume '}'
+              continue;
             }
           }
         }
-      }
-      // Finally, ${VAR-default} parameter expansion
-      changed = true;
-      while (changed) {
-        changed = false;
-        bool in_quotes = false;
-        char q = '\0';
-        for (size_t i = 0; i + 1 < s.size(); ++i) {
-          char c = s[i];
-          if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
-            if (!in_quotes) {
-              in_quotes = true;
-              q = c;
-            } else if (q == c) {
-              in_quotes = false;
-              q = '\0';
-            }
-          }
-          // Parameter expansion ${VAR} or ${VAR-default}
-          // Allow inside double quotes but not single quotes
-          if ((!in_quotes || q == '"') && c == '$' && s[i + 1] == '{') {
-            // find matching }
-            size_t j = i + 2;
-            int depth = 1;
-            bool found = false;
-            for (; j < s.size(); ++j) {
-              if (s[j] == '{')
-                depth++;
-              else if (s[j] == '}') {
-                depth--;
-                if (depth == 0) {
-                  found = true;
-                  break;
-                }
-              }
-            }
-            if (found) {
-              std::string param_expr = s.substr(i + 2, j - (i + 2));
-              std::string repl;
 
-              // Parse parameter expansion expressions
-              repl = expand_parameter_expression(param_expr);
-
-              s.replace(i, (j - i + 1), repl);
-              changed = true;
-              break;
-            }
-          }
-        }
+        // Default: copy character
+        out += c;
       }
-      return s;
+
+      return out;
     };
 
     text = expand_substitutions(text);

@@ -271,6 +271,19 @@ inline std::string strip_quote_tag(const std::string& s) {
   }
   return s;
 }
+// Remove NOENV sentinels inserted by command substitution and indicate presence
+static inline std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
+  const std::string start = "\x1E__NOENV_START__\x1E";
+  const std::string end = "\x1E__NOENV_END__\x1E";
+  size_t a = s.find(start);
+  size_t b = s.rfind(end);
+  if (a != std::string::npos && b != std::string::npos && b >= a + start.size()) {
+    std::string mid = s.substr(a + start.size(), b - (a + start.size()));
+    std::string out = s.substr(0, a) + mid + s.substr(b + end.size());
+    return {out, true};
+  }
+  return {s, false};
+}
 }  // namespace
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
@@ -572,27 +585,14 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
     const std::string arg = strip_quote_tag(raw_arg);
-    if (arg.find('{') != std::string::npos &&
+    // Do NOT perform brace expansion inside any quoted token (POSIX shells behavior)
+    if (!is_single && !is_double && arg.find('{') != std::string::npos &&
         arg.find('}') != std::string::npos) {
       std::vector<std::string> brace_expansions = expand_braces(arg);
       brace_expansions.reserve(8);  // Reserve space for common brace expansions
-      // NOTE: Real shells inhibit brace expansion inside quotes; keeping simple
-      // behavior here unless tests require otherwise. Preserve quote tags.
-      if (is_single) {
-        for (auto& b : brace_expansions) {
-          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                                  std::move(b));
-        }
-      } else if (is_double) {
-        for (auto& b : brace_expansions) {
-          expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                                  std::move(b));
-        }
-      } else {
-        expanded_args.insert(expanded_args.end(),
-                             std::make_move_iterator(brace_expansions.begin()),
-                             std::make_move_iterator(brace_expansions.end()));
-      }
+      expanded_args.insert(expanded_args.end(),
+                           std::make_move_iterator(brace_expansions.begin()),
+                           std::make_move_iterator(brace_expansions.end()));
     } else {
       if (is_single) {
         expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
@@ -628,17 +628,19 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   args = pre_expanded_args;
 
   for (auto& raw_arg : args) {
-    // Do not expand env vars inside single quotes; expand inside double or
-    // unquoted.
+    // Do not expand env vars inside single quotes.
     if (!is_single_quoted_token(raw_arg)) {
       std::string tmp = strip_quote_tag(raw_arg);
-      expand_env_vars(tmp);
-      // Reapply quote tag for double-quoted tokens so we can still skip
-      // globbing later
+      auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(tmp);
+      if (!had_noenv) {
+        // Expand inside double quotes or unquoted, unless NOENV sentinel present
+        expand_env_vars(noenv_stripped);
+      }
+      // Reapply quote tag for double-quoted tokens so we can still skip globbing later
       if (is_double_quoted_token(raw_arg)) {
-        raw_arg = std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + tmp;
+        raw_arg = std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + noenv_stripped;
       } else {
-        raw_arg = tmp;
+        raw_arg = noenv_stripped;
       }
     }
   }
@@ -723,6 +725,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
   return final_args;
 }
+// Ensure parse_command scope is properly closed before next function
+
 std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
   result.reserve(8);  // Reserve space for common brace expansions
