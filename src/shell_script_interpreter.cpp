@@ -845,9 +845,8 @@ int ShellScriptInterpreter::execute_block(
       char q = '\0';
       bool escaped = false;
 
-      auto find_matching = [&](const std::string& s, size_t start,
-                               char open_c, char close_c,
-                               size_t& end_out) -> bool {
+      auto find_matching = [&](const std::string& s, size_t start, char open_c,
+                               char close_c, size_t& end_out) -> bool {
         int depth = 1;
         bool local_in_q = false;
         char local_q = '\0';
@@ -880,17 +879,12 @@ int ShellScriptInterpreter::execute_block(
         char c = in[i];
 
         if (escaped) {
-          // Inside double quotes, only certain characters are escaped per POSIX
-          if (in_quotes && q == '"') {
-            if (c == '$' || c == '`' || c == '"' || c == '\\' || c == '\n') {
-              out += c;
-            } else {
-              out += '\\';
-              out += c;
-            }
-          } else {
-            out += c;
-          }
+          // Preserve the original backslash and the escaped character to
+          // avoid changing quoting semantics before full parsing.
+          // We only scan to locate expansion boundaries; we should not mutate
+          // escapes here.
+          out += '\\';
+          out += c;
           escaped = false;
           continue;
         }
@@ -919,7 +913,8 @@ int ShellScriptInterpreter::execute_block(
           if (c == '$' && i + 2 < in.size() && in[i + 1] == '(' &&
               in[i + 2] == '(') {
             size_t end_idx = 0;
-            // Find matching "))" where depth returns to zero and next char is ')'
+            // Find matching "))" where depth returns to zero and next char is
+            // ')'
             size_t inner_start = i + 3;
             int depth = 1;
             bool local_in_q = false;
@@ -928,7 +923,8 @@ int ShellScriptInterpreter::execute_block(
             bool found = false;
             for (; j < in.size(); ++j) {
               char d = in[j];
-              if ((d == '"' || d == '\'') && (j == inner_start || in[j - 1] != '\\')) {
+              if ((d == '"' || d == '\'') &&
+                  (j == inner_start || in[j - 1] != '\\')) {
                 if (!local_in_q) {
                   local_in_q = true;
                   local_q = d;
@@ -1016,7 +1012,8 @@ int ShellScriptInterpreter::execute_block(
               std::string content;
               content.reserve(inner.size());
               for (size_t k = 0; k < inner.size(); ++k) {
-                if (inner[k] == '\\' && k + 1 < inner.size() && inner[k + 1] == '`') {
+                if (inner[k] == '\\' && k + 1 < inner.size() &&
+                    inner[k + 1] == '`') {
                   content.push_back('`');
                   ++k;
                 } else {

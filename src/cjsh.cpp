@@ -939,7 +939,8 @@ static void apply_profile_startup_flags() {
 
   for (const std::string& flag : g_profile_startup_args) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Processing profile startup flag: " << flag << std::endl;
+      std::cerr << "DEBUG: Processing profile startup flag: " << flag
+                << std::endl;
 
     if (flag == "--debug") {
       g_debug_mode = true;

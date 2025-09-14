@@ -272,12 +272,14 @@ inline std::string strip_quote_tag(const std::string& s) {
   return s;
 }
 // Remove NOENV sentinels inserted by command substitution and indicate presence
-static inline std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
+static inline std::pair<std::string, bool> strip_noenv_sentinels(
+    const std::string& s) {
   const std::string start = "\x1E__NOENV_START__\x1E";
   const std::string end = "\x1E__NOENV_END__\x1E";
   size_t a = s.find(start);
   size_t b = s.rfind(end);
-  if (a != std::string::npos && b != std::string::npos && b >= a + start.size()) {
+  if (a != std::string::npos && b != std::string::npos &&
+      b >= a + start.size()) {
     std::string mid = s.substr(a + start.size(), b - (a + start.size()));
     std::string out = s.substr(0, a) + mid + s.substr(b + end.size());
     return {out, true};
@@ -585,7 +587,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
     const std::string arg = strip_quote_tag(raw_arg);
-    // Do NOT perform brace expansion inside any quoted token (POSIX shells behavior)
+    // Do NOT perform brace expansion inside any quoted token (POSIX shells
+    // behavior)
     if (!is_single && !is_double && arg.find('{') != std::string::npos &&
         arg.find('}') != std::string::npos) {
       std::vector<std::string> brace_expansions = expand_braces(arg);
@@ -633,10 +636,12 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       std::string tmp = strip_quote_tag(raw_arg);
       auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(tmp);
       if (!had_noenv) {
-        // Expand inside double quotes or unquoted, unless NOENV sentinel present
+        // Expand inside double quotes or unquoted, unless NOENV sentinel
+        // present
         expand_env_vars(noenv_stripped);
       }
-      // Reapply quote tag for double-quoted tokens so we can still skip globbing later
+      // Reapply quote tag for double-quoted tokens so we can still skip
+      // globbing later
       if (is_double_quoted_token(raw_arg)) {
         raw_arg = std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + noenv_stripped;
       } else {

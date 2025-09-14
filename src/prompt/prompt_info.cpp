@@ -1603,13 +1603,20 @@ std::string PromptInfo::get_ip_address(bool external) {
               "en1'",
               "r");
 #elif defined(__linux__)
-          // Try multiple methods to get local IP address for better compatibility
-          FILE* fp = popen("sh -c '"
+          // Try multiple methods to get local IP address for better
+          // compatibility
+          FILE* fp = popen(
+              "sh -c '"
               "hostname -I 2>/dev/null | awk \"{print \\$1}\" || "
-              "ip route get 1.1.1.1 2>/dev/null | awk \"{print \\$7}\" | head -1 || "
-              "ip addr show 2>/dev/null | grep -oP \"(?<=inet\\s)\\d+(\\.\\d+){3}\" | grep -v 127.0.0.1 | head -1 || "
-              "ifconfig 2>/dev/null | grep -oP \"(?<=inet\\s)\\d+(\\.\\d+){3}\" | grep -v 127.0.0.1 | head -1"
-              "'", "r");
+              "ip route get 1.1.1.1 2>/dev/null | awk \"{print \\$7}\" | head "
+              "-1 || "
+              "ip addr show 2>/dev/null | grep -oP "
+              "\"(?<=inet\\s)\\d+(\\.\\d+){3}\" | grep -v 127.0.0.1 | head -1 "
+              "|| "
+              "ifconfig 2>/dev/null | grep -oP "
+              "\"(?<=inet\\s)\\d+(\\.\\d+){3}\" | grep -v 127.0.0.1 | head -1"
+              "'",
+              "r");
 #else
           return "Unknown";
 #endif

@@ -55,8 +55,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
                   << std::endl;
       }
     } else if (g_debug_mode) {
-      std::cerr << "DEBUG: Flag '" << flag << "' already exists in profile startup args"
-                << std::endl;
+      std::cerr << "DEBUG: Flag '" << flag
+                << "' already exists in profile startup args" << std::endl;
     }
   } else {
     std::cerr << "startup-flag: unknown flag '" << flag << "'" << std::endl;
