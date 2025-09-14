@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
     main_process_loop();
   }
 
-  std::cout << "Cleaning up resources." << std::endl;
+  std::cerr << "Cleaning up resources." << std::endl;
 
   // Check for exit code set by exit command
   const char* exit_code_str = getenv("EXIT_CODE");
@@ -656,7 +656,7 @@ static void main_process_loop() {
     }
     notify_plugins("main_process_end", "");
     if (g_exit_flag) {
-      std::cout << "Exiting main process loop..." << std::endl;
+      std::cerr << "Exiting main process loop..." << std::endl;
       break;
     }
   }
@@ -717,7 +717,7 @@ void cleanup_resources() {
     std::cerr << "DEBUG: Cleanup complete." << std::endl;
   }
   if (config::interactive_mode) {
-    std::cout << "Shutdown complete." << std::endl;
+    std::cerr << "Shutdown complete." << std::endl;
   }
 }
 
