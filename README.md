@@ -39,7 +39,7 @@ CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes wi
 The easiest way to install CJ's Shell is using our automated installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool_script/install.sh | bash
 ```
 
 This command will:
