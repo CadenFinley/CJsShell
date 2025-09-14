@@ -16,10 +16,11 @@ COMMANDS = [
     "-c pwd",
     "-c 'echo $(date)'",
     "-c 'echo $SHELL'",
-    "-c 'ls -lhaS'",
+    "-c 'ls -la'",
+    "-c exit",
     "-c 'for i in {1..1000}; do echo $i; done'"
 ]
-BASELINE_SHELLS = ["fish", "bash", "zsh", "cjsh"]
+BASELINE_SHELLS = ["fish", "bash", "zsh", "nu"]
 #CJSH_BINARY_TYPES = ["", "_speed03", "_speed02", "_debug"]  # Empty string means no suffix
 CJSH_BINARY_TYPES = [""]
 
