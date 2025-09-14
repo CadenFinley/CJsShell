@@ -96,8 +96,6 @@ static void initialize_title_strings() {
 }
 
 // to do
-//  local session history files, that combine into main one upon process close
-//  rework ai system to always retrieve api key from envvar
 
 /*
  * Exit/Return Codes:
@@ -571,8 +569,8 @@ void reprint_prompt() {
   }
 
   if (g_theme && g_theme->uses_newline()) {
-    std::cout << prompt << std::endl;
-    prompt = g_shell->get_newline_prompt();
+    prompt += "\n";
+    prompt += g_shell->get_newline_prompt();
   }
   ic_print_prompt(prompt.c_str(), false);
 }
@@ -619,8 +617,8 @@ static void main_process_loop() {
       prompt = g_shell->get_ai_prompt();
     }
     if (g_theme && g_theme->uses_newline()) {
-      std::cout << prompt << std::endl;
-      prompt = g_shell->get_newline_prompt();
+      prompt += "\n";
+      prompt += g_shell->get_newline_prompt();
     }
 
     if (g_debug_mode)

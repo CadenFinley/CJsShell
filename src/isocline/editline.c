@@ -6,6 +6,7 @@
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "isocline/common.h"
@@ -160,6 +161,45 @@ static bool edit_pos_is_at_row_end(ic_env_t* env, editor_t* eb) {
   rowcol_t rc;
   edit_get_rowcol(env, eb, &rc);
   return rc.last_on_row;
+}
+
+// Helper function to extract the last line from a multi-line prompt
+static char* extract_last_prompt_line(alloc_t* mem, const char* prompt_text) {
+  if (prompt_text == NULL) return mem_strdup(mem, "");
+  
+  // Find the last newline in the prompt
+  const char* last_newline = strrchr(prompt_text, '\n');
+  if (last_newline == NULL) {
+    // No newlines, return the whole prompt
+    return mem_strdup(mem, prompt_text);
+  }
+  
+  // Return everything after the last newline
+  return mem_strdup(mem, last_newline + 1);
+}
+
+// Helper function to print all but the last line of a multi-line prompt
+static void print_prompt_prefix_lines(ic_env_t* env, const char* prompt_text) {
+  if (prompt_text == NULL) return;
+  
+  const char* last_newline = strrchr(prompt_text, '\n');
+  if (last_newline == NULL) {
+    // No newlines, nothing to print
+    return;
+  }
+  
+  // Print everything up to (but not including) the last newline
+  size_t prefix_length = last_newline - prompt_text + 1; // +1 to include the newline
+  char* prefix = (char*)malloc(prefix_length + 1);
+  if (prefix == NULL) return;
+  
+  strncpy(prefix, prompt_text, prefix_length);
+  prefix[prefix_length] = '\0';
+  
+  // Print the prefix lines directly to the terminal
+  bbcode_print(env->bbcode, prefix);
+  
+  free(prefix);
 }
 
 static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row,
@@ -878,7 +918,13 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
   eb.cur_rows = 1;
   eb.cur_row = 0;
   eb.modified = false;
-  eb.prompt_text = (prompt_text != NULL ? prompt_text : "");
+  
+  // Handle multi-line prompts: print prefix lines and use only the last line as the prompt
+  const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
+  print_prompt_prefix_lines(env, original_prompt);
+  char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);
+  eb.prompt_text = last_line_prompt;
+  
   eb.history_idx = 0;
   editstate_init(&eb.undo);
   editstate_init(&eb.redo);
@@ -1149,6 +1195,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
   sbuf_free(eb.extra);
   sbuf_free(eb.hint);
   sbuf_free(eb.hint_help);
+  mem_free(env->mem, (void*)eb.prompt_text); // Free the allocated last line prompt
 
   return res;
 }
