@@ -3,7 +3,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7)](https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-## CJ's Shell
+# CJ's Shell
 
 Are you scared of the command line? Does working in a terminal bring you dread? Then I have the thing for you!
 
@@ -17,14 +17,14 @@ This is CJ's Shell! This is a custom login shell that I wrote after I got fed up
 
 CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built-in AI assistant who only offers help when you ask for it, a powerful plugin engine with a versatile language-agnostic plugin API, highly customizable themes, and a vibrant color engine.
 
-### Why Should You Choose CJ's Shell?
+## Why Should You Choose CJ's Shell?
 
 - **Built-in AI Assistant**: First-class AI integration with context-aware code assistance, file searching, and multi-model support directly in your terminal—no external plugins required.
 - **Dynamic Plugin Engine**: Language-agnostic plugin API with compiled shared libraries, centralized management, and event hooks for deep integration—beyond just "sourced" scripts.
 - **Rich Theme System**: JSON-based themes with segmented prompts, dynamic variables (git status, CPU/memory usage), and aligned fields managed through a built-in theme command.
 - **Modern Interactive Experience**: Syntax highlighting, programmable completions, and clean configuration files with clear separation between login and interactive settings.
 
-### Why Developers Should Choose cjsh
+## Why Developers Should Choose cjsh
 
 - **Streamlined Workflow**: AI assistance and rich tooling directly in your terminal means fewer context switches and external tools.
 - **Extensibility**: The formal plugin API lets you create powerful integrations in multiple languages, not just shell scripts.
@@ -32,9 +32,9 @@ CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes wi
 - **Consistent Cross-Platform Experience**: Works consistently across macOS, Linux, and Windows (via WSL or Cygwin).
 - **Customization Without Configuration Pain**: Structured JSON themes and clean plugin management eliminate aannoying shell scripts.
 
-## Installation
+# Installation
 
-### Quick Install (Recommended)
+## Quick Install (Recommended)
 
 The easiest way to install CJ's Shell is using our automated installer:
 
@@ -48,7 +48,7 @@ This command will:
 - Build and install CJ's Shell
 - Provide setup instructions for making it your default shell
 
-### Manual Installation
+## Manual Installation
 
 For latest stable patch, you can build and install manually from a release on GitHub:
 
@@ -62,7 +62,7 @@ For latest stable patch, you can build and install manually from a release on Gi
    make -j
    ```
    
-### Testing and POSIX Compliance
+## Testing and POSIX Compliance
 
 CJ's Shell includes a comprehensive test suite with over 200 POSIX compliance tests to ensure reliability and standards compliance:
 
