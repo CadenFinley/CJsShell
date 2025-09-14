@@ -1063,6 +1063,13 @@ static void create_source_file() {
 
     source_file << "# plugin examples\n";
     source_file << "# plugin example_plugin enable\n";
+
+    source_file << "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n";
+    source_file << "cjsh_uninstall() {\n";
+    source_file << "    rm -rf " << cjsh_filesystem::g_cjsh_path.string()
+                << "\n";
+    source_file << "    echo \"Removed cjsh from /usr/local/bin\"\n";
+    source_file << "}\n";
     source_file.close();
   } else {
     std::cerr << "cjsh: Failed to create the source file." << std::endl;

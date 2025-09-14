@@ -61,6 +61,13 @@ For latest stable patch, you can build and install manually from a release on Gi
    cmake ..
    make -j
    ```
+
+## Uninstalling cjsh
+It is as simple as running a command within the shell in interactive mode:
+
+```bash
+cjsh_uninstall
+```
    
 ## Testing and POSIX Compliance
 
