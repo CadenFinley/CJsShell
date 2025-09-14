@@ -17,12 +17,12 @@
   } while (0)
 
 int theme_command(const std::vector<std::string>& args) {
-  if (g_theme == nullptr) {
-    PRINT_ERROR("Theme manager not initialized");
+  if (!config::themes_enabled) {
+    PRINT_ERROR("Themes are disabled");
     return 1;
   }
-  if (!g_theme->get_enabled()) {
-    PRINT_ERROR("Themes are disabled");
+  if (g_theme == nullptr) {
+    PRINT_ERROR("Theme manager not initialized");
     return 1;
   }
   if (args.size() < 2) {

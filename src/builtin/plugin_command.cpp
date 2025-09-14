@@ -21,13 +21,13 @@ int plugin_command(const std::vector<std::string>& args) {
       std::cerr << "DEBUG: plugin command: " << args[1] << std::endl;
   }
 
-  if (g_plugin == nullptr) {
-    PRINT_ERROR("Plugin manager not initialized");
+  if (!config::plugins_enabled) {
+    PRINT_ERROR("Plugins are disabled");
     return 1;
   }
 
-  if (!g_plugin->get_enabled()) {
-    PRINT_ERROR("Plugins are disabled");
+  if (g_plugin == nullptr) {
+    PRINT_ERROR("Plugin manager not initialized");
     return 1;
   }
 
