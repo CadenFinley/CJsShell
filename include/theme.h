@@ -31,6 +31,8 @@ class Theme {
       const std::string& line,
       const std::unordered_map<std::string, std::string>& vars) const;
 
+  std::string escape_brackets_for_isocline(const std::string& input) const;
+
   size_t calculate_raw_length(const std::string& str) const;
   size_t get_terminal_width() const;
   std::string prerender_line_aligned(

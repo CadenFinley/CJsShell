@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <regex>
 #include <unordered_set>
 
 #include "utils/utf8_utils.h"
@@ -598,6 +599,23 @@ std::string Theme::get_terminal_title_format() const {
   return terminal_title_format;
 }
 
+std::string Theme::escape_brackets_for_isocline(const std::string& input) const {
+  std::string result = input;
+  
+  // Escape brackets around numeric content that could be mistaken for bbcode tags
+  // This pattern matches [number] where number is digits, potentially with signs
+  std::regex numeric_bracket_pattern(R"(\[([+-]?\d+)\])");
+  
+  // Replace [number] patterns with \[number] to escape the opening bracket
+  result = std::regex_replace(result, numeric_bracket_pattern, R"(\[$1])");
+  
+  if (g_debug_mode) {
+    std::cout << "After bracket escaping: " << result << std::endl;
+  }
+  
+  return result;
+}
+
 std::string Theme::render_line(
     const std::string& line,
     const std::unordered_map<std::string, std::string>& vars) const {
@@ -624,6 +642,9 @@ std::string Theme::render_line(
       start_pos = end_pos + 1;
     }
   }
+
+  // After all placeholder substitution, escape brackets that could be mistaken for bbcode tags
+  result = escape_brackets_for_isocline(result);
 
   if (g_debug_mode) {
     std::cout << "Rendered line: \n" << result << std::endl;
