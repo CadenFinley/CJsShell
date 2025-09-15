@@ -7,6 +7,15 @@
 #include <sstream>
 #include <vector>
 
+#ifdef __linux__
+#include <linux/limits.h>
+#include <unistd.h>
+#endif
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
 namespace cjsh_filesystem {
 
 fs::path g_cjsh_path;
@@ -69,10 +78,6 @@ std::vector<fs::path> read_cached_executables() {
 bool file_exists(const fs::path& path) {
   return fs::exists(path);
 }
-
-#ifdef __APPLE__
-#include <mach-o/dyld.h>
-#endif
 
 bool initialize_cjsh_path() {
   char path[PATH_MAX];
