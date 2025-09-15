@@ -18,6 +18,10 @@
 #include "environment_info.h"
 #include "network_info.h"
 #include "time_info.h"
+#include "directory_info.h"
+#include "command_info.h"
+#include "language_info.h"
+#include "container_info.h"
 
 class PromptInfo {
  private:
@@ -28,6 +32,10 @@ class PromptInfo {
   EnvironmentInfo environment_info;
   NetworkInfo network_info;
   TimeInfo time_info;
+  DirectoryInfo directory_info;
+  CommandInfo command_info;
+  LanguageInfo language_info;
+  ContainerInfo container_info;
 
  public:
  // Core methods that remain in PromptInfo
@@ -94,4 +102,45 @@ class PromptInfo {
   int get_current_year() { return time_info.get_current_year(); }
   std::string get_current_day_name() { return time_info.get_current_day_name(); }
   std::string get_current_month_name() { return time_info.get_current_month_name(); }
+
+  // Directory Info
+  std::string get_display_directory() { return directory_info.get_display_directory(); }
+  std::string get_directory_name() { return directory_info.get_directory_name(); }
+  std::string get_truncated_path() { return directory_info.get_truncated_path(); }
+  std::string get_repo_relative_path(const std::filesystem::path& repo_root) { return directory_info.get_repo_relative_path(repo_root); }
+  bool is_directory_truncated() { return directory_info.is_truncated(); }
+
+  // Command Info
+  void start_command_timing() { command_info.start_command_timing(); }
+  void end_command_timing(int exit_code) { command_info.end_command_timing(exit_code); }
+  long long get_last_command_duration_ms() { return command_info.get_last_command_duration_ms(); }
+  std::string get_formatted_duration() { return command_info.get_formatted_duration(); }
+  bool should_show_duration() { return command_info.should_show_duration(); }
+  int get_last_exit_code() { return command_info.get_last_exit_code(); }
+  std::string get_exit_status_symbol() { return command_info.get_exit_status_symbol(); }
+  bool is_last_command_success() { return command_info.is_last_command_success(); }
+
+  // Language Info
+  bool is_python_project() { return language_info.is_python_project(); }
+  bool is_nodejs_project() { return language_info.is_nodejs_project(); }
+  bool is_rust_project() { return language_info.is_rust_project(); }
+  bool is_golang_project() { return language_info.is_golang_project(); }
+  bool is_java_project() { return language_info.is_java_project(); }
+  std::string get_python_version() { return language_info.get_python_version(); }
+  std::string get_nodejs_version() { return language_info.get_nodejs_version(); }
+  std::string get_rust_version() { return language_info.get_rust_version(); }
+  std::string get_golang_version() { return language_info.get_golang_version(); }
+  std::string get_java_version() { return language_info.get_java_version(); }
+  std::string get_python_virtual_env() { return language_info.get_python_virtual_env(); }
+  std::string get_nodejs_package_manager() { return language_info.get_nodejs_package_manager(); }
+  std::string get_language_version(const std::string& language) { return language_info.get_language_version(language); }
+  bool is_language_project(const std::string& language) { return language_info.is_language_project(language); }
+
+  // Container Info
+  std::string get_container_name() { return container_info.get_container_name(); }
+  bool is_in_container() { return container_info.is_in_container(); }
+  std::string get_container_type() { return container_info.get_container_type(); }
+  bool is_in_docker() { return container_info.is_in_docker(); }
+  std::string get_docker_context() { return container_info.get_docker_context(); }
+  std::string get_docker_image() { return container_info.get_docker_image(); }
 };

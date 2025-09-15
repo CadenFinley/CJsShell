@@ -28,6 +28,12 @@
  * {SHELL}      - Name of the shell
  * {SHELL_VER}  - Version of the shell
  *
+ * Directory placeholders:
+ * {DISPLAY_DIR} - Enhanced directory display with repo/home contraction
+ * {TRUNCATED_PATH} - Truncated path with symbol
+ * {REPO_PATH}  - Repository-relative path
+ * {DIR_TRUNCATED} - Whether directory display is truncated (true/false)
+ *
  * Git prompt additional placeholders:
  * {LOCAL_PATH} - Local path of the git repository
  * {GIT_BRANCH} - Current Git branch
@@ -41,6 +47,34 @@
  * {GIT_TAG} - Current Git tag (if any)
  * {GIT_LAST_COMMIT} - Last commit hash or message
  * {GIT_AUTHOR} - Author of the last commit
+ *
+ * Command placeholders:
+ * {CMD_DURATION} - Duration of last command (formatted)
+ * {CMD_DURATION_MS} - Duration of last command in milliseconds
+ * {EXIT_CODE}  - Last command exit code
+ * {EXIT_SYMBOL} - Exit status symbol (✓ for success, ✗ for failure)
+ * {CMD_SUCCESS} - Whether last command was successful (true/false)
+ *
+ * Language detection placeholders:
+ * {PYTHON_VERSION} - Python version if in Python project
+ * {NODEJS_VERSION} - Node.js version if in Node.js project
+ * {RUST_VERSION} - Rust version if in Rust project
+ * {GOLANG_VERSION} - Go version if in Go project
+ * {JAVA_VERSION} - Java version if in Java project
+ * {PYTHON_VENV} - Python virtual environment name
+ * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm)
+ * {IS_PYTHON_PROJECT} - Whether current directory is a Python project
+ * {IS_NODEJS_PROJECT} - Whether current directory is a Node.js project
+ * {IS_RUST_PROJECT} - Whether current directory is a Rust project
+ * {IS_GOLANG_PROJECT} - Whether current directory is a Go project
+ * {IS_JAVA_PROJECT} - Whether current directory is a Java project
+ *
+ * Container placeholders:
+ * {CONTAINER_NAME} - Name of container (Docker, Podman, etc.)
+ * {CONTAINER_TYPE} - Type of container technology
+ * {IS_CONTAINER} - Whether running in a container (true/false)
+ * {DOCKER_CONTEXT} - Docker context name
+ * {DOCKER_IMAGE} - Docker image name if available
  *
  * System information placeholders:
  * {OS_INFO}     - Operating system name and version
@@ -339,6 +373,120 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
   if (needed_vars.count("NET_IFACE")) {
     vars["NET_IFACE"] = get_active_network_interface();
+  }
+
+  // Enhanced Directory information
+  if (needed_vars.count("DISPLAY_DIR")) {
+    vars["DISPLAY_DIR"] = get_display_directory();
+  }
+
+  if (needed_vars.count("TRUNCATED_PATH")) {
+    vars["TRUNCATED_PATH"] = get_truncated_path();
+  }
+
+  if (needed_vars.count("DIR_TRUNCATED")) {
+    vars["DIR_TRUNCATED"] = is_directory_truncated() ? "true" : "false";
+  }
+
+  // Command information
+  if (needed_vars.count("CMD_DURATION")) {
+    if (should_show_duration()) {
+      vars["CMD_DURATION"] = get_formatted_duration();
+    } else {
+      vars["CMD_DURATION"] = "";
+    }
+  }
+
+  if (needed_vars.count("CMD_DURATION_MS")) {
+    vars["CMD_DURATION_MS"] = std::to_string(get_last_command_duration_ms());
+  }
+
+  if (needed_vars.count("EXIT_CODE")) {
+    int exit_code = get_last_exit_code();
+    vars["EXIT_CODE"] = exit_code != 0 ? std::to_string(exit_code) : "";
+  }
+
+  if (needed_vars.count("EXIT_SYMBOL")) {
+    vars["EXIT_SYMBOL"] = get_exit_status_symbol();
+  }
+
+  if (needed_vars.count("CMD_SUCCESS")) {
+    vars["CMD_SUCCESS"] = is_last_command_success() ? "true" : "false";
+  }
+
+  // Language detection
+  if (needed_vars.count("PYTHON_VERSION") && is_python_project()) {
+    vars["PYTHON_VERSION"] = get_python_version();
+  }
+
+  if (needed_vars.count("NODEJS_VERSION") && is_nodejs_project()) {
+    vars["NODEJS_VERSION"] = get_nodejs_version();
+  }
+
+  if (needed_vars.count("RUST_VERSION") && is_rust_project()) {
+    vars["RUST_VERSION"] = get_rust_version();
+  }
+
+  if (needed_vars.count("GOLANG_VERSION") && is_golang_project()) {
+    vars["GOLANG_VERSION"] = get_golang_version();
+  }
+
+  if (needed_vars.count("JAVA_VERSION") && is_java_project()) {
+    vars["JAVA_VERSION"] = get_java_version();
+  }
+
+  if (needed_vars.count("PYTHON_VENV")) {
+    vars["PYTHON_VENV"] = get_python_virtual_env();
+  }
+
+  if (needed_vars.count("NODEJS_PM") && is_nodejs_project()) {
+    vars["NODEJS_PM"] = get_nodejs_package_manager();
+  }
+
+  // Language project detection
+  if (needed_vars.count("IS_PYTHON_PROJECT")) {
+    vars["IS_PYTHON_PROJECT"] = is_python_project() ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_NODEJS_PROJECT")) {
+    vars["IS_NODEJS_PROJECT"] = is_nodejs_project() ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_RUST_PROJECT")) {
+    vars["IS_RUST_PROJECT"] = is_rust_project() ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_GOLANG_PROJECT")) {
+    vars["IS_GOLANG_PROJECT"] = is_golang_project() ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_JAVA_PROJECT")) {
+    vars["IS_JAVA_PROJECT"] = is_java_project() ? "true" : "false";
+  }
+
+  // Container information
+  if (needed_vars.count("CONTAINER_NAME")) {
+    vars["CONTAINER_NAME"] = get_container_name();
+  }
+
+  if (needed_vars.count("CONTAINER_TYPE")) {
+    vars["CONTAINER_TYPE"] = get_container_type();
+  }
+
+  if (needed_vars.count("IS_CONTAINER")) {
+    vars["IS_CONTAINER"] = is_in_container() ? "true" : "false";
+  }
+
+  if (needed_vars.count("DOCKER_CONTEXT")) {
+    vars["DOCKER_CONTEXT"] = get_docker_context();
+  }
+
+  if (needed_vars.count("DOCKER_IMAGE")) {
+    vars["DOCKER_IMAGE"] = get_docker_image();
+  }
+
+  if (needed_vars.count("REPO_PATH") && is_git_repo) {
+    vars["REPO_PATH"] = get_repo_relative_path(repo_root);
   }
 
   // Git information (potentially high cost, already cached)
