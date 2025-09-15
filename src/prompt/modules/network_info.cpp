@@ -1,0 +1,109 @@
+#include "network_info.h"
+
+#include <cstdio>
+#include <iostream>
+
+std::string NetworkInfo::get_ip_address(bool external) {
+  std::string cmd;
+  
+  if (external) {
+    // Try multiple services for external IP
+    cmd = R"(
+      curl -s ipinfo.io/ip 2>/dev/null || 
+      curl -s ifconfig.me 2>/dev/null || 
+      curl -s icanhazip.com 2>/dev/null || 
+      echo "N/A"
+    )";
+  } else {
+    // Get local IP address
+#ifdef __APPLE__
+    cmd = R"(
+      ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -n 1 | awk '{print $2}'
+    )";
+#elif defined(__linux__)
+    cmd = R"(
+      hostname -I | awk '{print $1}' 2>/dev/null || 
+      ip route get 1.1.1.1 | awk '{print $7}' 2>/dev/null ||
+      ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -n 1 | awk '{print $2}' | sed 's/addr://'
+    )";
+#else
+    return "N/A";
+#endif
+  }
+
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) {
+    return "N/A";
+  }
+
+  char buffer[64];
+  std::string result = "";
+  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+    result = buffer;
+    if (!result.empty() && result.back() == '\n') {
+      result.pop_back();
+    }
+  }
+  pclose(fp);
+
+  return result.empty() ? "N/A" : result;
+}
+
+bool NetworkInfo::is_vpn_active() {
+#ifdef __APPLE__
+  std::string cmd = R"(
+    scutil --nwi | grep -q "utun\|tun\|ppp" && echo "1" || echo "0"
+  )";
+#elif defined(__linux__)
+  std::string cmd = R"(
+    ip link show | grep -q "tun\|tap\|ppp" && echo "1" || echo "0"
+  )";
+#else
+  return false;
+#endif
+
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) {
+    return false;
+  }
+
+  char buffer[8];
+  bool is_active = false;
+  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+    is_active = (buffer[0] == '1');
+  }
+  pclose(fp);
+
+  return is_active;
+}
+
+std::string NetworkInfo::get_active_network_interface() {
+#ifdef __APPLE__
+  std::string cmd = R"(
+    route get default | grep interface | awk '{print $2}'
+  )";
+#elif defined(__linux__)
+  std::string cmd = R"(
+    ip route | grep default | awk '{print $5}' | head -n 1
+  )";
+#else
+  return "N/A";
+#endif
+
+  FILE* fp = popen(cmd.c_str(), "r");
+  if (!fp) {
+    return "N/A";
+  }
+
+  char buffer[32];
+  std::string result = "";
+  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+    result = buffer;
+    if (!result.empty() && result.back() == '\n') {
+      result.pop_back();
+    }
+  }
+  pclose(fp);
+
+  return result.empty() ? "N/A" : result;
+}
