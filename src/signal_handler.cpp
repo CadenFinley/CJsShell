@@ -237,7 +237,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
       s_sighup_received = 1;
       // Only exit if signal is not being observed
       if (!is_observed) {
-        g_exit_flag = true;
+        // Force exit immediately - this will call atexit handlers
+        exit(0);
       }
       break;
     }
@@ -246,7 +247,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
       s_sigterm_received = 1;
       // Only exit if signal is not being observed
       if (!is_observed) {
-        g_exit_flag = true;
+        // Force exit immediately - this will call atexit handlers
+        exit(0);
       }
       break;
     }
