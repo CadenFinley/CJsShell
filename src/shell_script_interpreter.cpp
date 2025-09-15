@@ -3087,7 +3087,7 @@ int ShellScriptInterpreter::execute_block(
         idx = k;
         return 1;
       }
-      idx = k + 1;  // Move past the 'done' keyword
+      idx = k;  // Point to 'done' line, will be incremented in main loop
     }
 
     int rc = 0;
@@ -3233,7 +3233,7 @@ int ShellScriptInterpreter::execute_block(
         idx = k;
         return 1;
       }
-      idx = k + 1;  // Move past the 'done' keyword
+      idx = k;  // Point to 'done' line, will be incremented in main loop
     }
 
     int rc = 0;
