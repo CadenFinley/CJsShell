@@ -14,9 +14,9 @@
 #include "shell.h"
 #include "theme.h"
 
-const bool PRE_RELEASE = true;
+const bool PRE_RELEASE = false;
 // using semver.org principles MAJOR.MINOR.PATCH
-const std::string c_version = "3.2.1";
+const std::string c_version = "3.3.0";
 const std::string pre_release_line = " (pre-release)";
 
 extern bool g_debug_mode;

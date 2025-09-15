@@ -1267,18 +1267,18 @@ void ShellScriptInterpreter::print_error_report(
                 << std::endl;
     }
 
-    if (!error.related_info.empty()) {
-      std::cout << "│" << std::endl;
-      for (const auto& info : error.related_info) {
-        std::cout << "│  " << DIM << "Note: " << info << RESET << std::endl;
-      }
-    }
+    // if (!error.related_info.empty()) {
+    //   std::cout << "│" << std::endl;
+    //   for (const auto& info : error.related_info) {
+    //     std::cout << "│  " << DIM << "Note: " << info << RESET << std::endl;
+    //   }
+    // }
 
-    if (!error.documentation_url.empty()) {
-      std::cout << "│" << std::endl;
-      std::cout << "│  " << BLUE << "Documentation: " << error.documentation_url
-                << RESET << std::endl;
-    }
+    // if (!error.documentation_url.empty()) {
+    //   std::cout << "│" << std::endl;
+    //   std::cout << "│  " << BLUE << "Documentation: " << error.documentation_url
+    //             << RESET << std::endl;
+    // }
 
     size_t terminal_width = get_terminal_width();
     size_t content_width = 0;
@@ -1313,6 +1313,7 @@ void ShellScriptInterpreter::print_error_report(
       std::cout << "—";
     }
   }
+  std::cout << std::endl;
 }
 
 int ShellScriptInterpreter::execute_block(
