@@ -15,6 +15,8 @@
 #include <iostream>
 #include <regex>
 #include <sstream>
+#include <stdexcept>
+#include <system_error>
 
 #include "cjsh.h"
 #include "job_control.h"
@@ -1016,10 +1018,6 @@ void ShellScriptInterpreter::print_error_report(
               return a.position.column_start < b.position.column_start;
             });
 
-  std::cout << "══════════════════════════════════════" << std::endl;
-
-  int total_errors = sorted_errors.size();
-
   int error_count = 0;
   for (const auto& error : sorted_errors) {
     error_count++;
@@ -1314,36 +1312,7 @@ void ShellScriptInterpreter::print_error_report(
     for (size_t i = 0; i < footer_width; i++) {
       std::cout << "—";
     }
-    std::cout << std::endl;
-
-    if (error_count < total_errors) {
-      std::cout << std::endl;
-    }
   }
-
-  std::cout << std::endl;
-
-  int warning_count = 0;
-  int error_count_summary = 0;
-  for (const auto& error : sorted_errors) {
-    if (error.severity == ErrorSeverity::WARNING) {
-      warning_count++;
-    } else if (error.severity == ErrorSeverity::ERROR ||
-               error.severity == ErrorSeverity::CRITICAL) {
-      error_count_summary++;
-    }
-  }
-
-  if (warning_count > 0) {
-    std::cout << " " << YELLOW << "Warning"
-              << (warning_count > 1 ? "s: " : ": ") << warning_count << RESET
-              << std::endl;
-  }
-  if (error_count_summary > 0) {
-    std::cout << " " << RED << "Error" << (warning_count > 1 ? "s: " : ": ")
-              << error_count_summary << RESET << std::endl;
-  }
-  std::cout << std::endl;
 }
 
 int ShellScriptInterpreter::execute_block(
@@ -1972,10 +1941,11 @@ int ShellScriptInterpreter::execute_block(
       return 0;
     }
 
-    std::vector<Command> cmds =
-        shell_parser->parse_pipeline_with_preprocessing(text);
+    try {
+      std::vector<Command> cmds =
+          shell_parser->parse_pipeline_with_preprocessing(text);
 
-    bool has_redir_or_pipe = cmds.size() > 1;
+      bool has_redir_or_pipe = cmds.size() > 1;
     if (!has_redir_or_pipe && !cmds.empty()) {
       const auto& c = cmds[0];
       has_redir_or_pipe =
@@ -2083,6 +2053,93 @@ int ShellScriptInterpreter::execute_block(
 
     setenv("STATUS", std::to_string(exit_code).c_str(), 1);
     return exit_code;
+    } catch (const std::bad_alloc& e) {
+      std::vector<SyntaxError> errors;
+      SyntaxError error(1, "Memory allocation failed", text);
+      error.severity = ErrorSeverity::ERROR;
+      error.category = ErrorCategory::COMMANDS;
+      error.error_code = "MEM001";
+      error.suggestion = "Command may be too complex or system is low on memory";
+      errors.push_back(error);
+      
+      print_error_report(errors, true, true);
+      
+      setenv("STATUS", "3", 1);
+      return 3;
+    } catch (const std::system_error& e) {
+      std::vector<SyntaxError> errors;
+      SyntaxError error(1, "System error: " + std::string(e.what()), text);
+      error.severity = ErrorSeverity::ERROR;
+      error.category = ErrorCategory::COMMANDS;
+      error.error_code = "SYS001";
+      error.suggestion = "Check system resources and permissions";
+      errors.push_back(error);
+      
+      print_error_report(errors, true, true);
+      
+      setenv("STATUS", "4", 1);
+      return 4;
+    } catch (const std::runtime_error& e) {
+      std::vector<SyntaxError> errors;
+      SyntaxError error(1, e.what(), text);
+      std::string error_msg = e.what();
+      
+      // Determine error type based on message content
+      if (error_msg.find("Unclosed quote") != std::string::npos || 
+          error_msg.find("missing closing") != std::string::npos) {
+        // Parsing/syntax error
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::SYNTAX;
+        error.error_code = "SYN001";
+        error.suggestion = "Make sure all quotes are properly closed";
+      } else if (error_msg.find("Failed to open") != std::string::npos ||
+                 error_msg.find("Failed to redirect") != std::string::npos ||
+                 error_msg.find("Failed to write") != std::string::npos) {
+        // I/O error
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::REDIRECTION;
+        error.error_code = "IO001";
+        error.suggestion = "Check file permissions and paths";
+      } else {
+        // Generic runtime error
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::COMMANDS;
+        error.error_code = "RUN001";
+        error.suggestion = "Check command syntax and system resources";
+      }
+      
+      errors.push_back(error);
+      print_error_report(errors, true, true);
+      
+      setenv("STATUS", "2", 1);
+      return 2;
+    } catch (const std::exception& e) {
+      std::vector<SyntaxError> errors;
+      SyntaxError error(1, "Unexpected error: " + std::string(e.what()), text);
+      error.severity = ErrorSeverity::ERROR;
+      error.category = ErrorCategory::COMMANDS;
+      error.error_code = "UNK001";
+      error.suggestion = "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+      errors.push_back(error);
+      
+      print_error_report(errors, true, true);
+      
+      setenv("STATUS", "5", 1);
+      return 5;
+    } catch (...) {
+      std::vector<SyntaxError> errors;
+      SyntaxError error(1, "Unknown error occurred", text);
+      error.severity = ErrorSeverity::ERROR;
+      error.category = ErrorCategory::COMMANDS;
+      error.error_code = "UNK002";
+      error.suggestion = "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+      errors.push_back(error);
+      
+      print_error_report(errors, true, true);
+      
+      setenv("STATUS", "6", 1);
+      return 6;
+    }
   };
 
   int last_code = 0;

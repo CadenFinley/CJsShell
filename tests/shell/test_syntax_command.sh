@@ -85,7 +85,7 @@ EOF
 # Test syntax check on bad file
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/bad_syntax.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "Error:"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
     echo "FAIL: syntax check on bad file should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -103,7 +103,7 @@ fi
 # Test 5: Test -c option with bad command
 OUT=$("$CJSH_PATH" -c "syntax -c 'if [ true; then'" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "Error:"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
     echo "FAIL: syntax -c with bad command should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -177,7 +177,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/complex_errors.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "Error:"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
     echo "FAIL: syntax check on complex errors should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -186,6 +186,34 @@ fi
 # Verify that multiple errors are reported
 if ! echo "$OUT" | grep -q "at line"; then
     echo "FAIL: syntax errors should include line numbers (output: '$OUT')"
+    rm -rf "$TEST_DIR"
+    exit 1
+fi
+
+# Test 11: Test handling of unclosed quotes (should not crash shell)
+OUT=$("$CJSH_PATH" -c 'echo "unclosed quote' 2>&1)
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "FAIL: unclosed quote should return non-zero exit code (exit: $EXIT_CODE, output: '$OUT')"
+    rm -rf "$TEST_DIR"
+    exit 1
+fi
+if ! echo "$OUT" | grep -q "Unclosed quote"; then
+    echo "FAIL: unclosed quote should report proper error (output: '$OUT')"
+    rm -rf "$TEST_DIR"
+    exit 1
+fi
+
+# Test 12: Test handling of unclosed single quotes
+OUT=$("$CJSH_PATH" -c "echo 'unclosed single quote" 2>&1)
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "FAIL: unclosed single quote should return non-zero exit code (exit: $EXIT_CODE, output: '$OUT')"
+    rm -rf "$TEST_DIR"
+    exit 1
+fi
+if ! echo "$OUT" | grep -q "Unclosed quote"; then
+    echo "FAIL: unclosed single quote should report proper error (output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
 fi
