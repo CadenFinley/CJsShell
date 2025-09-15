@@ -56,6 +56,7 @@ file(GLOB_RECURSE SOURCES
   "src/assistant/*.cpp" 
   "src/isocline/*.cpp"
   "src/prompt/modules/*.cpp"
+  "src/theme/*.cpp"
 )
 
 # Explicitly list isocline .c files that should be compiled
