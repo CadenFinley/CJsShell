@@ -8,6 +8,31 @@ fi
 
 echo "Test: performance and stress..."
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+TESTS_PASSED=0
+TESTS_FAILED=0
+TESTS_SKIPPED=0
+
+pass_test() {
+    echo "PASS: $1"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+}
+
+fail_test() {
+    echo "FAIL: $1"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+}
+
+skip_test() {
+    echo "SKIP: $1"
+    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
+}
+
 # Test startup time (should be reasonable)
 # Try nanosecond precision first, fall back to seconds
 if date +%s%N >/dev/null 2>&1; then
@@ -18,7 +43,9 @@ if date +%s%N >/dev/null 2>&1; then
     duration_ns=$((end_time - start_time))
     duration_sec=$((duration_ns / 1000000000))
     if [ "$duration_sec" -gt 5 ]; then
-        echo "WARNING: Shell startup took more than 5 seconds ($duration_sec seconds)"
+        fail_test "Shell startup took more than 5 seconds ($duration_sec seconds)"
+    else
+        pass_test "Shell startup time"
     fi
 else
     # Second precision only
@@ -27,9 +54,9 @@ else
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     if [ "$duration" -gt 5 ]; then
-        echo "WARNING: Shell startup took more than 5 seconds ($duration seconds)"
-    elif [ "$duration" -eq 0 ]; then
-        echo "NOTE: Startup time measurement not precise enough (completed in <1 second)"
+        fail_test "Shell startup took more than 5 seconds ($duration seconds)"
+    else
+        pass_test "Shell startup time"
     fi
 fi
 
@@ -45,12 +72,15 @@ duration=$((end_time - start_time))
 
 LINES=$(echo "$OUT" | wc -l)
 if [ "$LINES" -ne 100 ]; then
-    echo "FAIL: sequential commands test (got $LINES lines, expected 100)"
-    exit 1
+    fail_test "sequential commands test (got $LINES lines, expected 100)"
+else
+    pass_test "sequential commands execution"
 fi
 
 if [ "$duration" -gt 10 ]; then
-    echo "WARNING: 100 sequential commands took more than 10 seconds"
+    fail_test "100 sequential commands took more than 10 seconds"
+else
+    pass_test "sequential commands performance"
 fi
 
 # Test deep pipeline
@@ -60,16 +90,18 @@ for i in $(seq 1 20); do
 done
 OUT=$("$CJSH_PATH" -c "$PIPELINE" 2>/dev/null)
 if [ "$OUT" != "start" ]; then
-    echo "FAIL: deep pipeline test (got '$OUT')"
-    exit 1
+    fail_test "deep pipeline test (got '$OUT')"
+else
+    pass_test "deep pipeline execution"
 fi
 
 # Test large output handling
 OUT=$("$CJSH_PATH" -c "seq 1 1000" 2>/dev/null)
 LINES=$(echo "$OUT" | wc -l)
 if [ "$LINES" -ne 1000 ]; then
-    echo "FAIL: large output test (got $LINES lines)"
-    exit 1
+    fail_test "large output test (got $LINES lines)"
+else
+    pass_test "large output handling"
 fi
 
 # Test many environment variables
@@ -79,8 +111,9 @@ for i in $(seq 1 50); do
 done
 OUT=$("$CJSH_PATH" -c "$ENV_SETUP echo \$TEST_VAR_25" 2>/dev/null)
 if [ "$OUT" != "value25" ]; then
-    echo "FAIL: many environment variables test (got '$OUT')"
-    exit 1
+    fail_test "many environment variables test (got '$OUT')"
+else
+    pass_test "many environment variables handling"
 fi
 
 # Test command line length limits
@@ -91,7 +124,9 @@ for i in $(seq 1 500); do
 done
 OUT=$("$CJSH_PATH" -c "$LONG_ECHO" 2>/dev/null | wc -w)
 if [ "$OUT" -ne 500 ]; then
-    echo "WARNING: long command line test failed (got $OUT words)"
+    fail_test "long command line test (got $OUT words)"
+else
+    pass_test "long command line handling"
 fi
 
 # Test many aliases
@@ -101,7 +136,9 @@ for i in $(seq 1 50); do
 done
 OUT=$("$CJSH_PATH" -c "$ALIAS_SETUP test25" 2>/dev/null)
 if [ "$OUT" != "alias25" ]; then
-    echo "WARNING: many aliases test failed (got '$OUT')"
+    fail_test "many aliases test (got '$OUT')"
+else
+    pass_test "many aliases handling"
 fi
 
 # Test rapid command execution
@@ -113,7 +150,9 @@ end_time=$(date +%s)
 duration=$((end_time - start_time))
 
 if [ "$duration" -gt 10 ]; then
-    echo "WARNING: 5 shell invocations took more than 10 seconds"
+    fail_test "5 shell invocations took more than 10 seconds"
+else
+    pass_test "rapid command execution"
 fi
 
 # Test memory usage (basic - just ensure it doesn't crash)
@@ -123,7 +162,9 @@ for i in $(seq 1 100); do
 done
 "$CJSH_PATH" -c "$MEMORY_TEST echo done" >/dev/null 2>&1
 if [ $? -ne 0 ]; then
-    echo "WARNING: memory stress test failed"
+    fail_test "memory stress test failed"
+else
+    pass_test "memory stress handling"
 fi
 
 # Test concurrent execution (if supported)
@@ -135,7 +176,9 @@ fi
 } >/dev/null 2>&1
 
 if [ $? -ne 0 ]; then
-    echo "WARNING: concurrent execution test had issues"
+    fail_test "concurrent execution test had issues"
+else
+    pass_test "concurrent execution handling"
 fi
 
 # Test file descriptor limits
@@ -146,7 +189,9 @@ done
 FD_TEST="$FD_TEST rm -f /tmp/cjsh_test_*.txt"
 "$CJSH_PATH" -c "$FD_TEST" 2>/dev/null
 if [ $? -ne 0 ]; then
-    echo "WARNING: file descriptor test failed"
+    fail_test "file descriptor test failed"
+else
+    pass_test "file descriptor handling"
 fi
 
 echo "PASS"

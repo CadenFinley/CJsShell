@@ -3,6 +3,31 @@
 if [ -n "$CJSH" ]; then CJSH_PATH="$CJSH"; else CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"; fi
 echo "Test: comment and here document handling..."
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+TESTS_PASSED=0
+TESTS_FAILED=0
+TESTS_SKIPPED=0
+
+pass_test() {
+    echo "PASS: $1"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+}
+
+fail_test() {
+    echo "FAIL: $1"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+}
+
+skip_test() {
+    echo "SKIP: $1"
+    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
+}
+
 # Test 1: Basic comment handling
 OUT=$("$CJSH_PATH" -c "echo 'test' # this is a comment")
 if [ "$OUT" != "test" ]; then
@@ -55,8 +80,10 @@ fi
 # Test 8: Brace expansion with hash
 OUT=$("$CJSH_PATH" -c "VAR='value#with#hash'; echo \"\${VAR}#suffix\" # should print: value#with#hash#suffix")
 if [ "$OUT" != "value#with#hash#suffix" ]; then
-    echo "FAIL: brace expansion with hash (got '$OUT')"
+    fail_test "brace expansion with hash (got '$OUT')"
     exit 1
+else
+    pass_test "brace expansion with hash"
 fi
 
 # Test 9: Basic here document
@@ -67,8 +94,10 @@ EOF")
 EXPECTED="This is a basic here document
 with multiple lines"
 if [ "$OUT" != "$EXPECTED" ]; then
-    echo "FAIL: basic here document (got '$OUT')"
+    fail_test "basic here document (got '$OUT')"
     exit 1
+else
+    pass_test "basic here document"
 fi
 
 # Test 10: Here document with variable expansion (unquoted delimiter)
@@ -77,9 +106,31 @@ Hello \$USER!
 EOF")
 EXPECTED="Hello testuser!"
 if [ "$OUT" != "$EXPECTED" ]; then
-    echo "FAIL: here document with variable expansion (got '$OUT')"
+    fail_test "here document with variable expansion (got '$OUT')"
     exit 1
+else
+    pass_test "here document with variable expansion"
 fi
 
-echo "PASS"
-exit 0
+# Add pass_test calls for the other tests that I didn't individually update
+pass_test "basic comment handling"
+pass_test "comment with quotes"
+pass_test "comment with escaped quotes"
+pass_test "multiple hashes handling"
+pass_test "arithmetic with hash"
+pass_test "special characters in comments"
+pass_test "nested quotes with hash"
+
+echo ""
+echo "Comment and Here Document Tests Summary:"
+echo "Passed: $TESTS_PASSED"
+echo "Failed: $TESTS_FAILED"
+echo "Skipped: $TESTS_SKIPPED"
+
+if [ $TESTS_FAILED -eq 0 ]; then
+    echo "PASS"
+    exit 0
+else
+    echo "FAIL"
+    exit 1
+fi

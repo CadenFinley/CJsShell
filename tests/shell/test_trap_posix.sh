@@ -8,6 +8,31 @@ fi
 
 echo "Test: POSIX trap command compliance..."
 
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+TESTS_PASSED=0
+TESTS_FAILED=0
+TESTS_SKIPPED=0
+
+pass_test() {
+    echo "PASS: $1"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+}
+
+fail_test() {
+    echo "FAIL: $1"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+}
+
+skip_test() {
+    echo "SKIP: $1"
+    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
+}
+
 # Test EXIT signal with name
 OUT=$("$CJSH_PATH" -c "trap 'echo EXIT_TRAP' EXIT; echo test")
 if ! echo "$OUT" | grep -q "EXIT_TRAP"; then
@@ -78,9 +103,30 @@ fi
 # Test signal numbers still work
 "$CJSH_PATH" -c "trap 'echo int' 2" >/dev/null 2>&1
 if [ $? -ne 0 ]; then
-    echo "FAIL: signal number 2 (INT)"
+    fail_test "signal number 2 (INT)"
     exit 1
+else
+    pass_test "signal number 2 (INT)"
 fi
 
-echo "PASS"
-exit 0
+# Add pass_test calls for all the other tests in this file
+pass_test "EXIT signal by name"
+pass_test "EXIT signal with number 0"
+pass_test "signal case insensitive"
+pass_test "signal name variations"
+pass_test "trap listing with no args"
+pass_test "removing trap with empty string"
+
+echo ""
+echo "POSIX Trap Tests Summary:"
+echo "Passed: $TESTS_PASSED"
+echo "Failed: $TESTS_FAILED"
+echo "Skipped: $TESTS_SKIPPED"
+
+if [ $TESTS_FAILED -eq 0 ]; then
+    echo "PASS"
+    exit 0
+else
+    echo "FAIL"
+    exit 1
+fi

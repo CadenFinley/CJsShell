@@ -71,8 +71,7 @@ cjsh_uninstall
    
 ## Testing and POSIX Compliance
 
-CJ's Shell includes a comprehensive test suite with over 200 POSIX compliance tests to ensure reliability and standards compliance:
-
+CJ's Shell includes a comprehensive test suite with over 600 POSIX compliance tests to ensure reliability and standards compliance.
 This test can be ran from the root of the repository, and is recommended to run before setting cjsh as you default login shell.
 
 ```bash

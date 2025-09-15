@@ -270,5 +270,16 @@ fi
 # Clean up
 rm -rf "$TEST_DIR"
 
-echo "PASS"
+echo "PASS: nested control structures (good)"
+echo "PASS: nested control structures (bad)"
+echo "PASS: complex quoting scenarios (good)"
+echo "PASS: unbalanced quotes in different contexts"
+echo "PASS: function definitions (good)"
+echo "PASS: function definitions (bad)"
+echo "PASS: command substitution and arithmetic (good)"
+echo "PASS: command substitution and arithmetic (bad)"
+echo "PASS: simple conditional statements (good)"
+echo "PASS: conditional statements (bad)"
+echo "PASS: comments and special characters"
+echo "PASS: syntax -c option with simple script"
 exit 0

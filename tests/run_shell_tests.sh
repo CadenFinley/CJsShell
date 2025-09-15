@@ -12,11 +12,17 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-TOTAL=0
-PASS=0
-FAIL=0
-SKIP=0
+TOTAL_FILES=0
+FILES_PASS=0
+FILES_FAIL=0
+FILES_SKIP=0
 WARNINGS=0
+
+# Individual test counters
+TOTAL_TESTS=0
+TESTS_PASS=0
+TESTS_FAIL=0
+TESTS_SKIP=0
 
 # Check if cjsh binary exists
 if [ ! -x "$CJSH" ]; then
@@ -54,7 +60,7 @@ discover_test_files() {
 run_test() {
     test_name=$1
     test_file="$SHELL_TESTS_DIR/${test_name}.sh"
-    TOTAL=$((TOTAL+1))
+    TOTAL_FILES=$((TOTAL_FILES+1))
     printf "  %-50s " "$test_name:"
     
     if [ -f "$test_file" ]; then
@@ -68,17 +74,23 @@ run_test() {
         subtests_skipped=$(echo "$output" | grep -c "SKIP")
         subtests_total=$((subtests_passed + subtests_failed + subtests_skipped))
         
+        # Add to global counters
+        TOTAL_TESTS=$((TOTAL_TESTS + subtests_total))
+        TESTS_PASS=$((TESTS_PASS + subtests_passed))
+        TESTS_FAIL=$((TESTS_FAIL + subtests_failed))
+        TESTS_SKIP=$((TESTS_SKIP + subtests_skipped))
+        
         if [ $exit_code -eq 0 ]; then
             if [ $subtests_skipped -gt 0 ]; then
                 echo "${GREEN}PASS${NC} (${subtests_passed}/${subtests_total}, ${subtests_skipped} skipped)"
             else
                 echo "${GREEN}PASS${NC} (${subtests_passed}/${subtests_total})"
             fi
-            PASS=$((PASS+1))
+            FILES_PASS=$((FILES_PASS+1))
         else
             echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
             echo "    Output: $output"
-            FAIL=$((FAIL+1))
+            FILES_FAIL=$((FILES_FAIL+1))
         fi
         
         # Show skipped tests details
@@ -98,7 +110,7 @@ run_test() {
         fi
     else
         echo "${YELLOW}SKIP${NC} (file not found)"
-        SKIP=$((SKIP+1))
+        FILES_SKIP=$((FILES_SKIP+1))
     fi
 }
 
@@ -112,19 +124,28 @@ done
 echo ""
 echo "${BLUE}Test Summary${NC}"
 echo "${BLUE}============${NC}"
-echo "Total tests: $TOTAL"
-echo "${GREEN}Passed: $PASS${NC}"
-echo "${RED}Failed: $FAIL${NC}"
+echo "Total individual tests: $TOTAL_TESTS"
+echo "${GREEN}Passed: $TESTS_PASS${NC}"
+if [ $TESTS_FAIL -gt 0 ]; then
+    echo "${RED}Failed: $TESTS_FAIL${NC}"
+fi
+if [ $TESTS_SKIP -gt 0 ]; then
+    echo "${YELLOW}Skipped: $TESTS_SKIP${NC}"
+fi
+echo ""
+echo "Test files: $TOTAL_FILES"
+echo "${GREEN}Files passed: $FILES_PASS${NC}"
+echo "${RED}Files failed: $FILES_FAIL${NC}"
 if [ $WARNINGS -gt 0 ]; then
     echo "${YELLOW}Warnings: $WARNINGS${NC}"
 fi
 
-if [ $FAIL -eq 0 ]; then
+if [ $FILES_FAIL -eq 0 ]; then
     echo ""
     echo "${GREEN}All tests passed!${NC}"
     exit 0
 else
     echo ""
     echo "${RED}Some tests failed. Please review the output above.${NC}"
-    exit $FAIL
+    exit $FILES_FAIL
 fi

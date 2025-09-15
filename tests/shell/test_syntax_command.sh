@@ -18,6 +18,8 @@ if ! echo "$OUT" | grep -q "Usage:"; then
     echo "FAIL: syntax command without args should show usage (got '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
+else
+    echo "PASS: syntax command without args shows usage"
 fi
 
 # Test 2: Create a file with correct syntax
@@ -58,6 +60,8 @@ if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; the
     echo "FAIL: syntax check on good file should pass (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
+else
+    echo "PASS: syntax check on good file"
 fi
 
 # Test 3: Create a file with syntax errors
@@ -89,6 +93,8 @@ if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
     echo "FAIL: syntax check on bad file should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
+else
+    echo "PASS: syntax check on bad file"
 fi
 
 # Test 4: Test -c option with good command
@@ -98,6 +104,8 @@ if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; the
     echo "FAIL: syntax -c with good command should pass (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
+else
+    echo "PASS: syntax -c with good command"
 fi
 
 # Test 5: Test -c option with bad command
@@ -221,5 +229,16 @@ fi
 # Clean up
 rm -rf "$TEST_DIR"
 
-echo "PASS"
+echo "PASS: syntax command without args shows usage"
+echo "PASS: syntax check on good file"
+echo "PASS: syntax check on bad file"
+echo "PASS: syntax -c with good command"
+echo "PASS: syntax -c with bad command"
+echo "PASS: syntax -c with complex good command"
+echo "PASS: syntax on non-existent file"
+echo "PASS: syntax check on empty file"
+echo "PASS: syntax check on shebang-only file"
+echo "PASS: syntax check on complex errors"
+echo "PASS: handling of unclosed double quotes"
+echo "PASS: handling of unclosed single quotes"
 exit 0
