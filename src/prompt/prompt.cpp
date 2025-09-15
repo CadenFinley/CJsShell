@@ -25,7 +25,7 @@ std::string Prompt::get_prompt() {
     return info.get_basic_prompt();
   }
 
-  bool is_git_repo = info.is_git_repository(repo_root);
+  bool is_git_repo = is_git_repository(repo_root);
 
   if (is_git_repo) {
     std::unordered_map<std::string, std::string> vars =
@@ -183,4 +183,29 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(
 
   // Get variables only for the specified segments
   return info.get_variables(segments, is_git_repo, repo_root);
+}
+
+bool Prompt::is_git_repository(std::filesystem::path& repo_root) {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: is_git_repository START" << std::endl;
+
+  std::filesystem::path current_path = std::filesystem::current_path();
+  std::filesystem::path git_head_path;
+
+  repo_root = current_path;
+
+  while (!info.is_root_path(repo_root)) {
+    git_head_path = repo_root / ".git" / "HEAD";
+    if (std::filesystem::exists(git_head_path)) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: is_git_repository END: true, repo_root="
+                  << repo_root.string() << std::endl;
+      return true;
+    }
+    repo_root = repo_root.parent_path();
+  }
+
+  if (g_debug_mode)
+    std::cerr << "DEBUG: is_git_repository END: false" << std::endl;
+  return false;
 }

@@ -27,7 +27,6 @@ class PromptInfo {
       cache;
   std::mutex cache_mutex;
 
-  bool is_root_path(const std::filesystem::path& path);
   template <typename F>
   std::string get_cached_value(const std::string& key, F value_func,
                                int ttl_seconds = 60);
@@ -35,10 +34,10 @@ class PromptInfo {
  public:
   PromptInfo();
   ~PromptInfo();
+  bool is_root_path(const std::filesystem::path& path);
   std::string get_basic_prompt();
   std::string get_basic_title();
   std::string get_basic_ai_prompt();
-  bool is_git_repository(std::filesystem::path& repo_root);
   std::string get_git_branch(const std::filesystem::path& git_head_path);
   std::string get_git_status(const std::filesystem::path& repo_root);
   std::string get_local_path(const std::filesystem::path& repo_root);

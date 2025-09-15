@@ -33,4 +33,5 @@ class Prompt {
   std::string get_ai_prompt();
   std::string get_title_prompt();
   std::string get_newline_prompt();
+  bool is_git_repository(std::filesystem::path& repo_root);
 };

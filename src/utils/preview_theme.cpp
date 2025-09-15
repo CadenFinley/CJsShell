@@ -8,6 +8,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "prompt_info.h"
+#include "prompt.h"
 #include "theme.h"
 #include "theme_command.h"
 
@@ -34,9 +35,10 @@ int preview_theme(const std::string& theme_name) {
   std::cout << "==========================================\n" << std::endl;
 
   PromptInfo prompt_info;
+  Prompt prompt;
 
   std::filesystem::path repo_root = std::filesystem::current_path();
-  bool is_git_repo = prompt_info.is_git_repository(repo_root);
+  bool is_git_repo = prompt.is_git_repository(repo_root);
 
   std::vector<nlohmann::json> all_segments;
   all_segments.insert(all_segments.end(), temp_theme->ps1_segments.begin(),

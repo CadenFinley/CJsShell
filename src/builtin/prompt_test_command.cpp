@@ -4,13 +4,15 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "prompt.h"
 #include "prompt_info.h"
 
 int prompt_test_command(const std::vector<std::string>& args) {
   (void)args;
+  Prompt p;
   PromptInfo pi;
   std::filesystem::path repo_root;
-  bool is_git_repo = pi.is_git_repository(repo_root);
+  bool is_git_repo = p.is_git_repository(repo_root);
 
   std::cout << "\n--- Prompt Tag Test ---\n";
   std::cout << "USERNAME: " << pi.get_username() << "\n";

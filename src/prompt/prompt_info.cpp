@@ -308,54 +308,6 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
   return false;
 }
 
-bool PromptInfo::is_git_repository(std::filesystem::path& repo_root) {
-  if (g_debug_mode)
-    std::cerr << "DEBUG: is_git_repository START" << std::endl;
-
-  // Cache this result using the current path as the key
-  std::string current_path_str = std::filesystem::current_path().string();
-  std::string cache_key = "is_git_repo_" + current_path_str;
-
-  std::string cached_result = get_cached_value(
-      cache_key,
-      [this, &repo_root]() -> std::string {
-        std::filesystem::path current_path = std::filesystem::current_path();
-        std::filesystem::path git_head_path;
-
-        repo_root = current_path;
-
-        while (!is_root_path(repo_root)) {
-          git_head_path = repo_root / ".git" / "HEAD";
-          if (std::filesystem::exists(git_head_path)) {
-            return repo_root.string() + ",true";
-          }
-          repo_root = repo_root.parent_path();
-        }
-
-        return "not_found,false";
-      },
-      300);  // Cache for 5 minutes since repo status rarely changes
-
-  // Parse the result
-  size_t comma_pos = cached_result.find(',');
-  if (comma_pos != std::string::npos) {
-    std::string path_str = cached_result.substr(0, comma_pos);
-    std::string is_repo_str = cached_result.substr(comma_pos + 1);
-
-    if (is_repo_str == "true" && path_str != "not_found") {
-      repo_root = std::filesystem::path(path_str);
-      if (g_debug_mode)
-        std::cerr << "DEBUG: is_git_repository END: true, repo_root="
-                  << repo_root.string() << std::endl;
-      return true;
-    }
-  }
-
-  if (g_debug_mode)
-    std::cerr << "DEBUG: is_git_repository END: false" << std::endl;
-  return false;
-}
-
 std::string PromptInfo::get_git_branch(
     const std::filesystem::path& git_head_path) {
   if (g_debug_mode)
