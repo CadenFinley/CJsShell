@@ -32,7 +32,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (g_ai == nullptr) {
-    PRINT_ERROR("AI is not initialized");
+    PRINT_ERROR("AI is not initialized - API configuration required");
     return 1;
   }
   unsigned int command_index = 1;

@@ -47,7 +47,8 @@ std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 
 static int parse_command_line_arguments(int argc, char* argv[],
-                                        std::string& script_file);
+                                        std::string& script_file,
+                                        std::vector<std::string>& script_args);
 static int handle_early_exit_modes();
 static int handle_non_interactive_mode(const std::string& script_file);
 static int initialize_interactive_components();
@@ -121,13 +122,20 @@ int main(int argc, char* argv[]) {
 
   // Parse command line arguments
   std::string script_file;
-  int parse_result = parse_command_line_arguments(argc, argv, script_file);
+  std::vector<std::string> script_args;
+  int parse_result = parse_command_line_arguments(argc, argv, script_file, script_args);
   if (parse_result != 0) {
     return parse_result;
   }
 
   // Initialize core shell components
   g_shell = std::make_unique<Shell>();
+  
+  // Set positional parameters if we have script arguments
+  if (!script_args.empty()) {
+    g_shell->set_positional_parameters(script_args);
+  }
+  
   setup_environment_variables();
   save_startup_arguments(argc, argv);
 
@@ -207,7 +215,8 @@ static void detect_login_mode(char* argv[]) {
 }
 
 static int parse_command_line_arguments(int argc, char* argv[],
-                                        std::string& script_file) {
+                                        std::string& script_file,
+                                        std::vector<std::string>& script_args) {
   static struct option long_options[] = {
       {"login", no_argument, 0, 'l'},
       {"interactive", no_argument, 0, 'i'},
@@ -225,7 +234,7 @@ static int parse_command_line_arguments(int argc, char* argv[],
       {"no-syntax-highlighting", no_argument, 0, 'S'},
       {"startup-test", no_argument, 0, 'X'},
       {0, 0, 0, 0}};
-  const char* short_options = "lic:vhdPTACLNOSX";
+  const char* short_options = "+lic:vhdPTACLNOSX";  // Leading '+' enables POSIXLY_CORRECT behavior
   int option_index = 0;
   int c;
   optind = 1;
@@ -323,6 +332,13 @@ static int parse_command_line_arguments(int argc, char* argv[],
     config::interactive_mode = false;
     if (g_debug_mode)
       std::cerr << "DEBUG: Script file specified: " << script_file << std::endl;
+    
+    // Collect script arguments (everything after the script file name)
+    for (int i = optind + 1; i < argc; i++) {
+      script_args.push_back(argv[i]);
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Script argument " << (i - optind) << ": " << argv[i] << std::endl;
+    }
   }
 
   // Check if stdin is a terminal - if not, disable interactive mode

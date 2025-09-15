@@ -2764,7 +2764,10 @@ int ShellScriptInterpreter::execute_block(
     if (tok_idx < header_toks.size() && header_toks[tok_idx] == "case")
       ++tok_idx;
     if (tok_idx < header_toks.size()) {
-      case_value = header_toks[tok_idx++];
+      std::string raw_case_value = header_toks[tok_idx++];
+      // Expand variables in case value
+      shell_parser->expand_env_vars(raw_case_value);
+      case_value = raw_case_value;
     }
 
     bool found_in = false;
@@ -2891,6 +2894,12 @@ int ShellScriptInterpreter::execute_block(
       if (paren_pos != std::string::npos) {
         std::string pattern = trim(line.substr(0, paren_pos));
         std::string command_part = trim(line.substr(paren_pos + 1));
+        
+        // Strip trailing ;; from command_part
+        if (command_part.length() >= 2 && 
+            command_part.substr(command_part.length() - 2) == ";;") {
+          command_part = trim(command_part.substr(0, command_part.length() - 2));
+        }
 
         bool pattern_matches = false;
         if (pattern == "*") {
@@ -2958,7 +2967,17 @@ int ShellScriptInterpreter::execute_block(
               break;
           }
 
-          break;
+          // Found a match, now scan forward to esac
+          while (k < src_lines.size()) {
+            std::string scan_line = trim(strip_inline_comment(src_lines[k]));
+            if (scan_line == "esac") {
+              k++; // Move past esac
+              break;
+            }
+            k++;
+          }
+          idx = k;
+          return matched_exit_code;
         }
       }
       k++;
@@ -2967,6 +2986,7 @@ int ShellScriptInterpreter::execute_block(
     while (k < src_lines.size()) {
       std::string line = trim(strip_inline_comment(src_lines[k]));
       if (line == "esac") {
+        k++; // Move past esac
         break;
       }
       k++;
