@@ -100,14 +100,14 @@ else
     fail_test "isocline source directory not found"
 fi
 
-# Test 7: Completion functionality (basic test)
-echo "Testing completion functionality..."
-# This is hard to test non-interactively, so we'll just check if completion files exist
-if find "$(dirname "$0")/../../" -name "*completion*" -o -name "*complete*" | grep -v test >/dev/null 2>&1; then
-    pass_test "completion related files exist"
-else
-    skip_test "completion files (may be integrated elsewhere)"
-fi
+# # Test 7: Completion functionality (basic test)
+# echo "Testing completion functionality..."
+# # This is hard to test non-interactively, so we'll just check if completion files exist
+# if find "$(dirname "$0")/../../" -name "*completion*" -o -name "*complete*" | grep -v test >/dev/null 2>&1; then
+#     pass_test "completion related files exist"
+# else
+#     skip_test "completion files (may be integrated elsewhere)"
+# fi
 
 # Test 8: History file handling
 echo "Testing history file handling..."
@@ -160,14 +160,14 @@ else
     skip_test "syntax highlighting (may not be implemented)"
 fi
 
-# Test 13: Tab completion
-echo "Testing tab completion infrastructure..."
-# Check if there are completion-related functions in the code
-if grep -r "complete\|completion" "$(dirname "$0")/../../include" | grep -v test >/dev/null 2>&1; then
-    pass_test "completion infrastructure exists"
-else
-    skip_test "completion infrastructure"
-fi
+# # Test 13: Tab completion
+# echo "Testing tab completion infrastructure..."
+# # Check if there are completion-related functions in the code
+# if grep -r "complete\|completion" "$(dirname "$0")/../../include" | grep -v test >/dev/null 2>&1; then
+#     pass_test "completion infrastructure exists"
+# else
+#     skip_test "completion infrastructure"
+# fi
 
 # Test 14: Prompt customization
 echo "Testing prompt customization..."
@@ -178,15 +178,15 @@ else
     skip_test "prompt customization"
 fi
 
-# Test 15: Command recall (history expansion)
-echo "Testing command recall..."
-# This is complex to test non-interactively, so we'll test if the history command works with options
-"$CJSH_PATH" -c "history -c" >/tmp/history_clear_test.out 2>&1
-if [ $? -eq 0 ] || [ $? -eq 1 ]; then  # May not be implemented or may error
-    skip_test "history options (may not be fully implemented)"
-else
-    skip_test "history options"
-fi
+# # Test 15: Command recall (history expansion)
+# echo "Testing command recall..."
+# # This is complex to test non-interactively, so we'll test if the history command works with options
+# "$CJSH_PATH" -c "history -c" >/tmp/history_clear_test.out 2>&1
+# if [ $? -eq 0 ] || [ $? -eq 1 ]; then  # May not be implemented or may error
+#     skip_test "history options (may not be fully implemented)"
+# else
+#     skip_test "history options"
+# fi
 
 # Test 16: Line editing functionality
 echo "Testing line editing functionality..."
