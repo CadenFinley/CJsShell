@@ -40,7 +40,6 @@
 #include "trap_command.h"
 #include "type_command.h"
 #include "umask_command.h"
-#include "uninstall_command.h"
 #include "version_command.h"
 
 #define PRINT_ERROR(MSG)                             \
@@ -70,7 +69,8 @@ Built_ins::Built_ins() : shell(nullptr) {
        [this](const std::vector<std::string>& args) {
          return ::change_directory_with_bookmarks(
              args.size() > 1 ? args[1] : "", current_directory,
-             previous_directory, last_terminal_output_error, directory_bookmarks);
+             previous_directory, last_terminal_output_error,
+             directory_bookmarks);
        }},
       {"..",
        [this](const std::vector<std::string>& args) {
@@ -129,7 +129,7 @@ Built_ins::Built_ins() : shell(nullptr) {
       {"login-startup-arg",
        [](const std::vector<std::string>& args) {
          // while this is a builtin, it is only intended for internal use during
-         // startup for the .cjprofile
+         // startup for the .cjprofile and not for interactive use
          return ::startup_flag_command(args);
        }},
       {".",
@@ -159,8 +159,6 @@ Built_ins::Built_ins() : shell(nullptr) {
        [](const std::vector<std::string>& args) {
          return ::version_command(args);
        }},
-      {"uninstall",
-       [](const std::vector<std::string>&) { return ::uninstall_command(); }},
       {"eval",
        [this](const std::vector<std::string>& args) {
          return ::eval_command(args, shell);
@@ -213,21 +211,14 @@ Built_ins::Built_ins() : shell(nullptr) {
          // In a real implementation, this would replace the shell process
          return shell->execute_command(exec_args, false);
        }},
-      {":",
-       [](const std::vector<std::string>&) {
-         // null command - always succeeds
-         return 0;
-       }},
+      {":", [](const std::vector<std::string>&) { return 0; }},
       {"if",
        [this](const std::vector<std::string>& args) {
-         // Simple inline if statement handler for basic cases
-         // Format: if [ condition ]; then command; fi
          if (args.size() < 2) {
            PRINT_ERROR("if: syntax error");
            return 2;
          }
 
-         // Join all arguments back into a string for parsing
          std::string full_cmd;
          for (size_t i = 1; i < args.size(); ++i) {
            if (i > 1)
@@ -235,7 +226,6 @@ Built_ins::Built_ins() : shell(nullptr) {
            full_cmd += args[i];
          }
 
-         // Basic parsing for "[ condition ]; then command; fi"
          size_t then_pos = full_cmd.find("; then ");
          size_t fi_pos = full_cmd.rfind("; fi");
 
@@ -248,10 +238,8 @@ Built_ins::Built_ins() : shell(nullptr) {
          std::string then_cmd =
              full_cmd.substr(then_pos + 7, fi_pos - (then_pos + 7));
 
-         // Execute condition
          int cond_result = shell->execute(condition);
 
-         // If condition succeeded, execute then command
          if (cond_result == 0) {
            return shell->execute(then_cmd);
          }
@@ -352,8 +340,9 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
     if (args[0] == "cd" && args.size() == 1) {
-      return ::change_directory_with_bookmarks("", current_directory, previous_directory,
-                                last_terminal_output_error, directory_bookmarks);
+      return ::change_directory_with_bookmarks(
+          "", current_directory, previous_directory, last_terminal_output_error,
+          directory_bookmarks);
     }
     int status = it->second(args);
     return status;
@@ -378,7 +367,8 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
   }
 }
 
-std::string Built_ins::find_bookmark_path(const std::string& bookmark_name) const {
+std::string Built_ins::find_bookmark_path(
+    const std::string& bookmark_name) const {
   auto it = directory_bookmarks.find(bookmark_name);
   if (it != directory_bookmarks.end()) {
     return it->second;
@@ -386,6 +376,7 @@ std::string Built_ins::find_bookmark_path(const std::string& bookmark_name) cons
   return "";
 }
 
-const std::unordered_map<std::string, std::string>& Built_ins::get_directory_bookmarks() const {
+const std::unordered_map<std::string, std::string>&
+Built_ins::get_directory_bookmarks() const {
   return directory_bookmarks;
 }

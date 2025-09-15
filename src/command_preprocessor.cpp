@@ -17,11 +17,9 @@ CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(
     std::cerr << "DEBUG: Preprocessing command: " << command << std::endl;
   }
 
-  // First handle here documents
   result.processed_text =
       process_here_documents(result.processed_text, result.here_documents);
 
-  // Then handle subshells
   std::string original_text = result.processed_text;
   result.processed_text = process_subshells(result.processed_text);
   result.has_subshells = (original_text != result.processed_text);
@@ -48,13 +46,11 @@ std::string CommandPreprocessor::process_here_documents(
     const std::string& command, std::map<std::string, std::string>& here_docs) {
   std::string result = command;
 
-  // Look for here document pattern: command << DELIMITER
   size_t here_pos = result.find("<<");
   if (here_pos == std::string::npos) {
     return result;
   }
 
-  // Find the delimiter
   size_t delim_start = here_pos + 2;
   while (delim_start < result.size() && std::isspace(result[delim_start])) {
     delim_start++;
@@ -71,25 +67,22 @@ std::string CommandPreprocessor::process_here_documents(
 
   std::string delimiter = result.substr(delim_start, delim_end - delim_start);
 
-  // Check if delimiter is quoted
   bool delimiter_quoted = false;
   if (delimiter.length() >= 2) {
     if ((delimiter.front() == '\'' && delimiter.back() == '\'') ||
         (delimiter.front() == '"' && delimiter.back() == '"')) {
       delimiter_quoted = true;
-      // Remove quotes from delimiter for matching
+
       delimiter = delimiter.substr(1, delimiter.length() - 2);
     }
   }
 
-  // Find the content between delimiter lines
   size_t content_start = result.find('\n', delim_end);
   if (content_start == std::string::npos) {
     return result;
   }
-  content_start++;  // Skip the newline
+  content_start++;
 
-  // Look for line containing just the delimiter
   std::string delimiter_pattern = "\n" + delimiter;
   size_t content_end = result.find(delimiter_pattern, content_start);
 
@@ -97,23 +90,18 @@ std::string CommandPreprocessor::process_here_documents(
     return result;
   }
 
-  // Extract here document content
   std::string content =
       result.substr(content_start, content_end - content_start);
 
-  // Generate placeholder using a simple marker approach
   std::string placeholder =
       "HEREDOC_PLACEHOLDER_" + std::to_string(++placeholder_counter);
 
-  // Store content with expansion flag
   std::string stored_content = content;
   if (!delimiter_quoted) {
-    // Mark for variable expansion by prefixing with special marker
     stored_content = "__EXPAND__" + content;
   }
   here_docs[placeholder] = stored_content;
 
-  // Replace here document with input redirection to placeholder
   std::string before_here = result.substr(0, here_pos);
   std::string after_delimiter =
       result.substr(content_end + delimiter.length() + 1);
@@ -131,8 +119,6 @@ std::string CommandPreprocessor::process_here_documents(
 std::string CommandPreprocessor::process_subshells(const std::string& command) {
   std::string result = command;
 
-  // Look for subshell pattern at start: (command) or { command; }
-  // possibly followed by redirection. Allow leading whitespace.
   if (result.empty()) {
     return result;
   }
@@ -151,28 +137,23 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
   }
 
   if (close_pos == std::string::npos) {
-    return result;  // No matching closing character
+    return result;
   }
 
-  // Extract subshell/brace content
   std::string subshell_content =
       result.substr(lead + 1, close_pos - (lead + 1));
   std::string remaining = result.substr(close_pos + 1);
 
-  // For braces, trim leading/trailing whitespace and ensure trailing semicolon
-  // is handled
   if (result[lead] == '{') {
-    // Trim whitespace
     size_t start = subshell_content.find_first_not_of(" \t\n\r");
     size_t end = subshell_content.find_last_not_of(" \t\n\r");
     if (start != std::string::npos && end != std::string::npos) {
       subshell_content = subshell_content.substr(start, end - start + 1);
     }
-    // Remove trailing semicolon if present (braces require it but subshell
-    // execution doesn't need it)
+
     if (!subshell_content.empty() && subshell_content.back() == ';') {
       subshell_content.pop_back();
-      // Trim any whitespace after removing semicolon
+
       end = subshell_content.find_last_not_of(" \t\n\r");
       if (end != std::string::npos) {
         subshell_content = subshell_content.substr(0, end + 1);
@@ -180,8 +161,6 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
     }
   }
 
-  // Instead of using sh -c, we'll return a marker that the shell can handle
-  // The shell script interpreter should handle subshells directly
   std::string prefix = result.substr(0, lead);
   result = prefix + "SUBSHELL{" + subshell_content + "}" + remaining;
 

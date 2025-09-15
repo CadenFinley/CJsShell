@@ -14,7 +14,6 @@
     std::cerr << last_terminal_output_error << '\n'; \
   } while (0)
 
-// Helper function to update directory bookmarks
 void update_directory_bookmarks(
     const std::string& dir_path,
     std::unordered_map<std::string, std::string>& directory_bookmarks) {
@@ -136,19 +135,15 @@ int change_directory_with_bookmarks(
   std::filesystem::path dir_path;
 
   try {
-    // First try as normal path (absolute or relative)
     if (std::filesystem::path(target_dir).is_absolute()) {
       dir_path = target_dir;
     } else {
-      // Try relative path from current directory
       dir_path = std::filesystem::path(current_directory) / target_dir;
-      
-      // If relative path doesn't exist, check if it's a bookmark
+
       if (!std::filesystem::exists(dir_path)) {
         auto bookmark_it = directory_bookmarks.find(target_dir);
         if (bookmark_it != directory_bookmarks.end()) {
           dir_path = bookmark_it->second;
-          //std::cout << "Using bookmark: " << target_dir << " -> " << dir_path << std::endl;
         }
       }
     }
@@ -177,7 +172,6 @@ int change_directory_with_bookmarks(
 
     previous_directory = old_directory;
 
-    // Update bookmarks: add the basename of the new directory
     update_directory_bookmarks(current_directory, directory_bookmarks);
 
     return 0;

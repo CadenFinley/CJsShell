@@ -25,10 +25,6 @@ class Shell {
  public:
   Shell();
   ~Shell();
-
-  // High-level entry: treat any string as a shell script line and execute via
-  // the script interpreter (supports semicolons, conditionals, etc.). Returns
-  // last exit code.
   int execute(const std::string& script);
 
   int execute_command(std::vector<std::string> args,
@@ -88,13 +84,10 @@ class Shell {
     return env_vars;
   }
 
-  // Positional parameters support
   void set_positional_parameters(const std::vector<std::string>& params);
   int shift_positional_parameters(int count = 1);
   std::vector<std::string> get_positional_parameters() const;
   size_t get_positional_parameter_count() const;
-
-  // Shell options support
   void set_shell_option(const std::string& option, bool value);
   bool get_shell_option(const std::string& option) const;
   bool is_errexit_enabled() const;

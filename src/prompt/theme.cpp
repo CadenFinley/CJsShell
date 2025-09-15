@@ -311,7 +311,6 @@ size_t Theme::get_terminal_width() const {
                 << std::endl;
     }
     return w.ws_col;
-    // return w.ws_col > 2 ? w.ws_col - 1 : w.ws_col;
   }
 
   if (g_debug_mode) {
@@ -603,12 +602,8 @@ std::string Theme::escape_brackets_for_isocline(
     const std::string& input) const {
   std::string result = input;
 
-  // Escape brackets around numeric content that could be mistaken for bbcode
-  // tags This pattern matches [number] where number is digits, potentially with
-  // signs
   std::regex numeric_bracket_pattern(R"(\[([+-]?\d+)\])");
 
-  // Replace [number] patterns with \[number] to escape the opening bracket
   result = std::regex_replace(result, numeric_bracket_pattern, R"(\[$1])");
 
   if (g_debug_mode) {
@@ -645,8 +640,6 @@ std::string Theme::render_line(
     }
   }
 
-  // After all placeholder substitution, escape brackets that could be mistaken
-  // for bbcode tags
   result = escape_brackets_for_isocline(result);
 
   if (g_debug_mode) {
@@ -748,23 +741,6 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
     }
   }
 
-  // if (requirements.contains("fonts") && requirements["fonts"].is_array() &&
-  //     !g_startup_active) {
-  //   std::stringstream font_req;
-  //   font_req << "This theme works best with one of these fonts: ";
-  //   bool first = true;
-
-  //   for (const auto& font : requirements["fonts"]) {
-  //     if (font.is_string()) {
-  //       if (!first) font_req << ", ";
-  //       font_req << font.get<std::string>();
-  //       first = false;
-  //     }
-  //   }
-
-  //   std::cout << font_req.str() << std::endl;
-  // }
-
   if (requirements.contains("plugins") && requirements["plugins"].is_array()) {
     for (const auto& plugin_name : requirements["plugins"]) {
       if (plugin_name.is_string()) {
@@ -828,7 +804,6 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
     }
   }
 
-  // Output all missing requirements
   if (!requirements_met) {
     std::cerr << "Theme requirements not met:" << std::endl;
     for (const auto& req : missing_requirements) {
@@ -843,7 +818,6 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
   size_t ansi_chars = 0;
   size_t visible_chars = 0;
 
-  // Use utf8proc-based width calculation
   size_t raw_length =
       utf8_utils::calculate_display_width(str, &ansi_chars, &visible_chars);
 

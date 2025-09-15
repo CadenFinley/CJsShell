@@ -57,10 +57,10 @@ class Built_ins {
   }
   int do_ai_request(const std::string& prompt);
 
-  // Directory bookmark functions
   void add_directory_bookmark(const std::string& dir_path);
   std::string find_bookmark_path(const std::string& bookmark_name) const;
-  const std::unordered_map<std::string, std::string>& get_directory_bookmarks() const;
+  const std::unordered_map<std::string, std::string>& get_directory_bookmarks()
+      const;
 
  private:
   std::string current_directory;
@@ -71,6 +71,6 @@ class Built_ins {
   Shell* shell;
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;
-  std::unordered_map<std::string, std::string> directory_bookmarks;  // basename -> full_path
+  std::unordered_map<std::string, std::string> directory_bookmarks;
   std::string last_terminal_output_error;
 };

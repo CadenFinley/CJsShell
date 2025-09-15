@@ -107,7 +107,6 @@ std::string GitInfo::get_git_branch(
     std::getline(head_file, head_contents);
     head_file.close();
 
-    // Check if it's a reference to refs/heads/branch_name
     const std::string ref_prefix = "ref: refs/heads/";
     if (head_contents.substr(0, ref_prefix.length()) == ref_prefix) {
       std::string branch = head_contents.substr(ref_prefix.length());
@@ -115,15 +114,13 @@ std::string GitInfo::get_git_branch(
         std::cerr << "DEBUG: get_git_branch END: " << branch << std::endl;
       return branch;
     } else {
-      // Detached HEAD state - show abbreviated commit hash
       if (g_debug_mode)
         std::cerr << "DEBUG: get_git_branch END: detached HEAD" << std::endl;
-      return head_contents.substr(0, 7);  // First 7 characters of hash
+      return head_contents.substr(0, 7);
     }
   } catch (const std::exception& e) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: get_git_branch exception: " << e.what()
-                << std::endl;
+      std::cerr << "DEBUG: get_git_branch exception: " << e.what() << std::endl;
     return "";
   }
 }
@@ -142,14 +139,14 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
                      now - last_git_status_check)
                      .count();
 
-  // Increase cache time to 60 seconds to reduce overhead
   if ((elapsed > 60 || cached_git_dir != git_dir) &&
       !is_git_status_check_running) {
     std::lock_guard<std::mutex> lock(git_status_mutex);
     if (!is_git_status_check_running) {
       is_git_status_check_running = true;
 
-      std::string cmd = "git -C '" + git_dir + "' status --porcelain 2>/dev/null";
+      std::string cmd =
+          "git -C '" + git_dir + "' status --porcelain 2>/dev/null";
       FILE* fp = popen(cmd.c_str(), "r");
       if (fp) {
         char buffer[256];
@@ -206,13 +203,11 @@ std::string GitInfo::get_local_path(const std::filesystem::path& repo_root) {
   if (current_path_str == repo_root_path) {
     result = repo_root_name;
   } else {
-    // Get relative path from repo root
     try {
       std::filesystem::path relative_path =
           std::filesystem::relative(cwd, repo_root);
       result = repo_root_name + "/" + relative_path.string();
     } catch (const std::exception& e) {
-      // Fallback to current directory name if relative path fails
       result = cwd.filename().string();
     }
   }
@@ -227,14 +222,12 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
   ahead = 0;
   behind = 0;
 
-  // First get the current branch
   std::filesystem::path git_head_path = repo_root / ".git" / "HEAD";
   std::string branch = get_git_branch(git_head_path);
   if (branch.empty()) {
-    return -1;  // Not in a git repository or can't determine branch
+    return -1;
   }
 
-  // Check if the branch has an upstream
   std::string upstream_cmd = "git -C '" + repo_root.string() +
                              "' rev-parse --abbrev-ref " + branch +
                              "@{upstream} 2>/dev/null";
@@ -254,10 +247,9 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
   pclose(upstream_fp);
 
   if (upstream.empty()) {
-    return -1;  // No upstream branch
+    return -1;
   }
 
-  // Get ahead/behind counts
   std::string count_cmd = "git -C '" + repo_root.string() +
                           "' rev-list --left-right --count " + branch + "..." +
                           upstream + " 2>/dev/null";
@@ -268,7 +260,6 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
 
   char count_buffer[64];
   if (fgets(count_buffer, sizeof(count_buffer), count_fp) != NULL) {
-    // Parse "ahead\tbehind" format
     std::string count_str = count_buffer;
     size_t tab_pos = count_str.find('\t');
     if (tab_pos != std::string::npos) {
@@ -283,7 +274,7 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
   }
   pclose(count_fp);
 
-  return 0;  // Success
+  return 0;
 }
 
 int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
@@ -310,18 +301,15 @@ int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
 
 bool GitInfo::get_git_has_staged_changes(
     const std::filesystem::path& repo_root) {
-  std::string cmd = "git -C '" + repo_root.string() +
-                    "' diff --cached --quiet 2>/dev/null";
+  std::string cmd =
+      "git -C '" + repo_root.string() + "' diff --cached --quiet 2>/dev/null";
   int result = system(cmd.c_str());
 
-  // git diff --cached --quiet returns 0 if no staged changes, 1 if there are
-  // staged changes
   if (result == 0) {
-    return false;  // No staged changes
-  } else if (result == 256) {  // 256 = 1 << 8 (exit code 1)
-    return true;               // Has staged changes
+    return false;
+  } else if (result == 256) {
+    return true;
   } else {
-    // Error occurred or not in a git repository
     return false;
   }
 }

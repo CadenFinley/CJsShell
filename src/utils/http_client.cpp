@@ -11,7 +11,6 @@
 HttpResponse HttpClient::post(const std::string& url, const std::string& data,
                               const std::map<std::string, std::string>& headers,
                               int timeout_seconds) {
-  // Try to use system curl as fallback
   if (is_curl_available()) {
     return system_curl_post(url, data, headers, timeout_seconds);
   }
@@ -25,7 +24,6 @@ HttpResponse HttpClient::post(const std::string& url, const std::string& data,
 HttpResponse HttpClient::head(const std::string& url,
                               const std::map<std::string, std::string>& headers,
                               int timeout_seconds) {
-  // Try to use system curl as fallback
   if (is_curl_available()) {
     return system_curl_head(url, headers, timeout_seconds);
   }
@@ -65,7 +63,6 @@ HttpResponse HttpClient::system_curl_post(
   HttpResponse response;
   response.success = false;
 
-  // Create temporary files for data and response
   std::string temp_data_file =
       "/tmp/cjsh_http_data_" + std::to_string(getpid());
   std::string temp_response_file =
@@ -73,7 +70,6 @@ HttpResponse HttpClient::system_curl_post(
   std::string temp_headers_file =
       "/tmp/cjsh_http_headers_" + std::to_string(getpid());
 
-  // Write data to temporary file
   std::ofstream data_file(temp_data_file);
   if (!data_file) {
     response.error_message = "Failed to create temporary data file";
@@ -82,14 +78,12 @@ HttpResponse HttpClient::system_curl_post(
   data_file << data;
   data_file.close();
 
-  // Build curl command
   std::ostringstream cmd;
   cmd << "curl -s -w \"%{http_code}\\n\" -m " << timeout_seconds;
   cmd << " -o \"" << temp_response_file << "\"";
   cmd << " -D \"" << temp_headers_file << "\"";
   cmd << " -X POST -d @\"" << temp_data_file << "\"";
 
-  // Add headers
   for (const auto& header : headers) {
     cmd << " -H \"" << escape_for_shell(header.first) << ": "
         << escape_for_shell(header.second) << "\"";
@@ -97,7 +91,6 @@ HttpResponse HttpClient::system_curl_post(
 
   cmd << " \"" << escape_for_shell(url) << "\" 2>/dev/null";
 
-  // Execute curl command
   FILE* fp = popen(cmd.str().c_str(), "r");
   if (fp == nullptr) {
     unlink(temp_data_file.c_str());
@@ -111,7 +104,6 @@ HttpResponse HttpClient::system_curl_post(
   }
   pclose(fp);
 
-  // Read response body
   std::ifstream response_file(temp_response_file);
   if (response_file) {
     std::ostringstream body_stream;
@@ -120,7 +112,6 @@ HttpResponse HttpClient::system_curl_post(
     response_file.close();
   }
 
-  // Read response headers
   std::ifstream headers_file(temp_headers_file);
   if (headers_file) {
     std::string line;
@@ -130,7 +121,6 @@ HttpResponse HttpClient::system_curl_post(
         std::string key = line.substr(0, colon_pos);
         std::string value = line.substr(colon_pos + 1);
 
-        // Trim whitespace
         key.erase(0, key.find_first_not_of(" \t\r\n"));
         key.erase(key.find_last_not_of(" \t\r\n") + 1);
         value.erase(0, value.find_first_not_of(" \t\r\n"));
@@ -144,7 +134,6 @@ HttpResponse HttpClient::system_curl_post(
     headers_file.close();
   }
 
-  // Cleanup temporary files
   unlink(temp_data_file.c_str());
   unlink(temp_response_file.c_str());
   unlink(temp_headers_file.c_str());
@@ -165,16 +154,13 @@ HttpResponse HttpClient::system_curl_head(
   HttpResponse response;
   response.success = false;
 
-  // Create temporary file for headers
   std::string temp_headers_file =
       "/tmp/cjsh_http_headers_" + std::to_string(getpid());
 
-  // Build curl command
   std::ostringstream cmd;
   cmd << "curl -s -I -w \"%{http_code}\\n\" -m " << timeout_seconds;
   cmd << " -D \"" << temp_headers_file << "\"";
 
-  // Add headers
   for (const auto& header : headers) {
     cmd << " -H \"" << escape_for_shell(header.first) << ": "
         << escape_for_shell(header.second) << "\"";
@@ -182,7 +168,6 @@ HttpResponse HttpClient::system_curl_head(
 
   cmd << " \"" << escape_for_shell(url) << "\" 2>/dev/null";
 
-  // Execute curl command
   FILE* fp = popen(cmd.str().c_str(), "r");
   if (fp == nullptr) {
     response.error_message = "Failed to execute curl command";
@@ -195,7 +180,6 @@ HttpResponse HttpClient::system_curl_head(
   }
   pclose(fp);
 
-  // Read response headers
   std::ifstream headers_file(temp_headers_file);
   if (headers_file) {
     std::string line;
@@ -205,7 +189,6 @@ HttpResponse HttpClient::system_curl_head(
         std::string key = line.substr(0, colon_pos);
         std::string value = line.substr(colon_pos + 1);
 
-        // Trim whitespace
         key.erase(0, key.find_first_not_of(" \t\r\n"));
         key.erase(key.find_last_not_of(" \t\r\n") + 1);
         value.erase(0, value.find_first_not_of(" \t\r\n"));
@@ -219,7 +202,6 @@ HttpResponse HttpClient::system_curl_head(
     headers_file.close();
   }
 
-  // Cleanup temporary file
   unlink(temp_headers_file.c_str());
 
   response.success =

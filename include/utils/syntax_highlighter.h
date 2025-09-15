@@ -18,7 +18,6 @@ class SyntaxHighlighter {
   static const std::unordered_set<std::string> shell_keywords_;
   static const std::unordered_set<std::string> shell_built_ins_;
 
-  // Helper methods for enhanced shell script highlighting
   static bool is_shell_keyword(const std::string& token);
   static bool is_shell_builtin(const std::string& token);
   static bool is_variable_reference(const std::string& token);

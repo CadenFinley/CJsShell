@@ -35,10 +35,6 @@ Exec::~Exec() {
     std::cerr << "DEBUG: Exec destructor called" << std::endl;
   }
 
-  // Note: Shell::~Shell() already calls terminate_all_child_process()
-  // so we don't need to do it again here. Just do a final zombie sweep
-  // in case any processes exited between Shell cleanup and Exec destruction.
-
   int status;
   pid_t pid;
   int zombie_count = 0;
@@ -76,12 +72,10 @@ void Exec::init_shell() {
 }
 
 void Exec::handle_child_signal(pid_t pid, int status) {
-  // Only mask SIGCHLD if we're in a high-concurrency situation
-  // For normal interactive use, the mutex should be sufficient
   static bool use_signal_masking = false;
   static int signal_count = 0;
 
-  if (++signal_count > 10) {  // Enable masking if we're getting many signals
+  if (++signal_count > 10) {
     use_signal_masking = true;
   }
 
@@ -98,7 +92,6 @@ void Exec::handle_child_signal(pid_t pid, int status) {
 
     auto it = std::find(job.pids.begin(), job.pids.end(), pid);
     if (it != job.pids.end()) {
-      // Track the status of the last process in the job as soon as we see it
       if (pid == job.last_pid) {
         job.last_status = status;
       }
@@ -205,9 +198,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       _exit(EXIT_FAILURE);
     }
 
-    // Don't force terminal control in child - let parent manage it
-    // This prevents conflicts with complex interactive programs
-
     signal(SIGINT, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
     signal(SIGTSTP, SIG_DFL);
@@ -254,7 +244,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
   int job_id = add_job(job);
 
-  // Also add to the new JobManager for foreground processes
   std::string full_command;
   for (size_t i = 0; i < args.size(); ++i) {
     if (i > 0)
@@ -277,7 +266,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
       exit_code = 128 + WTERMSIG(status);
     }
 
-    // Remove from JobManager when completed
     JobManager::instance().remove_job(new_job_id);
   }
 
@@ -388,7 +376,6 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     int job_id = add_job(job);
 
-    // Also add to the new JobManager
     std::string full_command;
     for (size_t i = 0; i < args.size(); ++i) {
       if (i > 0)
@@ -402,7 +389,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     std::cerr << "[" << job_id << "] " << pid << std::endl;
     last_exit_code = 0;
-    return job_id;  // Return job_id instead of 0
+    return job_id;
   }
 }
 
@@ -419,18 +406,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     if (cmd.background) {
       execute_command_async(cmd.args);
     } else {
-      // Check if this is a builtin command - builtins need special handling
-      // with redirections because they must run in the parent process
       if (!cmd.args.empty() && g_shell && g_shell->get_built_ins() &&
           g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
-        // Only handle __INTERNAL_SUBSHELL__ as a builtin with redirections
-        // Other builtins can fall back to external commands when redirections
-        // are involved
         if (cmd.args[0] == "__INTERNAL_SUBSHELL__") {
-          // For builtin commands with redirections, we need to handle
-          // redirections in the parent process, not fork a child
-
-          // Save original file descriptors
           int orig_stdin = dup(STDIN_FILENO);
           int orig_stdout = dup(STDOUT_FILENO);
           int orig_stderr = dup(STDERR_FILENO);
@@ -444,9 +422,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           int exit_code = 0;
 
           try {
-            // Apply redirections in parent process
-
-            // Handle input redirection
             if (!cmd.input_file.empty()) {
               int fd = open(cmd.input_file.c_str(), O_RDONLY);
               if (fd == -1) {
@@ -460,7 +435,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            // Handle here strings
             if (!cmd.here_string.empty()) {
               int here_pipe[2];
               if (pipe(here_pipe) == -1) {
@@ -486,7 +460,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(here_pipe[0]);
             }
 
-            // Handle output redirection
             if (!cmd.output_file.empty()) {
               int fd = open(cmd.output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -501,7 +474,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            // Handle &> redirection (both stdout and stderr to same file)
             if (cmd.both_output && !cmd.both_output_file.empty()) {
               int fd = open(cmd.both_output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -520,7 +492,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            // Handle append redirection
             if (!cmd.append_file.empty()) {
               int fd = open(cmd.append_file.c_str(),
                             O_WRONLY | O_CREAT | O_APPEND, 0644);
@@ -536,7 +507,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            // Handle stderr redirection to file
             if (!cmd.stderr_file.empty()) {
               int flags =
                   O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
@@ -552,21 +522,18 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            // Handle stderr to stdout redirection (2>&1)
             if (cmd.stderr_to_stdout) {
               if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
                 throw std::runtime_error("Failed to redirect stderr to stdout");
               }
             }
 
-            // Handle stdout to stderr redirection (>&2)
             if (cmd.stdout_to_stderr) {
               if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
                 throw std::runtime_error("Failed to redirect stdout to stderr");
               }
             }
 
-            // Execute the builtin command
             exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
 
           } catch (const std::exception& e) {
@@ -574,7 +541,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             exit_code = EX_OSERR;
           }
 
-          // Restore original file descriptors
           dup2(orig_stdin, STDIN_FILENO);
           dup2(orig_stdout, STDOUT_FILENO);
           dup2(orig_stderr, STDERR_FILENO);
@@ -590,8 +556,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
       }
 
-      // Not a special builtin that needs parent-process execution - proceed
-      // with normal fork/exec
       pid_t pid = fork();
 
       if (pid == -1) {
@@ -629,7 +593,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         sigaddset(&set, SIGCHLD);
         sigprocmask(SIG_UNBLOCK, &set, nullptr);
 
-        // Handle here document (create temp pipe)
         if (!cmd.here_doc.empty()) {
           int here_pipe[2];
           if (pipe(here_pipe) == -1) {
@@ -637,7 +600,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
 
-          // Write here document content to pipe
           ssize_t bytes_written =
               write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
           if (bytes_written == -1) {
@@ -645,7 +607,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             close(here_pipe[1]);
             _exit(EXIT_FAILURE);
           }
-          bytes_written = write(here_pipe[1], "\n", 1);  // Add final newline
+          bytes_written = write(here_pipe[1], "\n", 1);
           if (bytes_written == -1) {
             perror("write here document newline");
             close(here_pipe[1]);
@@ -660,7 +622,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
           close(here_pipe[0]);
         }
-        // Handle here strings (<<<)
+
         else if (!cmd.here_string.empty()) {
           int here_pipe[2];
           if (pipe(here_pipe) == -1) {
@@ -668,7 +630,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
 
-          // Write here string content to pipe (with newline)
           std::string content = cmd.here_string + "\n";
           ssize_t bytes_written =
               write(here_pipe[1], content.c_str(), content.length());
@@ -703,8 +664,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (!cmd.output_file.empty()) {
           int flags = O_WRONLY | O_CREAT | O_TRUNC;
-          // Note: force_overwrite (>|) would bypass noclobber, but we don't
-          // implement noclobber yet
+
           int fd = open(cmd.output_file.c_str(), flags, 0644);
           if (fd == -1) {
             std::cerr << "cjsh: " << cmd.output_file << ": " << strerror(errno)
@@ -720,7 +680,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(fd);
         }
 
-        // Handle &> redirection (both stdout and stderr to same file)
         if (cmd.both_output && !cmd.both_output_file.empty()) {
           int fd = open(cmd.both_output_file.c_str(),
                         O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -761,7 +720,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(fd);
         }
 
-        // stderr redirections
         if (!cmd.stderr_file.empty()) {
           int flags =
               O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
@@ -778,17 +736,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
           close(fd);
         } else if (cmd.stderr_to_stdout) {
-          // if (g_debug_mode) {
-          //   (void)write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in
-          //   single command\n", 52);
-          // }
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
             _exit(EXIT_FAILURE);
           }
         }
 
-        // Handle stdout to stderr redirection (>&2)
         if (cmd.stdout_to_stderr) {
           if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
             perror("dup2 >&2");
@@ -796,22 +749,18 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
         }
 
-        // Handle file descriptor redirections (e.g., 3< file.txt, 4> file.txt)
         for (const auto& fd_redir : cmd.fd_redirections) {
           int fd_num = fd_redir.first;
           const std::string& spec = fd_redir.second;
 
           int file_fd;
           if (spec.find("input:") == 0) {
-            // Input redirection
-            std::string file = spec.substr(6);  // Remove "input:" prefix
+            std::string file = spec.substr(6);
             file_fd = open(file.c_str(), O_RDONLY);
           } else if (spec.find("output:") == 0) {
-            // Output redirection
-            std::string file = spec.substr(7);  // Remove "output:" prefix
+            std::string file = spec.substr(7);
             file_fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
           } else {
-            // Legacy format - try to guess based on fd number
             if (fd_num == 0) {
               file_fd = open(spec.c_str(), O_RDONLY);
             } else {
@@ -834,7 +783,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(file_fd);
         }
 
-        // Handle file descriptor duplications (e.g., 3>&1, 4>&2)
         for (const auto& fd_dup : cmd.fd_duplications) {
           int src_fd = fd_dup.first;
           int dst_fd = fd_dup.second;
@@ -846,9 +794,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
         }
 
-        // Note: Process substitution would require more complex implementation
-        // with named pipes or temporary files, not implemented yet
-
         std::vector<char*> c_args;
         for (auto& arg : cmd.args) {
           c_args.push_back(const_cast<char*>(arg.c_str()));
@@ -859,10 +804,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         _exit(127);
       }
 
-      // Parent branch
       if (g_shell && !g_shell->get_interactive_mode()) {
-        // In non-interactive mode (e.g., -c), wait synchronously for the child
-        // and propagate its real exit status to avoid races with job control.
         int status = 0;
         pid_t wpid;
         do {
@@ -871,7 +813,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         int exit_code = 0;
         if (wpid == -1) {
-          // If wait failed unexpectedly, report generic failure
           exit_code = EX_OSERR;
         } else if (WIFEXITED(status)) {
           exit_code = WEXITSTATUS(status);
@@ -890,7 +831,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
         return last_exit_code;
       } else {
-        // Interactive mode: use job control and foreground waiting
         Job job;
         job.pgid = pid;
         job.command = cmd.args[0];
@@ -903,7 +843,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         int job_id = add_job(job);
         put_job_in_foreground(job_id, false);
 
-        // If there were redirections, ensure file buffers are flushed
         if (!cmd.output_file.empty() || !cmd.append_file.empty() ||
             !cmd.stderr_file.empty()) {
           sync();
@@ -982,7 +921,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         signal(SIGTTOU, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
         if (i == 0) {
-          // Handle here document for first command in pipeline
           if (!cmd.here_doc.empty()) {
             int here_pipe[2];
             if (pipe(here_pipe) == -1) {
@@ -990,7 +928,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               _exit(EXIT_FAILURE);
             }
 
-            // Write here document content to pipe
             ssize_t bytes_written = write(here_pipe[1], cmd.here_doc.c_str(),
                                           cmd.here_doc.length());
             if (bytes_written == -1) {
@@ -998,7 +935,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(here_pipe[1]);
               _exit(EXIT_FAILURE);
             }
-            bytes_written = write(here_pipe[1], "\n", 1);  // Add final newline
+            bytes_written = write(here_pipe[1], "\n", 1);
             if (bytes_written == -1) {
               perror("write here document newline");
               close(here_pipe[1]);
@@ -1070,7 +1007,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
         }
 
-        // Apply stderr redirections for every command in pipeline
         if (!cmd.stderr_file.empty()) {
           int flags =
               O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
@@ -1087,17 +1023,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
           close(fd);
         } else if (cmd.stderr_to_stdout) {
-          // if (g_debug_mode) {
-          //   (void)write(STDERR_FILENO, "DEBUG: Applying 2>&1 redirection in
-          //   pipeline\n", 46);
-          // }
           if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
             perror("dup2 2>&1");
             _exit(EXIT_FAILURE);
           }
         }
 
-        // Handle stdout to stderr redirection (>&2)
         if (cmd.stdout_to_stderr) {
           if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
             perror("dup2 >&2");
@@ -1110,19 +1041,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(pipes[j][1]);
         }
 
-        // Check if this is a builtin command first
         if (g_shell && g_shell->get_built_ins() &&
             g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
-          // Execute builtin in child process
           int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
 
-          // Ensure output is flushed before exit
           fflush(stdout);
           fflush(stderr);
 
           _exit(exit_code);
         } else {
-          // Execute external command
           std::vector<char*> c_args;
           for (auto& arg : cmd.args) {
             c_args.push_back(const_cast<char*>(arg.c_str()));
@@ -1171,7 +1098,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
   int job_id = add_job(job);
 
-  // Also add to the new JobManager
   std::string pipeline_command;
   for (size_t i = 0; i < commands.size(); ++i) {
     if (i > 0)
@@ -1195,11 +1121,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     last_exit_code = 0;
   } else {
     put_job_in_foreground(job_id, false);
-    // After foreground wait, compute exit code based on last process
+
     std::lock_guard<std::mutex> lock(jobs_mutex);
     auto it = jobs.find(job_id);
     if (it != jobs.end()) {
-      // Remove from JobManager when completed
       JobManager::instance().remove_job(new_job_id);
 
       int st = it->second.last_status;
@@ -1214,8 +1139,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 }
 
 int Exec::add_job(const Job& job) {
-  // For add_job, signal masking is usually not needed since it's called
-  // from the main thread before processes are started
   std::lock_guard<std::mutex> lock(jobs_mutex);
 
   int job_id = next_job_id++;
@@ -1225,7 +1148,6 @@ int Exec::add_job(const Job& job) {
 }
 
 void Exec::remove_job(int job_id) {
-  // Job removal is typically safe without signal masking
   std::lock_guard<std::mutex> lock(jobs_mutex);
 
   auto it = jobs.find(job_id);
@@ -1257,7 +1179,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   Job& job = it->second;
 
-  // Try to give the job terminal control, but don't force it
   bool terminal_control_acquired = false;
   if (shell_is_interactive && isatty(shell_terminal)) {
     if (tcsetpgrp(shell_terminal, job.pgid) == 0) {
@@ -1267,7 +1188,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
                   << " (pgid: " << job.pgid << ")" << std::endl;
       }
     } else {
-      // Only log errors that aren't expected for non-interactive processes
       if (errno != ENOTTY && errno != EINVAL && errno != EPERM) {
         if (g_debug_mode) {
           std::cerr << "DEBUG: Could not give terminal control to job "
@@ -1290,7 +1210,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   jobs_mutex.lock();
 
-  // Only restore terminal control if we successfully acquired it
   if (terminal_control_acquired && shell_is_interactive &&
       isatty(shell_terminal)) {
     if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
@@ -1368,9 +1287,7 @@ void Exec::wait_for_job(int job_id) {
       remaining_pids.erase(pid_it);
     }
 
-    // Track last process status separately for correct pipeline exit code
     if (pid == last_pid) {
-      // status captured in variable 'status'
     }
 
     if (pid == last_pid) {
@@ -1399,10 +1316,6 @@ void Exec::wait_for_job(int job_id) {
       job.stopped = false;
       job.status = status;
 
-      // Prefer exit status of the last command in pipeline if available.
-      // If the SIGCHLD handler already reaped the child, our local 'status'
-      // may be uninitialized (e.g., 0). In that case, fall back to the
-      // recorded job.last_status or job.status captured by the signal handler.
       int final_status = saw_last ? last_status : status;
       if (!(WIFEXITED(final_status) || WIFSIGNALED(final_status))) {
         final_status = (job.last_status != 0) ? job.last_status : job.status;
@@ -1441,7 +1354,6 @@ void Exec::terminate_all_child_process() {
               << " jobs" << std::endl;
   }
 
-  // First pass: send SIGTERM to all job process groups
   bool any_jobs_terminated = false;
   for (auto& job_pair : jobs) {
     Job& job = job_pair.second;
@@ -1464,14 +1376,10 @@ void Exec::terminate_all_child_process() {
     }
   }
 
-  // Only add delay if we actually terminated some jobs
   if (any_jobs_terminated) {
-    // Give processes a brief moment to exit gracefully (non-blocking)
-    // Use a much shorter delay to avoid sluggishness
-    usleep(50000);  // 50ms instead of 100ms
+    usleep(50000);
   }
 
-  // Second pass: send SIGKILL to any remaining processes
   for (auto& job_pair : jobs) {
     Job& job = job_pair.second;
     if (!job.completed) {
@@ -1489,20 +1397,18 @@ void Exec::terminate_all_child_process() {
         }
       }
 
-      // Mark job as completed regardless
       job.completed = true;
       job.stopped = false;
       job.status = 0;
     }
   }
 
-  // Final cleanup: reap any remaining zombies (quick pass)
   int status;
   pid_t pid;
   int zombie_count = 0;
   while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < 10) {
     zombie_count++;
-    if (g_debug_mode && zombie_count <= 3) {  // Limit debug output
+    if (g_debug_mode && zombie_count <= 3) {
       std::cerr << "DEBUG: Reaped zombie process " << pid << std::endl;
     }
   }

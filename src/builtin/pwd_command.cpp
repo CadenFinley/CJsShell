@@ -5,9 +5,8 @@
 #include <iostream>
 
 int pwd_command(const std::vector<std::string>& args) {
-  bool logical = true;  // Default to logical PWD
+  bool logical = true;
 
-  // Parse arguments
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
     if (arg == "-L") {
@@ -32,12 +31,10 @@ int pwd_command(const std::vector<std::string>& args) {
   std::string path;
 
   if (logical) {
-    // Use PWD environment variable if it exists and is valid
     const char* pwd_env = getenv("PWD");
     if (pwd_env && pwd_env[0] == '/') {
       path = pwd_env;
     } else {
-      // Fall back to getcwd if PWD is not set or invalid
       char* cwd = getcwd(nullptr, 0);
       if (cwd) {
         path = cwd;
@@ -48,7 +45,6 @@ int pwd_command(const std::vector<std::string>& args) {
       }
     }
   } else {
-    // Physical path - always use getcwd
     char* cwd = getcwd(nullptr, 0);
     if (cwd) {
       path = cwd;

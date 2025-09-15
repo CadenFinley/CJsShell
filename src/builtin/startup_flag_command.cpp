@@ -4,7 +4,6 @@
 
 #include "cjsh.h"
 
-// External declarations from cjsh.cpp
 extern bool g_debug_mode;
 extern std::vector<std::string> g_profile_startup_args;
 
@@ -33,12 +32,10 @@ int startup_flag_command(const std::vector<std::string>& args) {
     std::cerr << "DEBUG: Processing startup flag: " << flag << std::endl;
   }
 
-  // Validate the flag
   if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
       flag == "--no-plugins" || flag == "--no-themes" || flag == "--no-ai" ||
       flag == "--no-colors" || flag == "--no-titleline" ||
       flag == "--no-source" || flag == "--startup-test") {
-    // Check if the flag is already in g_profile_startup_args
     bool flag_exists = false;
     for (const auto& existing_flag : g_profile_startup_args) {
       if (existing_flag == flag) {
@@ -47,7 +44,6 @@ int startup_flag_command(const std::vector<std::string>& args) {
       }
     }
 
-    // Only add the flag if it's not already present
     if (!flag_exists) {
       g_profile_startup_args.push_back(flag);
       if (g_debug_mode) {

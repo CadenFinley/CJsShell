@@ -7,7 +7,7 @@ class EnvironmentInfo {
  public:
   EnvironmentInfo() = default;
   ~EnvironmentInfo() = default;
-  
+
   std::string get_terminal_type();
   std::pair<int, int> get_terminal_dimensions();
   std::string get_active_language_version(const std::string& language);

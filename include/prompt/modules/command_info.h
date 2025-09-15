@@ -5,36 +5,31 @@
 
 class CommandInfo {
  private:
-  // Configuration
-  int min_time_threshold = 2000; // milliseconds
+  int min_time_threshold = 2000;  // milliseconds
   bool show_milliseconds = false;
-  
-  // Timing data
-  std::chrono::time_point<std::chrono::high_resolution_clock> last_command_start;
+
+  std::chrono::time_point<std::chrono::high_resolution_clock>
+      last_command_start;
   std::chrono::time_point<std::chrono::high_resolution_clock> last_command_end;
   int last_exit_code = 0;
   bool timing_active = false;
-  
-  // Helper methods
+
   std::string format_duration(long long milliseconds);
   std::string format_exit_code(int exit_code);
 
  public:
   CommandInfo();
-  
-  // Command timing
+
   void start_command_timing();
   void end_command_timing(int exit_code);
   long long get_last_command_duration_ms();
   std::string get_formatted_duration();
   bool should_show_duration();
-  
-  // Command status
+
   int get_last_exit_code();
   std::string get_exit_status_symbol();
   bool is_last_command_success();
-  
-  // Configuration
+
   void set_min_time_threshold(int milliseconds);
   void set_show_milliseconds(bool show);
 };

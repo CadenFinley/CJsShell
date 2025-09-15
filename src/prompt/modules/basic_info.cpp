@@ -1,10 +1,10 @@
 #include "basic_info.h"
 
+#include <pwd.h>
+#include <unistd.h>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
-#include <pwd.h>
-#include <unistd.h>
 
 #include "cjsh.h"
 
@@ -52,22 +52,19 @@ std::string BasicInfo::get_current_file_name() {
   std::string filename = current_path.filename().string();
 
   if (filename.empty()) {
-    // This might happen for root directory
     filename = current_path.string();
   }
 
-  // Handle home directory special case
   char* home_dir = getenv("HOME");
   if (home_dir) {
     std::string home_str(home_dir);
     std::string current_str = current_path.string();
-    
+
     if (current_str == home_str) {
       filename = "~";
     } else if (current_str.length() > home_str.length() &&
                current_str.substr(0, home_str.length()) == home_str &&
                current_str[home_str.length()] == '/') {
-      // We're in a subdirectory of home, just return the directory name
       filename = current_path.filename().string();
     }
   }

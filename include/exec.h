@@ -21,8 +21,8 @@ struct Job {
   bool stopped;
   int status;
   std::vector<pid_t> pids;
-  pid_t last_pid = -1;  // pid of last command in pipeline (or sole cmd)
-  int last_status = 0;  // status of last_pid when it terminates
+  pid_t last_pid = -1;
+  int last_status = 0;
 };
 
 class Exec {

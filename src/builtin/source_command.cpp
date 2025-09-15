@@ -7,7 +7,6 @@
 #include "shell.h"
 #include "shell_script_interpreter.h"
 
-// Forward declaration
 extern std::unique_ptr<Shell> g_shell;
 
 int source_command(const std::vector<std::string>& args) {

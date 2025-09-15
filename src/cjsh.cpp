@@ -25,7 +25,6 @@
 #include "trap_command.h"
 #include "usage.h"
 
-// Global variable definitions
 bool g_debug_mode = false;
 bool g_title_line = true;
 struct termios g_original_termios;
@@ -94,8 +93,6 @@ static void initialize_title_strings() {
         " Created 2025 @ \033[1;35mAbilene Christian University\033[0m";
   }
 }
-
-// to do
 
 /*
  * Exit/Return Codes:

@@ -118,9 +118,7 @@ std::string PromptInfo::get_basic_prompt() {
   std::string hostname = get_hostname();
   std::string cwd = get_current_file_path();
 
-  // Pre-calculate size and reserve to avoid reallocations
-  size_t size = username.length() + hostname.length() + cwd.length() +
-                10;  // extra for formatting
+  size_t size = username.length() + hostname.length() + cwd.length() + 10;
   std::string prompt;
   prompt.reserve(size);
 
@@ -143,7 +141,6 @@ std::string PromptInfo::get_basic_ai_prompt() {
       (std::filesystem::current_path().string() + "/" == ai_context) ? "✔"
                                                                      : "✖";
 
-  // Pre-calculate size and reserve to avoid reallocations
   size_t size = ai_model.length() + ai_context.length() + cwd.length() +
                 ai_type.length() + ai_context_comparison.length() + 10;
   std::string prompt;
@@ -170,12 +167,9 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
 
   std::string placeholder = "{" + var_name + "}";
 
-  // Use a static cache to avoid repetitive checks for the same variables
   static std::unordered_map<std::string, bool> cache;
   static std::mutex cache_mutex;
 
-  // Create a unique key based on the variable name and segment sizes (rough
-  // approximation)
   std::string cache_key = var_name + "_" + std::to_string(segments.size());
 
   {
@@ -189,7 +183,6 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
     }
   }
 
-  // If not in cache, search through all segments
   for (const auto& segment : segments) {
     if (segment.contains("content")) {
       std::string content = segment["content"];
@@ -221,12 +214,11 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
   std::unordered_map<std::string, std::string> vars;
 
-  // Create a set of needed variables to avoid computing unused ones
   std::unordered_set<std::string> needed_vars;
   for (const auto& segment : segments) {
     if (segment.contains("content")) {
       std::string content = segment["content"];
-      // Look for placeholders like {VAR_NAME}
+
       std::regex placeholder_pattern("\\{([^}]+)\\}");
       std::smatch matches;
       std::string::const_iterator search_start(content.cbegin());
@@ -239,7 +231,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
   }
 
-  // Fast path for basic info that doesn't change often
   if (needed_vars.count("USERNAME")) {
     vars["USERNAME"] = get_username();
   }
@@ -256,7 +247,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["SHELL_VER"] = get_shell_version();
   }
 
-  // Path information (moderate cost)
   if (needed_vars.count("PATH")) {
     vars["PATH"] = get_current_file_path();
   }
@@ -265,7 +255,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["DIRECTORY"] = get_current_file_name();
   }
 
-  // Time information (low cost)
   if (needed_vars.count("TIME") || needed_vars.count("TIME24")) {
     vars["TIME"] = get_current_time(false);
     vars["TIME24"] = vars["TIME"];
@@ -295,7 +284,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["MONTH_NAME"] = get_current_month_name();
   }
 
-  // System information (potentially high cost, already cached)
   if (needed_vars.count("OS_INFO")) {
     vars["OS_INFO"] = get_os_info();
   }
@@ -330,7 +318,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["TERM_SIZE"] = std::to_string(width) + "x" + std::to_string(height);
   }
 
-  // Language version checks (high cost)
   for (const auto& var_name : needed_vars) {
     if (var_name.substr(0, 9) == "LANG_VER:") {
       std::string lang = var_name.substr(9);
@@ -352,13 +339,11 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["BG_JOBS"] = job_count > 0 ? std::to_string(job_count) : "";
   }
 
-  // Add last exit code placeholder
   if (needed_vars.count("STATUS")) {
     char* status_env = getenv("STATUS");
     vars["STATUS"] = status_env ? std::string(status_env) : "0";
   }
 
-  // Network information (potentially high cost, already cached)
   if (needed_vars.count("IP_LOCAL")) {
     vars["IP_LOCAL"] = get_ip_address(false);
   }
@@ -375,7 +360,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["NET_IFACE"] = get_active_network_interface();
   }
 
-  // Enhanced Directory information
   if (needed_vars.count("DISPLAY_DIR")) {
     vars["DISPLAY_DIR"] = get_display_directory();
   }
@@ -388,7 +372,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["DIR_TRUNCATED"] = is_directory_truncated() ? "true" : "false";
   }
 
-  // Command information
   if (needed_vars.count("CMD_DURATION")) {
     if (should_show_duration()) {
       vars["CMD_DURATION"] = get_formatted_duration();
@@ -414,7 +397,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["CMD_SUCCESS"] = is_last_command_success() ? "true" : "false";
   }
 
-  // Language detection
   if (needed_vars.count("PYTHON_VERSION") && is_python_project()) {
     vars["PYTHON_VERSION"] = get_python_version();
   }
@@ -443,7 +425,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["NODEJS_PM"] = get_nodejs_package_manager();
   }
 
-  // Language project detection
   if (needed_vars.count("IS_PYTHON_PROJECT")) {
     vars["IS_PYTHON_PROJECT"] = is_python_project() ? "true" : "false";
   }
@@ -464,7 +445,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["IS_JAVA_PROJECT"] = is_java_project() ? "true" : "false";
   }
 
-  // Container information
   if (needed_vars.count("CONTAINER_NAME")) {
     vars["CONTAINER_NAME"] = get_container_name();
   }
@@ -489,7 +469,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["REPO_PATH"] = get_repo_relative_path(repo_root);
   }
 
-  // Git information (potentially high cost, already cached)
   if (is_git_repo) {
     std::filesystem::path git_head_path = repo_root / ".git" / "HEAD";
 
@@ -530,7 +509,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
   }
 
-  // Plugin variables
   if (g_plugin) {
     for (const auto& plugin_name : g_plugin->get_enabled_plugins()) {
       plugin_data* pd = g_plugin->get_plugin_data(plugin_name);

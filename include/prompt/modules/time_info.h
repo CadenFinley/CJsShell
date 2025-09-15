@@ -6,7 +6,7 @@ class TimeInfo {
  public:
   TimeInfo() = default;
   ~TimeInfo() = default;
-  
+
   std::string get_current_time(bool twelve_hour_format = false);
   std::string get_current_date();
   int get_current_day();

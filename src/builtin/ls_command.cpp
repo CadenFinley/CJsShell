@@ -24,7 +24,6 @@
 
 #include "shell.h"
 
-// For macOS compatibility - only define if not already available
 #if defined(__APPLE__) && !defined(major)
 #define major(dev) ((int)(((dev) >> 24) & 0xff))
 #endif
@@ -39,7 +38,6 @@
 #define COLOR_CYAN "\033[36m"
 #define COLOR_YELLOW "\033[33m"
 
-// File type constants for faster comparisons
 enum FileType : uint8_t {
   TYPE_UNKNOWN = 0,
   TYPE_DIRECTORY = 1,
@@ -49,17 +47,9 @@ enum FileType : uint8_t {
   TYPE_REGULAR = 5
 };
 
-// Color lookup table for faster access
 static constexpr const char* file_type_colors[] = {
-    COLOR_RESET,  // TYPE_UNKNOWN
-    COLOR_BLUE,   // TYPE_DIRECTORY
-    COLOR_CYAN,   // TYPE_SYMLINK
-    COLOR_RED,    // TYPE_EXECUTABLE
-    COLOR_GREEN,  // TYPE_SOURCE
-    COLOR_RESET   // TYPE_REGULAR
-};
+    COLOR_RESET, COLOR_BLUE, COLOR_CYAN, COLOR_RED, COLOR_GREEN, COLOR_RESET};
 
-// Optimized extension lookup with perfect hash or trie could be even faster
 static const std::unordered_set<std::string_view> source_extensions = {
     ".cpp", ".h",     ".hpp", ".py", ".js",   ".java", ".cs", ".rb", ".php",
     ".go",  ".swift", ".ts",  ".rs", ".html", ".css",  ".c",  ".cc", ".cxx"};
@@ -67,14 +57,11 @@ static const std::unordered_set<std::string_view> source_extensions = {
 static const std::unordered_set<std::string_view> executable_extensions = {
     ".so", ".dylib", ".exe"};
 
-// Optimized color detection using shell context
 bool should_use_colors(Shell* shell) {
-  // First check if output is to a terminal
   if (!isatty(STDOUT_FILENO)) {
     return false;
   }
 
-  // Use shell's interactive mode if available (major optimization)
   if (shell && !shell->get_interactive_mode()) {
     return false;
   }
@@ -82,24 +69,20 @@ bool should_use_colors(Shell* shell) {
   return true;
 }
 
-// Cache for file information to avoid redundant system calls
 struct FileInfo {
   std::filesystem::directory_entry entry;
   struct stat stat_info;
   bool stat_valid = false;
-  std::string_view
-      cached_name_view;  // Use string_view for filename to avoid allocation
-  std::string cached_name_storage;     // Only allocate when needed
-  const char* cached_color = nullptr;  // Use const char* instead of string
+  std::string_view cached_name_view;
+  std::string cached_name_storage;
+  const char* cached_color = nullptr;
   uintmax_t cached_size = 0;
   bool size_calculated = false;
-  uint8_t file_type = 0;  // Cache file type as enum instead of string
+  uint8_t file_type = 0;
 
   FileInfo(const std::filesystem::directory_entry& e) : entry(e) {
-    // Defer string allocation until actually needed
     auto filename = entry.path().filename();
-    if (filename.native().size() <
-        256) {  // For small filenames, use string_view
+    if (filename.native().size() < 256) {
       cached_name_storage = filename.string();
       cached_name_view = cached_name_storage;
     } else {
@@ -147,7 +130,6 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
   bool show_blocks = false;
   bool multi_column_across = false;
 
-  // Pre-calculate color usage to avoid repeated checks
   bool use_colors = should_use_colors(shell);
 
   for (size_t i = 1; i < args.size(); i++) {
@@ -207,7 +189,7 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
             break;
           case 'f':
             unsorted = true;
-            show_hidden = true;  // -f implies -a
+            show_hidden = true;
             break;
           case 'g':
             long_format = true;
@@ -316,7 +298,6 @@ std::string format_size_human_readable(uintmax_t size) {
     unit_index++;
   }
 
-  // Use stack buffer to avoid heap allocation
   char buffer[16];
   if (unit_index == 0) {
     snprintf(buffer, sizeof(buffer), "%lu%s", (unsigned long)size,
@@ -330,8 +311,6 @@ std::string format_size_human_readable(uintmax_t size) {
   return std::string(buffer);
 }
 
-// Calculate directory size - for sorting by size, use recursive calculation
-// For display purposes, use the directory's own size (stat.st_size)
 uintmax_t calculate_directory_size_for_sorting(
     const std::filesystem::path& dir_path) {
   uintmax_t size = 0;
@@ -340,7 +319,7 @@ uintmax_t calculate_directory_size_for_sorting(
   for (const auto& entry :
        std::filesystem::recursive_directory_iterator(dir_path, ec)) {
     if (ec)
-      break;  // Stop on error instead of throwing
+      break;
 
     if (entry.is_regular_file(ec) && !ec) {
       auto file_size = entry.file_size(ec);
@@ -352,7 +331,6 @@ uintmax_t calculate_directory_size_for_sorting(
   return size;
 }
 
-// Format block count with human-readable option
 std::string format_blocks(uintmax_t blocks, bool human_readable) {
   if (human_readable) {
     return format_size_human_readable(blocks);
@@ -365,19 +343,17 @@ std::string format_size(uintmax_t size, bool human_readable) {
   if (human_readable) {
     return format_size_human_readable(size);
   } else {
-    // Use faster integer division and avoid string concatenation
     if (size < 1024)
       return std::to_string(size) + " B";
-    else if (size < 1048576)  // 1024 * 1024
+    else if (size < 1048576)
       return std::to_string(size >> 10) + " KB";
-    else if (size < 1073741824)  // 1024 * 1024 * 1024
+    else if (size < 1073741824)
       return std::to_string(size >> 20) + " MB";
     else
       return std::to_string(size >> 30) + " GB";
   }
 }
 
-// Get cached stat info to avoid redundant system calls
 bool get_file_stat(FileInfo& file_info) {
   if (!file_info.stat_valid) {
     if (stat(file_info.entry.path().c_str(), &file_info.stat_info) == 0) {
@@ -387,14 +363,12 @@ bool get_file_stat(FileInfo& file_info) {
   return file_info.stat_valid;
 }
 
-// Determine file type and color efficiently
 void determine_file_type_and_color(FileInfo& file_info) {
   if (file_info.file_type != TYPE_UNKNOWN)
-    return;  // Already cached
+    return;
 
   std::error_code ec;
 
-  // Use single filesystem query for better performance
   auto file_status = file_info.entry.status(ec);
   if (ec) {
     file_info.file_type = TYPE_UNKNOWN;
@@ -409,7 +383,6 @@ void determine_file_type_and_color(FileInfo& file_info) {
   } else if (file_type_val == std::filesystem::file_type::symlink) {
     file_info.file_type = TYPE_SYMLINK;
   } else if (file_type_val == std::filesystem::file_type::regular) {
-    // Get extension without allocation for common cases
     auto path_str = file_info.entry.path().native();
     auto last_dot = path_str.rfind('.');
 
@@ -422,7 +395,6 @@ void determine_file_type_and_color(FileInfo& file_info) {
       } else if (executable_extensions.count(ext)) {
         file_info.file_type = TYPE_EXECUTABLE;
       } else {
-        // Check executable bit only if needed
         if (get_file_stat(file_info) &&
             (file_info.stat_info.st_mode & S_IXUSR)) {
           file_info.file_type = TYPE_EXECUTABLE;
@@ -431,7 +403,6 @@ void determine_file_type_and_color(FileInfo& file_info) {
         }
       }
     } else {
-      // No extension - check if executable
       if (get_file_stat(file_info) && (file_info.stat_info.st_mode & S_IXUSR)) {
         file_info.file_type = TYPE_EXECUTABLE;
       } else {
@@ -442,17 +413,14 @@ void determine_file_type_and_color(FileInfo& file_info) {
     file_info.file_type = TYPE_REGULAR;
   }
 
-  // Set color from lookup table
   file_info.cached_color = file_type_colors[file_info.file_type];
 }
 
-// Format time according to POSIX specification
 std::string format_posix_time(time_t mtime) {
   time_t now = time(nullptr);
   struct tm* tm_info = localtime(&mtime);
   char buffer[32];
 
-  // If file is older than 6 months or in the future, show year
   if (now - mtime > 6 * 30 * 24 * 60 * 60 || mtime > now) {
     strftime(buffer, sizeof(buffer), "%b %e  %Y", tm_info);
   } else {
@@ -462,7 +430,6 @@ std::string format_posix_time(time_t mtime) {
   return std::string(buffer);
 }
 
-// Quote non-printable characters as ?
 std::string quote_filename(const std::string& filename,
                            bool quote_non_printable) {
   if (!quote_non_printable)
@@ -479,9 +446,7 @@ std::string quote_filename(const std::string& filename,
   return result;
 }
 
-// Fast permission string builder using lookup table
 static void build_permissions_fast(char* perms, mode_t mode) {
-  // File type character
   if (S_ISDIR(mode))
     perms[0] = 'd';
   else if (S_ISLNK(mode))
@@ -497,7 +462,6 @@ static void build_permissions_fast(char* perms, mode_t mode) {
   else
     perms[0] = '-';
 
-  // User permissions
   perms[1] = (mode & S_IRUSR) ? 'r' : '-';
   perms[2] = (mode & S_IWUSR) ? 'w' : '-';
   if (mode & S_ISUID) {
@@ -506,7 +470,6 @@ static void build_permissions_fast(char* perms, mode_t mode) {
     perms[3] = (mode & S_IXUSR) ? 'x' : '-';
   }
 
-  // Group permissions
   perms[4] = (mode & S_IRGRP) ? 'r' : '-';
   perms[5] = (mode & S_IWGRP) ? 'w' : '-';
   if (mode & S_ISGID) {
@@ -515,7 +478,6 @@ static void build_permissions_fast(char* perms, mode_t mode) {
     perms[6] = (mode & S_IXGRP) ? 'x' : '-';
   }
 
-  // Other permissions
   perms[7] = (mode & S_IROTH) ? 'r' : '-';
   perms[8] = (mode & S_IWOTH) ? 'w' : '-';
   if (mode & S_ISVTX) {
@@ -527,7 +489,6 @@ static void build_permissions_fast(char* perms, mode_t mode) {
   perms[10] = '\0';
 }
 
-// Get file type indicator for -F and -p options
 std::string get_file_indicator(const std::filesystem::directory_entry& entry,
                                bool indicator_style, bool append_slash) {
   std::error_code ec;
@@ -542,7 +503,6 @@ std::string get_file_indicator(const std::filesystem::directory_entry& entry,
   if (entry.is_symlink(ec))
     return "@";
 
-  // Check if executable
   struct stat st;
   if (stat(entry.path().c_str(), &st) == 0) {
     if (S_ISFIFO(st.st_mode))
@@ -554,13 +514,11 @@ std::string get_file_indicator(const std::filesystem::directory_entry& entry,
   return "";
 }
 
-// Calculate block size for -s option
 uintmax_t get_block_count(const struct stat& st, bool kilobyte_blocks) {
   uintmax_t block_size = kilobyte_blocks ? 1024 : 512;
   return (st.st_size + block_size - 1) / block_size;
 }
 
-// Get time field based on options
 time_t get_sort_time(const struct stat& st, bool sort_by_access_time,
                      bool sort_by_status_time) {
   if (sort_by_access_time)
@@ -586,7 +544,6 @@ int list_directory(const std::string& path, bool show_hidden,
   try {
     std::vector<FileInfo> entries;
 
-    // Estimate capacity to avoid vector reallocations
     std::error_code ec;
     auto dir_iter = std::filesystem::directory_iterator(path, ec);
     if (ec) {
@@ -594,14 +551,11 @@ int list_directory(const std::string& path, bool show_hidden,
       return 1;
     }
 
-    // Reserve space for better performance
-    entries.reserve(32);  // Start with reasonable capacity
+    entries.reserve(32);
 
-    // Handle -d option: list directory itself, not contents
     if (directory_only) {
       entries.emplace_back(std::filesystem::directory_entry(path));
     } else {
-      // Add . and .. entries when showing hidden files (optimized)
       if (show_hidden) {
         std::filesystem::path current_path = std::filesystem::absolute(path);
         entries.emplace_back(std::filesystem::directory_entry(current_path));
@@ -612,17 +566,14 @@ int list_directory(const std::string& path, bool show_hidden,
         entries.back().cached_name_storage = "..";
       }
 
-      // Collect entries efficiently with filtering
       for (const auto& entry : dir_iter) {
         const auto& path = entry.path();
         const std::string& filename = path.filename().string();
 
-        // Early filtering to avoid unnecessary allocations
         if (!show_hidden && !show_almost_all && filename[0] == '.') {
           continue;
         }
 
-        // -A shows all except . and ..
         if (show_almost_all && (filename == "." || filename == "..")) {
           continue;
         }
@@ -631,14 +582,12 @@ int list_directory(const std::string& path, bool show_hidden,
       }
     }
 
-    // Optimized sorting with cached information
-    if (!unsorted) {  // -f option disables sorting
+    if (!unsorted) {
       auto compare_entries = [&](const FileInfo& a, const FileInfo& b) {
         std::error_code ec_a, ec_b;
         bool a_is_dir = a.entry.is_directory(ec_a);
         bool b_is_dir = b.entry.is_directory(ec_b);
 
-        // Directory-first sorting (if not reversed)
         if (!reverse_order) {
           if (a_is_dir && !b_is_dir)
             return true;
@@ -647,7 +596,6 @@ int list_directory(const std::string& path, bool show_hidden,
         }
 
         if (sort_by_time || sort_by_access_time || sort_by_status_time) {
-          // Use cached stat info
           FileInfo& a_mut = const_cast<FileInfo&>(a);
           FileInfo& b_mut = const_cast<FileInfo&>(b);
 
@@ -665,7 +613,6 @@ int list_directory(const std::string& path, bool show_hidden,
           FileInfo& a_mut = const_cast<FileInfo&>(a);
           FileInfo& b_mut = const_cast<FileInfo&>(b);
 
-          // Calculate size for both files and directories
           if (!a_mut.size_calculated) {
             std::error_code ec;
             if (a_is_dir) {
@@ -704,10 +651,8 @@ int list_directory(const std::string& path, bool show_hidden,
       std::sort(entries.begin(), entries.end(), compare_entries);
     }
 
-    // Improve I/O performance
     std::ios::sync_with_stdio(false);
 
-    // Determine output format (POSIX precedence rules)
     bool use_long_format =
         long_format && !multi_column && !stream_format && !multi_column_across;
     bool use_stream_format = stream_format && !use_long_format;
@@ -718,7 +663,6 @@ int list_directory(const std::string& path, bool show_hidden,
       std::cout << path << ":" << std::endl;
     }
 
-    // Calculate total blocks for long format
     uintmax_t total_blocks = 0;
     if (use_long_format || show_blocks) {
       for (auto& file_info : entries) {
@@ -737,7 +681,6 @@ int list_directory(const std::string& path, bool show_hidden,
       }
     }
 
-    // Handle stream format (-m)
     if (use_stream_format) {
       bool first = true;
       for (auto& file_info : entries) {
@@ -764,7 +707,6 @@ int list_directory(const std::string& path, bool show_hidden,
       return 0;
     }
 
-    // Process entries with optimized operations
     for (size_t i = 0; i < entries.size(); i++) {
       auto& file_info = entries[i];
       determine_file_type_and_color(file_info);
@@ -785,14 +727,9 @@ int list_directory(const std::string& path, bool show_hidden,
           size_str = "???";
         }
       } else if (file_info.entry.is_directory(ec) && !ec) {
-        // For directories, show the directory entry size (not recursive content
-        // size) unless we're sorting by size and already calculated the
-        // recursive size
         if (sort_by_size && file_info.size_calculated) {
           size_str = format_size(file_info.cached_size, human_readable);
         } else {
-          // Use the directory's own size from stat (typically block size like
-          // 4096)
           if (get_file_stat(file_info)) {
             size_str = format_size(file_info.stat_info.st_size, human_readable);
           } else {
@@ -803,14 +740,12 @@ int list_directory(const std::string& path, bool show_hidden,
 
       if (use_long_format) {
         if (!get_file_stat(file_info)) {
-          continue;  // Skip if we can't get stat info
+          continue;
         }
 
-        // Build permission string efficiently using stack buffer
         char perms[11];
         build_permissions_fast(perms, file_info.stat_info.st_mode);
 
-        // Get owner and group info (cache these lookups in production)
         std::string owner, group;
         if (numeric_ids) {
           owner = std::to_string(file_info.stat_info.st_uid);
@@ -822,12 +757,10 @@ int list_directory(const std::string& path, bool show_hidden,
           group = gr ? gr->gr_name : std::to_string(file_info.stat_info.st_gid);
         }
 
-        // Format time according to POSIX
         time_t display_time = get_sort_time(
             file_info.stat_info, sort_by_access_time, sort_by_status_time);
         std::string time_str = format_posix_time(display_time);
 
-        // Build POSIX compliant long format output
         if (show_inode) {
           printf("%8lu ", (unsigned long)file_info.stat_info.st_ino);
         }
@@ -854,7 +787,6 @@ int list_directory(const std::string& path, bool show_hidden,
           printf("%-8s ", group.c_str());
         }
 
-        // Handle device files vs regular files
         if (S_ISCHR(file_info.stat_info.st_mode) ||
             S_ISBLK(file_info.stat_info.st_mode)) {
           printf("%3u, %3u ", major(file_info.stat_info.st_rdev),
@@ -871,7 +803,6 @@ int list_directory(const std::string& path, bool show_hidden,
 
         printf("%s ", time_str.c_str());
 
-        // Add colors to long format output when appropriate (POSIX compliant)
         if (use_colors) {
           std::cout << file_info.cached_color;
         }
@@ -887,7 +818,6 @@ int list_directory(const std::string& path, bool show_hidden,
           if (!link_ec) {
             std::cout << " -> ";
             if (use_colors) {
-              // Color the symlink target based on what it points to
               std::error_code target_ec;
               std::filesystem::path target_path =
                   file_info.entry.path().parent_path() / target;
@@ -911,7 +841,6 @@ int list_directory(const std::string& path, bool show_hidden,
 
         std::cout << std::endl;
       } else {
-        // Simple format (one per line or multi-column)
         std::string output;
 
         if (show_inode && get_file_stat(file_info)) {
@@ -924,7 +853,6 @@ int list_directory(const std::string& path, bool show_hidden,
           output += format_blocks(blocks, human_readable) + " ";
         }
 
-        // Add color for simple format when appropriate
         if (use_colors) {
           output += file_info.cached_color;
         }

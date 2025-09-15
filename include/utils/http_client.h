@@ -25,7 +25,6 @@ class HttpClient {
       int timeout_seconds = 30);
 
  private:
-  // Try to use system curl command as fallback
   static HttpResponse system_curl_post(
       const std::string& url, const std::string& data,
       const std::map<std::string, std::string>& headers, int timeout_seconds);

@@ -37,7 +37,6 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
                   << std::endl;
       }
     } else {
-      // If no equals sign, just display the alias
       auto it = aliases.find(args[i]);
       if (it != aliases.end()) {
         std::cout << "alias " << it->first << "='" << it->second << "'"

@@ -67,7 +67,6 @@ std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
     result.push_back(pair.second);
   }
 
-  // Sort by job ID
   std::sort(result.begin(), result.end(),
             [](const std::shared_ptr<JobControlJob>& a,
                const std::shared_ptr<JobControlJob>& b) {
@@ -160,8 +159,6 @@ void JobManager::cleanup_finished_jobs() {
   for (const auto& pair : jobs) {
     auto job = pair.second;
     if (job->state == JobState::DONE || job->state == JobState::TERMINATED) {
-      // Show completion notification for background jobs if not already
-      // notified
       if (!job->notified) {
         if (job->state == JobState::DONE) {
           std::cerr << "\n[" << job->job_id << "] Done\t" << job->command
@@ -173,7 +170,6 @@ void JobManager::cleanup_finished_jobs() {
         job->notified = true;
       }
 
-      // Mark for removal if notified
       if (job->notified) {
         to_remove.push_back(job->job_id);
       }
@@ -185,12 +181,10 @@ void JobManager::cleanup_finished_jobs() {
   }
 }
 
-// Signal name to number mapping for kill command
 static int parse_signal(const std::string& signal_str) {
   if (signal_str.empty())
     return SIGTERM;
 
-  // Handle numeric signals
   if (std::isdigit(signal_str[0])) {
     try {
       return std::stoi(signal_str);
@@ -199,7 +193,6 @@ static int parse_signal(const std::string& signal_str) {
     }
   }
 
-  // Handle signal names
   std::string name = signal_str;
   if (name.substr(0, 3) == "SIG") {
     name = name.substr(3);
@@ -238,7 +231,6 @@ int jobs_command(const std::vector<std::string>& args) {
   bool long_format = false;
   bool pid_only = false;
 
-  // Parse options
   for (size_t i = 1; i < args.size(); ++i) {
     if (args[i] == "-l") {
       long_format = true;
@@ -293,7 +285,6 @@ int jobs_command(const std::vector<std::string>& args) {
     std::cout << std::setw(12) << std::left << state_str << " " << job->command
               << std::endl;
 
-    // Mark as notified for cleanup
     job->notified = true;
   }
 
@@ -306,7 +297,6 @@ int fg_command(const std::vector<std::string>& args) {
 
   int job_id = job_manager.get_current_job();
 
-  // Parse job specification
   if (args.size() > 1) {
     std::string job_spec = args[1];
     if (job_spec.substr(0, 1) == "%") {
@@ -327,7 +317,6 @@ int fg_command(const std::vector<std::string>& args) {
     return 1;
   }
 
-  // Move job to foreground
   if (isatty(STDIN_FILENO)) {
     if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
       perror("fg: tcsetpgrp");
@@ -335,7 +324,6 @@ int fg_command(const std::vector<std::string>& args) {
     }
   }
 
-  // Continue the job if stopped
   if (job->state == JobState::STOPPED) {
     if (killpg(job->pgid, SIGCONT) < 0) {
       perror("fg: killpg");
@@ -348,13 +336,11 @@ int fg_command(const std::vector<std::string>& args) {
 
   std::cout << job->command << std::endl;
 
-  // Wait for job to complete
   int status;
   for (pid_t pid : job->pids) {
     waitpid(pid, &status, WUNTRACED);
   }
 
-  // Restore shell to foreground
   if (isatty(STDIN_FILENO)) {
     tcsetpgrp(STDIN_FILENO, getpgrp());
   }
@@ -379,7 +365,6 @@ int bg_command(const std::vector<std::string>& args) {
 
   int job_id = job_manager.get_current_job();
 
-  // Parse job specification
   if (args.size() > 1) {
     std::string job_spec = args[1];
     if (job_spec.substr(0, 1) == "%") {
@@ -405,7 +390,6 @@ int bg_command(const std::vector<std::string>& args) {
     return 1;
   }
 
-  // Continue the job in background
   if (killpg(job->pgid, SIGCONT) < 0) {
     perror("bg: killpg");
     return 1;
@@ -421,7 +405,6 @@ int wait_command(const std::vector<std::string>& args) {
   auto& job_manager = JobManager::instance();
 
   if (args.size() == 1) {
-    // Wait for all background jobs
     auto jobs = job_manager.get_all_jobs();
     int last_exit_status = 0;
 
@@ -444,13 +427,11 @@ int wait_command(const std::vector<std::string>& args) {
     return last_exit_status;
   }
 
-  // Wait for specific job or PID
   int last_exit_status = 0;
   for (size_t i = 1; i < args.size(); ++i) {
     std::string target = args[i];
 
     if (target.substr(0, 1) == "%") {
-      // Job specification
       try {
         int job_id = std::stoi(target.substr(1));
         auto job = job_manager.get_job(job_id);
@@ -477,7 +458,6 @@ int wait_command(const std::vector<std::string>& args) {
         return 1;
       }
     } else {
-      // PID specification
       try {
         pid_t pid = std::stoi(target);
         int status;
@@ -513,10 +493,8 @@ int kill_command(const std::vector<std::string>& args) {
   int signal = SIGTERM;
   size_t start_index = 1;
 
-  // Parse signal argument
   if (args[1].substr(0, 1) == "-") {
     if (args[1] == "-l") {
-      // List signals
       std::cout << "HUP INT QUIT ILL TRAP ABRT BUS FPE KILL USR1 SEGV USR2 "
                    "PIPE ALRM TERM CHLD CONT STOP TSTP TTIN TTOU URG XCPU XFSZ "
                    "VTALRM PROF WINCH IO SYS"
@@ -544,12 +522,10 @@ int kill_command(const std::vector<std::string>& args) {
 
   auto& job_manager = JobManager::instance();
 
-  // Process targets
   for (size_t i = start_index; i < args.size(); ++i) {
     std::string target = args[i];
 
     if (target.substr(0, 1) == "%") {
-      // Job specification
       try {
         int job_id = std::stoi(target.substr(1));
         auto job = job_manager.get_job(job_id);
@@ -566,7 +542,6 @@ int kill_command(const std::vector<std::string>& args) {
                   << ": arguments must be process or job IDs" << std::endl;
       }
     } else {
-      // PID specification
       try {
         pid_t pid = std::stoi(target);
         if (kill(pid, signal) < 0) {

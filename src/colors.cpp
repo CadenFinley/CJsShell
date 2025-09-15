@@ -487,7 +487,6 @@ RGB get_color_by_name(const std::string& name) {
     return custom_it->second;
   }
 
-  // Use linear search for the constexpr array
   for (const auto& named_color : g_basic_colors) {
     if (named_color.name == upper_name) {
       return named_color.color;
@@ -500,7 +499,6 @@ RGB get_color_by_name(const std::string& name) {
 std::unordered_map<std::string, std::string> get_color_map() {
   std::unordered_map<std::string, std::string> color_map;
 
-  // Initialize with string literals instead of string_view
   color_map["BOLD"] = ansi::BOLD;
   color_map["ITALIC"] = ansi::ITALIC;
   color_map["UNDERLINE"] = ansi::UNDERLINE;

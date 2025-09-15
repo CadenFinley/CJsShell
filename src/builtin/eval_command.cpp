@@ -23,26 +23,20 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
 
     std::string arg = args[i];
 
-    // Check if this is a variable assignment that was split due to spaces
     size_t eq_pos = arg.find('=');
     if (eq_pos != std::string::npos && eq_pos > 0) {
-      // This looks like a variable assignment, check if it was split
       std::string var_name = arg.substr(0, eq_pos);
       std::string partial_value = arg.substr(eq_pos + 1);
 
-      // Look ahead to see if subsequent arguments should be combined
       std::string full_value = partial_value;
       size_t j = i + 1;
 
-      // Combine arguments until we hit a clear command boundary
       while (j < args.size()) {
         const std::string& next_arg = args[j];
 
-        // Stop if we hit a command separator or clearly separate command
         if (next_arg == ";" || next_arg == "&&" || next_arg == "||" ||
             next_arg == "|" || next_arg == "&" ||
-            // Stop if next arg looks like a new command (doesn't contain path
-            // separators)
+
             (next_arg.find('/') == std::string::npos &&
              next_arg.find(':') == std::string::npos && next_arg != "with" &&
              next_arg != "spaces" && next_arg.find("export") == 0)) {
@@ -53,7 +47,6 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
         j++;
       }
 
-      // Only quote if the value contains spaces and isn't already quoted
       if (full_value.find(" ") != std::string::npos) {
         bool already_quoted =
             (full_value.size() >= 2 &&
@@ -61,7 +54,6 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
               (full_value.front() == '\'' && full_value.back() == '\'')));
 
         if (!already_quoted) {
-          // Remove any trailing semicolon from value before quoting
           bool has_semicolon =
               (!full_value.empty() && full_value.back() == ';');
           if (has_semicolon) {
@@ -79,7 +71,6 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
         command_to_eval += arg;
       }
 
-      // Skip the arguments we just processed
       i = j - 1;
     } else {
       command_to_eval += arg;

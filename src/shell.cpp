@@ -21,32 +21,25 @@ Shell::Shell() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Constructing Shell" << std::endl;
 
-  // Save terminal state BEFORE any modifications
   save_terminal_state();
 
-  // Use make_unique for better exception safety and potentially better memory
-  // layout
   shell_prompt = std::make_unique<Prompt>();
   shell_exec = std::make_unique<Exec>();
   signal_handler = std::make_unique<SignalHandler>();
 
-  // Use make_unique for all objects for consistent memory management
   shell_parser = std::make_unique<Parser>();
   built_ins = std::make_unique<Built_ins>();
   shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
 
-  // Provide the parser to the script interpreter now that it exists
   if (shell_script_interpreter && shell_parser) {
     shell_script_interpreter->set_parser(shell_parser.get());
-    shell_parser->set_shell(
-        this);  // Set shell reference for positional parameters
+    shell_parser->set_shell(this);
   }
   built_ins->set_shell(this);
   built_ins->set_current_directory();
 
   shell_terminal = STDIN_FILENO;
 
-  // Initialize managers
   JobManager::instance().set_shell(this);
   TrapManager::instance().set_shell(this);
 
@@ -59,7 +52,7 @@ Shell::~Shell() {
   if (interactive_mode) {
     std::cerr << "Destroying Shell." << std::endl;
   }
-  // unique_ptr automatically handles cleanup
+
   shell_exec->terminate_all_child_process();
   restore_terminal_state();
 }
@@ -85,7 +78,6 @@ int Shell::execute(const std::string& script) {
 
   lines = shell_parser->parse_into_lines(processed_script);
 
-  // print all lines
   if (g_debug_mode) {
     std::cerr << "DEBUG: Executing script with " << lines.size()
               << " lines:" << std::endl;
@@ -94,7 +86,6 @@ int Shell::execute(const std::string& script) {
     }
   }
 
-  // so now we have a series of lines basically a pseudo script
   if (shell_script_interpreter) {
     last_exit_code = shell_script_interpreter->execute_block(lines);
     last_command = processed_script;
@@ -163,8 +154,6 @@ void Shell::setup_job_control() {
       }
     }
 
-    // Don't overwrite the saved terminal state with tcgetattr
-    // The terminal state was already saved before any modifications
     job_control_enabled = true;
   } catch (const std::exception& e) {
     std::cerr << "Error setting up terminal: " << e.what() << std::endl;
@@ -230,32 +219,25 @@ int Shell::execute_command(std::vector<std::string> args,
     return last_exit_code;
   }
 
-  // Check if this is a standalone variable assignment
   if (args.size() == 1 && shell_parser) {
     std::string var_name, var_value;
     if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
-      // This was a standalone variable assignment
-      // is_env_assignment already checked readonly and printed error
-      // If it returned true, the assignment is allowed
       setenv(var_name.c_str(), var_value.c_str(), 1);
       last_exit_code = 0;
       return last_exit_code;
     }
-    // If is_env_assignment returned false and it was a valid assignment format,
-    // it means it was rejected (likely readonly), so return error
+
     if (args[0].find('=') != std::string::npos) {
       last_exit_code = 1;
       return last_exit_code;
     }
   }
 
-  // run built in command
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     int code = built_ins->builtin_command(args);
     last_terminal_output_error = built_ins->get_last_error();
     last_exit_code = code;
 
-    // For loop control commands, pass the exit code directly
     if (args[0] == "break" || args[0] == "continue" || args[0] == "return") {
       if (g_debug_mode)
         std::cerr << "DEBUG: Detected loop control command: " << args[0]
@@ -265,7 +247,6 @@ int Shell::execute_command(std::vector<std::string> args,
     return last_exit_code;
   }
 
-  // run plugin command
   if (g_plugin) {
     std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
     if (!args.empty() && !enabled_plugins.empty()) {
@@ -280,18 +261,15 @@ int Shell::execute_command(std::vector<std::string> args,
     }
   }
 
-  // run shell commands
   if (run_in_background) {
     int job_id = shell_exec->execute_command_async(args);
     if (job_id > 0) {
-      // Get the job and set background PID
       auto jobs = shell_exec->get_jobs();
       auto it = jobs.find(job_id);
       if (it != jobs.end() && !it->second.pids.empty()) {
         pid_t last_pid = it->second.pids.back();
         setenv("!", std::to_string(last_pid).c_str(), 1);
 
-        // Also notify the job manager
         JobManager::instance().set_last_background_pid(last_pid);
 
         if (g_debug_mode) {
@@ -334,14 +312,13 @@ std::string Shell::get_previous_directory() const {
   return built_ins->get_previous_directory();
 }
 
-// Positional parameters support
 void Shell::set_positional_parameters(const std::vector<std::string>& params) {
   positional_parameters = params;
 }
 
 int Shell::shift_positional_parameters(int count) {
   if (count < 0) {
-    return 1;  // Error: negative shift count
+    return 1;
   }
 
   if (static_cast<size_t>(count) >= positional_parameters.size()) {

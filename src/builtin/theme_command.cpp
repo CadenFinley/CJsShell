@@ -68,35 +68,28 @@ int theme_command(const std::vector<std::string>& args) {
 
     std::cout << "Theme: " << themeName << std::endl;
 
-    // Count emoji and wide characters in theme segments
     int total_emoji_count = 0;
     int total_segment_count = 0;
 
-    // Helper function to count emoji characters in a string
     auto count_emoji = [](const std::string& str) {
       int emoji_count = 0;
       for (size_t i = 0; i < str.size();) {
         unsigned char c = static_cast<unsigned char>(str[i]);
         if ((c & 0xF8) == 0xF0) {
-          // 4-byte UTF-8 sequence (emoji)
           emoji_count++;
           i += 4;
         } else if ((c & 0xF0) == 0xE0) {
-          // 3-byte UTF-8 sequence (some wide characters)
           emoji_count++;
           i += 3;
         } else if ((c & 0xE0) == 0xC0) {
-          // 2-byte UTF-8 sequence
           i += 2;
         } else {
-          // ASCII character
           i += 1;
         }
       }
       return emoji_count;
     };
 
-    // Count emoji in all segments
     for (const auto& segment_array :
          {"ps1_segments", "git_segments", "ai_segments", "newline_segments"}) {
       if (theme_json.contains(segment_array) &&
@@ -164,7 +157,6 @@ int theme_command(const std::vector<std::string>& args) {
       std::cout << "No special requirements." << std::endl;
     }
 
-    // Display emoji and display width information
     if (total_emoji_count > 0) {
       std::cout << "\nDisplay Information:" << std::endl;
       std::cout << "  Emoji/Wide Characters: " << total_emoji_count << " (in "
@@ -207,7 +199,6 @@ int theme_command(const std::vector<std::string>& args) {
 
         return success ? 0 : 1;
       } else {
-        // Check if theme exists locally
         std::string theme_file = cjsh_filesystem::g_cjsh_theme_path.string() +
                                  "/" + theme_name + ".json";
         if (std::filesystem::exists(theme_file)) {
@@ -263,23 +254,19 @@ int theme_command(const std::vector<std::string>& args) {
 }
 
 int uninstall_theme(const std::string& themeName) {
-  // Check if we're trying to uninstall the default theme
   if (themeName == "default") {
     std::cerr << "Error: Cannot uninstall the default theme." << std::endl;
     return 1;
   }
 
-  // Theme file path
   std::string theme_file =
       cjsh_filesystem::g_cjsh_theme_path.string() + "/" + themeName + ".json";
 
-  // Check if theme exists
   if (!std::filesystem::exists(theme_file)) {
     std::cerr << "Error: Theme '" << themeName << "' not found." << std::endl;
     return 1;
   }
 
-  // Check if theme is currently active and prevent uninstallation
   if (g_current_theme == themeName) {
     std::cerr << "Error: Cannot uninstall the currently active theme '"
               << themeName << "'. Please switch to a different theme first."
@@ -287,7 +274,6 @@ int uninstall_theme(const std::string& themeName) {
     return 1;
   }
 
-  // Remove the theme file
   try {
     std::filesystem::remove(theme_file);
     std::cout << "Theme '" << themeName << "' uninstalled successfully."

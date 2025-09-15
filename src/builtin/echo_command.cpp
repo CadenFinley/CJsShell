@@ -5,7 +5,6 @@
 #include <iostream>
 #include <string>
 
-// Process escape sequences in a string
 std::string process_escape_sequences(const std::string& input) {
   std::string result;
   for (size_t i = 0; i < input.length(); ++i) {
@@ -71,18 +70,14 @@ std::string process_escape_sequences(const std::string& input) {
 }
 
 int echo_command(const std::vector<std::string>& args) {
-  // POSIX-compliant echo implementation
-  // Supports -n (no newline), -e (enable escapes), -E (disable escapes)
-
   std::vector<std::string> echo_args = args;
   bool redirect_to_stderr = false;
   bool suppress_newline = false;
   bool interpret_escapes = false;
 
-  // Check if last argument is a redirection
   if (args.size() > 1 && args.back() == ">&2") {
     redirect_to_stderr = true;
-    echo_args.pop_back();  // Remove >&2 from arguments
+    echo_args.pop_back();
   }
 
   // Parse flags
@@ -139,7 +134,6 @@ int echo_command(const std::vector<std::string>& args) {
       std::cout.flush();
     }
   } else {
-    // Flush even when suppressing newline to ensure output appears
     if (redirect_to_stderr) {
       std::cerr.flush();
     } else {

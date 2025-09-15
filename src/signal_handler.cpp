@@ -6,9 +6,6 @@
 #include "exec.h"
 #include "job_control.h"
 
-// CADEN DONT TOUCH IT WORKS
-// ty to Fish shell for lookup table
-
 std::atomic<SignalHandler*> SignalHandler::s_instance(nullptr);
 volatile sig_atomic_t SignalHandler::s_sigint_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigchld_received = 0;
@@ -17,7 +14,7 @@ volatile sig_atomic_t SignalHandler::s_sigterm_received = 0;
 pid_t SignalHandler::s_main_pid = getpid();
 std::vector<int> SignalHandler::s_observed_signals;
 
-// Signal lookup table with names and descriptions
+// ty to fish for signal lookup table
 const std::vector<SignalInfo> SignalHandler::s_signal_table = {
 #ifdef SIGHUP
     {SIGHUP, "SIGHUP", "Terminal hung up"},
@@ -151,18 +148,15 @@ const char* SignalHandler::get_signal_description(int signum) {
 int SignalHandler::name_to_signal(const std::string& name) {
   std::string search_name = name;
 
-  // Strip "SIG" prefix if present
   if (search_name.size() > 3 && (search_name.substr(0, 3) == "SIG" ||
                                  search_name.substr(0, 3) == "sig")) {
     search_name = search_name.substr(3);
   }
 
-  // Convert to uppercase for case-insensitive comparison
   for (char& c : search_name) {
     c = toupper(c);
   }
 
-  // Look for matching signal
   for (const auto& signal : s_signal_table) {
     std::string signal_name = signal.name;
     if (signal_name.size() > 3 && signal_name.substr(0, 3) == "SIG") {
@@ -174,7 +168,6 @@ int SignalHandler::name_to_signal(const std::string& name) {
     }
   }
 
-  // Try parsing as a number
   try {
     return std::stoi(name);
   } catch (const std::exception&) {
@@ -196,11 +189,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
   (void)context;
   (void)info;
 
-  // Check if we're in a forked child - if so, reset to default handler and
-  // re-raise
   if (is_forked_child()) {
-    // Use sigaction for atomic signal handler replacement to avoid race
-    // conditions
     struct sigaction sa;
     sa.sa_handler = SIG_DFL;
     sigemptyset(&sa.sa_mask);
@@ -210,17 +199,12 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
     return;
   }
 
-  // Only use async-signal-safe operations in signal handler
-  // Defer complex operations and debugging output to process_pending_signals()
-
-  // Check if this signal is being observed by scripts
   bool is_observed = is_signal_observed(signum);
 
   switch (signum) {
     case SIGINT: {
       s_sigint_received = 1;
-      // Only write newline and handle terminal interrupt if signal is not being
-      // observed by a script
+
       if (!is_observed) {
         ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
         (void)bytes_written;
@@ -235,9 +219,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
     case SIGHUP: {
       s_sighup_received = 1;
-      // Only exit if signal is not being observed
+
       if (!is_observed) {
-        // Force exit immediately - this will call atexit handlers
         exit(0);
       }
       break;
@@ -245,9 +228,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
     case SIGTERM: {
       s_sigterm_received = 1;
-      // Only exit if signal is not being observed
+
       if (!is_observed) {
-        // Force exit immediately - this will call atexit handlers
         exit(0);
       }
       break;
@@ -255,8 +237,6 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
 #ifdef SIGWINCH
     case SIGWINCH: {
-      // Window size changed - simply let it be processed in
-      // process_pending_signals
       break;
     }
 #endif
@@ -272,29 +252,22 @@ void SignalHandler::setup_signal_handlers() {
   sigset_t block_mask;
   sigfillset(&block_mask);
 
-  // Common signal handlers for both interactive and non-interactive modes
-
-  // Ignore SIGPIPE - we'll handle write errors explicitly
   sa.sa_handler = SIG_IGN;
   sa.sa_flags = 0;
   sa.sa_mask = block_mask;
   sigaction(SIGPIPE, &sa, nullptr);
 
-  // Always ignore terminal control signals to avoid suspension
   sigaction(SIGTTOU, &sa, &m_old_sigttou_handler);
   sigaction(SIGTTIN, &sa, &m_old_sigttin_handler);
 
-  // SIGCHLD should be caught but not interrupt syscalls
   sa.sa_sigaction = signal_handler;
   sa.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction(SIGCHLD, &sa, &m_old_sigchld_handler);
 
-  // SIGINT handler (without SA_RESTART to interrupt syscalls)
   sa.sa_sigaction = signal_handler;
   sa.sa_flags = SA_SIGINFO;
   sigaction(SIGINT, &sa, &m_old_sigint_handler);
 
-  // Handle SIGTERM and SIGHUP
   sa.sa_sigaction = signal_handler;
   sa.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction(SIGHUP, &sa, &m_old_sighup_handler);
@@ -311,17 +284,15 @@ void SignalHandler::setup_interactive_handlers() {
   sigset_t block_mask;
   sigfillset(&block_mask);
 
-  // For interactive mode, ignore job control signals
   sa.sa_handler = SIG_IGN;
   sa.sa_flags = 0;
   sa.sa_mask = block_mask;
 
-  // Ignore keyboard-generated signals in interactive mode
-  sigaction(SIGQUIT, &sa, &m_old_sigquit_handler);  /* Ctrl+\ */
-  sigaction(SIGTSTP, &sa, &m_old_sigtstp_handler);  // Ctrl+Z
+  sigaction(SIGQUIT, &sa, &m_old_sigquit_handler);
+  sigaction(SIGTSTP, &sa, &m_old_sigtstp_handler);
 
 #ifdef SIGWINCH
-  // Catch window size changes in interactive mode
+
   sa.sa_sigaction = signal_handler;
   sa.sa_flags = SA_SIGINFO;
   sigaction(SIGWINCH, &sa, nullptr);
@@ -349,7 +320,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
               << "SIGTERM=" << s_sigterm_received << std::endl;
   }
 
-  // Check for all signals that might have been received
   if (s_sigint_received) {
     s_sigint_received = 0;
 
@@ -357,10 +327,8 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
       std::cerr << "DEBUG: Processing SIGINT signal" << std::endl;
     }
 
-    // Check if SIGINT is being observed by scripts
     bool is_observed = is_signal_observed(SIGINT);
 
-    // If not observed, propagate to foreground job
     if (!is_observed && shell_exec) {
       auto jobs = shell_exec->get_jobs();
       for (const auto& job_pair : jobs) {
@@ -389,17 +357,14 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
       int status;
       int reaped_count = 0;
 
-      // Aggressively reap all available children to prevent zombies
       while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) >
              0) {
         reaped_count++;
         shell_exec->handle_child_signal(pid, status);
 
-        // Also update JobManager for job control integration
         auto& job_manager = JobManager::instance();
         auto job = job_manager.get_job_by_pgid(pid);
         if (!job) {
-          // Check if this PID is part of any job
           auto all_jobs = job_manager.get_all_jobs();
           for (auto& j : all_jobs) {
             auto it = std::find(j->pids.begin(), j->pids.end(), pid);
@@ -417,12 +382,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             job->exit_status =
                 WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
 
-            // Remove finished PID from job
             job->pids.erase(
                 std::remove(job->pids.begin(), job->pids.end(), pid),
                 job->pids.end());
 
-            // If all PIDs are done, mark job for cleanup
             if (job->pids.empty()) {
               job->notified = true;
             }
@@ -434,16 +397,14 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         }
       }
 
-      // Reduce debug output frequency to avoid performance impact
       if (g_debug_mode && reaped_count > 0 && reaped_count <= 3) {
         std::cerr << "DEBUG: SIGCHLD handler reaped " << reaped_count
                   << " children" << std::endl;
       }
 
-      // If waitpid returned -1 with ECHILD, all children have been reaped
       if (pid == -1 && errno == ECHILD && g_debug_mode) {
         static int echild_count = 0;
-        if (++echild_count <= 5) {  // Limit this debug message
+        if (++echild_count <= 5) {
           std::cerr << "DEBUG: All children have been reaped" << std::endl;
         }
       }
@@ -453,7 +414,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
   if (s_sighup_received) {
     s_sighup_received = 0;
 
-    // Terminate all background jobs when SIGHUP is received
     if (shell_exec && g_exit_flag) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: SIGHUP received, terminating background jobs"
@@ -461,7 +421,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
       }
       shell_exec->terminate_all_child_process();
 
-      // Also clean up through JobManager
       auto& job_manager = JobManager::instance();
       auto all_jobs = job_manager.get_all_jobs();
       for (auto& job : all_jobs) {
@@ -482,7 +441,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
   if (s_sigterm_received) {
     s_sigterm_received = 0;
 
-    // Terminate all background jobs when SIGTERM is received
     if (shell_exec && g_exit_flag) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: SIGTERM received, terminating background jobs"
@@ -490,7 +448,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
       }
       shell_exec->terminate_all_child_process();
 
-      // Also clean up through JobManager
       auto& job_manager = JobManager::instance();
       auto all_jobs = job_manager.get_all_jobs();
       for (auto& job : all_jobs) {
@@ -510,7 +467,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 }
 
 void SignalHandler::observe_signal(int signum) {
-  // Don't add duplicates
   if (!is_signal_observed(signum)) {
     s_observed_signals.push_back(signum);
     if (g_debug_mode) {

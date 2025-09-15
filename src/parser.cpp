@@ -22,10 +22,6 @@
 #include "readonly_command.h"
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
-  // Split script content on unquoted newlines into logical lines.
-  // Handle here documents specially by collecting content until delimiter.
-
-  // Helper function to strip inline comments - use string_view for efficiency
   auto strip_inline_comment = [](std::string_view s) -> std::string {
     bool in_quotes = false;
     char quote = '\0';
@@ -35,7 +31,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     for (size_t i = 0; i < size; ++i) {
       char c = data[i];
 
-      // Count consecutive backslashes before this quote
       if (c == '"' || c == '\'') {
         size_t backslash_count = 0;
         for (size_t j = i; j > 0; --j) {
@@ -46,7 +41,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           }
         }
 
-        // Quote is escaped if there's an odd number of backslashes before it
         bool is_escaped = (backslash_count % 2) == 1;
 
         if (!is_escaped) {
@@ -66,42 +60,38 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   };
 
   std::vector<std::string> lines;
-  lines.reserve(32);  // Reserve space to reduce reallocations
+  lines.reserve(32);
   size_t start = 0;
   bool in_quotes = false;
   char quote_char = '\0';
   bool in_here_doc = false;
-  bool strip_tabs = false;  // Flag for <<- vs << here documents
+  bool strip_tabs = false;
   std::string here_doc_delimiter;
-  here_doc_delimiter.reserve(64);  // Reserve space for delimiter
+  here_doc_delimiter.reserve(64);
   std::string here_doc_content;
-  here_doc_content.reserve(1024);  // Reserve space for here document content
+  here_doc_content.reserve(1024);
   std::string current_here_doc_line;
-  current_here_doc_line.reserve(256);  // Reserve space for current line
+  current_here_doc_line.reserve(256);
 
   for (size_t i = 0; i < script.size(); ++i) {
     char c = script[i];
 
     if (in_here_doc) {
       if (c == '\n') {
-        // Check if this line is the delimiter
         std::string trimmed_line = current_here_doc_line;
-        // Trim whitespace
+
         trimmed_line.erase(0, trimmed_line.find_first_not_of(" \t"));
         trimmed_line.erase(trimmed_line.find_last_not_of(" \t\r") + 1);
 
         if (trimmed_line == here_doc_delimiter) {
-          // End of here document - reconstruct the command with content
           std::string_view segment_view{script.data() + start, i - start};
-          // Find <<- or << delimiter and replace with placeholder
+
           size_t here_pos = std::string::npos;
 
-          // First try to find <<- with various spacing
           here_pos = segment_view.find("<<- " + here_doc_delimiter);
           if (here_pos == std::string::npos) {
             here_pos = segment_view.find("<<-" + here_doc_delimiter);
             if (here_pos == std::string::npos) {
-              // Fall back to << variants
               here_pos = segment_view.find("<< " + here_doc_delimiter);
               if (here_pos == std::string::npos) {
                 here_pos = segment_view.find("<<" + here_doc_delimiter);
@@ -111,15 +101,12 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
           if (here_pos != std::string::npos) {
             std::string before_here{segment_view.substr(0, here_pos)};
-            // Create a placeholder that matches CommandPreprocessor format
+
             std::string placeholder =
                 "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
-            // For here documents, we replace the entire operator with input
-            // redirection
+
             std::string segment = before_here + "< " + placeholder;
 
-            // Store the here document content in the current_here_docs map
-            // This makes it accessible to the pipeline parser
             current_here_docs[placeholder] = here_doc_content;
 
             if (!segment.empty() && segment.back() == '\r') {
@@ -127,7 +114,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             }
             lines.push_back(std::move(segment));
           } else {
-            // Fallback to original behavior
             std::string segment{segment_view};
             if (!segment.empty() && segment.back() == '\r') {
               segment.pop_back();
@@ -141,19 +127,17 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           here_doc_content.clear();
           start = i + 1;
         } else {
-          // Add this line to here document content
           if (!here_doc_content.empty()) {
             here_doc_content += "\n";
           }
-          // If this is a <<- here document, strip leading tabs from content
+
           std::string line_to_add = current_here_doc_line;
           if (strip_tabs) {
-            // Strip leading tabs
             size_t first_non_tab = line_to_add.find_first_not_of('\t');
             if (first_non_tab != std::string::npos) {
               line_to_add = line_to_add.substr(first_non_tab);
             } else {
-              line_to_add.clear();  // Line is all tabs
+              line_to_add.clear();
             }
           }
           here_doc_content += line_to_add;
@@ -171,14 +155,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     } else if (in_quotes && c == quote_char) {
       in_quotes = false;
     } else if (!in_quotes && c == '\n') {
-      // Check if this line contains a here document start
       std::string_view segment_view{script.data() + start, i - start};
       if (!in_quotes && segment_view.find("<<") != std::string_view::npos) {
-        // Strip comments before parsing here document delimiter
         std::string segment_no_comment = strip_inline_comment(segment_view);
 
-        // Look for <<- or << followed by delimiter
-        // Check for <<- first (more specific), then <<
         size_t here_pos = segment_no_comment.find("<<-");
         bool is_strip_tabs = false;
         size_t operator_len = 2;
@@ -189,12 +169,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         } else {
           here_pos = segment_no_comment.find("<<");
           if (here_pos == std::string::npos) {
-            // No here document found
             goto normal_line_processing;
           }
         }
 
-        // Extract delimiter
         size_t delim_start = here_pos + operator_len;
         while (delim_start < segment_no_comment.size() &&
                std::isspace(segment_no_comment[delim_start])) {
@@ -212,12 +190,12 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
           strip_tabs = is_strip_tabs;
           here_doc_content.clear();
           current_here_doc_line.clear();
-          continue;  // Don't process this as a regular line yet
+          continue;
         }
       }
 
     normal_line_processing:
-      // Extract line [start, i) - regular line processing
+
       std::string segment{script.data() + start, i - start};
       if (!segment.empty() && segment.back() == '\r') {
         segment.pop_back();
@@ -236,8 +214,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
       }
       lines.push_back(std::move(tail));
     } else if (!tail_view.empty()) {
-      // Even if still in quotes or here doc (unterminated), push remainder as a
-      // line
       std::string tail{tail_view};
       if (!tail.empty() && tail.back() == '\r') {
         tail.pop_back();
@@ -250,8 +226,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 }
 
 namespace {
-// Sentinel-based quote tagging so we can preserve how a token was quoted
-// through parsing stages without changing public APIs.
+
 static const char QUOTE_PREFIX = '\x1F';
 static const char QUOTE_SINGLE = 'S';
 static const char QUOTE_DOUBLE = 'D';
@@ -271,7 +246,7 @@ inline std::string strip_quote_tag(const std::string& s) {
   }
   return s;
 }
-// Remove NOENV sentinels inserted by command substitution and indicate presence
+
 static inline std::pair<std::string, bool> strip_noenv_sentinels(
     const std::string& s) {
   const std::string start = "\x1E__NOENV_START__\x1E";
@@ -290,15 +265,13 @@ static inline std::pair<std::string, bool> strip_noenv_sentinels(
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
   std::vector<std::string> tokens;
-  tokens.reserve(16);  // Reserve space for typical command with arguments
+  tokens.reserve(16);
   std::string current_token;
-  current_token.reserve(128);  // Reserve space for typical token
+  current_token.reserve(128);
   bool in_quotes = false;
   char quote_char = '\0';
   bool escaped = false;
-  // Track how the token was quoted overall; if a token contains any single
-  // quotes and no double quotes, mark as single; if any double quotes and no
-  // single quotes, mark as double.
+
   bool token_saw_single = false;
   bool token_saw_double = false;
 
@@ -306,21 +279,18 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     char c = cmdline[i];
 
     if (escaped) {
-      // Inside double quotes, only escape specific characters per POSIX
       if (in_quotes && quote_char == '"') {
-        // In double quotes, backslash only escapes: $ ` " \ newline
         if (c == '$' || c == '`' || c == '"' || c == '\\' || c == '\n') {
-          current_token += c;  // Add the escaped character
+          current_token += c;
         } else {
-          current_token += '\\';  // Keep the backslash
-          current_token += c;     // Add the character
+          current_token += '\\';
+          current_token += c;
         }
       } else {
-        current_token += c;  // For single quotes or unquoted, add escaped char
+        current_token += c;
       }
       escaped = false;
     } else if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-      // Backslash escapes next character, except within single quotes
       escaped = true;
     } else if ((c == '"' || c == '\'') && !in_quotes) {
       in_quotes = true;
@@ -336,7 +306,6 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
                 c == '|') &&
                !in_quotes) {
       if (!current_token.empty()) {
-        // Apply quote tag if any
         if (token_saw_single && !token_saw_double) {
           tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
                            current_token);
@@ -381,7 +350,6 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     }
   }
 
-  // Check for unclosed quotes
   if (in_quotes) {
     throw std::runtime_error("Unclosed quote: missing closing " +
                              std::string(1, quote_char));
@@ -390,11 +358,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   return tokens;
 }
 
-// Post-process tokens to merge redirection operators
 std::vector<std::string> merge_redirection_tokens(
     const std::vector<std::string>& tokens) {
   std::vector<std::string> result;
-  result.reserve(tokens.size());  // Reserve at least as much space as input
+  result.reserve(tokens.size());
 
   if (g_debug_mode) {
     std::cerr << "DEBUG: merge_redirection_tokens input: ";
@@ -407,106 +374,99 @@ std::vector<std::string> merge_redirection_tokens(
   for (size_t i = 0; i < tokens.size(); ++i) {
     const std::string& token = tokens[i];
 
-    // Handle 2>&1, 2>>, 2> patterns
     if (token == "2" && i + 1 < tokens.size()) {
       if (tokens[i + 1] == ">&1") {
         result.push_back("2>&1");
-        i++;  // skip next token
+        i++;
       } else if (i + 3 < tokens.size() && tokens[i + 1] == ">" &&
                  tokens[i + 2] == "&" && tokens[i + 3] == "1") {
-        // Handle 2>&1 tokenized as ["2", ">", "&", "1"]
         result.push_back("2>&1");
-        i += 3;  // skip next three tokens
+        i += 3;
       } else if (i + 2 < tokens.size() && tokens[i + 1] == ">" &&
                  tokens[i + 2] == ">") {
-        // Handle 2>> tokenized as ["2", ">", ">"]
         result.push_back("2>>");
-        i += 2;  // skip next two tokens
+        i += 2;
       } else if (i + 1 < tokens.size() && tokens[i + 1] == ">") {
-        // Handle 2> tokenized as ["2", ">"]
         result.push_back("2>");
-        i++;  // skip next token
+        i++;
       } else {
         result.push_back(token);
       }
     }
-    // Handle &> pattern (both stdout and stderr to file)
+
     else if (token == "&" && i + 1 < tokens.size() && tokens[i + 1] == ">") {
       result.push_back("&>");
-      i++;  // skip next token
+      i++;
     }
-    // Handle >| pattern (force overwrite)
+
     else if (token == ">" && i + 1 < tokens.size() && tokens[i + 1] == "|") {
       result.push_back(">|");
-      i++;  // skip next token
+      i++;
     }
-    // Handle <<< pattern (here strings) - check for < < < sequence FIRST
+
     else if (token == "<" && i + 2 < tokens.size() && tokens[i + 1] == "<" &&
              tokens[i + 2] == "<") {
       result.push_back("<<<");
-      i += 2;  // skip next two tokens
+      i += 2;
     }
-    // Handle <<- pattern (here document with tab stripping) - check for < < -
-    // sequence
+
     else if (token == "<" && i + 2 < tokens.size() && tokens[i + 1] == "<" &&
              tokens[i + 2] == "-") {
       result.push_back("<<-");
-      i += 2;  // skip next two tokens
+      i += 2;
     }
-    // Handle << pattern (here documents) - check for < < sequence AFTER more
-    // specific patterns
+
     else if (token == "<" && i + 1 < tokens.size() && tokens[i + 1] == "<") {
       result.push_back("<<");
-      i++;  // skip next token
+      i++;
     }
-    // Handle <<< pattern (here strings) - original logic for pre-merged tokens
+
     else if (token == "<<" && i + 1 < tokens.size() && tokens[i + 1] == "<") {
       result.push_back("<<<");
-      i++;  // skip next token
+      i++;
     }
-    // Handle <<- pattern (here document with tab stripping) - original logic
+
     else if (token == "<<" && i + 1 < tokens.size() && tokens[i + 1] == "-") {
       result.push_back("<<-");
-      i++;  // skip next token
+      i++;
     }
-    // Handle >> pattern (append redirection)
+
     else if (token == ">" && i + 1 < tokens.size() && tokens[i + 1] == ">") {
       result.push_back(">>");
-      i++;  // skip next token
+      i++;
     }
-    // Handle >>&1, >&1, >&2 patterns
+
     else if ((token == ">>" || token == ">") && i + 1 < tokens.size() &&
              (tokens[i + 1] == "&1" || tokens[i + 1] == "&2")) {
       result.push_back(token + tokens[i + 1]);
-      i++;  // skip next token
+      i++;
     }
-    // Handle cases where >&2 might be split as ">" "&" "2"
+
     else if (token == ">" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
              tokens[i + 2] == "2") {
       result.push_back(">&2");
-      i += 2;  // skip next two tokens
+      i += 2;
     }
-    // Handle cases where >&1 might be split as ">" "&" "1"
+
     else if (token == ">" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
              tokens[i + 2] == "1") {
       result.push_back(">&1");
-      i += 2;  // skip next two tokens
+      i += 2;
     }
-    // Handle cases where 2>&1 might be split as "2" "&" "1"
+
     else if (token == "2" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
              tokens[i + 2] == "1") {
       result.push_back("2>&1");
-      i += 2;  // skip next two tokens
+      i += 2;
     }
-    // Handle cases where 2> might be split as "2" ">"
+
     else if (token == "2" && i + 1 < tokens.size() &&
              (tokens[i + 1] == ">" || tokens[i + 1] == ">>")) {
       result.push_back("2" + tokens[i + 1]);
-      i++;  // skip next token
+      i++;
     }
-    // Handle file descriptor redirections like 3<, 3>, 4>&1, etc.
+
     else if (std::isdigit(token[0]) && token.length() > 1) {
-      // Check if this is a file descriptor redirection
       size_t first_non_digit = 0;
       while (first_non_digit < token.length() &&
              std::isdigit(token[first_non_digit])) {
@@ -540,7 +500,7 @@ std::vector<std::string> merge_redirection_tokens(
 
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   std::vector<std::string> args;
-  args.reserve(8);  // Reserve space for typical command with arguments
+  args.reserve(8);
 
   try {
     std::vector<std::string> raw_args = tokenize_command(cmdline);
@@ -581,18 +541,16 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
 
   std::vector<std::string> expanded_args;
-  expanded_args.reserve(args.size() *
-                        2);  // Reserve space for potential expansions
+  expanded_args.reserve(args.size() * 2);
   for (const auto& raw_arg : args) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
     const std::string arg = strip_quote_tag(raw_arg);
-    // Do NOT perform brace expansion inside any quoted token (POSIX shells
-    // behavior)
+
     if (!is_single && !is_double && arg.find('{') != std::string::npos &&
         arg.find('}') != std::string::npos) {
       std::vector<std::string> brace_expansions = expand_braces(arg);
-      brace_expansions.reserve(8);  // Reserve space for common brace expansions
+      brace_expansions.reserve(8);
       expanded_args.insert(expanded_args.end(),
                            std::make_move_iterator(brace_expansions.begin()),
                            std::make_move_iterator(brace_expansions.end()));
@@ -609,15 +567,13 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
   }
   args = std::move(expanded_args);
-  // Handle special case for quoted $@ expansion before regular env var
-  // expansion
+
   std::vector<std::string> pre_expanded_args;
   for (const auto& raw_arg : args) {
     if (is_double_quoted_token(raw_arg)) {
       std::string tmp = strip_quote_tag(raw_arg);
-      // Check if this is exactly "$@" within double quotes
+
       if (tmp == "$@" && shell) {
-        // Special handling: split into separate arguments, each double-quoted
         auto params = shell->get_positional_parameters();
         for (const auto& param : params) {
           pre_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
@@ -631,17 +587,13 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   args = pre_expanded_args;
 
   for (auto& raw_arg : args) {
-    // Do not expand env vars inside single quotes.
     if (!is_single_quoted_token(raw_arg)) {
       std::string tmp = strip_quote_tag(raw_arg);
       auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(tmp);
       if (!had_noenv) {
-        // Expand inside double quotes or unquoted, unless NOENV sentinel
-        // present
         expand_env_vars(noenv_stripped);
       }
-      // Reapply quote tag for double-quoted tokens so we can still skip
-      // globbing later
+
       if (is_double_quoted_token(raw_arg)) {
         raw_arg = std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + noenv_stripped;
       } else {
@@ -650,13 +602,10 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
   }
 
-  // Apply IFS word splitting to unquoted arguments that may contain expanded
-  // variables
   std::vector<std::string> ifs_expanded_args;
-  ifs_expanded_args.reserve(args.size() * 2);  // Reserve for potential splits
+  ifs_expanded_args.reserve(args.size() * 2);
   for (const auto& raw_arg : args) {
     if (!is_single_quoted_token(raw_arg) && !is_double_quoted_token(raw_arg)) {
-      // Unquoted argument - apply IFS word splitting
       std::vector<std::string> split_words = split_by_ifs(raw_arg);
       ifs_expanded_args.insert(ifs_expanded_args.end(),
                                std::make_move_iterator(split_words.begin()),
@@ -685,12 +634,11 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       }
     }
 
-    // Inhibit tilde expansion in any quoted token
     if (has_tilde && !is_single && !is_double) {
       char* home_dir = std::getenv("HOME");
       if (home_dir) {
         std::string home_str(home_dir);
-        // Replace regex with faster string manipulation
+
         std::string expanded_arg;
         if (arg.front() == '~') {
           expanded_arg = home_str + arg.substr(1);
@@ -715,8 +663,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
 
   std::vector<std::string> final_args;
-  final_args.reserve(tilde_expanded_args.size() *
-                     2);  // Reserve for potential glob expansions
+  final_args.reserve(tilde_expanded_args.size() * 2);
   for (const auto& raw_arg : tilde_expanded_args) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
@@ -730,11 +677,10 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   }
   return final_args;
 }
-// Ensure parse_command scope is properly closed before next function
 
 std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
-  result.reserve(8);  // Reserve space for common brace expansions
+  result.reserve(8);
 
   size_t open_pos = pattern.find('{');
   if (open_pos == std::string::npos) {
@@ -766,13 +712,11 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::string content = pattern.substr(open_pos + 1, close_pos - open_pos - 1);
   std::string suffix = pattern.substr(close_pos + 1);
 
-  // Check for numeric range expansion {start..end}
   size_t range_pos = content.find("..");
   if (range_pos != std::string::npos) {
     std::string start_str = content.substr(0, range_pos);
     std::string end_str = content.substr(range_pos + 2);
 
-    // Try to parse as integers
     try {
       int start = std::stoi(start_str);
       int end = std::stoi(end_str);
@@ -786,7 +730,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
                         std::make_move_iterator(expanded_results.end()));
         }
       } else {
-        // Reverse range
         for (int i = start; i >= end; --i) {
           std::vector<std::string> expanded_results =
               expand_braces(prefix + std::to_string(i) + suffix);
@@ -797,7 +740,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
       }
       return result;
     } catch (const std::exception&) {
-      // Not numeric, check for alphabetic range
       if (start_str.length() == 1 && end_str.length() == 1 &&
           std::isalpha(start_str[0]) && std::isalpha(end_str[0])) {
         char start_char = start_str[0];
@@ -811,7 +753,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
                           expanded_results.end());
           }
         } else {
-          // Reverse alphabetic range
           for (char c = start_char; c >= end_char; --c) {
             std::vector<std::string> expanded_results =
                 expand_braces(prefix + std::string(1, c) + suffix);
@@ -822,13 +763,11 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
         }
         return result;
       }
-      // Fall through to comma-separated expansion
     }
   }
 
-  // Handle comma-separated options
   std::vector<std::string> options;
-  options.reserve(8);  // Reserve space for common option counts
+  options.reserve(8);
   size_t start = 0;
   depth = 0;
 
@@ -856,13 +795,12 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
 
 void Parser::expand_env_vars(std::string& arg) {
   std::string result;
-  result.reserve(arg.length() * 1.5);  // Reserve extra space for expansions
+  result.reserve(arg.length() * 1.5);
   bool in_var = false;
   std::string var_name;
-  var_name.reserve(64);  // Reserve space for variable names
+  var_name.reserve(64);
 
   for (size_t i = 0; i < arg.length(); ++i) {
-    // Handle escaped dollar (e.g., \$var): treat $ literally and remove escape
     if (!in_var && arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
       if (!result.empty() && result.back() == '\\') {
         result.pop_back();
@@ -880,22 +818,19 @@ void Parser::expand_env_vars(std::string& arg) {
       } else {
         in_var = false;
         std::string value;
-        // Handle special variables
+
         if (var_name == "?") {
           const char* status_env = getenv("STATUS");
           value = status_env ? status_env : "0";
         } else if (var_name == "$") {
-          // Process ID
           value = std::to_string(getpid());
         } else if (var_name == "#") {
-          // Number of positional parameters
           if (shell) {
             value = std::to_string(shell->get_positional_parameter_count());
           } else {
             value = "0";
           }
         } else if (var_name == "*") {
-          // All positional parameters as single string
           if (shell) {
             auto params = shell->get_positional_parameters();
             std::string result;
@@ -907,9 +842,6 @@ void Parser::expand_env_vars(std::string& arg) {
             value = result;
           }
         } else if (var_name == "@") {
-          // All positional parameters as separate words
-          // Note: This is the basic expansion; quoted "$@" needs special
-          // handling
           if (shell) {
             auto params = shell->get_positional_parameters();
             std::string result;
@@ -921,16 +853,12 @@ void Parser::expand_env_vars(std::string& arg) {
             value = result;
           }
         } else if (var_name == "!") {
-          // Process ID of last background command (not implemented yet)
           value = "";
         } else if (isdigit(var_name[0]) && var_name.length() == 1) {
-          // Positional parameter $1, $2, etc.
-          // First check environment variables (for function parameters)
           const char* env_val = getenv(var_name.c_str());
           if (env_val) {
             value = env_val;
           } else {
-            // Then check shell positional parameters (for script arguments)
             int param_num = var_name[0] - '0';
             if (shell && param_num > 0) {
               auto params = shell->get_positional_parameters();
@@ -940,7 +868,6 @@ void Parser::expand_env_vars(std::string& arg) {
             }
           }
         } else {
-          // Regular environment variable
           auto it = env_vars.find(var_name);
           if (it != env_vars.end()) {
             value = it->second;
@@ -952,13 +879,11 @@ void Parser::expand_env_vars(std::string& arg) {
           }
         }
         result += value;
-        // Don't add the character that ended the variable if it's '$' (start of
-        // next variable)
+
         if (arg[i] != '$') {
           result += arg[i];
         } else {
-          // This is a '$' starting a new variable, so we need to reprocess it
-          i--;  // Back up one position so the '$' gets processed again
+          i--;
         }
       }
     } else if (arg[i] == '$' && (i + 1 < arg.length()) &&
@@ -976,22 +901,19 @@ void Parser::expand_env_vars(std::string& arg) {
 
   if (in_var) {
     std::string value;
-    // Handle special variables
+
     if (var_name == "?") {
       const char* status_env = getenv("STATUS");
       value = status_env ? status_env : "0";
     } else if (var_name == "$") {
-      // Process ID
       value = std::to_string(getpid());
     } else if (var_name == "#") {
-      // Number of positional parameters
       if (shell) {
         value = std::to_string(shell->get_positional_parameter_count());
       } else {
         value = "0";
       }
     } else if (var_name == "*") {
-      // All positional parameters as single string
       if (shell) {
         auto params = shell->get_positional_parameters();
         std::string result;
@@ -1003,8 +925,6 @@ void Parser::expand_env_vars(std::string& arg) {
         value = result;
       }
     } else if (var_name == "@") {
-      // All positional parameters as separate words (same as * for basic
-      // expansion)
       if (shell) {
         auto params = shell->get_positional_parameters();
         std::string result;
@@ -1016,12 +936,10 @@ void Parser::expand_env_vars(std::string& arg) {
         value = result;
       }
     } else if (var_name == "!") {
-      // Process ID of last background command
       const char* last_bg_pid = getenv("!");
       if (last_bg_pid) {
         value = last_bg_pid;
       } else {
-        // Fall back to JobManager if no env var set
         pid_t last_pid = JobManager::instance().get_last_background_pid();
         if (last_pid > 0) {
           value = std::to_string(last_pid);
@@ -1030,13 +948,10 @@ void Parser::expand_env_vars(std::string& arg) {
         }
       }
     } else if (isdigit(var_name[0]) && var_name.length() == 1) {
-      // Positional parameter $1, $2, etc.
-      // First check environment variables (for function parameters)
       const char* env_val = getenv(var_name.c_str());
       if (env_val) {
         value = env_val;
       } else {
-        // Then check shell positional parameters (for script arguments)
         int param_num = var_name[0] - '0';
         if (shell && param_num > 0) {
           auto params = shell->get_positional_parameters();
@@ -1046,7 +961,6 @@ void Parser::expand_env_vars(std::string& arg) {
         }
       }
     } else {
-      // Regular environment variable
       auto it = env_vars.find(var_name);
       if (it != env_vars.end()) {
         value = it->second;
@@ -1066,7 +980,6 @@ void Parser::expand_env_vars(std::string& arg) {
 std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
   std::vector<std::string> result;
 
-  // Get IFS from environment, default to space, tab, newline
   const char* ifs_env = getenv("IFS");
   std::string ifs = ifs_env ? ifs_env : " \t\n";
 
@@ -1074,7 +987,6 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
     return result;
   }
 
-  // If IFS is empty, return the whole string as one element
   if (ifs.empty()) {
     result.push_back(input);
     return result;
@@ -1085,21 +997,18 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
 
   for (char c : input) {
     if (ifs.find(c) != std::string::npos) {
-      // Found IFS character
       if (in_word) {
         result.push_back(current_word);
         current_word.clear();
         in_word = false;
       }
-      // Skip consecutive IFS characters
+
     } else {
-      // Non-IFS character
       current_word += c;
       in_word = true;
     }
   }
 
-  // Add the last word if we were building one
   if (in_word) {
     result.push_back(current_word);
   }
@@ -1109,12 +1018,12 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
 
 std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   std::vector<Command> commands;
-  commands.reserve(4);  // Reserve space for common pipeline lengths
+  commands.reserve(4);
   std::vector<std::string> command_parts;
-  command_parts.reserve(4);  // Reserve space for common pipeline parts
+  command_parts.reserve(4);
 
   std::string current;
-  current.reserve(command.length() / 4);  // Reserve reasonable space
+  current.reserve(command.length() / 4);
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
@@ -1153,19 +1062,14 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     Command cmd;
     std::string cmd_part = cmd_str;
 
-    // Check for background execution - look for & at the very end after
-    // whitespace
     bool is_background = false;
     std::string trimmed = cmd_part;
-    // Remove trailing whitespace
+
     trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
 
     if (!trimmed.empty() && trimmed.back() == '&') {
-      // Make sure this & is not part of &>
-      // Check if there's a > immediately after this & in the original string
       size_t amp_pos = cmd_part.rfind('&');
       if (amp_pos != std::string::npos && amp_pos + 1 < cmd_part.length()) {
-        // Check what follows the &
         size_t next_non_ws = amp_pos + 1;
         while (next_non_ws < cmd_part.length() &&
                std::isspace(cmd_part[next_non_ws])) {
@@ -1173,14 +1077,11 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
 
         if (next_non_ws < cmd_part.length() && cmd_part[next_non_ws] == '>') {
-          // This is &> redirection, not background
           is_background = false;
         } else {
-          // This is genuine background
           is_background = true;
         }
       } else {
-        // & is truly at the end
         is_background = true;
       }
     }
@@ -1191,23 +1092,19 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       cmd_part.erase(cmd_part.find_last_not_of(" \t\n\r") + 1);
     }
 
-    // Special handling for subshell commands (allow leading whitespace)
     if (!cmd_part.empty()) {
       size_t lead = cmd_part.find_first_not_of(" \t\r\n");
       if (lead != std::string::npos && cmd_part[lead] == '(') {
         size_t close_paren = cmd_part.find(')', lead + 1);
         if (close_paren != std::string::npos) {
-          // This is a subshell command - treat it specially
           std::string subshell_content =
               cmd_part.substr(lead + 1, close_paren - (lead + 1));
           std::string remaining = cmd_part.substr(close_paren + 1);
 
-          // Create a special command that represents the subshell
           cmd.args.push_back("sh");
           cmd.args.push_back("-c");
           cmd.args.push_back(subshell_content);
 
-          // Parse any redirection that comes after the subshell
           if (!remaining.empty()) {
             std::vector<std::string> redir_tokens = tokenize_command(remaining);
             std::vector<std::string> merged_redir =
@@ -1235,7 +1132,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
     std::vector<std::string> raw_tokens = tokenize_command(cmd_part);
     std::vector<std::string> tokens = merge_redirection_tokens(raw_tokens);
-    std::vector<std::string> filtered_args;  // may contain quote tags
+    std::vector<std::string> filtered_args;
 
     for (size_t i = 0; i < tokens.size(); ++i) {
       const std::string tok = strip_quote_tag(tokens[i]);
@@ -1246,38 +1143,30 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       } else if (tok == ">>" && i + 1 < tokens.size()) {
         cmd.append_file = strip_quote_tag(tokens[++i]);
       } else if (tok == ">|" && i + 1 < tokens.size()) {
-        // Force overwrite (noclobber bypass)
         cmd.output_file = strip_quote_tag(tokens[++i]);
         cmd.force_overwrite = true;
       } else if (tok == "&>" && i + 1 < tokens.size()) {
-        // Both stdout and stderr to file
         cmd.both_output_file = strip_quote_tag(tokens[++i]);
         cmd.both_output = true;
       } else if (tok == "<<" && i + 1 < tokens.size()) {
         std::string delimiter = strip_quote_tag(tokens[++i]);
-        // Check if this is a special here document content marker
+
         if (delimiter.find("__HEREDOC_CONTENT__") == 0) {
-          // Extract the line number and find the corresponding content
-          std::string line_num =
-              delimiter.substr(19);  // after "__HEREDOC_CONTENT__"
-          cmd.here_doc = delimiter;  // Store the marker for now
+          std::string line_num = delimiter.substr(19);
+          cmd.here_doc = delimiter;
         } else {
           cmd.here_doc = delimiter;
         }
       } else if (tok == "<<-" && i + 1 < tokens.size()) {
-        // Here document with tab stripping
         std::string delimiter = strip_quote_tag(tokens[++i]);
-        // Check if this is a special here document content marker
+
         if (delimiter.find("__HEREDOC_CONTENT__") == 0) {
-          // Extract the line number and find the corresponding content
-          std::string line_num =
-              delimiter.substr(19);  // after "__HEREDOC_CONTENT__"
-          cmd.here_doc = delimiter;  // Store the marker for now
+          std::string line_num = delimiter.substr(19);
+          cmd.here_doc = delimiter;
         } else {
           cmd.here_doc = delimiter;
         }
       } else if (tok == "<<<" && i + 1 < tokens.size()) {
-        // Here string
         cmd.here_string = strip_quote_tag(tokens[++i]);
       } else if ((tok == "2>" || tok == "2>>") && i + 1 < tokens.size()) {
         cmd.stderr_file = strip_quote_tag(tokens[++i]);
@@ -1285,53 +1174,43 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       } else if (tok == "2>&1") {
         cmd.stderr_to_stdout = true;
       } else if (tok == ">&2") {
-        // stdout to stderr - we need a new field for this
         cmd.stdout_to_stderr = true;
       } else if (tok.find(">&") == 0 && tok.length() > 2) {
-        // Handle redirections like 3>&1, 4>&2, etc.
         try {
           int src_fd = std::stoi(tok.substr(0, tok.find(">&")));
           int dst_fd = std::stoi(tok.substr(tok.find(">&") + 2));
           cmd.fd_duplications[src_fd] = dst_fd;
         } catch (const std::exception&) {
-          // Invalid redirection, treat as regular argument
           filtered_args.push_back(tokens[i]);
         }
       } else if (tok.find("<") == tok.length() - 1 && tok.length() > 1 &&
                  std::isdigit(tok[0]) && i + 1 < tokens.size()) {
-        // Handle file descriptor input redirections like 3< file.txt
         try {
           int fd = std::stoi(tok.substr(0, tok.length() - 1));
           std::string file = strip_quote_tag(tokens[++i]);
           cmd.fd_redirections[fd] = "input:" + file;
         } catch (const std::exception&) {
-          // Invalid redirection, treat as regular argument
           filtered_args.push_back(tokens[i]);
         }
       } else if (tok.find(">") == tok.length() - 1 && tok.length() > 1 &&
                  std::isdigit(tok[0]) && i + 1 < tokens.size()) {
-        // Handle file descriptor output redirections like 3> file.txt
         try {
           int fd = std::stoi(tok.substr(0, tok.length() - 1));
           std::string file = strip_quote_tag(tokens[++i]);
           cmd.fd_redirections[fd] = "output:" + file;
         } catch (const std::exception&) {
-          // Invalid redirection, treat as regular argument
           filtered_args.push_back(tokens[i]);
         }
       } else {
-        // Check for process substitution <(cmd) or >(cmd)
         if ((tok.find("<(") == 0 && tok.back() == ')') ||
             (tok.find(">(") == 0 && tok.back() == ')')) {
           cmd.process_substitutions.push_back(tok);
         } else {
-          // Preserve quote tags for later wildcard handling
           filtered_args.push_back(tokens[i]);
         }
       }
     }
 
-    // Expand wildcards on unquoted args only, then strip quote tags
     std::vector<std::string> final_args_local;
     for (const auto& raw : filtered_args) {
       bool is_single = is_single_quoted_token(raw);
@@ -1367,7 +1246,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       if (!cmd.both_output_file.empty() && cmd.both_output_file[0] == '~') {
         cmd.both_output_file = h + cmd.both_output_file.substr(1);
       }
-      // Handle ~ expansion in file descriptor redirections
+
       for (auto& fd_redir : cmd.fd_redirections) {
         if (!fd_redir.second.empty() && fd_redir.second[0] == '~') {
           fd_redir.second = h + fd_redir.second.substr(1);
@@ -1383,17 +1262,12 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
 std::vector<Command> Parser::parse_pipeline_with_preprocessing(
     const std::string& command) {
-  // Use the new preprocessor to handle complex cases
   auto preprocessed = CommandPreprocessor::preprocess(command);
 
-  // Merge here document context: keep existing documents and add new ones
-  // This preserves here docs from parse_into_lines() for script files
   for (const auto& pair : preprocessed.here_documents) {
     current_here_docs[pair.first] = pair.second;
   }
 
-  // Check if this is a SUBSHELL{} command
-  // Allow leading whitespace before SUBSHELL marker
   {
     const std::string& pt = preprocessed.processed_text;
     size_t lead = pt.find_first_not_of(" \t\r\n");
@@ -1405,10 +1279,6 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
             preprocessed.processed_text.substr(start, end - start);
         std::string remaining = preprocessed.processed_text.substr(end + 1);
 
-        // Convert to an internal subshell command so downstream parsing
-        // (pipes/redirs) continues to work: __INTERNAL_SUBSHELL__
-        // "content"<remaining> Need to quote the content to preserve it as a
-        // single argument
         auto escape_double_quotes = [](const std::string& s) {
           std::string out;
           out.reserve(s.size() + 16);
@@ -1424,47 +1294,39 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
         std::string rebuilt = "__INTERNAL_SUBSHELL__ \"" +
                               escape_double_quotes(subshell_content) + "\"" +
                               remaining;
-        // Preserve the original leading whitespace
+
         std::string prefix = preprocessed.processed_text.substr(0, lead);
         preprocessed.processed_text = prefix + rebuilt;
       }
     }
   }
 
-  // Parse the preprocessed command normally
   std::vector<Command> commands = parse_pipeline(preprocessed.processed_text);
 
-  // Resolve any here document placeholders in the commands
   for (auto& cmd : commands) {
-    // Check if input_file is actually a here document placeholder
     if (!cmd.input_file.empty() &&
         cmd.input_file.find("HEREDOC_PLACEHOLDER_") == 0) {
       auto it = current_here_docs.find(cmd.input_file);
       if (it != current_here_docs.end()) {
-        // Move from input_file to here_doc
         std::string content = it->second;
 
-        // Check if variable expansion is needed (unquoted delimiter)
         if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {
-          content = content.substr(10);  // Remove marker
-          // Expand variables in here document content
+          content = content.substr(10);
+
           expand_env_vars(content);
         }
 
         cmd.here_doc = content;
-        cmd.input_file.clear();  // Clear the placeholder
+        cmd.input_file.clear();
       }
     }
 
-    // Also check the here_doc field for placeholders (in case of direct
-    // parsing)
     if (!cmd.here_doc.empty() && current_here_docs.count(cmd.here_doc)) {
       std::string content = current_here_docs[cmd.here_doc];
 
-      // Check if variable expansion is needed (unquoted delimiter)
       if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {
-        content = content.substr(10);  // Remove marker
-        // Expand variables in here document content
+        content = content.substr(10);
+
         expand_env_vars(content);
       }
 
@@ -1484,10 +1346,9 @@ bool Parser::is_env_assignment(const std::string& command,
     var_name = match[1].str();
     var_value = match[2].str();
 
-    // Check if the variable is readonly before allowing assignment
     if (ReadonlyManager::instance().is_readonly(var_name)) {
       std::cerr << "cjsh: " << var_name << ": readonly variable" << std::endl;
-      return false;  // Reject readonly variable assignments
+      return false;
     }
 
     if (var_value.size() >= 2) {
@@ -1559,9 +1420,8 @@ std::vector<std::string> Parser::parse_semicolon_commands(
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
-  int control_depth = 0;  // Track control structure nesting
+  int control_depth = 0;
 
-  // Pre-scan to detect control structures and avoid splitting them
   std::vector<bool> is_semicolon_split_point(command.length(), false);
 
   for (size_t i = 0; i < command.length(); ++i) {
@@ -1577,7 +1437,6 @@ std::vector<std::string> Parser::parse_semicolon_commands(
     } else if (!in_quotes && command[i] == ')') {
       paren_depth--;
     } else if (!in_quotes && paren_depth == 0) {
-      // Check for control structure keywords
       if (command[i] == ' ' || command[i] == '\t' || i == 0) {
         size_t word_start = i;
         if (command[i] == ' ' || command[i] == '\t')
@@ -1605,7 +1464,6 @@ std::vector<std::string> Parser::parse_semicolon_commands(
     }
   }
 
-  // Reset state for actual parsing
   in_quotes = false;
   quote_char = '\0';
   current.clear();

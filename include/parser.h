@@ -9,7 +9,6 @@
 
 #include "command_preprocessor.h"
 
-// Forward declaration to avoid circular dependency
 class Shell;
 
 std::vector<std::string> tokenize_command(const std::string& cmdline);
@@ -58,7 +57,6 @@ class Parser {
   void expand_env_vars(std::string& arg);
   std::vector<std::string> split_by_ifs(const std::string& input);
 
-  // Enhanced parsing with preprocessing support
   std::vector<Command> parse_pipeline_with_preprocessing(
       const std::string& command);
 
@@ -82,6 +80,5 @@ class Parser {
   std::unordered_map<std::string, std::string> env_vars;
   Shell* shell = nullptr;
 
-  // Store current preprocessing context
   std::map<std::string, std::string> current_here_docs;
 };

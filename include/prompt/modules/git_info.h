@@ -1,9 +1,9 @@
 #pragma once
 
-#include <filesystem>
-#include <string>
 #include <chrono>
+#include <filesystem>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 
 class GitInfo {
@@ -27,7 +27,7 @@ class GitInfo {
  public:
   GitInfo();
   ~GitInfo();
-  
+
   std::string get_git_branch(const std::filesystem::path& git_head_path);
   std::string get_git_status(const std::filesystem::path& repo_root);
   std::string get_local_path(const std::filesystem::path& repo_root);

@@ -1,10 +1,10 @@
 #include "environment_info.h"
 
+#include <sys/ioctl.h>
+#include <unistd.h>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
-#include <sys/ioctl.h>
-#include <unistd.h>
 
 #include "cjsh.h"
 
@@ -19,11 +19,14 @@ std::pair<int, int> EnvironmentInfo::get_terminal_dimensions() {
   return {w.ws_col, w.ws_row};
 }
 
-std::string EnvironmentInfo::get_active_language_version(const std::string& language) {
+std::string EnvironmentInfo::get_active_language_version(
+    const std::string& language) {
   std::string cmd;
-  
+
   if (language == "python") {
-    cmd = "python3 --version 2>&1 | awk '{print $2}' || python --version 2>&1 | awk '{print $2}'";
+    cmd =
+        "python3 --version 2>&1 | awk '{print $2}' || python --version 2>&1 | "
+        "awk '{print $2}'";
   } else if (language == "node") {
     cmd = "node --version 2>/dev/null | sed 's/^v//'";
   } else if (language == "ruby") {
@@ -37,7 +40,9 @@ std::string EnvironmentInfo::get_active_language_version(const std::string& lang
   } else if (language == "php") {
     cmd = "php --version 2>/dev/null | head -n 1 | awk '{print $2}'";
   } else if (language == "perl") {
-    cmd = "perl --version 2>/dev/null | head -n 2 | tail -n 1 | awk '{print $4}' | sed 's/[()v]//g'";
+    cmd =
+        "perl --version 2>/dev/null | head -n 2 | tail -n 1 | awk '{print $4}' "
+        "| sed 's/[()v]//g'";
   } else {
     return "";
   }

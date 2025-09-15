@@ -12,9 +12,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
     return 1;
   }
 
-  // Handle set with no arguments - display all variables
   if (args.size() == 1) {
-    // For now, just display environment variables
     extern char** environ;
     for (char** env = environ; *env; ++env) {
       std::cout << *env << std::endl;
@@ -22,7 +20,6 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
     return 0;
   }
 
-  // Handle set options
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
 
@@ -30,7 +27,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
         (arg == "-o" && i + 1 < args.size() && args[i + 1] == "errexit")) {
       shell->set_shell_option("errexit", true);
       if (arg == "-o") {
-        ++i;  // Skip the "errexit" argument
+        ++i;
       }
       if (g_debug_mode) {
         std::cerr << "DEBUG: Enabled errexit option" << std::endl;
@@ -39,13 +36,12 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                                args[i + 1] == "errexit")) {
       shell->set_shell_option("errexit", false);
       if (arg == "+o") {
-        ++i;  // Skip the "errexit" argument
+        ++i;
       }
       if (g_debug_mode) {
         std::cerr << "DEBUG: Disabled errexit option" << std::endl;
       }
     } else if (arg.substr(0, 2) == "--") {
-      // Handle set -- args (set positional parameters)
       std::vector<std::string> positional_params;
       for (size_t j = i + 1; j < args.size(); ++j) {
         positional_params.push_back(args[j]);
@@ -80,7 +76,6 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
 
   int shift_count = 1;
 
-  // Parse shift count if provided
   if (args.size() > 1) {
     try {
       shift_count = std::stoi(args[1]);

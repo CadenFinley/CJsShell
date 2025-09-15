@@ -6,48 +6,23 @@
 #include "cjsh.h"
 #include "shell.h"
 
-// Signal name to number mapping
 static const std::unordered_map<std::string, int> signal_map = {
-    {"HUP", SIGHUP},
-    {"INT", SIGINT},
-    {"QUIT", SIGQUIT},
-    {"ILL", SIGILL},
-    {"TRAP", SIGTRAP},
-    {"ABRT", SIGABRT},
-    {"BUS", SIGBUS},
-    {"FPE", SIGFPE},
-    {"KILL", SIGKILL},
-    {"USR1", SIGUSR1},
-    {"SEGV", SIGSEGV},
-    {"USR2", SIGUSR2},
-    {"PIPE", SIGPIPE},
-    {"ALRM", SIGALRM},
-    {"TERM", SIGTERM},
-    {"CHLD", SIGCHLD},
-    {"CONT", SIGCONT},
-    {"STOP", SIGSTOP},
-    {"TSTP", SIGTSTP},
-    {"TTIN", SIGTTIN},
-    {"TTOU", SIGTTOU},
-    {"URG", SIGURG},
-    {"XCPU", SIGXCPU},
-    {"XFSZ", SIGXFSZ},
-    {"VTALRM", SIGVTALRM},
-    {"PROF", SIGPROF},
-    {"WINCH", SIGWINCH},
-    {"IO", SIGIO},
-    {"SYS", SIGSYS},
-    // POSIX special signals
-    {"EXIT", 0},    // EXIT signal (executed on shell exit)
-    {"ERR", -2},    // ERR signal (executed on command error)
-    {"DEBUG", -3},  // DEBUG signal (executed before each command)
-    {"RETURN", -4}  // RETURN signal (executed on function return)
-};
+    {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},
+    {"ILL", SIGILL},       {"TRAP", SIGTRAP}, {"ABRT", SIGABRT},
+    {"BUS", SIGBUS},       {"FPE", SIGFPE},   {"KILL", SIGKILL},
+    {"USR1", SIGUSR1},     {"SEGV", SIGSEGV}, {"USR2", SIGUSR2},
+    {"PIPE", SIGPIPE},     {"ALRM", SIGALRM}, {"TERM", SIGTERM},
+    {"CHLD", SIGCHLD},     {"CONT", SIGCONT}, {"STOP", SIGSTOP},
+    {"TSTP", SIGTSTP},     {"TTIN", SIGTTIN}, {"TTOU", SIGTTOU},
+    {"URG", SIGURG},       {"XCPU", SIGXCPU}, {"XFSZ", SIGXFSZ},
+    {"VTALRM", SIGVTALRM}, {"PROF", SIGPROF}, {"WINCH", SIGWINCH},
+    {"IO", SIGIO},         {"SYS", SIGSYS},
 
-// Reverse mapping for signal number to name
+    {"EXIT", 0},           {"ERR", -2},       {"DEBUG", -3},
+    {"RETURN", -4}};
+
 static std::unordered_map<int, std::string> reverse_signal_map;
 
-// Initialize reverse mapping
 static void init_reverse_signal_map() {
   if (reverse_signal_map.empty()) {
     for (const auto& pair : signal_map) {
@@ -63,20 +38,15 @@ TrapManager& TrapManager::instance() {
 
 void TrapManager::set_trap(int signal, const std::string& command) {
   if (signal == SIGKILL || signal == SIGSTOP) {
-    // Cannot trap SIGKILL or SIGSTOP
     return;
   }
 
   traps[signal] = command;
 
-  // Handle special signals that don't use sigaction
   if (signal == 0 || signal == -2 || signal == -3 || signal == -4) {
-    // These are shell-specific signals, not OS signals
-    // They will be handled by the shell directly
     return;
   }
 
-  // Set up signal handler for real OS signals
   struct sigaction sa;
   sa.sa_handler = [](int sig) { TrapManager::instance().execute_trap(sig); };
   sigemptyset(&sa.sa_mask);
@@ -87,13 +57,10 @@ void TrapManager::set_trap(int signal, const std::string& command) {
 void TrapManager::remove_trap(int signal) {
   traps.erase(signal);
 
-  // Handle special signals that don't use sigaction
   if (signal == 0 || signal == -2 || signal == -3 || signal == -4) {
-    // These are shell-specific signals, not OS signals
     return;
   }
 
-  // Reset to default signal handler for real OS signals
   struct sigaction sa;
   sa.sa_handler = SIG_DFL;
   sigemptyset(&sa.sa_mask);
@@ -142,11 +109,11 @@ void TrapManager::set_shell(Shell* shell) {
 
 void TrapManager::execute_exit_trap() {
   if (exit_trap_executed) {
-    return;  // Already executed, don't run again
+    return;
   }
   exit_trap_executed = true;
 
-  auto it = traps.find(0);  // EXIT signal is 0
+  auto it = traps.find(0);
   if (it != traps.end() && shell_ref) {
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing EXIT trap: " << it->second << std::endl;
@@ -156,7 +123,7 @@ void TrapManager::execute_exit_trap() {
 }
 
 void TrapManager::execute_err_trap() {
-  auto it = traps.find(-2);  // ERR signal is -2
+  auto it = traps.find(-2);
   if (it != traps.end() && shell_ref) {
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing ERR trap: " << it->second << std::endl;
@@ -166,7 +133,7 @@ void TrapManager::execute_err_trap() {
 }
 
 void TrapManager::execute_debug_trap() {
-  auto it = traps.find(-3);  // DEBUG signal is -3
+  auto it = traps.find(-3);
   if (it != traps.end() && shell_ref) {
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing DEBUG trap: " << it->second << std::endl;
@@ -176,7 +143,7 @@ void TrapManager::execute_debug_trap() {
 }
 
 void TrapManager::execute_return_trap() {
-  auto it = traps.find(-4);  // RETURN signal is -4
+  auto it = traps.find(-4);
   if (it != traps.end() && shell_ref) {
     if (g_debug_mode) {
       std::cerr << "DEBUG: Executing RETURN trap: " << it->second << std::endl;
@@ -190,23 +157,21 @@ int signal_name_to_number(const std::string& signal_name) {
   std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(),
                  ::toupper);
 
-  // Remove SIG prefix if present
   if (upper_name.substr(0, 3) == "SIG") {
     upper_name = upper_name.substr(3);
   }
 
-  // Handle special POSIX signal names
   if (upper_name == "EXIT" || signal_name == "0") {
-    return 0;  // EXIT signal
+    return 0;
   }
   if (upper_name == "ERR") {
-    return -2;  // ERR signal
+    return -2;
   }
   if (upper_name == "DEBUG") {
-    return -3;  // DEBUG signal
+    return -3;
   }
   if (upper_name == "RETURN") {
-    return -4;  // RETURN signal
+    return -4;
   }
 
   auto it = signal_map.find(upper_name);
@@ -214,10 +179,9 @@ int signal_name_to_number(const std::string& signal_name) {
     return it->second;
   }
 
-  // Try to parse as number
   try {
     int num = std::stoi(signal_name);
-    // Special handling for signal 0 (EXIT)
+
     if (num == 0) {
       return 0;
     }
@@ -228,7 +192,6 @@ int signal_name_to_number(const std::string& signal_name) {
 }
 
 std::string signal_number_to_name(int signal_number) {
-  // Handle special POSIX signals
   switch (signal_number) {
     case 0:
       return "EXIT";
@@ -248,7 +211,6 @@ std::string signal_number_to_name(int signal_number) {
 
 int trap_command(const std::vector<std::string>& args) {
   if (args.size() == 1) {
-    // List all traps
     auto& trap_manager = TrapManager::instance();
     auto traps = trap_manager.list_traps();
 
@@ -263,9 +225,7 @@ int trap_command(const std::vector<std::string>& args) {
     return 0;
   }
 
-  // Handle options
   if (args.size() >= 2 && args[1] == "-l") {
-    // List all signal names
     init_reverse_signal_map();
     for (const auto& pair : signal_map) {
       std::cout << pair.second << ") SIG" << pair.first << std::endl;
@@ -274,7 +234,6 @@ int trap_command(const std::vector<std::string>& args) {
   }
 
   if (args.size() >= 2 && args[1] == "-p") {
-    // Print traps in a format suitable for input
     auto& trap_manager = TrapManager::instance();
     auto traps = trap_manager.list_traps();
 
@@ -290,11 +249,9 @@ int trap_command(const std::vector<std::string>& args) {
     return 2;
   }
 
-  // Set or remove trap
   std::string command = args[1];
   auto& trap_manager = TrapManager::instance();
 
-  // Process all signal arguments
   for (size_t i = 2; i < args.size(); ++i) {
     int signal_num = signal_name_to_number(args[i]);
     if (signal_num == -1) {
@@ -304,10 +261,8 @@ int trap_command(const std::vector<std::string>& args) {
     }
 
     if (command.empty() || command == "-") {
-      // Remove trap
       trap_manager.remove_trap(signal_num);
     } else {
-      // Set trap
       trap_manager.set_trap(signal_num, command);
     }
   }

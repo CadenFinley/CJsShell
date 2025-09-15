@@ -12,7 +12,6 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     return 1;
   }
 
-  // Default options
   bool raw_mode = false;
   int nchars = -1;
   std::string prompt;
@@ -20,24 +19,21 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
 
   std::vector<std::string> var_names;
 
-  // Parse arguments
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& arg = args[i];
 
     if (arg == "-r") {
       raw_mode = true;
     } else if (arg == "-n" && i + 1 < args.size()) {
-      // -n <num> format (with space)
       try {
         nchars = std::stoi(args[i + 1]);
-        i++;  // Skip the next argument
+        i++;
       } catch (const std::exception&) {
         std::cerr << "read: invalid number of characters: " << args[i + 1]
                   << "\n";
         return 1;
       }
     } else if (arg.substr(0, 2) == "-n" && arg.length() > 2) {
-      // -n<num> format (no space)
       try {
         nchars = std::stoi(arg.substr(2));
       } catch (const std::exception&) {
@@ -46,25 +42,19 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         return 1;
       }
     } else if (arg == "-p" && i + 1 < args.size()) {
-      // -p <prompt> format (with space)
       prompt = args[i + 1];
-      i++;  // Skip the next argument
+      i++;
     } else if (arg.substr(0, 2) == "-p" && arg.length() > 2) {
-      // -p<prompt> format (no space)
       prompt = arg.substr(2);
     } else if (arg == "-d" && i + 1 < args.size()) {
-      // -d <delim> format (with space)
       delim = args[i + 1];
-      i++;  // Skip the next argument
+      i++;
     } else if (arg.substr(0, 2) == "-d" && arg.length() > 2) {
-      // -d<delim> format (no space)
       delim = arg.substr(2);
     } else if (arg == "-t" && i + 1 < args.size()) {
-      // -t <timeout> format - not implemented yet
       std::cerr << "read: timeout option not implemented\n";
       return 1;
     } else if (arg.substr(0, 2) == "-t" && arg.length() > 2) {
-      // -t<timeout> format - not implemented yet
       std::cerr << "read: timeout option not implemented\n";
       return 1;
     } else if (arg == "--help") {
@@ -89,34 +79,28 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
       std::cerr << "Try 'read --help' for more information.\n";
       return 1;
     } else {
-      // Variable name
       var_names.push_back(arg);
     }
   }
 
-  // If no variable names specified, use REPLY
   if (var_names.empty()) {
     var_names.push_back("REPLY");
   }
 
-  // Output prompt if specified
   if (!prompt.empty()) {
     std::cout << prompt << std::flush;
   }
 
-  // Read input
   std::string input;
   char c;
   int chars_read = 0;
 
   if (nchars > 0) {
-    // Read specific number of characters
     while (chars_read < nchars && std::cin.get(c)) {
       input += c;
       chars_read++;
     }
   } else {
-    // Read until delimiter
     while (std::cin.get(c)) {
       if (delim.find(c) != std::string::npos) {
         break;
@@ -125,12 +109,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     }
   }
 
-  // Check for EOF
   if (std::cin.eof() && input.empty()) {
     return 1;
   }
 
-  // Process backslashes if not in raw mode
   if (!raw_mode) {
     std::string processed;
     for (size_t i = 0; i < input.length(); ++i) {
@@ -180,28 +162,21 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     input = processed;
   }
 
-  // Split input into fields (whitespace separated)
   std::vector<std::string> fields;
   std::istringstream iss(input);
   std::string field;
 
-  // Split by whitespace for multiple variables
   while (iss >> field) {
     fields.push_back(field);
   }
 
-  // If no fields were read but we have input, it means the input was all
-  // whitespace or the line was empty. In this case, set the first variable to
-  // the entire input.
   if (fields.empty() && !input.empty()) {
     fields.push_back(input);
   }
 
-  // Assign values to variables
   for (size_t i = 0; i < var_names.size(); ++i) {
     const std::string& var_name = var_names[i];
 
-    // Check if variable is readonly
     if (ReadonlyManager::instance().is_readonly(var_name)) {
       std::cerr << "read: " << var_name << ": readonly variable\n";
       return 1;
@@ -210,7 +185,6 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     std::string value;
     if (i < fields.size()) {
       if (i == var_names.size() - 1 && fields.size() > var_names.size()) {
-        // Last variable gets all remaining fields
         for (size_t j = i; j < fields.size(); ++j) {
           if (j > i)
             value += " ";
@@ -220,15 +194,12 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         value = fields[i];
       }
     }
-    // If no more fields, variable gets empty string
 
-    // Set the environment variable
     if (setenv(var_name.c_str(), value.c_str(), 1) != 0) {
       perror("read: setenv");
       return 1;
     }
 
-    // Also update shell's env_vars map
     shell->get_env_vars()[var_name] = value;
   }
 

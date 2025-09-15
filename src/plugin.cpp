@@ -82,7 +82,6 @@ Plugin::~Plugin() {
   }
   loaded_plugins.clear();
 
-  // Clear subscribed events to avoid memory leaks
   {
     std::unique_lock events_lock(events_mutex);
     if (g_debug_mode) {
@@ -1276,7 +1275,6 @@ void Plugin::clear_plugin_cache() {
   std::unique_lock discovery_lock(discovery_mutex);
   plugins_discovered = false;
 
-  // Clear subscribed events to avoid accumulating stale subscriptions
   {
     std::unique_lock events_lock(events_mutex);
     if (g_debug_mode) {

@@ -20,7 +20,6 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
   size_t start_index = 1;
 
-  // Parse options
   for (size_t i = 1; i < args.size() && args[i][0] == '-'; ++i) {
     const std::string& option = args[i];
     if (option == "--") {
@@ -59,7 +58,6 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
     const std::string& name = args[i];
     bool found = false;
 
-    // Check if it's a shell keyword
     if (!force_path && !inhibit_functions) {
       const std::vector<std::string> keywords = {
           "if",  "then",   "else",  "elif",  "fi",   "case", "esac",
@@ -80,7 +78,6 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
       }
     }
 
-    // Check if it's a builtin command
     if (!found || show_all) {
       if (!force_path && shell &&
           shell->get_built_ins()->is_builtin_command(name)) {
@@ -95,7 +92,6 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
       }
     }
 
-    // Check if it's an alias
     if (!found || show_all) {
       if (!force_path && !inhibit_functions && shell) {
         auto aliases = shell->get_aliases();
@@ -114,15 +110,11 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
       }
     }
 
-    // Check if it's a function (simplified - would need function registry)
     if (!found || show_all) {
       if (!force_path && !inhibit_functions) {
-        // For now, we don't have a function registry in the shell
-        // This would need to be implemented if function support is added
       }
     }
 
-    // Check if it's an executable in PATH
     if (!found || show_all || force_path) {
       if (!no_path_search) {
         std::string path = cjsh_filesystem::find_executable_in_path(name);
@@ -137,10 +129,8 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
       }
     }
 
-    // If nothing was found
     if (!found) {
       if (show_type_only) {
-        // Don't print anything for type-only mode when not found
       } else {
         std::cout << name << ": not found" << std::endl;
       }

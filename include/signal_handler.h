@@ -11,7 +11,6 @@
 
 class Exec;
 
-// RAII signal masking utility for critical sections
 class SignalMask {
  private:
   sigset_t old_mask;
@@ -29,7 +28,7 @@ class SignalMask {
 
   SignalMask(const std::vector<int>& signals) : active(false) {
     if (signals.empty())
-      return;  // Avoid syscall for empty vector
+      return;
     sigset_t mask;
     sigemptyset(&mask);
     for (int sig : signals) {
@@ -46,7 +45,6 @@ class SignalMask {
     }
   }
 
-  // Non-copyable
   SignalMask(const SignalMask&) = delete;
   SignalMask& operator=(const SignalMask&) = delete;
 };

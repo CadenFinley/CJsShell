@@ -10,7 +10,6 @@ mode_t parse_octal_mode(const std::string& mode_str) {
     return static_cast<mode_t>(-1);
   }
 
-  // Check if all characters are octal digits
   for (char c : mode_str) {
     if (c < '0' || c > '7') {
       return static_cast<mode_t>(-1);
@@ -35,27 +34,22 @@ std::string format_octal_mode(mode_t mode) {
 }
 
 mode_t parse_symbolic_mode(const std::string& mode_str, mode_t current_mask) {
-  // This is a simplified symbolic mode parser
-  // Full symbolic mode parsing is quite complex
-
   if (mode_str == "u=rwx,g=rx,o=rx") {
-    return 022;  // 755
+    return 022;
   } else if (mode_str == "u=rw,g=r,o=r") {
-    return 022;  // 644
+    return 022;
   } else if (mode_str == "u=rwx,g=,o=") {
-    return 077;  // 700
+    return 077;
   }
 
-  // For now, return the current mask if we can't parse it
   return current_mask;
 }
 
 int umask_command(const std::vector<std::string>& args) {
-  mode_t current_mask = umask(0);  // Get current mask
-  umask(current_mask);             // Restore it
+  mode_t current_mask = umask(0);
+  umask(current_mask);
 
   if (args.size() == 1) {
-    // Display current umask
     std::cout << format_octal_mode(current_mask) << std::endl;
     return 0;
   }
@@ -63,13 +57,10 @@ int umask_command(const std::vector<std::string>& args) {
   bool symbolic_mode = false;
   size_t mode_index = 1;
 
-  // Check for -S option (symbolic output)
   if (args.size() > 1 && args[1] == "-S") {
     if (args.size() == 2) {
-      // Display in symbolic format
       mode_t perms = (~current_mask) & 0777;
 
-      // User permissions
       std::cout << "u=";
       if (perms & S_IRUSR)
         std::cout << "r";
@@ -111,7 +102,6 @@ int umask_command(const std::vector<std::string>& args) {
   mode_t new_mask;
 
   if (symbolic_mode || mode_str.find('=') != std::string::npos) {
-    // Symbolic mode
     new_mask = parse_symbolic_mode(mode_str, current_mask);
     if (new_mask == current_mask && mode_str != "u=rwx,g=rwx,o=rwx") {
       std::cerr << "umask: " << mode_str << ": invalid symbolic mode"
@@ -119,7 +109,6 @@ int umask_command(const std::vector<std::string>& args) {
       return 1;
     }
   } else {
-    // Octal mode
     new_mask = parse_octal_mode(mode_str);
     if (new_mask == static_cast<mode_t>(-1)) {
       std::cerr << "umask: " << mode_str << ": octal number out of range"
@@ -128,7 +117,6 @@ int umask_command(const std::vector<std::string>& args) {
     }
   }
 
-  // Set the new umask
   umask(new_mask);
 
   return 0;

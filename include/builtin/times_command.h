@@ -5,5 +5,4 @@
 
 class Shell;
 
-// POSIX times builtin command
 int times_command(const std::vector<std::string>& args, Shell* shell = nullptr);

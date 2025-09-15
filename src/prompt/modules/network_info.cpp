@@ -5,9 +5,8 @@
 
 std::string NetworkInfo::get_ip_address(bool external) {
   std::string cmd;
-  
+
   if (external) {
-    // Try multiple services for external IP
     cmd = R"(
       curl -s ipinfo.io/ip 2>/dev/null || 
       curl -s ifconfig.me 2>/dev/null || 
@@ -15,7 +14,6 @@ std::string NetworkInfo::get_ip_address(bool external) {
       echo "N/A"
     )";
   } else {
-    // Get local IP address
 #ifdef __APPLE__
     cmd = R"(
       ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -n 1 | awk '{print $2}'
@@ -24,7 +22,7 @@ std::string NetworkInfo::get_ip_address(bool external) {
     cmd = R"(
       hostname -I | awk '{print $1}' 2>/dev/null || 
       ip route get 1.1.1.1 | awk '{print $7}' 2>/dev/null ||
-      ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -n 1 | awk '{print $2}' | sed 's/addr://'
+      ifconfig | grep 'inet ' | grep -v '127.0.0.1' | head -n 1 | awk '{print $2}' | sed 's/addr:
     )";
 #else
     return "N/A";

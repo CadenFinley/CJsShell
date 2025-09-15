@@ -7,8 +7,8 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
-#include "prompt_info.h"
 #include "prompt.h"
+#include "prompt_info.h"
 #include "theme.h"
 #include "theme_command.h"
 

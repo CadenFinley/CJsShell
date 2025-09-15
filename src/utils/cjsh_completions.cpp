@@ -57,7 +57,6 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (ic_stop_completing(cenv))
     return;
 
-  // case-insensitive prefix matching
   std::string prefix_lower(prefix);
   std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
                  [](unsigned char c) { return std::tolower(c); });
@@ -92,7 +91,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (ic_stop_completing(cenv))
     return;
 
-  // case-insensitive history prefix matching
   std::string prefix_lower(prefix);
   std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
                  [](unsigned char c) { return std::tolower(c); });
@@ -116,7 +114,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   std::vector<std::pair<std::string, int>> matches;
 
   while (std::getline(history_file, line)) {
-    // lowercase for matching
     std::string line_lower(line);
     std::transform(line_lower.begin(), line_lower.end(), line_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -177,7 +174,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       prefix_before = prefix_str.substr(0, last_space + 1);
       special_part = prefix_str.substr(last_space + 1);
     } else {
-      // Handle regular paths after space (e.g., "cd /", "ls /usr/")
       prefix_before = prefix_str.substr(0, last_space + 1);
       special_part = prefix_str.substr(last_space + 1);
     }
@@ -189,7 +185,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     has_dash = true;
     special_part = prefix_str;
   } else if (prefix_str.rfind("cd ", 0) == 0 && prefix_str.length() > 3) {
-    // Handle case where prefix starts with "cd " (e.g., "cd Documents")
     prefix_before = "cd ";
     special_part = prefix_str.substr(3);
   }
@@ -348,35 +343,37 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     return;
   }
 
-  // Add directory bookmark completions for cd command
   if (!prefix_before.empty()) {
-    // Check if we're completing for a cd command
     std::string command_part = prefix_before;
-    // Remove trailing space/tab
-    while (!command_part.empty() && (command_part.back() == ' ' || command_part.back() == '\t')) {
+
+    while (!command_part.empty() &&
+           (command_part.back() == ' ' || command_part.back() == '\t')) {
       command_part.pop_back();
     }
-    
+
     if (command_part == "cd" || command_part.rfind("cd ", 0) == 0) {
       if (g_debug_mode)
-        std::cerr << "DEBUG: Processing bookmark completions for cd command with prefix: '" 
+        std::cerr << "DEBUG: Processing bookmark completions for cd command "
+                     "with prefix: '"
                   << special_part << "'" << std::endl;
-                  
-      // Get directory bookmarks from the shell
+
       if (g_shell && g_shell->get_built_ins()) {
-        const auto& bookmarks = g_shell->get_built_ins()->get_directory_bookmarks();
-        
+        const auto& bookmarks =
+            g_shell->get_built_ins()->get_directory_bookmarks();
+
         for (const auto& bookmark : bookmarks) {
           const std::string& bookmark_name = bookmark.first;
-          
-          // Check if bookmark name starts with the special_part (or show all if special_part is empty)
-          if (special_part.empty() || bookmark_name.rfind(special_part, 0) == 0) {
-            std::string completion_suffix = bookmark_name.substr(special_part.length());
-            
+
+          if (special_part.empty() ||
+              bookmark_name.rfind(special_part, 0) == 0) {
+            std::string completion_suffix =
+                bookmark_name.substr(special_part.length());
+
             if (g_debug_mode)
-              std::cerr << "DEBUG: Adding bookmark completion: '" << bookmark_name
-                        << "' -> '" << completion_suffix << "'" << std::endl;
-                        
+              std::cerr << "DEBUG: Adding bookmark completion: '"
+                        << bookmark_name << "' -> '" << completion_suffix << "'"
+                        << std::endl;
+
             if (!ic_add_completion(cenv, completion_suffix.c_str()))
               return;
           }
@@ -385,9 +382,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
   }
 
-  // Standard behavior: if prefix ends with '/', complete all files and
-  // directories Use the special_part if we extracted a path from after a space,
-  // otherwise use the full prefix
   std::string path_to_check = special_part.empty() ? prefix_str : special_part;
 
   if (!ic_stop_completing(cenv) && !path_to_check.empty() &&
@@ -418,8 +412,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
     return;
   }
-  // For regular path completion (when path doesn't end with '/'), use the
-  // extracted path part
+
   if (!special_part.empty()) {
     ic_complete_filename(cenv, special_part.c_str(), '/', nullptr, nullptr);
   } else {
@@ -471,35 +464,21 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 void initialize_completion_system() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing completion system" << std::endl;
-  ic_style_def("cjsh-unknown-command",
-               "bold color=#FF5555");  // Bright red for errors/unknown
-  ic_style_def("cjsh-colon",
-               "bold color=#8BE9FD");  // Bright cyan for special syntax
-  ic_style_def("cjsh-path-exists",
-               "color=#50FA7B");  // Bright green for valid paths
-  ic_style_def("cjsh-path-not-exists",
-               "color=#FF5555");  // Bright red for invalid paths
-  ic_style_def("cjsh-glob-pattern",
-               "color=#F1FA8C");  // Bright yellow for glob patterns
-  ic_style_def("cjsh-operator",
-               "bold color=#FF79C6");  // Bright pink for operators
-  ic_style_def("cjsh-keyword",
-               "bold color=#BD93F9");  // Bright purple for keywords (if, then,
-                                       // else, etc.)
-  ic_style_def("cjsh-builtin",
-               "color=#FFB86C");  // Bright orange for built-in commands
-  ic_style_def("cjsh-variable",
-               "color=#8BE9FD");  // Bright cyan for variables ($VAR, ${VAR})
-  ic_style_def("cjsh-string",
-               "color=#F1FA8C");  // Bright yellow for quoted strings
-  ic_style_def("cjsh-comment",
-               "color=#6272A4");  // Muted blue-gray for comments
-  ic_style_def("cjsh-known-command",
-               "color=#50FA7B");  // Bright green for known commands
-  ic_style_def("cjsh-external-command",
-               "color=#8BE9FD");  // Bright cyan for external executables
+  ic_style_def("cjsh-unknown-command", "bold color=#FF5555");
+  ic_style_def("cjsh-colon", "bold color=#8BE9FD");
+  ic_style_def("cjsh-path-exists", "color=#50FA7B");
+  ic_style_def("cjsh-path-not-exists", "color=#FF5555");
+  ic_style_def("cjsh-glob-pattern", "color=#F1FA8C");
+  ic_style_def("cjsh-operator", "bold color=#FF79C6");
+  ic_style_def("cjsh-keyword", "bold color=#BD93F9");
 
-  // Set up completions if enabled
+  ic_style_def("cjsh-builtin", "color=#FFB86C");
+  ic_style_def("cjsh-variable", "color=#8BE9FD");
+  ic_style_def("cjsh-string", "color=#F1FA8C");
+  ic_style_def("cjsh-comment", "color=#6272A4");
+  ic_style_def("cjsh-known-command", "color=#50FA7B");
+  ic_style_def("cjsh-external-command", "color=#8BE9FD");
+
   if (config::completions_enabled) {
     ic_set_default_completer(cjsh_default_completer, NULL);
     ic_enable_completion_preview(true);
@@ -508,25 +487,21 @@ void initialize_completion_system() {
     ic_enable_auto_tab(false);
     ic_enable_completion_preview(true);
   } else {
-    // Disable completions
     ic_set_default_completer(nullptr, NULL);
     ic_enable_completion_preview(false);
     ic_enable_hint(false);
     ic_enable_auto_tab(false);
   }
 
-  // Set up syntax highlighting if enabled
   if (config::syntax_highlighting_enabled) {
     SyntaxHighlighter::initialize();
     ic_set_default_highlighter(SyntaxHighlighter::highlight, NULL);
     ic_enable_highlight(true);
   } else {
-    // Disable syntax highlighting
     ic_set_default_highlighter(nullptr, NULL);
     ic_enable_highlight(false);
   }
 
-  // Common settings that apply regardless of completion/highlighting state
   ic_enable_history_duplicates(false);
   ic_enable_inline_help(false);
   ic_enable_multiline_indent(false);

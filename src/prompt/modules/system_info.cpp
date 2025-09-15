@@ -63,20 +63,20 @@ std::string SystemInfo::get_os_info() {
   std::string cmd = "sw_vers -productName && sw_vers -productVersion";
 #elif defined(__linux__)
   // Try multiple sources for Linux distribution info
-  std::string cmd = 
-    "if [ -f /etc/os-release ]; then "
+  std::string cmd =
+      "if [ -f /etc/os-release ]; then "
       ". /etc/os-release && echo \"$NAME $VERSION\"; "
-    "elif [ -f /etc/lsb-release ]; then "
+      "elif [ -f /etc/lsb-release ]; then "
       ". /etc/lsb-release && echo \"$DISTRIB_ID $DISTRIB_RELEASE\"; "
-    "elif [ -f /etc/debian_version ]; then "
+      "elif [ -f /etc/debian_version ]; then "
       "echo \"Debian $(cat /etc/debian_version)\"; "
-    "elif [ -f /etc/redhat-release ]; then "
+      "elif [ -f /etc/redhat-release ]; then "
       "cat /etc/redhat-release; "
-    "elif [ -f /etc/arch-release ]; then "
+      "elif [ -f /etc/arch-release ]; then "
       "echo \"Arch Linux\"; "
-    "else "
+      "else "
       "uname -s; "
-    "fi";
+      "fi";
 #else
   std::string cmd = "uname -s";
 #endif
@@ -97,7 +97,7 @@ std::string SystemInfo::get_os_info() {
   if (!result.empty() && result.back() == '\n') {
     result.pop_back();
   }
-  
+
   // For macOS, combine product name and version on one line
 #ifdef __APPLE__
   size_t newline_pos = result.find('\n');
@@ -138,7 +138,8 @@ std::string SystemInfo::get_kernel_version() {
 
 float SystemInfo::get_cpu_usage() {
 #ifdef __APPLE__
-  std::string cmd = "top -l 1 -n 0 | awk '/CPU usage/ {print $3}' | sed 's/%//'";
+  std::string cmd =
+      "top -l 1 -n 0 | awk '/CPU usage/ {print $3}' | sed 's/%//'";
 #elif defined(__linux__)
   std::string cmd = R"(
     grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4)} END {printf "%.1f", usage}'

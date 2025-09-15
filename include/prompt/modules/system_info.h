@@ -7,7 +7,7 @@ class SystemInfo {
  public:
   SystemInfo() = default;
   ~SystemInfo() = default;
-  
+
   std::string get_os_info();
   std::string get_kernel_version();
   float get_cpu_usage();

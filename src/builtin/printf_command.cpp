@@ -7,7 +7,6 @@
 #include <sstream>
 #include <string>
 
-// Parse printf format specifiers and apply them
 std::string format_printf_arg(const std::string& format_spec,
                               const std::string& arg) {
   std::ostringstream result;
@@ -20,7 +19,6 @@ std::string format_printf_arg(const std::string& format_spec,
   switch (spec) {
     case 'd':
     case 'i': {
-      // Integer
       long long val = 0;
       try {
         val = std::stoll(arg.empty() ? "0" : arg);
@@ -31,7 +29,6 @@ std::string format_printf_arg(const std::string& format_spec,
       break;
     }
     case 'o': {
-      // Octal
       unsigned long long val = 0;
       try {
         val = std::stoull(arg.empty() ? "0" : arg);
@@ -42,7 +39,6 @@ std::string format_printf_arg(const std::string& format_spec,
       break;
     }
     case 'x': {
-      // Lowercase hex
       unsigned long long val = 0;
       try {
         val = std::stoull(arg.empty() ? "0" : arg);
@@ -53,7 +49,6 @@ std::string format_printf_arg(const std::string& format_spec,
       break;
     }
     case 'X': {
-      // Uppercase hex
       unsigned long long val = 0;
       try {
         val = std::stoull(arg.empty() ? "0" : arg);
@@ -64,7 +59,6 @@ std::string format_printf_arg(const std::string& format_spec,
       break;
     }
     case 'u': {
-      // Unsigned integer
       unsigned long long val = 0;
       try {
         val = std::stoull(arg.empty() ? "0" : arg);
@@ -76,7 +70,6 @@ std::string format_printf_arg(const std::string& format_spec,
     }
     case 'f':
     case 'F': {
-      // Float
       double val = 0.0;
       try {
         val = std::stod(arg.empty() ? "0" : arg);
@@ -87,7 +80,6 @@ std::string format_printf_arg(const std::string& format_spec,
       break;
     }
     case 'e': {
-      // Scientific notation (lowercase)
       double val = 0.0;
       try {
         val = std::stod(arg.empty() ? "0" : arg);
@@ -98,7 +90,6 @@ std::string format_printf_arg(const std::string& format_spec,
       break;
     }
     case 'E': {
-      // Scientific notation (uppercase)
       double val = 0.0;
       try {
         val = std::stod(arg.empty() ? "0" : arg);
@@ -110,7 +101,6 @@ std::string format_printf_arg(const std::string& format_spec,
     }
     case 'g':
     case 'G': {
-      // General format
       double val = 0.0;
       try {
         val = std::stod(arg.empty() ? "0" : arg);
@@ -121,10 +111,8 @@ std::string format_printf_arg(const std::string& format_spec,
       break;
     }
     case 'c': {
-      // Character
       if (!arg.empty()) {
         if (arg[0] >= '0' && arg[0] <= '9') {
-          // Numeric value
           int val = std::atoi(arg.c_str());
           if (val >= 0 && val <= 255) {
             result << static_cast<char>(val);
@@ -137,7 +125,6 @@ std::string format_printf_arg(const std::string& format_spec,
     }
     case 's':
     default: {
-      // String (default)
       result << arg;
       break;
     }
@@ -146,7 +133,6 @@ std::string format_printf_arg(const std::string& format_spec,
   return result.str();
 }
 
-// Process escape sequences in printf format string
 std::string process_printf_escapes(const std::string& input) {
   std::string result;
   for (size_t i = 0; i < input.length(); ++i) {
@@ -156,39 +142,39 @@ std::string process_printf_escapes(const std::string& input) {
         case 'a':
           result += '\a';
           i++;
-          break;  // alert (bell)
+          break;
         case 'b':
           result += '\b';
           i++;
-          break;  // backspace
+          break;
         case 'f':
           result += '\f';
           i++;
-          break;  // form feed
+          break;
         case 'n':
           result += '\n';
           i++;
-          break;  // newline
+          break;
         case 'r':
           result += '\r';
           i++;
-          break;  // carriage return
+          break;
         case 't':
           result += '\t';
           i++;
-          break;  // horizontal tab
+          break;
         case 'v':
           result += '\v';
           i++;
-          break;  // vertical tab
+          break;
         case '\\':
           result += '\\';
           i++;
-          break;  // backslash
+          break;
         case '"':
           result += '"';
           i++;
-          break;  // quote
+          break;
         case '0':
         case '1':
         case '2':
@@ -197,7 +183,6 @@ std::string process_printf_escapes(const std::string& input) {
         case '5':
         case '6':
         case '7': {
-          // Octal escape sequence
           int octal = 0;
           int digits = 0;
           while (i + 1 < input.length() && digits < 3 && input[i + 1] >= '0' &&
@@ -230,12 +215,10 @@ int printf_command(const std::vector<std::string>& args) {
   std::string format = process_printf_escapes(args[1]);
   std::vector<std::string> printf_args;
 
-  // Copy arguments, excluding the command name and format string
   for (size_t i = 2; i < args.size(); ++i) {
     printf_args.push_back(args[i]);
   }
 
-  // If no arguments to format, just print the format string and return
   if (printf_args.empty()) {
     std::cout << format;
     return 0;
@@ -243,34 +226,28 @@ int printf_command(const std::vector<std::string>& args) {
 
   size_t arg_index = 0;
 
-  // POSIX printf: reuse format string until all arguments are consumed
   while (arg_index < printf_args.size()) {
     bool consumed_arg_this_iteration = false;
 
     for (size_t i = 0; i < format.length(); ++i) {
       if (format[i] == '%' && i + 1 < format.length()) {
         if (format[i + 1] == '%') {
-          // Literal %
           std::cout << '%';
           i++;
         } else {
-          // Parse format specifier
           size_t spec_start = i;
-          i++;  // Skip %
+          i++;
 
-          // Skip flags
           while (i < format.length() &&
                  (format[i] == '-' || format[i] == '+' || format[i] == ' ' ||
                   format[i] == '#' || format[i] == '0')) {
             i++;
           }
 
-          // Skip width
           while (i < format.length() && format[i] >= '0' && format[i] <= '9') {
             i++;
           }
 
-          // Skip precision
           if (i < format.length() && format[i] == '.') {
             i++;
             while (i < format.length() && format[i] >= '0' &&
@@ -279,7 +256,6 @@ int printf_command(const std::vector<std::string>& args) {
             }
           }
 
-          // Get conversion specifier
           if (i < format.length()) {
             std::string format_spec =
                 format.substr(spec_start + 1, i - spec_start);
@@ -290,7 +266,6 @@ int printf_command(const std::vector<std::string>& args) {
             arg_index++;
             consumed_arg_this_iteration = true;
 
-            // If we've consumed all arguments, stop processing
             if (arg_index >= printf_args.size()) {
               return 0;
             }
@@ -301,8 +276,6 @@ int printf_command(const std::vector<std::string>& args) {
       }
     }
 
-    // If the format string didn't consume any arguments, break to avoid
-    // infinite loop
     if (!consumed_arg_this_iteration) {
       break;
     }

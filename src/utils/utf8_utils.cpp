@@ -15,18 +15,14 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
   ssize_t pos = 0;
 
   while (pos < len) {
-    // Handle ANSI escape sequences
     if (data[pos] == '\033' && pos + 1 < len) {
-      pos++;  // Skip ESC
+      pos++;
       ansi_chars++;
 
-      // Handle different escape sequence types
       if (data[pos] == '[') {
-        // CSI sequence: ESC[...m or ESC[...other
-        pos++;  // Skip '['
+        pos++;
         ansi_chars++;
 
-        // Skip parameters and intermediate characters
         while (pos < len &&
                ((data[pos] >= '0' && data[pos] <= '9') || data[pos] == ';' ||
                 data[pos] == ':' || data[pos] == '<' || data[pos] == '=' ||
@@ -35,24 +31,22 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
           ansi_chars++;
         }
 
-        // Skip final character
         if (pos < len) {
           pos++;
           ansi_chars++;
         }
       } else if (data[pos] == ']') {
-        // OSC sequence: ESC]...BEL or ESC]...ESC-backslash
-        pos++;  // Skip ']'
+        pos++;
         ansi_chars++;
 
         while (pos < len) {
-          if (data[pos] == '\007') {  // BEL
+          if (data[pos] == '\007') {
             pos++;
             ansi_chars++;
             break;
           }
           if (data[pos] == '\033' && pos + 1 < len && data[pos + 1] == '\\') {
-            pos += 2;  // Skip ESC-backslash
+            pos += 2;
             ansi_chars += 2;
             break;
           }
@@ -60,36 +54,30 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
           ansi_chars++;
         }
       } else {
-        // Other escape sequences, skip next character
         pos++;
         ansi_chars++;
       }
       continue;
     }
 
-    // Parse UTF-8 character
     utf8proc_int32_t codepoint;
     ssize_t bytes_read = utf8proc_iterate(data + pos, len - pos, &codepoint);
 
     if (bytes_read < 0) {
-      // Invalid UTF-8, treat as single-width character
       display_width++;
       visible_chars++;
       pos++;
       continue;
     }
 
-    // Get character width using utf8proc
     int char_width = utf8proc_charwidth(codepoint);
 
-    // Handle special cases
     if (char_width >= 0) {
       display_width += static_cast<size_t>(char_width);
       if (char_width > 0) {
         visible_chars++;
       }
     } else {
-      // Treat unknown characters as single-width
       display_width++;
       visible_chars++;
     }
@@ -119,7 +107,6 @@ size_t calculate_utf8_width(const std::string& str) {
     ssize_t bytes_read = utf8proc_iterate(data + pos, len - pos, &codepoint);
 
     if (bytes_read < 0) {
-      // Invalid UTF-8, treat as single-width
       width++;
       pos++;
       continue;
@@ -129,7 +116,7 @@ size_t calculate_utf8_width(const std::string& str) {
     if (char_width >= 0) {
       width += static_cast<size_t>(char_width);
     } else {
-      width++;  // fallback
+      width++;
     }
 
     pos += bytes_read;
@@ -163,7 +150,7 @@ std::string to_lowercase(const std::string& str) {
                                      UTF8PROC_CASEFOLD));
 
   if (result_len < 0 || !result) {
-    return str;  // Return original on error
+    return str;
   }
 
   std::string output(reinterpret_cast<char*>(result),
@@ -177,14 +164,13 @@ std::string to_uppercase(const std::string& str) {
   ssize_t len = static_cast<ssize_t>(str.length());
   ssize_t pos = 0;
   std::string result;
-  result.reserve(str.length() * 2);  // Reserve space for potential expansion
+  result.reserve(str.length() * 2);
 
   while (pos < len) {
     utf8proc_int32_t codepoint;
     ssize_t bytes_read = utf8proc_iterate(data + pos, len - pos, &codepoint);
 
     if (bytes_read < 0) {
-      // Invalid UTF-8, copy as-is
       result += str[pos];
       pos++;
       continue;
@@ -192,7 +178,6 @@ std::string to_uppercase(const std::string& str) {
 
     utf8proc_int32_t upper_cp = utf8proc_toupper(codepoint);
 
-    // Encode back to UTF-8
     uint8_t utf8_buf[4];
     ssize_t encoded_len = utf8proc_encode_char(upper_cp, utf8_buf);
 
@@ -200,7 +185,6 @@ std::string to_uppercase(const std::string& str) {
       result.append(reinterpret_cast<char*>(utf8_buf),
                     static_cast<size_t>(encoded_len));
     } else {
-      // Fallback: copy original bytes
       result.append(str, static_cast<size_t>(pos),
                     static_cast<size_t>(bytes_read));
     }
@@ -216,7 +200,7 @@ std::string normalize_nfc(const std::string& str) {
   uint8_t* result = utf8proc_NFC(input);
 
   if (!result) {
-    return str;  // Return original on error
+    return str;
   }
 
   std::string output(reinterpret_cast<char*>(result));

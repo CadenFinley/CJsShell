@@ -29,7 +29,6 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
   for (size_t i = 1; i < args.size(); ++i) {
     std::string name, value;
     if (parse_env_assignment(args[i], name, value)) {
-      // Check if variable is readonly
       if (ReadonlyManager::instance().is_readonly(name)) {
         std::cerr << "export: " << name << ": readonly variable" << std::endl;
         all_successful = false;
@@ -45,12 +44,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                   << "'" << std::endl;
       }
     } else {
-      // Just export the existing variable (make it available to child
-      // processes)
       const char* env_val = getenv(args[i].c_str());
       if (env_val) {
-        // Variable exists, just mark it for export (it's already exported via
-        // setenv)
         env_vars[args[i]] = env_val;
         if (g_debug_mode) {
           std::cout << "Exported existing variable: " << args[i] << "='"
@@ -82,7 +77,6 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
   for (size_t i = 1; i < args.size(); ++i) {
     const std::string& name = args[i];
 
-    // Check if variable is readonly
     if (ReadonlyManager::instance().is_readonly(name)) {
       std::cerr << "unset: " << name << ": readonly variable" << std::endl;
       success = false;

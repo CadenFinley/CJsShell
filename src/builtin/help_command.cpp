@@ -298,7 +298,6 @@ int help_command() {
 
   std::cout << "STARTUP ARGUMENTS:\n\n";
 
-  // Use our usage function to show command-line options
   print_usage();
 
   std::cout << section_separator;

@@ -2,18 +2,16 @@
 
 #include <chrono>
 #include <cstdlib>
-#include <cstring>  // For strdup
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <vector>
 
 namespace cjsh_filesystem {
 
-// Definition of g_cjsh_path
 fs::path g_cjsh_path;
 
 bool should_refresh_executable_cache() {
-  // We're already in the cjsh_filesystem namespace, so fs is already defined
   try {
     if (!fs::exists(g_cjsh_found_executables_path))
       return true;
@@ -101,7 +99,6 @@ bool initialize_cjsh_path() {
 #endif
 
   if (g_cjsh_path.empty()) {
-    // Last resort fallback - just use a default path
     g_cjsh_path = "cjsh";
     return true;
   }
@@ -159,7 +156,6 @@ std::string find_executable_in_path(const std::string& name) {
         }
       }
     } catch (const fs::filesystem_error&) {
-      // Ignore errors and continue searching
       continue;
     }
   }
