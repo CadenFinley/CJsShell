@@ -2683,7 +2683,7 @@ int ShellScriptInterpreter::execute_block(
         continue;
       }
     }
-    idx = k;
+    idx = k;  // Point to 'done' line, will be incremented in main loop
     return rc;
   };
 
@@ -2932,33 +2932,38 @@ int ShellScriptInterpreter::execute_block(
             case_commands.push_back(command_part);
           }
 
-          k++;
-          while (k < src_lines.size()) {
-            std::string cmd_line = trim(strip_inline_comment(src_lines[k]));
-            if (cmd_line.empty()) {
-              k++;
-              continue;
-            }
-            if (cmd_line == "esac") {
-              break;
-            }
-            if (cmd_line == ";;" || cmd_line.find(";;") != std::string::npos) {
-              if (cmd_line != ";;") {
-                size_t sep_pos = cmd_line.find(";;");
-                std::string before_sep = trim(cmd_line.substr(0, sep_pos));
-                if (!before_sep.empty()) {
-                  case_commands.push_back(before_sep);
-                }
-              }
-              break;
-            }
-
-            if (cmd_line.find(')') != std::string::npos) {
-              k--;
-              break;
-            }
-            case_commands.push_back(cmd_line);
+          // Check if the current line already contains ;; (inline case)
+          bool inline_case = line.find(";;") != std::string::npos;
+          
+          if (!inline_case) {
             k++;
+            while (k < src_lines.size()) {
+              std::string cmd_line = trim(strip_inline_comment(src_lines[k]));
+              if (cmd_line.empty()) {
+                k++;
+                continue;
+              }
+              if (cmd_line == "esac") {
+                break;
+              }
+              if (cmd_line == ";;" || cmd_line.find(";;") != std::string::npos) {
+                if (cmd_line != ";;") {
+                  size_t sep_pos = cmd_line.find(";;");
+                  std::string before_sep = trim(cmd_line.substr(0, sep_pos));
+                  if (!before_sep.empty()) {
+                    case_commands.push_back(before_sep);
+                  }
+                }
+                break;
+              }
+
+              if (cmd_line.find(')') != std::string::npos) {
+                k--;
+                break;
+              }
+              case_commands.push_back(cmd_line);
+              k++;
+            }
           }
 
           for (const auto& cmd : case_commands) {
@@ -2971,12 +2976,11 @@ int ShellScriptInterpreter::execute_block(
           while (k < src_lines.size()) {
             std::string scan_line = trim(strip_inline_comment(src_lines[k]));
             if (scan_line == "esac") {
-              k++; // Move past esac
               break;
             }
             k++;
           }
-          idx = k;
+          idx = k; // Point to esac line, will be incremented in main loop
           return matched_exit_code;
         }
       }
@@ -2986,13 +2990,12 @@ int ShellScriptInterpreter::execute_block(
     while (k < src_lines.size()) {
       std::string line = trim(strip_inline_comment(src_lines[k]));
       if (line == "esac") {
-        k++; // Move past esac
         break;
       }
       k++;
     }
 
-    idx = k;
+    idx = k; // Point to esac line, will be incremented in main loop
     return matched_exit_code;
   };
 
@@ -3084,7 +3087,7 @@ int ShellScriptInterpreter::execute_block(
         idx = k;
         return 1;
       }
-      idx = k;
+      idx = k + 1;  // Move past the 'done' keyword
     }
 
     int rc = 0;
@@ -3230,7 +3233,7 @@ int ShellScriptInterpreter::execute_block(
         idx = k;
         return 1;
       }
-      idx = k;
+      idx = k + 1;  // Move past the 'done' keyword
     }
 
     int rc = 0;
@@ -3318,22 +3321,28 @@ int ShellScriptInterpreter::execute_block(
 
     if (line == "for" || line.rfind("for ", 0) == 0) {
       int rc = handle_for_block(lines, line_index);
-      if (rc != 0)
-        return rc;
+      last_code = rc;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: for block completed with exit code: " << rc
+                  << std::endl;
       continue;
     }
 
     if (line == "while" || line.rfind("while ", 0) == 0) {
       int rc = handle_while_block(lines, line_index);
-      if (rc != 0)
-        return rc;
+      last_code = rc;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: while block completed with exit code: " << rc
+                  << std::endl;
       continue;
     }
 
     if (line == "until" || line.rfind("until ", 0) == 0) {
       int rc = handle_until_block(lines, line_index);
-      if (rc != 0)
-        return rc;
+      last_code = rc;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: until block completed with exit code: " << rc
+                  << std::endl;
       continue;
     }
 

@@ -277,14 +277,48 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
     }
   }
 
-  return list_directory(
-      path, show_hidden, show_almost_all, long_format, sort_by_size,
-      reverse_order, sort_by_time, sort_by_access_time, sort_by_status_time,
-      human_readable, recursive, one_per_line, show_inode, multi_column,
-      indicator_style, follow_symlinks_cmdline, follow_all_symlinks,
-      directory_only, unsorted, long_format_no_owner, kilobyte_blocks,
-      stream_format, numeric_ids, long_format_no_group, append_slash,
-      quote_non_printable, show_blocks, multi_column_across, 0, use_colors);
+  // If we have multiple arguments (files/directories), we need to handle them separately
+  std::vector<std::string> paths;
+  for (size_t i = 1; i < args.size(); i++) {
+    if (args[i][0] != '-' && args[i] != "--help") {
+      paths.push_back(args[i]);
+    }
+  }
+  
+  // If no paths specified, use current directory
+  if (paths.empty()) {
+    paths.push_back(".");
+  }
+  
+  int exit_code = 0;
+  for (size_t i = 0; i < paths.size(); i++) {
+    // Only show path headers when listing multiple directories or when explicit -d flag is used
+    if (paths.size() > 1 && !directory_only) {
+      std::error_code ec;
+      std::filesystem::path fs_path(paths[i]);
+      bool is_dir = std::filesystem::is_directory(fs_path, ec);
+      
+      if (is_dir) {
+        if (i > 0) std::cout << std::endl;
+        std::cout << paths[i] << ":" << std::endl;
+      }
+    }
+    
+    int result = list_directory(
+        paths[i], show_hidden, show_almost_all, long_format, sort_by_size,
+        reverse_order, sort_by_time, sort_by_access_time, sort_by_status_time,
+        human_readable, recursive, one_per_line, show_inode, multi_column,
+        indicator_style, follow_symlinks_cmdline, follow_all_symlinks,
+        directory_only, unsorted, long_format_no_owner, kilobyte_blocks,
+        stream_format, numeric_ids, long_format_no_group, append_slash,
+        quote_non_printable, show_blocks, multi_column_across, 0, use_colors);
+    
+    if (result != 0) {
+      exit_code = result;
+    }
+  }
+  
+  return exit_code;
 }
 
 std::string format_size_human_readable(uintmax_t size) {
@@ -545,32 +579,47 @@ int list_directory(const std::string& path, bool show_hidden,
     std::vector<FileInfo> entries;
 
     std::error_code ec;
-    auto dir_iter = std::filesystem::directory_iterator(path, ec);
-    if (ec) {
-      std::cerr << "Error: " << ec.message() << std::endl;
+    std::filesystem::path fs_path(path);
+    
+    // Check if the path is a regular file or directory
+    if (!std::filesystem::exists(fs_path, ec)) {
+      std::cerr << "ls: cannot access '" << path << "': No such file or directory" << std::endl;
       return 1;
     }
-
-    entries.reserve(32);
-
-    if (directory_only) {
-      entries.emplace_back(std::filesystem::directory_entry(path));
-    } else {
-      if (show_hidden) {
-        std::filesystem::path current_path = std::filesystem::absolute(path);
-        entries.emplace_back(std::filesystem::directory_entry(current_path));
-        entries.back().cached_name_storage = ".";
-
-        std::filesystem::path parent_path = current_path.parent_path();
-        entries.emplace_back(std::filesystem::directory_entry(parent_path));
-        entries.back().cached_name_storage = "..";
+    
+    if (std::filesystem::is_regular_file(fs_path, ec) || 
+        std::filesystem::is_symlink(fs_path, ec) ||
+        (!std::filesystem::is_directory(fs_path, ec) && !ec)) {
+      // Handle individual file
+      entries.emplace_back(std::filesystem::directory_entry(fs_path));
+    } else if (std::filesystem::is_directory(fs_path, ec)) {
+      // Handle directory
+      auto dir_iter = std::filesystem::directory_iterator(path, ec);
+      if (ec) {
+        std::cerr << "ls: cannot open directory '" << path << "': " << ec.message() << std::endl;
+        return 1;
       }
 
-      for (const auto& entry : dir_iter) {
-        const auto& path = entry.path();
-        const std::string& filename = path.filename().string();
+      entries.reserve(32);
 
-        if (!show_hidden && !show_almost_all && filename[0] == '.') {
+      if (directory_only) {
+        entries.emplace_back(std::filesystem::directory_entry(path));
+      } else {
+        if (show_hidden) {
+          std::filesystem::path current_path = std::filesystem::absolute(path);
+          entries.emplace_back(std::filesystem::directory_entry(current_path));
+          entries.back().cached_name_storage = ".";
+
+          std::filesystem::path parent_path = current_path.parent_path();
+          entries.emplace_back(std::filesystem::directory_entry(parent_path));
+          entries.back().cached_name_storage = "..";
+        }
+
+        for (const auto& entry : dir_iter) {
+          const auto& path = entry.path();
+          const std::string& filename = path.filename().string();
+
+          if (!show_hidden && !show_almost_all && filename[0] == '.') {
           continue;
         }
 
@@ -580,6 +629,10 @@ int list_directory(const std::string& path, bool show_hidden,
 
         entries.emplace_back(entry);
       }
+      }
+    } else {
+      std::cerr << "ls: cannot access '" << path << "': " << ec.message() << std::endl;
+      return 1;
     }
 
     if (!unsorted) {
