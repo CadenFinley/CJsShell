@@ -63,23 +63,20 @@ std::string SystemInfo::get_os_info() {
   std::string cmd = "sw_vers -productName && sw_vers -productVersion";
 #elif defined(__linux__)
   // Try multiple sources for Linux distribution info
-  std::string cmd = R"(
-    if [ -f /etc/os-release ]; then
-      . /etc/os-release
-      echo "$NAME $VERSION"
-    elif [ -f /etc/lsb-release ]; then
-      . /etc/lsb-release
-      echo "$DISTRIB_ID $DISTRIB_RELEASE"
-    elif [ -f /etc/debian_version ]; then
-      echo "Debian $(cat /etc/debian_version)"
-    elif [ -f /etc/redhat-release ]; then
-      cat /etc/redhat-release
-    elif [ -f /etc/arch-release ]; then
-      echo "Arch Linux"
-    else
-      uname -s
-    fi
-  )";
+  std::string cmd = 
+    "if [ -f /etc/os-release ]; then "
+      ". /etc/os-release && echo \"$NAME $VERSION\"; "
+    "elif [ -f /etc/lsb-release ]; then "
+      ". /etc/lsb-release && echo \"$DISTRIB_ID $DISTRIB_RELEASE\"; "
+    "elif [ -f /etc/debian_version ]; then "
+      "echo \"Debian $(cat /etc/debian_version)\"; "
+    "elif [ -f /etc/redhat-release ]; then "
+      "cat /etc/redhat-release; "
+    "elif [ -f /etc/arch-release ]; then "
+      "echo \"Arch Linux\"; "
+    "else "
+      "uname -s; "
+    "fi";
 #else
   std::string cmd = "uname -s";
 #endif
