@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "isocline/isocline.h"
@@ -187,6 +188,10 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
              (prefix_str.length() == 1 || prefix_str[1] == '/')) {
     has_dash = true;
     special_part = prefix_str;
+  } else if (prefix_str.rfind("cd ", 0) == 0 && prefix_str.length() > 3) {
+    // Handle case where prefix starts with "cd " (e.g., "cd Documents")
+    prefix_before = "cd ";
+    special_part = prefix_str.substr(3);
   }
 
   if (has_tilde && (special_part.length() == 1 || special_part[1] == '/')) {
@@ -341,6 +346,43 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     return;
+  }
+
+  // Add directory bookmark completions for cd command
+  if (!prefix_before.empty()) {
+    // Check if we're completing for a cd command
+    std::string command_part = prefix_before;
+    // Remove trailing space/tab
+    while (!command_part.empty() && (command_part.back() == ' ' || command_part.back() == '\t')) {
+      command_part.pop_back();
+    }
+    
+    if (command_part == "cd" || command_part.rfind("cd ", 0) == 0) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Processing bookmark completions for cd command with prefix: '" 
+                  << special_part << "'" << std::endl;
+                  
+      // Get directory bookmarks from the shell
+      if (g_shell && g_shell->get_built_ins()) {
+        const auto& bookmarks = g_shell->get_built_ins()->get_directory_bookmarks();
+        
+        for (const auto& bookmark : bookmarks) {
+          const std::string& bookmark_name = bookmark.first;
+          
+          // Check if bookmark name starts with the special_part (or show all if special_part is empty)
+          if (special_part.empty() || bookmark_name.rfind(special_part, 0) == 0) {
+            std::string completion_suffix = bookmark_name.substr(special_part.length());
+            
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Adding bookmark completion: '" << bookmark_name
+                        << "' -> '" << completion_suffix << "'" << std::endl;
+                        
+            if (!ic_add_completion(cenv, completion_suffix.c_str()))
+              return;
+          }
+        }
+      }
+    }
   }
 
   // Standard behavior: if prefix ends with '/', complete all files and

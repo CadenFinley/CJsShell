@@ -68,9 +68,9 @@ Built_ins::Built_ins() : shell(nullptr) {
        }},
       {"cd",
        [this](const std::vector<std::string>& args) {
-         return ::change_directory(
-             args.size() > 1 ? args[1] : current_directory, current_directory,
-             previous_directory, last_terminal_output_error);
+         return ::change_directory_with_bookmarks(
+             args.size() > 1 ? args[1] : "", current_directory,
+             previous_directory, last_terminal_output_error, directory_bookmarks);
        }},
       {"..",
        [this](const std::vector<std::string>& args) {
@@ -352,8 +352,8 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
     if (args[0] == "cd" && args.size() == 1) {
-      return ::change_directory("", current_directory, previous_directory,
-                                last_terminal_output_error);
+      return ::change_directory_with_bookmarks("", current_directory, previous_directory,
+                                last_terminal_output_error, directory_bookmarks);
     }
     int status = it->second(args);
     return status;
@@ -368,4 +368,24 @@ int Built_ins::is_builtin_command(const std::string& cmd) const {
 
 int Built_ins::do_ai_request(const std::string& prompt) {
   return ::ai_command({"ai", prompt}, this);
+}
+
+void Built_ins::add_directory_bookmark(const std::string& dir_path) {
+  std::filesystem::path path(dir_path);
+  std::string basename = path.filename().string();
+  if (!basename.empty() && basename != "." && basename != "..") {
+    directory_bookmarks[basename] = dir_path;
+  }
+}
+
+std::string Built_ins::find_bookmark_path(const std::string& bookmark_name) const {
+  auto it = directory_bookmarks.find(bookmark_name);
+  if (it != directory_bookmarks.end()) {
+    return it->second;
+  }
+  return "";
+}
+
+const std::unordered_map<std::string, std::string>& Built_ins::get_directory_bookmarks() const {
+  return directory_bookmarks;
 }

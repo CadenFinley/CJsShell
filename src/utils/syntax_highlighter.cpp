@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 
@@ -449,8 +450,20 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
             ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
                          "cjsh-path-exists");
           } else {
-            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
-                         "cjsh-path-not-exists");
+            // For cd commands, check if the argument is a directory bookmark
+            bool is_bookmark = false;
+            if (is_cd_command && g_shell && g_shell->get_built_ins()) {
+              const auto& bookmarks = g_shell->get_built_ins()->get_directory_bookmarks();
+              is_bookmark = bookmarks.find(arg) != bookmarks.end();
+            }
+            
+            if (is_bookmark) {
+              ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                           "cjsh-path-exists");
+            } else {
+              ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                           "cjsh-path-not-exists");
+            }
           }
         }
       }
