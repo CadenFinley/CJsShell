@@ -378,13 +378,13 @@ std::string format_size(uintmax_t size, bool human_readable) {
     return format_size_human_readable(size);
   } else {
     if (size < 1024)
-      return std::to_string(size) + " B";
+      return std::to_string(size) + " B"; // bytes
     else if (size < 1048576)
-      return std::to_string(size >> 10) + " KB";
+      return std::to_string(size >> 10) + " KB"; // kilobytes
     else if (size < 1073741824)
-      return std::to_string(size >> 20) + " MB";
+      return std::to_string(size >> 20) + " MB"; // megabytes
     else
-      return std::to_string(size >> 30) + " GB";
+      return std::to_string(size >> 30) + " GB"; // gigabytes
   }
 }
 
