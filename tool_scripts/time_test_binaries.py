@@ -8,7 +8,7 @@ import os
 from typing import List, Tuple, Dict
 
 # Configuration
-RUNS = 30
+RUNS = 15
 
 # Shell-specific command mappings
 # Each command is mapped to shell-specific syntax
@@ -22,7 +22,7 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c exit",
-        "loop": "-c 'for i in {1..1000}; do echo $i; done'"
+        "loop": "-c 'for i in {1..5000}; do echo $i; done'"
     },
     "fish": {
         "ls": "-c ls",
@@ -33,7 +33,7 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c exit",
-        "loop": "-c 'for i in (seq 1000); echo $i; end'"
+        "loop": "-c 'for i in (seq 5000); echo $i; end'"
     },
     "nu": {
         "ls": "-c 'ls'",
@@ -44,7 +44,7 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $env.SHELL?'",
         "ls_long": "-c 'ls -l'",
         "exit": "-c 'exit'",
-        "loop": "-c '1..1000 | each { |i| echo $i }'"
+        "loop": "-c '1..5000 | each { |i| echo $i }'"
     },
     "elvish": {
         "ls": "-c 'ls'",
@@ -55,7 +55,29 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $E:SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c 'exit'",
-        "loop": "-c 'for i [(range 1 1001)] { echo $i }'"
+        "loop": "-c 'for i [(range 1 5001)] { echo $i }'"
+    },
+    "ion": {
+        "ls": "-c 'ls'",
+        "version": "--version",
+        "hello": "-c 'echo hello world'",
+        "pwd": "-c 'pwd'",
+        "date": "-c 'echo $(date)'",
+        "shell_var": "-c 'echo $SHELL'",
+        "ls_long": "-c 'ls -la'",
+        "exit": "-c 'exit'",
+        "loop": "-c 'for i in 1..5000; echo $i; end'"
+    },
+    "xonsh": {
+        "ls": "-c 'ls'",
+        "version": "--version",
+        "hello": "-c 'echo \"hello world\"'",
+        "pwd": "-c 'pwd'",
+        "date": "-c 'echo hello'",
+        "shell_var": "-c 'echo $SHELL'",
+        "ls_long": "-c 'ls -la'",
+        "exit": "-c 'exit'",
+        "loop": "-c 'for i in range(1, 5001): print(i)'"
     }
 }
 
@@ -64,7 +86,7 @@ COMMAND_DESCRIPTIONS = [
     "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop"
 ]
 
-BASELINE_SHELLS = ["fish", "bash", "zsh", "nu", "elvish"]
+BASELINE_SHELLS = ["fish", "bash", "zsh", "nu", "elvish", "ion", "xonsh"]
 #CJSH_BINARY_TYPES = ["", "_speed03", "_speed02", "_debug"]  # Empty string means no suffix
 CJSH_BINARY_TYPES = [""]
 
@@ -101,6 +123,10 @@ def get_shell_command(shell: str, command_key: str) -> str:
         return SHELL_COMMANDS["nu"][command_key]
     elif shell == "elvish":
         return SHELL_COMMANDS["elvish"][command_key]
+    elif shell == "ion":
+        return SHELL_COMMANDS["ion"][command_key]
+    elif shell == "xonsh":
+        return SHELL_COMMANDS["xonsh"][command_key]
     else:
         # Default to POSIX for unknown shells
         return SHELL_COMMANDS["posix"][command_key]
