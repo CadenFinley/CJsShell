@@ -69,7 +69,7 @@ It is as simple as running a command within the shell in interactive mode:
 cjsh_uninstall
 ```
    
-## Testing and POSIX Compliance
+# Testing and POSIX Compliance
 
 CJ's Shell includes a comprehensive test suite with over 600 POSIX compliance tests to ensure reliability and standards compliance.
 This test can be ran from the root of the repository, and is recommended to run before setting cjsh as you default login shell.
@@ -79,9 +79,7 @@ This test can be ran from the root of the repository, and is recommended to run 
 ./tests/run_shell_tests.sh
 ```
 
-See `tests/README.md` for detailed test documentation and compliance matrix.
-
-## Third‑Party Components
+# Third‑Party Components
 
 - **isocline**  
   https://github.com/daanx/isocline (MIT License)
@@ -92,13 +90,14 @@ See `tests/README.md` for detailed test documentation and compliance matrix.
 - **utf8proc**  
   https://github.com/JuliaStrings/utf8proc (MIT License)
 
-## License
+# License
 
 This project is licensed under the MIT License.
 
-## Author
+# Author
 
-Caden Finley @ Abilene Christian University (c) 2025
+**Caden Finley** @ Abilene Christian University  
+© 2025
 
-cadenfinley.com
-caden@cadenfinley.com
+- Website: [cadenfinley.com](https://cadenfinley.com)
+- Email: [caden@cadenfinley.com](mailto:caden@cadenfinley.com)
