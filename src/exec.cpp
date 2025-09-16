@@ -10,11 +10,31 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include <sys/stat.h>
 
 #include "builtin.h"
 #include "cjsh.h"
 #include "job_control.h"
 #include "signal_handler.h"
+
+// Helper function to check if noclobber should prevent file creation
+static bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_overwrite = false) {
+  if (force_overwrite) {
+    return false;  // Force overwrite (>|) bypasses noclobber
+  }
+  
+  if (!g_shell || !g_shell->get_shell_option("noclobber")) {
+    return false;  // Noclobber not enabled
+  }
+  
+  struct stat file_stat;
+  if (stat(filename.c_str(), &file_stat) == 0) {
+    // File exists and noclobber is enabled
+    return true;
+  }
+  
+  return false;  // File doesn't exist, safe to create
+}
 
 Exec::Exec() {
   last_terminal_output_error = "";
@@ -471,6 +491,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (!cmd.output_file.empty()) {
+              // Check noclobber before opening output file
+              if (should_noclobber_prevent_overwrite(cmd.output_file, cmd.force_overwrite)) {
+                throw std::runtime_error("Cannot overwrite existing file '" + 
+                                         cmd.output_file + "' (noclobber is set)");
+              }
+              
               int fd = open(cmd.output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
               if (fd == -1) {
@@ -485,6 +511,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (cmd.both_output && !cmd.both_output_file.empty()) {
+              // Check noclobber before opening &> output file
+              if (should_noclobber_prevent_overwrite(cmd.both_output_file)) {
+                throw std::runtime_error("Cannot overwrite existing file '" + 
+                                         cmd.both_output_file + "' (noclobber is set)");
+              }
+              
               int fd = open(cmd.both_output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
               if (fd == -1) {
@@ -518,6 +550,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (!cmd.stderr_file.empty()) {
+              // Check noclobber for stderr redirection (only if not appending)
+              if (!cmd.stderr_append && should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+                throw std::runtime_error("Cannot overwrite existing file '" + 
+                                         cmd.stderr_file + "' (noclobber is set)");
+              }
+              
               int flags =
                   O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
               int fd = open(cmd.stderr_file.c_str(), flags, 0644);
@@ -674,6 +712,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (!cmd.output_file.empty()) {
+          // Check noclobber before opening output file
+          if (should_noclobber_prevent_overwrite(cmd.output_file, cmd.force_overwrite)) {
+            std::cerr << "cjsh: " << cmd.output_file << ": cannot overwrite existing file (noclobber is set)" << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+          
           int flags = O_WRONLY | O_CREAT | O_TRUNC;
 
           int fd = open(cmd.output_file.c_str(), flags, 0644);
@@ -693,6 +737,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (cmd.both_output && !cmd.both_output_file.empty()) {
+          // Check noclobber before opening &> output file
+          if (should_noclobber_prevent_overwrite(cmd.both_output_file)) {
+            std::cerr << "cjsh: " << cmd.both_output_file << ": cannot overwrite existing file (noclobber is set)" << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+          
           int fd = open(cmd.both_output_file.c_str(),
                         O_WRONLY | O_CREAT | O_TRUNC, 0644);
           if (fd == -1) {
@@ -733,6 +783,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (!cmd.stderr_file.empty()) {
+          // Check noclobber for stderr redirection (only if not appending)
+          if (!cmd.stderr_append && should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+            std::cerr << "cjsh: " << cmd.stderr_file << ": cannot overwrite existing file (noclobber is set)" << std::endl;
+            _exit(EXIT_FAILURE);
+          }
+          
           int flags =
               O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
           int fd = open(cmd.stderr_file.c_str(), flags, 0644);

@@ -1044,10 +1044,16 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       paren_depth--;
       current += command[i];
     } else if (command[i] == '|' && !in_quotes && paren_depth == 0) {
-      if (!current.empty()) {
-        command_parts.push_back(std::move(current));
-        current.clear();
-        current.reserve(command.length() / 4);
+      // Check if this | is part of a redirection operator (>|)
+      if (i > 0 && command[i-1] == '>') {
+        current += command[i];  // This is >|, don't split here
+      } else {
+        // This is a true pipe operator
+        if (!current.empty()) {
+          command_parts.push_back(std::move(current));
+          current.clear();
+          current.reserve(command.length() / 4);
+        }
       }
     } else {
       current += command[i];

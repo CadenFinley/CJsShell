@@ -41,6 +41,24 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: Disabled errexit option" << std::endl;
       }
+    } else if (arg == "-C" ||
+               (arg == "-o" && i + 1 < args.size() && args[i + 1] == "noclobber")) {
+      shell->set_shell_option("noclobber", true);
+      if (arg == "-o") {
+        ++i;
+      }
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Enabled noclobber option" << std::endl;
+      }
+    } else if (arg == "+C" || (arg == "+o" && i + 1 < args.size() &&
+                               args[i + 1] == "noclobber")) {
+      shell->set_shell_option("noclobber", false);
+      if (arg == "+o") {
+        ++i;
+      }
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Disabled noclobber option" << std::endl;
+      }
     } else if (arg.substr(0, 2) == "--") {
       std::vector<std::string> positional_params;
       for (size_t j = i + 1; j < args.size(); ++j) {
