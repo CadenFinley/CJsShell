@@ -1090,7 +1090,7 @@ static void create_source_file() {
     source_file << "cjsh_uninstall() {\n";
     source_file << "    rm -rf " << cjsh_filesystem::g_cjsh_path.string()
                 << "\n";
-    source_file << "    echo \"Removed cjsh from /usr/local/bin\"\n";
+    source_file << "    echo \"Uninstalled cjsh\"\n";
     source_file << "}\n";
     source_file.close();
   } else {
