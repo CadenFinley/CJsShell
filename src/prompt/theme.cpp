@@ -602,7 +602,7 @@ std::string Theme::escape_brackets_for_isocline(
     const std::string& input) const {
   std::string result = input;
 
-  std::regex numeric_bracket_pattern(R"(\[([+-]?\d+)\])");
+  std::regex numeric_bracket_pattern(R"(\[\s*([+-]?\d+)\s*\])");
 
   result = std::regex_replace(result, numeric_bracket_pattern, R"(\[$1])");
 
