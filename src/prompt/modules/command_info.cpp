@@ -1,5 +1,6 @@
 #include "command_info.h"
 
+#include <cstdlib>
 #include <iomanip>
 #include <sstream>
 
@@ -12,9 +13,9 @@ void CommandInfo::start_command_timing() {
 }
 
 void CommandInfo::end_command_timing(int exit_code) {
+  (void)exit_code; // Unused - exit code now managed via STATUS environment variable
   if (timing_active) {
     last_command_end = std::chrono::high_resolution_clock::now();
-    last_exit_code = exit_code;
     timing_active = false;
   }
 }
@@ -42,11 +43,13 @@ bool CommandInfo::should_show_duration() {
 }
 
 int CommandInfo::get_last_exit_code() {
-  return last_exit_code;
+  const char* status_env = getenv("STATUS");
+  return status_env ? std::atoi(status_env) : 0;
 }
 
 std::string CommandInfo::get_exit_status_symbol() {
-  if (last_exit_code == 0) {
+  int exit_code = get_last_exit_code();
+  if (exit_code == 0) {
     return "✓";
   } else {
     return "✗";
@@ -54,7 +57,7 @@ std::string CommandInfo::get_exit_status_symbol() {
 }
 
 bool CommandInfo::is_last_command_success() {
-  return last_exit_code == 0;
+  return get_last_exit_code() == 0;
 }
 
 void CommandInfo::set_min_time_threshold(int milliseconds) {

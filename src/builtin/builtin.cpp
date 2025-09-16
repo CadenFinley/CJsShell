@@ -38,6 +38,8 @@
 #include "test_command.h"
 #include "theme_command.h"
 #include "times_command.h"
+#include "error_out.h"
+#include "suggestion_utils.h"
 #include "trap_command.h"
 #include "type_command.h"
 #include "umask_command.h"
@@ -453,7 +455,10 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     int status = it->second(args);
     return status;
   }
-  PRINT_ERROR("cjsh: '" + args[0] + "': command not found");
+  auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+  ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found", suggestions};
+  print_error(error);
+  last_terminal_output_error = "cjsh: '" + args[0] + "': command not found";
   return 127;
 }
 

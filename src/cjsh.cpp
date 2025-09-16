@@ -97,7 +97,6 @@ static void initialize_title_strings() {
 }
 
 // when we do command not found add suggestions like " "did you mean ..."
-// make command execution timing for prompts actually work
 
 /*
  * Exit/Return Codes:
@@ -678,8 +677,15 @@ static void main_process_loop() {
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
         {
+          // Start timing before command execution
+          g_shell->start_command_timing();
+
           std::string status_str;
-          status_str = std::to_string(g_shell->execute(command));
+          int exit_code = g_shell->execute(command);
+          status_str = std::to_string(exit_code);
+
+          // End timing after command execution
+          g_shell->end_command_timing(exit_code);
 
           if (g_debug_mode)
             std::cerr << "DEBUG: Command exit status: " << status_str

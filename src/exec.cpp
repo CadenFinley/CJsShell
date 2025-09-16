@@ -19,6 +19,7 @@
 #include "job_control.h"
 #include "signal_handler.h"
 #include "utils/performance.h"
+#include "suggestion_utils.h"
 
 // Helper function to check if noclobber should prevent file creation
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
@@ -179,24 +180,25 @@ void Exec::print_last_error() {
 
 // Smart pipeline optimization helpers
 bool Exec::requires_fork(const Command& cmd) const {
-  return !cmd.input_file.empty() || !cmd.output_file.empty() || 
-         !cmd.append_file.empty() || cmd.background || 
-         !cmd.stderr_file.empty() || cmd.stderr_to_stdout || 
+  return !cmd.input_file.empty() || !cmd.output_file.empty() ||
+         !cmd.append_file.empty() || cmd.background ||
+         !cmd.stderr_file.empty() || cmd.stderr_to_stdout ||
          cmd.stdout_to_stderr || !cmd.here_doc.empty() ||
          !cmd.here_string.empty() || cmd.both_output ||
-         !cmd.process_substitutions.empty() ||
-         !cmd.fd_redirections.empty() || !cmd.fd_duplications.empty();
+         !cmd.process_substitutions.empty() || !cmd.fd_redirections.empty() ||
+         !cmd.fd_duplications.empty();
 }
 
 bool Exec::can_execute_in_process(const Command& cmd) const {
-  if (cmd.args.empty()) return false;
-  
+  if (cmd.args.empty())
+    return false;
+
   // Check if it's a builtin command
-  if (g_shell && g_shell->get_built_ins() && 
+  if (g_shell && g_shell->get_built_ins() &&
       g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
     return !requires_fork(cmd);
   }
-  
+
   return false;
 }
 
@@ -303,8 +305,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     execvp(cmd_args[0].c_str(), c_args.data());
 
     if (errno == ENOENT) {
+      auto suggestions = suggestion_utils::generate_command_suggestions(cmd_args[0]);
       set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "command not found",
-                {});
+                suggestions);
     } else if (errno == EACCES) {
       set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "permission denied ",
                 {});
@@ -361,12 +364,24 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     JobManager::instance().remove_job(new_job_id);
   }
 
+  ErrorType error_type = ErrorType::RUNTIME_ERROR;
+  std::vector<std::string> suggestions;
+  if (exit_code == 127) {
+    error_type = ErrorType::COMMAND_NOT_FOUND;
+    suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+  } else if (exit_code == 126) {
+    error_type = ErrorType::PERMISSION_DENIED;
+  } else if (exit_code != 0) {
+    error_type = ErrorType::RUNTIME_ERROR;
+  }
+  
   set_error(
-      exit_code == 0 ? ErrorType::RUNTIME_ERROR : ErrorType::RUNTIME_ERROR,
+      error_type,
       args[0],
       exit_code == 0
           ? "command completed successfully"
-          : "command failed with exit code " + std::to_string(exit_code));
+          : "command failed with exit code " + std::to_string(exit_code),
+      suggestions);
   last_exit_code = exit_code;
   return exit_code;
 }
@@ -497,7 +512,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
   PERF_TIMER("execute_pipeline");
-  
+
   if (commands.empty()) {
     set_error(ErrorType::INVALID_ARGUMENT, "",
               "cannot execute empty pipeline - no commands provided", {});
@@ -876,12 +891,23 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(orig_stdout);
           close(orig_stderr);
 
-          set_error(exit_code == 0 ? ErrorType::RUNTIME_ERROR
-                                   : ErrorType::RUNTIME_ERROR,
+          ErrorType error_type = ErrorType::RUNTIME_ERROR;
+          std::vector<std::string> suggestions;
+          if (exit_code == 127) {
+            error_type = ErrorType::COMMAND_NOT_FOUND;
+            suggestions = suggestion_utils::generate_command_suggestions(cmd.args[0]);
+          } else if (exit_code == 126) {
+            error_type = ErrorType::PERMISSION_DENIED;
+          } else if (exit_code != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+          }
+          
+          set_error(error_type,
                     cmd.args[0],
                     exit_code == 0 ? "builtin command completed successfully"
                                    : "builtin command failed with exit code " +
-                                         std::to_string(exit_code));
+                                         std::to_string(exit_code),
+                    suggestions);
           last_exit_code = exit_code;
           return exit_code;
         }
@@ -1207,12 +1233,23 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           exit_code = 128 + WTERMSIG(status);
         }
 
-        set_error(exit_code == 0 ? ErrorType::RUNTIME_ERROR
-                                 : ErrorType::RUNTIME_ERROR,
+        ErrorType error_type = ErrorType::RUNTIME_ERROR;
+        std::vector<std::string> suggestions;
+        if (exit_code == 127) {
+          error_type = ErrorType::COMMAND_NOT_FOUND;
+          suggestions = suggestion_utils::generate_command_suggestions(cmd.args[0]);
+        } else if (exit_code == 126) {
+          error_type = ErrorType::PERMISSION_DENIED;
+        } else if (exit_code != 0) {
+          error_type = ErrorType::RUNTIME_ERROR;
+        }
+        
+        set_error(error_type,
                   cmd.args[0],
                   exit_code == 0 ? "command completed successfully"
                                  : "command failed with exit code " +
-                                       std::to_string(exit_code));
+                                       std::to_string(exit_code),
+                  suggestions);
         last_exit_code = exit_code;
         if (g_debug_mode) {
           std::cerr << "DEBUG: execute_pipeline single-command "
@@ -1747,9 +1784,19 @@ void Exec::wait_for_job(int job_id) {
           set_error(ErrorType::RUNTIME_ERROR, job.command,
                     "command completed successfully");
         } else {
+          ErrorType error_type = ErrorType::RUNTIME_ERROR;
+          std::vector<std::string> suggestions;
+          if (exit_status == 127) {
+            error_type = ErrorType::COMMAND_NOT_FOUND;
+            suggestions = suggestion_utils::generate_command_suggestions(job.command);
+          } else if (exit_status == 126) {
+            error_type = ErrorType::PERMISSION_DENIED;
+          }
+          
           set_error(
-              ErrorType::RUNTIME_ERROR, job.command,
-              "command failed with exit code " + std::to_string(exit_status));
+              error_type, job.command,
+              "command failed with exit code " + std::to_string(exit_status),
+              suggestions);
         }
       } else if (WIFSIGNALED(final_status)) {
         last_exit_code = 128 + WTERMSIG(final_status);

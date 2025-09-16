@@ -515,7 +515,7 @@ std::vector<std::string> merge_redirection_tokens(
 
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   PERF_TIMER("parse_command");
-  
+
   std::vector<std::string> args;
   args.reserve(8);
 
@@ -542,7 +542,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
         if (!alias_args.empty()) {
           std::vector<std::string> new_args;
-          new_args.reserve(alias_args.size() + args.size());  // Reserve for combined args
+          new_args.reserve(alias_args.size() +
+                           args.size());  // Reserve for combined args
           new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
           if (args.size() > 1) {
             new_args.insert(new_args.end(), args.begin() + 1, args.end());

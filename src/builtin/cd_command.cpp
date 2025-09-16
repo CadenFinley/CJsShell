@@ -8,6 +8,9 @@
 #include <filesystem>
 #include <iostream>
 
+#include "error_out.h"
+#include "suggestion_utils.h"
+
 #define PRINT_ERROR(MSG)                             \
   do {                                               \
     last_terminal_output_error = (MSG);              \
@@ -66,12 +69,17 @@ int change_directory(const std::string& dir, std::string& current_directory,
     }
 
     if (!std::filesystem::exists(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": no such file or directory");
+      auto suggestions = suggestion_utils::generate_cd_suggestions(target_dir, current_directory);
+      ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd", target_dir + ": no such file or directory", suggestions};
+      print_error(error);
+      last_terminal_output_error = "cd: " + target_dir + ": no such file or directory";
       return 1;
     }
 
     if (!std::filesystem::is_directory(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": not a directory");
+      ErrorInfo error = {ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
+      print_error(error);
+      last_terminal_output_error = "cd: " + target_dir + ": not a directory";
       return 1;
     }
 
@@ -149,12 +157,17 @@ int change_directory_with_bookmarks(
     }
 
     if (!std::filesystem::exists(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": no such file or directory");
+      auto suggestions = suggestion_utils::generate_cd_suggestions(target_dir, current_directory);
+      ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd", target_dir + ": no such file or directory", suggestions};
+      print_error(error);
+      last_terminal_output_error = "cd: " + target_dir + ": no such file or directory";
       return 1;
     }
 
     if (!std::filesystem::is_directory(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": not a directory");
+      ErrorInfo error = {ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
+      print_error(error);
+      last_terminal_output_error = "cd: " + target_dir + ": not a directory";
       return 1;
     }
 

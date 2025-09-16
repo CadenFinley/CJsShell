@@ -125,7 +125,6 @@ int prompt_test_command(const std::vector<std::string>& args) {
   std::cout << "STATUS: " << getenv("STATUS") << "\n";
 
   // Command info tests
-  std::cout << "LAST_EXIT_CODE: " << pi.get_last_exit_code() << "\n";
   std::cout << "EXIT_STATUS_SYMBOL: " << pi.get_exit_status_symbol() << "\n";
   std::cout << "LAST_COMMAND_SUCCESS: "
             << (pi.is_last_command_success() ? "yes" : "no") << "\n";

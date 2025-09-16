@@ -11,7 +11,6 @@ class CommandInfo {
   std::chrono::time_point<std::chrono::high_resolution_clock>
       last_command_start;
   std::chrono::time_point<std::chrono::high_resolution_clock> last_command_end;
-  int last_exit_code = 0;
   bool timing_active = false;
 
   std::string format_duration(long long milliseconds);

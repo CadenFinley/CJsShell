@@ -35,11 +35,12 @@ struct Command {
 
   // Process substitutions
   std::vector<std::string> process_substitutions;  // <(cmd) or >(cmd)
-  
+
   // Constructor to pre-allocate vectors for better performance
   Command() {
     args.reserve(8);  // Reserve space for typical command + arguments
-    process_substitutions.reserve(2);  // Reserve space for typical process substitutions
+    process_substitutions.reserve(
+        2);  // Reserve space for typical process substitutions
   }
 };
 

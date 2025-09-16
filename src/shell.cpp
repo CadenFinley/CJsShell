@@ -60,15 +60,13 @@ Shell::~Shell() {
 
 int Shell::execute(const std::string& script) {
   if (script.empty()) {
-    last_exit_code = 0;
-    return last_exit_code;
+    return 0;
   }
   std::string processed_script = script;
   if (!get_menu_active()) {
     if (script == ":") {
-      last_exit_code = 0;
       set_menu_active(true);
-      return last_exit_code;
+      return 0;
     } else if (script[0] == ':') {
       processed_script = script.substr(1);
     } else {
@@ -88,18 +86,16 @@ int Shell::execute(const std::string& script) {
   }
 
   if (shell_script_interpreter) {
-    last_exit_code = shell_script_interpreter->execute_block(lines);
+    int exit_code = shell_script_interpreter->execute_block(lines);
     last_command = processed_script;
-    return last_exit_code;
+    return exit_code;
   } else {
     print_error(ErrorInfo{ErrorType::RUNTIME_ERROR,
                           "",
                           "No script interpreter available",
                           {"Restart cjsh"}});
-    last_exit_code = 1;
+    return 1;
   }
-
-  return last_exit_code;
 }
 
 void Shell::setup_signal_handlers() {
@@ -224,37 +220,32 @@ int Shell::execute_command(std::vector<std::string> args,
     std::cerr << "DEBUG: Executing command: '" << args[0] << "'" << std::endl;
 
   if (args.empty()) {
-    last_exit_code = 0;
-    return last_exit_code;
+    return 0;
   }
   if (!shell_exec || !built_ins) {
-    last_exit_code = 1;
     g_exit_flag = true;
     print_error({ErrorType::RUNTIME_ERROR,
                  "",
                  "Shell not properly initialized",
                  {"Restart cjsh"}});
-    return last_exit_code;
+    return 1;
   }
 
   if (args.size() == 1 && shell_parser) {
     std::string var_name, var_value;
     if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
       setenv(var_name.c_str(), var_value.c_str(), 1);
-      last_exit_code = 0;
-      return last_exit_code;
+      return 0;
     }
 
     if (args[0].find('=') != std::string::npos) {
-      last_exit_code = 1;
-      return last_exit_code;
+      return 1;
     }
   }
 
   if (!args.empty() && built_ins->is_builtin_command(args[0])) {
     int code = built_ins->builtin_command(args);
     last_terminal_output_error = built_ins->get_last_error();
-    last_exit_code = code;
 
     if (args[0] == "break" || args[0] == "continue" || args[0] == "return") {
       if (g_debug_mode)
@@ -262,7 +253,7 @@ int Shell::execute_command(std::vector<std::string> args,
                   << " with exit code " << code << std::endl;
     }
 
-    return last_exit_code;
+    return code;
   }
 
   if (g_plugin) {
@@ -297,13 +288,20 @@ int Shell::execute_command(std::vector<std::string> args,
       }
     }
     last_terminal_output_error = "Background command launched";
-    last_exit_code = 0;
-    return last_exit_code;
+    return 0;
   } else {
     shell_exec->execute_command_sync(args);
     last_terminal_output_error = shell_exec->get_error_string();
-    last_exit_code = shell_exec->get_exit_code();
-    return last_exit_code;
+    int exit_code = shell_exec->get_exit_code();
+    if (exit_code != 0) {
+      // Only print errors for actual system errors, not simple command failures
+      ErrorInfo error = shell_exec->get_error();
+      if (error.type != ErrorType::RUNTIME_ERROR || 
+          error.message.find("command failed with exit code") == std::string::npos) {
+        shell_exec->print_last_error();
+      }
+    }
+    return exit_code;
   }
 }
 

@@ -34,4 +34,12 @@ class Prompt {
   std::string get_title_prompt();
   std::string get_newline_prompt();
   bool is_git_repository(std::filesystem::path& repo_root);
+
+  // Command timing access
+  void start_command_timing() {
+    info.start_command_timing();
+  }
+  void end_command_timing(int exit_code) {
+    info.end_command_timing(exit_code);
+  }
 };

@@ -23,6 +23,8 @@
 #include <vector>
 
 #include "shell.h"
+#include "error_out.h"
+#include "suggestion_utils.h"
 
 #if defined(__APPLE__) && !defined(major)
 #define major(dev) ((int)(((dev) >> 24) & 0xff))
@@ -586,8 +588,9 @@ int list_directory(const std::string& path, bool show_hidden,
 
     // Check if the path is a regular file or directory
     if (!std::filesystem::exists(fs_path, ec)) {
-      std::cerr << "ls: cannot access '" << path
-                << "': No such file or directory" << std::endl;
+      auto suggestions = suggestion_utils::generate_ls_suggestions(path, std::filesystem::current_path().string());
+      ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "ls", "cannot access '" + path + "': No such file or directory", suggestions};
+      print_error(error);
       return 1;
     }
 
@@ -636,8 +639,9 @@ int list_directory(const std::string& path, bool show_hidden,
         }
       }
     } else {
-      std::cerr << "ls: cannot access '" << path << "': " << ec.message()
-                << std::endl;
+      auto suggestions = suggestion_utils::generate_ls_suggestions(path, std::filesystem::current_path().string());
+      ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "ls", "cannot access '" + path + "': " + ec.message(), suggestions};
+      print_error(error);
       return 1;
     }
 

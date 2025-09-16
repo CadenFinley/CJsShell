@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
+#include <cstdlib>
 
 #include <memory>
 #include <string>
@@ -48,6 +49,19 @@ class Shell {
     return shell_prompt->get_title_prompt();
   }
 
+  // Command timing methods
+  void start_command_timing() {
+    if (shell_prompt) {
+      shell_prompt->start_command_timing();
+    }
+  }
+
+  void end_command_timing(int exit_code) {
+    if (shell_prompt) {
+      shell_prompt->end_command_timing(exit_code);
+    }
+  }
+
   void set_interactive_mode(bool flag) {
     interactive_mode = flag;
   }
@@ -57,7 +71,8 @@ class Shell {
   }
 
   int get_last_exit_code() const {
-    return last_exit_code;
+    const char* status_env = getenv("STATUS");
+    return status_env ? std::atoi(status_env) : 0;
   }
 
   void set_aliases(
@@ -147,7 +162,6 @@ class Shell {
   struct termios shell_tmodes;
   bool terminal_state_saved = false;
   bool job_control_enabled = false;
-  int last_exit_code = 0;
 
   std::unique_ptr<Prompt> shell_prompt;
   std::unique_ptr<SignalHandler> signal_handler;
