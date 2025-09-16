@@ -170,7 +170,7 @@ int save_env_var_to_file(const std::string& name, const std::string& value,
                 << config_path.string() << std::endl;
     }
   } else {
-    PRINT_ERROR("Error: Unable to open config file for writing at " +
+    PRINT_ERROR("export: unable to open config file for writing at " +
                 config_path.string());
   }
   return 0;
@@ -213,7 +213,7 @@ int remove_env_var_from_file(const std::string& name, bool login_mode) {
                 << config_path.string() << std::endl;
     }
   } else {
-    PRINT_ERROR("Error: Unable to open config file for writing at " +
+    PRINT_ERROR("unset: unable to open config file for writing at " +
                 config_path.string());
   }
   return 0;

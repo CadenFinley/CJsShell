@@ -202,7 +202,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   pid_t pid = fork();
 
   if (pid == -1) {
-    set_error("cjsh: Failed to fork process: " + std::string(strerror(errno)));
+    set_error("cjsh: failed to fork process: " + std::string(strerror(errno)));
     last_exit_code = EX_OSERR;
     return EX_OSERR;
   }
@@ -444,7 +444,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           int orig_stderr = dup(STDERR_FILENO);
 
           if (orig_stdin == -1 || orig_stdout == -1 || orig_stderr == -1) {
-            set_error("cjsh: Failed to save original file descriptors");
+            set_error("cjsh: failed to save original file descriptors");
             last_exit_code = EX_OSERR;
             return EX_OSERR;
           }
@@ -607,7 +607,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       pid_t pid = fork();
 
       if (pid == -1) {
-        set_error("cjsh: Failed to fork process: " +
+        set_error("cjsh: failed to fork process: " +
                   std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
         return EX_OSERR;

@@ -66,12 +66,12 @@ int change_directory(const std::string& dir, std::string& current_directory,
     }
 
     if (!std::filesystem::exists(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": No such file or directory");
+      PRINT_ERROR("cd: " + target_dir + ": no such file or directory");
       return 1;
     }
 
     if (!std::filesystem::is_directory(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": Not a directory");
+      PRINT_ERROR("cd: " + target_dir + ": not a directory");
       return 1;
     }
 
@@ -94,7 +94,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
     PRINT_ERROR("cd: " + std::string(e.what()));
     return 1;
   } catch (const std::exception& e) {
-    PRINT_ERROR("cd: Unexpected error: " + std::string(e.what()));
+    PRINT_ERROR("cd: unexpected error: " + std::string(e.what()));
     return 1;
   }
 }
@@ -149,12 +149,12 @@ int change_directory_with_bookmarks(
     }
 
     if (!std::filesystem::exists(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": No such file or directory");
+      PRINT_ERROR("cd: " + target_dir + ": no such file or directory");
       return 1;
     }
 
     if (!std::filesystem::is_directory(dir_path)) {
-      PRINT_ERROR("cd: " + target_dir + ": Not a directory");
+      PRINT_ERROR("cd: " + target_dir + ": not a directory");
       return 1;
     }
 
@@ -179,7 +179,7 @@ int change_directory_with_bookmarks(
     PRINT_ERROR("cd: " + std::string(e.what()));
     return 1;
   } catch (const std::exception& e) {
-    PRINT_ERROR("cd: Unexpected error: " + std::string(e.what()));
+    PRINT_ERROR("cd: unexpected error: " + std::string(e.what()));
     return 1;
   }
 }

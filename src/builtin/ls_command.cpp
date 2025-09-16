@@ -222,7 +222,7 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
             multi_column_across = true;
             break;
           default:
-            std::cerr << "Unknown option: -" << args[i][j] << std::endl;
+            std::cerr << "ls: unknown option: -" << args[i][j] << std::endl;
             return 1;
         }
       }
@@ -270,7 +270,7 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
                 << std::endl;
       return 0;
     } else if (args[i][0] == '-') {
-      std::cerr << "Unknown option: " << args[i] << std::endl;
+      std::cerr << "ls: unknown option: " << args[i] << std::endl;
       return 1;
     } else {
       path = args[i];
@@ -947,7 +947,7 @@ int list_directory(const std::string& path, bool show_hidden,
 
     return 0;
   } catch (const std::filesystem::filesystem_error& ex) {
-    std::cerr << "Error: " << ex.what() << std::endl;
+    std::cerr << "ls: " << ex.what() << std::endl;
     return 1;
   }
 }

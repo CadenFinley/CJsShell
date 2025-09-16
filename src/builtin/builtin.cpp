@@ -347,7 +347,7 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     int status = it->second(args);
     return status;
   }
-  PRINT_ERROR("cjsh: command not found: " + args[0]);
+  PRINT_ERROR("cjsh: '" + args[0] + "': command not found");
   return 127;
 }
 

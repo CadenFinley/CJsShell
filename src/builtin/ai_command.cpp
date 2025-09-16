@@ -61,8 +61,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             .string();
     std::ofstream file(fileName);
     if (!file.is_open()) {
-      PRINT_ERROR(std::string("Error: Unable to create the chat log file at ") +
-                  fileName);
+      PRINT_ERROR("ai: unable to create the chat log file at " + fileName);
     } else {
       file << "Chat Sent: " << lastChatSent << "\n";
       file << "Chat Received: " << lastChatReceived << "\n";
@@ -95,8 +94,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "get") {
     if (args.size() <= command_index + 1) {
-      PRINT_ERROR(
-          "Error: No arguments provided. Try 'help' for a list of commands.");
+      PRINT_ERROR("ai: no arguments provided. try 'help' for a list of commands");
       return 1;
     }
     std::cout << g_ai->get_response_data(args[command_index + 1]) << std::endl;
@@ -146,7 +144,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       std::cout << "Directory set to default." << std::endl;
       return 0;
     }
-    PRINT_ERROR("Error: Invalid directory command. Use 'set' or 'clear'.");
+    PRINT_ERROR("ai: invalid directory command. use 'set' or 'clear'");
     return 1;
   }
 
@@ -195,7 +193,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       std::cout << "Timeout flag set to " << timeout << " seconds."
                 << std::endl;
     } catch (const std::exception& e) {
-      PRINT_ERROR("Error: Invalid timeout value. Please provide a number.");
+      PRINT_ERROR("ai: invalid timeout value. please provide a number");
       return 1;
     }
     return 0;
@@ -255,7 +253,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (subcmd == "switch" || subcmd == "load") {
       if (args.size() <= command_index + 2) {
         std::cout
-            << "Error: Missing config name. Usage: ai config switch <name>"
+            << "ai: missing config name. Usage: ai config switch <name>"
             << std::endl;
         return 1;
       }
@@ -274,7 +272,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
     if (subcmd == "save" || subcmd == "saveas") {
       if (args.size() <= command_index + 2) {
-        std::cout << "Error: Missing config name. Usage: ai config save <name>"
+        std::cout << "ai: missing config name. Usage: ai config save <name>"
                   << std::endl;
         return 1;
       }
@@ -324,7 +322,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       std::cout << "Voice dictation disabled." << std::endl;
       return 0;
     }
-    PRINT_ERROR("Error: Invalid argument. Use 'enable' or 'disable'.");
+    PRINT_ERROR("ai: invalid argument. use 'enable' or 'disable'");
     return 1;
   }
 
@@ -390,7 +388,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
     PRINT_ERROR(
-        "Error: No arguments provided. Try 'help' for a list of commands.");
+        "ai: no arguments provided. Try 'help' for a list of commands.");
     return 1;
   }
 
@@ -469,7 +467,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
   if (subcmd == "add") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
       PRINT_ERROR(
-          "Error: No file specified. Try 'help' for a list of commands.");
+          "ai: no file specified. Try 'help' for a list of commands.");
       return 1;
     }
 
@@ -484,7 +482,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     std::string filePath = current_directory + "/" + filename;
 
     if (!std::filesystem::exists(filePath)) {
-      PRINT_ERROR(std::string("Error: File not found: ") + filename);
+      PRINT_ERROR("ai: file not found: " + filename);
       return 1;
     }
 
@@ -497,7 +495,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
   if (subcmd == "remove") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
       PRINT_ERROR(
-          "Error: No file specified. Try 'help' for a list of commands.");
+          "ai: no file specified. Try 'help' for a list of commands.");
       return 1;
     }
 
@@ -513,7 +511,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     std::string filePath = current_directory + "/" + filename;
 
     if (!std::filesystem::exists(filePath)) {
-      PRINT_ERROR(std::string("Error: File not found: ") + filename);
+      PRINT_ERROR("ai: file not found: " + filename);
       return 1;
     }
 
@@ -557,7 +555,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     return 0;
   }
 
-  PRINT_ERROR("Error: Unknown command. Try 'help' for a list of commands.");
+  PRINT_ERROR("ai: unknown command. try 'help' for a list of commands");
   return 1;
 }
 

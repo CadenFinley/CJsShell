@@ -24,7 +24,7 @@ int history_command(const std::vector<std::string>& args) {
     }
 
     if (!history_file.is_open()) {
-      PRINT_ERROR("Error: Could not open or create history file at " +
+      PRINT_ERROR("history: could not open or create history file at " +
                   cjsh_filesystem::g_cjsh_history_path.string());
       return 1;
     }

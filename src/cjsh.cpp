@@ -423,7 +423,7 @@ static int handle_non_interactive_mode(const std::string& script_file) {
 
     std::ifstream file(script_file);
     if (!file.is_open()) {
-      std::cerr << "cjsh: " << script_file << ": No such file or directory"
+      std::cerr << "cjsh: " << script_file << ": no such file or directory"
                 << std::endl;
       return 127;
     }
@@ -747,7 +747,7 @@ static bool init_login_filesystem() {
     std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
   try {
     if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
-      std::cerr << "cjsh: the users home path could not be determined."
+      std::cerr << "cjsh: the user's home path could not be determined"
                 << std::endl;
       return false;
     }
@@ -758,7 +758,7 @@ static bool init_login_filesystem() {
       create_profile_file();
     }
   } catch (const std::exception& e) {
-    std::cerr << "cjsh: Failed to initalize the cjsh login filesystem: "
+    std::cerr << "cjsh: failed to initialize the cjsh login filesystem: "
               << e.what() << std::endl;
     return false;
   }
@@ -879,7 +879,7 @@ static bool init_interactive_filesystem() {
         cjsh_filesystem::should_refresh_executable_cache();
 
     if (!home_exists) {
-      std::cerr << "cjsh: the users home path could not be determined."
+      std::cerr << "cjsh: the user's home path could not be determined"
                 << std::endl;
       return false;
     }
@@ -910,7 +910,7 @@ static bool init_interactive_filesystem() {
     }
 
   } catch (const std::exception& e) {
-    std::cerr << "cjsh: Failed to initalize the cjsh interactive filesystem: "
+    std::cerr << "cjsh: failed to initialize the cjsh interactive filesystem: "
               << e.what() << std::endl;
     return false;
   }
@@ -1064,7 +1064,7 @@ static void create_profile_file() {
         << "# login-startup-arg --startup-test  # Enable startup test mode\n";
     profile_file.close();
   } else {
-    std::cerr << "cjsh: Failed to create the configuration file." << std::endl;
+    std::cerr << "cjsh: failed to create the configuration file" << std::endl;
   }
 }
 
@@ -1094,6 +1094,6 @@ static void create_source_file() {
     source_file << "}\n";
     source_file.close();
   } else {
-    std::cerr << "cjsh: Failed to create the source file." << std::endl;
+    std::cerr << "cjsh: failed to create the source file" << std::endl;
   }
 }
