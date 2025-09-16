@@ -130,6 +130,10 @@ class ShellScriptInterpreter {
                           bool show_suggestions = true,
                           bool show_context = true) const;
 
+  // Function management methods
+  bool has_function(const std::string& name) const;
+  std::vector<std::string> get_function_names() const;
+
  private:
   DebugLevel debug_level;
   Parser* shell_parser = nullptr;

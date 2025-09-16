@@ -4252,3 +4252,16 @@ std::string ShellScriptInterpreter::case_convert(const std::string& value,
 
   return result;
 }
+
+bool ShellScriptInterpreter::has_function(const std::string& name) const {
+  return functions.find(name) != functions.end();
+}
+
+std::vector<std::string> ShellScriptInterpreter::get_function_names() const {
+  std::vector<std::string> names;
+  names.reserve(functions.size());
+  for (const auto& pair : functions) {
+    names.push_back(pair.first);
+  }
+  return names;
+}

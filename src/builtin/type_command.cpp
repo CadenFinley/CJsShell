@@ -111,7 +111,18 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (!found || show_all) {
-      if (!force_path && !inhibit_functions) {
+      if (!force_path && !inhibit_functions && shell) {
+        auto* interpreter = shell->get_shell_script_interpreter();
+        if (interpreter && interpreter->has_function(name)) {
+          if (show_type_only) {
+            std::cout << "function" << std::endl;
+          } else {
+            std::cout << name << " is a function" << std::endl;
+          }
+          found = true;
+          if (!show_all)
+            continue;
+        }
       }
     }
 
