@@ -1,5 +1,7 @@
 #include "exec.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -10,7 +12,6 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
-#include <sys/stat.h>
 
 #include "builtin.h"
 #include "cjsh.h"
@@ -450,13 +451,95 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
 
           int exit_code = 0;
+          std::vector<std::string> process_sub_files;
+          std::vector<pid_t> process_sub_pids;
+          Command modified_cmd = cmd;
 
           try {
-            if (!cmd.input_file.empty()) {
-              int fd = open(cmd.input_file.c_str(), O_RDONLY);
+            // Handle process substitutions first
+            
+            if (!cmd.process_substitutions.empty()) {
+              for (size_t i = 0; i < cmd.process_substitutions.size(); ++i) {
+                const std::string& proc_sub = cmd.process_substitutions[i];
+                
+                if ((proc_sub.find("<(") == 0 || proc_sub.find(">(") == 0) && proc_sub.back() == ')') {
+                  bool is_input = proc_sub[0] == '<';
+                  std::string command = proc_sub.substr(2, proc_sub.length() - 3);
+                  
+                  // Create a unique temporary filename
+                  std::string temp_file = "/tmp/cjsh_procsub_" + std::to_string(getpid()) + "_" + std::to_string(i);
+                  
+                  // Create named pipe (FIFO)
+                  if (mkfifo(temp_file.c_str(), 0600) == -1) {
+                    throw std::runtime_error("Failed to create FIFO for process substitution: " + std::string(strerror(errno)));
+                  }
+                  
+                  process_sub_files.push_back(temp_file);
+                  
+                  // Fork child process for the substituted command
+                  pid_t pid = fork();
+                  if (pid == -1) {
+                    throw std::runtime_error("Failed to fork for process substitution: " + std::string(strerror(errno)));
+                  }
+                  
+                  if (pid == 0) {
+                    // Child process: execute the substituted command
+                    int fifo_fd;
+                    if (is_input) {
+                      // <(command) - redirect command output to the FIFO
+                      fifo_fd = open(temp_file.c_str(), O_WRONLY);
+                      if (fifo_fd == -1) {
+                        perror("open FIFO for writing");
+                        _exit(1);
+                      }
+                      if (dup2(fifo_fd, STDOUT_FILENO) == -1) {
+                        perror("dup2 stdout");
+                        close(fifo_fd);
+                        _exit(1);
+                      }
+                    } else {
+                      // >(command) - redirect FIFO input to command
+                      fifo_fd = open(temp_file.c_str(), O_RDONLY);
+                      if (fifo_fd == -1) {
+                        perror("open FIFO for reading");
+                        _exit(1);
+                      }
+                      if (dup2(fifo_fd, STDIN_FILENO) == -1) {
+                        perror("dup2 stdin");
+                        close(fifo_fd);
+                        _exit(1);
+                      }
+                    }
+                    close(fifo_fd);
+                    
+                    // Execute the command
+                    if (g_shell) {
+                      int result = g_shell->execute(command);
+                      _exit(result);
+                    } else {
+                      _exit(1);
+                    }
+                  }
+                  
+                  process_sub_pids.push_back(pid);
+                  
+                  // Replace process substitution in arguments with temp filename
+                  for (auto& arg : modified_cmd.args) {
+                    size_t pos = 0;
+                    while ((pos = arg.find(proc_sub, pos)) != std::string::npos) {
+                      arg.replace(pos, proc_sub.length(), temp_file);
+                      pos += temp_file.length();
+                    }
+                  }
+                }
+              }
+            }
+
+            if (!modified_cmd.input_file.empty()) {
+              int fd = open(modified_cmd.input_file.c_str(), O_RDONLY);
               if (fd == -1) {
                 throw std::runtime_error("Failed to open input file: " +
-                                         cmd.input_file);
+                                         modified_cmd.input_file);
               }
               if (dup2(fd, STDIN_FILENO) == -1) {
                 close(fd);
@@ -465,14 +548,19 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            if (!cmd.here_string.empty()) {
+            if (!modified_cmd.here_string.empty()) {
               int here_pipe[2];
               if (pipe(here_pipe) == -1) {
                 throw std::runtime_error(
                     "Failed to create pipe for here string");
               }
 
-              std::string content = cmd.here_string + "\n";
+              std::string content = modified_cmd.here_string;
+              // Expand environment variables in here string content
+              if (g_shell && g_shell->get_parser()) {
+                g_shell->get_parser()->expand_env_vars(content);
+              }
+              content += "\n";
               ssize_t bytes_written =
                   write(here_pipe[1], content.c_str(), content.length());
               if (bytes_written == -1) {
@@ -490,18 +578,18 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(here_pipe[0]);
             }
 
-            if (!cmd.output_file.empty()) {
+            if (!modified_cmd.output_file.empty()) {
               // Check noclobber before opening output file
-              if (should_noclobber_prevent_overwrite(cmd.output_file, cmd.force_overwrite)) {
+              if (should_noclobber_prevent_overwrite(modified_cmd.output_file, modified_cmd.force_overwrite)) {
                 throw std::runtime_error("Cannot overwrite existing file '" + 
-                                         cmd.output_file + "' (noclobber is set)");
+                                         modified_cmd.output_file + "' (noclobber is set)");
               }
               
-              int fd = open(cmd.output_file.c_str(),
+              int fd = open(modified_cmd.output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
               if (fd == -1) {
                 throw std::runtime_error("Failed to open output file: " +
-                                         cmd.output_file);
+                                         modified_cmd.output_file);
               }
               if (dup2(fd, STDOUT_FILENO) == -1) {
                 close(fd);
@@ -510,18 +598,18 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            if (cmd.both_output && !cmd.both_output_file.empty()) {
+            if (modified_cmd.both_output && !modified_cmd.both_output_file.empty()) {
               // Check noclobber before opening &> output file
-              if (should_noclobber_prevent_overwrite(cmd.both_output_file)) {
+              if (should_noclobber_prevent_overwrite(modified_cmd.both_output_file)) {
                 throw std::runtime_error("Cannot overwrite existing file '" + 
-                                         cmd.both_output_file + "' (noclobber is set)");
+                                         modified_cmd.both_output_file + "' (noclobber is set)");
               }
               
-              int fd = open(cmd.both_output_file.c_str(),
+              int fd = open(modified_cmd.both_output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
               if (fd == -1) {
                 throw std::runtime_error("Failed to open &> output file: " +
-                                         cmd.both_output_file);
+                                         modified_cmd.both_output_file);
               }
               if (dup2(fd, STDOUT_FILENO) == -1) {
                 close(fd);
@@ -582,11 +670,80 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               }
             }
 
-            exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
+            // Special handling for exec builtin with file descriptor operations
+            if (!cmd.args.empty() && cmd.args[0] == "exec" && 
+                (!cmd.fd_redirections.empty() || !cmd.fd_duplications.empty())) {
+              
+              // Handle file descriptor redirections for exec builtin
+              for (const auto& fd_redir : cmd.fd_redirections) {
+                int fd_num = fd_redir.first;
+                const std::string& spec = fd_redir.second;
+                
+                int file_fd;
+                if (spec.find("input:") == 0) {
+                  std::string file = spec.substr(6);
+                  file_fd = open(file.c_str(), O_RDONLY);
+                } else if (spec.find("output:") == 0) {
+                  std::string file = spec.substr(7);
+                  file_fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                } else {
+                  // Default interpretation based on fd number
+                  if (fd_num == 0) {
+                    file_fd = open(spec.c_str(), O_RDONLY);
+                  } else {
+                    file_fd = open(spec.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                  }
+                }
+                
+                if (file_fd == -1) {
+                  throw std::runtime_error("exec: " + spec + ": " + strerror(errno));
+                }
+                
+                if (fd_num != file_fd) {
+                  if (dup2(file_fd, fd_num) == -1) {
+                    close(file_fd);
+                    throw std::runtime_error("exec: dup2 failed: " + std::string(strerror(errno)));
+                  }
+                  close(file_fd);
+                }
+              }
+              
+              // Handle file descriptor duplications for exec builtin
+              for (const auto& fd_dup : cmd.fd_duplications) {
+                int dst_fd = fd_dup.first;
+                int src_fd = fd_dup.second;
+                
+                if (dup2(src_fd, dst_fd) == -1) {
+                  throw std::runtime_error("exec: dup2 failed for " + std::to_string(dst_fd) + 
+                                         ">&" + std::to_string(src_fd) + ": " + strerror(errno));
+                }
+              }
+              
+              // If exec has only file descriptor operations (args.size() == 1), return success
+              if (cmd.args.size() == 1) {
+                exit_code = 0;
+              } else {
+                // Execute the command with remaining args
+                std::vector<std::string> exec_args(cmd.args.begin() + 1, cmd.args.end());
+                exit_code = g_shell->execute_command(exec_args, false);
+              }
+            } else {
+              exit_code = g_shell->get_built_ins()->builtin_command(modified_cmd.args);
+            }
 
           } catch (const std::exception& e) {
             set_error("cjsh: " + std::string(e.what()));
             exit_code = EX_OSERR;
+          }
+
+          // Cleanup process substitutions
+          for (size_t i = 0; i < process_sub_pids.size(); ++i) {
+            int status;
+            waitpid(process_sub_pids[i], &status, 0);
+          }
+          
+          for (const std::string& temp_file : process_sub_files) {
+            unlink(temp_file.c_str());
           }
 
           dup2(orig_stdin, STDIN_FILENO);
@@ -678,7 +835,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
 
-          std::string content = cmd.here_string + "\n";
+          std::string content = cmd.here_string;
+          // Expand environment variables in here string content
+          if (g_shell && g_shell->get_parser()) {
+            g_shell->get_parser()->expand_env_vars(content);
+          }
+          content += "\n";
           ssize_t bytes_written =
               write(here_pipe[1], content.c_str(), content.length());
           if (bytes_written == -1) {

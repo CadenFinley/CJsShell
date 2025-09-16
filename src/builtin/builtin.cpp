@@ -1,5 +1,6 @@
 #include "builtin.h"
 
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -204,12 +205,110 @@ Built_ins::Built_ins() : shell(nullptr) {
            // exec with no arguments should succeed
            return 0;
          }
-         // exec command [args...] - replace the current shell process
-         std::vector<std::string> exec_args(args.begin() + 1, args.end());
-
-         // For now, we'll simulate exec by executing the command
-         // In a real implementation, this would replace the shell process
-         return shell->execute_command(exec_args, false);
+         
+         // Check if this is a file descriptor operation (e.g., exec 3< file)
+         std::vector<std::string> exec_args;
+         bool has_fd_operations = false;
+         
+         for (size_t i = 1; i < args.size(); ++i) {
+           const std::string& arg = args[i];
+           
+           // Check for file descriptor redirection patterns: N< file, N> file, N<&M, N>&M
+           if (arg.size() > 1 && std::isdigit(arg[0])) {
+             size_t fd_end = 0;
+             while (fd_end < arg.size() && std::isdigit(arg[fd_end])) {
+               fd_end++;
+             }
+             
+             if (fd_end > 0 && fd_end < arg.size()) {
+               int fd_num = std::stoi(arg.substr(0, fd_end));
+               std::string op = arg.substr(fd_end);
+               
+               if (op == "<" && i + 1 < args.size()) {
+                 // exec N< file - open file for reading on fd N
+                 std::string filename = args[i + 1];
+                 int file_fd = open(filename.c_str(), O_RDONLY);
+                 if (file_fd == -1) {
+                   PRINT_ERROR("exec: " + filename + ": " + strerror(errno));
+                   return 1;
+                 }
+                 if (fd_num != file_fd) {
+                   if (dup2(file_fd, fd_num) == -1) {
+                     PRINT_ERROR("exec: dup2 failed: " + std::string(strerror(errno)));
+                     close(file_fd);
+                     return 1;
+                   }
+                   close(file_fd);
+                 }
+                 has_fd_operations = true;
+                 i++; // Skip the filename argument
+                 continue;
+               } else if (op == ">" && i + 1 < args.size()) {
+                 // exec N> file - open file for writing on fd N
+                 std::string filename = args[i + 1];
+                 int file_fd = open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                 if (file_fd == -1) {
+                   PRINT_ERROR("exec: " + filename + ": " + strerror(errno));
+                   return 1;
+                 }
+                 if (fd_num != file_fd) {
+                   if (dup2(file_fd, fd_num) == -1) {
+                     PRINT_ERROR("exec: dup2 failed: " + std::string(strerror(errno)));
+                     close(file_fd);
+                     return 1;
+                   }
+                   close(file_fd);
+                 }
+                 has_fd_operations = true;
+                 i++; // Skip the filename argument
+                 continue;
+               } else if (op.find("<&") == 0 && op.size() > 2) {
+                 // exec N<&M - duplicate input fd M to fd N
+                 try {
+                   int src_fd = std::stoi(op.substr(2));
+                   if (dup2(src_fd, fd_num) == -1) {
+                     PRINT_ERROR("exec: dup2 failed: " + std::string(strerror(errno)));
+                     return 1;
+                   }
+                   has_fd_operations = true;
+                   continue;
+                 } catch (const std::exception&) {
+                   // Fall through to add as regular argument
+                 }
+               } else if (op.find(">&") == 0 && op.size() > 2) {
+                 // exec N>&M - duplicate output fd M to fd N
+                 try {
+                   int src_fd = std::stoi(op.substr(2));
+                   if (dup2(src_fd, fd_num) == -1) {
+                     PRINT_ERROR("exec: dup2 failed: " + std::string(strerror(errno)));
+                     return 1;
+                   }
+                   has_fd_operations = true;
+                   continue;
+                 } catch (const std::exception&) {
+                   // Fall through to add as regular argument
+                 }
+               }
+             }
+           }
+           
+           // If not a file descriptor operation, add to exec args
+           exec_args.push_back(arg);
+         }
+         
+         // If we only had file descriptor operations and no command, return success
+         if (has_fd_operations && exec_args.empty()) {
+           return 0;
+         }
+         
+         // If we have a command to execute, run it
+         if (!exec_args.empty()) {
+           // For now, we'll simulate exec by executing the command
+           // In a real implementation, this would replace the shell process
+           return shell->execute_command(exec_args, false);
+         }
+         
+         return 0;
        }},
       {":", [](const std::vector<std::string>&) { return 0; }},
       {"if",

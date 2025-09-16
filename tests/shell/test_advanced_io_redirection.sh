@@ -95,7 +95,7 @@ else
 fi
 
 # Test 8: Error redirection 2>
-"$CJSH_PATH" -c "nonexistent_command 2> $TEST_DIR/error_output.txt" 2>&1
+"$CJSH_PATH" -c "ls /nonexistent_directory_test 2> $TEST_DIR/error_output.txt" 2>&1
 if [ -f "$TEST_DIR/error_output.txt" ] && [ -s "$TEST_DIR/error_output.txt" ]; then
     echo "PASS: error redirection works"
 else

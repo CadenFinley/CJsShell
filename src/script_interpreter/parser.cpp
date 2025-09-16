@@ -431,6 +431,12 @@ std::vector<std::string> merge_redirection_tokens(
       i++;
     }
 
+    else if (token == "<" && i + 2 < tokens.size() && tokens[i + 1] == "&" &&
+             tokens[i + 2].length() > 0 && std::isdigit(tokens[i + 2][0])) {
+      result.push_back("<&" + tokens[i + 2]);
+      i += 2;
+    }
+
     else if (token == ">" && i + 1 < tokens.size() && tokens[i + 1] == ">") {
       result.push_back(">>");
       i++;
@@ -463,6 +469,13 @@ std::vector<std::string> merge_redirection_tokens(
     else if (token == "2" && i + 1 < tokens.size() &&
              (tokens[i + 1] == ">" || tokens[i + 1] == ">>")) {
       result.push_back("2" + tokens[i + 1]);
+      i++;
+    }
+
+    else if (std::isdigit(token[0]) && token.length() == 1 && 
+             i + 1 < tokens.size() && (tokens[i + 1] == "<" || tokens[i + 1] == ">")) {
+      // Handle patterns like "3 < file" or "3 > file"
+      result.push_back(token + tokens[i + 1]);
       i++;
     }
 
@@ -1204,6 +1217,14 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           int fd = std::stoi(tok.substr(0, tok.length() - 1));
           std::string file = strip_quote_tag(tokens[++i]);
           cmd.fd_redirections[fd] = "output:" + file;
+        } catch (const std::exception&) {
+          filtered_args.push_back(tokens[i]);
+        }
+      } else if (tok.find("<&") == 0 && tok.length() > 2) {
+        try {
+          int src_fd = std::stoi(tok.substr(2));
+          // Input redirection from file descriptor: <&N means redirect stdin from fd N
+          cmd.fd_duplications[0] = src_fd;
         } catch (const std::exception&) {
           filtered_args.push_back(tokens[i]);
         }
