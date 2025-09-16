@@ -12,7 +12,7 @@
 int history_command(const std::vector<std::string>& args) {
   // Ensure directories are initialized
   cjsh_filesystem::initialize_cjsh_directories();
-  
+
   std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
   if (!history_file.is_open()) {
     // If history file doesn't exist, create it or show empty history
@@ -22,7 +22,7 @@ int history_command(const std::vector<std::string>& args) {
       // Try to open again for reading
       history_file.open(cjsh_filesystem::g_cjsh_history_path);
     }
-    
+
     if (!history_file.is_open()) {
       PRINT_ERROR("Error: Could not open or create history file at " +
                   cjsh_filesystem::g_cjsh_history_path.string());

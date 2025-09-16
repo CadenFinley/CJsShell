@@ -77,10 +77,13 @@ static void editor_capture(editor_t* eb, editstate_t** es) {
   }
 }
 
-static void editor_undo_capture(editor_t* eb) { editor_capture(eb, &eb->undo); }
+static void editor_undo_capture(editor_t* eb) {
+  editor_capture(eb, &eb->undo);
+}
 
 static void editor_undo_forget(editor_t* eb) {
-  if (eb->disable_undo) return;
+  if (eb->disable_undo)
+    return;
   const char* input = NULL;
   ssize_t pos = 0;
   editstate_restore(eb->mem, &eb->undo, &input, &pos);
@@ -88,13 +91,16 @@ static void editor_undo_forget(editor_t* eb) {
 }
 
 static void editor_restore(editor_t* eb, editstate_t** from, editstate_t** to) {
-  if (eb->disable_undo) return;
-  if (*from == NULL) return;
+  if (eb->disable_undo)
+    return;
+  if (*from == NULL)
+    return;
   const char* input;
   if (to != NULL) {
     editor_capture(eb, to);
   }
-  if (!editstate_restore(eb->mem, from, &input, &eb->pos)) return;
+  if (!editstate_restore(eb->mem, from, &input, &eb->pos))
+    return;
   sbuf_replace(eb->input, input);
   mem_free(eb->mem, input);
   eb->modified = false;
@@ -152,7 +158,8 @@ static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row,
   edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
   ssize_t pos =
       sbuf_get_pos_at_rc(eb->input, eb->termw, promptw, cpromptw, row, col);
-  if (pos < 0) return;
+  if (pos < 0)
+    return;
   eb->pos = pos;
   edit_refresh(env, eb);
 }
@@ -165,46 +172,51 @@ static bool edit_pos_is_at_row_end(ic_env_t* env, editor_t* eb) {
 
 // Helper function to extract the last line from a multi-line prompt
 static char* extract_last_prompt_line(alloc_t* mem, const char* prompt_text) {
-  if (prompt_text == NULL) return mem_strdup(mem, "");
-  
+  if (prompt_text == NULL)
+    return mem_strdup(mem, "");
+
   // Find the last newline in the prompt
   const char* last_newline = strrchr(prompt_text, '\n');
   if (last_newline == NULL) {
     // No newlines, return the whole prompt
     return mem_strdup(mem, prompt_text);
   }
-  
+
   // Return everything after the last newline
   return mem_strdup(mem, last_newline + 1);
 }
 
 // Helper function to print all but the last line of a multi-line prompt
 static void print_prompt_prefix_lines(ic_env_t* env, const char* prompt_text) {
-  if (prompt_text == NULL) return;
-  
+  if (prompt_text == NULL)
+    return;
+
   const char* last_newline = strrchr(prompt_text, '\n');
   if (last_newline == NULL) {
     // No newlines, nothing to print
     return;
   }
-  
+
   // Print everything up to (but not including) the last newline
-  size_t prefix_length = last_newline - prompt_text + 1; // +1 to include the newline
+  size_t prefix_length =
+      last_newline - prompt_text + 1;  // +1 to include the newline
   char* prefix = (char*)malloc(prefix_length + 1);
-  if (prefix == NULL) return;
-  
+  if (prefix == NULL)
+    return;
+
   strncpy(prefix, prompt_text, prefix_length);
   prefix[prefix_length] = '\0';
-  
+
   // Print the prefix lines directly to the terminal
   bbcode_print(env->bbcode, prefix);
-  
+
   free(prefix);
 }
 
 static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row,
                               bool in_extra) {
-  if (in_extra) return;
+  if (in_extra)
+    return;
   bbcode_style_open(env->bbcode, "ic-prompt");
   if (row == 0) {
     // regular prompt text
@@ -248,8 +260,10 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row,
   term_t* term = info->env->term;
 
   // debug_msg("edit: line refresh: row %zd, len: %zd\n", row, row_len);
-  if (row < info->first_row) return false;
-  if (row > info->last_row) return true;  // should not occur
+  if (row < info->first_row)
+    return false;
+  if (row > info->last_row)
+    return true;  // should not occur
 
   // term_clear_line(term);
   edit_write_prompt(info->env, info->eb, row, info->in_extra);
@@ -285,7 +299,8 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input,
                               attrbuf_t* attrs, ssize_t promptw,
                               ssize_t cpromptw, bool in_extra,
                               ssize_t first_row, ssize_t last_row) {
-  if (input == NULL) return;
+  if (input == NULL)
+    return;
   refresh_info_t info;
   info.env = env;
   info.eb = eb;
@@ -361,7 +376,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
   ssize_t last_row = rows - 1;  // last visible row
   if (rows > termh) {
     first_row = rc.row - termh + 1;  // ensure cursor is visible
-    if (first_row < 0) first_row = 0;
+    if (first_row < 0)
+      first_row = 0;
     last_row = first_row + termh - 1;
   }
   assert(last_row - first_row < termh);
@@ -453,7 +469,8 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
   // update dimensions
   term_update_dim(env->term);
   ssize_t newtermw = term_get_width(env->term);
-  if (eb->termw == newtermw) return false;
+  if (eb->termw == newtermw)
+    return false;
 
   // recalculate the row layout assuming the hardwrapping for the new terminal
   // width
@@ -516,7 +533,8 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
   if (env->no_hint || env->hint_delay > 0) {
     // refresh without hint first
     edit_refresh(env, eb);
-    if (env->no_hint) return;
+    if (env->no_hint)
+      return;
   }
 
   // and see if we can construct a hint (displayed after a delay)
@@ -538,7 +556,8 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
           const char* extra_hint = hint;
           do {
             ssize_t newpos = sbuf_insert_at(sb, extra_hint, pos);
-            if (newpos <= pos) break;
+            if (newpos <= pos)
+              break;
             pos = newpos;
             count = completions_generate(env, env->completions, sbuf_string(sb),
                                          pos, 2);
@@ -584,7 +603,8 @@ static void edit_redo_restore(ic_env_t* env, editor_t* eb) {
 static void edit_cursor_left(ic_env_t* env, editor_t* eb) {
   ssize_t cwidth = 1;
   ssize_t prev = sbuf_prev(eb->input, eb->pos, &cwidth);
-  if (prev < 0) return;
+  if (prev < 0)
+    return;
   rowcol_t rc;
   edit_get_rowcol(env, eb, &rc);
   eb->pos = prev;
@@ -594,7 +614,8 @@ static void edit_cursor_left(ic_env_t* env, editor_t* eb) {
 static void edit_cursor_right(ic_env_t* env, editor_t* eb) {
   ssize_t cwidth = 1;
   ssize_t next = sbuf_next(eb->input, eb->pos, &cwidth);
-  if (next < 0) return;
+  if (next < 0)
+    return;
   rowcol_t rc;
   edit_get_rowcol(env, eb, &rc);
   eb->pos = next;
@@ -603,42 +624,48 @@ static void edit_cursor_right(ic_env_t* env, editor_t* eb) {
 
 static void edit_cursor_line_end(ic_env_t* env, editor_t* eb) {
   ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   eb->pos = end;
   edit_refresh(env, eb);
 }
 
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   eb->pos = start;
   edit_refresh(env, eb);
 }
 
 static void edit_cursor_next_word(ic_env_t* env, editor_t* eb) {
   ssize_t end = sbuf_find_word_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   eb->pos = end;
   edit_refresh(env, eb);
 }
 
 static void edit_cursor_prev_word(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_word_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   eb->pos = start;
   edit_refresh(env, eb);
 }
 
 static void edit_cursor_next_ws_word(ic_env_t* env, editor_t* eb) {
   ssize_t end = sbuf_find_ws_word_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   eb->pos = end;
   edit_refresh(env, eb);
 }
 
 static void edit_cursor_prev_ws_word(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_ws_word_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   eb->pos = start;
   edit_refresh(env, eb);
 }
@@ -676,27 +703,31 @@ static void edit_cursor_row_down(ic_env_t* env, editor_t* eb) {
 static void edit_cursor_match_brace(ic_env_t* env, editor_t* eb) {
   ssize_t match = find_matching_brace(sbuf_string(eb->input), eb->pos,
                                       ic_env_get_match_braces(env), NULL);
-  if (match < 0) return;
+  if (match < 0)
+    return;
   eb->pos = match;
   edit_refresh(env, eb);
 }
 
 static void edit_backspace(ic_env_t* env, editor_t* eb) {
-  if (eb->pos <= 0) return;
+  if (eb->pos <= 0)
+    return;
   editor_start_modify(eb);
   eb->pos = sbuf_delete_char_before(eb->input, eb->pos);
   edit_refresh(env, eb);
 }
 
 static void edit_delete_char(ic_env_t* env, editor_t* eb) {
-  if (eb->pos >= sbuf_len(eb->input)) return;
+  if (eb->pos >= sbuf_len(eb->input))
+    return;
   editor_start_modify(eb);
   sbuf_delete_char_at(eb->input, eb->pos);
   edit_refresh(env, eb);
 }
 
 static void edit_delete_all(ic_env_t* env, editor_t* eb) {
-  if (sbuf_len(eb->input) <= 0) return;
+  if (sbuf_len(eb->input) <= 0)
+    return;
   editor_start_modify(eb);
   sbuf_clear(eb->input);
   eb->pos = 0;
@@ -705,9 +736,11 @@ static void edit_delete_all(ic_env_t* env, editor_t* eb) {
 
 static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   editor_start_modify(eb);
   // if on an empty line, remove it completely
   if (start == end && sbuf_char_at(eb->input, end) == '\n') {
@@ -721,9 +754,11 @@ static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb) {
 
 static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   editor_start_modify(eb);
   // delete start newline if it was an empty line
   bool goright = false;
@@ -736,15 +771,18 @@ static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb) {
   }
   sbuf_delete_from_to(eb->input, start, eb->pos);
   eb->pos = start;
-  if (goright) edit_cursor_right(env, eb);
+  if (goright)
+    edit_cursor_right(env, eb);
   edit_refresh(env, eb);
 }
 
 static void edit_delete_line(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   editor_start_modify(eb);
   // delete newline as well so no empty line is left;
   bool goright = false;
@@ -758,13 +796,15 @@ static void edit_delete_line(ic_env_t* env, editor_t* eb) {
   }
   sbuf_delete_from_to(eb->input, start, end);
   eb->pos = start;
-  if (goright) edit_cursor_right(env, eb);
+  if (goright)
+    edit_cursor_right(env, eb);
   edit_refresh(env, eb);
 }
 
 static void edit_delete_to_start_of_word(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_word_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   editor_start_modify(eb);
   sbuf_delete_from_to(eb->input, start, eb->pos);
   eb->pos = start;
@@ -773,7 +813,8 @@ static void edit_delete_to_start_of_word(ic_env_t* env, editor_t* eb) {
 
 static void edit_delete_to_end_of_word(ic_env_t* env, editor_t* eb) {
   ssize_t end = sbuf_find_word_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   editor_start_modify(eb);
   sbuf_delete_from_to(eb->input, eb->pos, end);
   edit_refresh(env, eb);
@@ -781,7 +822,8 @@ static void edit_delete_to_end_of_word(ic_env_t* env, editor_t* eb) {
 
 static void edit_delete_to_start_of_ws_word(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_ws_word_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   editor_start_modify(eb);
   sbuf_delete_from_to(eb->input, start, eb->pos);
   eb->pos = start;
@@ -790,7 +832,8 @@ static void edit_delete_to_start_of_ws_word(ic_env_t* env, editor_t* eb) {
 
 static void edit_delete_to_end_of_ws_word(ic_env_t* env, editor_t* eb) {
   ssize_t end = sbuf_find_ws_word_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   editor_start_modify(eb);
   sbuf_delete_from_to(eb->input, eb->pos, end);
   edit_refresh(env, eb);
@@ -798,9 +841,11 @@ static void edit_delete_to_end_of_ws_word(ic_env_t* env, editor_t* eb) {
 
 static void edit_delete_word(ic_env_t* env, editor_t* eb) {
   ssize_t start = sbuf_find_word_start(eb->input, eb->pos);
-  if (start < 0) return;
+  if (start < 0)
+    return;
   ssize_t end = sbuf_find_word_end(eb->input, eb->pos);
-  if (end < 0) return;
+  if (end < 0)
+    return;
   editor_start_modify(eb);
   sbuf_delete_from_to(eb->input, start, end);
   eb->pos = start;
@@ -808,15 +853,18 @@ static void edit_delete_word(ic_env_t* env, editor_t* eb) {
 }
 
 static void edit_swap_char(ic_env_t* env, editor_t* eb) {
-  if (eb->pos <= 0 || eb->pos == sbuf_len(eb->input)) return;
+  if (eb->pos <= 0 || eb->pos == sbuf_len(eb->input))
+    return;
   editor_start_modify(eb);
   eb->pos = sbuf_swap_char(eb->input, eb->pos);
   edit_refresh(env, eb);
 }
 
 static void edit_multiline_eol(ic_env_t* env, editor_t* eb) {
-  if (eb->pos <= 0) return;
-  if (sbuf_string(eb->input)[eb->pos - 1] != env->multiline_eol) return;
+  if (eb->pos <= 0)
+    return;
+  if (sbuf_string(eb->input)[eb->pos - 1] != env->multiline_eol)
+    return;
   editor_start_modify(eb);
   // replace line continuation with a real newline
   sbuf_delete_at(eb->input, eb->pos - 1, 1);
@@ -827,12 +875,14 @@ static void edit_multiline_eol(ic_env_t* env, editor_t* eb) {
 static void edit_insert_unicode(ic_env_t* env, editor_t* eb, unicode_t u) {
   editor_start_modify(eb);
   ssize_t nextpos = sbuf_insert_unicode_at(eb->input, u, eb->pos);
-  if (nextpos >= 0) eb->pos = nextpos;
+  if (nextpos >= 0)
+    eb->pos = nextpos;
   edit_refresh_hint(env, eb);
 }
 
 static void edit_auto_brace(ic_env_t* env, editor_t* eb, char c) {
-  if (env->no_autobrace) return;
+  if (env->no_autobrace)
+    return;
   const char* braces = ic_env_get_auto_braces(env);
   for (const char* b = braces; *b != 0; b += 2) {
     if (*b == c) {
@@ -862,10 +912,12 @@ static void editor_auto_indent(editor_t* eb, const char* pre,
   assert(eb->pos > 0 && sbuf_char_at(eb->input, eb->pos - 1) == '\n');
   ssize_t prelen = ic_strlen(pre);
   if (prelen > 0) {
-    if (eb->pos - 1 < prelen) return;
+    if (eb->pos - 1 < prelen)
+      return;
     if (!ic_starts_with(sbuf_string(eb->input) + eb->pos - 1 - prelen, pre))
       return;
-    if (!ic_starts_with(sbuf_string(eb->input) + eb->pos, post)) return;
+    if (!ic_starts_with(sbuf_string(eb->input) + eb->pos, post))
+      return;
     eb->pos = sbuf_insert_at(eb->input, "  ", eb->pos);
     sbuf_insert_char_at(eb->input, '\n', eb->pos);
   }
@@ -874,7 +926,8 @@ static void editor_auto_indent(editor_t* eb, const char* pre,
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c) {
   editor_start_modify(eb);
   ssize_t nextpos = sbuf_insert_char_at(eb->input, c, eb->pos);
-  if (nextpos >= 0) eb->pos = nextpos;
+  if (nextpos >= 0)
+    eb->pos = nextpos;
   edit_auto_brace(env, eb, c);
   if (c == '\n') {
     editor_auto_indent(eb, "{", "}");  // todo: custom auto indent tokens?
@@ -918,13 +971,14 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
   eb.cur_rows = 1;
   eb.cur_row = 0;
   eb.modified = false;
-  
-  // Handle multi-line prompts: print prefix lines and use only the last line as the prompt
+
+  // Handle multi-line prompts: print prefix lines and use only the last line as
+  // the prompt
   const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
   print_prompt_prefix_lines(env, original_prompt);
   char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);
   eb.prompt_text = last_line_prompt;
-  
+
   eb.history_idx = 0;
   editstate_init(&eb.undo);
   editstate_init(&eb.redo);
@@ -1195,7 +1249,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
   sbuf_free(eb.extra);
   sbuf_free(eb.hint);
   sbuf_free(eb.hint_help);
-  mem_free(env->mem, (void*)eb.prompt_text); // Free the allocated last line prompt
+  mem_free(env->mem,
+           (void*)eb.prompt_text);  // Free the allocated last line prompt
 
   return res;
 }

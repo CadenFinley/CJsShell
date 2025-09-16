@@ -277,33 +277,36 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
     }
   }
 
-  // If we have multiple arguments (files/directories), we need to handle them separately
+  // If we have multiple arguments (files/directories), we need to handle them
+  // separately
   std::vector<std::string> paths;
   for (size_t i = 1; i < args.size(); i++) {
     if (args[i][0] != '-' && args[i] != "--help") {
       paths.push_back(args[i]);
     }
   }
-  
+
   // If no paths specified, use current directory
   if (paths.empty()) {
     paths.push_back(".");
   }
-  
+
   int exit_code = 0;
   for (size_t i = 0; i < paths.size(); i++) {
-    // Only show path headers when listing multiple directories or when explicit -d flag is used
+    // Only show path headers when listing multiple directories or when explicit
+    // -d flag is used
     if (paths.size() > 1 && !directory_only) {
       std::error_code ec;
       std::filesystem::path fs_path(paths[i]);
       bool is_dir = std::filesystem::is_directory(fs_path, ec);
-      
+
       if (is_dir) {
-        if (i > 0) std::cout << std::endl;
+        if (i > 0)
+          std::cout << std::endl;
         std::cout << paths[i] << ":" << std::endl;
       }
     }
-    
+
     int result = list_directory(
         paths[i], show_hidden, show_almost_all, long_format, sort_by_size,
         reverse_order, sort_by_time, sort_by_access_time, sort_by_status_time,
@@ -312,12 +315,12 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
         directory_only, unsorted, long_format_no_owner, kilobyte_blocks,
         stream_format, numeric_ids, long_format_no_group, append_slash,
         quote_non_printable, show_blocks, multi_column_across, 0, use_colors);
-    
+
     if (result != 0) {
       exit_code = result;
     }
   }
-  
+
   return exit_code;
 }
 
@@ -378,13 +381,13 @@ std::string format_size(uintmax_t size, bool human_readable) {
     return format_size_human_readable(size);
   } else {
     if (size < 1024)
-      return std::to_string(size) + " B"; // bytes
+      return std::to_string(size) + " B";  // bytes
     else if (size < 1048576)
-      return std::to_string(size >> 10) + " KB"; // kilobytes
+      return std::to_string(size >> 10) + " KB";  // kilobytes
     else if (size < 1073741824)
-      return std::to_string(size >> 20) + " MB"; // megabytes
+      return std::to_string(size >> 20) + " MB";  // megabytes
     else
-      return std::to_string(size >> 30) + " GB"; // gigabytes
+      return std::to_string(size >> 30) + " GB";  // gigabytes
   }
 }
 
@@ -580,14 +583,15 @@ int list_directory(const std::string& path, bool show_hidden,
 
     std::error_code ec;
     std::filesystem::path fs_path(path);
-    
+
     // Check if the path is a regular file or directory
     if (!std::filesystem::exists(fs_path, ec)) {
-      std::cerr << "ls: cannot access '" << path << "': No such file or directory" << std::endl;
+      std::cerr << "ls: cannot access '" << path
+                << "': No such file or directory" << std::endl;
       return 1;
     }
-    
-    if (std::filesystem::is_regular_file(fs_path, ec) || 
+
+    if (std::filesystem::is_regular_file(fs_path, ec) ||
         std::filesystem::is_symlink(fs_path, ec) ||
         (!std::filesystem::is_directory(fs_path, ec) && !ec)) {
       // Handle individual file
@@ -596,7 +600,8 @@ int list_directory(const std::string& path, bool show_hidden,
       // Handle directory
       auto dir_iter = std::filesystem::directory_iterator(path, ec);
       if (ec) {
-        std::cerr << "ls: cannot open directory '" << path << "': " << ec.message() << std::endl;
+        std::cerr << "ls: cannot open directory '" << path
+                  << "': " << ec.message() << std::endl;
         return 1;
       }
 
@@ -620,18 +625,19 @@ int list_directory(const std::string& path, bool show_hidden,
           const std::string& filename = path.filename().string();
 
           if (!show_hidden && !show_almost_all && filename[0] == '.') {
-          continue;
-        }
+            continue;
+          }
 
-        if (show_almost_all && (filename == "." || filename == "..")) {
-          continue;
-        }
+          if (show_almost_all && (filename == "." || filename == "..")) {
+            continue;
+          }
 
-        entries.emplace_back(entry);
-      }
+          entries.emplace_back(entry);
+        }
       }
     } else {
-      std::cerr << "ls: cannot access '" << path << "': " << ec.message() << std::endl;
+      std::cerr << "ls: cannot access '" << path << "': " << ec.message()
+                << std::endl;
       return 1;
     }
 

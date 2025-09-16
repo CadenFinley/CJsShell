@@ -123,19 +123,20 @@ int main(int argc, char* argv[]) {
   // Parse command line arguments
   std::string script_file;
   std::vector<std::string> script_args;
-  int parse_result = parse_command_line_arguments(argc, argv, script_file, script_args);
+  int parse_result =
+      parse_command_line_arguments(argc, argv, script_file, script_args);
   if (parse_result != 0) {
     return parse_result;
   }
 
   // Initialize core shell components
   g_shell = std::make_unique<Shell>();
-  
+
   // Set positional parameters if we have script arguments
   if (!script_args.empty()) {
     g_shell->set_positional_parameters(script_args);
   }
-  
+
   setup_environment_variables();
   save_startup_arguments(argc, argv);
 
@@ -234,7 +235,8 @@ static int parse_command_line_arguments(int argc, char* argv[],
       {"no-syntax-highlighting", no_argument, 0, 'S'},
       {"startup-test", no_argument, 0, 'X'},
       {0, 0, 0, 0}};
-  const char* short_options = "+lic:vhdPTACLNOSX";  // Leading '+' enables POSIXLY_CORRECT behavior
+  const char* short_options =
+      "+lic:vhdPTACLNOSX";  // Leading '+' enables POSIXLY_CORRECT behavior
   int option_index = 0;
   int c;
   optind = 1;
@@ -332,12 +334,13 @@ static int parse_command_line_arguments(int argc, char* argv[],
     config::interactive_mode = false;
     if (g_debug_mode)
       std::cerr << "DEBUG: Script file specified: " << script_file << std::endl;
-    
+
     // Collect script arguments (everything after the script file name)
     for (int i = optind + 1; i < argc; i++) {
       script_args.push_back(argv[i]);
       if (g_debug_mode)
-        std::cerr << "DEBUG: Script argument " << (i - optind) << ": " << argv[i] << std::endl;
+        std::cerr << "DEBUG: Script argument " << (i - optind) << ": "
+                  << argv[i] << std::endl;
     }
   }
 
@@ -622,12 +625,12 @@ static void main_process_loop() {
 
     if (g_debug_mode)
       std::cerr << "DEBUG: Generating prompt" << std::endl;
-    
+
     // Ensure the prompt always starts on a clean line
     // We print a space, then carriage return to detect if we're at column 0
     std::printf(" \r");
     std::fflush(stdout);
-    
+
     // gather and create the prompt
     std::string prompt;
     if (g_shell->get_menu_active()) {

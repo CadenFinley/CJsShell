@@ -341,7 +341,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
   if (pid == -1) {
     std::string cmd_name = cmd_args.empty() ? "unknown" : cmd_args[0];
-    set_error("cjsh: failed to create background process for '" + cmd_name + "': " + std::string(strerror(errno)));
+    set_error("cjsh: failed to create background process for '" + cmd_name +
+              "': " + std::string(strerror(errno)));
     last_exit_code = EX_OSERR;
     return EX_OSERR;
   }
@@ -663,8 +664,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDIN_FILENO) == -1) {
-            std::cerr << "cjsh: failed to redirect input from '" << cmd.input_file 
-                      << "': " << strerror(errno) << std::endl;
+            std::cerr << "cjsh: failed to redirect input from '"
+                      << cmd.input_file << "': " << strerror(errno)
+                      << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
@@ -681,8 +683,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDOUT_FILENO) == -1) {
-            std::cerr << "cjsh: failed to redirect output to '" << cmd.output_file 
-                      << "': " << strerror(errno) << std::endl;
+            std::cerr << "cjsh: failed to redirect output to '"
+                      << cmd.output_file << "': " << strerror(errno)
+                      << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
@@ -876,7 +879,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
   try {
     for (size_t i = 0; i < commands.size() - 1; i++) {
       if (pipe(pipes[i].data()) == -1) {
-        set_error("cjsh: failed to create pipe " + std::to_string(i + 1) + 
+        set_error("cjsh: failed to create pipe " + std::to_string(i + 1) +
                   " for pipeline: " + std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
         return EX_OSERR;
@@ -887,7 +890,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       const Command& cmd = commands[i];
 
       if (cmd.args.empty()) {
-        set_error("cjsh: command " + std::to_string(i + 1) + " in pipeline is empty");
+        set_error("cjsh: command " + std::to_string(i + 1) +
+                  " in pipeline is empty");
         std::cerr << last_terminal_output_error << std::endl;
 
         for (size_t j = 0; j < commands.size() - 1; j++) {
@@ -902,8 +906,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
       if (pid == -1) {
         std::string cmd_name = cmd.args.empty() ? "unknown" : cmd.args[0];
-        set_error("cjsh: failed to create process for '" + cmd_name + "' (command " + 
-                  std::to_string(i + 1) + " in pipeline): " + std::string(strerror(errno)));
+        set_error("cjsh: failed to create process for '" + cmd_name +
+                  "' (command " + std::to_string(i + 1) +
+                  " in pipeline): " + std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
         return EX_OSERR;
       }
@@ -1224,7 +1229,7 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
       isatty(shell_terminal)) {
     if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
       if (errno != ENOTTY && errno != EINVAL) {
-        std::cerr << "cjsh: warning: failed to restore terminal control: " 
+        std::cerr << "cjsh: warning: failed to restore terminal control: "
                   << strerror(errno) << std::endl;
       }
     }
@@ -1378,8 +1383,9 @@ void Exec::terminate_all_child_process() {
           }
         } else {
           if (errno != ESRCH) {
-            std::cerr << "cjsh: warning: failed to terminate job [" << job_pair.first 
-                      << "] '" << job.command << "': " << strerror(errno) << std::endl;
+            std::cerr << "cjsh: warning: failed to terminate job ["
+                      << job_pair.first << "] '" << job.command
+                      << "': " << strerror(errno) << std::endl;
           }
         }
         std::cerr << "[" << job_pair.first << "] Terminated\t" << job.command

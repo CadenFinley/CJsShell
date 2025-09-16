@@ -25,7 +25,9 @@ struct editstate_s {
   ssize_t pos;        // cursor position
 };
 
-ic_private void editstate_init(editstate_t** es) { *es = NULL; }
+ic_private void editstate_init(editstate_t** es) {
+  *es = NULL;
+}
 
 ic_private void editstate_done(alloc_t* mem, editstate_t** es) {
   while (*es != NULL) {
@@ -39,10 +41,12 @@ ic_private void editstate_done(alloc_t* mem, editstate_t** es) {
 
 ic_private void editstate_capture(alloc_t* mem, editstate_t** es,
                                   const char* input, ssize_t pos) {
-  if (input == NULL) input = "";
+  if (input == NULL)
+    input = "";
   // alloc
   editstate_t* entry = mem_zalloc_tp(mem, editstate_t);
-  if (entry == NULL) return;
+  if (entry == NULL)
+    return;
   // initialize
   entry->input = mem_strdup(mem, input);
   entry->pos = pos;
@@ -58,7 +62,8 @@ ic_private void editstate_capture(alloc_t* mem, editstate_t** es,
 // caller should free *input
 ic_private bool editstate_restore(alloc_t* mem, editstate_t** es,
                                   const char** input, ssize_t* pos) {
-  if (*es == NULL) return false;
+  if (*es == NULL)
+    return false;
   // pop
   editstate_t* entry = *es;
   *es = entry->next;

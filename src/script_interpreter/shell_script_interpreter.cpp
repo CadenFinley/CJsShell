@@ -441,7 +441,8 @@ bool ShellScriptInterpreter::has_syntax_errors(
     }
   }
 
-  // Only print error report if there are critical errors and printing is enabled
+  // Only print error report if there are critical errors and printing is
+  // enabled
   if (has_critical_errors && print_errors) {
     // Filter to only show critical errors
     std::vector<SyntaxError> critical_errors;
@@ -1276,7 +1277,8 @@ void ShellScriptInterpreter::print_error_report(
 
     // if (!error.documentation_url.empty()) {
     //   std::cout << "│" << std::endl;
-    //   std::cout << "│  " << BLUE << "Documentation: " << error.documentation_url
+    //   std::cout << "│  " << BLUE << "Documentation: " <<
+    //   error.documentation_url
     //             << RESET << std::endl;
     // }
 
@@ -1947,124 +1949,128 @@ int ShellScriptInterpreter::execute_block(
           shell_parser->parse_pipeline_with_preprocessing(text);
 
       bool has_redir_or_pipe = cmds.size() > 1;
-    if (!has_redir_or_pipe && !cmds.empty()) {
-      const auto& c = cmds[0];
-      has_redir_or_pipe =
-          c.background || !c.input_file.empty() || !c.output_file.empty() ||
-          !c.append_file.empty() || c.stderr_to_stdout ||
-          !c.stderr_file.empty() || !c.here_doc.empty() || c.both_output ||
-          !c.here_string.empty() || !c.fd_redirections.empty() ||
-          !c.fd_duplications.empty();
-    }
+      if (!has_redir_or_pipe && !cmds.empty()) {
+        const auto& c = cmds[0];
+        has_redir_or_pipe =
+            c.background || !c.input_file.empty() || !c.output_file.empty() ||
+            !c.append_file.empty() || c.stderr_to_stdout ||
+            !c.stderr_file.empty() || !c.here_doc.empty() || c.both_output ||
+            !c.here_string.empty() || !c.fd_redirections.empty() ||
+            !c.fd_duplications.empty();
+      }
 
-    if (!has_redir_or_pipe && !cmds.empty()) {
-      const auto& c = cmds[0];
+      if (!has_redir_or_pipe && !cmds.empty()) {
+        const auto& c = cmds[0];
 
-      if (!c.args.empty() && c.args[0] == "__INTERNAL_SUBSHELL__") {
-        bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr ||
-                         !c.input_file.empty() || !c.output_file.empty() ||
-                         !c.append_file.empty() || !c.stderr_file.empty() ||
-                         !c.here_doc.empty();
+        if (!c.args.empty() && c.args[0] == "__INTERNAL_SUBSHELL__") {
+          bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr ||
+                           !c.input_file.empty() || !c.output_file.empty() ||
+                           !c.append_file.empty() || !c.stderr_file.empty() ||
+                           !c.here_doc.empty();
 
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: INTERNAL_SUBSHELL has_redir=" << has_redir
-                    << " stderr_to_stdout=" << c.stderr_to_stdout << std::endl;
-        }
-
-        if (has_redir) {
           if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: Executing subshell with redirections via pipeline"
-                << std::endl;
+            std::cerr << "DEBUG: INTERNAL_SUBSHELL has_redir=" << has_redir
+                      << " stderr_to_stdout=" << c.stderr_to_stdout
+                      << std::endl;
           }
-          int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
-          setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-          return exit_code;
-        } else {
-          if (c.args.size() >= 2) {
-            std::string subshell_content = c.args[1];
+
+          if (has_redir) {
             if (g_debug_mode) {
               std::cerr
-                  << "DEBUG: Executing subshell content in child process: "
-                  << subshell_content << std::endl;
+                  << "DEBUG: Executing subshell with redirections via pipeline"
+                  << std::endl;
             }
-
-            pid_t pid = fork();
-            if (pid == 0) {
-              if (setpgid(0, 0) < 0) {
-                perror("setpgid failed in subshell child");
+            int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
+            setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+            return exit_code;
+          } else {
+            if (c.args.size() >= 2) {
+              std::string subshell_content = c.args[1];
+              if (g_debug_mode) {
+                std::cerr
+                    << "DEBUG: Executing subshell content in child process: "
+                    << subshell_content << std::endl;
               }
 
-              int exit_code = g_shell->execute(subshell_content);
+              pid_t pid = fork();
+              if (pid == 0) {
+                if (setpgid(0, 0) < 0) {
+                  perror("setpgid failed in subshell child");
+                }
 
-              int child_status;
-              while (waitpid(-1, &child_status, WNOHANG) > 0) {
+                int exit_code = g_shell->execute(subshell_content);
+
+                int child_status;
+                while (waitpid(-1, &child_status, WNOHANG) > 0) {
+                }
+
+                exit(exit_code);
+              } else if (pid > 0) {
+                int status;
+                waitpid(pid, &status, 0);
+                int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+                setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+                return exit_code;
+              } else {
+                std::cerr << "Failed to fork for subshell execution"
+                          << std::endl;
+                return 1;
               }
-
-              exit(exit_code);
-            } else if (pid > 0) {
-              int status;
-              waitpid(pid, &status, 0);
-              int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
-              setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-              return exit_code;
             } else {
-              std::cerr << "Failed to fork for subshell execution" << std::endl;
               return 1;
             }
-          } else {
-            return 1;
           }
-        }
-      } else {
-        std::vector<std::string> expanded_args =
-            shell_parser->parse_command(text);
-        if (expanded_args.empty())
-          return 0;
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Simple exec: ";
-          for (const auto& a : expanded_args)
-            std::cerr << "[" << a << "]";
-          if (c.background)
-            std::cerr << " &";
-          std::cerr << std::endl;
-        }
-        int exit_code = g_shell->execute_command(expanded_args, c.background);
+        } else {
+          std::vector<std::string> expanded_args =
+              shell_parser->parse_command(text);
+          if (expanded_args.empty())
+            return 0;
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Simple exec: ";
+            for (const auto& a : expanded_args)
+              std::cerr << "[" << a << "]";
+            if (c.background)
+              std::cerr << " &";
+            std::cerr << std::endl;
+          }
+          int exit_code = g_shell->execute_command(expanded_args, c.background);
 
-        setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-        return exit_code;
+          setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+          return exit_code;
+        }
       }
-    }
 
-    if (cmds.empty())
-      return 0;
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: Executing pipeline of size " << cmds.size()
-                << std::endl;
-      for (size_t i = 0; i < cmds.size(); i++) {
-        const auto& cmd = cmds[i];
-        std::cerr << "DEBUG: Command " << i << ": ";
-        for (const auto& arg : cmd.args) {
-          std::cerr << "'" << arg << "' ";
+      if (cmds.empty())
+        return 0;
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Executing pipeline of size " << cmds.size()
+                  << std::endl;
+        for (size_t i = 0; i < cmds.size(); i++) {
+          const auto& cmd = cmds[i];
+          std::cerr << "DEBUG: Command " << i << ": ";
+          for (const auto& arg : cmd.args) {
+            std::cerr << "'" << arg << "' ";
+          }
+          std::cerr << " stderr_to_stdout=" << cmd.stderr_to_stdout
+                    << std::endl;
         }
-        std::cerr << " stderr_to_stdout=" << cmd.stderr_to_stdout << std::endl;
       }
-    }
-    int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
+      int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
 
-    setenv("STATUS", std::to_string(exit_code).c_str(), 1);
-    return exit_code;
+      setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+      return exit_code;
     } catch (const std::bad_alloc& e) {
       std::vector<SyntaxError> errors;
       SyntaxError error(1, "Memory allocation failed", text);
       error.severity = ErrorSeverity::ERROR;
       error.category = ErrorCategory::COMMANDS;
       error.error_code = "MEM001";
-      error.suggestion = "Command may be too complex or system is low on memory";
+      error.suggestion =
+          "Command may be too complex or system is low on memory";
       errors.push_back(error);
-      
+
       print_error_report(errors, true, true);
-      
+
       setenv("STATUS", "3", 1);
       return 3;
     } catch (const std::system_error& e) {
@@ -2075,18 +2081,18 @@ int ShellScriptInterpreter::execute_block(
       error.error_code = "SYS001";
       error.suggestion = "Check system resources and permissions";
       errors.push_back(error);
-      
+
       print_error_report(errors, true, true);
-      
+
       setenv("STATUS", "4", 1);
       return 4;
     } catch (const std::runtime_error& e) {
       std::vector<SyntaxError> errors;
       SyntaxError error(1, e.what(), text);
       std::string error_msg = e.what();
-      
+
       // Determine error type based on message content
-      if (error_msg.find("Unclosed quote") != std::string::npos || 
+      if (error_msg.find("Unclosed quote") != std::string::npos ||
           error_msg.find("missing closing") != std::string::npos) {
         // Parsing/syntax error
         error.severity = ErrorSeverity::ERROR;
@@ -2108,10 +2114,10 @@ int ShellScriptInterpreter::execute_block(
         error.error_code = "RUN001";
         error.suggestion = "Check command syntax and system resources";
       }
-      
+
       errors.push_back(error);
       print_error_report(errors, true, true);
-      
+
       setenv("STATUS", "2", 1);
       return 2;
     } catch (const std::exception& e) {
@@ -2120,11 +2126,13 @@ int ShellScriptInterpreter::execute_block(
       error.severity = ErrorSeverity::ERROR;
       error.category = ErrorCategory::COMMANDS;
       error.error_code = "UNK001";
-      error.suggestion = "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+      error.suggestion =
+          "An unexpected error occurred, please report this as an issue, and "
+          "how to replicate it.";
       errors.push_back(error);
-      
+
       print_error_report(errors, true, true);
-      
+
       setenv("STATUS", "5", 1);
       return 5;
     } catch (...) {
@@ -2133,11 +2141,13 @@ int ShellScriptInterpreter::execute_block(
       error.severity = ErrorSeverity::ERROR;
       error.category = ErrorCategory::COMMANDS;
       error.error_code = "UNK002";
-      error.suggestion = "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+      error.suggestion =
+          "An unexpected error occurred, please report this as an issue, and "
+          "how to replicate it.";
       errors.push_back(error);
-      
+
       print_error_report(errors, true, true);
-      
+
       setenv("STATUS", "6", 1);
       return 6;
     }
@@ -2894,11 +2904,12 @@ int ShellScriptInterpreter::execute_block(
       if (paren_pos != std::string::npos) {
         std::string pattern = trim(line.substr(0, paren_pos));
         std::string command_part = trim(line.substr(paren_pos + 1));
-        
+
         // Strip trailing ;; from command_part
-        if (command_part.length() >= 2 && 
+        if (command_part.length() >= 2 &&
             command_part.substr(command_part.length() - 2) == ";;") {
-          command_part = trim(command_part.substr(0, command_part.length() - 2));
+          command_part =
+              trim(command_part.substr(0, command_part.length() - 2));
         }
 
         bool pattern_matches = false;
@@ -2934,7 +2945,7 @@ int ShellScriptInterpreter::execute_block(
 
           // Check if the current line already contains ;; (inline case)
           bool inline_case = line.find(";;") != std::string::npos;
-          
+
           if (!inline_case) {
             k++;
             while (k < src_lines.size()) {
@@ -2946,7 +2957,8 @@ int ShellScriptInterpreter::execute_block(
               if (cmd_line == "esac") {
                 break;
               }
-              if (cmd_line == ";;" || cmd_line.find(";;") != std::string::npos) {
+              if (cmd_line == ";;" ||
+                  cmd_line.find(";;") != std::string::npos) {
                 if (cmd_line != ";;") {
                   size_t sep_pos = cmd_line.find(";;");
                   std::string before_sep = trim(cmd_line.substr(0, sep_pos));
@@ -2980,7 +2992,7 @@ int ShellScriptInterpreter::execute_block(
             }
             k++;
           }
-          idx = k; // Point to esac line, will be incremented in main loop
+          idx = k;  // Point to esac line, will be incremented in main loop
           return matched_exit_code;
         }
       }
@@ -2995,7 +3007,7 @@ int ShellScriptInterpreter::execute_block(
       k++;
     }
 
-    idx = k; // Point to esac line, will be incremented in main loop
+    idx = k;  // Point to esac line, will be incremented in main loop
     return matched_exit_code;
   };
 

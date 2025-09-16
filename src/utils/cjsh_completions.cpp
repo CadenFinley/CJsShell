@@ -13,9 +13,9 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "cjsh_syntax_highlighter.h"
 #include "isocline/isocline.h"
 #include "shell.h"
-#include "cjsh_syntax_highlighter.h"
 
 std::map<std::string, int> g_completion_frequency;
 enum CompletionContext {
