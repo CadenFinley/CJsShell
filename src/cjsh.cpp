@@ -622,6 +622,12 @@ static void main_process_loop() {
 
     if (g_debug_mode)
       std::cerr << "DEBUG: Generating prompt" << std::endl;
+    
+    // Ensure the prompt always starts on a clean line
+    // We print a space, then carriage return to detect if we're at column 0
+    std::printf(" \r");
+    std::fflush(stdout);
+    
     // gather and create the prompt
     std::string prompt;
     if (g_shell->get_menu_active()) {
