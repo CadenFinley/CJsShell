@@ -96,6 +96,7 @@ static void initialize_title_strings() {
 }
 
 // when we do command not found add suggestions like " "did you mean ..."
+// make command execution timing for prompts actually work
 
 /*
  * Exit/Return Codes:

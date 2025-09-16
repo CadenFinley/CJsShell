@@ -4,8 +4,95 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <cstring>
 
 #include "cjsh.h"
+
+// Safe subprocess execution utility function
+// Returns: 0 on success, -1 on error
+// result: stores command output
+// exit_code: stores the exit code of the command
+static int safe_execute_git_command(const std::string& command, std::string& result, int& exit_code) {
+  result.clear();
+  exit_code = -1;
+  
+  int pipefd[2];
+  if (pipe(pipefd) == -1) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: pipe() failed: " << strerror(errno) << std::endl;
+    }
+    return -1;
+  }
+  
+  pid_t pid = fork();
+  if (pid == -1) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: fork() failed: " << strerror(errno) << std::endl;
+    }
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return -1;
+  }
+  
+  if (pid == 0) {
+    // Child process
+    close(pipefd[0]); // Close read end
+    
+    // Redirect stdout to pipe
+    if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+      _exit(127);
+    }
+    
+    // Redirect stderr to /dev/null to match original behavior
+    int devnull = open("/dev/null", O_WRONLY);
+    if (devnull != -1) {
+      dup2(devnull, STDERR_FILENO);
+      close(devnull);
+    }
+    
+    close(pipefd[1]);
+    
+    // Execute command via sh -c to handle pipes and redirections
+    execl("/bin/sh", "sh", "-c", command.c_str(), (char*)NULL);
+    _exit(127);
+  }
+  
+  // Parent process
+  close(pipefd[1]); // Close write end
+  
+  // Read output
+  char buffer[4096];
+  ssize_t bytes_read;
+  while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+    buffer[bytes_read] = '\0';
+    result += buffer;
+  }
+  
+  close(pipefd[0]);
+  
+  // Wait for child and get exit status
+  int status;
+  if (waitpid(pid, &status, 0) == -1) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: waitpid() failed: " << strerror(errno) << std::endl;
+    }
+    return -1;
+  }
+  
+  if (WIFEXITED(status)) {
+    exit_code = WEXITSTATUS(status);
+  } else if (WIFSIGNALED(status)) {
+    exit_code = 128 + WTERMSIG(status);
+  } else {
+    exit_code = 1;
+  }
+  
+  return 0;
+}
 
 GitInfo::GitInfo() {
   if (g_debug_mode)
@@ -28,32 +115,32 @@ GitInfo::~GitInfo() {
 std::string GitInfo::get_git_remote(const std::filesystem::path& repo_root) {
   std::string cmd =
       "git -C '" + repo_root.string() + "' remote get-url origin 2>/dev/null";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp)
+  std::string result;
+  int exit_code;
+  
+  if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
-  char buffer[256];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL)
-    result += buffer;
-  pclose(fp);
-  if (!result.empty() && result.back() == '\n')
+  }
+  
+  if (!result.empty() && result.back() == '\n') {
     result.pop_back();
+  }
   return result;
 }
 
 std::string GitInfo::get_git_tag(const std::filesystem::path& repo_root) {
   std::string cmd = "git -C '" + repo_root.string() +
                     "' describe --tags --abbrev=0 2>/dev/null";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp)
+  std::string result;
+  int exit_code;
+  
+  if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
-  char buffer[128];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL)
-    result += buffer;
-  pclose(fp);
-  if (!result.empty() && result.back() == '\n')
+  }
+  
+  if (!result.empty() && result.back() == '\n') {
     result.pop_back();
+  }
   return result;
 }
 
@@ -61,30 +148,29 @@ std::string GitInfo::get_git_last_commit(
     const std::filesystem::path& repo_root) {
   std::string cmd = "git -C '" + repo_root.string() +
                     "' log -1 --pretty=format:%h:%s 2>/dev/null";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp)
+  std::string result;
+  int exit_code;
+  
+  if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
-  char buffer[256];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL)
-    result += buffer;
-  pclose(fp);
+  }
+  
   return result;
 }
 
 std::string GitInfo::get_git_author(const std::filesystem::path& repo_root) {
   std::string cmd = "git -C '" + repo_root.string() +
                     "' log -1 --pretty=format:%an 2>/dev/null";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp)
+  std::string result;
+  int exit_code;
+  
+  if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
-  char buffer[128];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL)
-    result += buffer;
-  pclose(fp);
-  if (!result.empty() && result.back() == '\n')
+  }
+  
+  if (!result.empty() && result.back() == '\n') {
     result.pop_back();
+  }
   return result;
 }
 
@@ -147,15 +233,10 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
 
       std::string cmd =
           "git -C '" + git_dir + "' status --porcelain 2>/dev/null";
-      FILE* fp = popen(cmd.c_str(), "r");
-      if (fp) {
-        char buffer[256];
-        std::string result = "";
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-          result += buffer;
-        }
-        pclose(fp);
-
+      std::string result;
+      int exit_code;
+      
+      if (safe_execute_git_command(cmd, result, exit_code) == 0 && exit_code == 0) {
         if (!result.empty()) {
           is_clean_repo = false;
           status_symbols = "*";
@@ -231,20 +312,16 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
   std::string upstream_cmd = "git -C '" + repo_root.string() +
                              "' rev-parse --abbrev-ref " + branch +
                              "@{upstream} 2>/dev/null";
-  FILE* upstream_fp = popen(upstream_cmd.c_str(), "r");
-  if (!upstream_fp) {
+  std::string upstream;
+  int exit_code;
+  
+  if (safe_execute_git_command(upstream_cmd, upstream, exit_code) != 0 || exit_code != 0) {
     return -1;
   }
-
-  char upstream_buffer[128];
-  std::string upstream = "";
-  if (fgets(upstream_buffer, sizeof(upstream_buffer), upstream_fp) != NULL) {
-    upstream = upstream_buffer;
-    if (!upstream.empty() && upstream.back() == '\n') {
-      upstream.pop_back();
-    }
+  
+  if (!upstream.empty() && upstream.back() == '\n') {
+    upstream.pop_back();
   }
-  pclose(upstream_fp);
 
   if (upstream.empty()) {
     return -1;
@@ -253,26 +330,21 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
   std::string count_cmd = "git -C '" + repo_root.string() +
                           "' rev-list --left-right --count " + branch + "..." +
                           upstream + " 2>/dev/null";
-  FILE* count_fp = popen(count_cmd.c_str(), "r");
-  if (!count_fp) {
+  std::string count_result;
+  
+  if (safe_execute_git_command(count_cmd, count_result, exit_code) != 0 || exit_code != 0) {
     return -1;
   }
 
-  char count_buffer[64];
-  if (fgets(count_buffer, sizeof(count_buffer), count_fp) != NULL) {
-    std::string count_str = count_buffer;
-    size_t tab_pos = count_str.find('\t');
-    if (tab_pos != std::string::npos) {
-      try {
-        ahead = std::stoi(count_str.substr(0, tab_pos));
-        behind = std::stoi(count_str.substr(tab_pos + 1));
-      } catch (const std::exception& e) {
-        pclose(count_fp);
-        return -1;
-      }
+  size_t tab_pos = count_result.find('\t');
+  if (tab_pos != std::string::npos) {
+    try {
+      ahead = std::stoi(count_result.substr(0, tab_pos));
+      behind = std::stoi(count_result.substr(tab_pos + 1));
+    } catch (const std::exception& e) {
+      return -1;
     }
   }
-  pclose(count_fp);
 
   return 0;
 }
@@ -280,34 +352,34 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
 int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
   std::string cmd =
       "git -C '" + repo_root.string() + "' stash list 2>/dev/null | wc -l";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  std::string result;
+  int exit_code;
+  
+  if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return 0;
   }
 
-  char buffer[32];
-  int count = 0;
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    try {
-      count = std::stoi(buffer);
-    } catch (const std::exception& e) {
-      count = 0;
-    }
+  try {
+    return std::stoi(result);
+  } catch (const std::exception& e) {
+    return 0;
   }
-  pclose(fp);
-
-  return count;
 }
 
 bool GitInfo::get_git_has_staged_changes(
     const std::filesystem::path& repo_root) {
   std::string cmd =
       "git -C '" + repo_root.string() + "' diff --cached --quiet 2>/dev/null";
-  int result = system(cmd.c_str());
-
-  if (result == 0) {
+  std::string result;
+  int exit_code;
+  
+  if (safe_execute_git_command(cmd, result, exit_code) != 0) {
     return false;
-  } else if (result == 256) {
+  }
+
+  if (exit_code == 0) {
+    return false;
+  } else if (exit_code == 1) {
     return true;
   } else {
     return false;
@@ -318,21 +390,16 @@ int GitInfo::get_git_uncommitted_changes(
     const std::filesystem::path& repo_root) {
   std::string cmd = "git -C '" + repo_root.string() +
                     "' status --porcelain 2>/dev/null | wc -l";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  std::string result;
+  int exit_code;
+  
+  if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return 0;
   }
 
-  char buffer[32];
-  int count = 0;
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    try {
-      count = std::stoi(buffer);
-    } catch (const std::exception& e) {
-      count = 0;
-    }
+  try {
+    return std::stoi(result);
+  } catch (const std::exception& e) {
+    return 0;
   }
-  pclose(fp);
-
-  return count;
 }
