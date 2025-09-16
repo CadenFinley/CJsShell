@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------------
   Copyright (c) 2021, Daan Leijen
-  Modified by: Caden Finley 2025
+  Largely Modified by Caden Finley 2025 for CJ's Shell
   This is free software; you can redistribute it and/or modify it
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
