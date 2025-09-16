@@ -1,4 +1,4 @@
-#include "syntax_highlighter.h"
+#include "cjsh_syntax_highlighter.h"
 
 #include <algorithm>
 #include <cctype>

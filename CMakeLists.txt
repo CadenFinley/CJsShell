@@ -57,6 +57,9 @@ file(GLOB_RECURSE SOURCES
   "src/isocline/*.cpp"
   "src/prompt/modules/*.cpp"
   "src/theme/*.cpp"
+  "src/prompt/*.cpp"
+  "src/script_interpreter/*.cpp"
+  "src/plugins/*.cpp"
 )
 
 # Explicitly list isocline .c files that should be compiled
@@ -219,6 +222,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt
     ${CMAKE_CURRENT_SOURCE_DIR}/include/prompt/modules
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ai
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/plugins
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/script_interpreter
 )
 
 # Add utf8proc include directories if built from source
