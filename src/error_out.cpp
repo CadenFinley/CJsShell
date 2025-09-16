@@ -43,8 +43,44 @@ void print_error(const ErrorInfo& error) {
   std::cerr << std::endl;
 
   if (!error.suggestions.empty()) {
+    // Check if suggestions are command suggestions (start with "Did you mean")
+    std::vector<std::string> commands;
+    bool has_command_suggestions = false;
+    
     for (const auto& suggestion : error.suggestions) {
-      std::cerr << suggestion << std::endl;
+      if (suggestion.find("Did you mean '") != std::string::npos) {
+        // Extract command name from "Did you mean 'command'?" format
+        size_t start = suggestion.find("'") + 1;
+        size_t end = suggestion.find("'", start);
+        if (start != std::string::npos && end != std::string::npos && end > start) {
+          commands.push_back(suggestion.substr(start, end - start));
+          has_command_suggestions = true;
+        }
+      }
+    }
+    
+    if (has_command_suggestions && !commands.empty()) {
+      // Print command suggestions on one line
+      std::cerr << "Did you mean: ";
+      for (size_t i = 0; i < commands.size(); ++i) {
+        std::cerr << commands[i];
+        if (i < commands.size() - 1) {
+          std::cerr << ", ";
+        }
+      }
+      std::cerr << "?" << std::endl;
+      
+      // Print any non-command suggestions on separate lines
+      for (const auto& suggestion : error.suggestions) {
+        if (suggestion.find("Did you mean '") == std::string::npos) {
+          std::cerr << suggestion << std::endl;
+        }
+      }
+    } else {
+      // Print all suggestions as before if they're not command suggestions
+      for (const auto& suggestion : error.suggestions) {
+        std::cerr << suggestion << std::endl;
+      }
     }
   }
 }
