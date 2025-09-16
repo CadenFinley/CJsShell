@@ -15,6 +15,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "echo_command.h"
+#include "error_out.h"
 #include "eval_command.h"
 #include "exit_command.h"
 #include "export_command.h"
@@ -34,12 +35,11 @@
 #include "set_command.h"
 #include "source_command.h"
 #include "startup_flag_command.h"
+#include "suggestion_utils.h"
 #include "syntax_command.h"
 #include "test_command.h"
 #include "theme_command.h"
 #include "times_command.h"
-#include "error_out.h"
-#include "suggestion_utils.h"
 #include "trap_command.h"
 #include "type_command.h"
 #include "umask_command.h"
@@ -456,7 +456,8 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     return status;
   }
   auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
-  ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found", suggestions};
+  ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found",
+                     suggestions};
   print_error(error);
   last_terminal_output_error = "cjsh: '" + args[0] + "': command not found";
   return 127;

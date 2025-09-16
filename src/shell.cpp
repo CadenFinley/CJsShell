@@ -10,8 +10,8 @@
 #include "error_out.h"
 #include "job_control.h"
 #include "signal_handler.h"
-#include "trap_command.h"
 #include "suggestion_utils.h"
+#include "trap_command.h"
 
 void Shell::process_pending_signals() {
   if (signal_handler && shell_exec) {
@@ -294,17 +294,18 @@ int Shell::execute_command(std::vector<std::string> args,
     shell_exec->execute_command_sync(args);
     last_terminal_output_error = shell_exec->get_error_string();
     int exit_code = shell_exec->get_exit_code();
-    
+
     // Track successful command usage for better suggestions
     if (exit_code == 0 && !args.empty()) {
       suggestion_utils::update_command_usage_stats(args[0]);
     }
-    
+
     if (exit_code != 0) {
       // Only print errors for actual system errors, not simple command failures
       ErrorInfo error = shell_exec->get_error();
-      if (error.type != ErrorType::RUNTIME_ERROR || 
-          error.message.find("command failed with exit code") == std::string::npos) {
+      if (error.type != ErrorType::RUNTIME_ERROR ||
+          error.message.find("command failed with exit code") ==
+              std::string::npos) {
         shell_exec->print_last_error();
       }
     }

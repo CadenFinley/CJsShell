@@ -1991,10 +1991,12 @@ int ShellScriptInterpreter::execute_block(
             }
             int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
             if (exit_code != 0) {
-              // Only print errors for actual system errors, not simple command failures
+              // Only print errors for actual system errors, not simple command
+              // failures
               ErrorInfo error = g_shell->shell_exec->get_error();
-              if (error.type != ErrorType::RUNTIME_ERROR || 
-                  error.message.find("command failed with exit code") == std::string::npos) {
+              if (error.type != ErrorType::RUNTIME_ERROR ||
+                  error.message.find("command failed with exit code") ==
+                      std::string::npos) {
                 g_shell->shell_exec->print_last_error();
               }
             }
@@ -2074,10 +2076,12 @@ int ShellScriptInterpreter::execute_block(
       }
       int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
       if (exit_code != 0) {
-        // Only print errors for actual system errors, not simple command failures
+        // Only print errors for actual system errors, not simple command
+        // failures
         ErrorInfo error = g_shell->shell_exec->get_error();
-        if (error.type != ErrorType::RUNTIME_ERROR || 
-            error.message.find("command failed with exit code") == std::string::npos) {
+        if (error.type != ErrorType::RUNTIME_ERROR ||
+            error.message.find("command failed with exit code") ==
+                std::string::npos) {
           g_shell->shell_exec->print_last_error();
         }
       }

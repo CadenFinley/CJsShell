@@ -13,7 +13,8 @@ void CommandInfo::start_command_timing() {
 }
 
 void CommandInfo::end_command_timing(int exit_code) {
-  (void)exit_code; // Unused - exit code now managed via STATUS environment variable
+  (void)exit_code;  // Unused - exit code now managed via STATUS environment
+                    // variable
   if (timing_active) {
     last_command_end = std::chrono::high_resolution_clock::now();
     timing_active = false;

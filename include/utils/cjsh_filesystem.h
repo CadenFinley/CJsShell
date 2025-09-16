@@ -66,7 +66,7 @@ const fs::path g_cjsh_ai_conversations_path =
 const fs::path g_cjsh_found_executables_path =
     g_cjsh_cache_path /
     "cached_executables.cache";  // where the found executables are stored for
-                               // syntax highlighting and completions
+                                 // syntax highlighting and completions
 
 std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();

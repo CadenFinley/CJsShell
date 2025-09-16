@@ -18,8 +18,8 @@
 #include "error_out.h"
 #include "job_control.h"
 #include "signal_handler.h"
-#include "utils/performance.h"
 #include "suggestion_utils.h"
+#include "utils/performance.h"
 
 // Helper function to check if noclobber should prevent file creation
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
@@ -305,7 +305,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     execvp(cmd_args[0].c_str(), c_args.data());
 
     if (errno == ENOENT) {
-      auto suggestions = suggestion_utils::generate_command_suggestions(cmd_args[0]);
+      auto suggestions =
+          suggestion_utils::generate_command_suggestions(cmd_args[0]);
       set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "command not found",
                 suggestions);
     } else if (errno == EACCES) {
@@ -374,14 +375,12 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   } else if (exit_code != 0) {
     error_type = ErrorType::RUNTIME_ERROR;
   }
-  
-  set_error(
-      error_type,
-      args[0],
-      exit_code == 0
-          ? "command completed successfully"
-          : "command failed with exit code " + std::to_string(exit_code),
-      suggestions);
+
+  set_error(error_type, args[0],
+            exit_code == 0
+                ? "command completed successfully"
+                : "command failed with exit code " + std::to_string(exit_code),
+            suggestions);
   last_exit_code = exit_code;
   return exit_code;
 }
@@ -895,15 +894,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           std::vector<std::string> suggestions;
           if (exit_code == 127) {
             error_type = ErrorType::COMMAND_NOT_FOUND;
-            suggestions = suggestion_utils::generate_command_suggestions(cmd.args[0]);
+            suggestions =
+                suggestion_utils::generate_command_suggestions(cmd.args[0]);
           } else if (exit_code == 126) {
             error_type = ErrorType::PERMISSION_DENIED;
           } else if (exit_code != 0) {
             error_type = ErrorType::RUNTIME_ERROR;
           }
-          
-          set_error(error_type,
-                    cmd.args[0],
+
+          set_error(error_type, cmd.args[0],
                     exit_code == 0 ? "builtin command completed successfully"
                                    : "builtin command failed with exit code " +
                                          std::to_string(exit_code),
@@ -1237,15 +1236,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         std::vector<std::string> suggestions;
         if (exit_code == 127) {
           error_type = ErrorType::COMMAND_NOT_FOUND;
-          suggestions = suggestion_utils::generate_command_suggestions(cmd.args[0]);
+          suggestions =
+              suggestion_utils::generate_command_suggestions(cmd.args[0]);
         } else if (exit_code == 126) {
           error_type = ErrorType::PERMISSION_DENIED;
         } else if (exit_code != 0) {
           error_type = ErrorType::RUNTIME_ERROR;
         }
-        
-        set_error(error_type,
-                  cmd.args[0],
+
+        set_error(error_type, cmd.args[0],
                   exit_code == 0 ? "command completed successfully"
                                  : "command failed with exit code " +
                                        std::to_string(exit_code),
@@ -1788,11 +1787,12 @@ void Exec::wait_for_job(int job_id) {
           std::vector<std::string> suggestions;
           if (exit_status == 127) {
             error_type = ErrorType::COMMAND_NOT_FOUND;
-            suggestions = suggestion_utils::generate_command_suggestions(job.command);
+            suggestions =
+                suggestion_utils::generate_command_suggestions(job.command);
           } else if (exit_status == 126) {
             error_type = ErrorType::PERMISSION_DENIED;
           }
-          
+
           set_error(
               error_type, job.command,
               "command failed with exit code " + std::to_string(exit_status),

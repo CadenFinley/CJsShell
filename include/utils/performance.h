@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <climits>
 #include <iostream>
 #include <string>
 #include <unordered_map>
