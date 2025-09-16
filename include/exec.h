@@ -39,6 +39,10 @@ class Exec {
   int last_exit_code = 0;
   ErrorInfo last_error;
 
+  // Smart pipeline optimization helpers
+  bool requires_fork(const Command& cmd) const;
+  bool can_execute_in_process(const Command& cmd) const;
+
  public:
   Exec();
   ~Exec();

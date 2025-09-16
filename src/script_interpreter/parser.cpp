@@ -20,6 +20,7 @@
 #include "command_preprocessor.h"
 #include "job_control.h"
 #include "readonly_command.h"
+#include "utils/performance.h"
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   auto strip_inline_comment = [](std::string_view s) -> std::string {
@@ -513,6 +514,8 @@ std::vector<std::string> merge_redirection_tokens(
 }
 
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
+  PERF_TIMER("parse_command");
+  
   std::vector<std::string> args;
   args.reserve(8);
 
@@ -530,6 +533,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     auto alias_it = aliases.find(args[0]);
     if (alias_it != aliases.end()) {
       std::vector<std::string> alias_args;
+      alias_args.reserve(8);  // Reserve for typical alias expansion
 
       try {
         std::vector<std::string> raw_alias_args =
@@ -538,6 +542,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
         if (!alias_args.empty()) {
           std::vector<std::string> new_args;
+          new_args.reserve(alias_args.size() + args.size());  // Reserve for combined args
           new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
           if (args.size() > 1) {
             new_args.insert(new_args.end(), args.begin() + 1, args.end());

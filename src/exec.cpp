@@ -18,6 +18,7 @@
 #include "error_out.h"
 #include "job_control.h"
 #include "signal_handler.h"
+#include "utils/performance.h"
 
 // Helper function to check if noclobber should prevent file creation
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
@@ -174,6 +175,29 @@ std::string Exec::get_error_string() {
 void Exec::print_last_error() {
   std::lock_guard<std::mutex> lock(error_mutex);
   print_error(last_error);
+}
+
+// Smart pipeline optimization helpers
+bool Exec::requires_fork(const Command& cmd) const {
+  return !cmd.input_file.empty() || !cmd.output_file.empty() || 
+         !cmd.append_file.empty() || cmd.background || 
+         !cmd.stderr_file.empty() || cmd.stderr_to_stdout || 
+         cmd.stdout_to_stderr || !cmd.here_doc.empty() ||
+         !cmd.here_string.empty() || cmd.both_output ||
+         !cmd.process_substitutions.empty() ||
+         !cmd.fd_redirections.empty() || !cmd.fd_duplications.empty();
+}
+
+bool Exec::can_execute_in_process(const Command& cmd) const {
+  if (cmd.args.empty()) return false;
+  
+  // Check if it's a builtin command
+  if (g_shell && g_shell->get_built_ins() && 
+      g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
+    return !requires_fork(cmd);
+  }
+  
+  return false;
 }
 
 int Exec::execute_command_sync(const std::vector<std::string>& args) {
@@ -465,15 +489,15 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     JobManager::instance().add_job(pid, {pid}, full_command);
     JobManager::instance().set_last_background_pid(pid);
 
-    set_error(ErrorType::RUNTIME_ERROR, args[0], "Background job started", {});
-
     std::cerr << "[" << job_id << "] " << pid << std::endl;
     last_exit_code = 0;
-    return job_id;
+    return 0;  // Return success exit code, not job_id
   }
 }
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
+  PERF_TIMER("execute_pipeline");
+  
   if (commands.empty()) {
     set_error(ErrorType::INVALID_ARGUMENT, "",
               "cannot execute empty pipeline - no commands provided", {});
@@ -484,8 +508,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
   if (commands.size() == 1) {
     const Command& cmd = commands[0];
 
+    // Smart pipeline optimization: execute simple built-ins in-process
+    if (can_execute_in_process(cmd)) {
+      PERF_TIMER("builtin_in_process");
+      last_exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
+      return last_exit_code;
+    }
+
     if (cmd.background) {
-      execute_command_async(cmd.args);
+      return execute_command_async(cmd.args);
     } else {
       if (!cmd.args.empty() && g_shell && g_shell->get_built_ins() &&
           g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
