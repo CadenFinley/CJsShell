@@ -9,17 +9,61 @@ from typing import List, Tuple, Dict
 
 # Configuration
 RUNS = 30
-COMMANDS = [
-    "-c ls",
-    "--version",
-    "-c 'echo hello world'",
-    "-c pwd",
-    "-c 'echo $(date)'",
-    "-c 'echo $SHELL'",
-    "-c 'ls -la'",
-    "-c exit",
-    "-c 'for i in {1..1000}; do echo $i; done'"
+
+# Shell-specific command mappings
+# Each command is mapped to shell-specific syntax
+SHELL_COMMANDS = {
+    "posix": {  # For bash, zsh, cjsh, and other POSIX-compatible shells
+        "ls": "-c ls",
+        "version": "--version",
+        "hello": "-c 'echo hello world'",
+        "pwd": "-c pwd",
+        "date": "-c 'echo $(date)'",
+        "shell_var": "-c 'echo $SHELL'",
+        "ls_long": "-c 'ls -la'",
+        "exit": "-c exit",
+        "loop": "-c 'for i in {1..1000}; do echo $i; done'"
+    },
+    "fish": {
+        "ls": "-c ls",
+        "version": "--version",
+        "hello": "-c 'echo hello world'",
+        "pwd": "-c pwd",
+        "date": "-c 'echo (date)'",
+        "shell_var": "-c 'echo $SHELL'",
+        "ls_long": "-c 'ls -la'",
+        "exit": "-c exit",
+        "loop": "-c 'for i in (seq 1000); echo $i; end'"
+    },
+    "nu": {
+        "ls": "-c 'ls'",
+        "version": "--version",
+        "hello": "-c 'echo hello world'",
+        "pwd": "-c 'pwd'",
+        "date": "-c 'date now | get datetime'",
+        "shell_var": "-c 'echo $env.SHELL?'",
+        "ls_long": "-c 'ls -l'",
+        "exit": "-c 'exit'",
+        "loop": "-c '1..1000 | each { |i| echo $i }'"
+    },
+    "elvish": {
+        "ls": "-c 'ls'",
+        "version": "--version",
+        "hello": "-c 'echo hello world'",
+        "pwd": "-c 'pwd'",
+        "date": "-c 'echo (date)'",
+        "shell_var": "-c 'echo $E:SHELL'",
+        "ls_long": "-c 'ls -la'",
+        "exit": "-c 'exit'",
+        "loop": "-c 'for i [(range 1 1001)] { echo $i }'"
+    }
+}
+
+# Command descriptions for output
+COMMAND_DESCRIPTIONS = [
+    "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop"
 ]
+
 BASELINE_SHELLS = ["fish", "bash", "zsh", "nu", "elvish"]
 #CJSH_BINARY_TYPES = ["", "_speed03", "_speed02", "_debug"]  # Empty string means no suffix
 CJSH_BINARY_TYPES = [""]
@@ -47,18 +91,34 @@ def run_command_with_timing(shell_cmd: str, command: str) -> float:
     return (end_time - start_time) * 1000  # Convert to milliseconds
 
 
-def test_command(command: str) -> None:
+def get_shell_command(shell: str, command_key: str) -> str:
+    """Get the appropriate command syntax for a given shell."""
+    if shell in ["bash", "zsh"] or shell.startswith("./cjsh"):
+        return SHELL_COMMANDS["posix"][command_key]
+    elif shell == "fish":
+        return SHELL_COMMANDS["fish"][command_key]
+    elif shell == "nu":
+        return SHELL_COMMANDS["nu"][command_key]
+    elif shell == "elvish":
+        return SHELL_COMMANDS["elvish"][command_key]
+    else:
+        # Default to POSIX for unknown shells
+        return SHELL_COMMANDS["posix"][command_key]
+
+
+def test_command(command_key: str) -> None:
     """Test a single command across all shells."""
     results: List[Tuple[str, float, float, float]] = []
     
     print("----------------------------------------------------------------------")
-    print(f"Testing command: {command}")
+    print(f"Testing command: {command_key}")
     print("----------------------------------------------------------------------")
     
     # Test cjsh binary types
     for binary_type in CJSH_BINARY_TYPES:
         shell_name = f"./cjsh{binary_type}"
         shell_path = f"./build/cjsh{binary_type}"
+        command = get_shell_command(shell_name, command_key)
         
         print()
         print(f"Timing {shell_name} {command}")
@@ -79,6 +139,8 @@ def test_command(command: str) -> None:
     # Test baseline shells if enabled
     if ENABLE_BASELINE_TESTS:
         for shell in BASELINE_SHELLS:
+            command = get_shell_command(shell, command_key)
+            
             print()
             print(f"Timing {shell} {command}")
             print()
@@ -101,10 +163,10 @@ def test_command(command: str) -> None:
     results.sort(key=lambda x: x[1])
     
     # Store results for summary
-    all_commands.append(command)
+    all_commands.append(command_key)
     all_results.append(results)
     
-    print(f"Completed testing: {command}")
+    print(f"Completed testing: {command_key}")
     print()
 
 
@@ -127,13 +189,14 @@ def print_summary() -> None:
     print(get_cjsh_version())
     print("======================================================================")
     
-    for i, command in enumerate(all_commands):
+    for i, command_key in enumerate(all_commands):
         print()
-        print(f"Command: {command}")
+        print(f"Command: {command_key}")
         print("----------------------------------------------------------------------")
         
         for shell, average, min_time, max_time in all_results[i]:
-            print(f"Average time for {shell}: {average:.3f} ms")
+            actual_command = get_shell_command(shell, command_key)
+            print(f"Average time for {shell} ({actual_command}): {average:.3f} ms")
             print(f"  Min time: {min_time:.3f} ms")
             print(f"  Max time: {max_time:.3f} ms")
         
@@ -195,8 +258,8 @@ def main() -> None:
     print()
     
     # Test all commands
-    for command in COMMANDS:
-        test_command(command)
+    for command_key in COMMAND_DESCRIPTIONS:
+        test_command(command_key)
     
     # Print final summary
     print_summary()
