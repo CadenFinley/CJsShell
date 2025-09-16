@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "cjsh.h"
+#include "error_out.h"
 
 int eval_command(const std::vector<std::string>& args, Shell* shell) {
   if (g_debug_mode) {
@@ -11,7 +12,7 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
   }
 
   if (args.size() < 2) {
-    std::cerr << "eval: missing arguments" << std::endl;
+    print_error({ErrorType::INVALID_ARGUMENT, "eval", "missing arguments", {}});
     return 1;
   }
 
@@ -88,7 +89,7 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
     }
     return result;
   } else {
-    std::cerr << "eval: shell not initialized" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "eval", "shell not initialized", {}});
     return 1;
   }
 }

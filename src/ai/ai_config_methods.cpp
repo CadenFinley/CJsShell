@@ -7,7 +7,7 @@
 
 void Ai::set_config_name(const std::string& config_name) {
   if (config_name.empty()) {
-    std::cerr << "Error: Config name cannot be empty." << std::endl;
+    std::cerr << "cjsh: ai: Config name cannot be empty." << std::endl;
     return;
   }
 
@@ -32,7 +32,7 @@ std::vector<std::string> Ai::list_configs() const {
       }
     }
   } catch (const cjsh_filesystem::fs::filesystem_error& e) {
-    std::cerr << "Error listing AI config files: " << e.what() << std::endl;
+    std::cerr << "cjsh: ai: Error listing AI config files: " << e.what() << std::endl;
   }
   return configs;
 }
@@ -46,7 +46,7 @@ bool Ai::load_config(const std::string& config_name) {
     load_ai_config();
     return true;
   } catch (const std::exception& e) {
-    std::cerr << "Error loading AI config '" << config_name << "': " << e.what()
+    std::cerr << "cjsh: ai: Error loading AI config '" << config_name << "': " << e.what()
               << std::endl;
     this->config_name = old_config_name;
     return false;
@@ -62,7 +62,7 @@ bool Ai::save_config_as(const std::string& config_name) {
     save_ai_config();
     return true;
   } catch (const std::exception& e) {
-    std::cerr << "Error saving AI config as '" << config_name
+    std::cerr << "cjsh: ai: Error saving AI config as '" << config_name
               << "': " << e.what() << std::endl;
     this->config_name = old_config_name;
     return false;

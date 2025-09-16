@@ -13,6 +13,7 @@
 
 #include "cjsh.h"
 #include "colors.h"
+#include "error_out.h"
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(theme_dir), is_enabled(enabled) {
@@ -118,8 +119,10 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
   std::string theme_file = theme_directory + "/" + theme_name_to_use + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
-    std::cerr << "Error: Theme '" << theme_name_to_use << "' not found."
-              << std::endl;
+    print_error({ErrorType::FILE_NOT_FOUND,
+                 "load_theme",
+                 "Theme file '" + theme_file + "' does not exist.",
+                 {"Use 'theme' to see available themes."}});  
     return false;
   }
 
@@ -133,15 +136,21 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
       !theme_json["requirements"].empty()) {
     if (!check_theme_requirements(theme_json["requirements"])) {
       if (!allow_fallback) {
-        std::cerr << "Error: Theme '" << theme_name_to_use
-                  << "' requirements not met, cannot load theme." << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Theme '" + theme_name_to_use +
+                         "' requirements not met, cannot load theme.",
+                     {}});
         return false;
       }
       std::string previous_theme =
           (g_current_theme == "" ? "default" : g_current_theme);
-      std::cerr << "Error: Theme '" << theme_name_to_use
-                << "' requirements not met, falling back to previous theme: '"
-                << previous_theme << "'" << std::endl;
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "load_theme",
+                   "Theme '" + theme_name_to_use +
+                       "' requirements not met, falling back to previous theme: '" +
+                       previous_theme + "'.",
+                   {}});
       if (theme_name_to_use != previous_theme) {
         return load_theme(previous_theme, allow_fallback);
       } else {
@@ -149,8 +158,10 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
           std::cerr << "Falling back to default theme" << std::endl;
           return load_theme("default", allow_fallback);
         }
-        std::cerr << "Error: Theme '" << theme_name_to_use << "' not found."
-                  << std::endl;
+        print_error({ErrorType::FILE_NOT_FOUND,
+                     "load_theme",
+                     "Theme file '" + theme_file + "' does not exist.",
+                     {"Use 'theme' to see available themes."}});
         return false;
       }
     }
@@ -194,8 +205,10 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
 
   if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
       has_duplicate_tags(ai_segments) || has_duplicate_tags(newline_segments)) {
-    std::cerr << "Error: Duplicate tags found in theme segments. Theme:"
-              << theme_name_to_use << " could not be loaded." << std::endl;
+    print_error({ErrorType::SYNTAX_ERROR,
+                 "load_theme",
+                 "Duplicate tags found in theme segments.",
+                 {"Ensure all segment tags are unique within their section."}});
     return false;
   }
 
@@ -314,9 +327,10 @@ size_t Theme::get_terminal_width() const {
   }
 
   if (g_debug_mode) {
-    std::cout
-        << "Terminal width detection failed, using default width: 80 columns"
-        << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "get_terminal_width",
+                 "Failed to detect terminal width, defaulting to 80 columns.",
+                 {}});
   }
   return 80;
 }
@@ -652,7 +666,11 @@ void Theme::view_theme_requirements(const std::string& theme) const {
   std::string theme_file = theme_directory + "/" + theme + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
-    std::cerr << "Error: Theme '" << theme << "' not found." << std::endl;
+
+    print_error({ErrorType::FILE_NOT_FOUND,
+                 "view_theme_requirements",
+                 "Theme file '" + theme_file + "' does not exist.",
+                 {"Use 'theme' to see available themes."}});
     return;
   }
   std::ifstream file(theme_file);

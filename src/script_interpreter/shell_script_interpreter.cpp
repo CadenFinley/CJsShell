@@ -22,6 +22,7 @@
 #include "job_control.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "error_out.h"
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
   if (g_debug_mode)
@@ -1325,19 +1326,16 @@ int ShellScriptInterpreter::execute_block(
               << " lines" << std::endl;
 
   if (g_shell == nullptr) {
-    std::cerr << "Error: No shell instance available" << std::endl;
-    return 1;
+    print_error({ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
   }
 
   if (!shell_parser) {
-    std::cerr << "Error: Script interpreter not initialized with a Parser"
-              << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "", "Script interpreter not properly initialized", {}});
     return 1;
   }
 
   if (has_syntax_errors(lines)) {
-    std::cerr << "Script execution aborted due to critical syntax errors."
-              << std::endl;
+    print_error({ErrorType::SYNTAX_ERROR, "", "Critical syntax errors detected in script block, process aborted", {}});
     return 2;
   }
 
@@ -1856,7 +1854,7 @@ int ShellScriptInterpreter::execute_block(
           std::cerr << "DEBUG: Interpreting script file: " << prog << std::endl;
         std::ifstream f(prog);
         if (!f) {
-          std::cerr << "cjsh: failed to open script: " << prog << std::endl;
+          print_error({ErrorType::RUNTIME_ERROR, "", "Failed to open script file: " + prog, {}});
           return 1;
         }
         std::stringstream buffer;
@@ -1995,7 +1993,7 @@ int ShellScriptInterpreter::execute_block(
               pid_t pid = fork();
               if (pid == 0) {
                 if (setpgid(0, 0) < 0) {
-                  perror("setpgid failed in subshell child");
+                  perror("cjsh: setpgid failed in subshell child");
                 }
 
                 int exit_code = g_shell->execute(subshell_content);
@@ -3149,7 +3147,7 @@ int ShellScriptInterpreter::execute_block(
         }
       }
       if (++guard > GUARD_MAX) {
-        std::cerr << "cjsh: while loop aborted (guard)" << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR, "", "while loop exceeded max iterations (guard)", {}});
         rc = 1;
         break;
       }

@@ -421,12 +421,12 @@ void Ai::load_ai_config() {
               cjsh_filesystem::g_cjsh_ai_default_config_path)) {
         config_file_path = cjsh_filesystem::g_cjsh_ai_default_config_path;
       } else {
-        std::cerr << "Error: Could not create default AI config file."
+        std::cerr << "cjsh: ai: Could not create default AI config file."
                   << std::endl;
         return;
       }
     } else {
-      std::cerr << "Error: AI config file '" << config_name << "' not found."
+      std::cerr << "cjsh: ai: AI config file '" << config_name << "' not found."
                 << std::endl;
       return;
     }
@@ -498,11 +498,11 @@ void Ai::load_ai_config() {
             "Warm, Calm. Pacing: Moderate.";
       }
     } catch (const std::exception& e) {
-      std::cerr << "Error parsing AI config file: " << e.what() << std::endl;
+      std::cerr << "cjsh: ai: Error parsing AI config file: " << e.what() << std::endl;
     }
     config_file.close();
   } else {
-    std::cerr << "Error opening AI config file." << std::endl;
+    std::cerr << "cjsh: ai: Error opening AI config file." << std::endl;
   }
 }
 
@@ -535,7 +535,7 @@ void Ai::save_ai_config() {
     config_file << config_json.dump(4);
     config_file.close();
   } else {
-    std::cerr << "Error saving AI config file." << std::endl;
+    std::cerr << "cjsh: ai: Error saving AI config file." << std::endl;
   }
 }
 
@@ -565,7 +565,7 @@ void Ai::create_default_config_file() {
     config_file << default_config.dump(4);
     config_file.close();
   } else {
-    std::cerr << "Error creating default AI config file." << std::endl;
+    std::cerr << "cjsh: ai: Error creating default AI config file." << std::endl;
   }
 }
 
@@ -584,7 +584,7 @@ void Ai::initialize(const std::string& api_key,
     try {
       cjsh_filesystem::fs::create_directories(ai_config_dir);
     } catch (const cjsh_filesystem::fs::filesystem_error& e) {
-      std::cerr << "Error creating AI config directory: " << e.what()
+      std::cerr << "cjsh: ai: Error creating AI config directory: " << e.what()
                 << std::endl;
     }
   }
@@ -602,7 +602,7 @@ void Ai::initialize(const std::string& api_key,
           cjsh_filesystem::g_cjsh_ai_config_file_path,
           cjsh_filesystem::g_cjsh_ai_default_config_path);
     } catch (const cjsh_filesystem::fs::filesystem_error& e) {
-      std::cerr << "Error copying legacy config to default: " << e.what()
+      std::cerr << "cjsh: ai: Error copying legacy config to default: " << e.what()
                 << std::endl;
     }
   }

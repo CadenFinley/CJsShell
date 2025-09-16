@@ -57,7 +57,7 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
 
 int unalias_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() < 2) {
-    std::cerr << "unalias: not enough arguments" << std::endl;
+    std::cerr << "cjsh: unalias: not enough arguments" << std::endl;
     return 1;
   }
 
@@ -74,7 +74,7 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << "Removed alias: " << name << std::endl;
       }
     } else {
-      std::cerr << "unalias: " << name << ": not found" << std::endl;
+      std::cerr << "cjsh: unalias: " << name << ": not found" << std::endl;
       success = false;
     }
   }

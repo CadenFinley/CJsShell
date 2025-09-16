@@ -351,7 +351,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   }
 
   if (in_quotes) {
-    throw std::runtime_error("Unclosed quote: missing closing " +
+    throw std::runtime_error("cjsh: Unclosed quote: missing closing " +
                              std::string(1, quote_char));
   }
 

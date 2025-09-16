@@ -3,13 +3,14 @@
 #include <iostream>
 
 #include "cjsh.h"
+#include "error_out.h"
 
 extern bool g_debug_mode;
 extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
-    std::cerr << "startup-flag: missing flag argument" << std::endl;
+    std::cerr << "cjsh: startup-flag: missing flag argument" << std::endl;
     std::cerr << "Usage: startup-flag [--flag-name]" << std::endl;
     std::cerr << "Available flags:" << std::endl;
     std::cerr << "  --login          Set login mode" << std::endl;
@@ -55,7 +56,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
                 << "' already exists in profile startup args" << std::endl;
     }
   } else {
-    std::cerr << "startup-flag: unknown flag '" << flag << "'" << std::endl;
+    print_error({ErrorType::INVALID_ARGUMENT, "startup-flag", "unknown flag '" + flag + "'", {}});
     return 1;
   }
 

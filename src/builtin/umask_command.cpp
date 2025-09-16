@@ -5,6 +5,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "error_out.h"
+
 mode_t parse_octal_mode(const std::string& mode_str) {
   if (mode_str.empty()) {
     return static_cast<mode_t>(-1);
@@ -94,7 +96,7 @@ int umask_command(const std::vector<std::string>& args) {
   }
 
   if (mode_index >= args.size()) {
-    std::cerr << "umask: usage: umask [-S] [mode]" << std::endl;
+    print_error({ErrorType::INVALID_ARGUMENT, "umask", "usage: umask [-S] [mode]", {}});
     return 2;
   }
 
@@ -104,15 +106,13 @@ int umask_command(const std::vector<std::string>& args) {
   if (symbolic_mode || mode_str.find('=') != std::string::npos) {
     new_mask = parse_symbolic_mode(mode_str, current_mask);
     if (new_mask == current_mask && mode_str != "u=rwx,g=rwx,o=rwx") {
-      std::cerr << "umask: " << mode_str << ": invalid symbolic mode"
-                << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT, "umask", mode_str + ": invalid symbolic mode", {}});
       return 1;
     }
   } else {
     new_mask = parse_octal_mode(mode_str);
     if (new_mask == static_cast<mode_t>(-1)) {
-      std::cerr << "umask: " << mode_str << ": octal number out of range"
-                << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT, "umask", mode_str + ": octal number out of range", {}});
       return 1;
     }
   }

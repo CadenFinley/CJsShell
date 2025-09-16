@@ -10,11 +10,11 @@ int break_command(const std::vector<std::string>& args) {
     try {
       level = std::stoi(args[1]);
       if (level < 1) {
-        std::cerr << "break: invalid level: " << args[1] << std::endl;
+        std::cerr << "cjsh: break: invalid level: " << args[1] << std::endl;
         return 1;
       }
     } catch (const std::exception&) {
-      std::cerr << "break: invalid level: " << args[1] << std::endl;
+      std::cerr << "cjsh: break: invalid level: " << args[1] << std::endl;
       return 1;
     }
   }
@@ -30,11 +30,11 @@ int continue_command(const std::vector<std::string>& args) {
     try {
       level = std::stoi(args[1]);
       if (level < 1) {
-        std::cerr << "continue: invalid level: " << args[1] << std::endl;
+        std::cerr << "cjsh: continue: invalid level: " << args[1] << std::endl;
         return 1;
       }
     } catch (const std::exception&) {
-      std::cerr << "continue: invalid level: " << args[1] << std::endl;
+      std::cerr << "cjsh: continue: invalid level: " << args[1] << std::endl;
       return 1;
     }
   }
@@ -51,11 +51,11 @@ int return_command(const std::vector<std::string>& args) {
       exit_code = std::stoi(args[1]);
 
       if (exit_code < 0 || exit_code > 255) {
-        std::cerr << "return: invalid exit code: " << args[1] << std::endl;
+        std::cerr << "cjsh: return: invalid exit code: " << args[1] << std::endl;
         return 1;
       }
     } catch (const std::exception&) {
-      std::cerr << "return: invalid exit code: " << args[1] << std::endl;
+      std::cerr << "cjsh: return: invalid exit code: " << args[1] << std::endl;
       return 1;
     }
   }

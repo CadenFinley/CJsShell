@@ -41,7 +41,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
     } else if (option == "-p") {
     } else if (option == "-t") {
     } else {
-      std::cerr << "hash: invalid option: " << option << std::endl;
+      std::cerr << "cjsh: hash: invalid option: " << option << std::endl;
       return 1;
     }
     start_index = i + 1;
@@ -72,7 +72,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
 
         std::cout << path << std::endl;
       } else {
-        std::cerr << "hash: " << name << ": not found" << std::endl;
+        std::cerr << "cjsh: hash: " << name << ": not found" << std::endl;
         return 1;
       }
     }

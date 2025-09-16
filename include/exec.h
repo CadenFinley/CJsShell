@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "parser.h"
+#include "error_out.h"
 
 struct Job {
   pid_t pgid;
@@ -36,6 +37,7 @@ class Exec {
   int shell_terminal;
   bool shell_is_interactive;
   int last_exit_code = 0;
+  ErrorInfo last_error;
 
  public:
   Exec();
@@ -53,8 +55,11 @@ class Exec {
   std::map<int, Job> get_jobs();
   void init_shell();
   void handle_child_signal(pid_t pid, int status);
-  void set_error(const std::string& error);
-  std::string get_error();
+  void set_error(const ErrorInfo& error);
+  void set_error(ErrorType type, const std::string& command = "", const std::string& message = "", const std::vector<std::string>& suggestions = {});
+  ErrorInfo get_error();
+  std::string get_error_string(); // For backward compatibility
+  void print_last_error();
   int get_exit_code() const {
     return last_exit_code;
   }
@@ -63,5 +68,5 @@ class Exec {
   }
   void terminate_all_child_process();
 
-  std::string last_terminal_output_error;
+  std::string last_terminal_output_error; // Deprecated - use get_error() instead
 };

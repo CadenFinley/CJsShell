@@ -10,6 +10,7 @@
 #include "job_control.h"
 #include "signal_handler.h"
 #include "trap_command.h"
+#include "error_out.h"
 
 void Shell::process_pending_signals() {
   if (signal_handler && shell_exec) {
@@ -91,7 +92,8 @@ int Shell::execute(const std::string& script) {
     last_command = processed_script;
     return last_exit_code;
   } else {
-    std::cerr << "Error: No script interpreter available" << std::endl;
+    print_error(ErrorInfo{
+        ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
     last_exit_code = 1;
   }
 
@@ -140,7 +142,7 @@ void Shell::setup_job_control() {
 
   if (setpgid(shell_pgid, shell_pgid) < 0) {
     if (errno != EPERM) {
-      perror("Couldn't put the shell in its own process group");
+      print_error({ErrorType::RUNTIME_ERROR, "setpgid", "couldn't put the shell in its own process group: " + std::string(strerror(errno)), {}});
     }
   }
 
@@ -150,13 +152,14 @@ void Shell::setup_job_control() {
     int tpgrp = tcgetpgrp(shell_terminal);
     if (tpgrp != -1) {
       if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-        perror("Couldn't grab terminal control");
+        print_error({ErrorType::RUNTIME_ERROR, "tcsetpgrp", "couldn't grab terminal control: " + std::string(strerror(errno)), {}});
       }
     }
 
     job_control_enabled = true;
   } catch (const std::exception& e) {
-    std::cerr << "Error setting up terminal: " << e.what() << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "" , e.what(),
+                {"Check terminal settings", "Restart cjsh"}});
     job_control_enabled = false;
   }
 }
@@ -215,7 +218,7 @@ int Shell::execute_command(std::vector<std::string> args,
   if (!shell_exec || !built_ins) {
     last_exit_code = 1;
     g_exit_flag = true;
-    std::cerr << "Error: Shell not properly initialized" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "", "Shell not properly initialized", {"Restart cjsh"}});
     return last_exit_code;
   }
 
@@ -283,7 +286,7 @@ int Shell::execute_command(std::vector<std::string> args,
     return last_exit_code;
   } else {
     shell_exec->execute_command_sync(args);
-    last_terminal_output_error = shell_exec->get_error();
+    last_terminal_output_error = shell_exec->get_error_string();
     last_exit_code = shell_exec->get_exit_code();
     return last_exit_code;
   }

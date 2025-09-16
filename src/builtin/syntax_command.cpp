@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "cjsh.h"
+#include "error_out.h"
 
 int syntax_command(const std::vector<std::string>& args, Shell* shell) {
   if (g_debug_mode) {
@@ -40,7 +41,7 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
   }
 
   if (!shell) {
-    std::cerr << "syntax: shell not initialized" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "syntax", "shell not initialized", {}});
     return 1;
   }
 
@@ -101,20 +102,20 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
   if (is_command_string) {
     if (command_string.empty()) {
-      std::cerr << "syntax: -c option requires a command string" << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT, "syntax", "-c option requires a command string", {}});
       return 1;
     }
 
     auto script_interpreter = shell->get_shell_script_interpreter();
     if (!script_interpreter) {
-      std::cerr << "syntax: script interpreter not available" << std::endl;
+      print_error({ErrorType::RUNTIME_ERROR, "syntax", "script interpreter not available", {}});
       return 1;
     }
 
     lines = script_interpreter->parse_into_lines(command_string);
   } else {
     if (target_file.empty()) {
-      std::cerr << "syntax: no input file specified" << std::endl;
+      std::cerr << "cjsh: syntax: no input file specified" << std::endl;
       return 1;
     }
 
@@ -134,7 +135,7 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
   auto script_interpreter = shell->get_shell_script_interpreter();
   if (!script_interpreter) {
-    std::cerr << "syntax: script interpreter not available" << std::endl;
+    std::cerr << "cjsh: syntax: script interpreter not available" << std::endl;
     return 1;
   }
 
