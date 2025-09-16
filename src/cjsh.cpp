@@ -95,6 +95,8 @@ static void initialize_title_strings() {
   }
 }
 
+// when we do command not found add suggestions like " "did you mean ..."
+
 /*
  * Exit/Return Codes:
  * 0       - Success
