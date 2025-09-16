@@ -128,7 +128,6 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     // If still no suggestions, provide helpful fallback
     if (suggestions.empty()) {
         suggestions.push_back("Command not found. Try 'help' to see available commands.");
-        suggestions.push_back("Or use 'which " + command + "' to check if it's installed.");
     }
     
     return suggestions;
