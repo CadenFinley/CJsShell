@@ -51,7 +51,8 @@ int return_command(const std::vector<std::string>& args) {
       exit_code = std::stoi(args[1]);
 
       if (exit_code < 0 || exit_code > 255) {
-        std::cerr << "cjsh: return: invalid exit code: " << args[1] << std::endl;
+        std::cerr << "cjsh: return: invalid exit code: " << args[1]
+                  << std::endl;
         return 1;
       }
     } catch (const std::exception&) {

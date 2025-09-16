@@ -1,14 +1,14 @@
 #include "git_info.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <cstring>
 
 #include "cjsh.h"
 
@@ -16,10 +16,11 @@
 // Returns: 0 on success, -1 on error
 // result: stores command output
 // exit_code: stores the exit code of the command
-static int safe_execute_git_command(const std::string& command, std::string& result, int& exit_code) {
+static int safe_execute_git_command(const std::string& command,
+                                    std::string& result, int& exit_code) {
   result.clear();
   exit_code = -1;
-  
+
   int pipefd[2];
   if (pipe(pipefd) == -1) {
     if (g_debug_mode) {
@@ -27,7 +28,7 @@ static int safe_execute_git_command(const std::string& command, std::string& res
     }
     return -1;
   }
-  
+
   pid_t pid = fork();
   if (pid == -1) {
     if (g_debug_mode) {
@@ -37,33 +38,33 @@ static int safe_execute_git_command(const std::string& command, std::string& res
     close(pipefd[1]);
     return -1;
   }
-  
+
   if (pid == 0) {
     // Child process
-    close(pipefd[0]); // Close read end
-    
+    close(pipefd[0]);  // Close read end
+
     // Redirect stdout to pipe
     if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
       _exit(127);
     }
-    
+
     // Redirect stderr to /dev/null to match original behavior
     int devnull = open("/dev/null", O_WRONLY);
     if (devnull != -1) {
       dup2(devnull, STDERR_FILENO);
       close(devnull);
     }
-    
+
     close(pipefd[1]);
-    
+
     // Execute command via sh -c to handle pipes and redirections
     execl("/bin/sh", "sh", "-c", command.c_str(), (char*)NULL);
     _exit(127);
   }
-  
+
   // Parent process
-  close(pipefd[1]); // Close write end
-  
+  close(pipefd[1]);  // Close write end
+
   // Read output
   char buffer[4096];
   ssize_t bytes_read;
@@ -71,9 +72,9 @@ static int safe_execute_git_command(const std::string& command, std::string& res
     buffer[bytes_read] = '\0';
     result += buffer;
   }
-  
+
   close(pipefd[0]);
-  
+
   // Wait for child and get exit status
   int status;
   if (waitpid(pid, &status, 0) == -1) {
@@ -82,7 +83,7 @@ static int safe_execute_git_command(const std::string& command, std::string& res
     }
     return -1;
   }
-  
+
   if (WIFEXITED(status)) {
     exit_code = WEXITSTATUS(status);
   } else if (WIFSIGNALED(status)) {
@@ -90,7 +91,7 @@ static int safe_execute_git_command(const std::string& command, std::string& res
   } else {
     exit_code = 1;
   }
-  
+
   return 0;
 }
 
@@ -117,11 +118,11 @@ std::string GitInfo::get_git_remote(const std::filesystem::path& repo_root) {
       "git -C '" + repo_root.string() + "' remote get-url origin 2>/dev/null";
   std::string result;
   int exit_code;
-  
+
   if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
   }
-  
+
   if (!result.empty() && result.back() == '\n') {
     result.pop_back();
   }
@@ -133,11 +134,11 @@ std::string GitInfo::get_git_tag(const std::filesystem::path& repo_root) {
                     "' describe --tags --abbrev=0 2>/dev/null";
   std::string result;
   int exit_code;
-  
+
   if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
   }
-  
+
   if (!result.empty() && result.back() == '\n') {
     result.pop_back();
   }
@@ -150,11 +151,11 @@ std::string GitInfo::get_git_last_commit(
                     "' log -1 --pretty=format:%h:%s 2>/dev/null";
   std::string result;
   int exit_code;
-  
+
   if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
   }
-  
+
   return result;
 }
 
@@ -163,11 +164,11 @@ std::string GitInfo::get_git_author(const std::filesystem::path& repo_root) {
                     "' log -1 --pretty=format:%an 2>/dev/null";
   std::string result;
   int exit_code;
-  
+
   if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return "";
   }
-  
+
   if (!result.empty() && result.back() == '\n') {
     result.pop_back();
   }
@@ -235,8 +236,9 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
           "git -C '" + git_dir + "' status --porcelain 2>/dev/null";
       std::string result;
       int exit_code;
-      
-      if (safe_execute_git_command(cmd, result, exit_code) == 0 && exit_code == 0) {
+
+      if (safe_execute_git_command(cmd, result, exit_code) == 0 &&
+          exit_code == 0) {
         if (!result.empty()) {
           is_clean_repo = false;
           status_symbols = "*";
@@ -314,11 +316,12 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
                              "@{upstream} 2>/dev/null";
   std::string upstream;
   int exit_code;
-  
-  if (safe_execute_git_command(upstream_cmd, upstream, exit_code) != 0 || exit_code != 0) {
+
+  if (safe_execute_git_command(upstream_cmd, upstream, exit_code) != 0 ||
+      exit_code != 0) {
     return -1;
   }
-  
+
   if (!upstream.empty() && upstream.back() == '\n') {
     upstream.pop_back();
   }
@@ -331,8 +334,9 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root,
                           "' rev-list --left-right --count " + branch + "..." +
                           upstream + " 2>/dev/null";
   std::string count_result;
-  
-  if (safe_execute_git_command(count_cmd, count_result, exit_code) != 0 || exit_code != 0) {
+
+  if (safe_execute_git_command(count_cmd, count_result, exit_code) != 0 ||
+      exit_code != 0) {
     return -1;
   }
 
@@ -354,7 +358,7 @@ int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
       "git -C '" + repo_root.string() + "' stash list 2>/dev/null | wc -l";
   std::string result;
   int exit_code;
-  
+
   if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return 0;
   }
@@ -372,7 +376,7 @@ bool GitInfo::get_git_has_staged_changes(
       "git -C '" + repo_root.string() + "' diff --cached --quiet 2>/dev/null";
   std::string result;
   int exit_code;
-  
+
   if (safe_execute_git_command(cmd, result, exit_code) != 0) {
     return false;
   }
@@ -392,7 +396,7 @@ int GitInfo::get_git_uncommitted_changes(
                     "' status --porcelain 2>/dev/null | wc -l";
   std::string result;
   int exit_code;
-  
+
   if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
     return 0;
   }

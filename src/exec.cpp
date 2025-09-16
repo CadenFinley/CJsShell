@@ -15,26 +15,27 @@
 
 #include "builtin.h"
 #include "cjsh.h"
+#include "error_out.h"
 #include "job_control.h"
 #include "signal_handler.h"
-#include "error_out.h"
 
 // Helper function to check if noclobber should prevent file creation
-static bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_overwrite = false) {
+static bool should_noclobber_prevent_overwrite(const std::string& filename,
+                                               bool force_overwrite = false) {
   if (force_overwrite) {
     return false;  // Force overwrite (>|) bypasses noclobber
   }
-  
+
   if (!g_shell || !g_shell->get_shell_option("noclobber")) {
     return false;  // Noclobber not enabled
   }
-  
+
   struct stat file_stat;
   if (stat(filename.c_str(), &file_stat) == 0) {
     // File exists and noclobber is enabled
     return true;
   }
-  
+
   return false;  // File doesn't exist, safe to create
 }
 
@@ -47,7 +48,9 @@ Exec::Exec() {
 
   if (shell_is_interactive) {
     if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
-      set_error(ErrorType::RUNTIME_ERROR, "tcgetattr", "failed to get terminal attributes in constructor: " + std::string(strerror(errno)));
+      set_error(ErrorType::RUNTIME_ERROR, "tcgetattr",
+                "failed to get terminal attributes in constructor: " +
+                    std::string(strerror(errno)));
     }
   }
 }
@@ -78,17 +81,23 @@ void Exec::init_shell() {
     shell_pgid = getpid();
     if (setpgid(shell_pgid, shell_pgid) < 0) {
       if (errno != EPERM) {
-        set_error(ErrorType::RUNTIME_ERROR, "setpgid", "failed to set process group ID: " + std::string(strerror(errno)));
+        set_error(
+            ErrorType::RUNTIME_ERROR, "setpgid",
+            "failed to set process group ID: " + std::string(strerror(errno)));
         return;
       }
     }
 
     if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-      set_error(ErrorType::RUNTIME_ERROR, "tcsetpgrp", "failed to set terminal foreground process group: " + std::string(strerror(errno)));
+      set_error(ErrorType::RUNTIME_ERROR, "tcsetpgrp",
+                "failed to set terminal foreground process group: " +
+                    std::string(strerror(errno)));
     }
 
     if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
-      set_error(ErrorType::RUNTIME_ERROR, "tcgetattr", "failed to get terminal attributes: " + std::string(strerror(errno)));
+      set_error(
+          ErrorType::RUNTIME_ERROR, "tcgetattr",
+          "failed to get terminal attributes: " + std::string(strerror(errno)));
     }
   }
 }
@@ -142,10 +151,12 @@ void Exec::handle_child_signal(pid_t pid, int status) {
 void Exec::set_error(const ErrorInfo& error) {
   std::lock_guard<std::mutex> lock(error_mutex);
   last_error = error;
-  last_terminal_output_error = error.message; // For backward compatibility
+  last_terminal_output_error = error.message;  // For backward compatibility
 }
 
-void Exec::set_error(ErrorType type, const std::string& command, const std::string& message, const std::vector<std::string>& suggestions) {
+void Exec::set_error(ErrorType type, const std::string& command,
+                     const std::string& message,
+                     const std::vector<std::string>& suggestions) {
   ErrorInfo error = {type, command, message, suggestions};
   set_error(error);
 }
@@ -167,7 +178,8 @@ void Exec::print_last_error() {
 
 int Exec::execute_command_sync(const std::vector<std::string>& args) {
   if (args.empty()) {
-    set_error(ErrorType::INVALID_ARGUMENT, "", "cannot execute empty command - no arguments provided");
+    set_error(ErrorType::INVALID_ARGUMENT, "",
+              "cannot execute empty command - no arguments provided");
     last_exit_code = EX_DATAERR;
     return EX_DATAERR;
   }
@@ -210,7 +222,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     for (const auto& env : env_assignments) {
       setenv(env.first.c_str(), env.second.c_str(), 1);
     }
-    //set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
+    // set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
     last_exit_code = 0;
     return 0;
   }
@@ -220,7 +232,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   pid_t pid = fork();
 
   if (pid == -1) {
-    set_error(ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "unknown" : cmd_args[0], "failed to fork process: " + std::string(strerror(errno)), {});
+    set_error(ErrorType::RUNTIME_ERROR,
+              cmd_args.empty() ? "unknown" : cmd_args[0],
+              "failed to fork process: " + std::string(strerror(errno)), {});
     last_exit_code = EX_OSERR;
     return EX_OSERR;
   }
@@ -232,9 +246,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
     pid_t child_pid = getpid();
     if (setpgid(child_pid, child_pid) < 0) {
-      // In child process, we can't use set_error, so we'll use a direct stderr message
-      // that follows the format but will be immediately followed by _exit
-      std::cerr << "cjsh: runtime error: setpgid: failed to set process group ID in child: " 
+      // In child process, we can't use set_error, so we'll use a direct stderr
+      // message that follows the format but will be immediately followed by
+      // _exit
+      std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
+                   "ID in child: "
                 << strerror(errno) << std::endl;
       _exit(EXIT_FAILURE);
     }
@@ -262,22 +278,27 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
     execvp(cmd_args[0].c_str(), c_args.data());
 
-
     if (errno == ENOENT) {
-      set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "command not found", {});
+      set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "command not found",
+                {});
     } else if (errno == EACCES) {
-      set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "permission denied ", {});
+      set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "permission denied ",
+                {});
     } else if (errno == ENOEXEC) {
-      set_error(ErrorType::INVALID_ARGUMENT, cmd_args[0], "invalid executable format", {});
+      set_error(ErrorType::INVALID_ARGUMENT, cmd_args[0],
+                "invalid executable format", {});
     } else {
-      set_error(ErrorType::RUNTIME_ERROR, cmd_args[0], "execution failed: " + std::string(strerror(errno)), {});
+      set_error(ErrorType::RUNTIME_ERROR, cmd_args[0],
+                "execution failed: " + std::string(strerror(errno)), {});
     }
     _exit(127);
   }
 
   if (setpgid(pid, pid) < 0) {
     if (errno != EACCES && errno != ESRCH) {
-      set_error(ErrorType::RUNTIME_ERROR, "setpgid", "failed to set process group ID in parent: " + std::string(strerror(errno)));
+      set_error(ErrorType::RUNTIME_ERROR, "setpgid",
+                "failed to set process group ID in parent: " +
+                    std::string(strerror(errno)));
     }
   }
 
@@ -316,19 +337,20 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     JobManager::instance().remove_job(new_job_id);
   }
 
-  set_error(exit_code == 0
-                ? ErrorType::RUNTIME_ERROR
-                : ErrorType::RUNTIME_ERROR, 
-            args[0],
-            exit_code == 0 ? "command completed successfully" 
-                          : "command failed with exit code " + std::to_string(exit_code));
+  set_error(
+      exit_code == 0 ? ErrorType::RUNTIME_ERROR : ErrorType::RUNTIME_ERROR,
+      args[0],
+      exit_code == 0
+          ? "command completed successfully"
+          : "command failed with exit code " + std::to_string(exit_code));
   last_exit_code = exit_code;
   return exit_code;
 }
 
 int Exec::execute_command_async(const std::vector<std::string>& args) {
   if (args.empty()) {
-    set_error(ErrorType::INVALID_ARGUMENT, "", "cannot execute empty command - no arguments provided" , {});
+    set_error(ErrorType::INVALID_ARGUMENT, "",
+              "cannot execute empty command - no arguments provided", {});
     last_exit_code = EX_DATAERR;
     return EX_DATAERR;
   }
@@ -372,7 +394,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     for (const auto& env : env_assignments) {
       setenv(env.first.c_str(), env.second.c_str(), 1);
     }
-    set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set" , {});
+    set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
     last_exit_code = 0;
     return 0;
   }
@@ -383,7 +405,10 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
   if (pid == -1) {
     std::string cmd_name = cmd_args.empty() ? "unknown" : cmd_args[0];
-    set_error(ErrorType::RUNTIME_ERROR, cmd_name, "failed to create background process: " + std::string(strerror(errno)) , {});
+    set_error(
+        ErrorType::RUNTIME_ERROR, cmd_name,
+        "failed to create background process: " + std::string(strerror(errno)),
+        {});
     last_exit_code = EX_OSERR;
     return EX_OSERR;
   }
@@ -394,7 +419,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     }
 
     if (setpgid(0, 0) < 0) {
-      std::cerr << "cjsh: runtime error: setpgid: failed to set process group ID in background child: " 
+      std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
+                   "ID in background child: "
                 << strerror(errno) << std::endl;
       _exit(EXIT_FAILURE);
     }
@@ -415,7 +441,9 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     _exit(127);
   } else {
     if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
-      set_error(ErrorType::RUNTIME_ERROR, "setpgid", "failed to set process group ID for background process: " + std::string(strerror(errno)));
+      set_error(ErrorType::RUNTIME_ERROR, "setpgid",
+                "failed to set process group ID for background process: " +
+                    std::string(strerror(errno)));
     }
 
     Job job;
@@ -437,7 +465,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     JobManager::instance().add_job(pid, {pid}, full_command);
     JobManager::instance().set_last_background_pid(pid);
 
-    set_error(ErrorType::RUNTIME_ERROR, args[0], "Background job started" , {});
+    set_error(ErrorType::RUNTIME_ERROR, args[0], "Background job started", {});
 
     std::cerr << "[" << job_id << "] " << pid << std::endl;
     last_exit_code = 0;
@@ -447,7 +475,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
   if (commands.empty()) {
-    set_error(ErrorType::INVALID_ARGUMENT, "", "cannot execute empty pipeline - no commands provided" , {});
+    set_error(ErrorType::INVALID_ARGUMENT, "",
+              "cannot execute empty pipeline - no commands provided", {});
     last_exit_code = EX_USAGE;
     return EX_USAGE;
   }
@@ -466,7 +495,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           int orig_stderr = dup(STDERR_FILENO);
 
           if (orig_stdin == -1 || orig_stdout == -1 || orig_stderr == -1) {
-            set_error(ErrorType::RUNTIME_ERROR, cmd.args[0], "failed to save original file descriptors" , {});
+            set_error(ErrorType::RUNTIME_ERROR, cmd.args[0],
+                      "failed to save original file descriptors", {});
             last_exit_code = EX_OSERR;
             return EX_OSERR;
           }
@@ -478,31 +508,40 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
           try {
             // Handle process substitutions first
-            
+
             if (!cmd.process_substitutions.empty()) {
               for (size_t i = 0; i < cmd.process_substitutions.size(); ++i) {
                 const std::string& proc_sub = cmd.process_substitutions[i];
-                
-                if ((proc_sub.find("<(") == 0 || proc_sub.find(">(") == 0) && proc_sub.back() == ')') {
+
+                if ((proc_sub.find("<(") == 0 || proc_sub.find(">(") == 0) &&
+                    proc_sub.back() == ')') {
                   bool is_input = proc_sub[0] == '<';
-                  std::string command = proc_sub.substr(2, proc_sub.length() - 3);
-                  
+                  std::string command =
+                      proc_sub.substr(2, proc_sub.length() - 3);
+
                   // Create a unique temporary filename
-                  std::string temp_file = "/tmp/cjsh_procsub_" + std::to_string(getpid()) + "_" + std::to_string(i);
-                  
+                  std::string temp_file = "/tmp/cjsh_procsub_" +
+                                          std::to_string(getpid()) + "_" +
+                                          std::to_string(i);
+
                   // Create named pipe (FIFO)
                   if (mkfifo(temp_file.c_str(), 0600) == -1) {
-                    throw std::runtime_error("cjsh: Failed to create FIFO for process substitution: " + std::string(strerror(errno)));
+                    throw std::runtime_error(
+                        "cjsh: Failed to create FIFO for process "
+                        "substitution: " +
+                        std::string(strerror(errno)));
                   }
-                  
+
                   process_sub_files.push_back(temp_file);
-                  
+
                   // Fork child process for the substituted command
                   pid_t pid = fork();
                   if (pid == -1) {
-                    throw std::runtime_error("cjsh: Failed to fork for process substitution: " + std::string(strerror(errno)));
+                    throw std::runtime_error(
+                        "cjsh: Failed to fork for process substitution: " +
+                        std::string(strerror(errno)));
                   }
-                  
+
                   if (pid == 0) {
                     // Child process: execute the substituted command
                     int fifo_fd;
@@ -510,12 +549,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                       // <(command) - redirect command output to the FIFO
                       fifo_fd = open(temp_file.c_str(), O_WRONLY);
                       if (fifo_fd == -1) {
-                        std::cerr << "cjsh: file not found: open: failed to open FIFO for writing: " 
+                        std::cerr << "cjsh: file not found: open: failed to "
+                                     "open FIFO for writing: "
                                   << strerror(errno) << std::endl;
                         _exit(1);
                       }
                       if (dup2(fifo_fd, STDOUT_FILENO) == -1) {
-                        std::cerr << "cjsh: runtime error: dup2: failed to duplicate stdout descriptor: " 
+                        std::cerr << "cjsh: runtime error: dup2: failed to "
+                                     "duplicate stdout descriptor: "
                                   << strerror(errno) << std::endl;
                         close(fifo_fd);
                         _exit(1);
@@ -524,19 +565,21 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                       // >(command) - redirect FIFO input to command
                       fifo_fd = open(temp_file.c_str(), O_RDONLY);
                       if (fifo_fd == -1) {
-                        std::cerr << "cjsh: file not found: open: failed to open FIFO for reading: " 
+                        std::cerr << "cjsh: file not found: open: failed to "
+                                     "open FIFO for reading: "
                                   << strerror(errno) << std::endl;
                         _exit(1);
                       }
                       if (dup2(fifo_fd, STDIN_FILENO) == -1) {
-                        std::cerr << "cjsh: runtime error: dup2: failed to duplicate stdin descriptor: " 
+                        std::cerr << "cjsh: runtime error: dup2: failed to "
+                                     "duplicate stdin descriptor: "
                                   << strerror(errno) << std::endl;
                         close(fifo_fd);
                         _exit(1);
                       }
                     }
                     close(fifo_fd);
-                    
+
                     // Execute the command
                     if (g_shell) {
                       int result = g_shell->execute(command);
@@ -545,13 +588,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                       _exit(1);
                     }
                   }
-                  
+
                   process_sub_pids.push_back(pid);
-                  
-                  // Replace process substitution in arguments with temp filename
+
+                  // Replace process substitution in arguments with temp
+                  // filename
                   for (auto& arg : modified_cmd.args) {
                     size_t pos = 0;
-                    while ((pos = arg.find(proc_sub, pos)) != std::string::npos) {
+                    while ((pos = arg.find(proc_sub, pos)) !=
+                           std::string::npos) {
                       arg.replace(pos, proc_sub.length(), temp_file);
                       pos += temp_file.length();
                     }
@@ -591,7 +636,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               if (bytes_written == -1) {
                 close(here_pipe[1]);
                 close(here_pipe[0]);
-                throw std::runtime_error("cjsh: Failed to write here string content");
+                throw std::runtime_error(
+                    "cjsh: Failed to write here string content");
               }
               close(here_pipe[1]);
 
@@ -605,11 +651,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             if (!modified_cmd.output_file.empty()) {
               // Check noclobber before opening output file
-              if (should_noclobber_prevent_overwrite(modified_cmd.output_file, modified_cmd.force_overwrite)) {
-                throw std::runtime_error("cjsh: Cannot overwrite existing file '" + 
-                                         modified_cmd.output_file + "' (noclobber is set)");
+              if (should_noclobber_prevent_overwrite(
+                      modified_cmd.output_file, modified_cmd.force_overwrite)) {
+                throw std::runtime_error(
+                    "cjsh: Cannot overwrite existing file '" +
+                    modified_cmd.output_file + "' (noclobber is set)");
               }
-              
+
               int fd = open(modified_cmd.output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
               if (fd == -1) {
@@ -623,26 +671,32 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               close(fd);
             }
 
-            if (modified_cmd.both_output && !modified_cmd.both_output_file.empty()) {
+            if (modified_cmd.both_output &&
+                !modified_cmd.both_output_file.empty()) {
               // Check noclobber before opening &> output file
-              if (should_noclobber_prevent_overwrite(modified_cmd.both_output_file)) {
-                throw std::runtime_error("cjsh: Cannot overwrite existing file '" + 
-                                         modified_cmd.both_output_file + "' (noclobber is set)");
+              if (should_noclobber_prevent_overwrite(
+                      modified_cmd.both_output_file)) {
+                throw std::runtime_error(
+                    "cjsh: Cannot overwrite existing file '" +
+                    modified_cmd.both_output_file + "' (noclobber is set)");
               }
-              
+
               int fd = open(modified_cmd.both_output_file.c_str(),
                             O_WRONLY | O_CREAT | O_TRUNC, 0644);
               if (fd == -1) {
-                throw std::runtime_error("cjsh: Failed to open &> output file: " +
-                                         modified_cmd.both_output_file);
+                throw std::runtime_error(
+                    "cjsh: Failed to open &> output file: " +
+                    modified_cmd.both_output_file);
               }
               if (dup2(fd, STDOUT_FILENO) == -1) {
                 close(fd);
-                throw std::runtime_error("cjsh: Failed to redirect stdout for &>");
+                throw std::runtime_error(
+                    "cjsh: Failed to redirect stdout for &>");
               }
               if (dup2(fd, STDERR_FILENO) == -1) {
                 close(fd);
-                throw std::runtime_error("cjsh: Failed to redirect stderr for &>");
+                throw std::runtime_error(
+                    "cjsh: Failed to redirect stderr for &>");
               }
               close(fd);
             }
@@ -664,11 +718,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             if (!cmd.stderr_file.empty()) {
               // Check noclobber for stderr redirection (only if not appending)
-              if (!cmd.stderr_append && should_noclobber_prevent_overwrite(cmd.stderr_file)) {
-                throw std::runtime_error("cjsh: Cannot overwrite existing file '" + 
-                                         cmd.stderr_file + "' (noclobber is set)");
+              if (!cmd.stderr_append &&
+                  should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+                throw std::runtime_error(
+                    "cjsh: Cannot overwrite existing file '" + cmd.stderr_file +
+                    "' (noclobber is set)");
               }
-              
+
               int flags =
                   O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
               int fd = open(cmd.stderr_file.c_str(), flags, 0644);
@@ -685,79 +741,90 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             if (cmd.stderr_to_stdout) {
               if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
-                throw std::runtime_error("cjsh: Failed to redirect stderr to stdout");
+                throw std::runtime_error(
+                    "cjsh: Failed to redirect stderr to stdout");
               }
             }
 
             if (cmd.stdout_to_stderr) {
               if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
-                throw std::runtime_error("cjsh: Failed to redirect stdout to stderr");
+                throw std::runtime_error(
+                    "cjsh: Failed to redirect stdout to stderr");
               }
             }
 
             // Special handling for exec builtin with file descriptor operations
-            if (!cmd.args.empty() && cmd.args[0] == "exec" && 
-                (!cmd.fd_redirections.empty() || !cmd.fd_duplications.empty())) {
-              
+            if (!cmd.args.empty() && cmd.args[0] == "exec" &&
+                (!cmd.fd_redirections.empty() ||
+                 !cmd.fd_duplications.empty())) {
               // Handle file descriptor redirections for exec builtin
               for (const auto& fd_redir : cmd.fd_redirections) {
                 int fd_num = fd_redir.first;
                 const std::string& spec = fd_redir.second;
-                
+
                 int file_fd;
                 if (spec.find("input:") == 0) {
                   std::string file = spec.substr(6);
                   file_fd = open(file.c_str(), O_RDONLY);
                 } else if (spec.find("output:") == 0) {
                   std::string file = spec.substr(7);
-                  file_fd = open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                  file_fd =
+                      open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
                 } else {
                   // Default interpretation based on fd number
                   if (fd_num == 0) {
                     file_fd = open(spec.c_str(), O_RDONLY);
                   } else {
-                    file_fd = open(spec.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                    file_fd =
+                        open(spec.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
                   }
                 }
-                
+
                 if (file_fd == -1) {
-                  throw std::runtime_error("cjsh: exec: " + spec + ": " + strerror(errno));
+                  throw std::runtime_error("cjsh: exec: " + spec + ": " +
+                                           strerror(errno));
                 }
-                
+
                 if (fd_num != file_fd) {
                   if (dup2(file_fd, fd_num) == -1) {
                     close(file_fd);
-                    throw std::runtime_error("cjsh: exec: dup2 failed: " + std::string(strerror(errno)));
+                    throw std::runtime_error("cjsh: exec: dup2 failed: " +
+                                             std::string(strerror(errno)));
                   }
                   close(file_fd);
                 }
               }
-              
+
               // Handle file descriptor duplications for exec builtin
               for (const auto& fd_dup : cmd.fd_duplications) {
                 int dst_fd = fd_dup.first;
                 int src_fd = fd_dup.second;
-                
+
                 if (dup2(src_fd, dst_fd) == -1) {
-                  throw std::runtime_error("cjsh: exec: dup2 failed for " + std::to_string(dst_fd) + 
-                                         ">&" + std::to_string(src_fd) + ": " + strerror(errno));
+                  throw std::runtime_error(
+                      "cjsh: exec: dup2 failed for " + std::to_string(dst_fd) +
+                      ">&" + std::to_string(src_fd) + ": " + strerror(errno));
                 }
               }
-              
-              // If exec has only file descriptor operations (args.size() == 1), return success
+
+              // If exec has only file descriptor operations (args.size() == 1),
+              // return success
               if (cmd.args.size() == 1) {
                 exit_code = 0;
               } else {
                 // Execute the command with remaining args
-                std::vector<std::string> exec_args(cmd.args.begin() + 1, cmd.args.end());
+                std::vector<std::string> exec_args(cmd.args.begin() + 1,
+                                                   cmd.args.end());
                 exit_code = g_shell->execute_command(exec_args, false);
               }
             } else {
-              exit_code = g_shell->get_built_ins()->builtin_command(modified_cmd.args);
+              exit_code =
+                  g_shell->get_built_ins()->builtin_command(modified_cmd.args);
             }
 
           } catch (const std::exception& e) {
-            set_error(ErrorType::RUNTIME_ERROR, cmd.args[0], std::string(e.what()));
+            set_error(ErrorType::RUNTIME_ERROR, cmd.args[0],
+                      std::string(e.what()));
             exit_code = EX_OSERR;
           }
 
@@ -766,7 +833,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             int status;
             waitpid(process_sub_pids[i], &status, 0);
           }
-          
+
           for (const std::string& temp_file : process_sub_files) {
             unlink(temp_file.c_str());
           }
@@ -778,10 +845,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(orig_stdout);
           close(orig_stderr);
 
-          set_error(exit_code == 0 ? ErrorType::RUNTIME_ERROR : ErrorType::RUNTIME_ERROR, 
-                   cmd.args[0],
-                   exit_code == 0 ? "builtin command completed successfully"
-                                  : "builtin command failed with exit code " + std::to_string(exit_code));
+          set_error(exit_code == 0 ? ErrorType::RUNTIME_ERROR
+                                   : ErrorType::RUNTIME_ERROR,
+                    cmd.args[0],
+                    exit_code == 0 ? "builtin command completed successfully"
+                                   : "builtin command failed with exit code " +
+                                         std::to_string(exit_code));
           last_exit_code = exit_code;
           return exit_code;
         }
@@ -790,7 +859,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       pid_t pid = fork();
 
       if (pid == -1) {
-        set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "unknown" : cmd.args[0], "failed to fork process: " + std::string(strerror(errno)));
+        set_error(ErrorType::RUNTIME_ERROR,
+                  cmd.args.empty() ? "unknown" : cmd.args[0],
+                  "failed to fork process: " + std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
         return EX_OSERR;
       }
@@ -798,14 +869,16 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       if (pid == 0) {
         pid_t child_pid = getpid();
         if (setpgid(child_pid, child_pid) < 0) {
-          std::cerr << "cjsh: runtime error: setpgid: failed to set process group ID in child: " 
+          std::cerr << "cjsh: runtime error: setpgid: failed to set process "
+                       "group ID in child: "
                     << strerror(errno) << std::endl;
           _exit(EXIT_FAILURE);
         }
 
         if (shell_is_interactive) {
           if (tcsetpgrp(shell_terminal, child_pid) < 0) {
-            std::cerr << "cjsh: runtime error: tcsetpgrp: failed to set terminal foreground process group in child: " 
+            std::cerr << "cjsh: runtime error: tcsetpgrp: failed to set "
+                         "terminal foreground process group in child: "
                       << strerror(errno) << std::endl;
           }
         }
@@ -828,7 +901,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         if (!cmd.here_doc.empty()) {
           int here_pipe[2];
           if (pipe(here_pipe) == -1) {
-            std::cerr << "cjsh: runtime error: pipe: failed to create pipe for here document: " 
+            std::cerr << "cjsh: runtime error: pipe: failed to create pipe for "
+                         "here document: "
                       << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
@@ -836,14 +910,16 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           ssize_t bytes_written =
               write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
           if (bytes_written == -1) {
-            std::cerr << "cjsh: runtime error: write: failed to write here document content: " 
+            std::cerr << "cjsh: runtime error: write: failed to write here "
+                         "document content: "
                       << strerror(errno) << std::endl;
             close(here_pipe[1]);
             _exit(EXIT_FAILURE);
           }
           bytes_written = write(here_pipe[1], "\n", 1);
           if (bytes_written == -1) {
-            std::cerr << "cjsh: runtime error: write: failed to write here document newline: " 
+            std::cerr << "cjsh: runtime error: write: failed to write here "
+                         "document newline: "
                       << strerror(errno) << std::endl;
             close(here_pipe[1]);
             _exit(EXIT_FAILURE);
@@ -851,7 +927,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(here_pipe[1]);
 
           if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed to duplicate here document descriptor: " 
+            std::cerr << "cjsh: runtime error: dup2: failed to duplicate here "
+                         "document descriptor: "
                       << strerror(errno) << std::endl;
             close(here_pipe[0]);
             _exit(EXIT_FAILURE);
@@ -862,7 +939,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         else if (!cmd.here_string.empty()) {
           int here_pipe[2];
           if (pipe(here_pipe) == -1) {
-            std::cerr << "cjsh: runtime error: pipe: failed to create pipe for here string: " 
+            std::cerr << "cjsh: runtime error: pipe: failed to create pipe for "
+                         "here string: "
                       << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
@@ -876,7 +954,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           ssize_t bytes_written =
               write(here_pipe[1], content.c_str(), content.length());
           if (bytes_written == -1) {
-            std::cerr << "cjsh: runtime error: write: failed to write here string content: " 
+            std::cerr << "cjsh: runtime error: write: failed to write here "
+                         "string content: "
                       << strerror(errno) << std::endl;
             close(here_pipe[1]);
             _exit(EXIT_FAILURE);
@@ -884,7 +963,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           close(here_pipe[1]);
 
           if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed to duplicate here string descriptor: " 
+            std::cerr << "cjsh: runtime error: dup2: failed to duplicate here "
+                         "string descriptor: "
                       << strerror(errno) << std::endl;
             close(here_pipe[0]);
             _exit(EXIT_FAILURE);
@@ -893,14 +973,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         } else if (!cmd.input_file.empty()) {
           int fd = open(cmd.input_file.c_str(), O_RDONLY);
           if (fd == -1) {
-            std::cerr << "cjsh: file not found: " << cmd.input_file << ": " << strerror(errno)
-                      << std::endl;
+            std::cerr << "cjsh: file not found: " << cmd.input_file << ": "
+                      << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDIN_FILENO) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed to redirect input from '"
-                      << cmd.input_file << "': " << strerror(errno)
-                      << std::endl;
+            std::cerr
+                << "cjsh: runtime error: dup2: failed to redirect input from '"
+                << cmd.input_file << "': " << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
@@ -909,23 +989,26 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (!cmd.output_file.empty()) {
           // Check noclobber before opening output file
-          if (should_noclobber_prevent_overwrite(cmd.output_file, cmd.force_overwrite)) {
-            std::cerr << "cjsh: permission denied: " << cmd.output_file << ": cannot overwrite existing file (noclobber is set)" << std::endl;
+          if (should_noclobber_prevent_overwrite(cmd.output_file,
+                                                 cmd.force_overwrite)) {
+            std::cerr << "cjsh: permission denied: " << cmd.output_file
+                      << ": cannot overwrite existing file (noclobber is set)"
+                      << std::endl;
             _exit(EXIT_FAILURE);
           }
-          
+
           int flags = O_WRONLY | O_CREAT | O_TRUNC;
 
           int fd = open(cmd.output_file.c_str(), flags, 0644);
           if (fd == -1) {
-            std::cerr << "cjsh: file not found: " << cmd.output_file << ": " << strerror(errno)
-                      << std::endl;
+            std::cerr << "cjsh: file not found: " << cmd.output_file << ": "
+                      << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDOUT_FILENO) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed to redirect output to '"
-                      << cmd.output_file << "': " << strerror(errno)
-                      << std::endl;
+            std::cerr
+                << "cjsh: runtime error: dup2: failed to redirect output to '"
+                << cmd.output_file << "': " << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
@@ -935,25 +1018,29 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         if (cmd.both_output && !cmd.both_output_file.empty()) {
           // Check noclobber before opening &> output file
           if (should_noclobber_prevent_overwrite(cmd.both_output_file)) {
-            std::cerr << "cjsh: permission denied: " << cmd.both_output_file << ": cannot overwrite existing file (noclobber is set)" << std::endl;
+            std::cerr << "cjsh: permission denied: " << cmd.both_output_file
+                      << ": cannot overwrite existing file (noclobber is set)"
+                      << std::endl;
             _exit(EXIT_FAILURE);
           }
-          
+
           int fd = open(cmd.both_output_file.c_str(),
                         O_WRONLY | O_CREAT | O_TRUNC, 0644);
           if (fd == -1) {
-            std::cerr << "cjsh: file not found: " << cmd.both_output_file << ": "
-                      << strerror(errno) << std::endl;
+            std::cerr << "cjsh: file not found: " << cmd.both_output_file
+                      << ": " << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDOUT_FILENO) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed for stdout in &> redirection: "
+            std::cerr << "cjsh: runtime error: dup2: failed for stdout in &> "
+                         "redirection: "
                       << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDERR_FILENO) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed for stderr in &> redirection: "
+            std::cerr << "cjsh: runtime error: dup2: failed for stderr in &> "
+                         "redirection: "
                       << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
@@ -965,13 +1052,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           int fd = open(cmd.append_file.c_str(), O_WRONLY | O_CREAT | O_APPEND,
                         0644);
           if (fd == -1) {
-            std::cerr << "cjsh: file not found: " << cmd.append_file << ": " << strerror(errno)
-                      << std::endl;
+            std::cerr << "cjsh: file not found: " << cmd.append_file << ": "
+                      << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
           if (dup2(fd, STDOUT_FILENO) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed for append redirection: "
-                      << strerror(errno) << std::endl;
+            std::cerr
+                << "cjsh: runtime error: dup2: failed for append redirection: "
+                << strerror(errno) << std::endl;
             close(fd);
             _exit(EXIT_FAILURE);
           }
@@ -980,11 +1068,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (!cmd.stderr_file.empty()) {
           // Check noclobber for stderr redirection (only if not appending)
-          if (!cmd.stderr_append && should_noclobber_prevent_overwrite(cmd.stderr_file)) {
-            std::cerr << "cjsh: permission denied: " << cmd.stderr_file << ": cannot overwrite existing file (noclobber is set)" << std::endl;
+          if (!cmd.stderr_append &&
+              should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+            std::cerr << "cjsh: permission denied: " << cmd.stderr_file
+                      << ": cannot overwrite existing file (noclobber is set)"
+                      << std::endl;
             _exit(EXIT_FAILURE);
           }
-          
+
           int flags =
               O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
           int fd = open(cmd.stderr_file.c_str(), flags, 0644);
@@ -1033,14 +1124,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
 
           if (file_fd == -1) {
-            std::cerr << "cjsh: file not found: " << spec << ": " << strerror(errno)
-                      << std::endl;
+            std::cerr << "cjsh: file not found: " << spec << ": "
+                      << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
 
           if (dup2(file_fd, fd_num) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed for file descriptor " << fd_num
-                      << ": " << strerror(errno) << std::endl;
+            std::cerr
+                << "cjsh: runtime error: dup2: failed for file descriptor "
+                << fd_num << ": " << strerror(errno) << std::endl;
             close(file_fd);
             _exit(EXIT_FAILURE);
           }
@@ -1052,8 +1144,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           int dst_fd = fd_dup.second;
 
           if (dup2(dst_fd, src_fd) == -1) {
-            std::cerr << "cjsh: runtime error: dup2: failed for " << src_fd << ">&" << dst_fd
-                      << ": " << strerror(errno) << std::endl;
+            std::cerr << "cjsh: runtime error: dup2: failed for " << src_fd
+                      << ">&" << dst_fd << ": " << strerror(errno) << std::endl;
             _exit(EXIT_FAILURE);
           }
         }
@@ -1084,10 +1176,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           exit_code = 128 + WTERMSIG(status);
         }
 
-        set_error(exit_code == 0 ? ErrorType::RUNTIME_ERROR : ErrorType::RUNTIME_ERROR,
-                 cmd.args[0],
-                 exit_code == 0 ? "command completed successfully"
-                                : "command failed with exit code " + std::to_string(exit_code));
+        set_error(exit_code == 0 ? ErrorType::RUNTIME_ERROR
+                                 : ErrorType::RUNTIME_ERROR,
+                  cmd.args[0],
+                  exit_code == 0 ? "command completed successfully"
+                                 : "command failed with exit code " +
+                                       std::to_string(exit_code));
         last_exit_code = exit_code;
         if (g_debug_mode) {
           std::cerr << "DEBUG: execute_pipeline single-command "
@@ -1132,7 +1226,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
   try {
     for (size_t i = 0; i < commands.size() - 1; i++) {
       if (pipe(pipes[i].data()) == -1) {
-        set_error(ErrorType::RUNTIME_ERROR, "", "failed to create pipe " + std::to_string(i + 1) + " for pipeline: " + std::string(strerror(errno)));
+        set_error(ErrorType::RUNTIME_ERROR, "",
+                  "failed to create pipe " + std::to_string(i + 1) +
+                      " for pipeline: " + std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
         return EX_OSERR;
       }
@@ -1142,7 +1238,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       const Command& cmd = commands[i];
 
       if (cmd.args.empty()) {
-        set_error(ErrorType::INVALID_ARGUMENT, "", "command " + std::to_string(i + 1) + " in pipeline is empty");
+        set_error(ErrorType::INVALID_ARGUMENT, "",
+                  "command " + std::to_string(i + 1) + " in pipeline is empty");
         print_last_error();
 
         for (size_t j = 0; j < commands.size() - 1; j++) {
@@ -1157,7 +1254,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
       if (pid == -1) {
         std::string cmd_name = cmd.args.empty() ? "unknown" : cmd.args[0];
-        set_error(ErrorType::RUNTIME_ERROR, cmd_name, "failed to create process (command " + std::to_string(i + 1) + " in pipeline): " + std::string(strerror(errno)));
+        set_error(ErrorType::RUNTIME_ERROR, cmd_name,
+                  "failed to create process (command " + std::to_string(i + 1) +
+                      " in pipeline): " + std::string(strerror(errno)));
         last_exit_code = EX_OSERR;
         return EX_OSERR;
       }
@@ -1331,7 +1430,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
       if (setpgid(pid, pgid) < 0) {
         if (errno != EACCES && errno != EPERM) {
-          set_error(ErrorType::RUNTIME_ERROR, "setpgid", "failed to set process group ID in pipeline parent: " + std::string(strerror(errno)));
+          set_error(ErrorType::RUNTIME_ERROR, "setpgid",
+                    "failed to set process group ID in pipeline parent: " +
+                        std::string(strerror(errno)));
         }
       }
 
@@ -1344,7 +1445,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     }
 
   } catch (const std::exception& e) {
-    set_error(ErrorType::RUNTIME_ERROR, "pipeline", "Error executing pipeline: " + std::string(e.what()));
+    set_error(ErrorType::RUNTIME_ERROR, "pipeline",
+              "Error executing pipeline: " + std::string(e.what()));
     print_last_error();
     for (pid_t pid : pids) {
       kill(pid, SIGTERM);
@@ -1438,7 +1540,8 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   auto it = jobs.find(job_id);
   if (it == jobs.end()) {
-    set_error(ErrorType::RUNTIME_ERROR, "job", "job [" + std::to_string(job_id) + "] not found");
+    set_error(ErrorType::RUNTIME_ERROR, "job",
+              "job [" + std::to_string(job_id) + "] not found");
     print_last_error();
     return;
   }
@@ -1465,7 +1568,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   if (cont && job.stopped) {
     if (kill(-job.pgid, SIGCONT) < 0) {
-      set_error(ErrorType::RUNTIME_ERROR, "kill", "failed to send SIGCONT to job: " + std::string(strerror(errno)));
+      set_error(
+          ErrorType::RUNTIME_ERROR, "kill",
+          "failed to send SIGCONT to job: " + std::string(strerror(errno)));
     }
     job.stopped = false;
   }
@@ -1480,13 +1585,17 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
       isatty(shell_terminal)) {
     if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
       if (errno != ENOTTY && errno != EINVAL) {
-        set_error(ErrorType::RUNTIME_ERROR, "tcsetpgrp", "warning: failed to restore terminal control: " + std::string(strerror(errno)));
+        set_error(ErrorType::RUNTIME_ERROR, "tcsetpgrp",
+                  "warning: failed to restore terminal control: " +
+                      std::string(strerror(errno)));
       }
     }
 
     if (tcgetattr(shell_terminal, &shell_tmodes) == 0) {
       if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
-        set_error(ErrorType::RUNTIME_ERROR, "tcsetattr", "failed to restore terminal attributes: " + std::string(strerror(errno)));
+        set_error(ErrorType::RUNTIME_ERROR, "tcsetattr",
+                  "failed to restore terminal attributes: " +
+                      std::string(strerror(errno)));
       }
     }
   }
@@ -1497,7 +1606,8 @@ void Exec::put_job_in_background(int job_id, bool cont) {
 
   auto it = jobs.find(job_id);
   if (it == jobs.end()) {
-    set_error(ErrorType::RUNTIME_ERROR, "job", "job [" + std::to_string(job_id) + "] not found");
+    set_error(ErrorType::RUNTIME_ERROR, "job",
+              "job [" + std::to_string(job_id) + "] not found");
     print_last_error();
     return;
   }
@@ -1506,7 +1616,9 @@ void Exec::put_job_in_background(int job_id, bool cont) {
 
   if (cont && job.stopped) {
     if (kill(-job.pgid, SIGCONT) < 0) {
-      set_error(ErrorType::RUNTIME_ERROR, "kill", "failed to send SIGCONT to background job: " + std::string(strerror(errno)));
+      set_error(ErrorType::RUNTIME_ERROR, "kill",
+                "failed to send SIGCONT to background job: " +
+                    std::string(strerror(errno)));
     }
 
     job.stopped = false;
@@ -1544,7 +1656,9 @@ void Exec::wait_for_job(int job_id) {
         remaining_pids.clear();
         break;
       } else {
-        set_error(ErrorType::RUNTIME_ERROR, "waitpid", "failed to wait for child process: " + std::string(strerror(errno)));
+        set_error(ErrorType::RUNTIME_ERROR, "waitpid",
+                  "failed to wait for child process: " +
+                      std::string(strerror(errno)));
         break;
       }
     }
@@ -1599,13 +1713,18 @@ void Exec::wait_for_job(int job_id) {
                     << std::endl;
         }
         if (exit_status == 0) {
-          set_error(ErrorType::RUNTIME_ERROR, job.command, "command completed successfully");
+          set_error(ErrorType::RUNTIME_ERROR, job.command,
+                    "command completed successfully");
         } else {
-          set_error(ErrorType::RUNTIME_ERROR, job.command, "command failed with exit code " + std::to_string(exit_status));
+          set_error(
+              ErrorType::RUNTIME_ERROR, job.command,
+              "command failed with exit code " + std::to_string(exit_status));
         }
       } else if (WIFSIGNALED(final_status)) {
         last_exit_code = 128 + WTERMSIG(final_status);
-        set_error(ErrorType::RUNTIME_ERROR, job.command, "command terminated by signal " + std::to_string(WTERMSIG(final_status)));
+        set_error(ErrorType::RUNTIME_ERROR, job.command,
+                  "command terminated by signal " +
+                      std::to_string(WTERMSIG(final_status)));
       }
     }
   }
@@ -1659,7 +1778,10 @@ void Exec::terminate_all_child_process() {
           }
         } else {
           if (errno != ESRCH) {
-            set_error(ErrorType::RUNTIME_ERROR, "killpg", "failed to send SIGKILL in terminate_all_child_process: " + std::string(strerror(errno)));
+            set_error(
+                ErrorType::RUNTIME_ERROR, "killpg",
+                "failed to send SIGKILL in terminate_all_child_process: " +
+                    std::string(strerror(errno)));
           }
         }
       }

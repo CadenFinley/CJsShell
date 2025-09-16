@@ -1,8 +1,8 @@
 #include "plugin.h"
 
 #include "cjsh.h"
-#include "pluginapi.h"
 #include "error_out.h"
+#include "pluginapi.h"
 
 static thread_local std::string current_plugin_context;
 
@@ -123,8 +123,9 @@ bool Plugin::discover_plugins() {
   }
 
   if (!std::filesystem::exists(plugins_directory)) {
-    std::cerr << "cjsh: plugin: discover_plugins: Plugins directory does not exist: " << plugins_directory
-              << std::endl;
+    std::cerr
+        << "cjsh: plugin: discover_plugins: Plugins directory does not exist: "
+        << plugins_directory << std::endl;
     if (g_debug_mode) {
       std::cerr << "DEBUG: discover_plugins - Plugin directory not found"
                 << std::endl;
@@ -194,7 +195,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   }
 
   if (!enabled) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin loading is disabled", {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR, "plugin", "Plugin loading is disabled", {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: load_plugin - Plugin loading is disabled"
                 << std::endl;
@@ -229,7 +231,11 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
 
   void* handle = dlopen(path.c_str(), RTLD_LAZY);
   if (!handle) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Failed to load plugin: " + path.string() + " - " + std::string(dlerror()), {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "plugin",
+                 "Failed to load plugin: " + path.string() + " - " +
+                     std::string(dlerror()),
+                 {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: load_plugin - dlopen failed" << std::endl;
     }
@@ -247,8 +253,9 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
       reinterpret_cast<plugin_get_info_func>(dlsym(handle, "plugin_get_info"));
   const char* dlsym_error = dlerror();
   if (dlsym_error) {
-    std::cerr << "cjsh: plugin: load_plugin: Cannot load symbol 'plugin_get_info': " << dlsym_error
-              << std::endl;
+    std::cerr
+        << "cjsh: plugin: load_plugin: Cannot load symbol 'plugin_get_info': "
+        << dlsym_error << std::endl;
     if (g_debug_mode) {
       std::cerr << "DEBUG: load_plugin - Failed to find plugin_get_info symbol"
                 << std::endl;
@@ -264,7 +271,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
 
   plugin_info_t* info = get_info();
   if (!info) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Failed to get plugin info", {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR, "plugin", "Failed to get plugin info", {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: load_plugin - plugin_get_info returned NULL"
                 << std::endl;
@@ -281,9 +289,10 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   }
 
   if (info->interface_version != PLUGIN_INTERFACE_VERSION) {
-    std::cerr << "cjsh: plugin: load_plugin: Plugin interface version mismatch for " << info->name
-              << ". Expected: " << PLUGIN_INTERFACE_VERSION
-              << ", Got: " << info->interface_version << std::endl;
+    std::cerr
+        << "cjsh: plugin: load_plugin: Plugin interface version mismatch for "
+        << info->name << ". Expected: " << PLUGIN_INTERFACE_VERSION
+        << ", Got: " << info->interface_version << std::endl;
     if (g_debug_mode) {
       std::cerr << "DEBUG: load_plugin - Interface version mismatch"
                 << std::endl;
@@ -428,7 +437,8 @@ bool Plugin::uninstall_plugin(const std::string& name) {
   std::shared_lock plugins_lock(plugins_mutex);
   auto it = loaded_plugins.find(name);
   if (it == loaded_plugins.end()) {
-    std::cerr << "cjsh: plugin: uninstall_plugin: Plugin not found: " << name << std::endl;
+    std::cerr << "cjsh: plugin: uninstall_plugin: Plugin not found: " << name
+              << std::endl;
     if (g_debug_mode) {
       std::cerr
           << "DEBUG: uninstall_plugin - Plugin not found in loaded_plugins"
@@ -438,8 +448,9 @@ bool Plugin::uninstall_plugin(const std::string& name) {
   }
 
   if (it->second.enabled) {
-    std::cerr << "cjsh: plugin: uninstall_plugin: Please disable the plugin before uninstalling: " << name
-              << std::endl;
+    std::cerr << "cjsh: plugin: uninstall_plugin: Please disable the plugin "
+                 "before uninstalling: "
+              << name << std::endl;
     if (g_debug_mode) {
       std::cerr << "DEBUG: uninstall_plugin - Cannot uninstall enabled plugin, "
                    "disable first"
@@ -503,7 +514,9 @@ bool Plugin::uninstall_plugin(const std::string& name) {
   }
 
   if (plugin_path.empty()) {
-    std::cerr << "cjsh: plugin: uninstall_plugin: Could not find plugin file for: " << name << std::endl;
+    std::cerr
+        << "cjsh: plugin: uninstall_plugin: Could not find plugin file for: "
+        << name << std::endl;
     if (g_debug_mode) {
       std::cerr << "DEBUG: uninstall_plugin - Could not find plugin file in "
                    "plugins directory"
@@ -531,7 +544,9 @@ bool Plugin::uninstall_plugin(const std::string& name) {
     }
     return true;
   } catch (const std::filesystem::filesystem_error& e) {
-    std::cerr << "cjsh: plugin: uninstall_plugin: Failed to remove plugin file: " << e.what() << std::endl;
+    std::cerr
+        << "cjsh: plugin: uninstall_plugin: Failed to remove plugin file: "
+        << e.what() << std::endl;
     if (g_debug_mode) {
       std::cerr << "DEBUG: uninstall_plugin - Filesystem error: " << e.what()
                 << std::endl;
@@ -655,7 +670,8 @@ bool Plugin::enable_plugin(const std::string& name) {
   }
 
   if (!enabled) {
-    std::cerr << "cjsh: plugin: enable_plugin: Plugin system is disabled" << std::endl;
+    std::cerr << "cjsh: plugin: enable_plugin: Plugin system is disabled"
+              << std::endl;
     if (g_debug_mode) {
       std::cerr << "DEBUG: enable_plugin - Plugin system is disabled"
                 << std::endl;
@@ -676,7 +692,8 @@ bool Plugin::enable_plugin(const std::string& name) {
       return true;
     }
     if (it == loaded_plugins.end()) {
-      std::cerr << "cjsh: plugin: enable_plugin: Plugin not found: " << name << std::endl;
+      std::cerr << "cjsh: plugin: enable_plugin: Plugin not found: " << name
+                << std::endl;
       if (g_debug_mode) {
         std::cerr << "DEBUG: enable_plugin - Plugin not found in loaded_plugins"
                   << std::endl;
@@ -696,7 +713,10 @@ bool Plugin::enable_plugin(const std::string& name) {
   bool init_ok = (init_func && init_func() == PLUGIN_SUCCESS);
   current_plugin_context.clear();
   if (!init_ok) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Failed to initialize plugin: " + name, {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "plugin",
+                 "Failed to initialize plugin: " + name,
+                 {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: enable_plugin - Plugin initialization failed"
                 << std::endl;

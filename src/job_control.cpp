@@ -6,8 +6,8 @@
 #include <iomanip>
 #include <iostream>
 #include "cjsh.h"
-#include "shell.h"
 #include "error_out.h"
+#include "shell.h"
 
 JobManager& JobManager::instance() {
   static JobManager instance;
@@ -238,8 +238,10 @@ int jobs_command(const std::vector<std::string>& args) {
     } else if (args[i] == "-p") {
       pid_only = true;
     } else if (args[i].substr(0, 1) == "-") {
-      print_error({ErrorType::INVALID_ARGUMENT, args[i], "Invalid option",
-                  {"Use -l for long format, -p for PIDs only"}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   args[i],
+                   "Invalid option",
+                   {"Use -l for long format, -p for PIDs only"}});
       return 1;
     }
   }
@@ -308,16 +310,20 @@ int fg_command(const std::vector<std::string>& args) {
     try {
       job_id = std::stoi(job_spec);
     } catch (...) {
-      print_error({ErrorType::INVALID_ARGUMENT, args[1], "no such job",
-                  {"Use 'jobs' to list available jobs"}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   args[1],
+                   "no such job",
+                   {"Use 'jobs' to list available jobs"}});
       return 1;
     }
   }
 
   auto job = job_manager.get_job(job_id);
   if (!job) {
-    print_error({ErrorType::INVALID_ARGUMENT, std::to_string(job_id), "no such job",
-                {"Use 'jobs' to list available jobs"}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 std::to_string(job_id),
+                 "no such job",
+                 {"Use 'jobs' to list available jobs"}});
     return 1;
   }
 
@@ -378,22 +384,28 @@ int bg_command(const std::vector<std::string>& args) {
     try {
       job_id = std::stoi(job_spec);
     } catch (...) {
-      print_error({ErrorType::INVALID_ARGUMENT, args[1], "no such job",
-                  {"Use 'jobs' to list available jobs"}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   args[1],
+                   "no such job",
+                   {"Use 'jobs' to list available jobs"}});
       return 1;
     }
   }
 
   auto job = job_manager.get_job(job_id);
   if (!job) {
-    print_error({ErrorType::INVALID_ARGUMENT, std::to_string(job_id), "no such job",
-                {"Use 'jobs' to list available jobs"}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 std::to_string(job_id),
+                 "no such job",
+                 {"Use 'jobs' to list available jobs"}});
     return 1;
   }
 
   if (job->state != JobState::STOPPED) {
-    print_error({ErrorType::INVALID_ARGUMENT, std::to_string(job_id), "not stopped",
-                {"Use 'jobs' to list job states"}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 std::to_string(job_id),
+                 "not stopped",
+                 {"Use 'jobs' to list job states"}});
     return 1;
   }
 
@@ -460,8 +472,10 @@ int wait_command(const std::vector<std::string>& args) {
 
         job_manager.remove_job(job_id);
       } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, target, "Arguments must be process or job IDs",
-                    {"Use 'jobs' to list available jobs"}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     target,
+                     "Arguments must be process or job IDs",
+                     {"Use 'jobs' to list available jobs"}});
         return 1;
       }
     } else {
@@ -479,8 +493,10 @@ int wait_command(const std::vector<std::string>& args) {
           last_exit_status = 128 + WTERMSIG(status);
         }
       } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, target, "Arguments must be process or job IDs",
-                    {"Use 'jobs' to list available jobs"}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     target,
+                     "Arguments must be process or job IDs",
+                     {"Use 'jobs' to list available jobs"}});
         return 1;
       }
     }
@@ -491,8 +507,10 @@ int wait_command(const std::vector<std::string>& args) {
 
 int kill_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
-    print_error({ErrorType::INVALID_ARGUMENT, "", "No targets specified",
-                {"Provide at least one PID or job ID"}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "",
+                 "No targets specified",
+                 {"Provide at least one PID or job ID"}});
     return 2;
   }
 
@@ -509,16 +527,21 @@ int kill_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() < 3) {
-      print_error({ErrorType::INVALID_ARGUMENT, "", "No targets specified",
-                  {"kill: usage: kill [-s sigspec | -n signum | -sigspec] pid | jobspec ..."}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "",
+                   "No targets specified",
+                   {"kill: usage: kill [-s sigspec | -n signum | -sigspec] pid "
+                    "| jobspec ..."}});
       return 2;
     }
 
     std::string signal_str = args[1].substr(1);
     signal = parse_signal(signal_str);
     if (signal == -1) {
-      print_error({ErrorType::INVALID_ARGUMENT, args[1], "Invalid signal specification",
-                  {"Use -l to list valid signals"}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   args[1],
+                   "Invalid signal specification",
+                   {"Use -l to list valid signals"}});
       return 1;
     }
 
@@ -535,8 +558,10 @@ int kill_command(const std::vector<std::string>& args) {
         int job_id = std::stoi(target.substr(1));
         auto job = job_manager.get_job(job_id);
         if (!job) {
-          print_error({ErrorType::INVALID_ARGUMENT, target, "No such job",
-                      {"Use 'jobs' to list available jobs"}});
+          print_error({ErrorType::INVALID_ARGUMENT,
+                       target,
+                       "No such job",
+                       {"Use 'jobs' to list available jobs"}});
           continue;
         }
 
@@ -544,8 +569,10 @@ int kill_command(const std::vector<std::string>& args) {
           perror("kill");
         }
       } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, target, "Arguments must be process or job IDs",
-                    {"Use 'jobs' to list available jobs"}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     target,
+                     "Arguments must be process or job IDs",
+                     {"Use 'jobs' to list available jobs"}});
       }
     } else {
       try {
@@ -554,8 +581,10 @@ int kill_command(const std::vector<std::string>& args) {
           perror("kill");
         }
       } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, target, "Arguments must be process or job IDs",
-                    {"Use 'jobs' to list available jobs"}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     target,
+                     "Arguments must be process or job IDs",
+                     {"Use 'jobs' to list available jobs"}});
       }
     }
   }

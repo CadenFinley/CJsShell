@@ -32,7 +32,8 @@ std::vector<std::string> Ai::list_configs() const {
       }
     }
   } catch (const cjsh_filesystem::fs::filesystem_error& e) {
-    std::cerr << "cjsh: ai: Error listing AI config files: " << e.what() << std::endl;
+    std::cerr << "cjsh: ai: Error listing AI config files: " << e.what()
+              << std::endl;
   }
   return configs;
 }
@@ -46,8 +47,8 @@ bool Ai::load_config(const std::string& config_name) {
     load_ai_config();
     return true;
   } catch (const std::exception& e) {
-    std::cerr << "cjsh: ai: Error loading AI config '" << config_name << "': " << e.what()
-              << std::endl;
+    std::cerr << "cjsh: ai: Error loading AI config '" << config_name
+              << "': " << e.what() << std::endl;
     this->config_name = old_config_name;
     return false;
   }

@@ -302,8 +302,10 @@ int help_command() {
 
   std::cout << section_separator;
   std::cout << "KEYBOARD SHORTCUTS:\n\n";
-  std::cout << "  F1                      Show isocline key bindings and shortcuts\n";
-  std::cout << "    Note: Displays available readline-style editing commands and navigation shortcuts\n\n";
+  std::cout
+      << "  F1                      Show isocline key bindings and shortcuts\n";
+  std::cout << "    Note: Displays available readline-style editing commands "
+               "and navigation shortcuts\n\n";
   std::cout << section_separator;
   std::cout << "NOTE: Many commands have their own help. Try [command] help "
                "for details.\n";

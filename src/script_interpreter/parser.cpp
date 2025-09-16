@@ -472,8 +472,9 @@ std::vector<std::string> merge_redirection_tokens(
       i++;
     }
 
-    else if (std::isdigit(token[0]) && token.length() == 1 && 
-             i + 1 < tokens.size() && (tokens[i + 1] == "<" || tokens[i + 1] == ">")) {
+    else if (std::isdigit(token[0]) && token.length() == 1 &&
+             i + 1 < tokens.size() &&
+             (tokens[i + 1] == "<" || tokens[i + 1] == ">")) {
       // Handle patterns like "3 < file" or "3 > file"
       result.push_back(token + tokens[i + 1]);
       i++;
@@ -1058,7 +1059,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       current += command[i];
     } else if (command[i] == '|' && !in_quotes && paren_depth == 0) {
       // Check if this | is part of a redirection operator (>|)
-      if (i > 0 && command[i-1] == '>') {
+      if (i > 0 && command[i - 1] == '>') {
         current += command[i];  // This is >|, don't split here
       } else {
         // This is a true pipe operator
@@ -1223,7 +1224,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       } else if (tok.find("<&") == 0 && tok.length() > 2) {
         try {
           int src_fd = std::stoi(tok.substr(2));
-          // Input redirection from file descriptor: <&N means redirect stdin from fd N
+          // Input redirection from file descriptor: <&N means redirect stdin
+          // from fd N
           cmd.fd_duplications[0] = src_fd;
         } catch (const std::exception&) {
           filtered_args.push_back(tokens[i]);

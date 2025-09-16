@@ -498,7 +498,8 @@ void Ai::load_ai_config() {
             "Warm, Calm. Pacing: Moderate.";
       }
     } catch (const std::exception& e) {
-      std::cerr << "cjsh: ai: Error parsing AI config file: " << e.what() << std::endl;
+      std::cerr << "cjsh: ai: Error parsing AI config file: " << e.what()
+                << std::endl;
     }
     config_file.close();
   } else {
@@ -565,7 +566,8 @@ void Ai::create_default_config_file() {
     config_file << default_config.dump(4);
     config_file.close();
   } else {
-    std::cerr << "cjsh: ai: Error creating default AI config file." << std::endl;
+    std::cerr << "cjsh: ai: Error creating default AI config file."
+              << std::endl;
   }
 }
 
@@ -602,8 +604,8 @@ void Ai::initialize(const std::string& api_key,
           cjsh_filesystem::g_cjsh_ai_config_file_path,
           cjsh_filesystem::g_cjsh_ai_default_config_path);
     } catch (const cjsh_filesystem::fs::filesystem_error& e) {
-      std::cerr << "cjsh: ai: Error copying legacy config to default: " << e.what()
-                << std::endl;
+      std::cerr << "cjsh: ai: Error copying legacy config to default: "
+                << e.what() << std::endl;
     }
   }
 

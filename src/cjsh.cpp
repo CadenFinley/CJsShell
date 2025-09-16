@@ -19,12 +19,12 @@
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
+#include "error_out.h"
 #include "isocline/isocline.h"
 #include "job_control.h"
 #include "shell.h"
 #include "trap_command.h"
 #include "usage.h"
-#include "error_out.h"
 
 bool g_debug_mode = false;
 bool g_title_line = true;
@@ -149,8 +149,10 @@ int main(int argc, char* argv[]) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing login environment" << std::endl;
     if (!init_login_filesystem()) {
-      print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize file system",
-                  {"Check file permissions", "Reinstall cjsh"}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   nullptr,
+                   "Failed to initialize file system",
+                   {"Check file permissions", "Reinstall cjsh"}});
       return 1;
     }
     process_profile_file();
@@ -326,7 +328,10 @@ static int parse_command_line_arguments(int argc, char* argv[],
         print_usage();
         return 127;
       default:
-        print_error({ErrorType::INVALID_ARGUMENT, std::string(1, c), "Unrecognized option", {"Check command line arguments"}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     std::string(1, c),
+                     "Unrecognized option",
+                     {"Check command line arguments"}});
         return 127;
     }
   }
@@ -427,15 +432,19 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     std::ifstream file(script_file);
     // check if file exists
     if (!std::filesystem::exists(script_file)) {
-      print_error({ErrorType::FILE_NOT_FOUND, script_file.c_str(), "Script file not found",
-                  {"Check file path"}});
+      print_error({ErrorType::FILE_NOT_FOUND,
+                   script_file.c_str(),
+                   "Script file not found",
+                   {"Check file path"}});
       return 127;
     }
 
     // check if file opened successfully
     if (!file.is_open()) {
-      print_error({ErrorType::PERMISSION_DENIED, script_file.c_str(), "Failed to open script file",
-                  {"Check file permissions"}});
+      print_error({ErrorType::PERMISSION_DENIED,
+                   script_file.c_str(),
+                   "Failed to open script file",
+                   {"Check file permissions"}});
       return 127;
     }
 
@@ -480,8 +489,10 @@ static int initialize_interactive_components() {
   g_shell->set_interactive_mode(true);
 
   if (!init_interactive_filesystem()) {
-    print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize file system",
-                {"Check file permissions", "Reinstall cjsh"}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 nullptr,
+                 "Failed to initialize file system",
+                 {"Check file permissions", "Reinstall cjsh"}});
     return 1;
   }
 
@@ -757,8 +768,10 @@ static bool init_login_filesystem() {
     std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
   try {
     if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
-      print_error({ErrorType::RUNTIME_ERROR, nullptr, "User home path not found",
-                  {"Check user account configuration"}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   nullptr,
+                   "User home path not found",
+                   {"Check user account configuration"}});
       return false;
     }
 
@@ -768,8 +781,10 @@ static bool init_login_filesystem() {
       create_profile_file();
     }
   } catch (const std::exception& e) {
-    print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize login filesystem",
-                {"Check file permissions", "Reinstall cjsh"}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 nullptr,
+                 "Failed to initialize login filesystem",
+                 {"Check file permissions", "Reinstall cjsh"}});
     return false;
   }
   return true;
@@ -889,8 +904,10 @@ static bool init_interactive_filesystem() {
         cjsh_filesystem::should_refresh_executable_cache();
 
     if (!home_exists) {
-      print_error({ErrorType::RUNTIME_ERROR, nullptr, "User home path not found",
-                  {"Check user account configuration"}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   nullptr,
+                   "User home path not found",
+                   {"Check user account configuration"}});
       return false;
     }
 
@@ -920,8 +937,10 @@ static bool init_interactive_filesystem() {
     }
 
   } catch (const std::exception& e) {
-    print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize interactive filesystem",
-                {"Check file permissions", "Reinstall cjsh"}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 nullptr,
+                 "Failed to initialize interactive filesystem",
+                 {"Check file permissions", "Reinstall cjsh"}});
     return false;
   }
   return true;
@@ -1074,8 +1093,10 @@ static void create_profile_file() {
         << "# login-startup-arg --startup-test  # Enable startup test mode\n";
     profile_file.close();
   } else {
-    print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to create profile file",
-                {"Check file permissions"}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 nullptr,
+                 "Failed to create profile file",
+                 {"Check file permissions"}});
   }
 }
 
@@ -1105,7 +1126,9 @@ static void create_source_file() {
     source_file << "}\n";
     source_file.close();
   } else {
-    print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to create source file",
-                {"Check file permissions"}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 nullptr,
+                 "Failed to create source file",
+                 {"Check file permissions"}});
   }
 }

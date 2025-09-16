@@ -122,7 +122,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     print_error({ErrorType::FILE_NOT_FOUND,
                  "load_theme",
                  "Theme file '" + theme_file + "' does not exist.",
-                 {"Use 'theme' to see available themes."}});  
+                 {"Use 'theme' to see available themes."}});
     return false;
   }
 
@@ -145,12 +145,13 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
       }
       std::string previous_theme =
           (g_current_theme == "" ? "default" : g_current_theme);
-      print_error({ErrorType::RUNTIME_ERROR,
-                   "load_theme",
-                   "Theme '" + theme_name_to_use +
-                       "' requirements not met, falling back to previous theme: '" +
-                       previous_theme + "'.",
-                   {}});
+      print_error(
+          {ErrorType::RUNTIME_ERROR,
+           "load_theme",
+           "Theme '" + theme_name_to_use +
+               "' requirements not met, falling back to previous theme: '" +
+               previous_theme + "'.",
+           {}});
       if (theme_name_to_use != previous_theme) {
         return load_theme(previous_theme, allow_fallback);
       } else {
@@ -666,7 +667,6 @@ void Theme::view_theme_requirements(const std::string& theme) const {
   std::string theme_file = theme_directory + "/" + theme + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
-
     print_error({ErrorType::FILE_NOT_FOUND,
                  "view_theme_requirements",
                  "Theme file '" + theme_file + "' does not exist.",

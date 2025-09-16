@@ -20,13 +20,14 @@ int preview_theme(const std::string& theme_name) {
       cjsh_filesystem::g_cjsh_theme_path.string() + "/" + theme_name + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
-    std::cerr << "cjsh: preview-theme: Theme '" << theme_name << "' not found." << std::endl;
+    std::cerr << "cjsh: preview-theme: Theme '" << theme_name << "' not found."
+              << std::endl;
     return 1;
   }
 
   if (!temp_theme->load_theme(theme_name, false)) {
-    std::cerr << "cjsh: preview-theme: Failed to load theme '" << theme_name << "'."
-              << std::endl;
+    std::cerr << "cjsh: preview-theme: Failed to load theme '" << theme_name
+              << "'." << std::endl;
     return 1;
   }
 

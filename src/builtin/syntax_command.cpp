@@ -41,7 +41,8 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
   }
 
   if (!shell) {
-    print_error({ErrorType::RUNTIME_ERROR, "syntax", "shell not initialized", {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR, "syntax", "shell not initialized", {}});
     return 1;
   }
 
@@ -102,13 +103,19 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
   if (is_command_string) {
     if (command_string.empty()) {
-      print_error({ErrorType::INVALID_ARGUMENT, "syntax", "-c option requires a command string", {}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "syntax",
+                   "-c option requires a command string",
+                   {}});
       return 1;
     }
 
     auto script_interpreter = shell->get_shell_script_interpreter();
     if (!script_interpreter) {
-      print_error({ErrorType::RUNTIME_ERROR, "syntax", "script interpreter not available", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "syntax",
+                   "script interpreter not available",
+                   {}});
       return 1;
     }
 

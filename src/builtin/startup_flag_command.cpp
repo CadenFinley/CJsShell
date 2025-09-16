@@ -56,7 +56,10 @@ int startup_flag_command(const std::vector<std::string>& args) {
                 << "' already exists in profile startup args" << std::endl;
     }
   } else {
-    print_error({ErrorType::INVALID_ARGUMENT, "startup-flag", "unknown flag '" + flag + "'", {}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "startup-flag",
+                 "unknown flag '" + flag + "'",
+                 {}});
     return 1;
   }
 

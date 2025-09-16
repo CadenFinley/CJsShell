@@ -19,10 +19,10 @@
 #include <system_error>
 
 #include "cjsh.h"
+#include "error_out.h"
 #include "job_control.h"
 #include "readonly_command.h"
 #include "shell.h"
-#include "error_out.h"
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
   if (g_debug_mode)
@@ -1326,16 +1326,24 @@ int ShellScriptInterpreter::execute_block(
               << " lines" << std::endl;
 
   if (g_shell == nullptr) {
-    print_error({ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
   }
 
   if (!shell_parser) {
-    print_error({ErrorType::RUNTIME_ERROR, "", "Script interpreter not properly initialized", {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "",
+                 "Script interpreter not properly initialized",
+                 {}});
     return 1;
   }
 
   if (has_syntax_errors(lines)) {
-    print_error({ErrorType::SYNTAX_ERROR, "", "Critical syntax errors detected in script block, process aborted", {}});
+    print_error(
+        {ErrorType::SYNTAX_ERROR,
+         "",
+         "Critical syntax errors detected in script block, process aborted",
+         {}});
     return 2;
   }
 
@@ -1854,7 +1862,10 @@ int ShellScriptInterpreter::execute_block(
           std::cerr << "DEBUG: Interpreting script file: " << prog << std::endl;
         std::ifstream f(prog);
         if (!f) {
-          print_error({ErrorType::RUNTIME_ERROR, "", "Failed to open script file: " + prog, {}});
+          print_error({ErrorType::RUNTIME_ERROR,
+                       "",
+                       "Failed to open script file: " + prog,
+                       {}});
           return 1;
         }
         std::stringstream buffer;
@@ -3147,7 +3158,10 @@ int ShellScriptInterpreter::execute_block(
         }
       }
       if (++guard > GUARD_MAX) {
-        print_error({ErrorType::RUNTIME_ERROR, "", "while loop exceeded max iterations (guard)", {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "",
+                     "while loop exceeded max iterations (guard)",
+                     {}});
         rc = 1;
         break;
       }

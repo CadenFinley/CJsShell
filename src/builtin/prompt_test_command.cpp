@@ -68,36 +68,51 @@ int prompt_test_command(const std::vector<std::string>& args) {
   std::cout << "LANG_VER:go: " << pi.get_active_language_version("go") << "\n";
   std::cout << "LANG_VER:rust: " << pi.get_active_language_version("rust")
             << "\n";
-  
+
   // Language detection and version tests
-  std::cout << "IS_PYTHON_PROJECT: " << (pi.is_python_project() ? "yes" : "no") << "\n";
-  std::cout << "IS_NODEJS_PROJECT: " << (pi.is_nodejs_project() ? "yes" : "no") << "\n";
-  std::cout << "IS_RUST_PROJECT: " << (pi.is_rust_project() ? "yes" : "no") << "\n";
-  std::cout << "IS_GOLANG_PROJECT: " << (pi.is_golang_project() ? "yes" : "no") << "\n";
-  std::cout << "IS_JAVA_PROJECT: " << (pi.is_java_project() ? "yes" : "no") << "\n";
-  
+  std::cout << "IS_PYTHON_PROJECT: " << (pi.is_python_project() ? "yes" : "no")
+            << "\n";
+  std::cout << "IS_NODEJS_PROJECT: " << (pi.is_nodejs_project() ? "yes" : "no")
+            << "\n";
+  std::cout << "IS_RUST_PROJECT: " << (pi.is_rust_project() ? "yes" : "no")
+            << "\n";
+  std::cout << "IS_GOLANG_PROJECT: " << (pi.is_golang_project() ? "yes" : "no")
+            << "\n";
+  std::cout << "IS_JAVA_PROJECT: " << (pi.is_java_project() ? "yes" : "no")
+            << "\n";
+
   std::cout << "PYTHON_VERSION: " << pi.get_python_version() << "\n";
   std::cout << "NODEJS_VERSION: " << pi.get_nodejs_version() << "\n";
   std::cout << "RUST_VERSION: " << pi.get_rust_version() << "\n";
   std::cout << "GOLANG_VERSION: " << pi.get_golang_version() << "\n";
   std::cout << "JAVA_VERSION: " << pi.get_java_version() << "\n";
-  
+
   std::cout << "PYTHON_VIRTUAL_ENV: " << pi.get_python_virtual_env() << "\n";
-  std::cout << "NODEJS_PACKAGE_MANAGER: " << pi.get_nodejs_package_manager() << "\n";
-  
+  std::cout << "NODEJS_PACKAGE_MANAGER: " << pi.get_nodejs_package_manager()
+            << "\n";
+
   // Generic language tests
-  std::cout << "LANG_VER_GENERIC:python: " << pi.get_language_version("python") << "\n";
-  std::cout << "LANG_VER_GENERIC:node: " << pi.get_language_version("node") << "\n";
-  std::cout << "LANG_VER_GENERIC:rust: " << pi.get_language_version("rust") << "\n";
+  std::cout << "LANG_VER_GENERIC:python: " << pi.get_language_version("python")
+            << "\n";
+  std::cout << "LANG_VER_GENERIC:node: " << pi.get_language_version("node")
+            << "\n";
+  std::cout << "LANG_VER_GENERIC:rust: " << pi.get_language_version("rust")
+            << "\n";
   std::cout << "LANG_VER_GENERIC:go: " << pi.get_language_version("go") << "\n";
-  std::cout << "LANG_VER_GENERIC:java: " << pi.get_language_version("java") << "\n";
-  
-  std::cout << "IS_LANG_PROJECT:python: " << (pi.is_language_project("python") ? "yes" : "no") << "\n";
-  std::cout << "IS_LANG_PROJECT:node: " << (pi.is_language_project("node") ? "yes" : "no") << "\n";
-  std::cout << "IS_LANG_PROJECT:rust: " << (pi.is_language_project("rust") ? "yes" : "no") << "\n";
-  std::cout << "IS_LANG_PROJECT:go: " << (pi.is_language_project("go") ? "yes" : "no") << "\n";
-  std::cout << "IS_LANG_PROJECT:java: " << (pi.is_language_project("java") ? "yes" : "no") << "\n";
-  
+  std::cout << "LANG_VER_GENERIC:java: " << pi.get_language_version("java")
+            << "\n";
+
+  std::cout << "IS_LANG_PROJECT:python: "
+            << (pi.is_language_project("python") ? "yes" : "no") << "\n";
+  std::cout << "IS_LANG_PROJECT:node: "
+            << (pi.is_language_project("node") ? "yes" : "no") << "\n";
+  std::cout << "IS_LANG_PROJECT:rust: "
+            << (pi.is_language_project("rust") ? "yes" : "no") << "\n";
+  std::cout << "IS_LANG_PROJECT:go: "
+            << (pi.is_language_project("go") ? "yes" : "no") << "\n";
+  std::cout << "IS_LANG_PROJECT:java: "
+            << (pi.is_language_project("java") ? "yes" : "no") << "\n";
+
   std::cout << "DISK_USAGE: "
             << pi.get_disk_usage(std::filesystem::current_path()) << "\n";
   std::cout << "SWAP_USAGE: " << pi.get_swap_usage() << "\n";
@@ -108,15 +123,18 @@ int prompt_test_command(const std::vector<std::string>& args) {
             << "\n";
   std::cout << "BG_JOBS: " << pi.get_background_jobs_count() << "\n";
   std::cout << "STATUS: " << getenv("STATUS") << "\n";
-  
-  // Command info tests  
+
+  // Command info tests
   std::cout << "LAST_EXIT_CODE: " << pi.get_last_exit_code() << "\n";
   std::cout << "EXIT_STATUS_SYMBOL: " << pi.get_exit_status_symbol() << "\n";
-  std::cout << "LAST_COMMAND_SUCCESS: " << (pi.is_last_command_success() ? "yes" : "no") << "\n";
-  std::cout << "LAST_COMMAND_DURATION_MS: " << pi.get_last_command_duration_ms() << "\n";
+  std::cout << "LAST_COMMAND_SUCCESS: "
+            << (pi.is_last_command_success() ? "yes" : "no") << "\n";
+  std::cout << "LAST_COMMAND_DURATION_MS: " << pi.get_last_command_duration_ms()
+            << "\n";
   std::cout << "FORMATTED_DURATION: " << pi.get_formatted_duration() << "\n";
-  std::cout << "SHOULD_SHOW_DURATION: " << (pi.should_show_duration() ? "yes" : "no") << "\n";
-  
+  std::cout << "SHOULD_SHOW_DURATION: "
+            << (pi.should_show_duration() ? "yes" : "no") << "\n";
+
   std::cout << "IP_LOCAL: " << pi.get_ip_address(false) << "\n";
   std::cout << "IP_EXTERNAL: " << pi.get_ip_address(true) << "\n";
   std::cout << "VPN_STATUS: " << (pi.is_vpn_active() ? "on" : "off") << "\n";
@@ -134,24 +152,27 @@ int prompt_test_command(const std::vector<std::string>& args) {
             : "✖";
     std::cout << "AI_CONTEXT_COMPARISON: " << ai_context_cmp << "\n";
   }
-  
+
   // Directory info tests
   std::cout << "DISPLAY_DIRECTORY: " << pi.get_display_directory() << "\n";
   std::cout << "DIRECTORY_NAME: " << pi.get_directory_name() << "\n";
   std::cout << "TRUNCATED_PATH: " << pi.get_truncated_path() << "\n";
-  std::cout << "IS_TRUNCATED: " << (pi.is_directory_truncated() ? "yes" : "no") << "\n";
+  std::cout << "IS_TRUNCATED: " << (pi.is_directory_truncated() ? "yes" : "no")
+            << "\n";
   if (is_git_repo) {
-    std::cout << "REPO_RELATIVE_PATH: " << pi.get_repo_relative_path(repo_root) << "\n";
+    std::cout << "REPO_RELATIVE_PATH: " << pi.get_repo_relative_path(repo_root)
+              << "\n";
   }
-  
+
   // Container info tests
   std::cout << "CONTAINER_NAME: " << pi.get_container_name() << "\n";
-  std::cout << "IN_CONTAINER: " << (pi.is_in_container() ? "yes" : "no") << "\n";
+  std::cout << "IN_CONTAINER: " << (pi.is_in_container() ? "yes" : "no")
+            << "\n";
   std::cout << "CONTAINER_TYPE: " << pi.get_container_type() << "\n";
   std::cout << "IN_DOCKER: " << (pi.is_in_docker() ? "yes" : "no") << "\n";
   std::cout << "DOCKER_CONTEXT: " << pi.get_docker_context() << "\n";
   std::cout << "DOCKER_IMAGE: " << pi.get_docker_image() << "\n";
-  
+
   std::cout << "--- End of Prompt Tag Test ---\n";
   return 0;
 }

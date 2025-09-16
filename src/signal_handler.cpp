@@ -3,9 +3,9 @@
 #include <algorithm>
 
 #include "cjsh.h"
+#include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
-#include "error_out.h"
 
 std::atomic<SignalHandler*> SignalHandler::s_instance(nullptr);
 volatile sig_atomic_t SignalHandler::s_sigint_received = 0;

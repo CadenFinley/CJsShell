@@ -94,7 +94,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "get") {
     if (args.size() <= command_index + 1) {
-      PRINT_ERROR("ai: no arguments provided. try 'help' for a list of commands");
+      PRINT_ERROR(
+          "ai: no arguments provided. try 'help' for a list of commands");
       return 1;
     }
     std::cout << g_ai->get_response_data(args[command_index + 1]) << std::endl;
@@ -252,9 +253,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
     if (subcmd == "switch" || subcmd == "load") {
       if (args.size() <= command_index + 2) {
-        std::cout
-            << "ai: missing config name. Usage: ai config switch <name>"
-            << std::endl;
+        std::cout << "ai: missing config name. Usage: ai config switch <name>"
+                  << std::endl;
         return 1;
       }
       std::string config_name = args[command_index + 2];
@@ -466,8 +466,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
   if (subcmd == "add") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      PRINT_ERROR(
-          "ai: no file specified. Try 'help' for a list of commands.");
+      PRINT_ERROR("ai: no file specified. Try 'help' for a list of commands.");
       return 1;
     }
 
@@ -494,8 +493,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
   if (subcmd == "remove") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      PRINT_ERROR(
-          "ai: no file specified. Try 'help' for a list of commands.");
+      PRINT_ERROR("ai: no file specified. Try 'help' for a list of commands.");
       return 1;
     }
 

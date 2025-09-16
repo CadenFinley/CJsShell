@@ -61,7 +61,8 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       function_mode = true;
       start_index = i + 1;
     } else if (args[i].substr(0, 1) == "-") {
-      std::cerr << "cjsh: readonly: " << args[i] << ": invalid option" << std::endl;
+      std::cerr << "cjsh: readonly: " << args[i] << ": invalid option"
+                << std::endl;
       return 2;
     } else {
       break;

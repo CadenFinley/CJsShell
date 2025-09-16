@@ -1,12 +1,12 @@
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "error_out.h"
 
 void print_error(const ErrorInfo& error) {
   std::cerr << "cjsh: ";
-  
+
   switch (error.type) {
     case ErrorType::COMMAND_NOT_FOUND:
       std::cerr << "command not found";

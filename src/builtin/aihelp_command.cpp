@@ -9,8 +9,9 @@
 
 int aihelp_command(const std::vector<std::string>& args) {
   if (g_ai == nullptr) {
-    std::cerr << "cjsh: aihelp: AI is not initialized - API configuration required."
-              << std::endl;
+    std::cerr
+        << "cjsh: aihelp: AI is not initialized - API configuration required."
+        << std::endl;
     return 1;
   }
 
@@ -20,7 +21,8 @@ int aihelp_command(const std::vector<std::string>& args) {
   }
 
   if (!g_ai || g_ai->get_api_key().empty()) {
-    std::cerr << "cjsh: aihelp: Please set your OpenAI API key first." << std::endl;
+    std::cerr << "cjsh: aihelp: Please set your OpenAI API key first."
+              << std::endl;
     return 1;
   }
 

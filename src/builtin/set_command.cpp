@@ -41,8 +41,8 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: Disabled errexit option" << std::endl;
       }
-    } else if (arg == "-C" ||
-               (arg == "-o" && i + 1 < args.size() && args[i + 1] == "noclobber")) {
+    } else if (arg == "-C" || (arg == "-o" && i + 1 < args.size() &&
+                               args[i + 1] == "noclobber")) {
       shell->set_shell_option("noclobber", true);
       if (arg == "-o") {
         ++i;
