@@ -62,6 +62,12 @@ class Shell {
     }
   }
 
+  void reset_command_timing() {
+    if (shell_prompt) {
+      shell_prompt->reset_command_timing();
+    }
+  }
+
   void set_interactive_mode(bool flag) {
     interactive_mode = flag;
   }

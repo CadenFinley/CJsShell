@@ -208,6 +208,9 @@ class PromptInfo {
   void end_command_timing(int exit_code) {
     command_info.end_command_timing(exit_code);
   }
+  void reset_command_timing() {
+    command_info.reset_command_timing();
+  }
   long long get_last_command_duration_ms() {
     return command_info.get_last_command_duration_ms();
   }

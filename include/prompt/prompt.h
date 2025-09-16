@@ -42,4 +42,7 @@ class Prompt {
   void end_command_timing(int exit_code) {
     info.end_command_timing(exit_code);
   }
+  void reset_command_timing() {
+    info.reset_command_timing();
+  }
 };

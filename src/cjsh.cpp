@@ -694,6 +694,9 @@ static void main_process_loop() {
           ic_history_add(command.c_str());
           setenv("STATUS", status_str.c_str(), 1);
         }
+      } else {
+        // Reset timing for empty commands to clear previous command duration
+        g_shell->reset_command_timing();
       }
       if (g_exit_flag) {
         break;

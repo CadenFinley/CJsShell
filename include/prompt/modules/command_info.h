@@ -21,6 +21,7 @@ class CommandInfo {
 
   void start_command_timing();
   void end_command_timing(int exit_code);
+  void reset_command_timing();
   long long get_last_command_duration_ms();
   std::string get_formatted_duration();
   bool should_show_duration();

@@ -20,6 +20,13 @@ void CommandInfo::end_command_timing(int exit_code) {
   }
 }
 
+void CommandInfo::reset_command_timing() {
+  timing_active = false;
+  // Reset to epoch time to ensure 0 duration
+  last_command_start = std::chrono::high_resolution_clock::time_point{};
+  last_command_end = std::chrono::high_resolution_clock::time_point{};
+}
+
 long long CommandInfo::get_last_command_duration_ms() {
   if (timing_active) {
     auto now = std::chrono::high_resolution_clock::now();
