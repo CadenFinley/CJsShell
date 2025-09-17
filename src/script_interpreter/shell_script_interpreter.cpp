@@ -1536,33 +1536,60 @@ int ShellScriptInterpreter::execute_block(
 
       // Operator precedence (higher number = higher precedence)
       auto get_precedence = [](const std::string& op) -> int {
-        if (op == "?:" || op == "?") return 1;
-        if (op == "||") return 2;
-        if (op == "&&") return 3;
-        if (op == "|") return 4;
-        if (op == "^") return 5;
-        if (op == "&") return 6;
-        if (op == "==" || op == "!=") return 7;
-        if (op == "<" || op == ">" || op == "<=" || op == ">=") return 8;
-        if (op == "<<" || op == ">>") return 9;
-        if (op == "+" || op == "-") return 10;
-        if (op == "*" || op == "/" || op == "%") return 11;
-        if (op == "**") return 12; // exponentiation (right associative)
-        if (op == "!" || op == "~" || op == "unary+" || op == "unary-") return 13;
-        if (op == "++" || op == "--") return 14; // pre/post increment/decrement
+        if (op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=") return 1; // assignment
+        if (op == "?:" || op == "?") return 2; // ternary
+        if (op == "||") return 3;
+        if (op == "&&") return 4;
+        if (op == "|") return 5;
+        if (op == "^") return 6;
+        if (op == "&") return 7;
+        if (op == "==" || op == "!=") return 8;
+        if (op == "<" || op == ">" || op == "<=" || op == ">=") return 9;
+        if (op == "<<" || op == ">>") return 10;
+        if (op == "+" || op == "-") return 11;
+        if (op == "*" || op == "/" || op == "%") return 12;
+        if (op == "**") return 13; // exponentiation (right associative)
+        if (op == "!" || op == "~" || op == "unary+" || op == "unary-") return 14;
+        if (op == "++" || op == "--") return 15; // pre/post increment/decrement
         return 0;
       };
 
       auto is_right_associative = [](const std::string& op) -> bool {
-        return op == "**" || op == "?" || op == "=";
+        return op == "**" || op == "?" || op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=";
+      };
+
+      auto get_variable_value = [&](const std::string& name) -> long long {
+        const char* env_val = getenv(name.c_str());
+        if (env_val) {
+          try {
+            return std::stoll(env_val);
+          } catch (...) {
+            return 0;
+          }
+        }
+        return 0;
+      };
+
+      auto set_variable_value = [&](const std::string& name, long long value) {
+        setenv(name.c_str(), std::to_string(value).c_str(), 1);
       };
 
       auto apply_operator = [&](long long a, long long b, const std::string& op) -> long long {
         if (op == "+") return a + b;
         if (op == "-") return a - b;
         if (op == "*") return a * b;
-        if (op == "/") return (b == 0) ? 0 : a / b;
-        if (op == "%") return (b == 0) ? 0 : a % b;
+        if (op == "/") {
+          if (b == 0) {
+            throw std::runtime_error("Division by zero");
+          }
+          return a / b;
+        }
+        if (op == "%") {
+          if (b == 0) {
+            throw std::runtime_error("Division by zero");
+          }
+          return a % b;
+        }
         if (op == "==") return (a == b) ? 1 : 0;
         if (op == "!=") return (a != b) ? 1 : 0;
         if (op == "<") return (a < b) ? 1 : 0;
@@ -1634,16 +1661,22 @@ int ShellScriptInterpreter::execute_block(
             ++j;
           }
           std::string name = expr.substr(i, j - i);
-          const char* env_val = getenv(name.c_str());
-          long long val = 0;
-          if (env_val) {
-            try {
-              val = std::stoll(env_val);
-            } catch (...) {
-              val = 0;
-            }
+          
+          // Check for increment/decrement after variable (post-increment/decrement)
+          if (j + 1 < expr.size() && 
+              ((expr.substr(j, 2) == "++" || expr.substr(j, 2) == "--"))) {
+            std::string op = expr.substr(j, 2);
+            long long old_val = get_variable_value(name);
+            long long new_val = old_val + (op == "++" ? 1 : -1);
+            set_variable_value(name, new_val);
+            tokens.push_back({Token::NUMBER, old_val, "", ""}); // Post-increment returns old value
+            i = j + 2;
+            expect_number = false;
+            continue;
           }
-          tokens.push_back({Token::NUMBER, val, name, ""});
+          
+          // Normal variable reference
+          tokens.push_back({Token::VARIABLE, get_variable_value(name), name, ""});
           i = j;
           expect_number = false;
           continue;
@@ -1683,10 +1716,21 @@ int ShellScriptInterpreter::execute_block(
           if (two_char == "==" || two_char == "!=" || two_char == "<=" || 
               two_char == ">=" || two_char == "&&" || two_char == "||" ||
               two_char == "<<" || two_char == ">>" || two_char == "++" ||
-              two_char == "--" || two_char == "**") {
+              two_char == "--" || two_char == "**" || two_char == "+=" ||
+              two_char == "-=" || two_char == "*=" || two_char == "/=" ||
+              two_char == "%=") {
+            
+            // Handle pre-increment/decrement
+            if ((two_char == "++" || two_char == "--") && expect_number) {
+              tokens.push_back({Token::OPERATOR, 0, "", "pre" + two_char});
+              i += 2;
+              expect_number = true;
+              continue;
+            }
+            
             tokens.push_back({Token::OPERATOR, 0, "", two_char});
             i += 2;
-            expect_number = true;
+            expect_number = (two_char != "++" && two_char != "--");
             continue;
           }
         }
@@ -1721,13 +1765,65 @@ int ShellScriptInterpreter::execute_block(
         ++i;
       }
 
-      // Convert to postfix using Shunting Yard algorithm
+      // Handle assignment operators and evaluate postfix expression
+      // For simplicity, we'll use a different approach for assignment
+      for (size_t i = 0; i < tokens.size(); ++i) {
+        if (tokens[i].type == Token::OPERATOR && 
+            (tokens[i].op == "+=" || tokens[i].op == "-=" || tokens[i].op == "*=" || 
+             tokens[i].op == "/=" || tokens[i].op == "%=" || tokens[i].op == "=")) {
+          
+          if (i > 0 && tokens[i-1].type == Token::VARIABLE) {
+            std::string var_name = tokens[i-1].str_value;
+            
+            // Find the value to assign (next token or expression result)
+            if (i + 1 < tokens.size()) {
+              long long current_val = get_variable_value(var_name);
+              long long assign_val = 0;
+              
+              if (tokens[i+1].type == Token::NUMBER) {
+                assign_val = tokens[i+1].value;
+              } else if (tokens[i+1].type == Token::VARIABLE) {
+                assign_val = get_variable_value(tokens[i+1].str_value);
+              }
+              
+              long long result = assign_val;
+              if (tokens[i].op == "+=") result = current_val + assign_val;
+              else if (tokens[i].op == "-=") result = current_val - assign_val;
+              else if (tokens[i].op == "*=") result = current_val * assign_val;
+              else if (tokens[i].op == "/=") {
+                if (assign_val == 0) throw std::runtime_error("Division by zero");
+                result = current_val / assign_val;
+              }
+              else if (tokens[i].op == "%=") {
+                if (assign_val == 0) throw std::runtime_error("Division by zero");
+                result = current_val % assign_val;
+              }
+              
+              set_variable_value(var_name, result);
+              return result; // Assignment expressions return the assigned value
+            }
+          }
+        }
+        
+        // Handle pre-increment/decrement
+        if (tokens[i].type == Token::OPERATOR && 
+            (tokens[i].op == "pre++" || tokens[i].op == "pre--")) {
+          if (i + 1 < tokens.size() && tokens[i+1].type == Token::VARIABLE) {
+            std::string var_name = tokens[i+1].str_value;
+            long long current_val = get_variable_value(var_name);
+            long long new_val = current_val + (tokens[i].op == "pre++" ? 1 : -1);
+            set_variable_value(var_name, new_val);
+            return new_val; // Pre-increment returns new value
+          }
+        }
+      }
+
+      // Convert to postfix using Shunting Yard algorithm for regular expressions
       std::vector<Token> output;
       std::vector<Token> operator_stack;
-      std::vector<long long> ternary_stack; // For ternary operator support
 
       for (const auto& token : tokens) {
-        if (token.type == Token::NUMBER) {
+        if (token.type == Token::NUMBER || token.type == Token::VARIABLE) {
           output.push_back(token);
         } else if (token.type == Token::OPERATOR) {
           while (!operator_stack.empty() && 
@@ -1751,6 +1847,13 @@ int ShellScriptInterpreter::execute_block(
             operator_stack.pop_back(); // Remove the left parenthesis
           }
         } else if (token.type == Token::TERNARY_Q) {
+          // For ternary operators, we need to treat them specially
+          while (!operator_stack.empty() && 
+                 operator_stack.back().type == Token::OPERATOR &&
+                 get_precedence(operator_stack.back().op) > get_precedence("?")) {
+            output.push_back(operator_stack.back());
+            operator_stack.pop_back();
+          }
           operator_stack.push_back(token);
         } else if (token.type == Token::TERNARY_COLON) {
           // Pop operators until we find the matching ?
@@ -1759,12 +1862,12 @@ int ShellScriptInterpreter::execute_block(
             operator_stack.pop_back();
           }
           if (!operator_stack.empty()) {
-            // Replace the ? with a complete ternary operator token
-            operator_stack.pop_back();
+            // Create a complete ternary operator token
+            operator_stack.pop_back(); // Remove the ?
             Token ternary_op;
-            ternary_op.type = Token::TERNARY_Q; // We'll use this to represent the complete ternary
+            ternary_op.type = Token::OPERATOR;
             ternary_op.op = "?:";
-            output.push_back(ternary_op);
+            operator_stack.push_back(ternary_op);
           }
         }
       }
@@ -1783,6 +1886,8 @@ int ShellScriptInterpreter::execute_block(
       for (const auto& token : output) {
         if (token.type == Token::NUMBER) {
           eval_stack.push_back(token.value);
+        } else if (token.type == Token::VARIABLE) {
+          eval_stack.push_back(get_variable_value(token.str_value));
         } else if (token.type == Token::OPERATOR) {
           if (token.op == "unary+" || token.op == "unary-" || 
               token.op == "!" || token.op == "~") {
@@ -1790,6 +1895,15 @@ int ShellScriptInterpreter::execute_block(
               long long a = eval_stack.back();
               eval_stack.pop_back();
               eval_stack.push_back(apply_unary(a, token.op));
+            }
+          } else if (token.op == "?:") {
+            // Ternary operator: condition ? true_val : false_val
+            // Stack order: condition, true_val, false_val (top)
+            if (eval_stack.size() >= 3) {
+              long long false_val = eval_stack.back(); eval_stack.pop_back();
+              long long true_val = eval_stack.back(); eval_stack.pop_back();
+              long long condition = eval_stack.back(); eval_stack.pop_back();
+              eval_stack.push_back(condition ? true_val : false_val);
             }
           } else {
             if (eval_stack.size() >= 2) {
@@ -1919,7 +2033,13 @@ int ShellScriptInterpreter::execute_block(
             if (found) {
               size_t expr_len = (j > inner_start + 1) ? (j - inner_start) : 0;
               std::string expr = in.substr(inner_start, expr_len);
-              out += std::to_string(eval_arith(expr));
+              try {
+                out += std::to_string(eval_arith(expr));
+              } catch (const std::runtime_error& e) {
+                // For division by zero, exit with error code like bash does
+                std::cerr << "cjsh: " << e.what() << std::endl;
+                exit(1);
+              }
               i = end_idx;
               continue;
             }
