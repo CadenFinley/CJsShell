@@ -8,6 +8,12 @@ FAILED=0
 # Shell to test
 SHELL_TO_TEST="${1:-./build/cjsh}"
 
+# Convert to absolute path if it's relative
+case "$SHELL_TO_TEST" in
+    /*) ;; # Already absolute
+    *) SHELL_TO_TEST="$(pwd)/$SHELL_TO_TEST" ;;
+esac
+
 log_test() {
     TOTAL=$((TOTAL + 1))
     printf "Test %03d: %s... " "$TOTAL" "$1"
@@ -217,7 +223,7 @@ fi
 log_test "Pattern with escaped characters"
 touch "$TEST_DIR/file*.txt"
 result=$("$SHELL_TO_TEST" -c "cd '$TEST_DIR'; echo file\\*.txt" 2>/dev/null)
-if echo "$result" | grep -q "file*.txt"; then
+if echo "$result" | grep -F "file*.txt" >/dev/null; then
     pass
 else
     fail "Expected literal asterisk match, got '$result'"

@@ -2340,6 +2340,7 @@ int ShellScriptInterpreter::execute_block(
     std::vector<std::string> parts;
     bool in_quotes = false;
     char q = '\0';
+    int arith_depth = 0;
     std::string cur;
     for (size_t i = 0; i < s.size(); ++i) {
       char c = s[i];
@@ -2352,21 +2353,37 @@ int ShellScriptInterpreter::execute_block(
           q = '\0';
         }
         cur += c;
-      } else if (!in_quotes && c == '&') {
-        if (i + 1 < s.size() && s[i + 1] == '&') {
+      } else if (!in_quotes) {
+        // Check for arithmetic expression start $((
+        if (i >= 2 && s[i-2] == '$' && s[i-1] == '(' && s[i] == '(') {
+          arith_depth++;
           cur += c;
-        } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
-                   std::isdigit(s[i + 1])) {
+        }
+        // Check for arithmetic expression end ))
+        else if (i + 1 < s.size() && s[i] == ')' && s[i+1] == ')' && arith_depth > 0) {
+          arith_depth--;
           cur += c;
-        } else if (i + 1 < s.size() && s[i + 1] == '>') {
-          cur += c;
+          cur += s[i+1];
+          i++; // Skip the next )
+        }
+        else if (c == '&' && arith_depth == 0) {
+          if (i + 1 < s.size() && s[i + 1] == '&') {
+            cur += c;
+          } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
+                     std::isdigit(s[i + 1])) {
+            cur += c;
+          } else if (i + 1 < s.size() && s[i + 1] == '>') {
+            cur += c;
+          } else {
+            std::string seg = trim(cur);
+            if (!seg.empty() && seg.back() != '&')
+              seg += " &";
+            if (!seg.empty())
+              parts.push_back(seg);
+            cur.clear();
+          }
         } else {
-          std::string seg = trim(cur);
-          if (!seg.empty() && seg.back() != '&')
-            seg += " &";
-          if (!seg.empty())
-            parts.push_back(seg);
-          cur.clear();
+          cur += c;
         }
       } else {
         cur += c;

@@ -289,6 +289,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           current_token += c;
         }
       } else {
+        // Mark escaped wildcard characters with a special prefix
+        if (c == '*' || c == '?' || c == '[' || c == ']') {
+          current_token += '\x1F'; // ASCII Unit Separator as escape marker
+        }
         current_token += c;
       }
       escaped = false;
@@ -1130,7 +1134,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           }
         } else if (!in_quotes) {
           // Check for arithmetic expression start $((
-          if (i >= 2 && trimmed[i] == '(' && trimmed[i-1] == '(' && trimmed[i-2] == '$') {
+          if (i >= 2 && trimmed[i-2] == '$' && trimmed[i-1] == '(' && trimmed[i] == '(') {
             arith_depth++;
           }
           // Check for arithmetic expression end ))
@@ -1304,8 +1308,23 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       bool is_single = is_single_quoted_token(raw);
       bool is_double = is_double_quoted_token(raw);
       std::string val = strip_quote_tag(raw);
-      if (!is_single && !is_double &&
-          val.find_first_of("*?[]") != std::string::npos) {
+      
+      // First apply brace expansion if needed
+      if (!is_single && !is_double && val.find('{') != std::string::npos &&
+          val.find('}') != std::string::npos) {
+        std::vector<std::string> brace_expansions = expand_braces(val);
+        for (const auto& expanded_val : brace_expansions) {
+          // Then apply wildcard expansion to each brace-expanded result
+          if (expanded_val.find_first_of("*?[]") != std::string::npos) {
+            auto wildcard_expanded = expand_wildcards(expanded_val);
+            final_args_local.insert(final_args_local.end(), wildcard_expanded.begin(),
+                                    wildcard_expanded.end());
+          } else {
+            final_args_local.push_back(expanded_val);
+          }
+        }
+      } else if (!is_single && !is_double &&
+                 val.find_first_of("*?[]") != std::string::npos) {
         auto expanded = expand_wildcards(val);
         final_args_local.insert(final_args_local.end(), expanded.begin(),
                                 expanded.end());
@@ -1470,7 +1489,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
       current += command[i];
     } else if (!in_quotes && command[i] == '(') {
       // Check for arithmetic expression start $((
-      if (i >= 2 && command[i-1] == '(' && command[i-2] == '$') {
+      if (i >= 2 && command[i-2] == '$' && command[i-1] == '(' && command[i] == '(') {
         arith_depth++;
       }
       paren_depth++;
@@ -1606,8 +1625,43 @@ std::vector<std::string> Parser::parse_semicolon_commands(
 std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
   std::vector<std::string> result;
 
-  if (pattern.find_first_of("*?[]") == std::string::npos) {
-    result.push_back(pattern);
+  // Check if there are any unescaped wildcard characters
+  bool has_wildcards = false;
+  
+  for (size_t i = 0; i < pattern.length(); ++i) {
+    char c = pattern[i];
+    
+    // Skip escaped wildcard characters (marked with \x1F)
+    if (c == '\x1F' && i + 1 < pattern.length()) {
+      i++; // Skip the next character as it's escaped
+      continue;
+    }
+    
+    if (c == '*' || c == '?' || c == '[') {
+      has_wildcards = true;
+      break;
+    }
+  }
+
+  // Always unescape the pattern by removing escape markers
+  std::string unescaped;
+  unescaped.reserve(pattern.length());
+  
+  for (size_t i = 0; i < pattern.length(); ++i) {
+    if (pattern[i] == '\x1F') {
+      // Skip the escape marker, include the escaped character
+      if (i + 1 < pattern.length()) {
+        i++;
+        unescaped += pattern[i];
+      }
+    } else {
+      unescaped += pattern[i];
+    }
+  }
+
+  if (!has_wildcards) {
+    // No unescaped wildcards, return the literal pattern
+    result.push_back(unescaped);
     return result;
   }
 
@@ -1615,14 +1669,15 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
   memset(&glob_result, 0, sizeof(glob_result));
 
   int return_value =
-      glob(pattern.c_str(), GLOB_TILDE | GLOB_MARK, NULL, &glob_result);
+      glob(unescaped.c_str(), GLOB_TILDE | GLOB_MARK, NULL, &glob_result);
   if (return_value == 0) {
     for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
       result.push_back(std::string(glob_result.gl_pathv[i]));
     }
     globfree(&glob_result);
   } else if (return_value == GLOB_NOMATCH) {
-    result.push_back(pattern);
+    // No matches found, return the original pattern unescaped
+    result.push_back(unescaped);
   }
 
   return result;
