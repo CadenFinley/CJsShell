@@ -2051,8 +2051,47 @@ int ShellScriptInterpreter::execute_block(
             if (found) {
               size_t expr_len = (j > inner_start + 1) ? (j - inner_start) : 0;
               std::string expr = in.substr(inner_start, expr_len);
+              
+              // Expand variables in the arithmetic expression first
+              std::string expanded_expr;
+              for (size_t k = 0; k < expr.size(); ++k) {
+                if (expr[k] == '$' && k + 1 < expr.size()) {
+                  if (isdigit(expr[k + 1])) {
+                    // Positional parameter $1, $2, etc.
+                    std::string param_name(1, expr[k + 1]);
+                    expanded_expr += get_variable_value(param_name);
+                    k++; // Skip the digit
+                  } else if (isalpha(expr[k + 1]) || expr[k + 1] == '_') {
+                    // Regular variable $VAR
+                    size_t var_start = k + 1;
+                    size_t var_end = var_start;
+                    while (var_end < expr.size() && 
+                           (isalnum(expr[var_end]) || expr[var_end] == '_')) {
+                      var_end++;
+                    }
+                    std::string var_name = expr.substr(var_start, var_end - var_start);
+                    expanded_expr += get_variable_value(var_name);
+                    k = var_end - 1; // Position at last character of variable
+                  } else if (expr[k + 1] == '{') {
+                    // Variable in braces ${VAR}
+                    size_t close_brace = expr.find('}', k + 2);
+                    if (close_brace != std::string::npos) {
+                      std::string var_name = expr.substr(k + 2, close_brace - (k + 2));
+                      expanded_expr += get_variable_value(var_name);
+                      k = close_brace; // Position at }
+                    } else {
+                      expanded_expr += expr[k]; // Just add $
+                    }
+                  } else {
+                    expanded_expr += expr[k]; // Just add $
+                  }
+                } else {
+                  expanded_expr += expr[k];
+                }
+              }
+              
               try {
-                out += std::to_string(eval_arith(expr));
+                out += std::to_string(eval_arith(expanded_expr));
               } catch (const std::runtime_error& e) {
                 // For division by zero and other arithmetic errors, re-throw to let caller handle
                 print_runtime_error("cjsh: " + std::string(e.what()), "$((" + expr + "))");
@@ -4359,6 +4398,22 @@ int ShellScriptInterpreter::execute_block(
             if (!first_toks.empty() && functions.count(first_toks[0])) {
               is_function_call = true;
 
+              // Save current global positional parameters
+              std::vector<std::string> saved_params;
+              if (g_shell) {
+                saved_params = g_shell->get_positional_parameters();
+              }
+
+              // Set function parameters as positional parameters
+              std::vector<std::string> func_params;
+              for (size_t pi = 1; pi < first_toks.size(); ++pi) {
+                func_params.push_back(first_toks[pi]);
+              }
+              if (g_shell) {
+                g_shell->set_positional_parameters(func_params);
+              }
+
+              // Also set as environment variables for backward compatibility
               std::vector<std::string> param_names;
               for (size_t pi = 1; pi < first_toks.size() && pi <= 9; ++pi) {
                 std::string name = std::to_string(pi);
@@ -4380,6 +4435,12 @@ int ShellScriptInterpreter::execute_block(
                 }
               }
 
+              // Restore global positional parameters
+              if (g_shell) {
+                g_shell->set_positional_parameters(saved_params);
+              }
+
+              // Clean up environment variables
               for (const auto& n : param_names)
                 unsetenv(n.c_str());
             } else {
