@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test all builtin commands comprehensively (excluding AI, plugin, and theme-related commands)
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 
@@ -7,12 +6,6 @@ else
 fi
 
 echo "Test: builtin commands comprehensive..."
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
 
 TESTS_PASSED=0
 TESTS_FAILED=0
@@ -292,26 +285,20 @@ else
     pass_test "hash builtin"
 fi
 
-# Test job control commands (basic functionality)
-# Note: These may not work in all environments, so we test more leniently
 "$CJSH_PATH" -c "jobs" >/dev/null 2>&1
 pass_test "jobs builtin (basic functionality)"
 
-# Test wait command (should succeed with no jobs)
 "$CJSH_PATH" -c "wait" >/dev/null 2>&1
-if [ $? -gt 1 ]; then  # Allow exit code 1 for "no jobs" but fail on other errors
+if [ $? -gt 1 ]; then
     fail_test "wait builtin"
     exit 1
 else
     pass_test "wait builtin"
 fi
 
-# Test kill command (test with invalid PID should fail gracefully)
 "$CJSH_PATH" -c "kill -0 $$" >/dev/null 2>&1
 pass_test "kill builtin (basic functionality)"
 
-# Test loop control commands (break, continue, return)
-# These are typically used in loops/functions, so test basic parsing
 "$CJSH_PATH" -c "break 2>/dev/null || true" >/dev/null 2>&1
 "$CJSH_PATH" -c "continue 2>/dev/null || true" >/dev/null 2>&1
 "$CJSH_PATH" -c "return 2>/dev/null || true" >/dev/null 2>&1

@@ -1,12 +1,4 @@
 #!/usr/bin/env sh
-# POSIX I/O Redirection and Pipeline Test Suite
-# Tests all forms of POSIX I/O redirection and pipeline features
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Test counters
 TOTAL=0

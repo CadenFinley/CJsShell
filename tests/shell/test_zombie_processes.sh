@@ -1,12 +1,4 @@
 #!/usr/bin/env sh
-# Test zombie process handling and cleanup
-# Tests that cjsh properly handles and cleans up zombie processes
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Test counters
 TOTAL=0

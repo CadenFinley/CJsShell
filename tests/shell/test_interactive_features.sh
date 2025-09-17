@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test interactive shell features (prompt, history, completion)
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

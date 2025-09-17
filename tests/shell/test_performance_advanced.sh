@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test performance and resource usage
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

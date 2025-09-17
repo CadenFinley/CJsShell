@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test security features and input validation
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

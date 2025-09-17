@@ -1,6 +1,4 @@
 #!/usr/bin/env sh
-# Test SIGCHLD handling and zombie process prevention
-# Tests specific signal handling scenarios related to zombie prevention
 
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"

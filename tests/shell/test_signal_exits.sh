@@ -1,12 +1,4 @@
 #!/usr/bin/env sh
-# Signal Exit and Cleanup Test Suite
-# Tests signal-triggered exits and resource cleanup behavior
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Test counters
 TOTAL=0

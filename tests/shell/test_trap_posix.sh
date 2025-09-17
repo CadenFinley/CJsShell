@@ -8,12 +8,6 @@ fi
 
 echo "Test: POSIX trap command compliance..."
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
 TESTS_PASSED=0
 TESTS_FAILED=0
 TESTS_SKIPPED=0

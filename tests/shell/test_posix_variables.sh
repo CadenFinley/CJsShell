@@ -1,12 +1,4 @@
 #!/usr/bin/env sh
-# POSIX Variable and Parameter Expansion Test Suite
-# Tests POSIX parameter expansion, variable assignment, and scoping
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Test counters
 TOTAL=0

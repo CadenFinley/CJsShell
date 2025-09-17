@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test error conditions and edge cases
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 
@@ -7,8 +6,6 @@ else
 fi
 
 echo "Test: error handling and edge cases..."
-
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

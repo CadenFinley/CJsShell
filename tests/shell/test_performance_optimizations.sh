@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test performance optimizations and caching
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

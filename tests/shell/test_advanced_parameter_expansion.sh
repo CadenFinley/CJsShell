@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test advanced parameter expansion features
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

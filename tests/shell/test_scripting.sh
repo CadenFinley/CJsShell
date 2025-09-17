@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test scripting capabilities and control flow
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

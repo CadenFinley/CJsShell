@@ -1,18 +1,9 @@
 #!/usr/bin/env sh
-# Test process management and job control
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 
     CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"
 fi
-
-echo "Test: process management..."
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
 
 TESTS_PASSED=0
 TESTS_FAILED=0

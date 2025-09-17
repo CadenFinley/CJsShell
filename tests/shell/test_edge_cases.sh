@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test edge cases and error recovery
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

@@ -1,13 +1,4 @@
 #!/usr/bin/env sh
-# Advanced POSIX Compliance Test Suite for CJ's Shell
-# Tests more complex POSIX shell features and edge cases
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
 # Test counters
 TOTAL=0
 PASSED=0

@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test advanced I/O redirection and here documents
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 

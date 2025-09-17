@@ -1,24 +1,10 @@
 #!/usr/bin/env sh
-# POSIX Compliance Test Suite for CJ's Shell
-# Tests core POSIX shell features and behaviors
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Test counters
 TOTAL=0
 PASSED=0
 FAILED=0
 
-# Shell to test, change this to test a different shell
 SHELL_TO_TEST="${1:-./build/cjsh}"
-#SHELL_TO_TEST="/usr/local/Cellar/fish/4.0.2/bin/fish"
-#SHELL_TO_TEST="/bin/zsh"
-#SHELL_TO_TEST="/bin/bash"
-#SHELL_TO_TEST="/usr/local/Cellar/bash/5.3.3/bin/bash"
 
 log_test() {
     TOTAL=$((TOTAL + 1))
