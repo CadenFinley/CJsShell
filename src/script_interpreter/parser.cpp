@@ -838,6 +838,9 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
 }
 
 void Parser::expand_env_vars(std::string& arg) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: expand_env_vars called with: '" << arg << "'" << std::endl;
+  }
   std::string result;
   result.reserve(arg.length() * 1.5);
   bool in_var = false;
@@ -852,6 +855,100 @@ void Parser::expand_env_vars(std::string& arg) {
       result += '$';
       continue;
     }
+    
+    // Handle ${...} parameter expansion
+    if (arg[i] == '$' && i + 1 < arg.length() && arg[i + 1] == '{') {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Found ${...} expression at position " << i << std::endl;
+      }
+      size_t start = i + 2;
+      size_t brace_depth = 1;
+      size_t end = start;
+      
+      // Find the matching closing brace
+      while (end < arg.length() && brace_depth > 0) {
+        if (arg[end] == '{') {
+          brace_depth++;
+        } else if (arg[end] == '}') {
+          brace_depth--;
+        }
+        if (brace_depth > 0) end++;
+      }
+      
+      if (brace_depth == 0 && end < arg.length()) {
+        // Extract the parameter expression
+        std::string param_expr = arg.substr(start, end - start);
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Parameter expression: '" << param_expr << "'" << std::endl;
+          std::cerr << "DEBUG: start=" << start << ", end=" << end << ", arg[end]='" << arg[end] << "'" << std::endl;
+        }
+        std::string value;
+        
+        // Handle parameter expansion using fallback logic 
+        // (script interpreter has issues with complex expressions)
+        size_t colon_pos = param_expr.find(':');
+        size_t dash_pos = param_expr.find('-', colon_pos != std::string::npos ? colon_pos + 1 : 0);
+        
+        if (colon_pos != std::string::npos && dash_pos != std::string::npos) {
+          // Handle ${VAR:-default} syntax  
+          std::string var_name = param_expr.substr(0, colon_pos);
+          std::string default_val = param_expr.substr(dash_pos + 1);
+          
+          const char* env_val = getenv(var_name.c_str());
+          if (env_val && strlen(env_val) > 0) {
+            value = env_val;
+          } else {
+            // Recursively expand the default value
+            expand_env_vars(default_val);
+            value = default_val;
+          }
+        } else if (colon_pos == std::string::npos && param_expr.find('-') != std::string::npos) {
+          // Handle ${VAR-default} syntax (without colon)
+          size_t dash_pos = param_expr.find('-');
+          std::string var_name = param_expr.substr(0, dash_pos);
+          std::string default_val = param_expr.substr(dash_pos + 1);
+          
+          const char* env_val = getenv(var_name.c_str());
+          if (env_val) {
+            value = env_val;
+          } else {
+            // Recursively expand the default value
+            expand_env_vars(default_val);
+            value = default_val;
+          }
+        } else {
+          // Simple variable name in braces or try script interpreter for complex cases
+          if (shell && shell->get_shell_script_interpreter()) {
+            try {
+              value = shell->get_shell_script_interpreter()->expand_parameter_expression(param_expr);
+            } catch (...) {
+              // Fall back to simple getenv if script interpreter fails
+              const char* env_val = getenv(param_expr.c_str());
+              if (env_val) {
+                value = env_val;
+              }
+            }
+          } else {
+            const char* env_val = getenv(param_expr.c_str());
+            if (env_val) {
+              value = env_val;
+            }
+          }
+        }
+        
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Parameter expansion result: '" << value << "'" << std::endl;
+        }
+        result += value;
+        i = end; // Position is at the closing brace, skip past it in next iteration
+        continue;
+      } else {
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Unmatched braces in parameter expansion" << std::endl;
+        }
+      }
+    }
+    
     if (in_var) {
       if (isalnum(arg[i]) || arg[i] == '_' ||
           (var_name.empty() && isdigit(arg[i])) ||
@@ -912,21 +1009,93 @@ void Parser::expand_env_vars(std::string& arg) {
             }
           }
         } else {
-          auto it = env_vars.find(var_name);
-          if (it != env_vars.end()) {
-            value = it->second;
-          } else {
+          // Check if this is parameter expansion without braces (e.g., $VAR:-default)
+          if (arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') {
+            // This is ${VAR:-default} syntax without braces
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Found parameter expansion without braces: " << var_name << ":-..." << std::endl;
+            }
+            
+            const char* env_val = getenv(var_name.c_str());
+            if (env_val && strlen(env_val) > 0) {
+              value = env_val;
+              // Skip the :-
+              i++; // Skip :
+              i++; // Skip -
+              // Skip the default value part
+              while (i < arg.length() && !isspace(arg[i])) {
+                i++;
+              }
+              if (i < arg.length() && isspace(arg[i])) {
+                i--; // Back up one if we stopped at a space because the loop will increment
+              }
+            } else {
+              // Use default value - skip :- and process the rest
+              i++; // Skip :
+              i++; // Skip -
+              // Extract and expand the default value
+              std::string default_val;
+              while (i < arg.length() && !isspace(arg[i])) {
+                default_val += arg[i];
+                i++;
+              }
+              if (i < arg.length() && isspace(arg[i])) {
+                i--; // Back up one if we stopped at a space because the loop will increment
+              }
+              expand_env_vars(default_val);
+              value = default_val;
+            }
+          } else if (arg[i] == '-' && i >= 1) {
+            // This is ${VAR-default} syntax without braces
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Found parameter expansion without braces: " << var_name << "-..." << std::endl;
+            }
+            
             const char* env_val = getenv(var_name.c_str());
             if (env_val) {
               value = env_val;
+              // Skip the default value part
+              i++; // Skip -
+              while (i < arg.length() && !isspace(arg[i])) {
+                i++;
+              }
+              if (i < arg.length() && isspace(arg[i])) {
+                i--; // Back up one if we stopped at a space because the loop will increment
+              }
+            } else {
+              // Use default value - skip - and process the rest
+              i++; // Skip -
+              // Extract and expand the default value
+              std::string default_val;
+              while (i < arg.length() && !isspace(arg[i])) {
+                default_val += arg[i];
+                i++;
+              }
+              if (i < arg.length() && isspace(arg[i])) {
+                i--; // Back up one if we stopped at a space because the loop will increment
+              }
+              expand_env_vars(default_val);
+              value = default_val;
+            }
+          } else {
+            // Regular variable lookup
+            auto it = env_vars.find(var_name);
+            if (it != env_vars.end()) {
+              value = it->second;
+            } else {
+              const char* env_val = getenv(var_name.c_str());
+              if (env_val) {
+                value = env_val;
+              }
             }
           }
         }
         result += value;
 
-        if (arg[i] != '$') {
+        // Don't add the current character for parameter expansion syntax
+        if (arg[i] != '$' && !(arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') && arg[i] != '-') {
           result += arg[i];
-        } else {
+        } else if (arg[i] == '$') {
           i--;
         }
       }
@@ -1018,6 +1187,9 @@ void Parser::expand_env_vars(std::string& arg) {
     result += value;
   }
 
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: expand_env_vars result: '" << result << "'" << std::endl;
+  }
   arg = result;
 }
 

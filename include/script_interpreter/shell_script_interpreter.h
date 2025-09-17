@@ -134,12 +134,13 @@ class ShellScriptInterpreter {
   bool has_function(const std::string& name) const;
   std::vector<std::string> get_function_names() const;
 
+  // Parameter expansion method (made public for parser use)
+  std::string expand_parameter_expression(const std::string& param_expr);
+
  private:
   DebugLevel debug_level;
   Parser* shell_parser = nullptr;
   std::unordered_map<std::string, std::vector<std::string>> functions;
-
-  std::string expand_parameter_expression(const std::string& param_expr);
   std::string get_variable_value(const std::string& var_name);
   bool variable_is_set(const std::string& var_name);
   std::string pattern_match_prefix(const std::string& value,

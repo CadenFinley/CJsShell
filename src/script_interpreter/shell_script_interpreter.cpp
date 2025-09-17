@@ -2007,7 +2007,31 @@ int ShellScriptInterpreter::execute_block(
             size_t end_brace = 0;
             if (find_matching(in, i + 2, '{', '}', end_brace)) {
               std::string param_expr = in.substr(i + 2, end_brace - (i + 2));
-              out += expand_parameter_expression(param_expr);
+              std::string expanded_result = expand_parameter_expression(param_expr);
+              
+              // Simple expansion for common $VAR patterns
+              if (expanded_result.find('$') != std::string::npos) {
+                // Handle simple $VAR expansions
+                size_t dollar_pos = 0;
+                while ((dollar_pos = expanded_result.find('$', dollar_pos)) != std::string::npos) {
+                  size_t var_start = dollar_pos + 1;
+                  size_t var_end = var_start;
+                  while (var_end < expanded_result.length() && 
+                         (std::isalnum(expanded_result[var_end]) || expanded_result[var_end] == '_')) {
+                    var_end++;
+                  }
+                  if (var_end > var_start) {
+                    std::string var_name = expanded_result.substr(var_start, var_end - var_start);
+                    std::string var_value = get_variable_value(var_name);
+                    expanded_result.replace(dollar_pos, var_end - dollar_pos, var_value);
+                    dollar_pos += var_value.length();
+                  } else {
+                    dollar_pos++;
+                  }
+                }
+              }
+              
+              out += expanded_result;
               i = end_brace;
               continue;
             }
@@ -3986,6 +4010,16 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
   std::string op;
 
   for (size_t i = 1; i < param_expr.length(); ++i) {
+    // Check for : operators first (highest precedence)
+    if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
+      char next = param_expr[i + 1];
+      if (next == '-' || next == '=' || next == '?' || next == '+') {
+        op_pos = i;
+        op = param_expr.substr(i, 2);
+        break;
+      }
+    }
+    // Then check for / operators
     if (param_expr[i] == '/') {
       if (i + 1 < param_expr.length() && param_expr[i + 1] == '/') {
         op_pos = i;
@@ -4027,14 +4061,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
 
   if (op_pos == std::string::npos) {
     for (size_t i = 1; i < param_expr.length(); ++i) {
-      if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
-        char next = param_expr[i + 1];
-        if (next == '-' || next == '=' || next == '?' || next == '+') {
-          op_pos = i;
-          op = param_expr.substr(i, 2);
-          break;
-        }
-      } else if (param_expr[i] == '#' || param_expr[i] == '%') {
+      if (param_expr[i] == '#' || param_expr[i] == '%') {
         if (i + 1 < param_expr.length() && param_expr[i + 1] == param_expr[i]) {
           op_pos = i;
           op = param_expr.substr(i, 2);
@@ -4087,6 +4114,8 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
       return operand;
     }
     return var_value;
+
+    // the shell script interpreter should never exit(1) it should reutn return with a non 0 error code to indicate a fail unless it abosulely has to, also if in a piple line or forked process, does exit(). exit that forked process or does it close the main cjsh process
   } else if (op == ":?") {
     if (!is_set || var_value.empty()) {
       std::cerr << "cjsh: " << var_name << ": "
