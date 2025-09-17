@@ -1319,6 +1319,24 @@ void ShellScriptInterpreter::print_error_report(
   std::cout << std::endl;
 }
 
+void ShellScriptInterpreter::print_runtime_error(const std::string& error_message, 
+                                                 const std::string& context,
+                                                 size_t line_number) const {
+  // Create a SyntaxError object for consistent formatting using the constructor
+  SyntaxError runtime_error(
+    {line_number, 0, 0, 0},    // ErrorPosition
+    ErrorSeverity::ERROR,       // ErrorSeverity
+    ErrorCategory::COMMANDS,    // ErrorCategory (using COMMANDS for runtime errors)
+    "RUN001",                   // error_code
+    error_message,              // message
+    context,                    // line_content
+    ""                          // suggestion
+  );
+  
+  std::vector<SyntaxError> errors = {runtime_error};
+  print_error_report(errors, false, !context.empty());
+}
+
 int ShellScriptInterpreter::execute_block(
     const std::vector<std::string>& lines) {
   if (g_debug_mode)
@@ -2036,9 +2054,9 @@ int ShellScriptInterpreter::execute_block(
               try {
                 out += std::to_string(eval_arith(expr));
               } catch (const std::runtime_error& e) {
-                // For division by zero, exit with error code like bash does
-                std::cerr << "cjsh: " << e.what() << std::endl;
-                exit(1);
+                // For division by zero and other arithmetic errors, re-throw to let caller handle
+                print_runtime_error("cjsh: " + std::string(e.what()), "$((" + expr + "))");
+                throw; // Re-throw the exception instead of calling exit(1)
               }
               i = end_idx;
               continue;
@@ -2164,27 +2182,32 @@ int ShellScriptInterpreter::execute_block(
       return out;
     };
 
-    text = expand_substitutions(text);
-
-    std::vector<std::string> head = shell_parser->parse_command(text);
-    if (!head.empty()) {
-      const std::string& prog = head[0];
-      if (should_interpret_as_cjsh(prog)) {
-        if (g_debug_mode)
-          std::cerr << "DEBUG: Interpreting script file: " << prog << std::endl;
-        std::ifstream f(prog);
-        if (!f) {
-          print_error({ErrorType::RUNTIME_ERROR,
-                       "",
-                       "Failed to open script file: " + prog,
-                       {}});
-          return 1;
+    try {
+      text = expand_substitutions(text);
+      
+      std::vector<std::string> head = shell_parser->parse_command(text);
+      if (!head.empty()) {
+        const std::string& prog = head[0];
+        if (should_interpret_as_cjsh(prog)) {
+          if (g_debug_mode)
+            std::cerr << "DEBUG: Interpreting script file: " << prog << std::endl;
+          std::ifstream f(prog);
+          if (!f) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "",
+                         "Failed to open script file: " + prog,
+                         {}});
+            return 1;
+          }
+          std::stringstream buffer;
+          buffer << f.rdbuf();
+          auto nested_lines = shell_parser->parse_into_lines(buffer.str());
+          return execute_block(nested_lines);
         }
-        std::stringstream buffer;
-        buffer << f.rdbuf();
-        auto nested_lines = shell_parser->parse_into_lines(buffer.str());
-        return execute_block(nested_lines);
       }
+    } catch (const std::runtime_error& e) {
+      // Re-throw to be handled by outer catch block
+      throw e;
     }
 
     if ((text == "case" || text.rfind("case ", 0) == 0) &&
@@ -2232,14 +2255,34 @@ int ShellScriptInterpreter::execute_block(
 
         size_t paren_pos = section.find(')');
         if (paren_pos != std::string::npos) {
-          std::string pattern = trim(section.substr(0, paren_pos));
+          std::string raw_pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
+
+          // Strip quotes from pattern (handle both single and double quotes)
+          std::string pattern = raw_pattern;
+          if (pattern.length() >= 2) {
+            if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
+                (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+              pattern = pattern.substr(1, pattern.length() - 2);
+            }
+          }
+          
+          // Expand variables in pattern
+          shell_parser->expand_env_vars(pattern);
 
           bool pattern_matches = matches_pattern(case_value, pattern);
 
           if (pattern_matches) {
             if (!command_part.empty()) {
-              return execute_simple_or_pipeline(command_part);
+              // Parse semicolon-separated commands
+              auto semicolon_commands = shell_parser->parse_semicolon_commands(command_part);
+              int exit_code = 0;
+              for (const auto& subcmd : semicolon_commands) {
+                exit_code = execute_simple_or_pipeline(subcmd);
+                if (exit_code != 0)
+                  break;
+              }
+              return exit_code;
             }
             return 0;
           }
@@ -3087,14 +3130,32 @@ int ShellScriptInterpreter::execute_block(
 
         size_t paren_pos = section.find(')');
         if (paren_pos != std::string::npos) {
-          std::string pattern = trim(section.substr(0, paren_pos));
+          std::string raw_pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
+
+          // Strip quotes from pattern (handle both single and double quotes)
+          std::string pattern = raw_pattern;
+          if (pattern.length() >= 2) {
+            if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
+                (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+              pattern = pattern.substr(1, pattern.length() - 2);
+            }
+          }
+          
+          // Expand variables in pattern
+          shell_parser->expand_env_vars(pattern);
 
           bool pattern_matches = matches_pattern(case_value, pattern);
 
           if (pattern_matches) {
             if (!command_part.empty()) {
-              matched_exit_code = execute_simple_or_pipeline(command_part);
+              // Parse semicolon-separated commands
+              auto semicolon_commands = shell_parser->parse_semicolon_commands(command_part);
+              for (const auto& subcmd : semicolon_commands) {
+                matched_exit_code = execute_simple_or_pipeline(subcmd);
+                if (matched_exit_code != 0)
+                  break;
+              }
             }
 
             return matched_exit_code;
@@ -3112,7 +3173,6 @@ int ShellScriptInterpreter::execute_block(
       ++tok_idx;
     if (tok_idx < header_toks.size()) {
       std::string raw_case_value = header_toks[tok_idx++];
-      // Expand variables in case value
       shell_parser->expand_env_vars(raw_case_value);
       case_value = raw_case_value;
     }
@@ -3184,17 +3244,35 @@ int ShellScriptInterpreter::execute_block(
           if (pattern_line.empty())
             continue;
 
-          size_t paren_pos = pattern_line.find(')');
+      size_t paren_pos = pattern_line.find(')');
           if (paren_pos != std::string::npos) {
-            std::string pattern = trim(pattern_line.substr(0, paren_pos));
+            std::string raw_pattern = trim(pattern_line.substr(0, paren_pos));
             std::string command_part = trim(pattern_line.substr(paren_pos + 1));
+
+            // Strip quotes from pattern (handle both single and double quotes)
+            std::string pattern = raw_pattern;
+            if (pattern.length() >= 2) {
+              if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
+                  (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+                pattern = pattern.substr(1, pattern.length() - 2);
+              }
+            }
+            
+            // Expand variables in pattern
+            shell_parser->expand_env_vars(pattern);
 
             bool pattern_matches = matches_pattern(case_value, pattern);
 
             if (pattern_matches && !found_match) {
               found_match = true;
               if (!command_part.empty()) {
-                matched_exit_code = execute_simple_or_pipeline(command_part);
+                // Parse semicolon-separated commands
+                auto semicolon_commands = shell_parser->parse_semicolon_commands(command_part);
+                for (const auto& subcmd : semicolon_commands) {
+                  matched_exit_code = execute_simple_or_pipeline(subcmd);
+                  if (matched_exit_code != 0)
+                    break;
+                }
               }
               break;
             }
@@ -3218,8 +3296,20 @@ int ShellScriptInterpreter::execute_block(
 
       size_t paren_pos = line.find(')');
       if (paren_pos != std::string::npos) {
-        std::string pattern = trim(line.substr(0, paren_pos));
+        std::string raw_pattern = trim(line.substr(0, paren_pos));
         std::string command_part = trim(line.substr(paren_pos + 1));
+
+        // Strip quotes from pattern (handle both single and double quotes)
+        std::string pattern = raw_pattern;
+        if (pattern.length() >= 2) {
+          if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
+              (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+            pattern = pattern.substr(1, pattern.length() - 2);
+          }
+        }
+        
+        // Expand variables in pattern
+        shell_parser->expand_env_vars(pattern);
 
         // Strip trailing ;; from command_part
         if (command_part.length() >= 2 &&
@@ -3274,7 +3364,13 @@ int ShellScriptInterpreter::execute_block(
           }
 
           for (const auto& cmd : case_commands) {
-            matched_exit_code = execute_simple_or_pipeline(cmd);
+            // Parse semicolon-separated commands
+            auto semicolon_commands = shell_parser->parse_semicolon_commands(cmd);
+            for (const auto& subcmd : semicolon_commands) {
+              matched_exit_code = execute_simple_or_pipeline(subcmd);
+              if (matched_exit_code != 0)
+                break;
+            }
             if (matched_exit_code != 0)
               break;
           }
@@ -4051,7 +4147,13 @@ int ShellScriptInterpreter::execute_block(
               for (const auto& n : param_names)
                 unsetenv(n.c_str());
             } else {
-              code = execute_simple_or_pipeline(cmd_text);
+              try {
+                code = execute_simple_or_pipeline(cmd_text);
+              } catch (const std::runtime_error& e) {
+                // Handle parameter expansion and other runtime errors properly
+                // Note: print_runtime_error already called by the throwing function
+                code = 1; // Set non-zero exit code to indicate error
+              }
             }
           }
           last_code = code;
@@ -4210,6 +4312,8 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
 
   std::string operand = param_expr.substr(op_pos + op.length());
 
+
+
   if (op == ":-") {
     return (is_set && !var_value.empty()) ? var_value : operand;
   } else if (op == "-") {
@@ -4238,18 +4342,18 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
     // the shell script interpreter should never exit(1) it should reutn return with a non 0 error code to indicate a fail unless it abosulely has to, also if in a piple line or forked process, does exit(). exit that forked process or does it close the main cjsh process
   } else if (op == ":?") {
     if (!is_set || var_value.empty()) {
-      std::cerr << "cjsh: " << var_name << ": "
-                << (operand.empty() ? "parameter null or not set" : operand)
-                << std::endl;
-      exit(1);
+      std::string error_msg = "cjsh: " + var_name + ": " + 
+                             (operand.empty() ? "parameter null or not set" : operand);
+      print_runtime_error(error_msg, "${" + var_name + op + operand + "}");
+      throw std::runtime_error(error_msg);
     }
     return var_value;
   } else if (op == "?") {
     if (!is_set) {
-      std::cerr << "cjsh: " << var_name << ": "
-                << (operand.empty() ? "parameter not set" : operand)
-                << std::endl;
-      exit(1);
+      std::string error_msg = "cjsh: " + var_name + ": " + 
+                             (operand.empty() ? "parameter not set" : operand);
+      print_runtime_error(error_msg, "${" + var_name + op + operand + "}");
+      throw std::runtime_error(error_msg);
     }
     return var_value;
   } else if (op == ":+") {
@@ -4466,8 +4570,24 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
   size_t ti = 0, pi = 0;
   size_t star_idx = std::string::npos, match_idx = 0;
 
-  while (ti < text.length()) {
-    if (pi < pattern.length() && pattern[pi] == '[') {
+  while (ti < text.length() || pi < pattern.length()) {
+    if (ti >= text.length()) {
+      // Text is exhausted, pattern can only continue with '*'
+      while (pi < pattern.length() && pattern[pi] == '*') {
+        pi++;
+      }
+      return pi == pattern.length();
+    }
+    
+    if (pi >= pattern.length()) {
+      // Pattern is exhausted, but text remains
+      if (star_idx != std::string::npos) {
+        pi = star_idx + 1;
+        ti = ++match_idx;
+      } else {
+        return false;
+      }
+    } else if (pattern[pi] == '[') {
       // Handle character class
       size_t class_end = pattern.find(']', pi);
       if (class_end != std::string::npos) {
@@ -4493,11 +4613,21 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
           return false;
         }
       }
-    } else if (pi < pattern.length() &&
-        (pattern[pi] == '?' || pattern[pi] == text[ti])) {
+    } else if (pattern[pi] == '\\' && pi + 1 < pattern.length()) {
+      // Handle escaped characters - treat next character as literal
+      if (pattern[pi + 1] == text[ti]) {
+        ti++;
+        pi += 2; // Skip both backslash and escaped character
+      } else if (star_idx != std::string::npos) {
+        pi = star_idx + 1;
+        ti = ++match_idx;
+      } else {
+        return false;
+      }
+    } else if (pattern[pi] == '?' || pattern[pi] == text[ti]) {
       ti++;
       pi++;
-    } else if (pi < pattern.length() && pattern[pi] == '*') {
+    } else if (pattern[pi] == '*') {
       star_idx = pi++;
       match_idx = ti;
     } else if (star_idx != std::string::npos) {
@@ -4508,11 +4638,7 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
     }
   }
 
-  while (pi < pattern.length() && pattern[pi] == '*') {
-    pi++;
-  }
-
-  return pi == pattern.length();
+  return true;
 }
 
 std::string ShellScriptInterpreter::pattern_substitute(

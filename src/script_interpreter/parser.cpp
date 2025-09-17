@@ -273,6 +273,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   char quote_char = '\0';
   bool escaped = false;
   int arith_depth = 0; // Track $((  )) arithmetic expressions
+  int brace_depth = 0; // Track ${  } parameter expansions
 
   bool token_saw_single = false;
   bool token_saw_double = false;
@@ -309,9 +310,19 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       in_quotes = false;
       quote_char = '\0';
     } else if (!in_quotes) {
-      // Check for whitespace first when not in quotes
-      if (std::isspace(c)) {
-        if (!current_token.empty()) {
+      // Check for parameter expansion start ${
+      if (c == '{' && current_token.length() >= 1 && current_token.back() == '$') {
+        brace_depth++;
+        current_token += c;
+      }
+      // Check for parameter expansion end }
+      else if (c == '}' && brace_depth > 0) {
+        brace_depth--;
+        current_token += c;
+      }
+      // Check for whitespace when not in quotes, arithmetic, or parameter expansion
+      else if (std::isspace(c)) {
+        if (!current_token.empty() && arith_depth == 0 && brace_depth == 0) {
           if (token_saw_single && !token_saw_double) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
                              current_token);
@@ -323,6 +334,9 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           }
           current_token.clear();
           token_saw_single = token_saw_double = false;
+        } else if (arith_depth > 0 || brace_depth > 0) {
+          // Preserve whitespace inside arithmetic or parameter expressions
+          current_token += c;
         }
       }
       // Check for arithmetic expression start $((
@@ -338,9 +352,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
         current_token += cmdline[i+1]; // Add the second )
         i++; // Skip the next )
       }
-      // Only split on these characters if not inside arithmetic expressions
+      // Only split on these characters if not inside arithmetic expressions or parameter expansions
       else if ((c == '(' || c == ')' || c == '<' || c == '>' || 
-                (c == '&' && arith_depth == 0) || (c == '|' && arith_depth == 0))) {
+                (c == '&' && arith_depth == 0 && brace_depth == 0) || 
+                (c == '|' && arith_depth == 0 && brace_depth == 0))) {
         if (!current_token.empty()) {
           if (token_saw_single && !token_saw_double) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
@@ -635,7 +650,12 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
       std::string tmp = strip_quote_tag(raw_arg);
       auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(tmp);
       if (!had_noenv) {
-        expand_env_vars(noenv_stripped);
+        try {
+          expand_env_vars(noenv_stripped);
+        } catch (const std::runtime_error& e) {
+          // Parameter expansion errors should propagate properly
+          throw e;
+        }
       }
 
       if (is_double_quoted_token(raw_arg)) {
@@ -921,8 +941,22 @@ void Parser::expand_env_vars(std::string& arg) {
           if (shell && shell->get_shell_script_interpreter()) {
             try {
               value = shell->get_shell_script_interpreter()->expand_parameter_expression(param_expr);
+            } catch (const std::runtime_error& e) {
+              // Parameter expansion errors like :? and ? should propagate, not fall back
+              std::string error_msg = e.what();
+              if (error_msg.find("parameter null or not set") != std::string::npos ||
+                  error_msg.find("parameter not set") != std::string::npos) {
+                // This is a :? or ? operator error that should terminate the script
+                throw e;
+              } else {
+                // Other runtime errors can fall back to simple getenv
+                const char* env_val = getenv(param_expr.c_str());
+                if (env_val) {
+                  value = env_val;
+                }
+              }
             } catch (...) {
-              // Fall back to simple getenv if script interpreter fails
+              // Fall back to simple getenv for non-runtime errors
               const char* env_val = getenv(param_expr.c_str());
               if (env_val) {
                 value = env_val;

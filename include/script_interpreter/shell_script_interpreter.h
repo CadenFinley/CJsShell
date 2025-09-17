@@ -130,6 +130,11 @@ class ShellScriptInterpreter {
                           bool show_suggestions = true,
                           bool show_context = true) const;
 
+  // Runtime error formatting helper
+  void print_runtime_error(const std::string& error_message, 
+                           const std::string& context = "",
+                           size_t line_number = 0) const;
+
   // Function management methods
   bool has_function(const std::string& name) const;
   std::vector<std::string> get_function_names() const;
