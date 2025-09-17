@@ -272,6 +272,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   bool in_quotes = false;
   char quote_char = '\0';
   bool escaped = false;
+  int arith_depth = 0; // Track $((  )) arithmetic expressions
 
   bool token_saw_single = false;
   bool token_saw_double = false;
@@ -303,36 +304,55 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     } else if (c == quote_char && in_quotes) {
       in_quotes = false;
       quote_char = '\0';
-    } else if ((c == '(' || c == ')' || c == '<' || c == '>' || c == '&' ||
-                c == '|') &&
-               !in_quotes) {
-      if (!current_token.empty()) {
-        if (token_saw_single && !token_saw_double) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                           current_token);
-        } else if (token_saw_double && !token_saw_single) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                           current_token);
-        } else {
-          tokens.push_back(current_token);
+    } else if (!in_quotes) {
+      // Check for whitespace first when not in quotes
+      if (std::isspace(c)) {
+        if (!current_token.empty()) {
+          if (token_saw_single && !token_saw_double) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                             current_token);
+          } else if (token_saw_double && !token_saw_single) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                             current_token);
+          } else {
+            tokens.push_back(current_token);
+          }
+          current_token.clear();
+          token_saw_single = token_saw_double = false;
         }
-        current_token.clear();
-        token_saw_single = token_saw_double = false;
       }
-      tokens.push_back(std::string(1, c));
-    } else if (std::isspace(c) && !in_quotes) {
-      if (!current_token.empty()) {
-        if (token_saw_single && !token_saw_double) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                           current_token);
-        } else if (token_saw_double && !token_saw_single) {
-          tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                           current_token);
-        } else {
-          tokens.push_back(current_token);
+      // Check for arithmetic expression start $((
+      else if (c == '(' && i >= 1 && cmdline[i-1] == '(' && 
+          current_token.length() >= 1 && current_token.back() == '$') {
+        arith_depth++;
+        current_token += c;
+      }
+      // Check for arithmetic expression end ))
+      else if (c == ')' && i + 1 < cmdline.length() && cmdline[i+1] == ')' && arith_depth > 0) {
+        arith_depth--;
+        current_token += c;
+        current_token += cmdline[i+1]; // Add the second )
+        i++; // Skip the next )
+      }
+      // Only split on these characters if not inside arithmetic expressions
+      else if ((c == '(' || c == ')' || c == '<' || c == '>' || 
+                (c == '&' && arith_depth == 0) || (c == '|' && arith_depth == 0))) {
+        if (!current_token.empty()) {
+          if (token_saw_single && !token_saw_double) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                             current_token);
+          } else if (token_saw_double && !token_saw_single) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                             current_token);
+          } else {
+            tokens.push_back(current_token);
+          }
+          current_token.clear();
+          token_saw_single = token_saw_double = false;
         }
-        current_token.clear();
-        token_saw_single = token_saw_double = false;
+        tokens.push_back(std::string(1, c));
+      } else {
+        current_token += c;
       }
     } else {
       current_token += c;
@@ -1094,21 +1114,54 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
 
     if (!trimmed.empty() && trimmed.back() == '&') {
-      size_t amp_pos = cmd_part.rfind('&');
-      if (amp_pos != std::string::npos && amp_pos + 1 < cmd_part.length()) {
-        size_t next_non_ws = amp_pos + 1;
-        while (next_non_ws < cmd_part.length() &&
-               std::isspace(cmd_part[next_non_ws])) {
-          next_non_ws++;
+      // Check if this & is inside an arithmetic expression
+      bool inside_arithmetic = false;
+      int arith_depth = 0;
+      bool in_quotes = false;
+      char quote_char = '\0';
+      
+      for (size_t i = 0; i < trimmed.length(); ++i) {
+        if (trimmed[i] == '"' || trimmed[i] == '\'') {
+          if (!in_quotes) {
+            in_quotes = true;
+            quote_char = trimmed[i];
+          } else if (quote_char == trimmed[i]) {
+            in_quotes = false;
+          }
+        } else if (!in_quotes) {
+          // Check for arithmetic expression start $((
+          if (i >= 2 && trimmed[i] == '(' && trimmed[i-1] == '(' && trimmed[i-2] == '$') {
+            arith_depth++;
+          }
+          // Check for arithmetic expression end ))
+          else if (i + 1 < trimmed.length() && trimmed[i] == ')' && trimmed[i+1] == ')' && arith_depth > 0) {
+            arith_depth--;
+            i++; // Skip the next )
+          }
+          // Check if we're at the final & and if we're inside arithmetic
+          else if (i == trimmed.length() - 1 && trimmed[i] == '&' && arith_depth > 0) {
+            inside_arithmetic = true;
+          }
         }
+      }
+      
+      if (!inside_arithmetic) {
+        size_t amp_pos = cmd_part.rfind('&');
+        if (amp_pos != std::string::npos && amp_pos + 1 < cmd_part.length()) {
+          size_t next_non_ws = amp_pos + 1;
+          while (next_non_ws < cmd_part.length() &&
+                 std::isspace(cmd_part[next_non_ws])) {
+            next_non_ws++;
+          }
 
-        if (next_non_ws < cmd_part.length() && cmd_part[next_non_ws] == '>') {
-          is_background = false;
+          if (next_non_ws < cmd_part.length() && cmd_part[next_non_ws] == '>') {
+            is_background = false;
+          } else {
+            is_background = true;
+          }
         } else {
           is_background = true;
         }
-      } else {
-        is_background = true;
       }
     }
 
@@ -1404,6 +1457,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
+  int arith_depth = 0; // Track $((  )) arithmetic expressions
 
   for (size_t i = 0; i < command.length(); ++i) {
     if (command[i] == '"' || command[i] == '\'') {
@@ -1415,12 +1469,24 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
       }
       current += command[i];
     } else if (!in_quotes && command[i] == '(') {
+      // Check for arithmetic expression start $((
+      if (i >= 2 && command[i-1] == '(' && command[i-2] == '$') {
+        arith_depth++;
+      }
       paren_depth++;
       current += command[i];
     } else if (!in_quotes && command[i] == ')') {
       paren_depth--;
-      current += command[i];
-    } else if (!in_quotes && paren_depth == 0 && i < command.length() - 1) {
+      // Check for arithmetic expression end ))
+      if (paren_depth >= 0 && i + 1 < command.length() && command[i + 1] == ')' && arith_depth > 0) {
+        arith_depth--;
+        current += command[i];
+        current += command[i + 1]; // Add the second )
+        i++; // Skip the next )
+      } else {
+        current += command[i];
+      }
+    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 && i < command.length() - 1) {
       if (command[i] == '&' && command[i + 1] == '&') {
         if (!current.empty()) {
           logical_commands.push_back({current, "&&"});

@@ -1515,134 +1515,302 @@ int ShellScriptInterpreter::execute_block(
     };
 
     auto eval_arith = [&](const std::string& expr) -> long long {
-      struct Tok {
-        enum T {
-          NUM,
-          OP,
-          LP,
-          RP
-        } t;
-        long long v;
-        char op;
+      struct Token {
+        enum Type {
+          NUMBER,
+          OPERATOR,
+          VARIABLE,
+          LPAREN,
+          RPAREN,
+          TERNARY_Q,
+          TERNARY_COLON
+        } type;
+        long long value;
+        std::string str_value;
+        std::string op;
       };
+
       auto is_space = [](char c) {
         return c == ' ' || c == '\t' || c == '\n' || c == '\r';
       };
-      auto prec = [](char op) {
-        if (op == '+' || op == '-')
-          return 1;
-        if (op == '*' || op == '/' || op == '%')
-          return 2;
+
+      // Operator precedence (higher number = higher precedence)
+      auto get_precedence = [](const std::string& op) -> int {
+        if (op == "?:" || op == "?") return 1;
+        if (op == "||") return 2;
+        if (op == "&&") return 3;
+        if (op == "|") return 4;
+        if (op == "^") return 5;
+        if (op == "&") return 6;
+        if (op == "==" || op == "!=") return 7;
+        if (op == "<" || op == ">" || op == "<=" || op == ">=") return 8;
+        if (op == "<<" || op == ">>") return 9;
+        if (op == "+" || op == "-") return 10;
+        if (op == "*" || op == "/" || op == "%") return 11;
+        if (op == "**") return 12; // exponentiation (right associative)
+        if (op == "!" || op == "~" || op == "unary+" || op == "unary-") return 13;
+        if (op == "++" || op == "--") return 14; // pre/post increment/decrement
         return 0;
       };
-      auto apply = [](long long a, long long b, char op) -> long long {
-        switch (op) {
-          case '+':
-            return a + b;
-          case '-':
-            return a - b;
-          case '*':
-            return a * b;
-          case '/':
-            return b == 0 ? 0 : a / b;
-          case '%':
-            return b == 0 ? 0 : a % b;
-          default:
-            return 0;
-        }
-      };
-      std::vector<Tok> output;
-      std::vector<char> ops;
 
+      auto is_right_associative = [](const std::string& op) -> bool {
+        return op == "**" || op == "?" || op == "=";
+      };
+
+      auto apply_operator = [&](long long a, long long b, const std::string& op) -> long long {
+        if (op == "+") return a + b;
+        if (op == "-") return a - b;
+        if (op == "*") return a * b;
+        if (op == "/") return (b == 0) ? 0 : a / b;
+        if (op == "%") return (b == 0) ? 0 : a % b;
+        if (op == "==") return (a == b) ? 1 : 0;
+        if (op == "!=") return (a != b) ? 1 : 0;
+        if (op == "<") return (a < b) ? 1 : 0;
+        if (op == ">") return (a > b) ? 1 : 0;
+        if (op == "<=") return (a <= b) ? 1 : 0;
+        if (op == ">=") return (a >= b) ? 1 : 0;
+        if (op == "&&") return (a && b) ? 1 : 0;
+        if (op == "||") return (a || b) ? 1 : 0;
+        if (op == "&") return a & b;
+        if (op == "|") return a | b;
+        if (op == "^") return a ^ b;
+        if (op == "<<") return a << b;
+        if (op == ">>") return a >> b;
+        if (op == "**") {
+          long long result = 1;
+          for (long long i = 0; i < b; ++i) {
+            result *= a;
+          }
+          return result;
+        }
+        return 0;
+      };
+
+      auto apply_unary = [](long long a, const std::string& op) -> long long {
+        if (op == "unary+") return a;
+        if (op == "unary-") return -a;
+        if (op == "!") return !a ? 1 : 0;
+        if (op == "~") return ~a;
+        return a;
+      };
+
+      // Tokenize the expression
+      std::vector<Token> tokens;
+      bool expect_number = true; // Track if we expect a number (for unary operators)
+      
       for (size_t i = 0; i < expr.size();) {
         if (is_space(expr[i])) {
           ++i;
           continue;
         }
-        if (isdigit(expr[i])) {
+
+        // Numbers (including negative numbers at start or after operators)
+        if (isdigit(expr[i]) || (expr[i] == '-' && expect_number && i + 1 < expr.size() && isdigit(expr[i + 1]))) {
           long long val = 0;
+          bool negative = false;
           size_t j = i;
+          
+          if (expr[j] == '-') {
+            negative = true;
+            ++j;
+          }
+          
           while (j < expr.size() && isdigit(expr[j])) {
             val = val * 10 + (expr[j] - '0');
             ++j;
           }
-          output.push_back({Tok::NUM, val, 0});
+          
+          if (negative) val = -val;
+          tokens.push_back({Token::NUMBER, val, "", ""});
           i = j;
+          expect_number = false;
           continue;
         }
+
+        // Variables
         if (isalpha(expr[i]) || expr[i] == '_') {
           size_t j = i;
-          while (j < expr.size() && (isalnum(expr[j]) || expr[j] == '_'))
+          while (j < expr.size() && (isalnum(expr[j]) || expr[j] == '_')) {
             ++j;
+          }
           std::string name = expr.substr(i, j - i);
-          const char* ev = getenv(name.c_str());
+          const char* env_val = getenv(name.c_str());
           long long val = 0;
-          if (ev) {
+          if (env_val) {
             try {
-              val = std::stoll(ev);
+              val = std::stoll(env_val);
             } catch (...) {
               val = 0;
             }
           }
-          output.push_back({Tok::NUM, val, 0});
+          tokens.push_back({Token::NUMBER, val, name, ""});
           i = j;
+          expect_number = false;
           continue;
         }
+
+        // Parentheses
         if (expr[i] == '(') {
-          ops.push_back('(');
+          tokens.push_back({Token::LPAREN, 0, "", ""});
           ++i;
+          expect_number = true;
           continue;
         }
         if (expr[i] == ')') {
-          while (!ops.empty() && ops.back() != '(') {
-            char op = ops.back();
-            ops.pop_back();
-            output.push_back({Tok::OP, 0, op});
-          }
-          if (!ops.empty() && ops.back() == '(')
-            ops.pop_back();
+          tokens.push_back({Token::RPAREN, 0, "", ""});
           ++i;
-          continue;
-        }
-        char op = expr[i];
-        if (op == '+' || op == '-' || op == '*' || op == '/' || op == '%') {
-          while (!ops.empty() && ops.back() != '(' &&
-                 prec(ops.back()) >= prec(op)) {
-            char top = ops.back();
-            ops.pop_back();
-            output.push_back({Tok::OP, 0, top});
-          }
-          ops.push_back(op);
-          ++i;
+          expect_number = false;
           continue;
         }
 
+        // Ternary operator
+        if (expr[i] == '?') {
+          tokens.push_back({Token::TERNARY_Q, 0, "", "?"});
+          ++i;
+          expect_number = true;
+          continue;
+        }
+        if (expr[i] == ':') {
+          tokens.push_back({Token::TERNARY_COLON, 0, "", ":"});
+          ++i;
+          expect_number = true;
+          continue;
+        }
+
+        // Multi-character operators
+        if (i + 1 < expr.size()) {
+          std::string two_char = expr.substr(i, 2);
+          if (two_char == "==" || two_char == "!=" || two_char == "<=" || 
+              two_char == ">=" || two_char == "&&" || two_char == "||" ||
+              two_char == "<<" || two_char == ">>" || two_char == "++" ||
+              two_char == "--" || two_char == "**") {
+            tokens.push_back({Token::OPERATOR, 0, "", two_char});
+            i += 2;
+            expect_number = true;
+            continue;
+          }
+        }
+
+        // Single character operators
+        char op_char = expr[i];
+        if (op_char == '+' || op_char == '-' || op_char == '*' || 
+            op_char == '/' || op_char == '%' || op_char == '<' || 
+            op_char == '>' || op_char == '&' || op_char == '|' || 
+            op_char == '^' || op_char == '!' || op_char == '~' ||
+            op_char == '=') {
+          
+          std::string op_str(1, op_char);
+          
+          // Handle unary operators
+          if (expect_number && (op_char == '+' || op_char == '-' || op_char == '!' || op_char == '~')) {
+            if (op_char == '+') op_str = "unary+";
+            else if (op_char == '-') op_str = "unary-";
+            tokens.push_back({Token::OPERATOR, 0, "", op_str});
+            ++i;
+            expect_number = true;
+            continue;
+          }
+          
+          tokens.push_back({Token::OPERATOR, 0, "", op_str});
+          ++i;
+          expect_number = true;
+          continue;
+        }
+
+        // Skip unknown characters
         ++i;
       }
-      while (!ops.empty()) {
-        char op = ops.back();
-        ops.pop_back();
-        if (op != '(')
-          output.push_back({Tok::OP, 0, op});
-      }
 
-      std::vector<long long> st;
-      for (auto& t : output) {
-        if (t.t == Tok::NUM)
-          st.push_back(t.v);
-        else if (t.t == Tok::OP) {
-          if (st.size() < 2) {
-            st.clear();
-            break;
+      // Convert to postfix using Shunting Yard algorithm
+      std::vector<Token> output;
+      std::vector<Token> operator_stack;
+      std::vector<long long> ternary_stack; // For ternary operator support
+
+      for (const auto& token : tokens) {
+        if (token.type == Token::NUMBER) {
+          output.push_back(token);
+        } else if (token.type == Token::OPERATOR) {
+          while (!operator_stack.empty() && 
+                 operator_stack.back().type == Token::OPERATOR &&
+                 operator_stack.back().op != "(" &&
+                 ((get_precedence(operator_stack.back().op) > get_precedence(token.op)) ||
+                  (get_precedence(operator_stack.back().op) == get_precedence(token.op) && 
+                   !is_right_associative(token.op)))) {
+            output.push_back(operator_stack.back());
+            operator_stack.pop_back();
           }
-          long long b = st.back();
-          st.pop_back();
-          long long a = st.back();
-          st.pop_back();
-          st.push_back(apply(a, b, t.op));
+          operator_stack.push_back(token);
+        } else if (token.type == Token::LPAREN) {
+          operator_stack.push_back(token);
+        } else if (token.type == Token::RPAREN) {
+          while (!operator_stack.empty() && operator_stack.back().type != Token::LPAREN) {
+            output.push_back(operator_stack.back());
+            operator_stack.pop_back();
+          }
+          if (!operator_stack.empty()) {
+            operator_stack.pop_back(); // Remove the left parenthesis
+          }
+        } else if (token.type == Token::TERNARY_Q) {
+          operator_stack.push_back(token);
+        } else if (token.type == Token::TERNARY_COLON) {
+          // Pop operators until we find the matching ?
+          while (!operator_stack.empty() && operator_stack.back().type != Token::TERNARY_Q) {
+            output.push_back(operator_stack.back());
+            operator_stack.pop_back();
+          }
+          if (!operator_stack.empty()) {
+            // Replace the ? with a complete ternary operator token
+            operator_stack.pop_back();
+            Token ternary_op;
+            ternary_op.type = Token::TERNARY_Q; // We'll use this to represent the complete ternary
+            ternary_op.op = "?:";
+            output.push_back(ternary_op);
+          }
         }
       }
-      return st.empty() ? 0 : st.back();
+
+      while (!operator_stack.empty()) {
+        if (operator_stack.back().type == Token::OPERATOR || 
+            operator_stack.back().type == Token::TERNARY_Q) {
+          output.push_back(operator_stack.back());
+        }
+        operator_stack.pop_back();
+      }
+
+      // Evaluate postfix expression
+      std::vector<long long> eval_stack;
+      
+      for (const auto& token : output) {
+        if (token.type == Token::NUMBER) {
+          eval_stack.push_back(token.value);
+        } else if (token.type == Token::OPERATOR) {
+          if (token.op == "unary+" || token.op == "unary-" || 
+              token.op == "!" || token.op == "~") {
+            if (!eval_stack.empty()) {
+              long long a = eval_stack.back();
+              eval_stack.pop_back();
+              eval_stack.push_back(apply_unary(a, token.op));
+            }
+          } else {
+            if (eval_stack.size() >= 2) {
+              long long b = eval_stack.back(); eval_stack.pop_back();
+              long long a = eval_stack.back(); eval_stack.pop_back();
+              eval_stack.push_back(apply_operator(a, b, token.op));
+            }
+          }
+        } else if (token.type == Token::TERNARY_Q && token.op == "?:") {
+          // Complete ternary operator: condition ? true_val : false_val
+          // Stack order at this point: condition (bottom), true_val, false_val (top)
+          if (eval_stack.size() >= 3) {
+            long long false_val = eval_stack.back(); eval_stack.pop_back();
+            long long true_val = eval_stack.back(); eval_stack.pop_back();
+            long long condition = eval_stack.back(); eval_stack.pop_back();
+            eval_stack.push_back(condition ? true_val : false_val);
+          }
+        }
+      }
+
+      return eval_stack.empty() ? 0 : eval_stack.back();
     };
 
     auto expand_substitutions = [&](const std::string& in) -> std::string {
@@ -1923,23 +2091,7 @@ int ShellScriptInterpreter::execute_block(
           std::string pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
 
-          bool pattern_matches = false;
-          if (pattern == "*") {
-            pattern_matches = true;
-          } else if (pattern == case_value) {
-            pattern_matches = true;
-          } else if (pattern.find('*') != std::string::npos) {
-            if (pattern.back() == '*' && pattern.size() > 1) {
-              std::string prefix = pattern.substr(0, pattern.size() - 1);
-              pattern_matches = (case_value.substr(0, prefix.size()) == prefix);
-            } else if (pattern.front() == '*' && pattern.size() > 1) {
-              std::string suffix = pattern.substr(1);
-              if (case_value.size() >= suffix.size()) {
-                pattern_matches = (case_value.substr(case_value.size() -
-                                                     suffix.size()) == suffix);
-              }
-            }
-          }
+          bool pattern_matches = matches_pattern(case_value, pattern);
 
           if (pattern_matches) {
             if (!command_part.empty()) {
@@ -2777,12 +2929,7 @@ int ShellScriptInterpreter::execute_block(
           std::string pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
 
-          bool pattern_matches = false;
-          if (pattern == "*") {
-            pattern_matches = true;
-          } else if (pattern == case_value) {
-            pattern_matches = true;
-          }
+          bool pattern_matches = matches_pattern(case_value, pattern);
 
           if (pattern_matches) {
             if (!command_part.empty()) {
@@ -2881,28 +3028,7 @@ int ShellScriptInterpreter::execute_block(
             std::string pattern = trim(pattern_line.substr(0, paren_pos));
             std::string command_part = trim(pattern_line.substr(paren_pos + 1));
 
-            bool pattern_matches = false;
-            if (pattern == "*") {
-              pattern_matches = true;
-            } else if (pattern == case_value) {
-              pattern_matches = true;
-            } else {
-              if (pattern.find('*') != std::string::npos) {
-                if (pattern.back() == '*') {
-                  std::string prefix = pattern.substr(0, pattern.length() - 1);
-                  if (case_value.substr(0, prefix.length()) == prefix) {
-                    pattern_matches = true;
-                  }
-                } else if (pattern.front() == '*') {
-                  std::string suffix = pattern.substr(1);
-                  if (case_value.length() >= suffix.length() &&
-                      case_value.substr(case_value.length() -
-                                        suffix.length()) == suffix) {
-                    pattern_matches = true;
-                  }
-                }
-              }
-            }
+            bool pattern_matches = matches_pattern(case_value, pattern);
 
             if (pattern_matches && !found_match) {
               found_match = true;
@@ -2941,28 +3067,7 @@ int ShellScriptInterpreter::execute_block(
               trim(command_part.substr(0, command_part.length() - 2));
         }
 
-        bool pattern_matches = false;
-        if (pattern == "*") {
-          pattern_matches = true;
-        } else if (pattern == case_value) {
-          pattern_matches = true;
-        } else {
-          if (pattern.find('*') != std::string::npos) {
-            if (pattern.back() == '*') {
-              std::string prefix = pattern.substr(0, pattern.length() - 1);
-              if (case_value.substr(0, prefix.length()) == prefix) {
-                pattern_matches = true;
-              }
-            } else if (pattern.front() == '*') {
-              std::string suffix = pattern.substr(1);
-              if (case_value.length() >= suffix.length() &&
-                  case_value.substr(case_value.length() - suffix.length()) ==
-                      suffix) {
-                pattern_matches = true;
-              }
-            }
-          }
-        }
+        bool pattern_matches = matches_pattern(case_value, pattern);
 
         if (pattern_matches && !found_match) {
           found_match = true;
@@ -4130,13 +4235,99 @@ std::string ShellScriptInterpreter::pattern_match_suffix(
   return value.substr(0, best_match);
 }
 
+// Helper function to check if a character matches a character class like [a-z], [0-9], [abc]
+bool ShellScriptInterpreter::matches_char_class(char c, const std::string& char_class) {
+  if (char_class.length() < 3 || char_class[0] != '[' || char_class.back() != ']') {
+    return false;
+  }
+  
+  std::string class_content = char_class.substr(1, char_class.length() - 2);
+  bool negated = false;
+  
+  // Handle negated character classes [^abc] or [!abc]
+  if (!class_content.empty() && (class_content[0] == '^' || class_content[0] == '!')) {
+    negated = true;
+    class_content = class_content.substr(1);
+  }
+  
+  bool matches = false;
+  
+  for (size_t i = 0; i < class_content.length(); ++i) {
+    // Handle character ranges like a-z, 0-9
+    if (i + 2 < class_content.length() && class_content[i + 1] == '-') {
+      char start = class_content[i];
+      char end = class_content[i + 2];
+      if (c >= start && c <= end) {
+        matches = true;
+        break;
+      }
+      i += 2; // Skip the range
+    } else {
+      // Handle individual characters
+      if (c == class_content[i]) {
+        matches = true;
+        break;
+      }
+    }
+  }
+  
+  return negated ? !matches : matches;
+}
+
 bool ShellScriptInterpreter::matches_pattern(const std::string& text,
                                              const std::string& pattern) {
+  // Handle multiple patterns separated by | (pipe)
+  if (pattern.find('|') != std::string::npos) {
+    size_t start = 0;
+    while (start < pattern.length()) {
+      size_t pipe_pos = pattern.find('|', start);
+      std::string sub_pattern;
+      if (pipe_pos == std::string::npos) {
+        sub_pattern = pattern.substr(start);
+        start = pattern.length();
+      } else {
+        sub_pattern = pattern.substr(start, pipe_pos - start);
+        start = pipe_pos + 1;
+      }
+      
+      if (matches_pattern(text, sub_pattern)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
   size_t ti = 0, pi = 0;
   size_t star_idx = std::string::npos, match_idx = 0;
 
   while (ti < text.length()) {
-    if (pi < pattern.length() &&
+    if (pi < pattern.length() && pattern[pi] == '[') {
+      // Handle character class
+      size_t class_end = pattern.find(']', pi);
+      if (class_end != std::string::npos) {
+        std::string char_class = pattern.substr(pi, class_end - pi + 1);
+        if (matches_char_class(text[ti], char_class)) {
+          ti++;
+          pi = class_end + 1;
+        } else if (star_idx != std::string::npos) {
+          pi = star_idx + 1;
+          ti = ++match_idx;
+        } else {
+          return false;
+        }
+      } else {
+        // Invalid character class, treat [ as literal
+        if (pattern[pi] == text[ti]) {
+          ti++;
+          pi++;
+        } else if (star_idx != std::string::npos) {
+          pi = star_idx + 1;
+          ti = ++match_idx;
+        } else {
+          return false;
+        }
+      }
+    } else if (pi < pattern.length() &&
         (pattern[pi] == '?' || pattern[pi] == text[ti])) {
       ti++;
       pi++;
