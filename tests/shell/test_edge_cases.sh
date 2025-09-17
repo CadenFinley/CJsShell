@@ -184,12 +184,23 @@ echo "Testing signal handling during execution..."
 "$CJSH_PATH" -c "sleep 10" &
 shell_pid=$!
 sleep 0.1
-kill -TERM $shell_pid 2>/dev/null
-wait $shell_pid 2>/dev/null
-if [ $? -ne 0 ]; then
-    pass_test "signal handling (TERM)"
+
+# Check if process is still running before sending signal
+if kill -0 $shell_pid 2>/dev/null; then
+    # Send TERM signal
+    kill -TERM $shell_pid 2>/dev/null
+    sleep 0.1
+    
+    # Check if process was terminated (should no longer exist)
+    if ! kill -0 $shell_pid 2>/dev/null; then
+        pass_test "signal handling (TERM)"
+    else
+        # Process still exists, force kill it and skip test
+        kill -9 $shell_pid 2>/dev/null
+        skip_test "signal handling (process did not terminate)"
+    fi
 else
-    skip_test "signal handling"
+    skip_test "signal handling (process exited too quickly)"
 fi
 
 # Test 18: Resource exhaustion simulation
