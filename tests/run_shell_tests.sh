@@ -89,7 +89,13 @@ run_test() {
             FILES_PASS=$((FILES_PASS+1))
         else
             echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
-            echo "    Output: $output"
+            # Only show the failed test lines instead of all output
+            fail_lines=$(echo "$output" | grep "FAIL")
+            if [ -n "$fail_lines" ]; then
+                echo "$fail_lines" | while IFS= read -r line; do
+                    echo "    ${RED}$line${NC}"
+                done
+            fi
             FILES_FAIL=$((FILES_FAIL+1))
         fi
         

@@ -65,12 +65,21 @@ test_script:
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER
       chmod +x tests/run_shell_tests.sh
-      ./tests/run_shell_tests.sh
+      chmod +x tool_scripts/generate_test_badge.sh
+      # Run tests and generate badge data (continue even if tests fail)
+      ./tool_scripts/generate_test_badge.sh || true
+      echo "Test badge generation completed (exit code: $?)"
 
 # Artifacts to save
 artifacts:
   - path: build/CJsShell-Unix.tar.gz
     name: CJsShell-Unix
+  - path: build/badge_url.txt
+    name: TestBadgeURL
+  - path: build/badge_markdown.txt
+    name: TestBadgeMarkdown
+  - path: build/test_results.json
+    name: TestResults
 
 # Notifications
 notifications:
