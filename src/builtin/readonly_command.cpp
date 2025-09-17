@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include "shell.h"
+#include "error_out.h"
 
 ReadonlyManager& ReadonlyManager::instance() {
   static ReadonlyManager instance;
@@ -61,8 +62,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       function_mode = true;
       start_index = i + 1;
     } else if (args[i].substr(0, 1) == "-") {
-      std::cerr << "cjsh: readonly: " << args[i] << ": invalid option"
-                << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "readonly",
+                   args[i] + ": invalid option",
+                   {}});
       return 2;
     } else {
       break;
@@ -84,7 +87,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
   }
 
   if (function_mode) {
-    std::cerr << "cjsh: readonly: -f option not implemented" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "readonly",
+                 "-f option not implemented",
+                 {}});
     return 1;
   }
 
@@ -97,7 +103,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       std::string value = arg.substr(eq_pos + 1);
 
       if (readonly_manager.is_readonly(name)) {
-        std::cerr << "readonly: " << name << ": readonly variable" << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "readonly",
+                     name + ": readonly variable",
+                     {}});
         return 1;
       }
 

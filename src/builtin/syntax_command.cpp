@@ -122,14 +122,19 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     lines = script_interpreter->parse_into_lines(command_string);
   } else {
     if (target_file.empty()) {
-      std::cerr << "cjsh: syntax: no input file specified" << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "syntax",
+                   "no input file specified",
+                   {}});
       return 1;
     }
 
     std::ifstream file(target_file);
     if (!file.is_open()) {
-      std::cerr << "syntax: cannot open file '" << target_file << "'"
-                << std::endl;
+      print_error({ErrorType::FILE_NOT_FOUND,
+                   "syntax",
+                   "cannot open file '" + target_file + "'",
+                   {}});
       return 1;
     }
 
@@ -142,7 +147,10 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
   auto script_interpreter = shell->get_shell_script_interpreter();
   if (!script_interpreter) {
-    std::cerr << "cjsh: syntax: script interpreter not available" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "syntax",
+                 "script interpreter not available",
+                 {}});
     return 1;
   }
 
@@ -178,8 +186,10 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     else if (severity_filter == "critical")
       filter_severity = ShellScriptInterpreter::ErrorSeverity::CRITICAL;
     else {
-      std::cerr << "syntax: unknown severity level '" << severity_filter << "'"
-                << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "syntax",
+                   "unknown severity level '" + severity_filter + "'",
+                   {"Valid levels: info, warning, error, critical"}});
       return 1;
     }
 
@@ -211,8 +221,10 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     else if (category_filter == "performance")
       filter_category = ShellScriptInterpreter::ErrorCategory::PERFORMANCE;
     else {
-      std::cerr << "syntax: unknown category '" << category_filter << "'"
-                << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "syntax",
+                   "unknown category '" + category_filter + "'",
+                   {"Valid categories: syntax, variables, redirection, control, commands, semantics, style, performance"}});
       return 1;
     }
 

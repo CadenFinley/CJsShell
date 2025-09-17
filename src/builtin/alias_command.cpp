@@ -6,6 +6,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "error_out.h"
 
 #define PRINT_ERROR(MSG)      \
   do {                        \
@@ -57,7 +58,10 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
 
 int unalias_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() < 2) {
-    std::cerr << "cjsh: unalias: not enough arguments" << std::endl;
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "unalias",
+                 "not enough arguments",
+                 {}});
     return 1;
   }
 
@@ -74,7 +78,10 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << "Removed alias: " << name << std::endl;
       }
     } else {
-      std::cerr << "cjsh: unalias: " << name << ": not found" << std::endl;
+      print_error({ErrorType::COMMAND_NOT_FOUND,
+                   "unalias",
+                   name + ": not found",
+                   {}});
       success = false;
     }
   }

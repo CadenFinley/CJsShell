@@ -88,7 +88,7 @@ expected="1
 if [ "$result" = "$expected" ]; then
     pass
 else
-    fail "Break builtin failed"
+    fail "Break builtin failed got: '$result', expected '$expected'"
 fi
 
 # Test 6: cd builtin
@@ -110,7 +110,7 @@ expected="1
 if [ "$result" = "$expected" ]; then
     pass
 else
-    fail "Continue builtin failed"
+    fail "Continue builtin failed got: '$result', expected '$expected'"
 fi
 
 # Test 8: echo builtin
@@ -147,7 +147,7 @@ result=$("$SHELL_TO_TEST" -c "exec echo hello" 2>/dev/null)
 if [ "$result" = "hello" ]; then
     pass
 else
-    fail "Exec builtin failed"
+    fail "Exec builtin failed got: '$result', expected 'hello'"
 fi
 
 # Test 12: exit builtin

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "error_out.h"
 
 int break_command(const std::vector<std::string>& args) {
   int level = 1;
@@ -10,11 +11,17 @@ int break_command(const std::vector<std::string>& args) {
     try {
       level = std::stoi(args[1]);
       if (level < 1) {
-        std::cerr << "cjsh: break: invalid level: " << args[1] << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "break",
+                     "invalid level: " + args[1],
+                     {}});
         return 1;
       }
     } catch (const std::exception&) {
-      std::cerr << "cjsh: break: invalid level: " << args[1] << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "break",
+                   "invalid level: " + args[1],
+                   {}});
       return 1;
     }
   }
@@ -30,11 +37,17 @@ int continue_command(const std::vector<std::string>& args) {
     try {
       level = std::stoi(args[1]);
       if (level < 1) {
-        std::cerr << "cjsh: continue: invalid level: " << args[1] << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "continue",
+                     "invalid level: " + args[1],
+                     {}});
         return 1;
       }
     } catch (const std::exception&) {
-      std::cerr << "cjsh: continue: invalid level: " << args[1] << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "continue",
+                   "invalid level: " + args[1],
+                   {}});
       return 1;
     }
   }
@@ -51,12 +64,17 @@ int return_command(const std::vector<std::string>& args) {
       exit_code = std::stoi(args[1]);
 
       if (exit_code < 0 || exit_code > 255) {
-        std::cerr << "cjsh: return: invalid exit code: " << args[1]
-                  << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "return",
+                     "invalid exit code: " + args[1],
+                     {}});
         return 1;
       }
     } catch (const std::exception&) {
-      std::cerr << "cjsh: return: invalid exit code: " << args[1] << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "return",
+                   "invalid exit code: " + args[1],
+                   {}});
       return 1;
     }
   }

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <unordered_map>
 #include "cjsh_filesystem.h"
+#include "error_out.h"
 
 static std::unordered_map<std::string, std::string> command_hash;
 static std::unordered_map<std::string, int> command_hits;
@@ -41,7 +42,10 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
     } else if (option == "-p") {
     } else if (option == "-t") {
     } else {
-      std::cerr << "cjsh: hash: invalid option: " << option << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "hash",
+                   "invalid option: " + option,
+                   {}});
       return 1;
     }
     start_index = i + 1;
@@ -72,7 +76,10 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
 
         std::cout << path << std::endl;
       } else {
-        std::cerr << "cjsh: hash: " << name << ": not found" << std::endl;
+        print_error({ErrorType::COMMAND_NOT_FOUND,
+                     "hash",
+                     name + ": not found",
+                     {}});
         return 1;
       }
     }
