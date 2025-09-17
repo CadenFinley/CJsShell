@@ -322,14 +322,14 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       }
       // Check for whitespace when not in quotes, arithmetic, or parameter expansion
       else if (std::isspace(c)) {
-        if (!current_token.empty() && arith_depth == 0 && brace_depth == 0) {
+        if ((!current_token.empty() || token_saw_single || token_saw_double) && arith_depth == 0 && brace_depth == 0) {
           if (token_saw_single && !token_saw_double) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
                              current_token);
           } else if (token_saw_double && !token_saw_single) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
                              current_token);
-          } else {
+          } else if (!current_token.empty()) {
             tokens.push_back(current_token);
           }
           current_token.clear();
@@ -356,14 +356,14 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       else if ((c == '(' || c == ')' || c == '<' || c == '>' || 
                 (c == '&' && arith_depth == 0 && brace_depth == 0) || 
                 (c == '|' && arith_depth == 0 && brace_depth == 0))) {
-        if (!current_token.empty()) {
+        if (!current_token.empty() || token_saw_single || token_saw_double) {
           if (token_saw_single && !token_saw_double) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
                              current_token);
           } else if (token_saw_double && !token_saw_single) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
                              current_token);
-          } else {
+          } else if (!current_token.empty()) {
             tokens.push_back(current_token);
           }
           current_token.clear();
@@ -378,14 +378,14 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     }
   }
 
-  if (!current_token.empty()) {
+  if (!current_token.empty() || token_saw_single || token_saw_double) {
     if (token_saw_single && !token_saw_double) {
       tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
                        current_token);
     } else if (token_saw_double && !token_saw_single) {
       tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
                        current_token);
-    } else {
+    } else if (!current_token.empty()) {
       tokens.push_back(current_token);
     }
   }
@@ -1652,27 +1652,46 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
 
 bool Parser::is_env_assignment(const std::string& command,
                                std::string& var_name, std::string& var_value) {
-  std::regex env_regex("^\\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$");
-  std::smatch match;
-
-  if (std::regex_match(command, match, env_regex)) {
-    var_name = match[1].str();
-    var_value = match[2].str();
-
-    if (ReadonlyManager::instance().is_readonly(var_name)) {
-      std::cerr << "cjsh: " << var_name << ": readonly variable" << std::endl;
+  // Find the equals sign
+  size_t equals_pos = command.find('=');
+  if (equals_pos == std::string::npos || equals_pos == 0) {
+    return false;
+  }
+  
+  // Extract variable name and validate it
+  std::string name_part = command.substr(0, equals_pos);
+  // Trim leading whitespace
+  size_t name_start = name_part.find_first_not_of(" \t\n\r");
+  if (name_start == std::string::npos) {
+    return false;
+  }
+  name_part = name_part.substr(name_start);
+  
+  // Check if variable name is valid
+  if (name_part.empty() || (!std::isalpha(name_part[0]) && name_part[0] != '_')) {
+    return false;
+  }
+  for (size_t i = 1; i < name_part.length(); ++i) {
+    if (!std::isalnum(name_part[i]) && name_part[i] != '_') {
       return false;
     }
-
-    if (var_value.size() >= 2) {
-      if ((var_value.front() == '"' && var_value.back() == '"') ||
-          (var_value.front() == '\'' && var_value.back() == '\'')) {
-        var_value = var_value.substr(1, var_value.length() - 2);
-      }
-    }
-    return true;
   }
-  return false;
+  
+  var_name = name_part;
+  var_value = command.substr(equals_pos + 1);
+  
+  if (ReadonlyManager::instance().is_readonly(var_name)) {
+    std::cerr << "cjsh: " << var_name << ": readonly variable" << std::endl;
+    return false;
+  }
+
+  if (var_value.size() >= 2) {
+    if ((var_value.front() == '"' && var_value.back() == '"') ||
+        (var_value.front() == '\'' && var_value.back() == '\'')) {
+      var_value = var_value.substr(1, var_value.length() - 2);
+    }
+  }
+  return true;
 }
 
 std::vector<LogicalCommand> Parser::parse_logical_commands(

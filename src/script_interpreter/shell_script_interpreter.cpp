@@ -2210,11 +2210,36 @@ int ShellScriptInterpreter::execute_block(
       throw e;
     }
 
+    // Handle incomplete case statements (missing esac) - this happens with nested case statements
+    if ((text == "case" || text.rfind("case ", 0) == 0) &&
+        (text.find(" in ") != std::string::npos) &&
+        (text.find("esac") == std::string::npos)) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Found incomplete case statement (missing esac): " << text << std::endl;
+      }
+      
+      // Try to complete the case statement by adding the missing esac
+      // This is a heuristic for nested case statements
+      std::string completed_case = text + ";; esac";
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Attempting to complete case statement: " << completed_case << std::endl;
+      }
+      
+      // Recursively call execute_simple_or_pipeline with the completed case
+      return execute_simple_or_pipeline(completed_case);
+    }
+    
+    if (g_debug_mode && (text == "case" || text.rfind("case ", 0) == 0)) {
+      std::cerr << "DEBUG: execute_simple_or_pipeline checking case: '" << text << "'" << std::endl;
+      std::cerr << "DEBUG:   has ' in ': " << (text.find(" in ") != std::string::npos) << std::endl;
+      std::cerr << "DEBUG:   has 'esac': " << (text.find("esac") != std::string::npos) << std::endl;
+    }
+    
     if ((text == "case" || text.rfind("case ", 0) == 0) &&
         (text.find(" in ") != std::string::npos) &&
         (text.find("esac") != std::string::npos)) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Handling inline case statement directly: " << text
+        std::cerr << "DEBUG: Handling inline case statement in execute_simple_or_pipeline: " << text
                   << std::endl;
       }
 
@@ -2222,16 +2247,40 @@ int ShellScriptInterpreter::execute_block(
       std::string case_part = text.substr(0, in_pos);
       std::string patterns_part = text.substr(in_pos + 4);
 
-      std::vector<std::string> case_toks =
-          shell_parser->parse_command(case_part);
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: [inline case] case_part='" << case_part << "'" << std::endl;
+      }
+      
+      // Extract case value without using parse_command to avoid glob expansion
       std::string case_value;
-      if (case_toks.size() >= 2 && case_toks[0] == "case") {
-        case_value = case_toks[1];
+      size_t space_pos = case_part.find(' ');
+      if (space_pos != std::string::npos && case_part.substr(0, space_pos) == "case") {
+        std::string raw_case_value = trim(case_part.substr(space_pos + 1));
+        
+        // Strip quotes from case value (handle both single and double quotes)
+        case_value = raw_case_value;
+        if (case_value.length() >= 2) {
+          if ((case_value[0] == '"' && case_value[case_value.length()-1] == '"') ||
+              (case_value[0] == '\'' && case_value[case_value.length()-1] == '\'')) {
+            case_value = case_value.substr(1, case_value.length() - 2);
+          }
+        }
+        // Manually expand environment variables in the case value
+        shell_parser->expand_env_vars(case_value);
+        
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: [inline case] raw_case_value='" << raw_case_value << "' -> expanded='" << case_value << "'" << std::endl;
+        }
       }
 
-      size_t esac_pos = patterns_part.find("esac");
+      // Find the LAST esac (for nested case statements, we want the outer esac)
+      size_t esac_pos = patterns_part.rfind("esac");
       if (esac_pos != std::string::npos) {
         patterns_part = patterns_part.substr(0, esac_pos);
+      }
+      
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: [inline case] patterns_part after esac removal='" << patterns_part << "'" << std::endl;
       }
 
       std::vector<std::string> pattern_sections;
@@ -2240,12 +2289,19 @@ int ShellScriptInterpreter::execute_block(
         size_t sep_pos = patterns_part.find(";;", start);
         if (sep_pos == std::string::npos) {
           if (start < patterns_part.length()) {
-            pattern_sections.push_back(trim(patterns_part.substr(start)));
+            std::string section = trim(patterns_part.substr(start));
+            pattern_sections.push_back(section);
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: [inline case] final pattern_section='" << section << "'" << std::endl;
+            }
           }
           break;
         }
-        pattern_sections.push_back(
-            trim(patterns_part.substr(start, sep_pos - start)));
+        std::string section = trim(patterns_part.substr(start, sep_pos - start));
+        pattern_sections.push_back(section);
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: [inline case] pattern_section='" << section << "'" << std::endl;
+        }
         start = sep_pos + 2;
       }
 
@@ -2267,10 +2323,30 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           
+          // Process escape sequences in pattern (\\* -> \*)
+          std::string processed_pattern;
+          processed_pattern.reserve(pattern.length());
+          for (size_t i = 0; i < pattern.length(); ++i) {
+            if (pattern[i] == '\\' && i + 1 < pattern.length()) {
+              // Skip the backslash and add the next character
+              i++;
+              processed_pattern += pattern[i];
+            } else {
+              processed_pattern += pattern[i];
+            }
+          }
+          pattern = processed_pattern;
+          
           // Expand variables in pattern
           shell_parser->expand_env_vars(pattern);
 
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: [inline case] Matching case_value='" << case_value << "' against pattern='" << pattern << "'" << std::endl;
+          }
           bool pattern_matches = matches_pattern(case_value, pattern);
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: [inline case] Pattern match result: " << pattern_matches << std::endl;
+          }
 
           if (pattern_matches) {
             if (!command_part.empty()) {
@@ -3085,6 +3161,9 @@ int ShellScriptInterpreter::execute_block(
   auto handle_case_block = [&](const std::vector<std::string>& src_lines,
                                size_t& idx) -> int {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: handle_case_block called with: '" << first << "'" << std::endl;
+    }
     if (!(first == "case" || first.rfind("case ", 0) == 0))
       return 1;
 
@@ -3097,10 +3176,57 @@ int ShellScriptInterpreter::execute_block(
       std::string case_part = first.substr(0, in_pos);
       std::string patterns_part = first.substr(in_pos + 4);
 
+      // Expand command substitutions in case_part before tokenization
+      std::string expanded_case_part = case_part;
+      if (case_part.find("$(") != std::string::npos || case_part.find("`") != std::string::npos) {
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Expanding command substitution in inline case: '" << case_part << "'" << std::endl;
+        }
+        try {
+          size_t cmd_start = case_part.find("$(");
+          if (cmd_start != std::string::npos) {
+            size_t cmd_end = case_part.find(")", cmd_start + 2);
+            if (cmd_end != std::string::npos) {
+              std::string cmd_sub = case_part.substr(cmd_start + 2, cmd_end - cmd_start - 2);
+              
+              // Execute the command and capture output
+              FILE* pipe = popen(cmd_sub.c_str(), "r");
+              if (pipe) {
+                char buffer[1024];
+                std::string result;
+                while (fgets(buffer, sizeof(buffer), pipe)) {
+                  result += buffer;
+                }
+                pclose(pipe);
+                
+                // Remove trailing newline
+                if (!result.empty() && result.back() == '\n') {
+                  result.pop_back();
+                }
+                
+                // Replace the command substitution with the result
+                expanded_case_part = case_part.substr(0, cmd_start) + result + 
+                                   case_part.substr(cmd_end + 1);
+                
+                if (g_debug_mode) {
+                  std::cerr << "DEBUG: Inline case expansion result: '" << result << "'" << std::endl;
+                  std::cerr << "DEBUG: Expanded case part: '" << expanded_case_part << "'" << std::endl;
+                }
+              }
+            }
+          }
+        } catch (...) {
+          // Keep original if expansion fails
+        }
+      }
+      
       std::vector<std::string> case_toks =
-          shell_parser->parse_command(case_part);
+          shell_parser->parse_command(expanded_case_part);
       if (case_toks.size() >= 2 && case_toks[0] == "case") {
         case_value = case_toks[1];
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Inline case value: '" << case_value << "'" << std::endl;
+        }
       }
 
       size_t esac_pos = patterns_part.find("esac");
@@ -3125,6 +3251,9 @@ int ShellScriptInterpreter::execute_block(
 
       int matched_exit_code = 0;
       for (const auto& section : pattern_sections) {
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Processing pattern section: '" << section << "'" << std::endl;
+        }
         if (section.empty())
           continue;
 
@@ -3132,6 +3261,10 @@ int ShellScriptInterpreter::execute_block(
         if (paren_pos != std::string::npos) {
           std::string raw_pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
+          
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Pattern: '" << raw_pattern << "', Command: '" << command_part << "'" << std::endl;
+          }
 
           // Strip quotes from pattern (handle both single and double quotes)
           std::string pattern = raw_pattern;
@@ -3142,10 +3275,30 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           
+          // Process escape sequences in pattern (\\* -> \*)
+          std::string processed_pattern;
+          processed_pattern.reserve(pattern.length());
+          for (size_t i = 0; i < pattern.length(); ++i) {
+            if (pattern[i] == '\\' && i + 1 < pattern.length()) {
+              // Skip the backslash and add the next character
+              i++;
+              processed_pattern += pattern[i];
+            } else {
+              processed_pattern += pattern[i];
+            }
+          }
+          pattern = processed_pattern;
+          
           // Expand variables in pattern
           shell_parser->expand_env_vars(pattern);
 
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Matching case_value='" << case_value << "' against pattern='" << pattern << "'" << std::endl;
+          }
           bool pattern_matches = matches_pattern(case_value, pattern);
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Pattern match result: " << pattern_matches << std::endl;
+          }
 
           if (pattern_matches) {
             if (!command_part.empty()) {
@@ -3166,15 +3319,70 @@ int ShellScriptInterpreter::execute_block(
       return 0;
     }
 
+    // First, try to expand command substitutions in the header before tokenization
+    std::string expanded_header = header_accum;
+    
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Processing case header: '" << header_accum << "'" << std::endl;
+    }
+    
+    // If header contains command substitution, expand it using a simple approach
+    if (header_accum.find("$(") != std::string::npos || header_accum.find("`") != std::string::npos) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Found command substitution in header" << std::endl;
+      }
+      try {
+        // For simple command substitution like $(echo hello), we can use system() approach
+        size_t cmd_start = header_accum.find("$(");
+        if (cmd_start != std::string::npos) {
+          size_t cmd_end = header_accum.find(")", cmd_start + 2);
+          if (cmd_end != std::string::npos) {
+            std::string cmd_sub = header_accum.substr(cmd_start + 2, cmd_end - cmd_start - 2);
+            
+            // Execute the command and capture output
+            FILE* pipe = popen(cmd_sub.c_str(), "r");
+            if (pipe) {
+              char buffer[1024];
+              std::string result;
+              while (fgets(buffer, sizeof(buffer), pipe)) {
+                result += buffer;
+              }
+              pclose(pipe);
+              
+              // Remove trailing newline
+              if (!result.empty() && result.back() == '\n') {
+                result.pop_back();
+              }
+              
+              // Replace the command substitution with the result
+              expanded_header = header_accum.substr(0, cmd_start) + result + 
+                              header_accum.substr(cmd_end + 1);
+              
+              if (g_debug_mode) {
+                std::cerr << "DEBUG: Command substitution result: '" << result << "'" << std::endl;
+                std::cerr << "DEBUG: Expanded header: '" << expanded_header << "'" << std::endl;
+              }
+            }
+          }
+        }
+      } catch (...) {
+        // Keep original header if expansion fails
+      }
+    }
+    
     std::vector<std::string> header_toks =
-        shell_parser->parse_command(header_accum);
+        shell_parser->parse_command(expanded_header);
     size_t tok_idx = 0;
     if (tok_idx < header_toks.size() && header_toks[tok_idx] == "case")
       ++tok_idx;
     if (tok_idx < header_toks.size()) {
-      std::string raw_case_value = header_toks[tok_idx++];
-      shell_parser->expand_env_vars(raw_case_value);
-      case_value = raw_case_value;
+      case_value = header_toks[tok_idx++];
+      // Now expand environment variables in the case value
+      shell_parser->expand_env_vars(case_value);
+      
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Final case value: '" << case_value << "'" << std::endl;
+      }
     }
 
     bool found_in = false;
@@ -3258,6 +3466,20 @@ int ShellScriptInterpreter::execute_block(
               }
             }
             
+            // Process escape sequences in pattern (\\* -> \*)
+            std::string processed_pattern;
+            processed_pattern.reserve(pattern.length());
+            for (size_t i = 0; i < pattern.length(); ++i) {
+              if (pattern[i] == '\\' && i + 1 < pattern.length()) {
+                // Skip the backslash and add the next character
+                i++;
+                processed_pattern += pattern[i];
+              } else {
+                processed_pattern += pattern[i];
+              }
+            }
+            pattern = processed_pattern;
+            
             // Expand variables in pattern
             shell_parser->expand_env_vars(pattern);
 
@@ -3307,6 +3529,20 @@ int ShellScriptInterpreter::execute_block(
             pattern = pattern.substr(1, pattern.length() - 2);
           }
         }
+        
+        // Process escape sequences in pattern (\\* -> \*)
+        std::string processed_pattern;
+        processed_pattern.reserve(pattern.length());
+        for (size_t i = 0; i < pattern.length(); ++i) {
+          if (pattern[i] == '\\' && i + 1 < pattern.length()) {
+            // Skip the backslash and add the next character
+            i++;
+            processed_pattern += pattern[i];
+          } else {
+            processed_pattern += pattern[i];
+          }
+        }
+        pattern = processed_pattern;
         
         // Expand variables in pattern
         shell_parser->expand_env_vars(pattern);
@@ -4615,7 +4851,8 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
       }
     } else if (pattern[pi] == '\\' && pi + 1 < pattern.length()) {
       // Handle escaped characters - treat next character as literal
-      if (pattern[pi + 1] == text[ti]) {
+      char escaped_char = pattern[pi + 1];
+      if (escaped_char == text[ti]) {
         ti++;
         pi += 2; // Skip both backslash and escaped character
       } else if (star_idx != std::string::npos) {
