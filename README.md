@@ -1,6 +1,6 @@
 ![Version](https://img.shields.io/github/v/release/CadenFinley/CJsShell?label=version&color=blue)
 [![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
-[![Tests](https://img.shields.io/badge/tests-780%2F802%20passed-%23critical)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
+[![Tests](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true&passingText=tests%20passing&failingText=tests%20failing&pendingText=tests%20pending)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7)](https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
