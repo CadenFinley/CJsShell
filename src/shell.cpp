@@ -235,6 +235,8 @@ int Shell::execute_command(std::vector<std::string> args,
   if (args.size() == 1 && shell_parser) {
     std::string var_name, var_value;
     if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
+      // Expand environment variables in the value before setting
+      shell_parser->expand_env_vars(var_value);
       setenv(var_name.c_str(), var_value.c_str(), 1);
       return 0;
     }
@@ -378,4 +380,36 @@ bool Shell::get_shell_option(const std::string& option) const {
 
 bool Shell::is_errexit_enabled() const {
   return get_shell_option("errexit");
+}
+
+void Shell::expand_env_vars(std::string& value) {
+  if (shell_parser) {
+    shell_parser->expand_env_vars(value);
+  }
+}
+
+void Shell::sync_env_vars_from_system() {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Syncing shell env_vars cache from system environment" << std::endl;
+    
+  // Get all environment variables from the system
+  extern char **environ;
+  for (char **env = environ; *env != nullptr; env++) {
+    std::string env_str(*env);
+    size_t eq_pos = env_str.find('=');
+    if (eq_pos != std::string::npos) {
+      std::string name = env_str.substr(0, eq_pos);
+      std::string value = env_str.substr(eq_pos + 1);
+      env_vars[name] = value;
+      
+      if (g_debug_mode && name == "PATH") {
+        std::cerr << "DEBUG: Synced PATH=" << value << std::endl;
+      }
+    }
+  }
+  
+  // Also update parser's env_vars
+  if (shell_parser) {
+    shell_parser->set_env_vars(env_vars);
+  }
 }

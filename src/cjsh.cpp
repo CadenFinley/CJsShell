@@ -144,6 +144,11 @@ int main(int argc, char* argv[]) {
 
   setup_environment_variables();
   save_startup_arguments(argc, argv);
+  
+  // Sync shell's environment cache from system environment
+  if (g_shell) {
+    g_shell->sync_env_vars_from_system();
+  }
 
   // Handle login mode initialization
   if (config::login_mode) {

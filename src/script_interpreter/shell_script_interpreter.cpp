@@ -2706,6 +2706,30 @@ int ShellScriptInterpreter::execute_block(
               shell_parser->parse_command(text);
           if (expanded_args.empty())
             return 0;
+          
+          // Handle environment variable assignments for script execution
+          if (expanded_args.size() == 1) {
+            std::string var_name, var_value;
+            if (shell_parser->is_env_assignment(expanded_args[0], var_name, var_value)) {
+              // Expand environment variables in the value
+              shell_parser->expand_env_vars(var_value);
+              
+              // Update both the system environment and shell's internal cache
+              setenv(var_name.c_str(), var_value.c_str(), 1);
+              if (g_shell) {
+                auto& env_vars = g_shell->get_env_vars();
+                env_vars[var_name] = var_value;
+                
+                // Also update the parser's env_vars cache
+                if (shell_parser) {
+                  shell_parser->set_env_vars(env_vars);
+                }
+              }
+              
+              return 0;
+            }
+          }
+          
           if (g_debug_mode) {
             std::cerr << "DEBUG: Simple exec: ";
             for (const auto& a : expanded_args)
