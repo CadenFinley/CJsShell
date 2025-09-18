@@ -79,24 +79,28 @@ void CommandInfo::set_show_milliseconds(bool show) {
 std::string CommandInfo::format_duration(long long milliseconds) {
   std::ostringstream oss;
 
+  // For times less than 1 second, show milliseconds
   if (milliseconds < 1000) {
-    if (show_milliseconds) {
-      oss << milliseconds << "ms";
-    } else {
-      oss << "0s";
-    }
-  } else if (milliseconds < 60000) {
+    oss << milliseconds << "ms";
+  }
+  // For times less than 10 seconds, show seconds with decimal precision
+  else if (milliseconds < 10000) {
     double seconds = milliseconds / 1000.0;
-    if (show_milliseconds) {
-      oss << std::fixed << std::setprecision(3) << seconds << "s";
-    } else {
-      oss << std::fixed << std::setprecision(1) << seconds << "s";
-    }
-  } else if (milliseconds < 3600000) {
+    oss << std::fixed << std::setprecision(2) << seconds << "s";
+  }
+  // For times less than 1 minute, show seconds with 1 decimal place
+  else if (milliseconds < 60000) {
+    double seconds = milliseconds / 1000.0;
+    oss << std::fixed << std::setprecision(1) << seconds << "s";
+  }
+  // For times less than 1 hour, show minutes and seconds
+  else if (milliseconds < 3600000) {
     int minutes = milliseconds / 60000;
     int seconds = (milliseconds % 60000) / 1000;
     oss << minutes << "m " << seconds << "s";
-  } else {
+  }
+  // For times 1 hour or longer, show hours, minutes, and seconds
+  else {
     int hours = milliseconds / 3600000;
     int minutes = (milliseconds % 3600000) / 60000;
     int seconds = (milliseconds % 60000) / 1000;

@@ -40,7 +40,7 @@
     },
     {
       "tag": "statusseg",
-      "content": " [{STATUS}] {CMD_DURATION_MS}ms ",
+      "content": " [{STATUS}] {CMD_DURATION} ",
       "bg_color": "#3c3836",
       "fg_color": "#ebdbb2",
       "separator": "\uE0B0",
@@ -95,7 +95,7 @@
     },
     {
       "tag": "statusseg",
-      "content": " [{STATUS}] {CMD_DURATION_MS}ms ",
+      "content": " [{STATUS}] {CMD_DURATION} ",
       "bg_color": "#3c3836",
       "fg_color": "#ebdbb2",
       "separator": "\uE0B0",
