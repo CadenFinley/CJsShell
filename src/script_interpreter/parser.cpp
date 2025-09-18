@@ -1765,6 +1765,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
+  int brace_depth = 0;  // Add brace depth tracking
   int control_depth = 0;
 
   std::vector<bool> is_semicolon_split_point(command.length(), false);
@@ -1781,7 +1782,11 @@ std::vector<std::string> Parser::parse_semicolon_commands(
       paren_depth++;
     } else if (!in_quotes && command[i] == ')') {
       paren_depth--;
-    } else if (!in_quotes && paren_depth == 0) {
+    } else if (!in_quotes && command[i] == '{') {
+      brace_depth++;  // Track opening braces
+    } else if (!in_quotes && command[i] == '}') {
+      brace_depth--;  // Track closing braces
+    } else if (!in_quotes && paren_depth == 0 && brace_depth == 0) {
       if (command[i] == ' ' || command[i] == '\t' || i == 0) {
         size_t word_start = i;
         if (command[i] == ' ' || command[i] == '\t')
@@ -1803,6 +1808,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(
         }
       }
 
+      // Only split on semicolons when not inside braces, parentheses, or control structures
       if (command[i] == ';' && control_depth == 0) {
         is_semicolon_split_point[i] = true;
       }

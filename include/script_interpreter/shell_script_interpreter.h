@@ -142,10 +142,20 @@ class ShellScriptInterpreter {
   // Parameter expansion method (made public for parser use)
   std::string expand_parameter_expression(const std::string& param_expr);
 
+  // Variable scope management for functions
+  void push_function_scope();
+  void pop_function_scope();
+  void set_local_variable(const std::string& name, const std::string& value);
+  bool is_local_variable(const std::string& name) const;
+
  private:
   DebugLevel debug_level;
   Parser* shell_parser = nullptr;
   std::unordered_map<std::string, std::vector<std::string>> functions;
+  
+  // Variable scope management for functions
+  std::vector<std::unordered_map<std::string, std::string>> local_variable_stack;
+  std::vector<std::vector<std::string>> saved_env_stack;
   std::string get_variable_value(const std::string& var_name);
   bool variable_is_set(const std::string& var_name);
   std::string pattern_match_prefix(const std::string& value,

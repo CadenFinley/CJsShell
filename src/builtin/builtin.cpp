@@ -24,6 +24,7 @@
 #include "help_command.h"
 #include "history_command.h"
 #include "job_control.h"
+#include "local_command.h"
 #include "loop_control_commands.h"
 #include "ls_command.h"
 #include "plugin_command.h"
@@ -84,6 +85,10 @@ Built_ins::Built_ins() : shell(nullptr) {
       {"ls",
        [this](const std::vector<std::string>& args) {
          return ::ls_command(args, shell);
+       }},
+      {"local",
+       [this](const std::vector<std::string>& args) {
+         return ::local_command(args, shell);
        }},
       {"alias",
        [this](const std::vector<std::string>& args) {

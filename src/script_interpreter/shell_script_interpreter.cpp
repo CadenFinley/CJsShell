@@ -1,5 +1,6 @@
 #include "shell_script_interpreter.h"
 
+
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -4038,67 +4039,109 @@ int ShellScriptInterpreter::execute_block(
 
     if (line.find("()") != std::string::npos &&
         line.find("{") != std::string::npos) {
-      size_t name_end = line.find("()");
-      size_t brace_pos = line.find("{");
-      if (name_end != std::string::npos && brace_pos != std::string::npos &&
-          name_end < brace_pos) {
-        std::string func_name = trim(line.substr(0, name_end));
-        if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
-          std::vector<std::string> body_lines;
-          bool handled_single_line = false;
-          std::string after_brace = trim(line.substr(brace_pos + 1));
-          if (!after_brace.empty()) {
-            size_t end_brace = after_brace.find('}');
-            if (end_brace != std::string::npos) {
-              std::string body_part = trim(after_brace.substr(0, end_brace));
-              if (!body_part.empty())
-                body_lines.push_back(body_part);
+      // Use a loop to handle multiple function definitions in one line
+      std::string current_line = line;
+      bool found_function = true;
+      while (!current_line.empty() && found_function) {
+        found_function = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Processing current_line: '" << current_line << "'" << std::endl;
+        size_t name_end = current_line.find("()");
+        size_t brace_pos = current_line.find("{");
+        if (name_end != std::string::npos && brace_pos != std::string::npos &&
+            name_end < brace_pos) {
+          std::string func_name = trim(current_line.substr(0, name_end));
+          if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
+            std::vector<std::string> body_lines;
+            bool handled_single_line = false;
+            std::string after_brace = trim(current_line.substr(brace_pos + 1));
+            if (!after_brace.empty()) {
+              size_t end_brace = after_brace.find('}');
+              if (end_brace != std::string::npos) {
+                std::string body_part = trim(after_brace.substr(0, end_brace));
+                if (!body_part.empty())
+                  body_lines.push_back(body_part);
 
+                functions[func_name] = body_lines;
+                if (g_debug_mode)
+                  std::cerr << "DEBUG: Defined function '" << func_name
+                            << "' (single-line)" << std::endl;
+
+                std::string remainder = trim(after_brace.substr(end_brace + 1));
+                // Skip leading semicolons and whitespace
+                size_t start_pos = 0;
+                while (start_pos < remainder.length() && 
+                       (remainder[start_pos] == ';' || std::isspace(remainder[start_pos]))) {
+                  start_pos++;
+                }
+                remainder = remainder.substr(start_pos);
+                current_line = remainder; // Process the remainder in the next iteration
+                found_function = true; // Continue loop to look for more functions
+                handled_single_line = true;
+              } else if (!after_brace.empty()) {
+                body_lines.push_back(after_brace);
+              }
+            }
+            if (!handled_single_line) {
+              int depth = 1;
+              std::string after_closing_brace;
+              while (++line_index < lines.size() && depth > 0) {
+                std::string func_line_raw = lines[line_index];
+                std::string func_line = trim(strip_inline_comment(func_line_raw));
+                for (char ch : func_line) {
+                  if (ch == '{')
+                    depth++;
+                  else if (ch == '}')
+                    depth--;
+                }
+                if (depth <= 0) {
+                  size_t pos = func_line.find('}');
+                  if (pos != std::string::npos) {
+                    std::string before = trim(func_line.substr(0, pos));
+                    if (!before.empty())
+                      body_lines.push_back(before);
+                    // Check what comes after the closing brace
+                    if (pos + 1 < func_line.length()) {
+                      after_closing_brace = trim(func_line.substr(pos + 1));
+                    }
+                  }
+                  break;
+                } else if (!func_line.empty()) {
+                  body_lines.push_back(func_line_raw);
+                }
+              }
               functions[func_name] = body_lines;
               if (g_debug_mode)
-                std::cerr << "DEBUG: Defined function '" << func_name
-                          << "' (single-line)" << std::endl;
-
-              std::string remainder = trim(after_brace.substr(end_brace + 1));
-              if (!remainder.empty()) {
-                line = remainder;
-              }
-              handled_single_line = true;
-            } else if (!after_brace.empty()) {
-              body_lines.push_back(after_brace);
-            }
-          }
-          if (!handled_single_line) {
-            int depth = 1;
-            while (++line_index < lines.size() && depth > 0) {
-              std::string func_line_raw = lines[line_index];
-              std::string func_line = trim(strip_inline_comment(func_line_raw));
-              for (char ch : func_line) {
-                if (ch == '{')
-                  depth++;
-                else if (ch == '}')
-                  depth--;
-              }
-              if (depth <= 0) {
-                size_t pos = func_line.find('}');
-                if (pos != std::string::npos) {
-                  std::string before = trim(func_line.substr(0, pos));
-                  if (!before.empty())
-                    body_lines.push_back(before);
+                std::cerr << "DEBUG: Defined function '" << func_name << "' with "
+                          << body_lines.size() << " lines" << std::endl;
+              
+              // Check if there are commands after the closing brace
+              if (after_closing_brace.empty()) {
+                // No commands after closing brace, clear current_line to prevent duplicate processing
+                current_line.clear();
+              } else {
+                // Commands found after closing brace, preserve them
+                // Skip leading semicolons and whitespace
+                size_t start_pos = 0;
+                while (start_pos < after_closing_brace.length() && 
+                       (after_closing_brace[start_pos] == ';' || std::isspace(after_closing_brace[start_pos]))) {
+                  start_pos++;
                 }
-                break;
-              } else if (!func_line.empty()) {
-                body_lines.push_back(func_line_raw);
+                current_line = after_closing_brace.substr(start_pos);
               }
+              
+              break; // Break from the while loop and continue to next line
             }
-            functions[func_name] = body_lines;
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Defined function '" << func_name << "' with "
-                        << body_lines.size() << " lines" << std::endl;
-            continue;
-          } else {
           }
         }
+      }
+      
+      // If there's remaining content that's not a function definition, process it as commands
+      if (!current_line.empty()) {
+        line = current_line;
+        // Fall through to process the remaining line as logical commands
+      } else {
+        continue; // Continue to next line after processing all functions
       }
     }
 
@@ -4198,6 +4241,39 @@ int ShellScriptInterpreter::execute_block(
           const std::string& cmd_text = segs[si];
 
           std::string t = trim(strip_inline_comment(cmd_text));
+
+          // Check for function definition at the individual command level
+          if (t.find("()") != std::string::npos && t.find("{") != std::string::npos) {
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Processing function definition in semicolon command: '" << t << "'" << std::endl;
+            
+            size_t name_end = t.find("()");
+            size_t brace_pos = t.find("{");
+            if (name_end != std::string::npos && brace_pos != std::string::npos &&
+                name_end < brace_pos) {
+              std::string func_name = trim(t.substr(0, name_end));
+              if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
+                std::vector<std::string> body_lines;
+                std::string after_brace = trim(t.substr(brace_pos + 1));
+                if (!after_brace.empty()) {
+                  size_t end_brace = after_brace.find('}');
+                  if (end_brace != std::string::npos) {
+                    std::string body_part = trim(after_brace.substr(0, end_brace));
+                    if (!body_part.empty())
+                      body_lines.push_back(body_part);
+
+                    functions[func_name] = body_lines;
+                    if (g_debug_mode)
+                      std::cerr << "DEBUG: Defined function '" << func_name
+                                << "' (single-line) in semicolon command" << std::endl;
+                    
+                    last_code = 0;
+                    continue; // Skip to next command
+                  }
+                }
+              }
+            }
+          }
 
           if ((t.rfind("for ", 0) == 0 || t == "for") &&
               t.find("; do") != std::string::npos) {
@@ -4398,6 +4474,9 @@ int ShellScriptInterpreter::execute_block(
             if (!first_toks.empty() && functions.count(first_toks[0])) {
               is_function_call = true;
 
+              // Push function scope for variable isolation
+              push_function_scope();
+
               
               std::vector<std::string> saved_params;
               if (g_shell) {
@@ -4443,6 +4522,9 @@ int ShellScriptInterpreter::execute_block(
               
               for (const auto& n : param_names)
                 unsetenv(n.c_str());
+
+              // Pop function scope to restore variable isolation
+              pop_function_scope();
             } else {
               try {
                 code = execute_simple_or_pipeline(cmd_text);
@@ -5045,4 +5127,107 @@ std::vector<std::string> ShellScriptInterpreter::get_function_names() const {
     names.push_back(pair.first);
   }
   return names;
+}
+
+void ShellScriptInterpreter::push_function_scope() {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Pushing function scope" << std::endl;
+  
+  // Create a new local variable scope
+  local_variable_stack.emplace_back();
+  
+  // Save current environment variables that might be modified
+  std::vector<std::string> saved_vars;
+  extern char** environ;
+  for (char** env = environ; *env; ++env) {
+    std::string env_str(*env);
+    size_t eq_pos = env_str.find('=');
+    if (eq_pos != std::string::npos) {
+      std::string name = env_str.substr(0, eq_pos);
+      saved_vars.push_back(env_str);
+    }
+  }
+  saved_env_stack.push_back(saved_vars);
+}
+
+void ShellScriptInterpreter::pop_function_scope() {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Popping function scope" << std::endl;
+  
+  if (local_variable_stack.empty()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Warning - trying to pop empty variable scope" << std::endl;
+    return;
+  }
+  
+  // Restore environment variables to their previous state
+  if (!saved_env_stack.empty()) {
+    const auto& saved_vars = saved_env_stack.back();
+    
+    // Clear current environment except for essential variables
+    extern char** environ;
+    std::vector<std::string> current_vars;
+    for (char** env = environ; *env; ++env) {
+      std::string env_str(*env);
+      size_t eq_pos = env_str.find('=');
+      if (eq_pos != std::string::npos) {
+        std::string name = env_str.substr(0, eq_pos);
+        current_vars.push_back(name);
+      }
+    }
+    
+    // Unset variables that were modified in the function
+    for (const std::string& name : current_vars) {
+      bool was_saved = false;
+      for (const std::string& saved_var : saved_vars) {
+        if (saved_var.substr(0, saved_var.find('=')) == name) {
+          was_saved = true;
+          break;
+        }
+      }
+      if (!was_saved) {
+        unsetenv(name.c_str());
+      }
+    }
+    
+    // Restore saved variables
+    for (const std::string& saved_var : saved_vars) {
+      size_t eq_pos = saved_var.find('=');
+      if (eq_pos != std::string::npos) {
+        std::string name = saved_var.substr(0, eq_pos);
+        std::string value = saved_var.substr(eq_pos + 1);
+        setenv(name.c_str(), value.c_str(), 1);
+      }
+    }
+    
+    saved_env_stack.pop_back();
+  }
+  
+  // Remove the local variable scope
+  local_variable_stack.pop_back();
+}
+
+void ShellScriptInterpreter::set_local_variable(const std::string& name, const std::string& value) {
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Setting local variable " << name << "=" << value << std::endl;
+  
+  if (local_variable_stack.empty()) {
+    // No function scope, treat as global
+    setenv(name.c_str(), value.c_str(), 1);
+    return;
+  }
+  
+  // Set in the current local scope
+  local_variable_stack.back()[name] = value;
+  // Also set in environment for command execution, but it will be restored when scope pops
+  setenv(name.c_str(), value.c_str(), 1);
+}
+
+bool ShellScriptInterpreter::is_local_variable(const std::string& name) const {
+  if (local_variable_stack.empty()) {
+    return false;
+  }
+  
+  const auto& current_scope = local_variable_stack.back();
+  return current_scope.find(name) != current_scope.end();
 }
