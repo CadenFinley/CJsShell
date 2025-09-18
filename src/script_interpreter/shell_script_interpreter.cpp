@@ -1425,8 +1425,8 @@ int ShellScriptInterpreter::execute_block(
 
   std::function<int(const std::string&)> execute_simple_or_pipeline;
 
-  // Function to evaluate logical conditions (for if/while/until statements)
-  // Properly handles && and || as logical operators, not pipeline operators
+  
+  
   auto evaluate_logical_condition = [&](const std::string& condition) -> int {
     if (g_debug_mode) {
       std::cerr << "DEBUG: evaluate_logical_condition called with: "
@@ -1437,8 +1437,8 @@ int ShellScriptInterpreter::execute_block(
     if (cond.empty())
       return 1;
 
-    // First check if this condition actually contains logical operators
-    // If not, fall back to the original method to maintain compatibility
+    
+    
     bool has_logical_ops = false;
     bool in_quotes = false;
     char quote_char = '\0';
@@ -1476,8 +1476,8 @@ int ShellScriptInterpreter::execute_block(
         continue;
       }
 
-      // Check for logical operators only when not in quotes and bracket depth
-      // is 0
+      
+      
       if (!in_quotes && bracket_depth == 0) {
         if ((cond[i] == '&' && cond[i + 1] == '&') ||
             (cond[i] == '|' && cond[i + 1] == '|')) {
@@ -1487,7 +1487,7 @@ int ShellScriptInterpreter::execute_block(
       }
     }
 
-    // If no logical operators found, use the original method
+    
     if (!has_logical_ops) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: no logical operators found, using original method"
@@ -1501,9 +1501,9 @@ int ShellScriptInterpreter::execute_block(
                 << std::endl;
     }
 
-    // Split on && and || while respecting quotes and brackets
+    
     std::vector<std::pair<std::string, std::string>>
-        parts;  // {condition, operator}
+        parts;  
     std::string current_part;
     in_quotes = false;
     quote_char = '\0';
@@ -1545,19 +1545,19 @@ int ShellScriptInterpreter::execute_block(
         continue;
       }
 
-      // Check for logical operators only when not in quotes and bracket depth
-      // is 0
+      
+      
       if (!in_quotes && bracket_depth == 0) {
         if (i < cond.length() - 1) {
           if (cond[i] == '&' && cond[i + 1] == '&') {
             parts.push_back({trim(current_part), "&&"});
             current_part.clear();
-            i++;  // Skip the second &
+            i++;  
             continue;
           } else if (cond[i] == '|' && cond[i + 1] == '|') {
             parts.push_back({trim(current_part), "||"});
             current_part.clear();
-            i++;  // Skip the second |
+            i++;  
             continue;
           }
         }
@@ -1566,7 +1566,7 @@ int ShellScriptInterpreter::execute_block(
       current_part += c;
     }
 
-    // Add the final part
+    
     if (!current_part.empty()) {
       parts.push_back({trim(current_part), ""});
     }
@@ -1574,10 +1574,10 @@ int ShellScriptInterpreter::execute_block(
     if (parts.empty())
       return 1;
 
-    // Evaluate parts with proper short-circuit logic
+    
     int result = 0;
 
-    // Execute first condition using the original method
+    
     std::string first_cond = parts[0].first;
     if (g_debug_mode) {
       std::cerr << "DEBUG: evaluating condition part: " << first_cond
@@ -1586,19 +1586,19 @@ int ShellScriptInterpreter::execute_block(
 
     result = execute_simple_or_pipeline(first_cond);
 
-    // Process remaining parts with logical operators
+    
     for (size_t i = 1; i < parts.size(); ++i) {
       const std::string& op = parts[i - 1].second;
       const std::string& cond_part = parts[i].first;
 
       if (op == "&&") {
         if (result != 0) {
-          // Short-circuit: if previous condition failed, don't evaluate rest
+          
           break;
         }
       } else if (op == "||") {
         if (result == 0) {
-          // Short-circuit: if previous condition succeeded, don't evaluate rest
+          
           break;
         }
       }
@@ -1776,11 +1776,11 @@ int ShellScriptInterpreter::execute_block(
         std::string value_str = std::to_string(value);
         setenv(name.c_str(), value_str.c_str(), 1);
         
-        // Also update shell's internal environment variables
+        
         if (g_shell) {
           g_shell->get_env_vars()[name] = value_str;
           
-          // Update parser's env_vars cache as well
+          
           if (shell_parser) {
             shell_parser->set_env_vars(g_shell->get_env_vars());
           }
@@ -1991,7 +1991,7 @@ int ShellScriptInterpreter::execute_block(
         ++i;
       }
 
-      // Handle assignments and increments by modifying tokens in place
+      
       for (size_t i = 0; i < tokens.size(); ++i) {
         if (tokens[i].type == Token::OPERATOR &&
             (tokens[i].op == "+=" || tokens[i].op == "-=" ||
@@ -2028,10 +2028,10 @@ int ShellScriptInterpreter::execute_block(
               }
 
               set_variable_value(var_name, result);
-              // Replace this sequence with just the result value
+              
               tokens[i - 1] = {Token::NUMBER, result, "", ""};
               tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
-              i = i - 1; // Adjust index after erasure
+              i = i - 1; 
             }
           }
         }
@@ -2044,7 +2044,7 @@ int ShellScriptInterpreter::execute_block(
             long long new_val =
                 current_val + (tokens[i].op == "pre++" ? 1 : -1);
             set_variable_value(var_name, new_val);
-            // Replace pre-increment with the new value
+            
             tokens[i] = {Token::NUMBER, new_val, "", ""};
             tokens.erase(tokens.begin() + i + 1);
           }
@@ -2724,20 +2724,20 @@ int ShellScriptInterpreter::execute_block(
           if (expanded_args.empty())
             return 0;
           
-          // Handle environment variable assignments for script execution
+          
           if (expanded_args.size() == 1) {
             std::string var_name, var_value;
             if (shell_parser->is_env_assignment(expanded_args[0], var_name, var_value)) {
-              // Expand environment variables in the value
+              
               shell_parser->expand_env_vars(var_value);
               
-              // Update both the system environment and shell's internal cache
+              
               setenv(var_name.c_str(), var_value.c_str(), 1);
               if (g_shell) {
                 auto& env_vars = g_shell->get_env_vars();
                 env_vars[var_name] = var_value;
                 
-                // Also update the parser's env_vars cache
+                
                 if (shell_parser) {
                   shell_parser->set_env_vars(env_vars);
                 }
@@ -2886,7 +2886,7 @@ int ShellScriptInterpreter::execute_block(
     bool in_quotes = false;
     char q = '\0';
     int arith_depth = 0;
-    int bracket_depth = 0;  // Track [[ ]] depth
+    int bracket_depth = 0;  
     std::string cur;
     for (size_t i = 0; i < s.size(); ++i) {
       char c = s[i];
@@ -4289,7 +4289,7 @@ int ShellScriptInterpreter::execute_block(
 
     if (line.find("()") != std::string::npos &&
         line.find("{") != std::string::npos) {
-      // Use a loop to handle multiple function definitions in one line
+      
       std::string current_line = line;
       bool found_function = true;
       while (!current_line.empty() && found_function) {
@@ -4319,7 +4319,7 @@ int ShellScriptInterpreter::execute_block(
                             << "' (single-line)" << std::endl;
 
                 std::string remainder = trim(after_brace.substr(end_brace + 1));
-                // Skip leading semicolons and whitespace
+                
                 size_t start_pos = 0;
                 while (start_pos < remainder.length() &&
                        (remainder[start_pos] == ';' ||
@@ -4328,9 +4328,9 @@ int ShellScriptInterpreter::execute_block(
                 }
                 remainder = remainder.substr(start_pos);
                 current_line =
-                    remainder;  // Process the remainder in the next iteration
+                    remainder;  
                 found_function =
-                    true;  // Continue loop to look for more functions
+                    true;  
                 handled_single_line = true;
               } else if (!after_brace.empty()) {
                 body_lines.push_back(after_brace);
@@ -4355,7 +4355,7 @@ int ShellScriptInterpreter::execute_block(
                     std::string before = trim(func_line.substr(0, pos));
                     if (!before.empty())
                       body_lines.push_back(before);
-                    // Check what comes after the closing brace
+                    
                     if (pos + 1 < func_line.length()) {
                       after_closing_brace = trim(func_line.substr(pos + 1));
                     }
@@ -4371,14 +4371,14 @@ int ShellScriptInterpreter::execute_block(
                           << "' with " << body_lines.size() << " lines"
                           << std::endl;
 
-              // Check if there are commands after the closing brace
+              
               if (after_closing_brace.empty()) {
-                // No commands after closing brace, clear current_line to
-                // prevent duplicate processing
+                
+                
                 current_line.clear();
               } else {
-                // Commands found after closing brace, preserve them
-                // Skip leading semicolons and whitespace
+                
+                
                 size_t start_pos = 0;
                 while (start_pos < after_closing_brace.length() &&
                        (after_closing_brace[start_pos] == ';' ||
@@ -4388,19 +4388,19 @@ int ShellScriptInterpreter::execute_block(
                 current_line = after_closing_brace.substr(start_pos);
               }
 
-              break;  // Break from the while loop and continue to next line
+              break;  
             }
           }
         }
       }
 
-      // If there's remaining content that's not a function definition, process
-      // it as commands
+      
+      
       if (!current_line.empty()) {
         line = current_line;
-        // Fall through to process the remaining line as logical commands
+        
       } else {
-        continue;  // Continue to next line after processing all functions
+        continue;  
       }
     }
 
@@ -4501,7 +4501,7 @@ int ShellScriptInterpreter::execute_block(
 
           std::string t = trim(strip_inline_comment(cmd_text));
 
-          // Check for function definition at the individual command level
+          
           if (t.find("()") != std::string::npos &&
               t.find("{") != std::string::npos) {
             if (g_debug_mode)
@@ -4533,7 +4533,7 @@ int ShellScriptInterpreter::execute_block(
                                 << std::endl;
 
                     last_code = 0;
-                    continue;  // Skip to next command
+                    continue;  
                   }
                 }
               }
@@ -4739,7 +4739,7 @@ int ShellScriptInterpreter::execute_block(
             if (!first_toks.empty() && functions.count(first_toks[0])) {
               is_function_call = true;
 
-              // Push function scope for variable isolation
+              
               push_function_scope();
 
               std::vector<std::string> saved_params;
@@ -4783,7 +4783,7 @@ int ShellScriptInterpreter::execute_block(
               for (const auto& n : param_names)
                 unsetenv(n.c_str());
 
-              // Pop function scope to restore variable isolation
+              
               pop_function_scope();
             } else {
               try {
@@ -5021,6 +5021,15 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
 
 std::string ShellScriptInterpreter::get_variable_value(
     const std::string& var_name) {
+  // Check local variable stack first
+  if (!local_variable_stack.empty()) {
+    auto& current_scope = local_variable_stack.back();
+    auto it = current_scope.find(var_name);
+    if (it != current_scope.end()) {
+      return it->second;
+    }
+  }
+
   if (var_name == "?") {
     const char* status_env = getenv("STATUS");
     return status_env ? status_env : "0";
@@ -5076,6 +5085,14 @@ std::string ShellScriptInterpreter::get_variable_value(
 }
 
 bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
+  // Check local variable stack first
+  if (!local_variable_stack.empty()) {
+    auto& current_scope = local_variable_stack.back();
+    if (current_scope.find(var_name) != current_scope.end()) {
+      return true;
+    }
+  }
+
   if (var_name == "?" || var_name == "$" || var_name == "#" ||
       var_name == "*" || var_name == "@" || var_name == "!") {
     return true;
@@ -5381,10 +5398,10 @@ void ShellScriptInterpreter::push_function_scope() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Pushing function scope" << std::endl;
 
-  // Create a new local variable scope
+  
   local_variable_stack.emplace_back();
 
-  // Save current environment variables that might be modified
+  
   std::vector<std::string> saved_vars;
   extern char** environ;
   for (char** env = environ; *env; ++env) {
@@ -5409,11 +5426,11 @@ void ShellScriptInterpreter::pop_function_scope() {
     return;
   }
 
-  // Restore environment variables to their previous state
+  
   if (!saved_env_stack.empty()) {
     const auto& saved_vars = saved_env_stack.back();
 
-    // Clear current environment except for essential variables
+    
     extern char** environ;
     std::vector<std::string> current_vars;
     for (char** env = environ; *env; ++env) {
@@ -5425,7 +5442,7 @@ void ShellScriptInterpreter::pop_function_scope() {
       }
     }
 
-    // Unset variables that were modified in the function
+    
     for (const std::string& name : current_vars) {
       bool was_saved = false;
       for (const std::string& saved_var : saved_vars) {
@@ -5439,7 +5456,7 @@ void ShellScriptInterpreter::pop_function_scope() {
       }
     }
 
-    // Restore saved variables
+    
     for (const std::string& saved_var : saved_vars) {
       size_t eq_pos = saved_var.find('=');
       if (eq_pos != std::string::npos) {
@@ -5452,7 +5469,7 @@ void ShellScriptInterpreter::pop_function_scope() {
     saved_env_stack.pop_back();
   }
 
-  // Remove the local variable scope
+  
   local_variable_stack.pop_back();
 }
 
@@ -5463,16 +5480,13 @@ void ShellScriptInterpreter::set_local_variable(const std::string& name,
               << std::endl;
 
   if (local_variable_stack.empty()) {
-    // No function scope, treat as global
+    // If no local scope, fall back to global environment
     setenv(name.c_str(), value.c_str(), 1);
     return;
   }
 
-  // Set in the current local scope
+  // Set in local scope only - don't modify global environment
   local_variable_stack.back()[name] = value;
-  // Also set in environment for command execution, but it will be restored when
-  // scope pops
-  setenv(name.c_str(), value.c_str(), 1);
 }
 
 bool ShellScriptInterpreter::is_local_variable(const std::string& name) const {

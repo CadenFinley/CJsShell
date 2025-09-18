@@ -942,6 +942,30 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   return result;
 }
 
+std::string Parser::get_variable_value(const std::string& var_name) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Parser::get_variable_value called with: '" << var_name << "'" << std::endl;
+  }
+  
+  // If we have access to the shell script interpreter, use it for variable lookup
+  // This ensures local variables are checked first
+  if (shell && shell->get_shell_script_interpreter()) {
+    std::string result = shell->get_shell_script_interpreter()->get_variable_value(var_name);
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Script interpreter returned: '" << result << "'" << std::endl;
+    }
+    return result;
+  }
+  
+  // Fall back to environment variables only
+  const char* env_val = getenv(var_name.c_str());
+  std::string result = env_val ? env_val : "";
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: getenv returned: '" << result << "'" << std::endl;
+  }
+  return result;
+}
+
 void Parser::expand_env_vars(std::string& arg) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: expand_env_vars called with: '" << arg << "'"
@@ -999,8 +1023,8 @@ void Parser::expand_env_vars(std::string& arg) {
           std::string var_name = param_expr.substr(0, colon_pos);
           std::string default_val = param_expr.substr(dash_pos + 1);
 
-          const char* env_val = getenv(var_name.c_str());
-          if (env_val && strlen(env_val) > 0) {
+          std::string env_val = get_variable_value(var_name);
+          if (!env_val.empty()) {
             value = env_val;
           } else {
             expand_env_vars(default_val);
@@ -1012,8 +1036,8 @@ void Parser::expand_env_vars(std::string& arg) {
           std::string var_name = param_expr.substr(0, dash_pos);
           std::string default_val = param_expr.substr(dash_pos + 1);
 
-          const char* env_val = getenv(var_name.c_str());
-          if (env_val) {
+          std::string env_val = get_variable_value(var_name);
+          if (!env_val.empty()) {
             value = env_val;
           } else {
             expand_env_vars(default_val);
@@ -1031,22 +1055,13 @@ void Parser::expand_env_vars(std::string& arg) {
                   error_msg.find("parameter not set") != std::string::npos) {
                 throw e;
               } else {
-                const char* env_val = getenv(param_expr.c_str());
-                if (env_val) {
-                  value = env_val;
-                }
+                value = get_variable_value(param_expr);
               }
             } catch (...) {
-              const char* env_val = getenv(param_expr.c_str());
-              if (env_val) {
-                value = env_val;
-              }
+              value = get_variable_value(param_expr);
             }
           } else {
-            const char* env_val = getenv(param_expr.c_str());
-            if (env_val) {
-              value = env_val;
-            }
+            value = get_variable_value(param_expr);
           }
         }
 
@@ -1131,8 +1146,8 @@ void Parser::expand_env_vars(std::string& arg) {
                         << var_name << ":-..." << std::endl;
             }
 
-            const char* env_val = getenv(var_name.c_str());
-            if (env_val && strlen(env_val) > 0) {
+            std::string env_val = get_variable_value(var_name);
+            if (!env_val.empty()) {
               value = env_val;
 
               i++;
@@ -1165,8 +1180,8 @@ void Parser::expand_env_vars(std::string& arg) {
                         << var_name << "-..." << std::endl;
             }
 
-            const char* env_val = getenv(var_name.c_str());
-            if (env_val) {
+            std::string env_val = get_variable_value(var_name);
+            if (!env_val.empty()) {
               value = env_val;
 
               i++;
@@ -1191,13 +1206,13 @@ void Parser::expand_env_vars(std::string& arg) {
               value = default_val;
             }
           } else {
-            auto it = env_vars.find(var_name);
-            if (it != env_vars.end()) {
-              value = it->second;
-            } else {
-              const char* env_val = getenv(var_name.c_str());
-              if (env_val) {
-                value = env_val;
+            // Always check for local variables first, then fall back to env_vars cache
+            value = get_variable_value(var_name);
+            // If no value found through script interpreter, check env_vars cache
+            if (value.empty()) {
+              auto it = env_vars.find(var_name);
+              if (it != env_vars.end()) {
+                value = it->second;
               }
             }
           }
@@ -1274,9 +1289,10 @@ void Parser::expand_env_vars(std::string& arg) {
         }
       }
     } else if (isdigit(var_name[0]) && var_name.length() == 1) {
-      const char* env_val = getenv(var_name.c_str());
-      if (env_val) {
-        value = env_val;
+      // For positional parameters, check environment first, then shell parameters
+      std::string env_value = get_variable_value(var_name);
+      if (!env_value.empty()) {
+        value = env_value;
       } else {
         int param_num = var_name[0] - '0';
         if (shell && param_num > 0) {
@@ -1287,13 +1303,13 @@ void Parser::expand_env_vars(std::string& arg) {
         }
       }
     } else {
-      auto it = env_vars.find(var_name);
-      if (it != env_vars.end()) {
-        value = it->second;
-      } else {
-        const char* env_val = getenv(var_name.c_str());
-        if (env_val) {
-          value = env_val;
+      // Always check for local variables first, then fall back to env_vars cache  
+      value = get_variable_value(var_name);
+      // If no value found through script interpreter, check env_vars cache
+      if (value.empty()) {
+        auto it = env_vars.find(var_name);
+        if (it != env_vars.end()) {
+          value = it->second;
         }
       }
     }

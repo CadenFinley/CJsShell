@@ -96,10 +96,6 @@ static void initialize_title_strings() {
   }
 }
 
-// fatal: could not create work tree dir '/nvim': Read-only file system
-// git clone https://github.com/nvim-lua/kickstart.nvim.git
-// "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
-
 /*
  * Exit/Return Codes:
  * 0       - Success
