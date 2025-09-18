@@ -274,6 +274,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   bool escaped = false;
   int arith_depth = 0;
   int brace_depth = 0;
+  int bracket_depth = 0;  // Track [[ ]] depth
 
   bool token_saw_single = false;
   bool token_saw_double = false;
@@ -353,9 +354,50 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
         i++;
       }
 
+      else if (c == '[' && i + 1 < cmdline.length() && cmdline[i + 1] == '[') {
+        // Handle [[ construct
+        bracket_depth++;
+        if (!current_token.empty() || token_saw_single || token_saw_double) {
+          if (token_saw_single && !token_saw_double) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                             current_token);
+          } else if (token_saw_double && !token_saw_single) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                             current_token);
+          } else if (!current_token.empty()) {
+            tokens.push_back(current_token);
+          }
+          current_token.clear();
+          token_saw_single = token_saw_double = false;
+        }
+        tokens.push_back("[[");
+        i++; // Skip the second [
+      }
+
+      else if (c == ']' && i + 1 < cmdline.length() && cmdline[i + 1] == ']' &&
+               bracket_depth > 0) {
+        // Handle ]] construct
+        bracket_depth--;
+        if (!current_token.empty() || token_saw_single || token_saw_double) {
+          if (token_saw_single && !token_saw_double) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                             current_token);
+          } else if (token_saw_double && !token_saw_single) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                             current_token);
+          } else if (!current_token.empty()) {
+            tokens.push_back(current_token);
+          }
+          current_token.clear();
+          token_saw_single = token_saw_double = false;
+        }
+        tokens.push_back("]]");
+        i++; // Skip the second ]
+      }
+
       else if ((c == '(' || c == ')' || c == '<' || c == '>' ||
-                (c == '&' && arith_depth == 0 && brace_depth == 0) ||
-                (c == '|' && arith_depth == 0 && brace_depth == 0))) {
+                (c == '&' && arith_depth == 0 && brace_depth == 0 && bracket_depth == 0) ||
+                (c == '|' && arith_depth == 0 && brace_depth == 0 && bracket_depth == 0))) {
         if (!current_token.empty() || token_saw_single || token_saw_double) {
           if (token_saw_single && !token_saw_double) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
@@ -734,11 +776,16 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
   std::vector<std::string> final_args;
   final_args.reserve(tilde_expanded_args.size() * 2);
+  
+  // Check if this is a [[ command - if so, disable wildcard expansion
+  bool is_double_bracket_command = !tilde_expanded_args.empty() && 
+                                   strip_quote_tag(tilde_expanded_args[0]) == "[[";
+  
   for (const auto& raw_arg : tilde_expanded_args) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
     std::string arg = strip_quote_tag(raw_arg);
-    if (!is_single && !is_double) {
+    if (!is_single && !is_double && !is_double_bracket_command) {
       auto gw = expand_wildcards(arg);
       final_args.insert(final_args.end(), gw.begin(), gw.end());
     } else {
@@ -1337,6 +1384,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
+  int bracket_depth = 0;  // Track [[ ]] depth
 
   for (size_t i = 0; i < command.length(); ++i) {
     if (command[i] == '"' || command[i] == '\'') {
@@ -1353,7 +1401,21 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     } else if (!in_quotes && command[i] == ')') {
       paren_depth--;
       current += command[i];
-    } else if (command[i] == '|' && !in_quotes && paren_depth == 0) {
+    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() && 
+               command[i + 1] == '[') {
+      // Handle [[ construct
+      bracket_depth++;
+      current += command[i];
+      current += command[i + 1];
+      i++;
+    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() && 
+               command[i + 1] == ']' && bracket_depth > 0) {
+      // Handle ]] construct
+      bracket_depth--;
+      current += command[i];
+      current += command[i + 1];
+      i++;
+    } else if (command[i] == '|' && !in_quotes && paren_depth == 0 && bracket_depth == 0) {
       if (i > 0 && command[i - 1] == '>') {
         current += command[i];
       } else {
@@ -1567,6 +1629,10 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       }
     }
 
+    // Check if this is a [[ command - if so, disable wildcard expansion
+    bool is_double_bracket_cmd = !filtered_args.empty() && 
+                                strip_quote_tag(filtered_args[0]) == "[[";
+
     std::vector<std::string> final_args_local;
     for (const auto& raw : filtered_args) {
       bool is_single = is_single_quoted_token(raw);
@@ -1577,7 +1643,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           val.find('}') != std::string::npos) {
         std::vector<std::string> brace_expansions = expand_braces(val);
         for (const auto& expanded_val : brace_expansions) {
-          if (expanded_val.find_first_of("*?[]") != std::string::npos) {
+          if (!is_double_bracket_cmd && expanded_val.find_first_of("*?[]") != std::string::npos) {
             auto wildcard_expanded = expand_wildcards(expanded_val);
             final_args_local.insert(final_args_local.end(),
                                     wildcard_expanded.begin(),
@@ -1586,7 +1652,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             final_args_local.push_back(expanded_val);
           }
         }
-      } else if (!is_single && !is_double &&
+      } else if (!is_single && !is_double && !is_double_bracket_cmd &&
                  val.find_first_of("*?[]") != std::string::npos) {
         auto expanded = expand_wildcards(val);
         final_args_local.insert(final_args_local.end(), expanded.begin(),
@@ -1757,6 +1823,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
   char quote_char = '\0';
   int paren_depth = 0;
   int arith_depth = 0;
+  int bracket_depth = 0;  // Track [[ ]] depth
 
   for (size_t i = 0; i < command.length(); ++i) {
     if (command[i] == '"' || command[i] == '\'') {
@@ -1786,8 +1853,22 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
       } else {
         current += command[i];
       }
-    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 &&
-               i < command.length() - 1) {
+    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() && 
+               command[i + 1] == '[') {
+      // Handle [[ construct
+      bracket_depth++;
+      current += command[i];
+      current += command[i + 1];
+      i++;
+    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() && 
+               command[i + 1] == ']' && bracket_depth > 0) {
+      // Handle ]] construct
+      bracket_depth--;
+      current += command[i];
+      current += command[i + 1];
+      i++;
+    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 && 
+               bracket_depth == 0 && i < command.length() - 1) {
       if (command[i] == '&' && command[i + 1] == '&') {
         if (!current.empty()) {
           logical_commands.push_back({current, "&&"});

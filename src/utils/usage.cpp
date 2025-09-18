@@ -22,7 +22,8 @@ void print_usage() {
       << "  -L, --no-titleline         Disable title line\n"
       << "  -N, --no-source            Don't source the .cjshrc file\n"
       << "  -O, --no-completions       Disable tab completions\n"
-      << "  -S, --no-syntax-highlighting Disable syntax highlighting\n\n"
+      << "  -S, --no-syntax-highlighting Disable syntax highlighting\n"
+      << "  -X, --startup-test          Enable startup test mode\n\n"
       << "For more information, visit: "
          "https://github.com/CadenFinley/CJsShell\n"
       << " Or run cjsh --help" << std::endl;

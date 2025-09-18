@@ -7,6 +7,10 @@
 void print_error(const ErrorInfo& error) {
   std::cerr << "cjsh: ";
 
+  if (!error.command_used.empty()) {
+    std::cerr << error.command_used << ": ";
+  }
+
   switch (error.type) {
     case ErrorType::COMMAND_NOT_FOUND:
       std::cerr << "command not found";
@@ -30,10 +34,6 @@ void print_error(const ErrorInfo& error) {
     default:
       std::cerr << "unknown error";
       break;
-  }
-
-  if (!error.command_used.empty()) {
-    std::cerr << ": " << error.command_used;
   }
 
   if (!error.message.empty()) {

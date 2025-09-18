@@ -301,10 +301,10 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     if (errno == ENOENT) {
       auto suggestions =
           suggestion_utils::generate_command_suggestions(cmd_args[0]);
-      set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "command not found",
+      set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "",
                 suggestions);
     } else if (errno == EACCES) {
-      set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "permission denied ",
+      set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "",
                 {});
     } else if (errno == ENOEXEC) {
       set_error(ErrorType::INVALID_ARGUMENT, cmd_args[0],
@@ -405,7 +405,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   set_error(error_type, args[0],
             exit_code == 0 ? "command completed successfully"
                            : (error_type == ErrorType::COMMAND_NOT_FOUND
-                                  ? "command not found"
+                                  ? ""
                                   : "command failed with exit code " +
                                         std::to_string(exit_code)),
             suggestions);
@@ -943,7 +943,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     exit_code == 0
                         ? "builtin command completed successfully"
                         : (error_type == ErrorType::COMMAND_NOT_FOUND
-                               ? "command not found"
+                               ? ""
                                : "builtin command failed with exit code " +
                                      std::to_string(exit_code)),
                     suggestions);
@@ -1316,7 +1316,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         set_error(error_type, cmd.args[0],
                   exit_code == 0 ? "command completed successfully"
                                  : (error_type == ErrorType::COMMAND_NOT_FOUND
-                                        ? "command not found"
+                                        ? ""
                                         : "command failed with exit code " +
                                               std::to_string(exit_code)),
                   suggestions);

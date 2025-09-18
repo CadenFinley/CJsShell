@@ -39,6 +39,7 @@
 #include "suggestion_utils.h"
 #include "syntax_command.h"
 #include "test_command.h"
+#include "double_bracket_command.h"
 #include "theme_command.h"
 #include "times_command.h"
 #include "trap_command.h"
@@ -79,8 +80,9 @@ Built_ins::Built_ins() : shell(nullptr) {
       {"..",
        [this](const std::vector<std::string>& args) {
          (void)args;
-         return ::change_directory("..", current_directory, previous_directory,
-                                   last_terminal_output_error);
+         return ::change_directory_with_bookmarks(
+             "..", current_directory, previous_directory,
+             last_terminal_output_error, directory_bookmarks);
        }},
       {"ls",
        [this](const std::vector<std::string>& args) {
@@ -205,6 +207,10 @@ Built_ins::Built_ins() : shell(nullptr) {
       {"[",
        [](const std::vector<std::string>& args) {
          return ::test_command(args);
+       }},
+      {"[[",
+       [](const std::vector<std::string>& args) {
+         return ::double_bracket_command(args);
        }},
       {"exec",
        [this](const std::vector<std::string>& args) {
