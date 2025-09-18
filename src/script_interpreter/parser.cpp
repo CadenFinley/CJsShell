@@ -395,6 +395,28 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
         i++;  // Skip the second ]
       }
 
+      // Handle && and || inside double brackets
+      else if (bracket_depth > 0 && i + 1 < cmdline.length() &&
+               ((c == '&' && cmdline[i + 1] == '&') ||
+                (c == '|' && cmdline[i + 1] == '|'))) {
+        if (!current_token.empty() || token_saw_single || token_saw_double) {
+          if (token_saw_single && !token_saw_double) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                             current_token);
+          } else if (token_saw_double && !token_saw_single) {
+            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                             current_token);
+          } else if (!current_token.empty()) {
+            tokens.push_back(current_token);
+          }
+          current_token.clear();
+          token_saw_single = token_saw_double = false;
+        }
+        // Add the double operator as a single token
+        tokens.push_back(std::string(1, c) + cmdline[i + 1]);
+        i++;  // Skip the second character
+      }
+
       else if ((c == '(' || c == ')' || c == '<' || c == '>' ||
                 (c == '&' && arith_depth == 0 && brace_depth == 0 &&
                  bracket_depth == 0) ||
@@ -1453,6 +1475,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       int arith_depth = 0;
       bool in_quotes = false;
       char quote_char = '\0';
+      int bracket_depth = 0;  // Track [[ ]] depth for background detection
 
       for (size_t i = 0; i < trimmed.length(); ++i) {
         if (trimmed[i] == '"' || trimmed[i] == '\'') {
@@ -1474,9 +1497,27 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             i++;
           }
 
+          else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
+                   trimmed[i + 1] == '[') {
+            bracket_depth++;
+            i++;  // Skip the second [
+          }
+
+          else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
+                   trimmed[i + 1] == ']' && bracket_depth > 0) {
+            bracket_depth--;
+            i++;  // Skip the second ]
+          }
+
           else if (i == trimmed.length() - 1 && trimmed[i] == '&' &&
                    arith_depth > 0) {
             inside_arithmetic = true;
+          }
+
+          else if (i == trimmed.length() - 1 && trimmed[i] == '&' &&
+                   bracket_depth > 0) {
+            // Inside double brackets, don't treat & as background
+            inside_arithmetic = true;  // Treat as if inside arithmetic to prevent background detection
           }
         }
       }

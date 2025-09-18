@@ -2845,6 +2845,7 @@ int ShellScriptInterpreter::execute_block(
     bool in_quotes = false;
     char q = '\0';
     int arith_depth = 0;
+    int bracket_depth = 0;  // Track [[ ]] depth
     std::string cur;
     for (size_t i = 0; i < s.size(); ++i) {
       char c = s[i];
@@ -2869,7 +2870,24 @@ int ShellScriptInterpreter::execute_block(
           cur += c;
           cur += s[i + 1];
           i++;
-        } else if (c == '&' && arith_depth == 0) {
+        }
+
+        else if (i + 1 < s.size() && s[i] == '[' && s[i + 1] == '[') {
+          bracket_depth++;
+          cur += c;
+          cur += s[i + 1];
+          i++;
+        }
+
+        else if (i + 1 < s.size() && s[i] == ']' && s[i + 1] == ']' &&
+                 bracket_depth > 0) {
+          bracket_depth--;
+          cur += c;
+          cur += s[i + 1];
+          i++;
+        }
+
+        else if (c == '&' && arith_depth == 0 && bracket_depth == 0) {
           if (i + 1 < s.size() && s[i + 1] == '&') {
             cur += c;
           } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
