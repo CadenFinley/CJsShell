@@ -371,7 +371,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           token_saw_single = token_saw_double = false;
         }
         tokens.push_back("[[");
-        i++; // Skip the second [
+        i++;  // Skip the second [
       }
 
       else if (c == ']' && i + 1 < cmdline.length() && cmdline[i + 1] == ']' &&
@@ -392,12 +392,14 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           token_saw_single = token_saw_double = false;
         }
         tokens.push_back("]]");
-        i++; // Skip the second ]
+        i++;  // Skip the second ]
       }
 
       else if ((c == '(' || c == ')' || c == '<' || c == '>' ||
-                (c == '&' && arith_depth == 0 && brace_depth == 0 && bracket_depth == 0) ||
-                (c == '|' && arith_depth == 0 && brace_depth == 0 && bracket_depth == 0))) {
+                (c == '&' && arith_depth == 0 && brace_depth == 0 &&
+                 bracket_depth == 0) ||
+                (c == '|' && arith_depth == 0 && brace_depth == 0 &&
+                 bracket_depth == 0))) {
         if (!current_token.empty() || token_saw_single || token_saw_double) {
           if (token_saw_single && !token_saw_double) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
@@ -776,11 +778,12 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
   std::vector<std::string> final_args;
   final_args.reserve(tilde_expanded_args.size() * 2);
-  
+
   // Check if this is a [[ command - if so, disable wildcard expansion
-  bool is_double_bracket_command = !tilde_expanded_args.empty() && 
-                                   strip_quote_tag(tilde_expanded_args[0]) == "[[";
-  
+  bool is_double_bracket_command =
+      !tilde_expanded_args.empty() &&
+      strip_quote_tag(tilde_expanded_args[0]) == "[[";
+
   for (const auto& raw_arg : tilde_expanded_args) {
     const bool is_single = is_single_quoted_token(raw_arg);
     const bool is_double = is_double_quoted_token(raw_arg);
@@ -829,7 +832,8 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::string content = pattern.substr(open_pos + 1, close_pos - open_pos - 1);
   std::string suffix = pattern.substr(close_pos + 1);
 
-  // Special case: Don't expand {} when it's standalone (used by find -exec and similar commands)
+  // Special case: Don't expand {} when it's standalone (used by find -exec and
+  // similar commands)
   if (content.empty() && prefix.empty() && suffix.empty()) {
     result.push_back(pattern);
     return result;
@@ -1286,17 +1290,17 @@ void Parser::expand_env_vars_selective(std::string& arg) {
     std::cerr << "DEBUG: expand_env_vars_selective called with: '" << arg << "'"
               << std::endl;
   }
-  
+
   const std::string start_marker = "\x1E__NOENV_START__\x1E";
   const std::string end_marker = "\x1E__NOENV_END__\x1E";
-  
+
   std::string result;
   result.reserve(arg.length() * 1.5);
-  
+
   size_t pos = 0;
   while (pos < arg.length()) {
     size_t start_pos = arg.find(start_marker, pos);
-    
+
     if (start_pos == std::string::npos) {
       // No more NOENV markers, expand the rest normally
       std::string remaining = arg.substr(pos);
@@ -1304,12 +1308,12 @@ void Parser::expand_env_vars_selective(std::string& arg) {
       result += remaining;
       break;
     }
-    
+
     // Expand variables in the part before the NOENV marker
     std::string before_marker = arg.substr(pos, start_pos - pos);
     expand_env_vars(before_marker);
     result += before_marker;
-    
+
     // Find the corresponding end marker
     size_t end_pos = arg.find(end_marker, start_pos + start_marker.length());
     if (end_pos == std::string::npos) {
@@ -1317,16 +1321,16 @@ void Parser::expand_env_vars_selective(std::string& arg) {
       result += arg.substr(start_pos);
       break;
     }
-    
+
     // Add the protected content without expansion (but remove the markers)
     size_t content_start = start_pos + start_marker.length();
     size_t content_length = end_pos - content_start;
     result += arg.substr(content_start, content_length);
-    
+
     // Continue after the end marker
     pos = end_pos + end_marker.length();
   }
-  
+
   if (g_debug_mode) {
     std::cerr << "DEBUG: expand_env_vars_selective result: '" << result << "'"
               << std::endl;
@@ -1401,21 +1405,22 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     } else if (!in_quotes && command[i] == ')') {
       paren_depth--;
       current += command[i];
-    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() && 
+    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() &&
                command[i + 1] == '[') {
       // Handle [[ construct
       bracket_depth++;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() && 
+    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() &&
                command[i + 1] == ']' && bracket_depth > 0) {
       // Handle ]] construct
       bracket_depth--;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (command[i] == '|' && !in_quotes && paren_depth == 0 && bracket_depth == 0) {
+    } else if (command[i] == '|' && !in_quotes && paren_depth == 0 &&
+               bracket_depth == 0) {
       if (i > 0 && command[i - 1] == '>') {
         current += command[i];
       } else {
@@ -1630,8 +1635,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     }
 
     // Check if this is a [[ command - if so, disable wildcard expansion
-    bool is_double_bracket_cmd = !filtered_args.empty() && 
-                                strip_quote_tag(filtered_args[0]) == "[[";
+    bool is_double_bracket_cmd =
+        !filtered_args.empty() && strip_quote_tag(filtered_args[0]) == "[[";
 
     std::vector<std::string> final_args_local;
     for (const auto& raw : filtered_args) {
@@ -1643,7 +1648,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           val.find('}') != std::string::npos) {
         std::vector<std::string> brace_expansions = expand_braces(val);
         for (const auto& expanded_val : brace_expansions) {
-          if (!is_double_bracket_cmd && expanded_val.find_first_of("*?[]") != std::string::npos) {
+          if (!is_double_bracket_cmd &&
+              expanded_val.find_first_of("*?[]") != std::string::npos) {
             auto wildcard_expanded = expand_wildcards(expanded_val);
             final_args_local.insert(final_args_local.end(),
                                     wildcard_expanded.begin(),
@@ -1853,21 +1859,21 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
       } else {
         current += command[i];
       }
-    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() && 
+    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() &&
                command[i + 1] == '[') {
       // Handle [[ construct
       bracket_depth++;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() && 
+    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() &&
                command[i + 1] == ']' && bracket_depth > 0) {
       // Handle ]] construct
       bracket_depth--;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 && 
+    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 &&
                bracket_depth == 0 && i < command.length() - 1) {
       if (command[i] == '&' && command[i + 1] == '&') {
         if (!current.empty()) {
@@ -1954,14 +1960,16 @@ std::vector<std::string> Parser::parse_semicolon_commands(
         if (i > 0 && command[i - 1] == '\\') {
           // Count consecutive backslashes to determine if semicolon is escaped
           size_t backslash_count = 0;
-          for (size_t j = i - 1; j < command.length() && command[j] == '\\'; --j) {
+          for (size_t j = i - 1; j < command.length() && command[j] == '\\';
+               --j) {
             backslash_count++;
-            if (j == 0) break;
+            if (j == 0)
+              break;
           }
           // If odd number of backslashes, the semicolon is escaped
           is_escaped = (backslash_count % 2) == 1;
         }
-        
+
         if (!is_escaped) {
           is_semicolon_split_point[i] = true;
         }

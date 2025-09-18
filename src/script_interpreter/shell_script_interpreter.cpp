@@ -1429,12 +1429,13 @@ int ShellScriptInterpreter::execute_block(
   // Properly handles && and || as logical operators, not pipeline operators
   auto evaluate_logical_condition = [&](const std::string& condition) -> int {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: evaluate_logical_condition called with: " << condition
-                << std::endl;
+      std::cerr << "DEBUG: evaluate_logical_condition called with: "
+                << condition << std::endl;
     }
 
     std::string cond = trim(condition);
-    if (cond.empty()) return 1;
+    if (cond.empty())
+      return 1;
 
     // First check if this condition actually contains logical operators
     // If not, fall back to the original method to maintain compatibility
@@ -1443,20 +1444,20 @@ int ShellScriptInterpreter::execute_block(
     char quote_char = '\0';
     bool escaped = false;
     int bracket_depth = 0;
-    
+
     for (size_t i = 0; i < cond.length() - 1; ++i) {
       char c = cond[i];
-      
+
       if (escaped) {
         escaped = false;
         continue;
       }
-      
+
       if (c == '\\') {
         escaped = true;
         continue;
       }
-      
+
       if (!in_quotes) {
         if (c == '"' || c == '\'' || c == '`') {
           in_quotes = true;
@@ -1474,8 +1475,9 @@ int ShellScriptInterpreter::execute_block(
         }
         continue;
       }
-      
-      // Check for logical operators only when not in quotes and bracket depth is 0
+
+      // Check for logical operators only when not in quotes and bracket depth
+      // is 0
       if (!in_quotes && bracket_depth == 0) {
         if ((cond[i] == '&' && cond[i + 1] == '&') ||
             (cond[i] == '|' && cond[i + 1] == '|')) {
@@ -1484,42 +1486,45 @@ int ShellScriptInterpreter::execute_block(
         }
       }
     }
-    
+
     // If no logical operators found, use the original method
     if (!has_logical_ops) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: no logical operators found, using original method" << std::endl;
+        std::cerr << "DEBUG: no logical operators found, using original method"
+                  << std::endl;
       }
       return execute_simple_or_pipeline(cond);
     }
-    
+
     if (g_debug_mode) {
-      std::cerr << "DEBUG: logical operators found, parsing manually" << std::endl;
+      std::cerr << "DEBUG: logical operators found, parsing manually"
+                << std::endl;
     }
 
     // Split on && and || while respecting quotes and brackets
-    std::vector<std::pair<std::string, std::string>> parts; // {condition, operator}
+    std::vector<std::pair<std::string, std::string>>
+        parts;  // {condition, operator}
     std::string current_part;
     in_quotes = false;
     quote_char = '\0';
     escaped = false;
     bracket_depth = 0;
-    
+
     for (size_t i = 0; i < cond.length(); ++i) {
       char c = cond[i];
-      
+
       if (escaped) {
         current_part += c;
         escaped = false;
         continue;
       }
-      
+
       if (c == '\\') {
         escaped = true;
         current_part += c;
         continue;
       }
-      
+
       if (!in_quotes) {
         if (c == '"' || c == '\'' || c == '`') {
           in_quotes = true;
@@ -1539,50 +1544,53 @@ int ShellScriptInterpreter::execute_block(
         current_part += c;
         continue;
       }
-      
-      // Check for logical operators only when not in quotes and bracket depth is 0
+
+      // Check for logical operators only when not in quotes and bracket depth
+      // is 0
       if (!in_quotes && bracket_depth == 0) {
         if (i < cond.length() - 1) {
           if (cond[i] == '&' && cond[i + 1] == '&') {
             parts.push_back({trim(current_part), "&&"});
             current_part.clear();
-            i++; // Skip the second &
+            i++;  // Skip the second &
             continue;
           } else if (cond[i] == '|' && cond[i + 1] == '|') {
             parts.push_back({trim(current_part), "||"});
             current_part.clear();
-            i++; // Skip the second |
+            i++;  // Skip the second |
             continue;
           }
         }
       }
-      
+
       current_part += c;
     }
-    
+
     // Add the final part
     if (!current_part.empty()) {
       parts.push_back({trim(current_part), ""});
     }
-    
-    if (parts.empty()) return 1;
-    
+
+    if (parts.empty())
+      return 1;
+
     // Evaluate parts with proper short-circuit logic
     int result = 0;
-    
+
     // Execute first condition using the original method
     std::string first_cond = parts[0].first;
     if (g_debug_mode) {
-      std::cerr << "DEBUG: evaluating condition part: " << first_cond << std::endl;
+      std::cerr << "DEBUG: evaluating condition part: " << first_cond
+                << std::endl;
     }
-    
+
     result = execute_simple_or_pipeline(first_cond);
-    
+
     // Process remaining parts with logical operators
     for (size_t i = 1; i < parts.size(); ++i) {
-      const std::string& op = parts[i-1].second;
+      const std::string& op = parts[i - 1].second;
       const std::string& cond_part = parts[i].first;
-      
+
       if (op == "&&") {
         if (result != 0) {
           // Short-circuit: if previous condition failed, don't evaluate rest
@@ -1594,18 +1602,19 @@ int ShellScriptInterpreter::execute_block(
           break;
         }
       }
-      
+
       if (g_debug_mode) {
-        std::cerr << "DEBUG: evaluating condition part: " << cond_part << std::endl;
+        std::cerr << "DEBUG: evaluating condition part: " << cond_part
+                  << std::endl;
       }
-      
+
       result = execute_simple_or_pipeline(cond_part);
     }
-    
+
     if (g_debug_mode) {
       std::cerr << "DEBUG: logical condition result: " << result << std::endl;
     }
-    
+
     return result;
   };
 

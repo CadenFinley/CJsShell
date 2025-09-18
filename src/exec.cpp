@@ -301,11 +301,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     if (errno == ENOENT) {
       auto suggestions =
           suggestion_utils::generate_command_suggestions(cmd_args[0]);
-      set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "",
-                suggestions);
+      set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "", suggestions);
     } else if (errno == EACCES) {
-      set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "",
-                {});
+      set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "", {});
     } else if (errno == ENOEXEC) {
       set_error(ErrorType::INVALID_ARGUMENT, cmd_args[0],
                 "invalid executable format", {});

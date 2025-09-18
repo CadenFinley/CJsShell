@@ -65,7 +65,7 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
         break;
     }
   }
-  
+
   try {
     std::regex re(regex_pattern);
     return std::regex_match(text, re);
@@ -79,16 +79,16 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
   if (tokens.empty()) {
     return 1;
   }
-  
+
   if (tokens.size() == 1) {
     // Single argument: true if non-empty
     return tokens[0].empty() ? 1 : 0;
   }
-  
+
   if (tokens.size() == 2) {
     const std::string& op = tokens[0];
     const std::string& arg = tokens[1];
-    
+
     if (op == "-z") {
       return arg.empty() ? 0 : 1;
     } else if (op == "-n") {
@@ -114,18 +114,18 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
       return arg.empty() ? 0 : 1;
     }
   }
-  
+
   if (tokens.size() == 3) {
     if (tokens[0] == "!") {
       // Negation
       std::vector<std::string> sub_tokens(tokens.begin() + 1, tokens.end());
       return evaluate_expression(sub_tokens) == 0 ? 1 : 0;
     }
-    
+
     const std::string& arg1 = tokens[0];
     const std::string& op = tokens[1];
     const std::string& arg2 = tokens[2];
-    
+
     if (op == "=" || op == "==") {
       // Enhanced string comparison with pattern matching
       return pattern_match(arg1, arg2) ? 0 : 1;
@@ -189,13 +189,13 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
       }
     }
   }
-  
+
   if (tokens.size() == 4 && tokens[0] == "!") {
     // Negation with 3-argument expression
     std::vector<std::string> sub_tokens(tokens.begin() + 1, tokens.end());
     return evaluate_expression(sub_tokens) == 0 ? 1 : 0;
   }
-  
+
   return 1;
 }
 
@@ -203,36 +203,36 @@ int double_bracket_command(const std::vector<std::string>& args) {
   if (args.empty()) {
     return 1;
   }
-  
+
   // Debug: print all arguments
   // std::cerr << "DEBUG [[ args: ";
   // for (const auto& arg : args) {
   //   std::cerr << "'" << arg << "' ";
   // }
   // std::cerr << std::endl;
-  
+
   std::vector<std::string> expression_args = args;
-  
+
   // Remove [[ and ]] tokens
   if (args[0] == "[[" && args.size() > 1 && args.back() == "]]") {
-    expression_args.pop_back();  // Remove ]]
+    expression_args.pop_back();                      // Remove ]]
     expression_args.erase(expression_args.begin());  // Remove [[
   } else if (args[0] == "[[") {
     expression_args.erase(expression_args.begin());  // Remove [[
   }
-  
+
   if (expression_args.empty()) {
     return 1;
   }
-  
+
   // Handle logical operators (&& and ||)
   std::vector<std::vector<std::string>> expressions;
   std::vector<std::string> operators;
   std::vector<std::string> current_expr;
-  
+
   for (size_t i = 0; i < expression_args.size(); ++i) {
     const std::string& token = expression_args[i];
-    
+
     if (token == "&&" || token == "||") {
       if (!current_expr.empty()) {
         expressions.push_back(current_expr);
@@ -243,18 +243,18 @@ int double_bracket_command(const std::vector<std::string>& args) {
       current_expr.push_back(token);
     }
   }
-  
+
   if (!current_expr.empty()) {
     expressions.push_back(current_expr);
   }
-  
+
   if (expressions.empty()) {
     return 1;
   }
-  
+
   // Evaluate expressions with short-circuit logic
   int result = evaluate_expression(expressions[0]);
-  
+
   for (size_t i = 0; i < operators.size() && i + 1 < expressions.size(); ++i) {
     if (operators[i] == "&&") {
       if (result == 0) {  // Previous expression was true
@@ -268,6 +268,6 @@ int double_bracket_command(const std::vector<std::string>& args) {
       // If previous was true, short-circuit (result stays 0)
     }
   }
-  
+
   return result;
 }
