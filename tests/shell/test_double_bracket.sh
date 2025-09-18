@@ -296,9 +296,9 @@ rm -rf "$TEMP_DIR"
 
 echo
 echo "Double Bracket Test Summary:"
-echo "PASSED: $TESTS_PASSED"
-echo "FAILED: $TESTS_FAILED"
-echo "SKIPPED: $TESTS_SKIPPED"
+echo "Passed: $TESTS_PASSED"
+echo "Failed: $TESTS_FAILED"
+echo "Skipped: $TESTS_SKIPPED"
 
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "All double bracket tests passed!"
