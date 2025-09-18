@@ -360,16 +360,12 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   ErrorType error_type = ErrorType::RUNTIME_ERROR;
   std::vector<std::string> suggestions;
   if (exit_code == 127) {
-    // Check if the command is actually executable to distinguish between
-    // "command not found" and "command returned 127"
     std::string command_path = args[0];
     bool command_exists = false;
 
-    // Check if it's an absolute/relative path
     if (command_path.find('/') != std::string::npos) {
       command_exists = (access(command_path.c_str(), F_OK) == 0);
     } else {
-      // Check in PATH
       const char* path_env = getenv("PATH");
       if (path_env) {
         std::string path_str(path_env);
@@ -896,16 +892,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           ErrorType error_type = ErrorType::RUNTIME_ERROR;
           std::vector<std::string> suggestions;
           if (exit_code == 127) {
-            // Check if the command is actually executable to distinguish
-            // between "command not found" and "command returned 127"
             std::string command_path = cmd.args[0];
             bool command_exists = false;
 
-            // Check if it's an absolute/relative path
             if (command_path.find('/') != std::string::npos) {
               command_exists = (access(command_path.c_str(), F_OK) == 0);
             } else {
-              // Check in PATH
               const char* path_env = getenv("PATH");
               if (path_env) {
                 std::string path_str(path_env);
@@ -1270,16 +1262,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         ErrorType error_type = ErrorType::RUNTIME_ERROR;
         std::vector<std::string> suggestions;
         if (exit_code == 127) {
-          // Check if the command is actually executable to distinguish between
-          // "command not found" and "command returned 127"
           std::string command_path = cmd.args[0];
           bool command_exists = false;
 
-          // Check if it's an absolute/relative path
           if (command_path.find('/') != std::string::npos) {
             command_exists = (access(command_path.c_str(), F_OK) == 0);
           } else {
-            // Check in PATH
             const char* path_env = getenv("PATH");
             if (path_env) {
               std::string path_str(path_env);

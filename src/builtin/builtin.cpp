@@ -54,7 +54,6 @@
   } while (0)
 
 Built_ins::Built_ins() : shell(nullptr) {
-  // Reserve space for builtins to avoid rehashing
   builtins.reserve(64);
 
   builtins = {
@@ -138,8 +137,6 @@ Built_ins::Built_ins() : shell(nullptr) {
        }},
       {"login-startup-arg",
        [](const std::vector<std::string>& args) {
-         // while this is a builtin, it is only intended for internal use during
-         // startup for the .cjprofile and not for interactive use
          return ::startup_flag_command(args);
        }},
       {".",
@@ -214,22 +211,16 @@ Built_ins::Built_ins() : shell(nullptr) {
        }},
       {"exec",
        [this](const std::vector<std::string>& args) {
-         // only used in scripts, not interactively by the shell script
-         // interpreter
          if (args.size() <= 1) {
-           // exec with no arguments should succeed
            return 0;
          }
 
-         // Check if this is a file descriptor operation (e.g., exec 3< file)
          std::vector<std::string> exec_args;
          bool has_fd_operations = false;
 
          for (size_t i = 1; i < args.size(); ++i) {
            const std::string& arg = args[i];
 
-           // Check for file descriptor redirection patterns: N< file, N> file,
-           // N<&M, N>&M
            if (arg.size() > 1 && std::isdigit(arg[0])) {
              size_t fd_end = 0;
              while (fd_end < arg.size() && std::isdigit(arg[fd_end])) {
@@ -241,7 +232,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                std::string op = arg.substr(fd_end);
 
                if (op == "<" && i + 1 < args.size()) {
-                 // exec N< file - open file for reading on fd N
                  std::string filename = args[i + 1];
                  int file_fd = open(filename.c_str(), O_RDONLY);
                  if (file_fd == -1) {
@@ -258,10 +248,9 @@ Built_ins::Built_ins() : shell(nullptr) {
                    close(file_fd);
                  }
                  has_fd_operations = true;
-                 i++;  // Skip the filename argument
+                 i++;
                  continue;
                } else if (op == ">" && i + 1 < args.size()) {
-                 // exec N> file - open file for writing on fd N
                  std::string filename = args[i + 1];
                  int file_fd =
                      open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -279,10 +268,9 @@ Built_ins::Built_ins() : shell(nullptr) {
                    close(file_fd);
                  }
                  has_fd_operations = true;
-                 i++;  // Skip the filename argument
+                 i++;
                  continue;
                } else if (op.find("<&") == 0 && op.size() > 2) {
-                 // exec N<&M - duplicate input fd M to fd N
                  try {
                    int src_fd = std::stoi(op.substr(2));
                    if (dup2(src_fd, fd_num) == -1) {
@@ -293,10 +281,8 @@ Built_ins::Built_ins() : shell(nullptr) {
                    has_fd_operations = true;
                    continue;
                  } catch (const std::exception&) {
-                   // Fall through to add as regular argument
                  }
                } else if (op.find(">&") == 0 && op.size() > 2) {
-                 // exec N>&M - duplicate output fd M to fd N
                  try {
                    int src_fd = std::stoi(op.substr(2));
                    if (dup2(src_fd, fd_num) == -1) {
@@ -307,26 +293,19 @@ Built_ins::Built_ins() : shell(nullptr) {
                    has_fd_operations = true;
                    continue;
                  } catch (const std::exception&) {
-                   // Fall through to add as regular argument
                  }
                }
              }
            }
 
-           // If not a file descriptor operation, add to exec args
            exec_args.push_back(arg);
          }
 
-         // If we only had file descriptor operations and no command, return
-         // success
          if (has_fd_operations && exec_args.empty()) {
            return 0;
          }
 
-         // If we have a command to execute, run it
          if (!exec_args.empty()) {
-           // For now, we'll simulate exec by executing the command
-           // In a real implementation, this would replace the shell process
            return shell->execute_command(exec_args, false);
          }
 
@@ -335,7 +314,6 @@ Built_ins::Built_ins() : shell(nullptr) {
       {":", [](const std::vector<std::string>&) { return 0; }},
       {"if",
        [this](const std::vector<std::string>& args) {
-         // only used of in a loop or script, not interactively
          if (args.size() < 2) {
            PRINT_ERROR("if: syntax error");
            return 2;
@@ -366,15 +344,13 @@ Built_ins::Built_ins() : shell(nullptr) {
            return shell->execute(then_cmd);
          }
 
-         return 0;  // if condition failed, return success
+         return 0;
        }},
       {"__INTERNAL_SUBSHELL__",
        [this](const std::vector<std::string>& args) {
          if (args.size() < 2)
            return 1;
 
-         // Execute the subshell content in a subprocess
-         // This is necessary for proper redirection handling
          std::string subshell_content = args[1];
 
          pid_t pid = fork();
@@ -384,11 +360,9 @@ Built_ins::Built_ins() : shell(nullptr) {
          }
 
          if (pid == 0) {
-           // Child process: execute the subshell content
            int exit_code = shell->execute(subshell_content);
            _exit(exit_code);
          } else {
-           // Parent process: wait for child
            int status;
            if (waitpid(pid, &status, 0) == -1) {
              perror("waitpid failed in subshell");

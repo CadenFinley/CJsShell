@@ -279,8 +279,6 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
     }
   }
 
-  // If we have multiple arguments (files/directories), we need to handle them
-  // separately
   std::vector<std::string> paths;
   for (size_t i = 1; i < args.size(); i++) {
     if (args[i][0] != '-' && args[i] != "--help") {
@@ -288,15 +286,12 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
     }
   }
 
-  // If no paths specified, use current directory
   if (paths.empty()) {
     paths.push_back(".");
   }
 
   int exit_code = 0;
   for (size_t i = 0; i < paths.size(); i++) {
-    // Only show path headers when listing multiple directories or when explicit
-    // -d flag is used
     if (paths.size() > 1 && !directory_only) {
       std::error_code ec;
       std::filesystem::path fs_path(paths[i]);
@@ -383,13 +378,13 @@ std::string format_size(uintmax_t size, bool human_readable) {
     return format_size_human_readable(size);
   } else {
     if (size < 1024)
-      return std::to_string(size) + " B";  // bytes
+      return std::to_string(size) + " B";
     else if (size < 1048576)
-      return std::to_string(size >> 10) + " KB";  // kilobytes
+      return std::to_string(size >> 10) + " KB";
     else if (size < 1073741824)
-      return std::to_string(size >> 20) + " MB";  // megabytes
+      return std::to_string(size >> 20) + " MB";
     else
-      return std::to_string(size >> 30) + " GB";  // gigabytes
+      return std::to_string(size >> 30) + " GB";
   }
 }
 
@@ -586,7 +581,6 @@ int list_directory(const std::string& path, bool show_hidden,
     std::error_code ec;
     std::filesystem::path fs_path(path);
 
-    // Check if the path is a regular file or directory
     if (!std::filesystem::exists(fs_path, ec)) {
       auto suggestions = suggestion_utils::generate_ls_suggestions(
           path, std::filesystem::current_path().string());
@@ -601,10 +595,8 @@ int list_directory(const std::string& path, bool show_hidden,
     if (std::filesystem::is_regular_file(fs_path, ec) ||
         std::filesystem::is_symlink(fs_path, ec) ||
         (!std::filesystem::is_directory(fs_path, ec) && !ec)) {
-      // Handle individual file
       entries.emplace_back(std::filesystem::directory_entry(fs_path));
     } else if (std::filesystem::is_directory(fs_path, ec)) {
-      // Handle directory
       auto dir_iter = std::filesystem::directory_iterator(path, ec);
       if (ec) {
         std::cerr << "ls: cannot open directory '" << path

@@ -274,7 +274,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   bool escaped = false;
   int arith_depth = 0;
   int brace_depth = 0;
-  int bracket_depth = 0;  // Track [[ ]] depth
+  int bracket_depth = 0;
 
   bool token_saw_single = false;
   bool token_saw_double = false;
@@ -355,7 +355,6 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       }
 
       else if (c == '[' && i + 1 < cmdline.length() && cmdline[i + 1] == '[') {
-        // Handle [[ construct
         bracket_depth++;
         if (!current_token.empty() || token_saw_single || token_saw_double) {
           if (token_saw_single && !token_saw_double) {
@@ -371,12 +370,11 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           token_saw_single = token_saw_double = false;
         }
         tokens.push_back("[[");
-        i++;  // Skip the second [
+        i++;
       }
 
       else if (c == ']' && i + 1 < cmdline.length() && cmdline[i + 1] == ']' &&
                bracket_depth > 0) {
-        // Handle ]] construct
         bracket_depth--;
         if (!current_token.empty() || token_saw_single || token_saw_double) {
           if (token_saw_single && !token_saw_double) {
@@ -392,10 +390,9 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           token_saw_single = token_saw_double = false;
         }
         tokens.push_back("]]");
-        i++;  // Skip the second ]
+        i++;
       }
 
-      // Handle && and || inside double brackets
       else if (bracket_depth > 0 && i + 1 < cmdline.length() &&
                ((c == '&' && cmdline[i + 1] == '&') ||
                 (c == '|' && cmdline[i + 1] == '|'))) {
@@ -412,9 +409,9 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           current_token.clear();
           token_saw_single = token_saw_double = false;
         }
-        // Add the double operator as a single token
+
         tokens.push_back(std::string(1, c) + cmdline[i + 1]);
-        i++;  // Skip the second character
+        i++;
       }
 
       else if ((c == '(' || c == ')' || c == '<' || c == '>' ||
@@ -720,8 +717,6 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
           throw e;
         }
       } else {
-        // Even if NOENV markers were found, we should expand variables
-        // in parts of the string that are outside the protected regions
         try {
           expand_env_vars_selective(tmp);
           noenv_stripped = tmp;
@@ -801,7 +796,6 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
   std::vector<std::string> final_args;
   final_args.reserve(tilde_expanded_args.size() * 2);
 
-  // Check if this is a [[ command - if so, disable wildcard expansion
   bool is_double_bracket_command =
       !tilde_expanded_args.empty() &&
       strip_quote_tag(tilde_expanded_args[0]) == "[[";
@@ -854,8 +848,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::string content = pattern.substr(open_pos + 1, close_pos - open_pos - 1);
   std::string suffix = pattern.substr(close_pos + 1);
 
-  // Special case: Don't expand {} when it's standalone (used by find -exec and
-  // similar commands)
   if (content.empty() && prefix.empty() && suffix.empty()) {
     result.push_back(pattern);
     return result;
@@ -944,20 +936,20 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
 
 std::string Parser::get_variable_value(const std::string& var_name) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: Parser::get_variable_value called with: '" << var_name << "'" << std::endl;
+    std::cerr << "DEBUG: Parser::get_variable_value called with: '" << var_name
+              << "'" << std::endl;
   }
-  
-  // If we have access to the shell script interpreter, use it for variable lookup
-  // This ensures local variables are checked first
+
   if (shell && shell->get_shell_script_interpreter()) {
-    std::string result = shell->get_shell_script_interpreter()->get_variable_value(var_name);
+    std::string result =
+        shell->get_shell_script_interpreter()->get_variable_value(var_name);
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Script interpreter returned: '" << result << "'" << std::endl;
+      std::cerr << "DEBUG: Script interpreter returned: '" << result << "'"
+                << std::endl;
     }
     return result;
   }
-  
-  // Fall back to environment variables only
+
   const char* env_val = getenv(var_name.c_str());
   std::string result = env_val ? env_val : "";
   if (g_debug_mode) {
@@ -1206,9 +1198,8 @@ void Parser::expand_env_vars(std::string& arg) {
               value = default_val;
             }
           } else {
-            // Always check for local variables first, then fall back to env_vars cache
             value = get_variable_value(var_name);
-            // If no value found through script interpreter, check env_vars cache
+
             if (value.empty()) {
               auto it = env_vars.find(var_name);
               if (it != env_vars.end()) {
@@ -1289,7 +1280,6 @@ void Parser::expand_env_vars(std::string& arg) {
         }
       }
     } else if (isdigit(var_name[0]) && var_name.length() == 1) {
-      // For positional parameters, check environment first, then shell parameters
       std::string env_value = get_variable_value(var_name);
       if (!env_value.empty()) {
         value = env_value;
@@ -1303,9 +1293,8 @@ void Parser::expand_env_vars(std::string& arg) {
         }
       }
     } else {
-      // Always check for local variables first, then fall back to env_vars cache  
       value = get_variable_value(var_name);
-      // If no value found through script interpreter, check env_vars cache
+
       if (value.empty()) {
         auto it = env_vars.find(var_name);
         if (it != env_vars.end()) {
@@ -1340,32 +1329,26 @@ void Parser::expand_env_vars_selective(std::string& arg) {
     size_t start_pos = arg.find(start_marker, pos);
 
     if (start_pos == std::string::npos) {
-      // No more NOENV markers, expand the rest normally
       std::string remaining = arg.substr(pos);
       expand_env_vars(remaining);
       result += remaining;
       break;
     }
 
-    // Expand variables in the part before the NOENV marker
     std::string before_marker = arg.substr(pos, start_pos - pos);
     expand_env_vars(before_marker);
     result += before_marker;
 
-    // Find the corresponding end marker
     size_t end_pos = arg.find(end_marker, start_pos + start_marker.length());
     if (end_pos == std::string::npos) {
-      // Malformed markers, just add the rest as-is
       result += arg.substr(start_pos);
       break;
     }
 
-    // Add the protected content without expansion (but remove the markers)
     size_t content_start = start_pos + start_marker.length();
     size_t content_length = end_pos - content_start;
     result += arg.substr(content_start, content_length);
 
-    // Continue after the end marker
     pos = end_pos + end_marker.length();
   }
 
@@ -1426,7 +1409,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
-  int bracket_depth = 0;  // Track [[ ]] depth
+  int bracket_depth = 0;
 
   for (size_t i = 0; i < command.length(); ++i) {
     if (command[i] == '"' || command[i] == '\'') {
@@ -1445,14 +1428,12 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       current += command[i];
     } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() &&
                command[i + 1] == '[') {
-      // Handle [[ construct
       bracket_depth++;
       current += command[i];
       current += command[i + 1];
       i++;
     } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() &&
                command[i + 1] == ']' && bracket_depth > 0) {
-      // Handle ]] construct
       bracket_depth--;
       current += command[i];
       current += command[i + 1];
@@ -1491,7 +1472,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       int arith_depth = 0;
       bool in_quotes = false;
       char quote_char = '\0';
-      int bracket_depth = 0;  // Track [[ ]] depth for background detection
+      int bracket_depth = 0;
 
       for (size_t i = 0; i < trimmed.length(); ++i) {
         if (trimmed[i] == '"' || trimmed[i] == '\'') {
@@ -1516,13 +1497,13 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
           else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
                    trimmed[i + 1] == '[') {
             bracket_depth++;
-            i++;  // Skip the second [
+            i++;
           }
 
           else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
                    trimmed[i + 1] == ']' && bracket_depth > 0) {
             bracket_depth--;
-            i++;  // Skip the second ]
+            i++;
           }
 
           else if (i == trimmed.length() - 1 && trimmed[i] == '&' &&
@@ -1532,8 +1513,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
           else if (i == trimmed.length() - 1 && trimmed[i] == '&' &&
                    bracket_depth > 0) {
-            // Inside double brackets, don't treat & as background
-            inside_arithmetic = true;  // Treat as if inside arithmetic to prevent background detection
+            inside_arithmetic = true;
           }
         }
       }
@@ -1691,7 +1671,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       }
     }
 
-    // Check if this is a [[ command - if so, disable wildcard expansion
     bool is_double_bracket_cmd =
         !filtered_args.empty() && strip_quote_tag(filtered_args[0]) == "[[";
 
@@ -1886,7 +1865,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
   char quote_char = '\0';
   int paren_depth = 0;
   int arith_depth = 0;
-  int bracket_depth = 0;  // Track [[ ]] depth
+  int bracket_depth = 0;
 
   for (size_t i = 0; i < command.length(); ++i) {
     if (command[i] == '"' || command[i] == '\'') {
@@ -1918,14 +1897,12 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
       }
     } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() &&
                command[i + 1] == '[') {
-      // Handle [[ construct
       bracket_depth++;
       current += command[i];
       current += command[i + 1];
       i++;
     } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() &&
                command[i + 1] == ']' && bracket_depth > 0) {
-      // Handle ]] construct
       bracket_depth--;
       current += command[i];
       current += command[i + 1];
@@ -1966,7 +1943,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
-  int brace_depth = 0;  // Add brace depth tracking
+  int brace_depth = 0;
   int control_depth = 0;
 
   std::vector<bool> is_semicolon_split_point(command.length(), false);
@@ -1984,9 +1961,9 @@ std::vector<std::string> Parser::parse_semicolon_commands(
     } else if (!in_quotes && command[i] == ')') {
       paren_depth--;
     } else if (!in_quotes && command[i] == '{') {
-      brace_depth++;  // Track opening braces
+      brace_depth++;
     } else if (!in_quotes && command[i] == '}') {
-      brace_depth--;  // Track closing braces
+      brace_depth--;
     } else if (!in_quotes && paren_depth == 0 && brace_depth == 0) {
       if (command[i] == ' ' || command[i] == '\t' || i == 0) {
         size_t word_start = i;
@@ -2009,13 +1986,9 @@ std::vector<std::string> Parser::parse_semicolon_commands(
         }
       }
 
-      // Only split on semicolons when not inside braces, parentheses, or
-      // control structures, and when not escaped with backslash
       if (command[i] == ';' && control_depth == 0) {
-        // Check if semicolon is escaped (preceded by backslash)
         bool is_escaped = false;
         if (i > 0 && command[i - 1] == '\\') {
-          // Count consecutive backslashes to determine if semicolon is escaped
           size_t backslash_count = 0;
           for (size_t j = i - 1; j < command.length() && command[j] == '\\';
                --j) {
@@ -2023,7 +1996,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(
             if (j == 0)
               break;
           }
-          // If odd number of backslashes, the semicolon is escaped
+
           is_escaped = (backslash_count % 2) == 1;
         }
 

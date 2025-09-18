@@ -22,7 +22,6 @@ Ai::Ai(const std::string& api_key, const std::string& assistant_type,
   set_enabled(enabled);
   if (enabled) {
     initialize(api_key, assistant_type, initial_instruction, user_files);
-    // set_save_directory(save_directory);
   }
 }
 
@@ -731,12 +730,10 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     std::cout << "\r                    \r" << std::flush;
   });
 
-  // Prepare headers
   std::map<std::string, std::string> headers;
   headers["Authorization"] = "Bearer " + user_api_key;
   headers["Content-Type"] = "application/json";
 
-  // Make HTTP request
   HttpResponse response;
   if (!request_cancelled) {
     response = HttpClient::post(url, request_body_str, headers,
@@ -1209,12 +1206,10 @@ bool Ai::process_voice_dictation(const std::string& message) {
     std::cout << "\r                         \r" << std::flush;
   });
 
-  // Prepare headers
   std::map<std::string, std::string> headers;
   headers["Authorization"] = "Bearer " + user_api_key;
   headers["Content-Type"] = "application/json";
 
-  // Make HTTP request
   HttpResponse response;
   if (!request_cancelled) {
     response =
@@ -1248,7 +1243,6 @@ bool Ai::process_voice_dictation(const std::string& message) {
     return false;
   }
 
-  // Write the audio data to file
   ofs.write(response.body.c_str(), response.body.length());
   ofs.close();
 

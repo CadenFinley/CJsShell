@@ -235,7 +235,6 @@ int Shell::execute_command(std::vector<std::string> args,
   if (args.size() == 1 && shell_parser) {
     std::string var_name, var_value;
     if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
-      // Expand environment variables in the value before setting
       shell_parser->expand_env_vars(var_value);
       setenv(var_name.c_str(), var_value.c_str(), 1);
       return 0;
@@ -297,13 +296,11 @@ int Shell::execute_command(std::vector<std::string> args,
     last_terminal_output_error = shell_exec->get_error_string();
     int exit_code = shell_exec->get_exit_code();
 
-    // Track successful command usage for better suggestions
     if (exit_code == 0 && !args.empty()) {
       suggestion_utils::update_command_usage_stats(args[0]);
     }
 
     if (exit_code != 0) {
-      // Only print errors for actual system errors, not simple command failures
       ErrorInfo error = shell_exec->get_error();
       if (error.type != ErrorType::RUNTIME_ERROR ||
           error.message.find("command failed with exit code") ==
@@ -390,25 +387,24 @@ void Shell::expand_env_vars(std::string& value) {
 
 void Shell::sync_env_vars_from_system() {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Syncing shell env_vars cache from system environment" << std::endl;
-    
-  // Get all environment variables from the system
-  extern char **environ;
-  for (char **env = environ; *env != nullptr; env++) {
+    std::cerr << "DEBUG: Syncing shell env_vars cache from system environment"
+              << std::endl;
+
+  extern char** environ;
+  for (char** env = environ; *env != nullptr; env++) {
     std::string env_str(*env);
     size_t eq_pos = env_str.find('=');
     if (eq_pos != std::string::npos) {
       std::string name = env_str.substr(0, eq_pos);
       std::string value = env_str.substr(eq_pos + 1);
       env_vars[name] = value;
-      
+
       if (g_debug_mode && name == "PATH") {
         std::cerr << "DEBUG: Synced PATH=" << value << std::endl;
       }
     }
   }
-  
-  // Also update parser's env_vars
+
   if (shell_parser) {
     shell_parser->set_env_vars(env_vars);
   }

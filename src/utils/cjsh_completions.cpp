@@ -147,36 +147,30 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 }
 
 bool should_complete_directories_only(const std::string& prefix) {
-  // Find the command part of the input
   std::string command;
   size_t first_space = prefix.find(' ');
-  
+
   if (first_space != std::string::npos) {
     command = prefix.substr(0, first_space);
   } else {
-    // If no space, check if we're still typing the command
-    // In this case, we shouldn't restrict to directories
     return false;
   }
-  
-  // List of commands that should only complete directories
+
   static const std::unordered_set<std::string> directory_only_commands = {
-    "cd", "ls", "dir", "rmdir"
-  };
-  
+      "cd", "ls", "dir", "rmdir"};
+
   return directory_only_commands.find(command) != directory_only_commands.end();
 }
 
-// Helper function for case-insensitive string comparison
-bool starts_with_case_insensitive(const std::string& str, const std::string& prefix) {
+bool starts_with_case_insensitive(const std::string& str,
+                                  const std::string& prefix) {
   if (prefix.length() > str.length()) {
     return false;
   }
-  
-  return std::equal(prefix.begin(), prefix.end(), str.begin(),
-                    [](char a, char b) {
-                      return std::tolower(a) == std::tolower(b);
-                    });
+
+  return std::equal(
+      prefix.begin(), prefix.end(), str.begin(),
+      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
 
 void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
@@ -189,9 +183,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   std::string prefix_str(prefix);
   bool directories_only = should_complete_directories_only(prefix_str);
-  
+
   if (g_debug_mode && directories_only)
-    std::cerr << "DEBUG: Directory-only completion mode enabled for prefix: '" 
+    std::cerr << "DEBUG: Directory-only completion mode enabled for prefix: '"
               << prefix << "'" << std::endl;
 
   size_t last_space = prefix_str.find_last_of(" \t");
@@ -271,7 +265,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         for (const auto& entry : fs::directory_iterator(dir_path)) {
           std::string filename = entry.path().filename().string();
 
-          if (match_prefix.empty() || starts_with_case_insensitive(filename, match_prefix)) {
+          if (match_prefix.empty() ||
+              starts_with_case_insensitive(filename, match_prefix)) {
             std::string completion_suffix;
 
             if (match_prefix.empty()) {
@@ -279,7 +274,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (entry.is_directory()) {
                 completion_suffix += "/";
               }
-              
+
               if (g_debug_mode)
                 std::cerr << "DEBUG: Adding tilde completion: '"
                           << completion_suffix << "'" << std::endl;
@@ -287,18 +282,20 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
-              // Replace the incorrectly cased prefix with the correct case
               completion_suffix = filename;
               if (entry.is_directory()) {
                 completion_suffix += "/";
               }
               long delete_before = static_cast<long>(match_prefix.length());
-              
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Adding tilde completion (case-corrected): '"
-                          << completion_suffix << "' (deleting " << delete_before << " chars before)" << std::endl;
 
-              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(), nullptr, nullptr, delete_before, 0))
+              if (g_debug_mode)
+                std::cerr
+                    << "DEBUG: Adding tilde completion (case-corrected): '"
+                    << completion_suffix << "' (deleting " << delete_before
+                    << " chars before)" << std::endl;
+
+              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, delete_before, 0))
                 return;
             }
           }
@@ -362,7 +359,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         for (const auto& entry : fs::directory_iterator(dir_path)) {
           std::string filename = entry.path().filename().string();
 
-          if (match_prefix.empty() || starts_with_case_insensitive(filename, match_prefix)) {
+          if (match_prefix.empty() ||
+              starts_with_case_insensitive(filename, match_prefix)) {
             std::string completion_suffix;
 
             if (match_prefix.empty()) {
@@ -370,7 +368,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (entry.is_directory()) {
                 completion_suffix += "/";
               }
-              
+
               if (g_debug_mode)
                 std::cerr << "DEBUG: Adding dash completion: '"
                           << completion_suffix << "'" << std::endl;
@@ -378,18 +376,19 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
-              // Replace the incorrectly cased prefix with the correct case
               completion_suffix = filename;
               if (entry.is_directory()) {
                 completion_suffix += "/";
               }
               long delete_before = static_cast<long>(match_prefix.length());
-              
+
               if (g_debug_mode)
                 std::cerr << "DEBUG: Adding dash completion (case-corrected): '"
-                          << completion_suffix << "' (deleting " << delete_before << " chars before)" << std::endl;
+                          << completion_suffix << "' (deleting "
+                          << delete_before << " chars before)" << std::endl;
 
-              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(), nullptr, nullptr, delete_before, 0))
+              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, delete_before, 0))
                 return;
             }
           }
@@ -453,12 +452,11 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
         for (auto& entry : fs::directory_iterator(dir_path)) {
           std::string name = entry.path().filename().string();
-          
-          // Skip non-directories if we're in directory-only mode
+
           if (directories_only && !entry.is_directory()) {
             continue;
           }
-          
+
           std::string suffix = name;
           if (entry.is_directory()) {
             suffix += "/";
@@ -481,14 +479,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
   }
 
   if (directories_only) {
-    // Custom directory-only completion
-    std::string path_to_complete = special_part.empty() ? prefix_str : special_part;
-    
+    std::string path_to_complete =
+        special_part.empty() ? prefix_str : special_part;
+
     namespace fs = std::filesystem;
     fs::path dir_path;
     std::string match_prefix;
-    
-    // Determine the directory to search and the prefix to match
+
     if (path_to_complete.empty() || path_to_complete.back() == '/') {
       dir_path = path_to_complete.empty() ? "." : path_to_complete;
       match_prefix = "";
@@ -496,58 +493,64 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       size_t last_slash = path_to_complete.find_last_of('/');
       if (last_slash != std::string::npos) {
         dir_path = path_to_complete.substr(0, last_slash);
-        if (dir_path.empty()) dir_path = "/";
+        if (dir_path.empty())
+          dir_path = "/";
         match_prefix = path_to_complete.substr(last_slash + 1);
       } else {
         dir_path = ".";
         match_prefix = path_to_complete;
       }
     }
-    
+
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
         for (const auto& entry : fs::directory_iterator(dir_path)) {
-          if (!entry.is_directory()) continue; // Skip non-directories
-          
+          if (!entry.is_directory())
+            continue;
+
           std::string filename = entry.path().filename().string();
-          
-          // Skip hidden files unless explicitly requested
-          if (filename[0] == '.' && match_prefix.empty()) continue;
-          
-          if (match_prefix.empty() || starts_with_case_insensitive(filename, match_prefix)) {
+
+          if (filename[0] == '.' && match_prefix.empty())
+            continue;
+
+          if (match_prefix.empty() ||
+              starts_with_case_insensitive(filename, match_prefix)) {
             std::string completion_suffix;
-            
+
             if (match_prefix.empty()) {
               completion_suffix = filename + "/";
               if (g_debug_mode)
-                std::cerr << "DEBUG: Directory-only completion: '" << completion_suffix << "'" << std::endl;
-              
+                std::cerr << "DEBUG: Directory-only completion: '"
+                          << completion_suffix << "'" << std::endl;
+
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
-              // Replace the incorrectly cased prefix with the correct case
               completion_suffix = filename + "/";
               long delete_before = static_cast<long>(match_prefix.length());
-              
+
               if (g_debug_mode)
-                std::cerr << "DEBUG: Directory-only completion (case-corrected): '" << completion_suffix 
-                         << "' (deleting " << delete_before << " chars before)" << std::endl;
-              
-              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(), nullptr, nullptr, delete_before, 0))
+                std::cerr
+                    << "DEBUG: Directory-only completion (case-corrected): '"
+                    << completion_suffix << "' (deleting " << delete_before
+                    << " chars before)" << std::endl;
+
+              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, delete_before, 0))
                 return;
             }
           }
-          
+
           if (ic_stop_completing(cenv))
             return;
         }
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
-        std::cerr << "DEBUG: Error in directory-only completion: " << e.what() << std::endl;
+        std::cerr << "DEBUG: Error in directory-only completion: " << e.what()
+                  << std::endl;
     }
   } else {
-    // Regular file completion
     if (!special_part.empty()) {
       ic_complete_filename(cenv, special_part.c_str(), '/', nullptr, nullptr);
     } else {

@@ -115,7 +115,7 @@ class Shell {
 
   // Variable expansion method
   void expand_env_vars(std::string& value);
-  
+
   // Environment synchronization method
   void sync_env_vars_from_system();
 
