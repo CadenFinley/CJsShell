@@ -1773,7 +1773,18 @@ int ShellScriptInterpreter::execute_block(
       };
 
       auto set_variable_value = [&](const std::string& name, long long value) {
-        setenv(name.c_str(), std::to_string(value).c_str(), 1);
+        std::string value_str = std::to_string(value);
+        setenv(name.c_str(), value_str.c_str(), 1);
+        
+        // Also update shell's internal environment variables
+        if (g_shell) {
+          g_shell->get_env_vars()[name] = value_str;
+          
+          // Update parser's env_vars cache as well
+          if (shell_parser) {
+            shell_parser->set_env_vars(g_shell->get_env_vars());
+          }
+        }
       };
 
       auto apply_operator = [&](long long a, long long b,
@@ -1980,6 +1991,7 @@ int ShellScriptInterpreter::execute_block(
         ++i;
       }
 
+      // Handle assignments and increments by modifying tokens in place
       for (size_t i = 0; i < tokens.size(); ++i) {
         if (tokens[i].type == Token::OPERATOR &&
             (tokens[i].op == "+=" || tokens[i].op == "-=" ||
@@ -2016,7 +2028,10 @@ int ShellScriptInterpreter::execute_block(
               }
 
               set_variable_value(var_name, result);
-              return result;
+              // Replace this sequence with just the result value
+              tokens[i - 1] = {Token::NUMBER, result, "", ""};
+              tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+              i = i - 1; // Adjust index after erasure
             }
           }
         }
@@ -2029,7 +2044,9 @@ int ShellScriptInterpreter::execute_block(
             long long new_val =
                 current_val + (tokens[i].op == "pre++" ? 1 : -1);
             set_variable_value(var_name, new_val);
-            return new_val;
+            // Replace pre-increment with the new value
+            tokens[i] = {Token::NUMBER, new_val, "", ""};
+            tokens.erase(tokens.begin() + i + 1);
           }
         }
       }
