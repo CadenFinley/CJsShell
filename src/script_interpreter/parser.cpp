@@ -782,6 +782,12 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::string content = pattern.substr(open_pos + 1, close_pos - open_pos - 1);
   std::string suffix = pattern.substr(close_pos + 1);
 
+  // Special case: Don't expand {} when it's standalone (used by find -exec and similar commands)
+  if (content.empty() && prefix.empty() && suffix.empty()) {
+    result.push_back(pattern);
+    return result;
+  }
+
   size_t range_pos = content.find("..");
   if (range_pos != std::string::npos) {
     std::string start_str = content.substr(0, range_pos);
@@ -1860,9 +1866,24 @@ std::vector<std::string> Parser::parse_semicolon_commands(
       }
 
       // Only split on semicolons when not inside braces, parentheses, or
-      // control structures
+      // control structures, and when not escaped with backslash
       if (command[i] == ';' && control_depth == 0) {
-        is_semicolon_split_point[i] = true;
+        // Check if semicolon is escaped (preceded by backslash)
+        bool is_escaped = false;
+        if (i > 0 && command[i - 1] == '\\') {
+          // Count consecutive backslashes to determine if semicolon is escaped
+          size_t backslash_count = 0;
+          for (size_t j = i - 1; j < command.length() && command[j] == '\\'; --j) {
+            backslash_count++;
+            if (j == 0) break;
+          }
+          // If odd number of backslashes, the semicolon is escaped
+          is_escaped = (backslash_count % 2) == 1;
+        }
+        
+        if (!is_escaped) {
+          is_semicolon_split_point[i] = true;
+        }
       }
     }
   }
