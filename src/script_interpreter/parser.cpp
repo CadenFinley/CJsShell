@@ -262,7 +262,7 @@ static inline std::pair<std::string, bool> strip_noenv_sentinels(
   }
   return {s, false};
 }
-}  
+}  // namespace
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
   std::vector<std::string> tokens;
@@ -272,8 +272,8 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   bool in_quotes = false;
   char quote_char = '\0';
   bool escaped = false;
-  int arith_depth = 0; 
-  int brace_depth = 0; 
+  int arith_depth = 0;
+  int brace_depth = 0;
 
   bool token_saw_single = false;
   bool token_saw_double = false;
@@ -290,9 +290,8 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           current_token += c;
         }
       } else {
-        
         if (c == '*' || c == '?' || c == '[' || c == ']') {
-          current_token += '\x1F'; 
+          current_token += '\x1F';
         }
         current_token += c;
       }
@@ -310,19 +309,20 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       in_quotes = false;
       quote_char = '\0';
     } else if (!in_quotes) {
-      
-      if (c == '{' && current_token.length() >= 1 && current_token.back() == '$') {
+      if (c == '{' && current_token.length() >= 1 &&
+          current_token.back() == '$') {
         brace_depth++;
         current_token += c;
       }
-      
+
       else if (c == '}' && brace_depth > 0) {
         brace_depth--;
         current_token += c;
       }
-      
+
       else if (std::isspace(c)) {
-        if ((!current_token.empty() || token_saw_single || token_saw_double) && arith_depth == 0 && brace_depth == 0) {
+        if ((!current_token.empty() || token_saw_single || token_saw_double) &&
+            arith_depth == 0 && brace_depth == 0) {
           if (token_saw_single && !token_saw_double) {
             tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
                              current_token);
@@ -335,26 +335,26 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
           current_token.clear();
           token_saw_single = token_saw_double = false;
         } else if (arith_depth > 0 || brace_depth > 0) {
-          
           current_token += c;
         }
       }
-      
-      else if (c == '(' && i >= 1 && cmdline[i-1] == '(' && 
-          current_token.length() >= 1 && current_token.back() == '$') {
+
+      else if (c == '(' && i >= 1 && cmdline[i - 1] == '(' &&
+               current_token.length() >= 1 && current_token.back() == '$') {
         arith_depth++;
         current_token += c;
       }
-      
-      else if (c == ')' && i + 1 < cmdline.length() && cmdline[i+1] == ')' && arith_depth > 0) {
+
+      else if (c == ')' && i + 1 < cmdline.length() && cmdline[i + 1] == ')' &&
+               arith_depth > 0) {
         arith_depth--;
         current_token += c;
-        current_token += cmdline[i+1]; 
-        i++; 
+        current_token += cmdline[i + 1];
+        i++;
       }
-      
-      else if ((c == '(' || c == ')' || c == '<' || c == '>' || 
-                (c == '&' && arith_depth == 0 && brace_depth == 0) || 
+
+      else if ((c == '(' || c == ')' || c == '<' || c == '>' ||
+                (c == '&' && arith_depth == 0 && brace_depth == 0) ||
                 (c == '|' && arith_depth == 0 && brace_depth == 0))) {
         if (!current_token.empty() || token_saw_single || token_saw_double) {
           if (token_saw_single && !token_saw_double) {
@@ -515,7 +515,6 @@ std::vector<std::string> merge_redirection_tokens(
     else if (std::isdigit(token[0]) && token.length() == 1 &&
              i + 1 < tokens.size() &&
              (tokens[i + 1] == "<" || tokens[i + 1] == ">")) {
-      
       result.push_back(token + tokens[i + 1]);
       i++;
     }
@@ -572,7 +571,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     auto alias_it = aliases.find(args[0]);
     if (alias_it != aliases.end()) {
       std::vector<std::string> alias_args;
-      alias_args.reserve(8);  
+      alias_args.reserve(8);
 
       try {
         std::vector<std::string> raw_alias_args =
@@ -581,8 +580,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
         if (!alias_args.empty()) {
           std::vector<std::string> new_args;
-          new_args.reserve(alias_args.size() +
-                           args.size());  
+          new_args.reserve(alias_args.size() + args.size());
           new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
           if (args.size() > 1) {
             new_args.insert(new_args.end(), args.begin() + 1, args.end());
@@ -653,7 +651,15 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         try {
           expand_env_vars(noenv_stripped);
         } catch (const std::runtime_error& e) {
-          
+          throw e;
+        }
+      } else {
+        // Even if NOENV markers were found, we should expand variables
+        // in parts of the string that are outside the protected regions
+        try {
+          expand_env_vars_selective(tmp);
+          noenv_stripped = tmp;
+        } catch (const std::runtime_error& e) {
           throw e;
         }
       }
@@ -859,7 +865,8 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
 
 void Parser::expand_env_vars(std::string& arg) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: expand_env_vars called with: '" << arg << "'" << std::endl;
+    std::cerr << "DEBUG: expand_env_vars called with: '" << arg << "'"
+              << std::endl;
   }
   std::string result;
   result.reserve(arg.length() * 1.5);
@@ -875,88 +882,82 @@ void Parser::expand_env_vars(std::string& arg) {
       result += '$';
       continue;
     }
-    
-    
+
     if (arg[i] == '$' && i + 1 < arg.length() && arg[i + 1] == '{') {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Found ${...} expression at position " << i << std::endl;
+        std::cerr << "DEBUG: Found ${...} expression at position " << i
+                  << std::endl;
       }
       size_t start = i + 2;
       size_t brace_depth = 1;
       size_t end = start;
-      
-      
+
       while (end < arg.length() && brace_depth > 0) {
         if (arg[end] == '{') {
           brace_depth++;
         } else if (arg[end] == '}') {
           brace_depth--;
         }
-        if (brace_depth > 0) end++;
+        if (brace_depth > 0)
+          end++;
       }
-      
+
       if (brace_depth == 0 && end < arg.length()) {
-        
         std::string param_expr = arg.substr(start, end - start);
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Parameter expression: '" << param_expr << "'" << std::endl;
-          std::cerr << "DEBUG: start=" << start << ", end=" << end << ", arg[end]='" << arg[end] << "'" << std::endl;
+          std::cerr << "DEBUG: Parameter expression: '" << param_expr << "'"
+                    << std::endl;
+          std::cerr << "DEBUG: start=" << start << ", end=" << end
+                    << ", arg[end]='" << arg[end] << "'" << std::endl;
         }
         std::string value;
-        
-        
-        
+
         size_t colon_pos = param_expr.find(':');
-        size_t dash_pos = param_expr.find('-', colon_pos != std::string::npos ? colon_pos + 1 : 0);
-        
+        size_t dash_pos = param_expr.find(
+            '-', colon_pos != std::string::npos ? colon_pos + 1 : 0);
+
         if (colon_pos != std::string::npos && dash_pos != std::string::npos) {
-          
           std::string var_name = param_expr.substr(0, colon_pos);
           std::string default_val = param_expr.substr(dash_pos + 1);
-          
+
           const char* env_val = getenv(var_name.c_str());
           if (env_val && strlen(env_val) > 0) {
             value = env_val;
           } else {
-            
             expand_env_vars(default_val);
             value = default_val;
           }
-        } else if (colon_pos == std::string::npos && param_expr.find('-') != std::string::npos) {
-          
+        } else if (colon_pos == std::string::npos &&
+                   param_expr.find('-') != std::string::npos) {
           size_t dash_pos = param_expr.find('-');
           std::string var_name = param_expr.substr(0, dash_pos);
           std::string default_val = param_expr.substr(dash_pos + 1);
-          
+
           const char* env_val = getenv(var_name.c_str());
           if (env_val) {
             value = env_val;
           } else {
-            
             expand_env_vars(default_val);
             value = default_val;
           }
         } else {
-          
           if (shell && shell->get_shell_script_interpreter()) {
             try {
-              value = shell->get_shell_script_interpreter()->expand_parameter_expression(param_expr);
+              value = shell->get_shell_script_interpreter()
+                          ->expand_parameter_expression(param_expr);
             } catch (const std::runtime_error& e) {
-              
               std::string error_msg = e.what();
-              if (error_msg.find("parameter null or not set") != std::string::npos ||
+              if (error_msg.find("parameter null or not set") !=
+                      std::string::npos ||
                   error_msg.find("parameter not set") != std::string::npos) {
-                
                 throw e;
               } else {
-                
                 const char* env_val = getenv(param_expr.c_str());
                 if (env_val) {
                   value = env_val;
                 }
               }
             } catch (...) {
-              
               const char* env_val = getenv(param_expr.c_str());
               if (env_val) {
                 value = env_val;
@@ -969,20 +970,22 @@ void Parser::expand_env_vars(std::string& arg) {
             }
           }
         }
-        
+
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Parameter expansion result: '" << value << "'" << std::endl;
+          std::cerr << "DEBUG: Parameter expansion result: '" << value << "'"
+                    << std::endl;
         }
         result += value;
-        i = end; 
+        i = end;
         continue;
       } else {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Unmatched braces in parameter expansion" << std::endl;
+          std::cerr << "DEBUG: Unmatched braces in parameter expansion"
+                    << std::endl;
         }
       }
     }
-    
+
     if (in_var) {
       if (isalnum(arg[i]) || arg[i] == '_' ||
           (var_name.empty() && isdigit(arg[i])) ||
@@ -1043,76 +1046,72 @@ void Parser::expand_env_vars(std::string& arg) {
             }
           }
         } else {
-          
           if (arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') {
-            
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Found parameter expansion without braces: " << var_name << ":-..." << std::endl;
+              std::cerr << "DEBUG: Found parameter expansion without braces: "
+                        << var_name << ":-..." << std::endl;
             }
-            
+
             const char* env_val = getenv(var_name.c_str());
             if (env_val && strlen(env_val) > 0) {
               value = env_val;
-              
-              i++; 
-              i++; 
-              
+
+              i++;
+              i++;
+
               while (i < arg.length() && !isspace(arg[i])) {
                 i++;
               }
               if (i < arg.length() && isspace(arg[i])) {
-                i--; 
+                i--;
               }
             } else {
-              
-              i++; 
-              i++; 
-              
+              i++;
+              i++;
+
               std::string default_val;
               while (i < arg.length() && !isspace(arg[i])) {
                 default_val += arg[i];
                 i++;
               }
               if (i < arg.length() && isspace(arg[i])) {
-                i--; 
+                i--;
               }
               expand_env_vars(default_val);
               value = default_val;
             }
           } else if (arg[i] == '-' && i >= 1) {
-            
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Found parameter expansion without braces: " << var_name << "-..." << std::endl;
+              std::cerr << "DEBUG: Found parameter expansion without braces: "
+                        << var_name << "-..." << std::endl;
             }
-            
+
             const char* env_val = getenv(var_name.c_str());
             if (env_val) {
               value = env_val;
-              
-              i++; 
+
+              i++;
               while (i < arg.length() && !isspace(arg[i])) {
                 i++;
               }
               if (i < arg.length() && isspace(arg[i])) {
-                i--; 
+                i--;
               }
             } else {
-              
-              i++; 
-              
+              i++;
+
               std::string default_val;
               while (i < arg.length() && !isspace(arg[i])) {
                 default_val += arg[i];
                 i++;
               }
               if (i < arg.length() && isspace(arg[i])) {
-                i--; 
+                i--;
               }
               expand_env_vars(default_val);
               value = default_val;
             }
           } else {
-            
             auto it = env_vars.find(var_name);
             if (it != env_vars.end()) {
               value = it->second;
@@ -1126,8 +1125,9 @@ void Parser::expand_env_vars(std::string& arg) {
         }
         result += value;
 
-        
-        if (arg[i] != '$' && !(arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') && arg[i] != '-') {
+        if (arg[i] != '$' &&
+            !(arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') &&
+            arg[i] != '-') {
           result += arg[i];
         } else if (arg[i] == '$') {
           i--;
@@ -1222,7 +1222,61 @@ void Parser::expand_env_vars(std::string& arg) {
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: expand_env_vars result: '" << result << "'" << std::endl;
+    std::cerr << "DEBUG: expand_env_vars result: '" << result << "'"
+              << std::endl;
+  }
+  arg = result;
+}
+
+void Parser::expand_env_vars_selective(std::string& arg) {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: expand_env_vars_selective called with: '" << arg << "'"
+              << std::endl;
+  }
+  
+  const std::string start_marker = "\x1E__NOENV_START__\x1E";
+  const std::string end_marker = "\x1E__NOENV_END__\x1E";
+  
+  std::string result;
+  result.reserve(arg.length() * 1.5);
+  
+  size_t pos = 0;
+  while (pos < arg.length()) {
+    size_t start_pos = arg.find(start_marker, pos);
+    
+    if (start_pos == std::string::npos) {
+      // No more NOENV markers, expand the rest normally
+      std::string remaining = arg.substr(pos);
+      expand_env_vars(remaining);
+      result += remaining;
+      break;
+    }
+    
+    // Expand variables in the part before the NOENV marker
+    std::string before_marker = arg.substr(pos, start_pos - pos);
+    expand_env_vars(before_marker);
+    result += before_marker;
+    
+    // Find the corresponding end marker
+    size_t end_pos = arg.find(end_marker, start_pos + start_marker.length());
+    if (end_pos == std::string::npos) {
+      // Malformed markers, just add the rest as-is
+      result += arg.substr(start_pos);
+      break;
+    }
+    
+    // Add the protected content without expansion (but remove the markers)
+    size_t content_start = start_pos + start_marker.length();
+    size_t content_length = end_pos - content_start;
+    result += arg.substr(content_start, content_length);
+    
+    // Continue after the end marker
+    pos = end_pos + end_marker.length();
+  }
+  
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: expand_env_vars_selective result: '" << result << "'"
+              << std::endl;
   }
   arg = result;
 }
@@ -1294,11 +1348,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       paren_depth--;
       current += command[i];
     } else if (command[i] == '|' && !in_quotes && paren_depth == 0) {
-      
       if (i > 0 && command[i - 1] == '>') {
-        current += command[i];  
+        current += command[i];
       } else {
-        
         if (!current.empty()) {
           command_parts.push_back(std::move(current));
           current.clear();
@@ -1324,12 +1376,11 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
 
     if (!trimmed.empty() && trimmed.back() == '&') {
-      
       bool inside_arithmetic = false;
       int arith_depth = 0;
       bool in_quotes = false;
       char quote_char = '\0';
-      
+
       for (size_t i = 0; i < trimmed.length(); ++i) {
         if (trimmed[i] == '"' || trimmed[i] == '\'') {
           if (!in_quotes) {
@@ -1339,22 +1390,24 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             in_quotes = false;
           }
         } else if (!in_quotes) {
-          
-          if (i >= 2 && trimmed[i-2] == '$' && trimmed[i-1] == '(' && trimmed[i] == '(') {
+          if (i >= 2 && trimmed[i - 2] == '$' && trimmed[i - 1] == '(' &&
+              trimmed[i] == '(') {
             arith_depth++;
           }
-          
-          else if (i + 1 < trimmed.length() && trimmed[i] == ')' && trimmed[i+1] == ')' && arith_depth > 0) {
+
+          else if (i + 1 < trimmed.length() && trimmed[i] == ')' &&
+                   trimmed[i + 1] == ')' && arith_depth > 0) {
             arith_depth--;
-            i++; 
+            i++;
           }
-          
-          else if (i == trimmed.length() - 1 && trimmed[i] == '&' && arith_depth > 0) {
+
+          else if (i == trimmed.length() - 1 && trimmed[i] == '&' &&
+                   arith_depth > 0) {
             inside_arithmetic = true;
           }
         }
       }
-      
+
       if (!inside_arithmetic) {
         size_t amp_pos = cmd_part.rfind('&');
         if (amp_pos != std::string::npos && amp_pos + 1 < cmd_part.length()) {
@@ -1493,8 +1546,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       } else if (tok.find("<&") == 0 && tok.length() > 2) {
         try {
           int src_fd = std::stoi(tok.substr(2));
-          
-          
+
           cmd.fd_duplications[0] = src_fd;
         } catch (const std::exception&) {
           filtered_args.push_back(tokens[i]);
@@ -1514,16 +1566,15 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       bool is_single = is_single_quoted_token(raw);
       bool is_double = is_double_quoted_token(raw);
       std::string val = strip_quote_tag(raw);
-      
-      
+
       if (!is_single && !is_double && val.find('{') != std::string::npos &&
           val.find('}') != std::string::npos) {
         std::vector<std::string> brace_expansions = expand_braces(val);
         for (const auto& expanded_val : brace_expansions) {
-          
           if (expanded_val.find_first_of("*?[]") != std::string::npos) {
             auto wildcard_expanded = expand_wildcards(expanded_val);
-            final_args_local.insert(final_args_local.end(), wildcard_expanded.begin(),
+            final_args_local.insert(final_args_local.end(),
+                                    wildcard_expanded.begin(),
                                     wildcard_expanded.end());
           } else {
             final_args_local.push_back(expanded_val);
@@ -1652,23 +1703,21 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
 
 bool Parser::is_env_assignment(const std::string& command,
                                std::string& var_name, std::string& var_value) {
-  
   size_t equals_pos = command.find('=');
   if (equals_pos == std::string::npos || equals_pos == 0) {
     return false;
   }
-  
-  
+
   std::string name_part = command.substr(0, equals_pos);
-  
+
   size_t name_start = name_part.find_first_not_of(" \t\n\r");
   if (name_start == std::string::npos) {
     return false;
   }
   name_part = name_part.substr(name_start);
-  
-  
-  if (name_part.empty() || (!std::isalpha(name_part[0]) && name_part[0] != '_')) {
+
+  if (name_part.empty() ||
+      (!std::isalpha(name_part[0]) && name_part[0] != '_')) {
     return false;
   }
   for (size_t i = 1; i < name_part.length(); ++i) {
@@ -1676,10 +1725,10 @@ bool Parser::is_env_assignment(const std::string& command,
       return false;
     }
   }
-  
+
   var_name = name_part;
   var_value = command.substr(equals_pos + 1);
-  
+
   if (ReadonlyManager::instance().is_readonly(var_name)) {
     std::cerr << "cjsh: " << var_name << ": readonly variable" << std::endl;
     return false;
@@ -1701,7 +1750,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
   bool in_quotes = false;
   char quote_char = '\0';
   int paren_depth = 0;
-  int arith_depth = 0; 
+  int arith_depth = 0;
 
   for (size_t i = 0; i < command.length(); ++i) {
     if (command[i] == '"' || command[i] == '\'') {
@@ -1713,24 +1762,26 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
       }
       current += command[i];
     } else if (!in_quotes && command[i] == '(') {
-      
-      if (i >= 2 && command[i-2] == '$' && command[i-1] == '(' && command[i] == '(') {
+      if (i >= 2 && command[i - 2] == '$' && command[i - 1] == '(' &&
+          command[i] == '(') {
         arith_depth++;
       }
       paren_depth++;
       current += command[i];
     } else if (!in_quotes && command[i] == ')') {
       paren_depth--;
-      
-      if (paren_depth >= 0 && i + 1 < command.length() && command[i + 1] == ')' && arith_depth > 0) {
+
+      if (paren_depth >= 0 && i + 1 < command.length() &&
+          command[i + 1] == ')' && arith_depth > 0) {
         arith_depth--;
         current += command[i];
-        current += command[i + 1]; 
-        i++; 
+        current += command[i + 1];
+        i++;
       } else {
         current += command[i];
       }
-    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 && i < command.length() - 1) {
+    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 &&
+               i < command.length() - 1) {
       if (command[i] == '&' && command[i + 1] == '&') {
         if (!current.empty()) {
           logical_commands.push_back({current, "&&"});
@@ -1808,7 +1859,8 @@ std::vector<std::string> Parser::parse_semicolon_commands(
         }
       }
 
-      // Only split on semicolons when not inside braces, parentheses, or control structures
+      // Only split on semicolons when not inside braces, parentheses, or
+      // control structures
       if (command[i] == ';' && control_depth == 0) {
         is_semicolon_split_point[i] = true;
       }
@@ -1856,31 +1908,27 @@ std::vector<std::string> Parser::parse_semicolon_commands(
 std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
   std::vector<std::string> result;
 
-  
   bool has_wildcards = false;
-  
+
   for (size_t i = 0; i < pattern.length(); ++i) {
     char c = pattern[i];
-    
-    
+
     if (c == '\x1F' && i + 1 < pattern.length()) {
-      i++; 
+      i++;
       continue;
     }
-    
+
     if (c == '*' || c == '?' || c == '[') {
       has_wildcards = true;
       break;
     }
   }
 
-  
   std::string unescaped;
   unescaped.reserve(pattern.length());
-  
+
   for (size_t i = 0; i < pattern.length(); ++i) {
     if (pattern[i] == '\x1F') {
-      
       if (i + 1 < pattern.length()) {
         i++;
         unescaped += pattern[i];
@@ -1891,7 +1939,6 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
   }
 
   if (!has_wildcards) {
-    
     result.push_back(unescaped);
     return result;
   }
@@ -1907,7 +1954,6 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
     }
     globfree(&glob_result);
   } else if (return_value == GLOB_NOMATCH) {
-    
     result.push_back(unescaped);
   }
 

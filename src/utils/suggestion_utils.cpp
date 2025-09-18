@@ -137,8 +137,7 @@ std::vector<std::string> generate_command_suggestions(
 
   // If still no suggestions, provide helpful fallback
   if (suggestions.empty()) {
-    suggestions.push_back(
-        "Try 'help' to see available commands.");
+    suggestions.push_back("Try 'help' to see available commands.");
   }
 
   return suggestions;

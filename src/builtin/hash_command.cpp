@@ -76,10 +76,8 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
 
         std::cout << path << std::endl;
       } else {
-        print_error({ErrorType::COMMAND_NOT_FOUND,
-                     "hash",
-                     name + ": not found",
-                     {}});
+        print_error(
+            {ErrorType::COMMAND_NOT_FOUND, "hash", name + ": not found", {}});
         return 1;
       }
     }

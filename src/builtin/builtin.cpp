@@ -208,7 +208,8 @@ Built_ins::Built_ins() : shell(nullptr) {
        }},
       {"exec",
        [this](const std::vector<std::string>& args) {
-        // only used in scripts, not interactively by the shell script interpreter
+         // only used in scripts, not interactively by the shell script
+         // interpreter
          if (args.size() <= 1) {
            // exec with no arguments should succeed
            return 0;
@@ -328,7 +329,7 @@ Built_ins::Built_ins() : shell(nullptr) {
       {":", [](const std::vector<std::string>&) { return 0; }},
       {"if",
        [this](const std::vector<std::string>& args) {
-        // only used of in a loop or script, not interactively
+         // only used of in a loop or script, not interactively
          if (args.size() < 2) {
            PRINT_ERROR("if: syntax error");
            return 2;

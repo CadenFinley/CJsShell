@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <iostream>
-#include "shell.h"
 #include "error_out.h"
+#include "shell.h"
 
 ReadonlyManager& ReadonlyManager::instance() {
   static ReadonlyManager instance;

@@ -224,7 +224,8 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
       print_error({ErrorType::INVALID_ARGUMENT,
                    "syntax",
                    "unknown category '" + category_filter + "'",
-                   {"Valid categories: syntax, variables, redirection, control, commands, semantics, style, performance"}});
+                   {"Valid categories: syntax, variables, redirection, "
+                    "control, commands, semantics, style, performance"}});
       return 1;
     }
 

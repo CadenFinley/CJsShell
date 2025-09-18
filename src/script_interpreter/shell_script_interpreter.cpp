@@ -1,6 +1,5 @@
 #include "shell_script_interpreter.h"
 
-
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -434,7 +433,6 @@ bool ShellScriptInterpreter::has_syntax_errors(
   std::vector<SyntaxError> errors =
       validate_comprehensive_syntax(lines, true, false, false);
 
-  
   bool has_critical_errors = false;
   for (const auto& error : errors) {
     if (error.severity == ErrorSeverity::CRITICAL) {
@@ -443,10 +441,7 @@ bool ShellScriptInterpreter::has_syntax_errors(
     }
   }
 
-  
-  
   if (has_critical_errors && print_errors) {
-    
     std::vector<SyntaxError> critical_errors;
     for (const auto& error : errors) {
       if (error.severity == ErrorSeverity::CRITICAL) {
@@ -1270,20 +1265,6 @@ void ShellScriptInterpreter::print_error_report(
                 << std::endl;
     }
 
-    
-    
-    
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-
     size_t terminal_width = get_terminal_width();
     size_t content_width = 0;
 
@@ -1320,20 +1301,13 @@ void ShellScriptInterpreter::print_error_report(
   std::cout << std::endl;
 }
 
-void ShellScriptInterpreter::print_runtime_error(const std::string& error_message, 
-                                                 const std::string& context,
-                                                 size_t line_number) const {
-  
-  SyntaxError runtime_error(
-    {line_number, 0, 0, 0},    
-    ErrorSeverity::ERROR,       
-    ErrorCategory::COMMANDS,    
-    "RUN001",                   
-    error_message,              
-    context,                    
-    ""                          
-  );
-  
+void ShellScriptInterpreter::print_runtime_error(
+    const std::string& error_message, const std::string& context,
+    size_t line_number) const {
+  SyntaxError runtime_error({line_number, 0, 0, 0}, ErrorSeverity::ERROR,
+                            ErrorCategory::COMMANDS, "RUN001", error_message,
+                            context, "");
+
   std::vector<SyntaxError> errors = {runtime_error};
   print_error_report(errors, false, !context.empty());
 }
@@ -1553,28 +1527,44 @@ int ShellScriptInterpreter::execute_block(
         return c == ' ' || c == '\t' || c == '\n' || c == '\r';
       };
 
-      
       auto get_precedence = [](const std::string& op) -> int {
-        if (op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=") return 1; 
-        if (op == "?:" || op == "?") return 2; 
-        if (op == "||") return 3;
-        if (op == "&&") return 4;
-        if (op == "|") return 5;
-        if (op == "^") return 6;
-        if (op == "&") return 7;
-        if (op == "==" || op == "!=") return 8;
-        if (op == "<" || op == ">" || op == "<=" || op == ">=") return 9;
-        if (op == "<<" || op == ">>") return 10;
-        if (op == "+" || op == "-") return 11;
-        if (op == "*" || op == "/" || op == "%") return 12;
-        if (op == "**") return 13; 
-        if (op == "!" || op == "~" || op == "unary+" || op == "unary-") return 14;
-        if (op == "++" || op == "--") return 15; 
+        if (op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" ||
+            op == "%=")
+          return 1;
+        if (op == "?:" || op == "?")
+          return 2;
+        if (op == "||")
+          return 3;
+        if (op == "&&")
+          return 4;
+        if (op == "|")
+          return 5;
+        if (op == "^")
+          return 6;
+        if (op == "&")
+          return 7;
+        if (op == "==" || op == "!=")
+          return 8;
+        if (op == "<" || op == ">" || op == "<=" || op == ">=")
+          return 9;
+        if (op == "<<" || op == ">>")
+          return 10;
+        if (op == "+" || op == "-")
+          return 11;
+        if (op == "*" || op == "/" || op == "%")
+          return 12;
+        if (op == "**")
+          return 13;
+        if (op == "!" || op == "~" || op == "unary+" || op == "unary-")
+          return 14;
+        if (op == "++" || op == "--")
+          return 15;
         return 0;
       };
 
       auto is_right_associative = [](const std::string& op) -> bool {
-        return op == "**" || op == "?" || op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=";
+        return op == "**" || op == "?" || op == "=" || op == "+=" ||
+               op == "-=" || op == "*=" || op == "/=" || op == "%=";
       };
 
       auto get_variable_value = [&](const std::string& name) -> long long {
@@ -1593,10 +1583,14 @@ int ShellScriptInterpreter::execute_block(
         setenv(name.c_str(), std::to_string(value).c_str(), 1);
       };
 
-      auto apply_operator = [&](long long a, long long b, const std::string& op) -> long long {
-        if (op == "+") return a + b;
-        if (op == "-") return a - b;
-        if (op == "*") return a * b;
+      auto apply_operator = [&](long long a, long long b,
+                                const std::string& op) -> long long {
+        if (op == "+")
+          return a + b;
+        if (op == "-")
+          return a - b;
+        if (op == "*")
+          return a * b;
         if (op == "/") {
           if (b == 0) {
             throw std::runtime_error("Division by zero");
@@ -1609,19 +1603,32 @@ int ShellScriptInterpreter::execute_block(
           }
           return a % b;
         }
-        if (op == "==") return (a == b) ? 1 : 0;
-        if (op == "!=") return (a != b) ? 1 : 0;
-        if (op == "<") return (a < b) ? 1 : 0;
-        if (op == ">") return (a > b) ? 1 : 0;
-        if (op == "<=") return (a <= b) ? 1 : 0;
-        if (op == ">=") return (a >= b) ? 1 : 0;
-        if (op == "&&") return (a && b) ? 1 : 0;
-        if (op == "||") return (a || b) ? 1 : 0;
-        if (op == "&") return a & b;
-        if (op == "|") return a | b;
-        if (op == "^") return a ^ b;
-        if (op == "<<") return a << b;
-        if (op == ">>") return a >> b;
+        if (op == "==")
+          return (a == b) ? 1 : 0;
+        if (op == "!=")
+          return (a != b) ? 1 : 0;
+        if (op == "<")
+          return (a < b) ? 1 : 0;
+        if (op == ">")
+          return (a > b) ? 1 : 0;
+        if (op == "<=")
+          return (a <= b) ? 1 : 0;
+        if (op == ">=")
+          return (a >= b) ? 1 : 0;
+        if (op == "&&")
+          return (a && b) ? 1 : 0;
+        if (op == "||")
+          return (a || b) ? 1 : 0;
+        if (op == "&")
+          return a & b;
+        if (op == "|")
+          return a | b;
+        if (op == "^")
+          return a ^ b;
+        if (op == "<<")
+          return a << b;
+        if (op == ">>")
+          return a >> b;
         if (op == "**") {
           long long result = 1;
           for (long long i = 0; i < b; ++i) {
@@ -1633,75 +1640,76 @@ int ShellScriptInterpreter::execute_block(
       };
 
       auto apply_unary = [](long long a, const std::string& op) -> long long {
-        if (op == "unary+") return a;
-        if (op == "unary-") return -a;
-        if (op == "!") return !a ? 1 : 0;
-        if (op == "~") return ~a;
+        if (op == "unary+")
+          return a;
+        if (op == "unary-")
+          return -a;
+        if (op == "!")
+          return !a ? 1 : 0;
+        if (op == "~")
+          return ~a;
         return a;
       };
 
-      
       std::vector<Token> tokens;
-      bool expect_number = true; 
-      
+      bool expect_number = true;
+
       for (size_t i = 0; i < expr.size();) {
         if (is_space(expr[i])) {
           ++i;
           continue;
         }
 
-        
-        if (isdigit(expr[i]) || (expr[i] == '-' && expect_number && i + 1 < expr.size() && isdigit(expr[i + 1]))) {
+        if (isdigit(expr[i]) || (expr[i] == '-' && expect_number &&
+                                 i + 1 < expr.size() && isdigit(expr[i + 1]))) {
           long long val = 0;
           bool negative = false;
           size_t j = i;
-          
+
           if (expr[j] == '-') {
             negative = true;
             ++j;
           }
-          
+
           while (j < expr.size() && isdigit(expr[j])) {
             val = val * 10 + (expr[j] - '0');
             ++j;
           }
-          
-          if (negative) val = -val;
+
+          if (negative)
+            val = -val;
           tokens.push_back({Token::NUMBER, val, "", ""});
           i = j;
           expect_number = false;
           continue;
         }
 
-        
         if (isalpha(expr[i]) || expr[i] == '_') {
           size_t j = i;
           while (j < expr.size() && (isalnum(expr[j]) || expr[j] == '_')) {
             ++j;
           }
           std::string name = expr.substr(i, j - i);
-          
-          
-          if (j + 1 < expr.size() && 
+
+          if (j + 1 < expr.size() &&
               ((expr.substr(j, 2) == "++" || expr.substr(j, 2) == "--"))) {
             std::string op = expr.substr(j, 2);
             long long old_val = get_variable_value(name);
             long long new_val = old_val + (op == "++" ? 1 : -1);
             set_variable_value(name, new_val);
-            tokens.push_back({Token::NUMBER, old_val, "", ""}); 
+            tokens.push_back({Token::NUMBER, old_val, "", ""});
             i = j + 2;
             expect_number = false;
             continue;
           }
-          
-          
-          tokens.push_back({Token::VARIABLE, get_variable_value(name), name, ""});
+
+          tokens.push_back(
+              {Token::VARIABLE, get_variable_value(name), name, ""});
           i = j;
           expect_number = false;
           continue;
         }
 
-        
         if (expr[i] == '(') {
           tokens.push_back({Token::LPAREN, 0, "", ""});
           ++i;
@@ -1715,7 +1723,6 @@ int ShellScriptInterpreter::execute_block(
           continue;
         }
 
-        
         if (expr[i] == '?') {
           tokens.push_back({Token::TERNARY_Q, 0, "", "?"});
           ++i;
@@ -1729,24 +1736,21 @@ int ShellScriptInterpreter::execute_block(
           continue;
         }
 
-        
         if (i + 1 < expr.size()) {
           std::string two_char = expr.substr(i, 2);
-          if (two_char == "==" || two_char == "!=" || two_char == "<=" || 
+          if (two_char == "==" || two_char == "!=" || two_char == "<=" ||
               two_char == ">=" || two_char == "&&" || two_char == "||" ||
               two_char == "<<" || two_char == ">>" || two_char == "++" ||
               two_char == "--" || two_char == "**" || two_char == "+=" ||
               two_char == "-=" || two_char == "*=" || two_char == "/=" ||
               two_char == "%=") {
-            
-            
             if ((two_char == "++" || two_char == "--") && expect_number) {
               tokens.push_back({Token::OPERATOR, 0, "", "pre" + two_char});
               i += 2;
               expect_number = true;
               continue;
             }
-            
+
             tokens.push_back({Token::OPERATOR, 0, "", two_char});
             i += 2;
             expect_number = (two_char != "++" && two_char != "--");
@@ -1754,90 +1758,89 @@ int ShellScriptInterpreter::execute_block(
           }
         }
 
-        
         char op_char = expr[i];
-        if (op_char == '+' || op_char == '-' || op_char == '*' || 
-            op_char == '/' || op_char == '%' || op_char == '<' || 
-            op_char == '>' || op_char == '&' || op_char == '|' || 
+        if (op_char == '+' || op_char == '-' || op_char == '*' ||
+            op_char == '/' || op_char == '%' || op_char == '<' ||
+            op_char == '>' || op_char == '&' || op_char == '|' ||
             op_char == '^' || op_char == '!' || op_char == '~' ||
             op_char == '=') {
-          
           std::string op_str(1, op_char);
-          
-          
-          if (expect_number && (op_char == '+' || op_char == '-' || op_char == '!' || op_char == '~')) {
-            if (op_char == '+') op_str = "unary+";
-            else if (op_char == '-') op_str = "unary-";
+
+          if (expect_number && (op_char == '+' || op_char == '-' ||
+                                op_char == '!' || op_char == '~')) {
+            if (op_char == '+')
+              op_str = "unary+";
+            else if (op_char == '-')
+              op_str = "unary-";
             tokens.push_back({Token::OPERATOR, 0, "", op_str});
             ++i;
             expect_number = true;
             continue;
           }
-          
+
           tokens.push_back({Token::OPERATOR, 0, "", op_str});
           ++i;
           expect_number = true;
           continue;
         }
 
-        
         ++i;
       }
 
-      
-      
       for (size_t i = 0; i < tokens.size(); ++i) {
-        if (tokens[i].type == Token::OPERATOR && 
-            (tokens[i].op == "+=" || tokens[i].op == "-=" || tokens[i].op == "*=" || 
-             tokens[i].op == "/=" || tokens[i].op == "%=" || tokens[i].op == "=")) {
-          
-          if (i > 0 && tokens[i-1].type == Token::VARIABLE) {
-            std::string var_name = tokens[i-1].str_value;
-            
-            
+        if (tokens[i].type == Token::OPERATOR &&
+            (tokens[i].op == "+=" || tokens[i].op == "-=" ||
+             tokens[i].op == "*=" || tokens[i].op == "/=" ||
+             tokens[i].op == "%=" || tokens[i].op == "=")) {
+          if (i > 0 && tokens[i - 1].type == Token::VARIABLE) {
+            std::string var_name = tokens[i - 1].str_value;
+
             if (i + 1 < tokens.size()) {
               long long current_val = get_variable_value(var_name);
               long long assign_val = 0;
-              
-              if (tokens[i+1].type == Token::NUMBER) {
-                assign_val = tokens[i+1].value;
-              } else if (tokens[i+1].type == Token::VARIABLE) {
-                assign_val = get_variable_value(tokens[i+1].str_value);
+
+              if (tokens[i + 1].type == Token::NUMBER) {
+                assign_val = tokens[i + 1].value;
+              } else if (tokens[i + 1].type == Token::VARIABLE) {
+                assign_val = get_variable_value(tokens[i + 1].str_value);
               }
-              
+
               long long result = assign_val;
-              if (tokens[i].op == "+=") result = current_val + assign_val;
-              else if (tokens[i].op == "-=") result = current_val - assign_val;
-              else if (tokens[i].op == "*=") result = current_val * assign_val;
+              if (tokens[i].op == "+=")
+                result = current_val + assign_val;
+              else if (tokens[i].op == "-=")
+                result = current_val - assign_val;
+              else if (tokens[i].op == "*=")
+                result = current_val * assign_val;
               else if (tokens[i].op == "/=") {
-                if (assign_val == 0) throw std::runtime_error("Division by zero");
+                if (assign_val == 0)
+                  throw std::runtime_error("Division by zero");
                 result = current_val / assign_val;
-              }
-              else if (tokens[i].op == "%=") {
-                if (assign_val == 0) throw std::runtime_error("Division by zero");
+              } else if (tokens[i].op == "%=") {
+                if (assign_val == 0)
+                  throw std::runtime_error("Division by zero");
                 result = current_val % assign_val;
               }
-              
+
               set_variable_value(var_name, result);
-              return result; 
+              return result;
             }
           }
         }
-        
-        
-        if (tokens[i].type == Token::OPERATOR && 
+
+        if (tokens[i].type == Token::OPERATOR &&
             (tokens[i].op == "pre++" || tokens[i].op == "pre--")) {
-          if (i + 1 < tokens.size() && tokens[i+1].type == Token::VARIABLE) {
-            std::string var_name = tokens[i+1].str_value;
+          if (i + 1 < tokens.size() && tokens[i + 1].type == Token::VARIABLE) {
+            std::string var_name = tokens[i + 1].str_value;
             long long current_val = get_variable_value(var_name);
-            long long new_val = current_val + (tokens[i].op == "pre++" ? 1 : -1);
+            long long new_val =
+                current_val + (tokens[i].op == "pre++" ? 1 : -1);
             set_variable_value(var_name, new_val);
-            return new_val; 
+            return new_val;
           }
         }
       }
 
-      
       std::vector<Token> output;
       std::vector<Token> operator_stack;
 
@@ -1845,11 +1848,13 @@ int ShellScriptInterpreter::execute_block(
         if (token.type == Token::NUMBER || token.type == Token::VARIABLE) {
           output.push_back(token);
         } else if (token.type == Token::OPERATOR) {
-          while (!operator_stack.empty() && 
+          while (!operator_stack.empty() &&
                  operator_stack.back().type == Token::OPERATOR &&
                  operator_stack.back().op != "(" &&
-                 ((get_precedence(operator_stack.back().op) > get_precedence(token.op)) ||
-                  (get_precedence(operator_stack.back().op) == get_precedence(token.op) && 
+                 ((get_precedence(operator_stack.back().op) >
+                   get_precedence(token.op)) ||
+                  (get_precedence(operator_stack.back().op) ==
+                       get_precedence(token.op) &&
                    !is_right_associative(token.op)))) {
             output.push_back(operator_stack.back());
             operator_stack.pop_back();
@@ -1858,31 +1863,31 @@ int ShellScriptInterpreter::execute_block(
         } else if (token.type == Token::LPAREN) {
           operator_stack.push_back(token);
         } else if (token.type == Token::RPAREN) {
-          while (!operator_stack.empty() && operator_stack.back().type != Token::LPAREN) {
+          while (!operator_stack.empty() &&
+                 operator_stack.back().type != Token::LPAREN) {
             output.push_back(operator_stack.back());
             operator_stack.pop_back();
           }
           if (!operator_stack.empty()) {
-            operator_stack.pop_back(); 
+            operator_stack.pop_back();
           }
         } else if (token.type == Token::TERNARY_Q) {
-          
-          while (!operator_stack.empty() && 
+          while (!operator_stack.empty() &&
                  operator_stack.back().type == Token::OPERATOR &&
-                 get_precedence(operator_stack.back().op) > get_precedence("?")) {
+                 get_precedence(operator_stack.back().op) >
+                     get_precedence("?")) {
             output.push_back(operator_stack.back());
             operator_stack.pop_back();
           }
           operator_stack.push_back(token);
         } else if (token.type == Token::TERNARY_COLON) {
-          
-          while (!operator_stack.empty() && operator_stack.back().type != Token::TERNARY_Q) {
+          while (!operator_stack.empty() &&
+                 operator_stack.back().type != Token::TERNARY_Q) {
             output.push_back(operator_stack.back());
             operator_stack.pop_back();
           }
           if (!operator_stack.empty()) {
-            
-            operator_stack.pop_back(); 
+            operator_stack.pop_back();
             Token ternary_op;
             ternary_op.type = Token::OPERATOR;
             ternary_op.op = "?:";
@@ -1892,52 +1897,55 @@ int ShellScriptInterpreter::execute_block(
       }
 
       while (!operator_stack.empty()) {
-        if (operator_stack.back().type == Token::OPERATOR || 
+        if (operator_stack.back().type == Token::OPERATOR ||
             operator_stack.back().type == Token::TERNARY_Q) {
           output.push_back(operator_stack.back());
         }
         operator_stack.pop_back();
       }
 
-      
       std::vector<long long> eval_stack;
-      
+
       for (const auto& token : output) {
         if (token.type == Token::NUMBER) {
           eval_stack.push_back(token.value);
         } else if (token.type == Token::VARIABLE) {
           eval_stack.push_back(get_variable_value(token.str_value));
         } else if (token.type == Token::OPERATOR) {
-          if (token.op == "unary+" || token.op == "unary-" || 
-              token.op == "!" || token.op == "~") {
+          if (token.op == "unary+" || token.op == "unary-" || token.op == "!" ||
+              token.op == "~") {
             if (!eval_stack.empty()) {
               long long a = eval_stack.back();
               eval_stack.pop_back();
               eval_stack.push_back(apply_unary(a, token.op));
             }
           } else if (token.op == "?:") {
-            
-            
             if (eval_stack.size() >= 3) {
-              long long false_val = eval_stack.back(); eval_stack.pop_back();
-              long long true_val = eval_stack.back(); eval_stack.pop_back();
-              long long condition = eval_stack.back(); eval_stack.pop_back();
+              long long false_val = eval_stack.back();
+              eval_stack.pop_back();
+              long long true_val = eval_stack.back();
+              eval_stack.pop_back();
+              long long condition = eval_stack.back();
+              eval_stack.pop_back();
               eval_stack.push_back(condition ? true_val : false_val);
             }
           } else {
             if (eval_stack.size() >= 2) {
-              long long b = eval_stack.back(); eval_stack.pop_back();
-              long long a = eval_stack.back(); eval_stack.pop_back();
+              long long b = eval_stack.back();
+              eval_stack.pop_back();
+              long long a = eval_stack.back();
+              eval_stack.pop_back();
               eval_stack.push_back(apply_operator(a, b, token.op));
             }
           }
         } else if (token.type == Token::TERNARY_Q && token.op == "?:") {
-          
-          
           if (eval_stack.size() >= 3) {
-            long long false_val = eval_stack.back(); eval_stack.pop_back();
-            long long true_val = eval_stack.back(); eval_stack.pop_back();
-            long long condition = eval_stack.back(); eval_stack.pop_back();
+            long long false_val = eval_stack.back();
+            eval_stack.pop_back();
+            long long true_val = eval_stack.back();
+            eval_stack.pop_back();
+            long long condition = eval_stack.back();
+            eval_stack.pop_back();
             eval_stack.push_back(condition ? true_val : false_val);
           }
         }
@@ -2052,51 +2060,49 @@ int ShellScriptInterpreter::execute_block(
             if (found) {
               size_t expr_len = (j > inner_start + 1) ? (j - inner_start) : 0;
               std::string expr = in.substr(inner_start, expr_len);
-              
-              
+
               std::string expanded_expr;
               for (size_t k = 0; k < expr.size(); ++k) {
                 if (expr[k] == '$' && k + 1 < expr.size()) {
                   if (isdigit(expr[k + 1])) {
-                    
                     std::string param_name(1, expr[k + 1]);
                     expanded_expr += get_variable_value(param_name);
-                    k++; 
+                    k++;
                   } else if (isalpha(expr[k + 1]) || expr[k + 1] == '_') {
-                    
                     size_t var_start = k + 1;
                     size_t var_end = var_start;
-                    while (var_end < expr.size() && 
+                    while (var_end < expr.size() &&
                            (isalnum(expr[var_end]) || expr[var_end] == '_')) {
                       var_end++;
                     }
-                    std::string var_name = expr.substr(var_start, var_end - var_start);
+                    std::string var_name =
+                        expr.substr(var_start, var_end - var_start);
                     expanded_expr += get_variable_value(var_name);
-                    k = var_end - 1; 
+                    k = var_end - 1;
                   } else if (expr[k + 1] == '{') {
-                    
                     size_t close_brace = expr.find('}', k + 2);
                     if (close_brace != std::string::npos) {
-                      std::string var_name = expr.substr(k + 2, close_brace - (k + 2));
+                      std::string var_name =
+                          expr.substr(k + 2, close_brace - (k + 2));
                       expanded_expr += get_variable_value(var_name);
-                      k = close_brace; 
+                      k = close_brace;
                     } else {
-                      expanded_expr += expr[k]; 
+                      expanded_expr += expr[k];
                     }
                   } else {
-                    expanded_expr += expr[k]; 
+                    expanded_expr += expr[k];
                   }
                 } else {
                   expanded_expr += expr[k];
                 }
               }
-              
+
               try {
                 out += std::to_string(eval_arith(expanded_expr));
               } catch (const std::runtime_error& e) {
-                
-                print_runtime_error("cjsh: " + std::string(e.what()), "$((" + expr + "))");
-                throw; 
+                print_runtime_error("cjsh: " + std::string(e.what()),
+                                    "$((" + expr + "))");
+                throw;
               }
               i = end_idx;
               continue;
@@ -2185,30 +2191,33 @@ int ShellScriptInterpreter::execute_block(
             size_t end_brace = 0;
             if (find_matching(in, i + 2, '{', '}', end_brace)) {
               std::string param_expr = in.substr(i + 2, end_brace - (i + 2));
-              std::string expanded_result = expand_parameter_expression(param_expr);
-              
-              
+              std::string expanded_result =
+                  expand_parameter_expression(param_expr);
+
               if (expanded_result.find('$') != std::string::npos) {
-                
                 size_t dollar_pos = 0;
-                while ((dollar_pos = expanded_result.find('$', dollar_pos)) != std::string::npos) {
+                while ((dollar_pos = expanded_result.find('$', dollar_pos)) !=
+                       std::string::npos) {
                   size_t var_start = dollar_pos + 1;
                   size_t var_end = var_start;
-                  while (var_end < expanded_result.length() && 
-                         (std::isalnum(expanded_result[var_end]) || expanded_result[var_end] == '_')) {
+                  while (var_end < expanded_result.length() &&
+                         (std::isalnum(expanded_result[var_end]) ||
+                          expanded_result[var_end] == '_')) {
                     var_end++;
                   }
                   if (var_end > var_start) {
-                    std::string var_name = expanded_result.substr(var_start, var_end - var_start);
+                    std::string var_name =
+                        expanded_result.substr(var_start, var_end - var_start);
                     std::string var_value = get_variable_value(var_name);
-                    expanded_result.replace(dollar_pos, var_end - dollar_pos, var_value);
+                    expanded_result.replace(dollar_pos, var_end - dollar_pos,
+                                            var_value);
                     dollar_pos += var_value.length();
                   } else {
                     dollar_pos++;
                   }
                 }
               }
-              
+
               out += expanded_result;
               i = end_brace;
               continue;
@@ -2224,13 +2233,14 @@ int ShellScriptInterpreter::execute_block(
 
     try {
       text = expand_substitutions(text);
-      
+
       std::vector<std::string> head = shell_parser->parse_command(text);
       if (!head.empty()) {
         const std::string& prog = head[0];
         if (should_interpret_as_cjsh(prog)) {
           if (g_debug_mode)
-            std::cerr << "DEBUG: Interpreting script file: " << prog << std::endl;
+            std::cerr << "DEBUG: Interpreting script file: " << prog
+                      << std::endl;
           std::ifstream f(prog);
           if (!f) {
             print_error({ErrorType::RUNTIME_ERROR,
@@ -2246,41 +2256,42 @@ int ShellScriptInterpreter::execute_block(
         }
       }
     } catch (const std::runtime_error& e) {
-      
       throw e;
     }
 
-    
     if ((text == "case" || text.rfind("case ", 0) == 0) &&
         (text.find(" in ") != std::string::npos) &&
         (text.find("esac") == std::string::npos)) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Found incomplete case statement (missing esac): " << text << std::endl;
+        std::cerr << "DEBUG: Found incomplete case statement (missing esac): "
+                  << text << std::endl;
       }
-      
-      
-      
+
       std::string completed_case = text + ";; esac";
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Attempting to complete case statement: " << completed_case << std::endl;
+        std::cerr << "DEBUG: Attempting to complete case statement: "
+                  << completed_case << std::endl;
       }
-      
-      
+
       return execute_simple_or_pipeline(completed_case);
     }
-    
+
     if (g_debug_mode && (text == "case" || text.rfind("case ", 0) == 0)) {
-      std::cerr << "DEBUG: execute_simple_or_pipeline checking case: '" << text << "'" << std::endl;
-      std::cerr << "DEBUG:   has ' in ': " << (text.find(" in ") != std::string::npos) << std::endl;
-      std::cerr << "DEBUG:   has 'esac': " << (text.find("esac") != std::string::npos) << std::endl;
+      std::cerr << "DEBUG: execute_simple_or_pipeline checking case: '" << text
+                << "'" << std::endl;
+      std::cerr << "DEBUG:   has ' in ': "
+                << (text.find(" in ") != std::string::npos) << std::endl;
+      std::cerr << "DEBUG:   has 'esac': "
+                << (text.find("esac") != std::string::npos) << std::endl;
     }
-    
+
     if ((text == "case" || text.rfind("case ", 0) == 0) &&
         (text.find(" in ") != std::string::npos) &&
         (text.find("esac") != std::string::npos)) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Handling inline case statement in execute_simple_or_pipeline: " << text
-                  << std::endl;
+        std::cerr << "DEBUG: Handling inline case statement in "
+                     "execute_simple_or_pipeline: "
+                  << text << std::endl;
       }
 
       size_t in_pos = text.find(" in ");
@@ -2288,39 +2299,42 @@ int ShellScriptInterpreter::execute_block(
       std::string patterns_part = text.substr(in_pos + 4);
 
       if (g_debug_mode) {
-        std::cerr << "DEBUG: [inline case] case_part='" << case_part << "'" << std::endl;
+        std::cerr << "DEBUG: [inline case] case_part='" << case_part << "'"
+                  << std::endl;
       }
-      
-      
+
       std::string case_value;
       size_t space_pos = case_part.find(' ');
-      if (space_pos != std::string::npos && case_part.substr(0, space_pos) == "case") {
+      if (space_pos != std::string::npos &&
+          case_part.substr(0, space_pos) == "case") {
         std::string raw_case_value = trim(case_part.substr(space_pos + 1));
-        
-        
+
         case_value = raw_case_value;
         if (case_value.length() >= 2) {
-          if ((case_value[0] == '"' && case_value[case_value.length()-1] == '"') ||
-              (case_value[0] == '\'' && case_value[case_value.length()-1] == '\'')) {
+          if ((case_value[0] == '"' &&
+               case_value[case_value.length() - 1] == '"') ||
+              (case_value[0] == '\'' &&
+               case_value[case_value.length() - 1] == '\'')) {
             case_value = case_value.substr(1, case_value.length() - 2);
           }
         }
-        
+
         shell_parser->expand_env_vars(case_value);
-        
+
         if (g_debug_mode) {
-          std::cerr << "DEBUG: [inline case] raw_case_value='" << raw_case_value << "' -> expanded='" << case_value << "'" << std::endl;
+          std::cerr << "DEBUG: [inline case] raw_case_value='" << raw_case_value
+                    << "' -> expanded='" << case_value << "'" << std::endl;
         }
       }
 
-      
       size_t esac_pos = patterns_part.rfind("esac");
       if (esac_pos != std::string::npos) {
         patterns_part = patterns_part.substr(0, esac_pos);
       }
-      
+
       if (g_debug_mode) {
-        std::cerr << "DEBUG: [inline case] patterns_part after esac removal='" << patterns_part << "'" << std::endl;
+        std::cerr << "DEBUG: [inline case] patterns_part after esac removal='"
+                  << patterns_part << "'" << std::endl;
       }
 
       std::vector<std::string> pattern_sections;
@@ -2332,15 +2346,18 @@ int ShellScriptInterpreter::execute_block(
             std::string section = trim(patterns_part.substr(start));
             pattern_sections.push_back(section);
             if (g_debug_mode) {
-              std::cerr << "DEBUG: [inline case] final pattern_section='" << section << "'" << std::endl;
+              std::cerr << "DEBUG: [inline case] final pattern_section='"
+                        << section << "'" << std::endl;
             }
           }
           break;
         }
-        std::string section = trim(patterns_part.substr(start, sep_pos - start));
+        std::string section =
+            trim(patterns_part.substr(start, sep_pos - start));
         pattern_sections.push_back(section);
         if (g_debug_mode) {
-          std::cerr << "DEBUG: [inline case] pattern_section='" << section << "'" << std::endl;
+          std::cerr << "DEBUG: [inline case] pattern_section='" << section
+                    << "'" << std::endl;
         }
         start = sep_pos + 2;
       }
@@ -2354,21 +2371,18 @@ int ShellScriptInterpreter::execute_block(
           std::string raw_pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
 
-          
           std::string pattern = raw_pattern;
           if (pattern.length() >= 2) {
-            if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
-                (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+            if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
+                (pattern[0] == '\'' && pattern[pattern.length() - 1] == '\'')) {
               pattern = pattern.substr(1, pattern.length() - 2);
             }
           }
-          
-          
+
           std::string processed_pattern;
           processed_pattern.reserve(pattern.length());
           for (size_t i = 0; i < pattern.length(); ++i) {
             if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-              
               i++;
               processed_pattern += pattern[i];
             } else {
@@ -2376,22 +2390,24 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           pattern = processed_pattern;
-          
-          
+
           shell_parser->expand_env_vars(pattern);
 
           if (g_debug_mode) {
-            std::cerr << "DEBUG: [inline case] Matching case_value='" << case_value << "' against pattern='" << pattern << "'" << std::endl;
+            std::cerr << "DEBUG: [inline case] Matching case_value='"
+                      << case_value << "' against pattern='" << pattern << "'"
+                      << std::endl;
           }
           bool pattern_matches = matches_pattern(case_value, pattern);
           if (g_debug_mode) {
-            std::cerr << "DEBUG: [inline case] Pattern match result: " << pattern_matches << std::endl;
+            std::cerr << "DEBUG: [inline case] Pattern match result: "
+                      << pattern_matches << std::endl;
           }
 
           if (pattern_matches) {
             if (!command_part.empty()) {
-              
-              auto semicolon_commands = shell_parser->parse_semicolon_commands(command_part);
+              auto semicolon_commands =
+                  shell_parser->parse_semicolon_commands(command_part);
               int exit_code = 0;
               for (const auto& subcmd : semicolon_commands) {
                 exit_code = execute_simple_or_pipeline(subcmd);
@@ -2446,8 +2462,6 @@ int ShellScriptInterpreter::execute_block(
             }
             int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
             if (exit_code != 0) {
-              
-              
               ErrorInfo error = g_shell->shell_exec->get_error();
               if (error.type != ErrorType::RUNTIME_ERROR ||
                   error.message.find("command failed with exit code") ==
@@ -2531,8 +2545,6 @@ int ShellScriptInterpreter::execute_block(
       }
       int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
       if (exit_code != 0) {
-        
-        
         ErrorInfo error = g_shell->shell_exec->get_error();
         if (error.type != ErrorType::RUNTIME_ERROR ||
             error.message.find("command failed with exit code") ==
@@ -2575,10 +2587,8 @@ int ShellScriptInterpreter::execute_block(
       SyntaxError error(1, e.what(), text);
       std::string error_msg = e.what();
 
-      
       if (error_msg.find("Unclosed quote") != std::string::npos ||
           error_msg.find("missing closing") != std::string::npos) {
-        
         error.severity = ErrorSeverity::ERROR;
         error.category = ErrorCategory::SYNTAX;
         error.error_code = "SYN001";
@@ -2586,13 +2596,11 @@ int ShellScriptInterpreter::execute_block(
       } else if (error_msg.find("Failed to open") != std::string::npos ||
                  error_msg.find("Failed to redirect") != std::string::npos ||
                  error_msg.find("Failed to write") != std::string::npos) {
-        
         error.severity = ErrorSeverity::ERROR;
         error.category = ErrorCategory::REDIRECTION;
         error.error_code = "IO001";
         error.suggestion = "Check file permissions and paths";
       } else {
-        
         error.severity = ErrorSeverity::ERROR;
         error.category = ErrorCategory::COMMANDS;
         error.error_code = "RUN001";
@@ -2657,19 +2665,18 @@ int ShellScriptInterpreter::execute_block(
         }
         cur += c;
       } else if (!in_quotes) {
-        
-        if (i >= 2 && s[i-2] == '$' && s[i-1] == '(' && s[i] == '(') {
+        if (i >= 2 && s[i - 2] == '$' && s[i - 1] == '(' && s[i] == '(') {
           arith_depth++;
           cur += c;
         }
-        
-        else if (i + 1 < s.size() && s[i] == ')' && s[i+1] == ')' && arith_depth > 0) {
+
+        else if (i + 1 < s.size() && s[i] == ')' && s[i + 1] == ')' &&
+                 arith_depth > 0) {
           arith_depth--;
           cur += c;
-          cur += s[i+1];
-          i++; 
-        }
-        else if (c == '&' && arith_depth == 0) {
+          cur += s[i + 1];
+          i++;
+        } else if (c == '&' && arith_depth == 0) {
           if (i + 1 < s.size() && s[i + 1] == '&') {
             cur += c;
           } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
@@ -3194,7 +3201,7 @@ int ShellScriptInterpreter::execute_block(
         continue;
       }
     }
-    idx = k;  
+    idx = k;
     return rc;
   };
 
@@ -3202,7 +3209,8 @@ int ShellScriptInterpreter::execute_block(
                                size_t& idx) -> int {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (g_debug_mode) {
-      std::cerr << "DEBUG: handle_case_block called with: '" << first << "'" << std::endl;
+      std::cerr << "DEBUG: handle_case_block called with: '" << first << "'"
+                << std::endl;
     }
     if (!(first == "case" || first.rfind("case ", 0) == 0))
       return 1;
@@ -3216,20 +3224,21 @@ int ShellScriptInterpreter::execute_block(
       std::string case_part = first.substr(0, in_pos);
       std::string patterns_part = first.substr(in_pos + 4);
 
-      
       std::string expanded_case_part = case_part;
-      if (case_part.find("$(") != std::string::npos || case_part.find("`") != std::string::npos) {
+      if (case_part.find("$(") != std::string::npos ||
+          case_part.find("`") != std::string::npos) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Expanding command substitution in inline case: '" << case_part << "'" << std::endl;
+          std::cerr << "DEBUG: Expanding command substitution in inline case: '"
+                    << case_part << "'" << std::endl;
         }
         try {
           size_t cmd_start = case_part.find("$(");
           if (cmd_start != std::string::npos) {
             size_t cmd_end = case_part.find(")", cmd_start + 2);
             if (cmd_end != std::string::npos) {
-              std::string cmd_sub = case_part.substr(cmd_start + 2, cmd_end - cmd_start - 2);
-              
-              
+              std::string cmd_sub =
+                  case_part.substr(cmd_start + 2, cmd_end - cmd_start - 2);
+
               FILE* pipe = popen(cmd_sub.c_str(), "r");
               if (pipe) {
                 char buffer[1024];
@@ -3238,34 +3247,34 @@ int ShellScriptInterpreter::execute_block(
                   result += buffer;
                 }
                 pclose(pipe);
-                
-                
+
                 if (!result.empty() && result.back() == '\n') {
                   result.pop_back();
                 }
-                
-                
-                expanded_case_part = case_part.substr(0, cmd_start) + result + 
-                                   case_part.substr(cmd_end + 1);
-                
+
+                expanded_case_part = case_part.substr(0, cmd_start) + result +
+                                     case_part.substr(cmd_end + 1);
+
                 if (g_debug_mode) {
-                  std::cerr << "DEBUG: Inline case expansion result: '" << result << "'" << std::endl;
-                  std::cerr << "DEBUG: Expanded case part: '" << expanded_case_part << "'" << std::endl;
+                  std::cerr << "DEBUG: Inline case expansion result: '"
+                            << result << "'" << std::endl;
+                  std::cerr << "DEBUG: Expanded case part: '"
+                            << expanded_case_part << "'" << std::endl;
                 }
               }
             }
           }
         } catch (...) {
-          
         }
       }
-      
+
       std::vector<std::string> case_toks =
           shell_parser->parse_command(expanded_case_part);
       if (case_toks.size() >= 2 && case_toks[0] == "case") {
         case_value = case_toks[1];
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Inline case value: '" << case_value << "'" << std::endl;
+          std::cerr << "DEBUG: Inline case value: '" << case_value << "'"
+                    << std::endl;
         }
       }
 
@@ -3292,7 +3301,8 @@ int ShellScriptInterpreter::execute_block(
       int matched_exit_code = 0;
       for (const auto& section : pattern_sections) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Processing pattern section: '" << section << "'" << std::endl;
+          std::cerr << "DEBUG: Processing pattern section: '" << section << "'"
+                    << std::endl;
         }
         if (section.empty())
           continue;
@@ -3301,26 +3311,24 @@ int ShellScriptInterpreter::execute_block(
         if (paren_pos != std::string::npos) {
           std::string raw_pattern = trim(section.substr(0, paren_pos));
           std::string command_part = trim(section.substr(paren_pos + 1));
-          
+
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Pattern: '" << raw_pattern << "', Command: '" << command_part << "'" << std::endl;
+            std::cerr << "DEBUG: Pattern: '" << raw_pattern << "', Command: '"
+                      << command_part << "'" << std::endl;
           }
 
-          
           std::string pattern = raw_pattern;
           if (pattern.length() >= 2) {
-            if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
-                (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+            if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
+                (pattern[0] == '\'' && pattern[pattern.length() - 1] == '\'')) {
               pattern = pattern.substr(1, pattern.length() - 2);
             }
           }
-          
-          
+
           std::string processed_pattern;
           processed_pattern.reserve(pattern.length());
           for (size_t i = 0; i < pattern.length(); ++i) {
             if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-              
               i++;
               processed_pattern += pattern[i];
             } else {
@@ -3328,22 +3336,23 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           pattern = processed_pattern;
-          
-          
+
           shell_parser->expand_env_vars(pattern);
 
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Matching case_value='" << case_value << "' against pattern='" << pattern << "'" << std::endl;
+            std::cerr << "DEBUG: Matching case_value='" << case_value
+                      << "' against pattern='" << pattern << "'" << std::endl;
           }
           bool pattern_matches = matches_pattern(case_value, pattern);
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Pattern match result: " << pattern_matches << std::endl;
+            std::cerr << "DEBUG: Pattern match result: " << pattern_matches
+                      << std::endl;
           }
 
           if (pattern_matches) {
             if (!command_part.empty()) {
-              
-              auto semicolon_commands = shell_parser->parse_semicolon_commands(command_part);
+              auto semicolon_commands =
+                  shell_parser->parse_semicolon_commands(command_part);
               for (const auto& subcmd : semicolon_commands) {
                 matched_exit_code = execute_simple_or_pipeline(subcmd);
                 if (matched_exit_code != 0)
@@ -3359,27 +3368,26 @@ int ShellScriptInterpreter::execute_block(
       return 0;
     }
 
-    
     std::string expanded_header = header_accum;
-    
+
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Processing case header: '" << header_accum << "'" << std::endl;
+      std::cerr << "DEBUG: Processing case header: '" << header_accum << "'"
+                << std::endl;
     }
-    
-    
-    if (header_accum.find("$(") != std::string::npos || header_accum.find("`") != std::string::npos) {
+
+    if (header_accum.find("$(") != std::string::npos ||
+        header_accum.find("`") != std::string::npos) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: Found command substitution in header" << std::endl;
       }
       try {
-        
         size_t cmd_start = header_accum.find("$(");
         if (cmd_start != std::string::npos) {
           size_t cmd_end = header_accum.find(")", cmd_start + 2);
           if (cmd_end != std::string::npos) {
-            std::string cmd_sub = header_accum.substr(cmd_start + 2, cmd_end - cmd_start - 2);
-            
-            
+            std::string cmd_sub =
+                header_accum.substr(cmd_start + 2, cmd_end - cmd_start - 2);
+
             FILE* pipe = popen(cmd_sub.c_str(), "r");
             if (pipe) {
               char buffer[1024];
@@ -3388,28 +3396,27 @@ int ShellScriptInterpreter::execute_block(
                 result += buffer;
               }
               pclose(pipe);
-              
-              
+
               if (!result.empty() && result.back() == '\n') {
                 result.pop_back();
               }
-              
-              
-              expanded_header = header_accum.substr(0, cmd_start) + result + 
-                              header_accum.substr(cmd_end + 1);
-              
+
+              expanded_header = header_accum.substr(0, cmd_start) + result +
+                                header_accum.substr(cmd_end + 1);
+
               if (g_debug_mode) {
-                std::cerr << "DEBUG: Command substitution result: '" << result << "'" << std::endl;
-                std::cerr << "DEBUG: Expanded header: '" << expanded_header << "'" << std::endl;
+                std::cerr << "DEBUG: Command substitution result: '" << result
+                          << "'" << std::endl;
+                std::cerr << "DEBUG: Expanded header: '" << expanded_header
+                          << "'" << std::endl;
               }
             }
           }
         }
       } catch (...) {
-        
       }
     }
-    
+
     std::vector<std::string> header_toks =
         shell_parser->parse_command(expanded_header);
     size_t tok_idx = 0;
@@ -3417,11 +3424,12 @@ int ShellScriptInterpreter::execute_block(
       ++tok_idx;
     if (tok_idx < header_toks.size()) {
       case_value = header_toks[tok_idx++];
-      
+
       shell_parser->expand_env_vars(case_value);
-      
+
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Final case value: '" << case_value << "'" << std::endl;
+        std::cerr << "DEBUG: Final case value: '" << case_value << "'"
+                  << std::endl;
       }
     }
 
@@ -3492,26 +3500,24 @@ int ShellScriptInterpreter::execute_block(
           if (pattern_line.empty())
             continue;
 
-      size_t paren_pos = pattern_line.find(')');
+          size_t paren_pos = pattern_line.find(')');
           if (paren_pos != std::string::npos) {
             std::string raw_pattern = trim(pattern_line.substr(0, paren_pos));
             std::string command_part = trim(pattern_line.substr(paren_pos + 1));
 
-            
             std::string pattern = raw_pattern;
             if (pattern.length() >= 2) {
-              if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
-                  (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+              if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
+                  (pattern[0] == '\'' &&
+                   pattern[pattern.length() - 1] == '\'')) {
                 pattern = pattern.substr(1, pattern.length() - 2);
               }
             }
-            
-            
+
             std::string processed_pattern;
             processed_pattern.reserve(pattern.length());
             for (size_t i = 0; i < pattern.length(); ++i) {
               if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-                
                 i++;
                 processed_pattern += pattern[i];
               } else {
@@ -3519,8 +3525,7 @@ int ShellScriptInterpreter::execute_block(
               }
             }
             pattern = processed_pattern;
-            
-            
+
             shell_parser->expand_env_vars(pattern);
 
             bool pattern_matches = matches_pattern(case_value, pattern);
@@ -3528,8 +3533,8 @@ int ShellScriptInterpreter::execute_block(
             if (pattern_matches && !found_match) {
               found_match = true;
               if (!command_part.empty()) {
-                
-                auto semicolon_commands = shell_parser->parse_semicolon_commands(command_part);
+                auto semicolon_commands =
+                    shell_parser->parse_semicolon_commands(command_part);
                 for (const auto& subcmd : semicolon_commands) {
                   matched_exit_code = execute_simple_or_pipeline(subcmd);
                   if (matched_exit_code != 0)
@@ -3561,21 +3566,18 @@ int ShellScriptInterpreter::execute_block(
         std::string raw_pattern = trim(line.substr(0, paren_pos));
         std::string command_part = trim(line.substr(paren_pos + 1));
 
-        
         std::string pattern = raw_pattern;
         if (pattern.length() >= 2) {
-          if ((pattern[0] == '"' && pattern[pattern.length()-1] == '"') ||
-              (pattern[0] == '\'' && pattern[pattern.length()-1] == '\'')) {
+          if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
+              (pattern[0] == '\'' && pattern[pattern.length() - 1] == '\'')) {
             pattern = pattern.substr(1, pattern.length() - 2);
           }
         }
-        
-        
+
         std::string processed_pattern;
         processed_pattern.reserve(pattern.length());
         for (size_t i = 0; i < pattern.length(); ++i) {
           if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-            
             i++;
             processed_pattern += pattern[i];
           } else {
@@ -3583,11 +3585,9 @@ int ShellScriptInterpreter::execute_block(
           }
         }
         pattern = processed_pattern;
-        
-        
+
         shell_parser->expand_env_vars(pattern);
 
-        
         if (command_part.length() >= 2 &&
             command_part.substr(command_part.length() - 2) == ";;") {
           command_part =
@@ -3604,7 +3604,6 @@ int ShellScriptInterpreter::execute_block(
             case_commands.push_back(command_part);
           }
 
-          
           bool inline_case = line.find(";;") != std::string::npos;
 
           if (!inline_case) {
@@ -3640,8 +3639,8 @@ int ShellScriptInterpreter::execute_block(
           }
 
           for (const auto& cmd : case_commands) {
-            
-            auto semicolon_commands = shell_parser->parse_semicolon_commands(cmd);
+            auto semicolon_commands =
+                shell_parser->parse_semicolon_commands(cmd);
             for (const auto& subcmd : semicolon_commands) {
               matched_exit_code = execute_simple_or_pipeline(subcmd);
               if (matched_exit_code != 0)
@@ -3651,7 +3650,6 @@ int ShellScriptInterpreter::execute_block(
               break;
           }
 
-          
           while (k < src_lines.size()) {
             std::string scan_line = trim(strip_inline_comment(src_lines[k]));
             if (scan_line == "esac") {
@@ -3659,7 +3657,7 @@ int ShellScriptInterpreter::execute_block(
             }
             k++;
           }
-          idx = k;  
+          idx = k;
           return matched_exit_code;
         }
       }
@@ -3674,7 +3672,7 @@ int ShellScriptInterpreter::execute_block(
       k++;
     }
 
-    idx = k;  
+    idx = k;
     return matched_exit_code;
   };
 
@@ -3766,7 +3764,7 @@ int ShellScriptInterpreter::execute_block(
         idx = k;
         return 1;
       }
-      idx = k;  
+      idx = k;
     }
 
     int rc = 0;
@@ -3915,7 +3913,7 @@ int ShellScriptInterpreter::execute_block(
         idx = k;
         return 1;
       }
-      idx = k;  
+      idx = k;
     }
 
     int rc = 0;
@@ -4045,7 +4043,8 @@ int ShellScriptInterpreter::execute_block(
       while (!current_line.empty() && found_function) {
         found_function = false;
         if (g_debug_mode)
-          std::cerr << "DEBUG: Processing current_line: '" << current_line << "'" << std::endl;
+          std::cerr << "DEBUG: Processing current_line: '" << current_line
+                    << "'" << std::endl;
         size_t name_end = current_line.find("()");
         size_t brace_pos = current_line.find("{");
         if (name_end != std::string::npos && brace_pos != std::string::npos &&
@@ -4070,13 +4069,16 @@ int ShellScriptInterpreter::execute_block(
                 std::string remainder = trim(after_brace.substr(end_brace + 1));
                 // Skip leading semicolons and whitespace
                 size_t start_pos = 0;
-                while (start_pos < remainder.length() && 
-                       (remainder[start_pos] == ';' || std::isspace(remainder[start_pos]))) {
+                while (start_pos < remainder.length() &&
+                       (remainder[start_pos] == ';' ||
+                        std::isspace(remainder[start_pos]))) {
                   start_pos++;
                 }
                 remainder = remainder.substr(start_pos);
-                current_line = remainder; // Process the remainder in the next iteration
-                found_function = true; // Continue loop to look for more functions
+                current_line =
+                    remainder;  // Process the remainder in the next iteration
+                found_function =
+                    true;  // Continue loop to look for more functions
                 handled_single_line = true;
               } else if (!after_brace.empty()) {
                 body_lines.push_back(after_brace);
@@ -4087,7 +4089,8 @@ int ShellScriptInterpreter::execute_block(
               std::string after_closing_brace;
               while (++line_index < lines.size() && depth > 0) {
                 std::string func_line_raw = lines[line_index];
-                std::string func_line = trim(strip_inline_comment(func_line_raw));
+                std::string func_line =
+                    trim(strip_inline_comment(func_line_raw));
                 for (char ch : func_line) {
                   if (ch == '{')
                     depth++;
@@ -4112,36 +4115,40 @@ int ShellScriptInterpreter::execute_block(
               }
               functions[func_name] = body_lines;
               if (g_debug_mode)
-                std::cerr << "DEBUG: Defined function '" << func_name << "' with "
-                          << body_lines.size() << " lines" << std::endl;
-              
+                std::cerr << "DEBUG: Defined function '" << func_name
+                          << "' with " << body_lines.size() << " lines"
+                          << std::endl;
+
               // Check if there are commands after the closing brace
               if (after_closing_brace.empty()) {
-                // No commands after closing brace, clear current_line to prevent duplicate processing
+                // No commands after closing brace, clear current_line to
+                // prevent duplicate processing
                 current_line.clear();
               } else {
                 // Commands found after closing brace, preserve them
                 // Skip leading semicolons and whitespace
                 size_t start_pos = 0;
-                while (start_pos < after_closing_brace.length() && 
-                       (after_closing_brace[start_pos] == ';' || std::isspace(after_closing_brace[start_pos]))) {
+                while (start_pos < after_closing_brace.length() &&
+                       (after_closing_brace[start_pos] == ';' ||
+                        std::isspace(after_closing_brace[start_pos]))) {
                   start_pos++;
                 }
                 current_line = after_closing_brace.substr(start_pos);
               }
-              
-              break; // Break from the while loop and continue to next line
+
+              break;  // Break from the while loop and continue to next line
             }
           }
         }
       }
-      
-      // If there's remaining content that's not a function definition, process it as commands
+
+      // If there's remaining content that's not a function definition, process
+      // it as commands
       if (!current_line.empty()) {
         line = current_line;
         // Fall through to process the remaining line as logical commands
       } else {
-        continue; // Continue to next line after processing all functions
+        continue;  // Continue to next line after processing all functions
       }
     }
 
@@ -4243,32 +4250,38 @@ int ShellScriptInterpreter::execute_block(
           std::string t = trim(strip_inline_comment(cmd_text));
 
           // Check for function definition at the individual command level
-          if (t.find("()") != std::string::npos && t.find("{") != std::string::npos) {
+          if (t.find("()") != std::string::npos &&
+              t.find("{") != std::string::npos) {
             if (g_debug_mode)
-              std::cerr << "DEBUG: Processing function definition in semicolon command: '" << t << "'" << std::endl;
-            
+              std::cerr << "DEBUG: Processing function definition in semicolon "
+                           "command: '"
+                        << t << "'" << std::endl;
+
             size_t name_end = t.find("()");
             size_t brace_pos = t.find("{");
-            if (name_end != std::string::npos && brace_pos != std::string::npos &&
-                name_end < brace_pos) {
+            if (name_end != std::string::npos &&
+                brace_pos != std::string::npos && name_end < brace_pos) {
               std::string func_name = trim(t.substr(0, name_end));
-              if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
+              if (!func_name.empty() &&
+                  func_name.find(' ') == std::string::npos) {
                 std::vector<std::string> body_lines;
                 std::string after_brace = trim(t.substr(brace_pos + 1));
                 if (!after_brace.empty()) {
                   size_t end_brace = after_brace.find('}');
                   if (end_brace != std::string::npos) {
-                    std::string body_part = trim(after_brace.substr(0, end_brace));
+                    std::string body_part =
+                        trim(after_brace.substr(0, end_brace));
                     if (!body_part.empty())
                       body_lines.push_back(body_part);
 
                     functions[func_name] = body_lines;
                     if (g_debug_mode)
                       std::cerr << "DEBUG: Defined function '" << func_name
-                                << "' (single-line) in semicolon command" << std::endl;
-                    
+                                << "' (single-line) in semicolon command"
+                                << std::endl;
+
                     last_code = 0;
-                    continue; // Skip to next command
+                    continue;  // Skip to next command
                   }
                 }
               }
@@ -4477,13 +4490,11 @@ int ShellScriptInterpreter::execute_block(
               // Push function scope for variable isolation
               push_function_scope();
 
-              
               std::vector<std::string> saved_params;
               if (g_shell) {
                 saved_params = g_shell->get_positional_parameters();
               }
 
-              
               std::vector<std::string> func_params;
               for (size_t pi = 1; pi < first_toks.size(); ++pi) {
                 func_params.push_back(first_toks[pi]);
@@ -4492,7 +4503,6 @@ int ShellScriptInterpreter::execute_block(
                 g_shell->set_positional_parameters(func_params);
               }
 
-              
               std::vector<std::string> param_names;
               for (size_t pi = 1; pi < first_toks.size() && pi <= 9; ++pi) {
                 std::string name = std::to_string(pi);
@@ -4514,12 +4524,10 @@ int ShellScriptInterpreter::execute_block(
                 }
               }
 
-              
               if (g_shell) {
                 g_shell->set_positional_parameters(saved_params);
               }
 
-              
               for (const auto& n : param_names)
                 unsetenv(n.c_str());
 
@@ -4529,9 +4537,7 @@ int ShellScriptInterpreter::execute_block(
               try {
                 code = execute_simple_or_pipeline(cmd_text);
               } catch (const std::runtime_error& e) {
-                
-                
-                code = 1; 
+                code = 1;
               }
             }
           }
@@ -4611,7 +4617,6 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
   std::string op;
 
   for (size_t i = 1; i < param_expr.length(); ++i) {
-    
     if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
       char next = param_expr[i + 1];
       if (next == '-' || next == '=' || next == '?' || next == '+') {
@@ -4620,7 +4625,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
         break;
       }
     }
-    
+
     if (param_expr[i] == '/') {
       if (i + 1 < param_expr.length() && param_expr[i + 1] == '/') {
         op_pos = i;
@@ -4691,8 +4696,6 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
 
   std::string operand = param_expr.substr(op_pos + op.length());
 
-
-
   if (op == ":-") {
     return (is_set && !var_value.empty()) ? var_value : operand;
   } else if (op == "-") {
@@ -4718,19 +4721,19 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
     }
     return var_value;
 
-    
   } else if (op == ":?") {
     if (!is_set || var_value.empty()) {
-      std::string error_msg = "cjsh: " + var_name + ": " + 
-                             (operand.empty() ? "parameter null or not set" : operand);
+      std::string error_msg =
+          "cjsh: " + var_name + ": " +
+          (operand.empty() ? "parameter null or not set" : operand);
       print_runtime_error(error_msg, "${" + var_name + op + operand + "}");
       throw std::runtime_error(error_msg);
     }
     return var_value;
   } else if (op == "?") {
     if (!is_set) {
-      std::string error_msg = "cjsh: " + var_name + ": " + 
-                             (operand.empty() ? "parameter not set" : operand);
+      std::string error_msg = "cjsh: " + var_name + ": " +
+                              (operand.empty() ? "parameter not set" : operand);
       print_runtime_error(error_msg, "${" + var_name + op + operand + "}");
       throw std::runtime_error(error_msg);
     }
@@ -4884,25 +4887,25 @@ std::string ShellScriptInterpreter::pattern_match_suffix(
   return value.substr(0, best_match);
 }
 
-
-bool ShellScriptInterpreter::matches_char_class(char c, const std::string& char_class) {
-  if (char_class.length() < 3 || char_class[0] != '[' || char_class.back() != ']') {
+bool ShellScriptInterpreter::matches_char_class(char c,
+                                                const std::string& char_class) {
+  if (char_class.length() < 3 || char_class[0] != '[' ||
+      char_class.back() != ']') {
     return false;
   }
-  
+
   std::string class_content = char_class.substr(1, char_class.length() - 2);
   bool negated = false;
-  
-  
-  if (!class_content.empty() && (class_content[0] == '^' || class_content[0] == '!')) {
+
+  if (!class_content.empty() &&
+      (class_content[0] == '^' || class_content[0] == '!')) {
     negated = true;
     class_content = class_content.substr(1);
   }
-  
+
   bool matches = false;
-  
+
   for (size_t i = 0; i < class_content.length(); ++i) {
-    
     if (i + 2 < class_content.length() && class_content[i + 1] == '-') {
       char start = class_content[i];
       char end = class_content[i + 2];
@@ -4910,22 +4913,20 @@ bool ShellScriptInterpreter::matches_char_class(char c, const std::string& char_
         matches = true;
         break;
       }
-      i += 2; 
+      i += 2;
     } else {
-      
       if (c == class_content[i]) {
         matches = true;
         break;
       }
     }
   }
-  
+
   return negated ? !matches : matches;
 }
 
 bool ShellScriptInterpreter::matches_pattern(const std::string& text,
                                              const std::string& pattern) {
-  
   if (pattern.find('|') != std::string::npos) {
     size_t start = 0;
     while (start < pattern.length()) {
@@ -4938,28 +4939,26 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
         sub_pattern = pattern.substr(start, pipe_pos - start);
         start = pipe_pos + 1;
       }
-      
+
       if (matches_pattern(text, sub_pattern)) {
         return true;
       }
     }
     return false;
   }
-  
+
   size_t ti = 0, pi = 0;
   size_t star_idx = std::string::npos, match_idx = 0;
 
   while (ti < text.length() || pi < pattern.length()) {
     if (ti >= text.length()) {
-      
       while (pi < pattern.length() && pattern[pi] == '*') {
         pi++;
       }
       return pi == pattern.length();
     }
-    
+
     if (pi >= pattern.length()) {
-      
       if (star_idx != std::string::npos) {
         pi = star_idx + 1;
         ti = ++match_idx;
@@ -4967,7 +4966,6 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
         return false;
       }
     } else if (pattern[pi] == '[') {
-      
       size_t class_end = pattern.find(']', pi);
       if (class_end != std::string::npos) {
         std::string char_class = pattern.substr(pi, class_end - pi + 1);
@@ -4981,7 +4979,6 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
           return false;
         }
       } else {
-        
         if (pattern[pi] == text[ti]) {
           ti++;
           pi++;
@@ -4993,11 +4990,10 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text,
         }
       }
     } else if (pattern[pi] == '\\' && pi + 1 < pattern.length()) {
-      
       char escaped_char = pattern[pi + 1];
       if (escaped_char == text[ti]) {
         ti++;
-        pi += 2; 
+        pi += 2;
       } else if (star_idx != std::string::npos) {
         pi = star_idx + 1;
         ti = ++match_idx;
@@ -5132,10 +5128,10 @@ std::vector<std::string> ShellScriptInterpreter::get_function_names() const {
 void ShellScriptInterpreter::push_function_scope() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Pushing function scope" << std::endl;
-  
+
   // Create a new local variable scope
   local_variable_stack.emplace_back();
-  
+
   // Save current environment variables that might be modified
   std::vector<std::string> saved_vars;
   extern char** environ;
@@ -5153,17 +5149,18 @@ void ShellScriptInterpreter::push_function_scope() {
 void ShellScriptInterpreter::pop_function_scope() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Popping function scope" << std::endl;
-  
+
   if (local_variable_stack.empty()) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Warning - trying to pop empty variable scope" << std::endl;
+      std::cerr << "DEBUG: Warning - trying to pop empty variable scope"
+                << std::endl;
     return;
   }
-  
+
   // Restore environment variables to their previous state
   if (!saved_env_stack.empty()) {
     const auto& saved_vars = saved_env_stack.back();
-    
+
     // Clear current environment except for essential variables
     extern char** environ;
     std::vector<std::string> current_vars;
@@ -5175,7 +5172,7 @@ void ShellScriptInterpreter::pop_function_scope() {
         current_vars.push_back(name);
       }
     }
-    
+
     // Unset variables that were modified in the function
     for (const std::string& name : current_vars) {
       bool was_saved = false;
@@ -5189,7 +5186,7 @@ void ShellScriptInterpreter::pop_function_scope() {
         unsetenv(name.c_str());
       }
     }
-    
+
     // Restore saved variables
     for (const std::string& saved_var : saved_vars) {
       size_t eq_pos = saved_var.find('=');
@@ -5199,27 +5196,30 @@ void ShellScriptInterpreter::pop_function_scope() {
         setenv(name.c_str(), value.c_str(), 1);
       }
     }
-    
+
     saved_env_stack.pop_back();
   }
-  
+
   // Remove the local variable scope
   local_variable_stack.pop_back();
 }
 
-void ShellScriptInterpreter::set_local_variable(const std::string& name, const std::string& value) {
+void ShellScriptInterpreter::set_local_variable(const std::string& name,
+                                                const std::string& value) {
   if (g_debug_mode)
-    std::cerr << "DEBUG: Setting local variable " << name << "=" << value << std::endl;
-  
+    std::cerr << "DEBUG: Setting local variable " << name << "=" << value
+              << std::endl;
+
   if (local_variable_stack.empty()) {
     // No function scope, treat as global
     setenv(name.c_str(), value.c_str(), 1);
     return;
   }
-  
+
   // Set in the current local scope
   local_variable_stack.back()[name] = value;
-  // Also set in environment for command execution, but it will be restored when scope pops
+  // Also set in environment for command execution, but it will be restored when
+  // scope pops
   setenv(name.c_str(), value.c_str(), 1);
 }
 
@@ -5227,7 +5227,7 @@ bool ShellScriptInterpreter::is_local_variable(const std::string& name) const {
   if (local_variable_stack.empty()) {
     return false;
   }
-  
+
   const auto& current_scope = local_variable_stack.back();
   return current_scope.find(name) != current_scope.end();
 }

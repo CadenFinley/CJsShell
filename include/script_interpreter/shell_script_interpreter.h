@@ -131,7 +131,7 @@ class ShellScriptInterpreter {
                           bool show_context = true) const;
 
   // Runtime error formatting helper
-  void print_runtime_error(const std::string& error_message, 
+  void print_runtime_error(const std::string& error_message,
                            const std::string& context = "",
                            size_t line_number = 0) const;
 
@@ -152,9 +152,10 @@ class ShellScriptInterpreter {
   DebugLevel debug_level;
   Parser* shell_parser = nullptr;
   std::unordered_map<std::string, std::vector<std::string>> functions;
-  
+
   // Variable scope management for functions
-  std::vector<std::unordered_map<std::string, std::string>> local_variable_stack;
+  std::vector<std::unordered_map<std::string, std::string>>
+      local_variable_stack;
   std::vector<std::vector<std::string>> saved_env_stack;
   std::string get_variable_value(const std::string& var_name);
   bool variable_is_set(const std::string& var_name);

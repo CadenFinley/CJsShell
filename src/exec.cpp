@@ -22,24 +22,22 @@
 #include "suggestion_utils.h"
 #include "utils/performance.h"
 
-
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
                                                bool force_overwrite = false) {
   if (force_overwrite) {
-    return false;  
+    return false;
   }
 
   if (!g_shell || !g_shell->get_shell_option("noclobber")) {
-    return false;  
+    return false;
   }
 
   struct stat file_stat;
   if (stat(filename.c_str(), &file_stat) == 0) {
-    
     return true;
   }
 
-  return false;  
+  return false;
 }
 
 Exec::Exec() {
@@ -154,7 +152,7 @@ void Exec::handle_child_signal(pid_t pid, int status) {
 void Exec::set_error(const ErrorInfo& error) {
   std::lock_guard<std::mutex> lock(error_mutex);
   last_error = error;
-  last_terminal_output_error = error.message;  
+  last_terminal_output_error = error.message;
 }
 
 void Exec::set_error(ErrorType type, const std::string& command,
@@ -179,7 +177,6 @@ void Exec::print_last_error() {
   print_error(last_error);
 }
 
-
 bool Exec::requires_fork(const Command& cmd) const {
   return !cmd.input_file.empty() || !cmd.output_file.empty() ||
          !cmd.append_file.empty() || cmd.background ||
@@ -194,7 +191,6 @@ bool Exec::can_execute_in_process(const Command& cmd) const {
   if (cmd.args.empty())
     return false;
 
-  
   if (g_shell && g_shell->get_built_ins() &&
       g_shell->get_built_ins()->is_builtin_command(cmd.args[0])) {
     return !requires_fork(cmd);
@@ -249,7 +245,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     for (const auto& env : env_assignments) {
       setenv(env.first.c_str(), env.second.c_str(), 1);
     }
-    
+
     last_exit_code = 0;
     return 0;
   }
@@ -273,9 +269,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
     pid_t child_pid = getpid();
     if (setpgid(child_pid, child_pid) < 0) {
-      
-      
-      
       std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
                    "ID in child: "
                 << strerror(errno) << std::endl;
@@ -373,7 +366,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     // "command not found" and "command returned 127"
     std::string command_path = args[0];
     bool command_exists = false;
-    
+
     // Check if it's an absolute/relative path
     if (command_path.find('/') != std::string::npos) {
       command_exists = (access(command_path.c_str(), F_OK) == 0);
@@ -384,7 +377,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         std::string path_str(path_env);
         std::istringstream path_stream(path_str);
         std::string path_dir;
-        
+
         while (std::getline(path_stream, path_dir, ':')) {
           if (!path_dir.empty()) {
             std::string full_path = path_dir + "/" + command_path;
@@ -396,7 +389,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         }
       }
     }
-    
+
     if (!command_exists) {
       error_type = ErrorType::COMMAND_NOT_FOUND;
       suggestions = suggestion_utils::generate_command_suggestions(args[0]);
@@ -410,11 +403,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   }
 
   set_error(error_type, args[0],
-            exit_code == 0
-                ? "command completed successfully"
-                : (error_type == ErrorType::COMMAND_NOT_FOUND
-                    ? "command not found"
-                    : "command failed with exit code " + std::to_string(exit_code)),
+            exit_code == 0 ? "command completed successfully"
+                           : (error_type == ErrorType::COMMAND_NOT_FOUND
+                                  ? "command not found"
+                                  : "command failed with exit code " +
+                                        std::to_string(exit_code)),
             suggestions);
   last_exit_code = exit_code;
   return exit_code;
@@ -540,7 +533,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     std::cerr << "[" << job_id << "] " << pid << std::endl;
     last_exit_code = 0;
-    return 0;  
+    return 0;
   }
 }
 
@@ -557,7 +550,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
   if (commands.size() == 1) {
     const Command& cmd = commands[0];
 
-    
     if (can_execute_in_process(cmd)) {
       PERF_TIMER("builtin_in_process");
       last_exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
@@ -587,8 +579,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           Command modified_cmd = cmd;
 
           try {
-            
-
             if (!cmd.process_substitutions.empty()) {
               for (size_t i = 0; i < cmd.process_substitutions.size(); ++i) {
                 const std::string& proc_sub = cmd.process_substitutions[i];
@@ -599,12 +589,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                   std::string command =
                       proc_sub.substr(2, proc_sub.length() - 3);
 
-                  
                   std::string temp_file = "/tmp/cjsh_procsub_" +
                                           std::to_string(getpid()) + "_" +
                                           std::to_string(i);
 
-                  
                   if (mkfifo(temp_file.c_str(), 0600) == -1) {
                     throw std::runtime_error(
                         "cjsh: Failed to create FIFO for process "
@@ -614,7 +602,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                   process_sub_files.push_back(temp_file);
 
-                  
                   pid_t pid = fork();
                   if (pid == -1) {
                     throw std::runtime_error(
@@ -623,10 +610,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                   }
 
                   if (pid == 0) {
-                    
                     int fifo_fd;
                     if (is_input) {
-                      
                       fifo_fd = open(temp_file.c_str(), O_WRONLY);
                       if (fifo_fd == -1) {
                         std::cerr << "cjsh: file not found: open: failed to "
@@ -642,7 +627,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         _exit(1);
                       }
                     } else {
-                      
                       fifo_fd = open(temp_file.c_str(), O_RDONLY);
                       if (fifo_fd == -1) {
                         std::cerr << "cjsh: file not found: open: failed to "
@@ -660,7 +644,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                     close(fifo_fd);
 
-                    
                     if (g_shell) {
                       int result = g_shell->execute(command);
                       _exit(result);
@@ -671,8 +654,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                   process_sub_pids.push_back(pid);
 
-                  
-                  
                   for (auto& arg : modified_cmd.args) {
                     size_t pos = 0;
                     while ((pos = arg.find(proc_sub, pos)) !=
@@ -706,7 +687,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               }
 
               std::string content = modified_cmd.here_string;
-              
+
               if (g_shell && g_shell->get_parser()) {
                 g_shell->get_parser()->expand_env_vars(content);
               }
@@ -730,7 +711,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (!modified_cmd.output_file.empty()) {
-              
               if (should_noclobber_prevent_overwrite(
                       modified_cmd.output_file, modified_cmd.force_overwrite)) {
                 throw std::runtime_error(
@@ -753,7 +733,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             if (modified_cmd.both_output &&
                 !modified_cmd.both_output_file.empty()) {
-              
               if (should_noclobber_prevent_overwrite(
                       modified_cmd.both_output_file)) {
                 throw std::runtime_error(
@@ -797,7 +776,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (!cmd.stderr_file.empty()) {
-              
               if (!cmd.stderr_append &&
                   should_noclobber_prevent_overwrite(cmd.stderr_file)) {
                 throw std::runtime_error(
@@ -833,11 +811,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               }
             }
 
-            
             if (!cmd.args.empty() && cmd.args[0] == "exec" &&
                 (!cmd.fd_redirections.empty() ||
                  !cmd.fd_duplications.empty())) {
-              
               for (const auto& fd_redir : cmd.fd_redirections) {
                 int fd_num = fd_redir.first;
                 const std::string& spec = fd_redir.second;
@@ -851,7 +827,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                   file_fd =
                       open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
                 } else {
-                  
                   if (fd_num == 0) {
                     file_fd = open(spec.c_str(), O_RDONLY);
                   } else {
@@ -875,7 +850,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
               }
 
-              
               for (const auto& fd_dup : cmd.fd_duplications) {
                 int dst_fd = fd_dup.first;
                 int src_fd = fd_dup.second;
@@ -887,12 +861,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
               }
 
-              
-              
               if (cmd.args.size() == 1) {
                 exit_code = 0;
               } else {
-                
                 std::vector<std::string> exec_args(cmd.args.begin() + 1,
                                                    cmd.args.end());
                 exit_code = g_shell->execute_command(exec_args, false);
@@ -908,7 +879,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             exit_code = EX_OSERR;
           }
 
-          
           for (size_t i = 0; i < process_sub_pids.size(); ++i) {
             int status;
             waitpid(process_sub_pids[i], &status, 0);
@@ -928,11 +898,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           ErrorType error_type = ErrorType::RUNTIME_ERROR;
           std::vector<std::string> suggestions;
           if (exit_code == 127) {
-            // Check if the command is actually executable to distinguish between
-            // "command not found" and "command returned 127"
+            // Check if the command is actually executable to distinguish
+            // between "command not found" and "command returned 127"
             std::string command_path = cmd.args[0];
             bool command_exists = false;
-            
+
             // Check if it's an absolute/relative path
             if (command_path.find('/') != std::string::npos) {
               command_exists = (access(command_path.c_str(), F_OK) == 0);
@@ -943,7 +913,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 std::string path_str(path_env);
                 std::istringstream path_stream(path_str);
                 std::string path_dir;
-                
+
                 while (std::getline(path_stream, path_dir, ':')) {
                   if (!path_dir.empty()) {
                     std::string full_path = path_dir + "/" + command_path;
@@ -955,7 +925,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
               }
             }
-            
+
             if (!command_exists) {
               error_type = ErrorType::COMMAND_NOT_FOUND;
               suggestions =
@@ -970,11 +940,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
 
           set_error(error_type, cmd.args[0],
-                    exit_code == 0 ? "builtin command completed successfully"
-                                   : (error_type == ErrorType::COMMAND_NOT_FOUND
-                                        ? "command not found"
-                                        : "builtin command failed with exit code " +
-                                              std::to_string(exit_code)),
+                    exit_code == 0
+                        ? "builtin command completed successfully"
+                        : (error_type == ErrorType::COMMAND_NOT_FOUND
+                               ? "command not found"
+                               : "builtin command failed with exit code " +
+                                     std::to_string(exit_code)),
                     suggestions);
           last_exit_code = exit_code;
           return exit_code;
@@ -1071,7 +1042,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
 
           std::string content = cmd.here_string;
-          
+
           if (g_shell && g_shell->get_parser()) {
             g_shell->get_parser()->expand_env_vars(content);
           }
@@ -1113,7 +1084,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (!cmd.output_file.empty()) {
-          
           if (should_noclobber_prevent_overwrite(cmd.output_file,
                                                  cmd.force_overwrite)) {
             std::cerr << "cjsh: permission denied: " << cmd.output_file
@@ -1141,7 +1111,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (cmd.both_output && !cmd.both_output_file.empty()) {
-          
           if (should_noclobber_prevent_overwrite(cmd.both_output_file)) {
             std::cerr << "cjsh: permission denied: " << cmd.both_output_file
                       << ": cannot overwrite existing file (noclobber is set)"
@@ -1192,7 +1161,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (!cmd.stderr_file.empty()) {
-          
           if (!cmd.stderr_append &&
               should_noclobber_prevent_overwrite(cmd.stderr_file)) {
             std::cerr << "cjsh: permission denied: " << cmd.stderr_file
@@ -1308,7 +1276,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           // "command not found" and "command returned 127"
           std::string command_path = cmd.args[0];
           bool command_exists = false;
-          
+
           // Check if it's an absolute/relative path
           if (command_path.find('/') != std::string::npos) {
             command_exists = (access(command_path.c_str(), F_OK) == 0);
@@ -1319,7 +1287,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               std::string path_str(path_env);
               std::istringstream path_stream(path_str);
               std::string path_dir;
-              
+
               while (std::getline(path_stream, path_dir, ':')) {
                 if (!path_dir.empty()) {
                   std::string full_path = path_dir + "/" + command_path;
@@ -1331,7 +1299,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               }
             }
           }
-          
+
           if (!command_exists) {
             error_type = ErrorType::COMMAND_NOT_FOUND;
             suggestions =
@@ -1348,9 +1316,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         set_error(error_type, cmd.args[0],
                   exit_code == 0 ? "command completed successfully"
                                  : (error_type == ErrorType::COMMAND_NOT_FOUND
-                                      ? "command not found"
-                                      : "command failed with exit code " +
-                                            std::to_string(exit_code)),
+                                        ? "command not found"
+                                        : "command failed with exit code " +
+                                              std::to_string(exit_code)),
                   suggestions);
         last_exit_code = exit_code;
         if (g_debug_mode) {

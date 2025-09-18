@@ -62,6 +62,7 @@ class Parser {
   bool is_env_assignment(const std::string& command, std::string& var_name,
                          std::string& var_value);
   void expand_env_vars(std::string& arg);
+  void expand_env_vars_selective(std::string& arg);
   std::vector<std::string> split_by_ifs(const std::string& input);
 
   std::vector<Command> parse_pipeline_with_preprocessing(
