@@ -10,6 +10,7 @@
 #include <csignal>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -368,8 +369,40 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   ErrorType error_type = ErrorType::RUNTIME_ERROR;
   std::vector<std::string> suggestions;
   if (exit_code == 127) {
-    error_type = ErrorType::COMMAND_NOT_FOUND;
-    suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+    // Check if the command is actually executable to distinguish between
+    // "command not found" and "command returned 127"
+    std::string command_path = args[0];
+    bool command_exists = false;
+    
+    // Check if it's an absolute/relative path
+    if (command_path.find('/') != std::string::npos) {
+      command_exists = (access(command_path.c_str(), F_OK) == 0);
+    } else {
+      // Check in PATH
+      const char* path_env = getenv("PATH");
+      if (path_env) {
+        std::string path_str(path_env);
+        std::istringstream path_stream(path_str);
+        std::string path_dir;
+        
+        while (std::getline(path_stream, path_dir, ':')) {
+          if (!path_dir.empty()) {
+            std::string full_path = path_dir + "/" + command_path;
+            if (access(full_path.c_str(), F_OK) == 0) {
+              command_exists = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    if (!command_exists) {
+      error_type = ErrorType::COMMAND_NOT_FOUND;
+      suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+    } else {
+      error_type = ErrorType::RUNTIME_ERROR;
+    }
   } else if (exit_code == 126) {
     error_type = ErrorType::PERMISSION_DENIED;
   } else if (exit_code != 0) {
@@ -379,7 +412,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   set_error(error_type, args[0],
             exit_code == 0
                 ? "command completed successfully"
-                : "command failed with exit code " + std::to_string(exit_code),
+                : (error_type == ErrorType::COMMAND_NOT_FOUND
+                    ? "command not found"
+                    : "command failed with exit code " + std::to_string(exit_code)),
             suggestions);
   last_exit_code = exit_code;
   return exit_code;
@@ -893,9 +928,41 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           ErrorType error_type = ErrorType::RUNTIME_ERROR;
           std::vector<std::string> suggestions;
           if (exit_code == 127) {
-            error_type = ErrorType::COMMAND_NOT_FOUND;
-            suggestions =
-                suggestion_utils::generate_command_suggestions(cmd.args[0]);
+            // Check if the command is actually executable to distinguish between
+            // "command not found" and "command returned 127"
+            std::string command_path = cmd.args[0];
+            bool command_exists = false;
+            
+            // Check if it's an absolute/relative path
+            if (command_path.find('/') != std::string::npos) {
+              command_exists = (access(command_path.c_str(), F_OK) == 0);
+            } else {
+              // Check in PATH
+              const char* path_env = getenv("PATH");
+              if (path_env) {
+                std::string path_str(path_env);
+                std::istringstream path_stream(path_str);
+                std::string path_dir;
+                
+                while (std::getline(path_stream, path_dir, ':')) {
+                  if (!path_dir.empty()) {
+                    std::string full_path = path_dir + "/" + command_path;
+                    if (access(full_path.c_str(), F_OK) == 0) {
+                      command_exists = true;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (!command_exists) {
+              error_type = ErrorType::COMMAND_NOT_FOUND;
+              suggestions =
+                  suggestion_utils::generate_command_suggestions(cmd.args[0]);
+            } else {
+              error_type = ErrorType::RUNTIME_ERROR;
+            }
           } else if (exit_code == 126) {
             error_type = ErrorType::PERMISSION_DENIED;
           } else if (exit_code != 0) {
@@ -904,8 +971,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
           set_error(error_type, cmd.args[0],
                     exit_code == 0 ? "builtin command completed successfully"
-                                   : "builtin command failed with exit code " +
-                                         std::to_string(exit_code),
+                                   : (error_type == ErrorType::COMMAND_NOT_FOUND
+                                        ? "command not found"
+                                        : "builtin command failed with exit code " +
+                                              std::to_string(exit_code)),
                     suggestions);
           last_exit_code = exit_code;
           return exit_code;
@@ -1235,9 +1304,41 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         ErrorType error_type = ErrorType::RUNTIME_ERROR;
         std::vector<std::string> suggestions;
         if (exit_code == 127) {
-          error_type = ErrorType::COMMAND_NOT_FOUND;
-          suggestions =
-              suggestion_utils::generate_command_suggestions(cmd.args[0]);
+          // Check if the command is actually executable to distinguish between
+          // "command not found" and "command returned 127"
+          std::string command_path = cmd.args[0];
+          bool command_exists = false;
+          
+          // Check if it's an absolute/relative path
+          if (command_path.find('/') != std::string::npos) {
+            command_exists = (access(command_path.c_str(), F_OK) == 0);
+          } else {
+            // Check in PATH
+            const char* path_env = getenv("PATH");
+            if (path_env) {
+              std::string path_str(path_env);
+              std::istringstream path_stream(path_str);
+              std::string path_dir;
+              
+              while (std::getline(path_stream, path_dir, ':')) {
+                if (!path_dir.empty()) {
+                  std::string full_path = path_dir + "/" + command_path;
+                  if (access(full_path.c_str(), F_OK) == 0) {
+                    command_exists = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
+          if (!command_exists) {
+            error_type = ErrorType::COMMAND_NOT_FOUND;
+            suggestions =
+                suggestion_utils::generate_command_suggestions(cmd.args[0]);
+          } else {
+            error_type = ErrorType::RUNTIME_ERROR;
+          }
         } else if (exit_code == 126) {
           error_type = ErrorType::PERMISSION_DENIED;
         } else if (exit_code != 0) {
@@ -1246,8 +1347,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         set_error(error_type, cmd.args[0],
                   exit_code == 0 ? "command completed successfully"
-                                 : "command failed with exit code " +
-                                       std::to_string(exit_code),
+                                 : (error_type == ErrorType::COMMAND_NOT_FOUND
+                                      ? "command not found"
+                                      : "command failed with exit code " +
+                                            std::to_string(exit_code)),
                   suggestions);
         last_exit_code = exit_code;
         if (g_debug_mode) {

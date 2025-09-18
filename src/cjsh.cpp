@@ -120,10 +120,6 @@ int main(int argc, char* argv[]) {
   // Detect login mode from argv[0]
   detect_login_mode(argv);
 
-  // Initialize directories and register cleanup
-  cjsh_filesystem::initialize_cjsh_directories();
-  std::atexit(cleanup_resources);
-
   // Parse command line arguments
   std::string script_file;
   std::vector<std::string> script_args;
@@ -132,6 +128,10 @@ int main(int argc, char* argv[]) {
   if (parse_result != 0) {
     return parse_result;
   }
+
+  // Initialize directories and register cleanup
+  cjsh_filesystem::initialize_cjsh_directories();
+  std::atexit(cleanup_resources);
 
   // Initialize core shell components
   g_shell = std::make_unique<Shell>();
