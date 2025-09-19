@@ -91,15 +91,17 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (ic_stop_completing(cenv))
     return;
 
+  std::string prefix_str(prefix);
   std::string prefix_lower(prefix);
   std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
                  [](unsigned char c) { return std::tolower(c); });
-  size_t prefix_len = prefix_lower.length();
+  size_t prefix_len = prefix_str.length();  // Use original prefix length
+  
+  // Allow empty prefix for history completion
   if (prefix_len == 0) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: History completer skipped (empty prefix)"
+      std::cerr << "DEBUG: History completer with empty prefix (showing recent history)"
                 << std::endl;
-    return;
   }
 
   std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
@@ -114,10 +116,22 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   std::vector<std::pair<std::string, int>> matches;
 
   while (std::getline(history_file, line)) {
-    std::string line_lower(line);
-    std::transform(line_lower.begin(), line_lower.end(), line_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (line_lower.rfind(prefix_lower, 0) == 0 && line != prefix) {
+    // Skip empty lines
+    if (line.empty()) continue;
+    
+    bool should_match = false;
+    if (prefix_len == 0) {
+      // For empty prefix, include all non-empty history entries
+      should_match = (line != prefix_str);
+    } else {
+      // For non-empty prefix, do case-insensitive prefix matching
+      std::string line_lower(line);
+      std::transform(line_lower.begin(), line_lower.end(), line_lower.begin(),
+                     [](unsigned char c) { return std::tolower(c); });
+      should_match = (line_lower.rfind(prefix_lower, 0) == 0 && line != prefix_str);
+    }
+    
+    if (should_match) {
       if (g_completion_frequency.find(line) == g_completion_frequency.end()) {
         g_completion_frequency[line] = 1;
       }
@@ -135,11 +149,19 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   size_t count = 0;
 
   for (const auto& match : matches) {
-    std::string suffix = match.first.substr(prefix_len);
+    std::string completion;
+    if (prefix_len == 0) {
+      // For empty prefix, use the entire command as completion
+      completion = match.first;
+    } else {
+      // For non-empty prefix, use the suffix after the prefix
+      completion = match.first.substr(prefix_len);
+    }
+    
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding history completion: '" << match.first
-                << "' (freq: " << match.second << ")" << std::endl;
-    if (!ic_add_completion(cenv, suffix.c_str()))
+                << "' -> '" << completion << "' (freq: " << match.second << ")" << std::endl;
+    if (!ic_add_completion(cenv, completion.c_str()))
       return;
     if (++count >= max_suggestions || ic_stop_completing(cenv))
       return;

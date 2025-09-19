@@ -268,10 +268,11 @@ again:
       bbcode_printf(env->bbcode, "[ic-info](%zd possible completions)[/]\n",
                     count);
     }
-    for (ssize_t i = 0; i < rc.row + 1; i++) {
-      term_write(env->term, " \n");
-    }
+    
+    // Properly restore the cursor and clear the display
+    term_writeln(env->term, "");
     eb->cur_rows = 0;
+    eb->cur_row = 0;
     edit_refresh(env, eb);
   } else {
     edit_refresh(env, eb);
