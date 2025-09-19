@@ -6,20 +6,19 @@
 #include <sstream>
 
 #include "cjsh.h"
+#include "utils/cjsh_filesystem.h"
 
 std::string SystemInfo::get_disk_usage(const std::filesystem::path& path) {
   std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp)
+  auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result.is_error()) {
     return "";
-  char buffer[32];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL)
-    result += buffer;
-  pclose(fp);
-  if (!result.empty() && result.back() == '\n')
-    result.pop_back();
-  return result;
+  }
+  std::string output = result.value();
+  if (!output.empty() && output.back() == '\n') {
+    output.pop_back();
+  }
+  return output;
 }
 
 std::string SystemInfo::get_swap_usage() {

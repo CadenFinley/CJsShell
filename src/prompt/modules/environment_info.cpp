@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "cjsh.h"
+#include "utils/cjsh_filesystem.h"
 
 std::string EnvironmentInfo::get_terminal_type() {
   const char* term = getenv("TERM");
@@ -47,20 +48,15 @@ std::string EnvironmentInfo::get_active_language_version(
     return "";
   }
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto cmd_result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (cmd_result.is_error()) {
     return "";
   }
 
-  char buffer[128];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  std::string result = cmd_result.value();
+  if (!result.empty() && result.back() == '\n') {
+    result.pop_back();
   }
-  pclose(fp);
 
   return result;
 }
@@ -98,21 +94,17 @@ bool EnvironmentInfo::is_in_virtual_environment(std::string& env_name) {
 
 int EnvironmentInfo::get_background_jobs_count() {
   std::string cmd = "jobs | wc -l";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto cmd_result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (cmd_result.is_error()) {
     return 0;
   }
 
-  char buffer[32];
   int count = 0;
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    try {
-      count = std::stoi(buffer);
-    } catch (const std::exception& e) {
-      count = 0;
-    }
+  try {
+    count = std::stoi(cmd_result.value());
+  } catch (const std::exception& e) {
+    count = 0;
   }
-  pclose(fp);
 
   return count;
 }

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include "cjsh_filesystem.h"
 
 HttpResponse HttpClient::post(const std::string& url, const std::string& data,
                               const std::map<std::string, std::string>& headers,
@@ -63,20 +64,27 @@ HttpResponse HttpClient::system_curl_post(
   HttpResponse response;
   response.success = false;
 
-  std::string temp_data_file =
-      "/tmp/cjsh_http_data_" + std::to_string(getpid());
-  std::string temp_response_file =
-      "/tmp/cjsh_http_response_" + std::to_string(getpid());
-  std::string temp_headers_file =
-      "/tmp/cjsh_http_headers_" + std::to_string(getpid());
+  auto temp_data_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_data");
+  auto temp_response_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_response");
+  auto temp_headers_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_headers");
 
-  std::ofstream data_file(temp_data_file);
-  if (!data_file) {
-    response.error_message = "Failed to create temporary data file";
+  if (temp_data_result.is_error() || temp_response_result.is_error() || temp_headers_result.is_error()) {
+    response.error_message = "Failed to create temporary files";
     return response;
   }
-  data_file << data;
-  data_file.close();
+
+  std::string temp_data_file = temp_data_result.value();
+  std::string temp_response_file = temp_response_result.value();
+  std::string temp_headers_file = temp_headers_result.value();
+
+  auto write_result = cjsh_filesystem::FileOperations::write_temp_file(temp_data_file, data);
+  if (write_result.is_error()) {
+    response.error_message = "Failed to write data to temporary file";
+    cjsh_filesystem::FileOperations::cleanup_temp_file(temp_data_file);
+    cjsh_filesystem::FileOperations::cleanup_temp_file(temp_response_file);
+    cjsh_filesystem::FileOperations::cleanup_temp_file(temp_headers_file);
+    return response;
+  }
 
   std::ostringstream cmd;
   cmd << "curl -s -w \"%{http_code}\\n\" -m " << timeout_seconds;
@@ -134,9 +142,10 @@ HttpResponse HttpClient::system_curl_post(
     headers_file.close();
   }
 
-  unlink(temp_data_file.c_str());
-  unlink(temp_response_file.c_str());
-  unlink(temp_headers_file.c_str());
+  // Cleanup temporary files
+  cjsh_filesystem::FileOperations::cleanup_temp_file(temp_data_file);
+  cjsh_filesystem::FileOperations::cleanup_temp_file(temp_response_file);
+  cjsh_filesystem::FileOperations::cleanup_temp_file(temp_headers_file);
 
   response.success =
       (response.status_code >= 200 && response.status_code < 400);

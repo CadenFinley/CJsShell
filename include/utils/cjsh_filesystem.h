@@ -6,10 +6,110 @@
 #include <filesystem>
 #include <iostream>
 #include <vector>
+#include <optional>
+#include <string>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 // the cjsh file system
 namespace cjsh_filesystem {
 namespace fs = std::filesystem;
+
+// Error type for Result
+struct Error {
+    std::string message;
+    explicit Error(const std::string& msg) : message(msg) {}
+};
+
+// Result template for safe error handling
+template<typename T>
+class Result {
+public:
+    explicit Result(T value) : value_(std::move(value)), has_value_(true) {}
+    explicit Result(const Error& error) : error_(error.message), has_value_(false) {}
+    
+    // Factory methods
+    static Result<T> ok(T value) { 
+        return Result<T>(std::move(value));
+    }
+    static Result<T> error(const std::string& message) { 
+        return Result<T>(Error(message));
+    }
+    
+    bool is_ok() const { return has_value_; }
+    bool is_error() const { return !has_value_; }
+    
+    const T& value() const { 
+        if (!has_value_) throw std::runtime_error("Attempted to access value of error Result");
+        return value_; 
+    }
+    
+    T& value() { 
+        if (!has_value_) throw std::runtime_error("Attempted to access value of error Result");
+        return value_; 
+    }
+    
+    const std::string& error() const { 
+        if (has_value_) throw std::runtime_error("Attempted to access error of ok Result");
+        return error_; 
+    }
+
+private:
+    T value_{};
+    std::string error_;
+    bool has_value_;
+};
+
+// Specialization for void
+template<>
+class Result<void> {
+public:
+    Result() : has_value_(true) {}
+    explicit Result(const Error& error) : error_(error.message), has_value_(false) {}
+    
+    // Factory methods
+    static Result<void> ok() { return Result<void>(); }
+    static Result<void> error(const std::string& message) { 
+        return Result<void>(Error(message));
+    }
+    
+    bool is_ok() const { return has_value_; }
+    bool is_error() const { return !has_value_; }
+    
+    const std::string& error() const { 
+        if (has_value_) throw std::runtime_error("Attempted to access error of ok Result");
+        return error_; 
+    }
+
+private:
+    std::string error_;
+    bool has_value_;
+};
+
+// Safe file operations class
+class FileOperations {
+public:
+    static Result<int> safe_open(const std::string& path, int flags, mode_t mode = 0644);
+    static Result<void> safe_dup2(int oldfd, int newfd);
+    static void safe_close(int fd);
+    static Result<void> redirect_fd(const std::string& file, int target_fd, int flags);
+    
+    // FILE* based operations
+    static Result<FILE*> safe_fopen(const std::string& path, const std::string& mode);
+    static void safe_fclose(FILE* file);
+    static Result<FILE*> safe_popen(const std::string& command, const std::string& mode);
+    static int safe_pclose(FILE* file);
+    
+    // Temporary file utilities
+    static Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp");
+    static Result<void> write_temp_file(const std::string& path, const std::string& content);
+    static void cleanup_temp_file(const std::string& path);
+    
+    // High-level utilities
+    static Result<std::string> read_command_output(const std::string& command);
+    static Result<void> write_file_content(const std::string& path, const std::string& content);
+    static Result<std::string> read_file_content(const std::string& path);
+};
 
 // ALL STORED IN FULL PATHS
 const fs::path g_user_home_path = []() {

@@ -23,6 +23,7 @@
 #include "job_control.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "utils/cjsh_filesystem.h"
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
   if (g_debug_mode)
@@ -1619,10 +1620,11 @@ int ShellScriptInterpreter::execute_block(
         close(fd);
       std::string path = tmpl;
 
+      auto saved_stdout_result = cjsh_filesystem::FileOperations::safe_dup2(STDOUT_FILENO, -1);
       int saved_stdout = dup(STDOUT_FILENO);
 
-      FILE* temp_file = fopen(path.c_str(), "w");
-      if (!temp_file) {
+      auto temp_file_result = cjsh_filesystem::FileOperations::safe_fopen(path, "w");
+      if (temp_file_result.is_error()) {
         int pipefd[2];
         if (pipe(pipefd) != 0) {
           return "";
@@ -1661,21 +1663,29 @@ int ShellScriptInterpreter::execute_block(
         }
       }
 
+      FILE* temp_file = temp_file_result.value();
       int temp_fd = fileno(temp_file);
-      dup2(temp_fd, STDOUT_FILENO);
+      auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(temp_fd, STDOUT_FILENO);
+      if (dup_result.is_error()) {
+        cjsh_filesystem::FileOperations::safe_fclose(temp_file);
+        return "";
+      }
 
       execute_simple_or_pipeline(content);
 
       fflush(stdout);
-      fclose(temp_file);
-      dup2(saved_stdout, STDOUT_FILENO);
-      close(saved_stdout);
+      cjsh_filesystem::FileOperations::safe_fclose(temp_file);
+      auto restore_result = cjsh_filesystem::FileOperations::safe_dup2(saved_stdout, STDOUT_FILENO);
+      cjsh_filesystem::FileOperations::safe_close(saved_stdout);
 
-      std::ifstream ifs(path);
-      std::stringstream buffer;
-      buffer << ifs.rdbuf();
-      std::string out = buffer.str();
-      ::unlink(path.c_str());
+      auto content_result = cjsh_filesystem::FileOperations::read_file_content(path);
+      cjsh_filesystem::FileOperations::cleanup_temp_file(path);
+
+      if (content_result.is_error()) {
+        return "";
+      }
+
+      std::string out = content_result.value();
 
       while (!out.empty() && (out.back() == '\n' || out.back() == '\r'))
         out.pop_back();
@@ -3468,14 +3478,9 @@ int ShellScriptInterpreter::execute_block(
               std::string cmd_sub =
                   case_part.substr(cmd_start + 2, cmd_end - cmd_start - 2);
 
-              FILE* pipe = popen(cmd_sub.c_str(), "r");
-              if (pipe) {
-                char buffer[1024];
-                std::string result;
-                while (fgets(buffer, sizeof(buffer), pipe)) {
-                  result += buffer;
-                }
-                pclose(pipe);
+              auto cmd_output_result = cjsh_filesystem::FileOperations::read_command_output(cmd_sub);
+              if (cmd_output_result.is_ok()) {
+                std::string result = cmd_output_result.value();
 
                 if (!result.empty() && result.back() == '\n') {
                   result.pop_back();

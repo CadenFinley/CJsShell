@@ -604,39 +604,41 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                   }
 
                   if (pid == 0) {
-                    int fifo_fd;
                     if (is_input) {
-                      fifo_fd = open(temp_file.c_str(), O_WRONLY);
-                      if (fifo_fd == -1) {
+                      auto fifo_result = cjsh_filesystem::FileOperations::safe_open(temp_file.c_str(), O_WRONLY);
+                      if (fifo_result.is_error()) {
                         std::cerr << "cjsh: file not found: open: failed to "
                                      "open FIFO for writing: "
-                                  << strerror(errno) << std::endl;
+                                  << fifo_result.error() << std::endl;
                         _exit(1);
                       }
-                      if (dup2(fifo_fd, STDOUT_FILENO) == -1) {
+                      auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(fifo_result.value(), STDOUT_FILENO);
+                      if (dup_result.is_error()) {
                         std::cerr << "cjsh: runtime error: dup2: failed to "
                                      "duplicate stdout descriptor: "
-                                  << strerror(errno) << std::endl;
-                        close(fifo_fd);
+                                  << dup_result.error() << std::endl;
+                        cjsh_filesystem::FileOperations::safe_close(fifo_result.value());
                         _exit(1);
                       }
+                      cjsh_filesystem::FileOperations::safe_close(fifo_result.value());
                     } else {
-                      fifo_fd = open(temp_file.c_str(), O_RDONLY);
-                      if (fifo_fd == -1) {
+                      auto fifo_result = cjsh_filesystem::FileOperations::safe_open(temp_file.c_str(), O_RDONLY);
+                      if (fifo_result.is_error()) {
                         std::cerr << "cjsh: file not found: open: failed to "
                                      "open FIFO for reading: "
-                                  << strerror(errno) << std::endl;
+                                  << fifo_result.error() << std::endl;
                         _exit(1);
                       }
-                      if (dup2(fifo_fd, STDIN_FILENO) == -1) {
+                      auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(fifo_result.value(), STDIN_FILENO);
+                      if (dup_result.is_error()) {
                         std::cerr << "cjsh: runtime error: dup2: failed to "
                                      "duplicate stdin descriptor: "
-                                  << strerror(errno) << std::endl;
-                        close(fifo_fd);
+                                  << dup_result.error() << std::endl;
+                        cjsh_filesystem::FileOperations::safe_close(fifo_result.value());
                         _exit(1);
                       }
+                      cjsh_filesystem::FileOperations::safe_close(fifo_result.value());
                     }
-                    close(fifo_fd);
 
                     if (g_shell) {
                       int result = g_shell->execute(command);
@@ -661,16 +663,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (!modified_cmd.input_file.empty()) {
-              int fd = open(modified_cmd.input_file.c_str(), O_RDONLY);
-              if (fd == -1) {
-                throw std::runtime_error("cjsh: Failed to open input file: " +
-                                         modified_cmd.input_file);
+              auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
+                  modified_cmd.input_file.c_str(), STDIN_FILENO, O_RDONLY);
+              if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: Failed to redirect stdin from file: " +
+                                       modified_cmd.input_file + " - " + redirect_result.error());
               }
-              if (dup2(fd, STDIN_FILENO) == -1) {
-                close(fd);
-                throw std::runtime_error("cjsh: Failed to redirect stdin");
-              }
-              close(fd);
             }
 
             if (!modified_cmd.here_string.empty()) {
@@ -689,19 +687,20 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
               ssize_t bytes_written =
                   write(here_pipe[1], content.c_str(), content.length());
               if (bytes_written == -1) {
-                close(here_pipe[1]);
-                close(here_pipe[0]);
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
                 throw std::runtime_error(
                     "cjsh: Failed to write here string content");
               }
-              close(here_pipe[1]);
+              cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
 
-              if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
-                close(here_pipe[0]);
+              auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(here_pipe[0], STDIN_FILENO);
+              if (dup_result.is_error()) {
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
                 throw std::runtime_error(
-                    "cjsh: Failed to redirect stdin for here string");
+                    "cjsh: Failed to redirect stdin for here string: " + dup_result.error());
               }
-              close(here_pipe[0]);
+              cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
             }
 
             if (!modified_cmd.output_file.empty()) {
@@ -712,17 +711,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     modified_cmd.output_file + "' (noclobber is set)");
               }
 
-              int fd = open(modified_cmd.output_file.c_str(),
-                            O_WRONLY | O_CREAT | O_TRUNC, 0644);
-              if (fd == -1) {
-                throw std::runtime_error("cjsh: Failed to open output file: " +
-                                         modified_cmd.output_file);
+              auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
+                  modified_cmd.output_file.c_str(), STDOUT_FILENO, O_WRONLY | O_CREAT | O_TRUNC);
+              if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: Failed to redirect stdout to file: " +
+                                       modified_cmd.output_file + " - " + redirect_result.error());
               }
-              if (dup2(fd, STDOUT_FILENO) == -1) {
-                close(fd);
-                throw std::runtime_error("cjsh: Failed to redirect stdout");
-              }
-              close(fd);
             }
 
             if (modified_cmd.both_output &&
@@ -734,39 +728,26 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     modified_cmd.both_output_file + "' (noclobber is set)");
               }
 
-              int fd = open(modified_cmd.both_output_file.c_str(),
-                            O_WRONLY | O_CREAT | O_TRUNC, 0644);
-              if (fd == -1) {
-                throw std::runtime_error(
-                    "cjsh: Failed to open &> output file: " +
-                    modified_cmd.both_output_file);
+              auto stdout_result = cjsh_filesystem::FileOperations::redirect_fd(
+                  modified_cmd.both_output_file.c_str(), STDOUT_FILENO, O_WRONLY | O_CREAT | O_TRUNC);
+              if (stdout_result.is_error()) {
+                throw std::runtime_error("cjsh: Failed to redirect stdout for &>: " +
+                                       modified_cmd.both_output_file + " - " + stdout_result.error());
               }
-              if (dup2(fd, STDOUT_FILENO) == -1) {
-                close(fd);
-                throw std::runtime_error(
-                    "cjsh: Failed to redirect stdout for &>");
+              
+              auto stderr_result = cjsh_filesystem::FileOperations::safe_dup2(STDOUT_FILENO, STDERR_FILENO);
+              if (stderr_result.is_error()) {
+                throw std::runtime_error("cjsh: Failed to redirect stderr for &>: " + stderr_result.error());
               }
-              if (dup2(fd, STDERR_FILENO) == -1) {
-                close(fd);
-                throw std::runtime_error(
-                    "cjsh: Failed to redirect stderr for &>");
-              }
-              close(fd);
             }
 
             if (!cmd.append_file.empty()) {
-              int fd = open(cmd.append_file.c_str(),
-                            O_WRONLY | O_CREAT | O_APPEND, 0644);
-              if (fd == -1) {
-                throw std::runtime_error("cjsh: Failed to open append file: " +
-                                         cmd.append_file);
+              auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
+                  cmd.append_file.c_str(), STDOUT_FILENO, O_WRONLY | O_CREAT | O_APPEND);
+              if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: Failed to redirect stdout for append: " +
+                                       cmd.append_file + " - " + redirect_result.error());
               }
-              if (dup2(fd, STDOUT_FILENO) == -1) {
-                close(fd);
-                throw std::runtime_error(
-                    "cjsh: Failed to redirect stdout for append");
-              }
-              close(fd);
             }
 
             if (!cmd.stderr_file.empty()) {
@@ -779,16 +760,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
               int flags =
                   O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
-              int fd = open(cmd.stderr_file.c_str(), flags, 0644);
-              if (fd == -1) {
-                throw std::runtime_error("cjsh: Failed to open stderr file: " +
-                                         cmd.stderr_file);
+              auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
+                  cmd.stderr_file.c_str(), STDERR_FILENO, flags);
+              if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: Failed to redirect stderr: " +
+                                       cmd.stderr_file + " - " + redirect_result.error());
               }
-              if (dup2(fd, STDERR_FILENO) == -1) {
-                close(fd);
-                throw std::runtime_error("cjsh: Failed to redirect stderr");
-              }
-              close(fd);
             }
 
             if (cmd.stderr_to_stdout) {

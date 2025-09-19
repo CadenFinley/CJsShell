@@ -431,11 +431,11 @@ void Ai::load_ai_config() {
     }
   }
 
-  std::ifstream config_file(config_file_path);
-  if (config_file.is_open()) {
+  auto config_content = cjsh_filesystem::FileOperations::read_file_content(config_file_path);
+  if (config_content.is_ok()) {
     nlohmann::json config_json;
     try {
-      config_file >> config_json;
+      config_json = nlohmann::json::parse(config_content.value());
       if (config_json.contains("assistant_name")) {
         assistant_name = config_json["assistant_name"].get<std::string>();
       }
@@ -500,9 +500,8 @@ void Ai::load_ai_config() {
       std::cerr << "cjsh: ai: Error parsing AI config file: " << e.what()
                 << std::endl;
     }
-    config_file.close();
   } else {
-    std::cerr << "cjsh: ai: Error opening AI config file." << std::endl;
+    std::cerr << "cjsh: ai: Error reading AI config file." << std::endl;
   }
 }
 
@@ -515,56 +514,52 @@ void Ai::save_ai_config() {
         cjsh_filesystem::g_cjsh_ai_config_path / (config_name + ".json");
   }
 
-  std::ofstream config_file(config_file_path);
-  if (config_file.is_open()) {
-    nlohmann::json config_json = {
-        {"assistant_name", assistant_name},
-        {"initial_instruction", initial_instruction},
-        {"assistant_type", assistant_type},
-        {"max_prompt_length", max_prompt_length},
-        {"cache_tokens", cache_tokens},
-        {"max_prompt_precision", max_prompt_precision},
-        {"dynamic_prompt_length", dynamic_prompt_length},
-        {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
-        {"timeout_flag_seconds", timeout_flag_seconds},
-        {"model", current_model},
-        {"enabled", enabled},
-        {"voice_dictation_enabled", voice_dictation_enabled},
-        {"voice_dictation_voice", voice_dictation_voice},
-        {"voice_dictation_instructions", voice_dictation_instructions}};
-    config_file << config_json.dump(4);
-    config_file.close();
-  } else {
+  std::string config_content = nlohmann::json{
+      {"assistant_name", assistant_name},
+      {"initial_instruction", initial_instruction},
+      {"assistant_type", assistant_type},
+      {"max_prompt_length", max_prompt_length},
+      {"cache_tokens", cache_tokens},
+      {"max_prompt_precision", max_prompt_precision},
+      {"dynamic_prompt_length", dynamic_prompt_length},
+      {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
+      {"timeout_flag_seconds", timeout_flag_seconds},
+      {"model", current_model},
+      {"enabled", enabled},
+      {"voice_dictation_enabled", voice_dictation_enabled},
+      {"voice_dictation_voice", voice_dictation_voice},
+      {"voice_dictation_instructions", voice_dictation_instructions}}.dump(4);
+
+  auto write_result = cjsh_filesystem::FileOperations::write_file_content(config_file_path, config_content);
+  if (write_result.is_error()) {
     std::cerr << "cjsh: ai: Error saving AI config file." << std::endl;
   }
 }
 
 void Ai::create_default_config_file() {
-  std::ofstream config_file(cjsh_filesystem::g_cjsh_ai_default_config_path);
-  if (config_file.is_open()) {
-    nlohmann::json default_config = {
-        {"assistant_name", "CJ's Shell Assistant"},
-        {"initial_instruction",
-         "You are a helpful AI assistant within the user's shell environment. "
-         "Provide concise, accurate information and assist with shell tasks "
-         "when requested."},
-        {"assistant_type", "chat"},
-        {"max_prompt_length", 1000},
-        {"cache_tokens", false},
-        {"max_prompt_precision", true},
-        {"dynamic_prompt_length", true},
-        {"dynamic_prompt_length_scale", 3},
-        {"timeout_flag_seconds", 180},
-        {"model", "gpt-3.5-turbo"},
-        {"enabled", true},
-        {"voice_dictation_enabled", false},
-        {"voice_dictation_voice", "alloy"},
-        {"voice_dictation_instructions",
-         "Use a natural, conversational tone with clear pronunciation and "
-         "moderate pacing."}};
-    config_file << default_config.dump(4);
-    config_file.close();
-  } else {
+  std::string default_config_content = nlohmann::json{
+      {"assistant_name", "CJ's Shell Assistant"},
+      {"initial_instruction",
+       "You are a helpful AI assistant within the user's shell environment. "
+       "Provide concise, accurate information and assist with shell tasks "
+       "when requested."},
+      {"assistant_type", "chat"},
+      {"max_prompt_length", 1000},
+      {"cache_tokens", false},
+      {"max_prompt_precision", true},
+      {"dynamic_prompt_length", true},
+      {"dynamic_prompt_length_scale", 3},
+      {"timeout_flag_seconds", 180},
+      {"model", "gpt-3.5-turbo"},
+      {"enabled", true},
+      {"voice_dictation_enabled", false},
+      {"voice_dictation_voice", "alloy"},
+      {"voice_dictation_instructions",
+       "Use a natural, conversational tone with clear pronunciation and "
+       "moderate pacing."}}.dump(4);
+
+  auto write_result = cjsh_filesystem::FileOperations::write_file_content(cjsh_filesystem::g_cjsh_ai_default_config_path, default_config_content);
+  if (write_result.is_error()) {
     std::cerr << "cjsh: ai: Error creating default AI config file."
               << std::endl;
   }
@@ -984,9 +979,9 @@ std::string Ai::process_code_blocks_for_code_interpreter(
       if (!file_found) {
         std::filesystem::path new_file_path = save_directory + file_name;
         std::filesystem::create_directories(new_file_path.parent_path());
-        std::ofstream new_file(new_file_path);
-        if (new_file.is_open()) {
-          new_file.close();
+        
+        auto write_result = cjsh_filesystem::FileOperations::write_file_content(new_file_path, "");
+        if (write_result.is_ok()) {
           file_to_change = new_file_path.string();
           files.push_back(file_to_change);
           std::cout << "New file created: " << file_to_change << std::endl;
@@ -999,13 +994,14 @@ std::string Ai::process_code_blocks_for_code_interpreter(
       std::vector<std::string> original_lines;
       std::vector<std::string> new_lines;
       std::vector<std::string> updated_lines;
-      std::ifstream in_file(file_to_change);
-      if (in_file.is_open()) {
+      
+      auto file_content = cjsh_filesystem::FileOperations::read_file_content(file_to_change);
+      if (file_content.is_ok()) {
+        std::istringstream stream(file_content.value());
         std::string line;
-        while (std::getline(in_file, line)) {
+        while (std::getline(stream, line)) {
           original_lines.push_back(line);
         }
-        in_file.close();
       }
       original_file_contents[file_to_change] = original_lines;
       std::stringstream ss(code_block);
@@ -1042,11 +1038,16 @@ std::string Ai::process_code_blocks_for_code_interpreter(
                                new_lines.end());
         }
       }
-      std::ofstream out_file(file_to_change);
+      std::ostringstream output_stream;
       for (const auto& updated_line : updated_lines) {
-        out_file << updated_line << "\n";
+        output_stream << updated_line << "\n";
       }
-      out_file.close();
+      
+      auto write_result = cjsh_filesystem::FileOperations::write_file_content(file_to_change, output_stream.str());
+      if (write_result.is_error()) {
+        std::cerr << "Failed to write updated content to file: " << file_to_change << std::endl;
+      }
+      
       changes_summary << "\033[1;34m" << file_to_change << "\033[0m\n";
       size_t common_lines = std::min(original_lines.size(), new_lines.size());
       for (size_t j = 0; j < common_lines; j++) {

@@ -1,4 +1,5 @@
-#include "cjsh_filesystem.h"
+#include "utils/cjsh_filesystem.h"
+
 
 #include <chrono>
 #include <cstdlib>
@@ -6,6 +7,9 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <errno.h>
+#include <ctime>
+#include <cstdio>
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -19,6 +23,175 @@
 namespace cjsh_filesystem {
 
 fs::path g_cjsh_path;
+
+// FileOperations implementation
+Result<int> FileOperations::safe_open(const std::string& path, int flags, mode_t mode) {
+  int fd = ::open(path.c_str(), flags, mode);
+  if (fd == -1) {
+    return Result<int>::error("Failed to open file '" + path + "': " + std::string(strerror(errno)));
+  }
+  return Result<int>::ok(fd);
+}
+
+Result<void> FileOperations::safe_dup2(int oldfd, int newfd) {
+  if (::dup2(oldfd, newfd) == -1) {
+    return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) + 
+                       " to " + std::to_string(newfd) + ": " + std::string(strerror(errno)));
+  }
+  return Result<void>::ok();
+}
+
+void FileOperations::safe_close(int fd) {
+  if (fd >= 0) {
+    ::close(fd);
+  }
+}
+
+Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd, int flags) {
+  auto open_result = safe_open(file, flags, 0644);
+  if (open_result.is_error()) {
+    return Result<void>::error(open_result.error());
+  }
+  
+  int file_fd = open_result.value();
+  
+  // Only dup2 if the file descriptor is different from target
+  if (file_fd != target_fd) {
+    auto dup_result = safe_dup2(file_fd, target_fd);
+    safe_close(file_fd);
+    if (dup_result.is_error()) {
+      return dup_result;
+    }
+  }
+  
+  return Result<void>::ok();
+}
+
+// FILE* based operations
+Result<FILE*> FileOperations::safe_fopen(const std::string& path, const std::string& mode) {
+  FILE* file = std::fopen(path.c_str(), mode.c_str());
+  if (file == nullptr) {
+    return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode + "': " + std::string(strerror(errno)));
+  }
+  return Result<FILE*>::ok(file);
+}
+
+void FileOperations::safe_fclose(FILE* file) {
+  if (file != nullptr) {
+    std::fclose(file);
+  }
+}
+
+Result<FILE*> FileOperations::safe_popen(const std::string& command, const std::string& mode) {
+  FILE* pipe = ::popen(command.c_str(), mode.c_str());
+  if (pipe == nullptr) {
+    return Result<FILE*>::error("Failed to execute command '" + command + "': " + std::string(strerror(errno)));
+  }
+  return Result<FILE*>::ok(pipe);
+}
+
+int FileOperations::safe_pclose(FILE* file) {
+  if (file == nullptr) {
+    return -1;
+  }
+  return ::pclose(file);
+}
+
+// Temporary file utilities
+Result<std::string> FileOperations::create_temp_file(const std::string& prefix) {
+  std::string temp_path = "/tmp/" + prefix + "_" + std::to_string(getpid()) + "_" + std::to_string(time(nullptr));
+  auto open_result = safe_open(temp_path, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (open_result.is_error()) {
+    return Result<std::string>::error(open_result.error());
+  }
+  safe_close(open_result.value());
+  return Result<std::string>::ok(temp_path);
+}
+
+Result<void> FileOperations::write_temp_file(const std::string& path, const std::string& content) {
+  auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+  if (open_result.is_error()) {
+    return Result<void>::error(open_result.error());
+  }
+  
+  int fd = open_result.value();
+  ssize_t written = write(fd, content.c_str(), content.length());
+  safe_close(fd);
+  
+  if (written != static_cast<ssize_t>(content.length())) {
+    return Result<void>::error("Failed to write complete content to file '" + path + "'");
+  }
+  
+  return Result<void>::ok();
+}
+
+void FileOperations::cleanup_temp_file(const std::string& path) {
+  std::remove(path.c_str());
+}
+
+// High-level utilities
+Result<std::string> FileOperations::read_command_output(const std::string& command) {
+  auto pipe_result = safe_popen(command, "r");
+  if (pipe_result.is_error()) {
+    return Result<std::string>::error(pipe_result.error());
+  }
+  
+  FILE* pipe = pipe_result.value();
+  std::string output;
+  char buffer[256];
+  
+  while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+    output += buffer;
+  }
+  
+  int exit_code = safe_pclose(pipe);
+  if (exit_code != 0) {
+    return Result<std::string>::error("Command '" + command + "' failed with exit code " + std::to_string(exit_code));
+  }
+  
+  return Result<std::string>::ok(output);
+}
+
+Result<void> FileOperations::write_file_content(const std::string& path, const std::string& content) {
+  auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (open_result.is_error()) {
+    return Result<void>::error(open_result.error());
+  }
+  
+  int fd = open_result.value();
+  ssize_t written = write(fd, content.c_str(), content.length());
+  safe_close(fd);
+  
+  if (written != static_cast<ssize_t>(content.length())) {
+    return Result<void>::error("Failed to write complete content to file '" + path + "'");
+  }
+  
+  return Result<void>::ok();
+}
+
+Result<std::string> FileOperations::read_file_content(const std::string& path) {
+  auto open_result = safe_open(path, O_RDONLY);
+  if (open_result.is_error()) {
+    return Result<std::string>::error(open_result.error());
+  }
+  
+  int fd = open_result.value();
+  std::string content;
+  char buffer[4096];
+  ssize_t bytes_read;
+  
+  while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
+    content.append(buffer, bytes_read);
+  }
+  
+  safe_close(fd);
+  
+  if (bytes_read < 0) {
+    return Result<std::string>::error("Failed to read from file '" + path + "': " + std::string(strerror(errno)));
+  }
+  
+  return Result<std::string>::ok(content);
+}
 
 bool should_refresh_executable_cache() {
   try {
