@@ -99,7 +99,6 @@ static void initialize_title_strings() {
 // TODO
 
 // fix all failing tests
-// alias issue with pipes
 // tab completion rework
 
 

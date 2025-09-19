@@ -2714,6 +2714,27 @@ int ShellScriptInterpreter::execute_block(
           if (expanded_args.empty())
             return 0;
 
+          // Check if alias expansion resulted in a pipeline
+          if (expanded_args.size() == 2 && expanded_args[0] == "__ALIAS_PIPELINE__") {
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Detected alias pipeline, re-processing: " << expanded_args[1] << std::endl;
+            }
+            // Re-process as a pipeline
+            std::vector<Command> pipeline_cmds =
+                shell_parser->parse_pipeline_with_preprocessing(expanded_args[1]);
+            int exit_code = g_shell->shell_exec->execute_pipeline(pipeline_cmds);
+            if (exit_code != 0) {
+              ErrorInfo error = g_shell->shell_exec->get_error();
+              if (error.type != ErrorType::RUNTIME_ERROR ||
+                  error.message.find("command failed with exit code") ==
+                      std::string::npos) {
+                g_shell->shell_exec->print_last_error();
+              }
+            }
+            setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+            return exit_code;
+          }
+
           if (expanded_args.size() == 1) {
             std::string var_name, var_value;
             if (shell_parser->is_env_assignment(expanded_args[0], var_name,

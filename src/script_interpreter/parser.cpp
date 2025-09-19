@@ -650,6 +650,25 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
           }
 
           args = new_args;
+          
+          // Check if alias expansion resulted in a pipeline
+          bool has_pipe = false;
+          for (const auto& arg : args) {
+            if (arg == "|") {
+              has_pipe = true;
+              break;
+            }
+          }
+          
+          // If we have pipes after alias expansion, we need to handle this as a pipeline
+          // Return a special marker to indicate this should be processed as a pipeline
+          if (has_pipe) {
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Alias expansion resulted in pipeline, should be re-processed" << std::endl;
+            }
+            // Return a special marker that the caller can detect
+            return {"__ALIAS_PIPELINE__", alias_it->second};
+          }
         }
       } catch (const std::exception& e) {
         if (g_debug_mode) {
