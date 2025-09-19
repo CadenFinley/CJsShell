@@ -685,7 +685,7 @@ static void main_process_loop() {
           if (g_debug_mode)
             std::cerr << "DEBUG: Command exit status: " << status_str
                       << std::endl;
-          update_completion_frequency(command);
+          //update_completion_frequency(command);
           ic_history_add(command.c_str());
           setenv("STATUS", status_str.c_str(), 1);
         }
