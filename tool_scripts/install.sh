@@ -29,7 +29,6 @@ readonly ARROW="→"
 # Installation configuration
 readonly REPO_URL="https://github.com/CadenFinley/CJsShell"
 readonly GITHUB_API_URL="https://api.github.com/repos/CadenFinley/CJsShell"
-readonly INSTALL_DIR="/usr/local/bin"
 readonly TEMP_DIR=$(mktemp -d)
 
 # Cleanup function
@@ -96,6 +95,36 @@ detect_os() {
     else
         echo "unknown"
     fi
+}
+
+# Function to determine the appropriate installation directory
+get_install_dir() {
+    local os=$(detect_os)
+    
+    case "$os" in
+        "linux")
+            echo "/usr/local/bin"
+            ;;
+        "macos")
+            # Check if Homebrew is installed and prefer its bin directory
+            if command_exists brew; then
+                local brew_prefix=$(brew --prefix 2>/dev/null)
+                if [ -n "$brew_prefix" ] && [ -d "$brew_prefix/bin" ]; then
+                    echo "$brew_prefix/bin"
+                else
+                    echo "/usr/local/bin"
+                fi
+            else
+                echo "/usr/local/bin"
+            fi
+            ;;
+        "windows")
+            echo "/usr/local/bin"  # For WSL/Git Bash environments
+            ;;
+        *)
+            echo "/usr/local/bin"  # Default fallback
+            ;;
+    esac
 }
 
 # Function to install dependencies based on OS
@@ -291,7 +320,8 @@ build_project() {
 install_binary() {
     print_section "Installing CJ's Shell"
     
-    local target="$INSTALL_DIR/cjsh"
+    local install_dir=$(get_install_dir)
+    local target="$install_dir/cjsh"
     
     print_info "Installing to: $target"
     
@@ -334,6 +364,8 @@ install_binary() {
 
 # Function to show post-installation information
 show_completion_info() {
+    local install_dir=$(get_install_dir)
+    
     print_section "Installation Complete"
     print_status "CJ's Shell successfully installed!"
     print_status "You can now run: ${CYAN}cjsh${NC}"
@@ -357,10 +389,10 @@ show_completion_info() {
     print_info "To make cjsh your default login shell:"
     echo
     echo -e "  ${BOLD}Step 1:${NC} Add cjsh to system shells list"
-    print_command "sudo sh -c 'echo $INSTALL_DIR/cjsh >> /etc/shells'"
+    print_command "sudo sh -c 'echo $install_dir/cjsh >> /etc/shells'"
     echo
     echo -e "  ${BOLD}Step 2:${NC} Change your default shell"
-    print_command "sudo chsh -s $INSTALL_DIR/cjsh \$USER"
+    print_command "sudo chsh -s $install_dir/cjsh \$USER"
     echo
     print_warning "You may need to log out and back in for changes to take effect"
     echo
@@ -374,12 +406,14 @@ show_completion_info() {
 main() {
     print_header
     
+    local install_dir=$(get_install_dir)
+    
     print_section "Pre-Installation Information"
     print_info "This installer will:"
     print_info "• Check and install build dependencies"
     print_info "• Download the latest CJ's Shell source code"
     print_info "• Build the project from source"
-    print_info "• Install cjsh to ${BRIGHT_BLUE}$INSTALL_DIR${NC}"
+    print_info "• Install cjsh to ${BRIGHT_BLUE}$install_dir${NC}"
     print_warning "You may be prompted for your password (sudo required)"
     echo
     
