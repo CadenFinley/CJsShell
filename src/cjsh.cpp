@@ -431,30 +431,22 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
 
-    std::ifstream file(script_file);
-    // check if file exists
-    if (!std::filesystem::exists(script_file)) {
-      print_error({ErrorType::FILE_NOT_FOUND,
+    auto read_result = cjsh_filesystem::FileOperations::read_file_content(script_file);
+    if (!read_result.is_ok()) {
+      // Determine appropriate error type based on the error message
+      ErrorType error_type = ErrorType::FILE_NOT_FOUND;
+      if (read_result.error().find("Permission denied") != std::string::npos) {
+        error_type = ErrorType::PERMISSION_DENIED;
+      }
+      
+      print_error({error_type,
                    script_file.c_str(),
-                   "Script file not found",
-                   {"Check file path"}});
+                   read_result.error().c_str(),
+                   {"Check file path and permissions"}});
       return 127;
     }
 
-    // check if file opened successfully
-    if (!file.is_open()) {
-      print_error({ErrorType::PERMISSION_DENIED,
-                   script_file.c_str(),
-                   "Failed to open script file",
-                   {"Check file permissions"}});
-      return 127;
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-      script_content += line + "\n";
-    }
-    file.close();
+    script_content = read_result.value();
   } else {
     // Read and execute input from stdin
     std::string line;
@@ -927,8 +919,15 @@ static bool init_interactive_filesystem() {
     if (!history_exists) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Creating history file" << std::endl;
-      std::ofstream history_file(cjsh_filesystem::g_cjsh_history_path);
-      history_file.close();
+      auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+          cjsh_filesystem::g_cjsh_history_path.string(), "");
+      if (!write_result.is_ok()) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     cjsh_filesystem::g_cjsh_history_path.c_str(),
+                     write_result.error().c_str(),
+                     {"Check file permissions"}});
+        return false;
+      }
     }
 
     // .cjshrc
@@ -1064,83 +1063,79 @@ static void process_source_file() {
 }
 
 static void create_profile_file() {
-  std::ofstream profile_file(cjsh_filesystem::g_cjsh_profile_path);
-  if (profile_file.is_open()) {
-    profile_file << "# cjsh Configuration File\n";
-    profile_file << "# this file is sourced when the shell starts in login "
-                    "mode and is sourced after /etc/profile and ~/.profile\n";
-    profile_file << "# this file supports full shell scripting including "
-                    "conditional logic\n";
-    profile_file << "# Use the 'login-startup-arg' builtin command to set "
-                    "startup flags conditionally\n";
-    profile_file << "\n";
-    profile_file
-        << "# Example: Conditional startup flags based on environment\n";
-    profile_file << "# if test -n \"$TMUX\"; then\n";
-    profile_file << "#     echo \"In tmux session, no flags required\"\n";
-    profile_file << "# else\n";
-    profile_file << "#     login-startup-arg --no-plugins\n";
-    profile_file << "#     login-startup-arg --no-themes\n";
-    profile_file << "#     login-startup-arg --no-ai\n";
-    profile_file << "#     login-startup-arg --no-colors\n";
-    profile_file << "#     login-startup-arg --no-titleline\n";
-    profile_file << "# fi\n";
-    profile_file << "\n";
-    profile_file << "# Available startup flags:\n";
-    profile_file << "# login-startup-arg --login         # Enable login mode\n";
-    profile_file
-        << "# login-startup-arg --interactive   # Force interactive mode\n";
-    profile_file << "# login-startup-arg --debug         # Enable debug mode\n";
-    profile_file << "# login-startup-arg --no-plugins    # Disable plugins\n";
-    profile_file << "# login-startup-arg --no-themes     # Disable themes\n";
-    profile_file
-        << "# login-startup-arg --no-ai         # Disable AI features\n";
-    profile_file
-        << "# login-startup-arg --no-colors     # Disable colorized output\n";
-    profile_file
-        << "# login-startup-arg --no-titleline  # Disable title line\n";
-    profile_file << "# login-startup-arg --no-source     # Don't source the "
-                    ".cjshrc file\n";
-    profile_file
-        << "# login-startup-arg --startup-test  # Enable startup test mode\n";
-    profile_file.close();
-  } else {
+  std::string profile_content = 
+    "# cjsh Configuration File\n"
+    "# this file is sourced when the shell starts in login "
+    "mode and is sourced after /etc/profile and ~/.profile\n"
+    "# this file supports full shell scripting including "
+    "conditional logic\n"
+    "# Use the 'login-startup-arg' builtin command to set "
+    "startup flags conditionally\n"
+    "\n"
+    "# Example: Conditional startup flags based on environment\n"
+    "# if test -n \"$TMUX\"; then\n"
+    "#     echo \"In tmux session, no flags required\"\n"
+    "# else\n"
+    "#     login-startup-arg --no-plugins\n"
+    "#     login-startup-arg --no-themes\n"
+    "#     login-startup-arg --no-ai\n"
+    "#     login-startup-arg --no-colors\n"
+    "#     login-startup-arg --no-titleline\n"
+    "# fi\n"
+    "\n"
+    "# Available startup flags:\n"
+    "# login-startup-arg --login         # Enable login mode\n"
+    "# login-startup-arg --interactive   # Force interactive mode\n"
+    "# login-startup-arg --debug         # Enable debug mode\n"
+    "# login-startup-arg --no-plugins    # Disable plugins\n"
+    "# login-startup-arg --no-themes     # Disable themes\n"
+    "# login-startup-arg --no-ai         # Disable AI features\n"
+    "# login-startup-arg --no-colors     # Disable colorized output\n"
+    "# login-startup-arg --no-titleline  # Disable title line\n"
+    "# login-startup-arg --no-source     # Don't source the "
+    ".cjshrc file\n"
+    "# login-startup-arg --startup-test  # Enable startup test mode\n";
+  
+  auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+      cjsh_filesystem::g_cjsh_profile_path.string(), profile_content);
+  
+  if (!write_result.is_ok()) {
     print_error({ErrorType::RUNTIME_ERROR,
                  nullptr,
-                 "Failed to create profile file",
+                 write_result.error().c_str(),
                  {"Check file permissions"}});
   }
 }
 
 static void create_source_file() {
-  std::ofstream source_file(cjsh_filesystem::g_cjsh_source_path);
-  if (source_file.is_open()) {
-    source_file << "# cjsh Source File\n";
-    source_file
-        << "# this file is sourced when the shell starts in interactive mode\n";
-    source_file << "# this is where your aliases, theme setup, enabled "
-                   "plugins will be stored by default.\n";
-
-    source_file << "# Alias examples\n";
-    source_file << "alias ll='ls -la'\n";
-
-    source_file << "# you can change this to load any installed theme\n";
-    source_file << "theme load default\n";
-
-    source_file << "# plugin examples\n";
-    source_file << "# plugin example_plugin enable\n";
-
-    source_file << "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n";
-    source_file << "cjsh_uninstall() {\n";
-    source_file << "    rm -rf " << cjsh_filesystem::g_cjsh_path.string()
-                << "\n";
-    source_file << "    echo \"Uninstalled cjsh\"\n";
-    source_file << "}\n";
-    source_file.close();
-  } else {
+  std::string source_content = 
+    "# cjsh Source File\n"
+    "# this file is sourced when the shell starts in interactive mode\n"
+    "# this is where your aliases, theme setup, enabled "
+    "plugins will be stored by default.\n"
+    "\n"
+    "# Alias examples\n"
+    "alias ll='ls -la'\n"
+    "\n"
+    "# you can change this to load any installed theme\n"
+    "theme load default\n"
+    "\n"
+    "# plugin examples\n"
+    "# plugin example_plugin enable\n"
+    "\n"
+    "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
+    "cjsh_uninstall() {\n"
+    "    rm -rf " + cjsh_filesystem::g_cjsh_path.string() + "\n"
+    "    echo \"Uninstalled cjsh\"\n"
+    "}\n";
+  
+  auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+      cjsh_filesystem::g_cjsh_source_path.string(), source_content);
+  
+  if (!write_result.is_ok()) {
     print_error({ErrorType::RUNTIME_ERROR,
                  nullptr,
-                 "Failed to create source file",
+                 write_result.error().c_str(),
                  {"Check file permissions"}});
   }
 }

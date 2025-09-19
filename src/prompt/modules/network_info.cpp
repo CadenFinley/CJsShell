@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include "utils/cjsh_filesystem.h"
 
 std::string NetworkInfo::get_ip_address(bool external) {
   std::string cmd;
@@ -29,20 +30,15 @@ std::string NetworkInfo::get_ip_address(bool external) {
 #endif
   }
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return "N/A";
   }
 
-  char buffer[64];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  std::string result = result_data.value();
+  if (!result.empty() && result.back() == '\n') {
+    result.pop_back();
   }
-  pclose(fp);
 
   return result.empty() ? "N/A" : result;
 }
@@ -60,19 +56,12 @@ bool NetworkInfo::is_vpn_active() {
   return false;
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return false;
   }
 
-  char buffer[8];
-  bool is_active = false;
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    is_active = (buffer[0] == '1');
-  }
-  pclose(fp);
-
-  return is_active;
+  return (result_data.value().length() > 0 && result_data.value()[0] == '1');
 }
 
 std::string NetworkInfo::get_active_network_interface() {
@@ -88,20 +77,15 @@ std::string NetworkInfo::get_active_network_interface() {
   return "N/A";
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return "N/A";
   }
 
-  char buffer[32];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  std::string result = result_data.value();
+  if (!result.empty() && result.back() == '\n') {
+    result.pop_back();
   }
-  pclose(fp);
 
   return result.empty() ? "N/A" : result;
 }

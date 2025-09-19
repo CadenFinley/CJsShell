@@ -228,22 +228,33 @@ bool build_executable_cache() {
     } catch (const fs::filesystem_error& e) {
     }
   }
-  std::ofstream ofs(g_cjsh_found_executables_path);
-  if (!ofs.is_open())
-    return false;
-  for (auto& e : executables)
-    ofs << e.filename().string() << "\n";
-  return true;
+  
+  // Build content string
+  std::string content;
+  for (auto& e : executables) {
+    content += e.filename().string() + "\n";
+  }
+  
+  // Use FileOperations for safe writing
+  auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
+  return write_result.is_ok();
 }
 
 std::vector<fs::path> read_cached_executables() {
   std::vector<fs::path> executables;
-  std::ifstream ifs(g_cjsh_found_executables_path);
-  if (!ifs.is_open())
+  
+  // Use FileOperations for safe reading
+  auto read_result = FileOperations::read_file_content(g_cjsh_found_executables_path.string());
+  if (read_result.is_error()) {
     return executables;
+  }
+  
+  std::stringstream ss(read_result.value());
   std::string line;
-  while (std::getline(ifs, line)) {
-    executables.emplace_back(line);
+  while (std::getline(ss, line)) {
+    if (!line.empty()) {
+      executables.emplace_back(line);
+    }
   }
   return executables;
 }

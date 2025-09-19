@@ -1080,38 +1080,34 @@ std::string Ai::process_code_blocks_for_code_interpreter(
 
 void Ai::reject_changes() {
   for (const auto& [file, original_lines] : original_file_contents) {
-    std::ofstream out_file(file);
+    std::string content;
     for (const auto& line : original_lines) {
-      out_file << line << "\n";
+      content += line + "\n";
     }
-    out_file.close();
+    auto write_result = cjsh_filesystem::FileOperations::write_file_content(file, content);
+    if (write_result.is_error()) {
+      std::cerr << "Failed to restore file " << file << ": " << write_result.error() << std::endl;
+    }
   }
   original_file_contents.clear();
   refresh_files();
 }
 
 void Ai::process_text_file(const std::string& file, std::string& out) {
-  std::ifstream in_file(file);
-  if (in_file.is_open()) {
-    std::stringstream buffer;
-    buffer << in_file.rdbuf();
-    out += buffer.str() + "\n";
-    in_file.close();
+  auto read_result = cjsh_filesystem::FileOperations::read_file_content(file);
+  if (read_result.is_ok()) {
+    out += read_result.value() + "\n";
   } else {
-    std::cerr << "Failed to read text file: " << file << std::endl;
+    std::cerr << "Failed to read text file: " << file << ": " << read_result.error() << std::endl;
   }
 }
 
 void Ai::process_other_file(const std::string& file, std::string& out) {
-  std::ifstream in_file(file);
-  if (in_file.is_open()) {
-    std::string line;
-    while (std::getline(in_file, line)) {
-      out += line + "\n";
-    }
-    in_file.close();
+  auto read_result = cjsh_filesystem::FileOperations::read_file_content(file);
+  if (read_result.is_ok()) {
+    out += read_result.value() + "\n";
   } else {
-    std::cerr << "Failed to read file: " << file << std::endl;
+    std::cerr << "Failed to read file: " << file << ": " << read_result.error() << std::endl;
   }
 }
 

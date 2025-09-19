@@ -29,32 +29,28 @@ std::string SystemInfo::get_swap_usage() {
 #else
   std::string cmd = "echo \"N/A\"";
 #endif
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp)
+  auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result.is_error()) {
     return "";
-  char buffer[32];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL)
-    result += buffer;
-  pclose(fp);
-  if (!result.empty() && result.back() == '\n')
-    result.pop_back();
-  return result;
+  }
+  std::string output = result.value();
+  if (!output.empty() && output.back() == '\n') {
+    output.pop_back();
+  }
+  return output;
 }
 
 std::string SystemInfo::get_load_avg() {
   std::string cmd = "uptime | awk -F'load averages?: ' '{print $2}'";
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp)
+  auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result.is_error()) {
     return "";
-  char buffer[64];
-  std::string result = "";
-  while (fgets(buffer, sizeof(buffer), fp) != NULL)
-    result += buffer;
-  pclose(fp);
-  if (!result.empty() && result.back() == '\n')
-    result.pop_back();
-  return result;
+  }
+  std::string output = result.value();
+  if (!output.empty() && output.back() == '\n') {
+    output.pop_back();
+  }
+  return output;
 }
 
 std::string SystemInfo::get_os_info() {
@@ -80,18 +76,12 @@ std::string SystemInfo::get_os_info() {
   std::string cmd = "uname -s";
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return "Unknown";
   }
 
-  std::string result = "";
-  char buffer[256];
-  while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result += buffer;
-  }
-  pclose(fp);
-
+  std::string result = result_data.value();
   // Clean up the result
   if (!result.empty() && result.back() == '\n') {
     result.pop_back();
@@ -117,20 +107,15 @@ std::string SystemInfo::get_kernel_version() {
   std::string cmd = "uname -r";
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return "Unknown";
   }
 
-  char buffer[128];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  std::string result = result_data.value();
+  if (!result.empty() && result.back() == '\n') {
+    result.pop_back();
   }
-  pclose(fp);
 
   return result.empty() ? "Unknown" : result;
 }
@@ -147,21 +132,17 @@ float SystemInfo::get_cpu_usage() {
   return 0.0f;
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return 0.0f;
   }
 
-  char buffer[32];
   float usage = 0.0f;
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    try {
-      usage = std::stof(buffer);
-    } catch (const std::exception& e) {
-      usage = 0.0f;
-    }
+  try {
+    usage = std::stof(result_data.value());
+  } catch (const std::exception& e) {
+    usage = 0.0f;
   }
-  pclose(fp);
 
   return usage;
 }
@@ -187,21 +168,17 @@ float SystemInfo::get_memory_usage() {
   return 0.0f;
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return 0.0f;
   }
 
-  char buffer[32];
   float usage = 0.0f;
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    try {
-      usage = std::stof(buffer);
-    } catch (const std::exception& e) {
-      usage = 0.0f;
-    }
+  try {
+    usage = std::stof(result_data.value());
+  } catch (const std::exception& e) {
+    usage = 0.0f;
   }
-  pclose(fp);
 
   return usage;
 }
@@ -233,20 +210,15 @@ std::string SystemInfo::get_battery_status() {
   return "N/A";
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return "N/A";
   }
 
-  char buffer[64];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  std::string result = result_data.value();
+  if (!result.empty() && result.back() == '\n') {
+    result.pop_back();
   }
-  pclose(fp);
 
   return result.empty() ? "N/A" : result;
 }
@@ -260,20 +232,15 @@ std::string SystemInfo::get_uptime() {
   std::string cmd = "uptime";
 #endif
 
-  FILE* fp = popen(cmd.c_str(), "r");
-  if (!fp) {
+  auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+  if (result_data.is_error()) {
     return "Unknown";
   }
 
-  char buffer[128];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  std::string result = result_data.value();
+  if (!result.empty() && result.back() == '\n') {
+    result.pop_back();
   }
-  pclose(fp);
 
   return result.empty() ? "Unknown" : result;
 }

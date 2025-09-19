@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "cjsh.h"
+#include "utils/cjsh_filesystem.h"
 
 LanguageInfo::LanguageInfo() {
 }
@@ -49,23 +50,18 @@ bool LanguageInfo::is_project_detected(
 }
 
 std::string LanguageInfo::execute_command(const std::string& command) {
-  FILE* fp = popen(command.c_str(), "r");
-  if (!fp) {
+  auto result = cjsh_filesystem::FileOperations::read_command_output(command);
+  if (result.is_error()) {
     return "";
   }
-
-  char buffer[256];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  
+  std::string output = result.value();
+  // Remove trailing newline if present
+  if (!output.empty() && output.back() == '\n') {
+    output.pop_back();
   }
-  pclose(fp);
-
-  return result;
+  
+  return output;
 }
 
 std::string LanguageInfo::extract_version(const std::string& output) {

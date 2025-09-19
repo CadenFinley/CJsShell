@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <regex>
+#include "utils/cjsh_filesystem.h"
 
 ContainerInfo::ContainerInfo() {
 }
@@ -13,38 +14,23 @@ bool ContainerInfo::file_exists(const std::string& path) {
 }
 
 std::string ContainerInfo::read_file_content(const std::string& path) {
-  std::ifstream file(path);
-  if (!file) {
-    return "";
-  }
-
-  std::string content;
-  std::string line;
-  while (std::getline(file, line)) {
-    content += line + "\n";
-  }
-
-  return content;
+  auto result = cjsh_filesystem::FileOperations::read_file_content(path);
+  return result.is_ok() ? result.value() : "";
 }
 
 std::string ContainerInfo::execute_command(const std::string& command) {
-  FILE* fp = popen(command.c_str(), "r");
-  if (!fp) {
+  auto result = cjsh_filesystem::FileOperations::read_command_output(command);
+  if (result.is_error()) {
     return "";
   }
-
-  char buffer[256];
-  std::string result = "";
-  if (fgets(buffer, sizeof(buffer), fp) != NULL) {
-    result = buffer;
-
-    if (!result.empty() && result.back() == '\n') {
-      result.pop_back();
-    }
+  
+  std::string output = result.value();
+  // Remove trailing newline if present
+  if (!output.empty() && output.back() == '\n') {
+    output.pop_back();
   }
-  pclose(fp);
-
-  return result;
+  
+  return output;
 }
 
 std::string ContainerInfo::get_container_name() {

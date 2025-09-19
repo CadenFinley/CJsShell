@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include "cjsh.h"
+#include "utils/cjsh_filesystem.h"
 
 // Safe subprocess execution utility function
 // Returns: 0 on success, -1 on error
@@ -34,28 +35,29 @@ static int safe_execute_git_command(const std::string& command,
     if (g_debug_mode) {
       std::cerr << "DEBUG: fork() failed: " << strerror(errno) << std::endl;
     }
-    close(pipefd[0]);
-    close(pipefd[1]);
+    cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
+    cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
     return -1;
   }
 
   if (pid == 0) {
     // Child process
-    close(pipefd[0]);  // Close read end
+    cjsh_filesystem::FileOperations::safe_close(pipefd[0]);  // Close read end
 
     // Redirect stdout to pipe
-    if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+    auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(pipefd[1], STDOUT_FILENO);
+    if (dup_result.is_error()) {
       _exit(127);
     }
 
     // Redirect stderr to /dev/null to match original behavior
-    int devnull = open("/dev/null", O_WRONLY);
-    if (devnull != -1) {
-      dup2(devnull, STDERR_FILENO);
-      close(devnull);
+    auto devnull_result = cjsh_filesystem::FileOperations::safe_open("/dev/null", O_WRONLY);
+    if (devnull_result.is_ok()) {
+      cjsh_filesystem::FileOperations::safe_dup2(devnull_result.value(), STDERR_FILENO);
+      cjsh_filesystem::FileOperations::safe_close(devnull_result.value());
     }
 
-    close(pipefd[1]);
+    cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
 
     // Execute command via sh -c to handle pipes and redirections
     execl("/bin/sh", "sh", "-c", command.c_str(), (char*)NULL);
@@ -63,7 +65,7 @@ static int safe_execute_git_command(const std::string& command,
   }
 
   // Parent process
-  close(pipefd[1]);  // Close write end
+  cjsh_filesystem::FileOperations::safe_close(pipefd[1]);  // Close write end
 
   // Read output
   char buffer[4096];
@@ -73,7 +75,7 @@ static int safe_execute_git_command(const std::string& command,
     result += buffer;
   }
 
-  close(pipefd[0]);
+  cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
 
   // Wait for child and get exit status
   int status;
@@ -182,17 +184,19 @@ std::string GitInfo::get_git_branch(
               << std::endl;
 
   try {
-    std::ifstream head_file(git_head_path);
-    if (!head_file.is_open()) {
+    auto read_result = cjsh_filesystem::FileOperations::read_file_content(git_head_path.string());
+    if (read_result.is_error()) {
       if (g_debug_mode)
-        std::cerr << "DEBUG: get_git_branch unable to open HEAD file"
-                  << std::endl;
+        std::cerr << "DEBUG: get_git_branch unable to read HEAD file: " 
+                  << read_result.error() << std::endl;
       return "";
     }
 
-    std::string head_contents;
-    std::getline(head_file, head_contents);
-    head_file.close();
+    std::string head_contents = read_result.value();
+    // Remove trailing newline if present
+    if (!head_contents.empty() && head_contents.back() == '\n') {
+      head_contents.pop_back();
+    }
 
     const std::string ref_prefix = "ref: refs/heads/";
     if (head_contents.substr(0, ref_prefix.length()) == ref_prefix) {
