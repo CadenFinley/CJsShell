@@ -16,7 +16,7 @@
 
 const bool PRE_RELEASE = false;
 // using semver.org principles MAJOR.MINOR.PATCH
-const std::string c_version = "3.3.0";
+const std::string c_version = "3.3.1";
 const std::string pre_release_line = " (pre-release)";
 
 extern bool g_debug_mode;
