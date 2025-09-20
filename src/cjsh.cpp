@@ -15,6 +15,12 @@
 #include <memory>
 #include <unordered_map>
 
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
+#include <malloc.h>
+#endif
+
 #include "builtin.h"
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
@@ -694,6 +700,22 @@ static void main_process_loop() {
           //update_completion_frequency(command);
           ic_history_add(command.c_str());
           setenv("STATUS", status_str.c_str(), 1);
+          
+          // Force memory cleanup after command execution to return memory to OS
+          if (g_debug_mode)
+            std::cerr << "DEBUG: Forcing memory cleanup after command" << std::endl;
+          
+          // Platform-specific memory cleanup to return unused memory to OS
+          #ifdef __APPLE__
+          // On macOS, use malloc_zone_pressure_relief to return memory
+          malloc_zone_pressure_relief(nullptr, 0);
+          #elif defined(__linux__)
+          // On Linux, use malloc_trim to return memory
+          malloc_trim(0);
+          #else
+          // Generic fallback - just a hint to the allocator
+          std::system("echo '' > /dev/null");  // Minimal system call to potentially trigger cleanup
+          #endif
         }
       } else {
         // Reset timing for empty commands to clear previous command duration

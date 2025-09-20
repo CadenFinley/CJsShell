@@ -3279,21 +3279,89 @@ int ShellScriptInterpreter::execute_block(
 
     std::string var;
     std::vector<std::string> items;
+    
+    // Special handling for numeric ranges to avoid memory expansion
+    struct RangeInfo {
+      bool is_range = false;
+      int start = 0;
+      int end = 0;
+      bool is_ascending = true;
+    } range_info;
 
     auto parse_header = [&](const std::string& header) -> bool {
-      std::vector<std::string> toks = shell_parser->parse_command(header);
-      size_t i = 0;
-      if (i < toks.size() && toks[i] == "for")
-        ++i;
-      if (i >= toks.size())
+      std::vector<std::string> raw_toks;
+      
+      // First, tokenize without expanding braces to detect ranges
+      try {
+        std::istringstream iss(header);
+        std::string token;
+        while (iss >> token) {
+          raw_toks.push_back(token);
+        }
+      } catch (...) {
         return false;
-      var = toks[i++];
-      if (i < toks.size() && toks[i] == "in") {
+      }
+      
+      size_t i = 0;
+      if (i < raw_toks.size() && raw_toks[i] == "for")
         ++i;
-        for (; i < toks.size(); ++i) {
-          if (toks[i] == ";" || toks[i] == "do")
-            break;
-          items.push_back(toks[i]);
+      if (i >= raw_toks.size())
+        return false;
+      var = raw_toks[i++];
+      
+      if (i < raw_toks.size() && raw_toks[i] == "in") {
+        ++i;
+        
+        // Check if we have a single numeric range pattern like {1..1000000}
+        if (i < raw_toks.size() && raw_toks[i].find('{') != std::string::npos && 
+            raw_toks[i].find("..") != std::string::npos && raw_toks[i].find('}') != std::string::npos) {
+          
+          std::string range_token = raw_toks[i];
+          size_t open_pos = range_token.find('{');
+          size_t close_pos = range_token.find('}');
+          size_t range_pos = range_token.find("..");
+          
+          if (open_pos != std::string::npos && close_pos != std::string::npos && 
+              range_pos != std::string::npos && open_pos < range_pos && range_pos < close_pos) {
+            
+            std::string content = range_token.substr(open_pos + 1, close_pos - open_pos - 1);
+            std::string start_str = content.substr(0, range_pos - open_pos - 1);
+            std::string end_str = content.substr(range_pos - open_pos + 1);
+            
+            try {
+              range_info.start = std::stoi(start_str);
+              range_info.end = std::stoi(end_str);
+              range_info.is_range = true;
+              range_info.is_ascending = range_info.start <= range_info.end;
+              
+              if (g_debug_mode) {
+                std::cerr << "DEBUG: Detected numeric range: " << range_info.start 
+                          << ".." << range_info.end << " (lazy evaluation)" << std::endl;
+              }
+              
+              // Skip normal parsing for ranges - we'll handle iteration specially
+              return !var.empty();
+            } catch (...) {
+              // Not a valid numeric range, fall through to normal parsing
+            }
+          }
+        }
+        
+        // Normal parsing for non-range cases
+        std::vector<std::string> toks = shell_parser->parse_command(header);
+        i = 0;
+        if (i < toks.size() && toks[i] == "for")
+          ++i;
+        if (i >= toks.size())
+          return false;
+        var = toks[i++];
+        if (i < toks.size() && toks[i] == "in") {
+          ++i;
+          for (; i < toks.size(); ++i) {
+            if (toks[i] == ";" || toks[i] == "do")
+              break;
+            items.push_back(toks[i]);
+          }
         }
       }
       return !var.empty();
@@ -3312,50 +3380,127 @@ int ShellScriptInterpreter::execute_block(
       std::string body =
           done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
       int rc = 0;
-      for (const auto& it : items) {
-        setenv(var.c_str(), it.c_str(), 1);
-        auto cmds = shell_parser->parse_semicolon_commands(body);
-        for (const auto& c : cmds) {
-          rc = execute_simple_or_pipeline(c);
-          if (rc == 255) {
-            const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-            int break_level = 1;
-            if (break_level_str) {
-              break_level = std::stoi(break_level_str);
-              unsetenv("CJSH_BREAK_LEVEL");
+      
+      if (range_info.is_range) {
+        // Lazy evaluation for numeric ranges in inline for-loops
+        auto execute_range_iteration = [&](int value) -> int {
+          std::string value_str = std::to_string(value);
+          setenv(var.c_str(), value_str.c_str(), 1);
+          auto cmds = shell_parser->parse_semicolon_commands(body);
+          for (const auto& c : cmds) {
+            int cmd_rc = execute_simple_or_pipeline(c);
+            if (cmd_rc == 255) {
+              const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+              int break_level = 1;
+              if (break_level_str) {
+                break_level = std::stoi(break_level_str);
+                unsetenv("CJSH_BREAK_LEVEL");
+              }
+              if (break_level == 1) {
+                return 255; // Signal break
+              } else {
+                setenv("CJSH_BREAK_LEVEL",
+                       std::to_string(break_level - 1).c_str(), 1);
+                return 255; // Signal break
+              }
+            } else if (cmd_rc == 254) {
+              const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+              int continue_level = 1;
+              if (continue_level_str) {
+                continue_level = std::stoi(continue_level_str);
+                unsetenv("CJSH_CONTINUE_LEVEL");
+              }
+              if (continue_level == 1) {
+                return 254; // Signal continue
+              } else {
+                setenv("CJSH_CONTINUE_LEVEL",
+                       std::to_string(continue_level - 1).c_str(), 1);
+                return 255; // Signal break
+              }
+            } else if (cmd_rc != 0) {
+              if (g_shell && g_shell->is_errexit_enabled()) {
+                return cmd_rc;
+              }
+              return cmd_rc;
             }
-            if (break_level == 1) {
+          }
+          return 0;
+        };
+        
+        if (range_info.is_ascending) {
+          for (int i = range_info.start; i <= range_info.end; ++i) {
+            rc = execute_range_iteration(i);
+            if (rc == 255) {
               rc = 0;
-              goto for_loop_break;
-            } else {
-              setenv("CJSH_BREAK_LEVEL",
-                     std::to_string(break_level - 1).c_str(), 1);
-              goto for_loop_break;
-            }
-          } else if (rc == 254) {
-            const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-            int continue_level = 1;
-            if (continue_level_str) {
-              continue_level = std::stoi(continue_level_str);
-              unsetenv("CJSH_CONTINUE_LEVEL");
-            }
-            if (continue_level == 1) {
+              break;
+            } else if (rc == 254) {
               rc = 0;
-              goto for_loop_continue;
-            } else {
-              setenv("CJSH_CONTINUE_LEVEL",
-                     std::to_string(continue_level - 1).c_str(), 1);
-              goto for_loop_break;
-            }
-          } else if (rc != 0) {
-            if (g_shell && g_shell->is_errexit_enabled()) {
+              continue;
+            } else if (rc != 0) {
               break;
             }
-
-            break;
+          }
+        } else {
+          for (int i = range_info.start; i >= range_info.end; --i) {
+            rc = execute_range_iteration(i);
+            if (rc == 255) {
+              rc = 0;
+              break;
+            } else if (rc == 254) {
+              rc = 0;
+              continue;
+            } else if (rc != 0) {
+              break;
+            }
           }
         }
-      for_loop_continue:;
+      } else {
+        // Regular iteration for non-range cases
+        for (const auto& it : items) {
+          setenv(var.c_str(), it.c_str(), 1);
+          auto cmds = shell_parser->parse_semicolon_commands(body);
+          for (const auto& c : cmds) {
+            rc = execute_simple_or_pipeline(c);
+            if (rc == 255) {
+              const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+              int break_level = 1;
+              if (break_level_str) {
+                break_level = std::stoi(break_level_str);
+                unsetenv("CJSH_BREAK_LEVEL");
+              }
+              if (break_level == 1) {
+                rc = 0;
+                goto for_loop_break;
+              } else {
+                setenv("CJSH_BREAK_LEVEL",
+                       std::to_string(break_level - 1).c_str(), 1);
+                goto for_loop_break;
+              }
+            } else if (rc == 254) {
+              const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+              int continue_level = 1;
+              if (continue_level_str) {
+                continue_level = std::stoi(continue_level_str);
+                unsetenv("CJSH_CONTINUE_LEVEL");
+              }
+              if (continue_level == 1) {
+                rc = 0;
+                goto for_loop_continue;
+              } else {
+                setenv("CJSH_CONTINUE_LEVEL",
+                       std::to_string(continue_level - 1).c_str(), 1);
+                goto for_loop_break;
+              }
+            } else if (rc != 0) {
+              if (g_shell && g_shell->is_errexit_enabled()) {
+                break;
+              }
+
+              break;
+            }
+          }
+        for_loop_continue:;
+        }
       }
     for_loop_break:;
       return rc;
@@ -3420,45 +3565,136 @@ int ShellScriptInterpreter::execute_block(
     }
 
     int rc = 0;
-    for (const auto& it : items) {
-      setenv(var.c_str(), it.c_str(), 1);
-      rc = execute_block(body_lines);
-      if (rc == 255) {
-        const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-        int break_level = 1;
-        if (break_level_str) {
-          break_level = std::stoi(break_level_str);
-          unsetenv("CJSH_BREAK_LEVEL");
+    
+    if (range_info.is_range) {
+      // Lazy evaluation for numeric ranges - iterate without storing all values
+      if (range_info.is_ascending) {
+        for (int i = range_info.start; i <= range_info.end; ++i) {
+          std::string value = std::to_string(i);
+          setenv(var.c_str(), value.c_str(), 1);
+          rc = execute_block(body_lines);
+          if (rc == 255) {
+            const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+            int break_level = 1;
+            if (break_level_str) {
+              break_level = std::stoi(break_level_str);
+              unsetenv("CJSH_BREAK_LEVEL");
+            }
+            if (break_level == 1) {
+              rc = 0;
+              break;
+            } else {
+              setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
+                     1);
+              break;
+            }
+          } else if (rc == 254) {
+            const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+            int continue_level = 1;
+            if (continue_level_str) {
+              continue_level = std::stoi(continue_level_str);
+              unsetenv("CJSH_CONTINUE_LEVEL");
+            }
+            if (continue_level == 1) {
+              rc = 0;
+              continue;
+            } else {
+              setenv("CJSH_CONTINUE_LEVEL",
+                     std::to_string(continue_level - 1).c_str(), 1);
+              break;
+            }
+          } else if (rc != 0) {
+            if (g_shell && g_shell->is_errexit_enabled()) {
+              break;
+            }
+            continue;
+          }
         }
-        if (break_level == 1) {
-          rc = 0;
-          break;
-        } else {
-          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
-                 1);
-          break;
+      } else {
+        for (int i = range_info.start; i >= range_info.end; --i) {
+          std::string value = std::to_string(i);
+          setenv(var.c_str(), value.c_str(), 1);
+          rc = execute_block(body_lines);
+          if (rc == 255) {
+            const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+            int break_level = 1;
+            if (break_level_str) {
+              break_level = std::stoi(break_level_str);
+              unsetenv("CJSH_BREAK_LEVEL");
+            }
+            if (break_level == 1) {
+              rc = 0;
+              break;
+            } else {
+              setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
+                     1);
+              break;
+            }
+          } else if (rc == 254) {
+            const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+            int continue_level = 1;
+            if (continue_level_str) {
+              continue_level = std::stoi(continue_level_str);
+              unsetenv("CJSH_CONTINUE_LEVEL");
+            }
+            if (continue_level == 1) {
+              rc = 0;
+              continue;
+            } else {
+              setenv("CJSH_CONTINUE_LEVEL",
+                     std::to_string(continue_level - 1).c_str(), 1);
+              break;
+            }
+          } else if (rc != 0) {
+            if (g_shell && g_shell->is_errexit_enabled()) {
+              break;
+            }
+            continue;
+          }
         }
-      } else if (rc == 254) {
-        const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-        int continue_level = 1;
-        if (continue_level_str) {
-          continue_level = std::stoi(continue_level_str);
-          unsetenv("CJSH_CONTINUE_LEVEL");
-        }
-        if (continue_level == 1) {
-          rc = 0;
-          continue;
-        } else {
-          setenv("CJSH_CONTINUE_LEVEL",
-                 std::to_string(continue_level - 1).c_str(), 1);
-          break;
-        }
-      } else if (rc != 0) {
-        if (g_shell && g_shell->is_errexit_enabled()) {
-          break;
-        }
+      }
+    } else {
+      // Regular iteration for non-range cases
+      for (const auto& it : items) {
+        setenv(var.c_str(), it.c_str(), 1);
+        rc = execute_block(body_lines);
+        if (rc == 255) {
+          const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
+          int break_level = 1;
+          if (break_level_str) {
+            break_level = std::stoi(break_level_str);
+            unsetenv("CJSH_BREAK_LEVEL");
+          }
+          if (break_level == 1) {
+            rc = 0;
+            break;
+          } else {
+            setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
+                   1);
+            break;
+          }
+        } else if (rc == 254) {
+          const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
+          int continue_level = 1;
+          if (continue_level_str) {
+            continue_level = std::stoi(continue_level_str);
+            unsetenv("CJSH_CONTINUE_LEVEL");
+          }
+          if (continue_level == 1) {
+            rc = 0;
+            continue;
+          } else {
+            setenv("CJSH_CONTINUE_LEVEL",
+                   std::to_string(continue_level - 1).c_str(), 1);
+            break;
+          }
+        } else if (rc != 0) {
+          if (g_shell && g_shell->is_errexit_enabled()) {
+            break;
+          }
 
-        continue;
+          continue;
+        }
       }
     }
     idx = k;

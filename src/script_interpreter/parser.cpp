@@ -835,7 +835,9 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
 std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
-  result.reserve(8);
+  
+  // Set a reasonable limit to prevent memory exhaustion
+  static const size_t MAX_EXPANSION_SIZE = 10000000;  // Limit to 10mil items
 
   size_t open_pos = pattern.find('{');
   if (open_pos == std::string::npos) {
@@ -880,6 +882,21 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
     try {
       int start = std::stoi(start_str);
       int end = std::stoi(end_str);
+      
+      // Calculate and check expansion size
+      size_t range_size = std::abs(end - start) + 1;
+      
+      if (range_size > MAX_EXPANSION_SIZE) {
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Brace expansion range too large (" << range_size 
+                    << " items), returning unexpanded pattern to avoid memory issues" << std::endl;
+        }
+        // Return the original pattern unexpanded to avoid memory exhaustion
+        result.push_back(pattern);
+        return result;
+      }
+      
+      result.reserve(range_size);
 
       if (start <= end) {
         for (int i = start; i <= end; ++i) {
@@ -904,6 +921,19 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
           std::isalpha(start_str[0]) && std::isalpha(end_str[0])) {
         char start_char = start_str[0];
         char end_char = end_str[0];
+        
+        size_t char_range_size = std::abs(end_char - start_char) + 1;
+        
+        if (char_range_size > MAX_EXPANSION_SIZE) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Character brace expansion range too large (" << char_range_size 
+                      << " items), returning unexpanded pattern" << std::endl;
+          }
+          result.push_back(pattern);
+          return result;
+        }
+        
+        result.reserve(char_range_size);
 
         if (start_char <= end_char) {
           for (char c = start_char; c <= end_char; ++c) {
@@ -927,7 +957,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   }
 
   std::vector<std::string> options;
-  options.reserve(8);
   size_t start = 0;
   depth = 0;
 
@@ -941,6 +970,18 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
       depth--;
     }
   }
+  
+  // Protect against comma expansions that are too large
+  if (options.size() > MAX_EXPANSION_SIZE) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Comma brace expansion too large (" << options.size() 
+                << " options), returning unexpanded pattern" << std::endl;
+    }
+    result.push_back(pattern);
+    return result;
+  }
+  
+  result.reserve(options.size());
 
   for (const auto& option : options) {
     std::vector<std::string> expanded_results =
