@@ -469,11 +469,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             if (match_prefix.empty()) {
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                if (completion_suffix.front() == '"') {
-                  completion_suffix.insert(completion_suffix.length() - 1, "/");
-                } else {
-                  completion_suffix += "/";
-                }
+                completion_suffix += "/";
               }
 
               if (g_debug_mode)
@@ -485,11 +481,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             } else {
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                if (completion_suffix.front() == '"') {
-                  completion_suffix.insert(completion_suffix.length() - 1, "/");
-                } else {
-                  completion_suffix += "/";
-                }
+                completion_suffix += "/";
               }
               long delete_before = static_cast<long>(match_prefix.length());
 
@@ -572,11 +564,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             if (match_prefix.empty()) {
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                if (completion_suffix.front() == '"') {
-                  completion_suffix.insert(completion_suffix.length() - 1, "/");
-                } else {
-                  completion_suffix += "/";
-                }
+                completion_suffix += "/";
               }
 
               if (g_debug_mode)
@@ -588,11 +576,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             } else {
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                if (completion_suffix.front() == '"') {
-                  completion_suffix.insert(completion_suffix.length() - 1, "/");
-                } else {
-                  completion_suffix += "/";
-                }
+                completion_suffix += "/";
               }
               long delete_before = static_cast<long>(match_prefix.length());
 
@@ -673,11 +657,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
           std::string suffix = quote_path_if_needed(name);
           if (entry.is_directory()) {
-            if (suffix.front() == '"') {
-              suffix.insert(suffix.length() - 1, "/");
-            } else {
-              suffix += "/";
-            }
+            suffix += "/";
           }
           if (g_debug_mode)
             std::cerr << "DEBUG: All files completion: '" << suffix << "'"
@@ -737,11 +717,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
             if (match_prefix.empty()) {
               completion_suffix = quote_path_if_needed(filename);
-              if (completion_suffix.front() == '"') {
-                completion_suffix.insert(completion_suffix.length() - 1, "/");
-              } else {
-                completion_suffix += "/";
-              }
+              completion_suffix += "/";
               
               if (g_debug_mode)
                 std::cerr << "DEBUG: Directory-only completion: '"
@@ -751,11 +727,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 return;
             } else {
               completion_suffix = quote_path_if_needed(filename);
-              if (completion_suffix.front() == '"') {
-                completion_suffix.insert(completion_suffix.length() - 1, "/");
-              } else {
-                completion_suffix += "/";
-              }
+              completion_suffix += "/";
               long delete_before = static_cast<long>(match_prefix.length());
 
               if (g_debug_mode)
@@ -830,12 +802,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             if (match_prefix.empty()) {
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                // For directories, add trailing slash before the closing quote if quoted
-                if (completion_suffix.front() == '"') {
-                  completion_suffix.insert(completion_suffix.length() - 1, "/");
-                } else {
-                  completion_suffix += "/";
-                }
+                completion_suffix += "/";
               }
               
               if (g_debug_mode)
@@ -848,11 +815,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               // Handle case correction
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                if (completion_suffix.front() == '"') {
-                  completion_suffix.insert(completion_suffix.length() - 1, "/");
-                } else {
-                  completion_suffix += "/";
-                }
+                completion_suffix += "/";
               }
               
               long delete_before = static_cast<long>(match_prefix.length());
