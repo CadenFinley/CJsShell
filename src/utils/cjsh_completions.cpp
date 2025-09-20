@@ -938,6 +938,7 @@ void initialize_completion_system() {
   ic_style_def("cjsh-comment", "color=#6272A4");
   ic_style_def("cjsh-known-command", "color=#50FA7B");
   ic_style_def("cjsh-external-command", "color=#8BE9FD");
+  ic_style_def("cjsh-function-definition", "bold color=#F1FA8C");
 
   if (config::completions_enabled) {
     ic_set_default_completer(cjsh_default_completer, NULL);
