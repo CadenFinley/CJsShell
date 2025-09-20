@@ -24,6 +24,167 @@ enum CompletionContext {
   CONTEXT_PATH
 };
 
+// Helper function to find the last unquoted space in a string
+size_t find_last_unquoted_space(const std::string& str) {
+  bool in_single_quote = false;
+  bool in_double_quote = false;
+  bool escaped = false;
+  
+  for (int i = static_cast<int>(str.length()) - 1; i >= 0; --i) {
+    char c = str[i];
+    
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    
+    if (c == '\\') {
+      escaped = true;
+      continue;
+    }
+    
+    if (c == '\'' && !in_double_quote) {
+      in_single_quote = !in_single_quote;
+      continue;
+    }
+    
+    if (c == '"' && !in_single_quote) {
+      in_double_quote = !in_double_quote;
+      continue;
+    }
+    
+    if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
+      return static_cast<size_t>(i);
+    }
+  }
+  
+  return std::string::npos;
+}
+
+// Helper function to split command line into tokens respecting quotes and escapes
+std::vector<std::string> tokenize_command_line(const std::string& line) {
+  std::vector<std::string> tokens;
+  std::string current_token;
+  bool in_single_quote = false;
+  bool in_double_quote = false;
+  bool escaped = false;
+  
+  for (size_t i = 0; i < line.length(); ++i) {
+    char c = line[i];
+    
+    if (escaped) {
+      current_token += c;
+      escaped = false;
+      continue;
+    }
+    
+    if (c == '\\') {
+      if (in_single_quote) {
+        current_token += c;  // In single quotes, backslash is literal
+      } else {
+        escaped = true;
+      }
+      continue;
+    }
+    
+    if (c == '\'' && !in_double_quote) {
+      in_single_quote = !in_single_quote;
+      continue;
+    }
+    
+    if (c == '"' && !in_single_quote) {
+      in_double_quote = !in_double_quote;
+      continue;
+    }
+    
+    if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
+      if (!current_token.empty()) {
+        tokens.push_back(current_token);
+        current_token.clear();
+      }
+      continue;
+    }
+    
+    current_token += c;
+  }
+  
+  if (!current_token.empty()) {
+    tokens.push_back(current_token);
+  }
+  
+  return tokens;
+}
+
+// Helper function to unquote and unescape a path string
+std::string unquote_path(const std::string& path) {
+  if (path.empty()) return path;
+  
+  std::string result;
+  bool in_single_quote = false;
+  bool in_double_quote = false;
+  bool escaped = false;
+  
+  for (size_t i = 0; i < path.length(); ++i) {
+    char c = path[i];
+    
+    if (escaped) {
+      result += c;
+      escaped = false;
+      continue;
+    }
+    
+    if (c == '\\' && !in_single_quote) {
+      escaped = true;
+      continue;
+    }
+    
+    if (c == '\'' && !in_double_quote) {
+      in_single_quote = !in_single_quote;
+      continue;
+    }
+    
+    if (c == '"' && !in_single_quote) {
+      in_double_quote = !in_double_quote;
+      continue;
+    }
+    
+    result += c;
+  }
+  
+  return result;
+}
+
+// Helper function to quote a path if it contains spaces or special characters
+std::string quote_path_if_needed(const std::string& path) {
+  if (path.empty()) return path;
+  
+  // Check if the path needs quoting
+  bool needs_quoting = false;
+  for (char c : path) {
+    if (c == ' ' || c == '\t' || c == '\'' || c == '"' || c == '\\' || 
+        c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' ||
+        c == '&' || c == '|' || c == ';' || c == '<' || c == '>' || c == '*' ||
+        c == '?' || c == '$' || c == '`') {
+      needs_quoting = true;
+      break;
+    }
+  }
+  
+  if (!needs_quoting) return path;
+  
+  // Use double quotes and escape any double quotes or backslashes in the path
+  std::string result = "\"";
+  for (char c : path) {
+    if (c == '"' || c == '\\') {
+      result += '\\';
+    }
+    result += c;
+  }
+  result += "\"";
+  
+  return result;
+}
+
 CompletionContext detect_completion_context(const char* prefix) {
   std::string prefix_str(prefix);
 
@@ -31,6 +192,7 @@ CompletionContext detect_completion_context(const char* prefix) {
     std::cerr << "DEBUG: Detecting completion context for prefix: '" << prefix
               << "'" << std::endl;
 
+  // Check if it starts with a path indicator
   if (prefix_str.find('/') == 0 || prefix_str.find("./") == 0 ||
       prefix_str.find("../") == 0) {
     if (g_debug_mode)
@@ -38,9 +200,20 @@ CompletionContext detect_completion_context(const char* prefix) {
     return CONTEXT_PATH;
   }
 
-  if (prefix_str.find(' ') != std::string::npos) {
+  // Tokenize the command line to properly handle quotes and escapes
+  std::vector<std::string> tokens = tokenize_command_line(prefix_str);
+  
+  if (tokens.size() > 1) {
     if (g_debug_mode)
-      std::cerr << "DEBUG: Context detected: ARGUMENT" << std::endl;
+      std::cerr << "DEBUG: Context detected: ARGUMENT (found " << tokens.size() << " tokens)" << std::endl;
+    return CONTEXT_ARGUMENT;
+  }
+  
+  // Check if we have an unfinished token with spaces (indicating incomplete argument)
+  size_t last_unquoted_space = find_last_unquoted_space(prefix_str);
+  if (last_unquoted_space != std::string::npos) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Context detected: ARGUMENT (incomplete token with spaces)" << std::endl;
     return CONTEXT_ARGUMENT;
   }
 
@@ -210,7 +383,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::cerr << "DEBUG: Directory-only completion mode enabled for prefix: '"
               << prefix << "'" << std::endl;
 
-  size_t last_space = prefix_str.find_last_of(" \t");
+  // Use the improved space finder that respects quotes and escapes
+  size_t last_space = find_last_unquoted_space(prefix_str);
 
   bool has_tilde = false;
   bool has_dash = false;
@@ -249,11 +423,12 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       std::cerr << "DEBUG: Processing tilde completion: '" << special_part
                 << "'" << std::endl;
 
+    std::string unquoted_special = unquote_path(special_part);
     std::string path_after_tilde =
-        special_part.length() > 1 ? special_part.substr(2) : "";
+        unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
     std::string dir_to_complete = cjsh_filesystem::g_user_home_path.string();
 
-    if (special_part.length() > 1) {
+    if (unquoted_special.length() > 1) {
       dir_to_complete += "/" + path_after_tilde;
     }
 
@@ -261,7 +436,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     fs::path dir_path;
     std::string match_prefix;
 
-    if (special_part.back() == '/') {
+    if (unquoted_special.back() == '/') {
       dir_path = dir_to_complete;
       match_prefix = "";
     } else {
@@ -292,9 +467,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string completion_suffix;
 
             if (match_prefix.empty()) {
-              completion_suffix = filename;
+              completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                completion_suffix += "/";
+                if (completion_suffix.front() == '"') {
+                  completion_suffix.insert(completion_suffix.length() - 1, "/");
+                } else {
+                  completion_suffix += "/";
+                }
               }
 
               if (g_debug_mode)
@@ -304,9 +483,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
-              completion_suffix = filename;
+              completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                completion_suffix += "/";
+                if (completion_suffix.front() == '"') {
+                  completion_suffix.insert(completion_suffix.length() - 1, "/");
+                } else {
+                  completion_suffix += "/";
+                }
               }
               long delete_before = static_cast<long>(match_prefix.length());
 
@@ -337,8 +520,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       std::cerr << "DEBUG: Processing dash completion for previous directory: '"
                 << special_part << "'" << std::endl;
 
+    std::string unquoted_special = unquote_path(special_part);
     std::string path_after_dash =
-        special_part.length() > 1 ? special_part.substr(2) : "";
+        unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
     std::string dir_to_complete = g_shell->get_previous_directory();
 
     if (dir_to_complete.empty()) {
@@ -347,7 +531,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       return;
     }
 
-    if (special_part.length() > 1) {
+    if (unquoted_special.length() > 1) {
       dir_to_complete += "/" + path_after_dash;
     }
 
@@ -355,7 +539,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     fs::path dir_path;
     std::string match_prefix;
 
-    if (special_part.back() == '/') {
+    if (unquoted_special.back() == '/') {
       dir_path = dir_to_complete;
       match_prefix = "";
     } else {
@@ -386,9 +570,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string completion_suffix;
 
             if (match_prefix.empty()) {
-              completion_suffix = filename;
+              completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                completion_suffix += "/";
+                if (completion_suffix.front() == '"') {
+                  completion_suffix.insert(completion_suffix.length() - 1, "/");
+                } else {
+                  completion_suffix += "/";
+                }
               }
 
               if (g_debug_mode)
@@ -398,9 +586,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
-              completion_suffix = filename;
+              completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
-                completion_suffix += "/";
+                if (completion_suffix.front() == '"') {
+                  completion_suffix.insert(completion_suffix.length() - 1, "/");
+                } else {
+                  completion_suffix += "/";
+                }
               }
               long delete_before = static_cast<long>(match_prefix.length());
 
@@ -464,7 +656,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
   }
 
-  std::string path_to_check = special_part.empty() ? prefix_str : special_part;
+  std::string path_to_check = special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
 
   if (!ic_stop_completing(cenv) && !path_to_check.empty() &&
       path_to_check.back() == '/') {
@@ -479,9 +671,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             continue;
           }
 
-          std::string suffix = name;
+          std::string suffix = quote_path_if_needed(name);
           if (entry.is_directory()) {
-            suffix += "/";
+            if (suffix.front() == '"') {
+              suffix.insert(suffix.length() - 1, "/");
+            } else {
+              suffix += "/";
+            }
           }
           if (g_debug_mode)
             std::cerr << "DEBUG: All files completion: '" << suffix << "'"
@@ -502,7 +698,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   if (directories_only) {
     std::string path_to_complete =
-        special_part.empty() ? prefix_str : special_part;
+        special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
 
     namespace fs = std::filesystem;
     fs::path dir_path;
@@ -540,7 +736,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string completion_suffix;
 
             if (match_prefix.empty()) {
-              completion_suffix = filename + "/";
+              completion_suffix = quote_path_if_needed(filename);
+              if (completion_suffix.front() == '"') {
+                completion_suffix.insert(completion_suffix.length() - 1, "/");
+              } else {
+                completion_suffix += "/";
+              }
+              
               if (g_debug_mode)
                 std::cerr << "DEBUG: Directory-only completion: '"
                           << completion_suffix << "'" << std::endl;
@@ -548,7 +750,12 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
-              completion_suffix = filename + "/";
+              completion_suffix = quote_path_if_needed(filename);
+              if (completion_suffix.front() == '"') {
+                completion_suffix.insert(completion_suffix.length() - 1, "/");
+              } else {
+                completion_suffix += "/";
+              }
               long delete_before = static_cast<long>(match_prefix.length());
 
               if (g_debug_mode)
@@ -573,10 +780,101 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                   << std::endl;
     }
   } else {
+    // Handle general filename completion with proper quote/space handling
+    std::string path_to_complete;
+    std::string prefix_for_completion;
+    
     if (!special_part.empty()) {
-      ic_complete_filename(cenv, special_part.c_str(), '/', nullptr, nullptr);
+      path_to_complete = unquote_path(special_part);
+      prefix_for_completion = special_part;
     } else {
-      ic_complete_filename(cenv, prefix, '/', nullptr, nullptr);
+      path_to_complete = unquote_path(prefix_str);
+      prefix_for_completion = prefix_str;
+    }
+    
+    if (g_debug_mode)
+      std::cerr << "DEBUG: General filename completion for unquoted path: '"
+                << path_to_complete << "'" << std::endl;
+    
+    namespace fs = std::filesystem;
+    fs::path dir_path;
+    std::string match_prefix;
+    
+    if (path_to_complete.empty() || path_to_complete.back() == '/') {
+      dir_path = path_to_complete.empty() ? "." : path_to_complete;
+      match_prefix = "";
+    } else {
+      size_t last_slash = path_to_complete.find_last_of('/');
+      if (last_slash != std::string::npos) {
+        dir_path = path_to_complete.substr(0, last_slash);
+        if (dir_path.empty()) dir_path = "/";
+        match_prefix = path_to_complete.substr(last_slash + 1);
+      } else {
+        dir_path = ".";
+        match_prefix = path_to_complete;
+      }
+    }
+    
+    try {
+      if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+        for (const auto& entry : fs::directory_iterator(dir_path)) {
+          std::string filename = entry.path().filename().string();
+          
+          // Skip hidden files if match_prefix doesn't start with dot
+          if (filename[0] == '.' && match_prefix.empty()) continue;
+          
+          if (match_prefix.empty() || 
+              starts_with_case_insensitive(filename, match_prefix)) {
+            
+            std::string completion_suffix;
+            if (match_prefix.empty()) {
+              completion_suffix = quote_path_if_needed(filename);
+              if (entry.is_directory()) {
+                // For directories, add trailing slash before the closing quote if quoted
+                if (completion_suffix.front() == '"') {
+                  completion_suffix.insert(completion_suffix.length() - 1, "/");
+                } else {
+                  completion_suffix += "/";
+                }
+              }
+              
+              if (g_debug_mode)
+                std::cerr << "DEBUG: General filename completion: '"
+                          << completion_suffix << "'" << std::endl;
+              
+              if (!ic_add_completion(cenv, completion_suffix.c_str()))
+                return;
+            } else {
+              // Handle case correction
+              completion_suffix = quote_path_if_needed(filename);
+              if (entry.is_directory()) {
+                if (completion_suffix.front() == '"') {
+                  completion_suffix.insert(completion_suffix.length() - 1, "/");
+                } else {
+                  completion_suffix += "/";
+                }
+              }
+              
+              long delete_before = static_cast<long>(match_prefix.length());
+              
+              if (g_debug_mode)
+                std::cerr << "DEBUG: General filename completion (case-corrected): '"
+                          << completion_suffix << "' (deleting " << delete_before
+                          << " chars before)" << std::endl;
+              
+              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, delete_before, 0))
+                return;
+            }
+          }
+          
+          if (ic_stop_completing(cenv)) return;
+        }
+      }
+    } catch (const std::exception& e) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Error in general filename completion: " << e.what()
+                  << std::endl;
     }
   }
 

@@ -207,7 +207,19 @@ int Shell::do_ai_request(const std::string& command) {
       std::getline(std::cin, response);
 
       if (!response.empty() && (response[0] == 'y' || response[0] == 'Y')) {
-        return execute(command);
+        // Execute the command directly without going through execute() to avoid infinite loop
+        std::vector<std::string> lines = shell_parser->parse_into_lines(command);
+        if (shell_script_interpreter) {
+          int exit_code = shell_script_interpreter->execute_block(lines);
+          last_command = command;
+          return exit_code;
+        } else {
+          print_error(ErrorInfo{ErrorType::RUNTIME_ERROR,
+                                "",
+                                "No script interpreter available",
+                                {"Restart cjsh"}});
+          return 1;
+        }
       }
     }
   }
