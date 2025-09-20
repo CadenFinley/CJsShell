@@ -340,6 +340,11 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
       cmds.insert(plugin_commands.begin(), plugin_commands.end());
     }
   }
+  // Add user-defined functions from the script interpreter
+  if (shell_script_interpreter) {
+    auto function_names = shell_script_interpreter->get_function_names();
+    cmds.insert(function_names.begin(), function_names.end());
+  }
   return cmds;
 }
 
