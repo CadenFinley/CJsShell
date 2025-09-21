@@ -129,17 +129,19 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb,
   ssize_t selected =
       (env->complete_nopreview ? 0 : -1);  // select first or none
   ssize_t percolumn = count;
+  bool expanded_mode = false; // track if user pressed Ctrl+J to expand
 
 again:
-  // show first 9 (or 8) completions
+  // show completions (limit to 9 normally, but show more in expanded mode)
   sbuf_clear(eb->extra);
   ssize_t twidth = term_get_width(env->term) - 1;
   ssize_t colwidth;
-  if (count > 3 && ((colwidth = 3 + edit_completions_max_width(env, 9)) * 3 +
+  ssize_t max_display = expanded_mode ? count : 9; // show all in expanded mode
+  if (count > 3 && ((colwidth = 3 + edit_completions_max_width(env, max_display)) * 3 +
                     2 * 2) < twidth) {
     // display as a 3 column block
-    count_displayed = (count > 9 ? 9 : count);
-    percolumn = 3;
+    count_displayed = (count > max_display ? max_display : count);
+    percolumn = (count_displayed + 2) / 3; // calculate rows needed
     for (ssize_t rw = 0; rw < percolumn; rw++) {
       if (rw > 0)
         sbuf_append(eb->extra, "\n");
@@ -147,12 +149,13 @@ again:
                                 (2 * percolumn) + rw, selected);
     }
   } else if (count > 4 &&
-             ((colwidth = 3 + edit_completions_max_width(env, 8)) * 2 + 2) <
+             ((colwidth = 3 + edit_completions_max_width(env, max_display)) * 2 + 2) <
                  twidth) {
     // display as a 2 column block if some entries are too wide for three
     // columns
-    count_displayed = (count > 8 ? 8 : count);
-    percolumn = (count_displayed <= 6 ? 3 : 4);
+    max_display = expanded_mode ? count : 8;
+    count_displayed = (count > max_display ? max_display : count);
+    percolumn = (count_displayed + 1) / 2; // calculate rows needed
     for (ssize_t rw = 0; rw < percolumn; rw++) {
       if (rw > 0)
         sbuf_append(eb->extra, "\n");
@@ -161,7 +164,7 @@ again:
     }
   } else {
     // display as a list
-    count_displayed = (count > 9 ? 9 : count);
+    count_displayed = (count > max_display ? max_display : count);
     percolumn = count_displayed;
     for (ssize_t i = 0; i < count_displayed; i++) {
       if (i > 0)
@@ -243,37 +246,20 @@ again:
     assert(selected < count);
     edit_complete(env, eb, selected);
   } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
-    // show all completions
+    // expand completion menu to show all completions (stay interactive)
     c = 0;
     if (more_available) {
       // generate all entries (up to the max (= 1000))
       count =
           completions_generate(env, env->completions, sbuf_string(eb->input),
                                eb->pos, IC_MAX_COMPLETIONS_TO_SHOW);
+      more_available = false; // we now have all available completions
     }
-    rowcol_t rc;
-    edit_get_rowcol(env, eb, &rc);
-    edit_clear(env, eb);
-    edit_write_prompt(env, eb, 0, false);
-    term_writeln(env->term, "");
-    for (ssize_t i = 0; i < count; i++) {
-      const char* display = completions_get_display(env->completions, i, NULL);
-      if (display != NULL) {
-        bbcode_println(env->bbcode, display);
-      }
-    }
-    if (count >= IC_MAX_COMPLETIONS_TO_SHOW) {
-      bbcode_println(env->bbcode, "[ic-info]... and more.[/]");
-    } else {
-      bbcode_printf(env->bbcode, "[ic-info](%zd possible completions)[/]\n",
-                    count);
-    }
-
-    // Properly restore the cursor and clear the display
-    term_writeln(env->term, "");
-    eb->cur_rows = 0;
-    eb->cur_row = 0;
-    edit_refresh(env, eb);
+    // Enable expanded mode to show all completions
+    expanded_mode = true;
+    // Reset selection to first item and redisplay the interactive menu
+    selected = (env->complete_nopreview ? 0 : -1);
+    goto again;
   } else {
     edit_refresh(env, eb);
   }
