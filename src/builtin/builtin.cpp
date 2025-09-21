@@ -110,13 +110,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                                          current_directory, previous_directory,
                                          last_terminal_output_error);
        }},
-      {"..",
-       [this](const std::vector<std::string>& args) {
-         (void)args;
-         return ::change_directory_smart("..", current_directory,
-                                         previous_directory,
-                                         last_terminal_output_error);
-       }},
       {"local",
        [this](const std::vector<std::string>& args) {
          return ::local_command(args, shell);
