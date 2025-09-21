@@ -45,19 +45,10 @@
             "bg_color": "RESET",
             "content": "{GIT_STATUS}",
             "fg_color": "#FF5555",
-            "separator": "",
-            "separator_bg": "RESET",
-            "separator_fg": "RESET",
-            "tag": "status"
-        },
-        {
-            "bg_color": "RESET",
-            "content": "{SHOW_STATUS_IF_NON_0}",
-            "fg_color": "#FF5555",
             "separator": " $ ",
             "separator_bg": "RESET",
             "separator_fg": "#FFFFFF",
-            "tag": "exit_status"
+            "tag": "status"
         }
     ],
     "newline_segments": [],
@@ -75,23 +66,14 @@
             "bg_color": "RESET",
             "content": " {DIRECTORY} ",
             "fg_color": "#55FF55",
-            "separator": "",
+            "separator": " ",
             "separator_bg": "RESET",
             "separator_fg": "#FFFFFF",
             "tag": "directory"
         },
         {
             "bg_color": "RESET",
-            "content": "{SHOW_STATUS_IF_NON_0}",
-            "fg_color": "#FF5555",
-            "separator": "",
-            "separator_bg": "RESET",
-            "separator_fg": "RESET",
-            "tag": "status"
-        },
-        {
-            "bg_color": "RESET",
-            "content": " $ ",
+            "content": "$ ",
             "fg_color": "#FFFFFF",
             "separator": "",
             "separator_bg": "RESET",
@@ -99,6 +81,5 @@
             "tag": "prompt"
         }
     ],
-    "requirements": {},
     "terminal_title": "{PATH}"
 }
