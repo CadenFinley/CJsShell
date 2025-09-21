@@ -3,12 +3,14 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include "error_out.h"
 #include "readonly_command.h"
 #include "shell.h"
 
 int read_command(const std::vector<std::string>& args, Shell* shell) {
   if (!shell) {
-    std::cerr << "read: internal error - no shell context\n";
+    print_error({ErrorType::RUNTIME_ERROR, "read", 
+                 "internal error - no shell context", {}});
     return 1;
   }
 
@@ -29,16 +31,16 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         nchars = std::stoi(args[i + 1]);
         i++;
       } catch (const std::exception&) {
-        std::cerr << "read: invalid number of characters: " << args[i + 1]
-                  << "\n";
+        print_error({ErrorType::INVALID_ARGUMENT, "read", 
+                     "invalid number of characters: " + args[i + 1], {}});
         return 1;
       }
     } else if (arg.substr(0, 2) == "-n" && arg.length() > 2) {
       try {
         nchars = std::stoi(arg.substr(2));
       } catch (const std::exception&) {
-        std::cerr << "read: invalid number of characters: " << arg.substr(2)
-                  << "\n";
+        print_error({ErrorType::INVALID_ARGUMENT, "read", 
+                     "invalid number of characters: " + arg.substr(2), {}});
         return 1;
       }
     } else if (arg == "-p" && i + 1 < args.size()) {
@@ -52,10 +54,12 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     } else if (arg.substr(0, 2) == "-d" && arg.length() > 2) {
       delim = arg.substr(2);
     } else if (arg == "-t" && i + 1 < args.size()) {
-      std::cerr << "read: timeout option not implemented\n";
+      print_error({ErrorType::RUNTIME_ERROR, "read", 
+                   "timeout option not implemented", {}});
       return 1;
     } else if (arg.substr(0, 2) == "-t" && arg.length() > 2) {
-      std::cerr << "read: timeout option not implemented\n";
+      print_error({ErrorType::RUNTIME_ERROR, "read", 
+                   "timeout option not implemented", {}});
       return 1;
     } else if (arg == "--help") {
       std::cout << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t "

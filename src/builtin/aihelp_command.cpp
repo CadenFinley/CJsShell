@@ -5,24 +5,24 @@
 #include <string>
 
 #include "cjsh.h"
+#include "error_out.h"
 #include "system_prompts.h"
 
 int aihelp_command(const std::vector<std::string>& args) {
   if (g_ai == nullptr) {
-    std::cerr
-        << "cjsh: aihelp: AI is not initialized - API configuration required."
-        << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
+                 "AI is not initialized - API configuration required", {}});
     return 1;
   }
 
   if (!g_ai->is_enabled()) {
-    std::cerr << "cjsh: aihelp: AI is disabled." << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "aihelp", "AI is disabled", {}});
     return 1;
   }
 
   if (!g_ai || g_ai->get_api_key().empty()) {
-    std::cerr << "cjsh: aihelp: Please set your OpenAI API key first."
-              << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
+                 "Please set your OpenAI API key first", {}});
     return 1;
   }
 
@@ -46,13 +46,14 @@ int aihelp_command(const std::vector<std::string>& args) {
   if (!force_mode) {
     const char* status_env = getenv("STATUS");
     if (!status_env) {
-      std::cerr << "The last executed command status is unavailable"
-                << std::endl;
+      print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
+                   "The last executed command status is unavailable", {}});
       return 0;
     }
     int status = std::atoi(status_env);
     if (status == 0) {
-      std::cerr << "The last executed command returned exitcode 0" << std::endl;
+      print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
+                   "The last executed command returned exitcode 0", {}});
       return 0;
     }
   }

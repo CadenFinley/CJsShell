@@ -7,8 +7,7 @@
 #include <string>
 
 #include "cjsh_filesystem.h"
-
-#define PRINT_ERROR(MSG) std::cerr << (MSG) << '\n'
+#include "error_out.h"
 
 int history_command(const std::vector<std::string>& args) {
   // Ensure directories are initialized
@@ -24,9 +23,10 @@ int history_command(const std::vector<std::string>& args) {
     auto write_result = cjsh_filesystem::FileOperations::write_file_content(
         cjsh_filesystem::g_cjsh_history_path.string(), "");
     if (write_result.is_error()) {
-      PRINT_ERROR("history: could not create history file at " +
-                  cjsh_filesystem::g_cjsh_history_path.string() + ": " +
-                  write_result.error());
+      print_error({ErrorType::RUNTIME_ERROR, "history", 
+                   "could not create history file at " +
+                   cjsh_filesystem::g_cjsh_history_path.string() + ": " +
+                   write_result.error(), {}});
       return 1;
     }
     content = ""; // Empty content for new file
@@ -42,7 +42,8 @@ int history_command(const std::vector<std::string>& args) {
     try {
       index = std::stoi(args[1]);
     } catch (const std::invalid_argument&) {
-      PRINT_ERROR("Invalid index: " + args[1]);
+      print_error({ErrorType::INVALID_ARGUMENT, "history", 
+                   "Invalid index: " + args[1], {}});
       return 1;
     }
     for (int i = 0; i < index && std::getline(content_stream, line); ++i) {

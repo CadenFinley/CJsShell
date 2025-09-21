@@ -5,10 +5,11 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "error_out.h"
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
   if (!shell) {
-    std::cerr << "set: shell not available" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "set", "shell not available", {}});
     return 1;
   }
 
@@ -78,7 +79,8 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
 
       return 0;
     } else {
-      std::cerr << "set: option '" << arg << "' not supported yet" << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT, "set", 
+                   "option '" + arg + "' not supported yet", {}});
       return 1;
     }
   }
@@ -88,7 +90,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
 
 int shift_command(const std::vector<std::string>& args, Shell* shell) {
   if (!shell) {
-    std::cerr << "shift: shell not available" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "shift", "shell not available", {}});
     return 1;
   }
 
@@ -98,11 +100,13 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
     try {
       shift_count = std::stoi(args[1]);
       if (shift_count < 0) {
-        std::cerr << "shift: negative shift count" << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT, "shift", 
+                     "negative shift count", {}});
         return 1;
       }
     } catch (const std::exception&) {
-      std::cerr << "shift: invalid shift count: " << args[1] << std::endl;
+      print_error({ErrorType::INVALID_ARGUMENT, "shift", 
+                   "invalid shift count: " + args[1], {}});
       return 1;
     }
   }

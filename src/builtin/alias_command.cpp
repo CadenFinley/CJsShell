@@ -8,11 +8,6 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 
-#define PRINT_ERROR(MSG)      \
-  do {                        \
-    std::cerr << MSG << '\n'; \
-  } while (0)
-
 int alias_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() == 1) {
     auto& aliases = shell->get_aliases();
@@ -43,7 +38,8 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << "alias " << it->first << "='" << it->second << "'"
                   << std::endl;
       } else {
-        PRINT_ERROR("alias: " + args[i] + ": not found");
+        print_error({ErrorType::COMMAND_NOT_FOUND, "alias", 
+                     args[i] + ": not found", {}});
         all_successful = false;
       }
     }

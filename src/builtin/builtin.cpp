@@ -51,12 +51,6 @@
 #include "version_command.h"
 #include "internal_subshell_command.h"
 
-#define PRINT_ERROR(MSG)                             \
-  do {                                               \
-    last_terminal_output_error = (MSG);              \
-    std::cerr << last_terminal_output_error << '\n'; \
-  } while (0)
-
 Built_ins::Built_ins() : shell(nullptr) {
   builtins.reserve(64);
 

@@ -2,7 +2,11 @@
 #include <limits.h>
 #include <unistd.h>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <cerrno>
+
+#include "error_out.h"
 
 int pwd_command(const std::vector<std::string>& args) {
   bool logical = true;
@@ -22,8 +26,9 @@ int pwd_command(const std::vector<std::string>& args) {
       std::cout << "  -P  print the physical current working directory\n";
       return 0;
     } else {
-      std::cerr << "pwd: invalid option -- '" << arg << "'\n";
-      std::cerr << "Try 'pwd --help' for more information.\n";
+      print_error({ErrorType::INVALID_ARGUMENT, "pwd", 
+                   "invalid option -- '" + arg + "'", 
+                   {"Try 'pwd --help' for more information"}});
       return 1;
     }
   }
@@ -40,7 +45,8 @@ int pwd_command(const std::vector<std::string>& args) {
         path = cwd;
         free(cwd);
       } else {
-        perror("pwd");
+        print_error({ErrorType::RUNTIME_ERROR, "pwd", 
+                     "getcwd failed: " + std::string(strerror(errno)), {}});
         return 1;
       }
     }
@@ -50,7 +56,8 @@ int pwd_command(const std::vector<std::string>& args) {
       path = cwd;
       free(cwd);
     } else {
-      perror("pwd");
+      print_error({ErrorType::RUNTIME_ERROR, "pwd", 
+                   "getcwd failed: " + std::string(strerror(errno)), {}});
       return 1;
     }
   }

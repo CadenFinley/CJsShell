@@ -4,11 +4,13 @@
 #include <iostream>
 #include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "error_out.h"
 #include "shell.h"
 
 int type_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() < 2) {
-    std::cerr << "type: usage: type [-afptP] name [name ...]" << std::endl;
+    print_error({ErrorType::INVALID_ARGUMENT, "type", 
+                 "usage: type [-afptP] name [name ...]", {}});
     return 1;
   }
 
@@ -45,7 +47,8 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
           no_path_search = true;
           break;
         default:
-          std::cerr << "type: invalid option: -" << option[j] << std::endl;
+          print_error({ErrorType::INVALID_ARGUMENT, "type", 
+                       "invalid option: -" + std::string(1, option[j]), {}});
           return 1;
       }
     }

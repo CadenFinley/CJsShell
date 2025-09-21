@@ -1,6 +1,7 @@
 #include "readonly_command.h"
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include "error_out.h"
 #include "shell.h"
@@ -111,7 +112,8 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       }
 
       if (setenv(name.c_str(), value.c_str(), 1) != 0) {
-        perror("readonly: setenv");
+        print_error({ErrorType::RUNTIME_ERROR, "readonly", 
+                     "setenv failed: " + std::string(strerror(errno)), {}});
         return 1;
       }
 
@@ -120,7 +122,8 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       const char* value = getenv(arg.c_str());
       if (value == nullptr) {
         if (setenv(arg.c_str(), "", 1) != 0) {
-          perror("readonly: setenv");
+          print_error({ErrorType::RUNTIME_ERROR, "readonly", 
+                       "setenv failed: " + std::string(strerror(errno)), {}});
           return 1;
         }
       }

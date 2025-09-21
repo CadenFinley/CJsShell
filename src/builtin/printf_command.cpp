@@ -7,6 +7,8 @@
 #include <sstream>
 #include <string>
 
+#include "error_out.h"
+
 std::string format_printf_arg(const std::string& format_spec,
                               const std::string& arg) {
   std::ostringstream result;
@@ -208,7 +210,8 @@ std::string process_printf_escapes(const std::string& input) {
 
 int printf_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
-    std::cerr << "printf: missing format string\n";
+    print_error({ErrorType::INVALID_ARGUMENT, "printf", 
+                 "missing format string", {}});
     return 1;
   }
 

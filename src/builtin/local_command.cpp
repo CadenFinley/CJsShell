@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include "cjsh.h"
+#include "error_out.h"
 
 int local_command(const std::vector<std::string>& args, Shell* shell) {
   if (args.size() == 1) {
@@ -12,7 +13,8 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
   // Get the script interpreter to access variable scope functions
   auto script_interpreter = shell->get_shell_script_interpreter();
   if (!script_interpreter) {
-    std::cerr << "local: not available outside of functions" << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR, "local", 
+                 "not available outside of functions", {}});
     return 1;
   }
 
@@ -28,7 +30,8 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
       std::string value = arg.substr(eq_pos + 1);
 
       if (name.empty()) {
-        std::cerr << "local: invalid variable name" << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT, "local", 
+                     "invalid variable name", {}});
         all_successful = false;
         continue;
       }
@@ -45,7 +48,8 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
       std::string name = arg;
 
       if (name.empty()) {
-        std::cerr << "local: invalid variable name" << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT, "local", 
+                     "invalid variable name", {}});
         all_successful = false;
         continue;
       }
