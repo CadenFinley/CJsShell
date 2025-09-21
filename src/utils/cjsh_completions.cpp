@@ -638,12 +638,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
           if (special_part.empty() ||
               bookmark_name.rfind(special_part, 0) == 0) {
             
-            // For cd commands, check if the bookmark is a directory and add with trailing slash
+            // For cd commands, check if the bookmark is a directory
             namespace fs = std::filesystem;
             if (fs::exists(bookmark_path) && fs::is_directory(bookmark_path)) {
               // Calculate how many characters to delete before inserting the completion
               size_t delete_before = special_part.length();
-              std::string completion_text = bookmark_name + "/";
+              // Don't add trailing slash for bookmarks - let user add it if they want
+              std::string completion_text = bookmark_name;
               
               if (g_debug_mode)
                 std::cerr << "DEBUG: Adding bookmark completion: '"

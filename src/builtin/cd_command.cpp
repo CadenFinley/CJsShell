@@ -193,14 +193,8 @@ int change_directory_smart(const std::string& dir,
 
       // If the relative path doesn't exist, check bookmarks
       if (!std::filesystem::exists(dir_path)) {
-        // Normalize target_dir for bookmark lookup by removing trailing slashes
-        std::string bookmark_key = target_dir;
-        while (!bookmark_key.empty() && bookmark_key.back() == '/') {
-          bookmark_key.pop_back();
-        }
-        
         auto bookmark_path =
-            bookmark_database::g_bookmark_db.get_bookmark(bookmark_key);
+            bookmark_database::g_bookmark_db.get_bookmark(target_dir);
         if (bookmark_path.has_value()) {
           dir_path = bookmark_path.value();
           used_bookmark = true;
