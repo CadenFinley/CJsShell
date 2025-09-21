@@ -79,8 +79,10 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
 
       return 0;
     } else {
-      print_error({ErrorType::INVALID_ARGUMENT, "set", 
-                   "option '" + arg + "' not supported yet", {}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "set",
+                   "option '" + arg + "' not supported yet",
+                   {}});
       return 1;
     }
   }
@@ -100,13 +102,15 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
     try {
       shift_count = std::stoi(args[1]);
       if (shift_count < 0) {
-        print_error({ErrorType::INVALID_ARGUMENT, "shift", 
-                     "negative shift count", {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "shift", "negative shift count", {}});
         return 1;
       }
     } catch (const std::exception&) {
-      print_error({ErrorType::INVALID_ARGUMENT, "shift", 
-                   "invalid shift count: " + args[1], {}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "shift",
+                   "invalid shift count: " + args[1],
+                   {}});
       return 1;
     }
   }

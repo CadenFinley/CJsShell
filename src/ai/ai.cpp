@@ -431,7 +431,8 @@ void Ai::load_ai_config() {
     }
   }
 
-  auto config_content = cjsh_filesystem::FileOperations::read_file_content(config_file_path);
+  auto config_content =
+      cjsh_filesystem::FileOperations::read_file_content(config_file_path);
   if (config_content.is_ok()) {
     nlohmann::json config_json;
     try {
@@ -514,51 +515,58 @@ void Ai::save_ai_config() {
         cjsh_filesystem::g_cjsh_ai_config_path / (config_name + ".json");
   }
 
-  std::string config_content = nlohmann::json{
-      {"assistant_name", assistant_name},
-      {"initial_instruction", initial_instruction},
-      {"assistant_type", assistant_type},
-      {"max_prompt_length", max_prompt_length},
-      {"cache_tokens", cache_tokens},
-      {"max_prompt_precision", max_prompt_precision},
-      {"dynamic_prompt_length", dynamic_prompt_length},
-      {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
-      {"timeout_flag_seconds", timeout_flag_seconds},
-      {"model", current_model},
-      {"enabled", enabled},
-      {"voice_dictation_enabled", voice_dictation_enabled},
-      {"voice_dictation_voice", voice_dictation_voice},
-      {"voice_dictation_instructions", voice_dictation_instructions}}.dump(4);
+  std::string config_content =
+      nlohmann::json{
+          {"assistant_name", assistant_name},
+          {"initial_instruction", initial_instruction},
+          {"assistant_type", assistant_type},
+          {"max_prompt_length", max_prompt_length},
+          {"cache_tokens", cache_tokens},
+          {"max_prompt_precision", max_prompt_precision},
+          {"dynamic_prompt_length", dynamic_prompt_length},
+          {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
+          {"timeout_flag_seconds", timeout_flag_seconds},
+          {"model", current_model},
+          {"enabled", enabled},
+          {"voice_dictation_enabled", voice_dictation_enabled},
+          {"voice_dictation_voice", voice_dictation_voice},
+          {"voice_dictation_instructions", voice_dictation_instructions}}
+          .dump(4);
 
-  auto write_result = cjsh_filesystem::FileOperations::write_file_content(config_file_path, config_content);
+  auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+      config_file_path, config_content);
   if (write_result.is_error()) {
     std::cerr << "cjsh: ai: Error saving AI config file." << std::endl;
   }
 }
 
 void Ai::create_default_config_file() {
-  std::string default_config_content = nlohmann::json{
-      {"assistant_name", "CJ's Shell Assistant"},
-      {"initial_instruction",
-       "You are a helpful AI assistant within the user's shell environment. "
-       "Provide concise, accurate information and assist with shell tasks "
-       "when requested."},
-      {"assistant_type", "chat"},
-      {"max_prompt_length", 1000},
-      {"cache_tokens", false},
-      {"max_prompt_precision", true},
-      {"dynamic_prompt_length", true},
-      {"dynamic_prompt_length_scale", 3},
-      {"timeout_flag_seconds", 180},
-      {"model", "gpt-3.5-turbo"},
-      {"enabled", true},
-      {"voice_dictation_enabled", false},
-      {"voice_dictation_voice", "alloy"},
-      {"voice_dictation_instructions",
-       "Use a natural, conversational tone with clear pronunciation and "
-       "moderate pacing."}}.dump(4);
+  std::string default_config_content =
+      nlohmann::json{
+          {"assistant_name", "CJ's Shell Assistant"},
+          {"initial_instruction",
+           "You are a helpful AI assistant within the user's shell "
+           "environment. "
+           "Provide concise, accurate information and assist with shell tasks "
+           "when requested."},
+          {"assistant_type", "chat"},
+          {"max_prompt_length", 1000},
+          {"cache_tokens", false},
+          {"max_prompt_precision", true},
+          {"dynamic_prompt_length", true},
+          {"dynamic_prompt_length_scale", 3},
+          {"timeout_flag_seconds", 180},
+          {"model", "gpt-3.5-turbo"},
+          {"enabled", true},
+          {"voice_dictation_enabled", false},
+          {"voice_dictation_voice", "alloy"},
+          {"voice_dictation_instructions",
+           "Use a natural, conversational tone with clear pronunciation and "
+           "moderate pacing."}}
+          .dump(4);
 
-  auto write_result = cjsh_filesystem::FileOperations::write_file_content(cjsh_filesystem::g_cjsh_ai_default_config_path, default_config_content);
+  auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+      cjsh_filesystem::g_cjsh_ai_default_config_path, default_config_content);
   if (write_result.is_error()) {
     std::cerr << "cjsh: ai: Error creating default AI config file."
               << std::endl;
@@ -979,8 +987,9 @@ std::string Ai::process_code_blocks_for_code_interpreter(
       if (!file_found) {
         std::filesystem::path new_file_path = save_directory + file_name;
         std::filesystem::create_directories(new_file_path.parent_path());
-        
-        auto write_result = cjsh_filesystem::FileOperations::write_file_content(new_file_path, "");
+
+        auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+            new_file_path, "");
         if (write_result.is_ok()) {
           file_to_change = new_file_path.string();
           files.push_back(file_to_change);
@@ -994,8 +1003,9 @@ std::string Ai::process_code_blocks_for_code_interpreter(
       std::vector<std::string> original_lines;
       std::vector<std::string> new_lines;
       std::vector<std::string> updated_lines;
-      
-      auto file_content = cjsh_filesystem::FileOperations::read_file_content(file_to_change);
+
+      auto file_content =
+          cjsh_filesystem::FileOperations::read_file_content(file_to_change);
       if (file_content.is_ok()) {
         std::istringstream stream(file_content.value());
         std::string line;
@@ -1042,12 +1052,14 @@ std::string Ai::process_code_blocks_for_code_interpreter(
       for (const auto& updated_line : updated_lines) {
         output_stream << updated_line << "\n";
       }
-      
-      auto write_result = cjsh_filesystem::FileOperations::write_file_content(file_to_change, output_stream.str());
+
+      auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+          file_to_change, output_stream.str());
       if (write_result.is_error()) {
-        std::cerr << "Failed to write updated content to file: " << file_to_change << std::endl;
+        std::cerr << "Failed to write updated content to file: "
+                  << file_to_change << std::endl;
       }
-      
+
       changes_summary << "\033[1;34m" << file_to_change << "\033[0m\n";
       size_t common_lines = std::min(original_lines.size(), new_lines.size());
       for (size_t j = 0; j < common_lines; j++) {
@@ -1084,9 +1096,11 @@ void Ai::reject_changes() {
     for (const auto& line : original_lines) {
       content += line + "\n";
     }
-    auto write_result = cjsh_filesystem::FileOperations::write_file_content(file, content);
+    auto write_result =
+        cjsh_filesystem::FileOperations::write_file_content(file, content);
     if (write_result.is_error()) {
-      std::cerr << "Failed to restore file " << file << ": " << write_result.error() << std::endl;
+      std::cerr << "Failed to restore file " << file << ": "
+                << write_result.error() << std::endl;
     }
   }
   original_file_contents.clear();
@@ -1098,7 +1112,8 @@ void Ai::process_text_file(const std::string& file, std::string& out) {
   if (read_result.is_ok()) {
     out += read_result.value() + "\n";
   } else {
-    std::cerr << "Failed to read text file: " << file << ": " << read_result.error() << std::endl;
+    std::cerr << "Failed to read text file: " << file << ": "
+              << read_result.error() << std::endl;
   }
 }
 
@@ -1107,7 +1122,8 @@ void Ai::process_other_file(const std::string& file, std::string& out) {
   if (read_result.is_ok()) {
     out += read_result.value() + "\n";
   } else {
-    std::cerr << "Failed to read file: " << file << ": " << read_result.error() << std::endl;
+    std::cerr << "Failed to read file: " << file << ": " << read_result.error()
+              << std::endl;
   }
 }
 

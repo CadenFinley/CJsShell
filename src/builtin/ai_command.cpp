@@ -28,8 +28,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (g_ai == nullptr) {
-    print_error({ErrorType::RUNTIME_ERROR, "ai", 
-                 "AI is not initialized - API configuration required", {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "ai",
+                 "AI is not initialized - API configuration required",
+                 {}});
     return 1;
   }
   unsigned int command_index = 1;
@@ -58,8 +60,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             .string();
     std::ofstream file(fileName);
     if (!file.is_open()) {
-      print_error({ErrorType::RUNTIME_ERROR, "ai", 
-                   "unable to create the chat log file at " + fileName, {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "ai",
+                   "unable to create the chat log file at " + fileName,
+                   {}});
     } else {
       file << "Chat Sent: " << lastChatSent << "\n";
       file << "Chat Received: " << lastChatReceived << "\n";
@@ -92,8 +96,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
   if (cmd == "get") {
     if (args.size() <= command_index + 1) {
-      print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-                   "no arguments provided. try 'help' for a list of commands", {}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "ai",
+                   "no arguments provided. try 'help' for a list of commands",
+                   {}});
       return 1;
     }
     std::cout << g_ai->get_response_data(args[command_index + 1]) << std::endl;
@@ -143,8 +149,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       std::cout << "Directory set to default." << std::endl;
       return 0;
     }
-    print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-                 "invalid directory command. use 'set' or 'clear'", {}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "ai",
+                 "invalid directory command. use 'set' or 'clear'",
+                 {}});
     return 1;
   }
 
@@ -193,8 +201,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       std::cout << "Timeout flag set to " << timeout << " seconds."
                 << std::endl;
     } catch (const std::exception& e) {
-      print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-                   "invalid timeout value. please provide a number", {}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "ai",
+                   "invalid timeout value. please provide a number",
+                   {}});
       return 1;
     }
     return 0;
@@ -322,8 +332,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
       std::cout << "Voice dictation disabled." << std::endl;
       return 0;
     }
-    print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-                 "invalid argument. use 'enable' or 'disable'", {}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "ai",
+                 "invalid argument. use 'enable' or 'disable'",
+                 {}});
     return 1;
   }
 
@@ -388,8 +400,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
 int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
-    print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-                 "no arguments provided. Try 'help' for a list of commands", {}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "ai",
+                 "no arguments provided. Try 'help' for a list of commands",
+                 {}});
     return 1;
   }
 
@@ -445,8 +459,10 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
       }
     }
   } catch (const std::exception& e) {
-    print_error({ErrorType::RUNTIME_ERROR, "ai", 
-                 "Error reading directory: " + std::string(e.what()), {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "ai",
+                 "Error reading directory: " + std::string(e.what()),
+                 {}});
   }
 
   if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
@@ -468,8 +484,10 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
   if (subcmd == "add") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-                   "no file specified. Try 'help' for a list of commands", {}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "ai",
+                   "no file specified. Try 'help' for a list of commands",
+                   {}});
       return 1;
     }
 
@@ -484,8 +502,8 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     std::string filePath = current_directory + "/" + filename;
 
     if (!std::filesystem::exists(filePath)) {
-      print_error({ErrorType::FILE_NOT_FOUND, "ai", 
-                   "file not found: " + filename, {}});
+      print_error(
+          {ErrorType::FILE_NOT_FOUND, "ai", "file not found: " + filename, {}});
       return 1;
     }
 
@@ -497,8 +515,10 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
   if (subcmd == "remove") {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-      print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-                   "no file specified. Try 'help' for a list of commands", {}});
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "ai",
+                   "no file specified. Try 'help' for a list of commands",
+                   {}});
       return 1;
     }
 
@@ -514,8 +534,8 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     std::string filePath = current_directory + "/" + filename;
 
     if (!std::filesystem::exists(filePath)) {
-      print_error({ErrorType::FILE_NOT_FOUND, "ai", 
-                   "file not found: " + filename, {}});
+      print_error(
+          {ErrorType::FILE_NOT_FOUND, "ai", "file not found: " + filename, {}});
       return 1;
     }
 
@@ -559,8 +579,10 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
     return 0;
   }
 
-  print_error({ErrorType::INVALID_ARGUMENT, "ai", 
-               "unknown command. try 'help' for a list of commands", {}});
+  print_error({ErrorType::INVALID_ARGUMENT,
+               "ai",
+               "unknown command. try 'help' for a list of commands",
+               {}});
   return 1;
 }
 

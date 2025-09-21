@@ -38,8 +38,10 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << "alias " << it->first << "='" << it->second << "'"
                   << std::endl;
       } else {
-        print_error({ErrorType::COMMAND_NOT_FOUND, "alias", 
-                     args[i] + ": not found", {}});
+        print_error({ErrorType::COMMAND_NOT_FOUND,
+                     "alias",
+                     args[i] + ": not found",
+                     {}});
         all_successful = false;
       }
     }

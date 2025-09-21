@@ -1,11 +1,11 @@
 #include "exec_command.h"
 
-#include <cerrno>
-#include <cctype>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cctype>
+#include <cerrno>
 
 #include <iostream>
 #include "error_out.h"
@@ -20,7 +20,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
   std::vector<std::string> exec_args;
   bool has_fd_operations = false;
 
- auto record_error = [&](const ErrorInfo& info) {
+  auto record_error = [&](const ErrorInfo& info) {
     last_terminal_output_error = info.message;
     print_error(info);
   };
@@ -30,7 +30,8 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
 
     if (arg.size() > 1 && std::isdigit(static_cast<unsigned char>(arg[0]))) {
       size_t fd_end = 0;
-      while (fd_end < arg.size() && std::isdigit(static_cast<unsigned char>(arg[fd_end]))) {
+      while (fd_end < arg.size() &&
+             std::isdigit(static_cast<unsigned char>(arg[fd_end]))) {
         fd_end++;
       }
 
@@ -40,9 +41,13 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
 
         if (op == "<" && i + 1 < args.size()) {
           std::string filename = args[i + 1];
-          auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(filename, fd_num, O_RDONLY);
+          auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
+              filename, fd_num, O_RDONLY);
           if (redirect_result.is_error()) {
-            record_error({ErrorType::RUNTIME_ERROR, "exec", redirect_result.error(), {}});
+            record_error({ErrorType::RUNTIME_ERROR,
+                          "exec",
+                          redirect_result.error(),
+                          {}});
             return 1;
           }
           has_fd_operations = true;
@@ -50,9 +55,13 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
           continue;
         } else if (op == ">" && i + 1 < args.size()) {
           std::string filename = args[i + 1];
-          auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(filename, fd_num, O_WRONLY | O_CREAT | O_TRUNC);
+          auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
+              filename, fd_num, O_WRONLY | O_CREAT | O_TRUNC);
           if (redirect_result.is_error()) {
-            record_error({ErrorType::RUNTIME_ERROR, "exec", redirect_result.error(), {}});
+            record_error({ErrorType::RUNTIME_ERROR,
+                          "exec",
+                          redirect_result.error(),
+                          {}});
             return 1;
           }
           has_fd_operations = true;
@@ -61,9 +70,11 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
         } else if (op.find("<&") == 0 && op.size() > 2) {
           try {
             int src_fd = std::stoi(op.substr(2));
-            auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(src_fd, fd_num);
+            auto dup_result =
+                cjsh_filesystem::FileOperations::safe_dup2(src_fd, fd_num);
             if (dup_result.is_error()) {
-              record_error({ErrorType::RUNTIME_ERROR, "exec", dup_result.error(), {}});
+              record_error(
+                  {ErrorType::RUNTIME_ERROR, "exec", dup_result.error(), {}});
               return 1;
             }
             has_fd_operations = true;
@@ -74,9 +85,11 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
         } else if (op.find(">&") == 0 && op.size() > 2) {
           try {
             int src_fd = std::stoi(op.substr(2));
-            auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(src_fd, fd_num);
+            auto dup_result =
+                cjsh_filesystem::FileOperations::safe_dup2(src_fd, fd_num);
             if (dup_result.is_error()) {
-              record_error({ErrorType::RUNTIME_ERROR, "exec", dup_result.error(), {}});
+              record_error(
+                  {ErrorType::RUNTIME_ERROR, "exec", dup_result.error(), {}});
               return 1;
             }
             has_fd_operations = true;

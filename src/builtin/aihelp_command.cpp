@@ -10,8 +10,10 @@
 
 int aihelp_command(const std::vector<std::string>& args) {
   if (g_ai == nullptr) {
-    print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
-                 "AI is not initialized - API configuration required", {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "aihelp",
+                 "AI is not initialized - API configuration required",
+                 {}});
     return 1;
   }
 
@@ -21,8 +23,10 @@ int aihelp_command(const std::vector<std::string>& args) {
   }
 
   if (!g_ai || g_ai->get_api_key().empty()) {
-    print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
-                 "Please set your OpenAI API key first", {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "aihelp",
+                 "Please set your OpenAI API key first",
+                 {}});
     return 1;
   }
 
@@ -46,14 +50,18 @@ int aihelp_command(const std::vector<std::string>& args) {
   if (!force_mode) {
     const char* status_env = getenv("STATUS");
     if (!status_env) {
-      print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
-                   "The last executed command status is unavailable", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "aihelp",
+                   "The last executed command status is unavailable",
+                   {}});
       return 0;
     }
     int status = std::atoi(status_env);
     if (status == 0) {
-      print_error({ErrorType::RUNTIME_ERROR, "aihelp", 
-                   "The last executed command returned exitcode 0", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "aihelp",
+                   "The last executed command returned exitcode 0",
+                   {}});
       return 0;
     }
   }

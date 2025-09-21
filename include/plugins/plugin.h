@@ -27,8 +27,9 @@ struct plugin_metadata {
   std::vector<std::string> events;
   bool is_loaded;
   bool load_failed;
-  
-  plugin_metadata() : last_modified(0), is_loaded(false), load_failed(false) {}
+
+  plugin_metadata() : last_modified(0), is_loaded(false), load_failed(false) {
+  }
 };
 
 struct plugin_data {
@@ -66,7 +67,8 @@ class Plugin {
   std::mutex discovery_mutex;
 
   void unload_plugin(const std::string& name);
-  bool extract_plugin_metadata(const std::filesystem::path& path, plugin_metadata& metadata);
+  bool extract_plugin_metadata(const std::filesystem::path& path,
+                               plugin_metadata& metadata);
   bool load_plugin_on_demand(const std::string& name);
   bool is_metadata_stale(const plugin_metadata& metadata) const;
   void cache_plugin_metadata();
@@ -79,7 +81,8 @@ class Plugin {
   bool is_rosetta_translated() const;
 
  public:
-  Plugin(const std::filesystem::path& plugins_dir, bool enabled, bool lazy_loading = true);
+  Plugin(const std::filesystem::path& plugins_dir, bool enabled,
+         bool lazy_loading = true);
   ~Plugin();
   bool discover_plugins();
   bool load_plugin(const std::filesystem::path& path);
@@ -105,10 +108,15 @@ class Plugin {
   plugin_data* get_plugin_data(const std::string& name);
   void clear_plugin_cache();
   bool is_plugin_loaded(const std::string& name) const;
-  
-  std::vector<std::string> get_available_commands(const std::string& plugin_name) const;
-  bool is_lazy_loading_enabled() const { return lazy_loading_enabled; }
-  void set_lazy_loading(bool enabled) { lazy_loading_enabled = enabled; }
+
+  std::vector<std::string> get_available_commands(
+      const std::string& plugin_name) const;
+  bool is_lazy_loading_enabled() const {
+    return lazy_loading_enabled;
+  }
+  void set_lazy_loading(bool enabled) {
+    lazy_loading_enabled = enabled;
+  }
   size_t get_loaded_plugin_count() const;
   size_t get_metadata_cache_size() const;
 

@@ -18,17 +18,24 @@ int plugin_command(const std::vector<std::string>& args) {
   }
 
   if (!config::plugins_enabled) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugins are disabled", {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR, "plugin", "Plugins are disabled", {}});
     return 1;
   }
 
   if (g_plugin == nullptr) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "plugin",
+                 "Plugin manager not initialized",
+                 {}});
     return 1;
   }
 
   if (args.size() < 2) {
-    print_error({ErrorType::SYNTAX_ERROR, "plugin", "Unknown command. No given ARGS. Try 'help'", {}});
+    print_error({ErrorType::SYNTAX_ERROR,
+                 "plugin",
+                 "Unknown command. No given ARGS. Try 'help'",
+                 {}});
     return 1;
   }
 
@@ -61,7 +68,10 @@ int plugin_command(const std::vector<std::string>& args) {
         std::cout << name << std::endl;
       }
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -74,7 +84,10 @@ int plugin_command(const std::vector<std::string>& args) {
         std::cout << name << std::endl;
       }
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -85,7 +98,10 @@ int plugin_command(const std::vector<std::string>& args) {
         g_plugin->enable_plugin(plugin);
       }
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -96,7 +112,10 @@ int plugin_command(const std::vector<std::string>& args) {
         g_plugin->disable_plugin(plugin);
       }
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -106,7 +125,10 @@ int plugin_command(const std::vector<std::string>& args) {
       std::string pluginName = args[2];
       g_plugin->uninstall_plugin(pluginName);
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -114,15 +136,25 @@ int plugin_command(const std::vector<std::string>& args) {
   if (cmd == "stats") {
     if (g_plugin) {
       std::cout << "Plugin System Statistics:" << std::endl;
-      std::cout << "Lazy loading: " << (g_plugin->is_lazy_loading_enabled() ? "Enabled" : "Disabled") << std::endl;
-      std::cout << "Available plugins: " << g_plugin->get_available_plugins().size() << std::endl;
-      std::cout << "Enabled plugins: " << g_plugin->get_enabled_plugins().size() << std::endl;
-      std::cout << "Loaded plugins: " << g_plugin->get_loaded_plugin_count() << std::endl;
+      std::cout << "Lazy loading: "
+                << (g_plugin->is_lazy_loading_enabled() ? "Enabled"
+                                                        : "Disabled")
+                << std::endl;
+      std::cout << "Available plugins: "
+                << g_plugin->get_available_plugins().size() << std::endl;
+      std::cout << "Enabled plugins: " << g_plugin->get_enabled_plugins().size()
+                << std::endl;
+      std::cout << "Loaded plugins: " << g_plugin->get_loaded_plugin_count()
+                << std::endl;
       if (g_plugin->is_lazy_loading_enabled()) {
-        std::cout << "Metadata cache size: " << g_plugin->get_metadata_cache_size() << std::endl;
+        std::cout << "Metadata cache size: "
+                  << g_plugin->get_metadata_cache_size() << std::endl;
       }
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -132,7 +164,10 @@ int plugin_command(const std::vector<std::string>& args) {
       std::string pluginName = args[2];
       std::cout << g_plugin->get_plugin_info(pluginName) << std::endl;
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -142,7 +177,10 @@ int plugin_command(const std::vector<std::string>& args) {
       std::string pluginName = args[2];
       g_plugin->enable_plugin(pluginName);
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -152,7 +190,10 @@ int plugin_command(const std::vector<std::string>& args) {
       std::string pluginName = args[2];
       g_plugin->disable_plugin(pluginName);
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -167,7 +208,10 @@ int plugin_command(const std::vector<std::string>& args) {
         std::cout << "  " << cmd << std::endl;
       }
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -202,7 +246,10 @@ int plugin_command(const std::vector<std::string>& args) {
         return 0;
       }
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
     }
     return 0;
   }
@@ -247,12 +294,18 @@ int plugin_command(const std::vector<std::string>& args) {
         std::cerr << "Plugin: " << pluginName << " is disabled." << std::endl;
         return 0;
       } else {
-        print_error({ErrorType::COMMAND_NOT_FOUND, "plugin", "Plugin " + pluginName + " does not exist", {}});
+        print_error({ErrorType::COMMAND_NOT_FOUND,
+                     "plugin",
+                     "Plugin " + pluginName + " does not exist",
+                     {}});
         return 1;
       }
     }
   }
 
-  print_error({ErrorType::SYNTAX_ERROR, "plugin", "Unknown command. Try 'help' for available commands", {}});
+  print_error({ErrorType::SYNTAX_ERROR,
+               "plugin",
+               "Unknown command. Try 'help' for available commands",
+               {}});
   return 1;
 }

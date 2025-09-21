@@ -210,8 +210,8 @@ std::string process_printf_escapes(const std::string& input) {
 
 int printf_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
-    print_error({ErrorType::INVALID_ARGUMENT, "printf", 
-                 "missing format string", {}});
+    print_error(
+        {ErrorType::INVALID_ARGUMENT, "printf", "missing format string", {}});
     return 1;
   }
 

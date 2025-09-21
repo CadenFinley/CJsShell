@@ -64,11 +64,15 @@ HttpResponse HttpClient::system_curl_post(
   HttpResponse response;
   response.success = false;
 
-  auto temp_data_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_data");
-  auto temp_response_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_response");
-  auto temp_headers_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_headers");
+  auto temp_data_result =
+      cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_data");
+  auto temp_response_result =
+      cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_response");
+  auto temp_headers_result =
+      cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_headers");
 
-  if (temp_data_result.is_error() || temp_response_result.is_error() || temp_headers_result.is_error()) {
+  if (temp_data_result.is_error() || temp_response_result.is_error() ||
+      temp_headers_result.is_error()) {
     response.error_message = "Failed to create temporary files";
     return response;
   }
@@ -77,7 +81,8 @@ HttpResponse HttpClient::system_curl_post(
   std::string temp_response_file = temp_response_result.value();
   std::string temp_headers_file = temp_headers_result.value();
 
-  auto write_result = cjsh_filesystem::FileOperations::write_temp_file(temp_data_file, data);
+  auto write_result =
+      cjsh_filesystem::FileOperations::write_temp_file(temp_data_file, data);
   if (write_result.is_error()) {
     response.error_message = "Failed to write data to temporary file";
     cjsh_filesystem::FileOperations::cleanup_temp_file(temp_data_file);

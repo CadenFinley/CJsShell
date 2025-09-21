@@ -45,15 +45,18 @@ static int safe_execute_git_command(const std::string& command,
     cjsh_filesystem::FileOperations::safe_close(pipefd[0]);  // Close read end
 
     // Redirect stdout to pipe
-    auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(pipefd[1], STDOUT_FILENO);
+    auto dup_result =
+        cjsh_filesystem::FileOperations::safe_dup2(pipefd[1], STDOUT_FILENO);
     if (dup_result.is_error()) {
       _exit(127);
     }
 
     // Redirect stderr to /dev/null to match original behavior
-    auto devnull_result = cjsh_filesystem::FileOperations::safe_open("/dev/null", O_WRONLY);
+    auto devnull_result =
+        cjsh_filesystem::FileOperations::safe_open("/dev/null", O_WRONLY);
     if (devnull_result.is_ok()) {
-      cjsh_filesystem::FileOperations::safe_dup2(devnull_result.value(), STDERR_FILENO);
+      cjsh_filesystem::FileOperations::safe_dup2(devnull_result.value(),
+                                                 STDERR_FILENO);
       cjsh_filesystem::FileOperations::safe_close(devnull_result.value());
     }
 
@@ -184,10 +187,11 @@ std::string GitInfo::get_git_branch(
               << std::endl;
 
   try {
-    auto read_result = cjsh_filesystem::FileOperations::read_file_content(git_head_path.string());
+    auto read_result = cjsh_filesystem::FileOperations::read_file_content(
+        git_head_path.string());
     if (read_result.is_error()) {
       if (g_debug_mode)
-        std::cerr << "DEBUG: get_git_branch unable to read HEAD file: " 
+        std::cerr << "DEBUG: get_git_branch unable to read HEAD file: "
                   << read_result.error() << std::endl;
       return "";
     }

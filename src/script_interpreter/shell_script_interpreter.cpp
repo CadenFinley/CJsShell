@@ -1620,10 +1620,12 @@ int ShellScriptInterpreter::execute_block(
         close(fd);
       std::string path = tmpl;
 
-      auto saved_stdout_result = cjsh_filesystem::FileOperations::safe_dup2(STDOUT_FILENO, -1);
+      auto saved_stdout_result =
+          cjsh_filesystem::FileOperations::safe_dup2(STDOUT_FILENO, -1);
       int saved_stdout = dup(STDOUT_FILENO);
 
-      auto temp_file_result = cjsh_filesystem::FileOperations::safe_fopen(path, "w");
+      auto temp_file_result =
+          cjsh_filesystem::FileOperations::safe_fopen(path, "w");
       if (temp_file_result.is_error()) {
         int pipefd[2];
         if (pipe(pipefd) != 0) {
@@ -1665,7 +1667,8 @@ int ShellScriptInterpreter::execute_block(
 
       FILE* temp_file = temp_file_result.value();
       int temp_fd = fileno(temp_file);
-      auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(temp_fd, STDOUT_FILENO);
+      auto dup_result =
+          cjsh_filesystem::FileOperations::safe_dup2(temp_fd, STDOUT_FILENO);
       if (dup_result.is_error()) {
         cjsh_filesystem::FileOperations::safe_fclose(temp_file);
         return "";
@@ -1675,10 +1678,12 @@ int ShellScriptInterpreter::execute_block(
 
       fflush(stdout);
       cjsh_filesystem::FileOperations::safe_fclose(temp_file);
-      auto restore_result = cjsh_filesystem::FileOperations::safe_dup2(saved_stdout, STDOUT_FILENO);
+      auto restore_result = cjsh_filesystem::FileOperations::safe_dup2(
+          saved_stdout, STDOUT_FILENO);
       cjsh_filesystem::FileOperations::safe_close(saved_stdout);
 
-      auto content_result = cjsh_filesystem::FileOperations::read_file_content(path);
+      auto content_result =
+          cjsh_filesystem::FileOperations::read_file_content(path);
       cjsh_filesystem::FileOperations::cleanup_temp_file(path);
 
       if (content_result.is_error()) {
@@ -2715,14 +2720,18 @@ int ShellScriptInterpreter::execute_block(
             return 0;
 
           // Check if alias expansion resulted in a pipeline
-          if (expanded_args.size() == 2 && expanded_args[0] == "__ALIAS_PIPELINE__") {
+          if (expanded_args.size() == 2 &&
+              expanded_args[0] == "__ALIAS_PIPELINE__") {
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Detected alias pipeline, re-processing: " << expanded_args[1] << std::endl;
+              std::cerr << "DEBUG: Detected alias pipeline, re-processing: "
+                        << expanded_args[1] << std::endl;
             }
             // Re-process as a pipeline
             std::vector<Command> pipeline_cmds =
-                shell_parser->parse_pipeline_with_preprocessing(expanded_args[1]);
-            int exit_code = g_shell->shell_exec->execute_pipeline(pipeline_cmds);
+                shell_parser->parse_pipeline_with_preprocessing(
+                    expanded_args[1]);
+            int exit_code =
+                g_shell->shell_exec->execute_pipeline(pipeline_cmds);
             if (exit_code != 0) {
               ErrorInfo error = g_shell->shell_exec->get_error();
               if (error.type != ErrorType::RUNTIME_ERROR ||
@@ -3279,7 +3288,7 @@ int ShellScriptInterpreter::execute_block(
 
     std::string var;
     std::vector<std::string> items;
-    
+
     // Special handling for numeric ranges to avoid memory expansion
     struct RangeInfo {
       bool is_range = false;
@@ -3290,7 +3299,7 @@ int ShellScriptInterpreter::execute_block(
 
     auto parse_header = [&](const std::string& header) -> bool {
       std::vector<std::string> raw_toks;
-      
+
       // First, tokenize without expanding braces to detect ranges
       try {
         std::istringstream iss(header);
@@ -3301,52 +3310,55 @@ int ShellScriptInterpreter::execute_block(
       } catch (...) {
         return false;
       }
-      
+
       size_t i = 0;
       if (i < raw_toks.size() && raw_toks[i] == "for")
         ++i;
       if (i >= raw_toks.size())
         return false;
       var = raw_toks[i++];
-      
+
       if (i < raw_toks.size() && raw_toks[i] == "in") {
         ++i;
-        
+
         // Check if we have a single numeric range pattern like {1..1000000}
-        if (i < raw_toks.size() && raw_toks[i].find('{') != std::string::npos && 
-            raw_toks[i].find("..") != std::string::npos && raw_toks[i].find('}') != std::string::npos) {
-          
+        if (i < raw_toks.size() && raw_toks[i].find('{') != std::string::npos &&
+            raw_toks[i].find("..") != std::string::npos &&
+            raw_toks[i].find('}') != std::string::npos) {
           std::string range_token = raw_toks[i];
           size_t open_pos = range_token.find('{');
           size_t close_pos = range_token.find('}');
           size_t range_pos = range_token.find("..");
-          
-          if (open_pos != std::string::npos && close_pos != std::string::npos && 
-              range_pos != std::string::npos && open_pos < range_pos && range_pos < close_pos) {
-            
-            std::string content = range_token.substr(open_pos + 1, close_pos - open_pos - 1);
+
+          if (open_pos != std::string::npos && close_pos != std::string::npos &&
+              range_pos != std::string::npos && open_pos < range_pos &&
+              range_pos < close_pos) {
+            std::string content =
+                range_token.substr(open_pos + 1, close_pos - open_pos - 1);
             std::string start_str = content.substr(0, range_pos - open_pos - 1);
             std::string end_str = content.substr(range_pos - open_pos + 1);
-            
+
             try {
               range_info.start = std::stoi(start_str);
               range_info.end = std::stoi(end_str);
               range_info.is_range = true;
               range_info.is_ascending = range_info.start <= range_info.end;
-              
+
               if (g_debug_mode) {
-                std::cerr << "DEBUG: Detected numeric range: " << range_info.start 
-                          << ".." << range_info.end << " (lazy evaluation)" << std::endl;
+                std::cerr << "DEBUG: Detected numeric range: "
+                          << range_info.start << ".." << range_info.end
+                          << " (lazy evaluation)" << std::endl;
               }
-              
-              // Skip normal parsing for ranges - we'll handle iteration specially
+
+              // Skip normal parsing for ranges - we'll handle iteration
+              // specially
               return !var.empty();
             } catch (...) {
               // Not a valid numeric range, fall through to normal parsing
             }
           }
         }
-        
+
         // Normal parsing for non-range cases
         std::vector<std::string> toks = shell_parser->parse_command(header);
         i = 0;
@@ -3380,7 +3392,7 @@ int ShellScriptInterpreter::execute_block(
       std::string body =
           done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
       int rc = 0;
-      
+
       if (range_info.is_range) {
         // Lazy evaluation for numeric ranges in inline for-loops
         auto execute_range_iteration = [&](int value) -> int {
@@ -3397,11 +3409,11 @@ int ShellScriptInterpreter::execute_block(
                 unsetenv("CJSH_BREAK_LEVEL");
               }
               if (break_level == 1) {
-                return 255; // Signal break
+                return 255;  // Signal break
               } else {
                 setenv("CJSH_BREAK_LEVEL",
                        std::to_string(break_level - 1).c_str(), 1);
-                return 255; // Signal break
+                return 255;  // Signal break
               }
             } else if (cmd_rc == 254) {
               const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
@@ -3411,11 +3423,11 @@ int ShellScriptInterpreter::execute_block(
                 unsetenv("CJSH_CONTINUE_LEVEL");
               }
               if (continue_level == 1) {
-                return 254; // Signal continue
+                return 254;  // Signal continue
               } else {
                 setenv("CJSH_CONTINUE_LEVEL",
                        std::to_string(continue_level - 1).c_str(), 1);
-                return 255; // Signal break
+                return 255;  // Signal break
               }
             } else if (cmd_rc != 0) {
               if (g_shell && g_shell->is_errexit_enabled()) {
@@ -3426,7 +3438,7 @@ int ShellScriptInterpreter::execute_block(
           }
           return 0;
         };
-        
+
         if (range_info.is_ascending) {
           for (int i = range_info.start; i <= range_info.end; ++i) {
             rc = execute_range_iteration(i);
@@ -3565,7 +3577,7 @@ int ShellScriptInterpreter::execute_block(
     }
 
     int rc = 0;
-    
+
     if (range_info.is_range) {
       // Lazy evaluation for numeric ranges - iterate without storing all values
       if (range_info.is_ascending) {
@@ -3584,8 +3596,8 @@ int ShellScriptInterpreter::execute_block(
               rc = 0;
               break;
             } else {
-              setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
-                     1);
+              setenv("CJSH_BREAK_LEVEL",
+                     std::to_string(break_level - 1).c_str(), 1);
               break;
             }
           } else if (rc == 254) {
@@ -3626,8 +3638,8 @@ int ShellScriptInterpreter::execute_block(
               rc = 0;
               break;
             } else {
-              setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
-                     1);
+              setenv("CJSH_BREAK_LEVEL",
+                     std::to_string(break_level - 1).c_str(), 1);
               break;
             }
           } else if (rc == 254) {
@@ -3735,7 +3747,8 @@ int ShellScriptInterpreter::execute_block(
               std::string cmd_sub =
                   case_part.substr(cmd_start + 2, cmd_end - cmd_start - 2);
 
-              auto cmd_output_result = cjsh_filesystem::FileOperations::read_command_output(cmd_sub);
+              auto cmd_output_result =
+                  cjsh_filesystem::FileOperations::read_command_output(cmd_sub);
               if (cmd_output_result.is_ok()) {
                 std::string result = cmd_output_result.value();
 

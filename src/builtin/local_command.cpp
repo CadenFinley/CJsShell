@@ -13,8 +13,10 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
   // Get the script interpreter to access variable scope functions
   auto script_interpreter = shell->get_shell_script_interpreter();
   if (!script_interpreter) {
-    print_error({ErrorType::RUNTIME_ERROR, "local", 
-                 "not available outside of functions", {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "local",
+                 "not available outside of functions",
+                 {}});
     return 1;
   }
 
@@ -30,8 +32,10 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
       std::string value = arg.substr(eq_pos + 1);
 
       if (name.empty()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "local", 
-                     "invalid variable name", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "local",
+                     "invalid variable name",
+                     {}});
         all_successful = false;
         continue;
       }
@@ -48,8 +52,10 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
       std::string name = arg;
 
       if (name.empty()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "local", 
-                     "invalid variable name", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "local",
+                     "invalid variable name",
+                     {}});
         all_successful = false;
         continue;
       }

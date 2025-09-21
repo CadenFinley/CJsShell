@@ -107,7 +107,6 @@ static void initialize_title_strings() {
 // fix all failing tests
 // tab completion rework
 
-
 /*
  * Exit/Return Codes:
  * 0       - Success
@@ -443,14 +442,15 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Reading script file: " << script_file << std::endl;
 
-    auto read_result = cjsh_filesystem::FileOperations::read_file_content(script_file);
+    auto read_result =
+        cjsh_filesystem::FileOperations::read_file_content(script_file);
     if (!read_result.is_ok()) {
       // Determine appropriate error type based on the error message
       ErrorType error_type = ErrorType::FILE_NOT_FOUND;
       if (read_result.error().find("Permission denied") != std::string::npos) {
         error_type = ErrorType::PERMISSION_DENIED;
       }
-      
+
       print_error({error_type,
                    script_file.c_str(),
                    read_result.error().c_str(),
@@ -697,25 +697,27 @@ static void main_process_loop() {
           if (g_debug_mode)
             std::cerr << "DEBUG: Command exit status: " << status_str
                       << std::endl;
-          //update_completion_frequency(command);
+          // update_completion_frequency(command);
           ic_history_add(command.c_str());
           setenv("STATUS", status_str.c_str(), 1);
-          
+
           // Force memory cleanup after command execution to return memory to OS
           if (g_debug_mode)
-            std::cerr << "DEBUG: Forcing memory cleanup after command" << std::endl;
-          
-          // Platform-specific memory cleanup to return unused memory to OS
-          #ifdef __APPLE__
+            std::cerr << "DEBUG: Forcing memory cleanup after command"
+                      << std::endl;
+
+// Platform-specific memory cleanup to return unused memory to OS
+#ifdef __APPLE__
           // On macOS, use malloc_zone_pressure_relief to return memory
           malloc_zone_pressure_relief(nullptr, 0);
-          #elif defined(__linux__)
+#elif defined(__linux__)
           // On Linux, use malloc_trim to return memory
           malloc_trim(0);
-          #else
+#else
           // Generic fallback - just a hint to the allocator
-          std::system("echo '' > /dev/null");  // Minimal system call to potentially trigger cleanup
-          #endif
+          std::system("echo '' > /dev/null");  // Minimal system call to
+                                               // potentially trigger cleanup
+#endif
         }
       } else {
         // Reset timing for empty commands to clear previous command duration
@@ -1091,42 +1093,42 @@ static void process_source_file() {
 }
 
 static void create_profile_file() {
-  std::string profile_content = 
-    "# cjsh Configuration File\n"
-    "# this file is sourced when the shell starts in login "
-    "mode and is sourced after /etc/profile and ~/.profile\n"
-    "# this file supports full shell scripting including "
-    "conditional logic\n"
-    "# Use the 'login-startup-arg' builtin command to set "
-    "startup flags conditionally\n"
-    "\n"
-    "# Example: Conditional startup flags based on environment\n"
-    "# if test -n \"$TMUX\"; then\n"
-    "#     echo \"In tmux session, no flags required\"\n"
-    "# else\n"
-    "#     login-startup-arg --no-plugins\n"
-    "#     login-startup-arg --no-themes\n"
-    "#     login-startup-arg --no-ai\n"
-    "#     login-startup-arg --no-colors\n"
-    "#     login-startup-arg --no-titleline\n"
-    "# fi\n"
-    "\n"
-    "# Available startup flags:\n"
-    "# login-startup-arg --login         # Enable login mode\n"
-    "# login-startup-arg --interactive   # Force interactive mode\n"
-    "# login-startup-arg --debug         # Enable debug mode\n"
-    "# login-startup-arg --no-plugins    # Disable plugins\n"
-    "# login-startup-arg --no-themes     # Disable themes\n"
-    "# login-startup-arg --no-ai         # Disable AI features\n"
-    "# login-startup-arg --no-colors     # Disable colorized output\n"
-    "# login-startup-arg --no-titleline  # Disable title line\n"
-    "# login-startup-arg --no-source     # Don't source the "
-    ".cjshrc file\n"
-    "# login-startup-arg --startup-test  # Enable startup test mode\n";
-  
+  std::string profile_content =
+      "# cjsh Configuration File\n"
+      "# this file is sourced when the shell starts in login "
+      "mode and is sourced after /etc/profile and ~/.profile\n"
+      "# this file supports full shell scripting including "
+      "conditional logic\n"
+      "# Use the 'login-startup-arg' builtin command to set "
+      "startup flags conditionally\n"
+      "\n"
+      "# Example: Conditional startup flags based on environment\n"
+      "# if test -n \"$TMUX\"; then\n"
+      "#     echo \"In tmux session, no flags required\"\n"
+      "# else\n"
+      "#     login-startup-arg --no-plugins\n"
+      "#     login-startup-arg --no-themes\n"
+      "#     login-startup-arg --no-ai\n"
+      "#     login-startup-arg --no-colors\n"
+      "#     login-startup-arg --no-titleline\n"
+      "# fi\n"
+      "\n"
+      "# Available startup flags:\n"
+      "# login-startup-arg --login         # Enable login mode\n"
+      "# login-startup-arg --interactive   # Force interactive mode\n"
+      "# login-startup-arg --debug         # Enable debug mode\n"
+      "# login-startup-arg --no-plugins    # Disable plugins\n"
+      "# login-startup-arg --no-themes     # Disable themes\n"
+      "# login-startup-arg --no-ai         # Disable AI features\n"
+      "# login-startup-arg --no-colors     # Disable colorized output\n"
+      "# login-startup-arg --no-titleline  # Disable title line\n"
+      "# login-startup-arg --no-source     # Don't source the "
+      ".cjshrc file\n"
+      "# login-startup-arg --startup-test  # Enable startup test mode\n";
+
   auto write_result = cjsh_filesystem::FileOperations::write_file_content(
       cjsh_filesystem::g_cjsh_profile_path.string(), profile_content);
-  
+
   if (!write_result.is_ok()) {
     print_error({ErrorType::RUNTIME_ERROR,
                  nullptr,
@@ -1136,30 +1138,32 @@ static void create_profile_file() {
 }
 
 static void create_source_file() {
-  std::string source_content = 
-    "# cjsh Source File\n"
-    "# this file is sourced when the shell starts in interactive mode\n"
-    "# this is where your aliases, theme setup, enabled "
-    "plugins will be stored by default.\n"
-    "\n"
-    "# Alias examples\n"
-    "alias ll='ls -la'\n"
-    "\n"
-    "# you can change this to load any installed theme\n"
-    "theme load default\n"
-    "\n"
-    "# plugin examples\n"
-    "# plugin example_plugin enable\n"
-    "\n"
-    "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
-    "cjsh_uninstall() {\n"
-    "    rm -rf " + cjsh_filesystem::g_cjsh_path.string() + "\n"
-    "    echo \"Uninstalled cjsh\"\n"
-    "}\n";
-  
+  std::string source_content =
+      "# cjsh Source File\n"
+      "# this file is sourced when the shell starts in interactive mode\n"
+      "# this is where your aliases, theme setup, enabled "
+      "plugins will be stored by default.\n"
+      "\n"
+      "# Alias examples\n"
+      "alias ll='ls -la'\n"
+      "\n"
+      "# you can change this to load any installed theme\n"
+      "theme load default\n"
+      "\n"
+      "# plugin examples\n"
+      "# plugin example_plugin enable\n"
+      "\n"
+      "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
+      "cjsh_uninstall() {\n"
+      "    rm -rf " +
+      cjsh_filesystem::g_cjsh_path.string() +
+      "\n"
+      "    echo \"Uninstalled cjsh\"\n"
+      "}\n";
+
   auto write_result = cjsh_filesystem::FileOperations::write_file_content(
       cjsh_filesystem::g_cjsh_source_path.string(), source_content);
-  
+
   if (!write_result.is_ok()) {
     print_error({ErrorType::RUNTIME_ERROR,
                  nullptr,

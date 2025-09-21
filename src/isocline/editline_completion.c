@@ -268,7 +268,7 @@ again:
       bbcode_printf(env->bbcode, "[ic-info](%zd possible completions)[/]\n",
                     count);
     }
-    
+
     // Properly restore the cursor and clear the display
     term_writeln(env->term, "");
     eb->cur_rows = 0;

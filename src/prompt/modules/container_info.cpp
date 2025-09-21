@@ -23,13 +23,13 @@ std::string ContainerInfo::execute_command(const std::string& command) {
   if (result.is_error()) {
     return "";
   }
-  
+
   std::string output = result.value();
   // Remove trailing newline if present
   if (!output.empty() && output.back() == '\n') {
     output.pop_back();
   }
-  
+
   return output;
 }
 

@@ -650,7 +650,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
           }
 
           args = new_args;
-          
+
           // Check if alias expansion resulted in a pipeline
           bool has_pipe = false;
           for (const auto& arg : args) {
@@ -659,12 +659,15 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
               break;
             }
           }
-          
-          // If we have pipes after alias expansion, we need to handle this as a pipeline
-          // Return a special marker to indicate this should be processed as a pipeline
+
+          // If we have pipes after alias expansion, we need to handle this as a
+          // pipeline Return a special marker to indicate this should be
+          // processed as a pipeline
           if (has_pipe) {
             if (g_debug_mode) {
-              std::cerr << "DEBUG: Alias expansion resulted in pipeline, should be re-processed" << std::endl;
+              std::cerr << "DEBUG: Alias expansion resulted in pipeline, "
+                           "should be re-processed"
+                        << std::endl;
             }
             // Return a special marker that the caller can detect
             return {"__ALIAS_PIPELINE__", alias_it->second};
@@ -835,7 +838,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
 std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
-  
+
   // Set a reasonable limit to prevent memory exhaustion
   static const size_t MAX_EXPANSION_SIZE = 10000000;  // Limit to 10mil items
 
@@ -882,20 +885,22 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
     try {
       int start = std::stoi(start_str);
       int end = std::stoi(end_str);
-      
+
       // Calculate and check expansion size
       size_t range_size = std::abs(end - start) + 1;
-      
+
       if (range_size > MAX_EXPANSION_SIZE) {
         if (g_debug_mode) {
-          std::cerr << "DEBUG: Brace expansion range too large (" << range_size 
-                    << " items), returning unexpanded pattern to avoid memory issues" << std::endl;
+          std::cerr
+              << "DEBUG: Brace expansion range too large (" << range_size
+              << " items), returning unexpanded pattern to avoid memory issues"
+              << std::endl;
         }
         // Return the original pattern unexpanded to avoid memory exhaustion
         result.push_back(pattern);
         return result;
       }
-      
+
       result.reserve(range_size);
 
       if (start <= end) {
@@ -921,18 +926,19 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
           std::isalpha(start_str[0]) && std::isalpha(end_str[0])) {
         char start_char = start_str[0];
         char end_char = end_str[0];
-        
+
         size_t char_range_size = std::abs(end_char - start_char) + 1;
-        
+
         if (char_range_size > MAX_EXPANSION_SIZE) {
           if (g_debug_mode) {
-            std::cerr << "DEBUG: Character brace expansion range too large (" << char_range_size 
+            std::cerr << "DEBUG: Character brace expansion range too large ("
+                      << char_range_size
                       << " items), returning unexpanded pattern" << std::endl;
           }
           result.push_back(pattern);
           return result;
         }
-        
+
         result.reserve(char_range_size);
 
         if (start_char <= end_char) {
@@ -970,17 +976,17 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
       depth--;
     }
   }
-  
+
   // Protect against comma expansions that are too large
   if (options.size() > MAX_EXPANSION_SIZE) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: Comma brace expansion too large (" << options.size() 
+      std::cerr << "DEBUG: Comma brace expansion too large (" << options.size()
                 << " options), returning unexpanded pattern" << std::endl;
     }
     result.push_back(pattern);
     return result;
   }
-  
+
   result.reserve(options.size());
 
   for (const auto& option : options) {

@@ -29,7 +29,8 @@ extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(
 #include <sys/sysctl.h>
 #endif
 
-Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled, bool lazy_loading) {
+Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled,
+               bool lazy_loading) {
   plugins_directory = plugins_dir;
   plugins_discovered = false;
   this->enabled = enabled;
@@ -38,7 +39,8 @@ Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled, bool lazy
   if (g_debug_mode) {
     std::cerr << "DEBUG: Plugin constructor - Directory: " << plugins_dir
               << ", Enabled: " << (enabled ? "true" : "false")
-              << ", Lazy loading: " << (lazy_loading ? "true" : "false") << std::endl;
+              << ", Lazy loading: " << (lazy_loading ? "true" : "false")
+              << std::endl;
   }
 
   if (enabled) {
@@ -222,11 +224,12 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   }
 
   if (!is_architecture_compatible(file_arch, current_arch)) {
-    print_error({ErrorType::RUNTIME_ERROR,
-                 "plugin",
-                 "Architecture mismatch for plugin: " + path.filename().string() + 
-                 " (plugin: " + file_arch + ", system: " + current_arch + ")",
-                 {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR,
+         "plugin",
+         "Architecture mismatch for plugin: " + path.filename().string() +
+             " (plugin: " + file_arch + ", system: " + current_arch + ")",
+         {}});
     if (g_debug_mode) {
       std::cerr
           << "DEBUG: load_plugin - Architecture mismatch, cannot load plugin"
@@ -264,10 +267,11 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
       reinterpret_cast<plugin_get_info_func>(dlsym(handle, "plugin_get_info"));
   const char* dlsym_error = dlerror();
   if (dlsym_error) {
-    print_error({ErrorType::RUNTIME_ERROR,
-                 "plugin",
-                 "Cannot load symbol 'plugin_get_info': " + std::string(dlsym_error),
-                 {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR,
+         "plugin",
+         "Cannot load symbol 'plugin_get_info': " + std::string(dlsym_error),
+         {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: load_plugin - Failed to find plugin_get_info symbol"
                 << std::endl;
@@ -303,9 +307,10 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   if (info->interface_version != PLUGIN_INTERFACE_VERSION) {
     print_error({ErrorType::RUNTIME_ERROR,
                  "plugin",
-                 "Plugin interface version mismatch for " + std::string(info->name) +
-                 ". Expected: " + std::to_string(PLUGIN_INTERFACE_VERSION) +
-                 ", Got: " + std::to_string(info->interface_version),
+                 "Plugin interface version mismatch for " +
+                     std::string(info->name) +
+                     ". Expected: " + std::to_string(PLUGIN_INTERFACE_VERSION) +
+                     ", Got: " + std::to_string(info->interface_version),
                  {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: load_plugin - Interface version mismatch"
@@ -320,7 +325,11 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   {
     std::shared_lock plugins_lock(plugins_mutex);
     if (loaded_plugins.find(name) != loaded_plugins.end()) {
-      print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin '" + name + "' is already loaded. Ignoring duplicate", {}});
+      print_error(
+          {ErrorType::RUNTIME_ERROR,
+           "plugin",
+           "Plugin '" + name + "' is already loaded. Ignoring duplicate",
+           {}});
       if (g_debug_mode) {
         std::cerr
             << "DEBUG: load_plugin - Plugin already loaded, ignoring duplicate"
@@ -432,14 +441,16 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   return true;
 }
 
-bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_metadata& metadata) {
+bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
+                                     plugin_metadata& metadata) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: extract_plugin_metadata - Extracting metadata from: "
               << path.filename().string() << std::endl;
   }
 
   metadata.library_path = path;
-  metadata.last_modified = std::filesystem::last_write_time(path).time_since_epoch().count();
+  metadata.last_modified =
+      std::filesystem::last_write_time(path).time_since_epoch().count();
   metadata.is_loaded = false;
   metadata.load_failed = false;
 
@@ -459,7 +470,8 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
       dlsym(temp_handle, "plugin_get_info"));
   if (!get_info) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: extract_plugin_metadata - Failed to find plugin_get_info symbol"
+      std::cerr << "DEBUG: extract_plugin_metadata - Failed to find "
+                   "plugin_get_info symbol"
                 << std::endl;
     }
     dlclose(temp_handle);
@@ -470,8 +482,9 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
   plugin_info_t* info = get_info();
   if (!info) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: extract_plugin_metadata - plugin_get_info returned NULL"
-                << std::endl;
+      std::cerr
+          << "DEBUG: extract_plugin_metadata - plugin_get_info returned NULL"
+          << std::endl;
     }
     dlclose(temp_handle);
     metadata.load_failed = true;
@@ -484,8 +497,9 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
   metadata.author = info->author;
 
   // Try to get commands list
-  plugin_get_commands_func get_commands = reinterpret_cast<plugin_get_commands_func>(
-      dlsym(temp_handle, "plugin_get_commands"));
+  plugin_get_commands_func get_commands =
+      reinterpret_cast<plugin_get_commands_func>(
+          dlsym(temp_handle, "plugin_get_commands"));
   if (get_commands) {
     int count = 0;
     char** commands = get_commands(&count);
@@ -494,10 +508,11 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
       for (int i = 0; i < count; i++) {
         metadata.commands.push_back(commands[i]);
       }
-      
+
       // Free the commands memory using plugin's free function if available
-      plugin_free_memory_func free_memory = reinterpret_cast<plugin_free_memory_func>(
-          dlsym(temp_handle, "plugin_free_memory"));
+      plugin_free_memory_func free_memory =
+          reinterpret_cast<plugin_free_memory_func>(
+              dlsym(temp_handle, "plugin_free_memory"));
       if (free_memory) {
         free_memory(commands);
       }
@@ -505,8 +520,9 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
   }
 
   // Try to get subscribed events
-  plugin_get_subscribed_events_func get_events = reinterpret_cast<plugin_get_subscribed_events_func>(
-      dlsym(temp_handle, "plugin_get_subscribed_events"));
+  plugin_get_subscribed_events_func get_events =
+      reinterpret_cast<plugin_get_subscribed_events_func>(
+          dlsym(temp_handle, "plugin_get_subscribed_events"));
   if (get_events) {
     int count = 0;
     char** events = get_events(&count);
@@ -515,10 +531,11 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
       for (int i = 0; i < count; i++) {
         metadata.events.push_back(events[i]);
       }
-      
+
       // Free the events memory using plugin's free function if available
-      plugin_free_memory_func free_memory = reinterpret_cast<plugin_free_memory_func>(
-          dlsym(temp_handle, "plugin_free_memory"));
+      plugin_free_memory_func free_memory =
+          reinterpret_cast<plugin_free_memory_func>(
+              dlsym(temp_handle, "plugin_free_memory"));
       if (free_memory) {
         free_memory(events);
       }
@@ -528,7 +545,8 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
   dlclose(temp_handle);
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: extract_plugin_metadata - Successfully extracted metadata for: "
+    std::cerr << "DEBUG: extract_plugin_metadata - Successfully extracted "
+                 "metadata for: "
               << metadata.name << " (v" << metadata.version << ")" << std::endl;
   }
 
@@ -537,7 +555,8 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
 
 bool Plugin::load_plugin_on_demand(const std::string& name) {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: load_plugin_on_demand - Loading plugin: " << name << std::endl;
+    std::cerr << "DEBUG: load_plugin_on_demand - Loading plugin: " << name
+              << std::endl;
   }
 
   // Check if already loaded
@@ -545,7 +564,8 @@ bool Plugin::load_plugin_on_demand(const std::string& name) {
     std::shared_lock plugins_lock(plugins_mutex);
     if (loaded_plugins.find(name) != loaded_plugins.end()) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: load_plugin_on_demand - Plugin already loaded" << std::endl;
+        std::cerr << "DEBUG: load_plugin_on_demand - Plugin already loaded"
+                  << std::endl;
       }
       return true;
     }
@@ -556,7 +576,8 @@ bool Plugin::load_plugin_on_demand(const std::string& name) {
   auto metadata_it = plugin_metadata_cache.find(name);
   if (metadata_it == plugin_metadata_cache.end()) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin_on_demand - Plugin metadata not found" << std::endl;
+      std::cerr << "DEBUG: load_plugin_on_demand - Plugin metadata not found"
+                << std::endl;
     }
     return false;
   }
@@ -566,7 +587,7 @@ bool Plugin::load_plugin_on_demand(const std::string& name) {
 
   // Load the plugin fully
   bool result = load_plugin(library_path);
-  
+
   if (result) {
     // Update metadata to mark as loaded
     std::unique_lock metadata_lock(metadata_mutex);
@@ -582,45 +603,53 @@ bool Plugin::is_metadata_stale(const plugin_metadata& metadata) const {
   if (!std::filesystem::exists(metadata.library_path)) {
     return true;
   }
-  
-  auto current_mtime = std::filesystem::last_write_time(metadata.library_path).time_since_epoch().count();
+
+  auto current_mtime = std::filesystem::last_write_time(metadata.library_path)
+                           .time_since_epoch()
+                           .count();
   return current_mtime != metadata.last_modified;
 }
 
 void Plugin::cache_plugin_metadata() {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: cache_plugin_metadata - Starting metadata caching" << std::endl;
+    std::cerr << "DEBUG: cache_plugin_metadata - Starting metadata caching"
+              << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: cache_plugin_metadata - Plugins disabled, skipping" << std::endl;
+      std::cerr << "DEBUG: cache_plugin_metadata - Plugins disabled, skipping"
+                << std::endl;
     }
     return;
   }
 
   if (!std::filesystem::exists(plugins_directory)) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: cache_plugin_metadata - Plugin directory does not exist: "
-                << plugins_directory << std::endl;
+      std::cerr
+          << "DEBUG: cache_plugin_metadata - Plugin directory does not exist: "
+          << plugins_directory << std::endl;
     }
     return;
   }
 
   std::unique_lock metadata_lock(metadata_mutex);
-  
+
   // Scan plugin directory for .so/.dylib files
-  for (const auto& entry : std::filesystem::directory_iterator(plugins_directory)) {
-    if (entry.path().extension() == ".so" || entry.path().extension() == ".dylib") {
+  for (const auto& entry :
+       std::filesystem::directory_iterator(plugins_directory)) {
+    if (entry.path().extension() == ".so" ||
+        entry.path().extension() == ".dylib") {
       std::string filename = entry.path().filename().string();
-      
+
       // Check if we already have metadata and if it's current
       auto existing = plugin_metadata_cache.find(filename);
       if (existing != plugin_metadata_cache.end()) {
         if (!is_metadata_stale(existing->second)) {
           if (g_debug_mode) {
-            std::cerr << "DEBUG: cache_plugin_metadata - Using cached metadata for: "
-                      << filename << std::endl;
+            std::cerr
+                << "DEBUG: cache_plugin_metadata - Using cached metadata for: "
+                << filename << std::endl;
           }
           continue;
         }
@@ -635,15 +664,17 @@ void Plugin::cache_plugin_metadata() {
                     << metadata.name << std::endl;
         }
       } else if (g_debug_mode) {
-        std::cerr << "DEBUG: cache_plugin_metadata - Failed to extract metadata for: "
-                  << filename << std::endl;
+        std::cerr
+            << "DEBUG: cache_plugin_metadata - Failed to extract metadata for: "
+            << filename << std::endl;
       }
     }
   }
 
   if (g_debug_mode) {
-    std::cerr << "DEBUG: cache_plugin_metadata - Cached " << plugin_metadata_cache.size()
-              << " plugin metadata entries" << std::endl;
+    std::cerr << "DEBUG: cache_plugin_metadata - Cached "
+              << plugin_metadata_cache.size() << " plugin metadata entries"
+              << std::endl;
   }
 }
 
@@ -665,7 +696,10 @@ bool Plugin::uninstall_plugin(const std::string& name) {
   std::shared_lock plugins_lock(plugins_mutex);
   auto it = loaded_plugins.find(name);
   if (it == loaded_plugins.end()) {
-    print_error({ErrorType::COMMAND_NOT_FOUND, "plugin", "Plugin not found: " + name, {}});
+    print_error({ErrorType::COMMAND_NOT_FOUND,
+                 "plugin",
+                 "Plugin not found: " + name,
+                 {}});
     if (g_debug_mode) {
       std::cerr
           << "DEBUG: uninstall_plugin - Plugin not found in loaded_plugins"
@@ -675,7 +709,10 @@ bool Plugin::uninstall_plugin(const std::string& name) {
   }
 
   if (it->second.enabled) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Please disable the plugin before uninstalling: " + name, {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "plugin",
+                 "Please disable the plugin before uninstalling: " + name,
+                 {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: uninstall_plugin - Cannot uninstall enabled plugin, "
                    "disable first"
@@ -907,7 +944,8 @@ bool Plugin::enable_plugin(const std::string& name) {
   }
 
   if (!enabled) {
-    print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin system is disabled", {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR, "plugin", "Plugin system is disabled", {}});
     if (g_debug_mode) {
       std::cerr << "DEBUG: enable_plugin - Plugin system is disabled"
                 << std::endl;
@@ -927,12 +965,15 @@ bool Plugin::enable_plugin(const std::string& name) {
       }
       return true;
     }
-    
+
     // In lazy loading mode, load the plugin if not already loaded
     if (lazy_loading_enabled && it == loaded_plugins.end()) {
       plugins_lock.unlock();  // Release lock before loading
       if (!load_plugin_on_demand(name)) {
-        print_error({ErrorType::RUNTIME_ERROR, "plugin", "Failed to load plugin: " + name, {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "plugin",
+                     "Failed to load plugin: " + name,
+                     {}});
         if (g_debug_mode) {
           std::cerr << "DEBUG: enable_plugin - Failed to load plugin on demand"
                     << std::endl;
@@ -942,9 +983,12 @@ bool Plugin::enable_plugin(const std::string& name) {
       plugins_lock.lock();  // Re-acquire lock
       it = loaded_plugins.find(name);
     }
-    
+
     if (it == loaded_plugins.end()) {
-      print_error({ErrorType::COMMAND_NOT_FOUND, "plugin", "Plugin not found: " + name, {}});
+      print_error({ErrorType::COMMAND_NOT_FOUND,
+                   "plugin",
+                   "Plugin not found: " + name,
+                   {}});
       if (g_debug_mode) {
         std::cerr << "DEBUG: enable_plugin - Plugin not found in loaded_plugins"
                   << std::endl;
@@ -1196,7 +1240,7 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
 
   std::shared_lock plugins_lock(plugins_mutex);
   auto it = loaded_plugins.find(targeted_plugin);
-  
+
   // If plugin not loaded but lazy loading is enabled, try to load it
   if (lazy_loading_enabled && it == loaded_plugins.end()) {
     plugins_lock.unlock();
@@ -1205,13 +1249,14 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
       it = loaded_plugins.find(targeted_plugin);
     } else {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: handle_plugin_command - Failed to load plugin on demand: "
+        std::cerr << "DEBUG: handle_plugin_command - Failed to load plugin on "
+                     "demand: "
                   << targeted_plugin << std::endl;
       }
       return false;
     }
   }
-  
+
   if (it != loaded_plugins.end() && it->second.enabled) {
     plugin_args_t args_struct;
     args_struct.count = args.size();
@@ -1277,8 +1322,9 @@ std::vector<std::string> Plugin::get_plugin_commands(
     auto metadata_it = plugin_metadata_cache.find(name);
     if (metadata_it != plugin_metadata_cache.end()) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: get_plugin_commands - Returning cached commands, count: "
-                  << metadata_it->second.commands.size() << std::endl;
+        std::cerr
+            << "DEBUG: get_plugin_commands - Returning cached commands, count: "
+            << metadata_it->second.commands.size() << std::endl;
       }
       return metadata_it->second.commands;
     }
@@ -1773,15 +1819,17 @@ bool Plugin::is_rosetta_translated() const {
   return false;
 }
 
-std::vector<std::string> Plugin::get_available_commands(const std::string& plugin_name) const {
+std::vector<std::string> Plugin::get_available_commands(
+    const std::string& plugin_name) const {
   if (g_debug_mode) {
-    std::cerr << "DEBUG: get_available_commands - Getting commands for plugin: " 
+    std::cerr << "DEBUG: get_available_commands - Getting commands for plugin: "
               << plugin_name << std::endl;
   }
 
   if (!enabled) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: get_available_commands - Plugin system is disabled" << std::endl;
+      std::cerr << "DEBUG: get_available_commands - Plugin system is disabled"
+                << std::endl;
     }
     return {};
   }

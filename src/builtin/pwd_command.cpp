@@ -1,10 +1,10 @@
 #include "pwd_command.h"
 #include <limits.h>
 #include <unistd.h>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <cerrno>
 
 #include "error_out.h"
 
@@ -26,8 +26,9 @@ int pwd_command(const std::vector<std::string>& args) {
       std::cout << "  -P  print the physical current working directory\n";
       return 0;
     } else {
-      print_error({ErrorType::INVALID_ARGUMENT, "pwd", 
-                   "invalid option -- '" + arg + "'", 
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "pwd",
+                   "invalid option -- '" + arg + "'",
                    {"Try 'pwd --help' for more information"}});
       return 1;
     }
@@ -45,8 +46,10 @@ int pwd_command(const std::vector<std::string>& args) {
         path = cwd;
         free(cwd);
       } else {
-        print_error({ErrorType::RUNTIME_ERROR, "pwd", 
-                     "getcwd failed: " + std::string(strerror(errno)), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "pwd",
+                     "getcwd failed: " + std::string(strerror(errno)),
+                     {}});
         return 1;
       }
     }
@@ -56,8 +59,10 @@ int pwd_command(const std::vector<std::string>& args) {
       path = cwd;
       free(cwd);
     } else {
-      print_error({ErrorType::RUNTIME_ERROR, "pwd", 
-                   "getcwd failed: " + std::string(strerror(errno)), {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "pwd",
+                   "getcwd failed: " + std::string(strerror(errno)),
+                   {}});
       return 1;
     }
   }

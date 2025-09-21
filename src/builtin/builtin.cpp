@@ -18,15 +18,15 @@
 #include "echo_command.h"
 #include "error_out.h"
 #include "eval_command.h"
-#include "utils/bookmark_database.h"
+#include "exec_command.h"
 #include "exit_command.h"
 #include "export_command.h"
-#include "exec_command.h"
 #include "getopts_command.h"
 #include "hash_command.h"
 #include "help_command.h"
 #include "history_command.h"
 #include "if_command.h"
+#include "internal_subshell_command.h"
 #include "job_control.h"
 #include "local_command.h"
 #include "loop_control_commands.h"
@@ -48,8 +48,8 @@
 #include "trap_command.h"
 #include "type_command.h"
 #include "umask_command.h"
+#include "utils/bookmark_database.h"
 #include "version_command.h"
-#include "internal_subshell_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {
   builtins.reserve(64);
@@ -57,184 +57,243 @@ Built_ins::Built_ins() : shell(nullptr) {
   // Initialize the bookmark database
   auto load_result = bookmark_database::g_bookmark_db.load();
   if (load_result.is_error()) {
-    print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to load bookmark database: " + load_result.error(), {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "bookmark",
+                 "Failed to load bookmark database: " + load_result.error(),
+                 {}});
   }
 
   // Import existing bookmarks if any
   if (!directory_bookmarks.empty()) {
-    auto import_result = bookmark_database::g_bookmark_db.import_from_map(directory_bookmarks);
+    auto import_result =
+        bookmark_database::g_bookmark_db.import_from_map(directory_bookmarks);
     if (import_result.is_error()) {
-      print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to import existing bookmarks: " + import_result.error(), {}});
+      print_error(
+          {ErrorType::RUNTIME_ERROR,
+           "bookmark",
+           "Failed to import existing bookmarks: " + import_result.error(),
+           {}});
     } else {
       // Save the imported bookmarks
       auto save_result = bookmark_database::g_bookmark_db.save();
       if (save_result.is_error()) {
-        print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to save imported bookmarks: " + save_result.error(), {}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR,
+             "bookmark",
+             "Failed to save imported bookmarks: " + save_result.error(),
+             {}});
       }
     }
   }
 
   builtins = {
-    {"echo", [](const std::vector<std::string>& args) {
-      return ::echo_command(args);
-     }},
-    {"printf", [](const std::vector<std::string>& args) {
-      return ::printf_command(args);
-     }},
-    {"pwd", [](const std::vector<std::string>& args) {
-      return ::pwd_command(args);
-     }},
-    {"ls", [this](const std::vector<std::string>& args) {
-      return ::ls_command(args, shell);
-     }},
-    {"cd", [this](const std::vector<std::string>& args) {
-      // args[0] == "cd"; optional directory operand at args[1]
-      return ::change_directory_smart(
-         args.size() > 1 ? args[1] : "", current_directory,
-         previous_directory, last_terminal_output_error);
-     }},
-    {"..", [this](const std::vector<std::string>& args) {
-      (void)args;
-      return ::change_directory_smart(
-         "..", current_directory, previous_directory,
-         last_terminal_output_error);
-     }},
-    {"local", [this](const std::vector<std::string>& args) {
-      return ::local_command(args, shell);
-     }},
-    {"alias", [this](const std::vector<std::string>& args) {
-      return ::alias_command(args, shell);
-     }},
-    {"export", [this](const std::vector<std::string>& args) {
-      return ::export_command(args, shell);
-     }},
-    {"unalias", [this](const std::vector<std::string>& args) {
-      return ::unalias_command(args, shell);
-     }},
-    {"unset", [this](const std::vector<std::string>& args) {
-      return ::unset_command(args, shell);
-     }},
-    {"set", [this](const std::vector<std::string>& args) {
-      return ::set_command(args, shell);
-     }},
-    {"shift", [this](const std::vector<std::string>& args) {
-      return ::shift_command(args, shell);
-     }},
-    {"break", [](const std::vector<std::string>& args) {
-      return ::break_command(args);
-     }},
-    {"continue", [](const std::vector<std::string>& args) {
-      return ::continue_command(args);
-     }},
-    {"return", [](const std::vector<std::string>& args) {
-      return ::return_command(args);
-     }},
-    {"ai", [this](const std::vector<std::string>& args) {
-      return ::ai_command(args, this);
-     }},
-    {"source", [](const std::vector<std::string>& args) {
-      return ::source_command(args);
-     }},
-    {"login-startup-arg", [](const std::vector<std::string>& args) {
-      return ::startup_flag_command(args);
-     }},
-    {".", [](const std::vector<std::string>& args) {
-      return ::source_command(args);
-     }},
-    {"theme", [](const std::vector<std::string>& args) {
-      return ::theme_command(args);
-     }},
-    {"plugin", [](const std::vector<std::string>& args) {
-      return ::plugin_command(args);
-     }},
-    {"help", [](const std::vector<std::string>&) { return ::help_command(); }},
-    {"approot", [this](const std::vector<std::string>&) {
-      return ::change_to_approot(current_directory, previous_directory,
-                        last_terminal_output_error);
-     }},
-    {"aihelp", [](const std::vector<std::string>& args) {
-      return ::aihelp_command(args);
-     }},
-    {"version", [](const std::vector<std::string>& args) {
-      return ::version_command(args);
-     }},
-    {"eval", [this](const std::vector<std::string>& args) {
-      return ::eval_command(args, shell);
-     }},
-    {"syntax", [this](const std::vector<std::string>& args) {
-      return ::syntax_command(args, shell);
-     }},
-    {"history", [](const std::vector<std::string>& args) {
-      return ::history_command(args);
-     }},
-    {"exit", [](const std::vector<std::string>& args) {
-      return ::exit_command(args);
-     }},
-    {"quit", [](const std::vector<std::string>& args) {
-      return ::exit_command(args);
-     }},
-    {"prompt_test", [](const std::vector<std::string>& args) {
-      extern int prompt_test_command(const std::vector<std::string>&);
-      return prompt_test_command(args);
-     }},
-    {"test", [](const std::vector<std::string>& args) {
-      return ::test_command(args);
-     }},
-    {"[", [](const std::vector<std::string>& args) {
-      return ::test_command(args);
-     }},
-    {"[[", [](const std::vector<std::string>& args) {
-      return ::double_bracket_command(args);
-     }},
-    {"exec", [this](const std::vector<std::string>& args) {
-      return ::exec_command(args, shell, last_terminal_output_error);
-     }},
-    {":", [](const std::vector<std::string>&) { return 0; }},
-    {"if", [this](const std::vector<std::string>& args) {
-      return ::if_command(args, shell, last_terminal_output_error);
-     }},
-    {"__INTERNAL_SUBSHELL__", [this](const std::vector<std::string>& args) {
-      return internal_subshell_command(args, shell);
-     }},
-    {"trap", [](const std::vector<std::string>& args) {
-      return ::trap_command(args);
-     }},
-    {"jobs", [](const std::vector<std::string>& args) {
-      return ::jobs_command(args);
-     }},
-    {"fg", [](const std::vector<std::string>& args) {
-      return ::fg_command(args);
-     }},
-    {"bg", [](const std::vector<std::string>& args) {
-      return ::bg_command(args);
-     }},
-    {"wait", [](const std::vector<std::string>& args) {
-      return ::wait_command(args);
-     }},
-    {"kill", [](const std::vector<std::string>& args) {
-      return ::kill_command(args);
-     }},
-    {"readonly", [this](const std::vector<std::string>& args) {
-      return ::readonly_command(args, shell);
-     }},
-    {"read", [this](const std::vector<std::string>& args) {
-      return ::read_command(args, shell);
-     }},
-    {"umask", [](const std::vector<std::string>& args) {
-      return ::umask_command(args);
-     }},
-    {"getopts", [this](const std::vector<std::string>& args) {
-      return ::getopts_command(args, shell);
-     }},
-    {"times", [](const std::vector<std::string>& args) {
-      return ::times_command(args, nullptr);
-     }},
-    {"type", [this](const std::vector<std::string>& args) {
-      return ::type_command(args, shell);
-     }},
-    {"hash", [](const std::vector<std::string>& args) {
-      return ::hash_command(args, nullptr);
-     }},
+      {"echo",
+       [](const std::vector<std::string>& args) {
+         return ::echo_command(args);
+       }},
+      {"printf",
+       [](const std::vector<std::string>& args) {
+         return ::printf_command(args);
+       }},
+      {"pwd",
+       [](const std::vector<std::string>& args) {
+         return ::pwd_command(args);
+       }},
+      {"ls",
+       [this](const std::vector<std::string>& args) {
+         return ::ls_command(args, shell);
+       }},
+      {"cd",
+       [this](const std::vector<std::string>& args) {
+         // args[0] == "cd"; optional directory operand at args[1]
+         return ::change_directory_smart(args.size() > 1 ? args[1] : "",
+                                         current_directory, previous_directory,
+                                         last_terminal_output_error);
+       }},
+      {"..",
+       [this](const std::vector<std::string>& args) {
+         (void)args;
+         return ::change_directory_smart("..", current_directory,
+                                         previous_directory,
+                                         last_terminal_output_error);
+       }},
+      {"local",
+       [this](const std::vector<std::string>& args) {
+         return ::local_command(args, shell);
+       }},
+      {"alias",
+       [this](const std::vector<std::string>& args) {
+         return ::alias_command(args, shell);
+       }},
+      {"export",
+       [this](const std::vector<std::string>& args) {
+         return ::export_command(args, shell);
+       }},
+      {"unalias",
+       [this](const std::vector<std::string>& args) {
+         return ::unalias_command(args, shell);
+       }},
+      {"unset",
+       [this](const std::vector<std::string>& args) {
+         return ::unset_command(args, shell);
+       }},
+      {"set",
+       [this](const std::vector<std::string>& args) {
+         return ::set_command(args, shell);
+       }},
+      {"shift",
+       [this](const std::vector<std::string>& args) {
+         return ::shift_command(args, shell);
+       }},
+      {"break",
+       [](const std::vector<std::string>& args) {
+         return ::break_command(args);
+       }},
+      {"continue",
+       [](const std::vector<std::string>& args) {
+         return ::continue_command(args);
+       }},
+      {"return",
+       [](const std::vector<std::string>& args) {
+         return ::return_command(args);
+       }},
+      {"ai",
+       [this](const std::vector<std::string>& args) {
+         return ::ai_command(args, this);
+       }},
+      {"source",
+       [](const std::vector<std::string>& args) {
+         return ::source_command(args);
+       }},
+      {"login-startup-arg",
+       [](const std::vector<std::string>& args) {
+         return ::startup_flag_command(args);
+       }},
+      {".",
+       [](const std::vector<std::string>& args) {
+         return ::source_command(args);
+       }},
+      {"theme",
+       [](const std::vector<std::string>& args) {
+         return ::theme_command(args);
+       }},
+      {"plugin",
+       [](const std::vector<std::string>& args) {
+         return ::plugin_command(args);
+       }},
+      {"help",
+       [](const std::vector<std::string>&) { return ::help_command(); }},
+      {"approot",
+       [this](const std::vector<std::string>&) {
+         return ::change_to_approot(current_directory, previous_directory,
+                                    last_terminal_output_error);
+       }},
+      {"aihelp",
+       [](const std::vector<std::string>& args) {
+         return ::aihelp_command(args);
+       }},
+      {"version",
+       [](const std::vector<std::string>& args) {
+         return ::version_command(args);
+       }},
+      {"eval",
+       [this](const std::vector<std::string>& args) {
+         return ::eval_command(args, shell);
+       }},
+      {"syntax",
+       [this](const std::vector<std::string>& args) {
+         return ::syntax_command(args, shell);
+       }},
+      {"history",
+       [](const std::vector<std::string>& args) {
+         return ::history_command(args);
+       }},
+      {"exit",
+       [](const std::vector<std::string>& args) {
+         return ::exit_command(args);
+       }},
+      {"quit",
+       [](const std::vector<std::string>& args) {
+         return ::exit_command(args);
+       }},
+      {"prompt_test",
+       [](const std::vector<std::string>& args) {
+         extern int prompt_test_command(const std::vector<std::string>&);
+         return prompt_test_command(args);
+       }},
+      {"test",
+       [](const std::vector<std::string>& args) {
+         return ::test_command(args);
+       }},
+      {"[",
+       [](const std::vector<std::string>& args) {
+         return ::test_command(args);
+       }},
+      {"[[",
+       [](const std::vector<std::string>& args) {
+         return ::double_bracket_command(args);
+       }},
+      {"exec",
+       [this](const std::vector<std::string>& args) {
+         return ::exec_command(args, shell, last_terminal_output_error);
+       }},
+      {":", [](const std::vector<std::string>&) { return 0; }},
+      {"if",
+       [this](const std::vector<std::string>& args) {
+         return ::if_command(args, shell, last_terminal_output_error);
+       }},
+      {"__INTERNAL_SUBSHELL__",
+       [this](const std::vector<std::string>& args) {
+         return internal_subshell_command(args, shell);
+       }},
+      {"trap",
+       [](const std::vector<std::string>& args) {
+         return ::trap_command(args);
+       }},
+      {"jobs",
+       [](const std::vector<std::string>& args) {
+         return ::jobs_command(args);
+       }},
+      {"fg",
+       [](const std::vector<std::string>& args) { return ::fg_command(args); }},
+      {"bg",
+       [](const std::vector<std::string>& args) { return ::bg_command(args); }},
+      {"wait",
+       [](const std::vector<std::string>& args) {
+         return ::wait_command(args);
+       }},
+      {"kill",
+       [](const std::vector<std::string>& args) {
+         return ::kill_command(args);
+       }},
+      {"readonly",
+       [this](const std::vector<std::string>& args) {
+         return ::readonly_command(args, shell);
+       }},
+      {"read",
+       [this](const std::vector<std::string>& args) {
+         return ::read_command(args, shell);
+       }},
+      {"umask",
+       [](const std::vector<std::string>& args) {
+         return ::umask_command(args);
+       }},
+      {"getopts",
+       [this](const std::vector<std::string>& args) {
+         return ::getopts_command(args, shell);
+       }},
+      {"times",
+       [](const std::vector<std::string>& args) {
+         return ::times_command(args, nullptr);
+       }},
+      {"type",
+       [this](const std::vector<std::string>& args) {
+         return ::type_command(args, shell);
+       }},
+      {"hash",
+       [](const std::vector<std::string>& args) {
+         return ::hash_command(args, nullptr);
+       }},
   };
 }
 
@@ -242,7 +301,10 @@ Built_ins::~Built_ins() {
   // Save the bookmark database when the shell exits
   auto save_result = bookmark_database::g_bookmark_db.save();
   if (save_result.is_error()) {
-    print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to save bookmark database: " + save_result.error(), {}});
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "bookmark",
+                 "Failed to save bookmark database: " + save_result.error(),
+                 {}});
   }
 }
 
@@ -253,8 +315,8 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
   auto it = builtins.find(args[0]);
   if (it != builtins.end()) {
     if (args[0] == "cd" && args.size() == 1) {
-      return ::change_directory_smart(
-          "", current_directory, previous_directory, last_terminal_output_error);
+      return ::change_directory_smart("", current_directory, previous_directory,
+                                      last_terminal_output_error);
     }
     int status = it->second(args);
     return status;
@@ -279,9 +341,13 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
   std::filesystem::path path(dir_path);
   std::string basename = path.filename().string();
   if (!basename.empty() && basename != "." && basename != "..") {
-    auto result = bookmark_database::g_bookmark_db.add_bookmark(basename, dir_path);
+    auto result =
+        bookmark_database::g_bookmark_db.add_bookmark(basename, dir_path);
     if (result.is_error()) {
-      print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to add bookmark: " + result.error(), {}});
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "bookmark",
+                   "Failed to add bookmark: " + result.error(),
+                   {}});
     } else {
       // Also update the legacy map for backward compatibility
       directory_bookmarks[basename] = dir_path;
@@ -292,11 +358,12 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
 std::string Built_ins::find_bookmark_path(
     const std::string& bookmark_name) const {
   // First try the new database
-  auto bookmark_path = bookmark_database::g_bookmark_db.get_bookmark(bookmark_name);
+  auto bookmark_path =
+      bookmark_database::g_bookmark_db.get_bookmark(bookmark_name);
   if (bookmark_path.has_value()) {
     return bookmark_path.value();
   }
-  
+
   // Fall back to legacy map
   auto it = directory_bookmarks.find(bookmark_name);
   if (it != directory_bookmarks.end()) {
@@ -308,6 +375,7 @@ std::string Built_ins::find_bookmark_path(
 const std::unordered_map<std::string, std::string>&
 Built_ins::get_directory_bookmarks() const {
   // Update the legacy map from the database for backward compatibility
-  const_cast<Built_ins*>(this)->directory_bookmarks = bookmark_database::g_bookmark_db.get_all_bookmarks();
+  const_cast<Built_ins*>(this)->directory_bookmarks =
+      bookmark_database::g_bookmark_db.get_all_bookmarks();
   return directory_bookmarks;
 }

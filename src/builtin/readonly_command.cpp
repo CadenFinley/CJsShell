@@ -112,8 +112,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       }
 
       if (setenv(name.c_str(), value.c_str(), 1) != 0) {
-        print_error({ErrorType::RUNTIME_ERROR, "readonly", 
-                     "setenv failed: " + std::string(strerror(errno)), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "readonly",
+                     "setenv failed: " + std::string(strerror(errno)),
+                     {}});
         return 1;
       }
 
@@ -122,8 +124,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
       const char* value = getenv(arg.c_str());
       if (value == nullptr) {
         if (setenv(arg.c_str(), "", 1) != 0) {
-          print_error({ErrorType::RUNTIME_ERROR, "readonly", 
-                       "setenv failed: " + std::string(strerror(errno)), {}});
+          print_error({ErrorType::RUNTIME_ERROR,
+                       "readonly",
+                       "setenv failed: " + std::string(strerror(errno)),
+                       {}});
           return 1;
         }
       }
