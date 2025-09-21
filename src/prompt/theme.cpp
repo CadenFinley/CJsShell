@@ -234,88 +234,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
   return true;
 }
 
-std::string Theme::prerender_line(
-    const std::vector<nlohmann::json>& segments) const {
-  if (segments.empty()) {
-    return "";
-  }
 
-  std::string result;
-  auto color_map = colors::get_color_map();
-
-  for (const auto& segment : segments) {
-    std::string segment_result;
-    std::string content = segment.value("content", "");
-    std::string bg_color_name = segment.value("bg_color", "RESET");
-    std::string fg_color_name = segment.value("fg_color", "RESET");
-    std::string separator = segment.value("separator", "");
-    std::string separator_fg_name = segment.value("separator_fg", "RESET");
-    std::string separator_bg_name = segment.value("separator_bg", "RESET");
-
-    if (segment.contains("forward_separator") &&
-        !segment["forward_separator"].empty()) {
-      std::string forward_separator = segment["forward_separator"];
-      std::string forward_separator_fg_name =
-          segment.value("forward_separator_fg", "RESET");
-      std::string forward_separator_bg_name =
-          segment.value("forward_separator_bg", "RESET");
-
-      if (forward_separator_bg_name != "RESET") {
-        auto fw_sep_bg_rgb =
-            colors::parse_color_value(forward_separator_bg_name);
-        segment_result += colors::bg_color(fw_sep_bg_rgb);
-      } else {
-        segment_result += colors::ansi::BG_RESET;
-      }
-
-      if (forward_separator_fg_name != "RESET") {
-        auto fw_sep_fg_rgb =
-            colors::parse_color_value(forward_separator_fg_name);
-        segment_result += colors::fg_color(fw_sep_fg_rgb);
-      }
-
-      segment_result += forward_separator;
-    }
-
-    if (bg_color_name != "RESET") {
-      auto bg_rgb = colors::parse_color_value(bg_color_name);
-      segment_result += colors::bg_color(bg_rgb);
-    } else {
-      segment_result += colors::ansi::BG_RESET;
-    }
-
-    if (fg_color_name != "RESET") {
-      auto fg_rgb = colors::parse_color_value(fg_color_name);
-      segment_result += colors::fg_color(fg_rgb);
-    }
-
-    segment_result += content;
-
-    if (!separator.empty()) {
-      if (separator_fg_name != "RESET") {
-        auto sep_fg_rgb = colors::parse_color_value(separator_fg_name);
-        segment_result += colors::fg_color(sep_fg_rgb);
-      }
-
-      if (separator_bg_name != "RESET") {
-        auto sep_bg_rgb = colors::parse_color_value(separator_bg_name);
-        segment_result += colors::bg_color(sep_bg_rgb);
-      } else {
-        segment_result += colors::ansi::BG_RESET;
-      }
-
-      segment_result += separator;
-    }
-
-    result += segment_result;
-  }
-
-  result += colors::ansi::RESET;
-  if (g_debug_mode) {
-    std::cout << "Prerendered line: \n" << result << std::endl;
-  }
-  return result;
-}
 
 size_t Theme::get_terminal_width() const {
   struct winsize w;
@@ -344,28 +263,7 @@ std::string Theme::render_line_aligned(
 
   bool isNewlineSegments = (&segments == &newline_segments);
 
-  bool hasAlign = false;
-  for (auto& seg : segments)
-    if (seg.contains("align")) {
-      hasAlign = true;
-      break;
-    }
-  if (!hasAlign) {
-    std::string flat = prerender_line(segments);
-    return render_line(flat, vars);
-  }
-
-  std::vector<nlohmann::json> left, center, right;
-  for (auto& seg : segments) {
-    auto a = seg.value("align", "left");
-    if (a == "center")
-      center.push_back(seg);
-    else if (a == "right")
-      right.push_back(seg);
-    else
-      left.push_back(seg);
-  }
-
+  // Build lambda to render segments with colors and styling
   auto build = [&](const std::vector<nlohmann::json>& bucket) {
     std::string out;
     for (auto& segment : bucket) {
@@ -425,6 +323,30 @@ std::string Theme::render_line_aligned(
     }
     return out;
   };
+
+  bool hasAlign = false;
+  for (auto& seg : segments)
+    if (seg.contains("align")) {
+      hasAlign = true;
+      break;
+    }
+  if (!hasAlign) {
+    // No alignment needed, treat all segments as left-aligned
+    auto result = build(segments);
+    result += colors::ansi::RESET;
+    return result;
+  }
+
+  std::vector<nlohmann::json> left, center, right;
+  for (auto& seg : segments) {
+    auto a = seg.value("align", "left");
+    if (a == "center")
+      center.push_back(seg);
+    else if (a == "right")
+      right.push_back(seg);
+    else
+      left.push_back(seg);
+  }
 
   auto L = build(left);
   auto C = build(center);
