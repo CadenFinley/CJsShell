@@ -44,11 +44,11 @@ void Theme::create_default_theme() {
                                            {"content", " {DIRECTORY} "},
                                            {"bg_color", "RESET"},
                                            {"fg_color", "#55FF55"},
-                                           {"separator", " "},
+                                           {"separator", ""},
                                            {"separator_fg", "#FFFFFF"},
                                            {"separator_bg", "RESET"}});
   default_theme["ps1_segments"].push_back({{"tag", "prompt"},
-                                           {"content", "$ "},
+                                           {"content", "{SHOW_STATUS_IF_NON_0} $ "},
                                            {"bg_color", "RESET"},
                                            {"fg_color", "#FFFFFF"},
                                            {"separator", ""},
@@ -71,7 +71,7 @@ void Theme::create_default_theme() {
                                            {"separator_fg", "RESET"},
                                            {"separator_bg", "RESET"}});
   default_theme["git_segments"].push_back({{"tag", "status"},
-                                           {"content", "{GIT_STATUS}"},
+                                           {"content", "{GIT_STATUS} {SHOW_STATUS_IF_NON_0}"},
                                            {"bg_color", "RESET"},
                                            {"fg_color", "#FF5555"},
                                            {"separator", " $ "},
@@ -648,12 +648,55 @@ std::string Theme::render_line(
         result.substr(start_pos + 1, end_pos - start_pos - 1);
     auto it = vars.find(placeholder);
     if (it != vars.end()) {
-      result.replace(start_pos, end_pos - start_pos + 1, it->second);
-      start_pos += it->second.length();
+      // Check if the replacement is empty and we need to clean up spaces
+      if (it->second.empty()) {
+        // Look for spaces before the placeholder
+        size_t space_before_start = start_pos;
+        while (space_before_start > 0 && result[space_before_start - 1] == ' ') {
+          space_before_start--;
+        }
+        
+        // Look for spaces after the placeholder
+        size_t space_after_end = end_pos + 1;
+        while (space_after_end < result.length() && result[space_after_end] == ' ') {
+          space_after_end++;
+        }
+        
+        size_t spaces_before = start_pos - space_before_start;
+        size_t spaces_after = space_after_end - (end_pos + 1);
+        
+        if (spaces_before > 0 && spaces_after > 0) {
+          // Spaces on both sides - remove placeholder and all surrounding spaces
+          result.replace(space_before_start, space_after_end - space_before_start, "");
+          start_pos = space_before_start;
+        } else if (spaces_before > 0) {
+          // Only spaces before - remove placeholder and preceding spaces
+          result.replace(space_before_start, end_pos - space_before_start + 1, "");
+          start_pos = space_before_start;
+        } else if (spaces_after > 0) {
+          // Only spaces after - remove placeholder and trailing spaces
+          result.replace(start_pos, space_after_end - start_pos, "");
+          // start_pos stays the same since we removed content
+        } else {
+          // No adjacent spaces - just remove the placeholder
+          result.replace(start_pos, end_pos - start_pos + 1, "");
+          // start_pos stays the same since we removed content
+        }
+      } else {
+        result.replace(start_pos, end_pos - start_pos + 1, it->second);
+        start_pos += it->second.length();
+      }
     } else {
       start_pos = end_pos + 1;
     }
   }
+
+  // Clean up any remaining multiple consecutive spaces
+  std::regex multiple_spaces(R"(\s{2,})");
+  result = std::regex_replace(result, multiple_spaces, " ");
+  
+  // Trim trailing spaces
+  result.erase(result.find_last_not_of(" \t\n\r\f\v") + 1);
 
   result = escape_brackets_for_isocline(result);
 
