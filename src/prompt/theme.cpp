@@ -758,8 +758,15 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
   size_t ansi_chars = 0;
   size_t visible_chars = 0;
 
+  // Remove isocline escape sequences before calculating width
+  std::string str_without_isocline_escapes = str;
+  
+  // Remove isocline bracket escapes (e.g., \[1] -> [1])
+  std::regex isocline_bracket_pattern(R"(\\(\[[+-]?\d+\]))");
+  str_without_isocline_escapes = std::regex_replace(str_without_isocline_escapes, isocline_bracket_pattern, "$1");
+
   size_t raw_length =
-      utf8_utils::calculate_display_width(str, &ansi_chars, &visible_chars);
+      utf8_utils::calculate_display_width(str_without_isocline_escapes, &ansi_chars, &visible_chars);
 
   if (g_debug_mode) {
     std::cout << "String length: " << str.size()
