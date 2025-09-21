@@ -94,7 +94,6 @@
  * {VIRTUAL_ENV} - Name of active virtual environment, if any
  * {BG_JOBS}     - Number of background jobs
  * {STATUS}      - Last command exit code
- * {SHOW_STATUS_IF_NON_0} - Shows exit code only if non-zero
  *
  * Network information placeholders:
  * {IP_LOCAL}    - Local IP address
@@ -343,12 +342,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
   if (needed_vars.count("STATUS")) {
     char* status_env = getenv("STATUS");
     vars["STATUS"] = status_env ? std::string(status_env) : "0";
-  }
-
-  if (needed_vars.count("SHOW_STATUS_IF_NON_0")) {
-    char* status_env = getenv("STATUS");
-    int status_code = status_env ? std::atoi(status_env) : 0;
-    vars["SHOW_STATUS_IF_NON_0"] = (status_code != 0) ? std::to_string(status_code) : "";
   }
 
   if (needed_vars.count("IP_LOCAL")) {
