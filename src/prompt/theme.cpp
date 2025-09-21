@@ -47,8 +47,15 @@ void Theme::create_default_theme() {
                                            {"separator", ""},
                                            {"separator_fg", "#FFFFFF"},
                                            {"separator_bg", "RESET"}});
+  default_theme["ps1_segments"].push_back({{"tag", "status"},
+                                           {"content", "{SHOW_STATUS_IF_NON_0}"},
+                                           {"bg_color", "RESET"},
+                                           {"fg_color", "#FF5555"},
+                                           {"separator", ""},
+                                           {"separator_fg", "RESET"},
+                                           {"separator_bg", "RESET"}});
   default_theme["ps1_segments"].push_back({{"tag", "prompt"},
-                                           {"content", "{SHOW_STATUS_IF_NON_0} $ "},
+                                           {"content", " $ "},
                                            {"bg_color", "RESET"},
                                            {"fg_color", "#FFFFFF"},
                                            {"separator", ""},
@@ -71,7 +78,14 @@ void Theme::create_default_theme() {
                                            {"separator_fg", "RESET"},
                                            {"separator_bg", "RESET"}});
   default_theme["git_segments"].push_back({{"tag", "status"},
-                                           {"content", "{GIT_STATUS} {SHOW_STATUS_IF_NON_0}"},
+                                           {"content", "{GIT_STATUS}"},
+                                           {"bg_color", "RESET"},
+                                           {"fg_color", "#FF5555"},
+                                           {"separator", ""},
+                                           {"separator_fg", "RESET"},
+                                           {"separator_bg", "RESET"}});
+  default_theme["git_segments"].push_back({{"tag", "exit_status"},
+                                           {"content", "{SHOW_STATUS_IF_NON_0}"},
                                            {"bg_color", "RESET"},
                                            {"fg_color", "#FF5555"},
                                            {"separator", " $ "},
