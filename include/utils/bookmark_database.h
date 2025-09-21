@@ -32,6 +32,7 @@ public:
     cjsh_filesystem::Result<void> save();
     
     cjsh_filesystem::Result<void> add_bookmark(const std::string& name, const std::string& path);
+    cjsh_filesystem::Result<void> remove_bookmark(const std::string& name);
     std::optional<std::string> get_bookmark(const std::string& name);
     
     // Query operations
