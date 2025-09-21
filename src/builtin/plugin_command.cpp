@@ -32,11 +32,28 @@ int plugin_command(const std::vector<std::string>& args) {
   }
 
   if (args.size() < 2) {
-    print_error({ErrorType::SYNTAX_ERROR,
-                 "plugin",
-                 "Unknown command. No given ARGS. Try 'help'",
-                 {}});
-    return 1;
+    if (g_plugin) {
+      auto plugins = g_plugin->get_available_plugins();
+      auto enabled_plugins = g_plugin->get_enabled_plugins();
+      std::cout << "Available plugins:" << std::endl;
+      for (const auto& name : plugins) {
+        std::cout << name;
+        if (std::find(enabled_plugins.begin(), enabled_plugins.end(),
+                      name) != enabled_plugins.end()) {
+          std::cout << "  (enabled)" << std::endl;
+        } else {
+          std::cout << std::endl;
+        }
+      }
+      
+    } else {
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "plugin",
+                   "Plugin manager not initialized",
+                   {}});
+      return 1;
+    }
+    return 0;
   }
 
   const std::string& cmd = args[1];
@@ -63,10 +80,18 @@ int plugin_command(const std::vector<std::string>& args) {
   if (cmd == "available") {
     if (g_plugin) {
       auto plugins = g_plugin->get_available_plugins();
+      auto enabled_plugins = g_plugin->get_enabled_plugins();
       std::cout << "Available plugins:" << std::endl;
       for (const auto& name : plugins) {
-        std::cout << name << std::endl;
+        std::cout << name;
+        if (std::find(enabled_plugins.begin(), enabled_plugins.end(),
+                      name) != enabled_plugins.end()) {
+          std::cout << "  (enabled)" << std::endl;
+        } else {
+          std::cout << std::endl;
+        }
       }
+      
     } else {
       print_error({ErrorType::RUNTIME_ERROR,
                    "plugin",
