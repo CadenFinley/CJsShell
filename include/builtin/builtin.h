@@ -18,7 +18,7 @@ class Shell;
 class Built_ins {
  public:
   Built_ins();
-  ~Built_ins() = default;
+  ~Built_ins();
 
   void set_shell(Shell* shell_ptr) {
     shell = shell_ptr;

@@ -526,7 +526,7 @@ static int initialize_interactive_components() {
       std::cerr << "DEBUG: Initializing plugin system with enabled="
                 << config::plugins_enabled << std::endl;
     g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
-                                        config::plugins_enabled);
+                                        config::plugins_enabled, true);
   } else if (g_debug_mode) {
     std::cerr << "DEBUG: Plugins disabled, skipping initialization"
               << std::endl;
