@@ -633,19 +633,26 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         for (const auto& bookmark : bookmarks) {
           const std::string& bookmark_name = bookmark.first;
+          const std::string& bookmark_path = bookmark.second;
 
           if (special_part.empty() ||
               bookmark_name.rfind(special_part, 0) == 0) {
-            std::string completion_suffix =
-                bookmark_name.substr(special_part.length());
+            
+            // For cd commands, check if the bookmark is a directory and add with trailing slash
+            namespace fs = std::filesystem;
+            if (fs::exists(bookmark_path) && fs::is_directory(bookmark_path)) {
+              // Calculate how many characters to delete before inserting the completion
+              size_t delete_before = special_part.length();
+              std::string completion_text = bookmark_name + "/";
+              
+              if (g_debug_mode)
+                std::cerr << "DEBUG: Adding bookmark completion: '"
+                          << bookmark_name << "' -> '" << completion_text << "' (deleting " << delete_before << " chars before)"
+                          << std::endl;
 
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Adding bookmark completion: '"
-                        << bookmark_name << "' -> '" << completion_suffix << "'"
-                        << std::endl;
-
-            if (!ic_add_completion(cenv, completion_suffix.c_str()))
-              return;
+              if (!ic_add_completion_prim(cenv, completion_text.c_str(), NULL, NULL, delete_before, 0))
+                return;
+            }
           }
         }
       }
@@ -895,9 +902,21 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
       cjsh_filename_completer(cenv, prefix);
       break;
 
-    case CONTEXT_ARGUMENT:
-      cjsh_filename_completer(cenv, prefix);
+    case CONTEXT_ARGUMENT: {
+      // Check if this is a cd command - if so, only use filename completion
+      std::string prefix_str(prefix);
+      std::vector<std::string> tokens = tokenize_command_line(prefix_str);
+      
+      if (!tokens.empty() && tokens[0] == "cd") {
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Detected cd command, using only filename completion" << std::endl;
+        cjsh_filename_completer(cenv, prefix);
+      } else {
+        cjsh_history_completer(cenv, prefix);
+        cjsh_filename_completer(cenv, prefix);
+      }
       break;
+    }
   }
 }
 
