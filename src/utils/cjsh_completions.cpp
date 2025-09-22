@@ -887,7 +887,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   switch (context) {
     case CONTEXT_COMMAND:
-      cjsh_history_completer(cenv, prefix);
+      //cjsh_history_completer(cenv, prefix);
       if (ic_has_completions(cenv) && ic_stop_completing(cenv))
         return;
 
@@ -899,7 +899,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
       break;
 
     case CONTEXT_PATH:
-      cjsh_history_completer(cenv, prefix);
+      //cjsh_history_completer(cenv, prefix);
       cjsh_filename_completer(cenv, prefix);
       break;
 
@@ -913,7 +913,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
           std::cerr << "DEBUG: Detected cd command, using only filename completion" << std::endl;
         cjsh_filename_completer(cenv, prefix);
       } else {
-        cjsh_history_completer(cenv, prefix);
+        //cjsh_history_completer(cenv, prefix);
         cjsh_filename_completer(cenv, prefix);
       }
       break;
