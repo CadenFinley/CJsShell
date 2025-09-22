@@ -23,6 +23,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
     std::cerr << "  --no-titleline   Disable title line" << std::endl;
     std::cerr << "  --no-source      Disable source file processing"
               << std::endl;
+    std::cerr << "  --no-smart-cd    Disable smart cd functionality"
+              << std::endl;
     std::cerr << "  --startup-test   Enable startup test mode" << std::endl;
     return 1;
   }
@@ -36,7 +38,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
   if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
       flag == "--no-plugins" || flag == "--no-themes" || flag == "--no-ai" ||
       flag == "--no-colors" || flag == "--no-titleline" ||
-      flag == "--no-source" || flag == "--startup-test") {
+      flag == "--no-source" || flag == "--no-smart-cd" || flag == "--startup-test") {
     bool flag_exists = false;
     for (const auto& existing_flag : g_profile_startup_args) {
       if (existing_flag == flag) {

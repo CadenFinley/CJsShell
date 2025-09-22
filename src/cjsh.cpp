@@ -85,6 +85,7 @@ bool colors_enabled = true;
 bool source_enabled = true;
 bool completions_enabled = true;
 bool syntax_highlighting_enabled = true;
+bool smart_cd_enabled = true;
 bool show_version = false;
 bool show_help = false;
 bool startup_test = false;
@@ -251,10 +252,11 @@ static int parse_command_line_arguments(int argc, char* argv[],
       {"no-source", no_argument, 0, 'N'},
       {"no-completions", no_argument, 0, 'O'},
       {"no-syntax-highlighting", no_argument, 0, 'S'},
+      {"no-smart-cd", no_argument, 0, 'M'},
       {"startup-test", no_argument, 0, 'X'},
       {0, 0, 0, 0}};
   const char* short_options =
-      "+lic:vhdPTACLNOSX";  // Leading '+' enables POSIXLY_CORRECT behavior
+      "+lic:vhdPTACLNOSMX";  // Leading '+' enables POSIXLY_CORRECT behavior
   int option_index = 0;
   int c;
   optind = 1;
@@ -331,6 +333,11 @@ static int parse_command_line_arguments(int argc, char* argv[],
         config::syntax_highlighting_enabled = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Syntax highlighting disabled" << std::endl;
+        break;
+      case 'M':
+        config::smart_cd_enabled = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Smart cd disabled" << std::endl;
         break;
       case 'X':
         config::startup_test = true;
@@ -1069,6 +1076,10 @@ static void apply_profile_startup_flags() {
       if (g_debug_mode)
         std::cerr << "DEBUG: Syntax highlighting disabled via profile"
                   << std::endl;
+    } else if (flag == "--no-smart-cd") {
+      config::smart_cd_enabled = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Smart cd disabled via profile" << std::endl;
     } else if (flag == "--startup-test") {
       config::startup_test = true;
       if (g_debug_mode)

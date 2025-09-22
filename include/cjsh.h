@@ -45,6 +45,7 @@ extern bool colors_enabled;
 extern bool source_enabled;
 extern bool completions_enabled;
 extern bool syntax_highlighting_enabled;
+extern bool smart_cd_enabled;
 extern bool show_version;
 extern bool show_help;
 extern bool startup_test;
