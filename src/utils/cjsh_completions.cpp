@@ -431,6 +431,27 @@ std::string quote_path_if_needed(const std::string& path) {
   return result;
 }
 
+// Helper function to check if a builtin command should be included in interactive completions
+bool is_interactive_builtin(const std::string& cmd) {
+  // Commands that are primarily for shell script interpreter and shouldn't appear in interactive completions
+  static const std::unordered_set<std::string> script_only_builtins = {
+    "break",              // Loop control - only meaningful in scripts/functions
+    "continue",           // Loop control - only meaningful in scripts/functions  
+    "return",             // Function control - only meaningful in functions
+    "__INTERNAL_SUBSHELL__", // Internal command - not for user interaction
+    "local",              // Variable scoping - primarily for functions
+    "shift",              // Argument shifting - primarily for scripts/functions
+    "if",                 // Control flow syntax - part of larger constructs
+    "[[",                 // Test syntax - part of conditional constructs
+    "[",                  // Test syntax - part of conditional constructs
+    ":",                  // No-op command - rarely used interactively
+    "login-startup-arg",  // Startup configuration - not for interactive use
+    "prompt_test"         // Development/testing command
+  };
+  
+  return script_only_builtins.find(cmd) == script_only_builtins.end();
+}
+
 CompletionContext detect_completion_context(const char* prefix) {
   std::string prefix_str(prefix);
 
@@ -528,13 +549,21 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   // Get cached executables
   cached_executables = cjsh_filesystem::read_cached_executables();
 
-  // Add builtin commands first
+  // Add builtin commands first (filtered for interactive use)
   for (const auto& cmd : builtin_cmds) {
     if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Reached completion limit in builtin commands" << std::endl;
       return;
     }
+    
+    // Skip script-only builtins in interactive completions
+    if (!is_interactive_builtin(cmd)) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Skipping script-only builtin: '" << cmd << "'" << std::endl;
+      continue;
+    }
+    
     std::string cmd_lower(cmd);
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
