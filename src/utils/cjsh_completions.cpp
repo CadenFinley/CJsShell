@@ -24,9 +24,30 @@ enum CompletionContext {
   CONTEXT_PATH
 };
 
-// Completion deduplication system
+// Source priority levels (higher number = higher priority)
+enum SourcePriority {
+  PRIORITY_HISTORY = 0,    // Lowest priority - history should never override other sources
+  PRIORITY_UNKNOWN = 1,
+  PRIORITY_FILE = 2,
+  PRIORITY_PLUGIN = 3,
+  PRIORITY_FUNCTION = 4
+};
+
+// Helper function to get priority for a source string
+static SourcePriority get_source_priority(const char* source) {
+  if (!source) return PRIORITY_UNKNOWN;
+  
+  if (strcmp(source, "history") == 0) return PRIORITY_HISTORY;
+  if (strcmp(source, "file") == 0) return PRIORITY_FILE;
+  if (strcmp(source, "plugin") == 0) return PRIORITY_PLUGIN;
+  if (strcmp(source, "function") == 0) return PRIORITY_FUNCTION;
+  
+  return PRIORITY_UNKNOWN;
+}
+
+// Completion deduplication system with source priority
 struct CompletionTracker {
-  std::unordered_set<std::string> added_completions;
+  std::unordered_map<std::string, SourcePriority> added_completions;
   ic_completion_env_t* cenv;
   std::string original_prefix;
   
@@ -46,53 +67,86 @@ struct CompletionTracker {
   }
   
   // Check if this completion would result in the same final text as a previous one
-  bool would_create_duplicate(const char* completion_text, long delete_before = 0) {
+  // Returns true if we should skip this completion (lower or equal priority exists)
+  bool would_create_duplicate(const char* completion_text, const char* source, long delete_before = 0) {
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    return added_completions.find(final_result) != added_completions.end();
+    auto it = added_completions.find(final_result);
+    
+    if (it == added_completions.end()) {
+      // No duplicate, safe to add
+      return false;
+    }
+    
+    // Duplicate exists, check priority
+    SourcePriority existing_priority = it->second;
+    SourcePriority new_priority = get_source_priority(source);
+    
+    // If new completion has higher priority, we'll replace the old one
+    return new_priority <= existing_priority;
   }
   
   // Wrapper for ic_add_completion that checks for duplicates
   bool add_completion_if_unique(const char* completion_text) {
-    if (would_create_duplicate(completion_text, 0)) {
+    const char* source = nullptr; // Default source for backward compatibility
+    if (would_create_duplicate(completion_text, source, 0)) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Skipping duplicate completion: '" << completion_text << "'" << std::endl;
       return true; // Don't fail, just skip the duplicate
     }
     
     std::string final_result = calculate_final_result(completion_text, 0);
-    added_completions.insert(final_result);
+    added_completions[final_result] = get_source_priority(source);
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding unique completion: '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
-    return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, nullptr);
+    return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
   }
   
   // Wrapper for ic_add_completion_prim that checks for duplicates
   bool add_completion_prim_if_unique(const char* completion_text, const char* display, const char* help, long delete_before, long delete_after) {
-    if (would_create_duplicate(completion_text, delete_before)) {
+    const char* source = nullptr; // Default source for backward compatibility
+    if (would_create_duplicate(completion_text, source, delete_before)) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Skipping duplicate completion (prim): '" << completion_text << "'" << std::endl;
       return true; // Don't fail, just skip the duplicate
     }
     
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    added_completions.insert(final_result);
+    added_completions[final_result] = get_source_priority(source);
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding unique completion (prim): '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
-    return ic_add_completion_prim_with_source(cenv, completion_text, display, help, nullptr, delete_before, delete_after);
+    return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
   }
   
   // Wrapper for ic_add_completion_prim_with_source that checks for duplicates
   bool add_completion_prim_with_source_if_unique(const char* completion_text, const char* display, const char* help, const char* source, long delete_before, long delete_after) {
-    if (would_create_duplicate(completion_text, delete_before)) {
+    std::string final_result = calculate_final_result(completion_text, delete_before);
+    auto it = added_completions.find(final_result);
+    SourcePriority new_priority = get_source_priority(source);
+    
+    if (it != added_completions.end()) {
+      SourcePriority existing_priority = it->second;
+      
+      if (new_priority <= existing_priority) {
+        // Lower or equal priority, skip this completion
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Skipping lower/equal priority completion (prim with source): '" 
+                    << completion_text << "' (source: '" << (source ? source : "null") 
+                    << "', priority: " << new_priority << " vs existing: " << existing_priority << ")" << std::endl;
+        return true; // Don't fail, just skip
+      }
+      
+      // Higher priority completion, we'll replace the existing one
       if (g_debug_mode)
-        std::cerr << "DEBUG: Skipping duplicate completion (prim with source): '" << completion_text << "'" << std::endl;
-      return true; // Don't fail, just skip the duplicate
+        std::cerr << "DEBUG: Replacing lower priority completion with: '" 
+                  << completion_text << "' (source: '" << (source ? source : "null") 
+                  << "', priority: " << new_priority << " vs existing: " << existing_priority << ")" << std::endl;
     }
     
-    std::string final_result = calculate_final_result(completion_text, delete_before);
-    added_completions.insert(final_result);
+    // Update or add the completion with new priority
+    added_completions[final_result] = new_priority;
     if (g_debug_mode)
-      std::cerr << "DEBUG: Adding unique completion (prim with source): '" << completion_text << "' (source: '" << (source ? source : "null") << "') -> final: '" << final_result << "'" << std::endl;
+      std::cerr << "DEBUG: Adding unique completion (prim with source): '" << completion_text 
+                << "' (source: '" << (source ? source : "null") << "') -> final: '" << final_result << "'" << std::endl;
     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
   }
 };
