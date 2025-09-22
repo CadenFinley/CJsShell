@@ -248,11 +248,12 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
     if (cmd_lower.rfind(prefix_lower, 0) == 0) {
-      std::string suffix = cmd.substr(prefix_len);
+      // Use full command name instead of just suffix
+      long delete_before = static_cast<long>(prefix_len);
       if (g_debug_mode)
         std::cerr << "DEBUG: Command completion found: '" << cmd
-                  << "' (adding suffix: '" << suffix << "')" << std::endl;
-      if (!ic_add_completion(cenv, suffix.c_str()))
+                  << "' (deleting " << delete_before << " chars before)" << std::endl;
+      if (!ic_add_completion_prim(cenv, cmd.c_str(), nullptr, nullptr, delete_before, 0))
         return;
     }
     if (ic_stop_completing(cenv))
@@ -333,20 +334,15 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   size_t count = 0;
 
   for (const auto& match : matches) {
-    std::string completion;
-    if (prefix_len == 0) {
-      // For empty prefix, use the entire command as completion
-      completion = match.first;
-    } else {
-      // For non-empty prefix, use the suffix after the prefix
-      completion = match.first.substr(prefix_len);
-    }
+    // Always use the full command as completion text
+    std::string completion = match.first;
+    long delete_before = static_cast<long>(prefix_len);
 
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding history completion: '" << match.first
-                << "' -> '" << completion << "' (freq: " << match.second << ")"
-                << std::endl;
-    if (!ic_add_completion(cenv, completion.c_str()))
+                << "' -> '" << completion << "' (deleting " << delete_before 
+                << " chars before, freq: " << match.second << ")" << std::endl;
+    if (!ic_add_completion_prim(cenv, completion.c_str(), nullptr, nullptr, delete_before, 0))
       return;
     if (++count >= max_suggestions || ic_stop_completing(cenv))
       return;
@@ -491,6 +487,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
+              // Use full filename and calculate how many characters to delete
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
                 completion_suffix += "/";
@@ -499,7 +496,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
               if (g_debug_mode)
                 std::cerr
-                    << "DEBUG: Adding tilde completion (case-corrected): '"
+                    << "DEBUG: Adding tilde completion (full name): '"
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
@@ -586,6 +583,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
+              // Use full filename and calculate how many characters to delete
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
                 completion_suffix += "/";
@@ -593,7 +591,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               long delete_before = static_cast<long>(match_prefix.length());
 
               if (g_debug_mode)
-                std::cerr << "DEBUG: Adding dash completion (case-corrected): '"
+                std::cerr << "DEBUG: Adding dash completion (full name): '"
                           << completion_suffix << "' (deleting "
                           << delete_before << " chars before)" << std::endl;
 
@@ -748,13 +746,14 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
+              // Use full filename and calculate how many characters to delete
               completion_suffix = quote_path_if_needed(filename);
               completion_suffix += "/";
               long delete_before = static_cast<long>(match_prefix.length());
 
               if (g_debug_mode)
                 std::cerr
-                    << "DEBUG: Directory-only completion (case-corrected): '"
+                    << "DEBUG: Directory-only completion (full name): '"
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
@@ -835,7 +834,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
               if (!ic_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
-              // Handle case correction
+              // Use full filename and calculate how many characters to delete
               completion_suffix = quote_path_if_needed(filename);
               if (entry.is_directory()) {
                 completion_suffix += "/";
@@ -845,7 +844,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
               if (g_debug_mode)
                 std::cerr
-                    << "DEBUG: General filename completion (case-corrected): '"
+                    << "DEBUG: General filename completion (full name): '"
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
@@ -887,7 +886,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   switch (context) {
     case CONTEXT_COMMAND:
-      //cjsh_history_completer(cenv, prefix);
+      cjsh_history_completer(cenv, prefix);
       if (ic_has_completions(cenv) && ic_stop_completing(cenv))
         return;
 
@@ -899,7 +898,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
       break;
 
     case CONTEXT_PATH:
-      //cjsh_history_completer(cenv, prefix);
+      cjsh_history_completer(cenv, prefix);
       cjsh_filename_completer(cenv, prefix);
       break;
 
@@ -913,7 +912,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
           std::cerr << "DEBUG: Detected cd command, using only filename completion" << std::endl;
         cjsh_filename_completer(cenv, prefix);
       } else {
-        //cjsh_history_completer(cenv, prefix);
+        cjsh_history_completer(cenv, prefix);
         cjsh_filename_completer(cenv, prefix);
       }
       break;
