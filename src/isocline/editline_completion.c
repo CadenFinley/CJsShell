@@ -48,6 +48,7 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx,
                                      bool selected) {
   const char* help = NULL;
   const char* display = completions_get_display(env->completions, idx, &help);
+  const char* source = completions_get_source(env->completions, idx);
   if (display == NULL)
     return;
   if (numbered) {
@@ -68,6 +69,15 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx,
   if (selected) {
     sbuf_append(eb->extra, "[/ic-emphasis]");
   }
+  
+  // Add source information if available
+  if (source != NULL) {
+    sbuf_append(eb->extra, " ");
+    sbuf_append_tagged(eb->extra, "ic-info", "(");
+    sbuf_append_tagged(eb->extra, "ic-info", source);
+    sbuf_append_tagged(eb->extra, "ic-info", ")");
+  }
+  
   if (help != NULL) {
     sbuf_append(eb->extra, "  ");
     sbuf_append_tagged(eb->extra, "ic-info", help);
@@ -109,8 +119,15 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
   ssize_t max_width = 0;
   for (ssize_t i = 0; i < count; i++) {
     const char* help = NULL;
+    const char* source = completions_get_source(env->completions, i);
     ssize_t w = bbcode_column_width(
         env->bbcode, completions_get_display(env->completions, i, &help));
+        
+    // Add space for source information if available
+    if (source != NULL) {
+      w += 3 + bbcode_column_width(env->bbcode, source); // space + ( + source + )
+    }
+    
     if (help != NULL) {
       w += 2 + bbcode_column_width(env->bbcode, help);
     }

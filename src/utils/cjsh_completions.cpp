@@ -63,7 +63,7 @@ struct CompletionTracker {
     added_completions.insert(final_result);
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding unique completion: '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
-    return ic_add_completion(cenv, completion_text);
+    return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, nullptr);
   }
   
   // Wrapper for ic_add_completion_prim that checks for duplicates
@@ -78,7 +78,22 @@ struct CompletionTracker {
     added_completions.insert(final_result);
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding unique completion (prim): '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
-    return ic_add_completion_prim(cenv, completion_text, display, help, delete_before, delete_after);
+    return ic_add_completion_prim_with_source(cenv, completion_text, display, help, nullptr, delete_before, delete_after);
+  }
+  
+  // Wrapper for ic_add_completion_prim_with_source that checks for duplicates
+  bool add_completion_prim_with_source_if_unique(const char* completion_text, const char* display, const char* help, const char* source, long delete_before, long delete_after) {
+    if (would_create_duplicate(completion_text, delete_before)) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Skipping duplicate completion (prim with source): '" << completion_text << "'" << std::endl;
+      return true; // Don't fail, just skip the duplicate
+    }
+    
+    std::string final_result = calculate_final_result(completion_text, delete_before);
+    added_completions.insert(final_result);
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Adding unique completion (prim with source): '" << completion_text << "' (source: '" << (source ? source : "null") << "') -> final: '" << final_result << "'" << std::endl;
+    return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
   }
 };
 
@@ -90,15 +105,27 @@ bool safe_add_completion(ic_completion_env_t* cenv, const char* completion_text)
   if (g_current_completion_tracker) {
     return g_current_completion_tracker->add_completion_if_unique(completion_text);
   } else {
-    return ic_add_completion(cenv, completion_text);
+    return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, nullptr);
   }
+}
+
+bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text, const char* source) {
+  return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
 }
 
 bool safe_add_completion_prim(ic_completion_env_t* cenv, const char* completion_text, const char* display, const char* help, long delete_before, long delete_after) {
   if (g_current_completion_tracker) {
     return g_current_completion_tracker->add_completion_prim_if_unique(completion_text, display, help, delete_before, delete_after);
   } else {
-    return ic_add_completion_prim(cenv, completion_text, display, help, delete_before, delete_after);
+    return ic_add_completion_prim_with_source(cenv, completion_text, display, help, nullptr, delete_before, delete_after);
+  }
+}
+
+bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char* completion_text, const char* display, const char* help, const char* source, long delete_before, long delete_after) {
+  if (g_current_completion_tracker) {
+    return g_current_completion_tracker->add_completion_prim_with_source_if_unique(completion_text, display, help, source, delete_before, delete_after);
+  } else {
+    return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
   }
 }
 
@@ -320,20 +347,128 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
                  [](unsigned char c) { return std::tolower(c); });
   size_t prefix_len = prefix_lower.length();
-  auto cmds = g_shell->get_available_commands();
-  for (const auto& cmd : cmds) {
+  
+  // Get different types of commands
+  std::vector<std::string> builtin_cmds;
+  std::vector<std::string> function_names;
+  std::vector<std::string> plugin_cmds;
+  std::unordered_set<std::string> aliases;
+  std::vector<std::filesystem::path> cached_executables;
+  
+  if (g_shell && g_shell->get_built_ins()) {
+    builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
+  }
+  
+  // Get user-defined functions from the script interpreter
+  if (g_shell && g_shell->get_shell_script_interpreter()) {
+    function_names = g_shell->get_shell_script_interpreter()->get_function_names();
+  }
+  
+  // Get plugin commands
+  if (g_plugin) {
+    auto enabled_plugins = g_plugin->get_enabled_plugins();
+    for (const auto& plugin : enabled_plugins) {
+      auto plugin_commands = g_plugin->get_plugin_commands(plugin);
+      plugin_cmds.insert(plugin_cmds.end(), plugin_commands.begin(), plugin_commands.end());
+    }
+  }
+  
+  // Get aliases
+  if (g_shell) {
+    auto shell_aliases = g_shell->get_aliases();
+    for (const auto& alias : shell_aliases) {
+      aliases.insert(alias.first);
+    }
+  }
+  
+  // Get cached executables
+  cached_executables = cjsh_filesystem::read_cached_executables();
+
+  // Add builtin commands first
+  for (const auto& cmd : builtin_cmds) {
     std::string cmd_lower(cmd);
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
     if (cmd_lower.rfind(prefix_lower, 0) == 0) {
-      // Use full command name instead of just suffix
       long delete_before = static_cast<long>(prefix_len);
       if (g_debug_mode)
-        std::cerr << "DEBUG: Command completion found: '" << cmd
+        std::cerr << "DEBUG: Builtin command completion found: '" << cmd
                   << "' (deleting " << delete_before << " chars before)" << std::endl;
       
-      // Use safe wrapper function
-      if (!safe_add_completion_prim(cenv, cmd.c_str(), nullptr, nullptr, delete_before, 0))
+      if (!safe_add_completion_prim_with_source(cenv, cmd.c_str(), nullptr, nullptr, "builtin", delete_before, 0))
+        return;
+    }
+    if (ic_stop_completing(cenv))
+      return;
+  }
+  
+  // Add user-defined functions with "function" source
+  for (const auto& cmd : function_names) {
+    std::string cmd_lower(cmd);
+    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
+      long delete_before = static_cast<long>(prefix_len);
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Function completion found: '" << cmd
+                  << "' (deleting " << delete_before << " chars before)" << std::endl;
+      
+      if (!safe_add_completion_prim_with_source(cenv, cmd.c_str(), nullptr, nullptr, "function", delete_before, 0))
+        return;
+    }
+    if (ic_stop_completing(cenv))
+      return;
+  }
+  
+  // Add plugin commands with "plugin" source
+  for (const auto& cmd : plugin_cmds) {
+    std::string cmd_lower(cmd);
+    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
+      long delete_before = static_cast<long>(prefix_len);
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Plugin command completion found: '" << cmd
+                  << "' (deleting " << delete_before << " chars before)" << std::endl;
+      
+      if (!safe_add_completion_prim_with_source(cenv, cmd.c_str(), nullptr, nullptr, "plugin", delete_before, 0))
+        return;
+    }
+    if (ic_stop_completing(cenv))
+      return;
+  }
+  
+  // Add aliases with "alias" source
+  for (const auto& cmd : aliases) {
+    std::string cmd_lower(cmd);
+    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
+      long delete_before = static_cast<long>(prefix_len);
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Alias completion found: '" << cmd
+                  << "' (deleting " << delete_before << " chars before)" << std::endl;
+      
+      if (!safe_add_completion_prim_with_source(cenv, cmd.c_str(), nullptr, nullptr, "alias", delete_before, 0))
+        return;
+    }
+    if (ic_stop_completing(cenv))
+      return;
+  }
+  
+  // Add cached executables with "system" source
+  for (const auto& exec_path : cached_executables) {
+    std::string cmd = exec_path.filename().string();
+    std::string cmd_lower(cmd);
+    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
+      long delete_before = static_cast<long>(prefix_len);
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Executable completion found: '" << cmd
+                  << "' (deleting " << delete_before << " chars before)" << std::endl;
+      
+      if (!safe_add_completion_prim_with_source(cenv, cmd.c_str(), nullptr, nullptr, "system", delete_before, 0))
         return;
     }
     if (ic_stop_completing(cenv))
@@ -423,8 +558,8 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
                 << "' -> '" << completion << "' (deleting " << delete_before 
                 << " chars before, freq: " << match.second << ")" << std::endl;
     
-    // Use safe wrapper function
-    if (!safe_add_completion_prim(cenv, completion.c_str(), nullptr, nullptr, delete_before, 0))
+    // Use safe wrapper function with source information
+    if (!safe_add_completion_prim_with_source(cenv, completion.c_str(), nullptr, nullptr, "history", delete_before, 0))
       return;
     if (++count >= max_suggestions || ic_stop_completing(cenv))
       return;
@@ -566,7 +701,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: Adding tilde completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!safe_add_completion(cenv, completion_suffix.c_str()))
+              const char* source = entry.is_directory() ? "directory" : "file";
+              if (!safe_add_completion_with_source(cenv, completion_suffix.c_str(), source))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -582,8 +718,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
-              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
-                                          nullptr, nullptr, delete_before, 0))
+              if (!safe_add_completion_prim_with_source(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, entry.is_directory() ? "directory" : "file", delete_before, 0))
                 return;
             }
           }
@@ -662,7 +798,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: Adding dash completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!safe_add_completion(cenv, completion_suffix.c_str()))
+              const char* source = entry.is_directory() ? "directory" : "file";
+              if (!safe_add_completion_with_source(cenv, completion_suffix.c_str(), source))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -677,8 +814,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                           << completion_suffix << "' (deleting "
                           << delete_before << " chars before)" << std::endl;
 
-              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
-                                          nullptr, nullptr, delete_before, 0))
+              if (!safe_add_completion_prim_with_source(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, entry.is_directory() ? "directory" : "file", delete_before, 0))
                 return;
             }
           }
@@ -731,7 +868,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                           << bookmark_name << "' -> '" << completion_text << "' (deleting " << delete_before << " chars before)"
                           << std::endl;
 
-              if (!safe_add_completion_prim(cenv, completion_text.c_str(), NULL, NULL, delete_before, 0))
+              if (!safe_add_completion_prim_with_source(cenv, completion_text.c_str(), NULL, NULL, "bookmark", delete_before, 0))
                 return;
             }
           }
@@ -763,7 +900,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
           if (g_debug_mode)
             std::cerr << "DEBUG: All files completion: '" << suffix << "'"
                       << std::endl;
-          if (!safe_add_completion(cenv, suffix.c_str()))
+          if (!safe_add_completion_with_source(cenv, suffix.c_str(), entry.is_directory() ? "directory" : "file"))
             return;
           if (ic_stop_completing(cenv))
             return;
@@ -825,7 +962,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: Directory-only completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!safe_add_completion(cenv, completion_suffix.c_str()))
+              if (!safe_add_completion_with_source(cenv, completion_suffix.c_str(), "directory"))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -839,8 +976,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
-              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
-                                          nullptr, nullptr, delete_before, 0))
+              if (!safe_add_completion_prim_with_source(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, "directory", delete_before, 0))
                 return;
             }
           }
@@ -913,7 +1050,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: General filename completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!safe_add_completion(cenv, completion_suffix.c_str()))
+              const char* source = entry.is_directory() ? "directory" : "file";
+              if (!safe_add_completion_with_source(cenv, completion_suffix.c_str(), source))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -930,8 +1068,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
-              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
-                                          nullptr, nullptr, delete_before, 0))
+              if (!safe_add_completion_prim_with_source(cenv, completion_suffix.c_str(),
+                                          nullptr, nullptr, entry.is_directory() ? "directory" : "file", delete_before, 0))
                 return;
             }
           }

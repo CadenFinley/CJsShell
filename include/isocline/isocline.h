@@ -204,6 +204,20 @@ bool ic_add_completion_ex(ic_completion_env_t* cenv, const char* completion,
                           const char* display, const char* help);
 
 /// In a completion callback (usually from ic_complete_word()), use this
+/// function to add a completion with source information. The `display` is used 
+/// to display the completion in the completion menu, `help` is displayed for hints,
+/// and `source` indicates where the completion came from (e.g., "history", "file", 
+/// "command"). All parameters can be `NULL` for the default. (all are copied by 
+/// isocline and do not need to be preserved or allocated).
+///
+/// Returns `true` if the callback should continue trying to find more possible
+/// completions. If `false` is returned, the callback should try to return and
+/// not add more completions (for improved latency).
+bool ic_add_completion_ex_with_source(ic_completion_env_t* cenv, const char* completion,
+                                      const char* display, const char* help, 
+                                      const char* source);
+
+/// In a completion callback (usually from ic_complete_word()), use this
 /// function to add completions. The `completions` array should be terminated
 /// with a NULL element, and all elements are added as completions if they start
 /// with `prefix`.
@@ -476,6 +490,22 @@ bool ic_stop_completing(const ic_completion_env_t* cenv);
 bool ic_add_completion_prim(ic_completion_env_t* cenv, const char* completion,
                             const char* display, const char* help,
                             long delete_before, long delete_after);
+
+/// Primitive completion with source information. When completed, `delete_before`
+/// _bytes_ are deleted before the cursor position, `delete_after` _bytes_ are
+/// deleted after the cursor, and finally `completion` is inserted. The
+/// `display` is used to display the completion in the completion menu, `help` 
+/// is displayed with hinting, and `source` indicates where the completion came 
+/// from. All of `display`, `help`, and `source` can be NULL.
+/// (all are copied by isocline and do not need to be preserved or allocated).
+///
+/// Returns `true` if the callback should continue trying to find more possible
+/// completions. If `false` is returned, the callback should try to return and
+/// not add more completions (for improved latency).
+bool ic_add_completion_prim_with_source(ic_completion_env_t* cenv, const char* completion,
+                                        const char* display, const char* help,
+                                        const char* source, long delete_before, 
+                                        long delete_after);
 
 /// \}
 

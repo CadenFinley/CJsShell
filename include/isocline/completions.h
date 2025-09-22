@@ -25,6 +25,7 @@ ic_private void completions_free(completions_t* cms);
 ic_private void completions_clear(completions_t* cms);
 ic_private bool completions_add(completions_t* cms, const char* replacement,
                                 const char* display, const char* help,
+                                const char* source,
                                 ssize_t delete_before, ssize_t delete_after);
 ic_private ssize_t completions_count(completions_t* cms);
 ic_private ssize_t completions_generate(struct ic_env_s* env,
@@ -37,6 +38,7 @@ ic_private void completions_set_completer(completions_t* cms,
 ic_private const char* completions_get_display(completions_t* cms,
                                                ssize_t index,
                                                const char** help);
+ic_private const char* completions_get_source(completions_t* cms, ssize_t index);
 ic_private const char* completions_get_hint(completions_t* cms, ssize_t index,
                                             const char** help);
 ic_private void completions_get_completer(completions_t* cms,
@@ -57,13 +59,19 @@ typedef bool(ic_completion_fun_t)(ic_env_t* env, void* funenv,
                                   const char* help, long delete_before,
                                   long delete_after);
 
+typedef bool(ic_completion_fun_with_source_t)(ic_env_t* env, void* funenv,
+                                              const char* replacement, const char* display,
+                                              const char* help, const char* source,
+                                              long delete_before, long delete_after);
+
 struct ic_completion_env_s {
-  ic_env_t* env;                  // the isocline environment
-  const char* input;              // current full input
-  long cursor;                    // current cursor position
-  void* arg;                      // argument given to `ic_set_completer`
-  void* closure;                  // free variables for function composition
-  ic_completion_fun_t* complete;  // function that adds a completion
+  ic_env_t* env;                           // the isocline environment
+  const char* input;                       // current full input
+  long cursor;                             // current cursor position
+  void* arg;                               // argument given to `ic_set_completer`
+  void* closure;                           // free variables for function composition
+  ic_completion_fun_t* complete;           // function that adds a completion
+  ic_completion_fun_with_source_t* complete_with_source; // function that adds a completion with source
 };
 
 #endif  // IC_COMPLETIONS_H
