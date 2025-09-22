@@ -89,6 +89,8 @@ bool smart_cd_enabled = true;
 bool show_version = false;
 bool show_help = false;
 bool startup_test = false;
+bool minimal_mode = false;
+bool disable_ls_colors = false;
 }  // namespace config
 
 static void initialize_title_strings() {
@@ -254,9 +256,11 @@ static int parse_command_line_arguments(int argc, char* argv[],
       {"no-syntax-highlighting", no_argument, 0, 'S'},
       {"no-smart-cd", no_argument, 0, 'M'},
       {"startup-test", no_argument, 0, 'X'},
+      {"minimal", no_argument, 0, 'm'},
+      {"disable-ls-colors", no_argument, 0, 'D'},
       {0, 0, 0, 0}};
   const char* short_options =
-      "+lic:vhdPTACLNOSMX";  // Leading '+' enables POSIXLY_CORRECT behavior
+      "+lic:vhdPTACLNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT behavior
   int option_index = 0;
   int c;
   optind = 1;
@@ -343,6 +347,26 @@ static int parse_command_line_arguments(int argc, char* argv[],
         config::startup_test = true;
         if (g_debug_mode)
           std::cerr << "DEBUG: Startup test mode enabled" << std::endl;
+        break;
+      case 'm':
+        config::minimal_mode = true;
+        config::plugins_enabled = false;
+        config::themes_enabled = false;
+        config::ai_enabled = false;
+        config::colors_enabled = false;
+        config::source_enabled = false;
+        config::completions_enabled = false;
+        config::syntax_highlighting_enabled = false;
+        config::smart_cd_enabled = false;
+        config::disable_ls_colors = true;
+        g_title_line = false;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Minimal mode enabled - all features disabled" << std::endl;
+        break;
+      case 'D':
+        config::disable_ls_colors = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Disable ls colors enabled" << std::endl;
         break;
       case '?':
         print_usage();
@@ -1095,6 +1119,24 @@ static void apply_profile_startup_flags() {
         std::cerr
             << "DEBUG: Login mode flag found in profile (already processed)"
             << std::endl;
+    } else if (flag == "--minimal") {
+      config::minimal_mode = true;
+      config::plugins_enabled = false;
+      config::themes_enabled = false;
+      config::ai_enabled = false;
+      config::colors_enabled = false;
+      config::source_enabled = false;
+      config::completions_enabled = false;
+      config::syntax_highlighting_enabled = false;
+      config::smart_cd_enabled = false;
+      config::disable_ls_colors = true;
+      g_title_line = false;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Minimal mode enabled via profile - all features disabled" << std::endl;
+    } else if (flag == "--disable-ls-colors") {
+      config::disable_ls_colors = true;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Disable ls colors enabled via profile" << std::endl;
     }
   }
 }
@@ -1128,6 +1170,7 @@ static void create_profile_file() {
       "# login-startup-arg --login         # Enable login mode\n"
       "# login-startup-arg --interactive   # Force interactive mode\n"
       "# login-startup-arg --debug         # Enable debug mode\n"
+      "# login-startup-arg --minimal       # Disable all unique cjsh features\n"
       "# login-startup-arg --no-plugins    # Disable plugins\n"
       "# login-startup-arg --no-themes     # Disable themes\n"
       "# login-startup-arg --no-ai         # Disable AI features\n"

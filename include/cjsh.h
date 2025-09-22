@@ -49,6 +49,7 @@ extern bool smart_cd_enabled;
 extern bool show_version;
 extern bool show_help;
 extern bool startup_test;
+extern bool disable_ls_colors;
 }  // namespace config
 
 void reprint_prompt();
