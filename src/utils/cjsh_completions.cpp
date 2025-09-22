@@ -24,6 +24,84 @@ enum CompletionContext {
   CONTEXT_PATH
 };
 
+// Completion deduplication system
+struct CompletionTracker {
+  std::unordered_set<std::string> added_completions;
+  ic_completion_env_t* cenv;
+  std::string original_prefix;
+  
+  CompletionTracker(ic_completion_env_t* env, const char* prefix) : cenv(env), original_prefix(prefix) {}
+  
+  // Calculate what the final result would look like after applying this completion
+  std::string calculate_final_result(const char* completion_text, long delete_before = 0) {
+    std::string prefix_str = original_prefix;
+    
+    // Calculate what would be left after deleting characters
+    if (delete_before > 0 && delete_before <= static_cast<long>(prefix_str.length())) {
+      prefix_str = prefix_str.substr(0, prefix_str.length() - delete_before);
+    }
+    
+    // Add the completion text
+    return prefix_str + completion_text;
+  }
+  
+  // Check if this completion would result in the same final text as a previous one
+  bool would_create_duplicate(const char* completion_text, long delete_before = 0) {
+    std::string final_result = calculate_final_result(completion_text, delete_before);
+    return added_completions.find(final_result) != added_completions.end();
+  }
+  
+  // Wrapper for ic_add_completion that checks for duplicates
+  bool add_completion_if_unique(const char* completion_text) {
+    if (would_create_duplicate(completion_text, 0)) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Skipping duplicate completion: '" << completion_text << "'" << std::endl;
+      return true; // Don't fail, just skip the duplicate
+    }
+    
+    std::string final_result = calculate_final_result(completion_text, 0);
+    added_completions.insert(final_result);
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Adding unique completion: '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
+    return ic_add_completion(cenv, completion_text);
+  }
+  
+  // Wrapper for ic_add_completion_prim that checks for duplicates
+  bool add_completion_prim_if_unique(const char* completion_text, const char* display, const char* help, long delete_before, long delete_after) {
+    if (would_create_duplicate(completion_text, delete_before)) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Skipping duplicate completion (prim): '" << completion_text << "'" << std::endl;
+      return true; // Don't fail, just skip the duplicate
+    }
+    
+    std::string final_result = calculate_final_result(completion_text, delete_before);
+    added_completions.insert(final_result);
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Adding unique completion (prim): '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
+    return ic_add_completion_prim(cenv, completion_text, display, help, delete_before, delete_after);
+  }
+};
+
+// Thread-local completion tracker for the current completion session
+thread_local CompletionTracker* g_current_completion_tracker = nullptr;
+
+// Helper functions that automatically use deduplication when available
+bool safe_add_completion(ic_completion_env_t* cenv, const char* completion_text) {
+  if (g_current_completion_tracker) {
+    return g_current_completion_tracker->add_completion_if_unique(completion_text);
+  } else {
+    return ic_add_completion(cenv, completion_text);
+  }
+}
+
+bool safe_add_completion_prim(ic_completion_env_t* cenv, const char* completion_text, const char* display, const char* help, long delete_before, long delete_after) {
+  if (g_current_completion_tracker) {
+    return g_current_completion_tracker->add_completion_prim_if_unique(completion_text, display, help, delete_before, delete_after);
+  } else {
+    return ic_add_completion_prim(cenv, completion_text, display, help, delete_before, delete_after);
+  }
+}
+
 // Helper function to find the last unquoted space in a string
 size_t find_last_unquoted_space(const std::string& str) {
   bool in_single_quote = false;
@@ -253,7 +331,9 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Command completion found: '" << cmd
                   << "' (deleting " << delete_before << " chars before)" << std::endl;
-      if (!ic_add_completion_prim(cenv, cmd.c_str(), nullptr, nullptr, delete_before, 0))
+      
+      // Use safe wrapper function
+      if (!safe_add_completion_prim(cenv, cmd.c_str(), nullptr, nullptr, delete_before, 0))
         return;
     }
     if (ic_stop_completing(cenv))
@@ -342,7 +422,9 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
       std::cerr << "DEBUG: Adding history completion: '" << match.first
                 << "' -> '" << completion << "' (deleting " << delete_before 
                 << " chars before, freq: " << match.second << ")" << std::endl;
-    if (!ic_add_completion_prim(cenv, completion.c_str(), nullptr, nullptr, delete_before, 0))
+    
+    // Use safe wrapper function
+    if (!safe_add_completion_prim(cenv, completion.c_str(), nullptr, nullptr, delete_before, 0))
       return;
     if (++count >= max_suggestions || ic_stop_completing(cenv))
       return;
@@ -484,7 +566,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: Adding tilde completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!ic_add_completion(cenv, completion_suffix.c_str()))
+              if (!safe_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -500,7 +582,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
-              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
                                           nullptr, nullptr, delete_before, 0))
                 return;
             }
@@ -580,7 +662,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: Adding dash completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!ic_add_completion(cenv, completion_suffix.c_str()))
+              if (!safe_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -595,7 +677,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                           << completion_suffix << "' (deleting "
                           << delete_before << " chars before)" << std::endl;
 
-              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
                                           nullptr, nullptr, delete_before, 0))
                 return;
             }
@@ -649,7 +731,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                           << bookmark_name << "' -> '" << completion_text << "' (deleting " << delete_before << " chars before)"
                           << std::endl;
 
-              if (!ic_add_completion_prim(cenv, completion_text.c_str(), NULL, NULL, delete_before, 0))
+              if (!safe_add_completion_prim(cenv, completion_text.c_str(), NULL, NULL, delete_before, 0))
                 return;
             }
           }
@@ -681,7 +763,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
           if (g_debug_mode)
             std::cerr << "DEBUG: All files completion: '" << suffix << "'"
                       << std::endl;
-          if (!ic_add_completion(cenv, suffix.c_str()))
+          if (!safe_add_completion(cenv, suffix.c_str()))
             return;
           if (ic_stop_completing(cenv))
             return;
@@ -743,7 +825,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: Directory-only completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!ic_add_completion(cenv, completion_suffix.c_str()))
+              if (!safe_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -757,7 +839,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
-              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
                                           nullptr, nullptr, delete_before, 0))
                 return;
             }
@@ -831,7 +913,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::cerr << "DEBUG: General filename completion: '"
                           << completion_suffix << "'" << std::endl;
 
-              if (!ic_add_completion(cenv, completion_suffix.c_str()))
+              if (!safe_add_completion(cenv, completion_suffix.c_str()))
                 return;
             } else {
               // Use full filename and calculate how many characters to delete
@@ -848,7 +930,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     << completion_suffix << "' (deleting " << delete_before
                     << " chars before)" << std::endl;
 
-              if (!ic_add_completion_prim(cenv, completion_suffix.c_str(),
+              if (!safe_add_completion_prim(cenv, completion_suffix.c_str(),
                                           nullptr, nullptr, delete_before, 0))
                 return;
             }
@@ -882,17 +964,26 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   if (ic_stop_completing(cenv))
     return;
+  
+  // Set up completion deduplication tracker
+  CompletionTracker tracker(cenv, prefix);
+  g_current_completion_tracker = &tracker;
+  
   CompletionContext context = detect_completion_context(prefix);
 
   switch (context) {
     case CONTEXT_COMMAND:
       cjsh_history_completer(cenv, prefix);
-      if (ic_has_completions(cenv) && ic_stop_completing(cenv))
+      if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
+        g_current_completion_tracker = nullptr;
         return;
+      }
 
       cjsh_command_completer(cenv, prefix);
-      if (ic_has_completions(cenv) && ic_stop_completing(cenv))
+      if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
+        g_current_completion_tracker = nullptr;
         return;
+      }
 
       cjsh_filename_completer(cenv, prefix);
       break;
@@ -918,6 +1009,9 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
       break;
     }
   }
+  
+  // Clean up tracker
+  g_current_completion_tracker = nullptr;
 }
 
 void initialize_completion_system() {
