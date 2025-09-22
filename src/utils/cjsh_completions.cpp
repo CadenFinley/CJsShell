@@ -18,6 +18,11 @@
 #include "shell.h"
 
 std::map<std::string, int> g_completion_frequency;
+
+// Memory management constants
+static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 500;
+static const size_t MAX_TOTAL_COMPLETIONS = 100; // Global limit for all completions
+
 enum CompletionContext {
   CONTEXT_COMMAND,
   CONTEXT_ARGUMENT,
@@ -50,8 +55,25 @@ struct CompletionTracker {
   std::unordered_map<std::string, SourcePriority> added_completions;
   ic_completion_env_t* cenv;
   std::string original_prefix;
+  size_t total_completions_added;
   
-  CompletionTracker(ic_completion_env_t* env, const char* prefix) : cenv(env), original_prefix(prefix) {}
+  CompletionTracker(ic_completion_env_t* env, const char* prefix) : cenv(env), original_prefix(prefix), total_completions_added(0) {
+    // Reserve some space to avoid frequent reallocations
+    added_completions.reserve(128);
+  }
+  
+  ~CompletionTracker() {
+    // Explicit cleanup
+    if (g_debug_mode && added_completions.size() > 1000) {
+      std::cerr << "DEBUG: CompletionTracker had large size: " << added_completions.size() << std::endl;
+    }
+    added_completions.clear();
+  }
+  
+  // Check if we've reached the global completion limit
+  bool has_reached_completion_limit() const {
+    return total_completions_added >= MAX_TOTAL_COMPLETIONS;
+  }
   
   // Calculate what the final result would look like after applying this completion
   std::string calculate_final_result(const char* completion_text, long delete_before = 0) {
@@ -69,6 +91,15 @@ struct CompletionTracker {
   // Check if this completion would result in the same final text as a previous one
   // Returns true if we should skip this completion (lower or equal priority exists)
   bool would_create_duplicate(const char* completion_text, const char* source, long delete_before = 0) {
+    // Prevent unbounded growth
+    if (added_completions.size() >= MAX_COMPLETION_TRACKER_ENTRIES) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: CompletionTracker reached max entries (" << MAX_COMPLETION_TRACKER_ENTRIES 
+                  << "), skipping further additions" << std::endl;
+      }
+      return true; // Skip to prevent memory explosion
+    }
+    
     std::string final_result = calculate_final_result(completion_text, delete_before);
     auto it = added_completions.find(final_result);
     
@@ -88,6 +119,11 @@ struct CompletionTracker {
   // Wrapper for ic_add_completion that checks for duplicates
   bool add_completion_if_unique(const char* completion_text) {
     const char* source = nullptr; // Default source for backward compatibility
+    if (has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached global completion limit (" << MAX_TOTAL_COMPLETIONS << "), skipping: '" << completion_text << "'" << std::endl;
+      return true; // Don't fail, just skip
+    }
     if (would_create_duplicate(completion_text, source, 0)) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Skipping duplicate completion: '" << completion_text << "'" << std::endl;
@@ -96,14 +132,20 @@ struct CompletionTracker {
     
     std::string final_result = calculate_final_result(completion_text, 0);
     added_completions[final_result] = get_source_priority(source);
+    total_completions_added++;
     if (g_debug_mode)
-      std::cerr << "DEBUG: Adding unique completion: '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
+      std::cerr << "DEBUG: Adding unique completion: '" << completion_text << "' -> final: '" << final_result << "' (total: " << total_completions_added << ")" << std::endl;
     return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
   }
   
   // Wrapper for ic_add_completion_prim that checks for duplicates
   bool add_completion_prim_if_unique(const char* completion_text, const char* display, const char* help, long delete_before, long delete_after) {
     const char* source = nullptr; // Default source for backward compatibility
+    if (has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached global completion limit (" << MAX_TOTAL_COMPLETIONS << "), skipping (prim): '" << completion_text << "'" << std::endl;
+      return true; // Don't fail, just skip
+    }
     if (would_create_duplicate(completion_text, source, delete_before)) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Skipping duplicate completion (prim): '" << completion_text << "'" << std::endl;
@@ -112,13 +154,20 @@ struct CompletionTracker {
     
     std::string final_result = calculate_final_result(completion_text, delete_before);
     added_completions[final_result] = get_source_priority(source);
+    total_completions_added++;
     if (g_debug_mode)
-      std::cerr << "DEBUG: Adding unique completion (prim): '" << completion_text << "' -> final: '" << final_result << "'" << std::endl;
+      std::cerr << "DEBUG: Adding unique completion (prim): '" << completion_text << "' -> final: '" << final_result << "' (total: " << total_completions_added << ")" << std::endl;
     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
   }
   
   // Wrapper for ic_add_completion_prim_with_source that checks for duplicates
   bool add_completion_prim_with_source_if_unique(const char* completion_text, const char* display, const char* help, const char* source, long delete_before, long delete_after) {
+    if (has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached global completion limit (" << MAX_TOTAL_COMPLETIONS << "), skipping (prim with source): '" << completion_text << "'" << std::endl;
+      return true; // Don't fail, just skip
+    }
+    
     std::string final_result = calculate_final_result(completion_text, delete_before);
     auto it = added_completions.find(final_result);
     SourcePriority new_priority = get_source_priority(source);
@@ -140,19 +189,48 @@ struct CompletionTracker {
         std::cerr << "DEBUG: Replacing lower priority completion with: '" 
                   << completion_text << "' (source: '" << (source ? source : "null") 
                   << "', priority: " << new_priority << " vs existing: " << existing_priority << ")" << std::endl;
+    } else {
+      // New completion, increment counter
+      total_completions_added++;
     }
     
     // Update or add the completion with new priority
     added_completions[final_result] = new_priority;
     if (g_debug_mode)
       std::cerr << "DEBUG: Adding unique completion (prim with source): '" << completion_text 
-                << "' (source: '" << (source ? source : "null") << "') -> final: '" << final_result << "'" << std::endl;
+                << "' (source: '" << (source ? source : "null") << "') -> final: '" << final_result << "' (total: " << total_completions_added << ")" << std::endl;
     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
   }
 };
 
 // Thread-local completion tracker for the current completion session
 thread_local CompletionTracker* g_current_completion_tracker = nullptr;
+
+// RAII wrapper for completion tracker to ensure cleanup
+class CompletionSession {
+public:
+  CompletionSession(ic_completion_env_t* cenv, const char* prefix) {
+    if (g_current_completion_tracker) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Warning - completion tracker already exists, cleaning up previous session" << std::endl;
+      }
+      delete g_current_completion_tracker;
+    }
+    
+    g_current_completion_tracker = new CompletionTracker(cenv, prefix);
+  }
+  
+  ~CompletionSession() {
+    if (g_current_completion_tracker) {
+      delete g_current_completion_tracker;
+      g_current_completion_tracker = nullptr;
+    }
+  }
+  
+  // Prevent copying
+  CompletionSession(const CompletionSession&) = delete;
+  CompletionSession& operator=(const CompletionSession&) = delete;
+};
 
 // Helper functions that automatically use deduplication when available
 bool safe_add_completion(ic_completion_env_t* cenv, const char* completion_text) {
@@ -164,6 +242,11 @@ bool safe_add_completion(ic_completion_env_t* cenv, const char* completion_text)
 }
 
 bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text, const char* source) {
+  if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Reached global completion limit, skipping: '" << completion_text << "'" << std::endl;
+    return true; // Don't fail, just skip
+  }
   return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
 }
 
@@ -396,6 +479,13 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   if (ic_stop_completing(cenv))
     return;
+    
+  // Check global completion limit
+  if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Global completion limit reached, skipping command completer" << std::endl;
+    return;
+  }
 
   std::string prefix_lower(prefix);
   std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
@@ -440,6 +530,11 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   // Add builtin commands first
   for (const auto& cmd : builtin_cmds) {
+    if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached completion limit in builtin commands" << std::endl;
+      return;
+    }
     std::string cmd_lower(cmd);
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -458,6 +553,11 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   
   // Add user-defined functions with "function" source
   for (const auto& cmd : function_names) {
+    if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached completion limit in function commands" << std::endl;
+      return;
+    }
     std::string cmd_lower(cmd);
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -476,6 +576,11 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   
   // Add plugin commands with "plugin" source
   for (const auto& cmd : plugin_cmds) {
+    if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached completion limit in plugin commands" << std::endl;
+      return;
+    }
     std::string cmd_lower(cmd);
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -494,6 +599,11 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   
   // Add aliases with "alias" source
   for (const auto& cmd : aliases) {
+    if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached completion limit in aliases" << std::endl;
+      return;
+    }
     std::string cmd_lower(cmd);
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -512,6 +622,11 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   
   // Add cached executables with "system" source
   for (const auto& exec_path : cached_executables) {
+    if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached completion limit in cached executables" << std::endl;
+      return;
+    }
     std::string cmd = exec_path.filename().string();
     std::string cmd_lower(cmd);
     std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
@@ -541,6 +656,13 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   if (ic_stop_completing(cenv))
     return;
+    
+  // Check global completion limit
+  if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Global completion limit reached, skipping history completer" << std::endl;
+    return;
+  }
 
   std::string prefix_str(prefix);
   std::string prefix_lower(prefix);
@@ -564,10 +686,14 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     return;
   }
 
-  std::string line;
+  // Use vector with reserved space to avoid frequent reallocations
   std::vector<std::pair<std::string, int>> matches;
+  matches.reserve(50); // Reduce from 100 to 50 to save memory
+  
+  std::string line;
+  line.reserve(256); // Reserve space for typical command line length
 
-  while (std::getline(history_file, line)) {
+  while (std::getline(history_file, line) && matches.size() < 50) { // Reduce limit from 200 to 50
     // Skip empty lines
     if (line.empty())
       continue;
@@ -578,19 +704,22 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
       should_match = (line != prefix_str);
     } else {
       // For non-empty prefix, do case-insensitive prefix matching
-      std::string line_lower(line);
-      std::transform(line_lower.begin(), line_lower.end(), line_lower.begin(),
+      std::string line_lower;
+      line_lower.reserve(line.length());
+      std::transform(line.begin(), line.end(), std::back_inserter(line_lower),
                      [](unsigned char c) { return std::tolower(c); });
       should_match =
           (line_lower.rfind(prefix_lower, 0) == 0 && line != prefix_str);
     }
 
     if (should_match) {
-      if (g_completion_frequency.find(line) == g_completion_frequency.end()) {
-        g_completion_frequency[line] = 1;
-      }
-      matches.push_back({line, g_completion_frequency[line]});
+      auto freq_it = g_completion_frequency.find(line);
+      int frequency = (freq_it != g_completion_frequency.end()) ? freq_it->second : 1;
+      matches.emplace_back(std::move(line), frequency);
     }
+    
+    // Clear line for reuse
+    line.clear();
   }
 
   if (g_debug_mode)
@@ -599,12 +728,19 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   std::sort(matches.begin(), matches.end(),
             [](const auto& a, const auto& b) { return a.second > b.second; });
-  const size_t max_suggestions = 20;
+  const size_t max_suggestions = 15; // Reduce from 20 to 15
   size_t count = 0;
 
   for (const auto& match : matches) {
+    // Check global completion limit
+    if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Reached completion limit in history suggestions" << std::endl;
+      return;
+    }
+    
     // Always use the full command as completion text
-    std::string completion = match.first;
+    const std::string& completion = match.first;
     long delete_before = static_cast<long>(prefix_len);
 
     if (g_debug_mode)
@@ -654,6 +790,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   if (ic_stop_completing(cenv))
     return;
+    
+  // Check global completion limit
+  if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Global completion limit reached, skipping filename completer" << std::endl;
+    return;
+  }
 
   std::string prefix_str(prefix);
   bool directories_only = should_complete_directories_only(prefix_str);
@@ -738,7 +881,24 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+        size_t completion_count = 0;
+        const size_t max_completions = 30; // Reduce from 100 to 30 to save memory
+        
         for (const auto& entry : fs::directory_iterator(dir_path)) {
+          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
+            if (g_debug_mode && completion_count >= max_completions) {
+              std::cerr << "DEBUG: Limiting tilde completions to " << max_completions << " entries" << std::endl;
+            }
+            break;
+          }
+          
+          // Check global completion limit
+          if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Reached global completion limit in tilde completion" << std::endl;
+            return;
+          }
+          
           std::string filename = entry.path().filename().string();
 
           if (match_prefix.empty() ||
@@ -776,6 +936,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                           nullptr, nullptr, entry.is_directory() ? "directory" : "file", delete_before, 0))
                 return;
             }
+            ++completion_count;
           }
         }
       }
@@ -835,7 +996,24 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+        size_t completion_count = 0;
+        const size_t max_completions = 30; // Limit dash completions
+        
         for (const auto& entry : fs::directory_iterator(dir_path)) {
+          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
+            if (g_debug_mode && completion_count >= max_completions) {
+              std::cerr << "DEBUG: Limiting dash completions to " << max_completions << " entries" << std::endl;
+            }
+            break;
+          }
+          
+          // Check global completion limit
+          if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Reached global completion limit in dash completion" << std::endl;
+            return;
+          }
+          
           std::string filename = entry.path().filename().string();
 
           if (match_prefix.empty() ||
@@ -872,6 +1050,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                           nullptr, nullptr, entry.is_directory() ? "directory" : "file", delete_before, 0))
                 return;
             }
+            ++completion_count;
           }
         }
       }
@@ -940,7 +1119,24 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     fs::path dir_path(path_to_check);
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+        size_t completion_count = 0;
+        const size_t max_completions = 30; // Limit all files completion
+        
         for (auto& entry : fs::directory_iterator(dir_path)) {
+          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
+            if (g_debug_mode && completion_count >= max_completions) {
+              std::cerr << "DEBUG: Limiting all files completions to " << max_completions << " entries" << std::endl;
+            }
+            break;
+          }
+          
+          // Check global completion limit
+          if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Reached global completion limit in all files completion" << std::endl;
+            return;
+          }
+          
           std::string name = entry.path().filename().string();
 
           if (directories_only && !entry.is_directory()) {
@@ -956,6 +1152,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                       << std::endl;
           if (!safe_add_completion_with_source(cenv, suffix.c_str(), entry.is_directory() ? "directory" : "file"))
             return;
+          ++completion_count;
           if (ic_stop_completing(cenv))
             return;
         }
@@ -995,7 +1192,24 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+        size_t completion_count = 0;
+        const size_t max_completions = 30; // Limit directory-only completion
+        
         for (const auto& entry : fs::directory_iterator(dir_path)) {
+          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
+            if (g_debug_mode && completion_count >= max_completions) {
+              std::cerr << "DEBUG: Limiting directory-only completions to " << max_completions << " entries" << std::endl;
+            }
+            break;
+          }
+          
+          // Check global completion limit
+          if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Reached global completion limit in directory-only completion" << std::endl;
+            return;
+          }
+          
           if (!entry.is_directory())
             continue;
 
@@ -1034,6 +1248,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                           nullptr, nullptr, "directory", delete_before, 0))
                 return;
             }
+            ++completion_count;
           }
 
           if (ic_stop_completing(cenv))
@@ -1084,7 +1299,24 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+        size_t completion_count = 0;
+        const size_t max_completions = 30; // Limit general filename completion
+        
         for (const auto& entry : fs::directory_iterator(dir_path)) {
+          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
+            if (g_debug_mode && completion_count >= max_completions) {
+              std::cerr << "DEBUG: Limiting general filename completions to " << max_completions << " entries" << std::endl;
+            }
+            break;
+          }
+          
+          // Check global completion limit
+          if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+            if (g_debug_mode)
+              std::cerr << "DEBUG: Reached global completion limit in general filename completion" << std::endl;
+            return;
+          }
+          
           std::string filename = entry.path().filename().string();
 
           // Skip hidden files if match_prefix doesn't start with dot
@@ -1126,6 +1358,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                           nullptr, nullptr, entry.is_directory() ? "directory" : "file", delete_before, 0))
                 return;
             }
+            ++completion_count;
           }
 
           if (ic_stop_completing(cenv))
@@ -1157,9 +1390,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (ic_stop_completing(cenv))
     return;
   
-  // Set up completion deduplication tracker
-  CompletionTracker tracker(cenv, prefix);
-  g_current_completion_tracker = &tracker;
+  // Use RAII to ensure proper cleanup of completion session
+  CompletionSession session(cenv, prefix);
   
   CompletionContext context = detect_completion_context(prefix);
 
@@ -1167,13 +1399,11 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     case CONTEXT_COMMAND:
       cjsh_history_completer(cenv, prefix);
       if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
-        g_current_completion_tracker = nullptr;
         return;
       }
 
       cjsh_command_completer(cenv, prefix);
       if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
-        g_current_completion_tracker = nullptr;
         return;
       }
 
@@ -1202,8 +1432,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
   }
   
-  // Clean up tracker
-  g_current_completion_tracker = nullptr;
+  // CompletionSession destructor will handle cleanup automatically
 }
 
 void initialize_completion_system() {
@@ -1268,5 +1497,22 @@ void update_completion_frequency(const std::string& command) {
 
   if (!command.empty()) {
     g_completion_frequency[command]++;
+  }
+}
+
+// Public function to force cleanup of completion system memory
+void cleanup_completion_system() {
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Cleaning up completion system memory" << std::endl;
+  }
+  
+  // Clean up any lingering completion tracker
+  if (g_current_completion_tracker) {
+    delete g_current_completion_tracker;
+    g_current_completion_tracker = nullptr;
+  }
+  
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Completion system cleanup completed" << std::endl;
   }
 }
