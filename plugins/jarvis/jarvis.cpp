@@ -20,7 +20,7 @@
  * Jarvis Plugin for CJ's Shell
  *
  * This plugin creates a Python subprocess that acts as an always-on AI
- * assistant. It conforms to the PLUGIN_INTERFACE_VERSION 2 requirements,
+ * assistant. It conforms to the PLUGIN_INTERFACE_VERSION 3 requirements,
  * particularly with respect to memory management for returned arrays and
  * strings.
  */

@@ -625,7 +625,7 @@ static plugin_string_t cpu_usage_callback() {
   std::string result = g_cache ? g_cache->getValue("CPU_USAGE") : "0";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -633,7 +633,7 @@ static plugin_string_t memory_usage_callback() {
   std::string result = g_cache ? g_cache->getValue("MEM_USAGE") : "0";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -641,7 +641,7 @@ static plugin_string_t battery_callback() {
   std::string result = g_cache ? g_cache->getValue("BATTERY") : "N/A";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -649,7 +649,7 @@ static plugin_string_t time_callback() {
   std::string result = g_cache ? g_cache->getValue("TIME") : "00:00:00";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -657,7 +657,7 @@ static plugin_string_t date_callback() {
   std::string result = g_cache ? g_cache->getValue("DATE") : "1970-01-01";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -665,7 +665,7 @@ static plugin_string_t ip_local_callback() {
   std::string result = g_cache ? g_cache->getValue("IP_LOCAL") : "N/A";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -673,7 +673,7 @@ static plugin_string_t net_iface_callback() {
   std::string result = g_cache ? g_cache->getValue("NET_IFACE") : "N/A";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -681,7 +681,7 @@ static plugin_string_t git_status_callback() {
   std::string result = g_cache ? g_cache->getValue("GIT_STATUS") : "✓";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -689,7 +689,7 @@ static plugin_string_t git_branch_callback() {
   std::string result = g_cache ? g_cache->getValue("GIT_BRANCH") : "N/A";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -697,7 +697,7 @@ static plugin_string_t git_ahead_callback() {
   std::string result = g_cache ? g_cache->getValue("GIT_AHEAD") : "0";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -705,7 +705,7 @@ static plugin_string_t git_behind_callback() {
   std::string result = g_cache ? g_cache->getValue("GIT_BEHIND") : "0";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -713,7 +713,7 @@ static plugin_string_t git_stashes_callback() {
   std::string result = g_cache ? g_cache->getValue("GIT_STASHES") : "0";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -721,7 +721,7 @@ static plugin_string_t git_staged_callback() {
   std::string result = g_cache ? g_cache->getValue("GIT_STAGED") : "0";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 
@@ -729,7 +729,7 @@ static plugin_string_t git_changes_callback() {
   std::string result = g_cache ? g_cache->getValue("GIT_CHANGES") : "0";
   char* data = (char*)std::malloc(result.length() + 1);
   std::memcpy(data, result.c_str(), result.length() + 1);
-  plugin_string_t string_result = {data, static_cast<int>(result.length())};
+  plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
   return string_result;
 }
 

@@ -19,6 +19,40 @@ extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(
   return PLUGIN_SUCCESS;
 }
 
+// Enhanced helper functions for plugin API
+extern "C" PLUGIN_API char* plugin_safe_strdup(const char* src) {
+  if (!src) return nullptr;
+  size_t len = strlen(src);
+  char* copy = static_cast<char*>(malloc(len + 1));
+  if (copy) {
+    memcpy(copy, src, len + 1);
+  }
+  return copy;
+}
+
+extern "C" PLUGIN_API plugin_string_t plugin_create_string(const char* src) {
+  plugin_string_t result = {nullptr, 0, 0};
+  if (!src) return result;
+  
+  size_t len = strlen(src);
+  result.data = static_cast<char*>(malloc(len + 1));
+  if (result.data) {
+    memcpy(result.data, src, len + 1);
+    result.length = static_cast<int>(len);
+    result.capacity = static_cast<int>(len + 1);
+  }
+  return result;
+}
+
+extern "C" PLUGIN_API void plugin_free_plugin_string(plugin_string_t* str) {
+  if (str && str->data) {
+    free(str->data);
+    str->data = nullptr;
+    str->length = 0;
+    str->capacity = 0;
+  }
+}
+
 #include <sys/utsname.h>
 
 #include <cstdio>
@@ -369,6 +403,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
       dlsym(handle, "plugin_update_setting"));
   data.free_memory = reinterpret_cast<plugin_free_memory_func>(
       dlsym(handle, "plugin_free_memory"));
+  data.validate = reinterpret_cast<plugin_validate_func>(
+      dlsym(handle, "plugin_validate"));  // Optional function
 
   if (g_debug_mode) {
     std::cerr << "DEBUG: load_plugin - Checking for required functions"
@@ -406,22 +442,55 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
       std::cerr << "DEBUG: load_plugin - Found " << count << " default settings"
                 << std::endl;
     }
-    for (int i = 0; i < count; i++) {
-      data.settings[settings[i].key] = settings[i].value;
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: load_plugin - Setting " << settings[i].key << "="
-                  << settings[i].value << std::endl;
+    
+    // Store settings and free memory properly
+    if (settings && count > 0) {
+      for (int i = 0; i < count; i++) {
+        if (settings[i].key && settings[i].value) {
+          data.settings[settings[i].key] = settings[i].value;
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: load_plugin - Setting " << settings[i].key << "="
+                      << settings[i].value << std::endl;
+          }
+        }
+      }
+
+      // Free the memory allocated by the plugin using its own free function
+      if (data.free_memory) {
+        for (int i = 0; i < count; i++) {
+          if (settings[i].key) {
+            data.free_memory(settings[i].key);
+          }
+          if (settings[i].value) {
+            data.free_memory(settings[i].value);
+          }
+        }
+        data.free_memory(settings);
       }
     }
+  }
 
-    int settings_count = 0;
-    settings = data.get_default_settings(&settings_count);
-    if (settings) {
-      for (int i = 0; i < settings_count; ++i) {
-        free(settings[i].key);
-        free(settings[i].value);
+  // Run plugin validation if available (enhanced API)
+  if (data.validate) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: load_plugin - Running plugin validation" << std::endl;
+    }
+    plugin_validation_t validation_result = data.validate();
+    if (validation_result.status != PLUGIN_SUCCESS) {
+      std::string error_msg = "Plugin validation failed";
+      if (validation_result.error_message) {
+        error_msg += ": " + std::string(validation_result.error_message);
+        // Free the error message if it was allocated
+        if (data.free_memory) {
+          data.free_memory(validation_result.error_message);
+        }
       }
-      data.free_memory(settings);
+      std::cerr << "Plugin loading failed: " << name << ": " << error_msg << std::endl;
+      dlclose(handle);
+      return false;
+    }
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: load_plugin - Plugin validation passed" << std::endl;
     }
   }
 
@@ -503,10 +572,12 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
   if (get_commands) {
     int count = 0;
     char** commands = get_commands(&count);
-    if (commands) {
+    if (commands && count > 0) {
       metadata.commands.clear();
       for (int i = 0; i < count; i++) {
-        metadata.commands.push_back(commands[i]);
+        if (commands[i]) {
+          metadata.commands.push_back(commands[i]);
+        }
       }
 
       // Free the commands memory using plugin's free function if available
@@ -514,6 +585,11 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
           reinterpret_cast<plugin_free_memory_func>(
               dlsym(temp_handle, "plugin_free_memory"));
       if (free_memory) {
+        for (int i = 0; i < count; i++) {
+          if (commands[i]) {
+            free_memory(commands[i]);
+          }
+        }
         free_memory(commands);
       }
     }
@@ -526,10 +602,12 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
   if (get_events) {
     int count = 0;
     char** events = get_events(&count);
-    if (events) {
+    if (events && count > 0) {
       metadata.events.clear();
       for (int i = 0; i < count; i++) {
-        metadata.events.push_back(events[i]);
+        if (events[i]) {
+          metadata.events.push_back(events[i]);
+        }
       }
 
       // Free the events memory using plugin's free function if available
@@ -537,6 +615,11 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
           reinterpret_cast<plugin_free_memory_func>(
               dlsym(temp_handle, "plugin_free_memory"));
       if (free_memory) {
+        for (int i = 0; i < count; i++) {
+          if (events[i]) {
+            free_memory(events[i]);
+          }
+        }
         free_memory(events);
       }
     }

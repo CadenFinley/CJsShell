@@ -52,12 +52,14 @@ get_filename_component(MAIN_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../.. ABSOLU
 
 # Define the source files
 set(SOURCES
-    pluginapi.h
     fast_prompt_tags.cpp
 )
 
 # Create a shared library
 add_library(fast_prompt_tags SHARED ${SOURCES})
+
+# Add include directories
+target_include_directories(fast_prompt_tags PRIVATE ${MAIN_PROJECT_DIR}/include/plugins)
 
 # Link with the thread library
 target_link_libraries(fast_prompt_tags PRIVATE Threads::Threads)
