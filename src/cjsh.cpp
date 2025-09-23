@@ -93,6 +93,7 @@ bool show_help = false;
 bool startup_test = false;
 bool minimal_mode = false;
 bool disable_ls_colors = false;
+bool show_startup_time = false;
 }  // namespace config
 
 static void initialize_title_strings() {
@@ -225,8 +226,16 @@ int main(int argc, char* argv[]) {
       initialize_title_strings();
       std::cout << title_line << std::endl;
       std::cout << created_line << std::endl;
-      std::cout << " Started in " << startup_duration.count() << "ms" << std::endl;
     }
+
+    if (g_title_line && config::show_startup_time) {
+      std::cout << std::endl;
+    }
+    
+    if (config::show_startup_time) {
+      std::cout << " Started in " << startup_duration.count() << "ms." << std::endl;
+    }
+    
     main_process_loop();
   }
 
@@ -267,6 +276,7 @@ static int parse_command_line_arguments(int argc, char* argv[],
       {"no-ai", no_argument, 0, 'A'},
       {"no-colors", no_argument, 0, 'C'},
       {"no-titleline", no_argument, 0, 'L'},
+      {"show-startup-time", no_argument, 0, 'U'},
       {"no-source", no_argument, 0, 'N'},
       {"no-completions", no_argument, 0, 'O'},
       {"no-syntax-highlighting", no_argument, 0, 'S'},
@@ -276,7 +286,7 @@ static int parse_command_line_arguments(int argc, char* argv[],
       {"disable-ls-colors", no_argument, 0, 'D'},
       {0, 0, 0, 0}};
   const char* short_options =
-      "+lic:vhdPTACLNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT behavior
+      "+lic:vhdPTACLUNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT behavior
   int option_index = 0;
   int c;
   optind = 1;
@@ -339,6 +349,11 @@ static int parse_command_line_arguments(int argc, char* argv[],
         if (g_debug_mode)
           std::cerr << "DEBUG: Title line disabled" << std::endl;
         break;
+      case 'U':
+        config::show_startup_time = true;
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Startup time display enabled" << std::endl;
+        break;
       case 'N':
         config::source_enabled = false;
         if (g_debug_mode)
@@ -375,6 +390,7 @@ static int parse_command_line_arguments(int argc, char* argv[],
         config::syntax_highlighting_enabled = false;
         config::smart_cd_enabled = false;
         config::disable_ls_colors = true;
+        config::show_startup_time = false;
         g_title_line = false;
         if (g_debug_mode)
           std::cerr << "DEBUG: Minimal mode enabled - all features disabled" << std::endl;
@@ -1103,6 +1119,10 @@ static void apply_profile_startup_flags() {
       g_title_line = false;
       if (g_debug_mode)
         std::cerr << "DEBUG: Title line disabled via profile" << std::endl;
+    } else if (flag == "--show-startup-time") {
+      config::show_startup_time = true;
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Startup time display enabled via profile" << std::endl;
     } else if (flag == "--no-source") {
       config::source_enabled = false;
       if (g_debug_mode)
@@ -1146,6 +1166,7 @@ static void apply_profile_startup_flags() {
       config::syntax_highlighting_enabled = false;
       config::smart_cd_enabled = false;
       config::disable_ls_colors = true;
+      config::show_startup_time = false;
       g_title_line = false;
       if (g_debug_mode)
         std::cerr << "DEBUG: Minimal mode enabled via profile - all features disabled" << std::endl;
@@ -1192,6 +1213,7 @@ static void create_profile_file() {
       "# login-startup-arg --no-ai         # Disable AI features\n"
       "# login-startup-arg --no-colors     # Disable colorized output\n"
       "# login-startup-arg --no-titleline  # Disable title line\n"
+      "# login-startup-arg --show-startup-time # Enable startup time display\n"
       "# login-startup-arg --no-source     # Don't source the "
       ".cjshrc file\n"
       "# login-startup-arg --startup-test  # Enable startup test mode\n";
