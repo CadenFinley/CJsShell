@@ -23,7 +23,7 @@ char* strdup_wrapper(const char* src) {
   if (!src)
     return NULL;
   size_t len = strlen(src) + 1;
-  char* dest = (char*)malloc(len);
+  char* dest = (char*)PLUGIN_MALLOC(len);
   if (dest) {
     memcpy(dest, src, len);
   }
@@ -41,6 +41,7 @@ static plugin_string_t command_counter_callback() {
   plugin_string_t result;
   result.data = strdup_wrapper(buffer);
   result.length = strlen(buffer);
+  result.capacity = result.length + 1;
 
   return result;
 }
@@ -55,6 +56,7 @@ static plugin_string_t uptime_callback() {
   plugin_string_t result;
   result.data = strdup_wrapper(buffer);
   result.length = strlen(buffer);
+  result.capacity = result.length + 1;
 
   return result;
 }
@@ -63,6 +65,7 @@ static plugin_string_t current_theme_callback() {
   plugin_string_t result;
   result.data = strdup_wrapper(current_theme);
   result.length = strlen(current_theme);
+  result.capacity = result.length + 1;
 
   return result;
 }
@@ -77,6 +80,26 @@ PLUGIN_API plugin_info_t* plugin_get_info() {
                                "A simple example plugin written in C for CJSH",
                                "GitHub Copilot", PLUGIN_INTERFACE_VERSION};
   return &info;
+}
+
+// Validate plugin (optional but recommended)
+PLUGIN_API plugin_validation_t plugin_validate() {
+  plugin_validation_t result = {PLUGIN_SUCCESS, NULL};
+  
+  // Perform self-validation here
+  if (strlen(PLUGIN_NAME) == 0) {
+    result.status = PLUGIN_ERROR_GENERAL;
+    result.error_message = strdup_wrapper("Plugin name is empty");
+    return result;
+  }
+  
+  if (strlen(PLUGIN_VERSION) == 0) {
+    result.status = PLUGIN_ERROR_GENERAL;
+    result.error_message = strdup_wrapper("Plugin version is empty");
+    return result;
+  }
+  
+  return result;
 }
 
 // Initialize the plugin
@@ -155,10 +178,12 @@ PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
 
 // Get commands provided by this plugin
 PLUGIN_API char** plugin_get_commands(int* count) {
+  if (!count) return NULL;
+  
   *count = 6;
 
   // Allocate memory for the array of command strings
-  char** commands = (char**)malloc(*count * sizeof(char*));
+  char** commands = (char**)PLUGIN_MALLOC(*count * sizeof(char*));
   if (!commands) {
     *count = 0;
     return NULL;
@@ -172,15 +197,30 @@ PLUGIN_API char** plugin_get_commands(int* count) {
   commands[4] = strdup_wrapper("theme");
   commands[5] = strdup_wrapper("help");
 
+  // Check for allocation failures
+  for (int i = 0; i < *count; i++) {
+    if (!commands[i]) {
+      // Free any successfully allocated strings
+      for (int j = 0; j < i; j++) {
+        PLUGIN_FREE(commands[j]);
+      }
+      PLUGIN_FREE(commands);
+      *count = 0;
+      return NULL;
+    }
+  }
+
   return commands;
 }
 
 // Get events this plugin subscribes to
 PLUGIN_API char** plugin_get_subscribed_events(int* count) {
+  if (!count) return NULL;
+  
   *count = 4;
 
   // Allocate memory for the array of event strings
-  char** events = (char**)malloc(*count * sizeof(char*));
+  char** events = (char**)PLUGIN_MALLOC(*count * sizeof(char*));
   if (!events) {
     *count = 0;
     return NULL;
@@ -192,16 +232,31 @@ PLUGIN_API char** plugin_get_subscribed_events(int* count) {
   events[2] = strdup_wrapper("plugin_enabled");
   events[3] = strdup_wrapper("plugin_disabled");
 
+  // Check for allocation failures
+  for (int i = 0; i < *count; i++) {
+    if (!events[i]) {
+      // Free any successfully allocated strings
+      for (int j = 0; j < i; j++) {
+        PLUGIN_FREE(events[j]);
+      }
+      PLUGIN_FREE(events);
+      *count = 0;
+      return NULL;
+    }
+  }
+
   return events;
 }
 
 // Get default plugin settings
 PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
+  if (!count) return NULL;
+  
   *count = 2;
 
   // Allocate memory for the settings array
   plugin_setting_t* settings =
-      (plugin_setting_t*)malloc(*count * sizeof(plugin_setting_t));
+      (plugin_setting_t*)PLUGIN_MALLOC(*count * sizeof(plugin_setting_t));
   if (!settings) {
     *count = 0;
     return NULL;
@@ -213,6 +268,18 @@ PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
 
   settings[1].key = strdup_wrapper("display_command_count");
   settings[1].value = strdup_wrapper("true");
+
+  // Check for allocation failures
+  if (!settings[0].key || !settings[0].value || 
+      !settings[1].key || !settings[1].value) {
+    if (settings[0].key) PLUGIN_FREE(settings[0].key);
+    if (settings[0].value) PLUGIN_FREE(settings[0].value);
+    if (settings[1].key) PLUGIN_FREE(settings[1].key);
+    if (settings[1].value) PLUGIN_FREE(settings[1].value);
+    PLUGIN_FREE(settings);
+    *count = 0;
+    return NULL;
+  }
 
   return settings;
 }
@@ -237,6 +304,6 @@ PLUGIN_API int plugin_update_setting(const char* key, const char* value) {
 // Free memory allocated by the plugin
 PLUGIN_API void plugin_free_memory(void* ptr) {
   if (ptr) {
-    free(ptr);
+    PLUGIN_FREE(ptr);
   }
 }

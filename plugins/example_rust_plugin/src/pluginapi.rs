@@ -10,12 +10,15 @@ pub enum plugin_error_t {
     PLUGIN_ERROR_GENERAL = -1,
     PLUGIN_ERROR_INVALID_ARGS = -2,
     PLUGIN_ERROR_NOT_IMPLEMENTED = -3,
+    PLUGIN_ERROR_OUT_OF_MEMORY = -4,
+    PLUGIN_ERROR_NULL_POINTER = -5,
 }
 
 #[repr(C)]
 pub struct plugin_string_t {
     pub data: *mut c_char,
     pub length: c_int,
+    pub capacity: c_int,
 }
 
 #[repr(C)]
@@ -40,6 +43,12 @@ pub struct plugin_info_t {
     pub interface_version: c_int,
 }
 
+#[repr(C)]
+pub struct plugin_validation_t {
+    pub status: plugin_error_t,
+    pub error_message: *mut c_char,
+}
+
 // Type for prompt variable callback functions
 pub type plugin_get_prompt_variable_func = Option<unsafe extern "C" fn() -> plugin_string_t>;
 
@@ -56,4 +65,4 @@ extern "C" {
 }
 
 // Plugin interface version
-pub const PLUGIN_INTERFACE_VERSION: i32 = 2;
+pub const PLUGIN_INTERFACE_VERSION: i32 = 3;

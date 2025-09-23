@@ -47,6 +47,7 @@ fn create_plugin_string(s: &str) -> plugin_string_t {
     plugin_string_t {
         data,
         length: s.len() as c_int,
+        capacity: (s.len() + 1) as c_int,
     }
 }
 

@@ -13,7 +13,6 @@
 #include <iostream>
 #include <thread>
 
-#include "cjsh.h"
 #include "pluginapi.h"
 
 /**
@@ -37,6 +36,31 @@ extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
       const_cast<char*>("Test prompt variable plugin"),
       const_cast<char*>("caden finley"), PLUGIN_INTERFACE_VERSION};
   return &info;
+}
+
+// Helper function to create a heap-allocated string copy
+char* create_string_copy(const char* src) {
+  if (!src) return nullptr;
+  size_t len = strlen(src) + 1;
+  char* dest = (char*)PLUGIN_MALLOC(len);
+  if (dest) {
+    memcpy(dest, src, len);
+  }
+  return dest;
+}
+
+// Validate plugin (optional but recommended)
+extern "C" PLUGIN_API plugin_validation_t plugin_validate() {
+  plugin_validation_t result = {PLUGIN_SUCCESS, nullptr};
+  
+  // Perform self-validation here
+  if (worker_pid > 0 && kill(worker_pid, 0) != 0) {
+    result.status = PLUGIN_ERROR_GENERAL;
+    result.error_message = create_string_copy("Worker process is not running");
+    return result;
+  }
+  
+  return result;
 }
 
 // Helper to start Python process with a pipe
@@ -354,6 +378,6 @@ extern "C" PLUGIN_API int plugin_update_setting(const char* key,
 extern "C" PLUGIN_API void plugin_free_memory(void* ptr) {
   // Free memory allocated by this plugin
   if (ptr) {
-    std::free(ptr);
+    PLUGIN_FREE(ptr);
   }
 }
