@@ -1740,8 +1740,75 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     bool is_double_bracket_cmd =
         !filtered_args.empty() && strip_quote_tag(filtered_args[0]) == "[[";
 
-    std::vector<std::string> final_args_local;
+    // First, apply tilde expansion to all arguments
+    std::vector<std::string> tilde_expanded_args;
     for (const auto& raw : filtered_args) {
+      bool is_single = is_single_quoted_token(raw);
+      bool is_double = is_double_quoted_token(raw);
+      std::string val = strip_quote_tag(raw);
+      
+      // Check if tilde expansion is needed
+      bool has_tilde = false;
+      if (!val.empty()) {
+        if (val[0] == '~') {
+          has_tilde = true;
+        } else {
+          for (size_t i = 1; i < val.length(); ++i) {
+            if (val[i] == '~') {
+              has_tilde = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (has_tilde && !is_single && !is_double) {
+        char* home_dir = std::getenv("HOME");
+        if (home_dir) {
+          std::string home_str(home_dir);
+          std::string expanded_arg;
+          if (val.front() == '~') {
+            expanded_arg = home_str + val.substr(1);
+          } else {
+            expanded_arg = val;
+          }
+          if (is_single) {
+            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                          QUOTE_SINGLE + expanded_arg);
+          } else if (is_double) {
+            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                          QUOTE_DOUBLE + expanded_arg);
+          } else {
+            tilde_expanded_args.push_back(expanded_arg);
+          }
+        } else {
+          // If HOME is not set, keep the original
+          if (is_single) {
+            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                          QUOTE_SINGLE + val);
+          } else if (is_double) {
+            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                          QUOTE_DOUBLE + val);
+          } else {
+            tilde_expanded_args.push_back(val);
+          }
+        }
+      } else {
+        if (is_single) {
+          tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                        QUOTE_SINGLE + val);
+        } else if (is_double) {
+          tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
+                                        QUOTE_DOUBLE + val);
+        } else {
+          tilde_expanded_args.push_back(val);
+        }
+      }
+    }
+
+    // Then apply brace expansion and wildcard expansion
+    std::vector<std::string> final_args_local;
+    for (const auto& raw : tilde_expanded_args) {
       bool is_single = is_single_quoted_token(raw);
       bool is_double = is_double_quoted_token(raw);
       std::string val = strip_quote_tag(raw);
