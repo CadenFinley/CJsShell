@@ -211,18 +211,18 @@ int main(int argc, char* argv[]) {
 
   // Enter main process loop
   g_startup_active = false;
-  if (!g_exit_flag && !config::startup_test) {
+  if (!g_exit_flag) {
     // Calculate startup time
     auto startup_end_time = std::chrono::steady_clock::now();
     auto startup_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
         startup_end_time - g_startup_begin_time);
     
     // Set the startup duration as the initial command duration for the prompt
-    if (g_shell) {
+    if (g_shell && g_theme) {
       g_shell->set_initial_duration(startup_duration.count());
     }
     
-    if (g_title_line) {      
+    if (g_title_line) {
       initialize_title_strings();
       std::cout << title_line << std::endl;
       std::cout << created_line << std::endl;
@@ -235,8 +235,10 @@ int main(int argc, char* argv[]) {
     if (config::show_startup_time) {
       std::cout << " Started in " << startup_duration.count() << "ms." << std::endl;
     }
-    
-    main_process_loop();
+
+    if (!config::startup_test) {
+      main_process_loop();
+    }
   }
 
   std::cerr << "Cleaning up resources." << std::endl;
