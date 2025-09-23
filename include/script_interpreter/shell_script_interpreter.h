@@ -126,6 +126,25 @@ class ShellScriptInterpreter {
   std::vector<SyntaxError> check_style_guidelines(
       const std::vector<std::string>& lines);
 
+  // New enhanced validation functions
+  std::vector<SyntaxError> validate_pipeline_syntax(
+      const std::vector<std::string>& lines);
+
+  std::vector<SyntaxError> validate_function_syntax(
+      const std::vector<std::string>& lines);
+
+  std::vector<SyntaxError> validate_loop_syntax(
+      const std::vector<std::string>& lines);
+
+  std::vector<SyntaxError> validate_conditional_syntax(
+      const std::vector<std::string>& lines);
+
+  std::vector<SyntaxError> validate_array_syntax(
+      const std::vector<std::string>& lines);
+
+  std::vector<SyntaxError> validate_heredoc_syntax(
+      const std::vector<std::string>& lines);
+
   void print_error_report(const std::vector<SyntaxError>& errors,
                           bool show_suggestions = true,
                           bool show_context = true) const;
