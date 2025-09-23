@@ -678,6 +678,43 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
               << "'" << std::endl;
 }
 
+// Helper function to check if a string looks like a file path
+bool looks_like_file_path(const std::string& str) {
+  if (str.empty()) return false;
+  
+  // Check for common path indicators
+  if (str[0] == '/' ||                          // Absolute path
+      str.rfind("./", 0) == 0 ||                // Relative path starting with ./
+      str.rfind("../", 0) == 0 ||               // Relative path starting with ../
+      str.rfind("~/", 0) == 0 ||                // Home directory path
+      str.find('/') != std::string::npos) {     // Contains path separator
+    return true;
+  }
+  
+  // Check if it looks like a filename with common extensions
+  size_t dot_pos = str.rfind('.');
+  if (dot_pos != std::string::npos && dot_pos > 0 && dot_pos < str.length() - 1) {
+    std::string extension = str.substr(dot_pos + 1);
+    // Common file extensions
+    static const std::unordered_set<std::string> file_extensions = {
+      "txt", "log", "conf", "config", "json", "xml", "yaml", "yml",
+      "cpp", "c", "h", "hpp", "py", "js", "ts", "java", "sh", "bash",
+      "md", "html", "css", "sql", "tar", "gz", "zip", "pdf", "doc",
+      "docx", "xls", "xlsx", "png", "jpg", "jpeg", "gif", "mp3", "mp4"
+    };
+    
+    std::string ext_lower = extension;
+    std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    
+    if (file_extensions.find(ext_lower) != file_extensions.end()) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (g_debug_mode)
     std::cerr << "DEBUG: History completer called with prefix: '" << prefix
@@ -726,6 +763,20 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     // Skip empty lines
     if (line.empty())
       continue;
+
+    // Skip timestamp lines (format: "# <timestamp>")
+    if (line.length() > 1 && line[0] == '#' && line[1] == ' ') {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Skipping timestamp line: '" << line << "'" << std::endl;
+      continue;
+    }
+
+    // Skip entries that look like file paths
+    if (looks_like_file_path(line)) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Skipping path-like history entry: '" << line << "'" << std::endl;
+      continue;
+    }
 
     bool should_match = false;
     if (prefix_len == 0) {
