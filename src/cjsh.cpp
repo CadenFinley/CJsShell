@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -52,6 +53,7 @@ std::unique_ptr<Theme> g_theme = nullptr;
 std::unique_ptr<Plugin> g_plugin = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
+std::chrono::steady_clock::time_point g_startup_begin_time;
 
 static int parse_command_line_arguments(int argc, char* argv[],
                                         std::string& script_file,
@@ -128,6 +130,9 @@ static void initialize_title_strings() {
  */
 
 int main(int argc, char* argv[]) {
+  // Start timing the startup process
+  g_startup_begin_time = std::chrono::steady_clock::now();
+  
   // Detect login mode from argv[0]
   detect_login_mode(argv);
 
@@ -206,10 +211,21 @@ int main(int argc, char* argv[]) {
   // Enter main process loop
   g_startup_active = false;
   if (!g_exit_flag && !config::startup_test) {
-    if (g_title_line) {
+    // Calculate startup time
+    auto startup_end_time = std::chrono::steady_clock::now();
+    auto startup_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        startup_end_time - g_startup_begin_time);
+    
+    // Set the startup duration as the initial command duration for the prompt
+    if (g_shell) {
+      g_shell->set_initial_duration(startup_duration.count());
+    }
+    
+    if (g_title_line) {      
       initialize_title_strings();
       std::cout << title_line << std::endl;
       std::cout << created_line << std::endl;
+      std::cout << " Started in " << startup_duration.count() << "ms" << std::endl;
     }
     main_process_loop();
   }

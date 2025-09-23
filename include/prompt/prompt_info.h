@@ -211,6 +211,9 @@ class PromptInfo {
   void reset_command_timing() {
     command_info.reset_command_timing();
   }
+  void set_initial_duration(long long milliseconds) {
+    command_info.set_initial_duration(milliseconds);
+  }
   long long get_last_command_duration_ms() {
     return command_info.get_last_command_duration_ms();
   }

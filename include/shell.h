@@ -68,6 +68,12 @@ class Shell {
     }
   }
 
+  void set_initial_duration(long long milliseconds) {
+    if (shell_prompt) {
+      shell_prompt->set_initial_duration(milliseconds);
+    }
+  }
+
   void set_interactive_mode(bool flag) {
     interactive_mode = flag;
   }

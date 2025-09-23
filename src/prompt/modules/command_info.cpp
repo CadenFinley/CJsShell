@@ -76,6 +76,14 @@ void CommandInfo::set_show_milliseconds(bool show) {
   show_milliseconds = show;
 }
 
+void CommandInfo::set_initial_duration(long long milliseconds) {
+  // Set the timing to simulate a completed command with the given duration
+  timing_active = false;
+  auto now = std::chrono::high_resolution_clock::now();
+  last_command_end = now;
+  last_command_start = now - std::chrono::milliseconds(milliseconds);
+}
+
 std::string CommandInfo::format_duration(long long milliseconds) {
   std::ostringstream oss;
 

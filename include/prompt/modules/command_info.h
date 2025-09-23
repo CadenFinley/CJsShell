@@ -32,4 +32,5 @@ class CommandInfo {
 
   void set_min_time_threshold(int milliseconds);
   void set_show_milliseconds(bool show);
+  void set_initial_duration(long long milliseconds);
 };
