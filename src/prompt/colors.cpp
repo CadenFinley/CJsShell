@@ -372,7 +372,8 @@ std::string gradient_bg(const std::string& text, const GradientSpec& spec) {
 
   if (steps == 1) {
     return bg_color(spec.start) + text +
-           (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET : "");
+           (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET
+                                                            : "");
   }
 
   if (g_color_capability == ColorCapability::BASIC_COLOR) {
@@ -397,7 +398,9 @@ std::string gradient_bg(const std::string& text, const GradientSpec& spec) {
   return result;
 }
 
-std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_spec, const RGB& fg_rgb) {
+std::string gradient_bg_with_fg(const std::string& text,
+                                const GradientSpec& bg_spec,
+                                const RGB& fg_rgb) {
   if (text.empty())
     return "";
   if (g_color_capability == ColorCapability::NO_COLOR)
@@ -409,7 +412,8 @@ std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_
 
   if (steps == 1) {
     return bg_color(bg_spec.start) + fg_code + text +
-           (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET : "");
+           (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET
+                                                            : "");
   }
 
   if (g_color_capability == ColorCapability::BASIC_COLOR) {
@@ -434,13 +438,15 @@ std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_
   return result;
 }
 
-std::string apply_gradient_bg_with_fg(const std::string& text, const std::string& bg_value, const std::string& fg_value) {
+std::string apply_gradient_bg_with_fg(const std::string& text,
+                                      const std::string& bg_value,
+                                      const std::string& fg_value) {
   if (is_gradient_value(bg_value)) {
     GradientSpec bg_spec = parse_gradient_value(bg_value);
-    RGB fg_rgb = (fg_value == "RESET") ? RGB(255, 255, 255) : parse_color_value(fg_value);
+    RGB fg_rgb = (fg_value == "RESET") ? RGB(255, 255, 255)
+                                       : parse_color_value(fg_value);
     return gradient_bg_with_fg(text, bg_spec, fg_rgb);
   } else {
-    // Not a gradient background, use standard approach
     return apply_color_or_gradient(text, fg_value, true);
   }
 }
@@ -450,30 +456,29 @@ GradientSpec parse_gradient_value(const std::string& value) {
   trimmed_value.erase(0, trimmed_value.find_first_not_of(" \t\n\r\f\v"));
   trimmed_value.erase(trimmed_value.find_last_not_of(" \t\n\r\f\v") + 1);
 
-  // Format: "gradient(#start_color, #end_color)" or "gradient(#start_color, #end_color, direction)"
   std::regex gradient_regex(
       "gradient\\s*\\(\\s*([^,]+)\\s*,\\s*([^,)]+)(?:\\s*,\\s*([^)]+))?\\s*\\)",
       std::regex_constants::icase);
   std::smatch gradient_match;
-  
+
   if (std::regex_match(trimmed_value, gradient_match, gradient_regex)) {
     RGB start_color = parse_color_value(gradient_match[1].str());
     RGB end_color = parse_color_value(gradient_match[2].str());
     std::string direction = "horizontal";
-    
+
     if (gradient_match[3].matched) {
       direction = gradient_match[3].str();
-      // Trim whitespace from direction
+
       direction.erase(0, direction.find_first_not_of(" \t\n\r\f\v"));
       direction.erase(direction.find_last_not_of(" \t\n\r\f\v") + 1);
-      // Convert to lowercase for consistency
-      std::transform(direction.begin(), direction.end(), direction.begin(), ::tolower);
+
+      std::transform(direction.begin(), direction.end(), direction.begin(),
+                     ::tolower);
     }
-    
+
     return GradientSpec(start_color, end_color, direction);
   }
-  
-  // If not a gradient format, return a default gradient using the color as both start and end
+
   RGB color = parse_color_value(trimmed_value);
   return GradientSpec(color, color, "horizontal");
 }
@@ -482,20 +487,22 @@ bool is_gradient_value(const std::string& value) {
   std::string trimmed_value = value;
   trimmed_value.erase(0, trimmed_value.find_first_not_of(" \t\n\r\f\v"));
   trimmed_value.erase(trimmed_value.find_last_not_of(" \t\n\r\f\v") + 1);
-  
-  // Check if the value starts with "gradient("
+
   std::regex gradient_check("gradient\\s*\\(", std::regex_constants::icase);
   return std::regex_search(trimmed_value, gradient_check);
 }
 
-std::string apply_color_or_gradient(const std::string& text, const std::string& color_value, bool is_foreground) {
+std::string apply_color_or_gradient(const std::string& text,
+                                    const std::string& color_value,
+                                    bool is_foreground) {
   if (color_value == "RESET") {
     return is_foreground ? "" : colors::ansi::BG_RESET;
   }
-  
+
   if (is_gradient_value(color_value)) {
     GradientSpec gradient_spec = parse_gradient_value(color_value);
-    return is_foreground ? gradient_fg(text, gradient_spec) : gradient_bg(text, gradient_spec);
+    return is_foreground ? gradient_fg(text, gradient_spec)
+                         : gradient_bg(text, gradient_spec);
   } else {
     RGB color = parse_color_value(color_value);
     return is_foreground ? fg_color(color) : bg_color(color);

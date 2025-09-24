@@ -22,24 +22,23 @@ class Theme {
   std::string process_conditionals(
       const std::string& line,
       const std::unordered_map<std::string, std::string>& vars) const;
-  
+
   std::string evaluate_conditional(
       const std::string& expr,
       const std::unordered_map<std::string, std::string>& vars) const;
-  
+
   bool evaluate_condition(
       const std::string& condition,
       const std::unordered_map<std::string, std::string>& vars) const;
-  
+
   bool evaluate_comparison(
-      const std::string& condition,
-      const std::string& op,
+      const std::string& condition, const std::string& op,
       const std::unordered_map<std::string, std::string>& vars) const;
-  
+
   std::string resolve_value(
       const std::string& value,
       const std::unordered_map<std::string, std::string>& vars) const;
-  
+
   std::string trim(const std::string& str) const;
 
   std::string escape_brackets_for_isocline(const std::string& input) const;

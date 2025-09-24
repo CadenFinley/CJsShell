@@ -17,18 +17,15 @@ bool LanguageInfo::is_project_detected(
     const std::vector<std::string>& extensions,
     const std::vector<std::string>& folders) {
   std::filesystem::path current_path = std::filesystem::current_path();
-  
+
   // Use recursive scanning like Starship does
   return scan_directory_recursive(current_path, files, extensions, folders);
 }
 
 bool LanguageInfo::scan_directory_recursive(
-    const std::filesystem::path& dir,
-    const std::vector<std::string>& files,
+    const std::filesystem::path& dir, const std::vector<std::string>& files,
     const std::vector<std::string>& extensions,
-    const std::vector<std::string>& folders,
-    int max_depth) {
-  
+    const std::vector<std::string>& folders, int max_depth) {
   if (max_depth <= 0) {
     return false;
   }
@@ -61,7 +58,8 @@ bool LanguageInfo::scan_directory_recursive(
     }
 
     // For the current directory only, don't recurse too deep
-    // This matches Starship's behavior of primarily checking the current directory
+    // This matches Starship's behavior of primarily checking the current
+    // directory
     if (max_depth == 3) {
       // Check immediate subdirectories for important project files
       for (const auto& entry : std::filesystem::directory_iterator(dir)) {
@@ -69,7 +67,8 @@ bool LanguageInfo::scan_directory_recursive(
           // Only recurse into common project structure directories
           std::string dirname = entry.path().filename().string();
           if (dirname == "src" || dirname == "lib" || dirname == "app") {
-            if (scan_directory_recursive(entry.path(), files, extensions, folders, max_depth - 1)) {
+            if (scan_directory_recursive(entry.path(), files, extensions,
+                                         folders, max_depth - 1)) {
               return true;
             }
           }

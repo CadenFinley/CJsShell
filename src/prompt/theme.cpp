@@ -234,8 +234,6 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
   return true;
 }
 
-
-
 size_t Theme::get_terminal_width() const {
   struct winsize w;
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
@@ -263,7 +261,6 @@ std::string Theme::render_line_aligned(
 
   bool isNewlineSegments = (&segments == &newline_segments);
 
-  // Build lambda to render segments with colors and styling
   auto build = [&](const std::vector<nlohmann::json>& bucket) {
     std::string out;
     for (auto& segment : bucket) {
@@ -271,7 +268,6 @@ std::string Theme::render_line_aligned(
       std::string content = render_line(segment.value("content", ""), vars);
       std::string separator = render_line(segment.value("separator", ""), vars);
 
-      // Skip this segment entirely if content is empty
       if (content.empty()) {
         continue;
       }
@@ -299,36 +295,36 @@ std::string Theme::render_line_aligned(
         segment_result += fsep;
       }
 
-      // Handle colors and gradients for main content
       std::string styled_content = content;
-      
-      // Check if we have gradients and handle accordingly
+
       if (colors::is_gradient_value(bg_color_name)) {
-        // Background gradient - apply both background gradient and foreground color
-        styled_content = colors::apply_gradient_bg_with_fg(content, bg_color_name, fg_color_name);
+        styled_content = colors::apply_gradient_bg_with_fg(
+            content, bg_color_name, fg_color_name);
         segment_result += styled_content;
       } else if (colors::is_gradient_value(fg_color_name)) {
-        // Foreground gradient only
         if (bg_color_name != "RESET") {
-          segment_result += colors::bg_color(colors::parse_color_value(bg_color_name));
+          segment_result +=
+              colors::bg_color(colors::parse_color_value(bg_color_name));
         } else {
           segment_result += colors::ansi::BG_RESET;
         }
-        styled_content = colors::apply_color_or_gradient(content, fg_color_name, true);
+        styled_content =
+            colors::apply_color_or_gradient(content, fg_color_name, true);
         segment_result += styled_content;
       } else {
-        // Standard color handling - no gradients
         if (bg_color_name != "RESET") {
-          segment_result += colors::bg_color(colors::parse_color_value(bg_color_name));
+          segment_result +=
+              colors::bg_color(colors::parse_color_value(bg_color_name));
         } else {
           segment_result += colors::ansi::BG_RESET;
         }
         if (fg_color_name != "RESET") {
-          segment_result += colors::fg_color(colors::parse_color_value(fg_color_name));
+          segment_result +=
+              colors::fg_color(colors::parse_color_value(fg_color_name));
         }
         segment_result += content;
       }
-      
+
       if (!separator.empty()) {
         if (sep_fg_name != "RESET") {
           segment_result +=
@@ -355,7 +351,6 @@ std::string Theme::render_line_aligned(
       break;
     }
   if (!hasAlign) {
-    // No alignment needed, treat all segments as left-aligned
     auto result = build(segments);
     result += colors::ansi::RESET;
     return result;
@@ -399,24 +394,27 @@ std::string Theme::render_line_aligned(
       if (padL > 0) {
         if (fill_bg_color_ != "RESET") {
           if (!colors::is_gradient_value(fill_bg_color_)) {
-            fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            fillL +=
+                colors::bg_color(colors::parse_color_value(fill_bg_color_));
           }
         } else {
           fillL += colors::ansi::BG_RESET;
         }
 
-        // Handle gradient fills
-        if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
-          std::string fill_text(padL, fill_char_[0]); // Assuming single character fill
+        if (colors::is_gradient_value(fill_fg_color_) ||
+            colors::is_gradient_value(fill_bg_color_)) {
+          std::string fill_text(padL, fill_char_[0]);
           if (colors::is_gradient_value(fill_bg_color_)) {
-            fillL += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+            fillL += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
+                                                     false);
           } else if (colors::is_gradient_value(fill_fg_color_)) {
-            fillL += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+            fillL += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
+                                                     true);
           }
         } else {
-          // Standard fill handling
           if (fill_fg_color_ != "RESET") {
-            fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fillL +=
+                colors::fg_color(colors::parse_color_value(fill_fg_color_));
           }
           for (size_t i = 0; i < padL; ++i) {
             fillL += fill_char_;
@@ -428,24 +426,27 @@ std::string Theme::render_line_aligned(
       if (padR > 0) {
         if (fill_bg_color_ != "RESET") {
           if (!colors::is_gradient_value(fill_bg_color_)) {
-            fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+            fillR +=
+                colors::bg_color(colors::parse_color_value(fill_bg_color_));
           }
         } else {
           fillR += colors::ansi::BG_RESET;
         }
 
-        // Handle gradient fills
-        if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
-          std::string fill_text(padR, fill_char_[0]); // Assuming single character fill
+        if (colors::is_gradient_value(fill_fg_color_) ||
+            colors::is_gradient_value(fill_bg_color_)) {
+          std::string fill_text(padR, fill_char_[0]);
           if (colors::is_gradient_value(fill_bg_color_)) {
-            fillR += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+            fillR += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
+                                                     false);
           } else if (colors::is_gradient_value(fill_fg_color_)) {
-            fillR += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+            fillR += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
+                                                     true);
           }
         } else {
-          // Standard fill handling
           if (fill_fg_color_ != "RESET") {
-            fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+            fillR +=
+                colors::fg_color(colors::parse_color_value(fill_fg_color_));
           }
           for (size_t i = 0; i < padR; ++i) {
             fillR += fill_char_;
@@ -494,16 +495,17 @@ std::string Theme::render_line_aligned(
       fill += colors::ansi::BG_RESET;
     }
 
-    // Handle gradient fills
-    if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
-      std::string fill_text(pad, fill_char_[0]); // Assuming single character fill
+    if (colors::is_gradient_value(fill_fg_color_) ||
+        colors::is_gradient_value(fill_bg_color_)) {
+      std::string fill_text(pad, fill_char_[0]);
       if (colors::is_gradient_value(fill_bg_color_)) {
-        fill += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+        fill +=
+            colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
       } else if (colors::is_gradient_value(fill_fg_color_)) {
-        fill += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+        fill +=
+            colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
       }
     } else {
-      // Standard fill handling
       if (fill_fg_color_ != "RESET") {
         fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
       }
@@ -615,13 +617,11 @@ std::string Theme::process_conditionals(
     const std::unordered_map<std::string, std::string>& vars) const {
   std::string result = line;
   size_t pos = 0;
-  
-  // Look for conditional patterns: {if = condition ? true_value : false_value}
+
   while ((pos = result.find("{if =", pos)) != std::string::npos) {
     size_t brace_count = 1;
-    size_t end_pos = pos + 4; // Start after "{if ="
-    
-    // Find the matching closing brace, handling nested braces
+    size_t end_pos = pos + 4;
+
     while (end_pos < result.length() && brace_count > 0) {
       end_pos++;
       if (result[end_pos] == '{') {
@@ -630,102 +630,92 @@ std::string Theme::process_conditionals(
         brace_count--;
       }
     }
-    
+
     if (brace_count != 0) {
-      // Malformed conditional, skip it
       pos += 5;
       continue;
     }
-    
-    // Extract the conditional expression
+
     std::string conditional_expr = result.substr(pos + 5, end_pos - pos - 5);
     std::string replacement = evaluate_conditional(conditional_expr, vars);
-    
-    // Replace the entire conditional with the result
+
     result.replace(pos, end_pos - pos + 1, replacement);
     pos += replacement.length();
   }
-  
+
   return result;
 }
 
 std::string Theme::evaluate_conditional(
     const std::string& expr,
     const std::unordered_map<std::string, std::string>& vars) const {
-  
   if (g_debug_mode) {
     std::cout << "Evaluating conditional: " << expr << std::endl;
   }
-  
-  // Find the ? and : separators
+
   size_t question_pos = expr.find('?');
   if (question_pos == std::string::npos) {
     if (g_debug_mode) {
       std::cout << "No '?' found in conditional expression" << std::endl;
     }
-    return ""; // Malformed conditional
+    return "";
   }
-  
+
   size_t colon_pos = expr.find(':', question_pos + 1);
   if (colon_pos == std::string::npos) {
     if (g_debug_mode) {
       std::cout << "No ':' found in conditional expression" << std::endl;
     }
-    return ""; // Malformed conditional
+    return "";
   }
-  
-  // Extract parts
+
   std::string condition = trim(expr.substr(0, question_pos));
-  std::string true_value = trim(expr.substr(question_pos + 1, colon_pos - question_pos - 1));
+  std::string true_value =
+      trim(expr.substr(question_pos + 1, colon_pos - question_pos - 1));
   std::string false_value = trim(expr.substr(colon_pos + 1));
-  
+
   if (g_debug_mode) {
     std::cout << "Condition: '" << condition << "'" << std::endl;
     std::cout << "True value: '" << true_value << "'" << std::endl;
     std::cout << "False value: '" << false_value << "'" << std::endl;
   }
-  
-  // Evaluate the condition
+
   bool condition_result = evaluate_condition(condition, vars);
-  
+
   if (g_debug_mode) {
-    std::cout << "Condition result: " << (condition_result ? "true" : "false") << std::endl;
+    std::cout << "Condition result: " << (condition_result ? "true" : "false")
+              << std::endl;
   }
-  
-  // Return the appropriate value based on condition result
+
   std::string selected_value = condition_result ? true_value : false_value;
-  
-  // Recursively process any nested variables or conditionals in the selected value
+
   return render_line(selected_value, vars);
 }
 
 bool Theme::evaluate_condition(
     const std::string& condition,
     const std::unordered_map<std::string, std::string>& vars) const {
-  
   std::string trimmed_condition = trim(condition);
-  
-  // Handle simple boolean values
+
   if (trimmed_condition == "true") {
     return true;
   }
   if (trimmed_condition == "false") {
     return false;
   }
-  
-  // Handle variable references
+
   if (trimmed_condition.front() == '{' && trimmed_condition.back() == '}') {
-    std::string var_name = trimmed_condition.substr(1, trimmed_condition.length() - 2);
+    std::string var_name =
+        trimmed_condition.substr(1, trimmed_condition.length() - 2);
     auto it = vars.find(var_name);
     if (it != vars.end()) {
       std::string value = it->second;
-      // Convert to boolean: empty string or "0" or "false" = false, everything else = true
+
       return !value.empty() && value != "0" && value != "false";
     }
-    return false; // Variable not found
+    return false;
   }
-  
-  // Handle comparison operators
+
   if (trimmed_condition.find("==") != std::string::npos) {
     return evaluate_comparison(trimmed_condition, "==", vars);
   }
@@ -744,85 +734,83 @@ bool Theme::evaluate_condition(
   if (trimmed_condition.find("<") != std::string::npos) {
     return evaluate_comparison(trimmed_condition, "<", vars);
   }
-  
-  // Default: try to resolve as variable and check if it's truthy
+
   auto it = vars.find(trimmed_condition);
   if (it != vars.end()) {
     std::string value = it->second;
     return !value.empty() && value != "0" && value != "false";
   }
-  
-  // If it's a literal string, it's truthy if not empty
+
   return !trimmed_condition.empty();
 }
 
 bool Theme::evaluate_comparison(
-    const std::string& condition,
-    const std::string& op,
+    const std::string& condition, const std::string& op,
     const std::unordered_map<std::string, std::string>& vars) const {
-  
   size_t op_pos = condition.find(op);
   if (op_pos == std::string::npos) {
     return false;
   }
-  
+
   std::string left = trim(condition.substr(0, op_pos));
   std::string right = trim(condition.substr(op_pos + op.length()));
-  
-  // Resolve variables in left and right operands
+
   std::string left_value = resolve_value(left, vars);
   std::string right_value = resolve_value(right, vars);
-  
+
   if (g_debug_mode) {
-    std::cout << "Comparing: '" << left_value << "' " << op << " '" << right_value << "'" << std::endl;
+    std::cout << "Comparing: '" << left_value << "' " << op << " '"
+              << right_value << "'" << std::endl;
   }
-  
+
   if (op == "==") {
     return left_value == right_value;
   } else if (op == "!=") {
     return left_value != right_value;
   } else if (op == ">" || op == "<" || op == ">=" || op == "<=") {
-    // Try to convert to numbers for numeric comparison
     try {
       double left_num = std::stod(left_value);
       double right_num = std::stod(right_value);
-      
-      if (op == ">") return left_num > right_num;
-      if (op == "<") return left_num < right_num;
-      if (op == ">=") return left_num >= right_num;
-      if (op == "<=") return left_num <= right_num;
+
+      if (op == ">")
+        return left_num > right_num;
+      if (op == "<")
+        return left_num < right_num;
+      if (op == ">=")
+        return left_num >= right_num;
+      if (op == "<=")
+        return left_num <= right_num;
     } catch (const std::exception&) {
-      // Fall back to string comparison
-      if (op == ">") return left_value > right_value;
-      if (op == "<") return left_value < right_value;
-      if (op == ">=") return left_value >= right_value;
-      if (op == "<=") return left_value <= right_value;
+      if (op == ">")
+        return left_value > right_value;
+      if (op == "<")
+        return left_value < right_value;
+      if (op == ">=")
+        return left_value >= right_value;
+      if (op == "<=")
+        return left_value <= right_value;
     }
   }
-  
+
   return false;
 }
 
 std::string Theme::resolve_value(
     const std::string& value,
     const std::unordered_map<std::string, std::string>& vars) const {
-  
   std::string trimmed = trim(value);
-  
-  // If it's a variable reference, resolve it
+
   if (trimmed.front() == '{' && trimmed.back() == '}') {
     std::string var_name = trimmed.substr(1, trimmed.length() - 2);
     auto it = vars.find(var_name);
     return (it != vars.end()) ? it->second : "";
   }
-  
-  // If it's a quoted string, remove quotes
+
   if ((trimmed.front() == '"' && trimmed.back() == '"') ||
       (trimmed.front() == '\'' && trimmed.back() == '\'')) {
     return trimmed.substr(1, trimmed.length() - 2);
   }
-  
-  // Otherwise return as-is
+
   return trimmed;
 }
 
@@ -843,11 +831,9 @@ std::string Theme::render_line(
   }
 
   std::string result = line;
-  
-  // First pass: handle conditional expressions
+
   result = process_conditionals(result, vars);
-  
-  // Second pass: handle regular variable substitution
+
   size_t start_pos = 0;
   while ((start_pos = result.find('{', start_pos)) != std::string::npos) {
     size_t end_pos = result.find('}', start_pos);
@@ -1047,15 +1033,14 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
   size_t ansi_chars = 0;
   size_t visible_chars = 0;
 
-  // Remove isocline escape sequences before calculating width
   std::string str_without_isocline_escapes = str;
-  
-  // Remove isocline bracket escapes (e.g., \[1] -> [1])
-  std::regex isocline_bracket_pattern(R"(\\(\[[+-]?\d+\]))");
-  str_without_isocline_escapes = std::regex_replace(str_without_isocline_escapes, isocline_bracket_pattern, "$1");
 
-  size_t raw_length =
-      utf8_utils::calculate_display_width(str_without_isocline_escapes, &ansi_chars, &visible_chars);
+  std::regex isocline_bracket_pattern(R"(\\(\[[+-]?\d+\]))");
+  str_without_isocline_escapes = std::regex_replace(
+      str_without_isocline_escapes, isocline_bracket_pattern, "$1");
+
+  size_t raw_length = utf8_utils::calculate_display_width(
+      str_without_isocline_escapes, &ansi_chars, &visible_chars);
 
   if (g_debug_mode) {
     std::cout << "String length: " << str.size()

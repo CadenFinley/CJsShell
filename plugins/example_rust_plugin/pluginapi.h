@@ -9,7 +9,7 @@ extern "C" {
  *
  * This header defines the interface for creating plugins for CJ's Shell.
  * This version includes enhanced memory safety and error handling.
- * 
+ *
  * MEMORY SAFETY GUIDELINES:
  * 1. ALWAYS implement plugin_free_memory() correctly
  * 2. NEVER return static arrays or strings from allocation functions
@@ -37,17 +37,17 @@ typedef enum {
  * String buffer structure with enhanced safety
  */
 typedef struct {
-  char* data;     // Null-terminated string data (MUST be heap-allocated)
-  int length;     // Length of string (excluding null terminator)
-  int capacity;   // Allocated capacity (for future extensions)
+  char* data;    // Null-terminated string data (MUST be heap-allocated)
+  int length;    // Length of string (excluding null terminator)
+  int capacity;  // Allocated capacity (for future extensions)
 } plugin_string_t;
 
 /**
  * Key-value pair for plugin settings
  */
 typedef struct {
-  char* key;      // Setting name (MUST be heap-allocated)
-  char* value;    // Setting value (MUST be heap-allocated)
+  char* key;    // Setting name (MUST be heap-allocated)
+  char* value;  // Setting value (MUST be heap-allocated)
 } plugin_setting_t;
 
 /**
@@ -77,7 +77,7 @@ typedef struct {
  */
 typedef struct {
   plugin_error_t status;
-  char* error_message;    // Optional error message (heap-allocated if present)
+  char* error_message;  // Optional error message (heap-allocated if present)
 } plugin_validation_t;
 
 /**
@@ -144,9 +144,9 @@ plugin_error_t plugin_register_prompt_variable(
 
 /**
  * Enhanced plugin template with better error handling
- * 
+ *
  * Example implementation:
- * 
+ *
  * PLUGIN_API plugin_info_t* plugin_get_info() {
  *     static plugin_info_t info = {
  *         .name = "my_plugin",
@@ -157,35 +157,35 @@ plugin_error_t plugin_register_prompt_variable(
  *     };
  *     return &info;
  * }
- * 
+ *
  * PLUGIN_API plugin_validation_t plugin_validate() {
  *     plugin_validation_t result = {PLUGIN_SUCCESS, NULL};
  *     // Perform self-validation here
  *     return result;
  * }
- * 
+ *
  * PLUGIN_API int plugin_initialize() {
  *     // Initialization code with error checking
  *     return PLUGIN_SUCCESS;
  * }
- * 
+ *
  * PLUGIN_API void plugin_shutdown() {
  *     // Cleanup code - free all allocated resources
  * }
- * 
+ *
  * PLUGIN_API char** plugin_get_commands(int* count) {
  *     if (!count) return NULL;
- *     
+ *
  *     *count = 2;
  *     char** commands = PLUGIN_MALLOC(*count * sizeof(char*));
  *     if (!commands) {
  *         *count = 0;
  *         return NULL;
  *     }
- *     
+ *
  *     commands[0] = plugin_safe_strdup("mycmd");
  *     commands[1] = plugin_safe_strdup("myothercmd");
- *     
+ *
  *     // Check for allocation failures
  *     if (!commands[0] || !commands[1]) {
  *         if (commands[0]) PLUGIN_FREE(commands[0]);
@@ -194,16 +194,16 @@ plugin_error_t plugin_register_prompt_variable(
  *         *count = 0;
  *         return NULL;
  *     }
- *     
+ *
  *     return commands;
  * }
- * 
+ *
  * PLUGIN_API void plugin_free_memory(void* ptr) {
  *     if (ptr) {
  *         PLUGIN_FREE(ptr);
  *     }
  * }
- * 
+ *
  * MEMORY SAFETY CHECKLIST:
  * □ Implemented plugin_free_memory() correctly
  * □ All returned arrays/strings are heap-allocated

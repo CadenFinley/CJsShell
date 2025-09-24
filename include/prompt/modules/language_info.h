@@ -9,20 +9,20 @@ class LanguageInfo {
   // File detection patterns following Starship's approach
   // Python detection patterns
   std::vector<std::string> python_files = {
-      "requirements.txt", "requirements-dev.txt", "pyproject.toml", 
-      "Pipfile", "Pipfile.lock", "setup.py", "setup.cfg", "tox.ini",
-      ".python-version", "environment.yml", "conda.yml", "__init__.py"
-  };
+      "requirements.txt", "requirements-dev.txt",
+      "pyproject.toml",   "Pipfile",
+      "Pipfile.lock",     "setup.py",
+      "setup.cfg",        "tox.ini",
+      ".python-version",  "environment.yml",
+      "conda.yml",        "__init__.py"};
   std::vector<std::string> python_extensions = {".py", ".ipynb"};
   std::vector<std::string> python_folders = {};
 
   // Node.js detection patterns (following Starship exactly)
-  std::vector<std::string> nodejs_files = {
-      "package.json", ".node-version", ".nvmrc"
-  };
-  std::vector<std::string> nodejs_extensions = {
-      ".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"
-  };
+  std::vector<std::string> nodejs_files = {"package.json", ".node-version",
+                                           ".nvmrc"};
+  std::vector<std::string> nodejs_extensions = {".js", ".mjs", ".cjs",
+                                                ".ts", ".mts", ".cts"};
   std::vector<std::string> nodejs_folders = {"node_modules"};
 
   // Rust detection patterns
@@ -32,26 +32,23 @@ class LanguageInfo {
 
   // Go detection patterns (following Starship)
   std::vector<std::string> golang_files = {
-      "go.mod", "go.sum", "go.work", "glide.yaml", "Gopkg.yml", 
-      "Gopkg.lock", ".go-version"
-  };
+      "go.mod",    "go.sum",     "go.work",    "glide.yaml",
+      "Gopkg.yml", "Gopkg.lock", ".go-version"};
   std::vector<std::string> golang_extensions = {".go"};
   std::vector<std::string> golang_folders = {"Godeps"};
 
   // Java detection patterns (following Starship)
   std::vector<std::string> java_files = {
-      "pom.xml", "build.gradle.kts", "build.sbt", ".java-version",
-      "deps.edn", "project.clj", "build.boot", ".sdkmanrc"
-  };
-  std::vector<std::string> java_extensions = {
-      ".java", ".class", ".gradle", ".jar", ".cljs", ".cljc"
-  };
+      "pom.xml",  "build.gradle.kts", "build.sbt",  ".java-version",
+      "deps.edn", "project.clj",      "build.boot", ".sdkmanrc"};
+  std::vector<std::string> java_extensions = {".java", ".class", ".gradle",
+                                              ".jar",  ".cljs",  ".cljc"};
   std::vector<std::string> java_folders = {};
 
   bool is_project_detected(const std::vector<std::string>& files,
                            const std::vector<std::string>& extensions,
                            const std::vector<std::string>& folders);
-  bool scan_directory_recursive(const std::filesystem::path& dir, 
+  bool scan_directory_recursive(const std::filesystem::path& dir,
                                 const std::vector<std::string>& files,
                                 const std::vector<std::string>& extensions,
                                 const std::vector<std::string>& folders,

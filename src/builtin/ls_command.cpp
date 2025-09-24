@@ -107,11 +107,11 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
   if (config::disable_ls_colors) {
     std::vector<std::string> system_ls_args;
     system_ls_args.push_back("/bin/ls");
-    
+
     for (size_t i = 1; i < args.size(); i++) {
       system_ls_args.push_back(args[i]);
     }
-    
+
     if (shell) {
       return shell->execute_command(system_ls_args, false);
     } else {
@@ -123,7 +123,6 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
     }
   }
 
-  // Continue with custom ls implementation
   std::string path = ".";
   bool show_hidden = false;
   bool show_almost_all = false;

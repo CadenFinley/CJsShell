@@ -78,8 +78,8 @@ ic_private void completions_clear(completions_t* cms) {
 
 static void completions_push(completions_t* cms, const char* replacement,
                              const char* display, const char* help,
-                             const char* source,
-                             ssize_t delete_before, ssize_t delete_after) {
+                             const char* source, ssize_t delete_before,
+                             ssize_t delete_after) {
   if (cms->count >= cms->len) {
     ssize_t newlen = (cms->len <= 0 ? 32 : cms->len * 2);
     completion_t* newelems =
@@ -106,7 +106,8 @@ ic_private ssize_t completions_count(completions_t* cms) {
 
 // Source priority levels (higher number = higher priority)
 typedef enum {
-  SOURCE_PRIORITY_HISTORY = 0,    // Lowest priority - history should never override other sources
+  SOURCE_PRIORITY_HISTORY =
+      0,  // Lowest priority - history should never override other sources
   SOURCE_PRIORITY_UNKNOWN = 1,
   SOURCE_PRIORITY_FILE = 2,
   SOURCE_PRIORITY_PLUGIN = 3,
@@ -115,17 +116,23 @@ typedef enum {
 
 // Helper function to get priority for a source string
 static source_priority_t get_source_priority(const char* source) {
-  if (!source) return SOURCE_PRIORITY_UNKNOWN;
-  
-  if (strcmp(source, "history") == 0) return SOURCE_PRIORITY_HISTORY;
-  if (strcmp(source, "file") == 0) return SOURCE_PRIORITY_FILE;
-  if (strcmp(source, "plugin") == 0) return SOURCE_PRIORITY_PLUGIN;
-  if (strcmp(source, "function") == 0) return SOURCE_PRIORITY_FUNCTION;
-  
+  if (!source)
+    return SOURCE_PRIORITY_UNKNOWN;
+
+  if (strcmp(source, "history") == 0)
+    return SOURCE_PRIORITY_HISTORY;
+  if (strcmp(source, "file") == 0)
+    return SOURCE_PRIORITY_FILE;
+  if (strcmp(source, "plugin") == 0)
+    return SOURCE_PRIORITY_PLUGIN;
+  if (strcmp(source, "function") == 0)
+    return SOURCE_PRIORITY_FUNCTION;
+
   return SOURCE_PRIORITY_UNKNOWN;
 }
 
-// Find existing completion by replacement text, returns index or -1 if not found
+// Find existing completion by replacement text, returns index or -1 if not
+// found
 static ssize_t completions_find(completions_t* cms, const char* replacement) {
   for (ssize_t i = 0; i < cms->count; i++) {
     const completion_t* c = cms->elems + i;
@@ -138,11 +145,12 @@ static ssize_t completions_find(completions_t* cms, const char* replacement) {
 
 // Replace an existing completion at the given index
 static void completions_replace(completions_t* cms, ssize_t index,
-                               const char* replacement, const char* display,
-                               const char* help, const char* source,
-                               ssize_t delete_before, ssize_t delete_after) {
-  if (index < 0 || index >= cms->count) return;
-  
+                                const char* replacement, const char* display,
+                                const char* help, const char* source,
+                                ssize_t delete_before, ssize_t delete_after) {
+  if (index < 0 || index >= cms->count)
+    return;
+
   completion_t* cm = &cms->elems[index];
   cm->replacement = mem_strdup(cms->mem, replacement);
   cm->display = mem_strdup(cms->mem, display);
@@ -154,26 +162,27 @@ static void completions_replace(completions_t* cms, ssize_t index,
 
 ic_private bool completions_add(completions_t* cms, const char* replacement,
                                 const char* display, const char* help,
-                                const char* source,
-                                ssize_t delete_before, ssize_t delete_after) {
+                                const char* source, ssize_t delete_before,
+                                ssize_t delete_after) {
   if (cms->completer_max <= 0)
     return false;
-  
+
   // Check if this completion already exists
   ssize_t existing_index = completions_find(cms, replacement);
-  
+
   if (existing_index >= 0) {
     // Completion exists, check priority
     const completion_t* existing = &cms->elems[existing_index];
     source_priority_t existing_priority = get_source_priority(existing->source);
     source_priority_t new_priority = get_source_priority(source);
-    
+
     if (new_priority > existing_priority) {
       // Higher priority, replace the existing completion
-      completions_replace(cms, existing_index, replacement, display, help, 
-                         source, delete_before, delete_after);
+      completions_replace(cms, existing_index, replacement, display, help,
+                          source, delete_before, delete_after);
     }
-    // If same or lower priority, we still consume a completion slot but don't add
+    // If same or lower priority, we still consume a completion slot but don't
+    // add
     cms->completer_max--;
     return true;
   } else {
@@ -213,7 +222,8 @@ ic_private const char* completions_get_help(completions_t* cms, ssize_t index) {
   return cm->help;
 }
 
-ic_private const char* completions_get_source(completions_t* cms, ssize_t index) {
+ic_private const char* completions_get_source(completions_t* cms,
+                                              ssize_t index) {
   completion_t* cm = completions_get(cms, index);
   if (cm == NULL)
     return NULL;
@@ -398,10 +408,11 @@ ic_public bool ic_add_completion_ex(ic_completion_env_t* cenv,
 
 ic_public bool ic_add_completion_ex_with_source(ic_completion_env_t* cenv,
                                                 const char* replacement,
-                                                const char* display, 
+                                                const char* display,
                                                 const char* help,
                                                 const char* source) {
-  return ic_add_completion_prim_with_source(cenv, replacement, display, help, source, 0, 0);
+  return ic_add_completion_prim_with_source(cenv, replacement, display, help,
+                                            source, 0, 0);
 }
 
 ic_public bool ic_add_completion_prim(ic_completion_env_t* cenv,
@@ -412,13 +423,13 @@ ic_public bool ic_add_completion_prim(ic_completion_env_t* cenv,
                            delete_before, delete_after);
 }
 
-ic_public bool ic_add_completion_prim_with_source(ic_completion_env_t* cenv,
-                                                  const char* replacement,
-                                                  const char* display, const char* help,
-                                                  const char* source,
-                                                  long delete_before, long delete_after) {
-  return (*cenv->complete_with_source)(cenv->env, cenv->closure, replacement, display, help, source,
-                                       delete_before, delete_after);
+ic_public bool ic_add_completion_prim_with_source(
+    ic_completion_env_t* cenv, const char* replacement, const char* display,
+    const char* help, const char* source, long delete_before,
+    long delete_after) {
+  return (*cenv->complete_with_source)(cenv->env, cenv->closure, replacement,
+                                       display, help, source, delete_before,
+                                       delete_after);
 }
 
 static bool prim_add_completion(ic_env_t* env, void* funenv,
@@ -430,10 +441,10 @@ static bool prim_add_completion(ic_env_t* env, void* funenv,
                          delete_before, delete_after);
 }
 
-static bool prim_add_completion_with_source(ic_env_t* env, void* funenv,
-                                            const char* replacement, const char* display,
-                                            const char* help, const char* source,
-                                            long delete_before, long delete_after) {
+static bool prim_add_completion_with_source(
+    ic_env_t* env, void* funenv, const char* replacement, const char* display,
+    const char* help, const char* source, long delete_before,
+    long delete_after) {
   ic_unused(funenv);
   return completions_add(env->completions, replacement, display, help, source,
                          delete_before, delete_after);

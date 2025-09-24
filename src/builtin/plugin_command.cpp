@@ -38,14 +38,14 @@ int plugin_command(const std::vector<std::string>& args) {
       std::cout << "Available plugins:" << std::endl;
       for (const auto& name : plugins) {
         std::cout << name;
-        if (std::find(enabled_plugins.begin(), enabled_plugins.end(),
-                      name) != enabled_plugins.end()) {
+        if (std::find(enabled_plugins.begin(), enabled_plugins.end(), name) !=
+            enabled_plugins.end()) {
           std::cout << "  (enabled)" << std::endl;
         } else {
           std::cout << std::endl;
         }
       }
-      
+
     } else {
       print_error({ErrorType::RUNTIME_ERROR,
                    "plugin",
@@ -84,14 +84,14 @@ int plugin_command(const std::vector<std::string>& args) {
       std::cout << "Available plugins:" << std::endl;
       for (const auto& name : plugins) {
         std::cout << name;
-        if (std::find(enabled_plugins.begin(), enabled_plugins.end(),
-                      name) != enabled_plugins.end()) {
+        if (std::find(enabled_plugins.begin(), enabled_plugins.end(), name) !=
+            enabled_plugins.end()) {
           std::cout << "  (enabled)" << std::endl;
         } else {
           std::cout << std::endl;
         }
       }
-      
+
     } else {
       print_error({ErrorType::RUNTIME_ERROR,
                    "plugin",

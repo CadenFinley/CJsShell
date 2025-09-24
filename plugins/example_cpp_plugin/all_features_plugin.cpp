@@ -33,7 +33,8 @@ __attribute__((weak)) plugin_error_t plugin_register_prompt_variable(
 #define PLUGIN_NAME "example_cpp_plugin"
 #define PLUGIN_VERSION "1.0.0"
 
-// Global variables for plugin state - using pointers to avoid destruction order issues
+// Global variables for plugin state - using pointers to avoid destruction order
+// issues
 static std::mutex* plugin_mutex = nullptr;
 static std::map<std::string, std::string>* plugin_settings = nullptr;
 static bool is_enabled = false;
@@ -69,7 +70,7 @@ char** create_string_array(const std::vector<std::string>& strings,
     *count = 0;
     return nullptr;
   }
-  
+
   for (int i = 0; i < *count; i++) {
     arr[i] = create_string_copy(strings[i].c_str());
     if (!arr[i]) {
@@ -121,7 +122,8 @@ static plugin_string_t current_time_callback() {
   }
 
   char* data = create_string_copy(time_str.c_str());
-  plugin_string_t result = {data, static_cast<int>(time_str.length()), static_cast<int>(time_str.length()) + 1};
+  plugin_string_t result = {data, static_cast<int>(time_str.length()),
+                            static_cast<int>(time_str.length()) + 1};
   return result;
 }
 
@@ -133,7 +135,8 @@ static plugin_string_t uptime_callback() {
 
   std::string uptime_str = std::to_string(diff) + "s";
   char* data = create_string_copy(uptime_str.c_str());
-  plugin_string_t result = {data, static_cast<int>(uptime_str.length()), static_cast<int>(uptime_str.length()) + 1};
+  plugin_string_t result = {data, static_cast<int>(uptime_str.length()),
+                            static_cast<int>(uptime_str.length()) + 1};
   return result;
 }
 
@@ -149,7 +152,8 @@ static plugin_string_t random_quote_callback() {
 
   std::string quote = quotes[index];
   char* data = create_string_copy(quote.c_str());
-  plugin_string_t result = {data, static_cast<int>(quote.length()), static_cast<int>(quote.length()) + 1};
+  plugin_string_t result = {data, static_cast<int>(quote.length()),
+                            static_cast<int>(quote.length()) + 1};
   return result;
 }
 
@@ -169,30 +173,33 @@ extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
 // Validate plugin (optional but recommended)
 extern "C" PLUGIN_API plugin_validation_t plugin_validate() {
   plugin_validation_t result = {PLUGIN_SUCCESS, NULL};
-  
+
   // Perform self-validation here
   if (strlen(PLUGIN_NAME) == 0) {
     result.status = PLUGIN_ERROR_GENERAL;
     result.error_message = create_string_copy("Plugin name is empty");
     return result;
   }
-  
+
   if (strlen(PLUGIN_VERSION) == 0) {
     result.status = PLUGIN_ERROR_GENERAL;
     result.error_message = create_string_copy("Plugin version is empty");
     return result;
   }
-  
+
   return result;
 }
 
 // Initialize the plugin
 extern "C" PLUGIN_API int plugin_initialize() {
   // Initialize our dynamic objects
-  if (!plugin_mutex) plugin_mutex = new std::mutex();
-  if (!plugin_settings) plugin_settings = new std::map<std::string, std::string>();
-  if (!command_history) command_history = new std::vector<std::string>();
-  
+  if (!plugin_mutex)
+    plugin_mutex = new std::mutex();
+  if (!plugin_settings)
+    plugin_settings = new std::map<std::string, std::string>();
+  if (!command_history)
+    command_history = new std::vector<std::string>();
+
   std::lock_guard<std::mutex> lock(*plugin_mutex);
 
   // Seed the random number generator
@@ -210,7 +217,8 @@ extern "C" PLUGIN_API int plugin_initialize() {
 
   // Start background thread
   background_thread_running = true;
-  if (!background_thread) background_thread = new std::thread();
+  if (!background_thread)
+    background_thread = new std::thread();
   *background_thread = std::thread(background_task);
 
   std::cout << "All Features Plugin initialized successfully!\n";
@@ -221,7 +229,7 @@ extern "C" PLUGIN_API int plugin_initialize() {
 extern "C" PLUGIN_API void plugin_shutdown() {
   // Mark as not initialized first
   plugin_initialized = false;
-  
+
   // Stop background thread first, without holding the lock
   if (background_thread_running) {
     background_thread_running = false;
@@ -233,7 +241,7 @@ extern "C" PLUGIN_API void plugin_shutdown() {
   // Now acquire lock for cleanup
   if (plugin_mutex) {
     std::lock_guard<std::mutex> lock(*plugin_mutex);
-    
+
     // Clear plugin state
     is_enabled = false;
     if (command_history) {
@@ -270,7 +278,7 @@ extern "C" PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
 
   // Check if we're shutting down to avoid deadlocks
   if (!background_thread_running && !is_enabled) {
-    return PLUGIN_SUCCESS; // Silently ignore commands during shutdown
+    return PLUGIN_SUCCESS;  // Silently ignore commands during shutdown
   }
 
   // Check if plugin is properly initialized
@@ -371,8 +379,9 @@ extern "C" PLUGIN_API char** plugin_get_subscribed_events(int* count) {
 // Get default plugin settings
 extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(
     int* count) {
-  if (!count) return nullptr;
-  
+  if (!count)
+    return nullptr;
+
   const int num_settings = 3;
   *count = num_settings;
 
@@ -397,8 +406,10 @@ extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(
     if (!settings[i].key || !settings[i].value) {
       // Free any successfully allocated strings
       for (int j = 0; j <= i; j++) {
-        if (settings[j].key) PLUGIN_FREE(settings[j].key);
-        if (settings[j].value) PLUGIN_FREE(settings[j].value);
+        if (settings[j].key)
+          PLUGIN_FREE(settings[j].key);
+        if (settings[j].value)
+          PLUGIN_FREE(settings[j].value);
       }
       PLUGIN_FREE(settings);
       *count = 0;
@@ -441,7 +452,8 @@ extern "C" PLUGIN_API int plugin_update_setting(const char* key,
       if (background_thread && background_thread->joinable()) {
         background_thread->join();
       }
-      if (!background_thread) background_thread = new std::thread();
+      if (!background_thread)
+        background_thread = new std::thread();
       *background_thread = std::thread(background_task);
     } else if (!should_enable && background_thread_running) {
       // Stop background thread

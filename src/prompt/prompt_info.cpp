@@ -61,14 +61,13 @@
  * {RUST_VERSION} - Rust version if in Rust project
  * {GOLANG_VERSION} - Go version if in Go project
  * {JAVA_VERSION} - Java version if in Java project
- * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected projects)
- * {PYTHON_VENV} - Python virtual environment name
- * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm)
- * {IS_PYTHON_PROJECT} - Whether current directory is a Python project
- * {IS_NODEJS_PROJECT} - Whether current directory is a Node.js project
- * {IS_RUST_PROJECT} - Whether current directory is a Rust project
- * {IS_GOLANG_PROJECT} - Whether current directory is a Go project
- * {IS_JAVA_PROJECT} - Whether current directory is a Java project
+ * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected
+ * projects) {PYTHON_VENV} - Python virtual environment name {NODEJS_PM} -
+ * Node.js package manager (npm, yarn, pnpm) {IS_PYTHON_PROJECT} - Whether
+ * current directory is a Python project {IS_NODEJS_PROJECT} - Whether current
+ * directory is a Node.js project {IS_RUST_PROJECT} - Whether current directory
+ * is a Rust project {IS_GOLANG_PROJECT} - Whether current directory is a Go
+ * project {IS_JAVA_PROJECT} - Whether current directory is a Java project
  *
  * Container placeholders:
  * {CONTAINER_NAME} - Name of container (Docker, Podman, etc.)
@@ -232,7 +231,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
   }
 
-  // Always include language detection variables since they might be used in conditionals
   needed_vars.insert("IS_PYTHON_PROJECT");
   needed_vars.insert("IS_NODEJS_PROJECT");
   needed_vars.insert("IS_RUST_PROJECT");
@@ -450,30 +448,29 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
   }
 
-  // Combined language versions - only show versions for detected project types
   if (needed_vars.count("LANGUAGE_VERSIONS")) {
     std::string combined_versions;
-    
+
     if (is_python_project()) {
       combined_versions += get_python_version();
     }
-    
+
     if (is_nodejs_project()) {
       combined_versions += get_nodejs_version();
     }
-    
+
     if (is_rust_project()) {
       combined_versions += get_rust_version();
     }
-    
+
     if (is_golang_project()) {
       combined_versions += get_golang_version();
     }
-    
+
     if (is_java_project()) {
       combined_versions += get_java_version();
     }
-    
+
     vars["LANGUAGE_VERSIONS"] = combined_versions;
   }
 

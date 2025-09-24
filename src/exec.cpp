@@ -64,8 +64,10 @@ Exec::~Exec() {
   int status;
   pid_t pid;
   int zombie_count = 0;
-  const int max_cleanup_iterations = 50;  // Prevent infinite loops in destructor
-  while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < max_cleanup_iterations) {
+  const int max_cleanup_iterations =
+      50;  // Prevent infinite loops in destructor
+  while ((pid = waitpid(-1, &status, WNOHANG)) > 0 &&
+         zombie_count < max_cleanup_iterations) {
     zombie_count++;
     if (g_debug_mode && zombie_count <= 3) {
       std::cerr << "DEBUG: Exec destructor reaped zombie " << pid << std::endl;
@@ -73,7 +75,9 @@ Exec::~Exec() {
   }
 
   if (zombie_count >= max_cleanup_iterations) {
-    std::cerr << "WARNING: Exec destructor hit maximum cleanup iterations, some zombies may remain" << std::endl;
+    std::cerr << "WARNING: Exec destructor hit maximum cleanup iterations, "
+                 "some zombies may remain"
+              << std::endl;
   }
 
   if (g_debug_mode && zombie_count > 0) {
@@ -1932,8 +1936,10 @@ void Exec::terminate_all_child_process() {
   int status;
   pid_t pid;
   int zombie_count = 0;
-  const int max_terminate_iterations = 50;  // Prevent infinite loops during termination
-  while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < max_terminate_iterations) {
+  const int max_terminate_iterations =
+      50;  // Prevent infinite loops during termination
+  while ((pid = waitpid(-1, &status, WNOHANG)) > 0 &&
+         zombie_count < max_terminate_iterations) {
     zombie_count++;
     if (g_debug_mode && zombie_count <= 3) {
       std::cerr << "DEBUG: Reaped zombie process " << pid << std::endl;
@@ -1941,7 +1947,9 @@ void Exec::terminate_all_child_process() {
   }
 
   if (zombie_count >= max_terminate_iterations) {
-    std::cerr << "WARNING: terminate_all_child_process hit maximum cleanup iterations" << std::endl;
+    std::cerr
+        << "WARNING: terminate_all_child_process hit maximum cleanup iterations"
+        << std::endl;
   }
 
   set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");

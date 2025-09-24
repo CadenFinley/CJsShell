@@ -651,7 +651,6 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
           args = new_args;
 
-          // Check if alias expansion resulted in a pipeline
           bool has_pipe = false;
           for (const auto& arg : args) {
             if (arg == "|") {
@@ -660,16 +659,13 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             }
           }
 
-          // If we have pipes after alias expansion, we need to handle this as a
-          // pipeline Return a special marker to indicate this should be
-          // processed as a pipeline
           if (has_pipe) {
             if (g_debug_mode) {
               std::cerr << "DEBUG: Alias expansion resulted in pipeline, "
                            "should be re-processed"
                         << std::endl;
             }
-            // Return a special marker that the caller can detect
+
             return {"__ALIAS_PIPELINE__", alias_it->second};
           }
         }
@@ -839,8 +835,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
   std::vector<std::string> result;
 
-  // Set a reasonable limit to prevent memory exhaustion
-  static const size_t MAX_EXPANSION_SIZE = 10000000;  // Limit to 10mil items
+  static const size_t MAX_EXPANSION_SIZE = 10000000;
 
   size_t open_pos = pattern.find('{');
   if (open_pos == std::string::npos) {
@@ -886,7 +881,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
       int start = std::stoi(start_str);
       int end = std::stoi(end_str);
 
-      // Calculate and check expansion size
       size_t range_size = std::abs(end - start) + 1;
 
       if (range_size > MAX_EXPANSION_SIZE) {
@@ -896,7 +890,7 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
               << " items), returning unexpanded pattern to avoid memory issues"
               << std::endl;
         }
-        // Return the original pattern unexpanded to avoid memory exhaustion
+
         result.push_back(pattern);
         return result;
       }
@@ -977,7 +971,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
     }
   }
 
-  // Protect against comma expansions that are too large
   if (options.size() > MAX_EXPANSION_SIZE) {
     if (g_debug_mode) {
       std::cerr << "DEBUG: Comma brace expansion too large (" << options.size()
@@ -1740,14 +1733,12 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     bool is_double_bracket_cmd =
         !filtered_args.empty() && strip_quote_tag(filtered_args[0]) == "[[";
 
-    // First, apply tilde expansion to all arguments
     std::vector<std::string> tilde_expanded_args;
     for (const auto& raw : filtered_args) {
       bool is_single = is_single_quoted_token(raw);
       bool is_double = is_double_quoted_token(raw);
       std::string val = strip_quote_tag(raw);
-      
-      // Check if tilde expansion is needed
+
       bool has_tilde = false;
       if (!val.empty()) {
         if (val[0] == '~') {
@@ -1782,7 +1773,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             tilde_expanded_args.push_back(expanded_arg);
           }
         } else {
-          // If HOME is not set, keep the original
           if (is_single) {
             tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
                                           QUOTE_SINGLE + val);
@@ -1806,7 +1796,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       }
     }
 
-    // Then apply brace expansion and wildcard expansion
     std::vector<std::string> final_args_local;
     for (const auto& raw : tilde_expanded_args) {
       bool is_single = is_single_quoted_token(raw);

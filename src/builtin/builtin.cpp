@@ -107,9 +107,9 @@ Built_ins::Built_ins() : shell(nullptr) {
        [this](const std::vector<std::string>& args) {
          // args[0] == "cd"; optional directory operand at args[1]
          if (config::smart_cd_enabled) {
-           return ::change_directory_smart(args.size() > 1 ? args[1] : "",
-                                           current_directory, previous_directory,
-                                           last_terminal_output_error);
+           return ::change_directory_smart(
+               args.size() > 1 ? args[1] : "", current_directory,
+               previous_directory, last_terminal_output_error);
          } else {
            return ::change_directory(args.size() > 1 ? args[1] : "",
                                      current_directory, previous_directory,

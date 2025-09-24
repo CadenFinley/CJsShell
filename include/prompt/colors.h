@@ -120,10 +120,14 @@ struct GradientSpec {
   RGB start;
   RGB end;
   std::string direction;  // "horizontal", "vertical", "diagonal"
-  
-  GradientSpec() : start(RGB(0, 0, 0)), end(RGB(255, 255, 255)), direction("horizontal") {}
-  GradientSpec(const RGB& start_color, const RGB& end_color, const std::string& dir = "horizontal") 
-      : start(start_color), end(end_color), direction(dir) {}
+
+  GradientSpec()
+      : start(RGB(0, 0, 0)), end(RGB(255, 255, 255)), direction("horizontal") {
+  }
+  GradientSpec(const RGB& start_color, const RGB& end_color,
+               const std::string& dir = "horizontal")
+      : start(start_color), end(end_color), direction(dir) {
+  }
 };
 
 // Gradient generation
@@ -134,13 +138,18 @@ std::string gradient_text(const std::string& text, const RGB& start,
 // Enhanced gradient functions for theme system
 std::string gradient_bg(const std::string& text, const GradientSpec& spec);
 std::string gradient_fg(const std::string& text, const GradientSpec& spec);
-std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_spec, const RGB& fg_rgb);
+std::string gradient_bg_with_fg(const std::string& text,
+                                const GradientSpec& bg_spec, const RGB& fg_rgb);
 GradientSpec parse_gradient_value(const std::string& value);
 
 // Helper functions for theme system gradient support
 bool is_gradient_value(const std::string& value);
-std::string apply_color_or_gradient(const std::string& text, const std::string& color_value, bool is_foreground);
-std::string apply_gradient_bg_with_fg(const std::string& text, const std::string& bg_value, const std::string& fg_value);
+std::string apply_color_or_gradient(const std::string& text,
+                                    const std::string& color_value,
+                                    bool is_foreground);
+std::string apply_gradient_bg_with_fg(const std::string& text,
+                                      const std::string& bg_value,
+                                      const std::string& fg_value);
 
 // Xterm 256 color palette helpers
 constexpr uint8_t rgb_to_xterm256(const RGB& color);

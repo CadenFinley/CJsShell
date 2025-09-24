@@ -132,7 +132,7 @@ static void initialize_title_strings() {
 int main(int argc, char* argv[]) {
   // Start timing the startup process
   g_startup_begin_time = std::chrono::steady_clock::now();
-  
+
   // Parse command line arguments (includes login mode detection)
   std::string script_file;
   std::vector<std::string> script_args;
@@ -210,14 +210,15 @@ int main(int argc, char* argv[]) {
   if (!g_exit_flag) {
     // Calculate startup time
     auto startup_end_time = std::chrono::steady_clock::now();
-    auto startup_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-        startup_end_time - g_startup_begin_time);
-    
+    auto startup_duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            startup_end_time - g_startup_begin_time);
+
     // Set the startup duration as the initial command duration for the prompt
     if (g_shell && g_theme) {
       g_shell->set_initial_duration(startup_duration.count());
     }
-    
+
     if (g_title_line) {
       initialize_title_strings();
       std::cout << title_line << std::endl;
@@ -227,9 +228,10 @@ int main(int argc, char* argv[]) {
     if (g_title_line && config::show_startup_time) {
       std::cout << std::endl;
     }
-    
+
     if (config::show_startup_time) {
-      std::cout << " Started in " << startup_duration.count() << "ms." << std::endl;
+      std::cout << " Started in " << startup_duration.count() << "ms."
+                << std::endl;
     }
 
     if (!config::startup_test) {
@@ -390,7 +392,8 @@ static int parse_command_line_arguments(int argc, char* argv[],
         config::show_startup_time = false;
         g_title_line = false;
         if (g_debug_mode)
-          std::cerr << "DEBUG: Minimal mode enabled - all features disabled" << std::endl;
+          std::cerr << "DEBUG: Minimal mode enabled - all features disabled"
+                    << std::endl;
         break;
       case 'D':
         config::disable_ls_colors = true;
@@ -1120,7 +1123,8 @@ static void apply_profile_startup_flags() {
     } else if (flag == "--show-startup-time") {
       config::show_startup_time = true;
       if (g_debug_mode)
-        std::cerr << "DEBUG: Startup time display enabled via profile" << std::endl;
+        std::cerr << "DEBUG: Startup time display enabled via profile"
+                  << std::endl;
     } else if (flag == "--no-source") {
       config::source_enabled = false;
       if (g_debug_mode)
@@ -1167,11 +1171,14 @@ static void apply_profile_startup_flags() {
       config::show_startup_time = false;
       g_title_line = false;
       if (g_debug_mode)
-        std::cerr << "DEBUG: Minimal mode enabled via profile - all features disabled" << std::endl;
+        std::cerr
+            << "DEBUG: Minimal mode enabled via profile - all features disabled"
+            << std::endl;
     } else if (flag == "--disable-ls-colors") {
       config::disable_ls_colors = true;
       if (g_debug_mode)
-        std::cerr << "DEBUG: Disable ls colors enabled via profile" << std::endl;
+        std::cerr << "DEBUG: Disable ls colors enabled via profile"
+                  << std::endl;
     }
   }
 }

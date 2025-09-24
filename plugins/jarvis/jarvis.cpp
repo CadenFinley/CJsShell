@@ -40,7 +40,8 @@ extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
 
 // Helper function to create a heap-allocated string copy
 char* create_string_copy(const char* src) {
-  if (!src) return nullptr;
+  if (!src)
+    return nullptr;
   size_t len = strlen(src) + 1;
   char* dest = (char*)PLUGIN_MALLOC(len);
   if (dest) {
@@ -52,14 +53,14 @@ char* create_string_copy(const char* src) {
 // Validate plugin (optional but recommended)
 extern "C" PLUGIN_API plugin_validation_t plugin_validate() {
   plugin_validation_t result = {PLUGIN_SUCCESS, nullptr};
-  
+
   // Perform self-validation here
   if (worker_pid > 0 && kill(worker_pid, 0) != 0) {
     result.status = PLUGIN_ERROR_GENERAL;
     result.error_message = create_string_copy("Worker process is not running");
     return result;
   }
-  
+
   return result;
 }
 

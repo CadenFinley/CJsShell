@@ -360,7 +360,8 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
       const int max_reap_iterations = 100;  // Prevent infinite loops
 
       while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) >
-             0 && reaped_count < max_reap_iterations) {
+                 0 &&
+             reaped_count < max_reap_iterations) {
         reaped_count++;
         shell_exec->handle_child_signal(pid, status);
 
@@ -401,8 +402,9 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
       // Check if we hit the maximum iteration limit
       if (reaped_count >= max_reap_iterations) {
-        std::cerr << "WARNING: SIGCHLD handler hit maximum iteration limit (" 
-                  << max_reap_iterations << "), breaking to prevent infinite loop" << std::endl;
+        std::cerr << "WARNING: SIGCHLD handler hit maximum iteration limit ("
+                  << max_reap_iterations
+                  << "), breaking to prevent infinite loop" << std::endl;
       }
 
       if (g_debug_mode && reaped_count > 0 && reaped_count <= 3) {

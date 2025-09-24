@@ -85,20 +85,20 @@ PLUGIN_API plugin_info_t* plugin_get_info() {
 // Validate plugin (optional but recommended)
 PLUGIN_API plugin_validation_t plugin_validate() {
   plugin_validation_t result = {PLUGIN_SUCCESS, NULL};
-  
+
   // Perform self-validation here
   if (strlen(PLUGIN_NAME) == 0) {
     result.status = PLUGIN_ERROR_GENERAL;
     result.error_message = strdup_wrapper("Plugin name is empty");
     return result;
   }
-  
+
   if (strlen(PLUGIN_VERSION) == 0) {
     result.status = PLUGIN_ERROR_GENERAL;
     result.error_message = strdup_wrapper("Plugin version is empty");
     return result;
   }
-  
+
   return result;
 }
 
@@ -178,8 +178,9 @@ PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
 
 // Get commands provided by this plugin
 PLUGIN_API char** plugin_get_commands(int* count) {
-  if (!count) return NULL;
-  
+  if (!count)
+    return NULL;
+
   *count = 6;
 
   // Allocate memory for the array of command strings
@@ -215,8 +216,9 @@ PLUGIN_API char** plugin_get_commands(int* count) {
 
 // Get events this plugin subscribes to
 PLUGIN_API char** plugin_get_subscribed_events(int* count) {
-  if (!count) return NULL;
-  
+  if (!count)
+    return NULL;
+
   *count = 4;
 
   // Allocate memory for the array of event strings
@@ -250,8 +252,9 @@ PLUGIN_API char** plugin_get_subscribed_events(int* count) {
 
 // Get default plugin settings
 PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
-  if (!count) return NULL;
-  
+  if (!count)
+    return NULL;
+
   *count = 2;
 
   // Allocate memory for the settings array
@@ -270,12 +273,16 @@ PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
   settings[1].value = strdup_wrapper("true");
 
   // Check for allocation failures
-  if (!settings[0].key || !settings[0].value || 
-      !settings[1].key || !settings[1].value) {
-    if (settings[0].key) PLUGIN_FREE(settings[0].key);
-    if (settings[0].value) PLUGIN_FREE(settings[0].value);
-    if (settings[1].key) PLUGIN_FREE(settings[1].key);
-    if (settings[1].value) PLUGIN_FREE(settings[1].value);
+  if (!settings[0].key || !settings[0].value || !settings[1].key ||
+      !settings[1].value) {
+    if (settings[0].key)
+      PLUGIN_FREE(settings[0].key);
+    if (settings[0].value)
+      PLUGIN_FREE(settings[0].value);
+    if (settings[1].key)
+      PLUGIN_FREE(settings[1].key);
+    if (settings[1].value)
+      PLUGIN_FREE(settings[1].value);
     PLUGIN_FREE(settings);
     *count = 0;
     return NULL;

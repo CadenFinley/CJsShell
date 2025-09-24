@@ -21,7 +21,8 @@ extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(
 
 // Enhanced helper functions for plugin API
 extern "C" PLUGIN_API char* plugin_safe_strdup(const char* src) {
-  if (!src) return nullptr;
+  if (!src)
+    return nullptr;
   size_t len = strlen(src);
   char* copy = static_cast<char*>(malloc(len + 1));
   if (copy) {
@@ -32,8 +33,9 @@ extern "C" PLUGIN_API char* plugin_safe_strdup(const char* src) {
 
 extern "C" PLUGIN_API plugin_string_t plugin_create_string(const char* src) {
   plugin_string_t result = {nullptr, 0, 0};
-  if (!src) return result;
-  
+  if (!src)
+    return result;
+
   size_t len = strlen(src);
   result.data = static_cast<char*>(malloc(len + 1));
   if (result.data) {
@@ -442,15 +444,15 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
       std::cerr << "DEBUG: load_plugin - Found " << count << " default settings"
                 << std::endl;
     }
-    
+
     // Store settings and free memory properly
     if (settings && count > 0) {
       for (int i = 0; i < count; i++) {
         if (settings[i].key && settings[i].value) {
           data.settings[settings[i].key] = settings[i].value;
           if (g_debug_mode) {
-            std::cerr << "DEBUG: load_plugin - Setting " << settings[i].key << "="
-                      << settings[i].value << std::endl;
+            std::cerr << "DEBUG: load_plugin - Setting " << settings[i].key
+                      << "=" << settings[i].value << std::endl;
           }
         }
       }
@@ -473,7 +475,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
   // Run plugin validation if available (enhanced API)
   if (data.validate) {
     if (g_debug_mode) {
-      std::cerr << "DEBUG: load_plugin - Running plugin validation" << std::endl;
+      std::cerr << "DEBUG: load_plugin - Running plugin validation"
+                << std::endl;
     }
     plugin_validation_t validation_result = data.validate();
     if (validation_result.status != PLUGIN_SUCCESS) {
@@ -485,7 +488,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
           data.free_memory(validation_result.error_message);
         }
       }
-      std::cerr << "Plugin loading failed: " << name << ": " << error_msg << std::endl;
+      std::cerr << "Plugin loading failed: " << name << ": " << error_msg
+                << std::endl;
       dlclose(handle);
       return false;
     }
