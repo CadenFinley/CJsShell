@@ -1212,46 +1212,52 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     if (command_part == "cd" || command_part.rfind("cd ", 0) == 0) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Processing bookmark completions for cd command "
-                     "with prefix: '"
-                  << special_part << "'" << std::endl;
+      // Only provide bookmark suggestions if smart CD is enabled
+      if (!config::smart_cd_enabled) {
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Skipping bookmark completions - smart CD is disabled" << std::endl;
+      } else {
+        if (g_debug_mode)
+          std::cerr << "DEBUG: Processing bookmark completions for cd command "
+                       "with prefix: '"
+                    << special_part << "'" << std::endl;
 
-      if (g_shell && g_shell->get_built_ins()) {
-        const auto& bookmarks =
-            g_shell->get_built_ins()->get_directory_bookmarks();
+        if (g_shell && g_shell->get_built_ins()) {
+          const auto& bookmarks =
+              g_shell->get_built_ins()->get_directory_bookmarks();
 
-        for (const auto& bookmark : bookmarks) {
-          const std::string& bookmark_name = bookmark.first;
-          const std::string& bookmark_path = bookmark.second;
+          for (const auto& bookmark : bookmarks) {
+            const std::string& bookmark_name = bookmark.first;
+            const std::string& bookmark_path = bookmark.second;
 
-          if (special_part.empty() ||
-              bookmark_name.rfind(special_part, 0) == 0) {
-            
-            // For cd commands, check if the bookmark is a directory
-            namespace fs = std::filesystem;
-            if (fs::exists(bookmark_path) && fs::is_directory(bookmark_path)) {
-              // Check if a directory with the same name exists in the current working directory
-              std::string current_dir_item = "./" + bookmark_name;
-              if (fs::exists(current_dir_item) && fs::is_directory(current_dir_item)) {
+            if (special_part.empty() ||
+                bookmark_name.rfind(special_part, 0) == 0) {
+              
+              // For cd commands, check if the bookmark is a directory
+              namespace fs = std::filesystem;
+              if (fs::exists(bookmark_path) && fs::is_directory(bookmark_path)) {
+                // Check if a directory with the same name exists in the current working directory
+                std::string current_dir_item = "./" + bookmark_name;
+                if (fs::exists(current_dir_item) && fs::is_directory(current_dir_item)) {
+                  if (g_debug_mode)
+                    std::cerr << "DEBUG: Skipping bookmark '" << bookmark_name 
+                              << "' because a directory with the same name exists in current directory" << std::endl;
+                  continue; // Skip this bookmark
+                }
+                
+                // Calculate how many characters to delete before inserting the completion
+                size_t delete_before = special_part.length();
+                // Don't add trailing slash for bookmarks - let user add it if they want
+                std::string completion_text = bookmark_name;
+                
                 if (g_debug_mode)
-                  std::cerr << "DEBUG: Skipping bookmark '" << bookmark_name 
-                            << "' because a directory with the same name exists in current directory" << std::endl;
-                continue; // Skip this bookmark
-              }
-              
-              // Calculate how many characters to delete before inserting the completion
-              size_t delete_before = special_part.length();
-              // Don't add trailing slash for bookmarks - let user add it if they want
-              std::string completion_text = bookmark_name;
-              
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Adding bookmark completion: '"
-                          << bookmark_name << "' -> '" << completion_text << "' (deleting " << delete_before << " chars before)"
-                          << std::endl;
+                  std::cerr << "DEBUG: Adding bookmark completion: '"
+                            << bookmark_name << "' -> '" << completion_text << "' (deleting " << delete_before << " chars before)"
+                            << std::endl;
 
-              if (!safe_add_completion_prim_with_source(cenv, completion_text.c_str(), NULL, NULL, "bookmark", delete_before, 0))
-                return;
+                if (!safe_add_completion_prim_with_source(cenv, completion_text.c_str(), NULL, NULL, "bookmark", delete_before, 0))
+                  return;
+              }
             }
           }
         }
