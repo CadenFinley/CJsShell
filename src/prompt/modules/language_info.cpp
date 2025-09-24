@@ -17,23 +17,40 @@ bool LanguageInfo::is_project_detected(
     const std::vector<std::string>& extensions,
     const std::vector<std::string>& folders) {
   std::filesystem::path current_path = std::filesystem::current_path();
+  
+  // Use recursive scanning like Starship does
+  return scan_directory_recursive(current_path, files, extensions, folders);
+}
 
-  for (const auto& file : files) {
-    if (std::filesystem::exists(current_path / file)) {
-      return true;
-    }
-  }
-
-  for (const auto& folder : folders) {
-    if (std::filesystem::exists(current_path / folder) &&
-        std::filesystem::is_directory(current_path / folder)) {
-      return true;
-    }
+bool LanguageInfo::scan_directory_recursive(
+    const std::filesystem::path& dir,
+    const std::vector<std::string>& files,
+    const std::vector<std::string>& extensions,
+    const std::vector<std::string>& folders,
+    int max_depth) {
+  
+  if (max_depth <= 0) {
+    return false;
   }
 
   try {
-    for (const auto& entry :
-         std::filesystem::directory_iterator(current_path)) {
+    // Check for specific files in current directory
+    for (const auto& file : files) {
+      if (std::filesystem::exists(dir / file)) {
+        return true;
+      }
+    }
+
+    // Check for specific folders in current directory
+    for (const auto& folder : folders) {
+      if (std::filesystem::exists(dir / folder) &&
+          std::filesystem::is_directory(dir / folder)) {
+        return true;
+      }
+    }
+
+    // Check file extensions in current directory
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
       if (entry.is_regular_file()) {
         std::string ext = entry.path().extension().string();
         if (std::find(extensions.begin(), extensions.end(), ext) !=
@@ -42,6 +59,24 @@ bool LanguageInfo::is_project_detected(
         }
       }
     }
+
+    // For the current directory only, don't recurse too deep
+    // This matches Starship's behavior of primarily checking the current directory
+    if (max_depth == 3) {
+      // Check immediate subdirectories for important project files
+      for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (entry.is_directory()) {
+          // Only recurse into common project structure directories
+          std::string dirname = entry.path().filename().string();
+          if (dirname == "src" || dirname == "lib" || dirname == "app") {
+            if (scan_directory_recursive(entry.path(), files, extensions, folders, max_depth - 1)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+
   } catch (const std::filesystem::filesystem_error& e) {
     return false;
   }
@@ -80,6 +115,7 @@ bool LanguageInfo::is_python_project() {
 }
 
 bool LanguageInfo::is_nodejs_project() {
+  // Use the corrected variable names and include folders
   return is_project_detected(nodejs_files, nodejs_extensions, nodejs_folders);
 }
 
@@ -88,11 +124,11 @@ bool LanguageInfo::is_rust_project() {
 }
 
 bool LanguageInfo::is_golang_project() {
-  return is_project_detected(golang_files, golang_extensions, {});
+  return is_project_detected(golang_files, golang_extensions, golang_folders);
 }
 
 bool LanguageInfo::is_java_project() {
-  return is_project_detected(java_files, java_extensions, {});
+  return is_project_detected(java_files, java_extensions, java_folders);
 }
 
 std::string LanguageInfo::get_python_version() {

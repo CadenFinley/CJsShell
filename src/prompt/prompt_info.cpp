@@ -61,6 +61,7 @@
  * {RUST_VERSION} - Rust version if in Rust project
  * {GOLANG_VERSION} - Go version if in Go project
  * {JAVA_VERSION} - Java version if in Java project
+ * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected projects)
  * {PYTHON_VENV} - Python virtual environment name
  * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm)
  * {IS_PYTHON_PROJECT} - Whether current directory is a Python project
@@ -397,24 +398,71 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["CMD_SUCCESS"] = is_last_command_success() ? "true" : "false";
   }
 
-  if (needed_vars.count("PYTHON_VERSION") && is_python_project()) {
-    vars["PYTHON_VERSION"] = get_python_version();
+  if (needed_vars.count("PYTHON_VERSION")) {
+    if (is_python_project()) {
+      vars["PYTHON_VERSION"] = get_python_version();
+    } else {
+      vars["PYTHON_VERSION"] = "";
+    }
   }
 
-  if (needed_vars.count("NODEJS_VERSION") && is_nodejs_project()) {
-    vars["NODEJS_VERSION"] = get_nodejs_version();
+  if (needed_vars.count("NODEJS_VERSION")) {
+    if (is_nodejs_project()) {
+      vars["NODEJS_VERSION"] = get_nodejs_version();
+    } else {
+      vars["NODEJS_VERSION"] = "";
+    }
   }
 
-  if (needed_vars.count("RUST_VERSION") && is_rust_project()) {
-    vars["RUST_VERSION"] = get_rust_version();
+  if (needed_vars.count("RUST_VERSION")) {
+    if (is_rust_project()) {
+      vars["RUST_VERSION"] = get_rust_version();
+    } else {
+      vars["RUST_VERSION"] = "";
+    }
   }
 
-  if (needed_vars.count("GOLANG_VERSION") && is_golang_project()) {
-    vars["GOLANG_VERSION"] = get_golang_version();
+  if (needed_vars.count("GOLANG_VERSION")) {
+    if (is_golang_project()) {
+      vars["GOLANG_VERSION"] = get_golang_version();
+    } else {
+      vars["GOLANG_VERSION"] = "";
+    }
   }
 
-  if (needed_vars.count("JAVA_VERSION") && is_java_project()) {
-    vars["JAVA_VERSION"] = get_java_version();
+  if (needed_vars.count("JAVA_VERSION")) {
+    if (is_java_project()) {
+      vars["JAVA_VERSION"] = get_java_version();
+    } else {
+      vars["JAVA_VERSION"] = "";
+    }
+  }
+
+  // Combined language versions - only show versions for detected project types
+  if (needed_vars.count("LANGUAGE_VERSIONS")) {
+    std::string combined_versions;
+    
+    if (is_python_project()) {
+      combined_versions += get_python_version();
+    }
+    
+    if (is_nodejs_project()) {
+      combined_versions += get_nodejs_version();
+    }
+    
+    if (is_rust_project()) {
+      combined_versions += get_rust_version();
+    }
+    
+    if (is_golang_project()) {
+      combined_versions += get_golang_version();
+    }
+    
+    if (is_java_project()) {
+      combined_versions += get_java_version();
+    }
+    
+    vars["LANGUAGE_VERSIONS"] = combined_versions;
   }
 
   if (needed_vars.count("PYTHON_VENV")) {
