@@ -779,9 +779,7 @@ static void main_process_loop() {
           // On Linux, use malloc_trim to return memory
           malloc_trim(0);
 #else
-          // Generic fallback - just a hint to the allocator
-          std::system("echo '' > /dev/null");  // Minimal system call to
-                                               // potentially trigger cleanup
+          g_shell->execute("echo '' > /dev/null");  // Fallback no-op command
 #endif
         }
       } else {
