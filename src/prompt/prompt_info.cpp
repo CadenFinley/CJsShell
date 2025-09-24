@@ -232,6 +232,18 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
   }
 
+  // Always include language detection variables since they might be used in conditionals
+  needed_vars.insert("IS_PYTHON_PROJECT");
+  needed_vars.insert("IS_NODEJS_PROJECT");
+  needed_vars.insert("IS_RUST_PROJECT");
+  needed_vars.insert("IS_GOLANG_PROJECT");
+  needed_vars.insert("IS_JAVA_PROJECT");
+  needed_vars.insert("PYTHON_VERSION");
+  needed_vars.insert("NODEJS_VERSION");
+  needed_vars.insert("RUST_VERSION");
+  needed_vars.insert("GOLANG_VERSION");
+  needed_vars.insert("JAVA_VERSION");
+
   if (needed_vars.count("USERNAME")) {
     vars["USERNAME"] = get_username();
   }

@@ -1,0 +1,131 @@
+{
+    "terminal_title": "{PATH}",
+    "requirements": {},
+    "ps1_segments": [
+        {
+            "tag": "username_host",
+            "content": "{USERNAME}@{HOSTNAME}:",
+            "bg_color": "RESET",
+            "fg_color": "#7287FD",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "directory",
+            "content": " {DIRECTORY} ",
+            "bg_color": "RESET",
+            "fg_color": "#89B4FA",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "language_indicator",
+            "content": "{if = {IS_PYTHON_PROJECT} == 'true' ? 🐍 {PYTHON_VERSION} : }{if = {IS_NODEJS_PROJECT} == 'true' ? ⚡ {NODEJS_VERSION} : }{if = {IS_RUST_PROJECT} == 'true' ? 🦀 {RUST_VERSION} : }{if = {IS_GOLANG_PROJECT} == 'true' ? 🐹 {GOLANG_VERSION} : }{if = {IS_JAVA_PROJECT} == 'true' ? ☕ {JAVA_VERSION} : }",
+            "bg_color": "RESET",
+            "fg_color": "{if = {IS_PYTHON_PROJECT} == 'true' ? #F9E2AF : {if = {IS_NODEJS_PROJECT} == 'true' ? #A6E3A1 : {if = {IS_RUST_PROJECT} == 'true' ? #FAB387 : {if = {IS_GOLANG_PROJECT} == 'true' ? #89DCEB : {if = {IS_JAVA_PROJECT} == 'true' ? #CBA6F7 : #FFFFFF}}}}}",
+            "separator": " ",
+            "separator_fg": "#6C7086",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "prompt_symbol",
+            "content": "❯ ",
+            "bg_color": "RESET",
+            "fg_color": "{if = {CMD_SUCCESS} == 'true' ? #A6E3A1 : #F38BA8}",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "git_segments": [
+        {
+            "tag": "directory_git",
+            "content": " {LOCAL_PATH} ",
+            "bg_color": "RESET",
+            "fg_color": "#89B4FA",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "language_indicator_git",
+            "content": "{if = {IS_PYTHON_PROJECT} == 'true' ? 🐍 {PYTHON_VERSION} : }{if = {IS_NODEJS_PROJECT} == 'true' ? ⚡ {NODEJS_VERSION} : }{if = {IS_RUST_PROJECT} == 'true' ? 🦀 {RUST_VERSION} : }{if = {IS_GOLANG_PROJECT} == 'true' ? 🐹 {GOLANG_VERSION} : }{if = {IS_JAVA_PROJECT} == 'true' ? ☕ {JAVA_VERSION} : }",
+            "bg_color": "RESET",
+            "fg_color": "{if = {IS_PYTHON_PROJECT} == 'true' ? #F9E2AF : {if = {IS_NODEJS_PROJECT} == 'true' ? #A6E3A1 : {if = {IS_RUST_PROJECT} == 'true' ? #FAB387 : {if = {IS_GOLANG_PROJECT} == 'true' ? #89DCEB : {if = {IS_JAVA_PROJECT} == 'true' ? #CBA6F7 : #FFFFFF}}}}}",
+            "separator": " ",
+            "separator_fg": "#6C7086",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "git_branch",
+            "content": "{GIT_BRANCH}",
+            "bg_color": "RESET",
+            "fg_color": "#F9E2AF",
+            "separator": " ",
+            "separator_fg": "#6C7086",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "git_status",
+            "content": "{if = {GIT_STATUS} != '' ? {GIT_STATUS} : ''}",
+            "bg_color": "RESET",
+            "fg_color": "{if = {GIT_STATUS} != '' ? #F38BA8 : #A6E3A1}",
+            "separator": " ",
+            "separator_fg": "#6C7086",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "prompt_symbol_git",
+            "content": "❯ ",
+            "bg_color": "RESET",
+            "fg_color": "{if = {CMD_SUCCESS} == 'true' ? #A6E3A1 : #F38BA8}",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "ai_segments": [
+        {
+            "tag": "ai_model",
+            "content": " {AI_MODEL} ",
+            "bg_color": "RESET",
+            "fg_color": "#CBA6F7",
+            "separator": " / ",
+            "separator_fg": "#6C7086",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "ai_mode",
+            "content": "{AI_AGENT_TYPE} ",
+            "bg_color": "RESET",
+            "fg_color": "#89DCEB",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "language_indicator_ai",
+            "content": "{if = {IS_PYTHON_PROJECT} == 'true' ? 🐍 {PYTHON_VERSION} : }{if = {IS_NODEJS_PROJECT} == 'true' ? ⚡ {NODEJS_VERSION} : }{if = {IS_RUST_PROJECT} == 'true' ? 🦀 {RUST_VERSION} : }{if = {IS_GOLANG_PROJECT} == 'true' ? 🐹 {GOLANG_VERSION} : }{if = {IS_JAVA_PROJECT} == 'true' ? ☕ {JAVA_VERSION} : }",
+            "bg_color": "RESET",
+            "fg_color": "{if = {IS_PYTHON_PROJECT} == 'true' ? #F9E2AF : {if = {IS_NODEJS_PROJECT} == 'true' ? #A6E3A1 : {if = {IS_RUST_PROJECT} == 'true' ? #FAB387 : {if = {IS_GOLANG_PROJECT} == 'true' ? #89DCEB : {if = {IS_JAVA_PROJECT} == 'true' ? #CBA6F7 : #FFFFFF}}}}}",
+            "separator": " ",
+            "separator_fg": "#6C7086",
+            "separator_bg": "RESET"
+        },
+        {
+            "tag": "ai_context_indicator",
+            "content": "{if = {AI_CONTEXT_COMPARISON} == '✔' ? 'LOCAL' : 'REMOTE'}",
+            "bg_color": "RESET",
+            "fg_color": "{if = {AI_CONTEXT_COMPARISON} == '✔' ? #A6E3A1 : #FAB387}",
+            "separator": " > ",
+            "separator_fg": "#CBA6F7",
+            "separator_bg": "RESET"
+        }
+    ],
+    "newline_segments": [],
+    "fill_char": "",
+    "fill_fg_color": "RESET",
+    "fill_bg_color": "RESET"
+}
