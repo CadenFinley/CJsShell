@@ -3453,7 +3453,7 @@ int ShellScriptInterpreter::execute_block(
                 g_shell->shell_exec->print_last_error();
               }
             }
-            setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+            setenv("?", std::to_string(exit_code).c_str(), 1);
             return exit_code;
           } else {
             if (c.args.size() >= 2) {
@@ -3481,7 +3481,7 @@ int ShellScriptInterpreter::execute_block(
                 int status;
                 waitpid(pid, &status, 0);
                 int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
-                setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+                setenv("?", std::to_string(exit_code).c_str(), 1);
                 return exit_code;
               } else {
                 std::cerr << "Failed to fork for subshell execution"
@@ -3519,7 +3519,7 @@ int ShellScriptInterpreter::execute_block(
                 g_shell->shell_exec->print_last_error();
               }
             }
-            setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+            setenv("?", std::to_string(exit_code).c_str(), 1);
             return exit_code;
           }
 
@@ -3553,7 +3553,7 @@ int ShellScriptInterpreter::execute_block(
           }
           int exit_code = g_shell->execute_command(expanded_args, c.background);
 
-          setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+          setenv("?", std::to_string(exit_code).c_str(), 1);
           return exit_code;
         }
       }
@@ -3583,7 +3583,7 @@ int ShellScriptInterpreter::execute_block(
         }
       }
 
-      setenv("STATUS", std::to_string(exit_code).c_str(), 1);
+      setenv("?", std::to_string(exit_code).c_str(), 1);
       return exit_code;
     } catch (const std::bad_alloc& e) {
       std::vector<SyntaxError> errors;
@@ -3597,7 +3597,7 @@ int ShellScriptInterpreter::execute_block(
 
       print_error_report(errors, true, true);
 
-      setenv("STATUS", "3", 1);
+      setenv("?", "3", 1);
       return 3;
     } catch (const std::system_error& e) {
       std::vector<SyntaxError> errors;
@@ -3610,7 +3610,7 @@ int ShellScriptInterpreter::execute_block(
 
       print_error_report(errors, true, true);
 
-      setenv("STATUS", "4", 1);
+      setenv("?", "4", 1);
       return 4;
     } catch (const std::runtime_error& e) {
       std::vector<SyntaxError> errors;
@@ -3640,7 +3640,7 @@ int ShellScriptInterpreter::execute_block(
       errors.push_back(error);
       print_error_report(errors, true, true);
 
-      setenv("STATUS", "2", 1);
+      setenv("?", "2", 1);
       return 2;
     } catch (const std::exception& e) {
       std::vector<SyntaxError> errors;
@@ -3655,7 +3655,7 @@ int ShellScriptInterpreter::execute_block(
 
       print_error_report(errors, true, true);
 
-      setenv("STATUS", "5", 1);
+      setenv("?", "5", 1);
       return 5;
     } catch (...) {
       std::vector<SyntaxError> errors;
@@ -3670,7 +3670,7 @@ int ShellScriptInterpreter::execute_block(
 
       print_error_report(errors, true, true);
 
-      setenv("STATUS", "6", 1);
+      setenv("?", "6", 1);
       return 6;
     }
   };
@@ -5813,7 +5813,7 @@ int ShellScriptInterpreter::execute_block(
           }
           last_code = code;
 
-          setenv("STATUS", std::to_string(last_code).c_str(), 1);
+          setenv("?", std::to_string(last_code).c_str(), 1);
 
           if (g_shell && g_shell->is_errexit_enabled() && code != 0) {
             if (code != 253 && code != 254 && code != 255) {
@@ -6048,7 +6048,7 @@ std::string ShellScriptInterpreter::get_variable_value(
   }
 
   if (var_name == "?") {
-    const char* status_env = getenv("STATUS");
+    const char* status_env = getenv("?");
     return status_env ? status_env : "0";
   } else if (var_name == "$") {
     return std::to_string(getpid());

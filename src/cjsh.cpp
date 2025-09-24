@@ -759,7 +759,8 @@ static void main_process_loop() {
                       << std::endl;
           // update_completion_frequency(command);
           ic_history_add(command.c_str());
-          setenv("STATUS", status_str.c_str(), 1);
+          // Set bash-like exit status variable
+          setenv("?", status_str.c_str(), 1);
 
           // Force memory cleanup after command execution to return memory to OS
           if (g_debug_mode)
@@ -957,9 +958,11 @@ static void setup_environment_variables() {
       std::cerr << "DEBUG: Setting _ to: " << cjsh_path << std::endl;
     }
     env_vars.emplace_back("_", cjsh_path.c_str());
+    // Use bash-like exit status variable instead of STATUS
     std::string status_str = std::to_string(0);
-    env_vars.emplace_back("STATUS", status_str.c_str());
-    env_vars.emplace_back("VERSION", c_version.c_str());
+    env_vars.emplace_back("?", status_str.c_str());
+    // Set shell-specific version variable (optional)
+    env_vars.emplace_back("CJSH_VERSION", c_version.c_str());
 
     // Set all environment variables in one batch
     if (g_debug_mode) {

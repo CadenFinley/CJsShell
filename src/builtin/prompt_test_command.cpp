@@ -122,7 +122,7 @@ int prompt_test_command(const std::vector<std::string>& args) {
             << (pi.is_in_virtual_environment(venv_name) ? venv_name : "")
             << "\n";
   std::cout << "BG_JOBS: " << pi.get_background_jobs_count() << "\n";
-  std::cout << "STATUS: " << getenv("STATUS") << "\n";
+  std::cout << "STATUS: " << getenv("?") << "\n";
 
   // Command info tests
   std::cout << "EXIT_STATUS_SYMBOL: " << pi.get_exit_status_symbol() << "\n";

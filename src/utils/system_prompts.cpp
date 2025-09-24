@@ -56,7 +56,7 @@ std::string build_system_prompt() {
     prompt << "Directory: " << pwd << " ";
   }
 
-  const char* status = getenv("STATUS");
+  const char* status = getenv("?");
   if (status) {
     prompt << "Last command status: " << status << " ";
   }

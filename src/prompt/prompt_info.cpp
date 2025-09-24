@@ -341,7 +341,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
   }
 
   if (needed_vars.count("STATUS")) {
-    char* status_env = getenv("STATUS");
+    char* status_env = getenv("?");
     vars["STATUS"] = status_env ? std::string(status_env) : "0";
   }
 

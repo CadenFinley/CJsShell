@@ -48,7 +48,7 @@ int aihelp_command(const std::vector<std::string>& args) {
   }
 
   if (!force_mode) {
-    const char* status_env = getenv("STATUS");
+    const char* status_env = getenv("?");
     if (!status_env) {
       print_error({ErrorType::RUNTIME_ERROR,
                    "aihelp",

@@ -1150,7 +1150,7 @@ void Parser::expand_env_vars(std::string& arg) {
         std::string value;
 
         if (var_name == "?") {
-          const char* status_env = getenv("STATUS");
+          const char* status_env = getenv("?");
           value = status_env ? status_env : "0";
         } else if (var_name == "$") {
           value = std::to_string(getpid());
@@ -1301,7 +1301,7 @@ void Parser::expand_env_vars(std::string& arg) {
     std::string value;
 
     if (var_name == "?") {
-      const char* status_env = getenv("STATUS");
+      const char* status_env = getenv("?");
       value = status_env ? status_env : "0";
     } else if (var_name == "$") {
       value = std::to_string(getpid());

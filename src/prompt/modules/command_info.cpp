@@ -51,7 +51,7 @@ bool CommandInfo::should_show_duration() {
 }
 
 int CommandInfo::get_last_exit_code() {
-  const char* status_env = getenv("STATUS");
+  const char* status_env = getenv("?");
   return status_env ? std::atoi(status_env) : 0;
 }
 
