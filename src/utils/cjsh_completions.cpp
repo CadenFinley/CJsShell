@@ -1231,6 +1231,15 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             // For cd commands, check if the bookmark is a directory
             namespace fs = std::filesystem;
             if (fs::exists(bookmark_path) && fs::is_directory(bookmark_path)) {
+              // Check if a directory with the same name exists in the current working directory
+              std::string current_dir_item = "./" + bookmark_name;
+              if (fs::exists(current_dir_item) && fs::is_directory(current_dir_item)) {
+                if (g_debug_mode)
+                  std::cerr << "DEBUG: Skipping bookmark '" << bookmark_name 
+                            << "' because a directory with the same name exists in current directory" << std::endl;
+                continue; // Skip this bookmark
+              }
+              
               // Calculate how many characters to delete before inserting the completion
               size_t delete_before = special_part.length();
               // Don't add trailing slash for bookmarks - let user add it if they want
