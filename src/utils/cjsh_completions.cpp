@@ -18,10 +18,8 @@
 #include "shell.h"
 
 std::map<std::string, int> g_completion_frequency;
-
-// Memory management constants
 static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 500;
-static const size_t MAX_TOTAL_COMPLETIONS = 100; // Global limit for all completions
+static const size_t MAX_TOTAL_COMPLETIONS = 100;
 
 enum CompletionContext {
   CONTEXT_COMMAND,
@@ -31,11 +29,13 @@ enum CompletionContext {
 
 // Source priority levels (higher number = higher priority)
 enum SourcePriority {
-  PRIORITY_HISTORY = 0,    // Lowest priority - history should never override other sources
-  PRIORITY_UNKNOWN = 1,
-  PRIORITY_FILE = 2,
-  PRIORITY_PLUGIN = 3,
-  PRIORITY_FUNCTION = 4
+  PRIORITY_HISTORY = 0,
+  PRIORITY_BOOKMARK = 1,
+  PRIORITY_UNKNOWN = 2,
+  PRIORITY_FILE = 3,
+  PRIORITY_DIRECTORY = 4,
+  PRIORITY_PLUGIN = 5,
+  PRIORITY_FUNCTION = 6
 };
 
 // Helper function to get priority for a source string
@@ -43,7 +43,9 @@ static SourcePriority get_source_priority(const char* source) {
   if (!source) return PRIORITY_UNKNOWN;
   
   if (strcmp(source, "history") == 0) return PRIORITY_HISTORY;
+  if (strcmp(source, "bookmark") == 0) return PRIORITY_BOOKMARK;
   if (strcmp(source, "file") == 0) return PRIORITY_FILE;
+  if (strcmp(source, "directory") == 0) return PRIORITY_DIRECTORY;
   if (strcmp(source, "plugin") == 0) return PRIORITY_PLUGIN;
   if (strcmp(source, "function") == 0) return PRIORITY_FUNCTION;
   
@@ -104,6 +106,35 @@ struct CompletionTracker {
     auto it = added_completions.find(final_result);
     
     if (it == added_completions.end()) {
+      // Check for bookmark vs directory conflicts
+      if (source && strcmp(source, "bookmark") == 0) {
+        // Check if there's already a directory with the same name (final_result + "/")
+        std::string directory_result = final_result + "/";
+        auto dir_it = added_completions.find(directory_result);
+        if (dir_it != added_completions.end()) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Skipping bookmark '" << completion_text 
+                      << "' because directory with same name exists" << std::endl;
+          }
+          return true; // Skip bookmark because directory exists
+        }
+      } else if (source && strcmp(source, "directory") == 0) {
+        // Check if there's already a bookmark with the same base name
+        std::string bookmark_result = final_result;
+        if (bookmark_result.back() == '/') {
+          bookmark_result.pop_back(); // Remove trailing slash
+          auto bookmark_it = added_completions.find(bookmark_result);
+          if (bookmark_it != added_completions.end() && 
+              bookmark_it->second == PRIORITY_BOOKMARK) {
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Directory '" << completion_text 
+                        << "' will replace existing bookmark with same name" << std::endl;
+            }
+            // Remove the bookmark entry since directory has higher priority
+            added_completions.erase(bookmark_it);
+          }
+        }
+      }
       // No duplicate, safe to add
       return false;
     }
@@ -172,7 +203,39 @@ struct CompletionTracker {
     auto it = added_completions.find(final_result);
     SourcePriority new_priority = get_source_priority(source);
     
-    if (it != added_completions.end()) {
+    // Check for bookmark vs directory conflicts
+    if (it == added_completions.end()) {
+      if (source && strcmp(source, "bookmark") == 0) {
+        // Check if there's already a directory with the same name (final_result + "/")
+        std::string directory_result = final_result + "/";
+        auto dir_it = added_completions.find(directory_result);
+        if (dir_it != added_completions.end()) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Skipping bookmark '" << completion_text 
+                      << "' because directory with same name exists" << std::endl;
+          }
+          return true; // Skip bookmark because directory exists
+        }
+      } else if (source && strcmp(source, "directory") == 0) {
+        // Check if there's already a bookmark with the same base name
+        std::string bookmark_result = final_result;
+        if (bookmark_result.back() == '/') {
+          bookmark_result.pop_back(); // Remove trailing slash
+          auto bookmark_it = added_completions.find(bookmark_result);
+          if (bookmark_it != added_completions.end() && 
+              bookmark_it->second == PRIORITY_BOOKMARK) {
+            if (g_debug_mode) {
+              std::cerr << "DEBUG: Directory '" << completion_text 
+                        << "' will replace existing bookmark with same name" << std::endl;
+            }
+            // Remove the bookmark entry since directory has higher priority
+            added_completions.erase(bookmark_it);
+          }
+        }
+      }
+      // New completion, increment counter
+      total_completions_added++;
+    } else {
       SourcePriority existing_priority = it->second;
       
       if (new_priority <= existing_priority) {
@@ -189,9 +252,6 @@ struct CompletionTracker {
         std::cerr << "DEBUG: Replacing lower priority completion with: '" 
                   << completion_text << "' (source: '" << (source ? source : "null") 
                   << "', priority: " << new_priority << " vs existing: " << existing_priority << ")" << std::endl;
-    } else {
-      // New completion, increment counter
-      total_completions_added++;
     }
     
     // Update or add the completion with new priority
