@@ -61,7 +61,6 @@ static int parse_command_line_arguments(int argc, char* argv[],
 static int handle_early_exit_modes();
 static int handle_non_interactive_mode(const std::string& script_file);
 static int initialize_interactive_components();
-static void detect_login_mode(char* argv[]);
 static void save_startup_arguments(int argc, char* argv[]);
 static void main_process_loop();
 static bool init_login_filesystem();
@@ -134,10 +133,7 @@ int main(int argc, char* argv[]) {
   // Start timing the startup process
   g_startup_begin_time = std::chrono::steady_clock::now();
   
-  // Detect login mode from argv[0]
-  detect_login_mode(argv);
-
-  // Parse command line arguments
+  // Parse command line arguments (includes login mode detection)
   std::string script_file;
   std::vector<std::string> script_args;
   int parse_result =
@@ -254,18 +250,17 @@ int main(int argc, char* argv[]) {
   return exit_code;
 }
 
-static void detect_login_mode(char* argv[]) {
+static int parse_command_line_arguments(int argc, char* argv[],
+                                        std::string& script_file,
+                                        std::vector<std::string>& script_args) {
+  // Check if invoked as login shell (e.g., -cjsh)
   if (argv && argv[0] && argv[0][0] == '-') {
     config::login_mode = true;
     if (g_debug_mode)
       std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0]
                 << std::endl;
   }
-}
 
-static int parse_command_line_arguments(int argc, char* argv[],
-                                        std::string& script_file,
-                                        std::vector<std::string>& script_args) {
   static struct option long_options[] = {
       {"login", no_argument, 0, 'l'},
       {"interactive", no_argument, 0, 'i'},
