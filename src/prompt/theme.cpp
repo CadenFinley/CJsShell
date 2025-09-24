@@ -294,17 +294,36 @@ std::string Theme::render_line_aligned(
         segment_result += fsep;
       }
 
-      if (bg_color_name != "RESET") {
-        segment_result +=
-            colors::bg_color(colors::parse_color_value(bg_color_name));
+      // Handle colors and gradients for main content
+      std::string styled_content = content;
+      
+      // Check if we have gradients and handle accordingly
+      if (colors::is_gradient_value(bg_color_name)) {
+        // Background gradient - apply both background gradient and foreground color
+        styled_content = colors::apply_gradient_bg_with_fg(content, bg_color_name, fg_color_name);
+        segment_result += styled_content;
+      } else if (colors::is_gradient_value(fg_color_name)) {
+        // Foreground gradient only
+        if (bg_color_name != "RESET") {
+          segment_result += colors::bg_color(colors::parse_color_value(bg_color_name));
+        } else {
+          segment_result += colors::ansi::BG_RESET;
+        }
+        styled_content = colors::apply_color_or_gradient(content, fg_color_name, true);
+        segment_result += styled_content;
       } else {
-        segment_result += colors::ansi::BG_RESET;
+        // Standard color handling - no gradients
+        if (bg_color_name != "RESET") {
+          segment_result += colors::bg_color(colors::parse_color_value(bg_color_name));
+        } else {
+          segment_result += colors::ansi::BG_RESET;
+        }
+        if (fg_color_name != "RESET") {
+          segment_result += colors::fg_color(colors::parse_color_value(fg_color_name));
+        }
+        segment_result += content;
       }
-      if (fg_color_name != "RESET") {
-        segment_result +=
-            colors::fg_color(colors::parse_color_value(fg_color_name));
-      }
-      segment_result += content;
+      
       if (!separator.empty()) {
         if (sep_fg_name != "RESET") {
           segment_result +=
@@ -374,34 +393,58 @@ std::string Theme::render_line_aligned(
       std::string fillL;
       if (padL > 0) {
         if (fill_bg_color_ != "RESET") {
-          fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+          if (!colors::is_gradient_value(fill_bg_color_)) {
+            fillL += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+          }
         } else {
           fillL += colors::ansi::BG_RESET;
         }
 
-        if (fill_fg_color_ != "RESET") {
-          fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-        }
-
-        for (size_t i = 0; i < padL; ++i) {
-          fillL += fill_char_;
+        // Handle gradient fills
+        if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
+          std::string fill_text(padL, fill_char_[0]); // Assuming single character fill
+          if (colors::is_gradient_value(fill_bg_color_)) {
+            fillL += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+          } else if (colors::is_gradient_value(fill_fg_color_)) {
+            fillL += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+          }
+        } else {
+          // Standard fill handling
+          if (fill_fg_color_ != "RESET") {
+            fillL += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+          }
+          for (size_t i = 0; i < padL; ++i) {
+            fillL += fill_char_;
+          }
         }
       }
 
       std::string fillR;
       if (padR > 0) {
         if (fill_bg_color_ != "RESET") {
-          fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+          if (!colors::is_gradient_value(fill_bg_color_)) {
+            fillR += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+          }
         } else {
           fillR += colors::ansi::BG_RESET;
         }
 
-        if (fill_fg_color_ != "RESET") {
-          fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-        }
-
-        for (size_t i = 0; i < padR; ++i) {
-          fillR += fill_char_;
+        // Handle gradient fills
+        if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
+          std::string fill_text(padR, fill_char_[0]); // Assuming single character fill
+          if (colors::is_gradient_value(fill_bg_color_)) {
+            fillR += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+          } else if (colors::is_gradient_value(fill_fg_color_)) {
+            fillR += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+          }
+        } else {
+          // Standard fill handling
+          if (fill_fg_color_ != "RESET") {
+            fillR += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+          }
+          for (size_t i = 0; i < padR; ++i) {
+            fillR += fill_char_;
+          }
         }
       }
 
@@ -439,17 +482,29 @@ std::string Theme::render_line_aligned(
     std::string fill;
 
     if (fill_bg_color_ != "RESET") {
-      fill += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+      if (!colors::is_gradient_value(fill_bg_color_)) {
+        fill += colors::bg_color(colors::parse_color_value(fill_bg_color_));
+      }
     } else {
       fill += colors::ansi::BG_RESET;
     }
 
-    if (fill_fg_color_ != "RESET") {
-      fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
-    }
-
-    for (size_t i = 0; i < pad; ++i) {
-      fill += fill_char_;
+    // Handle gradient fills
+    if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
+      std::string fill_text(pad, fill_char_[0]); // Assuming single character fill
+      if (colors::is_gradient_value(fill_bg_color_)) {
+        fill += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+      } else if (colors::is_gradient_value(fill_fg_color_)) {
+        fill += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+      }
+    } else {
+      // Standard fill handling
+      if (fill_fg_color_ != "RESET") {
+        fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
+      }
+      for (size_t i = 0; i < pad; ++i) {
+        fill += fill_char_;
+      }
     }
     if (w < total_content_width && lL < w) {
       size_t available_for_right = w - lL - 1;
