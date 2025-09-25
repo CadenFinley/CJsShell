@@ -84,6 +84,7 @@ class Parser {
 
  private:
   std::string get_variable_value(const std::string& var_name);
+  std::string resolve_parameter_value(const std::string& var_name);
   std::vector<std::string> expand_braces(const std::string& pattern);
   std::unordered_map<std::string, std::string> aliases;
   std::unordered_map<std::string, std::string> env_vars;

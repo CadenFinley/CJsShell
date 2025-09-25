@@ -279,6 +279,22 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   bool token_saw_single = false;
   bool token_saw_double = false;
 
+  auto flush_current_token = [&]() {
+    if (!current_token.empty() || token_saw_single || token_saw_double) {
+      if (token_saw_single && !token_saw_double) {
+        tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
+                         current_token);
+      } else if (token_saw_double && !token_saw_single) {
+        tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
+                         current_token);
+      } else if (!current_token.empty()) {
+        tokens.push_back(current_token);
+      }
+      current_token.clear();
+      token_saw_single = token_saw_double = false;
+    }
+  };
+
   for (size_t i = 0; i < cmdline.length(); ++i) {
     char c = cmdline[i];
 
@@ -324,17 +340,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       else if (std::isspace(c)) {
         if ((!current_token.empty() || token_saw_single || token_saw_double) &&
             arith_depth == 0 && brace_depth == 0) {
-          if (token_saw_single && !token_saw_double) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                             current_token);
-          } else if (token_saw_double && !token_saw_single) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                             current_token);
-          } else if (!current_token.empty()) {
-            tokens.push_back(current_token);
-          }
-          current_token.clear();
-          token_saw_single = token_saw_double = false;
+          flush_current_token();
         } else if (arith_depth > 0 || brace_depth > 0) {
           current_token += c;
         }
@@ -356,19 +362,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
 
       else if (c == '[' && i + 1 < cmdline.length() && cmdline[i + 1] == '[') {
         bracket_depth++;
-        if (!current_token.empty() || token_saw_single || token_saw_double) {
-          if (token_saw_single && !token_saw_double) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                             current_token);
-          } else if (token_saw_double && !token_saw_single) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                             current_token);
-          } else if (!current_token.empty()) {
-            tokens.push_back(current_token);
-          }
-          current_token.clear();
-          token_saw_single = token_saw_double = false;
-        }
+        flush_current_token();
         tokens.push_back("[[");
         i++;
       }
@@ -376,19 +370,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       else if (c == ']' && i + 1 < cmdline.length() && cmdline[i + 1] == ']' &&
                bracket_depth > 0) {
         bracket_depth--;
-        if (!current_token.empty() || token_saw_single || token_saw_double) {
-          if (token_saw_single && !token_saw_double) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                             current_token);
-          } else if (token_saw_double && !token_saw_single) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                             current_token);
-          } else if (!current_token.empty()) {
-            tokens.push_back(current_token);
-          }
-          current_token.clear();
-          token_saw_single = token_saw_double = false;
-        }
+        flush_current_token();
         tokens.push_back("]]");
         i++;
       }
@@ -396,19 +378,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
       else if (bracket_depth > 0 && i + 1 < cmdline.length() &&
                ((c == '&' && cmdline[i + 1] == '&') ||
                 (c == '|' && cmdline[i + 1] == '|'))) {
-        if (!current_token.empty() || token_saw_single || token_saw_double) {
-          if (token_saw_single && !token_saw_double) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                             current_token);
-          } else if (token_saw_double && !token_saw_single) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                             current_token);
-          } else if (!current_token.empty()) {
-            tokens.push_back(current_token);
-          }
-          current_token.clear();
-          token_saw_single = token_saw_double = false;
-        }
+        flush_current_token();
 
         tokens.push_back(std::string(1, c) + cmdline[i + 1]);
         i++;
@@ -419,19 +389,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
                  bracket_depth == 0) ||
                 (c == '|' && arith_depth == 0 && brace_depth == 0 &&
                  bracket_depth == 0))) {
-        if (!current_token.empty() || token_saw_single || token_saw_double) {
-          if (token_saw_single && !token_saw_double) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                             current_token);
-          } else if (token_saw_double && !token_saw_single) {
-            tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                             current_token);
-          } else if (!current_token.empty()) {
-            tokens.push_back(current_token);
-          }
-          current_token.clear();
-          token_saw_single = token_saw_double = false;
-        }
+        flush_current_token();
         tokens.push_back(std::string(1, c));
       } else {
         current_token += c;
@@ -441,17 +399,7 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
     }
   }
 
-  if (!current_token.empty() || token_saw_single || token_saw_double) {
-    if (token_saw_single && !token_saw_double) {
-      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE +
-                       current_token);
-    } else if (token_saw_double && !token_saw_single) {
-      tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                       current_token);
-    } else if (!current_token.empty()) {
-      tokens.push_back(current_token);
-    }
-  }
+  flush_current_token();
 
   if (in_quotes) {
     throw std::runtime_error("cjsh: Unclosed quote: missing closing " +
@@ -1017,6 +965,87 @@ std::string Parser::get_variable_value(const std::string& var_name) {
   return result;
 }
 
+std::string Parser::resolve_parameter_value(const std::string& var_name) {
+  if (var_name.empty()) {
+    return "";
+  }
+
+  if (var_name == "?") {
+    const char* status_env = getenv("?");
+    return status_env ? status_env : "0";
+  }
+
+  if (var_name == "$") {
+    return std::to_string(getpid());
+  }
+
+  if (var_name == "#") {
+    if (shell) {
+      return std::to_string(shell->get_positional_parameter_count());
+    }
+    return "0";
+  }
+
+  if (var_name == "*" || var_name == "@") {
+    if (shell) {
+      auto params = shell->get_positional_parameters();
+      std::string joined;
+      for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) {
+          joined += " ";
+        }
+        joined += params[i];
+      }
+      return joined;
+    }
+    return "";
+  }
+
+  if (var_name == "!") {
+    const char* last_bg_pid = getenv("!");
+    if (last_bg_pid) {
+      return last_bg_pid;
+    }
+
+    pid_t last_pid = JobManager::instance().get_last_background_pid();
+    if (last_pid > 0) {
+      return std::to_string(last_pid);
+    }
+    return "";
+  }
+
+  if (!var_name.empty() && std::isdigit(static_cast<unsigned char>(var_name[0])) &&
+      var_name.length() == 1) {
+    std::string value = get_variable_value(var_name);
+    if (!value.empty()) {
+      return value;
+    }
+
+    if (shell) {
+      auto params = shell->get_positional_parameters();
+      int param_num = var_name[0] - '0';
+      if (param_num > 0 && static_cast<size_t>(param_num - 1) < params.size()) {
+        return params[param_num - 1];
+      }
+    }
+
+    auto it = env_vars.find(var_name);
+    if (it != env_vars.end()) {
+      return it->second;
+    }
+    return "";
+  }
+
+  std::string value = get_variable_value(var_name);
+  if (value.empty()) {
+    auto it = env_vars.find(var_name);
+    if (it != env_vars.end()) {
+      value = it->second;
+    }
+  }
+  return value;
+}
+
 void Parser::expand_env_vars(std::string& arg) {
   if (g_debug_mode) {
     std::cerr << "DEBUG: expand_env_vars called with: '" << arg << "'"
@@ -1142,130 +1171,73 @@ void Parser::expand_env_vars(std::string& arg) {
         in_var = false;
         std::string value;
 
-        if (var_name == "?") {
-          const char* status_env = getenv("?");
-          value = status_env ? status_env : "0";
-        } else if (var_name == "$") {
-          value = std::to_string(getpid());
-        } else if (var_name == "#") {
-          if (shell) {
-            value = std::to_string(shell->get_positional_parameter_count());
-          } else {
-            value = "0";
+        if (arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Found parameter expansion without braces: "
+                      << var_name << ":-..." << std::endl;
           }
-        } else if (var_name == "*") {
-          if (shell) {
-            auto params = shell->get_positional_parameters();
-            std::string result;
-            for (size_t i = 0; i < params.size(); ++i) {
-              if (i > 0)
-                result += " ";
-              result += params[i];
-            }
-            value = result;
-          }
-        } else if (var_name == "@") {
-          if (shell) {
-            auto params = shell->get_positional_parameters();
-            std::string result;
-            for (size_t i = 0; i < params.size(); ++i) {
-              if (i > 0)
-                result += " ";
-              result += params[i];
-            }
-            value = result;
-          }
-        } else if (var_name == "!") {
-          value = "";
-        } else if (isdigit(var_name[0]) && var_name.length() == 1) {
-          const char* env_val = getenv(var_name.c_str());
-          if (env_val) {
+
+          std::string env_val = get_variable_value(var_name);
+          if (!env_val.empty()) {
             value = env_val;
-          } else {
-            int param_num = var_name[0] - '0';
-            if (shell && param_num > 0) {
-              auto params = shell->get_positional_parameters();
-              if (static_cast<size_t>(param_num - 1) < params.size()) {
-                value = params[param_num - 1];
-              }
+
+            i++;
+            i++;
+
+            while (i < arg.length() && !isspace(arg[i])) {
+              i++;
             }
+            if (i < arg.length() && isspace(arg[i])) {
+              i--;
+            }
+          } else {
+            i++;
+            i++;
+
+            std::string default_val;
+            while (i < arg.length() && !isspace(arg[i])) {
+              default_val += arg[i];
+              i++;
+            }
+            if (i < arg.length() && isspace(arg[i])) {
+              i--;
+            }
+            expand_env_vars(default_val);
+            value = default_val;
+          }
+        } else if (arg[i] == '-' && i >= 1) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Found parameter expansion without braces: "
+                      << var_name << "-..." << std::endl;
+          }
+
+          std::string env_val = get_variable_value(var_name);
+          if (!env_val.empty()) {
+            value = env_val;
+
+            i++;
+            while (i < arg.length() && !isspace(arg[i])) {
+              i++;
+            }
+            if (i < arg.length() && isspace(arg[i])) {
+              i--;
+            }
+          } else {
+            i++;
+
+            std::string default_val;
+            while (i < arg.length() && !isspace(arg[i])) {
+              default_val += arg[i];
+              i++;
+            }
+            if (i < arg.length() && isspace(arg[i])) {
+              i--;
+            }
+            expand_env_vars(default_val);
+            value = default_val;
           }
         } else {
-          if (arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') {
-            if (g_debug_mode) {
-              std::cerr << "DEBUG: Found parameter expansion without braces: "
-                        << var_name << ":-..." << std::endl;
-            }
-
-            std::string env_val = get_variable_value(var_name);
-            if (!env_val.empty()) {
-              value = env_val;
-
-              i++;
-              i++;
-
-              while (i < arg.length() && !isspace(arg[i])) {
-                i++;
-              }
-              if (i < arg.length() && isspace(arg[i])) {
-                i--;
-              }
-            } else {
-              i++;
-              i++;
-
-              std::string default_val;
-              while (i < arg.length() && !isspace(arg[i])) {
-                default_val += arg[i];
-                i++;
-              }
-              if (i < arg.length() && isspace(arg[i])) {
-                i--;
-              }
-              expand_env_vars(default_val);
-              value = default_val;
-            }
-          } else if (arg[i] == '-' && i >= 1) {
-            if (g_debug_mode) {
-              std::cerr << "DEBUG: Found parameter expansion without braces: "
-                        << var_name << "-..." << std::endl;
-            }
-
-            std::string env_val = get_variable_value(var_name);
-            if (!env_val.empty()) {
-              value = env_val;
-
-              i++;
-              while (i < arg.length() && !isspace(arg[i])) {
-                i++;
-              }
-              if (i < arg.length() && isspace(arg[i])) {
-                i--;
-              }
-            } else {
-              i++;
-
-              std::string default_val;
-              while (i < arg.length() && !isspace(arg[i])) {
-                default_val += arg[i];
-                i++;
-              }
-              if (i < arg.length() && isspace(arg[i])) {
-                i--;
-              }
-              expand_env_vars(default_val);
-              value = default_val;
-            }
-          } else {
-            value = get_variable_value(var_name);
-
-            if (value.empty()) {
-              auto it = env_vars.find(var_name);
-              if (it != env_vars.end()) {
-                value = it->second;
-              }
-            }
-          }
+          value = resolve_parameter_value(var_name);
         }
         result += value;
 
@@ -1291,77 +1263,7 @@ void Parser::expand_env_vars(std::string& arg) {
   }
 
   if (in_var) {
-    std::string value;
-
-    if (var_name == "?") {
-      const char* status_env = getenv("?");
-      value = status_env ? status_env : "0";
-    } else if (var_name == "$") {
-      value = std::to_string(getpid());
-    } else if (var_name == "#") {
-      if (shell) {
-        value = std::to_string(shell->get_positional_parameter_count());
-      } else {
-        value = "0";
-      }
-    } else if (var_name == "*") {
-      if (shell) {
-        auto params = shell->get_positional_parameters();
-        std::string result;
-        for (size_t i = 0; i < params.size(); ++i) {
-          if (i > 0)
-            result += " ";
-          result += params[i];
-        }
-        value = result;
-      }
-    } else if (var_name == "@") {
-      if (shell) {
-        auto params = shell->get_positional_parameters();
-        std::string result;
-        for (size_t i = 0; i < params.size(); ++i) {
-          if (i > 0)
-            result += " ";
-          result += params[i];
-        }
-        value = result;
-      }
-    } else if (var_name == "!") {
-      const char* last_bg_pid = getenv("!");
-      if (last_bg_pid) {
-        value = last_bg_pid;
-      } else {
-        pid_t last_pid = JobManager::instance().get_last_background_pid();
-        if (last_pid > 0) {
-          value = std::to_string(last_pid);
-        } else {
-          value = "";
-        }
-      }
-    } else if (isdigit(var_name[0]) && var_name.length() == 1) {
-      std::string env_value = get_variable_value(var_name);
-      if (!env_value.empty()) {
-        value = env_value;
-      } else {
-        int param_num = var_name[0] - '0';
-        if (shell && param_num > 0) {
-          auto params = shell->get_positional_parameters();
-          if (static_cast<size_t>(param_num - 1) < params.size()) {
-            value = params[param_num - 1];
-          }
-        }
-      }
-    } else {
-      value = get_variable_value(var_name);
-
-      if (value.empty()) {
-        auto it = env_vars.find(var_name);
-        if (it != env_vars.end()) {
-          value = it->second;
-        }
-      }
-    }
-    result += value;
+    result += resolve_parameter_value(var_name);
   }
 
   if (g_debug_mode) {
