@@ -1,11 +1,29 @@
 #pragma once
 
+#include <chrono>
 #include <filesystem>
+#include <functional>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class LanguageInfo {
  private:
+  // Caching infrastructure
+  struct CachedVersion {
+    std::string version;
+    std::chrono::steady_clock::time_point timestamp;
+    bool is_valid() const {
+      auto now = std::chrono::steady_clock::now();
+      auto age = std::chrono::duration_cast<std::chrono::seconds>(now - timestamp);
+      return age.count() < 300; // Cache for 5 minutes
+    }
+  };
+  
+  mutable std::unordered_map<std::string, CachedVersion> version_cache;
+  mutable std::mutex cache_mutex;
+
   // File detection patterns following Starship's approach
   // Python detection patterns
   std::vector<std::string> python_files = {
@@ -55,6 +73,10 @@ class LanguageInfo {
                                 int max_depth = 3);
   std::string execute_command(const std::string& command);
   std::string extract_version(const std::string& output);
+  
+  // Cached version retrieval
+  std::string get_cached_version(const std::string& language_key, 
+                                const std::function<std::string()>& version_func) const;
 
  public:
   LanguageInfo();
@@ -76,4 +98,7 @@ class LanguageInfo {
 
   std::string get_language_version(const std::string& language);
   bool is_language_project(const std::string& language);
+  
+  // Cache management
+  void clear_version_cache();
 };

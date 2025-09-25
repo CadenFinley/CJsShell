@@ -268,20 +268,20 @@ std::string Theme::render_line_aligned(
       std::string content = render_line(segment.value("content", ""), vars);
       std::string separator = render_line(segment.value("separator", ""), vars);
 
-      if (content.empty()) {
+      if (content.empty() || trim(content).empty()) {
         continue;
       }
 
-      std::string bg_color_name = segment.value("bg_color", "RESET");
-      std::string fg_color_name = segment.value("fg_color", "RESET");
-      std::string sep_fg_name = segment.value("separator_fg", "RESET");
-      std::string sep_bg_name = segment.value("separator_bg", "RESET");
+      std::string bg_color_name = render_line(segment.value("bg_color", "RESET"), vars);
+      std::string fg_color_name = render_line(segment.value("fg_color", "RESET"), vars);
+      std::string sep_fg_name = render_line(segment.value("separator_fg", "RESET"), vars);
+      std::string sep_bg_name = render_line(segment.value("separator_bg", "RESET"), vars);
 
       if (segment.contains("forward_separator") &&
           !segment["forward_separator"].empty()) {
         std::string fsep = segment["forward_separator"];
-        std::string fsep_fg = segment.value("forward_separator_fg", "RESET");
-        std::string fsep_bg = segment.value("forward_separator_bg", "RESET");
+        std::string fsep_fg = render_line(segment.value("forward_separator_fg", "RESET"), vars);
+        std::string fsep_bg = render_line(segment.value("forward_separator_bg", "RESET"), vars);
         if (fsep_bg != "RESET") {
           segment_result +=
               colors::bg_color(colors::parse_color_value(fsep_bg));

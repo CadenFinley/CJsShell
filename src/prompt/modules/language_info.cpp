@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <regex>
 #include <sstream>
 
@@ -109,6 +110,28 @@ std::string LanguageInfo::extract_version(const std::string& output) {
   return "";
 }
 
+std::string LanguageInfo::get_cached_version(const std::string& language_key, 
+                                            const std::function<std::string()>& version_func) const {
+  std::lock_guard<std::mutex> lock(cache_mutex);
+  
+  // Check if we have a valid cached version
+  auto it = version_cache.find(language_key);
+  if (it != version_cache.end() && it->second.is_valid()) {
+    return it->second.version;
+  }
+  
+  // Cache miss or expired, get fresh version
+  std::string version = version_func();
+  
+  // Store in cache
+  version_cache[language_key] = CachedVersion{
+    version, 
+    std::chrono::steady_clock::now()
+  };
+  
+  return version;
+}
+
 bool LanguageInfo::is_python_project() {
   return is_project_detected(python_files, python_extensions, python_folders);
 }
@@ -131,70 +154,80 @@ bool LanguageInfo::is_java_project() {
 }
 
 std::string LanguageInfo::get_python_version() {
-  std::string output = execute_command(
-      "python3 --version 2>/dev/null || python --version 2>/dev/null");
-  if (output.empty()) {
-    return "";
-  }
+  return get_cached_version("python", [this]() -> std::string {
+    std::string output = execute_command(
+        "python3 --version 2>/dev/null || python --version 2>/dev/null");
+    if (output.empty()) {
+      return "";
+    }
 
-  std::string version = extract_version(output);
-  return version.empty() ? output : version;
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
 }
 
 std::string LanguageInfo::get_nodejs_version() {
-  std::string output = execute_command("node --version 2>/dev/null");
-  if (output.empty()) {
-    return "";
-  }
+  return get_cached_version("nodejs", [this]() -> std::string {
+    std::string output = execute_command("node --version 2>/dev/null");
+    if (output.empty()) {
+      return "";
+    }
 
-  if (output.front() == 'v') {
-    return output.substr(1);
-  }
+    if (output.front() == 'v') {
+      return output.substr(1);
+    }
 
-  return output;
+    return output;
+  });
 }
 
 std::string LanguageInfo::get_rust_version() {
-  std::string output = execute_command("rustc --version 2>/dev/null");
-  if (output.empty()) {
-    return "";
-  }
+  return get_cached_version("rust", [this]() -> std::string {
+    std::string output = execute_command("rustc --version 2>/dev/null");
+    if (output.empty()) {
+      return "";
+    }
 
-  std::string version = extract_version(output);
-  return version.empty() ? output : version;
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
 }
 
 std::string LanguageInfo::get_golang_version() {
-  std::string output = execute_command("go version 2>/dev/null");
-  if (output.empty()) {
+  return get_cached_version("golang", [this]() -> std::string {
+    std::string output = execute_command("go version 2>/dev/null");
+    if (output.empty()) {
+      return "";
+    }
+
+    std::regex go_version_regex("go(\\d+\\.\\d+(?:\\.\\d+)?)");
+    std::smatch match;
+
+    if (std::regex_search(output, match, go_version_regex)) {
+      return match[1];
+    }
+
     return "";
-  }
-
-  std::regex go_version_regex("go(\\d+\\.\\d+(?:\\.\\d+)?)");
-  std::smatch match;
-
-  if (std::regex_search(output, match, go_version_regex)) {
-    return match[1];
-  }
-
-  return "";
+  });
 }
 
 std::string LanguageInfo::get_java_version() {
-  std::string output = execute_command("java -version 2>&1 | head -n 1");
-  if (output.empty()) {
-    return "";
-  }
+  return get_cached_version("java", [this]() -> std::string {
+    std::string output = execute_command("java -version 2>&1 | head -n 1");
+    if (output.empty()) {
+      return "";
+    }
 
-  std::regex java_version_regex("\"([^\"]+)\"");
-  std::smatch match;
+    std::regex java_version_regex("\"([^\"]+)\"");
+    std::smatch match;
 
-  if (std::regex_search(output, match, java_version_regex)) {
-    return match[1];
-  }
+    if (std::regex_search(output, match, java_version_regex)) {
+      return match[1];
+    }
 
-  std::string version = extract_version(output);
-  return version.empty() ? output : version;
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
 }
 
 std::string LanguageInfo::get_python_virtual_env() {
@@ -266,4 +299,9 @@ bool LanguageInfo::is_language_project(const std::string& language) {
   }
 
   return false;
+}
+
+void LanguageInfo::clear_version_cache() {
+  std::lock_guard<std::mutex> lock(cache_mutex);
+  version_cache.clear();
 }
