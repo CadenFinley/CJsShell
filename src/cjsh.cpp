@@ -1056,7 +1056,7 @@ static void process_profile_file() {
     if (g_debug_mode)
       std::cerr << "DEBUG: Found universal profile: "
                 << universal_profile.string() << std::endl;
-    g_shell->execute("source " + universal_profile.string());
+    g_shell->execute_script_file(universal_profile, true);
   }
   std::filesystem::path user_profile =
       cjsh_filesystem::g_user_home_path / ".profile";
@@ -1064,13 +1064,13 @@ static void process_profile_file() {
     if (g_debug_mode)
       std::cerr << "DEBUG: Found user profile: " << user_profile.string()
                 << std::endl;
-    g_shell->execute("source " + user_profile.string());
+    g_shell->execute_script_file(user_profile, true);
   }
   // Source the profile file normally
   if (g_debug_mode)
     std::cerr << "DEBUG: Sourcing profile file: "
               << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
-  g_shell->execute("source " + cjsh_filesystem::g_cjsh_profile_path.string());
+  g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path);
 }
 
 static void apply_profile_startup_flags() {
@@ -1180,7 +1180,7 @@ static void apply_profile_startup_flags() {
 }
 
 static void process_source_file() {
-  g_shell->execute("source " + cjsh_filesystem::g_cjsh_source_path.string());
+  g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
 }
 
 static void create_profile_file() {

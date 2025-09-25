@@ -1,8 +1,12 @@
 #include "shell.h"
 
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <mutex>
 #include <set>
 #include <sstream>
+#include <unordered_map>
 
 #include "builtin.h"
 #include "cjsh.h"
@@ -12,6 +16,16 @@
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 #include "trap_command.h"
+
+namespace {
+struct CachedScript {
+  std::filesystem::file_time_type modified;
+  std::shared_ptr<const std::vector<std::string>> lines;
+};
+
+std::mutex g_script_cache_mutex;
+std::unordered_map<std::string, CachedScript> g_script_cache;
+}
 
 void Shell::process_pending_signals() {
   if (signal_handler && shell_exec) {
@@ -57,6 +71,80 @@ Shell::~Shell() {
 
   shell_exec->terminate_all_child_process();
   restore_terminal_state();
+}
+
+int Shell::execute_script_file(const std::filesystem::path& path,
+                               bool optional) {
+  if (!shell_script_interpreter) {
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "source",
+                 "script interpreter not available",
+                 {}});
+    return 1;
+  }
+
+  std::filesystem::path normalized = path.lexically_normal();
+  std::string display_path = normalized.string();
+
+  std::error_code abs_ec;
+  auto absolute_path = std::filesystem::absolute(normalized, abs_ec);
+  if (!abs_ec) {
+    normalized = absolute_path.lexically_normal();
+  }
+
+  std::string cache_key = normalized.string();
+
+  std::error_code mod_ec;
+  auto mod_time = std::filesystem::last_write_time(normalized, mod_ec);
+
+  std::shared_ptr<const std::vector<std::string>> cached_lines;
+  if (!mod_ec) {
+    std::lock_guard<std::mutex> lock(g_script_cache_mutex);
+    auto it = g_script_cache.find(cache_key);
+    if (it != g_script_cache.end() && it->second.modified == mod_time) {
+      cached_lines = it->second.lines;
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Using cached script: " << cache_key
+                  << std::endl;
+      }
+    }
+  }
+
+  if (!cached_lines) {
+    std::ifstream file(normalized);
+    if (!file) {
+      if (optional) {
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Optional script not found: " << display_path
+                    << std::endl;
+        }
+        return 0;
+      }
+      print_error({ErrorType::FILE_NOT_FOUND,
+                   "source",
+                   "cannot open file '" + display_path + "'",
+                   {}});
+      return 1;
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    auto parsed_lines = std::make_shared<std::vector<std::string>>(
+        shell_script_interpreter->parse_into_lines(buffer.str()));
+    cached_lines = parsed_lines;
+
+    if (!mod_ec) {
+      std::lock_guard<std::mutex> lock(g_script_cache_mutex);
+      g_script_cache[cache_key] = {mod_time, parsed_lines};
+    }
+
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Parsed script: " << display_path << " ("
+                << parsed_lines->size() << " lines)" << std::endl;
+    }
+  }
+
+  return shell_script_interpreter->execute_block(*cached_lines);
 }
 
 int Shell::execute(const std::string& script) {

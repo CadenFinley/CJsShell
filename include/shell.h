@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <cstdlib>
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -171,6 +172,9 @@ class Shell {
   Parser* get_parser() {
     return shell_parser.get();
   }
+
+  int execute_script_file(const std::filesystem::path& path,
+                          bool optional = false);
 
  private:
   bool interactive_mode = false;
