@@ -23,18 +23,18 @@ int startup_flag_command(const std::vector<std::string>& args) {
     std::cerr << "  --no-titleline   Disable title line" << std::endl;
     std::cerr << "  --show-startup-time Display shell startup time"
               << std::endl;
-    std::cerr << "  --no-source      Disable source file processing"
+    std::cerr << "  --no-source      Don't source the .cjshrc file"
               << std::endl;
     std::cerr << "  --no-completions Disable tab completions" << std::endl;
     std::cerr << "  --no-syntax-highlighting Disable syntax highlighting"
               << std::endl;
     std::cerr << "  --no-smart-cd    Disable smart cd functionality"
               << std::endl;
-    std::cerr << "  --minimal        Disable all unique cjsh features"
-              << std::endl;
     std::cerr
-        << "  --disable-ls-colors Disable custom ls output and use system ls"
+        << "  --minimal        Disable all unique cjsh features (plugins, themes, AI, colors, completions, syntax highlighting, smart cd, sourcing, custom ls colors, startup time display)"
         << std::endl;
+    std::cerr << "  --disable-ls-colors Disable custom ls output colors"
+              << std::endl;
     std::cerr << "  --startup-test   Enable startup test mode" << std::endl;
     return 1;
   }
