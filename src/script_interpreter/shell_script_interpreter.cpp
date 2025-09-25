@@ -25,6 +25,111 @@
 #include "shell.h"
 #include "utils/cjsh_filesystem.h"
 
+namespace {
+
+std::string trim(const std::string& s) {
+  size_t start = s.find_first_not_of(" \t\n\r");
+  if (start == std::string::npos)
+    return "";
+  size_t end = s.find_last_not_of(" \t\n\r");
+  return s.substr(start, end - start + 1);
+}
+
+std::string strip_inline_comment(const std::string& s) {
+  bool in_quotes = false;
+  bool in_brace_expansion = false;
+  char quote = '\0';
+
+  for (size_t i = 0; i < s.size(); ++i) {
+    char c = s[i];
+
+    if (!in_quotes && c == '$' && i + 1 < s.size() && s[i + 1] == '{') {
+      in_brace_expansion = true;
+    } else if (in_brace_expansion && c == '}') {
+      in_brace_expansion = false;
+    }
+
+    if (!in_quotes && !in_brace_expansion && c == '$' && i + 1 < s.size()) {
+      char next = s[i + 1];
+      if (next == '#' || next == '?' || next == '$' || next == '*' ||
+          next == '@' || next == '!' ||
+          std::isdigit(static_cast<unsigned char>(next))) {
+        ++i;
+        continue;
+      }
+    }
+
+    if (c == '"' || c == '\'') {
+      size_t backslash_count = 0;
+      for (size_t j = i; j > 0; --j) {
+        if (s[j - 1] == '\\') {
+          backslash_count++;
+        } else {
+          break;
+        }
+      }
+
+      bool is_escaped = (backslash_count % 2) == 1;
+
+      if (!is_escaped) {
+        if (!in_quotes) {
+          in_quotes = true;
+          quote = c;
+        } else if (quote == c) {
+          in_quotes = false;
+          quote = '\0';
+        }
+      }
+    } else if (!in_quotes && !in_brace_expansion && c == '#') {
+      return s.substr(0, i);
+    }
+  }
+  return s;
+}
+
+struct QuoteState {
+  bool in_quotes = false;
+  char quote_char = '\0';
+  bool escaped = false;
+};
+
+bool should_skip_line(const std::string& line) {
+  size_t first_non_space = line.find_first_not_of(" \t");
+  return first_non_space == std::string::npos || line[first_non_space] == '#';
+}
+
+bool should_process_char(QuoteState& state, char c,
+                         bool ignore_single_quotes) {
+  if (state.escaped) {
+    state.escaped = false;
+    return true;
+  }
+
+  if (c == '\\' && (!state.in_quotes || state.quote_char != '\'')) {
+    state.escaped = true;
+    return false;
+  }
+
+  if (!state.in_quotes && (c == '"' || c == '\'')) {
+    state.in_quotes = true;
+    state.quote_char = c;
+    return false;
+  }
+
+  if (state.in_quotes && c == state.quote_char) {
+    state.in_quotes = false;
+    state.quote_char = '\0';
+    return false;
+  }
+
+  if (state.in_quotes && state.quote_char == '\'' && ignore_single_quotes)
+    return false;
+
+  return true;
+}
+
+}  // namespace
+
 ShellScriptInterpreter::ShellScriptInterpreter() {
   if (g_debug_mode)
     std::cerr << "DEBUG: Initializing ShellScriptInterpreter" << std::endl;
@@ -61,45 +166,6 @@ std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_script_syntax(
     const std::vector<std::string>& lines) {
   std::vector<SyntaxError> errors;
-
-  auto trim = [](const std::string& s) -> std::string {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos)
-      return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
-  };
-
-  auto strip_inline_comment = [](const std::string& s) -> std::string {
-    bool in_quotes = false;
-    char quote = '\0';
-    bool escaped = false;
-
-    for (size_t i = 0; i < s.size(); ++i) {
-      char c = s[i];
-
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (c == '\\' && (!in_quotes || quote != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote = c;
-      } else if (c == quote && in_quotes) {
-        in_quotes = false;
-        quote = '\0';
-      } else if (!in_quotes && c == '#') {
-        return s.substr(0, i);
-      }
-    }
-    return s;
-  };
 
   std::vector<std::pair<std::string, size_t>> control_stack;
 
@@ -541,10 +607,7 @@ ShellScriptInterpreter::validate_variable_usage(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    if (should_skip_line(line)) {
       continue;
     }
 
@@ -578,32 +641,12 @@ ShellScriptInterpreter::validate_variable_usage(
       }
     }
 
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
+    QuoteState quote_state;
 
     for (size_t i = 0; i < line.length(); ++i) {
       char c = line[i];
 
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char && in_quotes) {
-        in_quotes = false;
-        quote_char = '\0';
-      }
-
-      if (in_quotes && quote_char == '\'') {
+      if (!should_process_char(quote_state, c, true)) {
         continue;
       }
 
@@ -693,39 +736,20 @@ ShellScriptInterpreter::validate_redirection_syntax(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    if (should_skip_line(line)) {
       continue;
     }
 
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
+    QuoteState quote_state;
 
     for (size_t i = 0; i < line.length(); ++i) {
       char c = line[i];
 
-      if (escaped) {
-        escaped = false;
+      if (!should_process_char(quote_state, c, false)) {
         continue;
       }
 
-      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char && in_quotes) {
-        in_quotes = false;
-        quote_char = '\0';
-      }
-
-      if (!in_quotes) {
+      if (!quote_state.in_quotes) {
         if (c == '<' || c == '>') {
           size_t redir_start = i;
           std::string redir_op;
@@ -875,39 +899,16 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    if (should_skip_line(line)) {
       continue;
     }
 
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
+    QuoteState quote_state;
 
     for (size_t i = 0; i < line.length(); ++i) {
       char c = line[i];
 
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char && in_quotes) {
-        in_quotes = false;
-        quote_char = '\0';
-      }
-
-      if (in_quotes && quote_char == '\'') {
+      if (!should_process_char(quote_state, c, true)) {
         continue;
       }
 
@@ -1038,39 +1039,16 @@ ShellScriptInterpreter::validate_parameter_expansions(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    if (should_skip_line(line)) {
       continue;
     }
 
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
+    QuoteState quote_state;
 
     for (size_t i = 0; i < line.length(); ++i) {
       char c = line[i];
 
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char && in_quotes) {
-        in_quotes = false;
-        quote_char = '\0';
-      }
-
-      if (in_quotes && quote_char == '\'') {
+      if (!should_process_char(quote_state, c, true)) {
         continue;
       }
 
@@ -1078,13 +1056,14 @@ ShellScriptInterpreter::validate_parameter_expansions(
         size_t start = i;
         size_t paren_count = 1;
         size_t j = i + 2;
+        const bool inside_quotes = quote_state.in_quotes;
 
         while (j < line.length() && paren_count > 0) {
-          if (line[j] == '(' && !in_quotes) {
+          if (line[j] == '(' && !inside_quotes) {
             paren_count++;
-          } else if (line[j] == ')' && !in_quotes) {
+          } else if (line[j] == ')' && !inside_quotes) {
             paren_count--;
-          } else if ((line[j] == '"' || line[j] == '\'') && !in_quotes) {
+          } else if ((line[j] == '"' || line[j] == '\'') && !inside_quotes) {
             char nested_quote = line[j];
             j++;
             while (j < line.length() && line[j] != nested_quote) {
@@ -1107,7 +1086,7 @@ ShellScriptInterpreter::validate_parameter_expansions(
         i = j - 1;
       }
 
-      else if (c == '`' && !in_quotes) {
+      else if (c == '`' && !quote_state.in_quotes) {
         size_t start = i;
         size_t j = i + 1;
         bool found_closing = false;
@@ -1134,7 +1113,7 @@ ShellScriptInterpreter::validate_parameter_expansions(
         i = j - 1;
       }
 
-      if (!in_quotes && c == '=' && i > 0) {
+      if (!quote_state.in_quotes && c == '=' && i > 0) {
         size_t var_start = i;
 
         if (i > 0 && line[i - 1] == ']') {
@@ -2165,64 +2144,6 @@ int ShellScriptInterpreter::execute_block(
          {}});
     return 2;
   }
-
-  auto trim = [](const std::string& s) -> std::string {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos)
-      return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
-  };
-
-  auto strip_inline_comment = [](const std::string& s) -> std::string {
-    bool in_quotes = false;
-    bool in_brace_expansion = false;
-    char quote = '\0';
-    for (size_t i = 0; i < s.size(); ++i) {
-      char c = s[i];
-
-      if (!in_quotes && c == '$' && i + 1 < s.size() && s[i + 1] == '{') {
-        in_brace_expansion = true;
-      } else if (in_brace_expansion && c == '}') {
-        in_brace_expansion = false;
-      }
-
-      if (!in_quotes && !in_brace_expansion && c == '$' && i + 1 < s.size()) {
-        char next = s[i + 1];
-        if (next == '#' || next == '?' || next == '$' || next == '*' ||
-            next == '@' || next == '!' || isdigit(next)) {
-          ++i;
-          continue;
-        }
-      }
-
-      if (c == '"' || c == '\'') {
-        size_t backslash_count = 0;
-        for (size_t j = i; j > 0; --j) {
-          if (s[j - 1] == '\\') {
-            backslash_count++;
-          } else {
-            break;
-          }
-        }
-
-        bool is_escaped = (backslash_count % 2) == 1;
-
-        if (!is_escaped) {
-          if (!in_quotes) {
-            in_quotes = true;
-            quote = c;
-          } else if (quote == c) {
-            in_quotes = false;
-            quote = '\0';
-          }
-        }
-      } else if (!in_quotes && !in_brace_expansion && c == '#') {
-        return s.substr(0, i);
-      }
-    }
-    return s;
-  };
 
   auto is_readable_file = [](const std::string& path) -> bool {
     struct stat st{};
