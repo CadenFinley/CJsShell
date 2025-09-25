@@ -87,6 +87,26 @@ std::string strip_inline_comment(const std::string& s) {
   return s;
 }
 
+bool has_inline_terminator(const std::string& text,
+                           const std::string& terminator) {
+  return text.find(" " + terminator) != std::string::npos ||
+         text.find(";" + terminator) != std::string::npos ||
+         text.find(terminator + ";") != std::string::npos;
+}
+
+bool handle_inline_loop_header(
+    const std::string& line, const std::string& keyword, size_t display_line,
+    std::vector<std::pair<std::string, size_t>>& control_stack) {
+  if (line.rfind(keyword + " ", 0) == 0 &&
+      line.find("; do") != std::string::npos) {
+    if (!has_inline_terminator(line, "done")) {
+      control_stack.push_back({"do", display_line});
+    }
+    return true;
+  }
+  return false;
+}
+
 struct QuoteState {
   bool in_quotes = false;
   char quote_char = '\0';
@@ -127,6 +147,175 @@ bool should_process_char(QuoteState& state, char c,
     return false;
 
   return true;
+}
+
+bool extract_trimmed_line(const std::string& line, std::string& trimmed_line,
+                          size_t& first_non_space) {
+  first_non_space = line.find_first_not_of(" \t");
+  if (first_non_space == std::string::npos)
+    return false;
+
+  if (line[first_non_space] == '#')
+    return false;
+
+  trimmed_line = line.substr(first_non_space);
+  return true;
+}
+
+std::vector<std::string> tokenize_whitespace(const std::string& input) {
+  std::vector<std::string> tokens;
+  std::stringstream ss(input);
+  std::string token;
+  while (ss >> token) {
+    tokens.push_back(token);
+  }
+  return tokens;
+}
+
+using SyntaxError = ShellScriptInterpreter::SyntaxError;
+using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
+using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
+
+struct ForLoopCheckResult {
+  bool incomplete = false;
+  bool missing_in_keyword = false;
+  bool missing_do_keyword = false;
+};
+
+ForLoopCheckResult analyze_for_loop_syntax(
+    const std::vector<std::string>& tokens,
+    const std::string& trimmed_line) {
+  ForLoopCheckResult result;
+
+  if (tokens.size() < 3) {
+    result.incomplete = true;
+    return result;
+  }
+
+  bool has_in_clause =
+      std::find(tokens.begin(), tokens.end(), "in") != tokens.end();
+  if (!has_in_clause) {
+    result.missing_in_keyword = true;
+    return result;
+  }
+
+  bool has_do = std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
+  bool has_semicolon = trimmed_line.find(';') != std::string::npos;
+  if (!has_do && !has_semicolon) {
+    result.missing_do_keyword = true;
+  }
+
+  return result;
+}
+
+struct WhileUntilCheckResult {
+  bool missing_do_keyword = false;
+  bool missing_condition = false;
+  bool unclosed_test = false;
+};
+
+WhileUntilCheckResult analyze_while_until_syntax(
+    const std::string& first_token, const std::string& trimmed_line,
+    const std::vector<std::string>& tokens) {
+  WhileUntilCheckResult result;
+
+  bool has_do =
+      std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
+  bool has_semicolon = trimmed_line.find(';') != std::string::npos;
+  if (!has_do && !has_semicolon) {
+    result.missing_do_keyword = true;
+  }
+
+  size_t kw_pos = trimmed_line.find(first_token);
+  std::string after_kw =
+      kw_pos != std::string::npos
+          ? trimmed_line.substr(kw_pos + first_token.size())
+          : "";
+  size_t non = after_kw.find_first_not_of(" \t");
+  if (non != std::string::npos)
+    after_kw = after_kw.substr(non);
+  else
+    after_kw.clear();
+
+  bool immediate_do = (after_kw == "do" || after_kw.find("do ") == 0 ||
+                       after_kw.find("do\t") == 0);
+
+  size_t semi = after_kw.find(';');
+  if (semi != std::string::npos)
+    after_kw = after_kw.substr(0, semi);
+
+  size_t do_pos = after_kw.rfind(" do");
+  if (do_pos != std::string::npos && do_pos == after_kw.size() - 3)
+    after_kw = after_kw.substr(0, do_pos);
+  do_pos = after_kw.rfind("\tdo");
+  if (do_pos != std::string::npos && do_pos == after_kw.size() - 3)
+    after_kw = after_kw.substr(0, do_pos);
+
+  std::string cond = after_kw;
+  while (!cond.empty() &&
+         isspace(static_cast<unsigned char>(cond.back())))
+    cond.pop_back();
+
+  if (cond.empty() || immediate_do) {
+    result.missing_condition = true;
+  } else {
+    if ((cond.find('[') != std::string::npos &&
+         cond.find(']') == std::string::npos) ||
+        (cond.find("[[") != std::string::npos &&
+         cond.find("]]") == std::string::npos)) {
+      result.unclosed_test = true;
+    }
+  }
+
+  return result;
+}
+
+struct IfCheckResult {
+  bool missing_then_keyword = false;
+  bool missing_condition = false;
+};
+
+IfCheckResult analyze_if_syntax(const std::vector<std::string>& tokens,
+                                const std::string& trimmed_line) {
+  IfCheckResult result;
+
+  bool has_then_on_line =
+      std::find(tokens.begin(), tokens.end(), "then") != tokens.end();
+  bool has_semicolon = trimmed_line.find(';') != std::string::npos;
+
+  if (!has_then_on_line && !has_semicolon) {
+    result.missing_then_keyword = true;
+  }
+
+  if (tokens.size() == 1 ||
+      (tokens.size() == 2 && tokens[1] == "then")) {
+    result.missing_condition = true;
+  }
+
+  return result;
+}
+
+struct CaseCheckResult {
+  bool incomplete = false;
+  bool missing_in_keyword = false;
+};
+
+CaseCheckResult analyze_case_syntax(
+    const std::vector<std::string>& tokens) {
+  CaseCheckResult result;
+
+  if (tokens.size() < 3) {
+    result.incomplete = true;
+    return result;
+  }
+
+  bool has_in_keyword =
+      std::find(tokens.begin(), tokens.end(), "in") != tokens.end();
+  if (!has_in_keyword) {
+    result.missing_in_keyword = true;
+  }
+
+  return result;
 }
 
 }  // namespace
@@ -174,13 +363,11 @@ ShellScriptInterpreter::validate_script_syntax(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    std::string trimmed;
+    size_t first_non_space = 0;
+    if (!extract_trimmed_line(line, trimmed, first_non_space)) {
       continue;
     }
-    trimmed = trimmed.substr(first_non_space);
 
     std::string line_without_comments = strip_inline_comment(line);
     QuoteState quote_state;
@@ -262,47 +449,22 @@ ShellScriptInterpreter::validate_script_syntax(
       trimmed_for_parsing = trim(trimmed_for_parsing);
     }
 
-    if (trimmed_for_parsing.find("if ") == 0 &&
+    if (trimmed_for_parsing.rfind("if ", 0) == 0 &&
         trimmed_for_parsing.find("; then") != std::string::npos) {
-      if (trimmed_for_parsing.find(" fi") != std::string::npos ||
-          trimmed_for_parsing.find(";fi") != std::string::npos ||
-          trimmed_for_parsing.find("fi;") != std::string::npos) {
-      } else {
+      if (!has_inline_terminator(trimmed_for_parsing, "fi")) {
         control_stack.push_back({"if", display_line});
 
         control_stack.back().first = "then";
       }
-    } else if (trimmed_for_parsing.find("while ") == 0 &&
-               trimmed_for_parsing.find("; do") != std::string::npos) {
-      if (trimmed_for_parsing.find(" done") != std::string::npos ||
-          trimmed_for_parsing.find(";done") != std::string::npos ||
-          trimmed_for_parsing.find("done;") != std::string::npos) {
-      } else {
-        control_stack.push_back({"do", display_line});
-      }
-    } else if (trimmed_for_parsing.find("until ") == 0 &&
-               trimmed_for_parsing.find("; do") != std::string::npos) {
-      if (trimmed_for_parsing.find(" done") != std::string::npos ||
-          trimmed_for_parsing.find(";done") != std::string::npos ||
-          trimmed_for_parsing.find("done;") != std::string::npos) {
-      } else {
-        control_stack.push_back({"do", display_line});
-      }
-    } else if (trimmed_for_parsing.find("for ") == 0 &&
-               trimmed_for_parsing.find("; do") != std::string::npos) {
-      if (trimmed_for_parsing.find(" done") != std::string::npos ||
-          trimmed_for_parsing.find(";done") != std::string::npos ||
-          trimmed_for_parsing.find("done;") != std::string::npos) {
-      } else {
-        control_stack.push_back({"do", display_line});
-      }
+    } else if (handle_inline_loop_header(trimmed_for_parsing, "while",
+                                         display_line, control_stack) ||
+               handle_inline_loop_header(trimmed_for_parsing, "until",
+                                         display_line, control_stack) ||
+               handle_inline_loop_header(trimmed_for_parsing, "for",
+                                         display_line, control_stack)) {
+      // Inline loop handled above.
     } else {
-      std::vector<std::string> tokens;
-      std::stringstream ss(trimmed_for_parsing);
-      std::string token;
-      while (ss >> token) {
-        tokens.push_back(token);
-      }
+      auto tokens = tokenize_whitespace(trimmed_for_parsing);
 
       if (!tokens.empty()) {
         const std::string& first_token = tokens[0];
@@ -365,10 +527,8 @@ ShellScriptInterpreter::validate_script_syntax(
         }
 
         else if (first_token == "for") {
-          if (tokens.size() >= 3 &&
-              std::find(tokens.begin(), tokens.end(), "in") != tokens.end()) {
-          } else if (tokens.size() < 3) {
-          } else {
+          auto for_check = analyze_for_loop_syntax(tokens, trimmed_for_parsing);
+          if (for_check.missing_in_keyword) {
             errors.push_back(
                 {display_line, "'for' statement missing 'in' clause", line});
           }
@@ -376,18 +536,13 @@ ShellScriptInterpreter::validate_script_syntax(
         }
 
         else if (first_token == "case") {
-          if (tokens.size() >= 3 &&
-              std::find(tokens.begin(), tokens.end(), "in") != tokens.end()) {
-          } else if (tokens.size() < 3) {
-          } else {
+          auto case_check = analyze_case_syntax(tokens);
+          if (case_check.missing_in_keyword) {
             errors.push_back(
                 {display_line, "'case' statement missing 'in' clause", line});
           }
 
-          if (trimmed_for_parsing.find(" esac") != std::string::npos ||
-              trimmed_for_parsing.find(";esac") != std::string::npos ||
-              trimmed_for_parsing.find("esac;") != std::string::npos) {
-          } else {
+          if (!has_inline_terminator(trimmed_for_parsing, "esac")) {
             control_stack.push_back({"case", display_line});
           }
         } else if (first_token == "esac") {
@@ -1221,15 +1376,15 @@ ShellScriptInterpreter::check_style_guidelines(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+  std::string trimmed_line;
+  size_t first_non_space = 0;
+  if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {
       continue;
     }
 
-    if (trimmed.find("if ") == 0 || trimmed.find("while ") == 0 ||
-        trimmed.find("until ") == 0) {
+  if (trimmed_line.rfind("if ", 0) == 0 ||
+    trimmed_line.rfind("while ", 0) == 0 ||
+    trimmed_line.rfind("until ", 0) == 0) {
       int logical_ops = 0;
       int bracket_depth = 0;
       int max_bracket_depth = 0;
@@ -1299,9 +1454,9 @@ ShellScriptInterpreter::check_style_guidelines(
       }
     }
 
-    if (trimmed.find("eval ") != std::string::npos ||
-        trimmed.find("$(") != std::string::npos) {
-      std::string warning_type = trimmed.find("eval ") != std::string::npos
+    if (trimmed_line.find("eval ") != std::string::npos ||
+        trimmed_line.find("$(") != std::string::npos) {
+      std::string warning_type = trimmed_line.find("eval ") != std::string::npos
                                      ? "eval"
                                      : "command substitution";
       errors.push_back(SyntaxError(
@@ -1323,15 +1478,14 @@ ShellScriptInterpreter::validate_pipeline_syntax(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    std::string trimmed_line;
+    size_t first_non_space = 0;
+    if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {
       continue;
     }
 
     {
-      std::string work = trimmed.substr(first_non_space);
+      std::string work = trimmed_line;
 
       size_t eq = work.find('=');
       if (eq != std::string::npos) {
@@ -1387,9 +1541,8 @@ ShellScriptInterpreter::validate_pipeline_syntax(
       }
     }
 
-    if (trimmed[first_non_space] == '|' &&
-        !(first_non_space + 1 < trimmed.length() &&
-          trimmed[first_non_space + 1] == '|')) {
+    if (!trimmed_line.empty() && trimmed_line[0] == '|' &&
+        !(trimmed_line.size() > 1 && trimmed_line[1] == '|')) {
       errors.push_back(
           SyntaxError({display_line, first_non_space, first_non_space + 1, 0},
                       ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
@@ -1453,20 +1606,14 @@ ShellScriptInterpreter::validate_function_syntax(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    std::string trimmed_line;
+    size_t first_non_space = 0;
+    if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {
       continue;
     }
 
-    if (trimmed.find("function") == first_non_space) {
-      std::vector<std::string> tokens;
-      std::stringstream ss(trimmed);
-      std::string token;
-      while (ss >> token) {
-        tokens.push_back(token);
-      }
+    if (trimmed_line.rfind("function", 0) == 0) {
+      auto tokens = tokenize_whitespace(trimmed_line);
 
       if (tokens.size() < 2) {
         errors.push_back(
@@ -1509,12 +1656,11 @@ ShellScriptInterpreter::validate_function_syntax(
       }
     }
 
-    size_t paren_pos = trimmed.find("()");
-    if (paren_pos != std::string::npos && paren_pos > first_non_space) {
-      std::string potential_func =
-          trimmed.substr(first_non_space, paren_pos - first_non_space);
+    size_t paren_pos = trimmed_line.find("()");
+    if (paren_pos != std::string::npos && paren_pos > 0) {
+      std::string potential_func = trimmed_line.substr(0, paren_pos);
 
-      if (trimmed.find("{", paren_pos) != std::string::npos) {
+      if (trimmed_line.find("{", paren_pos) != std::string::npos) {
         if (potential_func.empty()) {
           errors.push_back(
               SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
@@ -1548,96 +1694,46 @@ ShellScriptInterpreter::validate_loop_syntax(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    std::string trimmed_line;
+    size_t first_non_space = 0;
+    if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {
       continue;
     }
 
-    std::vector<std::string> tokens;
-    std::stringstream ss(trimmed);
-    std::string token;
-    while (ss >> token) {
-      tokens.push_back(token);
-    }
+    auto tokens = tokenize_whitespace(trimmed_line);
 
     if (!tokens.empty()) {
       const std::string& first_token = tokens[0];
 
       if (first_token == "for") {
-        if (tokens.size() >= 3 &&
-            std::find(tokens.begin(), tokens.end(), "in") != tokens.end()) {
-          bool has_do_on_line =
-              std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
-          bool has_semicolon = trimmed.find(';') != std::string::npos;
-
-          if (!has_do_on_line && !has_semicolon) {
-            errors.push_back(
-                SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::CONTROL_FLOW, "SYN002",
-                            "'for' statement missing 'do' keyword", line,
-                            "Add 'do' keyword: for var in list; do"));
-          }
-        } else if (tokens.size() < 3) {
+        auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
+        if (loop_check.incomplete) {
           errors.push_back(
               SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                           ErrorCategory::CONTROL_FLOW, "SYN002",
                           "'for' statement incomplete", line,
                           "Complete for statement: for var in list; do"));
+        } else if (!loop_check.missing_in_keyword &&
+                   loop_check.missing_do_keyword) {
+          errors.push_back(
+              SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                          ErrorCategory::CONTROL_FLOW, "SYN002",
+                          "'for' statement missing 'do' keyword", line,
+                          "Add 'do' keyword: for var in list; do"));
         }
       }
 
       else if (first_token == "while" || first_token == "until") {
-        bool has_do_on_line =
-            std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
-        bool has_semicolon = trimmed.find(';') != std::string::npos;
+        auto loop_check =
+            analyze_while_until_syntax(first_token, trimmed_line, tokens);
 
-        size_t kw_pos = trimmed.find(first_token);
-        std::string after_kw = kw_pos != std::string::npos
-                                   ? trimmed.substr(kw_pos + first_token.size())
-                                   : "";
-        size_t non = after_kw.find_first_not_of(" \t");
-        if (non != std::string::npos)
-          after_kw = after_kw.substr(non);
-        else
-          after_kw.clear();
-
-        bool immediate_do = (after_kw == "do" || after_kw.find("do ") == 0 ||
-                             after_kw.find("do\t") == 0);
-
-        size_t semi = after_kw.find(';');
-        if (semi != std::string::npos)
-          after_kw = after_kw.substr(0, semi);
-
-        size_t do_pos = after_kw.rfind(" do");
-        if (do_pos != std::string::npos && do_pos == after_kw.size() - 3)
-          after_kw = after_kw.substr(0, do_pos);
-        do_pos = after_kw.rfind("\tdo");
-        if (do_pos != std::string::npos && do_pos == after_kw.size() - 3)
-          after_kw = after_kw.substr(0, do_pos);
-        std::string cond = after_kw;
-        while (!cond.empty() &&
-               isspace(static_cast<unsigned char>(cond.back())))
-          cond.pop_back();
-
-        bool missing_condition = cond.empty() || immediate_do;
-        bool unclosed_test = false;
-        if (!missing_condition) {
-          if ((cond.find('[') != std::string::npos &&
-               cond.find(']') == std::string::npos) ||
-              (cond.find("[[") != std::string::npos &&
-               cond.find("]]") == std::string::npos)) {
-            unclosed_test = true;
-          }
-        }
-        if (missing_condition) {
+        if (loop_check.missing_condition) {
           errors.push_back(SyntaxError(
               {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
               ErrorCategory::CONTROL_FLOW, "SYN003",
               "'" + first_token + "' loop missing condition expression", line,
               "Add a condition expression before 'do'"));
-        } else if (unclosed_test) {
+        } else if (loop_check.unclosed_test) {
           errors.push_back(SyntaxError(
               {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
               ErrorCategory::CONTROL_FLOW, "SYN003",
@@ -1645,7 +1741,7 @@ ShellScriptInterpreter::validate_loop_syntax(
               line, "Close the '[' with ']' or use '[[ ... ]]'"));
         }
 
-        if (!has_do_on_line && !has_semicolon) {
+        if (loop_check.missing_do_keyword) {
           errors.push_back(SyntaxError(
               {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
               ErrorCategory::CONTROL_FLOW, "SYN002",
@@ -1668,29 +1764,20 @@ ShellScriptInterpreter::validate_conditional_syntax(
     const std::string& line = lines[line_num];
     size_t display_line = line_num + 1;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
+    std::string trimmed_line;
+    size_t first_non_space = 0;
+    if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {
       continue;
     }
 
-    std::vector<std::string> tokens;
-    std::stringstream ss(trimmed);
-    std::string token;
-    while (ss >> token) {
-      tokens.push_back(token);
-    }
+    auto tokens = tokenize_whitespace(trimmed_line);
 
     if (!tokens.empty()) {
       const std::string& first_token = tokens[0];
 
       if (first_token == "if") {
-        bool has_then_on_line =
-            std::find(tokens.begin(), tokens.end(), "then") != tokens.end();
-        bool has_semicolon = trimmed.find(';') != std::string::npos;
-
-        if (!has_then_on_line && !has_semicolon) {
+        auto if_check = analyze_if_syntax(tokens, trimmed_line);
+        if (if_check.missing_then_keyword) {
           errors.push_back(
               SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                           ErrorCategory::CONTROL_FLOW, "SYN004",
@@ -1698,7 +1785,7 @@ ShellScriptInterpreter::validate_conditional_syntax(
                           "Add 'then' keyword: if condition; then"));
         }
 
-        if (tokens.size() == 1 || (tokens.size() == 2 && tokens[1] == "then")) {
+        if (if_check.missing_condition) {
           errors.push_back(
               SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                           ErrorCategory::CONTROL_FLOW, "SYN004",
@@ -1708,22 +1795,19 @@ ShellScriptInterpreter::validate_conditional_syntax(
       }
 
       else if (first_token == "case") {
-        if (tokens.size() >= 3) {
-          bool has_in =
-              std::find(tokens.begin(), tokens.end(), "in") != tokens.end();
-          if (!has_in) {
-            errors.push_back(
-                SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::CONTROL_FLOW, "SYN008",
-                            "'case' statement missing 'in' keyword", line,
-                            "Add 'in' keyword: case variable in"));
-          }
-        } else {
+        auto case_check = analyze_case_syntax(tokens);
+        if (case_check.incomplete) {
           errors.push_back(
               SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                           ErrorCategory::CONTROL_FLOW, "SYN008",
                           "'case' statement incomplete", line,
                           "Complete case statement: case variable in"));
+        } else if (case_check.missing_in_keyword) {
+          errors.push_back(
+              SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                          ErrorCategory::CONTROL_FLOW, "SYN008",
+                          "'case' statement missing 'in' keyword", line,
+                          "Add 'in' keyword: case variable in"));
         }
       }
     }
