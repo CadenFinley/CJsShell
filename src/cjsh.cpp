@@ -98,7 +98,6 @@ bool show_startup_time = false;
 static void initialize_title_strings() {
   if (title_line.empty()) {
     title_line = " CJ's Shell v" + c_version +
-                 (PRE_RELEASE ? pre_release_line : "") +
                  " - Caden J Finley (c) 2025";
   }
   if (created_line.empty()) {
