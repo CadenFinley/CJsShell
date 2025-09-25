@@ -58,7 +58,7 @@ class LanguageInfo {
 
   // Java detection patterns (following Starship)
   std::vector<std::string> java_files = {
-      "pom.xml",  "build.gradle.kts", "build.sbt",  ".java-version",
+      "pom.xml",  "build.gradle.kts", ".java-version",
       "deps.edn", "project.clj",      "build.boot", ".sdkmanrc"};
   std::vector<std::string> java_extensions = {".java", ".class", ".gradle",
                                               ".jar",  ".cljs",  ".cljc"};
@@ -122,7 +122,7 @@ class LanguageInfo {
   std::vector<std::string> scala_files = {"build.sbt", "build.sc", ".scalaenv",
                                           ".sbtrc", ".sbtopts"};
   std::vector<std::string> scala_extensions = {".scala", ".sc"};
-  std::vector<std::string> scala_folders = {"project", "target"};
+  std::vector<std::string> scala_folders = {"project"};
 
   bool is_project_detected(const std::vector<std::string>& files,
                            const std::vector<std::string>& extensions,
