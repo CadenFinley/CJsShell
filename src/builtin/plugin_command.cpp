@@ -24,11 +24,7 @@ int plugin_command(const std::vector<std::string>& args) {
   }
 
   if (g_plugin == nullptr) {
-    print_error({ErrorType::RUNTIME_ERROR,
-                 "plugin",
-                 "Plugin manager not initialized",
-                 {}});
-    return 1;
+    initialize_plugins();
   }
 
   if (args.size() < 2) {
@@ -316,7 +312,10 @@ int plugin_command(const std::vector<std::string>& args) {
           g_plugin->enable_plugin(pluginName);
           return 0;
         }
-        std::cerr << "Plugin: " << pluginName << " is disabled." << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "plugin",
+                     "Plugin '" + pluginName + "' is disabled",
+                     {"Run 'plugin " + pluginName + " enable' to enable it."}});
         return 0;
       } else {
         print_error({ErrorType::COMMAND_NOT_FOUND,

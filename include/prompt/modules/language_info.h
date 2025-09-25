@@ -58,8 +58,8 @@ class LanguageInfo {
 
   // Java detection patterns (following Starship)
   std::vector<std::string> java_files = {
-      "pom.xml",  "build.gradle.kts", ".java-version",
-      "deps.edn", "project.clj",      "build.boot", ".sdkmanrc"};
+      "pom.xml",     "build.gradle.kts", ".java-version", "deps.edn",
+      "project.clj", "build.boot",       ".sdkmanrc"};
   std::vector<std::string> java_extensions = {".java", ".class", ".gradle",
                                               ".jar",  ".cljs",  ".cljc"};
   std::vector<std::string> java_folders = {};

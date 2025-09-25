@@ -15,9 +15,9 @@
 #include "theme.h"
 
 const bool PRE_RELEASE = true;
-// using semver.org principles MAJOR.MINOR.PATCH
-const std::string c_version = "3.4.1";
 const std::string pre_release_line = " (pre-release)";
+// using semver.org principles MAJOR.MINOR.PATCH
+const std::string c_version = "3.4.1" + (PRE_RELEASE ? pre_release_line : "");
 
 extern bool g_debug_mode;
 extern bool g_exit_flag;
@@ -51,6 +51,11 @@ extern bool show_help;
 extern bool startup_test;
 extern bool disable_ls_colors;
 }  // namespace config
+
+void initialize_colors();
+void initialize_plugins();
+void initialize_themes();
+void initialize_ai();
 
 void reprint_prompt();
 void cleanup_resources();

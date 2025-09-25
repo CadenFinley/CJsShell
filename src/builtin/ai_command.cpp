@@ -28,11 +28,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
   }
 
   if (g_ai == nullptr) {
-    print_error({ErrorType::RUNTIME_ERROR,
-                 "ai",
-                 "AI is not initialized - API configuration required",
-                 {}});
-    return 1;
+    initialize_ai();
   }
   unsigned int command_index = 1;
 

@@ -410,11 +410,11 @@ std::string Theme::render_line_aligned(
           if (!fill_char_.empty()) {
             std::string fill_text(padL, fill_char_[0]);
             if (colors::is_gradient_value(fill_bg_color_)) {
-              fillL += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
-                                                       false);
+              fillL += colors::apply_color_or_gradient(fill_text,
+                                                       fill_bg_color_, false);
             } else if (colors::is_gradient_value(fill_fg_color_)) {
-              fillL += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
-                                                       true);
+              fillL += colors::apply_color_or_gradient(fill_text,
+                                                       fill_fg_color_, true);
             }
           }
         } else {
@@ -446,11 +446,11 @@ std::string Theme::render_line_aligned(
           if (!fill_char_.empty()) {
             std::string fill_text(padR, fill_char_[0]);
             if (colors::is_gradient_value(fill_bg_color_)) {
-              fillR += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
-                                                       false);
+              fillR += colors::apply_color_or_gradient(fill_text,
+                                                       fill_bg_color_, false);
             } else if (colors::is_gradient_value(fill_fg_color_)) {
-              fillR += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
-                                                       true);
+              fillR += colors::apply_color_or_gradient(fill_text,
+                                                       fill_fg_color_, true);
             }
           }
         } else {
@@ -871,7 +871,8 @@ std::string Theme::render_line(
   result = escape_brackets_for_isocline(result);
 
   if (g_debug_mode) {
-    std::cout << "Rendered line: \n" << result << " With length: " << result.length() <<std::endl;
+    std::cout << "Rendered line: \n"
+              << result << " With length: " << result.length() << std::endl;
   }
   return result;
 }

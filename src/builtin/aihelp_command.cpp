@@ -9,17 +9,13 @@
 #include "system_prompts.h"
 
 int aihelp_command(const std::vector<std::string>& args) {
-  if (g_ai == nullptr) {
-    print_error({ErrorType::RUNTIME_ERROR,
-                 "aihelp",
-                 "AI is not initialized - API configuration required",
-                 {}});
+  if (!config::ai_enabled) {
+    print_error({ErrorType::RUNTIME_ERROR, "aihelp", "AI is disabled", {}});
     return 1;
   }
 
-  if (!g_ai->is_enabled()) {
-    print_error({ErrorType::RUNTIME_ERROR, "aihelp", "AI is disabled", {}});
-    return 1;
+  if (g_ai == nullptr) {
+    initialize_ai();
   }
 
   if (!g_ai || g_ai->get_api_key().empty()) {

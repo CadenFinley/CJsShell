@@ -27,7 +27,7 @@ void print_usage() {
       << "  -O, --no-completions       Disable tab completions\n"
       << "  -S, --no-syntax-highlighting Disable syntax highlighting\n"
       << "  -M, --no-smart-cd          Disable smart cd functionality\n"
-   << "  -D, --disable-ls-colors    Disable custom ls output colors\n"
+      << "  -D, --disable-ls-colors    Disable custom ls output colors\n"
       << "  -U, --show-startup-time    Display shell startup time\n"
       << "  -X, --startup-test          Enable startup test mode\n\n"
       << "For more information, visit: "

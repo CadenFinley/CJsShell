@@ -10,32 +10,29 @@ extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
-    std::cerr << "cjsh: startup-flag: missing flag argument" << std::endl;
-    std::cerr << "Usage: startup-flag [--flag-name]" << std::endl;
-    std::cerr << "Available flags:" << std::endl;
-    std::cerr << "  --login          Set login mode" << std::endl;
-    std::cerr << "  --interactive    Force interactive mode" << std::endl;
-    std::cerr << "  --debug          Enable debug mode" << std::endl;
-    std::cerr << "  --no-plugins     Disable plugins" << std::endl;
-    std::cerr << "  --no-themes      Disable themes" << std::endl;
-    std::cerr << "  --no-ai          Disable AI features" << std::endl;
-    std::cerr << "  --no-colors      Disable colors" << std::endl;
-    std::cerr << "  --no-titleline   Disable title line" << std::endl;
-    std::cerr << "  --show-startup-time Display shell startup time"
-              << std::endl;
-    std::cerr << "  --no-source      Don't source the .cjshrc file"
-              << std::endl;
-    std::cerr << "  --no-completions Disable tab completions" << std::endl;
-    std::cerr << "  --no-syntax-highlighting Disable syntax highlighting"
-              << std::endl;
-    std::cerr << "  --no-smart-cd    Disable smart cd functionality"
-              << std::endl;
-    std::cerr
-        << "  --minimal        Disable all unique cjsh features (plugins, themes, AI, colors, completions, syntax highlighting, smart cd, sourcing, custom ls colors, startup time display)"
-        << std::endl;
-    std::cerr << "  --disable-ls-colors Disable custom ls output colors"
-              << std::endl;
-    std::cerr << "  --startup-test   Enable startup test mode" << std::endl;
+    print_error(
+        {ErrorType::INVALID_ARGUMENT,
+         "startup-flag",
+         "Missing flag argument",
+         {"Usage: startup-flag [--flag-name]",
+          "Available flags:", "  --login          Set login mode",
+          "  --interactive    Force interactive mode",
+          "  --debug          Enable debug mode",
+          "  --no-plugins     Disable plugins",
+          "  --no-themes      Disable themes",
+          "  --no-ai          Disable AI features",
+          "  --no-colors      Disable colors",
+          "  --no-titleline   Disable title line",
+          "  --show-startup-time Display shell startup time",
+          "  --no-source      Don't source the .cjshrc file",
+          "  --no-completions Disable tab completions",
+          "  --no-syntax-highlighting Disable syntax highlighting",
+          "  --no-smart-cd    Disable smart cd functionality",
+          "  --minimal        Disable all unique cjsh features (plugins, "
+          "themes, AI, colors, completions, syntax highlighting, smart cd, "
+          "sourcing, custom ls colors, startup time display)",
+          "  --disable-ls-colors Disable custom ls output colors",
+          "  --startup-test   Enable startup test mode"}});
     return 1;
   }
 

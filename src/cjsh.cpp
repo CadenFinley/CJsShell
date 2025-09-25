@@ -110,7 +110,6 @@ static void initialize_title_strings() {
 // TODOxw
 // fix all failing tests
 
-
 /*
  * Exit/Return Codes:
  * 0       - Success
@@ -552,6 +551,59 @@ static int handle_non_interactive_mode(const std::string& script_file) {
   return 0;
 }
 
+void initialize_colors() {
+  // Initialize colors module
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Initializing colors with enabled="
+              << config::colors_enabled << std::endl;
+  colors::initialize_color_support(config::colors_enabled);
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Disabling isocline colors and resetting prompt style"
+              << std::endl;
+
+  if (!config::colors_enabled) {
+    ic_enable_color(false);
+    // Override the default green prompt style with no color
+    ic_style_def("ic-prompt", "");
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Colors disabled." << std::endl;
+  }
+}
+
+void initialize_plugins() {
+  // Initialize plugins if enabled
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Initializing plugin system with enabled="
+              << config::plugins_enabled << std::endl;
+  g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
+                                      config::plugins_enabled, true);
+}
+
+void initialize_themes() {
+  // Initialize themes if enabled
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Initializing theme system with enabled="
+              << config::themes_enabled << std::endl;
+  g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path,
+                                    config::themes_enabled);
+}
+
+void initialize_ai() {
+  // Initialize AI if enabled
+  std::string api_key = "";
+  const char* env_key = getenv("OPENAI_API_KEY");
+  if (env_key) {
+    api_key = env_key;
+  }
+
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Initializing AI with enabled=" << config::ai_enabled
+              << std::endl;
+  g_ai = std::make_unique<Ai>(
+      api_key, std::string("chat"), std::string(""), std::vector<std::string>{},
+      cjsh_filesystem::g_cjsh_data_path, config::ai_enabled);
+}
+
 static int initialize_interactive_components() {
   // Set interactive mode
   g_shell->set_interactive_mode(true);
@@ -566,63 +618,9 @@ static int initialize_interactive_components() {
 
   g_shell->setup_interactive_handlers();
 
-  // Initialize colors module
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Initializing colors with enabled="
-              << config::colors_enabled << std::endl;
-  colors::initialize_color_support(config::colors_enabled);
-
-  // Configure isocline colors based on color settings
-  if (!config::colors_enabled) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Disabling isocline colors and resetting prompt style"
-                << std::endl;
-    ic_enable_color(false);
-    // Override the default green prompt style with no color
-    ic_style_def("ic-prompt", "");
-  }
-
-  // Initialize plugins if enabled
-  if (config::plugins_enabled) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Initializing plugin system with enabled="
-                << config::plugins_enabled << std::endl;
-    g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
-                                        config::plugins_enabled, true);
-  } else if (g_debug_mode) {
-    std::cerr << "DEBUG: Plugins disabled, skipping initialization"
-              << std::endl;
-  }
-
-  // Initialize themes if enabled
-  if (config::themes_enabled) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Initializing theme system with enabled="
-                << config::themes_enabled << std::endl;
-    g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path,
-                                      config::themes_enabled);
-  } else if (g_debug_mode) {
-    std::cerr << "DEBUG: Themes disabled, skipping initialization" << std::endl;
-  }
-
-  // Initialize AI if enabled
-  if (config::ai_enabled) {
-    std::string api_key = "";
-    const char* env_key = getenv("OPENAI_API_KEY");
-    if (env_key) {
-      api_key = env_key;
-    }
-
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Initializing AI with enabled=" << config::ai_enabled
-                << std::endl;
-    g_ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
-                                std::vector<std::string>{},
-                                cjsh_filesystem::g_cjsh_data_path,
-                                config::ai_enabled);
-  } else if (g_debug_mode) {
-    std::cerr << "DEBUG: AI disabled, skipping initialization" << std::endl;
-  }
+  // colors is the only component that must be initialized before plugins/themes/ai as they depend on it
+  // themes plugins and ai are lazy loaded
+  initialize_colors();
 
   // Save the current directory before processing the source file
   std::string saved_current_dir = std::filesystem::current_path().string();
@@ -1211,18 +1209,26 @@ static void create_profile_file() {
       "# login-startup-arg --login               # Enable login mode\n"
       "# login-startup-arg --interactive         # Force interactive mode\n"
       "# login-startup-arg --debug               # Enable debug mode\n"
-      "# login-startup-arg --minimal             # Disable all unique cjsh features (plugins, themes, AI, colors, completions, syntax highlighting, smart cd, sourcing, custom ls colors, startup time display)\n"
+      "# login-startup-arg --minimal             # Disable all unique cjsh "
+      "features (plugins, themes, AI, colors, completions, syntax "
+      "highlighting, smart cd, sourcing, custom ls colors, startup time "
+      "display)\n"
       "# login-startup-arg --no-plugins          # Disable plugins\n"
       "# login-startup-arg --no-themes           # Disable themes\n"
       "# login-startup-arg --no-ai               # Disable AI features\n"
       "# login-startup-arg --no-colors           # Disable colorized output\n"
       "# login-startup-arg --no-titleline        # Disable title line\n"
-      "# login-startup-arg --show-startup-time   # Enable startup time display\n"
-      "# login-startup-arg --no-source           # Don't source the .cjshrc file\n"
+      "# login-startup-arg --show-startup-time   # Enable startup time "
+      "display\n"
+      "# login-startup-arg --no-source           # Don't source the .cjshrc "
+      "file\n"
       "# login-startup-arg --no-completions      # Disable tab completions\n"
-      "# login-startup-arg --no-syntax-highlighting  # Disable syntax highlighting\n"
-      "# login-startup-arg --no-smart-cd         # Disable smart cd functionality\n"
-      "# login-startup-arg --disable-ls-colors   # Disable custom ls output colors\n"
+      "# login-startup-arg --no-syntax-highlighting  # Disable syntax "
+      "highlighting\n"
+      "# login-startup-arg --no-smart-cd         # Disable smart cd "
+      "functionality\n"
+      "# login-startup-arg --disable-ls-colors   # Disable custom ls output "
+      "colors\n"
       "# login-startup-arg --startup-test        # Enable startup test mode\n";
 
   auto write_result = cjsh_filesystem::FileOperations::write_file_content(
@@ -1247,7 +1253,8 @@ static void create_source_file() {
       "alias ll='ls -la'\n"
       "\n"
       "# you can change this to load any installed theme, "
-      "# by default, the 'default' theme is always loaded unless themes are disabled\n"
+      "# by default, the 'default' theme is always loaded unless themes are "
+      "disabled\n"
       "theme load default\n"
       "\n"
       "# plugin examples\n"

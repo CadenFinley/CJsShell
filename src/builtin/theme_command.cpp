@@ -10,20 +10,19 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
-
-#define PRINT_ERROR(MSG)        \
-  do {                          \
-    std::cerr << (MSG) << '\n'; \
-  } while (0)
+#include "error_out.h"
 
 int theme_command(const std::vector<std::string>& args) {
   if (!config::themes_enabled) {
-    PRINT_ERROR("Themes are disabled");
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "theme",
+                 "Themes are disabled",
+                 {"Enable themes in configuration or remove theme commands "
+                  "from startup."}});
     return 1;
   }
   if (g_theme == nullptr) {
-    PRINT_ERROR("theme: theme manager not initialized");
-    return 1;
+    initialize_themes();
   }
   if (args.size() < 2) {
     if (g_theme) {
@@ -45,7 +44,11 @@ int theme_command(const std::vector<std::string>& args) {
       std::cout << "  theme uninstall <theme_name> - Uninstall a theme"
                 << std::endl;
     } else {
-      std::cerr << "theme: theme manager not initialized" << std::endl;
+      print_error(
+          {ErrorType::RUNTIME_ERROR,
+           "theme",
+           "Theme manager not initialized",
+           {"Try running 'theme' again after initialization completes."}});
       return 1;
     }
     return 0;
@@ -57,7 +60,11 @@ int theme_command(const std::vector<std::string>& args) {
         cjsh_filesystem::g_cjsh_theme_path.string() + "/" + themeName + ".json";
 
     if (!std::filesystem::exists(theme_file)) {
-      std::cerr << "theme: '" << themeName << "' not found" << std::endl;
+      print_error(
+          {ErrorType::FILE_NOT_FOUND,
+           "theme",
+           "Theme '" + themeName + "' not found",
+           {"Run 'theme' with no arguments to list available themes."}});
       return 1;
     }
 
@@ -177,8 +184,11 @@ int theme_command(const std::vector<std::string>& args) {
   if (args[1] == "preview") {
     if (g_theme) {
       if (args.size() < 3) {
-        std::cerr << "theme: please specify a theme name to preview or 'all'"
-                  << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "theme",
+                     "Please specify a theme name to preview or 'all'",
+                     {"Usage: theme preview <theme_name>",
+                      "       theme preview all"}});
         return 1;
       }
 
@@ -204,24 +214,41 @@ int theme_command(const std::vector<std::string>& args) {
         if (std::filesystem::exists(theme_file)) {
           return preview_theme(theme_name);
         } else {
-          std::cerr << "theme: '" << theme_name
-                    << "' not found locally. Please install it first."
-                    << std::endl;
+          print_error({ErrorType::FILE_NOT_FOUND,
+                       "theme",
+                       "Theme '" + theme_name +
+                           "' not found locally. Please install it first.",
+                       {"Run 'theme' to list installed themes."}});
           return 1;
         }
       }
     } else {
-      std::cerr << "theme: theme manager not initialized" << std::endl;
+      print_error({ErrorType::RUNTIME_ERROR,
+                   "theme",
+                   "Theme manager not initialized",
+                   {"Try running 'theme reload' or restart the shell."}});
       return 1;
     }
   }
 
-  if (args[1] == "uninstall" && args.size() > 2) {
+  if (args[1] == "uninstall") {
+    if (args.size() <= 2) {
+      print_error({ErrorType::INVALID_ARGUMENT,
+                   "theme",
+                   "Please specify a theme name to uninstall",
+                   {"Usage: theme uninstall <theme_name>"}});
+      return 1;
+    }
+
     if (g_theme) {
       std::string themeName = args[2];
       return uninstall_theme(themeName);
     } else {
-      std::cerr << "theme: theme manager not initialized" << std::endl;
+      print_error(
+          {ErrorType::RUNTIME_ERROR,
+           "theme",
+           "Theme manager not initialized",
+           {"Try running 'theme' again after initialization completes."}});
       return 1;
     }
   }
@@ -235,7 +262,11 @@ int theme_command(const std::vector<std::string>& args) {
         return 2;
       }
     } else {
-      std::cerr << "theme: theme manager not initialized" << std::endl;
+      print_error(
+          {ErrorType::RUNTIME_ERROR,
+           "theme",
+           "Theme manager not initialized",
+           {"Try running 'theme' again after initialization completes."}});
       return 1;
     }
   }
@@ -248,14 +279,21 @@ int theme_command(const std::vector<std::string>& args) {
       return 2;
     }
   } else {
-    std::cerr << "theme: theme manager not initialized" << std::endl;
+    print_error(
+        {ErrorType::RUNTIME_ERROR,
+         "theme",
+         "Theme manager not initialized",
+         {"Try running 'theme' again after initialization completes."}});
     return 1;
   }
 }
 
 int uninstall_theme(const std::string& themeName) {
   if (themeName == "default") {
-    std::cerr << "theme: cannot uninstall the default theme" << std::endl;
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "theme",
+                 "Cannot uninstall the default theme",
+                 {"The default theme is required by cjsh."}});
     return 1;
   }
 
@@ -263,14 +301,18 @@ int uninstall_theme(const std::string& themeName) {
       cjsh_filesystem::g_cjsh_theme_path.string() + "/" + themeName + ".json";
 
   if (!std::filesystem::exists(theme_file)) {
-    std::cerr << "theme: '" << themeName << "' not found" << std::endl;
+    print_error({ErrorType::FILE_NOT_FOUND,
+                 "theme",
+                 "Theme '" + themeName + "' not found",
+                 {"Run 'theme' to list installed themes."}});
     return 1;
   }
 
   if (g_current_theme == themeName) {
-    std::cerr << "theme: cannot uninstall the currently active theme '"
-              << themeName << "'. Please switch to a different theme first."
-              << std::endl;
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "theme",
+                 "Cannot uninstall the active theme '" + themeName + "'",
+                 {"Switch to a different theme before uninstalling."}});
     return 1;
   }
 
@@ -283,8 +325,10 @@ int uninstall_theme(const std::string& themeName) {
               << std::endl;
     return 0;
   } catch (const std::filesystem::filesystem_error& e) {
-    std::cerr << "theme: failed to uninstall theme '" << themeName
-              << "': " << e.what() << std::endl;
+    print_error({ErrorType::RUNTIME_ERROR,
+                 "theme",
+                 "Failed to uninstall theme '" + themeName + "'",
+                 {e.what()}});
     return 1;
   }
 }
