@@ -22,6 +22,31 @@
 #include "readonly_command.h"
 #include "utils/performance.h"
 
+namespace {
+struct DelimiterState {
+  bool in_quotes = false;
+  char quote_char = '\0';
+  int paren_depth = 0;
+  int bracket_depth = 0;
+  int brace_depth = 0;
+
+  bool update_quote(char c) {
+    if (c == '"' || c == '\'') {
+      if (!in_quotes) {
+        in_quotes = true;
+        quote_char = c;
+      } else if (quote_char == c) {
+        in_quotes = false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  void reset() { *this = {}; }
+};
+}  // namespace
+
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
   auto strip_inline_comment = [](std::string_view s) -> std::string {
     bool in_quotes = false;
@@ -1386,40 +1411,33 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
   std::string current;
   current.reserve(command.length() / 4);
-  bool in_quotes = false;
-  char quote_char = '\0';
-  int paren_depth = 0;
-  int bracket_depth = 0;
+  DelimiterState delimiters;
 
   for (size_t i = 0; i < command.length(); ++i) {
-    if (command[i] == '"' || command[i] == '\'') {
-      if (!in_quotes) {
-        in_quotes = true;
-        quote_char = command[i];
-      } else if (quote_char == command[i]) {
-        in_quotes = false;
-      }
+    if (delimiters.update_quote(command[i])) {
       current += command[i];
-    } else if (!in_quotes && command[i] == '(') {
-      paren_depth++;
+    } else if (!delimiters.in_quotes && command[i] == '(') {
+      delimiters.paren_depth++;
       current += command[i];
-    } else if (!in_quotes && command[i] == ')') {
-      paren_depth--;
+    } else if (!delimiters.in_quotes && command[i] == ')') {
+      delimiters.paren_depth--;
       current += command[i];
-    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() &&
+    } else if (!delimiters.in_quotes && command[i] == '[' &&
+               i + 1 < command.length() &&
                command[i + 1] == '[') {
-      bracket_depth++;
+      delimiters.bracket_depth++;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() &&
-               command[i + 1] == ']' && bracket_depth > 0) {
-      bracket_depth--;
+    } else if (!delimiters.in_quotes && command[i] == ']' &&
+               i + 1 < command.length() && command[i + 1] == ']' &&
+               delimiters.bracket_depth > 0) {
+      delimiters.bracket_depth--;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (command[i] == '|' && !in_quotes && paren_depth == 0 &&
-               bracket_depth == 0) {
+    } else if (command[i] == '|' && !delimiters.in_quotes &&
+               delimiters.paren_depth == 0 && delimiters.bracket_depth == 0) {
       if (i > 0 && command[i - 1] == '>') {
         current += command[i];
       } else {
@@ -1580,24 +1598,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       } else if (tok == "&>" && i + 1 < tokens.size()) {
         cmd.both_output_file = strip_quote_tag(tokens[++i]);
         cmd.both_output = true;
-      } else if (tok == "<<" && i + 1 < tokens.size()) {
-        std::string delimiter = strip_quote_tag(tokens[++i]);
-
-        if (delimiter.find("__HEREDOC_CONTENT__") == 0) {
-          std::string line_num = delimiter.substr(19);
-          cmd.here_doc = delimiter;
-        } else {
-          cmd.here_doc = delimiter;
-        }
-      } else if (tok == "<<-" && i + 1 < tokens.size()) {
-        std::string delimiter = strip_quote_tag(tokens[++i]);
-
-        if (delimiter.find("__HEREDOC_CONTENT__") == 0) {
-          std::string line_num = delimiter.substr(19);
-          cmd.here_doc = delimiter;
-        } else {
-          cmd.here_doc = delimiter;
-        }
+      } else if ((tok == "<<" || tok == "<<-") && i + 1 < tokens.size()) {
+        cmd.here_doc = strip_quote_tag(tokens[++i]);
       } else if (tok == "<<<" && i + 1 < tokens.size()) {
         cmd.here_string = strip_quote_tag(tokens[++i]);
       } else if ((tok == "2>" || tok == "2>>") && i + 1 < tokens.size()) {
@@ -1821,32 +1823,23 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
     const std::string& command) {
   std::vector<LogicalCommand> logical_commands;
   std::string current;
-  bool in_quotes = false;
-  char quote_char = '\0';
-  int paren_depth = 0;
+  DelimiterState delimiters;
   int arith_depth = 0;
-  int bracket_depth = 0;
 
   for (size_t i = 0; i < command.length(); ++i) {
-    if (command[i] == '"' || command[i] == '\'') {
-      if (!in_quotes) {
-        in_quotes = true;
-        quote_char = command[i];
-      } else if (quote_char == command[i]) {
-        in_quotes = false;
-      }
+    if (delimiters.update_quote(command[i])) {
       current += command[i];
-    } else if (!in_quotes && command[i] == '(') {
+    } else if (!delimiters.in_quotes && command[i] == '(') {
       if (i >= 2 && command[i - 2] == '$' && command[i - 1] == '(' &&
           command[i] == '(') {
         arith_depth++;
       }
-      paren_depth++;
+      delimiters.paren_depth++;
       current += command[i];
-    } else if (!in_quotes && command[i] == ')') {
-      paren_depth--;
+    } else if (!delimiters.in_quotes && command[i] == ')') {
+      delimiters.paren_depth--;
 
-      if (paren_depth >= 0 && i + 1 < command.length() &&
+      if (delimiters.paren_depth >= 0 && i + 1 < command.length() &&
           command[i + 1] == ')' && arith_depth > 0) {
         arith_depth--;
         current += command[i];
@@ -1855,20 +1848,23 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
       } else {
         current += command[i];
       }
-    } else if (!in_quotes && command[i] == '[' && i + 1 < command.length() &&
+    } else if (!delimiters.in_quotes && command[i] == '[' &&
+               i + 1 < command.length() &&
                command[i + 1] == '[') {
-      bracket_depth++;
+      delimiters.bracket_depth++;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (!in_quotes && command[i] == ']' && i + 1 < command.length() &&
-               command[i + 1] == ']' && bracket_depth > 0) {
-      bracket_depth--;
+    } else if (!delimiters.in_quotes && command[i] == ']' &&
+               i + 1 < command.length() && command[i + 1] == ']' &&
+               delimiters.bracket_depth > 0) {
+      delimiters.bracket_depth--;
       current += command[i];
       current += command[i + 1];
       i++;
-    } else if (!in_quotes && paren_depth == 0 && arith_depth == 0 &&
-               bracket_depth == 0 && i < command.length() - 1) {
+    } else if (!delimiters.in_quotes && delimiters.paren_depth == 0 &&
+               arith_depth == 0 && delimiters.bracket_depth == 0 &&
+               i < command.length() - 1) {
       if (command[i] == '&' && command[i + 1] == '&') {
         if (!current.empty()) {
           logical_commands.push_back({current, "&&"});
@@ -1900,31 +1896,24 @@ std::vector<std::string> Parser::parse_semicolon_commands(
     const std::string& command) {
   std::vector<std::string> commands;
   std::string current;
-  bool in_quotes = false;
-  char quote_char = '\0';
-  int paren_depth = 0;
-  int brace_depth = 0;
+  DelimiterState scan_state;
   int control_depth = 0;
 
   std::vector<bool> is_semicolon_split_point(command.length(), false);
 
   for (size_t i = 0; i < command.length(); ++i) {
-    if (command[i] == '"' || command[i] == '\'') {
-      if (!in_quotes) {
-        in_quotes = true;
-        quote_char = command[i];
-      } else if (quote_char == command[i]) {
-        in_quotes = false;
-      }
-    } else if (!in_quotes && command[i] == '(') {
-      paren_depth++;
-    } else if (!in_quotes && command[i] == ')') {
-      paren_depth--;
-    } else if (!in_quotes && command[i] == '{') {
-      brace_depth++;
-    } else if (!in_quotes && command[i] == '}') {
-      brace_depth--;
-    } else if (!in_quotes && paren_depth == 0 && brace_depth == 0) {
+    if (scan_state.update_quote(command[i])) {
+      continue;
+    } else if (!scan_state.in_quotes && command[i] == '(') {
+      scan_state.paren_depth++;
+    } else if (!scan_state.in_quotes && command[i] == ')') {
+      scan_state.paren_depth--;
+    } else if (!scan_state.in_quotes && command[i] == '{') {
+      scan_state.brace_depth++;
+    } else if (!scan_state.in_quotes && command[i] == '}') {
+      scan_state.brace_depth--;
+    } else if (!scan_state.in_quotes && scan_state.paren_depth == 0 &&
+               scan_state.brace_depth == 0) {
       if (command[i] == ' ' || command[i] == '\t' || i == 0) {
         size_t word_start = i;
         if (command[i] == ' ' || command[i] == '\t')
@@ -1967,18 +1956,11 @@ std::vector<std::string> Parser::parse_semicolon_commands(
     }
   }
 
-  in_quotes = false;
-  quote_char = '\0';
+  DelimiterState parse_state;
   current.clear();
 
   for (size_t i = 0; i < command.length(); ++i) {
-    if (command[i] == '"' || command[i] == '\'') {
-      if (!in_quotes) {
-        in_quotes = true;
-        quote_char = command[i];
-      } else if (quote_char == command[i]) {
-        in_quotes = false;
-      }
+    if (parse_state.update_quote(command[i])) {
       current += command[i];
     } else if (command[i] == ';' && is_semicolon_split_point[i]) {
       if (!current.empty()) {
