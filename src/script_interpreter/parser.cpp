@@ -262,6 +262,70 @@ static inline std::pair<std::string, bool> strip_noenv_sentinels(
   }
   return {s, false};
 }
+
+inline bool contains_tilde(const std::string& value) {
+  if (value.empty()) {
+    return false;
+  }
+  if (value.front() == '~') {
+    return true;
+  }
+  return value.find('~', 1) != std::string::npos;
+}
+
+inline std::string expand_tilde_value(const std::string& value,
+                                      const std::string& home) {
+  if (!value.empty() && value.front() == '~') {
+    return home + value.substr(1);
+  }
+  return value;
+}
+
+std::vector<std::string> expand_tilde_tokens(
+    const std::vector<std::string>& tokens) {
+  std::vector<std::string> result;
+  result.reserve(tokens.size());
+
+  const char* home_dir = std::getenv("HOME");
+  const bool has_home = home_dir != nullptr;
+  const std::string home = has_home ? std::string(home_dir) : std::string();
+
+  for (const auto& raw : tokens) {
+    const bool is_single = is_single_quoted_token(raw);
+    const bool is_double = is_double_quoted_token(raw);
+    std::string value = strip_quote_tag(raw);
+
+    if (!is_single && !is_double && has_home && contains_tilde(value)) {
+      result.push_back(expand_tilde_value(value, home));
+    } else if (!is_single && !is_double) {
+      result.push_back(value);
+    } else if (is_single) {
+      result.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + value);
+    } else {
+      result.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + value);
+    }
+  }
+
+  return result;
+}
+
+void expand_command_paths_with_home(Command& cmd, const std::string& home) {
+  auto expand_path = [&](std::string& path) {
+    if (!path.empty() && path.front() == '~') {
+      path = home + path.substr(1);
+    }
+  };
+
+  expand_path(cmd.input_file);
+  expand_path(cmd.output_file);
+  expand_path(cmd.append_file);
+  expand_path(cmd.stderr_file);
+  expand_path(cmd.both_output_file);
+
+  for (auto& fd_redir : cmd.fd_redirections) {
+    expand_path(fd_redir.second);
+  }
+}
 }  // namespace
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
@@ -712,52 +776,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
   }
   args = std::move(ifs_expanded_args);
-  std::vector<std::string> tilde_expanded_args;
-  for (auto& raw_arg : args) {
-    const bool is_single = is_single_quoted_token(raw_arg);
-    const bool is_double = is_double_quoted_token(raw_arg);
-    std::string arg = strip_quote_tag(raw_arg);
-    bool has_tilde = false;
-    if (!arg.empty()) {
-      if (arg[0] == '~') {
-        has_tilde = true;
-      } else {
-        for (size_t i = 1; i < arg.length(); ++i) {
-          if (arg[i] == '~') {
-            has_tilde = true;
-            break;
-          }
-        }
-      }
-    }
-
-    if (has_tilde && !is_single && !is_double) {
-      char* home_dir = std::getenv("HOME");
-      if (home_dir) {
-        std::string home_str(home_dir);
-
-        std::string expanded_arg;
-        if (arg.front() == '~') {
-          expanded_arg = home_str + arg.substr(1);
-        } else {
-          expanded_arg = arg;
-        }
-        tilde_expanded_args.push_back(std::move(expanded_arg));
-      } else {
-        tilde_expanded_args.push_back(arg);
-      }
-    } else {
-      if (is_single) {
-        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                      QUOTE_SINGLE + arg);
-      } else if (is_double) {
-        tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                      QUOTE_DOUBLE + arg);
-      } else {
-        tilde_expanded_args.push_back(arg);
-      }
-    }
-  }
+  auto tilde_expanded_args = expand_tilde_tokens(args);
 
   std::vector<std::string> final_args;
   final_args.reserve(tilde_expanded_args.size() * 2);
@@ -1635,68 +1654,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     bool is_double_bracket_cmd =
         !filtered_args.empty() && strip_quote_tag(filtered_args[0]) == "[[";
 
-    std::vector<std::string> tilde_expanded_args;
-    for (const auto& raw : filtered_args) {
-      bool is_single = is_single_quoted_token(raw);
-      bool is_double = is_double_quoted_token(raw);
-      std::string val = strip_quote_tag(raw);
-
-      bool has_tilde = false;
-      if (!val.empty()) {
-        if (val[0] == '~') {
-          has_tilde = true;
-        } else {
-          for (size_t i = 1; i < val.length(); ++i) {
-            if (val[i] == '~') {
-              has_tilde = true;
-              break;
-            }
-          }
-        }
-      }
-
-      if (has_tilde && !is_single && !is_double) {
-        char* home_dir = std::getenv("HOME");
-        if (home_dir) {
-          std::string home_str(home_dir);
-          std::string expanded_arg;
-          if (val.front() == '~') {
-            expanded_arg = home_str + val.substr(1);
-          } else {
-            expanded_arg = val;
-          }
-          if (is_single) {
-            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                          QUOTE_SINGLE + expanded_arg);
-          } else if (is_double) {
-            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                          QUOTE_DOUBLE + expanded_arg);
-          } else {
-            tilde_expanded_args.push_back(expanded_arg);
-          }
-        } else {
-          if (is_single) {
-            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                          QUOTE_SINGLE + val);
-          } else if (is_double) {
-            tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                          QUOTE_DOUBLE + val);
-          } else {
-            tilde_expanded_args.push_back(val);
-          }
-        }
-      } else {
-        if (is_single) {
-          tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                        QUOTE_SINGLE + val);
-        } else if (is_double) {
-          tilde_expanded_args.push_back(std::string(1, QUOTE_PREFIX) +
-                                        QUOTE_DOUBLE + val);
-        } else {
-          tilde_expanded_args.push_back(val);
-        }
-      }
-    }
+    auto tilde_expanded_args = expand_tilde_tokens(filtered_args);
 
     std::vector<std::string> final_args_local;
     for (const auto& raw : tilde_expanded_args) {
@@ -1730,30 +1688,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
     cmd.args = final_args_local;
 
-    const char* home = getenv("HOME");
-    if (home) {
-      std::string h(home);
-      if (!cmd.input_file.empty() && cmd.input_file[0] == '~') {
-        cmd.input_file = h + cmd.input_file.substr(1);
-      }
-      if (!cmd.output_file.empty() && cmd.output_file[0] == '~') {
-        cmd.output_file = h + cmd.output_file.substr(1);
-      }
-      if (!cmd.append_file.empty() && cmd.append_file[0] == '~') {
-        cmd.append_file = h + cmd.append_file.substr(1);
-      }
-      if (!cmd.stderr_file.empty() && cmd.stderr_file[0] == '~') {
-        cmd.stderr_file = h + cmd.stderr_file.substr(1);
-      }
-      if (!cmd.both_output_file.empty() && cmd.both_output_file[0] == '~') {
-        cmd.both_output_file = h + cmd.both_output_file.substr(1);
-      }
-
-      for (auto& fd_redir : cmd.fd_redirections) {
-        if (!fd_redir.second.empty() && fd_redir.second[0] == '~') {
-          fd_redir.second = h + fd_redir.second.substr(1);
-        }
-      }
+    if (const char* home = std::getenv("HOME")) {
+      expand_command_paths_with_home(cmd, std::string(home));
     }
 
     commands.push_back(cmd);
