@@ -99,10 +99,11 @@ bool should_skip_line(const std::string& line) {
 }
 
 bool should_process_char(QuoteState& state, char c,
-                         bool ignore_single_quotes) {
+                         bool ignore_single_quotes,
+                         bool process_escaped_chars = true) {
   if (state.escaped) {
     state.escaped = false;
-    return true;
+    return process_escaped_chars;
   }
 
   if (c == '\\' && (!state.in_quotes || state.quote_char != '\'')) {
@@ -182,43 +183,22 @@ ShellScriptInterpreter::validate_script_syntax(
     trimmed = trimmed.substr(first_non_space);
 
     std::string line_without_comments = strip_inline_comment(line);
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
+    QuoteState quote_state;
 
-    for (size_t i = 0; i < line_without_comments.length(); ++i) {
-      char c = line_without_comments[i];
-
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-
-      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char && in_quotes) {
-        in_quotes = false;
-        quote_char = '\0';
-      }
+    for (char c : line_without_comments) {
+      should_process_char(quote_state, c, false, false);
     }
 
-    if (in_quotes) {
+    if (quote_state.in_quotes) {
       errors.push_back(
           {display_line,
-           "Unclosed quote: missing closing " + std::string(1, quote_char),
+           "Unclosed quote: missing closing " +
+               std::string(1, quote_state.quote_char),
            line});
     }
 
     int paren_balance = 0;
-    in_quotes = false;
-    quote_char = '\0';
-    escaped = false;
+    quote_state = QuoteState{};
     bool in_case_block = false;
 
     for (const auto& stack_item : control_stack) {
@@ -252,25 +232,11 @@ ShellScriptInterpreter::validate_script_syntax(
       for (size_t i = 0; i < line_without_comments.length(); ++i) {
         char c = line_without_comments[i];
 
-        if (escaped) {
-          escaped = false;
+        if (!should_process_char(quote_state, c, false, false)) {
           continue;
         }
 
-        if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-          escaped = true;
-          continue;
-        }
-
-        if ((c == '"' || c == '\'') && !in_quotes) {
-          in_quotes = true;
-          quote_char = c;
-        } else if (c == quote_char && in_quotes) {
-          in_quotes = false;
-          quote_char = '\0';
-        }
-
-        if (!in_quotes) {
+        if (!quote_state.in_quotes) {
           if (c == '(')
             paren_balance++;
           else if (c == ')')
@@ -1267,21 +1233,16 @@ ShellScriptInterpreter::check_style_guidelines(
       int logical_ops = 0;
       int bracket_depth = 0;
       int max_bracket_depth = 0;
-      bool in_quotes = false;
-      char quote_char = '\0';
+      QuoteState quote_state;
 
       for (size_t i = 0; i < line.length() - 1; ++i) {
         char c = line[i];
 
-        if ((c == '"' || c == '\'') && !in_quotes) {
-          in_quotes = true;
-          quote_char = c;
-        } else if (c == quote_char && in_quotes) {
-          in_quotes = false;
-          quote_char = '\0';
+        if (!should_process_char(quote_state, c, false, false)) {
+          continue;
         }
 
-        if (!in_quotes) {
+        if (!quote_state.in_quotes) {
           if ((c == '&' && line[i + 1] == '&') ||
               (c == '|' && line[i + 1] == '|')) {
             logical_ops++;
@@ -1436,32 +1397,16 @@ ShellScriptInterpreter::validate_pipeline_syntax(
                       line, "Remove leading pipe or add command before pipe"));
     }
 
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
+    QuoteState quote_state;
 
     for (size_t i = 0; i < line.length(); ++i) {
       char c = line[i];
 
-      if (escaped) {
-        escaped = false;
+      if (!should_process_char(quote_state, c, false, false)) {
         continue;
       }
 
-      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char && in_quotes) {
-        in_quotes = false;
-        quote_char = '\0';
-      }
-
-      if (!in_quotes && c == '|' && i + 1 < line.length()) {
+      if (!quote_state.in_quotes && c == '|' && i + 1 < line.length()) {
         if (line[i + 1] == '|' &&
             !(i + 2 < line.length() && line[i + 2] == '|')) {
           size_t after_logical = i + 2;
