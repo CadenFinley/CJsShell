@@ -44,6 +44,22 @@ std::string EnvironmentInfo::get_active_language_version(
     cmd =
         "perl --version 2>/dev/null | head -n 2 | tail -n 1 | awk '{print $4}' "
         "| sed 's/[()v]//g'";
+  } else if (language == "cpp" || language == "c++" || language == "c") {
+    cmd =
+        "g++ --version 2>/dev/null | head -n 1 | awk '{print $3}' || clang++ "
+        "--version 2>/dev/null | head -n 1 | awk '{print $3}' || gcc --version "
+        "2>/dev/null | head -n 1 | awk '{print $3}'";
+  } else if (language == "csharp" || language == "dotnet") {
+    cmd = "dotnet --version 2>/dev/null";
+  } else if (language == "kotlin") {
+    cmd = "kotlin -version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+'";
+  } else if (language == "swift") {
+    cmd =
+        "swift --version 2>/dev/null | grep -oE '[0-9]+\\.[0-9]+(\\.[0-9]+)?'";
+  } else if (language == "dart") {
+    cmd = "dart --version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+'";
+  } else if (language == "scala") {
+    cmd = "scala -version 2>&1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+'";
   } else {
     return "";
   }

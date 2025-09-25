@@ -272,16 +272,22 @@ std::string Theme::render_line_aligned(
         continue;
       }
 
-      std::string bg_color_name = render_line(segment.value("bg_color", "RESET"), vars);
-      std::string fg_color_name = render_line(segment.value("fg_color", "RESET"), vars);
-      std::string sep_fg_name = render_line(segment.value("separator_fg", "RESET"), vars);
-      std::string sep_bg_name = render_line(segment.value("separator_bg", "RESET"), vars);
+      std::string bg_color_name =
+          render_line(segment.value("bg_color", "RESET"), vars);
+      std::string fg_color_name =
+          render_line(segment.value("fg_color", "RESET"), vars);
+      std::string sep_fg_name =
+          render_line(segment.value("separator_fg", "RESET"), vars);
+      std::string sep_bg_name =
+          render_line(segment.value("separator_bg", "RESET"), vars);
 
       if (segment.contains("forward_separator") &&
           !segment["forward_separator"].empty()) {
         std::string fsep = segment["forward_separator"];
-        std::string fsep_fg = render_line(segment.value("forward_separator_fg", "RESET"), vars);
-        std::string fsep_bg = render_line(segment.value("forward_separator_bg", "RESET"), vars);
+        std::string fsep_fg =
+            render_line(segment.value("forward_separator_fg", "RESET"), vars);
+        std::string fsep_bg =
+            render_line(segment.value("forward_separator_bg", "RESET"), vars);
         if (fsep_bg != "RESET") {
           segment_result +=
               colors::bg_color(colors::parse_color_value(fsep_bg));
@@ -671,8 +677,8 @@ std::string Theme::evaluate_conditional(
 
   std::string condition = trim(expr.substr(0, question_pos));
   std::string true_value =
-      trim(expr.substr(question_pos + 1, colon_pos - question_pos - 1));
-  std::string false_value = trim(expr.substr(colon_pos + 1));
+      expr.substr(question_pos + 1, colon_pos - question_pos - 1);
+  std::string false_value = expr.substr(colon_pos + 1);
 
   if (g_debug_mode) {
     std::cout << "Condition: '" << condition << "'" << std::endl;

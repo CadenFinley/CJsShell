@@ -16,11 +16,12 @@ class LanguageInfo {
     std::chrono::steady_clock::time_point timestamp;
     bool is_valid() const {
       auto now = std::chrono::steady_clock::now();
-      auto age = std::chrono::duration_cast<std::chrono::seconds>(now - timestamp);
-      return age.count() < 300; // Cache for 5 minutes
+      auto age =
+          std::chrono::duration_cast<std::chrono::seconds>(now - timestamp);
+      return age.count() < 300;  // Cache for 5 minutes
     }
   };
-  
+
   mutable std::unordered_map<std::string, CachedVersion> version_cache;
   mutable std::mutex cache_mutex;
 
@@ -63,6 +64,66 @@ class LanguageInfo {
                                               ".jar",  ".cljs",  ".cljc"};
   std::vector<std::string> java_folders = {};
 
+  // C/C++ detection patterns
+  std::vector<std::string> cpp_files = {
+      "CMakeLists.txt", "Makefile",    "makefile",   "configure.ac",
+      "configure.in",   "meson.build", "SConstruct", "vcpkg.json",
+      "conanfile.txt",  "conanfile.py"};
+  std::vector<std::string> cpp_extensions = {
+      ".c", ".cpp", ".cxx", ".cc", ".c++", ".h", ".hpp", ".hxx", ".hh", ".h++"};
+  std::vector<std::string> cpp_folders = {"build", "cmake"};
+
+  // C# detection patterns
+  std::vector<std::string> csharp_files = {"global.json",
+                                           "project.json",
+                                           "Directory.Build.props",
+                                           "Directory.Build.targets",
+                                           "Packages.props",
+                                           ".csproj",
+                                           ".sln",
+                                           "nuget.config"};
+  std::vector<std::string> csharp_extensions = {".cs", ".csx", ".vb"};
+  std::vector<std::string> csharp_folders = {"bin", "obj"};
+
+  // PHP detection patterns
+  std::vector<std::string> php_files = {"composer.json", "composer.lock",
+                                        ".php-version", "artisan"};
+  std::vector<std::string> php_extensions = {".php",  ".phtml", ".php3",
+                                             ".php4", ".php5",  ".phps"};
+  std::vector<std::string> php_folders = {"vendor"};
+
+  // Ruby detection patterns
+  std::vector<std::string> ruby_files = {
+      "Gemfile", "Gemfile.lock",   ".ruby-version", "Rakefile",
+      ".rvmrc",  ".rbenv-version", "config.ru",     ".irbrc"};
+  std::vector<std::string> ruby_extensions = {".rb", ".rbx", ".rbi", ".gemspec",
+                                              ".rake"};
+  std::vector<std::string> ruby_folders = {".bundle"};
+
+  // Kotlin detection patterns
+  std::vector<std::string> kotlin_files = {"build.gradle.kts",
+                                           "settings.gradle.kts"};
+  std::vector<std::string> kotlin_extensions = {".kt", ".kts"};
+  std::vector<std::string> kotlin_folders = {};
+
+  // Swift detection patterns
+  std::vector<std::string> swift_files = {"Package.swift", "Project.swift"};
+  std::vector<std::string> swift_extensions = {".swift"};
+  std::vector<std::string> swift_folders = {".swiftpm", "xcodeproj",
+                                            "xcworkspace"};
+
+  // Dart detection patterns
+  std::vector<std::string> dart_files = {"pubspec.yaml", "pubspec.yml",
+                                         "pubspec.lock", ".dart_tool"};
+  std::vector<std::string> dart_extensions = {".dart"};
+  std::vector<std::string> dart_folders = {"lib", ".dart_tool"};
+
+  // Scala detection patterns
+  std::vector<std::string> scala_files = {"build.sbt", "build.sc", ".scalaenv",
+                                          ".sbtrc", ".sbtopts"};
+  std::vector<std::string> scala_extensions = {".scala", ".sc"};
+  std::vector<std::string> scala_folders = {"project", "target"};
+
   bool is_project_detected(const std::vector<std::string>& files,
                            const std::vector<std::string>& extensions,
                            const std::vector<std::string>& folders);
@@ -73,10 +134,11 @@ class LanguageInfo {
                                 int max_depth = 3);
   std::string execute_command(const std::string& command);
   std::string extract_version(const std::string& output);
-  
+
   // Cached version retrieval
-  std::string get_cached_version(const std::string& language_key, 
-                                const std::function<std::string()>& version_func) const;
+  std::string get_cached_version(
+      const std::string& language_key,
+      const std::function<std::string()>& version_func) const;
 
  public:
   LanguageInfo();
@@ -86,19 +148,35 @@ class LanguageInfo {
   bool is_rust_project();
   bool is_golang_project();
   bool is_java_project();
+  bool is_cpp_project();
+  bool is_csharp_project();
+  bool is_php_project();
+  bool is_ruby_project();
+  bool is_kotlin_project();
+  bool is_swift_project();
+  bool is_dart_project();
+  bool is_scala_project();
 
   std::string get_python_version();
   std::string get_nodejs_version();
   std::string get_rust_version();
   std::string get_golang_version();
   std::string get_java_version();
+  std::string get_cpp_version();
+  std::string get_csharp_version();
+  std::string get_php_version();
+  std::string get_ruby_version();
+  std::string get_kotlin_version();
+  std::string get_swift_version();
+  std::string get_dart_version();
+  std::string get_scala_version();
 
   std::string get_python_virtual_env();
   std::string get_nodejs_package_manager();
 
   std::string get_language_version(const std::string& language);
   bool is_language_project(const std::string& language);
-  
+
   // Cache management
   void clear_version_cache();
 };

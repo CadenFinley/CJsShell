@@ -110,25 +110,24 @@ std::string LanguageInfo::extract_version(const std::string& output) {
   return "";
 }
 
-std::string LanguageInfo::get_cached_version(const std::string& language_key, 
-                                            const std::function<std::string()>& version_func) const {
+std::string LanguageInfo::get_cached_version(
+    const std::string& language_key,
+    const std::function<std::string()>& version_func) const {
   std::lock_guard<std::mutex> lock(cache_mutex);
-  
+
   // Check if we have a valid cached version
   auto it = version_cache.find(language_key);
   if (it != version_cache.end() && it->second.is_valid()) {
     return it->second.version;
   }
-  
+
   // Cache miss or expired, get fresh version
   std::string version = version_func();
-  
+
   // Store in cache
-  version_cache[language_key] = CachedVersion{
-    version, 
-    std::chrono::steady_clock::now()
-  };
-  
+  version_cache[language_key] =
+      CachedVersion{version, std::chrono::steady_clock::now()};
+
   return version;
 }
 
@@ -151,6 +150,38 @@ bool LanguageInfo::is_golang_project() {
 
 bool LanguageInfo::is_java_project() {
   return is_project_detected(java_files, java_extensions, java_folders);
+}
+
+bool LanguageInfo::is_cpp_project() {
+  return is_project_detected(cpp_files, cpp_extensions, cpp_folders);
+}
+
+bool LanguageInfo::is_csharp_project() {
+  return is_project_detected(csharp_files, csharp_extensions, csharp_folders);
+}
+
+bool LanguageInfo::is_php_project() {
+  return is_project_detected(php_files, php_extensions, php_folders);
+}
+
+bool LanguageInfo::is_ruby_project() {
+  return is_project_detected(ruby_files, ruby_extensions, ruby_folders);
+}
+
+bool LanguageInfo::is_kotlin_project() {
+  return is_project_detected(kotlin_files, kotlin_extensions, kotlin_folders);
+}
+
+bool LanguageInfo::is_swift_project() {
+  return is_project_detected(swift_files, swift_extensions, swift_folders);
+}
+
+bool LanguageInfo::is_dart_project() {
+  return is_project_detected(dart_files, dart_extensions, dart_folders);
+}
+
+bool LanguageInfo::is_scala_project() {
+  return is_project_detected(scala_files, scala_extensions, scala_folders);
 }
 
 std::string LanguageInfo::get_python_version() {
@@ -230,6 +261,139 @@ std::string LanguageInfo::get_java_version() {
   });
 }
 
+std::string LanguageInfo::get_cpp_version() {
+  return get_cached_version("cpp", [this]() -> std::string {
+    // Try g++ first, then clang++, then gcc
+    std::string output =
+        execute_command("g++ --version 2>/dev/null | head -n 1");
+    if (output.empty()) {
+      output = execute_command("clang++ --version 2>/dev/null | head -n 1");
+    }
+    if (output.empty()) {
+      output = execute_command("gcc --version 2>/dev/null | head -n 1");
+    }
+    if (output.empty()) {
+      return "";
+    }
+
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
+}
+
+std::string LanguageInfo::get_csharp_version() {
+  return get_cached_version("csharp", [this]() -> std::string {
+    std::string output = execute_command("dotnet --version 2>/dev/null");
+    if (output.empty()) {
+      return "";
+    }
+    return output;
+  });
+}
+
+std::string LanguageInfo::get_php_version() {
+  return get_cached_version("php", [this]() -> std::string {
+    std::string output =
+        execute_command("php --version 2>/dev/null | head -n 1");
+    if (output.empty()) {
+      return "";
+    }
+
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
+}
+
+std::string LanguageInfo::get_ruby_version() {
+  return get_cached_version("ruby", [this]() -> std::string {
+    std::string output = execute_command("ruby --version 2>/dev/null");
+    if (output.empty()) {
+      return "";
+    }
+
+    std::regex ruby_version_regex("ruby\\s+(\\d+\\.\\d+\\.\\d+)");
+    std::smatch match;
+
+    if (std::regex_search(output, match, ruby_version_regex)) {
+      return match[1];
+    }
+
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
+}
+
+std::string LanguageInfo::get_kotlin_version() {
+  return get_cached_version("kotlin", [this]() -> std::string {
+    std::string output = execute_command("kotlin -version 2>&1");
+    if (output.empty()) {
+      return "";
+    }
+
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
+}
+
+std::string LanguageInfo::get_swift_version() {
+  return get_cached_version("swift", [this]() -> std::string {
+    std::string output = execute_command("swift --version 2>/dev/null");
+    if (output.empty()) {
+      return "";
+    }
+
+    std::regex swift_version_regex(
+        "swift-tools-version:(\\d+\\.\\d+)|Swift version "
+        "(\\d+\\.\\d+(?:\\.\\d+)?)");
+    std::smatch match;
+
+    if (std::regex_search(output, match, swift_version_regex)) {
+      return match[1].matched ? match[1] : match[2];
+    }
+
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
+}
+
+std::string LanguageInfo::get_dart_version() {
+  return get_cached_version("dart", [this]() -> std::string {
+    std::string output = execute_command("dart --version 2>&1");
+    if (output.empty()) {
+      return "";
+    }
+
+    std::regex dart_version_regex("Dart SDK version:\\s+(\\d+\\.\\d+\\.\\d+)");
+    std::smatch match;
+
+    if (std::regex_search(output, match, dart_version_regex)) {
+      return match[1];
+    }
+
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
+}
+
+std::string LanguageInfo::get_scala_version() {
+  return get_cached_version("scala", [this]() -> std::string {
+    std::string output = execute_command("scala -version 2>&1");
+    if (output.empty()) {
+      return "";
+    }
+
+    std::regex scala_version_regex("version\\s+(\\d+\\.\\d+\\.\\d+)");
+    std::smatch match;
+
+    if (std::regex_search(output, match, scala_version_regex)) {
+      return match[1];
+    }
+
+    std::string version = extract_version(output);
+    return version.empty() ? output : version;
+  });
+}
+
 std::string LanguageInfo::get_python_virtual_env() {
   const char* venv = getenv("VIRTUAL_ENV");
   if (venv) {
@@ -280,6 +444,22 @@ std::string LanguageInfo::get_language_version(const std::string& language) {
     return get_golang_version();
   } else if (language == "java") {
     return get_java_version();
+  } else if (language == "cpp" || language == "c++" || language == "c") {
+    return get_cpp_version();
+  } else if (language == "csharp" || language == "c#" || language == "dotnet") {
+    return get_csharp_version();
+  } else if (language == "php") {
+    return get_php_version();
+  } else if (language == "ruby") {
+    return get_ruby_version();
+  } else if (language == "kotlin") {
+    return get_kotlin_version();
+  } else if (language == "swift") {
+    return get_swift_version();
+  } else if (language == "dart") {
+    return get_dart_version();
+  } else if (language == "scala") {
+    return get_scala_version();
   }
 
   return "";
@@ -296,6 +476,22 @@ bool LanguageInfo::is_language_project(const std::string& language) {
     return is_golang_project();
   } else if (language == "java") {
     return is_java_project();
+  } else if (language == "cpp" || language == "c++" || language == "c") {
+    return is_cpp_project();
+  } else if (language == "csharp" || language == "c#" || language == "dotnet") {
+    return is_csharp_project();
+  } else if (language == "php") {
+    return is_php_project();
+  } else if (language == "ruby") {
+    return is_ruby_project();
+  } else if (language == "kotlin") {
+    return is_kotlin_project();
+  } else if (language == "swift") {
+    return is_swift_project();
+  } else if (language == "dart") {
+    return is_dart_project();
+  } else if (language == "scala") {
+    return is_scala_project();
   }
 
   return false;

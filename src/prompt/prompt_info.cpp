@@ -212,6 +212,18 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     std::cerr << "DEBUG: Getting prompt variables, is_git_repo=" << is_git_repo
               << std::endl;
 
+  static std::unordered_map<
+      std::string, std::pair<bool, std::chrono::steady_clock::time_point>>
+      language_cache;
+  static std::unordered_map<
+      std::string,
+      std::pair<std::string, std::chrono::steady_clock::time_point>>
+      version_cache;
+  static std::mutex cache_mutex;
+  static const std::chrono::seconds CACHE_DURATION(30);
+
+  auto now = std::chrono::steady_clock::now();
+
   std::unordered_map<std::string, std::string> vars;
 
   std::unordered_set<std::string> needed_vars;
@@ -225,22 +237,138 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
       while (std::regex_search(search_start, content.cend(), matches,
                                placeholder_pattern)) {
-        needed_vars.insert(matches[1]);
+        std::string var_name = matches[1];
+        needed_vars.insert(var_name);
+
+        if (var_name.substr(0, 3) == "if ") {
+          std::regex nested_var_pattern("\\{([A-Z_]+)\\}");
+          std::smatch nested_matches;
+          std::string conditional = matches[0];
+          std::string::const_iterator nested_search_start(conditional.cbegin());
+
+          while (std::regex_search(nested_search_start, conditional.cend(),
+                                   nested_matches, nested_var_pattern)) {
+            needed_vars.insert(nested_matches[1]);
+            nested_search_start = nested_matches.suffix().first;
+          }
+        }
+
         search_start = matches.suffix().first;
       }
     }
   }
 
-  needed_vars.insert("IS_PYTHON_PROJECT");
-  needed_vars.insert("IS_NODEJS_PROJECT");
-  needed_vars.insert("IS_RUST_PROJECT");
-  needed_vars.insert("IS_GOLANG_PROJECT");
-  needed_vars.insert("IS_JAVA_PROJECT");
-  needed_vars.insert("PYTHON_VERSION");
-  needed_vars.insert("NODEJS_VERSION");
-  needed_vars.insert("RUST_VERSION");
-  needed_vars.insert("GOLANG_VERSION");
-  needed_vars.insert("JAVA_VERSION");
+  std::vector<std::pair<std::string, std::string>> lang_dependencies = {
+      {"PYTHON_VERSION", "IS_PYTHON_PROJECT"},
+      {"NODEJS_VERSION", "IS_NODEJS_PROJECT"},
+      {"RUST_VERSION", "IS_RUST_PROJECT"},
+      {"GOLANG_VERSION", "IS_GOLANG_PROJECT"},
+      {"JAVA_VERSION", "IS_JAVA_PROJECT"},
+      {"CPP_VERSION", "IS_CPP_PROJECT"},
+      {"CSHARP_VERSION", "IS_CSHARP_PROJECT"},
+      {"PHP_VERSION", "IS_PHP_PROJECT"},
+      {"RUBY_VERSION", "IS_RUBY_PROJECT"},
+      {"KOTLIN_VERSION", "IS_KOTLIN_PROJECT"},
+      {"SWIFT_VERSION", "IS_SWIFT_PROJECT"},
+      {"DART_VERSION", "IS_DART_PROJECT"},
+      {"SCALA_VERSION", "IS_SCALA_PROJECT"}};
+
+  for (const auto& [version_var, project_var] : lang_dependencies) {
+    if (needed_vars.count(version_var)) {
+      needed_vars.insert(project_var);
+    }
+    if (needed_vars.count(project_var)) {
+      needed_vars.insert(version_var);
+    }
+  }
+
+  auto get_cached_language_detection = [&](const std::string& lang) -> bool {
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    auto key = std::filesystem::current_path().string() + "_" + lang;
+    auto it = language_cache.find(key);
+
+    if (it != language_cache.end() &&
+        (now - it->second.second) < CACHE_DURATION) {
+      return it->second.first;
+    }
+
+    bool result = false;
+    if (lang == "python")
+      result = is_python_project();
+    else if (lang == "nodejs")
+      result = is_nodejs_project();
+    else if (lang == "rust")
+      result = is_rust_project();
+    else if (lang == "golang")
+      result = is_golang_project();
+    else if (lang == "java")
+      result = is_java_project();
+    else if (lang == "cpp")
+      result = is_cpp_project();
+    else if (lang == "csharp")
+      result = is_csharp_project();
+    else if (lang == "php")
+      result = is_php_project();
+    else if (lang == "ruby")
+      result = is_ruby_project();
+    else if (lang == "kotlin")
+      result = is_kotlin_project();
+    else if (lang == "swift")
+      result = is_swift_project();
+    else if (lang == "dart")
+      result = is_dart_project();
+    else if (lang == "scala")
+      result = is_scala_project();
+
+    language_cache[key] = {result, now};
+    return result;
+  };
+
+  auto get_cached_version = [&](const std::string& lang) -> std::string {
+    if (!get_cached_language_detection(lang))
+      return "";
+
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    auto key =
+        std::filesystem::current_path().string() + "_" + lang + "_version";
+    auto it = version_cache.find(key);
+
+    if (it != version_cache.end() &&
+        (now - it->second.second) < CACHE_DURATION) {
+      return it->second.first;
+    }
+
+    std::string result;
+    if (lang == "python")
+      result = get_python_version();
+    else if (lang == "nodejs")
+      result = get_nodejs_version();
+    else if (lang == "rust")
+      result = get_rust_version();
+    else if (lang == "golang")
+      result = get_golang_version();
+    else if (lang == "java")
+      result = get_java_version();
+    else if (lang == "cpp")
+      result = get_cpp_version();
+    else if (lang == "csharp")
+      result = get_csharp_version();
+    else if (lang == "php")
+      result = get_php_version();
+    else if (lang == "ruby")
+      result = get_ruby_version();
+    else if (lang == "kotlin")
+      result = get_kotlin_version();
+    else if (lang == "swift")
+      result = get_swift_version();
+    else if (lang == "dart")
+      result = get_dart_version();
+    else if (lang == "scala")
+      result = get_scala_version();
+
+    version_cache[key] = {result, now};
+    return result;
+  };
 
   if (needed_vars.count("USERNAME")) {
     vars["USERNAME"] = get_username();
@@ -409,66 +537,68 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
   }
 
   if (needed_vars.count("PYTHON_VERSION")) {
-    if (is_python_project()) {
-      vars["PYTHON_VERSION"] = get_python_version();
-    } else {
-      vars["PYTHON_VERSION"] = "";
-    }
+    vars["PYTHON_VERSION"] = get_cached_version("python");
   }
 
   if (needed_vars.count("NODEJS_VERSION")) {
-    if (is_nodejs_project()) {
-      vars["NODEJS_VERSION"] = get_nodejs_version();
-    } else {
-      vars["NODEJS_VERSION"] = "";
-    }
+    vars["NODEJS_VERSION"] = get_cached_version("nodejs");
   }
 
   if (needed_vars.count("RUST_VERSION")) {
-    if (is_rust_project()) {
-      vars["RUST_VERSION"] = get_rust_version();
-    } else {
-      vars["RUST_VERSION"] = "";
-    }
+    vars["RUST_VERSION"] = get_cached_version("rust");
   }
 
   if (needed_vars.count("GOLANG_VERSION")) {
-    if (is_golang_project()) {
-      vars["GOLANG_VERSION"] = get_golang_version();
-    } else {
-      vars["GOLANG_VERSION"] = "";
-    }
+    vars["GOLANG_VERSION"] = get_cached_version("golang");
   }
 
   if (needed_vars.count("JAVA_VERSION")) {
-    if (is_java_project()) {
-      vars["JAVA_VERSION"] = get_java_version();
-    } else {
-      vars["JAVA_VERSION"] = "";
-    }
+    vars["JAVA_VERSION"] = get_cached_version("java");
+  }
+
+  if (needed_vars.count("CPP_VERSION")) {
+    vars["CPP_VERSION"] = get_cached_version("cpp");
+  }
+
+  if (needed_vars.count("CSHARP_VERSION")) {
+    vars["CSHARP_VERSION"] = get_cached_version("csharp");
+  }
+
+  if (needed_vars.count("PHP_VERSION")) {
+    vars["PHP_VERSION"] = get_cached_version("php");
+  }
+
+  if (needed_vars.count("RUBY_VERSION")) {
+    vars["RUBY_VERSION"] = get_cached_version("ruby");
+  }
+
+  if (needed_vars.count("KOTLIN_VERSION")) {
+    vars["KOTLIN_VERSION"] = get_cached_version("kotlin");
+  }
+
+  if (needed_vars.count("SWIFT_VERSION")) {
+    vars["SWIFT_VERSION"] = get_cached_version("swift");
+  }
+
+  if (needed_vars.count("DART_VERSION")) {
+    vars["DART_VERSION"] = get_cached_version("dart");
+  }
+
+  if (needed_vars.count("SCALA_VERSION")) {
+    vars["SCALA_VERSION"] = get_cached_version("scala");
   }
 
   if (needed_vars.count("LANGUAGE_VERSIONS")) {
     std::string combined_versions;
 
-    if (is_python_project()) {
-      combined_versions += get_python_version();
-    }
+    std::vector<std::string> languages = {
+        "python", "nodejs", "rust",   "golang", "java", "cpp",  "csharp",
+        "php",    "ruby",   "kotlin", "swift",  "dart", "scala"};
 
-    if (is_nodejs_project()) {
-      combined_versions += get_nodejs_version();
-    }
-
-    if (is_rust_project()) {
-      combined_versions += get_rust_version();
-    }
-
-    if (is_golang_project()) {
-      combined_versions += get_golang_version();
-    }
-
-    if (is_java_project()) {
-      combined_versions += get_java_version();
+    for (const std::string& lang : languages) {
+      if (get_cached_language_detection(lang)) {
+        combined_versions += get_cached_version(lang);
+      }
     }
 
     vars["LANGUAGE_VERSIONS"] = combined_versions;
@@ -478,28 +608,77 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     vars["PYTHON_VENV"] = get_python_virtual_env();
   }
 
-  if (needed_vars.count("NODEJS_PM") && is_nodejs_project()) {
-    vars["NODEJS_PM"] = get_nodejs_package_manager();
+  if (needed_vars.count("NODEJS_PM")) {
+    if (get_cached_language_detection("nodejs")) {
+      vars["NODEJS_PM"] = get_nodejs_package_manager();
+    } else {
+      vars["NODEJS_PM"] = "";
+    }
   }
 
   if (needed_vars.count("IS_PYTHON_PROJECT")) {
-    vars["IS_PYTHON_PROJECT"] = is_python_project() ? "true" : "false";
+    vars["IS_PYTHON_PROJECT"] =
+        get_cached_language_detection("python") ? "true" : "false";
   }
 
   if (needed_vars.count("IS_NODEJS_PROJECT")) {
-    vars["IS_NODEJS_PROJECT"] = is_nodejs_project() ? "true" : "false";
+    vars["IS_NODEJS_PROJECT"] =
+        get_cached_language_detection("nodejs") ? "true" : "false";
   }
 
   if (needed_vars.count("IS_RUST_PROJECT")) {
-    vars["IS_RUST_PROJECT"] = is_rust_project() ? "true" : "false";
+    vars["IS_RUST_PROJECT"] =
+        get_cached_language_detection("rust") ? "true" : "false";
   }
 
   if (needed_vars.count("IS_GOLANG_PROJECT")) {
-    vars["IS_GOLANG_PROJECT"] = is_golang_project() ? "true" : "false";
+    vars["IS_GOLANG_PROJECT"] =
+        get_cached_language_detection("golang") ? "true" : "false";
   }
 
   if (needed_vars.count("IS_JAVA_PROJECT")) {
-    vars["IS_JAVA_PROJECT"] = is_java_project() ? "true" : "false";
+    vars["IS_JAVA_PROJECT"] =
+        get_cached_language_detection("java") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_CPP_PROJECT")) {
+    vars["IS_CPP_PROJECT"] =
+        get_cached_language_detection("cpp") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_CSHARP_PROJECT")) {
+    vars["IS_CSHARP_PROJECT"] =
+        get_cached_language_detection("csharp") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_PHP_PROJECT")) {
+    vars["IS_PHP_PROJECT"] =
+        get_cached_language_detection("php") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_RUBY_PROJECT")) {
+    vars["IS_RUBY_PROJECT"] =
+        get_cached_language_detection("ruby") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_KOTLIN_PROJECT")) {
+    vars["IS_KOTLIN_PROJECT"] =
+        get_cached_language_detection("kotlin") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_SWIFT_PROJECT")) {
+    vars["IS_SWIFT_PROJECT"] =
+        get_cached_language_detection("swift") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_DART_PROJECT")) {
+    vars["IS_DART_PROJECT"] =
+        get_cached_language_detection("dart") ? "true" : "false";
+  }
+
+  if (needed_vars.count("IS_SCALA_PROJECT")) {
+    vars["IS_SCALA_PROJECT"] =
+        get_cached_language_detection("scala") ? "true" : "false";
   }
 
   if (needed_vars.count("CONTAINER_NAME")) {

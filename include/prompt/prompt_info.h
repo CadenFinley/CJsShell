@@ -249,6 +249,30 @@ class PromptInfo {
   bool is_java_project() {
     return language_info.is_java_project();
   }
+  bool is_cpp_project() {
+    return language_info.is_cpp_project();
+  }
+  bool is_csharp_project() {
+    return language_info.is_csharp_project();
+  }
+  bool is_php_project() {
+    return language_info.is_php_project();
+  }
+  bool is_ruby_project() {
+    return language_info.is_ruby_project();
+  }
+  bool is_kotlin_project() {
+    return language_info.is_kotlin_project();
+  }
+  bool is_swift_project() {
+    return language_info.is_swift_project();
+  }
+  bool is_dart_project() {
+    return language_info.is_dart_project();
+  }
+  bool is_scala_project() {
+    return language_info.is_scala_project();
+  }
   std::string get_python_version() {
     return language_info.get_python_version();
   }
@@ -263,6 +287,30 @@ class PromptInfo {
   }
   std::string get_java_version() {
     return language_info.get_java_version();
+  }
+  std::string get_cpp_version() {
+    return language_info.get_cpp_version();
+  }
+  std::string get_csharp_version() {
+    return language_info.get_csharp_version();
+  }
+  std::string get_php_version() {
+    return language_info.get_php_version();
+  }
+  std::string get_ruby_version() {
+    return language_info.get_ruby_version();
+  }
+  std::string get_kotlin_version() {
+    return language_info.get_kotlin_version();
+  }
+  std::string get_swift_version() {
+    return language_info.get_swift_version();
+  }
+  std::string get_dart_version() {
+    return language_info.get_dart_version();
+  }
+  std::string get_scala_version() {
+    return language_info.get_scala_version();
   }
   std::string get_python_virtual_env() {
     return language_info.get_python_virtual_env();
