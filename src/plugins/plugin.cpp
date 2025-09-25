@@ -58,6 +58,7 @@ extern "C" PLUGIN_API void plugin_free_plugin_string(plugin_string_t* str) {
 #include <sys/utsname.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include "cjsh.h"
@@ -569,6 +570,31 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
   metadata.description = info->description;
   metadata.author = info->author;
 
+  plugin_free_memory_func free_memory =
+      reinterpret_cast<plugin_free_memory_func>(
+          dlsym(temp_handle, "plugin_free_memory"));
+
+  auto release_string_array = [&](char** entries, int entry_count) {
+    if (!entries || entry_count <= 0) {
+      return;
+    }
+    if (free_memory) {
+      for (int i = 0; i < entry_count; i++) {
+        if (entries[i]) {
+          free_memory(entries[i]);
+        }
+      }
+      free_memory(entries);
+      return;
+    }
+    for (int i = 0; i < entry_count; i++) {
+      if (entries[i]) {
+        free(entries[i]);
+      }
+    }
+    free(entries);
+  };
+
   // Try to get commands list
   plugin_get_commands_func get_commands =
       reinterpret_cast<plugin_get_commands_func>(
@@ -583,19 +609,7 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
           metadata.commands.push_back(commands[i]);
         }
       }
-
-      // Free the commands memory using plugin's free function if available
-      plugin_free_memory_func free_memory =
-          reinterpret_cast<plugin_free_memory_func>(
-              dlsym(temp_handle, "plugin_free_memory"));
-      if (free_memory) {
-        for (int i = 0; i < count; i++) {
-          if (commands[i]) {
-            free_memory(commands[i]);
-          }
-        }
-        free_memory(commands);
-      }
+      release_string_array(commands, count);
     }
   }
 
@@ -613,19 +627,7 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
           metadata.events.push_back(events[i]);
         }
       }
-
-      // Free the events memory using plugin's free function if available
-      plugin_free_memory_func free_memory =
-          reinterpret_cast<plugin_free_memory_func>(
-              dlsym(temp_handle, "plugin_free_memory"));
-      if (free_memory) {
-        for (int i = 0; i < count; i++) {
-          if (events[i]) {
-            free_memory(events[i]);
-          }
-        }
-        free_memory(events);
-      }
+      release_string_array(events, count);
     }
   }
 
