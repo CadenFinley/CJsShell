@@ -12,7 +12,7 @@ This is CJ's Shell! This is a fully custom login shell that I wrote after I got 
  
 -Caden 'cj' Finley
 
-> ⚠️ **WARNING**: CJ's Shell is not a 100% POSIX compliant shell. I also would not use it as your primary shell script interpreter.
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell. I also would not use it as your primary shell script interpreter.
 
 ## What is CJ's Shell?
 
