@@ -218,9 +218,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
   }
 
   if (theme_json.contains("fill_char") && theme_json["fill_char"].is_string()) {
-    auto s = theme_json["fill_char"].get<std::string>();
-    if (!s.empty())
-      fill_char_ = s;
+    fill_char_ = theme_json["fill_char"].get<std::string>();
   }
   if (theme_json.contains("fill_fg_color") &&
       theme_json["fill_fg_color"].is_string()) {
@@ -409,21 +407,25 @@ std::string Theme::render_line_aligned(
 
         if (colors::is_gradient_value(fill_fg_color_) ||
             colors::is_gradient_value(fill_bg_color_)) {
-          std::string fill_text(padL, fill_char_[0]);
-          if (colors::is_gradient_value(fill_bg_color_)) {
-            fillL += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
-                                                     false);
-          } else if (colors::is_gradient_value(fill_fg_color_)) {
-            fillL += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
-                                                     true);
+          if (!fill_char_.empty()) {
+            std::string fill_text(padL, fill_char_[0]);
+            if (colors::is_gradient_value(fill_bg_color_)) {
+              fillL += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
+                                                       false);
+            } else if (colors::is_gradient_value(fill_fg_color_)) {
+              fillL += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
+                                                       true);
+            }
           }
         } else {
           if (fill_fg_color_ != "RESET") {
             fillL +=
                 colors::fg_color(colors::parse_color_value(fill_fg_color_));
           }
-          for (size_t i = 0; i < padL; ++i) {
-            fillL += fill_char_;
+          if (!fill_char_.empty()) {
+            for (size_t i = 0; i < padL; ++i) {
+              fillL += fill_char_;
+            }
           }
         }
       }
@@ -441,21 +443,25 @@ std::string Theme::render_line_aligned(
 
         if (colors::is_gradient_value(fill_fg_color_) ||
             colors::is_gradient_value(fill_bg_color_)) {
-          std::string fill_text(padR, fill_char_[0]);
-          if (colors::is_gradient_value(fill_bg_color_)) {
-            fillR += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
-                                                     false);
-          } else if (colors::is_gradient_value(fill_fg_color_)) {
-            fillR += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
-                                                     true);
+          if (!fill_char_.empty()) {
+            std::string fill_text(padR, fill_char_[0]);
+            if (colors::is_gradient_value(fill_bg_color_)) {
+              fillR += colors::apply_color_or_gradient(fill_text, fill_bg_color_,
+                                                       false);
+            } else if (colors::is_gradient_value(fill_fg_color_)) {
+              fillR += colors::apply_color_or_gradient(fill_text, fill_fg_color_,
+                                                       true);
+            }
           }
         } else {
           if (fill_fg_color_ != "RESET") {
             fillR +=
                 colors::fg_color(colors::parse_color_value(fill_fg_color_));
           }
-          for (size_t i = 0; i < padR; ++i) {
-            fillR += fill_char_;
+          if (!fill_char_.empty()) {
+            for (size_t i = 0; i < padR; ++i) {
+              fillR += fill_char_;
+            }
           }
         }
       }
@@ -503,20 +509,24 @@ std::string Theme::render_line_aligned(
 
     if (colors::is_gradient_value(fill_fg_color_) ||
         colors::is_gradient_value(fill_bg_color_)) {
-      std::string fill_text(pad, fill_char_[0]);
-      if (colors::is_gradient_value(fill_bg_color_)) {
-        fill +=
-            colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
-      } else if (colors::is_gradient_value(fill_fg_color_)) {
-        fill +=
-            colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+      if (!fill_char_.empty()) {
+        std::string fill_text(pad, fill_char_[0]);
+        if (colors::is_gradient_value(fill_bg_color_)) {
+          fill +=
+              colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+        } else if (colors::is_gradient_value(fill_fg_color_)) {
+          fill +=
+              colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+        }
       }
     } else {
       if (fill_fg_color_ != "RESET") {
         fill += colors::fg_color(colors::parse_color_value(fill_fg_color_));
       }
-      for (size_t i = 0; i < pad; ++i) {
-        fill += fill_char_;
+      if (!fill_char_.empty()) {
+        for (size_t i = 0; i < pad; ++i) {
+          fill += fill_char_;
+        }
       }
     }
     if (w < total_content_width && lL < w) {
@@ -861,7 +871,7 @@ std::string Theme::render_line(
   result = escape_brackets_for_isocline(result);
 
   if (g_debug_mode) {
-    std::cout << "Rendered line: \n" << result << std::endl;
+    std::cout << "Rendered line: \n" << result << " With length: " << result.length() <<std::endl;
   }
   return result;
 }

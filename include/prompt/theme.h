@@ -49,7 +49,7 @@ class Theme {
       const std::vector<nlohmann::json>& segments,
       const std::unordered_map<std::string, std::string>& vars) const;
 
-  std::string fill_char_{" "};
+  std::string fill_char_{""};
   std::string fill_fg_color_{"RESET"};
   std::string fill_bg_color_{"RESET"};
 
