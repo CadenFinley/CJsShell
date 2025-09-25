@@ -90,7 +90,7 @@ class LanguageInfo {
                                         ".php-version", "artisan"};
   std::vector<std::string> php_extensions = {".php",  ".phtml", ".php3",
                                              ".php4", ".php5",  ".phps"};
-  std::vector<std::string> php_folders = {"vendor"};
+  std::vector<std::string> php_folders = {};
 
   // Ruby detection patterns
   std::vector<std::string> ruby_files = {
