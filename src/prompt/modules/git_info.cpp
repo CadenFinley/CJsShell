@@ -249,7 +249,7 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
           exit_code == 0) {
         if (!result.empty()) {
           is_clean_repo = false;
-          status_symbols = "*";
+          status_symbols = "✘";
         } else {
           is_clean_repo = true;
           status_symbols = "✓";
@@ -276,7 +276,7 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
   if (is_clean_repo) {
     return "✓";
   } else {
-    return "*";
+    return "✘";
   }
 }
 
