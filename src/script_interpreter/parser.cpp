@@ -1215,6 +1215,24 @@ void Parser::expand_env_vars(std::string& arg) {
         in_var = false;
         std::string value;
 
+        auto read_default_value = [&](size_t steps_to_advance) {
+          for (size_t step = 0; step < steps_to_advance && i < arg.length();
+               ++step) {
+            i++;
+          }
+
+          std::string default_val;
+          while (i < arg.length() && !isspace(arg[i])) {
+            default_val += arg[i];
+            i++;
+          }
+          if (i < arg.length() && isspace(arg[i])) {
+            i--;
+          }
+          expand_env_vars(default_val);
+          return default_val;
+        };
+
         if (arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') {
           if (g_debug_mode) {
             std::cerr << "DEBUG: Found parameter expansion without braces: "
@@ -1235,19 +1253,7 @@ void Parser::expand_env_vars(std::string& arg) {
               i--;
             }
           } else {
-            i++;
-            i++;
-
-            std::string default_val;
-            while (i < arg.length() && !isspace(arg[i])) {
-              default_val += arg[i];
-              i++;
-            }
-            if (i < arg.length() && isspace(arg[i])) {
-              i--;
-            }
-            expand_env_vars(default_val);
-            value = default_val;
+            value = read_default_value(2);
           }
         } else if (arg[i] == '-' && i >= 1) {
           if (g_debug_mode) {
@@ -1267,18 +1273,7 @@ void Parser::expand_env_vars(std::string& arg) {
               i--;
             }
           } else {
-            i++;
-
-            std::string default_val;
-            while (i < arg.length() && !isspace(arg[i])) {
-              default_val += arg[i];
-              i++;
-            }
-            if (i < arg.length() && isspace(arg[i])) {
-              i--;
-            }
-            expand_env_vars(default_val);
-            value = default_val;
+            value = read_default_value(1);
           }
         } else {
           value = resolve_parameter_value(var_name);
