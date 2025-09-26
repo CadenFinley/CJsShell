@@ -51,6 +51,17 @@
             "tag": "status"
         }
     ],
+    "inline_right_segments": [
+        {
+            "bg_color": "RESET",
+            "content": "[{TIME}]",
+            "fg_color": "#888888",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "time"
+        }
+    ],
     "newline_segments": [],
     "ps1_segments": [
         {
@@ -81,5 +92,6 @@
             "tag": "prompt"
         }
     ],
+    "requirements": {},
     "terminal_title": "{PATH}"
 }

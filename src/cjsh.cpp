@@ -719,6 +719,7 @@ static void main_process_loop() {
 
     // gather and create the prompt
     std::string prompt;
+    std::string inline_right_text;
     if (g_shell->get_menu_active()) {
       prompt = g_shell->get_prompt();
     } else {
@@ -728,11 +729,25 @@ static void main_process_loop() {
       prompt += "\n";
       prompt += g_shell->get_newline_prompt();
     }
+    
+    // Get inline right-aligned text
+    inline_right_text = g_shell->get_inline_right_prompt();
 
-    if (g_debug_mode)
+    if (g_debug_mode) {
       std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt
                 << "'" << std::endl;
-    char* input = ic_readline(prompt.c_str());
+      if (!inline_right_text.empty()) {
+        std::cerr << "DEBUG: Inline right text: '" << inline_right_text
+                  << "'" << std::endl;
+      }
+    }
+    
+    char* input;
+    if (!inline_right_text.empty()) {
+      input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str());
+    } else {
+      input = ic_readline(prompt.c_str());
+    }
     if (g_debug_mode)
       std::cerr << "DEBUG: ic_readline returned" << std::endl;
     if (input != nullptr) {

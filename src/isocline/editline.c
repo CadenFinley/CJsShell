@@ -42,6 +42,8 @@ typedef struct editor_s {
   editstate_t* undo;    // undo buffer
   editstate_t* redo;    // redo buffer
   const char* prompt_text;  // text of the prompt before the prompt marker
+  const char* inline_right_text;  // inline right-aligned text on input line
+  ssize_t inline_right_width; // cached width of inline right text
   alloc_t* mem;             // allocator
   // caches
   attrbuf_t* attrs;  // reuse attribute buffers
@@ -53,12 +55,25 @@ typedef struct editor_s {
 //-------------------------------------------------------------
 static char* edit_line(ic_env_t* env,
                        const char* prompt_text);  // defined at bottom
+static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
+                             const char* inline_right_text);  // defined at bottom
 static void edit_refresh(ic_env_t* env, editor_t* eb);
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text) {
   tty_start_raw(env->tty);
   term_start_raw(env->term);
   char* line = edit_line(env, prompt_text);
+  term_end_raw(env->term, false);
+  tty_end_raw(env->tty);
+  term_writeln(env->term, "");
+  term_flush(env->term);
+  return line;
+}
+
+ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
+  tty_start_raw(env->tty);
+  term_start_raw(env->term);
+  char* line = edit_line_inline(env, prompt_text, inline_right_text);
   term_end_raw(env->term, false);
   tty_end_raw(env->tty);
   term_writeln(env->term, "");
@@ -142,6 +157,23 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra,
     *promptw = markerw + textw;
     *cpromptw =
         (env->no_multiline_indent || *promptw < cmarkerw ? cmarkerw : *promptw);
+    
+    // Update cached inline right text width
+    if (eb->inline_right_text != NULL) {
+      eb->inline_right_width = bbcode_column_width(env->bbcode, eb->inline_right_text);
+      // Try direct string length as backup
+      ssize_t str_len = strlen(eb->inline_right_text);
+      
+      // TEMPORARY FIX: If bbcode_column_width returns 0, use estimated visible width
+      if (eb->inline_right_width == 0 && str_len > 0) {
+        // For now, estimate that our time format [HH:MM:SS] is 10 characters
+        eb->inline_right_width = 10;
+
+      }
+    } else {
+      eb->inline_right_width = 0;
+
+    }
   }
 }
 
@@ -290,7 +322,55 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row,
     term_clear_to_end_of_line(term);
     term_writeln(term, "");
   } else {
-    term_clear_to_end_of_line(term);
+    // Handle inline right-aligned text on the last (input) row
+    if (row == 0 && !info->in_extra && info->eb->inline_right_text != NULL) {
+      ssize_t promptw, cpromptw;
+      edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
+      
+      ssize_t current_pos = promptw + row_len;
+      ssize_t right_text_width = info->eb->inline_right_width;
+      ssize_t terminal_width = info->eb->termw;
+      
+
+      
+      // Only show right text if there's enough space and input hasn't reached it
+
+      if (terminal_width > current_pos + right_text_width + 1) {
+        ssize_t spaces_needed = terminal_width - current_pos - right_text_width;
+        // Write spaces and then right-aligned text
+        term_write_repeat(term, " ", spaces_needed);
+        // Write the inline right text, extracting plain text from bbcode if needed
+        const char* text_to_write = info->eb->inline_right_text;
+        const char* time_start = NULL;
+        
+        // Look for time pattern [HH:MM:SS] in the text to extract from bbcode formatting
+        for (const char* p = text_to_write; *p; p++) {
+          if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' && 
+              p[3] == ':' && p[4] >= '0' && p[4] <= '9' && p[5] >= '0' && p[5] <= '9' &&
+              p[6] == ':' && p[7] >= '0' && p[7] <= '9' && p[8] >= '0' && p[8] <= '9' && p[9] == ']') {
+            time_start = p;
+            break;
+          }
+        }
+        
+        if (time_start) {
+          // Found time pattern, write just the clean time without ANSI codes
+          term_write_n(info->env->term, time_start, 10);  // [HH:MM:SS] is exactly 10 chars
+        } else {
+          // Fallback: use bbcode_print for other content
+          bbcode_print(info->env->bbcode, info->eb->inline_right_text);
+        }
+        term_flush(info->env->term);  // Ensure text is flushed to terminal
+        // DON'T clear to end of line after writing the text!
+      } else {
+
+        // Clear to end of line if no space for right text
+        term_clear_to_end_of_line(term);
+      }
+    } else {
+
+      term_clear_to_end_of_line(term);
+    }
   }
   return (row >= info->last_row);
 }
@@ -995,6 +1075,314 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
 
   // show prompt
   edit_write_prompt(env, &eb, 0, false);
+
+  // always a history entry for the current input
+  history_push(env->history, "");
+
+  // process keys
+  code_t c;  // current key code
+  while (true) {
+    // read a character
+    term_flush(env->term);
+    if (env->hint_delay <= 0 || sbuf_len(eb.hint) == 0) {
+      // blocking read
+      c = tty_read(env->tty);
+    } else {
+      // timeout to display hint
+      if (!tty_read_timeout(env->tty, env->hint_delay, &c)) {
+        // timed-out
+        if (sbuf_len(eb.hint) > 0) {
+          // display hint
+          edit_refresh(env, &eb);
+        }
+        c = tty_read(env->tty);
+      } else {
+        // clear the pending hint if we got input before the delay expired
+        sbuf_clear(eb.hint);
+        sbuf_clear(eb.hint_help);
+      }
+    }
+
+    // update terminal in case of a resize
+    if (tty_term_resize_event(env->tty)) {
+      edit_resize(env, &eb);
+    }
+
+    // clear hint only after a potential resize (so resize row calculations are
+    // correct)
+    const bool had_hint = (sbuf_len(eb.hint) > 0);
+    sbuf_clear(eb.hint);
+    sbuf_clear(eb.hint_help);
+
+    // if the user tries to move into a hint with left-cursor or end, we
+    // complete it first
+    if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
+      edit_generate_completions(env, &eb, true);
+      c = KEY_NONE;
+    }
+
+    // Operations that may return
+    if (c == KEY_ENTER) {
+      if (!env->singleline_only && eb.pos > 0 &&
+          sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
+          edit_pos_is_at_row_end(env, &eb)) {
+        // replace line-continuation with newline
+        edit_multiline_eol(env, &eb);
+      } else {
+        // otherwise done
+        break;
+      }
+    } else if (c == KEY_CTRL_D) {
+      if (eb.pos == 0 && editor_pos_is_at_end(&eb))
+        break;                     // ctrl+D on empty quits with NULL
+      edit_delete_char(env, &eb);  // otherwise it is like delete
+    } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
+      break;  // ctrl+C or STOP event quits with NULL
+    } else if (c == KEY_ESC) {
+      if (eb.pos == 0 && editor_pos_is_at_end(&eb))
+        break;                    // ESC on empty input returns with empty input
+      edit_delete_all(env, &eb);  // otherwise delete the current input
+      // edit_delete_line(env,&eb);  // otherwise delete the current line
+    } else if (c == KEY_BELL /* ^G */) {
+      edit_delete_all(env, &eb);
+      break;  // ctrl+G cancels (and returns empty input)
+    }
+
+    // Editing Operations
+    else
+      switch (c) {
+        // events
+        case KEY_EVENT_RESIZE:  // not used
+          edit_resize(env, &eb);
+          break;
+        case KEY_EVENT_AUTOTAB:
+          edit_generate_completions(env, &eb, true);
+          break;
+
+        // completion, history, help, undo
+        case KEY_TAB:
+        case WITH_ALT('?'):
+          edit_generate_completions(env, &eb, false);
+          break;
+        case KEY_CTRL_R:
+        case KEY_CTRL_S:
+          edit_history_search_with_current_word(env, &eb);
+          break;
+        case KEY_CTRL_P:
+          edit_history_prev(env, &eb);
+          break;
+        case KEY_CTRL_N:
+          edit_history_next(env, &eb);
+          break;
+        case KEY_CTRL_L:
+          edit_clear_screen(env, &eb);
+          break;
+        case KEY_CTRL_Z:
+        case WITH_CTRL('_'):
+          edit_undo_restore(env, &eb);
+          break;
+        case KEY_CTRL_Y:
+          edit_redo_restore(env, &eb);
+          break;
+        case KEY_F1:
+          edit_show_help(env, &eb);
+          break;
+
+        // navigation
+        case KEY_LEFT:
+        case KEY_CTRL_B:
+          edit_cursor_left(env, &eb);
+          break;
+        case KEY_RIGHT:
+        case KEY_CTRL_F:
+          if (eb.pos == sbuf_len(eb.input)) {
+            edit_generate_completions(env, &eb, false);
+          } else {
+            edit_cursor_right(env, &eb);
+          }
+          break;
+        case KEY_UP:
+          edit_cursor_row_up(env, &eb);
+          break;
+        case KEY_DOWN:
+          edit_cursor_row_down(env, &eb);
+          break;
+        case KEY_HOME:
+        case KEY_CTRL_A:
+          edit_cursor_line_start(env, &eb);
+          break;
+        case KEY_END:
+        case KEY_CTRL_E:
+          edit_cursor_line_end(env, &eb);
+          break;
+        case KEY_CTRL_LEFT:
+        case WITH_SHIFT(KEY_LEFT):
+        case WITH_ALT('b'):
+          edit_cursor_prev_word(env, &eb);
+          break;
+        case KEY_CTRL_RIGHT:
+        case WITH_SHIFT(KEY_RIGHT):
+        case WITH_ALT('f'):
+          if (eb.pos == sbuf_len(eb.input)) {
+            edit_generate_completions(env, &eb, false);
+          } else {
+            edit_cursor_next_word(env, &eb);
+          }
+          break;
+        case KEY_CTRL_HOME:
+        case WITH_SHIFT(KEY_HOME):
+        case KEY_PAGEUP:
+        case WITH_ALT('<'):
+          edit_cursor_to_start(env, &eb);
+          break;
+        case KEY_CTRL_END:
+        case WITH_SHIFT(KEY_END):
+        case KEY_PAGEDOWN:
+        case WITH_ALT('>'):
+          edit_cursor_to_end(env, &eb);
+          break;
+        case WITH_ALT('m'):
+          edit_cursor_match_brace(env, &eb);
+          break;
+
+        // deletion
+        case KEY_BACKSP:
+          edit_backspace(env, &eb);
+          break;
+        case KEY_DEL:
+          edit_delete_char(env, &eb);
+          break;
+        case WITH_ALT('d'):
+          edit_delete_to_end_of_word(env, &eb);
+          break;
+        case KEY_CTRL_W:
+          edit_delete_to_start_of_ws_word(env, &eb);
+          break;
+        case WITH_ALT(KEY_DEL):
+        case WITH_ALT(KEY_BACKSP):
+          edit_delete_to_start_of_word(env, &eb);
+          break;
+        case KEY_CTRL_U:
+          edit_delete_to_start_of_line(env, &eb);
+          break;
+        case KEY_CTRL_K:
+          edit_delete_to_end_of_line(env, &eb);
+          break;
+        case KEY_CTRL_T:
+          edit_swap_char(env, &eb);
+          break;
+
+        // Editing
+        case KEY_SHIFT_TAB:
+        case KEY_LINEFEED:  // '\n' (ctrl+J, shift+enter)
+          if (!env->singleline_only) {
+            edit_insert_char(env, &eb, '\n');
+          }
+          break;
+        default: {
+          char chr;
+          unicode_t uchr;
+          if (code_is_ascii_char(c, &chr)) {
+            edit_insert_char(env, &eb, chr);
+          } else if (code_is_unicode(c, &uchr)) {
+            edit_insert_unicode(env, &eb, uchr);
+          } else {
+            debug_msg("edit: ignore code: 0x%04x\n", c);
+          }
+          break;
+        }
+      }
+  }
+
+  // goto end
+  eb.pos = sbuf_len(eb.input);
+
+  // refresh once more but without brace matching
+  bool bm = env->no_bracematch;
+  env->no_bracematch = true;
+  edit_refresh(env, &eb);
+  env->no_bracematch = bm;
+
+  // save result
+  char* res;
+  if ((c == KEY_CTRL_D && sbuf_len(eb.input) == 0) || c == KEY_CTRL_C ||
+      c == KEY_EVENT_STOP) {
+    res = NULL;
+  } else if (!tty_is_utf8(env->tty)) {
+    res = sbuf_strdup_from_utf8(eb.input);
+  } else {
+    res = sbuf_strdup(eb.input);
+  }
+
+  // update history in memory (file saving handled after execution)
+  history_update(env->history, sbuf_string(eb.input));
+  if (res == NULL || sbuf_len(eb.input) <= 1) {
+    ic_history_remove_last();
+  }
+
+  // free resources
+  editstate_done(env->mem, &eb.undo);
+  editstate_done(env->mem, &eb.redo);
+  attrbuf_free(eb.attrs);
+  attrbuf_free(eb.attrs_extra);
+  sbuf_free(eb.input);
+  sbuf_free(eb.extra);
+  sbuf_free(eb.hint);
+  sbuf_free(eb.hint_help);
+  mem_free(env->mem,
+           (void*)eb.prompt_text);  // Free the allocated last line prompt
+
+  return res;
+}
+
+static char* edit_line_inline(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
+  // set up an edit buffer
+  editor_t eb;
+  memset(&eb, 0, sizeof(eb));
+  eb.mem = env->mem;
+  eb.input = sbuf_new(env->mem);
+  eb.extra = sbuf_new(env->mem);
+  eb.hint = sbuf_new(env->mem);
+  eb.hint_help = sbuf_new(env->mem);
+  eb.termw = term_get_width(env->term);
+  eb.pos = 0;
+  eb.cur_rows = 1;
+  eb.cur_row = 0;
+  eb.modified = false;
+
+  // Handle multi-line prompts: print prefix lines and use only the last line as
+  // the prompt
+  const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
+  print_prompt_prefix_lines(env, original_prompt);
+  char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);
+  eb.prompt_text = last_line_prompt;
+  
+  // Set inline right-aligned text
+  eb.inline_right_text = inline_right_text;
+  eb.inline_right_width = 0;  // Will be calculated in edit_get_prompt_width
+
+
+  eb.history_idx = 0;
+  editstate_init(&eb.undo);
+  editstate_init(&eb.redo);
+  if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL ||
+      eb.hint_help == NULL) {
+    return NULL;
+  }
+
+  // caching
+  if (!(env->no_highlight && env->no_bracematch)) {
+    eb.attrs = attrbuf_new(env->mem);
+    eb.attrs_extra = attrbuf_new(env->mem);
+  }
+
+  // show prompt
+  edit_write_prompt(env, &eb, 0, false);
+  
+  // For inline right text, do an initial refresh to display the right-aligned content
+  if (eb.inline_right_text != NULL) {
+    edit_refresh(env, &eb);
+  }
 
   // always a history entry for the current input
   history_push(env->history, "");

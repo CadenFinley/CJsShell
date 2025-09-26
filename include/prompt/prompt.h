@@ -12,6 +12,7 @@ enum class PromptType {
   GIT,
   AI,
   NEWLINE,
+  INLINE_RIGHT,
   TITLE,
   ALL
 };
@@ -33,6 +34,7 @@ class Prompt {
   std::string get_ai_prompt();
   std::string get_title_prompt();
   std::string get_newline_prompt();
+  std::string get_inline_right_prompt();
   bool is_git_repository(std::filesystem::path& repo_root);
 
   // Command timing access

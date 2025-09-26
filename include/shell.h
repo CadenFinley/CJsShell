@@ -46,6 +46,10 @@ class Shell {
     return shell_prompt->get_newline_prompt();
   }
 
+  std::string get_inline_right_prompt() {
+    return shell_prompt->get_inline_right_prompt();
+  }
+
   std::string get_title_prompt() {
     return shell_prompt->get_title_prompt();
   }

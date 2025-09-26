@@ -95,6 +95,14 @@ void Theme::create_default_theme() {
                                           {"separator_bg", "RESET"}});
 
   default_theme["newline_segments"] = nlohmann::json::array();
+  default_theme["inline_right_segments"] = nlohmann::json::array();
+  default_theme["inline_right_segments"].push_back({{"tag", "time"},
+                                                    {"content", "[{TIME}]"},
+                                                    {"bg_color", "RESET"},
+                                                    {"fg_color", "#888888"},
+                                                    {"separator", ""},
+                                                    {"separator_fg", "RESET"},
+                                                    {"separator_bg", "RESET"}});
   default_theme["fill_char"] = "";
   default_theme["fill_fg_color"] = "RESET";
   default_theme["fill_bg_color"] = "RESET";
@@ -172,6 +180,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
   git_segments.clear();
   ai_segments.clear();
   newline_segments.clear();
+  inline_right_segments.clear();
 
   if (theme_json.contains("ps1_segments") &&
       theme_json["ps1_segments"].is_array()) {
@@ -193,6 +202,11 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     newline_segments = theme_json["newline_segments"];
   }
 
+  if (theme_json.contains("inline_right_segments") &&
+      theme_json["inline_right_segments"].is_array()) {
+    inline_right_segments = theme_json["inline_right_segments"];
+  }
+
   auto has_duplicate_tags = [](const std::vector<nlohmann::json>& segs) {
     std::unordered_set<std::string> seen;
     for (const auto& s : segs) {
@@ -205,7 +219,8 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
   };
 
   if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
-      has_duplicate_tags(ai_segments) || has_duplicate_tags(newline_segments)) {
+      has_duplicate_tags(ai_segments) || has_duplicate_tags(newline_segments) ||
+      has_duplicate_tags(inline_right_segments)) {
     print_error({ErrorType::SYNTAX_ERROR,
                  "load_theme",
                  "Duplicate tags found in theme segments.",
@@ -590,6 +605,17 @@ std::string Theme::get_newline_prompt(
   if (g_debug_mode)
     std::cout << "Last newline raw length: " << last_newline_raw_length
               << std::endl;
+  return result;
+}
+
+std::string Theme::get_inline_right_prompt(
+    const std::unordered_map<std::string, std::string>& vars) const {
+  if (inline_right_segments.empty()) {
+    return "";
+  }
+  auto result = render_line_aligned(inline_right_segments, vars);
+  if (g_debug_mode)
+    std::cout << "Inline right prompt: " << result << std::endl;
   return result;
 }
 

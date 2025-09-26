@@ -61,6 +61,7 @@ class Theme {
   std::vector<nlohmann::json> git_segments;
   std::vector<nlohmann::json> ai_segments;
   std::vector<nlohmann::json> newline_segments;
+  std::vector<nlohmann::json> inline_right_segments;
 
   bool load_theme(const std::string& theme_name, bool allow_fallback);
   std::vector<std::string> list_themes();
@@ -90,6 +91,8 @@ class Theme {
   std::string get_git_prompt_format(
       const std::unordered_map<std::string, std::string>& vars) const;
   std::string get_ai_prompt_format(
+      const std::unordered_map<std::string, std::string>& vars) const;
+  std::string get_inline_right_prompt(
       const std::unordered_map<std::string, std::string>& vars) const;
 
   bool get_enabled() const {

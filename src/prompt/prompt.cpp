@@ -99,6 +99,26 @@ std::string Prompt::get_newline_prompt() {
   return g_theme->get_newline_prompt(vars);
 }
 
+std::string Prompt::get_inline_right_prompt() {
+  if (g_current_theme.empty()) {
+    if (!g_theme || !g_theme->get_enabled()) {
+      return "";
+    } else {
+      g_theme->load_theme("default", true);
+    }
+  }
+
+  if (!g_theme || !g_theme->get_enabled()) {
+    return "";
+  }
+
+  // Get variables for inline right prompt
+  std::unordered_map<std::string, std::string> vars =
+      get_variables(PromptType::INLINE_RIGHT);
+
+  return g_theme->get_inline_right_prompt(vars);
+}
+
 std::string Prompt::get_title_prompt() {
   if (g_current_theme.empty()) {
     if (!g_theme || !g_theme->get_enabled()) {
@@ -159,6 +179,10 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(
       segments.insert(segments.end(), g_theme->newline_segments.begin(),
                       g_theme->newline_segments.end());
       break;
+    case PromptType::INLINE_RIGHT:
+      segments.insert(segments.end(), g_theme->inline_right_segments.begin(),
+                      g_theme->inline_right_segments.end());
+      break;
     case PromptType::TITLE: {
       nlohmann::json title_segment;
       title_segment["content"] = g_theme->get_terminal_title_format();
@@ -174,6 +198,8 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(
                       g_theme->ai_segments.end());
       segments.insert(segments.end(), g_theme->newline_segments.begin(),
                       g_theme->newline_segments.end());
+      segments.insert(segments.end(), g_theme->inline_right_segments.begin(),
+                      g_theme->inline_right_segments.end());
 
       nlohmann::json title_segment;
       title_segment["content"] = g_theme->get_terminal_title_format();
