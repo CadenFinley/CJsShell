@@ -108,6 +108,27 @@ int ShellScriptInterpreter::execute_block(
     return false;
   };
 
+  auto split_case_sections = [&](const std::string& input,
+                                 bool trim_sections) -> std::vector<std::string> {
+    std::vector<std::string> sections;
+    size_t start = 0;
+    while (start < input.length()) {
+      size_t sep_pos = input.find(";;", start);
+      std::string section;
+      if (sep_pos == std::string::npos) {
+        section = input.substr(start);
+        start = input.length();
+      } else {
+        section = input.substr(start, sep_pos - start);
+        start = sep_pos + 2;
+      }
+      if (trim_sections)
+        section = trim(section);
+      sections.push_back(section);
+    }
+    return sections;
+  };
+
   std::function<int(const std::string&)> execute_simple_or_pipeline;
 
   auto evaluate_logical_condition = [&](const std::string& condition) -> int {
@@ -1215,29 +1236,17 @@ int ShellScriptInterpreter::execute_block(
                   << patterns_part << "'" << std::endl;
       }
 
-      std::vector<std::string> pattern_sections;
-      size_t start = 0;
-      while (start < patterns_part.length()) {
-        size_t sep_pos = patterns_part.find(";;", start);
-        if (sep_pos == std::string::npos) {
-          if (start < patterns_part.length()) {
-            std::string section = trim(patterns_part.substr(start));
-            pattern_sections.push_back(section);
-            if (g_debug_mode) {
-              std::cerr << "DEBUG: [inline case] final pattern_section='"
-                        << section << "'" << std::endl;
-            }
-          }
-          break;
+      auto pattern_sections = split_case_sections(patterns_part, true);
+
+      if (g_debug_mode) {
+        for (size_t i = 0; i < pattern_sections.size(); ++i) {
+          const auto& section = pattern_sections[i];
+          std::cerr << "DEBUG: [inline case] "
+                    << (i + 1 == pattern_sections.size()
+                            ? "final pattern_section"
+                            : "pattern_section")
+                    << "='" << section << "'" << std::endl;
         }
-        std::string section =
-            trim(patterns_part.substr(start, sep_pos - start));
-        pattern_sections.push_back(section);
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: [inline case] pattern_section='" << section
-                    << "'" << std::endl;
-        }
-        start = sep_pos + 2;
       }
 
       for (const auto& section : pattern_sections) {
@@ -2404,20 +2413,7 @@ int ShellScriptInterpreter::execute_block(
         patterns_part = patterns_part.substr(0, esac_pos);
       }
 
-      std::vector<std::string> pattern_sections;
-      size_t start = 0;
-      while (start < patterns_part.length()) {
-        size_t sep_pos = patterns_part.find(";;", start);
-        if (sep_pos == std::string::npos) {
-          if (start < patterns_part.length()) {
-            pattern_sections.push_back(trim(patterns_part.substr(start)));
-          }
-          break;
-        }
-        pattern_sections.push_back(
-            trim(patterns_part.substr(start, sep_pos - start)));
-        start = sep_pos + 2;
-      }
+      auto pattern_sections = split_case_sections(patterns_part, true);
 
       int matched_exit_code = 0;
       for (const auto& section : pattern_sections) {
@@ -2579,19 +2575,7 @@ int ShellScriptInterpreter::execute_block(
           work_line = work_line.substr(0, esac_pos);
         }
 
-        std::vector<std::string> pattern_sections;
-        size_t start = 0;
-        while (start < work_line.length()) {
-          size_t sep_pos = work_line.find(";;", start);
-          if (sep_pos == std::string::npos) {
-            if (start < work_line.length()) {
-              pattern_sections.push_back(work_line.substr(start));
-            }
-            break;
-          }
-          pattern_sections.push_back(work_line.substr(start, sep_pos - start));
-          start = sep_pos + 2;
-        }
+        auto pattern_sections = split_case_sections(work_line, false);
 
         for (const auto& section : pattern_sections) {
           std::string pattern_line = trim(section);
