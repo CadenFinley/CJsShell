@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <csignal>
 #include <iostream>
 #include <memory>
@@ -21,6 +22,120 @@
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 #include "utils/performance.h"
+
+namespace {
+
+bool is_valid_env_name(const std::string& name) {
+  if (name.empty()) {
+    return false;
+  }
+  unsigned char first = static_cast<unsigned char>(name[0]);
+  if (!std::isalpha(first) && first != '_') {
+    return false;
+  }
+  for (char c : name) {
+    unsigned char ch = static_cast<unsigned char>(c);
+    if (!std::isalnum(ch) && ch != '_') {
+      return false;
+    }
+  }
+  return true;
+}
+
+size_t collect_env_assignments(
+    const std::vector<std::string>& args,
+    std::vector<std::pair<std::string, std::string>>& env_assignments) {
+  size_t cmd_start_idx = 0;
+  for (size_t i = 0; i < args.size(); ++i) {
+    const std::string& token = args[i];
+    size_t pos = token.find('=');
+    if (pos != std::string::npos && pos > 0) {
+      std::string name = token.substr(0, pos);
+      if (is_valid_env_name(name)) {
+        env_assignments.push_back({name, token.substr(pos + 1)});
+        cmd_start_idx = i + 1;
+        continue;
+      }
+    }
+    break;
+  }
+  return cmd_start_idx;
+}
+
+void apply_env_assignments(
+    const std::vector<std::pair<std::string, std::string>>& env_assignments) {
+  for (const auto& env : env_assignments) {
+    setenv(env.first.c_str(), env.second.c_str(), 1);
+  }
+}
+
+std::string join_arguments(const std::vector<std::string>& args) {
+  std::string result;
+  for (size_t i = 0; i < args.size(); ++i) {
+    if (i > 0) {
+      result += " ";
+    }
+    result += args[i];
+  }
+  return result;
+}
+
+bool command_exists(const std::string& command_path) {
+  if (command_path.empty()) {
+    return false;
+  }
+  if (command_path.find('/') != std::string::npos) {
+    return access(command_path.c_str(), F_OK) == 0;
+  }
+  const char* path_env = getenv("PATH");
+  if (!path_env) {
+    return false;
+  }
+  std::string path_str(path_env);
+  std::istringstream path_stream(path_str);
+  std::string path_dir;
+  while (std::getline(path_stream, path_dir, ':')) {
+    if (path_dir.empty()) {
+      continue;
+    }
+    std::string full_path = path_dir + "/" + command_path;
+    if (access(full_path.c_str(), F_OK) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+struct ExitErrorResult {
+  ErrorType type;
+  std::string message;
+  std::vector<std::string> suggestions;
+};
+
+ExitErrorResult make_exit_error_result(const std::string& command,
+                                       int exit_code,
+                                       const std::string& success_message,
+                                       const std::string& failure_prefix) {
+  ExitErrorResult result{ErrorType::RUNTIME_ERROR, success_message, {}};
+  if (exit_code == 0) {
+    return result;
+  }
+  result.message = failure_prefix + std::to_string(exit_code);
+  if (exit_code == 127) {
+    if (!command_exists(command)) {
+      result.type = ErrorType::COMMAND_NOT_FOUND;
+      result.message.clear();
+      result.suggestions =
+          suggestion_utils::generate_command_suggestions(command);
+      return result;
+    }
+  } else if (exit_code == 126) {
+    result.type = ErrorType::PERMISSION_DENIED;
+  }
+  return result;
+}
+
+}
 
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
                                                bool force_overwrite = false) {
@@ -216,44 +331,10 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     return EX_DATAERR;
   }
   std::vector<std::pair<std::string, std::string>> env_assignments;
-  size_t cmd_start_idx = 0;
-
-  for (size_t i = 0; i < args.size(); i++) {
-    std::string var_name, var_value;
-    size_t pos = args[i].find('=');
-
-    if (pos != std::string::npos && pos > 0) {
-      std::string name = args[i].substr(0, pos);
-      bool valid_name = true;
-
-      if (!isalpha(name[0]) && name[0] != '_') {
-        valid_name = false;
-      } else {
-        for (char c : name) {
-          if (!isalnum(c) && c != '_') {
-            valid_name = false;
-            break;
-          }
-        }
-      }
-
-      if (valid_name) {
-        var_name = name;
-        var_value = args[i].substr(pos + 1);
-        env_assignments.push_back({var_name, var_value});
-        cmd_start_idx = i + 1;
-      } else {
-        break;
-      }
-    } else {
-      break;
-    }
-  }
+  size_t cmd_start_idx = collect_env_assignments(args, env_assignments);
 
   if (cmd_start_idx >= args.size()) {
-    for (const auto& env : env_assignments) {
-      setenv(env.first.c_str(), env.second.c_str(), 1);
-    }
+    apply_env_assignments(env_assignments);
 
     last_exit_code = 0;
     return 0;
@@ -272,9 +353,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   }
 
   if (pid == 0) {
-    for (const auto& env : env_assignments) {
-      setenv(env.first.c_str(), env.second.c_str(), 1);
-    }
+    apply_env_assignments(env_assignments);
 
     pid_t child_pid = getpid();
     if (setpgid(child_pid, child_pid) < 0) {
@@ -341,12 +420,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
   int job_id = add_job(job);
 
-  std::string full_command;
-  for (size_t i = 0; i < args.size(); ++i) {
-    if (i > 0)
-      full_command += " ";
-    full_command += args[i];
-  }
+  std::string full_command = join_arguments(args);
   int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command);
 
   put_job_in_foreground(job_id, false);
@@ -366,52 +440,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     JobManager::instance().remove_job(new_job_id);
   }
 
-  ErrorType error_type = ErrorType::RUNTIME_ERROR;
-  std::vector<std::string> suggestions;
-  if (exit_code == 127) {
-    std::string command_path = args[0];
-    bool command_exists = false;
-
-    if (command_path.find('/') != std::string::npos) {
-      command_exists = (access(command_path.c_str(), F_OK) == 0);
-    } else {
-      const char* path_env = getenv("PATH");
-      if (path_env) {
-        std::string path_str(path_env);
-        std::istringstream path_stream(path_str);
-        std::string path_dir;
-
-        while (std::getline(path_stream, path_dir, ':')) {
-          if (!path_dir.empty()) {
-            std::string full_path = path_dir + "/" + command_path;
-            if (access(full_path.c_str(), F_OK) == 0) {
-              command_exists = true;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    if (!command_exists) {
-      error_type = ErrorType::COMMAND_NOT_FOUND;
-      suggestions = suggestion_utils::generate_command_suggestions(args[0]);
-    } else {
-      error_type = ErrorType::RUNTIME_ERROR;
-    }
-  } else if (exit_code == 126) {
-    error_type = ErrorType::PERMISSION_DENIED;
-  } else if (exit_code != 0) {
-    error_type = ErrorType::RUNTIME_ERROR;
-  }
-
-  set_error(error_type, args[0],
-            exit_code == 0 ? "command completed successfully"
-                           : (error_type == ErrorType::COMMAND_NOT_FOUND
-                                  ? ""
-                                  : "command failed with exit code " +
-                                        std::to_string(exit_code)),
-            suggestions);
+  auto exit_result = make_exit_error_result(args[0], exit_code,
+                                            "command completed successfully",
+                                            "command failed with exit code ");
+  set_error(exit_result.type, args[0], exit_result.message,
+            exit_result.suggestions);
   last_exit_code = exit_code;
   return exit_code;
 }
@@ -425,44 +458,10 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
   }
 
   std::vector<std::pair<std::string, std::string>> env_assignments;
-  size_t cmd_start_idx = 0;
-
-  for (size_t i = 0; i < args.size(); i++) {
-    std::string var_name, var_value;
-    size_t pos = args[i].find('=');
-
-    if (pos != std::string::npos && pos > 0) {
-      std::string name = args[i].substr(0, pos);
-      bool valid_name = true;
-
-      if (!isalpha(name[0]) && name[0] != '_') {
-        valid_name = false;
-      } else {
-        for (char c : name) {
-          if (!isalnum(c) && c != '_') {
-            valid_name = false;
-            break;
-          }
-        }
-      }
-
-      if (valid_name) {
-        var_name = name;
-        var_value = args[i].substr(pos + 1);
-        env_assignments.push_back({var_name, var_value});
-        cmd_start_idx = i + 1;
-      } else {
-        break;
-      }
-    } else {
-      break;
-    }
-  }
+  size_t cmd_start_idx = collect_env_assignments(args, env_assignments);
 
   if (cmd_start_idx >= args.size()) {
-    for (const auto& env : env_assignments) {
-      setenv(env.first.c_str(), env.second.c_str(), 1);
-    }
+    apply_env_assignments(env_assignments);
     set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
     last_exit_code = 0;
     return 0;
@@ -483,9 +482,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
   }
 
   if (pid == 0) {
-    for (const auto& env : env_assignments) {
-      setenv(env.first.c_str(), env.second.c_str(), 1);
-    }
+    apply_env_assignments(env_assignments);
 
     if (setpgid(0, 0) < 0) {
       std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
@@ -525,12 +522,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     int job_id = add_job(job);
 
-    std::string full_command;
-    for (size_t i = 0; i < args.size(); ++i) {
-      if (i > 0)
-        full_command += " ";
-      full_command += args[i];
-    }
+  std::string full_command = join_arguments(args);
     JobManager::instance().add_job(pid, {pid}, full_command);
     JobManager::instance().set_last_background_pid(pid);
 
@@ -911,54 +903,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           cjsh_filesystem::FileOperations::safe_close(orig_stdout);
           cjsh_filesystem::FileOperations::safe_close(orig_stderr);
 
-          ErrorType error_type = ErrorType::RUNTIME_ERROR;
-          std::vector<std::string> suggestions;
-          if (exit_code == 127) {
-            std::string command_path = cmd.args[0];
-            bool command_exists = false;
-
-            if (command_path.find('/') != std::string::npos) {
-              command_exists = (access(command_path.c_str(), F_OK) == 0);
-            } else {
-              const char* path_env = getenv("PATH");
-              if (path_env) {
-                std::string path_str(path_env);
-                std::istringstream path_stream(path_str);
-                std::string path_dir;
-
-                while (std::getline(path_stream, path_dir, ':')) {
-                  if (!path_dir.empty()) {
-                    std::string full_path = path_dir + "/" + command_path;
-                    if (access(full_path.c_str(), F_OK) == 0) {
-                      command_exists = true;
-                      break;
-                    }
-                  }
-                }
-              }
-            }
-
-            if (!command_exists) {
-              error_type = ErrorType::COMMAND_NOT_FOUND;
-              suggestions =
-                  suggestion_utils::generate_command_suggestions(cmd.args[0]);
-            } else {
-              error_type = ErrorType::RUNTIME_ERROR;
-            }
-          } else if (exit_code == 126) {
-            error_type = ErrorType::PERMISSION_DENIED;
-          } else if (exit_code != 0) {
-            error_type = ErrorType::RUNTIME_ERROR;
-          }
-
-          set_error(error_type, cmd.args[0],
-                    exit_code == 0
-                        ? "builtin command completed successfully"
-                        : (error_type == ErrorType::COMMAND_NOT_FOUND
-                               ? ""
-                               : "builtin command failed with exit code " +
-                                     std::to_string(exit_code)),
-                    suggestions);
+          auto exit_result = make_exit_error_result(
+              cmd.args[0], exit_code, "builtin command completed successfully",
+              "builtin command failed with exit code ");
+          set_error(exit_result.type, cmd.args[0], exit_result.message,
+                    exit_result.suggestions);
           last_exit_code = exit_code;
           return exit_code;
         }
@@ -1265,53 +1214,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           exit_code = 128 + WTERMSIG(status);
         }
 
-        ErrorType error_type = ErrorType::RUNTIME_ERROR;
-        std::vector<std::string> suggestions;
-        if (exit_code == 127) {
-          std::string command_path = cmd.args[0];
-          bool command_exists = false;
-
-          if (command_path.find('/') != std::string::npos) {
-            command_exists = (access(command_path.c_str(), F_OK) == 0);
-          } else {
-            const char* path_env = getenv("PATH");
-            if (path_env) {
-              std::string path_str(path_env);
-              std::istringstream path_stream(path_str);
-              std::string path_dir;
-
-              while (std::getline(path_stream, path_dir, ':')) {
-                if (!path_dir.empty()) {
-                  std::string full_path = path_dir + "/" + command_path;
-                  if (access(full_path.c_str(), F_OK) == 0) {
-                    command_exists = true;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-
-          if (!command_exists) {
-            error_type = ErrorType::COMMAND_NOT_FOUND;
-            suggestions =
-                suggestion_utils::generate_command_suggestions(cmd.args[0]);
-          } else {
-            error_type = ErrorType::RUNTIME_ERROR;
-          }
-        } else if (exit_code == 126) {
-          error_type = ErrorType::PERMISSION_DENIED;
-        } else if (exit_code != 0) {
-          error_type = ErrorType::RUNTIME_ERROR;
-        }
-
-        set_error(error_type, cmd.args[0],
-                  exit_code == 0 ? "command completed successfully"
-                                 : (error_type == ErrorType::COMMAND_NOT_FOUND
-                                        ? ""
-                                        : "command failed with exit code " +
-                                              std::to_string(exit_code)),
-                  suggestions);
+        auto exit_result = make_exit_error_result(
+            cmd.args[0], exit_code, "command completed successfully",
+            "command failed with exit code ");
+        set_error(exit_result.type, cmd.args[0], exit_result.message,
+                  exit_result.suggestions);
         last_exit_code = exit_code;
         if (g_debug_mode) {
           std::cerr << "DEBUG: execute_pipeline single-command "
@@ -1842,25 +1749,11 @@ void Exec::wait_for_job(int job_id) {
                     << exit_status << " from final_status=" << final_status
                     << std::endl;
         }
-        if (exit_status == 0) {
-          set_error(ErrorType::RUNTIME_ERROR, job.command,
-                    "command completed successfully");
-        } else {
-          ErrorType error_type = ErrorType::RUNTIME_ERROR;
-          std::vector<std::string> suggestions;
-          if (exit_status == 127) {
-            error_type = ErrorType::COMMAND_NOT_FOUND;
-            suggestions =
-                suggestion_utils::generate_command_suggestions(job.command);
-          } else if (exit_status == 126) {
-            error_type = ErrorType::PERMISSION_DENIED;
-          }
-
-          set_error(
-              error_type, job.command,
-              "command failed with exit code " + std::to_string(exit_status),
-              suggestions);
-        }
+        auto exit_result = make_exit_error_result(
+            job.command, exit_status, "command completed successfully",
+            "command failed with exit code ");
+        set_error(exit_result.type, job.command, exit_result.message,
+                  exit_result.suggestions);
       } else if (WIFSIGNALED(final_status)) {
         last_exit_code = 128 + WTERMSIG(final_status);
         set_error(ErrorType::RUNTIME_ERROR, job.command,
