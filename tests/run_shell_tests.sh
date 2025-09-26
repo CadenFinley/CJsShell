@@ -64,15 +64,15 @@ run_test() {
     printf "  %-50s " "$test_name:"
     
     if [ -f "$test_file" ]; then
-    # Capture both output and exit code
-    output=$(sh "$test_file" "$CJSH" 2>&1)
-    exit_code=$?
-    clean_output=$(printf "%s\n" "$output" | awk '{gsub(/\033\[[0-9;]*[A-Za-z]/, ""); print}')
+        # Capture both output and exit code
+        output=$(sh "$test_file" "$CJSH" 2>&1)
+        exit_code=$?
+        clean_output=$(printf "%s\n" "$output" | awk '{gsub(/\033\[[0-9;]*[A-Za-z]/, ""); print}')
         
-    # Count subtests within the test file (ignore summary lines)
-    subtests_passed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])PASS([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
-    subtests_failed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
-    subtests_skipped=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])SKIP([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
+        # Count subtests within the test file (ignore summary lines)
+        subtests_passed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])PASS([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
+        subtests_failed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
+        subtests_skipped=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])SKIP([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
         subtests_total=$((subtests_passed + subtests_failed + subtests_skipped))
         
         # Add to global counters
