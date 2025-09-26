@@ -43,7 +43,9 @@ struct DelimiterState {
     return false;
   }
 
-  void reset() { *this = {}; }
+  void reset() {
+    *this = {};
+  }
 };
 }  // namespace
 
@@ -1058,7 +1060,8 @@ std::string Parser::resolve_parameter_value(const std::string& var_name) {
     return "";
   }
 
-  if (!var_name.empty() && std::isdigit(static_cast<unsigned char>(var_name[0])) &&
+  if (!var_name.empty() &&
+      std::isdigit(static_cast<unsigned char>(var_name[0])) &&
       var_name.length() == 1) {
     std::string value = get_variable_value(var_name);
     if (!value.empty()) {
@@ -1418,8 +1421,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
       delimiters.paren_depth--;
       current += command[i];
     } else if (!delimiters.in_quotes && command[i] == '[' &&
-               i + 1 < command.length() &&
-               command[i + 1] == '[') {
+               i + 1 < command.length() && command[i + 1] == '[') {
       delimiters.bracket_depth++;
       current += command[i];
       current += command[i + 1];
@@ -1844,8 +1846,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(
         current += command[i];
       }
     } else if (!delimiters.in_quotes && command[i] == '[' &&
-               i + 1 < command.length() &&
-               command[i + 1] == '[') {
+               i + 1 < command.length() && command[i + 1] == '[') {
       delimiters.bracket_depth++;
       current += command[i];
       current += command[i + 1];

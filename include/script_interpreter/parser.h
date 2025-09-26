@@ -30,8 +30,8 @@ struct Command {
   bool force_overwrite = false;  // >| force overwrite (noclobber bypass)
 
   // File descriptor redirections (fd_num -> target)
-  std::map<int, std::string> fd_redirections;  // e.g., 3< file.txt
-  std::map<int, int> fd_duplications;          // e.g., 2>&1, 3>&2
+  std::map<int, std::string> fd_redirections;      // e.g., 3< file.txt
+  std::map<int, int> fd_duplications;              // e.g., 2>&1, 3>&2
   std::vector<std::string> process_substitutions;  // <(cmd) or >(cmd)
 
   Command() {

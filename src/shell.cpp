@@ -25,7 +25,7 @@ struct CachedScript {
 
 std::mutex g_script_cache_mutex;
 std::unordered_map<std::string, CachedScript> g_script_cache;
-}
+}  // namespace
 
 void Shell::process_pending_signals() {
   if (signal_handler && shell_exec) {
@@ -104,8 +104,7 @@ int Shell::execute_script_file(const std::filesystem::path& path,
     if (it != g_script_cache.end() && it->second.modified == mod_time) {
       cached_lines = it->second.lines;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Using cached script: " << cache_key
-                  << std::endl;
+        std::cerr << "DEBUG: Using cached script: " << cache_key << std::endl;
       }
     }
   }

@@ -97,8 +97,7 @@ bool show_startup_time = false;
 
 static void initialize_title_strings() {
   if (title_line.empty()) {
-    title_line = " CJ's Shell v" + c_version +
-                 " - Caden J Finley (c) 2025";
+    title_line = " CJ's Shell v" + c_version + " - Caden J Finley (c) 2025";
   }
   if (created_line.empty()) {
     created_line =
@@ -617,8 +616,9 @@ static int initialize_interactive_components() {
 
   g_shell->setup_interactive_handlers();
 
-  // colors is the only component that must be initialized before plugins/themes/ai as they depend on it
-  // themes plugins and ai are lazy loaded
+  // colors is the only component that must be initialized before
+  // plugins/themes/ai as they depend on it themes plugins and ai are lazy
+  // loaded
   initialize_colors();
 
   // Save the current directory before processing the source file

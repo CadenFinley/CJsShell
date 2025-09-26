@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "../script_interpreter/shell_script_interpreter_error_reporter.h"
 #include "cjsh.h"
 #include "error_out.h"
 
@@ -241,8 +242,8 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
   if (quiet) {
     std::cout << errors.size() << std::endl;
   } else {
-    script_interpreter->print_error_report(errors, show_suggestions,
-                                           show_context);
+    shell_script_interpreter::ErrorReporter::print_error_report(
+        errors, show_suggestions, show_context);
   }
 
   return errors.empty() ? 0 : 1;

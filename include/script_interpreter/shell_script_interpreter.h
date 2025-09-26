@@ -25,7 +25,6 @@ class ShellScriptInterpreter {
 
   void set_debug_level(DebugLevel level);
   DebugLevel get_debug_level() const;
-  size_t get_terminal_width() const;
   void set_parser(Parser* parser) {
     this->shell_parser = parser;
   }
@@ -145,26 +144,13 @@ class ShellScriptInterpreter {
   std::vector<SyntaxError> validate_heredoc_syntax(
       const std::vector<std::string>& lines);
 
-  void print_error_report(const std::vector<SyntaxError>& errors,
-                          bool show_suggestions = true,
-                          bool show_context = true) const;
-
-  // Runtime error formatting helper
-  void print_runtime_error(const std::string& error_message,
-                           const std::string& context = "",
-                           size_t line_number = 0) const;
-
-  // Function management methods
   bool has_function(const std::string& name) const;
   std::vector<std::string> get_function_names() const;
 
-  // Parameter expansion method (made public for parser use)
   std::string expand_parameter_expression(const std::string& param_expr);
 
-  // Variable lookup method (made public for parser use)
   std::string get_variable_value(const std::string& var_name);
 
-  // Variable scope management for functions
   void push_function_scope();
   void pop_function_scope();
   void set_local_variable(const std::string& name, const std::string& value);
@@ -175,7 +161,6 @@ class ShellScriptInterpreter {
   Parser* shell_parser = nullptr;
   std::unordered_map<std::string, std::vector<std::string>> functions;
 
-  // Variable scope management for functions
   std::vector<std::unordered_map<std::string, std::string>>
       local_variable_stack;
   std::vector<std::vector<std::string>> saved_env_stack;

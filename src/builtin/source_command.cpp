@@ -1,7 +1,6 @@
 #include "source_command.h"
 
 #include <filesystem>
-#include <filesystem>
 
 #include "error_out.h"
 #include "shell.h"
