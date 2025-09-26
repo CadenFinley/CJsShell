@@ -47,7 +47,7 @@
 #define COLOR_BRIGHT_YELLOW "\033[93m"
 #define COLOR_BRIGHT_BLUE "\033[94m"
 
-// mamke custom implementatin identical to exa
+
 
 enum FileType : uint8_t {
   TYPE_UNKNOWN = 0,
@@ -482,9 +482,9 @@ std::string format_posix_time(time_t mtime) {
   char buffer[32];
 
   if (now - mtime > 6 * 30 * 24 * 60 * 60 || mtime > now) {
-    strftime(buffer, sizeof(buffer), "%b %e  %Y", tm_info);
+    strftime(buffer, sizeof(buffer), "%e %b  %Y", tm_info);
   } else {
-    strftime(buffer, sizeof(buffer), "%b %e %H:%M", tm_info);
+    strftime(buffer, sizeof(buffer), "%e %b %H:%M", tm_info);
   }
 
   return std::string(buffer);
@@ -509,12 +509,12 @@ std::string quote_filename(const std::string& filename,
 std::string format_permissions_with_colors(const char* perms) {
   std::string result;
   
-  // File type (first character)
+  
   result += COLOR_BRIGHT_BLUE;
   result += perms[0];
   result += COLOR_RESET;
   
-  // User permissions (positions 1-3)
+  
   for (int i = 1; i <= 3; i++) {
     if (perms[i] == 'r') {
       result += COLOR_BRIGHT_YELLOW;
@@ -529,7 +529,7 @@ std::string format_permissions_with_colors(const char* perms) {
     result += COLOR_RESET;
   }
   
-  // Group permissions (positions 4-6)
+  
   for (int i = 4; i <= 6; i++) {
     if (perms[i] == 'r') {
       result += COLOR_YELLOW;
@@ -544,7 +544,7 @@ std::string format_permissions_with_colors(const char* perms) {
     result += COLOR_RESET;
   }
   
-  // Other permissions (positions 7-9)
+  
   for (int i = 7; i <= 9; i++) {
     if (perms[i] == 'r') {
       result += COLOR_CYAN;
@@ -559,16 +559,24 @@ std::string format_permissions_with_colors(const char* perms) {
     result += COLOR_RESET;
   }
   
-  // Extended attributes symbol (@) - add space padding if not present
+  
   if (perms[10] == '@') {
     result += COLOR_BRIGHT_BLUE;
     result += '@';
     result += COLOR_RESET;
   } else {
-    result += ' '; // Add space to maintain consistent visual width
+    result += ' '; 
   }
   
   return result;
+}
+
+void print_long_format_header(bool show_blocks) {
+  std::cout << "Permissions  Size";
+  if (show_blocks) {
+    std::cout << " Blocks";
+  }
+  std::cout << " User        Date Modified Name" << std::endl;
 }
 
 static void build_permissions_fast(char* perms, mode_t mode, const std::string& filepath) {
@@ -611,7 +619,7 @@ static void build_permissions_fast(char* perms, mode_t mode, const std::string& 
     perms[9] = (mode & S_IXOTH) ? 'x' : '-';
   }
 
-  // Check for extended attributes and add @ symbol
+  
   ssize_t xattr_size = listxattr(filepath.c_str(), nullptr, 0, XATTR_NOFOLLOW);
   if (xattr_size > 0) {
     perms[10] = '@';
@@ -823,22 +831,9 @@ int list_directory(const std::string& path, bool show_hidden,
       std::cout << path << ":" << std::endl;
     }
 
-    uintmax_t total_blocks = 0;
-    if (use_long_format || show_blocks) {
-      for (auto& file_info : entries) {
-        if (get_file_stat(file_info)) {
-          total_blocks += get_block_count(file_info.stat_info, kilobyte_blocks);
-        }
-      }
-
-      if (use_long_format) {
-        if (human_readable) {
-          std::cout << "total " << format_size_human_readable(total_blocks)
-                    << std::endl;
-        } else {
-          std::cout << "total " << total_blocks << std::endl;
-        }
-      }
+    
+    if (use_long_format) {
+      print_long_format_header(show_blocks);
     }
 
     if (use_stream_format) {
@@ -899,87 +894,72 @@ int list_directory(const std::string& path, bool show_hidden,
           continue;
         }
 
-        char perms[12]; // Increased size to accommodate @ symbol
+        char perms[12]; 
         build_permissions_fast(perms, file_info.stat_info.st_mode, file_info.entry.path().string());
         std::string colored_perms = format_permissions_with_colors(perms);
 
-        std::string owner, group;
+        std::string owner;
         if (numeric_ids) {
           owner = std::to_string(file_info.stat_info.st_uid);
-          group = std::to_string(file_info.stat_info.st_gid);
         } else {
           struct passwd* pw = getpwuid(file_info.stat_info.st_uid);
-          struct group* gr = getgrgid(file_info.stat_info.st_gid);
           owner = pw ? pw->pw_name : std::to_string(file_info.stat_info.st_uid);
-          group = gr ? gr->gr_name : std::to_string(file_info.stat_info.st_gid);
         }
 
         time_t display_time = get_sort_time(
             file_info.stat_info, sort_by_access_time, sort_by_status_time);
         std::string time_str = format_posix_time(display_time);
 
-        if (show_inode) {
-          printf("%8lu ", (unsigned long)file_info.stat_info.st_ino);
-        }
-
-        if (show_blocks) {
-          uintmax_t blocks =
-              get_block_count(file_info.stat_info, kilobyte_blocks);
-          if (human_readable) {
-            std::string blocks_formatted =
-                format_blocks(blocks, human_readable);
-            printf("%8s ", blocks_formatted.c_str());
-          } else {
-            printf("%4lu ", (unsigned long)blocks);
-          }
-        }
-
-        printf("%s %3u ", colored_perms.c_str(), (unsigned int)file_info.stat_info.st_nlink);
-
-        if (!long_format_no_owner) {
-          printf("%-8s ", owner.c_str());
-        }
-
-        if (!long_format_no_group) {
-          printf("%-8s ", group.c_str());
-        }
-
-        if (S_ISCHR(file_info.stat_info.st_mode) ||
-            S_ISBLK(file_info.stat_info.st_mode)) {
-          printf("%3u, %3u ", major(file_info.stat_info.st_rdev),
-                 minor(file_info.stat_info.st_rdev));
+        
+        printf("%s ", colored_perms.c_str());
+        
+        
+        std::error_code ec;
+        if (file_info.entry.is_directory(ec) && !ec) {
+          printf("%5s ", "-");
         } else {
           if (human_readable) {
-            std::string size_formatted =
-                format_size_human_readable(file_info.stat_info.st_size);
-            printf("%8s ", size_formatted.c_str());
+            std::string size_formatted = format_size_human_readable(file_info.stat_info.st_size);
+            printf("%5s ", size_formatted.c_str());
           } else {
-            printf("%8lu ", (unsigned long)file_info.stat_info.st_size);
+            printf("%5lu ", (unsigned long)file_info.stat_info.st_size);
           }
         }
-
+        
+        
+        if (show_blocks) {
+          if (file_info.entry.is_directory(ec) && !ec) {
+            printf("%6s ", "-");
+          } else {
+            uintmax_t blocks = get_block_count(file_info.stat_info, kilobyte_blocks);
+            printf("%6lu ", (unsigned long)blocks);
+          }
+        }
+        
+        
+        printf("%-11s ", owner.c_str());
+        
+        
         printf("%s ", time_str.c_str());
 
+        
         std::cout << file_info.cached_color;
         std::cout << name;
         std::cout << COLOR_RESET;
 
+        
         if (file_info.entry.is_symlink(ec) && !ec) {
           std::error_code link_ec;
-          auto target =
-              std::filesystem::read_symlink(file_info.entry.path(), link_ec);
+          auto target = std::filesystem::read_symlink(file_info.entry.path(), link_ec);
           if (!link_ec) {
             std::cout << " -> ";
             std::error_code target_ec;
-            std::filesystem::path target_path =
-                file_info.entry.path().parent_path() / target;
+            std::filesystem::path target_path = file_info.entry.path().parent_path() / target;
             if (std::filesystem::is_directory(target_path, target_ec)) {
               std::cout << COLOR_BLUE;
-            } else if (std::filesystem::is_regular_file(target_path,
-                                                        target_ec)) {
+            } else if (std::filesystem::is_regular_file(target_path, target_ec)) {
               struct stat target_st;
-              if (stat(target_path.c_str(), &target_st) == 0 &&
-                  (target_st.st_mode & S_IXUSR)) {
+              if (stat(target_path.c_str(), &target_st) == 0 && (target_st.st_mode & S_IXUSR)) {
                 std::cout << COLOR_RED;
               }
             }
