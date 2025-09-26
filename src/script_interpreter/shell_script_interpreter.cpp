@@ -2828,10 +2828,12 @@ int ShellScriptInterpreter::execute_block(
     return matched_exit_code;
   };
 
-  auto handle_while_block = [&](const std::vector<std::string>& src_lines,
-                                size_t& idx) -> int {
+  auto handle_loop_block = [&](const std::vector<std::string>& src_lines,
+                               size_t& idx, const std::string& keyword,
+                               bool is_until) -> int {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!(first == "while" || first.rfind("while ", 0) == 0))
+    if (!(first == keyword ||
+          first.rfind(keyword + " ", 0) == 0))
       return 1;
 
     auto parse_cond_from = [&](const std::string& s, std::string& cond,
@@ -2840,11 +2842,11 @@ int ShellScriptInterpreter::execute_block(
       body_inline.clear();
       cond.clear();
       std::string tmp = s;
-      if (tmp == "while") {
+      if (tmp == keyword) {
         return true;
       }
-      if (tmp.rfind("while ", 0) == 0)
-        tmp = tmp.substr(6);
+      if (tmp.rfind(keyword + " ", 0) == 0)
+        tmp = tmp.substr(keyword.length() + 1);
       size_t do_pos = tmp.find("; do");
       if (do_pos != std::string::npos) {
         cond = trim(tmp.substr(0, do_pos));
@@ -2854,6 +2856,11 @@ int ShellScriptInterpreter::execute_block(
       }
       if (tmp == "do") {
         inline_do = true;
+        return true;
+      }
+      if (tmp.rfind("do ", 0) == 0) {
+        inline_do = true;
+        body_inline = trim(tmp.substr(3));
         return true;
       }
       cond = trim(tmp);
@@ -2867,9 +2874,15 @@ int ShellScriptInterpreter::execute_block(
     size_t j = idx;
     if (!inline_do) {
       while (++j < src_lines.size()) {
-        std::string cur = trim(strip_inline_comment(src_lines[j]));
+        std::string cur_raw = src_lines[j];
+        std::string cur = trim(strip_inline_comment(cur_raw));
         if (cur == "do") {
           inline_do = true;
+          break;
+        }
+        if (cur.rfind("do ", 0) == 0) {
+          inline_do = true;
+          body_inline = trim(cur.substr(3));
           break;
         }
         if (cur.find("; do") != std::string::npos) {
@@ -2901,7 +2914,7 @@ int ShellScriptInterpreter::execute_block(
       while (k < src_lines.size() && depth > 0) {
         std::string cur_raw = src_lines[k];
         std::string cur = trim(strip_inline_comment(cur_raw));
-        if (cur == "while" || cur.rfind("while ", 0) == 0)
+        if (cur == keyword || cur.rfind(keyword + " ", 0) == 0)
           depth++;
         else if (cur == "done") {
           depth--;
@@ -2927,8 +2940,11 @@ int ShellScriptInterpreter::execute_block(
       if (!cond.empty()) {
         c = evaluate_logical_condition(cond);
       }
-      if (c != 0)
+
+      bool continue_loop = is_until ? (c != 0) : (c == 0);
+      if (!continue_loop)
         break;
+
       rc = execute_block(body_lines);
       if (rc == 255) {
         const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
@@ -2966,10 +2982,15 @@ int ShellScriptInterpreter::execute_block(
         }
       }
       if (++guard > GUARD_MAX) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "",
-                     "while loop exceeded max iterations (guard)",
-                     {}});
+        if (keyword == "while") {
+          print_error({ErrorType::RUNTIME_ERROR,
+                       "",
+                       "while loop exceeded max iterations (guard)",
+                       {}});
+        } else {
+          std::cerr << "cjsh: " << keyword << " loop aborted (guard)"
+                    << std::endl;
+        }
         rc = 1;
         break;
       }
@@ -2977,151 +2998,14 @@ int ShellScriptInterpreter::execute_block(
     return rc;
   };
 
+  auto handle_while_block = [&](const std::vector<std::string>& src_lines,
+                                size_t& idx) -> int {
+    return handle_loop_block(src_lines, idx, "while", false);
+  };
+
   auto handle_until_block = [&](const std::vector<std::string>& src_lines,
                                 size_t& idx) -> int {
-    std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!(first == "until" || first.rfind("until ", 0) == 0))
-      return 1;
-
-    auto parse_cond_from = [&](const std::string& s, std::string& cond,
-                               bool& inline_do, std::string& body_inline) {
-      inline_do = false;
-      body_inline.clear();
-      cond.clear();
-      std::string tmp = s;
-      if (tmp == "until") {
-        return true;
-      }
-      if (tmp.rfind("until ", 0) == 0)
-        tmp = tmp.substr(6);
-      size_t do_pos = tmp.find("; do");
-      if (do_pos != std::string::npos) {
-        cond = trim(tmp.substr(0, do_pos));
-        inline_do = true;
-        body_inline = trim(tmp.substr(do_pos + 4));
-        return true;
-      }
-      if (tmp == "do") {
-        inline_do = true;
-        return true;
-      }
-      cond = trim(tmp);
-      return true;
-    };
-
-    std::string cond;
-    bool inline_do = false;
-    std::string body_inline;
-    parse_cond_from(first, cond, inline_do, body_inline);
-    size_t j = idx;
-    if (!inline_do) {
-      while (++j < src_lines.size()) {
-        std::string cur = trim(strip_inline_comment(src_lines[j]));
-        if (cur == "do") {
-          inline_do = true;
-          break;
-        }
-        if (cur.find("; do") != std::string::npos) {
-          parse_cond_from(cur, cond, inline_do, body_inline);
-          break;
-        }
-        if (!cur.empty()) {
-          if (!cond.empty())
-            cond += " ";
-          cond += cur;
-        }
-      }
-    }
-    if (!inline_do) {
-      idx = j;
-      return 1;
-    }
-
-    std::vector<std::string> body_lines;
-    if (!body_inline.empty()) {
-      std::string bi = body_inline;
-      size_t done_pos = bi.rfind("; done");
-      if (done_pos != std::string::npos)
-        bi = trim(bi.substr(0, done_pos));
-      body_lines = shell_parser->parse_into_lines(bi);
-    } else {
-      size_t k = j + 1;
-      int depth = 1;
-      while (k < src_lines.size() && depth > 0) {
-        std::string cur_raw = src_lines[k];
-        std::string cur = trim(strip_inline_comment(cur_raw));
-        if (cur == "until" || cur.rfind("until ", 0) == 0)
-          depth++;
-        else if (cur == "done") {
-          depth--;
-          if (depth == 0)
-            break;
-        }
-        if (depth > 0)
-          body_lines.push_back(cur_raw);
-        k++;
-      }
-      if (depth != 0) {
-        idx = k;
-        return 1;
-      }
-      idx = k;
-    }
-
-    int rc = 0;
-    int guard = 0;
-    const int GUARD_MAX = 100000;
-    while (true) {
-      int c = 0;
-      if (!cond.empty()) {
-        c = evaluate_logical_condition(cond);
-      }
-
-      if (c == 0)
-        break;
-      rc = execute_block(body_lines);
-      if (rc == 255) {
-        const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-        int break_level = 1;
-        if (break_level_str) {
-          break_level = std::stoi(break_level_str);
-          unsetenv("CJSH_BREAK_LEVEL");
-        }
-        if (break_level == 1) {
-          rc = 0;
-          break;
-        } else {
-          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
-                 1);
-          break;
-        }
-      } else if (rc == 254) {
-        const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-        int continue_level = 1;
-        if (continue_level_str) {
-          continue_level = std::stoi(continue_level_str);
-          unsetenv("CJSH_CONTINUE_LEVEL");
-        }
-        if (continue_level == 1) {
-          rc = 0;
-          continue;
-        } else {
-          setenv("CJSH_CONTINUE_LEVEL",
-                 std::to_string(continue_level - 1).c_str(), 1);
-          break;
-        }
-      } else if (rc != 0) {
-        if (g_shell && g_shell->is_errexit_enabled()) {
-          break;
-        }
-      }
-      if (++guard > GUARD_MAX) {
-        std::cerr << "cjsh: until loop aborted (guard)" << std::endl;
-        rc = 1;
-        break;
-      }
-    }
-    return rc;
+    return handle_loop_block(src_lines, idx, "until", true);
   };
 
   for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
@@ -3556,68 +3440,103 @@ int ShellScriptInterpreter::execute_block(
             }
           }
           if ((t.rfind("while ", 0) == 0 || t == "while")) {
-            std::string cond =
-                (t == "while") ? std::string("") : trim(t.substr(6));
+            if (t.find("; do") != std::string::npos)
+              continue;
 
             size_t done_index = k + 1;
-            std::string body_inline;
-            if (done_index < semis.size()) {
-              std::string next = trim(strip_inline_comment(semis[done_index]));
-              if (next.rfind("do ", 0) == 0)
-                body_inline = trim(next.substr(3));
-              else if (next == "do")
-                body_inline.clear();
-              else {
-                last_code = 1;
-                break;
-              }
-
-              size_t scan = done_index + 1;
-              bool found_done = false;
-              for (; scan < semis.size(); ++scan) {
-                std::string seg = trim(strip_inline_comment(semis[scan]));
-                if (seg == "done") {
-                  found_done = true;
-                  break;
-                }
-                if (!body_inline.empty())
-                  body_inline += "; ";
-                body_inline += seg;
-              }
-              if (!found_done) {
-                last_code = 1;
-                break;
-              }
-
-              int rc2 = 0;
-              int guard = 0;
-              const int GUARD_MAX = 100000;
-              while (true) {
-                int cnd = 0;
-                if (!cond.empty()) {
-                  cnd = evaluate_logical_condition(cond);
-                }
-                if (cnd != 0)
-                  break;
-                auto cmds2 =
-                    shell_parser->parse_semicolon_commands(body_inline);
-                for (const auto& c2 : cmds2) {
-                  rc2 = execute_simple_or_pipeline(c2);
-                  if (rc2 != 0)
-                    break;
-                }
-                if (rc2 != 0)
-                  break;
-                if (++guard > GUARD_MAX) {
-                  std::cerr << "cjsh: while loop aborted (guard)" << std::endl;
-                  rc2 = 1;
-                  break;
-                }
-              }
-              last_code = rc2;
-              k = scan;
+            if (done_index >= semis.size()) {
+              last_code = 1;
               break;
             }
+
+            std::string next = trim(strip_inline_comment(semis[done_index]));
+            if (!(next == "do" || next.rfind("do ", 0) == 0)) {
+              last_code = 1;
+              break;
+            }
+
+            std::string body_inline;
+            if (next.rfind("do ", 0) == 0)
+              body_inline = trim(next.substr(3));
+
+            size_t scan = done_index + 1;
+            bool found_done = false;
+            for (; scan < semis.size(); ++scan) {
+              std::string seg = trim(strip_inline_comment(semis[scan]));
+              if (seg == "done") {
+                found_done = true;
+                break;
+              }
+              if (!body_inline.empty())
+                body_inline += "; ";
+              body_inline += seg;
+            }
+            if (!found_done) {
+              last_code = 1;
+              break;
+            }
+
+            std::string combined = t + "; do";
+            if (!body_inline.empty())
+              combined += " " + body_inline;
+            combined += "; done";
+
+            size_t local_idx = 0;
+            std::vector<std::string> inline_lines{combined};
+            int rc2 = handle_while_block(inline_lines, local_idx);
+            last_code = rc2;
+            k = scan;
+            break;
+          }
+
+          if ((t.rfind("until ", 0) == 0 || t == "until")) {
+            if (t.find("; do") != std::string::npos)
+              continue;
+
+            size_t done_index = k + 1;
+            if (done_index >= semis.size()) {
+              last_code = 1;
+              break;
+            }
+
+            std::string next = trim(strip_inline_comment(semis[done_index]));
+            if (!(next == "do" || next.rfind("do ", 0) == 0)) {
+              last_code = 1;
+              break;
+            }
+
+            std::string body_inline;
+            if (next.rfind("do ", 0) == 0)
+              body_inline = trim(next.substr(3));
+
+            size_t scan = done_index + 1;
+            bool found_done = false;
+            for (; scan < semis.size(); ++scan) {
+              std::string seg = trim(strip_inline_comment(semis[scan]));
+              if (seg == "done") {
+                found_done = true;
+                break;
+              }
+              if (!body_inline.empty())
+                body_inline += "; ";
+              body_inline += seg;
+            }
+            if (!found_done) {
+              last_code = 1;
+              break;
+            }
+
+            std::string combined = t + "; do";
+            if (!body_inline.empty())
+              combined += " " + body_inline;
+            combined += "; done";
+
+            size_t local_idx = 0;
+            std::vector<std::string> inline_lines{combined};
+            int rc2 = handle_until_block(inline_lines, local_idx);
+            last_code = rc2;
+            k = scan;
+            break;
           }
 
           int code = 0;
