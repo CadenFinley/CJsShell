@@ -4,9 +4,9 @@
 #include <cctype>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <map>
-#include <functional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -393,17 +393,15 @@ static bool completion_limit_hit_with_log(const char* label) {
 
 static bool add_command_completion(ic_completion_env_t* cenv,
                                    const std::string& candidate,
-                                   size_t prefix_len,
-                                   const char* source,
+                                   size_t prefix_len, const char* source,
                                    const char* debug_label) {
   long delete_before = static_cast<long>(prefix_len);
   if (g_debug_mode)
-    std::cerr << "DEBUG: " << debug_label << " completion found: '"
-              << candidate << "' (deleting " << delete_before
-              << " chars before)" << std::endl;
-  return safe_add_completion_prim_with_source(cenv, candidate.c_str(), nullptr,
-                                              nullptr, source, delete_before,
-                                              0);
+    std::cerr << "DEBUG: " << debug_label << " completion found: '" << candidate
+              << "' (deleting " << delete_before << " chars before)"
+              << std::endl;
+  return safe_add_completion_prim_with_source(
+      cenv, candidate.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
 
 static std::string build_completion_suffix(
@@ -804,36 +802,34 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   };
 
   process_command_candidates(
-      cenv, builtin_cmds, prefix_str, prefix_len, "builtin",
-      "builtin commands", [](const std::string& value) { return value; },
-      builtin_filter);
+      cenv, builtin_cmds, prefix_str, prefix_len, "builtin", "builtin commands",
+      [](const std::string& value) { return value; }, builtin_filter);
   if (completion_limit_hit() || ic_stop_completing(cenv))
     return;
 
-  process_command_candidates(
-      cenv, function_names, prefix_str, prefix_len, "function",
-      "function commands", [](const std::string& value) { return value; });
+  process_command_candidates(cenv, function_names, prefix_str, prefix_len,
+                             "function", "function commands",
+                             [](const std::string& value) { return value; });
   if (completion_limit_hit() || ic_stop_completing(cenv))
     return;
 
-  process_command_candidates(
-      cenv, plugin_cmds, prefix_str, prefix_len, "plugin",
-      "plugin commands", [](const std::string& value) { return value; });
+  process_command_candidates(cenv, plugin_cmds, prefix_str, prefix_len,
+                             "plugin", "plugin commands",
+                             [](const std::string& value) { return value; });
   if (completion_limit_hit() || ic_stop_completing(cenv))
     return;
 
-  process_command_candidates(
-      cenv, aliases, prefix_str, prefix_len, "alias", "aliases",
-      [](const std::string& value) { return value; });
+  process_command_candidates(cenv, aliases, prefix_str, prefix_len, "alias",
+                             "aliases",
+                             [](const std::string& value) { return value; });
   if (completion_limit_hit() || ic_stop_completing(cenv))
     return;
 
-  process_command_candidates(
-      cenv, cached_executables, prefix_str, prefix_len, "system",
-      "cached executables",
-      [](const std::filesystem::path& value) {
-        return value.filename().string();
-      });
+  process_command_candidates(cenv, cached_executables, prefix_str, prefix_len,
+                             "system", "cached executables",
+                             [](const std::filesystem::path& value) {
+                               return value.filename().string();
+                             });
 
   if (g_debug_mode && !ic_has_completions(cenv))
     std::cerr << "DEBUG: No command completions found for prefix: '" << prefix
@@ -1230,8 +1226,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     fs::path dir_path(path_to_check);
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-        if (!iterate_directory_entries(cenv, dir_path, "", directories_only,
-                                       30, false, "all files"))
+        if (!iterate_directory_entries(cenv, dir_path, "", directories_only, 30,
+                                       false, "all files"))
           return;
       }
     } catch (const std::exception& e) {

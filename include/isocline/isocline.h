@@ -65,16 +65,22 @@ Contents:
 /// @see ic_set_prompt_marker(), ic_style_def()
 char* ic_readline(const char* prompt_text);
 
-/// Read input from the user using rich editing abilities with inline right-aligned prompt.
+/// Read input from the user using rich editing abilities with inline
+/// right-aligned prompt.
 /// @param prompt_text   The prompt text, can be NULL for the default ("").
-///   The displayed prompt becomes `prompt_text` followed by the `prompt_marker` ("> ").
-/// @param inline_right_text The text to display right-aligned on the same line as input.
-///   Can be NULL for no right-aligned text. When user input reaches this text, it will be overridden.
-/// @returns the heap allocated input on success, which should be `free`d by the caller.
+///   The displayed prompt becomes `prompt_text` followed by the `prompt_marker`
+///   ("> ").
+/// @param inline_right_text The text to display right-aligned on the same line
+/// as input.
+///   Can be NULL for no right-aligned text. When user input reaches this text,
+///   it will be overridden.
+/// @returns the heap allocated input on success, which should be `free`d by the
+/// caller.
 ///   Returns NULL on error, or if the user typed ctrl+d or ctrl+c.
 ///
 /// @see ic_readline(), ic_set_prompt_marker(), ic_style_def()
-char* ic_readline_inline(const char* prompt_text, const char* inline_right_text);
+char* ic_readline_inline(const char* prompt_text,
+                         const char* inline_right_text);
 
 /// \}
 

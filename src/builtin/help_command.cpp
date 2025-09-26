@@ -30,8 +30,9 @@ int help_command() {
   std::cout << "    Context files:\n";
   std::cout << "      ai file                      Summarize active and "
                "available files\n";
-  std::cout << "      ai file add <file>|all       Add file(s) from the current "
-               "directory\n";
+  std::cout
+      << "      ai file add <file>|all       Add file(s) from the current "
+         "directory\n";
   std::cout << "      ai file remove <file>|all    Remove file(s) from "
                "context\n";
   std::cout << "      ai file active               List files currently "
@@ -69,7 +70,8 @@ int help_command() {
                "name\n";
   std::cout << "      ai timeoutflag [seconds]     Get or set the request "
                "timeout\n";
-  std::cout << "      ai voice [voice]             Get or set dictation voice\n";
+  std::cout
+      << "      ai voice [voice]             Get or set dictation voice\n";
   std::cout << "      ai voicedictation enable|disable  Toggle voice "
                "dictation\n";
   std::cout << "      ai voicedictationinstructions [text] Set dictation "
@@ -89,7 +91,8 @@ int help_command() {
   std::cout << "      -f                   Ignore last exit status and force "
                "assistance\n";
   std::cout << "      -p <prompt>          Provide a custom opening prompt\n";
-  std::cout << "      -m <model>           Override the model for this request\n";
+  std::cout
+      << "      -m <model>           Override the model for this request\n";
   std::cout << "    Note: With no description, the last failing command is "
                "analyzed.\n\n";
 
@@ -104,8 +107,9 @@ int help_command() {
                "requirements\n";
   std::cout << "      theme preview <name|all>     Preview one or all local "
                "themes\n";
-  std::cout << "      theme reload                 Reload the active theme from "
-               "disk\n";
+  std::cout
+      << "      theme reload                 Reload the active theme from "
+         "disk\n";
   std::cout << "      theme uninstall <name>       Remove an installed theme\n";
   std::cout << "    Note: Without arguments, lists the active and available "
                "themes.\n\n";
@@ -116,14 +120,16 @@ int help_command() {
   std::cout << "    Usage: plugin <subcommand> [options]\n";
   std::cout << "    Subcommands:\n";
   std::cout << "      available                 List all available plugins\n";
-  std::cout << "      enabled                   List currently enabled plugins\n";
+  std::cout
+      << "      enabled                   List currently enabled plugins\n";
   std::cout << "      enable <name>             Enable a plugin\n";
   std::cout << "      disable <name>            Disable a plugin\n";
   std::cout << "      enableall / disableall    Toggle all plugins at once\n";
   std::cout << "      info <name>               Show plugin information\n";
   std::cout << "      commands <name>           List commands provided by a "
                "plugin\n";
-  std::cout << "      settings                  Show settings for every plugin\n";
+  std::cout
+      << "      settings                  Show settings for every plugin\n";
   std::cout << "      settings <name>           Show settings for one plugin\n";
   std::cout << "      settings <name> set <key> <value>  Update a plugin "
                "setting\n";
@@ -152,7 +158,8 @@ int help_command() {
                "for supported flags)\n";
   std::cout << "  help                    Display this help message\n";
   std::cout << "    Usage: help\n";
-  std::cout << "  exit [N], quit [N]      Exit the shell with optional status\n";
+  std::cout
+      << "  exit [N], quit [N]      Exit the shell with optional status\n";
   std::cout << "    Usage: exit [code]\n\n";
 
   std::cout << "Variables and Functions:\n";
@@ -234,7 +241,8 @@ int help_command() {
 
   std::cout << "Shell-Specific Commands:\n";
   std::cout << "  version                 Display cjsh version information\n";
-  std::cout << "  login-startup-arg FLAG  Persist a startup flag in ~/.cjprofile\n";
+  std::cout
+      << "  login-startup-arg FLAG  Persist a startup flag in ~/.cjprofile\n";
   std::cout << "    Example flags: --no-plugins, --no-themes, --minimal, "
                "--debug\n";
   std::cout << "  approot                 Change to the cjsh data directory\n";
@@ -245,7 +253,8 @@ int help_command() {
 
   std::cout << "  clear                   Clear the terminal screen (external "
                "command)\n";
-  std::cout << "    Note: This is typically provided by the system, not cjsh.\n\n";
+  std::cout
+      << "    Note: This is typically provided by the system, not cjsh.\n\n";
 
   std::cout << section_separator;
   std::cout << "FILESYSTEM AND CONFIGURATION:\n\n";

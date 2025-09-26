@@ -16,10 +16,10 @@
 #include <iostream>
 #include <optional>
 #include <regex>
-#include <utility>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
+#include <utility>
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -131,80 +131,79 @@ int ShellScriptInterpreter::execute_block(
   };
 
   auto expand_command_substitutions =
-      [&](const std::string& input,
-          const std::string& debug_context,
+      [&](const std::string& input, const std::string& debug_context,
           const std::string& result_label,
           const std::string& expanded_label) -> CommandSubstitutionExpansion {
-        CommandSubstitutionExpansion info{input, {}};
-        std::string text = input;
-        size_t search_pos = 0;
-        while (true) {
-          size_t start = text.find("$(", search_pos);
-          if (start == std::string::npos)
-            break;
-          auto end_opt = find_matching_paren(text, start + 2);
-          if (!end_opt)
-            break;
-          size_t end = *end_opt;
-          std::string command = text.substr(start + 2, end - start - 2);
-          auto cmd_output =
-              cjsh_filesystem::FileOperations::read_command_output(command);
-          if (!cmd_output.is_ok()) {
-            search_pos = end + 1;
-            continue;
-          }
-          std::string result = cmd_output.value();
-          while (!result.empty() &&
-                 (result.back() == '\n' || result.back() == '\r'))
-            result.pop_back();
-          info.outputs.push_back(result);
-          text = text.substr(0, start) + result + text.substr(end + 1);
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: " << debug_context << " " << result_label
-                      << ": '" << result << "'" << std::endl;
-            std::cerr << "DEBUG: " << debug_context << " " << expanded_label
-                      << ": '" << text << "'" << std::endl;
-          }
-          search_pos = start + result.size();
-        }
-        info.text = text;
-        return info;
-      };
+    CommandSubstitutionExpansion info{input, {}};
+    std::string text = input;
+    size_t search_pos = 0;
+    while (true) {
+      size_t start = text.find("$(", search_pos);
+      if (start == std::string::npos)
+        break;
+      auto end_opt = find_matching_paren(text, start + 2);
+      if (!end_opt)
+        break;
+      size_t end = *end_opt;
+      std::string command = text.substr(start + 2, end - start - 2);
+      auto cmd_output =
+          cjsh_filesystem::FileOperations::read_command_output(command);
+      if (!cmd_output.is_ok()) {
+        search_pos = end + 1;
+        continue;
+      }
+      std::string result = cmd_output.value();
+      while (!result.empty() &&
+             (result.back() == '\n' || result.back() == '\r'))
+        result.pop_back();
+      info.outputs.push_back(result);
+      text = text.substr(0, start) + result + text.substr(end + 1);
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: " << debug_context << " " << result_label << ": '"
+                  << result << "'" << std::endl;
+        std::cerr << "DEBUG: " << debug_context << " " << expanded_label
+                  << ": '" << text << "'" << std::endl;
+      }
+      search_pos = start + result.size();
+    }
+    info.text = text;
+    return info;
+  };
 
   auto collect_case_body =
       [&](const std::vector<std::string>& src_lines,
           size_t start_index) -> std::pair<std::string, size_t> {
-        std::ostringstream body_stream;
-        bool appended = false;
-        size_t end_index = start_index;
-        for (size_t i = start_index; i < src_lines.size(); ++i) {
-          std::string raw = strip_inline_comment(src_lines[i]);
-          std::string trimmed_line = trim(raw);
-          if (trimmed_line.empty())
-            continue;
-          size_t esac_pos = trimmed_line.find("esac");
-          if (esac_pos != std::string::npos) {
-            std::string before_esac =
-                trim(trimmed_line.substr(0, esac_pos));
-            if (!before_esac.empty()) {
-              if (appended)
-                body_stream << '\n';
-              body_stream << before_esac;
-              appended = true;
-            }
-            end_index = i;
-            return {body_stream.str(), end_index};
-          }
+    std::ostringstream body_stream;
+    bool appended = false;
+    size_t end_index = start_index;
+    for (size_t i = start_index; i < src_lines.size(); ++i) {
+      std::string raw = strip_inline_comment(src_lines[i]);
+      std::string trimmed_line = trim(raw);
+      if (trimmed_line.empty())
+        continue;
+      size_t esac_pos = trimmed_line.find("esac");
+      if (esac_pos != std::string::npos) {
+        std::string before_esac = trim(trimmed_line.substr(0, esac_pos));
+        if (!before_esac.empty()) {
           if (appended)
             body_stream << '\n';
-          body_stream << trimmed_line;
+          body_stream << before_esac;
           appended = true;
         }
-        return {body_stream.str(), src_lines.size()};
-      };
+        end_index = i;
+        return {body_stream.str(), end_index};
+      }
+      if (appended)
+        body_stream << '\n';
+      body_stream << trimmed_line;
+      appended = true;
+    }
+    return {body_stream.str(), src_lines.size()};
+  };
 
-  auto split_case_sections = [&](const std::string& input,
-                                 bool trim_sections) -> std::vector<std::string> {
+  auto split_case_sections =
+      [&](const std::string& input,
+          bool trim_sections) -> std::vector<std::string> {
     std::vector<std::string> sections;
     size_t start = 0;
     while (start < input.length()) {
@@ -262,8 +261,7 @@ int ShellScriptInterpreter::execute_block(
     out.command = trim(section.substr(paren_pos + 1));
     if (out.command.length() >= 2 &&
         out.command.substr(out.command.length() - 2) == ";;") {
-      out.command =
-          trim(out.command.substr(0, out.command.length() - 2));
+      out.command = trim(out.command.substr(0, out.command.length() - 2));
     }
     out.pattern = normalize_case_pattern(out.raw_pattern);
     return true;
@@ -275,184 +273,173 @@ int ShellScriptInterpreter::execute_block(
       [&](const std::vector<std::string>& sections,
           const std::string& case_value,
           const std::function<int(const std::string&)>& executor,
-          const std::string& debug_context,
-          int& matched_exit_code) -> bool {
-        matched_exit_code = 0;
-        std::vector<std::string> filtered_sections;
-        filtered_sections.reserve(sections.size());
-        for (const auto& raw_section : sections) {
-          std::string trimmed_section = trim(raw_section);
-          if (!trimmed_section.empty())
-            filtered_sections.push_back(trimmed_section);
+          const std::string& debug_context, int& matched_exit_code) -> bool {
+    matched_exit_code = 0;
+    std::vector<std::string> filtered_sections;
+    filtered_sections.reserve(sections.size());
+    for (const auto& raw_section : sections) {
+      std::string trimmed_section = trim(raw_section);
+      if (!trimmed_section.empty())
+        filtered_sections.push_back(trimmed_section);
+    }
+
+    for (size_t idx = 0; idx < filtered_sections.size(); ++idx) {
+      const auto& section = filtered_sections[idx];
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: " << debug_context;
+        if (!debug_context.empty())
+          std::cerr << " ";
+        std::cerr << ((idx + 1 == filtered_sections.size())
+                          ? "final pattern_section"
+                          : "pattern_section")
+                  << "='" << section << "'" << std::endl;
+      }
+
+      CaseSectionData data;
+      if (!parse_case_section(section, data))
+        continue;
+
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: " << debug_context;
+        if (!debug_context.empty())
+          std::cerr << " ";
+        std::cerr << "Pattern: '" << data.raw_pattern << "', Command: '"
+                  << data.command << "'" << std::endl;
+        std::cerr << "DEBUG: " << debug_context;
+        if (!debug_context.empty())
+          std::cerr << " ";
+        std::cerr << "Matching case_value='" << case_value
+                  << "' against pattern='" << data.pattern << "'" << std::endl;
+      }
+
+      bool pattern_matches = matches_pattern(case_value, data.pattern);
+
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: " << debug_context;
+        if (!debug_context.empty())
+          std::cerr << " ";
+        std::cerr << "Pattern match result: " << pattern_matches << std::endl;
+      }
+
+      if (!pattern_matches)
+        continue;
+
+      if (!data.command.empty()) {
+        auto semicolon_commands =
+            shell_parser->parse_semicolon_commands(data.command);
+        for (const auto& subcmd : semicolon_commands) {
+          matched_exit_code = executor(subcmd);
+          if (matched_exit_code != 0)
+            break;
         }
+      }
 
-        for (size_t idx = 0; idx < filtered_sections.size(); ++idx) {
-          const auto& section = filtered_sections[idx];
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: " << debug_context;
-            if (!debug_context.empty())
-              std::cerr << " ";
-            std::cerr << ((idx + 1 == filtered_sections.size())
-                              ? "final pattern_section"
-                              : "pattern_section")
-                      << "='" << section << "'" << std::endl;
-          }
+      return true;
+    }
 
-          CaseSectionData data;
-          if (!parse_case_section(section, data))
-            continue;
-
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: " << debug_context;
-            if (!debug_context.empty())
-              std::cerr << " ";
-            std::cerr << "Pattern: '" << data.raw_pattern
-                      << "', Command: '" << data.command << "'"
-                      << std::endl;
-            std::cerr << "DEBUG: " << debug_context;
-            if (!debug_context.empty())
-              std::cerr << " ";
-            std::cerr << "Matching case_value='" << case_value
-                      << "' against pattern='" << data.pattern << "'"
-                      << std::endl;
-          }
-
-          bool pattern_matches = matches_pattern(case_value, data.pattern);
-
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: " << debug_context;
-            if (!debug_context.empty())
-              std::cerr << " ";
-            std::cerr << "Pattern match result: " << pattern_matches
-                      << std::endl;
-          }
-
-          if (!pattern_matches)
-            continue;
-
-          if (!data.command.empty()) {
-            auto semicolon_commands =
-                shell_parser->parse_semicolon_commands(data.command);
-            for (const auto& subcmd : semicolon_commands) {
-              matched_exit_code = executor(subcmd);
-              if (matched_exit_code != 0)
-                break;
-            }
-          }
-
-          return true;
-        }
-
-        return false;
-      };
+    return false;
+  };
 
   auto sanitize_case_patterns =
       [&](const std::string& patterns) -> std::string {
-        size_t esac_pos = patterns.rfind("esac");
-        if (esac_pos != std::string::npos)
-          return patterns.substr(0, esac_pos);
-        return patterns;
-      };
+    size_t esac_pos = patterns.rfind("esac");
+    if (esac_pos != std::string::npos)
+      return patterns.substr(0, esac_pos);
+    return patterns;
+  };
 
   auto evaluate_case_patterns =
-      [&](std::string patterns,
-          const std::string& case_value,
+      [&](std::string patterns, const std::string& case_value,
           const std::string& debug_context,
           bool trim_sections) -> std::pair<bool, int> {
-        auto sanitized = sanitize_case_patterns(patterns);
-        auto sections = split_case_sections(sanitized, trim_sections);
-        int matched_exit_code = 0;
-        bool matched = execute_case_sections(sections, case_value,
-                                             execute_simple_or_pipeline,
-                                             debug_context,
-                                             matched_exit_code);
-        return {matched, matched_exit_code};
-      };
+    auto sanitized = sanitize_case_patterns(patterns);
+    auto sections = split_case_sections(sanitized, trim_sections);
+    int matched_exit_code = 0;
+    bool matched =
+        execute_case_sections(sections, case_value, execute_simple_or_pipeline,
+                              debug_context, matched_exit_code);
+    return {matched, matched_exit_code};
+  };
 
-  auto handle_inline_case =
-      [&](const std::string& text,
-          const std::string& debug_context,
-          bool allow_command_substitution,
-          bool trim_sections) -> std::optional<int> {
-        if (!(text == "case" || text.rfind("case ", 0) == 0))
-          return std::nullopt;
-        if (text.find(" in ") == std::string::npos ||
-            text.find("esac") == std::string::npos)
-          return std::nullopt;
+  auto handle_inline_case = [&](const std::string& text,
+                                const std::string& debug_context,
+                                bool allow_command_substitution,
+                                bool trim_sections) -> std::optional<int> {
+    if (!(text == "case" || text.rfind("case ", 0) == 0))
+      return std::nullopt;
+    if (text.find(" in ") == std::string::npos ||
+        text.find("esac") == std::string::npos)
+      return std::nullopt;
 
-        size_t in_pos = text.find(" in ");
-        std::string case_part = text.substr(0, in_pos);
-        std::string patterns_part = text.substr(in_pos + 4);
-        std::string processed_case_part = case_part;
+    size_t in_pos = text.find(" in ");
+    std::string case_part = text.substr(0, in_pos);
+    std::string patterns_part = text.substr(in_pos + 4);
+    std::string processed_case_part = case_part;
 
-        if (allow_command_substitution &&
-            processed_case_part.find("$(") != std::string::npos) {
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: " << debug_context
-                      << " expanding command substitution in inline case: '"
-                      << processed_case_part << "'" << std::endl;
-          }
-          auto expansion = expand_command_substitutions(
-              processed_case_part,
-              debug_context,
-              "command substitution result",
-              "expanded case part");
-          processed_case_part = expansion.text;
-        }
+    if (allow_command_substitution &&
+        processed_case_part.find("$(") != std::string::npos) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: " << debug_context
+                  << " expanding command substitution in inline case: '"
+                  << processed_case_part << "'" << std::endl;
+      }
+      auto expansion = expand_command_substitutions(
+          processed_case_part, debug_context, "command substitution result",
+          "expanded case part");
+      processed_case_part = expansion.text;
+    }
 
-        std::string case_value;
-        std::string raw_case_value;
+    std::string case_value;
+    std::string raw_case_value;
 
-        auto extract_case_value = [&]() {
-          size_t space_pos = processed_case_part.find(' ');
-          if (space_pos != std::string::npos &&
-              processed_case_part.substr(0, space_pos) == "case") {
-            return trim(processed_case_part.substr(space_pos + 1));
-          }
-          return std::string{};
-        };
+    auto extract_case_value = [&]() {
+      size_t space_pos = processed_case_part.find(' ');
+      if (space_pos != std::string::npos &&
+          processed_case_part.substr(0, space_pos) == "case") {
+        return trim(processed_case_part.substr(space_pos + 1));
+      }
+      return std::string{};
+    };
 
-        raw_case_value = extract_case_value();
+    raw_case_value = extract_case_value();
 
-        if (raw_case_value.empty()) {
-          std::vector<std::string> case_tokens =
-              shell_parser->parse_command(processed_case_part);
-          if (case_tokens.size() >= 2 && case_tokens[0] == "case") {
-            raw_case_value = case_tokens[1];
-          }
-        }
+    if (raw_case_value.empty()) {
+      std::vector<std::string> case_tokens =
+          shell_parser->parse_command(processed_case_part);
+      if (case_tokens.size() >= 2 && case_tokens[0] == "case") {
+        raw_case_value = case_tokens[1];
+      }
+    }
 
-        case_value = raw_case_value;
+    case_value = raw_case_value;
 
-        if (case_value.length() >= 2) {
-          if ((case_value.front() == '"' && case_value.back() == '"') ||
-              (case_value.front() == '\'' && case_value.back() == '\'')) {
-            case_value = case_value.substr(1, case_value.length() - 2);
-          }
-        }
+    if (case_value.length() >= 2) {
+      if ((case_value.front() == '"' && case_value.back() == '"') ||
+          (case_value.front() == '\'' && case_value.back() == '\'')) {
+        case_value = case_value.substr(1, case_value.length() - 2);
+      }
+    }
 
-        if (!case_value.empty())
-          shell_parser->expand_env_vars(case_value);
+    if (!case_value.empty())
+      shell_parser->expand_env_vars(case_value);
 
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: " << debug_context
-                    << " case_part='" << case_part << "'" << std::endl;
-          std::cerr << "DEBUG: " << debug_context
-                    << " raw_case_value='" << raw_case_value
-                    << "' -> expanded='" << case_value << "'" << std::endl;
-          std::string debug_patterns = sanitize_case_patterns(patterns_part);
-          std::cerr << "DEBUG: " << debug_context
-                    << " patterns_part after esac removal='" << debug_patterns
-                    << "'" << std::endl;
-        }
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: " << debug_context << " case_part='" << case_part
+                << "'" << std::endl;
+      std::cerr << "DEBUG: " << debug_context << " raw_case_value='"
+                << raw_case_value << "' -> expanded='" << case_value << "'"
+                << std::endl;
+      std::string debug_patterns = sanitize_case_patterns(patterns_part);
+      std::cerr << "DEBUG: " << debug_context
+                << " patterns_part after esac removal='" << debug_patterns
+                << "'" << std::endl;
+    }
 
-        auto case_result =
-            evaluate_case_patterns(patterns_part, case_value,
-                                    debug_context, trim_sections);
-        return case_result.first
-                   ? std::optional<int>{case_result.second}
-                   : std::optional<int>{0};
-      };
+    auto case_result = evaluate_case_patterns(patterns_part, case_value,
+                                              debug_context, trim_sections);
+    return case_result.first ? std::optional<int>{case_result.second}
+                             : std::optional<int>{0};
+  };
 
   auto evaluate_logical_condition = [&](const std::string& condition) -> int {
     if (g_debug_mode) {
@@ -1850,7 +1837,11 @@ int ShellScriptInterpreter::execute_block(
     return consumed_rc;
   };
 
-  enum class LoopFlow { None, Continue, Break };
+  enum class LoopFlow {
+    None,
+    Continue,
+    Break
+  };
 
   struct LoopCommandOutcome {
     LoopFlow flow;
@@ -1858,37 +1849,30 @@ int ShellScriptInterpreter::execute_block(
   };
 
   auto handle_loop_command_result =
-      [&](int rc,
-          int break_consumed_rc,
-          int break_propagate_rc,
-          int continue_consumed_rc,
-          int continue_propagate_rc,
+      [&](int rc, int break_consumed_rc, int break_propagate_rc,
+          int continue_consumed_rc, int continue_propagate_rc,
           bool allow_error_continue) -> LoopCommandOutcome {
-        if (rc == 255) {
-          int adjusted =
-              adjust_loop_signal("CJSH_BREAK_LEVEL",
-                                  break_consumed_rc,
-                                  break_propagate_rc);
-          return {LoopFlow::Break, adjusted};
-        }
-        if (rc == 254) {
-          int adjusted =
-              adjust_loop_signal("CJSH_CONTINUE_LEVEL",
-                                  continue_consumed_rc,
-                                  continue_propagate_rc);
-          if (adjusted == continue_consumed_rc)
-            return {LoopFlow::Continue, adjusted};
-          return {LoopFlow::Break, adjusted};
-        }
-        if (rc != 0) {
-          if (g_shell && g_shell->is_errexit_enabled())
-            return {LoopFlow::Break, rc};
-          if (allow_error_continue)
-            return {LoopFlow::Continue, rc};
-          return {LoopFlow::Break, rc};
-        }
-        return {LoopFlow::None, 0};
-      };
+    if (rc == 255) {
+      int adjusted = adjust_loop_signal("CJSH_BREAK_LEVEL", break_consumed_rc,
+                                        break_propagate_rc);
+      return {LoopFlow::Break, adjusted};
+    }
+    if (rc == 254) {
+      int adjusted = adjust_loop_signal(
+          "CJSH_CONTINUE_LEVEL", continue_consumed_rc, continue_propagate_rc);
+      if (adjusted == continue_consumed_rc)
+        return {LoopFlow::Continue, adjusted};
+      return {LoopFlow::Break, adjusted};
+    }
+    if (rc != 0) {
+      if (g_shell && g_shell->is_errexit_enabled())
+        return {LoopFlow::Break, rc};
+      if (allow_error_continue)
+        return {LoopFlow::Continue, rc};
+      return {LoopFlow::Break, rc};
+    }
+    return {LoopFlow::None, 0};
+  };
 
   auto handle_if_block = [&](const std::vector<std::string>& src_lines,
                              size_t& idx) -> int {
@@ -2309,12 +2293,7 @@ int ShellScriptInterpreter::execute_block(
           auto cmds = shell_parser->parse_semicolon_commands(body);
           for (const auto& c : cmds) {
             auto outcome = handle_loop_command_result(
-                execute_simple_or_pipeline(c),
-                255,
-                255,
-                254,
-                255,
-                false);
+                execute_simple_or_pipeline(c), 255, 255, 254, 255, false);
             if (outcome.flow != LoopFlow::None)
               return outcome.code;
           }
@@ -2342,8 +2321,7 @@ int ShellScriptInterpreter::execute_block(
           return rc_local;
         };
 
-        rc = iterate_range(range_info.start,
-                           range_info.end,
+        rc = iterate_range(range_info.start, range_info.end,
                            range_info.is_ascending ? 1 : -1);
       } else {
         bool break_outer = false;
@@ -2353,12 +2331,7 @@ int ShellScriptInterpreter::execute_block(
           bool continue_outer = false;
           for (const auto& c : cmds) {
             auto outcome = handle_loop_command_result(
-                execute_simple_or_pipeline(c),
-                0,
-                255,
-                0,
-                254,
-                true);
+                execute_simple_or_pipeline(c), 0, 255, 0, 254, true);
             rc = outcome.code;
             if (outcome.flow == LoopFlow::None)
               continue;
@@ -2439,13 +2412,8 @@ int ShellScriptInterpreter::execute_block(
     int rc = 0;
 
     auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
-      return handle_loop_command_result(
-          execute_block(body_lines),
-          0,
-          255,
-          0,
-          254,
-          true);
+      return handle_loop_command_result(execute_block(body_lines), 0, 255, 0,
+                                        254, true);
     };
 
     if (range_info.is_range) {
@@ -2470,8 +2438,7 @@ int ShellScriptInterpreter::execute_block(
         return rc_local;
       };
 
-      rc = iterate_range_body(range_info.start,
-                              range_info.end,
+      rc = iterate_range_body(range_info.start, range_info.end,
                               range_info.is_ascending ? 1 : -1);
     } else {
       for (const auto& it : items) {
@@ -2545,10 +2512,9 @@ int ShellScriptInterpreter::execute_block(
       if (g_debug_mode) {
         std::cerr << "DEBUG: Found command substitution in header" << std::endl;
       }
-      auto expansion = expand_command_substitutions(header_accum,
-                                                    "[case header]",
-                                                    "Command substitution result",
-                                                    "Expanded header");
+      auto expansion = expand_command_substitutions(
+          header_accum, "[case header]", "Command substitution result",
+          "Expanded header");
       expanded_header = expansion.text;
     }
 
@@ -2620,10 +2586,8 @@ int ShellScriptInterpreter::execute_block(
       esac_index = j;
     }
 
-    auto case_result = evaluate_case_patterns(combined_patterns,
-                                              case_value,
-                                              "[case block]",
-                                              false);
+    auto case_result = evaluate_case_patterns(combined_patterns, case_value,
+                                              "[case block]", false);
     idx = esac_index;
     return case_result.first ? case_result.second : 0;
   };
@@ -2632,8 +2596,7 @@ int ShellScriptInterpreter::execute_block(
                                size_t& idx, const std::string& keyword,
                                bool is_until) -> int {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (!(first == keyword ||
-          first.rfind(keyword + " ", 0) == 0))
+    if (!(first == keyword || first.rfind(keyword + " ", 0) == 0))
       return 1;
 
     auto parse_cond_from = [&](const std::string& s, std::string& cond,
@@ -2746,13 +2709,7 @@ int ShellScriptInterpreter::execute_block(
         break;
 
       rc = execute_block(body_lines);
-      auto outcome = handle_loop_command_result(
-          rc,
-          0,
-          255,
-          0,
-          254,
-          true);
+      auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
       rc = outcome.code;
       if (outcome.flow == LoopFlow::Break)
         break;
@@ -2787,54 +2744,52 @@ int ShellScriptInterpreter::execute_block(
 
   auto try_execute_inline_do_block =
       [&](const std::string& first_segment,
-          const std::vector<std::string>& segments,
-          size_t& segment_index,
+          const std::vector<std::string>& segments, size_t& segment_index,
           const std::function<int(const std::vector<std::string>&, size_t&)>&
               handler) -> std::optional<int> {
-        if (first_segment.find("; do") != std::string::npos)
-          return std::nullopt;
+    if (first_segment.find("; do") != std::string::npos)
+      return std::nullopt;
 
-        size_t lookahead = segment_index + 1;
-        if (lookahead >= segments.size())
-          return std::optional<int>{1};
+    size_t lookahead = segment_index + 1;
+    if (lookahead >= segments.size())
+      return std::optional<int>{1};
 
-        std::string next_segment =
-            trim(strip_inline_comment(segments[lookahead]));
-        if (!(next_segment == "do" || next_segment.rfind("do ", 0) == 0))
-          return std::optional<int>{1};
+    std::string next_segment = trim(strip_inline_comment(segments[lookahead]));
+    if (!(next_segment == "do" || next_segment.rfind("do ", 0) == 0))
+      return std::optional<int>{1};
 
-        std::string body =
-            next_segment.size() > 3 && next_segment.rfind("do ", 0) == 0
-                ? trim(next_segment.substr(3))
-                : "";
+    std::string body =
+        next_segment.size() > 3 && next_segment.rfind("do ", 0) == 0
+            ? trim(next_segment.substr(3))
+            : "";
 
-        size_t scan = lookahead + 1;
-        bool found_done = false;
-        for (; scan < segments.size(); ++scan) {
-          std::string seg = trim(strip_inline_comment(segments[scan]));
-          if (seg == "done") {
-            found_done = true;
-            break;
-          }
-          if (!body.empty())
-            body += "; ";
-          body += seg;
-        }
+    size_t scan = lookahead + 1;
+    bool found_done = false;
+    for (; scan < segments.size(); ++scan) {
+      std::string seg = trim(strip_inline_comment(segments[scan]));
+      if (seg == "done") {
+        found_done = true;
+        break;
+      }
+      if (!body.empty())
+        body += "; ";
+      body += seg;
+    }
 
-        if (!found_done)
-          return std::optional<int>{1};
+    if (!found_done)
+      return std::optional<int>{1};
 
-        std::string combined = first_segment + "; do";
-        if (!body.empty())
-          combined += " " + body;
-        combined += "; done";
+    std::string combined = first_segment + "; do";
+    if (!body.empty())
+      combined += " " + body;
+    combined += "; done";
 
-        size_t local_idx = 0;
-        std::vector<std::string> inline_lines{combined};
-        int rc = handler(inline_lines, local_idx);
-        segment_index = scan;
-        return std::optional<int>{rc};
-      };
+    size_t local_idx = 0;
+    std::vector<std::string> inline_lines{combined};
+    int rc = handler(inline_lines, local_idx);
+    segment_index = scan;
+    return std::optional<int>{rc};
+  };
 
   for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
     const auto& raw_line = lines[line_index];
@@ -3193,8 +3148,8 @@ int ShellScriptInterpreter::execute_block(
           }
 
           if ((t.rfind("for ", 0) == 0 || t == "for")) {
-            if (auto inline_result =
-                    try_execute_inline_do_block(t, semis, k, handle_for_block)) {
+            if (auto inline_result = try_execute_inline_do_block(
+                    t, semis, k, handle_for_block)) {
               last_code = *inline_result;
               break;
             }

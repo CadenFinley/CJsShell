@@ -176,13 +176,13 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     }
   }
 
-  //reset all old segments and theme properties
+  // reset all old segments and theme properties
   ps1_segments.clear();
   git_segments.clear();
   ai_segments.clear();
   newline_segments.clear();
   inline_right_segments.clear();
-  
+
   // Reset other theme properties to defaults
   terminal_title_format = "";
   fill_char_ = "";

@@ -10,29 +10,29 @@ extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
   if (args.size() < 2) {
-  print_error(
-    {ErrorType::INVALID_ARGUMENT,
-     "login-startup-arg",
-     "Missing flag argument",
-     {"Usage: login-startup-arg [--flag-name]",
-      "Available flags:", "  --login              Set login mode",
-      "  --interactive        Force interactive mode",
-      "  --debug              Enable debug mode",
-      "  --no-plugins         Disable plugins",
-      "  --no-themes          Disable themes",
-      "  --no-ai              Disable AI features",
-      "  --no-colors          Disable colors",
-      "  --no-titleline       Disable title line",
-      "  --show-startup-time  Display shell startup time",
-      "  --no-source          Don't source the .cjshrc file",
-      "  --no-completions     Disable tab completions",
-      "  --no-syntax-highlighting Disable syntax highlighting",
-      "  --no-smart-cd        Disable smart cd functionality",
-      "  --minimal            Disable all unique cjsh features (plugins, "
-      "themes, AI, colors, completions, syntax highlighting, smart cd, "
-      "sourcing, custom ls, startup time display)",
-      "  --disable-custom-ls  Use system ls command instead of builtin ls",
-      "  --startup-test       Enable startup test mode"}});
+    print_error(
+        {ErrorType::INVALID_ARGUMENT,
+         "login-startup-arg",
+         "Missing flag argument",
+         {"Usage: login-startup-arg [--flag-name]",
+          "Available flags:", "  --login              Set login mode",
+          "  --interactive        Force interactive mode",
+          "  --debug              Enable debug mode",
+          "  --no-plugins         Disable plugins",
+          "  --no-themes          Disable themes",
+          "  --no-ai              Disable AI features",
+          "  --no-colors          Disable colors",
+          "  --no-titleline       Disable title line",
+          "  --show-startup-time  Display shell startup time",
+          "  --no-source          Don't source the .cjshrc file",
+          "  --no-completions     Disable tab completions",
+          "  --no-syntax-highlighting Disable syntax highlighting",
+          "  --no-smart-cd        Disable smart cd functionality",
+          "  --minimal            Disable all unique cjsh features (plugins, "
+          "themes, AI, colors, completions, syntax highlighting, smart cd, "
+          "sourcing, custom ls, startup time display)",
+          "  --disable-custom-ls  Use system ls command instead of builtin ls",
+          "  --startup-test       Enable startup test mode"}});
     return 1;
   }
 
@@ -68,9 +68,9 @@ int startup_flag_command(const std::vector<std::string>& args) {
                 << "' already exists in profile startup args" << std::endl;
     }
   } else {
-  print_error({ErrorType::INVALID_ARGUMENT,
-         "login-startup-arg",
-         "unknown flag '" + flag + "'",
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "login-startup-arg",
+                 "unknown flag '" + flag + "'",
                  {}});
     return 1;
   }

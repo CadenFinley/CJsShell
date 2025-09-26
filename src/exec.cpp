@@ -135,7 +135,7 @@ ExitErrorResult make_exit_error_result(const std::string& command,
   return result;
 }
 
-}
+}  // namespace
 
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
                                                bool force_overwrite = false) {
@@ -522,7 +522,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
     int job_id = add_job(job);
 
-  std::string full_command = join_arguments(args);
+    std::string full_command = join_arguments(args);
     JobManager::instance().add_job(pid, {pid}, full_command);
     JobManager::instance().set_last_background_pid(pid);
 

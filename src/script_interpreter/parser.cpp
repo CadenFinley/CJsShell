@@ -258,7 +258,8 @@ namespace {
 static const char QUOTE_PREFIX = '\x1F';
 static const char QUOTE_SINGLE = 'S';
 static const char QUOTE_DOUBLE = 'D';
-static const std::string SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
+static const std::string SUBST_LITERAL_START =
+    "\x1E__SUBST_LITERAL_START__\x1E";
 static const std::string SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";
 
 inline bool is_single_quoted_token(const std::string& s) {
@@ -423,9 +424,8 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   };
 
   for (size_t i = 0; i < cmdline.length(); ++i) {
-    if (!in_subst_literal &&
-        cmdline.compare(i, SUBST_LITERAL_START.size(), SUBST_LITERAL_START) ==
-            0) {
+    if (!in_subst_literal && cmdline.compare(i, SUBST_LITERAL_START.size(),
+                                             SUBST_LITERAL_START) == 0) {
       in_subst_literal = true;
       i += SUBST_LITERAL_START.size() - 1;
       continue;
@@ -455,11 +455,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
         current_token += c;
       }
       escaped = false;
-    } else if (!in_subst_literal &&
-               c == '\\' && (!in_quotes || quote_char != '\'')) {
+    } else if (!in_subst_literal && c == '\\' &&
+               (!in_quotes || quote_char != '\'')) {
       escaped = true;
-    } else if ((c == '"' || c == '\'') && !in_quotes &&
-               !in_subst_literal) {
+    } else if ((c == '"' || c == '\'') && !in_quotes && !in_subst_literal) {
       in_quotes = true;
       quote_char = c;
       if (c == '\'')

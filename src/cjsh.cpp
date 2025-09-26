@@ -113,7 +113,6 @@ static void initialize_title_strings() {
 //  valgrind --leak-check=full --show-leak-kinds=all
 //  fix leaks in isocline
 
-
 /*
  * Exit/Return Codes:
  * 0       - Success
@@ -459,8 +458,7 @@ static void save_startup_arguments(int argc, char* argv[]) {
 
 static int handle_early_exit_modes() {
   if (config::show_version) {  // -v --version
-    std::cout << c_version
-              << std::endl;
+    std::cout << c_version << std::endl;
     return 0;
   }
 
@@ -745,14 +743,15 @@ static void main_process_loop() {
       prompt += "\n";
       prompt += g_shell->get_newline_prompt();
     }
-    
+
     // Get inline right-aligned text
     inline_right_text = g_shell->get_inline_right_prompt();
 
     if (g_debug_mode) {
       auto render_time_end = std::chrono::steady_clock::now();
       auto render_duration =
-          std::chrono::duration_cast<std::chrono::microseconds>(render_time_end - render_time_start);
+          std::chrono::duration_cast<std::chrono::microseconds>(
+              render_time_end - render_time_start);
       std::cerr << "DEBUG: Prompt rendering took " << render_duration.count()
                 << "μs" << std::endl;
     }
@@ -761,11 +760,11 @@ static void main_process_loop() {
       std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt
                 << "'" << std::endl;
       if (!inline_right_text.empty()) {
-        std::cerr << "DEBUG: Inline right text: '" << inline_right_text
-                  << "'" << std::endl;
+        std::cerr << "DEBUG: Inline right text: '" << inline_right_text << "'"
+                  << std::endl;
       }
     }
-    
+
     char* input;
     if (!inline_right_text.empty()) {
       input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str());

@@ -85,16 +85,19 @@ ic_public char* ic_readline(const char* prompt_text) {
   }
 }
 
-ic_public char* ic_readline_inline(const char* prompt_text, const char* inline_right_text) {
-  // fprintf(stderr, "DEBUG: ic_readline_inline called with prompt='%s', inline_right='%s'\n", 
-  //         prompt_text ? prompt_text : "NULL", 
+ic_public char* ic_readline_inline(const char* prompt_text,
+                                   const char* inline_right_text) {
+  // fprintf(stderr, "DEBUG: ic_readline_inline called with prompt='%s',
+  // inline_right='%s'\n",
+  //         prompt_text ? prompt_text : "NULL",
   //         inline_right_text ? inline_right_text : "NULL");
   ic_env_t* env = ic_get_env();
   if (env == NULL)
     return NULL;
   if (!env->noedit) {
     // terminal editing enabled
-    return ic_editline_inline(env, prompt_text, inline_right_text);  // in editline.c
+    return ic_editline_inline(env, prompt_text,
+                              inline_right_text);  // in editline.c
   } else {
     // no editing capability (pipe, dumb terminal, etc)
     // For fallback mode, just use regular readline behavior

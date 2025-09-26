@@ -41,8 +41,9 @@ int theme_command(const std::vector<std::string>& args) {
       std::cout
           << "  theme preview all         - Preview all available local themes"
           << std::endl;
-    std::cout << "  theme reload              - Reload the active theme from disk"
-        << std::endl;
+      std::cout
+          << "  theme reload              - Reload the active theme from disk"
+          << std::endl;
       std::cout << "  theme uninstall <theme_name> - Uninstall a theme"
                 << std::endl;
     } else {

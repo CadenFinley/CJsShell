@@ -41,10 +41,10 @@ typedef struct editor_s {
   ssize_t history_idx;  // current index in the history
   editstate_t* undo;    // undo buffer
   editstate_t* redo;    // redo buffer
-  const char* prompt_text;  // text of the prompt before the prompt marker
+  const char* prompt_text;        // text of the prompt before the prompt marker
   const char* inline_right_text;  // inline right-aligned text on input line
-  ssize_t inline_right_width; // cached width of inline right text
-  alloc_t* mem;             // allocator
+  ssize_t inline_right_width;     // cached width of inline right text
+  alloc_t* mem;                   // allocator
   // caches
   attrbuf_t* attrs;  // reuse attribute buffers
   attrbuf_t* attrs_extra;
@@ -55,8 +55,9 @@ typedef struct editor_s {
 //-------------------------------------------------------------
 static char* edit_line(ic_env_t* env,
                        const char* prompt_text);  // defined at bottom
-static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
-                             const char* inline_right_text);  // defined at bottom
+static char* edit_line_inline(
+    ic_env_t* env, const char* prompt_text,
+    const char* inline_right_text);  // defined at bottom
 static void edit_refresh(ic_env_t* env, editor_t* eb);
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text) {
@@ -70,7 +71,8 @@ ic_private char* ic_editline(ic_env_t* env, const char* prompt_text) {
   return line;
 }
 
-ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
+ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text,
+                                    const char* inline_right_text) {
   tty_start_raw(env->tty);
   term_start_raw(env->term);
   char* line = edit_line_inline(env, prompt_text, inline_right_text);
@@ -157,22 +159,22 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra,
     *promptw = markerw + textw;
     *cpromptw =
         (env->no_multiline_indent || *promptw < cmarkerw ? cmarkerw : *promptw);
-    
+
     // Update cached inline right text width
     if (eb->inline_right_text != NULL) {
-      eb->inline_right_width = bbcode_column_width(env->bbcode, eb->inline_right_text);
+      eb->inline_right_width =
+          bbcode_column_width(env->bbcode, eb->inline_right_text);
       // Try direct string length as backup
       ssize_t str_len = strlen(eb->inline_right_text);
-      
-      // TEMPORARY FIX: If bbcode_column_width returns 0, use estimated visible width
+
+      // TEMPORARY FIX: If bbcode_column_width returns 0, use estimated visible
+      // width
       if (eb->inline_right_width == 0 && str_len > 0) {
         // For now, estimate that our time format [HH:MM:SS] is 10 characters
         eb->inline_right_width = 10;
-
       }
     } else {
       eb->inline_right_width = 0;
-
     }
   }
 }
@@ -325,37 +327,41 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row,
     // Handle inline right-aligned text on the last (input) row
     if (row == 0 && !info->in_extra && info->eb->inline_right_text != NULL) {
       ssize_t promptw, cpromptw;
-      edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
-      
+      edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw,
+                            &cpromptw);
+
       ssize_t current_pos = promptw + row_len;
       ssize_t right_text_width = info->eb->inline_right_width;
       ssize_t terminal_width = info->eb->termw;
-      
 
-      
-      // Only show right text if there's enough space and input hasn't reached it
+      // Only show right text if there's enough space and input hasn't reached
+      // it
 
       if (terminal_width > current_pos + right_text_width + 1) {
         ssize_t spaces_needed = terminal_width - current_pos - right_text_width;
         // Write spaces and then right-aligned text
         term_write_repeat(term, " ", spaces_needed);
-        // Write the inline right text, extracting plain text from bbcode if needed
+        // Write the inline right text, extracting plain text from bbcode if
+        // needed
         const char* text_to_write = info->eb->inline_right_text;
         const char* time_start = NULL;
-        
-        // Look for time pattern [HH:MM:SS] in the text to extract from bbcode formatting
+
+        // Look for time pattern [HH:MM:SS] in the text to extract from bbcode
+        // formatting
         for (const char* p = text_to_write; *p; p++) {
-          if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' && 
-              p[3] == ':' && p[4] >= '0' && p[4] <= '9' && p[5] >= '0' && p[5] <= '9' &&
-              p[6] == ':' && p[7] >= '0' && p[7] <= '9' && p[8] >= '0' && p[8] <= '9' && p[9] == ']') {
+          if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' &&
+              p[2] <= '9' && p[3] == ':' && p[4] >= '0' && p[4] <= '9' &&
+              p[5] >= '0' && p[5] <= '9' && p[6] == ':' && p[7] >= '0' &&
+              p[7] <= '9' && p[8] >= '0' && p[8] <= '9' && p[9] == ']') {
             time_start = p;
             break;
           }
         }
-        
+
         if (time_start) {
           // Found time pattern, write just the clean time without ANSI codes
-          term_write_n(info->env->term, time_start, 10);  // [HH:MM:SS] is exactly 10 chars
+          term_write_n(info->env->term, time_start,
+                       10);  // [HH:MM:SS] is exactly 10 chars
         } else {
           // Fallback: use bbcode_print for other content
           bbcode_print(info->env->bbcode, info->eb->inline_right_text);
@@ -363,12 +369,10 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row,
         term_flush(info->env->term);  // Ensure text is flushed to terminal
         // DON'T clear to end of line after writing the text!
       } else {
-
         // Clear to end of line if no space for right text
         term_clear_to_end_of_line(term);
       }
     } else {
-
       term_clear_to_end_of_line(term);
     }
   }
@@ -1335,7 +1339,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
   return res;
 }
 
-static char* edit_line_inline(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
+static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
+                              const char* inline_right_text) {
   // set up an edit buffer
   editor_t eb;
   memset(&eb, 0, sizeof(eb));
@@ -1356,11 +1361,10 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text, const char
   print_prompt_prefix_lines(env, original_prompt);
   char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);
   eb.prompt_text = last_line_prompt;
-  
+
   // Set inline right-aligned text
   eb.inline_right_text = inline_right_text;
   eb.inline_right_width = 0;  // Will be calculated in edit_get_prompt_width
-
 
   eb.history_idx = 0;
   editstate_init(&eb.undo);
@@ -1378,8 +1382,9 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text, const char
 
   // show prompt
   edit_write_prompt(env, &eb, 0, false);
-  
-  // For inline right text, do an initial refresh to display the right-aligned content
+
+  // For inline right text, do an initial refresh to display the right-aligned
+  // content
   if (eb.inline_right_text != NULL) {
     edit_refresh(env, &eb);
   }

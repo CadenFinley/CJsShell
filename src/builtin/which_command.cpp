@@ -1,8 +1,8 @@
 #include "which_command.h"
 #include <sys/stat.h>
 #include <unistd.h>
-#include <iostream>
 #include <algorithm>
+#include <iostream>
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -58,23 +58,24 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
     bool found_executable = false;
 
     // Commands that have CJsShell custom implementations
-    const std::vector<std::string> cjsh_custom_commands = {
-        "echo", "printf", "pwd", "cd", "ls"
-    };
-    
-    bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), 
-                                   cjsh_custom_commands.end(), 
-                                   name) != cjsh_custom_commands.end();
+    const std::vector<std::string> cjsh_custom_commands = {"echo", "printf",
+                                                           "pwd", "cd", "ls"};
+
+    bool is_cjsh_custom =
+        std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
+                  name) != cjsh_custom_commands.end();
 
     // Special case: ls might be disabled
     if (name == "ls" && config::disable_custom_ls) {
-        is_cjsh_custom = false;
+      is_cjsh_custom = false;
     }
 
     // For CJsShell custom implementations, show that first (except for ls)
-    if (is_cjsh_custom && shell && shell->get_built_ins()->is_builtin_command(name)) {
+    if (is_cjsh_custom && shell &&
+        shell->get_built_ins()->is_builtin_command(name)) {
       if (!silent) {
-        std::cout << name << " is a cjsh builtin (custom implementation)" << std::endl;
+        std::cout << name << " is a cjsh builtin (custom implementation)"
+                  << std::endl;
       }
       found = true;
       if (!show_all) {
@@ -120,7 +121,8 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
       }
     }
 
-    // Only show other shell information if -a is used or if no executable was found
+    // Only show other shell information if -a is used or if no executable was
+    // found
     if (show_all || (!found_executable && !is_cjsh_custom)) {
       // Check if it's a builtin command in CJsShell (for non-custom commands)
       if (shell && shell->get_built_ins()->is_builtin_command(name)) {
@@ -136,7 +138,8 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         auto alias_it = aliases.find(name);
         if (alias_it != aliases.end()) {
           if (!silent) {
-            std::cout << "which: " << name << " is aliased to `" << alias_it->second << "'" << std::endl;
+            std::cout << "which: " << name << " is aliased to `"
+                      << alias_it->second << "'" << std::endl;
           }
           found = true;
         }

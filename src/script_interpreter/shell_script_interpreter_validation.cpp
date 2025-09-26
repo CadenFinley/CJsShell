@@ -1207,14 +1207,14 @@ ShellScriptInterpreter::validate_parameter_expansions(
               std::string var_name = line.substr(var_start, i - var_start);
 
               if (!var_name.empty()) {
-          if (!is_valid_identifier_start(var_name[0])) {
+                if (!is_valid_identifier_start(var_name[0])) {
                   line_errors.push_back(SyntaxError(
                       {display_line, var_start, i, 0}, ErrorSeverity::ERROR,
                       ErrorCategory::VARIABLES, "VAR004",
-            "Invalid variable name '" + var_name +
-              "' - must start with letter or underscore",
-            line,
-            "Use variable name starting with letter or underscore"));
+                      "Invalid variable name '" + var_name +
+                          "' - must start with letter or underscore",
+                      line,
+                      "Use variable name starting with letter or underscore"));
                 }
 
                 if (var_start > 0 && std::isspace(line[var_start - 1])) {

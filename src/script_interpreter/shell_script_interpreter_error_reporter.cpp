@@ -131,8 +131,7 @@ void ErrorReporter::print_error_report(
 
     size_t column_start = error.position.column_start;
     size_t column_end = error.position.column_end;
-    std::string sanitized_message =
-        strip_internal_placeholders(error.message);
+    std::string sanitized_message = strip_internal_placeholders(error.message);
     std::string sanitized_line_content = strip_internal_placeholders(
         error.line_content, &column_start, &column_end);
     std::string sanitized_suggestion =
@@ -210,10 +209,9 @@ void ErrorReporter::print_error_report(
             if (column_start <= cumulative_length + lines[i].length()) {
               target_line_index = i;
               adjusted_column_start = column_start - cumulative_length;
-              size_t effective_column_end =
-                  column_end > cumulative_length
-                      ? column_end - cumulative_length
-                      : 0;
+              size_t effective_column_end = column_end > cumulative_length
+                                                ? column_end - cumulative_length
+                                                : 0;
               adjusted_column_end =
                   std::min(effective_column_end, lines[i].length());
               break;
@@ -226,8 +224,7 @@ void ErrorReporter::print_error_report(
           } else {
             display_line = lines[0];
             adjusted_column_start = 0;
-            adjusted_column_end =
-                std::min(column_end, display_line.length());
+            adjusted_column_end = std::min(column_end, display_line.length());
           }
         } else {
           display_line = lines.empty() ? "" : lines[0];
@@ -375,8 +372,7 @@ void ErrorReporter::print_error_report(
     if (show_suggestions && !sanitized_suggestion.empty()) {
       std::cout << "│" << std::endl;
       std::cout << "│  " << GREEN << "Suggestion: " << RESET
-                << sanitized_suggestion
-                << std::endl;
+                << sanitized_suggestion << std::endl;
     }
 
     size_t terminal_width = get_terminal_width();
