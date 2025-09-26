@@ -113,7 +113,6 @@ static void initialize_title_strings() {
 //  valgrind --leak-check=full --show-leak-kinds=all
 //  fix leaks in isocline
 
-//  shell script error and syntax validation prolly needs to be adjusted echo $(version)
 
 /*
  * Exit/Return Codes:
