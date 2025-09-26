@@ -258,6 +258,8 @@ namespace {
 static const char QUOTE_PREFIX = '\x1F';
 static const char QUOTE_SINGLE = 'S';
 static const char QUOTE_DOUBLE = 'D';
+static const std::string SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
+static const std::string SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";
 
 inline bool is_single_quoted_token(const std::string& s) {
   return s.size() >= 2 && s[0] == QUOTE_PREFIX && s[1] == QUOTE_SINGLE;
@@ -288,6 +290,39 @@ static inline std::pair<std::string, bool> strip_noenv_sentinels(
     return {out, true};
   }
   return {s, false};
+}
+
+static inline bool strip_subst_literal_markers(std::string& value) {
+  if (value.empty()) {
+    return false;
+  }
+
+  bool changed = false;
+  std::string result;
+  result.reserve(value.size());
+
+  for (size_t i = 0; i < value.size();) {
+    if (value.compare(i, SUBST_LITERAL_START.size(), SUBST_LITERAL_START) ==
+        0) {
+      i += SUBST_LITERAL_START.size();
+      changed = true;
+      continue;
+    }
+    if (value.compare(i, SUBST_LITERAL_END.size(), SUBST_LITERAL_END) == 0) {
+      i += SUBST_LITERAL_END.size();
+      changed = true;
+      continue;
+    }
+
+    result.push_back(value[i]);
+    ++i;
+  }
+
+  if (changed) {
+    value.swap(result);
+  }
+
+  return changed;
 }
 
 inline bool contains_tilde(const std::string& value) {
@@ -366,8 +401,6 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   int arith_depth = 0;
   int brace_depth = 0;
   int bracket_depth = 0;
-  const std::string subst_literal_start = "\x1E__SUBST_LITERAL_START__\x1E";
-  const std::string subst_literal_end = "\x1E__SUBST_LITERAL_END__\x1E";
   bool in_subst_literal = false;
 
   bool token_saw_single = false;
@@ -391,17 +424,17 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
 
   for (size_t i = 0; i < cmdline.length(); ++i) {
     if (!in_subst_literal &&
-        cmdline.compare(i, subst_literal_start.size(), subst_literal_start) ==
+        cmdline.compare(i, SUBST_LITERAL_START.size(), SUBST_LITERAL_START) ==
             0) {
       in_subst_literal = true;
-      i += subst_literal_start.size() - 1;
+      i += SUBST_LITERAL_START.size() - 1;
       continue;
     }
 
     if (in_subst_literal &&
-        cmdline.compare(i, subst_literal_end.size(), subst_literal_end) == 0) {
+        cmdline.compare(i, SUBST_LITERAL_END.size(), SUBST_LITERAL_END) == 0) {
       in_subst_literal = false;
-      i += subst_literal_end.size() - 1;
+      i += SUBST_LITERAL_END.size() - 1;
       continue;
     }
 
@@ -515,11 +548,6 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   if (in_quotes) {
     throw std::runtime_error("cjsh: Unclosed quote: missing closing " +
                              std::string(1, quote_char));
-  }
-
-  if (in_subst_literal) {
-    throw std::runtime_error(
-        "cjsh: Unterminated command substitution literal marker");
   }
 
   return tokens;
@@ -798,6 +826,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         } catch (const std::runtime_error& e) {
           throw e;
         }
+        strip_subst_literal_markers(noenv_stripped);
       } else {
         try {
           expand_env_vars_selective(tmp);
@@ -805,6 +834,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         } catch (const std::runtime_error& e) {
           throw e;
         }
+        strip_subst_literal_markers(noenv_stripped);
       }
 
       if (is_double_quoted_token(raw_arg)) {
@@ -1778,6 +1808,8 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
           expand_env_vars(content);
         }
 
+        strip_subst_literal_markers(content);
+
         cmd.here_doc = content;
         cmd.input_file.clear();
       }
@@ -1791,6 +1823,8 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
 
         expand_env_vars(content);
       }
+
+      strip_subst_literal_markers(content);
 
       cmd.here_doc = content;
     }
