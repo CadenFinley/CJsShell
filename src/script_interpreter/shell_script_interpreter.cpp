@@ -110,6 +110,99 @@ int ShellScriptInterpreter::execute_block(
     return false;
   };
 
+  struct CommandSubstitutionExpansion {
+    std::string text;
+    std::vector<std::string> outputs;
+  };
+
+  auto find_matching_paren = [&](const std::string& text,
+                                 size_t start_index) -> std::optional<size_t> {
+    int depth = 1;
+    for (size_t i = start_index; i < text.size(); ++i) {
+      if (text[i] == '(')
+        depth++;
+      else if (text[i] == ')') {
+        depth--;
+        if (depth == 0)
+          return i;
+      }
+    }
+    return std::nullopt;
+  };
+
+  auto expand_command_substitutions =
+      [&](const std::string& input,
+          const std::string& debug_context,
+          const std::string& result_label,
+          const std::string& expanded_label) -> CommandSubstitutionExpansion {
+        CommandSubstitutionExpansion info{input, {}};
+        std::string text = input;
+        size_t search_pos = 0;
+        while (true) {
+          size_t start = text.find("$(", search_pos);
+          if (start == std::string::npos)
+            break;
+          auto end_opt = find_matching_paren(text, start + 2);
+          if (!end_opt)
+            break;
+          size_t end = *end_opt;
+          std::string command = text.substr(start + 2, end - start - 2);
+          auto cmd_output =
+              cjsh_filesystem::FileOperations::read_command_output(command);
+          if (!cmd_output.is_ok()) {
+            search_pos = end + 1;
+            continue;
+          }
+          std::string result = cmd_output.value();
+          while (!result.empty() &&
+                 (result.back() == '\n' || result.back() == '\r'))
+            result.pop_back();
+          info.outputs.push_back(result);
+          text = text.substr(0, start) + result + text.substr(end + 1);
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: " << debug_context << " " << result_label
+                      << ": '" << result << "'" << std::endl;
+            std::cerr << "DEBUG: " << debug_context << " " << expanded_label
+                      << ": '" << text << "'" << std::endl;
+          }
+          search_pos = start + result.size();
+        }
+        info.text = text;
+        return info;
+      };
+
+  auto collect_case_body =
+      [&](const std::vector<std::string>& src_lines,
+          size_t start_index) -> std::pair<std::string, size_t> {
+        std::ostringstream body_stream;
+        bool appended = false;
+        size_t end_index = start_index;
+        for (size_t i = start_index; i < src_lines.size(); ++i) {
+          std::string raw = strip_inline_comment(src_lines[i]);
+          std::string trimmed_line = trim(raw);
+          if (trimmed_line.empty())
+            continue;
+          size_t esac_pos = trimmed_line.find("esac");
+          if (esac_pos != std::string::npos) {
+            std::string before_esac =
+                trim(trimmed_line.substr(0, esac_pos));
+            if (!before_esac.empty()) {
+              if (appended)
+                body_stream << '\n';
+              body_stream << before_esac;
+              appended = true;
+            }
+            end_index = i;
+            return {body_stream.str(), end_index};
+          }
+          if (appended)
+            body_stream << '\n';
+          body_stream << trimmed_line;
+          appended = true;
+        }
+        return {body_stream.str(), src_lines.size()};
+      };
+
   auto split_case_sections = [&](const std::string& input,
                                  bool trim_sections) -> std::vector<std::string> {
     std::vector<std::string> sections;
@@ -293,45 +386,18 @@ int ShellScriptInterpreter::execute_block(
         std::string processed_case_part = case_part;
 
         if (allow_command_substitution &&
-            (processed_case_part.find("$(") != std::string::npos ||
-             processed_case_part.find("`") != std::string::npos)) {
+            processed_case_part.find("$(") != std::string::npos) {
           if (g_debug_mode) {
-            std::cerr << "DEBUG: " << debug_context << " expanding command substitution in inline case: '"
+            std::cerr << "DEBUG: " << debug_context
+                      << " expanding command substitution in inline case: '"
                       << processed_case_part << "'" << std::endl;
           }
-          try {
-            size_t cmd_start = processed_case_part.find("$(");
-            if (cmd_start != std::string::npos) {
-              size_t cmd_end = processed_case_part.find(")", cmd_start + 2);
-              if (cmd_end != std::string::npos) {
-                std::string cmd_sub =
-                    processed_case_part.substr(cmd_start + 2,
-                                                cmd_end - cmd_start - 2);
-
-                auto cmd_output_result =
-                    cjsh_filesystem::FileOperations::read_command_output(cmd_sub);
-                if (cmd_output_result.is_ok()) {
-                  std::string result = cmd_output_result.value();
-                  if (!result.empty() && result.back() == '\n')
-                    result.pop_back();
-
-                  processed_case_part =
-                      processed_case_part.substr(0, cmd_start) + result +
-                      processed_case_part.substr(cmd_end + 1);
-
-                  if (g_debug_mode) {
-                    std::cerr << "DEBUG: " << debug_context
-                              << " command substitution result: '" << result
-                              << "'" << std::endl;
-                    std::cerr << "DEBUG: " << debug_context
-                              << " expanded case part: '" << processed_case_part
-                              << "'" << std::endl;
-                  }
-                }
-              }
-            }
-          } catch (...) {
-          }
+          auto expansion = expand_command_substitutions(
+              processed_case_part,
+              debug_context,
+              "command substitution result",
+              "expanded case part");
+          processed_case_part = expansion.text;
         }
 
         std::string case_value;
@@ -2445,237 +2511,133 @@ int ShellScriptInterpreter::execute_block(
     if (!(first == "case" || first.rfind("case ", 0) == 0))
       return 1;
 
-    std::string case_value;
-    std::string header_accum = first;
-
     if (auto inline_case_result =
             handle_inline_case(first, "[case inline]", true, true)) {
       if (g_debug_mode) {
-        std::cerr << "DEBUG: handle_case_block processed inline case" << std::endl;
+        std::cerr << "DEBUG: handle_case_block processed inline case"
+                  << std::endl;
       }
       return *inline_case_result;
     }
 
-    std::string expanded_header = header_accum;
+    std::string header_accum = first;
+    size_t j = idx;
+    bool found_in = false;
+
+    auto header_tokens = shell_parser->parse_command(header_accum);
+    if (std::find(header_tokens.begin(), header_tokens.end(), "in") !=
+        header_tokens.end())
+      found_in = true;
+
+    while (!found_in && ++j < src_lines.size()) {
+      std::string cur = trim(strip_inline_comment(src_lines[j]));
+      if (cur.empty())
+        continue;
+      header_accum += " " + cur;
+      header_tokens = shell_parser->parse_command(header_accum);
+      if (std::find(header_tokens.begin(), header_tokens.end(), "in") !=
+          header_tokens.end()) {
+        found_in = true;
+        break;
+      }
+    }
 
     if (g_debug_mode) {
       std::cerr << "DEBUG: Processing case header: '" << header_accum << "'"
                 << std::endl;
     }
 
-    if (header_accum.find("$(") != std::string::npos ||
-        header_accum.find("`") != std::string::npos) {
+    if (!found_in) {
+      idx = j;
+      return 1;
+    }
+
+    std::string expanded_header = header_accum;
+    if (header_accum.find("$(") != std::string::npos) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: Found command substitution in header" << std::endl;
       }
-      try {
-        size_t cmd_start = header_accum.find("$(");
-        if (cmd_start != std::string::npos) {
-          size_t cmd_end = header_accum.find(")", cmd_start + 2);
-          if (cmd_end != std::string::npos) {
-            std::string cmd_sub =
-                header_accum.substr(cmd_start + 2, cmd_end - cmd_start - 2);
-
-            FILE* pipe = popen(cmd_sub.c_str(), "r");
-            if (pipe) {
-              char buffer[1024];
-              std::string result;
-              while (fgets(buffer, sizeof(buffer), pipe)) {
-                result += buffer;
-              }
-              pclose(pipe);
-
-              if (!result.empty() && result.back() == '\n') {
-                result.pop_back();
-              }
-
-              expanded_header = header_accum.substr(0, cmd_start) + result +
-                                header_accum.substr(cmd_end + 1);
-
-              if (g_debug_mode) {
-                std::cerr << "DEBUG: Command substitution result: '" << result
-                          << "'" << std::endl;
-                std::cerr << "DEBUG: Expanded header: '" << expanded_header
-                          << "'" << std::endl;
-              }
-            }
-          }
-        }
-      } catch (...) {
-      }
+      auto expansion = expand_command_substitutions(header_accum,
+                                                    "[case header]",
+                                                    "Command substitution result",
+                                                    "Expanded header");
+      expanded_header = expansion.text;
     }
 
-    std::vector<std::string> header_toks =
+    std::vector<std::string> expanded_tokens =
         shell_parser->parse_command(expanded_header);
     size_t tok_idx = 0;
-    if (tok_idx < header_toks.size() && header_toks[tok_idx] == "case")
+    if (tok_idx < expanded_tokens.size() && expanded_tokens[tok_idx] == "case")
       ++tok_idx;
-    if (tok_idx < header_toks.size()) {
-      case_value = header_toks[tok_idx++];
 
-      shell_parser->expand_env_vars(case_value);
+    std::string raw_case_value;
+    if (tok_idx < expanded_tokens.size())
+      raw_case_value = expanded_tokens[tok_idx++];
 
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Final case value: '" << case_value << "'"
-                  << std::endl;
-      }
-    }
-
-    bool found_in = false;
-    if (tok_idx < header_toks.size() && header_toks[tok_idx] == "in") {
-      found_in = true;
-    }
-
-    size_t j = idx;
-    if (!found_in) {
-      while (!found_in && ++j < src_lines.size()) {
-        std::string cur = trim(strip_inline_comment(src_lines[j]));
-        if (cur == "in") {
-          found_in = true;
-          break;
-        }
-        if (!cur.empty()) {
-          header_accum += " " + cur;
-
-          header_toks = shell_parser->parse_command(header_accum);
-          for (size_t h = 0; h < header_toks.size(); ++h) {
-            if (header_toks[h] == "in") {
-              found_in = true;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    if (!found_in || case_value.empty()) {
+    if (std::find(expanded_tokens.begin(), expanded_tokens.end(), "in") ==
+            expanded_tokens.end() ||
+        raw_case_value.empty()) {
       if (debug_level >= DebugLevel::BASIC)
         std::cerr << "DEBUG: case without valid syntax" << std::endl;
       idx = j;
       return 1;
     }
 
-    size_t k = j + 1;
-    int matched_exit_code = 0;
-    bool found_match = false;
+    std::string case_value = raw_case_value;
+    if (case_value.length() >= 2) {
+      if ((case_value.front() == '"' && case_value.back() == '"') ||
+          (case_value.front() == '\'' && case_value.back() == '\''))
+        case_value = case_value.substr(1, case_value.length() - 2);
+    }
 
-    if (k < src_lines.size()) {
-      std::string remaining_line = src_lines[k];
+    if (!case_value.empty())
+      shell_parser->expand_env_vars(case_value);
 
-      if (remaining_line.find("esac") != std::string::npos) {
-        std::string work_line = remaining_line;
-        size_t esac_pos = work_line.find("esac");
-        if (esac_pos != std::string::npos) {
-          work_line = work_line.substr(0, esac_pos);
-        }
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Final case value: '" << case_value << "'"
+                << std::endl;
+    }
 
-    auto case_result =
-      evaluate_case_patterns(work_line, case_value,
-                  "[case inline block]", false);
+    size_t in_pos = expanded_header.find(" in ");
+    std::string inline_segment;
+    if (in_pos != std::string::npos)
+      inline_segment = trim(expanded_header.substr(in_pos + 4));
 
-    idx = k;
+    size_t esac_index = j;
+    bool inline_has_esac = false;
+    size_t inline_esac_pos = inline_segment.find("esac");
+    if (inline_esac_pos != std::string::npos) {
+      inline_has_esac = true;
+      inline_segment = trim(inline_segment.substr(0, inline_esac_pos));
+    }
+
+    std::string combined_patterns;
+    if (!inline_segment.empty())
+      combined_patterns = inline_segment;
+
+    if (!inline_has_esac) {
+      auto body_pair = collect_case_body(src_lines, j + 1);
+      std::string body_content = body_pair.first;
+      esac_index = body_pair.second;
+      if (esac_index >= src_lines.size()) {
+        idx = esac_index;
+        return 1;
+      }
+      if (!body_content.empty()) {
+        if (!combined_patterns.empty())
+          combined_patterns += '\n';
+        combined_patterns += body_content;
+      }
+    } else {
+      esac_index = j;
+    }
+
+    auto case_result = evaluate_case_patterns(combined_patterns,
+                                              case_value,
+                                              "[case block]",
+                                              false);
+    idx = esac_index;
     return case_result.first ? case_result.second : 0;
-      }
-    }
-
-    while (k < src_lines.size()) {
-      std::string line = trim(strip_inline_comment(src_lines[k]));
-      if (line.empty()) {
-        k++;
-        continue;
-      }
-      if (line == "esac") {
-        break;
-      }
-
-      size_t paren_pos = line.find(')');
-      if (paren_pos != std::string::npos) {
-        CaseSectionData data;
-        if (!parse_case_section(line, data)) {
-          ++k;
-          continue;
-        }
-
-        bool pattern_matches = matches_pattern(case_value, data.pattern);
-
-        if (pattern_matches && !found_match) {
-          found_match = true;
-
-          std::vector<std::string> case_commands;
-          if (!data.command.empty()) {
-            case_commands.push_back(data.command);
-          }
-
-          bool inline_case = line.find(";;") != std::string::npos;
-
-          if (!inline_case) {
-            k++;
-            while (k < src_lines.size()) {
-              std::string cmd_line = trim(strip_inline_comment(src_lines[k]));
-              if (cmd_line.empty()) {
-                k++;
-                continue;
-              }
-              if (cmd_line == "esac") {
-                break;
-              }
-              if (cmd_line == ";;" ||
-                  cmd_line.find(";;") != std::string::npos) {
-                if (cmd_line != ";;") {
-                  size_t sep_pos = cmd_line.find(";;");
-                  std::string before_sep = trim(cmd_line.substr(0, sep_pos));
-                  if (!before_sep.empty()) {
-                    case_commands.push_back(before_sep);
-                  }
-                }
-                break;
-              }
-
-              if (cmd_line.find(')') != std::string::npos) {
-                k--;
-                break;
-              }
-              case_commands.push_back(cmd_line);
-              k++;
-            }
-          }
-
-          for (const auto& cmd : case_commands) {
-            auto semicolon_commands =
-                shell_parser->parse_semicolon_commands(cmd);
-            for (const auto& subcmd : semicolon_commands) {
-              matched_exit_code = execute_simple_or_pipeline(subcmd);
-              if (matched_exit_code != 0)
-                break;
-            }
-            if (matched_exit_code != 0)
-              break;
-          }
-
-          while (k < src_lines.size()) {
-            std::string scan_line = trim(strip_inline_comment(src_lines[k]));
-            if (scan_line == "esac") {
-              break;
-            }
-            k++;
-          }
-          idx = k;
-          return matched_exit_code;
-        }
-      }
-      k++;
-    }
-
-    while (k < src_lines.size()) {
-      std::string line = trim(strip_inline_comment(src_lines[k]));
-      if (line == "esac") {
-        break;
-      }
-      k++;
-    }
-
-    idx = k;
-    return matched_exit_code;
   };
 
   auto handle_loop_block = [&](const std::vector<std::string>& src_lines,
