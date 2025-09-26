@@ -1651,6 +1651,25 @@ int ShellScriptInterpreter::execute_block(
     return parts;
   };
 
+  auto adjust_loop_signal = [&](const char* env_name, int consumed_rc,
+                                int propagate_rc) -> int {
+    int level = 1;
+    if (const char* level_str = getenv(env_name)) {
+      try {
+        level = std::stoi(level_str);
+      } catch (...) {
+        level = 1;
+      }
+      unsetenv(env_name);
+    }
+    if (level > 1) {
+      std::string next_level = std::to_string(level - 1);
+      setenv(env_name, next_level.c_str(), 1);
+      return propagate_rc;
+    }
+    return consumed_rc;
+  };
+
   auto handle_if_block = [&](const std::vector<std::string>& src_lines,
                              size_t& idx) -> int {
     std::string first = process_line_for_validation(src_lines[idx]);
@@ -2071,33 +2090,9 @@ int ShellScriptInterpreter::execute_block(
           for (const auto& c : cmds) {
             int cmd_rc = execute_simple_or_pipeline(c);
             if (cmd_rc == 255) {
-              const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-              int break_level = 1;
-              if (break_level_str) {
-                break_level = std::stoi(break_level_str);
-                unsetenv("CJSH_BREAK_LEVEL");
-              }
-              if (break_level == 1) {
-                return 255;
-              } else {
-                setenv("CJSH_BREAK_LEVEL",
-                       std::to_string(break_level - 1).c_str(), 1);
-                return 255;
-              }
+              return adjust_loop_signal("CJSH_BREAK_LEVEL", 255, 255);
             } else if (cmd_rc == 254) {
-              const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-              int continue_level = 1;
-              if (continue_level_str) {
-                continue_level = std::stoi(continue_level_str);
-                unsetenv("CJSH_CONTINUE_LEVEL");
-              }
-              if (continue_level == 1) {
-                return 254;
-              } else {
-                setenv("CJSH_CONTINUE_LEVEL",
-                       std::to_string(continue_level - 1).c_str(), 1);
-                return 255;
-              }
+              return adjust_loop_signal("CJSH_CONTINUE_LEVEL", 254, 255);
             } else if (cmd_rc != 0) {
               if (g_shell && g_shell->is_errexit_enabled()) {
                 return cmd_rc;
@@ -2142,35 +2137,13 @@ int ShellScriptInterpreter::execute_block(
           for (const auto& c : cmds) {
             rc = execute_simple_or_pipeline(c);
             if (rc == 255) {
-              const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-              int break_level = 1;
-              if (break_level_str) {
-                break_level = std::stoi(break_level_str);
-                unsetenv("CJSH_BREAK_LEVEL");
-              }
-              if (break_level == 1) {
-                rc = 0;
-                goto for_loop_break;
-              } else {
-                setenv("CJSH_BREAK_LEVEL",
-                       std::to_string(break_level - 1).c_str(), 1);
-                goto for_loop_break;
-              }
+              rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
+              goto for_loop_break;
             } else if (rc == 254) {
-              const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-              int continue_level = 1;
-              if (continue_level_str) {
-                continue_level = std::stoi(continue_level_str);
-                unsetenv("CJSH_CONTINUE_LEVEL");
-              }
-              if (continue_level == 1) {
-                rc = 0;
+              rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
+              if (rc == 0)
                 goto for_loop_continue;
-              } else {
-                setenv("CJSH_CONTINUE_LEVEL",
-                       std::to_string(continue_level - 1).c_str(), 1);
-                goto for_loop_break;
-              }
+              goto for_loop_break;
             } else if (rc != 0) {
               if (g_shell && g_shell->is_errexit_enabled()) {
                 break;
@@ -2253,35 +2226,13 @@ int ShellScriptInterpreter::execute_block(
           setenv(var.c_str(), value.c_str(), 1);
           rc = execute_block(body_lines);
           if (rc == 255) {
-            const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-            int break_level = 1;
-            if (break_level_str) {
-              break_level = std::stoi(break_level_str);
-              unsetenv("CJSH_BREAK_LEVEL");
-            }
-            if (break_level == 1) {
-              rc = 0;
-              break;
-            } else {
-              setenv("CJSH_BREAK_LEVEL",
-                     std::to_string(break_level - 1).c_str(), 1);
-              break;
-            }
+            rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
+            break;
           } else if (rc == 254) {
-            const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-            int continue_level = 1;
-            if (continue_level_str) {
-              continue_level = std::stoi(continue_level_str);
-              unsetenv("CJSH_CONTINUE_LEVEL");
-            }
-            if (continue_level == 1) {
-              rc = 0;
+            rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
+            if (rc == 0)
               continue;
-            } else {
-              setenv("CJSH_CONTINUE_LEVEL",
-                     std::to_string(continue_level - 1).c_str(), 1);
-              break;
-            }
+            break;
           } else if (rc != 0) {
             if (g_shell && g_shell->is_errexit_enabled()) {
               break;
@@ -2295,35 +2246,13 @@ int ShellScriptInterpreter::execute_block(
           setenv(var.c_str(), value.c_str(), 1);
           rc = execute_block(body_lines);
           if (rc == 255) {
-            const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-            int break_level = 1;
-            if (break_level_str) {
-              break_level = std::stoi(break_level_str);
-              unsetenv("CJSH_BREAK_LEVEL");
-            }
-            if (break_level == 1) {
-              rc = 0;
-              break;
-            } else {
-              setenv("CJSH_BREAK_LEVEL",
-                     std::to_string(break_level - 1).c_str(), 1);
-              break;
-            }
+            rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
+            break;
           } else if (rc == 254) {
-            const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-            int continue_level = 1;
-            if (continue_level_str) {
-              continue_level = std::stoi(continue_level_str);
-              unsetenv("CJSH_CONTINUE_LEVEL");
-            }
-            if (continue_level == 1) {
-              rc = 0;
+            rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
+            if (rc == 0)
               continue;
-            } else {
-              setenv("CJSH_CONTINUE_LEVEL",
-                     std::to_string(continue_level - 1).c_str(), 1);
-              break;
-            }
+            break;
           } else if (rc != 0) {
             if (g_shell && g_shell->is_errexit_enabled()) {
               break;
@@ -2337,35 +2266,13 @@ int ShellScriptInterpreter::execute_block(
         setenv(var.c_str(), it.c_str(), 1);
         rc = execute_block(body_lines);
         if (rc == 255) {
-          const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-          int break_level = 1;
-          if (break_level_str) {
-            break_level = std::stoi(break_level_str);
-            unsetenv("CJSH_BREAK_LEVEL");
-          }
-          if (break_level == 1) {
-            rc = 0;
-            break;
-          } else {
-            setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
-                   1);
-            break;
-          }
+          rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
+          break;
         } else if (rc == 254) {
-          const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-          int continue_level = 1;
-          if (continue_level_str) {
-            continue_level = std::stoi(continue_level_str);
-            unsetenv("CJSH_CONTINUE_LEVEL");
-          }
-          if (continue_level == 1) {
-            rc = 0;
+          rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
+          if (rc == 0)
             continue;
-          } else {
-            setenv("CJSH_CONTINUE_LEVEL",
-                   std::to_string(continue_level - 1).c_str(), 1);
-            break;
-          }
+          break;
         } else if (rc != 0) {
           if (g_shell && g_shell->is_errexit_enabled()) {
             break;
@@ -2936,35 +2843,13 @@ int ShellScriptInterpreter::execute_block(
 
       rc = execute_block(body_lines);
       if (rc == 255) {
-        const char* break_level_str = getenv("CJSH_BREAK_LEVEL");
-        int break_level = 1;
-        if (break_level_str) {
-          break_level = std::stoi(break_level_str);
-          unsetenv("CJSH_BREAK_LEVEL");
-        }
-        if (break_level == 1) {
-          rc = 0;
-          break;
-        } else {
-          setenv("CJSH_BREAK_LEVEL", std::to_string(break_level - 1).c_str(),
-                 1);
-          break;
-        }
+        rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
+        break;
       } else if (rc == 254) {
-        const char* continue_level_str = getenv("CJSH_CONTINUE_LEVEL");
-        int continue_level = 1;
-        if (continue_level_str) {
-          continue_level = std::stoi(continue_level_str);
-          unsetenv("CJSH_CONTINUE_LEVEL");
-        }
-        if (continue_level == 1) {
-          rc = 0;
+        rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
+        if (rc == 0)
           continue;
-        } else {
-          setenv("CJSH_CONTINUE_LEVEL",
-                 std::to_string(continue_level - 1).c_str(), 1);
-          break;
-        }
+        break;
       } else if (rc != 0) {
         if (g_shell && g_shell->is_errexit_enabled()) {
           break;
