@@ -1553,17 +1553,7 @@ int ShellScriptInterpreter::execute_block(
                   << "DEBUG: Executing subshell with redirections via pipeline"
                   << std::endl;
             }
-            int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
-            if (exit_code != 0) {
-              ErrorInfo error = g_shell->shell_exec->get_error();
-              if (error.type != ErrorType::RUNTIME_ERROR ||
-                  error.message.find("command failed with exit code") ==
-                      std::string::npos) {
-                g_shell->shell_exec->print_last_error();
-              }
-            }
-            setenv("?", std::to_string(exit_code).c_str(), 1);
-            return exit_code;
+            return run_pipeline(cmds);
           } else {
             if (c.args.size() >= 2) {
               std::string subshell_content = c.args[1];
@@ -1590,8 +1580,7 @@ int ShellScriptInterpreter::execute_block(
                 int status;
                 waitpid(pid, &status, 0);
                 int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
-                setenv("?", std::to_string(exit_code).c_str(), 1);
-                return exit_code;
+                return set_last_status(exit_code);
               } else {
                 std::cerr << "Failed to fork for subshell execution"
                           << std::endl;
@@ -1617,18 +1606,7 @@ int ShellScriptInterpreter::execute_block(
             std::vector<Command> pipeline_cmds =
                 shell_parser->parse_pipeline_with_preprocessing(
                     expanded_args[1]);
-            int exit_code =
-                g_shell->shell_exec->execute_pipeline(pipeline_cmds);
-            if (exit_code != 0) {
-              ErrorInfo error = g_shell->shell_exec->get_error();
-              if (error.type != ErrorType::RUNTIME_ERROR ||
-                  error.message.find("command failed with exit code") ==
-                      std::string::npos) {
-                g_shell->shell_exec->print_last_error();
-              }
-            }
-            setenv("?", std::to_string(exit_code).c_str(), 1);
-            return exit_code;
+            return run_pipeline(pipeline_cmds);
           }
 
           if (expanded_args.size() == 1) {
@@ -1660,9 +1638,7 @@ int ShellScriptInterpreter::execute_block(
             std::cerr << std::endl;
           }
           int exit_code = g_shell->execute_command(expanded_args, c.background);
-
-          setenv("?", std::to_string(exit_code).c_str(), 1);
-          return exit_code;
+          return set_last_status(exit_code);
         }
       }
 
@@ -1681,18 +1657,7 @@ int ShellScriptInterpreter::execute_block(
                     << std::endl;
         }
       }
-      int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
-      if (exit_code != 0) {
-        ErrorInfo error = g_shell->shell_exec->get_error();
-        if (error.type != ErrorType::RUNTIME_ERROR ||
-            error.message.find("command failed with exit code") ==
-                std::string::npos) {
-          g_shell->shell_exec->print_last_error();
-        }
-      }
-
-      setenv("?", std::to_string(exit_code).c_str(), 1);
-      return exit_code;
+      return run_pipeline(cmds);
     } catch (const std::bad_alloc& e) {
       std::vector<SyntaxError> errors;
       SyntaxError error(1, "Memory allocation failed", text);
@@ -1706,8 +1671,7 @@ int ShellScriptInterpreter::execute_block(
       shell_script_interpreter::ErrorReporter::print_error_report(errors, true,
                                                                   true);
 
-      setenv("?", "3", 1);
-      return 3;
+      return set_last_status(3);
     } catch (const std::system_error& e) {
       std::vector<SyntaxError> errors;
       SyntaxError error(1, "System error: " + std::string(e.what()), text);
@@ -1720,8 +1684,7 @@ int ShellScriptInterpreter::execute_block(
       shell_script_interpreter::ErrorReporter::print_error_report(errors, true,
                                                                   true);
 
-      setenv("?", "4", 1);
-      return 4;
+      return set_last_status(4);
     } catch (const std::runtime_error& e) {
       std::vector<SyntaxError> errors;
       SyntaxError error(1, e.what(), text);
@@ -1751,8 +1714,7 @@ int ShellScriptInterpreter::execute_block(
       shell_script_interpreter::ErrorReporter::print_error_report(errors, true,
                                                                   true);
 
-      setenv("?", "2", 1);
-      return 2;
+      return set_last_status(2);
     } catch (const std::exception& e) {
       std::vector<SyntaxError> errors;
       SyntaxError error(1, "Unexpected error: " + std::string(e.what()), text);
@@ -1767,8 +1729,7 @@ int ShellScriptInterpreter::execute_block(
       shell_script_interpreter::ErrorReporter::print_error_report(errors, true,
                                                                   true);
 
-      setenv("?", "5", 1);
-      return 5;
+      return set_last_status(5);
     } catch (...) {
       std::vector<SyntaxError> errors;
       SyntaxError error(1, "Unknown error occurred", text);
@@ -1783,8 +1744,7 @@ int ShellScriptInterpreter::execute_block(
       shell_script_interpreter::ErrorReporter::print_error_report(errors, true,
                                                                   true);
 
-      setenv("?", "6", 1);
-      return 6;
+      return set_last_status(6);
     }
   };
 
@@ -3391,7 +3351,7 @@ int ShellScriptInterpreter::execute_block(
           }
           last_code = code;
 
-          setenv("?", std::to_string(last_code).c_str(), 1);
+          set_last_status(last_code);
 
           if (g_shell && g_shell->is_errexit_enabled() && code != 0) {
             if (code != 253 && code != 254 && code != 255) {
@@ -3441,6 +3401,28 @@ int ShellScriptInterpreter::execute_block(
   }
 
   return last_code;
+}
+
+int ShellScriptInterpreter::set_last_status(int code) {
+  std::string value = std::to_string(code);
+  setenv("?", value.c_str(), 1);
+  return code;
+}
+
+int ShellScriptInterpreter::run_pipeline(const std::vector<Command>& cmds) {
+  if (!g_shell || !g_shell->shell_exec)
+    return set_last_status(1);
+
+  int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
+  if (exit_code != 0) {
+    ErrorInfo error = g_shell->shell_exec->get_error();
+    if (error.type != ErrorType::RUNTIME_ERROR ||
+        error.message.find("command failed with exit code") ==
+            std::string::npos) {
+      g_shell->shell_exec->print_last_error();
+    }
+  }
+  return set_last_status(exit_code);
 }
 
 std::string ShellScriptInterpreter::expand_parameter_expression(

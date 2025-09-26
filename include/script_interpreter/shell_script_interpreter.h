@@ -10,6 +10,7 @@
 #include "cjsh.h"
 
 class Shell;
+struct Command;
 
 enum class DebugLevel {
   NONE = 0,
@@ -178,4 +179,6 @@ class ShellScriptInterpreter {
                            bool uppercase, bool all_chars);
   bool matches_pattern(const std::string& text, const std::string& pattern);
   bool matches_char_class(char c, const std::string& char_class);
+    int set_last_status(int code);
+    int run_pipeline(const std::vector<Command>& cmds);
 };
