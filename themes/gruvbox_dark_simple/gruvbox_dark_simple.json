@@ -70,26 +70,36 @@
       "fg_color": "#ebdbb2",
       "separator": "\uE0B0",
       "separator_fg": "#3c3836",
-      "separator_bg": "#504945",
+      "separator_bg": "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}",
       "align": "left"
     },
     {
-      "tag": "gitseg",
-      "content": " {GIT_BRANCH} ",
+      "tag": "langseg",
+      "content": " {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}",
       "bg_color": "#504945",
-      "fg_color": "#fabd2f",
+      "fg_color": "#83a598",
       "separator": "\uE0B0",
       "separator_fg": "#504945",
       "separator_bg": "#665c54",
       "align": "left"
     },
     {
-      "tag": "gitstatusseg",
-      "content": " {GIT_STATUS} ",
+      "tag": "gitseg",
+      "content": " {GIT_BRANCH} ",
       "bg_color": "#665c54",
-      "fg_color": "#b8bb26",
+      "fg_color": "#fabd2f",
       "separator": "\uE0B0",
       "separator_fg": "#665c54",
+      "separator_bg": "#7c6f64",
+      "align": "left"
+    },
+    {
+      "tag": "gitstatusseg",
+      "content": " {GIT_STATUS} ",
+      "bg_color": "#7c6f64",
+      "fg_color": "#b8bb26",
+      "separator": "\uE0B0",
+      "separator_fg": "#7c6f64",
       "separator_bg": "#3c3836",
       "align": "left"
     },
@@ -125,16 +135,26 @@
       "fg_color": "#8ec07c",
       "separator": "\uE0B0",
       "separator_fg": "#3c3836",
-      "separator_bg": "#504945",
+      "separator_bg": "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}",
+      "align": "left"
+    },
+    {
+      "tag": "ai_langseg",
+      "content": " {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}",
+      "bg_color": "#504945",
+      "fg_color": "#83a598",
+      "separator": "\uE0B0",
+      "separator_fg": "#504945",
+      "separator_bg": "#665c54",
       "align": "left"
     },
     {
       "tag": "ai_dirseg",
       "content": " {DIRECTORY} ",
-      "bg_color": "#504945",
+      "bg_color": "#665c54",
       "fg_color": "#ebdbb2",
       "separator": "\uE0B0",
-      "separator_fg": "#504945",
+      "separator_fg": "#665c54",
       "separator_bg": "#3c3836",
       "align": "left"
     },
