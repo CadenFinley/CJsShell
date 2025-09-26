@@ -620,6 +620,7 @@ static void build_permissions_fast(char* perms, mode_t mode, const std::string& 
   }
 
   
+#ifdef __APPLE__
   ssize_t xattr_size = listxattr(filepath.c_str(), nullptr, 0, XATTR_NOFOLLOW);
   if (xattr_size > 0) {
     perms[10] = '@';
@@ -627,6 +628,9 @@ static void build_permissions_fast(char* perms, mode_t mode, const std::string& 
   } else {
     perms[10] = '\0';
   }
+#else
+  perms[10] = '\0';
+#endif
 }
 
 std::string get_file_indicator(const std::filesystem::directory_entry& entry,
