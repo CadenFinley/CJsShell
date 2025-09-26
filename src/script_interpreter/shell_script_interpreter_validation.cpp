@@ -131,8 +131,8 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
 size_t adjust_display_line(const std::string& text, size_t base_line,
                            size_t offset) {
   size_t limit = std::min(offset, text.size());
-  return base_line +
-         static_cast<size_t>(std::count(text.begin(), text.begin() + limit, '\n'));
+  return base_line + static_cast<size_t>(
+                         std::count(text.begin(), text.begin() + limit, '\n'));
 }
 
 struct ForLoopCheckResult {
@@ -736,481 +736,484 @@ ShellScriptInterpreter::validate_variable_usage(
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_redirection_syntax(
     const std::vector<std::string>& lines) {
-  std::vector<SyntaxError> errors;
+  return process_lines_for_validation(
+      lines,
+      [](const std::string& line, const std::string& /* trimmed_line */,
+         size_t display_line,
+         size_t /* first_non_space */) -> std::vector<SyntaxError> {
+        std::vector<SyntaxError> line_errors;
 
-  for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
-    const std::string& line = lines[line_num];
-    size_t display_line = line_num + 1;
+        QuoteState quote_state;
 
-    if (should_skip_line(line)) {
-      continue;
-    }
+        for (size_t i = 0; i < line.length(); ++i) {
+          char c = line[i];
 
-    QuoteState quote_state;
-
-    for (size_t i = 0; i < line.length(); ++i) {
-      char c = line[i];
-
-      if (!should_process_char(quote_state, c, false)) {
-        continue;
-      }
-
-      if (!quote_state.in_quotes) {
-        if (c == '<' || c == '>') {
-          size_t redir_start = i;
-          std::string redir_op;
-
-          if (c == '>' && i + 1 < line.length()) {
-            if (line[i + 1] == '>') {
-              redir_op = ">>";
-              i++;
-            } else if (line[i + 1] == '&') {
-              redir_op = ">&";
-              i++;
-            } else if (line[i + 1] == '|') {
-              redir_op = ">|";
-              i++;
-            } else {
-              redir_op = ">";
-            }
-          } else if (c == '<' && i + 1 < line.length()) {
-            if (line[i + 1] == '<') {
-              if (i + 2 < line.length() && line[i + 2] == '<') {
-                redir_op = "<<<";
-                i += 2;
-              } else {
-                redir_op = "<<";
-                i++;
-              }
-            } else {
-              redir_op = "<";
-            }
-          } else {
-            redir_op = c;
-          }
-
-          size_t check_pos = i + 1;
-          while (check_pos < line.length() && std::isspace(line[check_pos])) {
-            check_pos++;
-          }
-
-          if (check_pos < line.length()) {
-            char next_char = line[check_pos];
-            if ((redir_op == ">" && next_char == '>') ||
-                (redir_op == "<" && next_char == '<') ||
-                (redir_op == ">>" && next_char == '>') ||
-                (redir_op == "<<" && next_char == '<')) {
-              errors.push_back(SyntaxError(
-                  {display_line, redir_start, check_pos + 1, 0},
-                  ErrorSeverity::ERROR, ErrorCategory::REDIRECTION, "RED005",
-                  "Invalid redirection syntax '" + redir_op + " " + next_char +
-                      "'",
-                  line, "Use single redirection operator"));
-              continue;
-            }
-          }
-
-          size_t target_start = i + 1;
-          while (target_start < line.length() &&
-                 std::isspace(line[target_start])) {
-            target_start++;
-          }
-
-          if (target_start >= line.length()) {
-            errors.push_back(SyntaxError(
-                {display_line, redir_start, i + 1, 0}, ErrorSeverity::ERROR,
-                ErrorCategory::REDIRECTION, "RED001",
-                "Redirection '" + redir_op + "' missing target", line,
-                "Add filename or file descriptor after " + redir_op));
+          if (!should_process_char(quote_state, c, false)) {
             continue;
           }
 
-          std::string target;
-          size_t target_end = target_start;
-          bool in_target_quotes = false;
-          char target_quote = '\0';
+          if (!quote_state.in_quotes) {
+            if (c == '<' || c == '>') {
+              size_t redir_start = i;
+              std::string redir_op;
 
-          while (target_end < line.length()) {
-            char tc = line[target_end];
-            if (!in_target_quotes && std::isspace(tc)) {
-              break;
+              if (c == '>' && i + 1 < line.length()) {
+                if (line[i + 1] == '>') {
+                  redir_op = ">>";
+                  i++;
+                } else if (line[i + 1] == '&') {
+                  redir_op = ">&";
+                  i++;
+                } else if (line[i + 1] == '|') {
+                  redir_op = ">|";
+                  i++;
+                } else {
+                  redir_op = ">";
+                }
+              } else if (c == '<' && i + 1 < line.length()) {
+                if (line[i + 1] == '<') {
+                  if (i + 2 < line.length() && line[i + 2] == '<') {
+                    redir_op = "<<<";
+                    i += 2;
+                  } else {
+                    redir_op = "<<";
+                    i++;
+                  }
+                } else {
+                  redir_op = "<";
+                }
+              } else {
+                redir_op = c;
+              }
+
+              size_t check_pos = i + 1;
+              while (check_pos < line.length() &&
+                     std::isspace(line[check_pos])) {
+                check_pos++;
+              }
+
+              if (check_pos < line.length()) {
+                char next_char = line[check_pos];
+                if ((redir_op == ">" && next_char == '>') ||
+                    (redir_op == "<" && next_char == '<') ||
+                    (redir_op == ">>" && next_char == '>') ||
+                    (redir_op == "<<" && next_char == '<')) {
+                  line_errors.push_back(
+                      SyntaxError({display_line, redir_start, check_pos + 1, 0},
+                                  ErrorSeverity::ERROR,
+                                  ErrorCategory::REDIRECTION, "RED005",
+                                  "Invalid redirection syntax '" + redir_op +
+                                      " " + next_char + "'",
+                                  line, "Use single redirection operator"));
+                  continue;
+                }
+              }
+
+              size_t target_start = i + 1;
+              while (target_start < line.length() &&
+                     std::isspace(line[target_start])) {
+                target_start++;
+              }
+
+              if (target_start >= line.length()) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, redir_start, i + 1, 0}, ErrorSeverity::ERROR,
+                    ErrorCategory::REDIRECTION, "RED001",
+                    "Redirection '" + redir_op + "' missing target", line,
+                    "Add filename or file descriptor after " + redir_op));
+                continue;
+              }
+
+              std::string target;
+              size_t target_end = target_start;
+              bool in_target_quotes = false;
+              char target_quote = '\0';
+
+              while (target_end < line.length()) {
+                char tc = line[target_end];
+                if (!in_target_quotes && std::isspace(tc)) {
+                  break;
+                }
+                if ((tc == '"' || tc == '\'') && !in_target_quotes) {
+                  in_target_quotes = true;
+                  target_quote = tc;
+                } else if (tc == target_quote && in_target_quotes) {
+                  in_target_quotes = false;
+                  target_quote = '\0';
+                }
+                target_end++;
+              }
+
+              target = line.substr(target_start, target_end - target_start);
+
+              if (redir_op == ">&" || redir_op == "<&") {
+                if (target.empty() ||
+                    (!std::isdigit(static_cast<unsigned char>(target[0])) &&
+                     target != "-")) {
+                  line_errors.push_back(SyntaxError(
+                      {display_line, target_start, target_end, 0},
+                      ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
+                      "RED002",
+                      "File descriptor redirection requires digit or '-'", line,
+                      "Use format like 2>&1 or 2>&-"));
+                }
+              } else if (redir_op == "<<") {
+                if (target.empty()) {
+                  line_errors.push_back(SyntaxError(
+                      {display_line, target_start, target_end, 0},
+                      ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
+                      "RED003", "Here document missing delimiter", line,
+                      "Provide delimiter like: << EOF"));
+                }
+              }
+
+              i = target_end - 1;
             }
-            if ((tc == '"' || tc == '\'') && !in_target_quotes) {
-              in_target_quotes = true;
-              target_quote = tc;
-            } else if (tc == target_quote && in_target_quotes) {
-              in_target_quotes = false;
-              target_quote = '\0';
+
+            if (c == '|' && i + 1 < line.length()) {
+              if (line[i + 1] == '|') {
+                i++;
+              } else {
+                size_t pipe_pos = i;
+                size_t after_pipe = i + 1;
+                while (after_pipe < line.length() &&
+                       std::isspace(line[after_pipe])) {
+                  after_pipe++;
+                }
+
+                if (after_pipe >= line.length() || line[after_pipe] == '|' ||
+                    line[after_pipe] == '&') {
+                  line_errors.push_back(SyntaxError(
+                      {display_line, pipe_pos, pipe_pos + 1, 0},
+                      ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
+                      "RED004", "Pipe missing command after '|'", line,
+                      "Add command after pipe"));
+                }
+              }
             }
-            target_end++;
           }
-
-          target = line.substr(target_start, target_end - target_start);
-
-          if (redir_op == ">&" || redir_op == "<&") {
-            if (target.empty() || (!std::isdigit(target[0]) && target != "-")) {
-              errors.push_back(SyntaxError(
-                  {display_line, target_start, target_end, 0},
-                  ErrorSeverity::ERROR, ErrorCategory::REDIRECTION, "RED002",
-                  "File descriptor redirection requires digit or '-'", line,
-                  "Use format like 2>&1 or 2>&-"));
-            }
-          } else if (redir_op == "<<") {
-            if (target.empty()) {
-              errors.push_back(
-                  SyntaxError({display_line, target_start, target_end, 0},
-                              ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
-                              "RED003", "Here document missing delimiter", line,
-                              "Provide delimiter like: << EOF"));
-            }
-          }
-
-          i = target_end - 1;
         }
 
-        if (c == '|' && i + 1 < line.length()) {
-          if (line[i + 1] == '|') {
-            i++;
-          } else {
-            size_t pipe_pos = i;
-            size_t after_pipe = i + 1;
-            while (after_pipe < line.length() &&
-                   std::isspace(line[after_pipe])) {
-              after_pipe++;
-            }
-
-            if (after_pipe >= line.length() || line[after_pipe] == '|' ||
-                line[after_pipe] == '&') {
-              errors.push_back(
-                  SyntaxError({display_line, pipe_pos, pipe_pos + 1, 0},
-                              ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
-                              "RED004", "Pipe missing command after '|'", line,
-                              "Add command after pipe"));
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return errors;
+        return line_errors;
+      });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_arithmetic_expressions(
     const std::vector<std::string>& lines) {
-  std::vector<SyntaxError> errors;
+  return process_lines_for_validation(
+      lines,
+      [](const std::string& line, const std::string& /* trimmed_line */,
+         size_t display_line,
+         size_t /* first_non_space */) -> std::vector<SyntaxError> {
+        std::vector<SyntaxError> line_errors;
 
-  for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
-    const std::string& line = lines[line_num];
-    size_t display_line = line_num + 1;
+        QuoteState quote_state;
 
-    if (should_skip_line(line)) {
-      continue;
-    }
+        for (size_t i = 0; i < line.length(); ++i) {
+          char c = line[i];
 
-    QuoteState quote_state;
-
-    for (size_t i = 0; i < line.length(); ++i) {
-      char c = line[i];
-
-      if (!should_process_char(quote_state, c, true)) {
-        continue;
-      }
-
-      if (c == '$' && i + 2 < line.length() && line[i + 1] == '(' &&
-          line[i + 2] == '(') {
-        size_t start = i;
-        size_t paren_count = 2;
-        size_t j = i + 3;
-        std::string expr;
-
-        while (j < line.length() && paren_count > 0) {
-          if (line[j] == '(') {
-            paren_count++;
-          } else if (line[j] == ')') {
-            paren_count--;
+          if (!should_process_char(quote_state, c, true)) {
+            continue;
           }
-          if (paren_count > 0) {
-            expr += line[j];
-          }
-          j++;
-        }
 
-        const size_t adjusted_line =
-            adjust_display_line(line, display_line, start);
+          if (c == '$' && i + 2 < line.length() && line[i + 1] == '(' &&
+              line[i + 2] == '(') {
+            size_t start = i;
+            size_t paren_count = 2;
+            size_t j = i + 3;
+            std::string expr;
 
-        if (paren_count > 0) {
-          errors.push_back(SyntaxError(
-              {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
-              ErrorCategory::SYNTAX, "ARITH001",
-              "Unclosed arithmetic expansion $(()", line, "Add closing ))"));
-        } else {
-          if (expr.empty()) {
-            errors.push_back(SyntaxError({adjusted_line, start, j, 0},
-                                         ErrorSeverity::ERROR,
-                                         ErrorCategory::SYNTAX, "ARITH002",
-                                         "Empty arithmetic expression", line,
-                                         "Provide expression inside $(( ))"));
-          } else {
-            std::string trimmed_expr = expr;
+            while (j < line.length() && paren_count > 0) {
+              if (line[j] == '(') {
+                paren_count++;
+              } else if (line[j] == ')') {
+                paren_count--;
+              }
+              if (paren_count > 0) {
+                expr += line[j];
+              }
+              j++;
+            }
 
-            trimmed_expr.erase(0, trimmed_expr.find_first_not_of(" \t"));
-            trimmed_expr.erase(trimmed_expr.find_last_not_of(" \t") + 1);
+            const size_t adjusted_line =
+                adjust_display_line(line, display_line, start);
 
-            if (!trimmed_expr.empty()) {
-              char last_char = trimmed_expr.back();
-              if (last_char == '+' || last_char == '-' || last_char == '*' ||
-                  last_char == '/' || last_char == '%' || last_char == '&' ||
-                  last_char == '|' || last_char == '^') {
-                errors.push_back(SyntaxError(
-                    {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
-                    ErrorCategory::SYNTAX, "ARITH003",
-                    "Incomplete arithmetic expression - missing operand", line,
-                    "Add operand after '" + std::string(1, last_char) + "'"));
+            if (paren_count > 0) {
+              line_errors.push_back(
+                  SyntaxError({adjusted_line, start, j, 0},
+                              ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+                              "ARITH001", "Unclosed arithmetic expansion $(()",
+                              line, "Add closing ))"));
+            } else {
+              if (expr.empty()) {
+                line_errors.push_back(
+                    SyntaxError({adjusted_line, start, j, 0},
+                                ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+                                "ARITH002", "Empty arithmetic expression", line,
+                                "Provide expression inside $(( ))"));
+              } else {
+                std::string trimmed_expr = expr;
+
+                trimmed_expr.erase(0, trimmed_expr.find_first_not_of(" \t"));
+                trimmed_expr.erase(trimmed_expr.find_last_not_of(" \t") + 1);
+
+                if (!trimmed_expr.empty()) {
+                  char last_char = trimmed_expr.back();
+                  if (last_char == '+' || last_char == '-' ||
+                      last_char == '*' || last_char == '/' ||
+                      last_char == '%' || last_char == '&' ||
+                      last_char == '|' || last_char == '^') {
+                    line_errors.push_back(SyntaxError(
+                        {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
+                        ErrorCategory::SYNTAX, "ARITH003",
+                        "Incomplete arithmetic expression - missing operand",
+                        line,
+                        "Add operand after '" + std::string(1, last_char) +
+                            "'"));
+                  }
+                }
+
+                if (expr.find("/0") != std::string::npos ||
+                    expr.find("% 0") != std::string::npos) {
+                  line_errors.push_back(SyntaxError(
+                      {adjusted_line, start, j, 0}, ErrorSeverity::WARNING,
+                      ErrorCategory::SEMANTICS, "ARITH004",
+                      "Potential division by zero", line,
+                      "Ensure divisor is not zero"));
+                }
+
+                int balance = 0;
+                for (char ec : expr) {
+                  if (ec == '(')
+                    balance++;
+                  else if (ec == ')')
+                    balance--;
+                  if (balance < 0)
+                    break;
+                }
+                if (balance != 0) {
+                  line_errors.push_back(SyntaxError(
+                      {display_line, start, j, 0}, ErrorSeverity::ERROR,
+                      ErrorCategory::SYNTAX, "ARITH005",
+                      "Unbalanced parentheses in arithmetic expression", line,
+                      "Check parentheses balance in expression"));
+                }
               }
             }
 
-            if (expr.find("/0") != std::string::npos ||
-                expr.find("% 0") != std::string::npos) {
-              errors.push_back(SyntaxError({adjusted_line, start, j, 0},
-                                           ErrorSeverity::WARNING,
-                                           ErrorCategory::SEMANTICS, "ARITH004",
-                                           "Potential division by zero", line,
-                                           "Ensure divisor is not zero"));
-            }
+            i = j - 1;
+          }
 
-            int balance = 0;
-            for (char ec : expr) {
-              if (ec == '(')
-                balance++;
-              else if (ec == ')')
-                balance--;
-              if (balance < 0)
-                break;
-            }
-            if (balance != 0) {
-              errors.push_back(
-                  SyntaxError({display_line, start, j, 0}, ErrorSeverity::ERROR,
-                              ErrorCategory::SYNTAX, "ARITH005",
-                              "Unbalanced parentheses in arithmetic expression",
-                              line, "Check parentheses balance in expression"));
-            }
+          else if (c == '$' && i + 1 < line.length() && line[i + 1] == '[') {
+            line_errors.push_back(
+                SyntaxError({display_line, i, i + 2, 0}, ErrorSeverity::WARNING,
+                            ErrorCategory::STYLE, "ARITH006",
+                            "Deprecated arithmetic syntax $[...], use $((...))",
+                            line, "Replace $[expr] with $((expr))"));
           }
         }
 
-        i = j - 1;
-      }
-
-      else if (c == '$' && i + 1 < line.length() && line[i + 1] == '[') {
-        errors.push_back(
-            SyntaxError({display_line, i, i + 2, 0}, ErrorSeverity::WARNING,
-                        ErrorCategory::STYLE, "ARITH006",
-                        "Deprecated arithmetic syntax $[...], use $((...))",
-                        line, "Replace $[expr] with $((expr))"));
-      }
-    }
-  }
-
-  return errors;
+        return line_errors;
+      });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_parameter_expansions(
     const std::vector<std::string>& lines) {
-  std::vector<SyntaxError> errors;
+  return process_lines_for_validation(
+      lines,
+      [](const std::string& line, const std::string& /* trimmed_line */,
+         size_t display_line,
+         size_t /* first_non_space */) -> std::vector<SyntaxError> {
+        std::vector<SyntaxError> line_errors;
 
-  for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
-    const std::string& line = lines[line_num];
-    size_t display_line = line_num + 1;
+        QuoteState quote_state;
 
-    if (should_skip_line(line)) {
-      continue;
-    }
+        for (size_t i = 0; i < line.length(); ++i) {
+          char c = line[i];
 
-    QuoteState quote_state;
+          if (!should_process_char(quote_state, c, true)) {
+            continue;
+          }
 
-    for (size_t i = 0; i < line.length(); ++i) {
-      char c = line[i];
+          if (c == '$' && i + 1 < line.length() && line[i + 1] == '(') {
+            size_t start = i;
+            size_t paren_count = 1;
+            size_t j = i + 2;
+            const bool inside_quotes = quote_state.in_quotes;
 
-      if (!should_process_char(quote_state, c, true)) {
-        continue;
-      }
+            while (j < line.length() && paren_count > 0) {
+              if (line[j] == '(' && !inside_quotes) {
+                paren_count++;
+              } else if (line[j] == ')' && !inside_quotes) {
+                paren_count--;
+              } else if ((line[j] == '"' || line[j] == '\'') &&
+                         !inside_quotes) {
+                char nested_quote = line[j];
+                j++;
+                while (j < line.length() && line[j] != nested_quote) {
+                  if (line[j] == '\\')
+                    j++;
+                  j++;
+                }
+              }
+              j++;
+            }
 
-      if (c == '$' && i + 1 < line.length() && line[i + 1] == '(') {
-        size_t start = i;
-        size_t paren_count = 1;
-        size_t j = i + 2;
-        const bool inside_quotes = quote_state.in_quotes;
+            if (paren_count > 0) {
+              line_errors.push_back(
+                  SyntaxError({display_line, start, j, 0}, ErrorSeverity::ERROR,
+                              ErrorCategory::SYNTAX, "SYN005",
+                              "Unclosed command substitution $() - missing ')'",
+                              line, "Add closing parenthesis"));
+            }
 
-        while (j < line.length() && paren_count > 0) {
-          if (line[j] == '(' && !inside_quotes) {
-            paren_count++;
-          } else if (line[j] == ')' && !inside_quotes) {
-            paren_count--;
-          } else if ((line[j] == '"' || line[j] == '\'') && !inside_quotes) {
-            char nested_quote = line[j];
-            j++;
-            while (j < line.length() && line[j] != nested_quote) {
+            i = j - 1;
+          }
+
+          else if (c == '`' && !quote_state.in_quotes) {
+            size_t start = i;
+            size_t j = i + 1;
+            bool found_closing = false;
+
+            while (j < line.length()) {
+              if (line[j] == '`') {
+                found_closing = true;
+                j++;
+                break;
+              }
               if (line[j] == '\\')
                 j++;
               j++;
             }
-          }
-          j++;
-        }
 
-        if (paren_count > 0) {
-          errors.push_back(
-              SyntaxError({display_line, start, j, 0}, ErrorSeverity::ERROR,
-                          ErrorCategory::SYNTAX, "SYN005",
-                          "Unclosed command substitution $() - missing ')'",
-                          line, "Add closing parenthesis"));
-        }
-
-        i = j - 1;
-      }
-
-      else if (c == '`' && !quote_state.in_quotes) {
-        size_t start = i;
-        size_t j = i + 1;
-        bool found_closing = false;
-
-        while (j < line.length()) {
-          if (line[j] == '`') {
-            found_closing = true;
-            j++;
-            break;
-          }
-          if (line[j] == '\\')
-            j++;
-          j++;
-        }
-
-        if (!found_closing) {
-          errors.push_back(SyntaxError(
-              {display_line, start, j, 0}, ErrorSeverity::ERROR,
-              ErrorCategory::SYNTAX, "SYN006",
-              "Unclosed backtick command substitution - missing '`'", line,
-              "Add closing backtick"));
-        }
-
-        i = j - 1;
-      }
-
-      if (!quote_state.in_quotes && c == '=' && i > 0) {
-        size_t var_start = i;
-
-        if (i > 0 && line[i - 1] == ']') {
-          size_t pos = i - 1;
-          int bracket_depth = 0;
-          bool found_open = false;
-          while (pos > 0) {
-            char bc = line[pos];
-            if (bc == ']')
-              bracket_depth++;
-            else if (bc == '[') {
-              if (bracket_depth == 0) {
-                found_open = true;
-                break;
-              } else
-                bracket_depth--;
+            if (!found_closing) {
+              line_errors.push_back(SyntaxError(
+                  {display_line, start, j, 0}, ErrorSeverity::ERROR,
+                  ErrorCategory::SYNTAX, "SYN006",
+                  "Unclosed backtick command substitution - missing '`'", line,
+                  "Add closing backtick"));
             }
-            pos--;
-          }
-          if (found_open) {
-            size_t name_end = pos;
-            size_t name_start = name_end;
-            while (name_start > 0 && (std::isalnum(line[name_start - 1]) ||
-                                      line[name_start - 1] == '_')) {
-              name_start--;
-            }
-            if (name_start < name_end) {
-              size_t index_start = pos + 1;
-              size_t index_end = i - 2;
-              std::string index_text;
-              if (index_end >= index_start)
-                index_text =
-                    line.substr(index_start, index_end - index_start + 1);
-              std::string var_name_only =
-                  line.substr(name_start, name_end - name_start);
 
-              bool index_error = false;
-              std::string index_issue;
-              if (index_text.empty()) {
-                index_error = true;
-                index_issue = "Empty array index";
-              } else if (index_text.find_first_of(" \t") != std::string::npos) {
-                index_error = true;
-                index_issue = "Array index cannot contain whitespace";
-              } else {
-                bool valid_chars = true;
-                for (char ic : index_text) {
-                  if (!(std::isalnum(static_cast<unsigned char>(ic)) ||
-                        ic == '_' || ic == '+' || ic == '-' || ic == '*' ||
-                        ic == '/' || ic == '%' || ic == '(' || ic == ')')) {
-                    valid_chars = false;
+            i = j - 1;
+          }
+
+          if (!quote_state.in_quotes && c == '=' && i > 0) {
+            size_t var_start = i;
+
+            if (i > 0 && line[i - 1] == ']') {
+              size_t pos = i - 1;
+              int bracket_depth = 0;
+              bool found_open = false;
+              while (pos > 0) {
+                char bc = line[pos];
+                if (bc == ']')
+                  bracket_depth++;
+                else if (bc == '[') {
+                  if (bracket_depth == 0) {
+                    found_open = true;
                     break;
+                  } else
+                    bracket_depth--;
+                }
+                pos--;
+              }
+              if (found_open) {
+                size_t name_end = pos;
+                size_t name_start = name_end;
+                while (name_start > 0 && (std::isalnum(line[name_start - 1]) ||
+                                          line[name_start - 1] == '_')) {
+                  name_start--;
+                }
+                if (name_start < name_end) {
+                  size_t index_start = pos + 1;
+                  size_t index_end = i - 2;
+                  std::string index_text;
+                  if (index_end >= index_start)
+                    index_text =
+                        line.substr(index_start, index_end - index_start + 1);
+                  std::string var_name_only =
+                      line.substr(name_start, name_end - name_start);
+
+                  bool index_error = false;
+                  std::string index_issue;
+                  if (index_text.empty()) {
+                    index_error = true;
+                    index_issue = "Empty array index";
+                  } else if (index_text.find_first_of(" \t") !=
+                             std::string::npos) {
+                    index_error = true;
+                    index_issue = "Array index cannot contain whitespace";
+                  } else {
+                    bool valid_chars = true;
+                    for (char ic : index_text) {
+                      if (!(std::isalnum(static_cast<unsigned char>(ic)) ||
+                            ic == '_' || ic == '+' || ic == '-' || ic == '*' ||
+                            ic == '/' || ic == '%' || ic == '(' || ic == ')')) {
+                        valid_chars = false;
+                        break;
+                      }
+                    }
+                    if (!valid_chars) {
+                      index_error = true;
+                      index_issue = "Invalid characters in array index";
+                    }
                   }
-                }
-                if (!valid_chars) {
-                  index_error = true;
-                  index_issue = "Invalid characters in array index";
-                }
-              }
-              if (index_error) {
-                errors.push_back(SyntaxError(
-                    {display_line, name_start, i, 0}, ErrorSeverity::ERROR,
-                    ErrorCategory::VARIABLES, "VAR005",
-                    index_issue + " for array '" + var_name_only + "'", line,
-                    "Use a valid numeric or arithmetic expression index"));
-              }
+                  if (index_error) {
+                    line_errors.push_back(SyntaxError(
+                        {display_line, name_start, i, 0}, ErrorSeverity::ERROR,
+                        ErrorCategory::VARIABLES, "VAR005",
+                        index_issue + " for array '" + var_name_only + "'",
+                        line,
+                        "Use a valid numeric or arithmetic expression index"));
+                  }
 
-              var_start = name_start;
+                  var_start = name_start;
+                }
+              }
+            }
+
+            while (var_start > 0 && (std::isalnum(line[var_start - 1]) ||
+                                     line[var_start - 1] == '_')) {
+              var_start--;
+            }
+
+            if (var_start < i) {
+              std::string var_name = line.substr(var_start, i - var_start);
+
+              if (!var_name.empty()) {
+                if (std::isdigit(static_cast<unsigned char>(var_name[0]))) {
+                  line_errors.push_back(SyntaxError(
+                      {display_line, var_start, i, 0}, ErrorSeverity::ERROR,
+                      ErrorCategory::VARIABLES, "VAR004",
+                      "Invalid variable name '" + var_name +
+                          "' - cannot start with digit",
+                      line,
+                      "Use variable name starting with letter or underscore"));
+                }
+
+                if (var_start > 0 && std::isspace(line[var_start - 1])) {
+                  line_errors.push_back(SyntaxError(
+                      {display_line, var_start - 1, i + 1, 0},
+                      ErrorSeverity::ERROR, ErrorCategory::VARIABLES, "VAR005",
+                      "Variable assignment cannot have spaces around '='", line,
+                      "Remove spaces: " + var_name + "=value"));
+                }
+                if (i + 1 < line.length() && std::isspace(line[i + 1])) {
+                  line_errors.push_back(SyntaxError(
+                      {display_line, var_start, i + 2, 0}, ErrorSeverity::ERROR,
+                      ErrorCategory::VARIABLES, "VAR005",
+                      "Variable assignment cannot have spaces around '='", line,
+                      "Remove spaces: " + var_name + "=value"));
+                }
+              }
             }
           }
         }
 
-        while (var_start > 0 && (std::isalnum(line[var_start - 1]) ||
-                                 line[var_start - 1] == '_')) {
-          var_start--;
-        }
-
-        if (var_start < i) {
-          std::string var_name = line.substr(var_start, i - var_start);
-
-          if (!var_name.empty()) {
-            if (std::isdigit(var_name[0])) {
-              errors.push_back(SyntaxError(
-                  {display_line, var_start, i, 0}, ErrorSeverity::ERROR,
-                  ErrorCategory::VARIABLES, "VAR004",
-                  "Invalid variable name '" + var_name +
-                      "' - cannot start with digit",
-                  line,
-                  "Use variable name starting with letter or underscore"));
-            }
-
-            if (var_start > 0 && std::isspace(line[var_start - 1])) {
-              errors.push_back(SyntaxError(
-                  {display_line, var_start - 1, i + 1, 0}, ErrorSeverity::ERROR,
-                  ErrorCategory::VARIABLES, "VAR005",
-                  "Variable assignment cannot have spaces around '='", line,
-                  "Remove spaces: " + var_name + "=value"));
-            }
-            if (i + 1 < line.length() && std::isspace(line[i + 1])) {
-              errors.push_back(SyntaxError(
-                  {display_line, var_start, i + 2, 0}, ErrorSeverity::ERROR,
-                  ErrorCategory::VARIABLES, "VAR005",
-                  "Variable assignment cannot have spaces around '='", line,
-                  "Remove spaces: " + var_name + "=value"));
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return errors;
+        return line_errors;
+      });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
@@ -1671,84 +1674,78 @@ ShellScriptInterpreter::validate_conditional_syntax(
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_array_syntax(
     const std::vector<std::string>& lines) {
-  std::vector<SyntaxError> errors;
+  return process_lines_for_validation(
+      lines,
+      [](const std::string& line, const std::string& /* trimmed_line */,
+         size_t display_line,
+         size_t /* first_non_space */) -> std::vector<SyntaxError> {
+        std::vector<SyntaxError> line_errors;
 
-  for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
-    const std::string& line = lines[line_num];
-    size_t display_line = line_num + 1;
+        bool in_quotes = false;
+        char quote_char = '\0';
+        bool escaped = false;
 
-    std::string trimmed = line;
-    size_t first_non_space = trimmed.find_first_not_of(" \t");
-    if (first_non_space == std::string::npos ||
-        trimmed[first_non_space] == '#') {
-      continue;
-    }
+        for (size_t i = 0; i < line.length(); ++i) {
+          char c = line[i];
 
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
+          if (escaped) {
+            escaped = false;
+            continue;
+          }
 
-    for (size_t i = 0; i < line.length(); ++i) {
-      char c = line[i];
+          if (c == '\\' && (!in_quotes || quote_char != '\'')) {
+            escaped = true;
+            continue;
+          }
 
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
+          if ((c == '"' || c == '\'') && !in_quotes) {
+            in_quotes = true;
+            quote_char = c;
+          } else if (c == quote_char && in_quotes) {
+            in_quotes = false;
+            quote_char = '\0';
+          }
 
-      if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-        escaped = true;
-        continue;
-      }
-
-      if ((c == '"' || c == '\'') && !in_quotes) {
-        in_quotes = true;
-        quote_char = c;
-      } else if (c == quote_char && in_quotes) {
-        in_quotes = false;
-        quote_char = '\0';
-      }
-
-      if (!in_quotes && c == '(' && i > 0) {
-        size_t var_end = i;
-        while (var_end > 0 && std::isspace(line[var_end - 1])) {
-          var_end--;
-        }
-
-        if (var_end > 0 && line[var_end - 1] == '=') {
-          size_t paren_count = 1;
-          size_t j = i + 1;
-
-          while (j < line.length() && paren_count > 0) {
-            if (line[j] == '(' && !in_quotes) {
-              paren_count++;
-            } else if (line[j] == ')' && !in_quotes) {
-              paren_count--;
-            } else if ((line[j] == '"' || line[j] == '\'') && !in_quotes) {
-              in_quotes = true;
-              quote_char = line[j];
-            } else if (line[j] == quote_char && in_quotes) {
-              in_quotes = false;
-              quote_char = '\0';
+          if (!in_quotes && c == '(' && i > 0) {
+            size_t var_end = i;
+            while (var_end > 0 && std::isspace(line[var_end - 1])) {
+              var_end--;
             }
-            j++;
-          }
 
-          if (paren_count > 0) {
-            errors.push_back(
-                SyntaxError({display_line, i, j, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::SYNTAX, "SYN009",
-                            "Unclosed array declaration - missing ')'", line,
-                            "Add closing parenthesis"));
-          }
+            if (var_end > 0 && line[var_end - 1] == '=') {
+              size_t paren_count = 1;
+              size_t j = i + 1;
 
-          i = j - 1;
+              while (j < line.length() && paren_count > 0) {
+                if (line[j] == '(' && !in_quotes) {
+                  paren_count++;
+                } else if (line[j] == ')' && !in_quotes) {
+                  paren_count--;
+                } else if ((line[j] == '"' || line[j] == '\'') && !in_quotes) {
+                  in_quotes = true;
+                  quote_char = line[j];
+                } else if (line[j] == quote_char && in_quotes) {
+                  in_quotes = false;
+                  quote_char = '\0';
+                }
+                j++;
+              }
+
+              if (paren_count > 0) {
+                line_errors.push_back(
+                    SyntaxError({display_line, i, j, 0}, ErrorSeverity::ERROR,
+                                ErrorCategory::SYNTAX, "SYN009",
+                                "Unclosed array declaration - missing ')'",
+                                line, "Add closing parenthesis"));
+              }
+
+              i = j - 1;
+            }
+          }
         }
-      }
-    }
-  }
 
-  return errors;
+        return line_errors;
+      });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
