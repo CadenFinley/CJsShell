@@ -64,14 +64,15 @@ run_test() {
     printf "  %-50s " "$test_name:"
     
     if [ -f "$test_file" ]; then
-        # Capture both output and exit code
-        output=$(sh "$test_file" "$CJSH" 2>&1)
-        exit_code=$?
+    # Capture both output and exit code
+    output=$(sh "$test_file" "$CJSH" 2>&1)
+    exit_code=$?
+    clean_output=$(printf "%s\n" "$output" | awk '{gsub(/\033\[[0-9;]*[A-Za-z]/, ""); print}')
         
-        # Count subtests within the test file
-        subtests_passed=$(echo "$output" | grep -c "PASS")
-        subtests_failed=$(echo "$output" | grep -c "FAIL")
-        subtests_skipped=$(echo "$output" | grep -c "SKIP")
+    # Count subtests within the test file (ignore summary lines)
+    subtests_passed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])PASS([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
+    subtests_failed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
+    subtests_skipped=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])SKIP([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
         subtests_total=$((subtests_passed + subtests_failed + subtests_skipped))
         
         # Add to global counters
@@ -90,9 +91,9 @@ run_test() {
         else
             echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
             # Only show the failed test lines instead of all output
-            fail_lines=$(echo "$output" | grep "FAIL")
+            fail_lines=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {print}')
             if [ -n "$fail_lines" ]; then
-                echo "$fail_lines" | while IFS= read -r line; do
+                printf "%s\n" "$fail_lines" | while IFS= read -r line; do
                     echo "    ${RED}$line${NC}"
                 done
             fi
@@ -101,18 +102,18 @@ run_test() {
         
         # Show skipped tests details
         if [ $subtests_skipped -gt 0 ]; then
-            skip_lines=$(echo "$output" | grep "SKIP")
+            skip_lines=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])SKIP([^A-Za-z0-9_]|$)/) {print}')
             if [ -n "$skip_lines" ]; then
-                echo "$skip_lines" | while IFS= read -r line; do
+                printf "%s\n" "$skip_lines" | while IFS= read -r line; do
                     echo "    ${YELLOW}$line${NC}"
                 done
             fi
         fi
         
         # Check for warnings in output
-        if echo "$output" | grep -q "WARNING"; then
+        if printf "%s\n" "$clean_output" | grep -q "WARNING"; then
             WARNINGS=$((WARNINGS+1))
-            echo "    ${YELLOW}$(echo "$output" | grep "WARNING")${NC}"
+            echo "    ${YELLOW}$(printf "%s\n" "$clean_output" | grep "WARNING")${NC}"
         fi
     else
         echo "${YELLOW}SKIP${NC} (file not found)"
