@@ -1,0 +1,201 @@
+{
+    "requirements": {
+        "colors": "true_color",
+        "fonts": ["FiraCode Nerd Font", "Hack Nerd Font", "JetBrains Mono", "Source Code Pro"]
+    },
+    "terminal_title": "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME}",
+    "fill_bg_color": "RESET",
+    "fill_char": "─",
+    "fill_fg_color": "#585858",
+    "ps1_segments": [
+        {
+            "bg_color": "#268bd2",
+            "content": " {USERNAME}@{HOSTNAME} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "#859900",
+            "separator_fg": "#268bd2",
+            "forward_separator": "",
+            "forward_separator_bg": "RESET",
+            "forward_separator_fg": "#268bd2",
+            "tag": "username"
+        },
+        {
+            "bg_color": "#859900",
+            "content": " {DIRECTORY} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "#859900",
+            "tag": "directory"
+        },
+        {
+            "bg_color": "#b58900",
+            "content": " took {CMD_DURATION} ",
+            "fg_color": "#fdf6e3",
+            "forward_separator": "",
+            "forward_separator_bg": "RESET",
+            "forward_separator_fg": "#b58900",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "execution_time",
+            "align": "right"
+        },
+        {
+            "bg_color": "#dc322f",
+            "content": " at {TIME} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "#dc322f",
+            "forward_separator": "",
+            "forward_separator_bg": "#b58900",
+            "forward_separator_fg": "#dc322f",
+            "tag": "time",
+            "align": "right"
+        },
+        {
+            "bg_color": "RESET",
+            "content": "─╮",
+            "fg_color": "#585858",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "border_top",
+            "align": "right"
+        }
+    ],
+    "git_segments": [
+        {
+            "bg_color": "#268bd2",
+            "content": " {USERNAME}@{HOSTNAME} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "#859900",
+            "separator_fg": "#268bd2",
+            "forward_separator": "",
+            "forward_separator_bg": "RESET",
+            "forward_separator_fg": "#268bd2",
+            "tag": "username"
+        },
+        {
+            "bg_color": "#859900",
+            "content": " {LOCAL_PATH} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "#b58900",
+            "separator_fg": "#859900",
+            "tag": "path"
+        },
+        {
+            "bg_color": "#b58900",
+            "content": " {GIT_BRANCH}",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "#dc322f",
+            "separator_fg": "#b58900",
+            "tag": "branch"
+        },
+        {
+            "bg_color": "#dc322f",
+            "content": "{GIT_STATUS} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "#dc322f",
+            "tag": "status"
+        },
+        {
+            "bg_color": "#b58900",
+            "content": " took {CMD_DURATION} ",
+            "fg_color": "#fdf6e3",
+            "forward_separator": "",
+            "forward_separator_bg": "RESET",
+            "forward_separator_fg": "#b58900",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "execution_time",
+            "align": "right"
+        },
+        {
+            "bg_color": "#2aa198",
+            "content": " at {TIME} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "#2aa198",
+            "forward_separator": "",
+            "forward_separator_bg": "#b58900",
+            "forward_separator_fg": "#2aa198",
+            "tag": "time",
+            "align": "right"
+        },
+        {
+            "bg_color": "RESET",
+            "content": "─╮",
+            "fg_color": "#585858",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "border_top",
+            "align": "right"
+        }
+    ],
+    "ai_segments": [
+        {
+            "bg_color": "#6c71c4",
+            "content": " {AI_MODEL} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "#2aa198",
+            "separator_fg": "#6c71c4",
+            "forward_separator": "",
+            "forward_separator_bg": "RESET",
+            "forward_separator_fg": "#6c71c4",
+            "tag": "model"
+        },
+        {
+            "bg_color": "#2aa198",
+            "content": " {AI_AGENT_TYPE} ",
+            "fg_color": "#fdf6e3",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "#2aa198",
+            "tag": "mode"
+        },
+        {
+            "bg_color": "RESET",
+            "content": "─╮",
+            "fg_color": "#585858",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "border_top",
+            "align": "right"
+        }
+    ],
+    "newline_segments": [
+        {
+            "tag": "newline_promptseg",
+            "content": " ❯ ",
+            "bg_color": "RESET",
+            "fg_color": "#859900",
+            "separator": "",
+            "separator_fg": "RESET",
+            "separator_bg": "RESET"
+        }
+    ],
+    "inline_right_segments": [
+        {
+            "bg_color": "RESET",
+            "content": "─╯",
+            "fg_color": "#585858",
+            "separator": "",
+            "separator_bg": "RESET",
+            "separator_fg": "RESET",
+            "tag": "border_bottom"
+        }
+    ]
+}

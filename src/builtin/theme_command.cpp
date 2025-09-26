@@ -54,6 +54,23 @@ int theme_command(const std::vector<std::string>& args) {
     return 0;
   }
 
+  if (args[1] == "reload") {
+    if (g_theme) {
+      if (g_theme->load_theme(g_current_theme, true)) {
+        return 0;
+      } else {
+        return 2;
+      }
+    } else {
+      print_error(
+          {ErrorType::RUNTIME_ERROR,
+           "theme",
+           "Theme manager not initialized",
+           {"Try running 'theme' again after initialization completes."}});
+      return 1;
+    }
+  }
+
   if (args[1] == "info" && args.size() > 2) {
     std::string themeName = args[2];
     std::string theme_file =
