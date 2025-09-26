@@ -334,24 +334,29 @@ int ShellScriptInterpreter::execute_block(
           }
         }
 
-        std::vector<std::string> case_tokens =
-            shell_parser->parse_command(processed_case_part);
-
         std::string case_value;
         std::string raw_case_value;
 
-        if (case_tokens.size() >= 2 && case_tokens[0] == "case") {
-          raw_case_value = case_tokens[1];
-          case_value = raw_case_value;
-        } else {
+        auto extract_case_value = [&]() {
           size_t space_pos = processed_case_part.find(' ');
           if (space_pos != std::string::npos &&
               processed_case_part.substr(0, space_pos) == "case") {
-            raw_case_value =
-                trim(processed_case_part.substr(space_pos + 1));
-            case_value = raw_case_value;
+            return trim(processed_case_part.substr(space_pos + 1));
+          }
+          return std::string{};
+        };
+
+        raw_case_value = extract_case_value();
+
+        if (raw_case_value.empty()) {
+          std::vector<std::string> case_tokens =
+              shell_parser->parse_command(processed_case_part);
+          if (case_tokens.size() >= 2 && case_tokens[0] == "case") {
+            raw_case_value = case_tokens[1];
           }
         }
+
+        case_value = raw_case_value;
 
         if (case_value.length() >= 2) {
           if ((case_value.front() == '"' && case_value.back() == '"') ||
