@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/xattr.h>
 
 #ifdef __linux__
 #include <sys/sysmacros.h>
@@ -40,6 +41,11 @@
 #define COLOR_RED "\033[31m"
 #define COLOR_CYAN "\033[36m"
 #define COLOR_YELLOW "\033[33m"
+#define COLOR_MAGENTA "\033[35m"
+#define COLOR_BRIGHT_GREEN "\033[92m"
+#define COLOR_BRIGHT_RED "\033[91m"
+#define COLOR_BRIGHT_YELLOW "\033[93m"
+#define COLOR_BRIGHT_BLUE "\033[94m"
 
 // mamke custom implementatin identical to exa
 
@@ -500,7 +506,72 @@ std::string quote_filename(const std::string& filename,
   return result;
 }
 
-static void build_permissions_fast(char* perms, mode_t mode) {
+std::string format_permissions_with_colors(const char* perms) {
+  std::string result;
+  
+  // File type (first character)
+  result += COLOR_BRIGHT_BLUE;
+  result += perms[0];
+  result += COLOR_RESET;
+  
+  // User permissions (positions 1-3)
+  for (int i = 1; i <= 3; i++) {
+    if (perms[i] == 'r') {
+      result += COLOR_BRIGHT_YELLOW;
+    } else if (perms[i] == 'w') {
+      result += COLOR_BRIGHT_RED;
+    } else if (perms[i] == 'x' || perms[i] == 's' || perms[i] == 'S') {
+      result += COLOR_BRIGHT_GREEN;
+    } else {
+      result += COLOR_RESET;
+    }
+    result += perms[i];
+    result += COLOR_RESET;
+  }
+  
+  // Group permissions (positions 4-6)
+  for (int i = 4; i <= 6; i++) {
+    if (perms[i] == 'r') {
+      result += COLOR_YELLOW;
+    } else if (perms[i] == 'w') {
+      result += COLOR_RED;
+    } else if (perms[i] == 'x' || perms[i] == 's' || perms[i] == 'S') {
+      result += COLOR_GREEN;
+    } else {
+      result += COLOR_RESET;
+    }
+    result += perms[i];
+    result += COLOR_RESET;
+  }
+  
+  // Other permissions (positions 7-9)
+  for (int i = 7; i <= 9; i++) {
+    if (perms[i] == 'r') {
+      result += COLOR_CYAN;
+    } else if (perms[i] == 'w') {
+      result += COLOR_MAGENTA;
+    } else if (perms[i] == 'x' || perms[i] == 't' || perms[i] == 'T') {
+      result += COLOR_BLUE;
+    } else {
+      result += COLOR_RESET;
+    }
+    result += perms[i];
+    result += COLOR_RESET;
+  }
+  
+  // Extended attributes symbol (@) - add space padding if not present
+  if (perms[10] == '@') {
+    result += COLOR_BRIGHT_BLUE;
+    result += '@';
+    result += COLOR_RESET;
+  } else {
+    result += ' '; // Add space to maintain consistent visual width
+  }
+  
+  return result;
+}
+
+static void build_permissions_fast(char* perms, mode_t mode, const std::string& filepath) {
   if (S_ISDIR(mode))
     perms[0] = 'd';
   else if (S_ISLNK(mode))
@@ -540,7 +611,14 @@ static void build_permissions_fast(char* perms, mode_t mode) {
     perms[9] = (mode & S_IXOTH) ? 'x' : '-';
   }
 
-  perms[10] = '\0';
+  // Check for extended attributes and add @ symbol
+  ssize_t xattr_size = listxattr(filepath.c_str(), nullptr, 0, XATTR_NOFOLLOW);
+  if (xattr_size > 0) {
+    perms[10] = '@';
+    perms[11] = '\0';
+  } else {
+    perms[10] = '\0';
+  }
 }
 
 std::string get_file_indicator(const std::filesystem::directory_entry& entry,
@@ -821,8 +899,9 @@ int list_directory(const std::string& path, bool show_hidden,
           continue;
         }
 
-        char perms[11];
-        build_permissions_fast(perms, file_info.stat_info.st_mode);
+        char perms[12]; // Increased size to accommodate @ symbol
+        build_permissions_fast(perms, file_info.stat_info.st_mode, file_info.entry.path().string());
+        std::string colored_perms = format_permissions_with_colors(perms);
 
         std::string owner, group;
         if (numeric_ids) {
@@ -855,7 +934,7 @@ int list_directory(const std::string& path, bool show_hidden,
           }
         }
 
-        printf("%s %3u ", perms, (unsigned int)file_info.stat_info.st_nlink);
+        printf("%s %3u ", colored_perms.c_str(), (unsigned int)file_info.stat_info.st_nlink);
 
         if (!long_format_no_owner) {
           printf("%-8s ", owner.c_str());
