@@ -50,6 +50,7 @@
 #include "umask_command.h"
 #include "utils/bookmark_database.h"
 #include "version_command.h"
+#include "which_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {
   builtins.reserve(64);
@@ -288,6 +289,10 @@ Built_ins::Built_ins() : shell(nullptr) {
       {"type",
        [this](const std::vector<std::string>& args) {
          return ::type_command(args, shell);
+       }},
+      {"which",
+       [this](const std::vector<std::string>& args) {
+         return ::which_command(args, shell);
        }},
       {"hash",
        [](const std::vector<std::string>& args) {

@@ -62,7 +62,7 @@ static const std::unordered_set<std::string_view> source_extensions = {
 static const std::unordered_set<std::string_view> executable_extensions = {
     ".so", ".dylib", ".exe"};
 
-bool should_use_colors(Shell* shell) {
+bool should_use_custom(Shell* shell) {
   if (!isatty(STDOUT_FILENO)) {
     return false;
   }
@@ -106,7 +106,7 @@ struct FileInfo {
 };
 
 int ls_command(const std::vector<std::string>& args, Shell* shell) {
-  if (config::disable_custom_ls) {
+  if (config::disable_custom_ls || !should_use_custom(shell)) {
     std::vector<std::string> system_ls_args;
     system_ls_args.push_back("/bin/ls");
 
@@ -153,8 +153,6 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
   bool quote_non_printable = false;
   bool show_blocks = false;
   bool multi_column_across = false;
-
-  bool use_colors = should_use_colors(shell);
 
   for (size_t i = 1; i < args.size(); i++) {
     if (args[i][0] == '-' && args[i].length() > 1 && args[i][1] != '-') {
@@ -333,7 +331,7 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
         indicator_style, follow_symlinks_cmdline, follow_all_symlinks,
         directory_only, unsorted, long_format_no_owner, kilobyte_blocks,
         stream_format, numeric_ids, long_format_no_group, append_slash,
-        quote_non_printable, show_blocks, multi_column_across, 0, use_colors);
+        quote_non_printable, show_blocks, multi_column_across, 0);
 
     if (result != 0) {
       exit_code = result;
@@ -596,7 +594,7 @@ int list_directory(const std::string& path, bool show_hidden,
                    bool stream_format, bool numeric_ids,
                    bool long_format_no_group, bool append_slash,
                    bool quote_non_printable, bool show_blocks,
-                   bool multi_column_across, int level, bool use_colors) {
+                   bool multi_column_across, int level) {
   try {
     std::vector<FileInfo> entries;
 
@@ -776,13 +774,9 @@ int list_directory(const std::string& path, bool show_hidden,
         std::string name =
             quote_filename(file_info.get_name(), quote_non_printable);
 
-        if (use_colors) {
-          std::cout << file_info.cached_color;
-        }
+        std::cout << file_info.cached_color;
         std::cout << name;
-        if (use_colors) {
-          std::cout << COLOR_RESET;
-        }
+        std::cout << COLOR_RESET;
         std::cout << get_file_indicator(file_info.entry, indicator_style,
                                         append_slash);
       }
@@ -887,13 +881,9 @@ int list_directory(const std::string& path, bool show_hidden,
 
         printf("%s ", time_str.c_str());
 
-        if (use_colors) {
-          std::cout << file_info.cached_color;
-        }
+        std::cout << file_info.cached_color;
         std::cout << name;
-        if (use_colors) {
-          std::cout << COLOR_RESET;
-        }
+        std::cout << COLOR_RESET;
 
         if (file_info.entry.is_symlink(ec) && !ec) {
           std::error_code link_ec;
@@ -901,25 +891,21 @@ int list_directory(const std::string& path, bool show_hidden,
               std::filesystem::read_symlink(file_info.entry.path(), link_ec);
           if (!link_ec) {
             std::cout << " -> ";
-            if (use_colors) {
-              std::error_code target_ec;
-              std::filesystem::path target_path =
-                  file_info.entry.path().parent_path() / target;
-              if (std::filesystem::is_directory(target_path, target_ec)) {
-                std::cout << COLOR_BLUE;
-              } else if (std::filesystem::is_regular_file(target_path,
-                                                          target_ec)) {
-                struct stat target_st;
-                if (stat(target_path.c_str(), &target_st) == 0 &&
-                    (target_st.st_mode & S_IXUSR)) {
-                  std::cout << COLOR_RED;
-                }
+            std::error_code target_ec;
+            std::filesystem::path target_path =
+                file_info.entry.path().parent_path() / target;
+            if (std::filesystem::is_directory(target_path, target_ec)) {
+              std::cout << COLOR_BLUE;
+            } else if (std::filesystem::is_regular_file(target_path,
+                                                        target_ec)) {
+              struct stat target_st;
+              if (stat(target_path.c_str(), &target_st) == 0 &&
+                  (target_st.st_mode & S_IXUSR)) {
+                std::cout << COLOR_RED;
               }
             }
             std::cout << target.string();
-            if (use_colors) {
-              std::cout << COLOR_RESET;
-            }
+            std::cout << COLOR_RESET;
           }
         }
 
@@ -937,13 +923,9 @@ int list_directory(const std::string& path, bool show_hidden,
           output += format_blocks(blocks, human_readable) + " ";
         }
 
-        if (use_colors) {
-          output += file_info.cached_color;
-        }
+        output += file_info.cached_color;
         output += name;
-        if (use_colors) {
-          output += COLOR_RESET;
-        }
+        output += COLOR_RESET;
         output +=
             get_file_indicator(file_info.entry, indicator_style, append_slash);
 
@@ -964,8 +946,7 @@ int list_directory(const std::string& path, bool show_hidden,
               indicator_style, follow_symlinks_cmdline, follow_all_symlinks,
               directory_only, unsorted, long_format_no_owner, kilobyte_blocks,
               stream_format, numeric_ids, long_format_no_group, append_slash,
-              quote_non_printable, show_blocks, multi_column_across, level + 1,
-              use_colors);
+              quote_non_printable, show_blocks, multi_column_across, level + 1);
         }
       }
     }

@@ -19,5 +19,5 @@ int list_directory(const std::string& path, bool show_hidden,
                    bool stream_format, bool numeric_ids,
                    bool long_format_no_group, bool append_slash,
                    bool quote_non_printable, bool show_blocks,
-                   bool multi_column_across, int level, bool use_colors);
+                   bool multi_column_across, int level);
 uintmax_t calculate_directory_size(const std::filesystem::path& dir_path);

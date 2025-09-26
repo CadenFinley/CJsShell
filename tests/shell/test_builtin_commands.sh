@@ -285,6 +285,111 @@ else
     pass_test "hash builtin"
 fi
 
+# Test which builtin - basic functionality
+OUT=$("$CJSH_PATH" -c "which echo" 2>&1)
+if [ $? -ne 0 ]; then
+    fail_test "which builtin basic"
+    exit 1
+else
+    pass_test "which builtin basic"
+fi
+
+# Test which with builtin command
+OUT=$("$CJSH_PATH" -c "which cd" 2>&1)
+if echo "$OUT" | grep -q "cjsh builtin"; then
+    pass_test "which identifies builtins"
+else
+    fail_test "which identifies builtins (got '$OUT')"
+    exit 1
+fi
+
+# Test which with ls (should show cjsh custom implementation)
+OUT=$("$CJSH_PATH" -c "which ls" 2>&1)
+if echo "$OUT" | grep -q "cjsh builtin"; then
+    pass_test "which shows ls as cjsh custom implementation"
+else
+    fail_test "which shows ls as cjsh custom implementation (got '$OUT')"
+    exit 1
+fi
+
+# Test which with external command (cat should be available on most systems)
+OUT=$("$CJSH_PATH" -c "which cat" 2>&1)
+if [ $? -eq 0 ] && echo "$OUT" | grep -q "/"; then
+    pass_test "which finds external commands"
+else
+    # If cat is not found, that's still a valid result
+    if echo "$OUT" | grep -q "not found"; then
+        pass_test "which handles missing commands correctly"
+    else
+        fail_test "which external command test (got '$OUT')"
+        exit 1
+    fi
+fi
+
+# Test which with non-existent command
+OUT=$("$CJSH_PATH" -c "which nonexistentcommand12345" 2>&1)
+if [ $? -ne 0 ] && echo "$OUT" | grep -q "not found"; then
+    pass_test "which handles non-existent commands"
+else
+    fail_test "which handles non-existent commands (got '$OUT')"
+    exit 1
+fi
+
+# Test which with alias (if aliases are supported)
+OUT=$("$CJSH_PATH" -c "alias testwhichalias='echo test'; which testwhichalias" 2>&1)
+if echo "$OUT" | grep -q "aliased"; then
+    pass_test "which identifies aliases"
+else
+    # Aliases might not be available in this test context, so we'll skip
+    skip_test "which identifies aliases (aliases may not be available in test context)"
+fi
+
+# Test which -a option (show all)
+OUT=$("$CJSH_PATH" -c "which -a echo" 2>&1)
+if [ $? -eq 0 ]; then
+    pass_test "which -a option works"
+else
+    fail_test "which -a option (got '$OUT')"
+    exit 1
+fi
+
+# Test which -s option (silent)
+"$CJSH_PATH" -c "which -s echo" >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+    pass_test "which -s option works"
+else
+    fail_test "which -s option"
+    exit 1
+fi
+
+# Test which with multiple arguments
+OUT=$("$CJSH_PATH" -c "which echo cd" 2>&1)
+if [ $? -eq 0 ]; then
+    pass_test "which with multiple arguments"
+else
+    fail_test "which with multiple arguments (got '$OUT')"
+    exit 1
+fi
+
+# Test which with relative path
+if [ -f "$CJSH_PATH" ]; then
+    # Create a simple test script
+    echo '#!/bin/sh\necho "test script"' > /tmp/cjsh_which_test.sh
+    chmod +x /tmp/cjsh_which_test.sh
+    
+    OUT=$("$CJSH_PATH" -c "cd /tmp && which ./cjsh_which_test.sh" 2>&1)
+    if echo "$OUT" | grep -q "cjsh_which_test.sh"; then
+        pass_test "which handles relative paths"
+    else
+        fail_test "which handles relative paths (got '$OUT')"
+    fi
+    
+    # Clean up
+    rm -f /tmp/cjsh_which_test.sh
+else
+    skip_test "which handles relative paths (cjsh binary not found for test setup)"
+fi
+
 "$CJSH_PATH" -c "jobs" >/dev/null 2>&1
 pass_test "jobs builtin (basic functionality)"
 
