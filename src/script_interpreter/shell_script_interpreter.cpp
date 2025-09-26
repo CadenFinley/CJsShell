@@ -1187,6 +1187,9 @@ int ShellScriptInterpreter::execute_block(
       return eval_stack.empty() ? 0 : eval_stack.back();
     };
 
+    const std::string subst_literal_start = "\x1E__SUBST_LITERAL_START__\x1E";
+    const std::string subst_literal_end = "\x1E__SUBST_LITERAL_END__\x1E";
+
     auto expand_substitutions = [&](const std::string& in) -> std::string {
       std::string out;
       out.reserve(in.size());
@@ -1210,7 +1213,9 @@ int ShellScriptInterpreter::execute_block(
           out += "\x1E__NOENV_END__\x1E";
           return;
         }
+        out += subst_literal_start;
         out += content;
+        out += subst_literal_end;
       };
 
       auto find_matching = [&](const std::string& s, size_t start, char open_c,

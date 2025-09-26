@@ -366,6 +366,9 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   int arith_depth = 0;
   int brace_depth = 0;
   int bracket_depth = 0;
+  const std::string subst_literal_start = "\x1E__SUBST_LITERAL_START__\x1E";
+  const std::string subst_literal_end = "\x1E__SUBST_LITERAL_END__\x1E";
+  bool in_subst_literal = false;
 
   bool token_saw_single = false;
   bool token_saw_double = false;
@@ -387,6 +390,21 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   };
 
   for (size_t i = 0; i < cmdline.length(); ++i) {
+    if (!in_subst_literal &&
+        cmdline.compare(i, subst_literal_start.size(), subst_literal_start) ==
+            0) {
+      in_subst_literal = true;
+      i += subst_literal_start.size() - 1;
+      continue;
+    }
+
+    if (in_subst_literal &&
+        cmdline.compare(i, subst_literal_end.size(), subst_literal_end) == 0) {
+      in_subst_literal = false;
+      i += subst_literal_end.size() - 1;
+      continue;
+    }
+
     char c = cmdline[i];
 
     if (escaped) {
@@ -404,16 +422,18 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
         current_token += c;
       }
       escaped = false;
-    } else if (c == '\\' && (!in_quotes || quote_char != '\'')) {
+    } else if (!in_subst_literal &&
+               c == '\\' && (!in_quotes || quote_char != '\'')) {
       escaped = true;
-    } else if ((c == '"' || c == '\'') && !in_quotes) {
+    } else if ((c == '"' || c == '\'') && !in_quotes &&
+               !in_subst_literal) {
       in_quotes = true;
       quote_char = c;
       if (c == '\'')
         token_saw_single = true;
       else
         token_saw_double = true;
-    } else if (c == quote_char && in_quotes) {
+    } else if (c == quote_char && in_quotes && !in_subst_literal) {
       in_quotes = false;
       quote_char = '\0';
     } else if (!in_quotes) {
@@ -495,6 +515,11 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
   if (in_quotes) {
     throw std::runtime_error("cjsh: Unclosed quote: missing closing " +
                              std::string(1, quote_char));
+  }
+
+  if (in_subst_literal) {
+    throw std::runtime_error(
+        "cjsh: Unterminated command substitution literal marker");
   }
 
   return tokens;
