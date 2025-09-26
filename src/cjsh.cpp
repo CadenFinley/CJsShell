@@ -453,7 +453,7 @@ static void save_startup_arguments(int argc, char* argv[]) {
 
 static int handle_early_exit_modes() {
   if (config::show_version) {  // -v --version
-    std::cout << c_version << (PRE_RELEASE ? pre_release_line : "")
+    std::cout << c_version
               << std::endl;
     return 0;
   }

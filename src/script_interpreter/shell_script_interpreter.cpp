@@ -2403,6 +2403,50 @@ int ShellScriptInterpreter::execute_block(
     std::string case_value;
     std::string header_accum = first;
 
+    struct CaseSectionData {
+      std::string raw_pattern;
+      std::string pattern;
+      std::string command;
+    };
+
+    auto normalize_case_pattern = [&](std::string pattern) -> std::string {
+      if (pattern.length() >= 2) {
+        char first_char = pattern.front();
+        char last_char = pattern.back();
+        if ((first_char == '"' && last_char == '"') ||
+            (first_char == '\'' && last_char == '\'')) {
+          pattern = pattern.substr(1, pattern.length() - 2);
+        }
+      }
+      std::string processed;
+      processed.reserve(pattern.length());
+      for (size_t i = 0; i < pattern.length(); ++i) {
+        if (pattern[i] == '\\' && i + 1 < pattern.length()) {
+          processed += pattern[i + 1];
+          ++i;
+        } else {
+          processed += pattern[i];
+        }
+      }
+      shell_parser->expand_env_vars(processed);
+      return processed;
+    };
+
+    auto parse_case_section =
+        [&](const std::string& section, CaseSectionData& out) -> bool {
+      size_t paren_pos = section.find(')');
+      if (paren_pos == std::string::npos)
+        return false;
+      out.raw_pattern = trim(section.substr(0, paren_pos));
+      out.command = trim(section.substr(paren_pos + 1));
+      out.pattern = normalize_case_pattern(out.raw_pattern);
+      if (out.command.length() >= 2 &&
+          out.command.substr(out.command.length() - 2) == ";;") {
+        out.command = trim(out.command.substr(0, out.command.length() - 2));
+      }
+      return true;
+    };
+
     if (first.find(" in ") != std::string::npos &&
         first.find("esac") != std::string::npos) {
       size_t in_pos = first.find(" in ");
@@ -2488,61 +2532,38 @@ int ShellScriptInterpreter::execute_block(
         if (section.empty())
           continue;
 
-        size_t paren_pos = section.find(')');
-        if (paren_pos != std::string::npos) {
-          std::string raw_pattern = trim(section.substr(0, paren_pos));
-          std::string command_part = trim(section.substr(paren_pos + 1));
+        CaseSectionData data;
+        if (!parse_case_section(section, data))
+          continue;
 
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: Pattern: '" << raw_pattern << "', Command: '"
-                      << command_part << "'" << std::endl;
-          }
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Pattern: '" << data.raw_pattern
+                    << "', Command: '" << data.command << "'" << std::endl;
+        }
 
-          std::string pattern = raw_pattern;
-          if (pattern.length() >= 2) {
-            if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
-                (pattern[0] == '\'' && pattern[pattern.length() - 1] == '\'')) {
-              pattern = pattern.substr(1, pattern.length() - 2);
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Matching case_value='" << case_value
+                    << "' against pattern='" << data.pattern << "'"
+                    << std::endl;
+        }
+        bool pattern_matches = matches_pattern(case_value, data.pattern);
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Pattern match result: " << pattern_matches
+                    << std::endl;
+        }
+
+        if (pattern_matches) {
+          if (!data.command.empty()) {
+            auto semicolon_commands =
+                shell_parser->parse_semicolon_commands(data.command);
+            for (const auto& subcmd : semicolon_commands) {
+              matched_exit_code = execute_simple_or_pipeline(subcmd);
+              if (matched_exit_code != 0)
+                break;
             }
           }
 
-          std::string processed_pattern;
-          processed_pattern.reserve(pattern.length());
-          for (size_t i = 0; i < pattern.length(); ++i) {
-            if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-              i++;
-              processed_pattern += pattern[i];
-            } else {
-              processed_pattern += pattern[i];
-            }
-          }
-          pattern = processed_pattern;
-
-          shell_parser->expand_env_vars(pattern);
-
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: Matching case_value='" << case_value
-                      << "' against pattern='" << pattern << "'" << std::endl;
-          }
-          bool pattern_matches = matches_pattern(case_value, pattern);
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: Pattern match result: " << pattern_matches
-                      << std::endl;
-          }
-
-          if (pattern_matches) {
-            if (!command_part.empty()) {
-              auto semicolon_commands =
-                  shell_parser->parse_semicolon_commands(command_part);
-              for (const auto& subcmd : semicolon_commands) {
-                matched_exit_code = execute_simple_or_pipeline(subcmd);
-                if (matched_exit_code != 0)
-                  break;
-              }
-            }
-
-            return matched_exit_code;
-          }
+          return matched_exit_code;
         }
       }
 
@@ -2681,49 +2702,24 @@ int ShellScriptInterpreter::execute_block(
           if (pattern_line.empty())
             continue;
 
-          size_t paren_pos = pattern_line.find(')');
-          if (paren_pos != std::string::npos) {
-            std::string raw_pattern = trim(pattern_line.substr(0, paren_pos));
-            std::string command_part = trim(pattern_line.substr(paren_pos + 1));
+          CaseSectionData data;
+          if (!parse_case_section(pattern_line, data))
+            continue;
 
-            std::string pattern = raw_pattern;
-            if (pattern.length() >= 2) {
-              if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
-                  (pattern[0] == '\'' &&
-                   pattern[pattern.length() - 1] == '\'')) {
-                pattern = pattern.substr(1, pattern.length() - 2);
+          bool pattern_matches = matches_pattern(case_value, data.pattern);
+
+          if (pattern_matches && !found_match) {
+            found_match = true;
+            if (!data.command.empty()) {
+              auto semicolon_commands =
+                  shell_parser->parse_semicolon_commands(data.command);
+              for (const auto& subcmd : semicolon_commands) {
+                matched_exit_code = execute_simple_or_pipeline(subcmd);
+                if (matched_exit_code != 0)
+                  break;
               }
             }
-
-            std::string processed_pattern;
-            processed_pattern.reserve(pattern.length());
-            for (size_t i = 0; i < pattern.length(); ++i) {
-              if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-                i++;
-                processed_pattern += pattern[i];
-              } else {
-                processed_pattern += pattern[i];
-              }
-            }
-            pattern = processed_pattern;
-
-            shell_parser->expand_env_vars(pattern);
-
-            bool pattern_matches = matches_pattern(case_value, pattern);
-
-            if (pattern_matches && !found_match) {
-              found_match = true;
-              if (!command_part.empty()) {
-                auto semicolon_commands =
-                    shell_parser->parse_semicolon_commands(command_part);
-                for (const auto& subcmd : semicolon_commands) {
-                  matched_exit_code = execute_simple_or_pipeline(subcmd);
-                  if (matched_exit_code != 0)
-                    break;
-                }
-              }
-              break;
-            }
+            break;
           }
         }
 
@@ -2744,45 +2740,20 @@ int ShellScriptInterpreter::execute_block(
 
       size_t paren_pos = line.find(')');
       if (paren_pos != std::string::npos) {
-        std::string raw_pattern = trim(line.substr(0, paren_pos));
-        std::string command_part = trim(line.substr(paren_pos + 1));
-
-        std::string pattern = raw_pattern;
-        if (pattern.length() >= 2) {
-          if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
-              (pattern[0] == '\'' && pattern[pattern.length() - 1] == '\'')) {
-            pattern = pattern.substr(1, pattern.length() - 2);
-          }
+        CaseSectionData data;
+        if (!parse_case_section(line, data)) {
+          ++k;
+          continue;
         }
 
-        std::string processed_pattern;
-        processed_pattern.reserve(pattern.length());
-        for (size_t i = 0; i < pattern.length(); ++i) {
-          if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-            i++;
-            processed_pattern += pattern[i];
-          } else {
-            processed_pattern += pattern[i];
-          }
-        }
-        pattern = processed_pattern;
-
-        shell_parser->expand_env_vars(pattern);
-
-        if (command_part.length() >= 2 &&
-            command_part.substr(command_part.length() - 2) == ";;") {
-          command_part =
-              trim(command_part.substr(0, command_part.length() - 2));
-        }
-
-        bool pattern_matches = matches_pattern(case_value, pattern);
+        bool pattern_matches = matches_pattern(case_value, data.pattern);
 
         if (pattern_matches && !found_match) {
           found_match = true;
 
           std::vector<std::string> case_commands;
-          if (!command_part.empty()) {
-            case_commands.push_back(command_part);
+          if (!data.command.empty()) {
+            case_commands.push_back(data.command);
           }
 
           bool inline_case = line.find(";;") != std::string::npos;
