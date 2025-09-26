@@ -475,6 +475,11 @@ static int handle_early_exit_modes() {
                 << config::cmd_to_execute << std::endl;
     }
 
+    // Set shell to non-interactive mode for command execution
+    if (g_shell) {
+      g_shell->set_interactive_mode(false);
+    }
+
     int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
 
     // Check if an exit code was set by the exit command

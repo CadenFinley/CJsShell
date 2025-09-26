@@ -334,7 +334,28 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 }
 
 int Built_ins::is_builtin_command(const std::string& cmd) const {
-  return !cmd.empty() && builtins.find(cmd) != builtins.end();
+  if (cmd.empty()) {
+    return 0;
+  }
+  
+  // Special case for ls: check if custom ls should be used
+  if (cmd == "ls") {
+    // Check config flag first
+    if (config::disable_custom_ls) {
+      return 0;  // Don't treat as builtin
+    }
+    
+    // Check TTY and interactive mode
+    if (!isatty(STDOUT_FILENO)) {
+      return 0;  // Don't treat as builtin when output is not a TTY
+    }
+    
+    if (shell && !shell->get_interactive_mode()) {
+      return 0;  // Don't treat as builtin in non-interactive mode
+    }
+  }
+  
+  return builtins.find(cmd) != builtins.end();
 }
 
 int Built_ins::do_ai_request(const std::string& prompt) {

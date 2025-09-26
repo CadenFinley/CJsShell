@@ -303,12 +303,12 @@ else
     exit 1
 fi
 
-# Test which with ls (should show cjsh custom implementation)
+# Test which with ls (should show system command)
 OUT=$("$CJSH_PATH" -c "which ls" 2>&1)
-if echo "$OUT" | grep -q "cjsh builtin"; then
-    pass_test "which shows ls as cjsh custom implementation"
+if [ $? -eq 0 ] && echo "$OUT" | grep -q "/"; then
+    pass_test "which shows ls as system command"
 else
-    fail_test "which shows ls as cjsh custom implementation (got '$OUT')"
+    fail_test "which shows ls as system command (got '$OUT')"
     exit 1
 fi
 
