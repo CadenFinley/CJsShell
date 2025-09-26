@@ -1845,6 +1845,46 @@ int ShellScriptInterpreter::execute_block(
     return consumed_rc;
   };
 
+  enum class LoopFlow { None, Continue, Break };
+
+  struct LoopCommandOutcome {
+    LoopFlow flow;
+    int code;
+  };
+
+  auto handle_loop_command_result =
+      [&](int rc,
+          int break_consumed_rc,
+          int break_propagate_rc,
+          int continue_consumed_rc,
+          int continue_propagate_rc,
+          bool allow_error_continue) -> LoopCommandOutcome {
+        if (rc == 255) {
+          int adjusted =
+              adjust_loop_signal("CJSH_BREAK_LEVEL",
+                                  break_consumed_rc,
+                                  break_propagate_rc);
+          return {LoopFlow::Break, adjusted};
+        }
+        if (rc == 254) {
+          int adjusted =
+              adjust_loop_signal("CJSH_CONTINUE_LEVEL",
+                                  continue_consumed_rc,
+                                  continue_propagate_rc);
+          if (adjusted == continue_consumed_rc)
+            return {LoopFlow::Continue, adjusted};
+          return {LoopFlow::Break, adjusted};
+        }
+        if (rc != 0) {
+          if (g_shell && g_shell->is_errexit_enabled())
+            return {LoopFlow::Break, rc};
+          if (allow_error_continue)
+            return {LoopFlow::Continue, rc};
+          return {LoopFlow::Break, rc};
+        }
+        return {LoopFlow::None, 0};
+      };
+
   auto handle_if_block = [&](const std::vector<std::string>& src_lines,
                              size_t& idx) -> int {
     std::string first = process_line_for_validation(src_lines[idx]);
@@ -2263,74 +2303,73 @@ int ShellScriptInterpreter::execute_block(
           setenv(var.c_str(), value_str.c_str(), 1);
           auto cmds = shell_parser->parse_semicolon_commands(body);
           for (const auto& c : cmds) {
-            int cmd_rc = execute_simple_or_pipeline(c);
-            if (cmd_rc == 255) {
-              return adjust_loop_signal("CJSH_BREAK_LEVEL", 255, 255);
-            } else if (cmd_rc == 254) {
-              return adjust_loop_signal("CJSH_CONTINUE_LEVEL", 254, 255);
-            } else if (cmd_rc != 0) {
-              if (g_shell && g_shell->is_errexit_enabled()) {
-                return cmd_rc;
-              }
-              return cmd_rc;
-            }
+            auto outcome = handle_loop_command_result(
+                execute_simple_or_pipeline(c),
+                255,
+                255,
+                254,
+                255,
+                false);
+            if (outcome.flow != LoopFlow::None)
+              return outcome.code;
           }
           return 0;
         };
 
-        if (range_info.is_ascending) {
-          for (int i = range_info.start; i <= range_info.end; ++i) {
-            rc = execute_range_iteration(i);
-            if (rc == 255) {
-              rc = 0;
-              break;
-            } else if (rc == 254) {
-              rc = 0;
+        auto iterate_range = [&](int start, int end, int step) -> int {
+          int value = start;
+          int rc_local = 0;
+          while (step > 0 ? value <= end : value >= end) {
+            rc_local = execute_range_iteration(value);
+            if (rc_local == 0) {
+              value += step;
               continue;
-            } else if (rc != 0) {
-              break;
             }
-          }
-        } else {
-          for (int i = range_info.start; i >= range_info.end; --i) {
-            rc = execute_range_iteration(i);
-            if (rc == 255) {
-              rc = 0;
-              break;
-            } else if (rc == 254) {
-              rc = 0;
+            if (rc_local == 254) {
+              rc_local = 0;
+              value += step;
               continue;
-            } else if (rc != 0) {
-              break;
             }
+            if (rc_local == 255)
+              rc_local = 0;
+            break;
           }
-        }
+          return rc_local;
+        };
+
+        rc = iterate_range(range_info.start,
+                           range_info.end,
+                           range_info.is_ascending ? 1 : -1);
       } else {
+        bool break_outer = false;
         for (const auto& it : items) {
           setenv(var.c_str(), it.c_str(), 1);
           auto cmds = shell_parser->parse_semicolon_commands(body);
+          bool continue_outer = false;
           for (const auto& c : cmds) {
-            rc = execute_simple_or_pipeline(c);
-            if (rc == 255) {
-              rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
-              goto for_loop_break;
-            } else if (rc == 254) {
-              rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
-              if (rc == 0)
-                goto for_loop_continue;
-              goto for_loop_break;
-            } else if (rc != 0) {
-              if (g_shell && g_shell->is_errexit_enabled()) {
-                break;
-              }
-
+            auto outcome = handle_loop_command_result(
+                execute_simple_or_pipeline(c),
+                0,
+                255,
+                0,
+                254,
+                true);
+            rc = outcome.code;
+            if (outcome.flow == LoopFlow::None)
+              continue;
+            if (outcome.flow == LoopFlow::Continue) {
+              continue_outer = true;
               break;
             }
+            break_outer = true;
+            break;
           }
-        for_loop_continue:;
+          if (break_outer)
+            break;
+          if (continue_outer)
+            continue;
         }
       }
-    for_loop_break:;
       return rc;
     }
 
@@ -2394,67 +2433,51 @@ int ShellScriptInterpreter::execute_block(
 
     int rc = 0;
 
+    auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
+      return handle_loop_command_result(
+          execute_block(body_lines),
+          0,
+          255,
+          0,
+          254,
+          true);
+    };
+
     if (range_info.is_range) {
-      if (range_info.is_ascending) {
-        for (int i = range_info.start; i <= range_info.end; ++i) {
-          std::string value = std::to_string(i);
-          setenv(var.c_str(), value.c_str(), 1);
-          rc = execute_block(body_lines);
-          if (rc == 255) {
-            rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
-            break;
-          } else if (rc == 254) {
-            rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
-            if (rc == 0)
-              continue;
-            break;
-          } else if (rc != 0) {
-            if (g_shell && g_shell->is_errexit_enabled()) {
-              break;
-            }
+      auto iterate_range_body = [&](int start, int end, int step) -> int {
+        int value = start;
+        int rc_local = 0;
+        while (step > 0 ? value <= end : value >= end) {
+          std::string value_str = std::to_string(value);
+          setenv(var.c_str(), value_str.c_str(), 1);
+          auto outcome = run_body_and_handle_result();
+          rc_local = outcome.code;
+          if (outcome.flow == LoopFlow::None) {
+            value += step;
             continue;
           }
-        }
-      } else {
-        for (int i = range_info.start; i >= range_info.end; --i) {
-          std::string value = std::to_string(i);
-          setenv(var.c_str(), value.c_str(), 1);
-          rc = execute_block(body_lines);
-          if (rc == 255) {
-            rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
-            break;
-          } else if (rc == 254) {
-            rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
-            if (rc == 0)
-              continue;
-            break;
-          } else if (rc != 0) {
-            if (g_shell && g_shell->is_errexit_enabled()) {
-              break;
-            }
+          if (outcome.flow == LoopFlow::Continue) {
+            value += step;
             continue;
           }
+          break;
         }
-      }
+        return rc_local;
+      };
+
+      rc = iterate_range_body(range_info.start,
+                              range_info.end,
+                              range_info.is_ascending ? 1 : -1);
     } else {
       for (const auto& it : items) {
         setenv(var.c_str(), it.c_str(), 1);
-        rc = execute_block(body_lines);
-        if (rc == 255) {
-          rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
-          break;
-        } else if (rc == 254) {
-          rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
-          if (rc == 0)
-            continue;
-          break;
-        } else if (rc != 0) {
-          if (g_shell && g_shell->is_errexit_enabled()) {
-            break;
-          }
-
+        auto outcome = run_body_and_handle_result();
+        rc = outcome.code;
+        if (outcome.flow == LoopFlow::None)
           continue;
-        }
+        if (outcome.flow == LoopFlow::Continue)
+          continue;
+        break;
       }
     }
     idx = k;
@@ -2718,19 +2741,18 @@ int ShellScriptInterpreter::execute_block(
         break;
 
       rc = execute_block(body_lines);
-      if (rc == 255) {
-        rc = adjust_loop_signal("CJSH_BREAK_LEVEL", 0, 255);
+      auto outcome = handle_loop_command_result(
+          rc,
+          0,
+          255,
+          0,
+          254,
+          true);
+      rc = outcome.code;
+      if (outcome.flow == LoopFlow::Break)
         break;
-      } else if (rc == 254) {
-        rc = adjust_loop_signal("CJSH_CONTINUE_LEVEL", 0, 254);
-        if (rc == 0)
-          continue;
-        break;
-      } else if (rc != 0) {
-        if (g_shell && g_shell->is_errexit_enabled()) {
-          break;
-        }
-      }
+      if (outcome.flow == LoopFlow::Continue)
+        continue;
       if (++guard > GUARD_MAX) {
         if (keyword == "while") {
           print_error({ErrorType::RUNTIME_ERROR,
