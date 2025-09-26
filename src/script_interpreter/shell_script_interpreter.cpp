@@ -14,6 +14,7 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <regex>
 #include <utility>
 #include <sstream>
@@ -273,6 +274,113 @@ int ShellScriptInterpreter::execute_block(
                                              debug_context,
                                              matched_exit_code);
         return {matched, matched_exit_code};
+      };
+
+  auto handle_inline_case =
+      [&](const std::string& text,
+          const std::string& debug_context,
+          bool allow_command_substitution,
+          bool trim_sections) -> std::optional<int> {
+        if (!(text == "case" || text.rfind("case ", 0) == 0))
+          return std::nullopt;
+        if (text.find(" in ") == std::string::npos ||
+            text.find("esac") == std::string::npos)
+          return std::nullopt;
+
+        size_t in_pos = text.find(" in ");
+        std::string case_part = text.substr(0, in_pos);
+        std::string patterns_part = text.substr(in_pos + 4);
+        std::string processed_case_part = case_part;
+
+        if (allow_command_substitution &&
+            (processed_case_part.find("$(") != std::string::npos ||
+             processed_case_part.find("`") != std::string::npos)) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: " << debug_context << " expanding command substitution in inline case: '"
+                      << processed_case_part << "'" << std::endl;
+          }
+          try {
+            size_t cmd_start = processed_case_part.find("$(");
+            if (cmd_start != std::string::npos) {
+              size_t cmd_end = processed_case_part.find(")", cmd_start + 2);
+              if (cmd_end != std::string::npos) {
+                std::string cmd_sub =
+                    processed_case_part.substr(cmd_start + 2,
+                                                cmd_end - cmd_start - 2);
+
+                auto cmd_output_result =
+                    cjsh_filesystem::FileOperations::read_command_output(cmd_sub);
+                if (cmd_output_result.is_ok()) {
+                  std::string result = cmd_output_result.value();
+                  if (!result.empty() && result.back() == '\n')
+                    result.pop_back();
+
+                  processed_case_part =
+                      processed_case_part.substr(0, cmd_start) + result +
+                      processed_case_part.substr(cmd_end + 1);
+
+                  if (g_debug_mode) {
+                    std::cerr << "DEBUG: " << debug_context
+                              << " command substitution result: '" << result
+                              << "'" << std::endl;
+                    std::cerr << "DEBUG: " << debug_context
+                              << " expanded case part: '" << processed_case_part
+                              << "'" << std::endl;
+                  }
+                }
+              }
+            }
+          } catch (...) {
+          }
+        }
+
+        std::vector<std::string> case_tokens =
+            shell_parser->parse_command(processed_case_part);
+
+        std::string case_value;
+        std::string raw_case_value;
+
+        if (case_tokens.size() >= 2 && case_tokens[0] == "case") {
+          raw_case_value = case_tokens[1];
+          case_value = raw_case_value;
+        } else {
+          size_t space_pos = processed_case_part.find(' ');
+          if (space_pos != std::string::npos &&
+              processed_case_part.substr(0, space_pos) == "case") {
+            raw_case_value =
+                trim(processed_case_part.substr(space_pos + 1));
+            case_value = raw_case_value;
+          }
+        }
+
+        if (case_value.length() >= 2) {
+          if ((case_value.front() == '"' && case_value.back() == '"') ||
+              (case_value.front() == '\'' && case_value.back() == '\'')) {
+            case_value = case_value.substr(1, case_value.length() - 2);
+          }
+        }
+
+        if (!case_value.empty())
+          shell_parser->expand_env_vars(case_value);
+
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: " << debug_context
+                    << " case_part='" << case_part << "'" << std::endl;
+          std::cerr << "DEBUG: " << debug_context
+                    << " raw_case_value='" << raw_case_value
+                    << "' -> expanded='" << case_value << "'" << std::endl;
+          std::string debug_patterns = sanitize_case_patterns(patterns_part);
+          std::cerr << "DEBUG: " << debug_context
+                    << " patterns_part after esac removal='" << debug_patterns
+                    << "'" << std::endl;
+        }
+
+        auto case_result =
+            evaluate_case_patterns(patterns_part, case_value,
+                                    debug_context, trim_sections);
+        return case_result.first
+                   ? std::optional<int>{case_result.second}
+                   : std::optional<int>{0};
       };
 
   auto evaluate_logical_condition = [&](const std::string& condition) -> int {
@@ -1328,61 +1436,14 @@ int ShellScriptInterpreter::execute_block(
                 << (text.find("esac") != std::string::npos) << std::endl;
     }
 
-    if ((text == "case" || text.rfind("case ", 0) == 0) &&
-        (text.find(" in ") != std::string::npos) &&
-        (text.find("esac") != std::string::npos)) {
+    if (auto inline_case_result =
+            handle_inline_case(text, "[inline case]", false, true)) {
       if (g_debug_mode) {
         std::cerr << "DEBUG: Handling inline case statement in "
                      "execute_simple_or_pipeline: "
                   << text << std::endl;
       }
-
-      size_t in_pos = text.find(" in ");
-      std::string case_part = text.substr(0, in_pos);
-      std::string patterns_part = text.substr(in_pos + 4);
-
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: [inline case] case_part='" << case_part << "'"
-                  << std::endl;
-      }
-
-      std::string case_value;
-      size_t space_pos = case_part.find(' ');
-      if (space_pos != std::string::npos &&
-          case_part.substr(0, space_pos) == "case") {
-        std::string raw_case_value = trim(case_part.substr(space_pos + 1));
-
-        case_value = raw_case_value;
-        if (case_value.length() >= 2) {
-          if ((case_value[0] == '"' &&
-               case_value[case_value.length() - 1] == '"') ||
-              (case_value[0] == '\'' &&
-               case_value[case_value.length() - 1] == '\'')) {
-            case_value = case_value.substr(1, case_value.length() - 2);
-          }
-        }
-
-        shell_parser->expand_env_vars(case_value);
-
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: [inline case] raw_case_value='" << raw_case_value
-                    << "' -> expanded='" << case_value << "'" << std::endl;
-        }
-      }
-
-      if (g_debug_mode) {
-        std::string debug_patterns = sanitize_case_patterns(patterns_part);
-        std::cerr << "DEBUG: [inline case] patterns_part after esac removal='"
-                  << debug_patterns << "'" << std::endl;
-      }
-
-      auto case_result =
-          evaluate_case_patterns(patterns_part, case_value,
-                                  "[inline case]", true);
-      if (case_result.first)
-        return case_result.second;
-
-      return 0;
+      return *inline_case_result;
     }
 
     try {
@@ -2382,69 +2443,12 @@ int ShellScriptInterpreter::execute_block(
     std::string case_value;
     std::string header_accum = first;
 
-    if (first.find(" in ") != std::string::npos &&
-        first.find("esac") != std::string::npos) {
-      size_t in_pos = first.find(" in ");
-      std::string case_part = first.substr(0, in_pos);
-      std::string patterns_part = first.substr(in_pos + 4);
-
-      std::string expanded_case_part = case_part;
-      if (case_part.find("$(") != std::string::npos ||
-          case_part.find("`") != std::string::npos) {
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Expanding command substitution in inline case: '"
-                    << case_part << "'" << std::endl;
-        }
-        try {
-          size_t cmd_start = case_part.find("$(");
-          if (cmd_start != std::string::npos) {
-            size_t cmd_end = case_part.find(")", cmd_start + 2);
-            if (cmd_end != std::string::npos) {
-              std::string cmd_sub =
-                  case_part.substr(cmd_start + 2, cmd_end - cmd_start - 2);
-
-              auto cmd_output_result =
-                  cjsh_filesystem::FileOperations::read_command_output(cmd_sub);
-              if (cmd_output_result.is_ok()) {
-                std::string result = cmd_output_result.value();
-
-                if (!result.empty() && result.back() == '\n') {
-                  result.pop_back();
-                }
-
-                expanded_case_part = case_part.substr(0, cmd_start) + result +
-                                     case_part.substr(cmd_end + 1);
-
-                if (g_debug_mode) {
-                  std::cerr << "DEBUG: Inline case expansion result: '"
-                            << result << "'" << std::endl;
-                  std::cerr << "DEBUG: Expanded case part: '"
-                            << expanded_case_part << "'" << std::endl;
-                }
-              }
-            }
-          }
-        } catch (...) {
-        }
+    if (auto inline_case_result =
+            handle_inline_case(first, "[case inline]", true, true)) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: handle_case_block processed inline case" << std::endl;
       }
-
-      std::vector<std::string> case_toks =
-          shell_parser->parse_command(expanded_case_part);
-      if (case_toks.size() >= 2 && case_toks[0] == "case") {
-        case_value = case_toks[1];
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Inline case value: '" << case_value << "'"
-                    << std::endl;
-        }
-      }
-
-      auto case_result =
-          evaluate_case_patterns(patterns_part, case_value,
-                                  "[case inline]", true);
-      if (case_result.first)
-        return case_result.second;
-
-      return 0;
+      return *inline_case_result;
     }
 
     std::string expanded_header = header_accum;
