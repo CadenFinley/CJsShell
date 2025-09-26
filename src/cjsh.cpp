@@ -107,11 +107,12 @@ static void initialize_title_strings() {
 
 // TODOxw
 // fix all failing tests
+
 //  custom exa implementations
 // fix all memory leaks
 //  valgrind --leak-check=full --show-leak-kinds=all
 //  fix leaks in isocline
-//  theme rendering needs to be faster
+
 //  shell script error and syntax validation prolly needs to be adjusted echo $(version)
 
 /*
