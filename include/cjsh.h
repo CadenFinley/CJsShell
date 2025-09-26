@@ -49,7 +49,7 @@ extern bool smart_cd_enabled;
 extern bool show_version;
 extern bool show_help;
 extern bool startup_test;
-extern bool disable_ls_colors;
+extern bool disable_custom_ls;
 }  // namespace config
 
 void initialize_colors();

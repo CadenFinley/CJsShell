@@ -106,7 +106,7 @@ struct FileInfo {
 };
 
 int ls_command(const std::vector<std::string>& args, Shell* shell) {
-  if (config::disable_ls_colors) {
+  if (config::disable_custom_ls) {
     std::vector<std::string> system_ls_args;
     system_ls_args.push_back("/bin/ls");
 

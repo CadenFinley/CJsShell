@@ -91,7 +91,7 @@ bool show_version = false;
 bool show_help = false;
 bool startup_test = false;
 bool minimal_mode = false;
-bool disable_ls_colors = false;
+bool disable_custom_ls = false;
 bool show_startup_time = false;
 }  // namespace config
 
@@ -284,7 +284,7 @@ static int parse_command_line_arguments(int argc, char* argv[],
       {"no-smart-cd", no_argument, 0, 'M'},
       {"startup-test", no_argument, 0, 'X'},
       {"minimal", no_argument, 0, 'm'},
-      {"disable-ls-colors", no_argument, 0, 'D'},
+      {"disable-custom-ls", no_argument, 0, 'D'},
       {0, 0, 0, 0}};
   const char* short_options =
       "+lic:vhdPTACLUNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT behavior
@@ -390,7 +390,7 @@ static int parse_command_line_arguments(int argc, char* argv[],
         config::completions_enabled = false;
         config::syntax_highlighting_enabled = false;
         config::smart_cd_enabled = false;
-        config::disable_ls_colors = true;
+        config::disable_custom_ls = true;
         config::show_startup_time = false;
         g_title_line = false;
         if (g_debug_mode)
@@ -398,9 +398,9 @@ static int parse_command_line_arguments(int argc, char* argv[],
                     << std::endl;
         break;
       case 'D':
-        config::disable_ls_colors = true;
+        config::disable_custom_ls = true;
         if (g_debug_mode)
-          std::cerr << "DEBUG: Disable ls colors enabled" << std::endl;
+          std::cerr << "DEBUG: Disable custom ls enabled" << std::endl;
         break;
       case '?':
         print_usage();
@@ -1197,17 +1197,17 @@ static void apply_profile_startup_flags() {
       config::completions_enabled = false;
       config::syntax_highlighting_enabled = false;
       config::smart_cd_enabled = false;
-      config::disable_ls_colors = true;
+      config::disable_custom_ls = true;
       config::show_startup_time = false;
       g_title_line = false;
       if (g_debug_mode)
         std::cerr
             << "DEBUG: Minimal mode enabled via profile - all features disabled"
             << std::endl;
-    } else if (flag == "--disable-ls-colors") {
-      config::disable_ls_colors = true;
+    } else if (flag == "--disable-custom-ls") {
+      config::disable_custom_ls = true;
       if (g_debug_mode)
-        std::cerr << "DEBUG: Disable ls colors enabled via profile"
+        std::cerr << "DEBUG: Disable custom ls enabled via profile"
                   << std::endl;
     }
   }
@@ -1260,8 +1260,8 @@ static void create_profile_file() {
       "highlighting\n"
       "# login-startup-arg --no-smart-cd         # Disable smart cd "
       "functionality\n"
-      "# login-startup-arg --disable-ls-colors   # Disable custom ls output "
-      "colors\n"
+      "# login-startup-arg --disable-custom-ls   # Use system ls instead of "
+      "builtin\n"
       "# login-startup-arg --startup-test        # Enable startup test mode\n";
 
   auto write_result = cjsh_filesystem::FileOperations::write_file_content(
