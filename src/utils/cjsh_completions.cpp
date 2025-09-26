@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <functional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -373,6 +374,161 @@ bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv,
   }
 }
 
+std::string quote_path_if_needed(const std::string& path);
+bool starts_with_case_insensitive(const std::string& str,
+                                  const std::string& prefix);
+
+static bool completion_limit_hit() {
+  return g_current_completion_tracker &&
+         g_current_completion_tracker->has_reached_completion_limit();
+}
+
+static bool completion_limit_hit_with_log(const char* label) {
+  if (!completion_limit_hit())
+    return false;
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Reached completion limit in " << label << std::endl;
+  return true;
+}
+
+static bool add_command_completion(ic_completion_env_t* cenv,
+                                   const std::string& candidate,
+                                   size_t prefix_len,
+                                   const char* source,
+                                   const char* debug_label) {
+  long delete_before = static_cast<long>(prefix_len);
+  if (g_debug_mode)
+    std::cerr << "DEBUG: " << debug_label << " completion found: '"
+              << candidate << "' (deleting " << delete_before
+              << " chars before)" << std::endl;
+  return safe_add_completion_prim_with_source(cenv, candidate.c_str(), nullptr,
+                                              nullptr, source, delete_before,
+                                              0);
+}
+
+static std::string build_completion_suffix(
+    const std::filesystem::directory_entry& entry) {
+  std::string completion_suffix =
+      quote_path_if_needed(entry.path().filename().string());
+  if (entry.is_directory())
+    completion_suffix += "/";
+  return completion_suffix;
+}
+
+static bool add_path_completion(ic_completion_env_t* cenv,
+                                const std::filesystem::directory_entry& entry,
+                                long delete_before,
+                                const std::string& completion_suffix) {
+  const char* source = entry.is_directory() ? "directory" : "file";
+  if (delete_before == 0)
+    return safe_add_completion_with_source(cenv, completion_suffix.c_str(),
+                                           source);
+  return safe_add_completion_prim_with_source(cenv, completion_suffix.c_str(),
+                                              nullptr, nullptr, source,
+                                              delete_before, 0);
+}
+
+static void determine_directory_target(const std::string& path,
+                                       bool treat_as_directory,
+                                       std::filesystem::path& dir_path,
+                                       std::string& match_prefix) {
+  namespace fs = std::filesystem;
+  if (treat_as_directory || path.empty() || path.back() == '/') {
+    dir_path = path.empty() ? fs::path(".") : fs::path(path);
+    match_prefix.clear();
+    return;
+  }
+  size_t last_slash = path.find_last_of('/');
+  if (last_slash != std::string::npos) {
+    std::string directory_part = path.substr(0, last_slash);
+    if (directory_part.empty())
+      directory_part = "/";
+    dir_path = directory_part;
+    match_prefix = path.substr(last_slash + 1);
+  } else {
+    dir_path = ".";
+    match_prefix = path;
+  }
+}
+
+template <typename Container, typename Extractor>
+static void process_command_candidates(
+    ic_completion_env_t* cenv, const Container& container,
+    const std::string& prefix, size_t prefix_len, const char* source,
+    const char* debug_label, Extractor extractor,
+    const std::function<bool(const std::string&)>& filter = {}) {
+  for (const auto& item : container) {
+    if (completion_limit_hit_with_log(debug_label))
+      return;
+    if (ic_stop_completing(cenv))
+      return;
+    std::string candidate = extractor(item);
+    if (filter && !filter(candidate))
+      continue;
+    if (!starts_with_case_insensitive(candidate, prefix))
+      continue;
+    if (!add_command_completion(cenv, candidate, prefix_len, source,
+                                debug_label))
+      return;
+    if (ic_stop_completing(cenv))
+      return;
+  }
+}
+
+static bool iterate_directory_entries(ic_completion_env_t* cenv,
+                                      const std::filesystem::path& dir_path,
+                                      const std::string& match_prefix,
+                                      bool directories_only,
+                                      size_t max_completions,
+                                      bool skip_hidden_without_prefix,
+                                      const char* debug_label) {
+  namespace fs = std::filesystem;
+  size_t completion_count = 0;
+  std::string limit_label = std::string(debug_label) + " completion";
+  for (const auto& entry : fs::directory_iterator(dir_path)) {
+    if (completion_count >= max_completions) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Limiting " << debug_label << " completions to "
+                  << max_completions << " entries" << std::endl;
+      break;
+    }
+    if (ic_stop_completing(cenv))
+      return false;
+    if (completion_limit_hit_with_log(limit_label.c_str()))
+      return false;
+    if (directories_only && !entry.is_directory())
+      continue;
+    std::string filename = entry.path().filename().string();
+    if (filename.empty())
+      continue;
+    if (skip_hidden_without_prefix && match_prefix.empty() &&
+        filename[0] == '.')
+      continue;
+    if (!match_prefix.empty() &&
+        !starts_with_case_insensitive(filename, match_prefix))
+      continue;
+    long delete_before =
+        match_prefix.empty() ? 0 : static_cast<long>(match_prefix.length());
+    std::string completion_suffix = build_completion_suffix(entry);
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Adding " << debug_label;
+      if (match_prefix.empty()) {
+        std::cerr << " completion: '" << completion_suffix << "'";
+      } else {
+        std::cerr << " completion (full name): '" << completion_suffix
+                  << "' (deleting " << delete_before << " chars before)";
+      }
+      std::cerr << std::endl;
+    }
+    if (!add_path_completion(cenv, entry, delete_before, completion_suffix))
+      return false;
+    ++completion_count;
+    if (ic_stop_completing(cenv))
+      return false;
+  }
+  return true;
+}
+
 size_t find_last_unquoted_space(const std::string& str) {
   bool in_single_quote = false;
   bool in_double_quote = false;
@@ -594,8 +750,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (ic_stop_completing(cenv))
     return;
 
-  if (g_current_completion_tracker &&
-      g_current_completion_tracker->has_reached_completion_limit()) {
+  if (completion_limit_hit()) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Global completion limit reached, skipping command "
                    "completer"
@@ -603,10 +758,8 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     return;
   }
 
-  std::string prefix_lower(prefix);
-  std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  size_t prefix_len = prefix_lower.length();
+  std::string prefix_str(prefix);
+  size_t prefix_len = prefix_str.length();
 
   std::vector<std::string> builtin_cmds;
   std::vector<std::string> function_names;
@@ -641,143 +794,46 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   cached_executables = cjsh_filesystem::read_cached_executables();
 
-  for (const auto& cmd : builtin_cmds) {
-    if (g_current_completion_tracker &&
-        g_current_completion_tracker->has_reached_completion_limit()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reached completion limit in builtin commands"
-                  << std::endl;
-      return;
-    }
+  auto builtin_filter = [&](const std::string& cmd) {
+    if (is_interactive_builtin(cmd))
+      return true;
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Skipping script-only builtin: '" << cmd << "'"
+                << std::endl;
+    return false;
+  };
 
-    if (!is_interactive_builtin(cmd)) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Skipping script-only builtin: '" << cmd << "'"
-                  << std::endl;
-      continue;
-    }
+  process_command_candidates(
+      cenv, builtin_cmds, prefix_str, prefix_len, "builtin",
+      "builtin commands", [](const std::string& value) { return value; },
+      builtin_filter);
+  if (completion_limit_hit() || ic_stop_completing(cenv))
+    return;
 
-    std::string cmd_lower(cmd);
-    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
-      long delete_before = static_cast<long>(prefix_len);
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Builtin command completion found: '" << cmd
-                  << "' (deleting " << delete_before << " chars before)"
-                  << std::endl;
+  process_command_candidates(
+      cenv, function_names, prefix_str, prefix_len, "function",
+      "function commands", [](const std::string& value) { return value; });
+  if (completion_limit_hit() || ic_stop_completing(cenv))
+    return;
 
-      if (!safe_add_completion_prim_with_source(
-              cenv, cmd.c_str(), nullptr, nullptr, "builtin", delete_before, 0))
-        return;
-    }
-    if (ic_stop_completing(cenv))
-      return;
-  }
+  process_command_candidates(
+      cenv, plugin_cmds, prefix_str, prefix_len, "plugin",
+      "plugin commands", [](const std::string& value) { return value; });
+  if (completion_limit_hit() || ic_stop_completing(cenv))
+    return;
 
-  for (const auto& cmd : function_names) {
-    if (g_current_completion_tracker &&
-        g_current_completion_tracker->has_reached_completion_limit()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reached completion limit in function commands"
-                  << std::endl;
-      return;
-    }
-    std::string cmd_lower(cmd);
-    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
-      long delete_before = static_cast<long>(prefix_len);
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Function completion found: '" << cmd
-                  << "' (deleting " << delete_before << " chars before)"
-                  << std::endl;
+  process_command_candidates(
+      cenv, aliases, prefix_str, prefix_len, "alias", "aliases",
+      [](const std::string& value) { return value; });
+  if (completion_limit_hit() || ic_stop_completing(cenv))
+    return;
 
-      if (!safe_add_completion_prim_with_source(cenv, cmd.c_str(), nullptr,
-                                                nullptr, "function",
-                                                delete_before, 0))
-        return;
-    }
-    if (ic_stop_completing(cenv))
-      return;
-  }
-
-  for (const auto& cmd : plugin_cmds) {
-    if (g_current_completion_tracker &&
-        g_current_completion_tracker->has_reached_completion_limit()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reached completion limit in plugin commands"
-                  << std::endl;
-      return;
-    }
-    std::string cmd_lower(cmd);
-    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
-      long delete_before = static_cast<long>(prefix_len);
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Plugin command completion found: '" << cmd
-                  << "' (deleting " << delete_before << " chars before)"
-                  << std::endl;
-
-      if (!safe_add_completion_prim_with_source(
-              cenv, cmd.c_str(), nullptr, nullptr, "plugin", delete_before, 0))
-        return;
-    }
-    if (ic_stop_completing(cenv))
-      return;
-  }
-
-  for (const auto& cmd : aliases) {
-    if (g_current_completion_tracker &&
-        g_current_completion_tracker->has_reached_completion_limit()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reached completion limit in aliases" << std::endl;
-      return;
-    }
-    std::string cmd_lower(cmd);
-    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
-      long delete_before = static_cast<long>(prefix_len);
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Alias completion found: '" << cmd << "' (deleting "
-                  << delete_before << " chars before)" << std::endl;
-
-      if (!safe_add_completion_prim_with_source(
-              cenv, cmd.c_str(), nullptr, nullptr, "alias", delete_before, 0))
-        return;
-    }
-    if (ic_stop_completing(cenv))
-      return;
-  }
-
-  for (const auto& exec_path : cached_executables) {
-    if (g_current_completion_tracker &&
-        g_current_completion_tracker->has_reached_completion_limit()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reached completion limit in cached executables"
-                  << std::endl;
-      return;
-    }
-    std::string cmd = exec_path.filename().string();
-    std::string cmd_lower(cmd);
-    std::transform(cmd_lower.begin(), cmd_lower.end(), cmd_lower.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (cmd_lower.rfind(prefix_lower, 0) == 0) {
-      long delete_before = static_cast<long>(prefix_len);
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Executable completion found: '" << cmd
-                  << "' (deleting " << delete_before << " chars before)"
-                  << std::endl;
-
-      if (!safe_add_completion_prim_with_source(
-              cenv, cmd.c_str(), nullptr, nullptr, "system", delete_before, 0))
-        return;
-    }
-    if (ic_stop_completing(cenv))
-      return;
-  }
+  process_command_candidates(
+      cenv, cached_executables, prefix_str, prefix_len, "system",
+      "cached executables",
+      [](const std::filesystem::path& value) {
+        return value.filename().string();
+      });
 
   if (g_debug_mode && !ic_has_completions(cenv))
     std::cerr << "DEBUG: No command completions found for prefix: '" << prefix
@@ -824,8 +880,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (ic_stop_completing(cenv))
     return;
 
-  if (g_current_completion_tracker &&
-      g_current_completion_tracker->has_reached_completion_limit()) {
+  if (completion_limit_hit()) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Global completion limit reached, skipping history "
                    "completer"
@@ -834,9 +889,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   }
 
   std::string prefix_str(prefix);
-  std::string prefix_lower(prefix);
-  std::transform(prefix_lower.begin(), prefix_lower.end(), prefix_lower.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
   size_t prefix_len = prefix_str.length();
 
   if (prefix_len == 0) {
@@ -881,13 +933,9 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     bool should_match = false;
     if (prefix_len == 0) {
       should_match = (line != prefix_str);
-    } else {
-      std::string line_lower;
-      line_lower.reserve(line.length());
-      std::transform(line.begin(), line.end(), std::back_inserter(line_lower),
-                     [](unsigned char c) { return std::tolower(c); });
-      should_match =
-          (line_lower.rfind(prefix_lower, 0) == 0 && line != prefix_str);
+    } else if (starts_with_case_insensitive(line, prefix_str) &&
+               line != prefix_str) {
+      should_match = true;
     }
 
     if (should_match) {
@@ -910,13 +958,8 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
   size_t count = 0;
 
   for (const auto& match : matches) {
-    if (g_current_completion_tracker &&
-        g_current_completion_tracker->has_reached_completion_limit()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Reached completion limit in history suggestions"
-                  << std::endl;
+    if (completion_limit_hit_with_log("history suggestions"))
       return;
-    }
 
     const std::string& completion = match.first;
     long delete_before = static_cast<long>(prefix_len);
@@ -970,8 +1013,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
   if (ic_stop_completing(cenv))
     return;
 
-  if (g_current_completion_tracker &&
-      g_current_completion_tracker->has_reached_completion_limit()) {
+  if (completion_limit_hit()) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Global completion limit reached, skipping filename "
                    "completer"
@@ -990,8 +1032,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
   bool has_tilde = false;
   bool has_dash = false;
-  std::string prefix_before = "";
-  std::string special_part = "";
+  std::string prefix_before;
+  std::string special_part;
 
   if (last_space != std::string::npos && last_space + 1 < prefix_str.length()) {
     if (prefix_str[last_space + 1] == '~') {
@@ -1008,10 +1050,10 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
       prefix_before = prefix_str.substr(0, last_space + 1);
       special_part = prefix_str.substr(last_space + 1);
     }
-  } else if (prefix_str[0] == '~') {
+  } else if (!prefix_str.empty() && prefix_str[0] == '~') {
     has_tilde = true;
     special_part = prefix_str;
-  } else if (prefix_str[0] == '-' &&
+  } else if (!prefix_str.empty() && prefix_str[0] == '-' &&
              (prefix_str.length() == 1 || prefix_str[1] == '/')) {
     has_dash = true;
     special_part = prefix_str;
@@ -1037,20 +1079,10 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     namespace fs = std::filesystem;
     fs::path dir_path;
     std::string match_prefix;
-
-    if (unquoted_special.back() == '/') {
-      dir_path = dir_to_complete;
-      match_prefix = "";
-    } else {
-      size_t last_slash = dir_to_complete.find_last_of('/');
-      if (last_slash != std::string::npos) {
-        dir_path = dir_to_complete.substr(0, last_slash);
-        match_prefix = dir_to_complete.substr(last_slash + 1);
-      } else {
-        dir_path = dir_to_complete;
-        match_prefix = "";
-      }
-    }
+    bool treat_as_directory =
+        !unquoted_special.empty() && unquoted_special.back() == '/';
+    determine_directory_target(dir_to_complete, treat_as_directory, dir_path,
+                               match_prefix);
 
     if (g_debug_mode) {
       std::cerr << "DEBUG: Looking in directory: '" << dir_path << "'"
@@ -1061,68 +1093,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-        size_t completion_count = 0;
-        const size_t max_completions = 30;
-
-        for (const auto& entry : fs::directory_iterator(dir_path)) {
-          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
-            if (g_debug_mode && completion_count >= max_completions) {
-              std::cerr << "DEBUG: Limiting tilde completions to "
-                        << max_completions << " entries" << std::endl;
-            }
-            break;
-          }
-
-          if (g_current_completion_tracker &&
-              g_current_completion_tracker->has_reached_completion_limit()) {
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Reached global completion limit in tilde "
-                           "completion"
-                        << std::endl;
-            return;
-          }
-
-          std::string filename = entry.path().filename().string();
-
-          if (match_prefix.empty() ||
-              starts_with_case_insensitive(filename, match_prefix)) {
-            std::string completion_suffix;
-
-            if (match_prefix.empty()) {
-              completion_suffix = quote_path_if_needed(filename);
-              if (entry.is_directory()) {
-                completion_suffix += "/";
-              }
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Adding tilde completion: '"
-                          << completion_suffix << "'" << std::endl;
-
-              const char* source = entry.is_directory() ? "directory" : "file";
-              if (!safe_add_completion_with_source(
-                      cenv, completion_suffix.c_str(), source))
-                return;
-            } else {
-              completion_suffix = quote_path_if_needed(filename);
-              if (entry.is_directory()) {
-                completion_suffix += "/";
-              }
-              long delete_before = static_cast<long>(match_prefix.length());
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Adding tilde completion (full name): '"
-                          << completion_suffix << "' (deleting "
-                          << delete_before << " chars before)" << std::endl;
-
-              if (!safe_add_completion_prim_with_source(
-                      cenv, completion_suffix.c_str(), nullptr, nullptr,
-                      entry.is_directory() ? "directory" : "file",
-                      delete_before, 0))
-                return;
-            }
-            ++completion_count;
-          }
-        }
+        if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30,
+                                       false, "tilde"))
+          return;
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
@@ -1131,9 +1104,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     return;
-  }
-
-  else if (has_dash && (special_part.length() == 1 || special_part[1] == '/')) {
+  } else if (has_dash &&
+             (special_part.length() == 1 || special_part[1] == '/')) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Processing dash completion for previous directory: '"
                 << special_part << "'" << std::endl;
@@ -1156,20 +1128,10 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     namespace fs = std::filesystem;
     fs::path dir_path;
     std::string match_prefix;
-
-    if (unquoted_special.back() == '/') {
-      dir_path = dir_to_complete;
-      match_prefix = "";
-    } else {
-      size_t last_slash = dir_to_complete.find_last_of('/');
-      if (last_slash != std::string::npos) {
-        dir_path = dir_to_complete.substr(0, last_slash);
-        match_prefix = dir_to_complete.substr(last_slash + 1);
-      } else {
-        dir_path = dir_to_complete;
-        match_prefix = "";
-      }
-    }
+    bool treat_as_directory =
+        !unquoted_special.empty() && unquoted_special.back() == '/';
+    determine_directory_target(dir_to_complete, treat_as_directory, dir_path,
+                               match_prefix);
 
     if (g_debug_mode) {
       std::cerr << "DEBUG: Looking in directory: '" << dir_path << "'"
@@ -1180,68 +1142,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-        size_t completion_count = 0;
-        const size_t max_completions = 30;
-
-        for (const auto& entry : fs::directory_iterator(dir_path)) {
-          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
-            if (g_debug_mode && completion_count >= max_completions) {
-              std::cerr << "DEBUG: Limiting dash completions to "
-                        << max_completions << " entries" << std::endl;
-            }
-            break;
-          }
-
-          if (g_current_completion_tracker &&
-              g_current_completion_tracker->has_reached_completion_limit()) {
-            if (g_debug_mode)
-              std::cerr
-                  << "DEBUG: Reached global completion limit in dash completion"
-                  << std::endl;
-            return;
-          }
-
-          std::string filename = entry.path().filename().string();
-
-          if (match_prefix.empty() ||
-              starts_with_case_insensitive(filename, match_prefix)) {
-            std::string completion_suffix;
-
-            if (match_prefix.empty()) {
-              completion_suffix = quote_path_if_needed(filename);
-              if (entry.is_directory()) {
-                completion_suffix += "/";
-              }
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Adding dash completion: '"
-                          << completion_suffix << "'" << std::endl;
-
-              const char* source = entry.is_directory() ? "directory" : "file";
-              if (!safe_add_completion_with_source(
-                      cenv, completion_suffix.c_str(), source))
-                return;
-            } else {
-              completion_suffix = quote_path_if_needed(filename);
-              if (entry.is_directory()) {
-                completion_suffix += "/";
-              }
-              long delete_before = static_cast<long>(match_prefix.length());
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Adding dash completion (full name): '"
-                          << completion_suffix << "' (deleting "
-                          << delete_before << " chars before)" << std::endl;
-
-              if (!safe_add_completion_prim_with_source(
-                      cenv, completion_suffix.c_str(), nullptr, nullptr,
-                      entry.is_directory() ? "directory" : "file",
-                      delete_before, 0))
-                return;
-            }
-            ++completion_count;
-          }
-        }
+        if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30,
+                                       false, "dash"))
+          return;
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
@@ -1327,48 +1230,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     fs::path dir_path(path_to_check);
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-        size_t completion_count = 0;
-        const size_t max_completions = 30;
-
-        for (auto& entry : fs::directory_iterator(dir_path)) {
-          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
-            if (g_debug_mode && completion_count >= max_completions) {
-              std::cerr << "DEBUG: Limiting all files completions to "
-                        << max_completions << " entries" << std::endl;
-            }
-            break;
-          }
-
-          if (g_current_completion_tracker &&
-              g_current_completion_tracker->has_reached_completion_limit()) {
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Reached global completion limit in all "
-                           "files completion"
-                        << std::endl;
-            return;
-          }
-
-          std::string name = entry.path().filename().string();
-
-          if (directories_only && !entry.is_directory()) {
-            continue;
-          }
-
-          std::string suffix = quote_path_if_needed(name);
-          if (entry.is_directory()) {
-            suffix += "/";
-          }
-          if (g_debug_mode)
-            std::cerr << "DEBUG: All files completion: '" << suffix << "'"
-                      << std::endl;
-          if (!safe_add_completion_with_source(
-                  cenv, suffix.c_str(),
-                  entry.is_directory() ? "directory" : "file"))
-            return;
-          ++completion_count;
-          if (ic_stop_completing(cenv))
-            return;
-        }
+        if (!iterate_directory_entries(cenv, dir_path, "", directories_only,
+                                       30, false, "all files"))
+          return;
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
@@ -1386,90 +1250,16 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     namespace fs = std::filesystem;
     fs::path dir_path;
     std::string match_prefix;
-
-    if (path_to_complete.empty() || path_to_complete.back() == '/') {
-      dir_path = path_to_complete.empty() ? "." : path_to_complete;
-      match_prefix = "";
-    } else {
-      size_t last_slash = path_to_complete.find_last_of('/');
-      if (last_slash != std::string::npos) {
-        dir_path = path_to_complete.substr(0, last_slash);
-        if (dir_path.empty())
-          dir_path = "/";
-        match_prefix = path_to_complete.substr(last_slash + 1);
-      } else {
-        dir_path = ".";
-        match_prefix = path_to_complete;
-      }
-    }
+    bool treat_as_directory =
+        path_to_complete.empty() || path_to_complete.back() == '/';
+    determine_directory_target(path_to_complete, treat_as_directory, dir_path,
+                               match_prefix);
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-        size_t completion_count = 0;
-        const size_t max_completions = 30;
-
-        for (const auto& entry : fs::directory_iterator(dir_path)) {
-          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
-            if (g_debug_mode && completion_count >= max_completions) {
-              std::cerr << "DEBUG: Limiting directory-only completions to "
-                        << max_completions << " entries" << std::endl;
-            }
-            break;
-          }
-
-          if (g_current_completion_tracker &&
-              g_current_completion_tracker->has_reached_completion_limit()) {
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Reached global completion limit in "
-                           "directory-only completion"
-                        << std::endl;
-            return;
-          }
-
-          if (!entry.is_directory())
-            continue;
-
-          std::string filename = entry.path().filename().string();
-
-          if (filename[0] == '.' && match_prefix.empty())
-            continue;
-
-          if (match_prefix.empty() ||
-              starts_with_case_insensitive(filename, match_prefix)) {
-            std::string completion_suffix;
-
-            if (match_prefix.empty()) {
-              completion_suffix = quote_path_if_needed(filename);
-              completion_suffix += "/";
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Directory-only completion: '"
-                          << completion_suffix << "'" << std::endl;
-
-              if (!safe_add_completion_with_source(
-                      cenv, completion_suffix.c_str(), "directory"))
-                return;
-            } else {
-              completion_suffix = quote_path_if_needed(filename);
-              completion_suffix += "/";
-              long delete_before = static_cast<long>(match_prefix.length());
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: Directory-only completion (full name): '"
-                          << completion_suffix << "' (deleting "
-                          << delete_before << " chars before)" << std::endl;
-
-              if (!safe_add_completion_prim_with_source(
-                      cenv, completion_suffix.c_str(), nullptr, nullptr,
-                      "directory", delete_before, 0))
-                return;
-            }
-            ++completion_count;
-          }
-
-          if (ic_stop_completing(cenv))
-            return;
-        }
+        if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, 30,
+                                       true, "directory-only"))
+          return;
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
@@ -1477,16 +1267,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                   << std::endl;
     }
   } else {
-    std::string path_to_complete;
-    std::string prefix_for_completion;
-
-    if (!special_part.empty()) {
-      path_to_complete = unquote_path(special_part);
-      prefix_for_completion = special_part;
-    } else {
-      path_to_complete = unquote_path(prefix_str);
-      prefix_for_completion = prefix_str;
-    }
+    std::string path_to_complete = special_part.empty()
+                                       ? unquote_path(prefix_str)
+                                       : unquote_path(special_part);
 
     if (g_debug_mode)
       std::cerr << "DEBUG: General filename completion for unquoted path: '"
@@ -1495,93 +1278,16 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     namespace fs = std::filesystem;
     fs::path dir_path;
     std::string match_prefix;
-
-    if (path_to_complete.empty() || path_to_complete.back() == '/') {
-      dir_path = path_to_complete.empty() ? "." : path_to_complete;
-      match_prefix = "";
-    } else {
-      size_t last_slash = path_to_complete.find_last_of('/');
-      if (last_slash != std::string::npos) {
-        dir_path = path_to_complete.substr(0, last_slash);
-        if (dir_path.empty())
-          dir_path = "/";
-        match_prefix = path_to_complete.substr(last_slash + 1);
-      } else {
-        dir_path = ".";
-        match_prefix = path_to_complete;
-      }
-    }
+    bool treat_as_directory =
+        path_to_complete.empty() || path_to_complete.back() == '/';
+    determine_directory_target(path_to_complete, treat_as_directory, dir_path,
+                               match_prefix);
 
     try {
       if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-        size_t completion_count = 0;
-        const size_t max_completions = 30;
-
-        for (const auto& entry : fs::directory_iterator(dir_path)) {
-          if (completion_count >= max_completions || ic_stop_completing(cenv)) {
-            if (g_debug_mode && completion_count >= max_completions) {
-              std::cerr << "DEBUG: Limiting general filename completions to "
-                        << max_completions << " entries" << std::endl;
-            }
-            break;
-          }
-
-          if (g_current_completion_tracker &&
-              g_current_completion_tracker->has_reached_completion_limit()) {
-            if (g_debug_mode)
-              std::cerr << "DEBUG: Reached global completion limit in general "
-                           "filename completion"
-                        << std::endl;
-            return;
-          }
-
-          std::string filename = entry.path().filename().string();
-
-          if (filename[0] == '.' && match_prefix.empty())
-            continue;
-
-          if (match_prefix.empty() ||
-              starts_with_case_insensitive(filename, match_prefix)) {
-            std::string completion_suffix;
-            if (match_prefix.empty()) {
-              completion_suffix = quote_path_if_needed(filename);
-              if (entry.is_directory()) {
-                completion_suffix += "/";
-              }
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: General filename completion: '"
-                          << completion_suffix << "'" << std::endl;
-
-              const char* source = entry.is_directory() ? "directory" : "file";
-              if (!safe_add_completion_with_source(
-                      cenv, completion_suffix.c_str(), source))
-                return;
-            } else {
-              completion_suffix = quote_path_if_needed(filename);
-              if (entry.is_directory()) {
-                completion_suffix += "/";
-              }
-
-              long delete_before = static_cast<long>(match_prefix.length());
-
-              if (g_debug_mode)
-                std::cerr << "DEBUG: General filename completion (full name): '"
-                          << completion_suffix << "' (deleting "
-                          << delete_before << " chars before)" << std::endl;
-
-              if (!safe_add_completion_prim_with_source(
-                      cenv, completion_suffix.c_str(), nullptr, nullptr,
-                      entry.is_directory() ? "directory" : "file",
-                      delete_before, 0))
-                return;
-            }
-            ++completion_count;
-          }
-
-          if (ic_stop_completing(cenv))
-            return;
-        }
+        if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30,
+                                       true, "general filename"))
+          return;
       }
     } catch (const std::exception& e) {
       if (g_debug_mode)
