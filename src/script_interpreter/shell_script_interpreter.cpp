@@ -851,6 +851,24 @@ int ShellScriptInterpreter::execute_block(
       char q = '\0';
       bool escaped = false;
 
+      auto append_substitution_result = [&](const std::string& content) {
+        if (in_quotes && q == '"') {
+          std::string esc;
+          esc.reserve(content.size() * 1.1);
+          for (char rc : content) {
+            if (rc == '"' || rc == '\\') {
+              esc += '\\';
+            }
+            esc += rc;
+          }
+          out += "\x1E__NOENV_START__\x1E";
+          out += esc;
+          out += "\x1E__NOENV_END__\x1E";
+          return;
+        }
+        out += content;
+      };
+
       auto find_matching = [&](const std::string& s, size_t start, char open_c,
                                char close_c, size_t& end_out) -> bool {
         int depth = 1;
@@ -1004,22 +1022,7 @@ int ShellScriptInterpreter::execute_block(
             if (find_matching(in, i + 2, '(', ')', end_paren)) {
               std::string inner = in.substr(i + 2, end_paren - (i + 2));
               std::string repl = capture_internal_output(inner);
-              if (in_quotes && q == '"') {
-                std::string esc;
-                esc.reserve(repl.size() * 1.1);
-                for (char rc : repl) {
-                  if (rc == '"' || rc == '\\') {
-                    esc += '\\';
-                  }
-                  esc += rc;
-                }
-
-                out += "\x1E__NOENV_START__\x1E";
-                out += esc;
-                out += "\x1E__NOENV_END__\x1E";
-              } else {
-                out += repl;
-              }
+              append_substitution_result(repl);
               i = end_paren;
               continue;
             }
@@ -1056,21 +1059,7 @@ int ShellScriptInterpreter::execute_block(
                 }
               }
               std::string repl = capture_internal_output(content);
-              if (in_quotes && q == '"') {
-                std::string esc;
-                esc.reserve(repl.size() * 1.1);
-                for (char rc : repl) {
-                  if (rc == '"' || rc == '\\') {
-                    esc += '\\';
-                  }
-                  esc += rc;
-                }
-                out += "\x1E__NOENV_START__\x1E";
-                out += esc;
-                out += "\x1E__NOENV_END__\x1E";
-              } else {
-                out += repl;
-              }
+              append_substitution_result(repl);
               i = j;
               continue;
             }
