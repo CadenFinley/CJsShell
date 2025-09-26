@@ -271,6 +271,60 @@ CaseCheckResult analyze_case_syntax(const std::vector<std::string>& tokens) {
   return result;
 }
 
+bool is_valid_identifier_start(char c) {
+  return std::isalpha(static_cast<unsigned char>(c)) || c == '_';
+}
+
+bool is_valid_identifier_char(char c) {
+  return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+bool is_valid_identifier(const std::string& text) {
+  if (text.empty() || !is_valid_identifier_start(text.front()))
+    return false;
+  for (size_t i = 1; i < text.size(); ++i) {
+    if (!is_valid_identifier_char(text[i]))
+      return false;
+  }
+  return true;
+}
+
+bool is_allowed_array_index_char(char c) {
+  if (std::isalnum(static_cast<unsigned char>(c)) || c == '_')
+    return true;
+  switch (c) {
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+    case '%':
+    case '(':
+    case ')':
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool validate_array_index_expression(const std::string& index_text,
+                                     std::string& issue) {
+  if (index_text.empty()) {
+    issue = "Empty array index";
+    return false;
+  }
+  if (index_text.find_first_of(" \t") != std::string::npos) {
+    issue = "Array index cannot contain whitespace";
+    return false;
+  }
+  for (char c : index_text) {
+    if (!is_allowed_array_index_char(c)) {
+      issue = "Invalid characters in array index";
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 std::vector<ShellScriptInterpreter::SyntaxError>
@@ -635,17 +689,9 @@ ShellScriptInterpreter::validate_variable_usage(
       if (start != std::string::npos) {
         before_eq = before_eq.substr(start);
 
-        bool is_var_assignment =
-            !before_eq.empty() &&
-            (std::isalpha(before_eq[0]) || before_eq[0] == '_');
+        before_eq = trim(before_eq);
 
-        for (size_t i = 1; i < before_eq.length() && is_var_assignment; ++i) {
-          if (!std::isalnum(before_eq[i]) && before_eq[i] != '_') {
-            is_var_assignment = false;
-          }
-        }
-
-        if (is_var_assignment) {
+        if (is_valid_identifier(before_eq)) {
           defined_vars[before_eq].push_back(
               adjust_display_line(line, display_line, eq_pos));
         }
@@ -1136,31 +1182,9 @@ ShellScriptInterpreter::validate_parameter_expansions(
                   std::string var_name_only =
                       line.substr(name_start, name_end - name_start);
 
-                  bool index_error = false;
                   std::string index_issue;
-                  if (index_text.empty()) {
-                    index_error = true;
-                    index_issue = "Empty array index";
-                  } else if (index_text.find_first_of(" \t") !=
-                             std::string::npos) {
-                    index_error = true;
-                    index_issue = "Array index cannot contain whitespace";
-                  } else {
-                    bool valid_chars = true;
-                    for (char ic : index_text) {
-                      if (!(std::isalnum(static_cast<unsigned char>(ic)) ||
-                            ic == '_' || ic == '+' || ic == '-' || ic == '*' ||
-                            ic == '/' || ic == '%' || ic == '(' || ic == ')')) {
-                        valid_chars = false;
-                        break;
-                      }
-                    }
-                    if (!valid_chars) {
-                      index_error = true;
-                      index_issue = "Invalid characters in array index";
-                    }
-                  }
-                  if (index_error) {
+                  if (!validate_array_index_expression(index_text,
+                                                       index_issue)) {
                     line_errors.push_back(SyntaxError(
                         {display_line, name_start, i, 0}, ErrorSeverity::ERROR,
                         ErrorCategory::VARIABLES, "VAR005",
@@ -1183,14 +1207,14 @@ ShellScriptInterpreter::validate_parameter_expansions(
               std::string var_name = line.substr(var_start, i - var_start);
 
               if (!var_name.empty()) {
-                if (std::isdigit(static_cast<unsigned char>(var_name[0]))) {
+          if (!is_valid_identifier_start(var_name[0])) {
                   line_errors.push_back(SyntaxError(
                       {display_line, var_start, i, 0}, ErrorSeverity::ERROR,
                       ErrorCategory::VARIABLES, "VAR004",
-                      "Invalid variable name '" + var_name +
-                          "' - cannot start with digit",
-                      line,
-                      "Use variable name starting with letter or underscore"));
+            "Invalid variable name '" + var_name +
+              "' - must start with letter or underscore",
+            line,
+            "Use variable name starting with letter or underscore"));
                 }
 
                 if (var_start > 0 && std::isspace(line[var_start - 1])) {
@@ -1362,45 +1386,17 @@ ShellScriptInterpreter::validate_pipeline_syntax(
             if (lb != std::string::npos && rb != std::string::npos && rb > lb &&
                 rb == lhs.size() - 1) {
               std::string name = lhs.substr(0, lb);
-              bool name_ok =
-                  !name.empty() &&
-                  (std::isalpha(static_cast<unsigned char>(name[0])) ||
-                   name[0] == '_');
-              for (char nc : name) {
-                if (!(std::isalnum(static_cast<unsigned char>(nc)) ||
-                      nc == '_')) {
-                  name_ok = false;
-                  break;
-                }
-              }
+              bool name_ok = is_valid_identifier(name);
               std::string index_text = lhs.substr(lb + 1, rb - lb - 1);
               std::string issue;
-              if (name_ok) {
-                if (index_text.empty())
-                  issue = "Empty array index";
-                else if (index_text.find_first_of(" \t") != std::string::npos)
-                  issue = "Array index cannot contain whitespace";
-                else {
-                  bool valid_chars = true;
-                  for (char ic : index_text) {
-                    if (!(std::isalnum(static_cast<unsigned char>(ic)) ||
-                          ic == '_' || ic == '+' || ic == '-' || ic == '*' ||
-                          ic == '/' || ic == '%' || ic == '(' || ic == ')')) {
-                      valid_chars = false;
-                      break;
-                    }
-                  }
-                  if (!valid_chars)
-                    issue = "Invalid characters in array index";
-                }
-                if (!issue.empty()) {
-                  line_errors.push_back(SyntaxError(
-                      {display_line, first_non_space + lb,
-                       first_non_space + rb + 1, 0},
-                      ErrorSeverity::ERROR, ErrorCategory::VARIABLES, "VAR005",
-                      issue + " for array '" + name + "'", line,
-                      "Use a valid numeric or arithmetic expression index"));
-                }
+              if (name_ok &&
+                  !validate_array_index_expression(index_text, issue)) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, first_non_space + lb,
+                     first_non_space + rb + 1, 0},
+                    ErrorSeverity::ERROR, ErrorCategory::VARIABLES, "VAR005",
+                    issue + " for array '" + name + "'", line,
+                    "Use a valid numeric or arithmetic expression index"));
               }
             }
           }
@@ -1492,7 +1488,7 @@ ShellScriptInterpreter::validate_function_syntax(
                               ErrorCategory::SYNTAX, "FUNC001",
                               "Function declaration missing name", line,
                               "Add function name before parentheses"));
-            } else if (!std::isalpha(func_name[0]) && func_name[0] != '_') {
+            } else if (!is_valid_identifier_start(func_name[0])) {
               line_errors.push_back(
                   SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                               ErrorCategory::SYNTAX, "FUNC002",
@@ -1503,7 +1499,7 @@ ShellScriptInterpreter::validate_function_syntax(
                               "underscore"));
             } else {
               for (char c : func_name) {
-                if (!std::isalnum(c) && c != '_') {
+                if (!is_valid_identifier_char(c)) {
                   line_errors.push_back(SyntaxError(
                       {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                       ErrorCategory::SYNTAX, "FUNC002",
@@ -1531,8 +1527,7 @@ ShellScriptInterpreter::validate_function_syntax(
                               "Function declaration missing name", line,
                               "Add function name before parentheses"));
             } else {
-              if (!std::isalpha(potential_func[0]) &&
-                  potential_func[0] != '_') {
+              if (!is_valid_identifier_start(potential_func[0])) {
                 line_errors.push_back(
                     SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                 ErrorCategory::SYNTAX, "FUNC002",
