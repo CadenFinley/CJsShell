@@ -6,8 +6,79 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 namespace shell_script_interpreter {
+
+namespace {
+
+std::string strip_internal_placeholders(const std::string& input,
+                                        size_t* column_start = nullptr,
+                                        size_t* column_end = nullptr) {
+  static const std::string markers[] = {
+      "\x1E__NOENV_START__\x1E", "\x1E__NOENV_END__\x1E",
+      "\x1E__SUBST_LITERAL_START__\x1E", "\x1E__SUBST_LITERAL_END__\x1E"};
+
+  if (input.empty()) {
+    if (column_start)
+      *column_start = 0;
+    if (column_end)
+      *column_end = 0;
+    return input;
+  }
+
+  std::vector<size_t> index_map(input.size() + 1, 0);
+  std::string output;
+  output.reserve(input.size());
+
+  size_t i = 0;
+  size_t sanitized_index = 0;
+
+  while (i < input.size()) {
+    index_map[i] = sanitized_index;
+
+    bool matched_marker = false;
+    for (const auto& marker : markers) {
+      size_t len = marker.size();
+      if (input.compare(i, len, marker) == 0) {
+        for (size_t k = 0; k < len && i + k + 1 <= input.size(); ++k) {
+          index_map[i + k + 1] = sanitized_index;
+        }
+        i += len;
+        matched_marker = true;
+        break;
+      }
+    }
+
+    if (matched_marker)
+      continue;
+
+    if (input[i] == '\x1E') {
+      index_map[i + 1] = sanitized_index;
+      ++i;
+      continue;
+    }
+
+    output.push_back(input[i]);
+    ++sanitized_index;
+    ++i;
+  }
+
+  index_map[input.size()] = sanitized_index;
+
+  if (column_start) {
+    size_t original = std::min(*column_start, input.size());
+    *column_start = index_map[original];
+  }
+  if (column_end) {
+    size_t original = std::min(*column_end, input.size());
+    *column_end = index_map[original];
+  }
+
+  return output;
+}
+
+}  // namespace
 
 size_t ErrorReporter::get_terminal_width() {
   struct winsize w;
@@ -58,6 +129,15 @@ void ErrorReporter::print_error_report(
     std::string severity_icon;
     std::string severity_prefix;
 
+    size_t column_start = error.position.column_start;
+    size_t column_end = error.position.column_end;
+    std::string sanitized_message =
+        strip_internal_placeholders(error.message);
+    std::string sanitized_line_content = strip_internal_placeholders(
+        error.line_content, &column_start, &column_end);
+    std::string sanitized_suggestion =
+        strip_internal_placeholders(error.suggestion);
+
     switch (error.severity) {
       case ErrorSeverity::CRITICAL:
         severity_color = BOLD + RED;
@@ -88,15 +168,15 @@ void ErrorReporter::print_error_report(
 
     std::cout << "│  " << DIM << "at line " << BOLD
               << error.position.line_number << RESET;
-    if (error.position.column_start > 0) {
-      std::cout << DIM << ", column " << BOLD << error.position.column_start
-                << RESET;
+    if (column_start > 0) {
+      std::cout << DIM << ", column " << BOLD << column_start << RESET;
     }
     std::cout << std::endl;
 
-    std::cout << "│  " << severity_color << error.message << RESET << std::endl;
+    std::cout << "│  " << severity_color << sanitized_message << RESET
+              << std::endl;
 
-    if (show_context && !error.line_content.empty()) {
+    if (show_context && !sanitized_line_content.empty()) {
       std::cout << "│" << std::endl;
 
       std::string line_num_str = std::to_string(error.position.line_number);
@@ -108,10 +188,10 @@ void ErrorReporter::print_error_report(
                                    ? terminal_width - line_prefix_width - 5
                                    : 60;
 
-      std::string display_line = error.line_content;
+      std::string display_line = sanitized_line_content;
 
-      size_t adjusted_column_start = error.position.column_start;
-      size_t adjusted_column_end = error.position.column_end;
+      size_t adjusted_column_start = column_start;
+      size_t adjusted_column_end = column_end;
 
       if (display_line.find('\n') != std::string::npos) {
         std::vector<std::string> lines;
@@ -122,19 +202,20 @@ void ErrorReporter::print_error_report(
           lines.push_back(line);
         }
 
-        if (error.position.column_start > 0 && !lines.empty()) {
+        if (column_start > 0 && !lines.empty()) {
           size_t cumulative_length = 0;
           size_t target_line_index = 0;
 
           for (size_t i = 0; i < lines.size(); ++i) {
-            if (error.position.column_start <=
-                cumulative_length + lines[i].length()) {
+            if (column_start <= cumulative_length + lines[i].length()) {
               target_line_index = i;
-              adjusted_column_start =
-                  error.position.column_start - cumulative_length;
+              adjusted_column_start = column_start - cumulative_length;
+              size_t effective_column_end =
+                  column_end > cumulative_length
+                      ? column_end - cumulative_length
+                      : 0;
               adjusted_column_end =
-                  std::min(error.position.column_end - cumulative_length,
-                           lines[i].length());
+                  std::min(effective_column_end, lines[i].length());
               break;
             }
             cumulative_length += lines[i].length() + 1;
@@ -146,7 +227,7 @@ void ErrorReporter::print_error_report(
             display_line = lines[0];
             adjusted_column_start = 0;
             adjusted_column_end =
-                std::min(error.position.column_end, display_line.length());
+                std::min(column_end, display_line.length());
           }
         } else {
           display_line = lines.empty() ? "" : lines[0];
@@ -250,8 +331,7 @@ void ErrorReporter::print_error_report(
         }
       }
 
-      if (error.position.column_start > 0 &&
-          error.position.column_end > error.position.column_start &&
+      if (column_start > 0 && column_end > column_start &&
           adjusted_start < display_line.length()) {
         size_t start = adjusted_start;
         size_t end = std::min(adjusted_end, display_line.length());
@@ -276,8 +356,7 @@ void ErrorReporter::print_error_report(
       }
       std::cout << std::endl;
 
-      if (error.position.column_start > 0 &&
-          adjusted_start < display_line.length()) {
+      if (column_start > 0 && adjusted_start < display_line.length()) {
         std::cout << "│  " << DIM << std::string(line_num_str.length(), ' ')
                   << " │ " << RESET;
         std::cout << std::string(adjusted_start, ' ');
@@ -293,16 +372,17 @@ void ErrorReporter::print_error_report(
       }
     }
 
-    if (show_suggestions && !error.suggestion.empty()) {
+    if (show_suggestions && !sanitized_suggestion.empty()) {
       std::cout << "│" << std::endl;
-      std::cout << "│  " << GREEN << "Suggestion: " << RESET << error.suggestion
+      std::cout << "│  " << GREEN << "Suggestion: " << RESET
+                << sanitized_suggestion
                 << std::endl;
     }
 
     size_t terminal_width = get_terminal_width();
     size_t content_width = 0;
 
-    if (!error.line_content.empty()) {
+    if (!sanitized_line_content.empty()) {
       std::string line_num_str = std::to_string(error.position.line_number);
       size_t line_prefix_width = 6 + line_num_str.length();
       size_t max_line_display_width =
@@ -311,15 +391,16 @@ void ErrorReporter::print_error_report(
               : 60;
 
       size_t actual_line_width =
-          std::min(error.line_content.length(), max_line_display_width);
+          std::min(sanitized_line_content.length(), max_line_display_width);
       content_width =
           std::max(content_width, line_prefix_width + actual_line_width);
     }
 
-    content_width = std::max(content_width, 3 + error.message.length());
+    content_width = std::max(content_width, 3 + sanitized_message.length());
 
-    if (!error.suggestion.empty()) {
-      content_width = std::max(content_width, 15 + error.suggestion.length());
+    if (!sanitized_suggestion.empty()) {
+      content_width =
+          std::max(content_width, 15 + sanitized_suggestion.length());
     }
 
     size_t footer_width =
