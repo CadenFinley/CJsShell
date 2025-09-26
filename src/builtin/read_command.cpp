@@ -72,21 +72,21 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                    {}});
       return 1;
     } else if (arg == "--help") {
-      std::cout << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t "
-                   "timeout] [name ...]\n";
+      std::cout << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [name "
+                   "...]\n";
       std::cout
           << "Read a line from standard input and split it into fields.\n\n";
       std::cout << "Options:\n";
       std::cout << "  -r            do not allow backslashes to escape any "
                    "characters\n";
-      std::cout << "  -p prompt     output the string PROMPT without a "
-                   "trailing newline before reading\n";
+      std::cout << "  -p prompt     output PROMPT without a trailing newline "
+                   "before reading\n";
       std::cout << "  -n nchars     return after reading NCHARS characters "
                    "rather than waiting for a newline\n";
       std::cout << "  -d delim      continue until the first character of "
                    "DELIM is read, rather than newline\n";
-      std::cout << "  -t timeout    time out and return failure if a complete "
-                   "line is not read within TIMEOUT seconds\n";
+      std::cout << "Note: a timeout option (-t) is parsed but not yet "
+                   "implemented and will return an error.\n";
       return 0;
     } else if (arg[0] == '-') {
       std::cerr << "read: invalid option -- '" << arg << "'\n";
