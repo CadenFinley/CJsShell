@@ -129,6 +129,126 @@ int ShellScriptInterpreter::execute_block(
     return sections;
   };
 
+  struct CaseSectionData {
+    std::string raw_pattern;
+    std::string pattern;
+    std::string command;
+  };
+
+  auto normalize_case_pattern = [&](std::string pattern) -> std::string {
+    if (pattern.length() >= 2) {
+      char first_char = pattern.front();
+      char last_char = pattern.back();
+      if ((first_char == '"' && last_char == '"') ||
+          (first_char == '\'' && last_char == '\'')) {
+        pattern = pattern.substr(1, pattern.length() - 2);
+      }
+    }
+    std::string processed;
+    processed.reserve(pattern.length());
+    for (size_t i = 0; i < pattern.length(); ++i) {
+      if (pattern[i] == '\\' && i + 1 < pattern.length()) {
+        processed += pattern[i + 1];
+        ++i;
+      } else {
+        processed += pattern[i];
+      }
+    }
+    shell_parser->expand_env_vars(processed);
+    return processed;
+  };
+
+  auto parse_case_section = [&](const std::string& section,
+                                CaseSectionData& out) -> bool {
+    size_t paren_pos = section.find(')');
+    if (paren_pos == std::string::npos)
+      return false;
+    out.raw_pattern = trim(section.substr(0, paren_pos));
+    out.command = trim(section.substr(paren_pos + 1));
+    if (out.command.length() >= 2 &&
+        out.command.substr(out.command.length() - 2) == ";;") {
+      out.command =
+          trim(out.command.substr(0, out.command.length() - 2));
+    }
+    out.pattern = normalize_case_pattern(out.raw_pattern);
+    return true;
+  };
+
+  auto execute_case_sections =
+      [&](const std::vector<std::string>& sections,
+          const std::string& case_value,
+          const std::function<int(const std::string&)>& executor,
+          const std::string& debug_context,
+          int& matched_exit_code) -> bool {
+        matched_exit_code = 0;
+        std::vector<std::string> filtered_sections;
+        filtered_sections.reserve(sections.size());
+        for (const auto& raw_section : sections) {
+          std::string trimmed_section = trim(raw_section);
+          if (!trimmed_section.empty())
+            filtered_sections.push_back(trimmed_section);
+        }
+
+        for (size_t idx = 0; idx < filtered_sections.size(); ++idx) {
+          const auto& section = filtered_sections[idx];
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: " << debug_context;
+            if (!debug_context.empty())
+              std::cerr << " ";
+            std::cerr << ((idx + 1 == filtered_sections.size())
+                              ? "final pattern_section"
+                              : "pattern_section")
+                      << "='" << section << "'" << std::endl;
+          }
+
+          CaseSectionData data;
+          if (!parse_case_section(section, data))
+            continue;
+
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: " << debug_context;
+            if (!debug_context.empty())
+              std::cerr << " ";
+            std::cerr << "Pattern: '" << data.raw_pattern
+                      << "', Command: '" << data.command << "'"
+                      << std::endl;
+            std::cerr << "DEBUG: " << debug_context;
+            if (!debug_context.empty())
+              std::cerr << " ";
+            std::cerr << "Matching case_value='" << case_value
+                      << "' against pattern='" << data.pattern << "'"
+                      << std::endl;
+          }
+
+          bool pattern_matches = matches_pattern(case_value, data.pattern);
+
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: " << debug_context;
+            if (!debug_context.empty())
+              std::cerr << " ";
+            std::cerr << "Pattern match result: " << pattern_matches
+                      << std::endl;
+          }
+
+          if (!pattern_matches)
+            continue;
+
+          if (!data.command.empty()) {
+            auto semicolon_commands =
+                shell_parser->parse_semicolon_commands(data.command);
+            for (const auto& subcmd : semicolon_commands) {
+              matched_exit_code = executor(subcmd);
+              if (matched_exit_code != 0)
+                break;
+            }
+          }
+
+          return true;
+        }
+
+        return false;
+      };
+
   std::function<int(const std::string&)> execute_simple_or_pipeline;
 
   auto evaluate_logical_condition = [&](const std::string& condition) -> int {
@@ -1238,74 +1358,11 @@ int ShellScriptInterpreter::execute_block(
 
       auto pattern_sections = split_case_sections(patterns_part, true);
 
-      if (g_debug_mode) {
-        for (size_t i = 0; i < pattern_sections.size(); ++i) {
-          const auto& section = pattern_sections[i];
-          std::cerr << "DEBUG: [inline case] "
-                    << (i + 1 == pattern_sections.size()
-                            ? "final pattern_section"
-                            : "pattern_section")
-                    << "='" << section << "'" << std::endl;
-        }
-      }
-
-      for (const auto& section : pattern_sections) {
-        if (section.empty())
-          continue;
-
-        size_t paren_pos = section.find(')');
-        if (paren_pos != std::string::npos) {
-          std::string raw_pattern = trim(section.substr(0, paren_pos));
-          std::string command_part = trim(section.substr(paren_pos + 1));
-
-          std::string pattern = raw_pattern;
-          if (pattern.length() >= 2) {
-            if ((pattern[0] == '"' && pattern[pattern.length() - 1] == '"') ||
-                (pattern[0] == '\'' && pattern[pattern.length() - 1] == '\'')) {
-              pattern = pattern.substr(1, pattern.length() - 2);
-            }
-          }
-
-          std::string processed_pattern;
-          processed_pattern.reserve(pattern.length());
-          for (size_t i = 0; i < pattern.length(); ++i) {
-            if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-              i++;
-              processed_pattern += pattern[i];
-            } else {
-              processed_pattern += pattern[i];
-            }
-          }
-          pattern = processed_pattern;
-
-          shell_parser->expand_env_vars(pattern);
-
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: [inline case] Matching case_value='"
-                      << case_value << "' against pattern='" << pattern << "'"
-                      << std::endl;
-          }
-          bool pattern_matches = matches_pattern(case_value, pattern);
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: [inline case] Pattern match result: "
-                      << pattern_matches << std::endl;
-          }
-
-          if (pattern_matches) {
-            if (!command_part.empty()) {
-              auto semicolon_commands =
-                  shell_parser->parse_semicolon_commands(command_part);
-              int exit_code = 0;
-              for (const auto& subcmd : semicolon_commands) {
-                exit_code = execute_simple_or_pipeline(subcmd);
-                if (exit_code != 0)
-                  break;
-              }
-              return exit_code;
-            }
-            return 0;
-          }
-        }
+      int matched_exit_code = 0;
+      if (execute_case_sections(pattern_sections, case_value,
+                                execute_simple_or_pipeline,
+                                "[inline case]", matched_exit_code)) {
+        return matched_exit_code;
       }
 
       return 0;
@@ -2308,50 +2365,6 @@ int ShellScriptInterpreter::execute_block(
     std::string case_value;
     std::string header_accum = first;
 
-    struct CaseSectionData {
-      std::string raw_pattern;
-      std::string pattern;
-      std::string command;
-    };
-
-    auto normalize_case_pattern = [&](std::string pattern) -> std::string {
-      if (pattern.length() >= 2) {
-        char first_char = pattern.front();
-        char last_char = pattern.back();
-        if ((first_char == '"' && last_char == '"') ||
-            (first_char == '\'' && last_char == '\'')) {
-          pattern = pattern.substr(1, pattern.length() - 2);
-        }
-      }
-      std::string processed;
-      processed.reserve(pattern.length());
-      for (size_t i = 0; i < pattern.length(); ++i) {
-        if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-          processed += pattern[i + 1];
-          ++i;
-        } else {
-          processed += pattern[i];
-        }
-      }
-      shell_parser->expand_env_vars(processed);
-      return processed;
-    };
-
-    auto parse_case_section =
-        [&](const std::string& section, CaseSectionData& out) -> bool {
-      size_t paren_pos = section.find(')');
-      if (paren_pos == std::string::npos)
-        return false;
-      out.raw_pattern = trim(section.substr(0, paren_pos));
-      out.command = trim(section.substr(paren_pos + 1));
-      out.pattern = normalize_case_pattern(out.raw_pattern);
-      if (out.command.length() >= 2 &&
-          out.command.substr(out.command.length() - 2) == ";;") {
-        out.command = trim(out.command.substr(0, out.command.length() - 2));
-      }
-      return true;
-    };
-
     if (first.find(" in ") != std::string::npos &&
         first.find("esac") != std::string::npos) {
       size_t in_pos = first.find(" in ");
@@ -2416,47 +2429,10 @@ int ShellScriptInterpreter::execute_block(
       auto pattern_sections = split_case_sections(patterns_part, true);
 
       int matched_exit_code = 0;
-      for (const auto& section : pattern_sections) {
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Processing pattern section: '" << section << "'"
-                    << std::endl;
-        }
-        if (section.empty())
-          continue;
-
-        CaseSectionData data;
-        if (!parse_case_section(section, data))
-          continue;
-
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Pattern: '" << data.raw_pattern
-                    << "', Command: '" << data.command << "'" << std::endl;
-        }
-
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Matching case_value='" << case_value
-                    << "' against pattern='" << data.pattern << "'"
-                    << std::endl;
-        }
-        bool pattern_matches = matches_pattern(case_value, data.pattern);
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Pattern match result: " << pattern_matches
-                    << std::endl;
-        }
-
-        if (pattern_matches) {
-          if (!data.command.empty()) {
-            auto semicolon_commands =
-                shell_parser->parse_semicolon_commands(data.command);
-            for (const auto& subcmd : semicolon_commands) {
-              matched_exit_code = execute_simple_or_pipeline(subcmd);
-              if (matched_exit_code != 0)
-                break;
-            }
-          }
-
-          return matched_exit_code;
-        }
+      if (execute_case_sections(pattern_sections, case_value,
+                                execute_simple_or_pipeline,
+                                "[case inline]", matched_exit_code)) {
+        return matched_exit_code;
       }
 
       return 0;
@@ -2576,35 +2552,14 @@ int ShellScriptInterpreter::execute_block(
         }
 
         auto pattern_sections = split_case_sections(work_line, false);
-
-        for (const auto& section : pattern_sections) {
-          std::string pattern_line = trim(section);
-          if (pattern_line.empty())
-            continue;
-
-          CaseSectionData data;
-          if (!parse_case_section(pattern_line, data))
-            continue;
-
-          bool pattern_matches = matches_pattern(case_value, data.pattern);
-
-          if (pattern_matches && !found_match) {
-            found_match = true;
-            if (!data.command.empty()) {
-              auto semicolon_commands =
-                  shell_parser->parse_semicolon_commands(data.command);
-              for (const auto& subcmd : semicolon_commands) {
-                matched_exit_code = execute_simple_or_pipeline(subcmd);
-                if (matched_exit_code != 0)
-                  break;
-              }
-            }
-            break;
-          }
-        }
+        int inline_exit = 0;
+        bool matched = execute_case_sections(pattern_sections, case_value,
+                                             execute_simple_or_pipeline,
+                                             "[case inline block]",
+                                             inline_exit);
 
         idx = k;
-        return matched_exit_code;
+        return matched ? inline_exit : 0;
       }
     }
 
