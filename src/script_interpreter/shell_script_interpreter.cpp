@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <iostream>
 #include <regex>
+#include <utility>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -174,6 +175,8 @@ int ShellScriptInterpreter::execute_block(
     return true;
   };
 
+  std::function<int(const std::string&)> execute_simple_or_pipeline;
+
   auto execute_case_sections =
       [&](const std::vector<std::string>& sections,
           const std::string& case_value,
@@ -249,7 +252,28 @@ int ShellScriptInterpreter::execute_block(
         return false;
       };
 
-  std::function<int(const std::string&)> execute_simple_or_pipeline;
+  auto sanitize_case_patterns =
+      [&](const std::string& patterns) -> std::string {
+        size_t esac_pos = patterns.rfind("esac");
+        if (esac_pos != std::string::npos)
+          return patterns.substr(0, esac_pos);
+        return patterns;
+      };
+
+  auto evaluate_case_patterns =
+      [&](std::string patterns,
+          const std::string& case_value,
+          const std::string& debug_context,
+          bool trim_sections) -> std::pair<bool, int> {
+        auto sanitized = sanitize_case_patterns(patterns);
+        auto sections = split_case_sections(sanitized, trim_sections);
+        int matched_exit_code = 0;
+        bool matched = execute_case_sections(sections, case_value,
+                                             execute_simple_or_pipeline,
+                                             debug_context,
+                                             matched_exit_code);
+        return {matched, matched_exit_code};
+      };
 
   auto evaluate_logical_condition = [&](const std::string& condition) -> int {
     if (g_debug_mode) {
@@ -1346,24 +1370,17 @@ int ShellScriptInterpreter::execute_block(
         }
       }
 
-      size_t esac_pos = patterns_part.rfind("esac");
-      if (esac_pos != std::string::npos) {
-        patterns_part = patterns_part.substr(0, esac_pos);
-      }
-
       if (g_debug_mode) {
+        std::string debug_patterns = sanitize_case_patterns(patterns_part);
         std::cerr << "DEBUG: [inline case] patterns_part after esac removal='"
-                  << patterns_part << "'" << std::endl;
+                  << debug_patterns << "'" << std::endl;
       }
 
-      auto pattern_sections = split_case_sections(patterns_part, true);
-
-      int matched_exit_code = 0;
-      if (execute_case_sections(pattern_sections, case_value,
-                                execute_simple_or_pipeline,
-                                "[inline case]", matched_exit_code)) {
-        return matched_exit_code;
-      }
+      auto case_result =
+          evaluate_case_patterns(patterns_part, case_value,
+                                  "[inline case]", true);
+      if (case_result.first)
+        return case_result.second;
 
       return 0;
     }
@@ -2421,19 +2438,11 @@ int ShellScriptInterpreter::execute_block(
         }
       }
 
-      size_t esac_pos = patterns_part.find("esac");
-      if (esac_pos != std::string::npos) {
-        patterns_part = patterns_part.substr(0, esac_pos);
-      }
-
-      auto pattern_sections = split_case_sections(patterns_part, true);
-
-      int matched_exit_code = 0;
-      if (execute_case_sections(pattern_sections, case_value,
-                                execute_simple_or_pipeline,
-                                "[case inline]", matched_exit_code)) {
-        return matched_exit_code;
-      }
+      auto case_result =
+          evaluate_case_patterns(patterns_part, case_value,
+                                  "[case inline]", true);
+      if (case_result.first)
+        return case_result.second;
 
       return 0;
     }
@@ -2551,15 +2560,12 @@ int ShellScriptInterpreter::execute_block(
           work_line = work_line.substr(0, esac_pos);
         }
 
-        auto pattern_sections = split_case_sections(work_line, false);
-        int inline_exit = 0;
-        bool matched = execute_case_sections(pattern_sections, case_value,
-                                             execute_simple_or_pipeline,
-                                             "[case inline block]",
-                                             inline_exit);
+    auto case_result =
+      evaluate_case_patterns(work_line, case_value,
+                  "[case inline block]", false);
 
-        idx = k;
-        return matched ? inline_exit : 0;
+    idx = k;
+    return case_result.first ? case_result.second : 0;
       }
     }
 
