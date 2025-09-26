@@ -128,6 +128,13 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
   return tokens;
 }
 
+size_t adjust_display_line(const std::string& text, size_t base_line,
+                           size_t offset) {
+  size_t limit = std::min(offset, text.size());
+  return base_line +
+         static_cast<size_t>(std::count(text.begin(), text.begin() + limit, '\n'));
+}
+
 struct ForLoopCheckResult {
   bool incomplete = false;
   bool missing_in_keyword = false;
@@ -639,13 +646,8 @@ ShellScriptInterpreter::validate_variable_usage(
         }
 
         if (is_var_assignment) {
-          size_t actual_line = display_line;
-          for (size_t j = 0; j < eq_pos; ++j) {
-            if (line[j] == '\n') {
-              actual_line++;
-            }
-          }
-          defined_vars[before_eq].push_back(actual_line);
+          defined_vars[before_eq].push_back(
+              adjust_display_line(line, display_line, eq_pos));
         }
       }
     }
@@ -691,13 +693,8 @@ ShellScriptInterpreter::validate_variable_usage(
         }
 
         if (!var_name.empty()) {
-          size_t actual_line = display_line;
-          for (size_t j = 0; j < i; ++j) {
-            if (line[j] == '\n') {
-              actual_line++;
-            }
-          }
-          used_vars[var_name].push_back(actual_line);
+          used_vars[var_name].push_back(
+              adjust_display_line(line, display_line, i));
         }
       }
     }
@@ -940,26 +937,17 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
           j++;
         }
 
+        const size_t adjusted_line =
+            adjust_display_line(line, display_line, start);
+
         if (paren_count > 0) {
-          size_t actual_line = display_line;
-          for (size_t k = 0; k < start; ++k) {
-            if (line[k] == '\n') {
-              actual_line++;
-            }
-          }
           errors.push_back(SyntaxError(
-              {actual_line, start, j, 0}, ErrorSeverity::ERROR,
+              {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
               ErrorCategory::SYNTAX, "ARITH001",
               "Unclosed arithmetic expansion $(()", line, "Add closing ))"));
         } else {
           if (expr.empty()) {
-            size_t actual_line = display_line;
-            for (size_t k = 0; k < start; ++k) {
-              if (line[k] == '\n') {
-                actual_line++;
-              }
-            }
-            errors.push_back(SyntaxError({actual_line, start, j, 0},
+            errors.push_back(SyntaxError({adjusted_line, start, j, 0},
                                          ErrorSeverity::ERROR,
                                          ErrorCategory::SYNTAX, "ARITH002",
                                          "Empty arithmetic expression", line,
@@ -975,14 +963,8 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
               if (last_char == '+' || last_char == '-' || last_char == '*' ||
                   last_char == '/' || last_char == '%' || last_char == '&' ||
                   last_char == '|' || last_char == '^') {
-                size_t actual_line = display_line;
-                for (size_t k = 0; k < start; ++k) {
-                  if (line[k] == '\n') {
-                    actual_line++;
-                  }
-                }
                 errors.push_back(SyntaxError(
-                    {actual_line, start, j, 0}, ErrorSeverity::ERROR,
+                    {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
                     ErrorCategory::SYNTAX, "ARITH003",
                     "Incomplete arithmetic expression - missing operand", line,
                     "Add operand after '" + std::string(1, last_char) + "'"));
@@ -991,13 +973,7 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
 
             if (expr.find("/0") != std::string::npos ||
                 expr.find("% 0") != std::string::npos) {
-              size_t actual_line = display_line;
-              for (size_t k = 0; k < start; ++k) {
-                if (line[k] == '\n') {
-                  actual_line++;
-                }
-              }
-              errors.push_back(SyntaxError({actual_line, start, j, 0},
+              errors.push_back(SyntaxError({adjusted_line, start, j, 0},
                                            ErrorSeverity::WARNING,
                                            ErrorCategory::SEMANTICS, "ARITH004",
                                            "Potential division by zero", line,
