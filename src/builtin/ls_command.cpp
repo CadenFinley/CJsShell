@@ -41,6 +41,8 @@
 #define COLOR_CYAN "\033[36m"
 #define COLOR_YELLOW "\033[33m"
 
+// mamke custom implementatin identical to exa
+
 enum FileType : uint8_t {
   TYPE_UNKNOWN = 0,
   TYPE_DIRECTORY = 1,
