@@ -4,30 +4,50 @@ set -euo pipefail
 
 REPO_OWNER="CadenFinley"
 REPO_NAME="CJsShell"
-ASSET_NAME="build.sh"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARGET_PATH="${SCRIPT_DIR}/${ASSET_NAME}"
-
-if ! command -v curl >/dev/null 2>&1; then
-	echo "Error: curl is required to install ${ASSET_NAME}" >&2
+# Check required commands
+if ! command -v git >/dev/null 2>&1; then
+	echo "Error: git is required to install CJsShell" >&2
 	exit 1
 fi
 
-TEMP_FILE="$(mktemp)"
+# Check for HTTP client (curl or wget)
+if command -v curl >/dev/null 2>&1; then
+	HTTP_CLIENT="curl"
+elif command -v wget >/dev/null 2>&1; then
+	HTTP_CLIENT="wget"
+else
+	echo "Error: Either curl or wget is required to install CJsShell" >&2
+	exit 1
+fi
+
+# Create temporary directory
+TEMP_DIR="$(mktemp -d)"
 cleanup() {
-	rm -f "${TEMP_FILE}"
+	rm -rf "${TEMP_DIR}"
 }
 trap cleanup EXIT
 
-DOWNLOAD_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest/download/${ASSET_NAME}"
+echo "Getting latest release information..."
+if [ "$HTTP_CLIENT" = "curl" ]; then
+	LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+else
+	LATEST_TAG=$(wget -qO- "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+fi
 
-echo "Downloading ${ASSET_NAME} from latest release..."
-curl -fsSL "${DOWNLOAD_URL}" -o "${TEMP_FILE}"
+if [ -z "$LATEST_TAG" ]; then
+	echo "Error: Could not determine latest release tag" >&2
+	exit 1
+fi
 
-mkdir -p "${SCRIPT_DIR}"
-mv "${TEMP_FILE}" "${TARGET_PATH}"
-chmod +x "${TARGET_PATH}"
+echo "Latest release: $LATEST_TAG"
+echo "Cloning CJsShell..."
 
-echo "Running ${ASSET_NAME}..."
-"${TARGET_PATH}" "$@"
+# Clone the specific release tag
+cd "$TEMP_DIR"
+git clone --depth 1 --branch "$LATEST_TAG" "https://github.com/${REPO_OWNER}/${REPO_NAME}.git" cjsshell
+
+cd cjsshell
+
+echo "Building CJsShell..."
+./tool_scripts/build.sh "$@"
