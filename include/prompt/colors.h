@@ -152,7 +152,7 @@ std::string apply_gradient_bg_with_fg(const std::string& text,
                                       const std::string& fg_value);
 
 // Xterm 256 color palette helpers
-constexpr uint8_t rgb_to_xterm256(const RGB& color);
+uint8_t rgb_to_xterm256(const RGB& color);
 constexpr RGB xterm256_to_rgb(uint8_t index);
 
 // Get a color by its name

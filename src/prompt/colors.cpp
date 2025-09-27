@@ -509,7 +509,7 @@ std::string apply_color_or_gradient(const std::string& text,
   }
 }
 
-constexpr uint8_t rgb_to_xterm256(const RGB& color) {
+uint8_t rgb_to_xterm256(const RGB& color) {
   int r = static_cast<int>(round(color.r / 255.0 * 5.0));
   int g = static_cast<int>(round(color.g / 255.0 * 5.0));
   int b = static_cast<int>(round(color.b / 255.0 * 5.0));
