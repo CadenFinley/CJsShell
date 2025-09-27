@@ -104,6 +104,7 @@ static void initialize_title_strings() {
 // - Signal-driven stdin awareness (SIGTTIN tracking, job metadata updates)
 // - Parser-backed heuristics for detecting terminal-bound stdin consumers
 // - Multi-line queued typeahead replay with basic line-edit normalization
+
 // Remaining milestones toward full typeahead support:
 // - Interpret escape/control sequences (arrows, Home/End) before queuing
 // - Surface configuration toggles for queued replay and prefill behavior
