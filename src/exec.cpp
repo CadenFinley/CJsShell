@@ -171,8 +171,8 @@ std::optional<HereStringError> setup_here_string_stdin(
   }
 
   cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
-  auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(
-      here_pipe[0], STDIN_FILENO);
+  auto dup_result =
+      cjsh_filesystem::FileOperations::safe_dup2(here_pipe[0], STDIN_FILENO);
   cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
   if (dup_result.is_error()) {
     return HereStringError{HereStringErrorType::Dup, dup_result.error()};
@@ -724,13 +724,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             if (!modified_cmd.input_file.empty()) {
               auto redirect_result =
                   cjsh_filesystem::FileOperations::redirect_fd(
-                      modified_cmd.input_file.c_str(), STDIN_FILENO,
-                      O_RDONLY);
+                      modified_cmd.input_file.c_str(), STDIN_FILENO, O_RDONLY);
               if (redirect_result.is_error()) {
                 throw std::runtime_error(
                     "cjsh: Failed to redirect stdin from file: " +
-                    modified_cmd.input_file + " - " +
-                    redirect_result.error());
+                    modified_cmd.input_file + " - " + redirect_result.error());
               }
             }
 
@@ -1033,9 +1031,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           if (here_error.has_value()) {
             switch (here_error->type) {
               case HereStringErrorType::Pipe:
-                std::cerr << "cjsh: runtime error: pipe: failed to create pipe for "
-                             "here string: "
-                          << here_error->detail << std::endl;
+                std::cerr
+                    << "cjsh: runtime error: pipe: failed to create pipe for "
+                       "here string: "
+                    << here_error->detail << std::endl;
                 break;
               case HereStringErrorType::Write:
                 std::cerr << "cjsh: runtime error: write: failed to write here "
@@ -1043,9 +1042,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                           << here_error->detail << std::endl;
                 break;
               case HereStringErrorType::Dup:
-                std::cerr << "cjsh: runtime error: dup2: failed to duplicate here "
-                             "string descriptor: "
-                          << here_error->detail << std::endl;
+                std::cerr
+                    << "cjsh: runtime error: dup2: failed to duplicate here "
+                       "string descriptor: "
+                    << here_error->detail << std::endl;
                 break;
             }
             _exit(EXIT_FAILURE);

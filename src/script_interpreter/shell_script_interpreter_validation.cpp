@@ -83,11 +83,13 @@ bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
   return true;
 }
 
-enum class IterationAction { Continue, Break };
+enum class IterationAction {
+  Continue,
+  Break
+};
 
 template <typename Callback>
-void for_each_effective_char(const std::string& line,
-                             bool ignore_single_quotes,
+void for_each_effective_char(const std::string& line, bool ignore_single_quotes,
                              bool process_escaped_chars, Callback&& callback) {
   QuoteState state;
   size_t index = 0;
@@ -166,34 +168,32 @@ bool is_valid_identifier_start(char c);
 bool is_valid_identifier_char(char c);
 
 void append_function_name_errors(std::vector<SyntaxError>& errors,
-                                 size_t display_line,
-                                 const std::string& line,
+                                 size_t display_line, const std::string& line,
                                  const std::string& func_name,
                                  const std::string& missing_name_suggestion) {
   if (func_name.empty() || func_name == "()") {
-    errors.push_back(SyntaxError({display_line, 0, 0, 0},
-                                 ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
-                                 "FUNC001", "Function declaration missing name",
-                                 line, missing_name_suggestion));
+    errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                 ErrorCategory::SYNTAX, "FUNC001",
+                                 "Function declaration missing name", line,
+                                 missing_name_suggestion));
     return;
   }
 
   if (!is_valid_identifier_start(func_name[0])) {
-    errors.push_back(SyntaxError({display_line, 0, 0, 0},
-                                 ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
-                                 "FUNC002",
-                                 "Invalid function name '" + func_name +
-                                     "' - must start with letter or underscore",
-                                 line,
-                                 "Use valid function name starting with letter or underscore"));
+    errors.push_back(SyntaxError(
+        {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+        "FUNC002",
+        "Invalid function name '" + func_name +
+            "' - must start with letter or underscore",
+        line, "Use valid function name starting with letter or underscore"));
     return;
   }
 
   for (char c : func_name) {
     if (!is_valid_identifier_char(c)) {
       errors.push_back(SyntaxError(
-          {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-          ErrorCategory::SYNTAX, "FUNC002",
+          {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+          "FUNC002",
           "Invalid function name '" + func_name +
               "' - contains invalid character '" + std::string(1, c) + "'",
           line,
@@ -608,8 +608,7 @@ ShellScriptInterpreter::validate_script_syntax(
         else if (!trimmed.empty() && trimmed.back() == '{') {
           control_stack.push_back({"{", display_line});
         } else if (first_token == "}") {
-          if (require_top({"{", "function"},
-                          "Unmatched closing brace '}'")) {
+          if (require_top({"{", "function"}, "Unmatched closing brace '}'")) {
             control_stack.pop_back();
           }
         }
@@ -895,13 +894,13 @@ ShellScriptInterpreter::validate_redirection_syntax(
                       (redir_op == "<" && next_char == '<') ||
                       (redir_op == ">>" && next_char == '>') ||
                       (redir_op == "<<" && next_char == '<')) {
-                    line_errors.push_back(
-                        SyntaxError({display_line, redir_start, check_pos + 1, 0},
-                                    ErrorSeverity::ERROR,
-                                    ErrorCategory::REDIRECTION, "RED005",
-                                    "Invalid redirection syntax '" + redir_op +
-                                        " " + next_char + "'",
-                                    line, "Use single redirection operator"));
+                    line_errors.push_back(SyntaxError(
+                        {display_line, redir_start, check_pos + 1, 0},
+                        ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
+                        "RED005",
+                        "Invalid redirection syntax '" + redir_op + " " +
+                            next_char + "'",
+                        line, "Use single redirection operator"));
                     return IterationAction::Continue;
                   }
                 }
@@ -916,8 +915,8 @@ ShellScriptInterpreter::validate_redirection_syntax(
                   line_errors.push_back(SyntaxError(
                       {display_line, redir_start, next_index + 1, 0},
                       ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
-                      "RED001",
-                      "Redirection '" + redir_op + "' missing target", line,
+                      "RED001", "Redirection '" + redir_op + "' missing target",
+                      line,
                       "Add filename or file descriptor after " + redir_op));
                   return IterationAction::Continue;
                 }
@@ -1034,27 +1033,25 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
                     adjust_display_line(line, display_line, start);
 
                 if (paren_count > 0) {
-                  line_errors.push_back(
-                      SyntaxError({adjusted_line, start, j, 0},
-                                  ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
-                                  "ARITH001",
-                                  "Unclosed arithmetic expansion $(()", line,
-                                  "Add closing ))"));
+                  line_errors.push_back(SyntaxError(
+                      {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
+                      ErrorCategory::SYNTAX, "ARITH001",
+                      "Unclosed arithmetic expansion $(()", line,
+                      "Add closing ))"));
                 } else {
                   if (expr.empty()) {
                     line_errors.push_back(
                         SyntaxError({adjusted_line, start, j, 0},
-                                    ErrorSeverity::ERROR,
-                                    ErrorCategory::SYNTAX, "ARITH002",
-                                    "Empty arithmetic expression", line,
-                                    "Provide expression inside $(( ))"));
+                                    ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+                                    "ARITH002", "Empty arithmetic expression",
+                                    line, "Provide expression inside $(( ))"));
                   } else {
                     std::string trimmed_expr = expr;
 
                     trimmed_expr.erase(0,
                                        trimmed_expr.find_first_not_of(" \t"));
-                    trimmed_expr.erase(
-                        trimmed_expr.find_last_not_of(" \t") + 1);
+                    trimmed_expr.erase(trimmed_expr.find_last_not_of(" \t") +
+                                       1);
 
                     if (!trimmed_expr.empty()) {
                       char last_char = trimmed_expr.back();
@@ -1063,10 +1060,10 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
                           last_char == '%' || last_char == '&' ||
                           last_char == '|' || last_char == '^') {
                         line_errors.push_back(SyntaxError(
-                            {adjusted_line, start, j, 0},
-                            ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
-                            "ARITH003",
-                            "Incomplete arithmetic expression - missing operand",
+                            {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
+                            ErrorCategory::SYNTAX, "ARITH003",
+                            "Incomplete arithmetic expression - missing "
+                            "operand",
                             line,
                             "Add operand after '" + std::string(1, last_char) +
                                 "'"));
@@ -1076,9 +1073,9 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
                     if (expr.find("/0") != std::string::npos ||
                         expr.find("% 0") != std::string::npos) {
                       line_errors.push_back(SyntaxError(
-                          {adjusted_line, start, j, 0},
-                          ErrorSeverity::WARNING, ErrorCategory::SEMANTICS,
-                          "ARITH004", "Potential division by zero", line,
+                          {adjusted_line, start, j, 0}, ErrorSeverity::WARNING,
+                          ErrorCategory::SEMANTICS, "ARITH004",
+                          "Potential division by zero", line,
                           "Ensure divisor is not zero"));
                     }
 
@@ -1093,9 +1090,8 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
                     }
                     if (balance != 0) {
                       line_errors.push_back(SyntaxError(
-                          {display_line, start, j, 0},
-                          ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
-                          "ARITH005",
+                          {display_line, start, j, 0}, ErrorSeverity::ERROR,
+                          ErrorCategory::SYNTAX, "ARITH005",
                           "Unbalanced parentheses in arithmetic expression",
                           line, "Check parentheses balance in expression"));
                     }
@@ -1107,12 +1103,11 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
               }
 
               if (c == '$' && i + 1 < line.length() && line[i + 1] == '[') {
-                line_errors.push_back(
-                    SyntaxError({display_line, i, i + 2, 0},
-                                ErrorSeverity::WARNING,
-                                ErrorCategory::STYLE, "ARITH006",
-                                "Deprecated arithmetic syntax $[...], use $((...))",
-                                line, "Replace $[expr] with $((expr))"));
+                line_errors.push_back(SyntaxError(
+                    {display_line, i, i + 2, 0}, ErrorSeverity::WARNING,
+                    ErrorCategory::STYLE, "ARITH006",
+                    "Deprecated arithmetic syntax $[...], use $((...))", line,
+                    "Replace $[expr] with $((expr))"));
               }
 
               return IterationAction::Continue;
@@ -1160,12 +1155,11 @@ ShellScriptInterpreter::validate_parameter_expansions(
                 }
 
                 if (paren_count > 0) {
-                  line_errors.push_back(
-                      SyntaxError({display_line, start, j, 0},
-                                  ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
-                                  "SYN005",
-                                  "Unclosed command substitution $() - missing ')'",
-                                  line, "Add closing parenthesis"));
+                  line_errors.push_back(SyntaxError(
+                      {display_line, start, j, 0}, ErrorSeverity::ERROR,
+                      ErrorCategory::SYNTAX, "SYN005",
+                      "Unclosed command substitution $() - missing ')'", line,
+                      "Add closing parenthesis"));
                 }
 
                 next_index = j - 1;
@@ -1243,11 +1237,12 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                                            index_issue)) {
                         line_errors.push_back(SyntaxError(
                             {display_line, name_start, i, 0},
-                            ErrorSeverity::ERROR,
-                            ErrorCategory::VARIABLES, "VAR005",
+                            ErrorSeverity::ERROR, ErrorCategory::VARIABLES,
+                            "VAR005",
                             index_issue + " for array '" + var_name_only + "'",
                             line,
-                            "Use a valid numeric or arithmetic expression index"));
+                            "Use a valid numeric or arithmetic expression "
+                            "index"));
                       }
 
                       var_start = name_start;
@@ -1255,9 +1250,8 @@ ShellScriptInterpreter::validate_parameter_expansions(
                   }
                 }
 
-                while (var_start > 0 &&
-                       (std::isalnum(line[var_start - 1]) ||
-                        line[var_start - 1] == '_')) {
+                while (var_start > 0 && (std::isalnum(line[var_start - 1]) ||
+                                         line[var_start - 1] == '_')) {
                   var_start--;
                 }
 
@@ -1267,13 +1261,13 @@ ShellScriptInterpreter::validate_parameter_expansions(
                   if (!var_name.empty()) {
                     if (!is_valid_identifier_start(var_name[0])) {
                       line_errors.push_back(SyntaxError(
-                          {display_line, var_start, i, 0},
-                          ErrorSeverity::ERROR, ErrorCategory::VARIABLES,
-                          "VAR004",
+                          {display_line, var_start, i, 0}, ErrorSeverity::ERROR,
+                          ErrorCategory::VARIABLES, "VAR004",
                           "Invalid variable name '" + var_name +
                               "' - must start with letter or underscore",
                           line,
-                          "Use variable name starting with letter or underscore"));
+                          "Use variable name starting with letter or "
+                          "underscore"));
                     }
 
                     if (var_start > 0 && std::isspace(line[var_start - 1])) {
@@ -1535,8 +1529,9 @@ ShellScriptInterpreter::validate_function_syntax(
           auto tokens = tokenize_whitespace(trimmed_line);
 
           if (tokens.size() < 2) {
-            append_function_name_errors(line_errors, display_line, line, "",
-                                        "Add function name: function name() { ... }");
+            append_function_name_errors(
+                line_errors, display_line, line, "",
+                "Add function name: function name() { ... }");
           } else {
             append_function_name_errors(line_errors, display_line, line,
                                         tokens[1],
@@ -1548,7 +1543,8 @@ ShellScriptInterpreter::validate_function_syntax(
         if (paren_pos != std::string::npos && paren_pos > 0 &&
             trimmed_line.rfind("function", 0) != 0) {
           if (trimmed_line.find("{", paren_pos) != std::string::npos) {
-            std::string potential_func = trim(trimmed_line.substr(0, paren_pos));
+            std::string potential_func =
+                trim(trimmed_line.substr(0, paren_pos));
             append_function_name_errors(line_errors, display_line, line,
                                         potential_func,
                                         "Add function name before parentheses");
@@ -1697,7 +1693,7 @@ ShellScriptInterpreter::validate_array_syntax(
               if (!state.in_quotes && c == '(' && i > 0) {
                 size_t var_end = i;
                 while (var_end > 0 && std::isspace(static_cast<unsigned char>(
-                                              line[var_end - 1]))) {
+                                          line[var_end - 1]))) {
                   var_end--;
                 }
 
@@ -1725,12 +1721,11 @@ ShellScriptInterpreter::validate_array_syntax(
                   }
 
                   if (paren_count > 0) {
-                    line_errors.push_back(
-                        SyntaxError({display_line, i, j, 0},
-                                    ErrorSeverity::ERROR,
-                                    ErrorCategory::SYNTAX, "SYN009",
-                                    "Unclosed array declaration - missing ')'",
-                                    line, "Add closing parenthesis"));
+                    line_errors.push_back(SyntaxError(
+                        {display_line, i, j, 0}, ErrorSeverity::ERROR,
+                        ErrorCategory::SYNTAX, "SYN009",
+                        "Unclosed array declaration - missing ')'", line,
+                        "Add closing parenthesis"));
                   }
 
                   if (j > 0) {
