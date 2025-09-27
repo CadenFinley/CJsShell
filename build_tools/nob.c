@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #define PROJECT_NAME "cjsh"
-#define VERSION "2.1.13"
+#define VERSION "3.5.1"
 
 // Architecture detection
 #if defined(__aarch64__) || defined(_M_ARM64)
@@ -288,21 +288,19 @@ int main(int argc, char **argv) {
 bool check_dependencies(void) {
     nob_log(NOB_INFO, "Checking dependencies...");
     
-    // Check for C++ compiler
+    // Check for C++ compiler (suppress output)
     Nob_Cmd cmd = {0};
     
     // Try g++ first (redirect output to suppress command display)
     nob_cmd_append(&cmd, "which", "g++");
-    if (nob_cmd_run(&cmd)) {
-        nob_log(NOB_INFO, "Found g++ compiler");
+    if (nob_cmd_run(&cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
         return true;
     }
     
     // Try clang++
     cmd.count = 0;
     nob_cmd_append(&cmd, "which", "clang++");
-    if (nob_cmd_run(&cmd)) {
-        nob_log(NOB_INFO, "Found clang++ compiler");
+    if (nob_cmd_run(&cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
         return true;
     }
     
@@ -458,14 +456,58 @@ bool collect_c_sources(String_Array *c_sources) {
     return true;
 }
 
-bool setup_build_flags(Nob_Cmd *cmd) {
-    // Determine compiler
-    const char *compiler = "g++";
+// Global compiler cache
+static const char *cached_cxx_compiler = NULL;
+static const char *cached_c_compiler = NULL;
+static const char *cached_linker = NULL;
+
+static const char *get_cxx_compiler(void) {
+    if (cached_cxx_compiler != NULL) {
+        return cached_cxx_compiler;
+    }
+    
     Nob_Cmd test_cmd = {0};
     nob_cmd_append(&test_cmd, "which", "clang++");
-    if (nob_cmd_run(&test_cmd)) {
-        compiler = "clang++";
+    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
+        cached_cxx_compiler = "clang++";
+    } else {
+        cached_cxx_compiler = "g++";
     }
+    return cached_cxx_compiler;
+}
+
+static const char *get_c_compiler(void) {
+    if (cached_c_compiler != NULL) {
+        return cached_c_compiler;
+    }
+    
+    Nob_Cmd test_cmd = {0};
+    nob_cmd_append(&test_cmd, "which", "clang");
+    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
+        cached_c_compiler = "clang";
+    } else {
+        cached_c_compiler = "gcc";
+    }
+    return cached_c_compiler;
+}
+
+static const char *get_linker(void) {
+    if (cached_linker != NULL) {
+        return cached_linker;
+    }
+    
+    Nob_Cmd test_cmd = {0};
+    nob_cmd_append(&test_cmd, "which", "clang++");
+    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
+        cached_linker = "clang++";
+    } else {
+        cached_linker = "g++";
+    }
+    return cached_linker;
+}
+
+bool setup_build_flags(Nob_Cmd *cmd) {
+    const char *compiler = get_cxx_compiler();
     
     nob_cmd_append(cmd, compiler);
     
@@ -503,14 +545,7 @@ bool setup_build_flags(Nob_Cmd *cmd) {
 }
 
 bool setup_c_build_flags(Nob_Cmd *cmd) {
-    // Use C compiler for C files
-    const char *c_compiler = "gcc";
-    Nob_Cmd test_cmd = {0};
-    nob_cmd_append(&test_cmd, "which", "clang");
-    if (nob_cmd_run(&test_cmd)) {
-        c_compiler = "clang";
-    }
-    
+    const char *c_compiler = get_c_compiler();
     nob_cmd_append(cmd, c_compiler);
     
     // C standard and basic flags
@@ -562,6 +597,14 @@ bool compile_cjsh(void) {
     
     nob_log(NOB_INFO, "Using %d parallel compilation jobs", max_parallel_jobs);
     
+    // Progress tracking
+    size_t completed_cpp_files = 0;
+    size_t total_files = cpp_sources.count + c_sources.count;
+    
+    // Temporarily suppress command logging to reduce build noise
+    Nob_Log_Level original_log_level = nob_minimal_log_level;
+    nob_minimal_log_level = NOB_WARNING;
+    
     // Compile C++ files in parallel
     nob_log(NOB_INFO, "Starting parallel compilation of %zu C++ files...", cpp_sources.count);
     for (size_t i = 0; i < cpp_sources.count; i++) {
@@ -597,8 +640,6 @@ bool compile_cjsh(void) {
         nob_cmd_append(&cmd, "-o", obj_name.items);
         nob_da_append(&obj_files, strdup(obj_name.items));
         
-        nob_log(NOB_INFO, "Queuing compilation: %s -> %s", source, obj_name.items);
-        
         // Run asynchronously with automatic process management
         if (!nob_cmd_run(&cmd, .async = &procs, .max_procs = max_parallel_jobs)) {
             nob_log(NOB_ERROR, "Failed to start compilation of %s", source);
@@ -606,19 +647,34 @@ bool compile_cjsh(void) {
             return false;
         }
         
+        // Show periodic progress updates for C++ files
+        if ((i + 1) % 10 == 0 || i == cpp_sources.count - 1) {
+            // Temporarily restore log level to show progress
+            nob_minimal_log_level = original_log_level;
+            nob_log(NOB_INFO, "Queued %zu/%zu C++ files for compilation", i + 1, cpp_sources.count);
+            nob_minimal_log_level = NOB_WARNING;
+        }
+        
         nob_sb_free(obj_name);
     }
     
     // Wait for all C++ compilations to complete
+    nob_minimal_log_level = original_log_level;
     nob_log(NOB_INFO, "Waiting for C++ compilation to complete...");
+    nob_minimal_log_level = NOB_WARNING;
     if (!nob_procs_flush(&procs)) {
+        nob_minimal_log_level = original_log_level;
         nob_log(NOB_ERROR, "C++ compilation failed");
         return false;
     }
-    nob_log(NOB_INFO, "C++ compilation completed successfully");
+    nob_minimal_log_level = original_log_level;
+    nob_log(NOB_INFO, "[%zu/%zu] All C++ files compiled successfully", cpp_sources.count, total_files);
+    nob_minimal_log_level = NOB_WARNING;
     
     // Compile C files in parallel
+    nob_minimal_log_level = original_log_level;
     nob_log(NOB_INFO, "Starting parallel compilation of %zu C files...", c_sources.count);
+    nob_minimal_log_level = NOB_WARNING;
     for (size_t i = 0; i < c_sources.count; i++) {
         Nob_Cmd cmd = {0};
         if (!setup_c_build_flags(&cmd)) {
@@ -652,8 +708,6 @@ bool compile_cjsh(void) {
         nob_cmd_append(&cmd, "-o", obj_name.items);
         nob_da_append(&obj_files, strdup(obj_name.items));
         
-        nob_log(NOB_INFO, "Queuing compilation: %s -> %s", source, obj_name.items);
-        
         // Run asynchronously with automatic process management
         if (!nob_cmd_run(&cmd, .async = &procs, .max_procs = max_parallel_jobs)) {
             nob_log(NOB_ERROR, "Failed to start compilation of %s", source);
@@ -661,29 +715,38 @@ bool compile_cjsh(void) {
             return false;
         }
         
+        // Show progress updates for C files
+        if ((i + 1) % 5 == 0 || i == c_sources.count - 1) {
+            // Temporarily restore log level to show progress
+            nob_minimal_log_level = original_log_level;
+            nob_log(NOB_INFO, "Queued %zu/%zu C files for compilation (Total: %zu/%zu)", 
+                   i + 1, c_sources.count, cpp_sources.count + i + 1, total_files);
+            nob_minimal_log_level = NOB_WARNING;
+        }
+        
         nob_sb_free(obj_name);
     }
     
     // Wait for all C compilations to complete
+    nob_minimal_log_level = original_log_level;
     nob_log(NOB_INFO, "Waiting for C compilation to complete...");
+    nob_minimal_log_level = NOB_WARNING;
     if (!nob_procs_flush(&procs)) {
+        nob_minimal_log_level = original_log_level;
         nob_log(NOB_ERROR, "C compilation failed");
         return false;
     }
-    nob_log(NOB_INFO, "C compilation completed successfully");
+    nob_minimal_log_level = original_log_level;
+    nob_log(NOB_INFO, "[%zu/%zu] All files compiled successfully!", total_files, total_files);
+    
+    // Restore original log level before linking
+    nob_minimal_log_level = original_log_level;
     
     // Link everything together
     nob_log(NOB_INFO, "Linking " PROJECT_NAME "...");
     Nob_Cmd link_cmd = {0};
     
-    // Use C++ compiler for linking (since we have C++ code)
-    const char *linker = "g++";
-    Nob_Cmd test_cmd = {0};
-    nob_cmd_append(&test_cmd, "which", "clang++");
-    if (nob_cmd_run(&test_cmd)) {
-        linker = "clang++";
-    }
-    
+    const char *linker = get_linker();
     nob_cmd_append(&link_cmd, linker);
     
     // Platform-specific linking flags
@@ -697,7 +760,10 @@ bool compile_cjsh(void) {
 #endif
 
 #ifdef PLATFORM_LINUX
-    nob_cmd_append(&link_cmd, "-static-libgcc", "-static-libstdc++");
+    // Only use static linking with gcc/g++, not with clang
+    if (strcmp(linker, "g++") == 0) {
+        nob_cmd_append(&link_cmd, "-static-libgcc", "-static-libstdc++");
+    }
 #endif
     
     // Add all object files
