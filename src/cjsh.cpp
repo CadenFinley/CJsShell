@@ -101,14 +101,6 @@ static void initialize_title_strings() {
     }
 }
 
-// Typeahead: fully enabled with queued replay and terminal awareness.
-// Cleanup / polish backlog:
-// - Interpret escape/control sequences (arrows, Home/End) before queuing
-// - Surface configuration toggles for replay and prefill behavior
-// - Expand regression coverage for multi-line scenarios and plugin hooks
-// - Audit plugin event ordering and AI prompt transitions under replay
-
-// add a way to change syntax highlighter via .cjshrc
 // add a way to change keybindings via .cjshrc
 
 /*
