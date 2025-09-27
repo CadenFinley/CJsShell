@@ -11,6 +11,7 @@
 #include <csignal>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -133,6 +134,61 @@ ExitErrorResult make_exit_error_result(const std::string& command,
     result.type = ErrorType::PERMISSION_DENIED;
   }
   return result;
+}
+
+enum class HereStringErrorType {
+  Pipe,
+  Write,
+  Dup
+};
+
+struct HereStringError {
+  HereStringErrorType type;
+  std::string detail;
+};
+
+std::optional<HereStringError> setup_here_string_stdin(
+    const std::string& here_string) {
+  int here_pipe[2];
+  if (pipe(here_pipe) == -1) {
+    return HereStringError{HereStringErrorType::Pipe,
+                           std::string(strerror(errno))};
+  }
+
+  std::string content = here_string;
+  if (g_shell && g_shell->get_parser()) {
+    g_shell->get_parser()->expand_env_vars(content);
+  }
+  content += "\n";
+
+  ssize_t bytes_written =
+      write(here_pipe[1], content.c_str(), content.length());
+  if (bytes_written == -1) {
+    cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+    cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+    return HereStringError{HereStringErrorType::Write,
+                           std::string(strerror(errno))};
+  }
+
+  cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+  auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(
+      here_pipe[0], STDIN_FILENO);
+  cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+  if (dup_result.is_error()) {
+    return HereStringError{HereStringErrorType::Dup, dup_result.error()};
+  }
+
+  return std::nullopt;
+}
+
+std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
+  std::vector<char*> c_args;
+  c_args.reserve(args.size() + 1);
+  for (const auto& arg : args) {
+    c_args.push_back(const_cast<char*>(arg.c_str()));
+  }
+  c_args.push_back(nullptr);
+  return c_args;
 }
 
 }  // namespace
@@ -378,12 +434,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     sigaddset(&set, SIGCHLD);
     sigprocmask(SIG_UNBLOCK, &set, nullptr);
 
-    std::vector<char*> c_args;
-    for (auto& arg : cmd_args) {
-      c_args.push_back(const_cast<char*>(arg.c_str()));
-    }
-    c_args.push_back(nullptr);
-
+    auto c_args = build_exec_argv(cmd_args);
     execvp(cmd_args[0].c_str(), c_args.data());
 
     if (errno == ENOENT) {
@@ -497,12 +548,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     signal(SIGTTIN, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
 
-    std::vector<char*> c_args;
-    for (auto& arg : cmd_args) {
-      c_args.push_back(const_cast<char*>(arg.c_str()));
-    }
-    c_args.push_back(nullptr);
-
+    auto c_args = build_exec_argv(cmd_args);
     execvp(cmd_args[0].c_str(), c_args.data());
     _exit(127);
   } else {
@@ -678,46 +724,33 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             if (!modified_cmd.input_file.empty()) {
               auto redirect_result =
                   cjsh_filesystem::FileOperations::redirect_fd(
-                      modified_cmd.input_file.c_str(), STDIN_FILENO, O_RDONLY);
+                      modified_cmd.input_file.c_str(), STDIN_FILENO,
+                      O_RDONLY);
               if (redirect_result.is_error()) {
                 throw std::runtime_error(
                     "cjsh: Failed to redirect stdin from file: " +
-                    modified_cmd.input_file + " - " + redirect_result.error());
+                    modified_cmd.input_file + " - " +
+                    redirect_result.error());
               }
             }
 
             if (!modified_cmd.here_string.empty()) {
-              int here_pipe[2];
-              if (pipe(here_pipe) == -1) {
-                throw std::runtime_error(
-                    "cjsh: Failed to create pipe for here string");
+              auto here_error =
+                  setup_here_string_stdin(modified_cmd.here_string);
+              if (here_error.has_value()) {
+                switch (here_error->type) {
+                  case HereStringErrorType::Pipe:
+                    throw std::runtime_error(
+                        "cjsh: Failed to create pipe for here string");
+                  case HereStringErrorType::Write:
+                    throw std::runtime_error(
+                        "cjsh: Failed to write here string content");
+                  case HereStringErrorType::Dup:
+                    throw std::runtime_error(
+                        "cjsh: Failed to redirect stdin for here string: " +
+                        here_error->detail);
+                }
               }
-
-              std::string content = modified_cmd.here_string;
-
-              if (g_shell && g_shell->get_parser()) {
-                g_shell->get_parser()->expand_env_vars(content);
-              }
-              content += "\n";
-              ssize_t bytes_written =
-                  write(here_pipe[1], content.c_str(), content.length());
-              if (bytes_written == -1) {
-                cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
-                cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
-                throw std::runtime_error(
-                    "cjsh: Failed to write here string content");
-              }
-              cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
-
-              auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(
-                  here_pipe[0], STDIN_FILENO);
-              if (dup_result.is_error()) {
-                cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
-                throw std::runtime_error(
-                    "cjsh: Failed to redirect stdin for here string: " +
-                    dup_result.error());
-              }
-              cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
             }
 
             if (!modified_cmd.output_file.empty()) {
@@ -996,41 +1029,27 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         else if (!cmd.here_string.empty()) {
-          int here_pipe[2];
-          if (pipe(here_pipe) == -1) {
-            std::cerr << "cjsh: runtime error: pipe: failed to create pipe for "
-                         "here string: "
-                      << strerror(errno) << std::endl;
+          auto here_error = setup_here_string_stdin(cmd.here_string);
+          if (here_error.has_value()) {
+            switch (here_error->type) {
+              case HereStringErrorType::Pipe:
+                std::cerr << "cjsh: runtime error: pipe: failed to create pipe for "
+                             "here string: "
+                          << here_error->detail << std::endl;
+                break;
+              case HereStringErrorType::Write:
+                std::cerr << "cjsh: runtime error: write: failed to write here "
+                             "string content: "
+                          << here_error->detail << std::endl;
+                break;
+              case HereStringErrorType::Dup:
+                std::cerr << "cjsh: runtime error: dup2: failed to duplicate here "
+                             "string descriptor: "
+                          << here_error->detail << std::endl;
+                break;
+            }
             _exit(EXIT_FAILURE);
           }
-
-          std::string content = cmd.here_string;
-
-          if (g_shell && g_shell->get_parser()) {
-            g_shell->get_parser()->expand_env_vars(content);
-          }
-          content += "\n";
-          ssize_t bytes_written =
-              write(here_pipe[1], content.c_str(), content.length());
-          if (bytes_written == -1) {
-            std::cerr << "cjsh: runtime error: write: failed to write here "
-                         "string content: "
-                      << strerror(errno) << std::endl;
-            close(here_pipe[1]);
-            _exit(EXIT_FAILURE);
-          }
-          close(here_pipe[1]);
-
-          auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(
-              here_pipe[0], STDIN_FILENO);
-          if (dup_result.is_error()) {
-            std::cerr << "cjsh: runtime error: dup2: failed to duplicate here "
-                         "string descriptor: "
-                      << dup_result.error() << std::endl;
-            cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
-            _exit(EXIT_FAILURE);
-          }
-          cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
         } else if (!cmd.input_file.empty()) {
           auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
               cmd.input_file, STDIN_FILENO, O_RDONLY);
@@ -1188,12 +1207,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
           }
         }
 
-        std::vector<char*> c_args;
-        for (auto& arg : cmd.args) {
-          c_args.push_back(const_cast<char*>(arg.c_str()));
-        }
-        c_args.push_back(nullptr);
-
+        auto c_args = build_exec_argv(cmd.args);
         execvp(cmd.args[0].c_str(), c_args.data());
         _exit(127);
       }
@@ -1450,12 +1464,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
           _exit(exit_code);
         } else {
-          std::vector<char*> c_args;
-          for (auto& arg : cmd.args) {
-            c_args.push_back(const_cast<char*>(arg.c_str()));
-          }
-          c_args.push_back(nullptr);
-
+          auto c_args = build_exec_argv(cmd.args);
           execvp(cmd.args[0].c_str(), c_args.data());
           _exit(127);
         }

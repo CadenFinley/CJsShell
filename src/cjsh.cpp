@@ -105,13 +105,14 @@ static void initialize_title_strings() {
   }
 }
 
-// TODOxw
+// TODO
 // fix all failing tests
-
-//  custom exa implementations
 // fix all memory leaks
 //  valgrind --leak-check=full --show-leak-kinds=all
 //  fix leaks in isocline
+
+// add a way to change syntax highlighter via .cjshrc
+// add a way to change keybindings via .cjshrc
 
 /*
  * Exit/Return Codes:
