@@ -129,6 +129,57 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
   return tokens;
 }
 
+void push_function_context(
+    const std::string& trimmed_line, size_t display_line,
+    std::vector<std::pair<std::string, size_t>>& control_stack) {
+  if (!trimmed_line.empty() && trimmed_line.back() == '{') {
+    control_stack.push_back({"{", display_line});
+  } else {
+    control_stack.push_back({"function", display_line});
+  }
+}
+
+bool is_valid_identifier_start(char c);
+bool is_valid_identifier_char(char c);
+
+void append_function_name_errors(std::vector<SyntaxError>& errors,
+                                 size_t display_line,
+                                 const std::string& line,
+                                 const std::string& func_name,
+                                 const std::string& missing_name_suggestion) {
+  if (func_name.empty() || func_name == "()") {
+    errors.push_back(SyntaxError({display_line, 0, 0, 0},
+                                 ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+                                 "FUNC001", "Function declaration missing name",
+                                 line, missing_name_suggestion));
+    return;
+  }
+
+  if (!is_valid_identifier_start(func_name[0])) {
+    errors.push_back(SyntaxError({display_line, 0, 0, 0},
+                                 ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+                                 "FUNC002",
+                                 "Invalid function name '" + func_name +
+                                     "' - must start with letter or underscore",
+                                 line,
+                                 "Use valid function name starting with letter or underscore"));
+    return;
+  }
+
+  for (char c : func_name) {
+    if (!is_valid_identifier_char(c)) {
+      errors.push_back(SyntaxError(
+          {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+          ErrorCategory::SYNTAX, "FUNC002",
+          "Invalid function name '" + func_name +
+              "' - contains invalid character '" + std::string(1, c) + "'",
+          line,
+          "Use only letters, numbers, and underscores in function names"));
+      return;
+    }
+  }
+}
+
 size_t adjust_display_line(const std::string& text, size_t base_line,
                            size_t offset) {
   size_t limit = std::min(offset, text.size());
@@ -526,17 +577,9 @@ ShellScriptInterpreter::validate_script_syntax(
             errors.push_back(
                 {display_line, "'function' missing function name", line});
           }
-          if (!trimmed.empty() && trimmed.back() == '{') {
-            control_stack.push_back({"{", display_line});
-          } else {
-            control_stack.push_back({"function", display_line});
-          }
+          push_function_context(trimmed, display_line, control_stack);
         } else if (tokens.size() >= 2 && tokens[1] == "()") {
-          if (!trimmed.empty() && trimmed.back() == '{') {
-            control_stack.push_back({"{", display_line});
-          } else {
-            control_stack.push_back({"function", display_line});
-          }
+          push_function_context(trimmed, display_line, control_stack);
         }
 
         else if (!trimmed.empty() && trimmed.back() == '{') {
@@ -1461,70 +1504,23 @@ ShellScriptInterpreter::validate_function_syntax(
           auto tokens = tokenize_whitespace(trimmed_line);
 
           if (tokens.size() < 2) {
-            line_errors.push_back(
-                SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::SYNTAX, "FUNC001",
-                            "Function declaration missing name", line,
-                            "Add function name: function name() { ... }"));
+            append_function_name_errors(line_errors, display_line, line, "",
+                                        "Add function name: function name() { ... }");
           } else {
-            const std::string& func_name = tokens[1];
-
-            if (func_name == "()") {
-              line_errors.push_back(
-                  SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                              ErrorCategory::SYNTAX, "FUNC001",
-                              "Function declaration missing name", line,
-                              "Add function name before parentheses"));
-            } else if (!is_valid_identifier_start(func_name[0])) {
-              line_errors.push_back(
-                  SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                              ErrorCategory::SYNTAX, "FUNC002",
-                              "Invalid function name '" + func_name +
-                                  "' - must start with letter or underscore",
-                              line,
-                              "Use valid function name starting with letter or "
-                              "underscore"));
-            } else {
-              for (char c : func_name) {
-                if (!is_valid_identifier_char(c)) {
-                  line_errors.push_back(SyntaxError(
-                      {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                      ErrorCategory::SYNTAX, "FUNC002",
-                      "Invalid function name '" + func_name +
-                          "' - contains invalid character '" + c + "'",
-                      line,
-                      "Use only letters, numbers, and underscores in "
-                      "function names"));
-                  break;
-                }
-              }
-            }
+            append_function_name_errors(line_errors, display_line, line,
+                                        tokens[1],
+                                        "Add function name before parentheses");
           }
         }
 
         size_t paren_pos = trimmed_line.find("()");
-        if (paren_pos != std::string::npos && paren_pos > 0) {
-          std::string potential_func = trimmed_line.substr(0, paren_pos);
-
+        if (paren_pos != std::string::npos && paren_pos > 0 &&
+            trimmed_line.rfind("function", 0) != 0) {
           if (trimmed_line.find("{", paren_pos) != std::string::npos) {
-            if (potential_func.empty()) {
-              line_errors.push_back(
-                  SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                              ErrorCategory::SYNTAX, "FUNC001",
-                              "Function declaration missing name", line,
-                              "Add function name before parentheses"));
-            } else {
-              if (!is_valid_identifier_start(potential_func[0])) {
-                line_errors.push_back(
-                    SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                ErrorCategory::SYNTAX, "FUNC002",
-                                "Invalid function name '" + potential_func +
-                                    "' - must start with letter or underscore",
-                                line,
-                                "Use valid function name starting with letter "
-                                "or underscore"));
-              }
-            }
+            std::string potential_func = trim(trimmed_line.substr(0, paren_pos));
+            append_function_name_errors(line_errors, display_line, line,
+                                        potential_func,
+                                        "Add function name before parentheses");
           }
         }
 
