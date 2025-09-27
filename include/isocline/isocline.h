@@ -79,8 +79,8 @@ char* ic_readline(const char* prompt_text, const char* initial_input);
 ///   Returns NULL on error, or if the user typed ctrl+d or ctrl+c.
 ///
 /// @see ic_readline(), ic_set_prompt_marker(), ic_style_def()
-char* ic_readline_inline(const char* prompt_text,
-                         const char* inline_right_text, const char* initial_input);
+char* ic_readline_inline(const char* prompt_text, const char* inline_right_text,
+                         const char* initial_input);
 
 /// \}
 

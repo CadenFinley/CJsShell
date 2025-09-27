@@ -128,13 +128,15 @@ void main_process_loop() {
     }
 
     char* input;
-    const char* initial_input = input_buffer.empty() ? nullptr : input_buffer.c_str();
+    const char* initial_input =
+        input_buffer.empty() ? nullptr : input_buffer.c_str();
     if (!inline_right_text.empty()) {
-      input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(), initial_input);
+      input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(),
+                                 initial_input);
     } else {
       input = ic_readline(prompt.c_str(), initial_input);
     }
-    input_buffer = ""; // Clear input buffer after using it
+    input_buffer = "";  // Clear input buffer after using it
     if (g_debug_mode)
       std::cerr << "DEBUG: ic_readline returned" << std::endl;
     if (input != nullptr) {
@@ -145,14 +147,12 @@ void main_process_loop() {
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
         {
-
           // Start timing before command execution
           g_shell->start_command_timing();
 
           std::string status_str;
           int exit_code = g_shell->execute(command);
           status_str = std::to_string(exit_code);
-
 
           // End timing after command execution
           g_shell->end_command_timing(exit_code);
@@ -181,11 +181,13 @@ void main_process_loop() {
           g_shell->execute("echo '' > /dev/null");  // Fallback no-op command
 #endif
         }
-        
-        // TODO: get all queued input from the input monitor and append to input buffer
+
+        // TODO: get all queued input from the input monitor and append to input
+        // buffer
 
       } else {
-        // command empty so Reset timing for empty commands to clear previous command duration for prompt
+        // command empty so Reset timing for empty commands to clear previous
+        // command duration for prompt
         g_shell->reset_command_timing();
       }
       if (g_exit_flag) {

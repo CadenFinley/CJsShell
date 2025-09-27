@@ -53,7 +53,8 @@ typedef struct editor_s {
 //-------------------------------------------------------------
 // Main edit line
 //-------------------------------------------------------------
-static void insert_initial_input(const char* initial_input, editor_t* eb); // defined at bottom
+static void insert_initial_input(const char* initial_input,
+                                 editor_t* eb);  // defined at bottom
 
 static char* edit_line(ic_env_t* env,
                        const char* prompt_text);  // defined at bottom
@@ -1075,12 +1076,12 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
   eb.history_idx = 0;
   editstate_init(&eb.undo);
   editstate_init(&eb.redo);
-  
+
   // Insert initial input if present
   if (env->initial_input != NULL) {
     insert_initial_input(env->initial_input, &eb);
   }
-  
+
   if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL ||
       eb.hint_help == NULL) {
     return NULL;
@@ -1389,12 +1390,12 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
   eb.history_idx = 0;
   editstate_init(&eb.undo);
   editstate_init(&eb.redo);
-  
+
   // Insert initial input if present
   if (env->initial_input != NULL) {
     insert_initial_input(env->initial_input, &eb);
   }
-  
+
   if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL ||
       eb.hint_help == NULL) {
     return NULL;

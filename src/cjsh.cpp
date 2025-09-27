@@ -63,7 +63,7 @@ static int handle_early_exit_modes();
 static int handle_non_interactive_mode(const std::string& script_file);
 static int initialize_interactive_components();
 static void save_startup_arguments(int argc, char* argv[]);
-static void process_profile_file();
+static void process_profile_files();
 static void apply_profile_startup_flags();
 static void setup_environment_variables();
 
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
                    {"Check file permissions", "Reinstall cjsh"}});
       return 1;
     }
-    process_profile_file();
+    process_profile_files();
     apply_profile_startup_flags();
   }
 
@@ -635,8 +635,7 @@ static int initialize_interactive_components() {
   if (config::source_enabled) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Processing source file" << std::endl;
-    if (cjsh_filesystem::file_exists(
-            cjsh_filesystem::g_cjsh_source_path)) {
+    if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
       g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
     }
   } else {
@@ -786,7 +785,7 @@ static void setup_environment_variables() {
   }
 }
 
-static void process_profile_file() {
+static void process_profile_files() {
   // sourcing if in login shell
   if (g_debug_mode)
     std::cerr << "DEBUG: Processing profile files" << std::endl;
@@ -917,6 +916,3 @@ static void apply_profile_startup_flags() {
     }
   }
 }
-
-
-

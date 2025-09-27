@@ -10,8 +10,8 @@
 #include <sstream>
 #include <vector>
 
-#include "error_out.h"
 #include "cjsh.h"
+#include "error_out.h"
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -26,7 +26,6 @@ namespace cjsh_filesystem {
 
 fs::path g_cjsh_path;
 
-// FileOperations implementation
 Result<int> FileOperations::safe_open(const std::string& path, int flags,
                                       mode_t mode) {
   int fd = ::open(path.c_str(), flags, mode);
@@ -527,8 +526,8 @@ bool init_interactive_filesystem() {
     if (!history_exists) {
       if (g_debug_mode)
         std::cerr << "DEBUG: Creating history file" << std::endl;
-      auto write_result = FileOperations::write_file_content(
-          g_cjsh_history_path.string(), "");
+      auto write_result =
+          FileOperations::write_file_content(g_cjsh_history_path.string(), "");
       if (!write_result.is_ok()) {
         print_error({ErrorType::RUNTIME_ERROR,
                      g_cjsh_history_path.c_str(),

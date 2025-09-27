@@ -65,7 +65,8 @@ ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text,
 ic_private ic_env_t* ic_get_env(void);
 ic_private const char* ic_env_get_auto_braces(ic_env_t* env);
 ic_private const char* ic_env_get_match_braces(ic_env_t* env);
-ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input);
+ic_private void ic_env_set_initial_input(ic_env_t* env,
+                                         const char* initial_input);
 ic_private void ic_env_clear_initial_input(ic_env_t* env);
 
 #endif  // IC_ENV_H

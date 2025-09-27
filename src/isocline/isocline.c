@@ -61,7 +61,8 @@ static bool getline_interrupt = false;
 
 static char* ic_getline(alloc_t* mem);
 
-ic_public char* ic_readline(const char* prompt_text, const char* initial_input) {
+ic_public char* ic_readline(const char* prompt_text,
+                            const char* initial_input) {
   ic_env_t* env = ic_get_env();
   if (env == NULL)
     return NULL;
@@ -91,7 +92,8 @@ ic_public char* ic_readline(const char* prompt_text, const char* initial_input) 
 }
 
 ic_public char* ic_readline_inline(const char* prompt_text,
-                                   const char* inline_right_text, const char* initial_input) {
+                                   const char* inline_right_text,
+                                   const char* initial_input) {
   // fprintf(stderr, "DEBUG: ic_readline_inline called with prompt='%s',
   // inline_right='%s'\n",
   //         prompt_text ? prompt_text : "NULL",
@@ -105,7 +107,7 @@ ic_public char* ic_readline_inline(const char* prompt_text,
       ic_env_set_initial_input(env, initial_input);
     }
     char* result = ic_editline_inline(env, prompt_text,
-                              inline_right_text);  // in editline.c
+                                      inline_right_text);  // in editline.c
     ic_env_clear_initial_input(env);
     return result;
   } else {
@@ -434,8 +436,10 @@ ic_private const char* ic_env_get_auto_braces(ic_env_t* env) {
   return (env->auto_braces == NULL ? "()[]{}\"\"''" : env->auto_braces);
 }
 
-ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input) {
-  if (env == NULL) return;
+ic_private void ic_env_set_initial_input(ic_env_t* env,
+                                         const char* initial_input) {
+  if (env == NULL)
+    return;
   mem_free(env->mem, (void*)env->initial_input);
   env->initial_input = NULL;
   if (initial_input != NULL) {
@@ -444,7 +448,8 @@ ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_inpu
 }
 
 ic_private void ic_env_clear_initial_input(ic_env_t* env) {
-  if (env == NULL) return;
+  if (env == NULL)
+    return;
   mem_free(env->mem, (void*)env->initial_input);
   env->initial_input = NULL;
 }
