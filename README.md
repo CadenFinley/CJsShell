@@ -43,12 +43,6 @@ The easiest way to install CJ's Shell is using the automatic installer:
 curl -fsSL https://raw.githubusercontent.com/CadenFinley/CJsShell/master/tool_scripts/install.sh | bash
 ```
 
-This command will:
-- Automatically detect and install build dependencies
-- Download the latest source code
-- Build and install CJ's Shell
-- Provide setup instructions for making it your default shell
-
 ## Manual Installation
 
 For latest stable patch, you can build and install manually from a release on GitHub:
@@ -58,9 +52,7 @@ For latest stable patch, you can build and install manually from a release on Gi
 3. Build the project:
 
    ```bash
-   mkdir build && cd build
-   cmake ..
-   make -j
+   ./tool_scripts/build.sh
    ```
 
 ## Uninstalling cjsh

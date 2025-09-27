@@ -17,3 +17,6 @@ build/
 *.dylib
 *.so
 .idea/
+nob
+nob.old
+
