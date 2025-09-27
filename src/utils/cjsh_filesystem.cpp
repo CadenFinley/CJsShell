@@ -10,6 +10,8 @@
 #include <sstream>
 #include <vector>
 
+#include "error_out.h"
+
 #ifdef __linux__
 #include <linux/limits.h>
 #include <unistd.h>
@@ -370,6 +372,101 @@ std::string find_executable_in_path(const std::string& name) {
   }
 
   return "";
+}
+
+void create_profile_file() {
+  std::string profile_content =
+      "# cjsh Configuration File\n"
+      "# this file is sourced when the shell starts in login "
+      "mode and is sourced after /etc/profile and ~/.profile\n"
+      "# this file supports full shell scripting including "
+      "conditional logic\n"
+      "# Use the 'login-startup-arg' builtin command to set "
+      "startup flags conditionally\n"
+      "\n"
+      "# Example: Conditional startup flags based on environment\n"
+      "# if test -n \"$TMUX\"; then\n"
+      "#     echo \"In tmux session, no flags required\"\n"
+      "# else\n"
+      "#     login-startup-arg --no-plugins\n"
+      "#     login-startup-arg --no-themes\n"
+      "#     login-startup-arg --no-ai\n"
+      "#     login-startup-arg --no-colors\n"
+      "#     login-startup-arg --no-titleline\n"
+      "# fi\n"
+      "\n"
+      "# Available startup flags:\n"
+      "# login-startup-arg --login               # Enable login mode\n"
+      "# login-startup-arg --interactive         # Force interactive mode\n"
+      "# login-startup-arg --debug               # Enable debug mode\n"
+      "# login-startup-arg --minimal             # Disable all unique cjsh "
+      "features (plugins, themes, AI, colors, completions, syntax "
+      "highlighting, smart cd, sourcing, custom ls colors, startup time "
+      "display)\n"
+      "# login-startup-arg --no-plugins          # Disable plugins\n"
+      "# login-startup-arg --no-themes           # Disable themes\n"
+      "# login-startup-arg --no-ai               # Disable AI features\n"
+      "# login-startup-arg --no-colors           # Disable colorized output\n"
+      "# login-startup-arg --no-titleline        # Disable title line\n"
+      "# login-startup-arg --show-startup-time   # Enable startup time "
+      "display\n"
+      "# login-startup-arg --no-source           # Don't source the .cjshrc "
+      "file\n"
+      "# login-startup-arg --no-completions      # Disable tab completions\n"
+      "# login-startup-arg --no-syntax-highlighting  # Disable syntax "
+      "highlighting\n"
+      "# login-startup-arg --no-smart-cd         # Disable smart cd "
+      "functionality\n"
+      "# login-startup-arg --disable-custom-ls   # Use system ls instead of "
+      "builtin\n"
+      "# login-startup-arg --startup-test        # Enable startup test mode\n";
+
+  auto write_result = FileOperations::write_file_content(
+      g_cjsh_profile_path.string(), profile_content);
+
+  if (!write_result.is_ok()) {
+    print_error({ErrorType::RUNTIME_ERROR,
+                 nullptr,
+                 write_result.error().c_str(),
+                 {"Check file permissions"}});
+  }
+}
+
+void create_source_file() {
+  std::string source_content =
+      "# cjsh Source File\n"
+      "# this file is sourced when the shell starts in interactive mode\n"
+      "# this is where your aliases, theme setup, enabled "
+      "plugins will be stored by default.\n"
+      "\n"
+      "# Alias examples\n"
+      "alias ll='ls -la'\n"
+      "\n"
+      "# you can change this to load any installed theme, "
+      "# by default, the 'default' theme is always loaded unless themes are "
+      "disabled\n"
+      "theme load default\n"
+      "\n"
+      "# plugin examples\n"
+      "# plugin example_plugin enable\n"
+      "\n"
+      "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
+      "cjsh_uninstall() {\n"
+      "    rm -rf " +
+      g_cjsh_path.string() +
+      "\n"
+      "    echo \"Uninstalled cjsh\"\n"
+      "}\n";
+
+  auto write_result = FileOperations::write_file_content(
+      g_cjsh_source_path.string(), source_content);
+
+  if (!write_result.is_ok()) {
+    print_error({ErrorType::RUNTIME_ERROR,
+                 nullptr,
+                 write_result.error().c_str(),
+                 {"Check file permissions"}});
+  }
 }
 
 }  // namespace cjsh_filesystem

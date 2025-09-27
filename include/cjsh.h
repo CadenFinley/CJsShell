@@ -10,6 +10,7 @@
 #include <ctime>
 
 #include "ai.h"
+#include "main_loop.h"
 #include "plugin.h"
 #include "shell.h"
 #include "theme.h"
@@ -57,5 +58,4 @@ void initialize_plugins();
 void initialize_themes();
 void initialize_ai();
 
-void reprint_prompt();
 void cleanup_resources();
