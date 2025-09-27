@@ -26,32 +26,32 @@ install:
   - sh: |
       echo Installing Linux dependencies...
       sudo apt-get update
-      sudo apt-get install -y build-essential cmake
+      sudo apt-get install -y build-essential
       # Install 32-bit libraries if building for x86
       sudo apt-get install -y libcurl4-openssl-dev
       # Make sure we have the dynamic loading library
       sudo apt-get install -y libdl-dev || echo "libdl is part of glibc-dev, continuing..."
 
 before_build:
-  # Linux build preparation
+  # Linux build preparation - using nob build system
   - sh: |
-      mkdir build
-      cd build
-      if [ "$platform" = "x86" ]; then
-        # For 32-bit builds
-        export CFLAGS="-m32"
-        export CXXFLAGS="-m32"
-        # Force the arch to be x86
-        cmake .. -DCMAKE_BUILD_TYPE=$configuration -DCMAKE_CXX_FLAGS="-m32" -DCMAKE_C_FLAGS="-m32" -DFORCE_32BIT=ON
-      else
-        cmake .. -DCMAKE_BUILD_TYPE=$configuration
+      echo "Building with nob build system..."
+      cd build_tools
+      # Build nob if it doesn't exist
+      if [ ! -f "./nob" ]; then
+        echo "Building nob..."
+        cc -o nob nob.c
+        if [ $? -ne 0 ]; then
+          echo "Failed to compile nob"
+          exit 1
+        fi
       fi
-      if [ $? -ne 0 ]; then exit 1; fi
 
 build_script:
-  # Linux build
+  # Linux build using nob
   - sh: |
-      cmake --build . --config $configuration -- -j $(nproc)
+      cd build_tools
+      ./nob
 
 after_build:
   # Linux packaging
