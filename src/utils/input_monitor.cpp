@@ -15,6 +15,7 @@
 
 #include "cjsh.h"
 #include "job_control.h"
+#include "shell.h"
 
 namespace input_monitor {
 namespace {
@@ -190,7 +191,17 @@ void collect_typeahead() {
     return;
   }
 
-  std::string raw_data = read_available_input();
+  std::string raw_data;
+
+  // Use scoped raw mode for better typeahead capture
+  ScopedRawMode raw_scope;
+  if (!raw_scope.entered()) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: InputMonitor could not enter raw mode for "
+                   "typeahead capture" << std::endl;
+    }
+  }
+  raw_data = read_available_input();
   if (raw_data.empty()) {
     return;
   }

@@ -23,6 +23,25 @@ class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
 
+// Lightweight scoped raw mode for non-blocking input capture
+class ScopedRawMode {
+ public:
+  ScopedRawMode();
+  explicit ScopedRawMode(int fd);
+  ~ScopedRawMode();
+
+  bool entered() const {
+    return entered_;
+  }
+
+  void release();
+
+ private:
+  bool entered_;
+  int fd_;
+  struct termios saved_modes_;
+};
+
 class Shell {
  public:
   Shell();

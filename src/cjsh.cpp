@@ -102,10 +102,9 @@ static void initialize_title_strings() {
 // TODO
 
 // Remaining Input Forwarding Work
-// 1. Terminal Mode Management - NOT IMPLEMENTED
-// No TerminalModeManager class exists
-// While basic termios usage exists for job control, there's no specialized mode management for input monitoring
-// No saving/restoring of terminal modes for input capture
+// 1. Terminal Mode Management - IMPLEMENTED
+// ScopedRawMode class provides lightweight non-blocking input capture for typeahead collection
+// No duplication with Shell's terminal state management
 
 // 2. Threading Infrastructure - PARTIALLY EXISTS
 // Threading is used in the AI system (ai.cpp has std::thread for loading/cancellation)

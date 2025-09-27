@@ -1,11 +1,14 @@
 #include "shell.h"
 
 #include <cstdlib>
+#include <errno.h>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <set>
 #include <sstream>
+#include <string.h>
+#include <unistd.h>
 #include <unordered_map>
 
 #include "builtin.h"
@@ -26,6 +29,57 @@ struct CachedScript {
 std::mutex g_script_cache_mutex;
 std::unordered_map<std::string, CachedScript> g_script_cache;
 }  // namespace
+
+// ScopedRawMode implementation
+ScopedRawMode::ScopedRawMode() : ScopedRawMode(STDIN_FILENO) {}
+
+ScopedRawMode::ScopedRawMode(int fd) : entered_(false), fd_(fd) {
+  if (fd_ < 0 || !isatty(fd_)) {
+    return;
+  }
+
+  if (tcgetattr(fd_, &saved_modes_) == -1) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: ScopedRawMode failed to save current termios: "
+                << strerror(errno) << std::endl;
+    }
+    return;
+  }
+
+  struct termios raw_modes = saved_modes_;
+  raw_modes.c_lflag &= ~ICANON;
+  raw_modes.c_cc[VMIN] = 0;
+  raw_modes.c_cc[VTIME] = 0;
+
+  if (tcsetattr(fd_, TCSANOW, &raw_modes) == -1) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: ScopedRawMode failed to enter raw mode: "
+                << strerror(errno) << std::endl;
+    }
+    return;
+  }
+
+  entered_ = true;
+}
+
+ScopedRawMode::~ScopedRawMode() {
+  release();
+}
+
+void ScopedRawMode::release() {
+  if (!entered_) {
+    return;
+  }
+
+  if (tcsetattr(fd_, TCSANOW, &saved_modes_) == -1) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: ScopedRawMode failed to restore termios: "
+                << strerror(errno) << std::endl;
+    }
+  }
+
+  entered_ = false;
+}
 
 void Shell::process_pending_signals() {
   if (signal_handler && shell_exec) {
