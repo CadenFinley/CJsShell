@@ -208,4 +208,8 @@ std::string find_executable_in_path(const std::string& name);
 // Configuration file creation utilities
 void create_profile_file();
 void create_source_file();
+
+// Filesystem initialization utilities
+bool init_login_filesystem();
+bool init_interactive_filesystem();
 }  // namespace cjsh_filesystem

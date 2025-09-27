@@ -63,8 +63,6 @@ static int handle_early_exit_modes();
 static int handle_non_interactive_mode(const std::string& script_file);
 static int initialize_interactive_components();
 static void save_startup_arguments(int argc, char* argv[]);
-static bool init_login_filesystem();
-static bool init_interactive_filesystem();
 static void process_profile_file();
 static void apply_profile_startup_flags();
 static void setup_environment_variables();
@@ -164,7 +162,7 @@ int main(int argc, char* argv[]) {
   if (config::login_mode) {
     if (g_debug_mode)
       std::cerr << "DEBUG: Initializing login environment" << std::endl;
-    if (!init_login_filesystem()) {
+    if (!cjsh_filesystem::init_login_filesystem()) {
       print_error({ErrorType::RUNTIME_ERROR,
                    nullptr,
                    "Failed to initialize file system",
@@ -612,7 +610,7 @@ static int initialize_interactive_components() {
   // Set interactive mode
   g_shell->set_interactive_mode(true);
 
-  if (!init_interactive_filesystem()) {
+  if (!cjsh_filesystem::init_interactive_filesystem()) {
     print_error({ErrorType::RUNTIME_ERROR,
                  nullptr,
                  "Failed to initialize file system",
@@ -692,34 +690,6 @@ void cleanup_resources() {
   if (config::interactive_mode) {
     std::cerr << "Shutdown complete." << std::endl;
   }
-}
-
-static bool init_login_filesystem() {
-  // verify and create if needed the cjsh login filesystem
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
-  try {
-    if (!std::filesystem::exists(cjsh_filesystem::g_user_home_path)) {
-      print_error({ErrorType::RUNTIME_ERROR,
-                   nullptr,
-                   "User home path not found",
-                   {"Check user account configuration"}});
-      return false;
-    }
-
-    if (!std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Creating profile file" << std::endl;
-      cjsh_filesystem::create_profile_file();
-    }
-  } catch (const std::exception& e) {
-    print_error({ErrorType::RUNTIME_ERROR,
-                 nullptr,
-                 "Failed to initialize login filesystem",
-                 {"Check file permissions", "Reinstall cjsh"}});
-    return false;
-  }
-  return true;
 }
 
 static void setup_environment_variables() {
@@ -814,77 +784,6 @@ static void setup_environment_variables() {
       setenv(name, value, 1);
     }
   }
-}
-
-static bool init_interactive_filesystem() {
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
-
-  // Cache current path to avoid multiple filesystem calls
-  std::string current_path = std::filesystem::current_path().string();
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Current path: " << current_path << std::endl;
-  setenv("PWD", current_path.c_str(), 1);
-
-  try {
-    // Cache file existence results to avoid repeated checks
-    bool home_exists =
-        std::filesystem::exists(cjsh_filesystem::g_user_home_path);
-    bool history_exists =
-        std::filesystem::exists(cjsh_filesystem::g_cjsh_history_path);
-    bool source_exists =
-        std::filesystem::exists(cjsh_filesystem::g_cjsh_source_path);
-    bool should_refresh_cache =
-        cjsh_filesystem::should_refresh_executable_cache();
-
-    if (!home_exists) {
-      print_error({ErrorType::RUNTIME_ERROR,
-                   nullptr,
-                   "User home path not found",
-                   {"Check user account configuration"}});
-      return false;
-    }
-
-    // Create files if needed based on cached existence checks
-    if (!history_exists) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Creating history file" << std::endl;
-      auto write_result = cjsh_filesystem::FileOperations::write_file_content(
-          cjsh_filesystem::g_cjsh_history_path.string(), "");
-      if (!write_result.is_ok()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     cjsh_filesystem::g_cjsh_history_path.c_str(),
-                     write_result.error().c_str(),
-                     {"Check file permissions"}});
-        return false;
-      }
-    }
-
-    // .cjshrc
-    if (!source_exists) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Creating source file" << std::endl;
-      cjsh_filesystem::create_source_file();
-    }
-
-    // Only refresh executable cache if needed
-    if (should_refresh_cache) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Refreshing executable cache" << std::endl;
-      cjsh_filesystem::build_executable_cache();
-    } else {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Using existing executable cache" << std::endl;
-    }
-
-  } catch (const std::exception& e) {
-    print_error({ErrorType::RUNTIME_ERROR,
-                 nullptr,
-                 "Failed to initialize interactive filesystem",
-                 {"Check file permissions", "Reinstall cjsh"}});
-    return false;
-  }
-  return true;
 }
 
 static void process_profile_file() {
