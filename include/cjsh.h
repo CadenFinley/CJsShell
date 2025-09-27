@@ -18,7 +18,7 @@
 const bool PRE_RELEASE = false;
 const std::string pre_release_line = " (pre-release)";
 // using semver.org principles MAJOR.MINOR.PATCH
-const std::string c_version = "3.5.0" + (PRE_RELEASE ? pre_release_line : "");
+const std::string c_version = "3.5.1" + (PRE_RELEASE ? pre_release_line : "");
 
 extern bool g_debug_mode;
 extern bool g_exit_flag;
