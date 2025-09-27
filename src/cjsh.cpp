@@ -33,6 +33,7 @@
 #include "shell.h"
 #include "trap_command.h"
 #include "usage.h"
+#include "utils/threaded_input_monitor.h"
 
 bool g_debug_mode = false;
 bool g_title_line = true;
@@ -102,19 +103,12 @@ static void initialize_title_strings() {
 // TODO
 
 // Remaining Input Forwarding Work
-// 1. Terminal Mode Management - IMPLEMENTED
-// ScopedRawMode class provides lightweight non-blocking input capture for typeahead collection
-// No duplication with Shell's terminal state management
 
-// 2. Threading Infrastructure - PARTIALLY EXISTS
-// Threading is used in the AI system (ai.cpp has std::thread for loading/cancellation)
-// Basic std::thread and std::mutex capabilities are available
-// However, no input-related threading exists
-
-// 3. Signal Integration for Input Forwarding - NOT IMPLEMENTED
-// While extensive signal handling exists, there's no integration for starting/stopping input monitoring
-// No job state change handlers for input monitoring
-// Current signal system doesn't detect foreground job stdin usage
+// Signal Integration for Input Forwarding -  PARTIALLY IMPLEMENTED
+// Job state change handlers for input monitoring are now integrated
+// Automatic pause when foreground job needs stdin, resume when job completes
+// Still need: Signal-based detection of process stdin usage patterns
+// Still need: More sophisticated process monitoring for stdin detection
 
 // What Currently Exists (Relevant Infrastructure)
 // Available Infrastructure You Can Build On:
@@ -140,18 +134,25 @@ static void initialize_title_strings() {
 // Terminal attribute saving/restoring
 // Threading Support:
 
-// std::thread usage in AI system
-// Thread synchronization primitives available
-// Conclusion
-// All the major components for input forwarding are completely unimplemented. You have the basic architecture skeleton (the input_buffer and TODO comment), but you'll need to implement:
+// std::thread usage in AI system AND new ThreadedInputMonitor
+// Thread synchronization primitives available and utilized
+// Background input monitoring with thread-safe queues
 
-// Complete input monitoring system
-// Process stdin detection logic
-// Non-blocking input capture
-// Thread-based input queue management
-// Signal integration for job state changes
-// Terminal mode management for input capture
-// The good news is that your shell has solid foundational infrastructure (job control, signal handling, terminal management) that you can extend to implement these features.
+// Status Summary:
+// ✅ Terminal Mode Management - Complete
+// ✅ Threading Infrastructure for Input - Complete  
+// ✅ Basic Job Control Integration - Complete
+// ⚠️ Advanced Signal Integration - Partial (basic job state integration done)
+// ❌ Advanced Process Stdin Detection - Not implemented
+// ❌ Complex Input Forwarding Patterns - Not implemented
+
+// The core threading infrastructure for input forwarding is now implemented. 
+// The shell has a robust background input monitoring system that:
+// - Runs in a separate thread to avoid blocking the main loop
+// - Automatically pauses when foreground jobs need stdin 
+// - Resumes when terminal control returns to the shell
+// - Integrates with existing job control and signal handling systems
+// - Provides thread-safe input queuing with overflow protection
 
 // add a way to change syntax highlighter via .cjshrc
 // add a way to change keybindings via .cjshrc
@@ -704,6 +705,10 @@ void cleanup_resources() {
   if (g_debug_mode) {
     std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
   }
+
+  // Cleanup threaded input monitor first to stop background threads
+  threaded_input_monitor::stop_monitoring();
+  threaded_input_monitor::shutdown();
 
   // Execute EXIT trap before cleanup (while shell is still available)
   if (g_shell) {

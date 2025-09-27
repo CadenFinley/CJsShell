@@ -15,7 +15,7 @@
 #include "cjsh_completions.h"
 #include "isocline/isocline.h"
 #include "job_control.h"
-#include "utils/input_monitor.h"
+#include "utils/threaded_input_monitor.h"
 
 namespace {
 bool process_command_line(const std::string& command) {
@@ -50,7 +50,8 @@ bool process_command_line(const std::string& command) {
   g_shell->execute("echo '' > /dev/null");
 #endif
 
-  input_monitor::collect_typeahead();
+  // Input monitoring is now handled by the threaded input monitor
+  // No need for synchronous collect_typeahead calls
 
   return g_exit_flag;
 }
@@ -93,7 +94,17 @@ void main_process_loop() {
   notify_plugins("main_process_pre_run", "");
 
   initialize_completion_system();
-  input_monitor::initialize();
+  
+  // Initialize and start threaded input monitor (replaces old input_monitor)
+  threaded_input_monitor::initialize();
+  if (threaded_input_monitor::start_monitoring()) {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Threaded input monitor started successfully" << std::endl;
+  } else {
+    if (g_debug_mode)
+      std::cerr << "DEBUG: Failed to start threaded input monitor" << std::endl;
+  }
+  
   std::string input_buffer = "testingbuffer";
 
   while (true) {
@@ -117,25 +128,31 @@ void main_process_loop() {
                 << std::endl;
     JobManager::instance().cleanup_finished_jobs();
 
-    if (input_monitor::has_queued_command()) {
+    // Process queued commands from threaded input monitor
+    if (threaded_input_monitor::has_queued_commands()) {
       if (g_debug_mode)
-        std::cerr << "DEBUG: Processing queued commands from input monitor"
+        std::cerr << "DEBUG: Processing queued commands from threaded input monitor"
                   << std::endl;
 
-      while (input_monitor::has_queued_command()) {
-        std::string queued_command = input_monitor::pop_queued_command();
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Queued command: " << queued_command
-                    << std::endl;
-        }
-        if (process_command_line(queued_command)) {
-          break;
+      while (threaded_input_monitor::has_queued_commands()) {
+        auto parsed_command = threaded_input_monitor::get_next_command(std::chrono::milliseconds(0));
+        if (parsed_command && parsed_command->is_complete) {
+          if (g_debug_mode) {
+            std::cerr << "DEBUG: Threaded queued command: " << parsed_command->command
+                      << std::endl;
+          }
+          if (process_command_line(parsed_command->command)) {
+            break;
+          }
         }
       }
 
-      std::string pending_partial = input_monitor::take_partial_input();
+      std::string pending_partial = threaded_input_monitor::get_partial_input();
       if (!pending_partial.empty()) {
         input_buffer = pending_partial;
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Got partial input from threaded monitor: " << pending_partial << std::endl;
+        }
       }
 
       notify_plugins("main_process_end", "");
@@ -146,14 +163,18 @@ void main_process_loop() {
       continue;
     }
 
-    std::string pending_partial = input_monitor::take_partial_input();
-    if (!pending_partial.empty()) {
-      input_buffer = pending_partial;
-    }
-
     if (g_debug_mode)
       std::cerr << "DEBUG: Calling update_terminal_title()" << std::endl;
     update_terminal_title();
+
+    // Check for any partial input from the threaded monitor
+    std::string pending_partial = threaded_input_monitor::get_partial_input();
+    if (!pending_partial.empty()) {
+      input_buffer = pending_partial;
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Using partial input as buffer: " << pending_partial << std::endl;
+      }
+    }
 
     if (g_debug_mode)
       std::cerr << "DEBUG: Generating prompt" << std::endl;
@@ -234,6 +255,12 @@ void main_process_loop() {
       break;
     }
   }
+  
+  // Cleanup threaded input monitor
+  if (g_debug_mode)
+    std::cerr << "DEBUG: Shutting down threaded input monitor" << std::endl;
+  threaded_input_monitor::stop_monitoring();
+  threaded_input_monitor::shutdown();
 }
 
 void notify_plugins(const std::string& trigger, const std::string& data) {

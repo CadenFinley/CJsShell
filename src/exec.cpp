@@ -23,6 +23,7 @@
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 #include "utils/performance.h"
+#include "utils/threaded_input_monitor.h"
 
 namespace {
 
@@ -1638,6 +1639,14 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   Job& job = it->second;
 
+  // Pause threaded input monitoring when a job goes to foreground
+  if (threaded_input_monitor::is_monitoring_active()) {
+    threaded_input_monitor::pause_input_monitoring();
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Paused threaded input monitoring for foreground job " << job_id << std::endl;
+    }
+  }
+
   bool terminal_control_acquired = false;
   if (shell_is_interactive && isatty(shell_terminal)) {
     if (tcsetpgrp(shell_terminal, job.pgid) == 0) {
@@ -1686,6 +1695,14 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         set_error(ErrorType::RUNTIME_ERROR, "tcsetattr",
                   "failed to restore terminal attributes: " +
                       std::string(strerror(errno)));
+      }
+    }
+    
+    // Resume threaded input monitoring when terminal control returns to shell
+    if (threaded_input_monitor::is_monitoring_active()) {
+      threaded_input_monitor::resume_input_monitoring();
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Resumed threaded input monitoring after foreground job " << job_id << " completed" << std::endl;
       }
     }
   }
