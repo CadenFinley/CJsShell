@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# this can be edited and pushed with a version forward or new release
+
 set -euo pipefail
 
 REPO_OWNER="CadenFinley"
@@ -51,3 +53,26 @@ cd cjsshell
 
 echo "Building CJsShell..."
 ./tool_scripts/build.sh "$@"
+
+# Install for current user only (no sudo)
+INSTALL_DIR="$HOME/.local/bin"
+BIN_PATH="build/cjsh"
+
+echo "Installing CJsShell to $INSTALL_DIR..."
+mkdir -p "$INSTALL_DIR"
+cp "$BIN_PATH" "$INSTALL_DIR/cjsh"
+chmod +x "$INSTALL_DIR/cjsh"
+
+# Check if ~/.local/bin is in PATH
+case ":$PATH:" in
+    *":$INSTALL_DIR:"*)
+        ;;
+    *)
+        echo "\nWarning: $INSTALL_DIR is not in your PATH. Add the following line to your shell profile (e.g., ~/.bashrc, ~/.zshrc):"
+        echo "export PATH=\"$INSTALL_DIR:\$PATH\""
+        ;;
+esac
+
+echo "Thank you for installing CJsShell!"
+echo "You can run it by typing 'cjsh' in your terminal."
+echo "For more information, visit: https://github.com/CadenFinley/CJsShell"
