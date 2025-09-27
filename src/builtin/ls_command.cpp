@@ -563,7 +563,8 @@ void print_long_format_header(bool show_blocks) {
 }
 
 static void build_permissions_fast(char* perms, mode_t mode,
-                                   const std::string& filepath [[maybe_unused]]) {
+                                   const std::string& filepath
+                                   [[maybe_unused]]) {
   if (S_ISDIR(mode))
     perms[0] = 'd';
   else if (S_ISLNK(mode))
