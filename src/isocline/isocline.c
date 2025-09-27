@@ -61,13 +61,18 @@ static bool getline_interrupt = false;
 
 static char* ic_getline(alloc_t* mem);
 
-ic_public char* ic_readline(const char* prompt_text) {
+ic_public char* ic_readline(const char* prompt_text, const char* initial_input) {
   ic_env_t* env = ic_get_env();
   if (env == NULL)
     return NULL;
   if (!env->noedit) {
     // terminal editing enabled
-    return ic_editline(env, prompt_text);  // in editline.c
+    if (initial_input != NULL) {
+      ic_env_set_initial_input(env, initial_input);
+    }
+    char* result = ic_editline(env, prompt_text);  // in editline.c
+    ic_env_clear_initial_input(env);
+    return result;
   } else {
     // no editing capability (pipe, dumb terminal, etc)
     if (env->tty != NULL && env->term != NULL) {
@@ -86,7 +91,7 @@ ic_public char* ic_readline(const char* prompt_text) {
 }
 
 ic_public char* ic_readline_inline(const char* prompt_text,
-                                   const char* inline_right_text) {
+                                   const char* inline_right_text, const char* initial_input) {
   // fprintf(stderr, "DEBUG: ic_readline_inline called with prompt='%s',
   // inline_right='%s'\n",
   //         prompt_text ? prompt_text : "NULL",
@@ -96,12 +101,17 @@ ic_public char* ic_readline_inline(const char* prompt_text,
     return NULL;
   if (!env->noedit) {
     // terminal editing enabled
-    return ic_editline_inline(env, prompt_text,
+    if (initial_input != NULL) {
+      ic_env_set_initial_input(env, initial_input);
+    }
+    char* result = ic_editline_inline(env, prompt_text,
                               inline_right_text);  // in editline.c
+    ic_env_clear_initial_input(env);
+    return result;
   } else {
     // no editing capability (pipe, dumb terminal, etc)
     // For fallback mode, just use regular readline behavior
-    return ic_readline(prompt_text);
+    return ic_readline(prompt_text, initial_input);
   }
 }
 
@@ -424,6 +434,21 @@ ic_private const char* ic_env_get_auto_braces(ic_env_t* env) {
   return (env->auto_braces == NULL ? "()[]{}\"\"''" : env->auto_braces);
 }
 
+ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input) {
+  if (env == NULL) return;
+  mem_free(env->mem, (void*)env->initial_input);
+  env->initial_input = NULL;
+  if (initial_input != NULL) {
+    env->initial_input = mem_strdup(env->mem, initial_input);
+  }
+}
+
+ic_private void ic_env_clear_initial_input(ic_env_t* env) {
+  if (env == NULL) return;
+  mem_free(env->mem, (void*)env->initial_input);
+  env->initial_input = NULL;
+}
+
 ic_public void ic_set_default_highlighter(ic_highlight_fun_t* highlighter,
                                           void* arg) {
   ic_env_t* env = ic_get_env();
@@ -670,7 +695,7 @@ ic_public char* ic_readline_ex(const char* prompt_text,
   if (highlighter != NULL) {
     ic_set_default_highlighter(highlighter, highlighter_arg);
   }
-  char* res = ic_readline(prompt_text);
+  char* res = ic_readline(prompt_text, "");
   // restore previous
   ic_set_default_completer(prev_completer, prev_completer_arg);
   ic_set_default_highlighter(prev_highlighter, prev_highlighter_arg);
@@ -700,6 +725,7 @@ static void ic_env_free(ic_env_t* env) {
   mem_free(env->mem, env->prompt_marker);
   mem_free(env->mem, env->match_braces);
   mem_free(env->mem, env->auto_braces);
+  mem_free(env->mem, (void*)env->initial_input);
   env->prompt_marker = NULL;
 
   // and deallocate ourselves

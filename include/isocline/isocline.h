@@ -63,7 +63,7 @@ Contents:
 /// ic_set_prompt_marker(), \a ic_style_def()
 ///
 /// @see ic_set_prompt_marker(), ic_style_def()
-char* ic_readline(const char* prompt_text);
+char* ic_readline(const char* prompt_text, const char* initial_input);
 
 /// Read input from the user using rich editing abilities with inline
 /// right-aligned prompt.
@@ -80,7 +80,7 @@ char* ic_readline(const char* prompt_text);
 ///
 /// @see ic_readline(), ic_set_prompt_marker(), ic_style_def()
 char* ic_readline_inline(const char* prompt_text,
-                         const char* inline_right_text);
+                         const char* inline_right_text, const char* initial_input);
 
 /// \}
 

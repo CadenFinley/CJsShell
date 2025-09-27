@@ -693,6 +693,7 @@ static void main_process_loop() {
   notify_plugins("main_process_pre_run", "");
 
   initialize_completion_system();
+  std::string input_buffer = "testingbuffer";
 
   while (true) {
     if (g_debug_mode) {
@@ -767,14 +768,16 @@ static void main_process_loop() {
     }
 
     char* input;
+    const char* initial_input = input_buffer.empty() ? nullptr : input_buffer.c_str();
     if (!inline_right_text.empty()) {
-      input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str());
+      input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(), initial_input);
     } else {
-      input = ic_readline(prompt.c_str());
+      input = ic_readline(prompt.c_str(), initial_input);
     }
     if (g_debug_mode)
       std::cerr << "DEBUG: ic_readline returned" << std::endl;
     if (input != nullptr) {
+      input_buffer = "";  // reset input buffer only after successful input
       std::string command(input);
       if (g_debug_mode)
         std::cerr << "DEBUG: User input: " << command << std::endl;
@@ -782,6 +785,9 @@ static void main_process_loop() {
       if (!command.empty()) {
         notify_plugins("main_process_command_processed", command);
         {
+
+          // Start input monitoring to capture commands during execution
+
           // Start timing before command execution
           g_shell->start_command_timing();
 
@@ -789,8 +795,11 @@ static void main_process_loop() {
           int exit_code = g_shell->execute(command);
           status_str = std::to_string(exit_code);
 
+
           // End timing after command execution
           g_shell->end_command_timing(exit_code);
+          
+          // Stop input monitoring
 
           if (g_debug_mode)
             std::cerr << "DEBUG: Command exit status: " << status_str
@@ -816,8 +825,11 @@ static void main_process_loop() {
           g_shell->execute("echo '' > /dev/null");  // Fallback no-op command
 #endif
         }
+        
+        // get all queued input from the input monitor and append to input buffer
+
       } else {
-        // Reset timing for empty commands to clear previous command duration
+        // command empty so Reset timing for empty commands to clear previous command duration for prompt
         g_shell->reset_command_timing();
       }
       if (g_exit_flag) {
