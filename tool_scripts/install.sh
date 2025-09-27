@@ -17,7 +17,8 @@ REPO_URL="https://github.com/CadenFinley/CJsShell.git"
 PROJECT_NAME="cjsh"
 INSTALL_DIR="${HOME}/.local/bin"
 TEMP_DIR="/tmp/cjsh-install-$$"
-VERSION="2.1.13"
+VERSION=""
+RELEASE_TAG=""
 
 # Logging functions
 log_info() {
@@ -132,15 +133,53 @@ create_temp_dir() {
 
 # Function to clone repository
 clone_repository() {
-    log_info "Cloning CJ's Shell repository..."
+    if [[ -z "$RELEASE_TAG" ]]; then
+        log_error "Release tag not set before cloning"
+        exit 1
+    fi
+
+    log_info "Cloning CJ's Shell $RELEASE_TAG..."
     
-    if ! git clone --depth 1 "$REPO_URL" cjsh; then
+    if ! git clone --depth 1 --branch "$RELEASE_TAG" "$REPO_URL" cjsh; then
         log_error "Failed to clone repository"
         exit 1
     fi
     
     cd cjsh
     log_success "Repository cloned successfully"
+}
+
+# Function to fetch the latest release tag from GitHub
+fetch_latest_release() {
+    log_info "Determining latest CJ's Shell release..."
+
+    local api_url="https://api.github.com/repos/CadenFinley/CJsShell/releases/latest"
+    local release_data=""
+
+    if command_exists curl; then
+        release_data=$(curl -fsSL "$api_url" || true)
+    fi
+
+    if [[ -z "$release_data" ]] && command_exists wget; then
+        release_data=$(wget -qO- "$api_url" || true)
+    fi
+
+    if [[ -n "$release_data" ]]; then
+        local tag
+
+        tag=$(printf '%s' "$release_data" | grep -o '"tag_name":[[:space:]]*"[^"]*"' | head -n1 | sed 's/.*"tag_name":[[:space:]]*"//; s/"$//')
+
+        if [[ -n "$tag" ]]; then
+            RELEASE_TAG="$tag"
+            VERSION="$tag"
+            log_success "Latest release detected: ${VERSION}"
+            return
+        fi
+    fi
+
+    log_error "Unable to determine the latest release of CJ's Shell."
+    log_info "Ensure releases are published on GitHub and try again."
+    exit 1
 }
 
 # Function to build the project
@@ -203,16 +242,15 @@ setup_path() {
         return
     fi
     
-    log_info "Adding ~/.local/bin to your PATH in $shell_rc..."
-    
-    # Add to PATH in shell config
+    log_info "To add ~/.local/bin to your PATH, add the following line to $shell_rc:"
+
     if [[ $current_shell == "fish" ]]; then
-        echo "set -gx PATH \$HOME/.local/bin \$PATH" >> "$shell_rc"
+        echo "  set -gx PATH \$HOME/.local/bin \$PATH"
     else
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$shell_rc"
+        echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
     fi
-    
-    log_warning "Please restart your shell or run 'source $shell_rc' to update your PATH"
+
+    log_warning "After updating $shell_rc, restart your shell or run 'source $shell_rc' to apply the changes"
 }
 
 # Function to cleanup
@@ -272,6 +310,7 @@ main() {
     trap cleanup EXIT
     
     check_requirements
+    fetch_latest_release
     create_temp_dir
     clone_repository
     build_project

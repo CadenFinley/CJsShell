@@ -1,6 +1,9 @@
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
+#define PROJECT_NAME "cjsh"
+#define VERSION "3.5.2"
+
 #include <stdbool.h>
 #include <string.h>
 

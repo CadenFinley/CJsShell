@@ -7,9 +7,6 @@
 #define NOB_ANSI_COLOR_RED "\033[31m"
 #define NOB_ANSI_COLOR_RESET "\033[0m"
 
-#define PROJECT_NAME "cjsh"
-#define VERSION "3.5.1"
-
 // Architecture detection
 #if defined(__aarch64__) || defined(_M_ARM64)
 #define ARCH_ARM64
