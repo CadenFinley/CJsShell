@@ -101,33 +101,18 @@ static void initialize_title_strings() {
 
 // TODO
 
-// What's Currently Missing
-// 1. InputMonitor System - NOT IMPLEMENTED
-// No InputMonitor, input_monitor, or similar classes exist
-// No input monitoring threads or background capture mechanisms
-// The only reference is the TODO comment in main_loop.cpp line 185
-
-// 2. Process stdin Detection - NOT IMPLEMENTED
-// No functions to detect if foreground processes are using stdin
-// No uses_stdin(), is_process_reading_stdin(), or similar functionality
-// No /proc/fd or lsof integration for stdin detection
-
-// 3. Non-blocking Input Capture - NOT IMPLEMENTED
-// While isocline library has some non-blocking capabilities, there's no custom input capture system
-// No background input queue management
-// No mechanism to capture input while foreground processes run
-
-// 4. Terminal Mode Management - NOT IMPLEMENTED
+// Remaining Input Forwarding Work
+// 1. Terminal Mode Management - NOT IMPLEMENTED
 // No TerminalModeManager class exists
 // While basic termios usage exists for job control, there's no specialized mode management for input monitoring
 // No saving/restoring of terminal modes for input capture
 
-// 5. Threading Infrastructure - PARTIALLY EXISTS
+// 2. Threading Infrastructure - PARTIALLY EXISTS
 // Threading is used in the AI system (ai.cpp has std::thread for loading/cancellation)
 // Basic std::thread and std::mutex capabilities are available
 // However, no input-related threading exists
 
-// 6. Signal Integration for Input Forwarding - NOT IMPLEMENTED
+// 3. Signal Integration for Input Forwarding - NOT IMPLEMENTED
 // While extensive signal handling exists, there's no integration for starting/stopping input monitoring
 // No job state change handlers for input monitoring
 // Current signal system doesn't detect foreground job stdin usage

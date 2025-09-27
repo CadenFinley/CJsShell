@@ -15,6 +15,46 @@
 #include "cjsh_completions.h"
 #include "isocline/isocline.h"
 #include "job_control.h"
+#include "utils/input_monitor.h"
+
+namespace {
+bool process_command_line(const std::string& command) {
+  if (command.empty()) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Received empty command" << std::endl;
+    }
+    g_shell->reset_command_timing();
+    return g_exit_flag;
+  }
+
+  notify_plugins("main_process_command_processed", command);
+
+  g_shell->start_command_timing();
+  int exit_code = g_shell->execute(command);
+  g_shell->end_command_timing(exit_code);
+
+  std::string status_str = std::to_string(exit_code);
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Command exit status: " << status_str << std::endl;
+  }
+
+  ic_history_add(command.c_str());
+  setenv("?", status_str.c_str(), 1);
+
+#ifdef __APPLE__
+  malloc_zone_pressure_relief(nullptr, 0);
+#elif defined(__linux__)
+  malloc_trim(0);
+#else
+  g_shell->execute("echo '' > /dev/null");
+#endif
+
+  input_monitor::collect_typeahead();
+
+  return g_exit_flag;
+}
+}  // namespace
 
 void update_terminal_title() {
   if (g_debug_mode) {
@@ -53,6 +93,7 @@ void main_process_loop() {
   notify_plugins("main_process_pre_run", "");
 
   initialize_completion_system();
+  input_monitor::initialize();
   std::string input_buffer = "testingbuffer";
 
   while (true) {
@@ -75,6 +116,40 @@ void main_process_loop() {
       std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()"
                 << std::endl;
     JobManager::instance().cleanup_finished_jobs();
+
+    if (input_monitor::has_queued_command()) {
+      if (g_debug_mode)
+        std::cerr << "DEBUG: Processing queued commands from input monitor"
+                  << std::endl;
+
+      while (input_monitor::has_queued_command()) {
+        std::string queued_command = input_monitor::pop_queued_command();
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Queued command: " << queued_command
+                    << std::endl;
+        }
+        if (process_command_line(queued_command)) {
+          break;
+        }
+      }
+
+      std::string pending_partial = input_monitor::take_partial_input();
+      if (!pending_partial.empty()) {
+        input_buffer = pending_partial;
+      }
+
+      notify_plugins("main_process_end", "");
+      if (g_exit_flag) {
+        std::cerr << "Exiting main process loop..." << std::endl;
+        break;
+      }
+      continue;
+    }
+
+    std::string pending_partial = input_monitor::take_partial_input();
+    if (!pending_partial.empty()) {
+      input_buffer = pending_partial;
+    }
 
     if (g_debug_mode)
       std::cerr << "DEBUG: Calling update_terminal_title()" << std::endl;
@@ -144,51 +219,8 @@ void main_process_loop() {
       if (g_debug_mode)
         std::cerr << "DEBUG: User input: " << command << std::endl;
       ic_free(input);
-      if (!command.empty()) {
-        notify_plugins("main_process_command_processed", command);
-        {
-          // Start timing before command execution
-          g_shell->start_command_timing();
-
-          std::string status_str;
-          int exit_code = g_shell->execute(command);
-          status_str = std::to_string(exit_code);
-
-          // End timing after command execution
-          g_shell->end_command_timing(exit_code);
-
-          if (g_debug_mode)
-            std::cerr << "DEBUG: Command exit status: " << status_str
-                      << std::endl;
-          // update_completion_frequency(command);
-          ic_history_add(command.c_str());
-          // Set bash-like exit status variable
-          setenv("?", status_str.c_str(), 1);
-
-          // Force memory cleanup after command execution to return memory to OS
-          if (g_debug_mode)
-            std::cerr << "DEBUG: Forcing memory cleanup after command"
-                      << std::endl;
-
-// Platform-specific memory cleanup to return unused memory to OS
-#ifdef __APPLE__
-          // On macOS, use malloc_zone_pressure_relief to return memory
-          malloc_zone_pressure_relief(nullptr, 0);
-#elif defined(__linux__)
-          // On Linux, use malloc_trim to return memory
-          malloc_trim(0);
-#else
-          g_shell->execute("echo '' > /dev/null");  // Fallback no-op command
-#endif
-        }
-
-        // TODO: get all queued input from the input monitor and append to input
-        // buffer
-
-      } else {
-        // command empty so Reset timing for empty commands to clear previous
-        // command duration for prompt
-        g_shell->reset_command_timing();
+      if (process_command_line(command)) {
+        break;
       }
       if (g_exit_flag) {
         break;

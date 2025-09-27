@@ -15,9 +15,11 @@ JobManager& JobManager::instance() {
 }
 
 int JobManager::add_job(pid_t pgid, const std::vector<pid_t>& pids,
-                        const std::string& command) {
+                        const std::string& command, bool background,
+                        bool reads_stdin) {
   int job_id = next_job_id++;
-  auto job = std::make_shared<JobControlJob>(job_id, pgid, pids, command);
+  auto job = std::make_shared<JobControlJob>(job_id, pgid, pids, command,
+                                             background, reads_stdin);
   jobs[job_id] = job;
 
   update_current_previous(job_id);
@@ -180,6 +182,26 @@ void JobManager::cleanup_finished_jobs() {
   for (int job_id : to_remove) {
     remove_job(job_id);
   }
+}
+
+bool JobManager::foreground_job_reads_stdin() {
+  if (jobs.empty()) {
+    return false;
+  }
+
+  int foreground_id = current_job;
+  if (foreground_id == -1) {
+    return false;
+  }
+
+  auto it = jobs.find(foreground_id);
+  if (it == jobs.end()) {
+    return false;
+  }
+
+  const auto& job = it->second;
+  return !job->background && job->state == JobState::RUNNING &&
+         job->reads_stdin;
 }
 
 static int parse_signal(const std::string& signal_str) {

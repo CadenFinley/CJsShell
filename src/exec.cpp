@@ -191,6 +191,31 @@ std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
   return c_args;
 }
 
+bool command_consumes_terminal_stdin(const Command& cmd) {
+  if (!cmd.input_file.empty() || !cmd.here_doc.empty() ||
+      !cmd.here_string.empty()) {
+    return false;
+  }
+
+  if (cmd.fd_redirections.count(0) > 0 || cmd.fd_duplications.count(0) > 0) {
+    return false;
+  }
+
+  return true;
+}
+
+bool pipeline_consumes_terminal_stdin(const std::vector<Command>& commands) {
+  if (commands.empty()) {
+    return false;
+  }
+
+  if (commands.back().background) {
+    return false;
+  }
+
+  return command_consumes_terminal_stdin(commands.front());
+}
+
 }  // namespace
 
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
@@ -472,7 +497,10 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   int job_id = add_job(job);
 
   std::string full_command = join_arguments(args);
-  int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command);
+  bool reads_stdin = true;
+  int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command,
+                                                  job.background,
+                                                  reads_stdin);
 
   put_job_in_foreground(job_id, false);
 
@@ -569,7 +597,9 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     int job_id = add_job(job);
 
     std::string full_command = join_arguments(args);
-    JobManager::instance().add_job(pid, {pid}, full_command);
+    JobManager::instance().add_job(pid, {pid}, full_command,
+                                   /*background=*/true,
+                                   /*reads_stdin=*/false);
     JobManager::instance().set_last_background_pid(pid);
 
     std::cerr << "[" << job_id << "] " << pid << std::endl;
@@ -1251,11 +1281,23 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         job.last_pid = pid;
 
         int job_id = add_job(job);
+        std::string full_command = join_arguments(cmd.args);
+        bool reads_stdin = command_consumes_terminal_stdin(cmd);
+        int managed_job_id = JobManager::instance().add_job(
+            pid, {pid}, full_command, job.background, reads_stdin);
         put_job_in_foreground(job_id, false);
 
         if (!cmd.output_file.empty() || !cmd.append_file.empty() ||
             !cmd.stderr_file.empty()) {
           sync();
+        }
+
+        {
+          std::lock_guard<std::mutex> lock(jobs_mutex);
+          auto it = jobs.find(job_id);
+          if (it != jobs.end() && it->second.completed) {
+            JobManager::instance().remove_job(managed_job_id);
+          }
         }
 
         if (g_debug_mode) {
@@ -1521,7 +1563,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
       pipeline_command += commands[i].args[j];
     }
   }
-  int new_job_id = JobManager::instance().add_job(pgid, pids, pipeline_command);
+  int new_job_id = JobManager::instance().add_job(
+    pgid, pids, pipeline_command, job.background,
+    pipeline_consumes_terminal_stdin(commands));
 
   if (job.background) {
     JobManager::instance().set_last_background_pid(pids.empty() ? -1

@@ -23,16 +23,21 @@ struct JobControlJob {
   JobState state;
   int exit_status;
   bool notified;
+  bool background;
+  bool reads_stdin;
 
   JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
-                const std::string& cmd)
+                const std::string& cmd, bool is_background,
+                bool consumes_stdin)
       : job_id(id),
         pgid(group_id),
         pids(process_ids),
         command(cmd),
         state(JobState::RUNNING),
         exit_status(0),
-        notified(false) {
+        notified(false),
+        background(is_background),
+        reads_stdin(consumes_stdin) {
   }
 };
 
@@ -41,7 +46,8 @@ class JobManager {
   static JobManager& instance();
 
   int add_job(pid_t pgid, const std::vector<pid_t>& pids,
-              const std::string& command);
+              const std::string& command, bool background = false,
+              bool reads_stdin = true);
 
   void remove_job(int job_id);
 
@@ -76,6 +82,8 @@ class JobManager {
   void set_shell(Shell* shell) {
     shell_ref = shell;
   }
+
+  bool foreground_job_reads_stdin();
 
  private:
   JobManager() = default;
