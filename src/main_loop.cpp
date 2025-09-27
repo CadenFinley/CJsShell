@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <deque>
 #include <filesystem>
 #include <iostream>
 
@@ -15,9 +16,116 @@
 #include "cjsh_completions.h"
 #include "isocline/isocline.h"
 #include "job_control.h"
-#include "utils/threaded_input_monitor.h"
+#include "utils/typeahead.h"
 
 namespace {
+// Global input buffer for typeahead
+std::string g_input_buffer;
+std::deque<std::string> g_typeahead_queue;
+
+constexpr std::size_t kMaxQueuedCommands = 32;
+
+std::string normalize_line_edit_sequences(const std::string& input) {
+  std::string normalized;
+  normalized.reserve(input.size());
+
+  for (unsigned char ch : input) {
+    switch (ch) {
+      case '\b':
+      case 0x7F: {  // Backspace or DEL
+        if (!normalized.empty()) {
+          normalized.pop_back();
+        }
+        break;
+      }
+      case 0x15: {  // Ctrl+U clears to start of line
+        while (!normalized.empty() && normalized.back() != '\n') {
+          normalized.pop_back();
+        }
+        break;
+      }
+      case 0x17: {  // Ctrl+W deletes previous word
+        while (!normalized.empty() &&
+               (normalized.back() == ' ' || normalized.back() == '\t')) {
+          normalized.pop_back();
+        }
+        while (!normalized.empty() && normalized.back() != ' ' &&
+               normalized.back() != '\t' && normalized.back() != '\n') {
+          normalized.pop_back();
+        }
+        break;
+      }
+      default:
+        normalized.push_back(static_cast<char>(ch));
+        break;
+    }
+  }
+
+  return normalized;
+}
+
+void enqueue_queued_command(const std::string& command) {
+  if (g_typeahead_queue.size() >= kMaxQueuedCommands) {
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Typeahead queue full, dropping oldest entry" << std::endl;
+    }
+    g_typeahead_queue.pop_front();
+  }
+
+  g_typeahead_queue.push_back(command);
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: Queued typeahead command: '" << command << "'" << std::endl;
+  }
+}
+
+void ingest_typeahead_input(const std::string& raw_input) {
+  if (raw_input.empty()) {
+    return;
+  }
+
+  std::string combined = g_input_buffer;
+  g_input_buffer.clear();
+  combined += raw_input;
+
+  if (combined.find('\x1b') != std::string::npos) {
+    // Contains escape sequences (arrow keys, etc.) we can't safely interpret
+    g_input_buffer = combined;
+    if (g_debug_mode) {
+      std::cerr << "DEBUG: Stored raw typeahead containing escape sequences" << std::endl;
+    }
+    return;
+  }
+
+  std::string normalized = normalize_line_edit_sequences(combined);
+
+  std::size_t start = 0;
+  while (start < normalized.size()) {
+    std::size_t newline_pos = normalized.find('\n', start);
+    if (newline_pos == std::string::npos) {
+      g_input_buffer += normalized.substr(start);
+      break;
+    }
+
+    std::string line = normalized.substr(start, newline_pos - start);
+    enqueue_queued_command(line);
+    start = newline_pos + 1;
+
+    if (start == normalized.size()) {
+      g_input_buffer.clear();
+    }
+  }
+
+  if (!normalized.empty() && normalized.back() == '\n') {
+    g_input_buffer.clear();
+  }
+
+  if (g_debug_mode && !g_input_buffer.empty()) {
+    std::cerr << "DEBUG: Buffered typeahead prefill: '" << g_input_buffer
+              << "'" << std::endl;
+  }
+}
+
 bool process_command_line(const std::string& command) {
   if (command.empty()) {
     if (g_debug_mode) {
@@ -50,8 +158,11 @@ bool process_command_line(const std::string& command) {
   g_shell->execute("echo '' > /dev/null");
 #endif
 
-  // Input monitoring is now handled by the threaded input monitor
-  // No need for synchronous collect_typeahead calls
+  // Capture any typeahead input that arrived during command execution
+  std::string typeahead_input = typeahead::capture_available_input();
+  if (!typeahead_input.empty()) {
+    ingest_typeahead_input(typeahead_input);
+  }
 
   return g_exit_flag;
 }
@@ -94,18 +205,11 @@ void main_process_loop() {
   notify_plugins("main_process_pre_run", "");
 
   initialize_completion_system();
+  typeahead::initialize();
   
-  // Initialize and start threaded input monitor (replaces old input_monitor)
-  threaded_input_monitor::initialize();
-  if (threaded_input_monitor::start_monitoring()) {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Threaded input monitor started successfully" << std::endl;
-  } else {
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Failed to start threaded input monitor" << std::endl;
-  }
-  
-  std::string input_buffer = "testingbuffer";
+  // Clear any existing input buffer
+  g_input_buffer.clear();
+  g_typeahead_queue.clear();
 
   while (true) {
     if (g_debug_mode) {
@@ -128,139 +232,114 @@ void main_process_loop() {
                 << std::endl;
     JobManager::instance().cleanup_finished_jobs();
 
-    // Process queued commands from threaded input monitor
-    if (threaded_input_monitor::has_queued_commands()) {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Processing queued commands from threaded input monitor"
-                  << std::endl;
 
-      while (threaded_input_monitor::has_queued_commands()) {
-        auto parsed_command = threaded_input_monitor::get_next_command(std::chrono::milliseconds(0));
-        if (parsed_command && parsed_command->is_complete) {
-          if (g_debug_mode) {
-            std::cerr << "DEBUG: Threaded queued command: " << parsed_command->command
-                      << std::endl;
-          }
-          if (process_command_line(parsed_command->command)) {
-            break;
-          }
-        }
-      }
-
-      std::string pending_partial = threaded_input_monitor::get_partial_input();
-      if (!pending_partial.empty()) {
-        input_buffer = pending_partial;
-        if (g_debug_mode) {
-          std::cerr << "DEBUG: Got partial input from threaded monitor: " << pending_partial << std::endl;
-        }
-      }
-
-      notify_plugins("main_process_end", "");
-      if (g_exit_flag) {
-        std::cerr << "Exiting main process loop..." << std::endl;
-        break;
-      }
-      continue;
-    }
 
     if (g_debug_mode)
       std::cerr << "DEBUG: Calling update_terminal_title()" << std::endl;
     update_terminal_title();
 
-    // Check for any partial input from the threaded monitor
-    std::string pending_partial = threaded_input_monitor::get_partial_input();
-    if (!pending_partial.empty()) {
-      input_buffer = pending_partial;
+    std::string command_to_run;
+    bool command_available = false;
+
+    if (!g_typeahead_queue.empty()) {
+      command_to_run = g_typeahead_queue.front();
+      g_typeahead_queue.pop_front();
+      command_available = true;
       if (g_debug_mode) {
-        std::cerr << "DEBUG: Using partial input as buffer: " << pending_partial << std::endl;
+        std::cerr << "DEBUG: Dequeued queued command: '" << command_to_run
+                  << "'" << std::endl;
       }
-    }
-
-    if (g_debug_mode)
-      std::cerr << "DEBUG: Generating prompt" << std::endl;
-
-    // Ensure the prompt always starts on a clean line
-    // We print a space, then carriage return to detect if we're at column 0
-    std::printf(" \r");
-    std::fflush(stdout);
-
-    std::chrono::steady_clock::time_point render_time_start;
-    if (g_debug_mode) {
-      render_time_start = std::chrono::steady_clock::now();
-    }
-
-    // gather and create the prompt
-    std::string prompt;
-    std::string inline_right_text;
-    if (g_shell->get_menu_active()) {
-      prompt = g_shell->get_prompt();
     } else {
-      prompt = g_shell->get_ai_prompt();
-    }
-    if (g_theme && g_theme->uses_newline()) {
-      prompt += "\n";
-      prompt += g_shell->get_newline_prompt();
-    }
-
-    // Get inline right-aligned text
-    inline_right_text = g_shell->get_inline_right_prompt();
-
-    if (g_debug_mode) {
-      auto render_time_end = std::chrono::steady_clock::now();
-      auto render_duration =
-          std::chrono::duration_cast<std::chrono::microseconds>(
-              render_time_end - render_time_start);
-      std::cerr << "DEBUG: Prompt rendering took " << render_duration.count()
-                << "μs" << std::endl;
-    }
-
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt
-                << "'" << std::endl;
-      if (!inline_right_text.empty()) {
-        std::cerr << "DEBUG: Inline right text: '" << inline_right_text << "'"
-                  << std::endl;
-      }
-    }
-
-    char* input;
-    const char* initial_input =
-        input_buffer.empty() ? nullptr : input_buffer.c_str();
-    if (!inline_right_text.empty()) {
-      input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(),
-                                 initial_input);
-    } else {
-      input = ic_readline(prompt.c_str(), initial_input);
-    }
-    input_buffer = "";  // Clear input buffer after using it
-    if (g_debug_mode)
-      std::cerr << "DEBUG: ic_readline returned" << std::endl;
-    if (input != nullptr) {
-      std::string command(input);
       if (g_debug_mode)
-        std::cerr << "DEBUG: User input: " << command << std::endl;
+        std::cerr << "DEBUG: Generating prompt" << std::endl;
+
+      // Ensure the prompt always starts on a clean line
+      std::printf(" \r");
+      std::fflush(stdout);
+
+      std::chrono::steady_clock::time_point render_time_start;
+      if (g_debug_mode) {
+        render_time_start = std::chrono::steady_clock::now();
+      }
+
+      std::string prompt;
+      std::string inline_right_text;
+      if (g_shell->get_menu_active()) {
+        prompt = g_shell->get_prompt();
+      } else {
+        prompt = g_shell->get_ai_prompt();
+      }
+      if (g_theme && g_theme->uses_newline()) {
+        prompt += "\n";
+        prompt += g_shell->get_newline_prompt();
+      }
+
+      inline_right_text = g_shell->get_inline_right_prompt();
+
+      if (g_debug_mode) {
+        auto render_time_end = std::chrono::steady_clock::now();
+        auto render_duration =
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                render_time_end - render_time_start);
+        std::cerr << "DEBUG: Prompt rendering took "
+                  << render_duration.count() << "μs" << std::endl;
+      }
+
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: About to call ic_readline with prompt: '"
+                  << prompt << "'" << std::endl;
+        if (!inline_right_text.empty()) {
+          std::cerr << "DEBUG: Inline right text: '" << inline_right_text
+                    << "'" << std::endl;
+        }
+      }
+
+      const char* initial_input =
+          g_input_buffer.empty() ? nullptr : g_input_buffer.c_str();
+      char* input = nullptr;
+      if (!inline_right_text.empty()) {
+        input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(),
+                                   initial_input);
+      } else {
+        input = ic_readline(prompt.c_str(), initial_input);
+      }
+      g_input_buffer.clear();
+
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: ic_readline returned" << std::endl;
+      }
+
+      if (input == nullptr) {
+        notify_plugins("main_process_end", "");
+        continue;
+      }
+
+      command_to_run.assign(input);
       ic_free(input);
-      if (process_command_line(command)) {
-        break;
+      command_available = true;
+
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: User input: " << command_to_run << std::endl;
       }
-      if (g_exit_flag) {
-        break;
-      }
-    } else {
+    }
+
+    if (!command_available) {
+      notify_plugins("main_process_end", "");
       continue;
     }
+
+    bool exit_requested = process_command_line(command_to_run);
     notify_plugins("main_process_end", "");
-    if (g_exit_flag) {
-      std::cerr << "Exiting main process loop..." << std::endl;
+    if (exit_requested || g_exit_flag) {
+      if (g_exit_flag) {
+        std::cerr << "Exiting main process loop..." << std::endl;
+      }
       break;
     }
   }
   
-  // Cleanup threaded input monitor
-  if (g_debug_mode)
-    std::cerr << "DEBUG: Shutting down threaded input monitor" << std::endl;
-  threaded_input_monitor::stop_monitoring();
-  threaded_input_monitor::shutdown();
+  // Cleanup typeahead capture
+  typeahead::cleanup();
 }
 
 void notify_plugins(const std::string& trigger, const std::string& data) {

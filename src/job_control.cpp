@@ -3,6 +3,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include "cjsh.h"
@@ -200,8 +201,101 @@ bool JobManager::foreground_job_reads_stdin() {
   }
 
   const auto& job = it->second;
-  return !job->background && job->state == JobState::RUNNING &&
-         job->reads_stdin;
+  if (job->background || !job->reads_stdin) {
+    return false;
+  }
+
+  if (job->awaiting_stdin_signal) {
+    return true;
+  }
+
+  if (job->stdin_signal_count > 0) {
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsed = now - job->last_stdin_signal_time;
+    if (elapsed <= std::chrono::milliseconds(250)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void JobManager::mark_job_reads_stdin(pid_t pid, bool reads_stdin) {
+  for (const auto& pair : jobs) {
+    const auto& job = pair.second;
+    if (job->pgid == pid ||
+        std::find(job->pids.begin(), job->pids.end(), pid) !=
+            job->pids.end()) {
+      if (job->reads_stdin != reads_stdin) {
+        job->reads_stdin = reads_stdin;
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Job " << job->job_id
+                    << (reads_stdin ? " marked as reading" :
+                                        " marked as not reading")
+                    << " stdin due to signal detection" << std::endl;
+        }
+      }
+      return;
+    }
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: mark_job_reads_stdin could not find job for pid "
+              << pid << std::endl;
+  }
+}
+
+void JobManager::record_stdin_signal(pid_t pid, int signal_number) {
+  auto now = std::chrono::steady_clock::now();
+  for (const auto& pair : jobs) {
+    const auto& job = pair.second;
+    if (job->pgid == pid ||
+        std::find(job->pids.begin(), job->pids.end(), pid) !=
+            job->pids.end()) {
+      job->reads_stdin = true;
+      job->awaiting_stdin_signal = true;
+      job->last_stdin_signal = signal_number;
+      job->stdin_signal_count += 1;
+      job->last_stdin_signal_time = now;
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Job " << job->job_id
+                  << " reported stdin signal " << signal_number
+                  << " (total=" << job->stdin_signal_count << ")" << std::endl;
+      }
+      return;
+    }
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: record_stdin_signal could not find job for pid "
+              << pid << std::endl;
+  }
+}
+
+void JobManager::clear_stdin_signal(pid_t pid) {
+  for (const auto& pair : jobs) {
+    const auto& job = pair.second;
+    if (job->pgid == pid ||
+        std::find(job->pids.begin(), job->pids.end(), pid) !=
+            job->pids.end()) {
+      if (job->awaiting_stdin_signal || job->stdin_signal_count > 0) {
+        job->awaiting_stdin_signal = false;
+        job->last_stdin_signal = 0;
+        job->stdin_signal_count = 0;
+        job->last_stdin_signal_time = std::chrono::steady_clock::time_point::min();
+        if (g_debug_mode) {
+          std::cerr << "DEBUG: Cleared stdin signal tracking for job "
+                    << job->job_id << std::endl;
+        }
+      }
+      return;
+    }
+  }
+
+  if (g_debug_mode) {
+    std::cerr << "DEBUG: clear_stdin_signal could not find job for pid "
+              << pid << std::endl;
+  }
 }
 
 static int parse_signal(const std::string& signal_str) {

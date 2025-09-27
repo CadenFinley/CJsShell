@@ -385,6 +385,8 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             job->exit_status =
                 WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
 
+      JobManager::instance().clear_stdin_signal(job->pgid);
+
             job->pids.erase(
                 std::remove(job->pids.begin(), job->pids.end(), pid),
                 job->pids.end());
@@ -394,8 +396,20 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             }
           } else if (WIFSTOPPED(status)) {
             job->state = JobState::STOPPED;
+#ifdef SIGTTIN
+            if (WSTOPSIG(status) == SIGTTIN) {
+              JobManager::instance().mark_job_reads_stdin(pid, true);
+              JobManager::instance().record_stdin_signal(pid, WSTOPSIG(status));
+              if (g_debug_mode) {
+                std::cerr << "DEBUG: Detected SIGTTIN for pid " << pid
+                          << ", marking associated job as reading stdin"
+                          << std::endl;
+              }
+            }
+#endif
           } else if (WIFCONTINUED(status)) {
             job->state = JobState::RUNNING;
+            JobManager::instance().clear_stdin_signal(job->pgid);
           }
         }
       }

@@ -499,6 +499,22 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
   std::string full_command = join_arguments(args);
   bool reads_stdin = true;
+
+  if (g_shell && g_shell->get_parser()) {
+    try {
+      auto command_pipeline =
+          g_shell->get_parser()->parse_pipeline(full_command);
+      if (!command_pipeline.empty()) {
+        reads_stdin = pipeline_consumes_terminal_stdin(command_pipeline);
+      }
+    } catch (const std::exception& e) {
+      if (g_debug_mode) {
+        std::cerr << "DEBUG: Failed to parse command for stdin detection: "
+                  << e.what() << std::endl;
+      }
+    }
+  }
+
   int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command,
                                                   job.background,
                                                   reads_stdin);
@@ -1639,14 +1655,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
   Job& job = it->second;
 
-  // Pause threaded input monitoring when a job goes to foreground
-  if (threaded_input_monitor::is_monitoring_active()) {
-    threaded_input_monitor::pause_input_monitoring();
-    if (g_debug_mode) {
-      std::cerr << "DEBUG: Paused threaded input monitoring for foreground job " << job_id << std::endl;
-    }
-  }
-
   bool terminal_control_acquired = false;
   if (shell_is_interactive && isatty(shell_terminal)) {
     if (tcsetpgrp(shell_terminal, job.pgid) == 0) {
@@ -1695,14 +1703,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         set_error(ErrorType::RUNTIME_ERROR, "tcsetattr",
                   "failed to restore terminal attributes: " +
                       std::string(strerror(errno)));
-      }
-    }
-    
-    // Resume threaded input monitoring when terminal control returns to shell
-    if (threaded_input_monitor::is_monitoring_active()) {
-      threaded_input_monitor::resume_input_monitoring();
-      if (g_debug_mode) {
-        std::cerr << "DEBUG: Resumed threaded input monitoring after foreground job " << job_id << " completed" << std::endl;
       }
     }
   }

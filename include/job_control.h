@@ -1,6 +1,8 @@
 #pragma once
 
 #include <sys/types.h>
+
+#include <chrono>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -25,6 +27,10 @@ struct JobControlJob {
   bool notified;
   bool background;
   bool reads_stdin;
+  bool awaiting_stdin_signal;
+  int last_stdin_signal;
+  int stdin_signal_count;
+  std::chrono::steady_clock::time_point last_stdin_signal_time;
 
   JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
                 const std::string& cmd, bool is_background,
@@ -37,7 +43,11 @@ struct JobControlJob {
         exit_status(0),
         notified(false),
         background(is_background),
-        reads_stdin(consumes_stdin) {
+        reads_stdin(consumes_stdin),
+        awaiting_stdin_signal(false),
+        last_stdin_signal(0),
+        stdin_signal_count(0),
+        last_stdin_signal_time(std::chrono::steady_clock::time_point::min()) {
   }
 };
 
@@ -84,6 +94,12 @@ class JobManager {
   }
 
   bool foreground_job_reads_stdin();
+
+  void mark_job_reads_stdin(pid_t pid, bool reads_stdin = true);
+
+  void record_stdin_signal(pid_t pid, int signal_number);
+
+  void clear_stdin_signal(pid_t pid);
 
  private:
   JobManager() = default;
