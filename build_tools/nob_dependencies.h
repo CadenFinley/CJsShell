@@ -30,16 +30,12 @@ static inline bool check_dependencies(void) {
 }
 
 static inline bool create_required_directories(void) {
-    nob_log(NOB_INFO, "Creating required directories...");
-
     for (size_t i = 0; i < build_config.required_directories_count; i++) {
         if (!nob_mkdir_if_not_exists(build_config.required_directories[i])) {
             nob_log(NOB_ERROR, "Could not create directory: %s",
                     build_config.required_directories[i]);
             return false;
         }
-        nob_log(NOB_INFO, "Created directory: %s",
-                build_config.required_directories[i]);
     }
 
     return true;

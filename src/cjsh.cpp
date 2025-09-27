@@ -716,13 +716,6 @@ static void process_profile_files() {
     // sourcing if in login shell
     if (g_debug_mode)
         std::cerr << "DEBUG: Processing profile files" << std::endl;
-    // std::filesystem::path universal_profile = "/etc/profile";
-    // if (std::filesystem::exists(universal_profile)) {
-    //     if (g_debug_mode)
-    //         std::cerr << "DEBUG: Found universal profile: "
-    //                   << universal_profile.string() << std::endl;
-    //     g_shell->execute_script_file(universal_profile, true);
-    // }
     std::filesystem::path user_profile =
         cjsh_filesystem::g_user_home_path / ".profile";
     if (std::filesystem::exists(user_profile)) {
@@ -731,7 +724,6 @@ static void process_profile_files() {
                       << std::endl;
         g_shell->execute_script_file(user_profile, true);
     }
-    // Source the profile file normally
     if (g_debug_mode)
         std::cerr << "DEBUG: Sourcing profile file: "
                   << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
