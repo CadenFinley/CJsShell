@@ -5,6 +5,12 @@
 #include <errno.h>
 #include <unistd.h>
 
+// ANSI color codes for progress bar
+#define NOB_ANSI_COLOR_GREEN   "\033[32m"
+#define NOB_ANSI_COLOR_YELLOW  "\033[33m"
+#define NOB_ANSI_COLOR_RED     "\033[31m"
+#define NOB_ANSI_COLOR_RESET   "\033[0m"
+
 #define PROJECT_NAME "cjsh"
 #define VERSION "3.5.1"
 
@@ -81,6 +87,11 @@ void print_help(void);
 void print_version(void);
 void print_dependencies(void);
 bool create_required_directories(void);
+
+// Progress bar functions
+void draw_progress_bar(const char* phase, size_t current, size_t total, size_t width);
+void clear_progress_line(void);
+void update_progress(const char* phase, size_t current, size_t total);
 
 // Build configuration implementation
 const Build_Config build_config = {
@@ -183,6 +194,44 @@ const Build_Config build_config = {
     },
     .dependency_urls_count = 2
 };
+
+// Progress bar implementation
+void draw_progress_bar(const char* phase, size_t current, size_t total, size_t width) {
+    if (total == 0) return;
+    
+    float progress = (float)current / (float)total;
+    size_t filled = (size_t)(progress * width);
+    
+    printf("\r%s [%s", phase, NOB_ANSI_COLOR_GREEN);
+    
+    // Draw filled portion
+    for (size_t i = 0; i < filled; i++) {
+        printf("█");
+    }
+    
+    printf("%s", NOB_ANSI_COLOR_RESET);
+    
+    // Draw empty portion
+    for (size_t i = filled; i < width; i++) {
+        printf("░");
+    }
+    
+    printf("] %zu/%zu (%.1f%%) ", current, total, progress * 100.0f);
+    fflush(stdout);
+}
+
+void clear_progress_line(void) {
+    printf("\r\033[K"); // Clear current line
+    fflush(stdout);
+}
+
+void update_progress(const char* phase, size_t current, size_t total) {
+    draw_progress_bar(phase, current, total, 40);
+    if (current == total) {
+        printf("\n"); // New line when complete
+        fflush(stdout);
+    }
+}
 
 int main(int argc, char **argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
@@ -647,13 +696,8 @@ bool compile_cjsh(void) {
             return false;
         }
         
-        // Show periodic progress updates for C++ files
-        if ((i + 1) % 10 == 0 || i == cpp_sources.count - 1) {
-            // Temporarily restore log level to show progress
-            nob_minimal_log_level = original_log_level;
-            nob_log(NOB_INFO, "Queued %zu/%zu C++ files for compilation", i + 1, cpp_sources.count);
-            nob_minimal_log_level = NOB_WARNING;
-        }
+        // Show fancy progress bar for C++ files
+        update_progress("C++ Compilation", i + 1, cpp_sources.count);
         
         nob_sb_free(obj_name);
     }
@@ -663,12 +707,14 @@ bool compile_cjsh(void) {
     nob_log(NOB_INFO, "Waiting for C++ compilation to complete...");
     nob_minimal_log_level = NOB_WARNING;
     if (!nob_procs_flush(&procs)) {
+        clear_progress_line();
         nob_minimal_log_level = original_log_level;
         nob_log(NOB_ERROR, "C++ compilation failed");
         return false;
     }
+    clear_progress_line();
     nob_minimal_log_level = original_log_level;
-    nob_log(NOB_INFO, "[%zu/%zu] All C++ files compiled successfully", cpp_sources.count, total_files);
+    nob_log(NOB_INFO, "All %zu C++ files compiled successfully", cpp_sources.count);
     nob_minimal_log_level = NOB_WARNING;
     
     // Compile C files in parallel
@@ -715,14 +761,8 @@ bool compile_cjsh(void) {
             return false;
         }
         
-        // Show progress updates for C files
-        if ((i + 1) % 5 == 0 || i == c_sources.count - 1) {
-            // Temporarily restore log level to show progress
-            nob_minimal_log_level = original_log_level;
-            nob_log(NOB_INFO, "Queued %zu/%zu C files for compilation (Total: %zu/%zu)", 
-                   i + 1, c_sources.count, cpp_sources.count + i + 1, total_files);
-            nob_minimal_log_level = NOB_WARNING;
-        }
+        // Show fancy progress bar for C files
+        update_progress("C Compilation   ", i + 1, c_sources.count);
         
         nob_sb_free(obj_name);
     }
@@ -732,12 +772,14 @@ bool compile_cjsh(void) {
     nob_log(NOB_INFO, "Waiting for C compilation to complete...");
     nob_minimal_log_level = NOB_WARNING;
     if (!nob_procs_flush(&procs)) {
+        clear_progress_line();
         nob_minimal_log_level = original_log_level;
         nob_log(NOB_ERROR, "C compilation failed");
         return false;
     }
+    clear_progress_line();
     nob_minimal_log_level = original_log_level;
-    nob_log(NOB_INFO, "[%zu/%zu] All files compiled successfully!", total_files, total_files);
+    nob_log(NOB_INFO, "All %zu files compiled successfully!", total_files);
     
     // Restore original log level before linking
     nob_minimal_log_level = original_log_level;
