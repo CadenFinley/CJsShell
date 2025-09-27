@@ -81,7 +81,8 @@ static inline bool compile_cjsh(void) {
             return false;
         }
 
-        update_progress("C++ Compilation", i + 1, cpp_sources.count);
+        const char* progress_label = (i + 1 == cpp_sources.count) ? "Complete!" : basename;
+        update_progress(progress_label, i + 1, cpp_sources.count);
         nob_sb_free(obj_name);
         completed_cpp_files++;
     }
@@ -143,7 +144,8 @@ static inline bool compile_cjsh(void) {
             return false;
         }
 
-        update_progress("C Compilation   ", i + 1, c_sources.count);
+        const char* progress_label = (i + 1 == c_sources.count) ? "Complete!" : basename;
+        update_progress(progress_label, i + 1, c_sources.count);
         nob_sb_free(obj_name);
     }
 

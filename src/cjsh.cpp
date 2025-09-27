@@ -14,7 +14,9 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <unordered_map>
+#include <vector>
 
 #ifdef __APPLE__
 #include <malloc/malloc.h>
@@ -26,6 +28,7 @@
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
+#include "env.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "job_control.h"
@@ -65,7 +68,6 @@ static int initialize_interactive_components();
 static void save_startup_arguments(int argc, char* argv[]);
 static void process_profile_files();
 static void apply_profile_startup_flags();
-static void setup_environment_variables();
 
 namespace config {
 bool login_mode = false;
@@ -151,7 +153,7 @@ int main(int argc, char* argv[]) {
         g_shell->set_positional_parameters(script_args);
     }
 
-    setup_environment_variables();
+    cjsh_env::setup_environment_variables();
     save_startup_arguments(argc, argv);
 
     // Sync shell's environment cache from system environment
@@ -708,111 +710,19 @@ void cleanup_resources() {
     }
 }
 
-static void setup_environment_variables() {
-    // setup essential environment variables for the shell session
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Setting up environment variables" << std::endl;
 
-    uid_t uid = getuid();
-    struct passwd* pw = getpwuid(uid);
-
-    if (pw != nullptr) {
-        // Prepare all environment variables in a batch
-        std::vector<std::pair<const char*, const char*>> env_vars;
-
-        // User info variables
-        env_vars.emplace_back("USER", pw->pw_name);
-        env_vars.emplace_back("LOGNAME", pw->pw_name);
-        env_vars.emplace_back("HOME", pw->pw_dir);
-
-        // Check PATH and add if needed
-        const char* path_env = getenv("PATH");
-        if (!path_env || path_env[0] == '\0') {
-            env_vars.emplace_back(
-                "PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin");
-        }
-
-        // System info
-        char hostname[256];
-        if (gethostname(hostname, sizeof(hostname)) == 0) {
-            env_vars.emplace_back("HOSTNAME", hostname);
-        }
-
-        // Current directory and shell info
-        std::string current_path = std::filesystem::current_path().string();
-        std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Setting SHELL to: " << shell_path << std::endl;
-        }
-
-        env_vars.emplace_back("PWD", current_path.c_str());
-        env_vars.emplace_back("SHELL", shell_path.c_str());
-        env_vars.emplace_back("IFS", " \t\n");
-
-        // Language settings
-        const char* lang_env = getenv("LANG");
-        if (!lang_env || lang_env[0] == '\0') {
-            env_vars.emplace_back("LANG", "en_US.UTF-8");
-        }
-
-        // Optional variables
-        if (getenv("PAGER") == nullptr) {
-            env_vars.emplace_back("PAGER", "less");
-        }
-
-        if (getenv("TMPDIR") == nullptr) {
-            env_vars.emplace_back("TMPDIR", "/tmp");
-        }
-
-        // Shell level
-        int shlvl = 1;
-        if (const char* current_shlvl = getenv("SHLVL")) {
-            try {
-                shlvl = std::stoi(current_shlvl) + 1;
-            } catch (...) {
-                shlvl = 1;
-            }
-        }
-        std::string shlvl_str = std::to_string(shlvl);
-        env_vars.emplace_back("SHLVL", shlvl_str.c_str());
-
-        // Miscellaneous
-        std::string cjsh_path = cjsh_filesystem::get_cjsh_path().string();
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Setting _ to: " << cjsh_path << std::endl;
-        }
-        env_vars.emplace_back("_", cjsh_path.c_str());
-        // Use bash-like exit status variable instead of STATUS
-        std::string status_str = std::to_string(0);
-        env_vars.emplace_back("?", status_str.c_str());
-        // Set shell-specific version variable (optional)
-        env_vars.emplace_back("CJSH_VERSION", c_version.c_str());
-
-        // Set all environment variables in one batch
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Setting " << env_vars.size()
-                      << " environment variables" << std::endl;
-        }
-
-        // Actually set the environment variables
-        for (const auto& [name, value] : env_vars) {
-            setenv(name, value, 1);
-        }
-    }
-}
 
 static void process_profile_files() {
     // sourcing if in login shell
     if (g_debug_mode)
         std::cerr << "DEBUG: Processing profile files" << std::endl;
-    std::filesystem::path universal_profile = "/etc/profile";
-    if (std::filesystem::exists(universal_profile)) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Found universal profile: "
-                      << universal_profile.string() << std::endl;
-        g_shell->execute_script_file(universal_profile, true);
-    }
+    // std::filesystem::path universal_profile = "/etc/profile";
+    // if (std::filesystem::exists(universal_profile)) {
+    //     if (g_debug_mode)
+    //         std::cerr << "DEBUG: Found universal profile: "
+    //                   << universal_profile.string() << std::endl;
+    //     g_shell->execute_script_file(universal_profile, true);
+    // }
     std::filesystem::path user_profile =
         cjsh_filesystem::g_user_home_path / ".profile";
     if (std::filesystem::exists(user_profile)) {

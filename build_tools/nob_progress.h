@@ -13,7 +13,7 @@ static inline void draw_progress_bar(const char* phase, size_t current,
     float progress = (float)current / (float)total;
     size_t filled = (size_t)(progress * width);
 
-    printf("\r%s [%s", phase, NOB_ANSI_COLOR_GREEN);
+    printf("\r%-20.20s [%s", phase, NOB_ANSI_COLOR_GREEN);
 
     for (size_t i = 0; i < filled; i++) {
         printf("█");
