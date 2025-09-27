@@ -516,11 +516,11 @@ static const char *get_cxx_compiler(void) {
     }
     
     Nob_Cmd test_cmd = {0};
-    nob_cmd_append(&test_cmd, "which", "clang++");
+    nob_cmd_append(&test_cmd, "which", "g++");
     if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
-        cached_cxx_compiler = "clang++";
-    } else {
         cached_cxx_compiler = "g++";
+    } else {
+        cached_cxx_compiler = "clang++";
     }
     return cached_cxx_compiler;
 }
@@ -531,11 +531,11 @@ static const char *get_c_compiler(void) {
     }
     
     Nob_Cmd test_cmd = {0};
-    nob_cmd_append(&test_cmd, "which", "clang");
+    nob_cmd_append(&test_cmd, "which", "gcc");
     if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
-        cached_c_compiler = "clang";
-    } else {
         cached_c_compiler = "gcc";
+    } else {
+        cached_c_compiler = "clang";
     }
     return cached_c_compiler;
 }
@@ -546,11 +546,11 @@ static const char *get_linker(void) {
     }
     
     Nob_Cmd test_cmd = {0};
-    nob_cmd_append(&test_cmd, "which", "clang++");
+    nob_cmd_append(&test_cmd, "which", "g++");
     if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
-        cached_linker = "clang++";
-    } else {
         cached_linker = "g++";
+    } else {
+        cached_linker = "clang++";
     }
     return cached_linker;
 }
@@ -565,7 +565,10 @@ bool setup_build_flags(Nob_Cmd *cmd) {
     
     // Platform-specific flags
 #ifdef PLATFORM_MACOS
-    nob_cmd_append(cmd, "-stdlib=libc++");
+    // Only use libc++ with clang++, g++ uses libstdc++ by default
+    if (strcmp(compiler, "clang++") == 0) {
+        nob_cmd_append(cmd, "-stdlib=libc++");
+    }
 #ifdef ARCH_ARM64
     nob_cmd_append(cmd, "-arch", "arm64");
 #elif defined(ARCH_X86_64)
@@ -786,6 +789,10 @@ bool compile_cjsh(void) {
     
     // Link everything together
     nob_log(NOB_INFO, "Linking " PROJECT_NAME "...");
+    
+    // Temporarily suppress command logging for linking as well
+    nob_minimal_log_level = NOB_WARNING;
+    
     Nob_Cmd link_cmd = {0};
     
     const char *linker = get_linker();
@@ -793,7 +800,10 @@ bool compile_cjsh(void) {
     
     // Platform-specific linking flags
 #ifdef PLATFORM_MACOS
-    nob_cmd_append(&link_cmd, "-stdlib=libc++");
+    // Only use libc++ with clang++, g++ uses libstdc++ by default
+    if (strcmp(linker, "clang++") == 0) {
+        nob_cmd_append(&link_cmd, "-stdlib=libc++");
+    }
 #ifdef ARCH_ARM64
     nob_cmd_append(&link_cmd, "-arch", "arm64");
 #elif defined(ARCH_X86_64)
@@ -818,9 +828,14 @@ bool compile_cjsh(void) {
     
     // Link libraries - pthread and platform-specific standard library
 #ifdef PLATFORM_MACOS
-    // On macOS with -stdlib=libc++, we need to link against libc++ correctly
-    // Don't explicitly add -lc++ since -stdlib=libc++ should handle this
-    nob_cmd_append(&link_cmd, "-lpthread");
+    // On macOS, use appropriate standard library based on compiler
+    if (strcmp(linker, "clang++") == 0) {
+        // clang++ with -stdlib=libc++ handles C++ stdlib automatically
+        nob_cmd_append(&link_cmd, "-lpthread");
+    } else {
+        // g++ uses libstdc++ by default
+        nob_cmd_append(&link_cmd, "-lstdc++", "-lpthread");
+    }
 #else
     nob_cmd_append(&link_cmd, "-lstdc++", "-lpthread");
 #endif
@@ -836,9 +851,13 @@ bool compile_cjsh(void) {
     
     // Execute the linking
     if (!nob_cmd_run(&link_cmd)) {
+        nob_minimal_log_level = original_log_level;
         nob_log(NOB_ERROR, "Linking failed");
         return false;
     }
+    
+    // Restore log level after linking
+    nob_minimal_log_level = original_log_level;
     
     // Clean up
     nob_da_free(cpp_sources);
