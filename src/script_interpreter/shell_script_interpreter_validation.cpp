@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <initializer_list>
 #include <map>
 #include <regex>
 #include <sstream>
@@ -443,38 +444,41 @@ ShellScriptInterpreter::validate_script_syntax(
       if (!tokens.empty()) {
         const std::string& first_token = tokens[0];
 
+        auto require_top = [&](std::initializer_list<const char*> allowed,
+                               const std::string& message) {
+          if (control_stack.empty()) {
+            errors.push_back({display_line, message, line});
+            return false;
+          }
+          const std::string& top = control_stack.back().first;
+          for (const char* value : allowed) {
+            if (top == value) {
+              return true;
+            }
+          }
+          errors.push_back({display_line, message, line});
+          return false;
+        };
+
         if (first_token == "if") {
           control_stack.push_back({"if", display_line});
         } else if (first_token == "then") {
-          if (control_stack.empty() || control_stack.back().first != "if") {
-            errors.push_back(
-                {display_line, "'then' without matching 'if'", line});
-          } else {
+          if (require_top({"if"}, "'then' without matching 'if'")) {
             control_stack.back().first = "then";
           }
         } else if (first_token == "elif") {
-          if (control_stack.empty() || (control_stack.back().first != "then" &&
-                                        control_stack.back().first != "elif")) {
-            errors.push_back(
-                {display_line, "'elif' without matching 'if...then'", line});
-          } else {
+          if (require_top({"then", "elif"},
+                          "'elif' without matching 'if...then'")) {
             control_stack.back().first = "elif";
           }
         } else if (first_token == "else") {
-          if (control_stack.empty() || (control_stack.back().first != "then" &&
-                                        control_stack.back().first != "elif")) {
-            errors.push_back(
-                {display_line, "'else' without matching 'if...then'", line});
-          } else {
+          if (require_top({"then", "elif"},
+                          "'else' without matching 'if...then'")) {
             control_stack.back().first = "else";
           }
         } else if (first_token == "fi") {
-          if (control_stack.empty() || (control_stack.back().first != "then" &&
-                                        control_stack.back().first != "elif" &&
-                                        control_stack.back().first != "else")) {
-            errors.push_back(
-                {display_line, "'fi' without matching 'if'", line});
-          } else {
+          if (require_top({"then", "elif", "else"},
+                          "'fi' without matching 'if'")) {
             control_stack.pop_back();
           }
         }
@@ -482,20 +486,12 @@ ShellScriptInterpreter::validate_script_syntax(
         else if (first_token == "while" || first_token == "until") {
           control_stack.push_back({first_token, display_line});
         } else if (first_token == "do") {
-          if (control_stack.empty() || (control_stack.back().first != "while" &&
-                                        control_stack.back().first != "until" &&
-                                        control_stack.back().first != "for")) {
-            errors.push_back(
-                {display_line,
-                 "'do' without matching 'while', 'until', or 'for'", line});
-          } else {
+          if (require_top({"while", "until", "for"},
+                          "'do' without matching 'while', 'until', or 'for'")) {
             control_stack.back().first = "do";
           }
         } else if (first_token == "done") {
-          if (control_stack.empty() || control_stack.back().first != "do") {
-            errors.push_back(
-                {display_line, "'done' without matching 'do'", line});
-          } else {
+          if (require_top({"do"}, "'done' without matching 'do'")) {
             control_stack.pop_back();
           }
         }
@@ -520,10 +516,7 @@ ShellScriptInterpreter::validate_script_syntax(
             control_stack.push_back({"case", display_line});
           }
         } else if (first_token == "esac") {
-          if (control_stack.empty() || control_stack.back().first != "case") {
-            errors.push_back(
-                {display_line, "'esac' without matching 'case'", line});
-          } else {
+          if (require_top({"case"}, "'esac' without matching 'case'")) {
             control_stack.pop_back();
           }
         }
@@ -549,15 +542,9 @@ ShellScriptInterpreter::validate_script_syntax(
         else if (!trimmed.empty() && trimmed.back() == '{') {
           control_stack.push_back({"{", display_line});
         } else if (first_token == "}") {
-          if (control_stack.empty()) {
-            errors.push_back(
-                {display_line, "Unmatched closing brace '}'", line});
-          } else if (control_stack.back().first == "{" ||
-                     control_stack.back().first == "function") {
+          if (require_top({"{", "function"},
+                          "Unmatched closing brace '}'")) {
             control_stack.pop_back();
-          } else {
-            errors.push_back(
-                {display_line, "Unmatched closing brace '}'", line});
           }
         }
       }
@@ -1676,54 +1663,43 @@ ShellScriptInterpreter::validate_array_syntax(
          size_t /* first_non_space */) -> std::vector<SyntaxError> {
         std::vector<SyntaxError> line_errors;
 
-        bool in_quotes = false;
-        char quote_char = '\0';
-        bool escaped = false;
+        QuoteState quote_state;
 
         for (size_t i = 0; i < line.length(); ++i) {
           char c = line[i];
 
-          if (escaped) {
-            escaped = false;
+          if (!should_process_char(quote_state, c, false)) {
             continue;
           }
 
-          if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-            escaped = true;
-            continue;
-          }
-
-          if ((c == '"' || c == '\'') && !in_quotes) {
-            in_quotes = true;
-            quote_char = c;
-          } else if (c == quote_char && in_quotes) {
-            in_quotes = false;
-            quote_char = '\0';
-          }
-
-          if (!in_quotes && c == '(' && i > 0) {
+          if (!quote_state.in_quotes && c == '(' && i > 0) {
             size_t var_end = i;
-            while (var_end > 0 && std::isspace(line[var_end - 1])) {
+            while (var_end > 0 &&
+                   std::isspace(static_cast<unsigned char>(line[var_end - 1]))) {
               var_end--;
             }
 
             if (var_end > 0 && line[var_end - 1] == '=') {
               size_t paren_count = 1;
               size_t j = i + 1;
+              QuoteState nested_state;
 
               while (j < line.length() && paren_count > 0) {
-                if (line[j] == '(' && !in_quotes) {
-                  paren_count++;
-                } else if (line[j] == ')' && !in_quotes) {
-                  paren_count--;
-                } else if ((line[j] == '"' || line[j] == '\'') && !in_quotes) {
-                  in_quotes = true;
-                  quote_char = line[j];
-                } else if (line[j] == quote_char && in_quotes) {
-                  in_quotes = false;
-                  quote_char = '\0';
+                char inner_char = line[j];
+
+                if (!should_process_char(nested_state, inner_char, false)) {
+                  ++j;
+                  continue;
                 }
-                j++;
+
+                if (!nested_state.in_quotes) {
+                  if (inner_char == '(') {
+                    paren_count++;
+                  } else if (inner_char == ')') {
+                    paren_count--;
+                  }
+                }
+                ++j;
               }
 
               if (paren_count > 0) {
@@ -1734,7 +1710,9 @@ ShellScriptInterpreter::validate_array_syntax(
                                 line, "Add closing parenthesis"));
               }
 
-              i = j - 1;
+              if (j > 0) {
+                i = j - 1;
+              }
             }
           }
         }
