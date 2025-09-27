@@ -913,9 +913,9 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
       continue;
 
     if (line.length() > 1 && line[0] == '#' && line[1] == ' ') {
-      if (g_debug_mode)
-        std::cerr << "DEBUG: Skipping timestamp line: '" << line << "'"
-                  << std::endl;
+      // if (g_debug_mode)
+      //   std::cerr << "DEBUG: Skipping timestamp line: '" << line << "'"
+      //             << std::endl;
       continue;
     }
 
