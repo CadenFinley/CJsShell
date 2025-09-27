@@ -33,8 +33,7 @@ struct JobControlJob {
   std::chrono::steady_clock::time_point last_stdin_signal_time;
 
   JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
-                const std::string& cmd, bool is_background,
-                bool consumes_stdin)
+                const std::string& cmd, bool is_background, bool consumes_stdin)
       : job_id(id),
         pgid(group_id),
         pids(process_ids),

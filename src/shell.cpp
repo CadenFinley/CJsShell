@@ -1,14 +1,14 @@
 #include "shell.h"
 
-#include <cstdlib>
 #include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <set>
 #include <sstream>
-#include <string.h>
-#include <unistd.h>
 #include <unordered_map>
 
 #include "builtin.h"
@@ -31,7 +31,8 @@ std::unordered_map<std::string, CachedScript> g_script_cache;
 }  // namespace
 
 // ScopedRawMode implementation
-ScopedRawMode::ScopedRawMode() : ScopedRawMode(STDIN_FILENO) {}
+ScopedRawMode::ScopedRawMode() : ScopedRawMode(STDIN_FILENO) {
+}
 
 ScopedRawMode::ScopedRawMode(int fd) : entered_(false), fd_(fd) {
   if (fd_ < 0 || !isatty(fd_)) {

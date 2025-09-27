@@ -22,8 +22,7 @@
 #include "job_control.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
-#include "utils/performance.h"
-#include "utils/threaded_input_monitor.h"
+#include "performance.h"
 
 namespace {
 
@@ -516,8 +515,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
   }
 
   int new_job_id = JobManager::instance().add_job(pid, {pid}, full_command,
-                                                  job.background,
-                                                  reads_stdin);
+                                                  job.background, reads_stdin);
 
   put_job_in_foreground(job_id, false);
 
@@ -1581,8 +1579,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     }
   }
   int new_job_id = JobManager::instance().add_job(
-    pgid, pids, pipeline_command, job.background,
-    pipeline_consumes_terminal_stdin(commands));
+      pgid, pids, pipeline_command, job.background,
+      pipeline_consumes_terminal_stdin(commands));
 
   if (job.background) {
     JobManager::instance().set_last_background_pid(pids.empty() ? -1

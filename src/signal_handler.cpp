@@ -385,7 +385,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             job->exit_status =
                 WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
 
-      JobManager::instance().clear_stdin_signal(job->pgid);
+            JobManager::instance().clear_stdin_signal(job->pgid);
 
             job->pids.erase(
                 std::remove(job->pids.begin(), job->pids.end(), pid),

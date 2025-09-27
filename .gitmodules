@@ -1,3 +1,0 @@
-[submodule "vendor/isocline"]
-	path = vendor/isocline
-	url = https://github.com/daanx/isocline.git

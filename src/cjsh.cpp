@@ -27,7 +27,7 @@
 #include "cjsh_filesystem.h"
 #include "colors.h"
 #include "error_out.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 #include "job_control.h"
 #include "main_loop.h"
 #include "shell.h"
@@ -99,17 +99,12 @@ static void initialize_title_strings() {
   }
 }
 
-// Typeahead Roadmap
-// Completed:
-// - Signal-driven stdin awareness (SIGTTIN tracking, job metadata updates)
-// - Parser-backed heuristics for detecting terminal-bound stdin consumers
-// - Multi-line queued typeahead replay with basic line-edit normalization
-
-// Remaining milestones toward full typeahead support:
+// Typeahead: fully enabled with queued replay and terminal awareness.
+// Cleanup / polish backlog:
 // - Interpret escape/control sequences (arrows, Home/End) before queuing
-// - Surface configuration toggles for queued replay and prefill behavior
-// - Add regression coverage for queued multi-line scenarios and plugins
-// - Evaluate plugin event ordering and AI prompt transitions with replay
+// - Surface configuration toggles for replay and prefill behavior
+// - Expand regression coverage for multi-line scenarios and plugin hooks
+// - Audit plugin event ordering and AI prompt transitions under replay
 
 // add a way to change syntax highlighter via .cjshrc
 // add a way to change keybindings via .cjshrc
