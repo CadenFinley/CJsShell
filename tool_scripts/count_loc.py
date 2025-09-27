@@ -26,6 +26,10 @@ def should_include_file(file_path: Path, project_root: Path,
     if any(part in excluded_dirs for part in relative_path.parts):
         return False
     
+    # Exclude specific files
+    if file_path.name == 'nob.h':
+        return False
+    
     # Exclude specific subdirectories (isocline directories)
     relative_path_str = str(relative_path)
     if 'src/isocline' in relative_path_str or 'include/isocline' in relative_path_str:

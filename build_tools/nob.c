@@ -3,7 +3,7 @@
 
 #include <sys/stat.h>
 #include <errno.h>
-#include <unistd.h>  // for getcwd
+#include <unistd.h>
 
 #define PROJECT_NAME "cjsh"
 #define VERSION "2.1.13"
