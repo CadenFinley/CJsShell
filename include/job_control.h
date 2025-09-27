@@ -11,105 +11,106 @@
 class Shell;
 
 enum class JobState {
-  RUNNING,
-  STOPPED,
-  DONE,
-  TERMINATED
+    RUNNING,
+    STOPPED,
+    DONE,
+    TERMINATED
 };
 
 struct JobControlJob {
-  int job_id;
-  pid_t pgid;
-  std::vector<pid_t> pids;
-  std::string command;
-  JobState state;
-  int exit_status;
-  bool notified;
-  bool background;
-  bool reads_stdin;
-  bool awaiting_stdin_signal;
-  int last_stdin_signal;
-  int stdin_signal_count;
-  std::chrono::steady_clock::time_point last_stdin_signal_time;
+    int job_id;
+    pid_t pgid;
+    std::vector<pid_t> pids;
+    std::string command;
+    JobState state;
+    int exit_status;
+    bool notified;
+    bool background;
+    bool reads_stdin;
+    bool awaiting_stdin_signal;
+    int last_stdin_signal;
+    int stdin_signal_count;
+    std::chrono::steady_clock::time_point last_stdin_signal_time;
 
-  JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
-                const std::string& cmd, bool is_background, bool consumes_stdin)
-      : job_id(id),
-        pgid(group_id),
-        pids(process_ids),
-        command(cmd),
-        state(JobState::RUNNING),
-        exit_status(0),
-        notified(false),
-        background(is_background),
-        reads_stdin(consumes_stdin),
-        awaiting_stdin_signal(false),
-        last_stdin_signal(0),
-        stdin_signal_count(0),
-        last_stdin_signal_time(std::chrono::steady_clock::time_point::min()) {
-  }
+    JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
+                  const std::string& cmd, bool is_background,
+                  bool consumes_stdin)
+        : job_id(id),
+          pgid(group_id),
+          pids(process_ids),
+          command(cmd),
+          state(JobState::RUNNING),
+          exit_status(0),
+          notified(false),
+          background(is_background),
+          reads_stdin(consumes_stdin),
+          awaiting_stdin_signal(false),
+          last_stdin_signal(0),
+          stdin_signal_count(0),
+          last_stdin_signal_time(std::chrono::steady_clock::time_point::min()) {
+    }
 };
 
 class JobManager {
- public:
-  static JobManager& instance();
+   public:
+    static JobManager& instance();
 
-  int add_job(pid_t pgid, const std::vector<pid_t>& pids,
-              const std::string& command, bool background = false,
-              bool reads_stdin = true);
+    int add_job(pid_t pgid, const std::vector<pid_t>& pids,
+                const std::string& command, bool background = false,
+                bool reads_stdin = true);
 
-  void remove_job(int job_id);
+    void remove_job(int job_id);
 
-  std::shared_ptr<JobControlJob> get_job(int job_id);
+    std::shared_ptr<JobControlJob> get_job(int job_id);
 
-  std::shared_ptr<JobControlJob> get_job_by_pgid(pid_t pgid);
+    std::shared_ptr<JobControlJob> get_job_by_pgid(pid_t pgid);
 
-  std::vector<std::shared_ptr<JobControlJob>> get_all_jobs();
+    std::vector<std::shared_ptr<JobControlJob>> get_all_jobs();
 
-  void update_job_status();
+    void update_job_status();
 
-  void set_current_job(int job_id);
+    void set_current_job(int job_id);
 
-  int get_current_job() const {
-    return current_job;
-  }
+    int get_current_job() const {
+        return current_job;
+    }
 
-  int get_previous_job() const {
-    return previous_job;
-  }
+    int get_previous_job() const {
+        return previous_job;
+    }
 
-  void set_last_background_pid(pid_t pid) {
-    last_background_pid = pid;
-  }
+    void set_last_background_pid(pid_t pid) {
+        last_background_pid = pid;
+    }
 
-  pid_t get_last_background_pid() const {
-    return last_background_pid;
-  }
+    pid_t get_last_background_pid() const {
+        return last_background_pid;
+    }
 
-  void cleanup_finished_jobs();
+    void cleanup_finished_jobs();
 
-  void set_shell(Shell* shell) {
-    shell_ref = shell;
-  }
+    void set_shell(Shell* shell) {
+        shell_ref = shell;
+    }
 
-  bool foreground_job_reads_stdin();
+    bool foreground_job_reads_stdin();
 
-  void mark_job_reads_stdin(pid_t pid, bool reads_stdin = true);
+    void mark_job_reads_stdin(pid_t pid, bool reads_stdin = true);
 
-  void record_stdin_signal(pid_t pid, int signal_number);
+    void record_stdin_signal(pid_t pid, int signal_number);
 
-  void clear_stdin_signal(pid_t pid);
+    void clear_stdin_signal(pid_t pid);
 
- private:
-  JobManager() = default;
-  std::unordered_map<int, std::shared_ptr<JobControlJob>> jobs;
-  int next_job_id = 1;
-  int current_job = -1;
-  int previous_job = -1;
-  pid_t last_background_pid = -1;
-  Shell* shell_ref = nullptr;
+   private:
+    JobManager() = default;
+    std::unordered_map<int, std::shared_ptr<JobControlJob>> jobs;
+    int next_job_id = 1;
+    int current_job = -1;
+    int previous_job = -1;
+    pid_t last_background_pid = -1;
+    Shell* shell_ref = nullptr;
 
-  void update_current_previous(int new_current);
+    void update_current_previous(int new_current);
 };
 
 int jobs_command(const std::vector<std::string>& args);

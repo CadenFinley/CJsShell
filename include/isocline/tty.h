@@ -62,12 +62,12 @@ ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st,
 //-------------------------------------------------------------
 
 static inline code_t key_char(char c) {
-  // careful about signed character conversion (negative char ~> 0x80 - 0xFF)
-  return ((uint8_t)c);
+    // careful about signed character conversion (negative char ~> 0x80 - 0xFF)
+    return ((uint8_t)c);
 }
 
 static inline code_t key_unicode(unicode_t u) {
-  return u;
+    return u;
 }
 
 #define KEY_MOD_SHIFT (0x10000000U)

@@ -84,12 +84,12 @@ ic_private bool ic_atou32(const char* s, uint32_t* pu);
 
 // row/column info
 typedef struct rowcol_s {
-  ssize_t row;
-  ssize_t col;
-  ssize_t row_start;
-  ssize_t row_len;
-  bool first_on_row;
-  bool last_on_row;
+    ssize_t row;
+    ssize_t col;
+    ssize_t row_start;
+    ssize_t row_len;
+    bool first_on_row;
+    bool last_on_row;
 } rowcol_t;
 
 // find row/col position

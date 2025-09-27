@@ -66,14 +66,14 @@ typedef bool(ic_completion_fun_with_source_t)(
     long delete_after);
 
 struct ic_completion_env_s {
-  ic_env_t* env;                  // the isocline environment
-  const char* input;              // current full input
-  long cursor;                    // current cursor position
-  void* arg;                      // argument given to `ic_set_completer`
-  void* closure;                  // free variables for function composition
-  ic_completion_fun_t* complete;  // function that adds a completion
-  ic_completion_fun_with_source_t*
-      complete_with_source;  // function that adds a completion with source
+    ic_env_t* env;                  // the isocline environment
+    const char* input;              // current full input
+    long cursor;                    // current cursor position
+    void* arg;                      // argument given to `ic_set_completer`
+    void* closure;                  // free variables for function composition
+    ic_completion_fun_t* complete;  // function that adds a completion
+    ic_completion_fun_with_source_t*
+        complete_with_source;  // function that adds a completion with source
 };
 
 #endif  // IC_COMPLETIONS_H

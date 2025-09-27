@@ -25,29 +25,29 @@ extern "C" {
  * Error codes returned by plugin functions
  */
 typedef enum {
-  PLUGIN_SUCCESS = 0,
-  PLUGIN_ERROR_GENERAL = -1,
-  PLUGIN_ERROR_INVALID_ARGS = -2,
-  PLUGIN_ERROR_NOT_IMPLEMENTED = -3,
-  PLUGIN_ERROR_OUT_OF_MEMORY = -4,
-  PLUGIN_ERROR_NULL_POINTER = -5
+    PLUGIN_SUCCESS = 0,
+    PLUGIN_ERROR_GENERAL = -1,
+    PLUGIN_ERROR_INVALID_ARGS = -2,
+    PLUGIN_ERROR_NOT_IMPLEMENTED = -3,
+    PLUGIN_ERROR_OUT_OF_MEMORY = -4,
+    PLUGIN_ERROR_NULL_POINTER = -5
 } plugin_error_t;
 
 /**
  * String buffer structure with enhanced safety
  */
 typedef struct {
-  char* data;    // Null-terminated string data (MUST be heap-allocated)
-  int length;    // Length of string (excluding null terminator)
-  int capacity;  // Allocated capacity (for future extensions)
+    char* data;    // Null-terminated string data (MUST be heap-allocated)
+    int length;    // Length of string (excluding null terminator)
+    int capacity;  // Allocated capacity (for future extensions)
 } plugin_string_t;
 
 /**
  * Key-value pair for plugin settings
  */
 typedef struct {
-  char* key;    // Setting name (MUST be heap-allocated)
-  char* value;  // Setting value (MUST be heap-allocated)
+    char* key;    // Setting name (MUST be heap-allocated)
+    char* value;  // Setting value (MUST be heap-allocated)
 } plugin_setting_t;
 
 /**
@@ -55,9 +55,9 @@ typedef struct {
  * Passed to plugin_handle_command() when a command is executed
  */
 typedef struct {
-  char** args;   // Array of argument strings (null-terminated)
-  int count;     // Number of arguments in the array
-  int position;  // Current position in processing (typically 0 at start)
+    char** args;   // Array of argument strings (null-terminated)
+    int count;     // Number of arguments in the array
+    int position;  // Current position in processing (typically 0 at start)
 } plugin_args_t;
 
 /**
@@ -65,19 +65,19 @@ typedef struct {
  * Returned by plugin_get_info() to identify the plugin
  */
 typedef struct {
-  char* name;             // Plugin name (must be unique)
-  char* version;          // Plugin version (semver recommended)
-  char* description;      // Short description
-  char* author;           // Plugin author name
-  int interface_version;  // Must match PLUGIN_INTERFACE_VERSION
+    char* name;             // Plugin name (must be unique)
+    char* version;          // Plugin version (semver recommended)
+    char* description;      // Short description
+    char* author;           // Plugin author name
+    int interface_version;  // Must match PLUGIN_INTERFACE_VERSION
 } plugin_info_t;
 
 /**
  * Plugin validation result
  */
 typedef struct {
-  plugin_error_t status;
-  char* error_message;  // Optional error message (heap-allocated if present)
+    plugin_error_t status;
+    char* error_message;  // Optional error message (heap-allocated if present)
 } plugin_validation_t;
 
 /**

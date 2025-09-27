@@ -15,65 +15,66 @@
 #include "parser.h"
 
 struct Job {
-  pid_t pgid;
-  std::string command;
-  bool background;
-  bool completed;
-  bool stopped;
-  int status;
-  std::vector<pid_t> pids;
-  pid_t last_pid = -1;
-  int last_status = 0;
+    pid_t pgid;
+    std::string command;
+    bool background;
+    bool completed;
+    bool stopped;
+    int status;
+    std::vector<pid_t> pids;
+    pid_t last_pid = -1;
+    int last_status = 0;
 };
 
 class Exec {
- private:
-  std::mutex error_mutex;
-  std::mutex jobs_mutex;
-  std::map<int, Job> jobs;
-  int next_job_id = 1;
-  pid_t shell_pgid;
-  struct termios shell_tmodes;
-  int shell_terminal;
-  bool shell_is_interactive;
-  int last_exit_code = 0;
-  ErrorInfo last_error;
+   private:
+    std::mutex error_mutex;
+    std::mutex jobs_mutex;
+    std::map<int, Job> jobs;
+    int next_job_id = 1;
+    pid_t shell_pgid;
+    struct termios shell_tmodes;
+    int shell_terminal;
+    bool shell_is_interactive;
+    int last_exit_code = 0;
+    ErrorInfo last_error;
 
-  // Smart pipeline optimization helpers
-  bool requires_fork(const Command& cmd) const;
-  bool can_execute_in_process(const Command& cmd) const;
+    // Smart pipeline optimization helpers
+    bool requires_fork(const Command& cmd) const;
+    bool can_execute_in_process(const Command& cmd) const;
 
- public:
-  Exec();
-  ~Exec();
+   public:
+    Exec();
+    ~Exec();
 
-  int execute_command_sync(const std::vector<std::string>& args);
-  int execute_command_async(const std::vector<std::string>& args);
-  int execute_pipeline(const std::vector<Command>& commands);
-  int add_job(const Job& job);
-  void remove_job(int job_id);
-  void update_job_status(int job_id, bool completed, bool stopped, int status);
-  void put_job_in_foreground(int job_id, bool cont);
-  void put_job_in_background(int job_id, bool cont);
-  void wait_for_job(int job_id);
-  std::map<int, Job> get_jobs();
-  void init_shell();
-  void handle_child_signal(pid_t pid, int status);
-  void set_error(const ErrorInfo& error);
-  void set_error(ErrorType type, const std::string& command = "",
-                 const std::string& message = "",
-                 const std::vector<std::string>& suggestions = {});
-  ErrorInfo get_error();
-  std::string get_error_string();  // For backward compatibility
-  void print_last_error();
-  int get_exit_code() const {
-    return last_exit_code;
-  }
-  void set_exit_code(int code) {
-    last_exit_code = code;
-  }
-  void terminate_all_child_process();
+    int execute_command_sync(const std::vector<std::string>& args);
+    int execute_command_async(const std::vector<std::string>& args);
+    int execute_pipeline(const std::vector<Command>& commands);
+    int add_job(const Job& job);
+    void remove_job(int job_id);
+    void update_job_status(int job_id, bool completed, bool stopped,
+                           int status);
+    void put_job_in_foreground(int job_id, bool cont);
+    void put_job_in_background(int job_id, bool cont);
+    void wait_for_job(int job_id);
+    std::map<int, Job> get_jobs();
+    void init_shell();
+    void handle_child_signal(pid_t pid, int status);
+    void set_error(const ErrorInfo& error);
+    void set_error(ErrorType type, const std::string& command = "",
+                   const std::string& message = "",
+                   const std::vector<std::string>& suggestions = {});
+    ErrorInfo get_error();
+    std::string get_error_string();  // For backward compatibility
+    void print_last_error();
+    int get_exit_code() const {
+        return last_exit_code;
+    }
+    void set_exit_code(int code) {
+        last_exit_code = code;
+    }
+    void terminate_all_child_process();
 
-  std::string
-      last_terminal_output_error;  // Deprecated - use get_error() instead
+    std::string
+        last_terminal_output_error;  // Deprecated - use get_error() instead
 };

@@ -8,120 +8,120 @@ CommandInfo::CommandInfo() : timing_active(false) {
 }
 
 void CommandInfo::start_command_timing() {
-  last_command_start = std::chrono::high_resolution_clock::now();
-  timing_active = true;
+    last_command_start = std::chrono::high_resolution_clock::now();
+    timing_active = true;
 }
 
 void CommandInfo::end_command_timing(int exit_code) {
-  (void)exit_code;  // Unused - exit code now managed via STATUS environment
-                    // variable
-  if (timing_active) {
-    last_command_end = std::chrono::high_resolution_clock::now();
-    timing_active = false;
-  }
+    (void)exit_code;  // Unused - exit code now managed via STATUS environment
+                      // variable
+    if (timing_active) {
+        last_command_end = std::chrono::high_resolution_clock::now();
+        timing_active = false;
+    }
 }
 
 void CommandInfo::reset_command_timing() {
-  timing_active = false;
-  // Reset to epoch time to ensure 0 duration
-  last_command_start = std::chrono::high_resolution_clock::time_point{};
-  last_command_end = std::chrono::high_resolution_clock::time_point{};
+    timing_active = false;
+    // Reset to epoch time to ensure 0 duration
+    last_command_start = std::chrono::high_resolution_clock::time_point{};
+    last_command_end = std::chrono::high_resolution_clock::time_point{};
 }
 
 long long CommandInfo::get_last_command_duration_ms() {
-  if (timing_active) {
-    auto now = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-               now - last_command_start)
-        .count();
-  } else {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-               last_command_end - last_command_start)
-        .count();
-  }
+    if (timing_active) {
+        auto now = std::chrono::high_resolution_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   now - last_command_start)
+            .count();
+    } else {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   last_command_end - last_command_start)
+            .count();
+    }
 }
 
 std::string CommandInfo::get_formatted_duration() {
-  long long ms = get_last_command_duration_ms();
-  return format_duration(ms);
+    long long ms = get_last_command_duration_ms();
+    return format_duration(ms);
 }
 
 bool CommandInfo::should_show_duration() {
-  return get_last_command_duration_ms() >= min_time_threshold;
+    return get_last_command_duration_ms() >= min_time_threshold;
 }
 
 int CommandInfo::get_last_exit_code() {
-  const char* status_env = getenv("?");
-  return status_env ? std::atoi(status_env) : 0;
+    const char* status_env = getenv("?");
+    return status_env ? std::atoi(status_env) : 0;
 }
 
 std::string CommandInfo::get_exit_status_symbol() {
-  int exit_code = get_last_exit_code();
-  if (exit_code == 0) {
-    return "✓";
-  } else {
-    return "✗";
-  }
+    int exit_code = get_last_exit_code();
+    if (exit_code == 0) {
+        return "✓";
+    } else {
+        return "✗";
+    }
 }
 
 bool CommandInfo::is_last_command_success() {
-  return get_last_exit_code() == 0;
+    return get_last_exit_code() == 0;
 }
 
 void CommandInfo::set_min_time_threshold(int milliseconds) {
-  min_time_threshold = milliseconds;
+    min_time_threshold = milliseconds;
 }
 
 void CommandInfo::set_show_milliseconds(bool show) {
-  show_milliseconds = show;
+    show_milliseconds = show;
 }
 
 void CommandInfo::set_initial_duration(long long milliseconds) {
-  // Set the timing to simulate a completed command with the given duration
-  timing_active = false;
-  auto now = std::chrono::high_resolution_clock::now();
-  last_command_end = now;
-  last_command_start = now - std::chrono::milliseconds(milliseconds);
+    // Set the timing to simulate a completed command with the given duration
+    timing_active = false;
+    auto now = std::chrono::high_resolution_clock::now();
+    last_command_end = now;
+    last_command_start = now - std::chrono::milliseconds(milliseconds);
 }
 
 std::string CommandInfo::format_duration(long long milliseconds) {
-  std::ostringstream oss;
+    std::ostringstream oss;
 
-  // For times less than 1 second, show milliseconds
-  if (milliseconds < 1000) {
-    oss << milliseconds << "ms";
-  }
-  // For times less than 10 seconds, show seconds with decimal precision
-  else if (milliseconds < 10000) {
-    double seconds = milliseconds / 1000.0;
-    oss << std::fixed << std::setprecision(2) << seconds << "s";
-  }
-  // For times less than 1 minute, show seconds with 1 decimal place
-  else if (milliseconds < 60000) {
-    double seconds = milliseconds / 1000.0;
-    oss << std::fixed << std::setprecision(1) << seconds << "s";
-  }
-  // For times less than 1 hour, show minutes and seconds
-  else if (milliseconds < 3600000) {
-    int minutes = milliseconds / 60000;
-    int seconds = (milliseconds % 60000) / 1000;
-    oss << minutes << "m " << seconds << "s";
-  }
-  // For times 1 hour or longer, show hours, minutes, and seconds
-  else {
-    int hours = milliseconds / 3600000;
-    int minutes = (milliseconds % 3600000) / 60000;
-    int seconds = (milliseconds % 60000) / 1000;
-    oss << hours << "h " << minutes << "m " << seconds << "s";
-  }
+    // For times less than 1 second, show milliseconds
+    if (milliseconds < 1000) {
+        oss << milliseconds << "ms";
+    }
+    // For times less than 10 seconds, show seconds with decimal precision
+    else if (milliseconds < 10000) {
+        double seconds = milliseconds / 1000.0;
+        oss << std::fixed << std::setprecision(2) << seconds << "s";
+    }
+    // For times less than 1 minute, show seconds with 1 decimal place
+    else if (milliseconds < 60000) {
+        double seconds = milliseconds / 1000.0;
+        oss << std::fixed << std::setprecision(1) << seconds << "s";
+    }
+    // For times less than 1 hour, show minutes and seconds
+    else if (milliseconds < 3600000) {
+        int minutes = milliseconds / 60000;
+        int seconds = (milliseconds % 60000) / 1000;
+        oss << minutes << "m " << seconds << "s";
+    }
+    // For times 1 hour or longer, show hours, minutes, and seconds
+    else {
+        int hours = milliseconds / 3600000;
+        int minutes = (milliseconds % 3600000) / 60000;
+        int seconds = (milliseconds % 60000) / 1000;
+        oss << hours << "h " << minutes << "m " << seconds << "s";
+    }
 
-  return oss.str();
+    return oss.str();
 }
 
 std::string CommandInfo::format_exit_code(int exit_code) {
-  if (exit_code == 0) {
-    return "";
-  } else {
-    return "[" + std::to_string(exit_code) + "]";
-  }
+    if (exit_code == 0) {
+        return "";
+    } else {
+        return "[" + std::to_string(exit_code) + "]";
+    }
 }

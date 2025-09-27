@@ -130,381 +130,383 @@ SS3:   ESC 'O' 1 ';' modifiers [A-Za-z]
 //-------------------------------------------------------------
 
 static code_t esc_decode_vt(uint32_t vt_code) {
-  switch (vt_code) {
-    case 1:
-      return KEY_HOME;
-    case 2:
-      return KEY_INS;
-    case 3:
-      return KEY_DEL;
-    case 4:
-      return KEY_END;
-    case 5:
-      return KEY_PAGEUP;
-    case 6:
-      return KEY_PAGEDOWN;
-    case 7:
-      return KEY_HOME;
-    case 8:
-      return KEY_END;
-    default:
-      if (vt_code >= 10 && vt_code <= 15)
-        return KEY_F(1 + (vt_code - 10));
-      if (vt_code == 16)
-        return KEY_F5;  // minicom
-      if (vt_code >= 17 && vt_code <= 21)
-        return KEY_F(6 + (vt_code - 17));
-      if (vt_code >= 23 && vt_code <= 26)
-        return KEY_F(11 + (vt_code - 23));
-      if (vt_code >= 28 && vt_code <= 29)
-        return KEY_F(15 + (vt_code - 28));
-      if (vt_code >= 31 && vt_code <= 34)
-        return KEY_F(17 + (vt_code - 31));
-  }
-  return KEY_NONE;
+    switch (vt_code) {
+        case 1:
+            return KEY_HOME;
+        case 2:
+            return KEY_INS;
+        case 3:
+            return KEY_DEL;
+        case 4:
+            return KEY_END;
+        case 5:
+            return KEY_PAGEUP;
+        case 6:
+            return KEY_PAGEDOWN;
+        case 7:
+            return KEY_HOME;
+        case 8:
+            return KEY_END;
+        default:
+            if (vt_code >= 10 && vt_code <= 15)
+                return KEY_F(1 + (vt_code - 10));
+            if (vt_code == 16)
+                return KEY_F5;  // minicom
+            if (vt_code >= 17 && vt_code <= 21)
+                return KEY_F(6 + (vt_code - 17));
+            if (vt_code >= 23 && vt_code <= 26)
+                return KEY_F(11 + (vt_code - 23));
+            if (vt_code >= 28 && vt_code <= 29)
+                return KEY_F(15 + (vt_code - 28));
+            if (vt_code >= 31 && vt_code <= 34)
+                return KEY_F(17 + (vt_code - 31));
+    }
+    return KEY_NONE;
 }
 
 static code_t esc_decode_xterm(uint8_t xcode) {
-  // ESC [
-  switch (xcode) {
-    case 'A':
-      return KEY_UP;
-    case 'B':
-      return KEY_DOWN;
-    case 'C':
-      return KEY_RIGHT;
-    case 'D':
-      return KEY_LEFT;
-    case 'E':
-      return '5';  // numpad 5
-    case 'F':
-      return KEY_END;
-    case 'H':
-      return KEY_HOME;
-    case 'Z':
-      return KEY_TAB | KEY_MOD_SHIFT;
-    // Freebsd:
-    case 'I':
-      return KEY_PAGEUP;
-    case 'L':
-      return KEY_INS;
-    case 'M':
-      return KEY_F1;
-    case 'N':
-      return KEY_F2;
-    case 'O':
-      return KEY_F3;
-    case 'P':
-      return KEY_F4;  // note: differs from
-                      // <https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences>
-    case 'Q':
-      return KEY_F5;
-    case 'R':
-      return KEY_F6;
-    case 'S':
-      return KEY_F7;
-    case 'T':
-      return KEY_F8;
-    case 'U':
-      return KEY_PAGEDOWN;  // Mach
-    case 'V':
-      return KEY_PAGEUP;  // Mach
-    case 'W':
-      return KEY_F11;
-    case 'X':
-      return KEY_F12;
-    case 'Y':
-      return KEY_END;  // Mach
-  }
-  return KEY_NONE;
+    // ESC [
+    switch (xcode) {
+        case 'A':
+            return KEY_UP;
+        case 'B':
+            return KEY_DOWN;
+        case 'C':
+            return KEY_RIGHT;
+        case 'D':
+            return KEY_LEFT;
+        case 'E':
+            return '5';  // numpad 5
+        case 'F':
+            return KEY_END;
+        case 'H':
+            return KEY_HOME;
+        case 'Z':
+            return KEY_TAB | KEY_MOD_SHIFT;
+        // Freebsd:
+        case 'I':
+            return KEY_PAGEUP;
+        case 'L':
+            return KEY_INS;
+        case 'M':
+            return KEY_F1;
+        case 'N':
+            return KEY_F2;
+        case 'O':
+            return KEY_F3;
+        case 'P':
+            return KEY_F4;  // note: differs from
+                            // <https://en.wikipedia.org/wiki/ANSI_escape_code#CSI_(Control_Sequence_Introducer)_sequences>
+        case 'Q':
+            return KEY_F5;
+        case 'R':
+            return KEY_F6;
+        case 'S':
+            return KEY_F7;
+        case 'T':
+            return KEY_F8;
+        case 'U':
+            return KEY_PAGEDOWN;  // Mach
+        case 'V':
+            return KEY_PAGEUP;  // Mach
+        case 'W':
+            return KEY_F11;
+        case 'X':
+            return KEY_F12;
+        case 'Y':
+            return KEY_END;  // Mach
+    }
+    return KEY_NONE;
 }
 
 static code_t esc_decode_ss3(uint8_t ss3_code) {
-  // ESC O
-  switch (ss3_code) {
-    case 'A':
-      return KEY_UP;
-    case 'B':
-      return KEY_DOWN;
-    case 'C':
-      return KEY_RIGHT;
-    case 'D':
-      return KEY_LEFT;
-    case 'E':
-      return '5';  // numpad 5
-    case 'F':
-      return KEY_END;
-    case 'H':
-      return KEY_HOME;
-    case 'I':
-      return KEY_TAB;
-    case 'Z':
-      return KEY_TAB | KEY_MOD_SHIFT;
-    case 'M':
-      return KEY_LINEFEED;
-    case 'P':
-      return KEY_F1;
-    case 'Q':
-      return KEY_F2;
-    case 'R':
-      return KEY_F3;
-    case 'S':
-      return KEY_F4;
-    // on Mach
-    case 'T':
-      return KEY_F5;
-    case 'U':
-      return KEY_F6;
-    case 'V':
-      return KEY_F7;
-    case 'W':
-      return KEY_F8;
-    case 'X':
-      return KEY_F9;  // '=' on vt220
-    case 'Y':
-      return KEY_F10;
-    // numpad
-    case 'a':
-      return KEY_UP;
-    case 'b':
-      return KEY_DOWN;
-    case 'c':
-      return KEY_RIGHT;
-    case 'd':
-      return KEY_LEFT;
-    case 'j':
-      return '*';
-    case 'k':
-      return '+';
-    case 'l':
-      return ',';
-    case 'm':
-      return '-';
-    case 'n':
-      return KEY_DEL;  // '.'
-    case 'o':
-      return '/';
-    case 'p':
-      return KEY_INS;
-    case 'q':
-      return KEY_END;
-    case 'r':
-      return KEY_DOWN;
-    case 's':
-      return KEY_PAGEDOWN;
-    case 't':
-      return KEY_LEFT;
-    case 'u':
-      return '5';
-    case 'v':
-      return KEY_RIGHT;
-    case 'w':
-      return KEY_HOME;
-    case 'x':
-      return KEY_UP;
-    case 'y':
-      return KEY_PAGEUP;
-  }
-  return KEY_NONE;
+    // ESC O
+    switch (ss3_code) {
+        case 'A':
+            return KEY_UP;
+        case 'B':
+            return KEY_DOWN;
+        case 'C':
+            return KEY_RIGHT;
+        case 'D':
+            return KEY_LEFT;
+        case 'E':
+            return '5';  // numpad 5
+        case 'F':
+            return KEY_END;
+        case 'H':
+            return KEY_HOME;
+        case 'I':
+            return KEY_TAB;
+        case 'Z':
+            return KEY_TAB | KEY_MOD_SHIFT;
+        case 'M':
+            return KEY_LINEFEED;
+        case 'P':
+            return KEY_F1;
+        case 'Q':
+            return KEY_F2;
+        case 'R':
+            return KEY_F3;
+        case 'S':
+            return KEY_F4;
+        // on Mach
+        case 'T':
+            return KEY_F5;
+        case 'U':
+            return KEY_F6;
+        case 'V':
+            return KEY_F7;
+        case 'W':
+            return KEY_F8;
+        case 'X':
+            return KEY_F9;  // '=' on vt220
+        case 'Y':
+            return KEY_F10;
+        // numpad
+        case 'a':
+            return KEY_UP;
+        case 'b':
+            return KEY_DOWN;
+        case 'c':
+            return KEY_RIGHT;
+        case 'd':
+            return KEY_LEFT;
+        case 'j':
+            return '*';
+        case 'k':
+            return '+';
+        case 'l':
+            return ',';
+        case 'm':
+            return '-';
+        case 'n':
+            return KEY_DEL;  // '.'
+        case 'o':
+            return '/';
+        case 'p':
+            return KEY_INS;
+        case 'q':
+            return KEY_END;
+        case 'r':
+            return KEY_DOWN;
+        case 's':
+            return KEY_PAGEDOWN;
+        case 't':
+            return KEY_LEFT;
+        case 'u':
+            return '5';
+        case 'v':
+            return KEY_RIGHT;
+        case 'w':
+            return KEY_HOME;
+        case 'x':
+            return KEY_UP;
+        case 'y':
+            return KEY_PAGEUP;
+    }
+    return KEY_NONE;
 }
 
 static void tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num,
                              long esc_timeout) {
-  *num = 1;  // default
-  ssize_t count = 0;
-  uint32_t i = 0;
-  while (*ppeek >= '0' && *ppeek <= '9' && count < 16) {
-    uint8_t digit = *ppeek - '0';
-    if (!tty_readc_noblock(tty, ppeek, esc_timeout))
-      break;  // peek is not modified in this case
-    count++;
-    i = 10 * i + digit;
-  }
-  if (count > 0)
-    *num = i;
+    *num = 1;  // default
+    ssize_t count = 0;
+    uint32_t i = 0;
+    while (*ppeek >= '0' && *ppeek <= '9' && count < 16) {
+        uint8_t digit = *ppeek - '0';
+        if (!tty_readc_noblock(tty, ppeek, esc_timeout))
+            break;  // peek is not modified in this case
+        count++;
+        i = 10 * i + digit;
+    }
+    if (count > 0)
+        *num = i;
 }
 
 static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0,
                            long esc_timeout) {
-  // CSI starts with 0x9b (c1=='[') | ESC [ (c1=='[') | ESC [Oo?] (c1 == 'O') /*
-  // = SS3 */
+    // CSI starts with 0x9b (c1=='[') | ESC [ (c1=='[') | ESC [Oo?] (c1 == 'O')
+    // /* = SS3 */
 
-  // check for extra starter '[' (Linux sends ESC [ [ 15 ~  for F5 for example)
-  if (c1 == '[' && strchr("[Oo", (char)peek) != NULL) {
-    uint8_t cx = peek;
-    if (tty_readc_noblock(tty, &peek, esc_timeout)) {
-      c1 = cx;
+    // check for extra starter '[' (Linux sends ESC [ [ 15 ~  for F5 for
+    // example)
+    if (c1 == '[' && strchr("[Oo", (char)peek) != NULL) {
+        uint8_t cx = peek;
+        if (tty_readc_noblock(tty, &peek, esc_timeout)) {
+            c1 = cx;
+        }
     }
-  }
 
-  // "special" characters ('?' is used for private sequences)
-  uint8_t special = 0;
-  if (strchr(":<=>?", (char)peek) != NULL) {
-    special = peek;
-    if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
-      tty_cpush_char(tty, special);            // recover
-      return (key_unicode(c1) | KEY_MOD_ALT);  // Alt+<anychar>
+    // "special" characters ('?' is used for private sequences)
+    uint8_t special = 0;
+    if (strchr(":<=>?", (char)peek) != NULL) {
+        special = peek;
+        if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
+            tty_cpush_char(tty, special);            // recover
+            return (key_unicode(c1) | KEY_MOD_ALT);  // Alt+<anychar>
+        }
     }
-  }
 
-  // up to 2 parameters that default to 1
-  uint32_t num1 = 1;
-  uint32_t num2 = 1;
-  tty_read_csi_num(tty, &peek, &num1, esc_timeout);
-  if (peek == ';') {
-    if (!tty_readc_noblock(tty, &peek, esc_timeout))
-      return KEY_NONE;
-    tty_read_csi_num(tty, &peek, &num2, esc_timeout);
-  }
+    // up to 2 parameters that default to 1
+    uint32_t num1 = 1;
+    uint32_t num2 = 1;
+    tty_read_csi_num(tty, &peek, &num1, esc_timeout);
+    if (peek == ';') {
+        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+            return KEY_NONE;
+        tty_read_csi_num(tty, &peek, &num2, esc_timeout);
+    }
 
-  // the final character (we do not allow 'intermediate characters')
-  uint8_t final = peek;
-  code_t modifiers = mods0;
+    // the final character (we do not allow 'intermediate characters')
+    uint8_t final = peek;
+    code_t modifiers = mods0;
 
-  debug_msg("tty: escape sequence: ESC %c %c %d;%d %c\n", c1,
-            (special == 0 ? '_' : special), num1, num2, final);
+    debug_msg("tty: escape sequence: ESC %c %c %d;%d %c\n", c1,
+              (special == 0 ? '_' : special), num1, num2, final);
 
-  // Adjust special cases into standard ones.
-  if ((final == '@' || final == '9') && c1 == '[' && num1 == 1) {
-    // ESC [ @, ESC [ 9  : on Mach
-    if (final == '@')
-      num1 = 3;  // DEL
-    else if (final == '9')
-      num1 = 2;  // INS
-    final = '~';
-  } else if (final == '^' || final == '$' || final == '@') {
-    // Eterm/rxvt/urxt
-    if (final == '^')
-      modifiers |= KEY_MOD_CTRL;
-    if (final == '$')
-      modifiers |= KEY_MOD_SHIFT;
-    if (final == '@')
-      modifiers |= KEY_MOD_SHIFT | KEY_MOD_CTRL;
-    final = '~';
-  } else if (c1 == '[' && final >= 'a' &&
-             final <= 'd') {  // note: do not catch ESC [ .. u  (for unicode)
-    // ESC [ [a-d]  : on Eterm for shift+ cursor
-    modifiers |= KEY_MOD_SHIFT;
-    final = 'A' + (final - 'a');
-  }
+    // Adjust special cases into standard ones.
+    if ((final == '@' || final == '9') && c1 == '[' && num1 == 1) {
+        // ESC [ @, ESC [ 9  : on Mach
+        if (final == '@')
+            num1 = 3;  // DEL
+        else if (final == '9')
+            num1 = 2;  // INS
+        final = '~';
+    } else if (final == '^' || final == '$' || final == '@') {
+        // Eterm/rxvt/urxt
+        if (final == '^')
+            modifiers |= KEY_MOD_CTRL;
+        if (final == '$')
+            modifiers |= KEY_MOD_SHIFT;
+        if (final == '@')
+            modifiers |= KEY_MOD_SHIFT | KEY_MOD_CTRL;
+        final = '~';
+    } else if (c1 == '[' && final >= 'a' &&
+               final <= 'd') {  // note: do not catch ESC [ .. u  (for unicode)
+        // ESC [ [a-d]  : on Eterm for shift+ cursor
+        modifiers |= KEY_MOD_SHIFT;
+        final = 'A' + (final - 'a');
+    }
 
-  if (((c1 == 'O') || (c1 == '[' && final != '~' && final != 'u')) &&
-      (num2 == 1 && num1 > 1 && num1 <= 8)) {
-    // on haiku the modifier can be parameter 1, make it parameter 2 instead
-    num2 = num1;
-    num1 = 1;
-  }
+    if (((c1 == 'O') || (c1 == '[' && final != '~' && final != 'u')) &&
+        (num2 == 1 && num1 > 1 && num1 <= 8)) {
+        // on haiku the modifier can be parameter 1, make it parameter 2 instead
+        num2 = num1;
+        num1 = 1;
+    }
 
-  // parameter 2 determines the modifiers
-  if (num2 > 1 && num2 <= 9) {
-    if (num2 == 9)
-      num2 = 3;  // iTerm2 in xterm mode
-    num2--;
-    if (num2 & 0x1)
-      modifiers |= KEY_MOD_SHIFT;
-    if (num2 & 0x2)
-      modifiers |= KEY_MOD_ALT;
-    if (num2 & 0x4)
-      modifiers |= KEY_MOD_CTRL;
-  }
+    // parameter 2 determines the modifiers
+    if (num2 > 1 && num2 <= 9) {
+        if (num2 == 9)
+            num2 = 3;  // iTerm2 in xterm mode
+        num2--;
+        if (num2 & 0x1)
+            modifiers |= KEY_MOD_SHIFT;
+        if (num2 & 0x2)
+            modifiers |= KEY_MOD_ALT;
+        if (num2 & 0x4)
+            modifiers |= KEY_MOD_CTRL;
+    }
 
-  // and translate
-  code_t code = KEY_NONE;
-  if (final == '~') {
-    // vt codes
-    code = esc_decode_vt(num1);
-  } else if (c1 == '[' && final == 'u') {
-    // unicode
-    code = key_unicode(num1);
-  } else if (c1 == 'O' && ((final >= 'A' && final <= 'Z') ||
-                           (final >= 'a' && final <= 'z'))) {
-    // ss3
-    code = esc_decode_ss3(final);
-  } else if (num1 == 1 && final >= 'A' && final <= 'Z') {
-    // xterm
-    code = esc_decode_xterm(final);
-  } else if (c1 == '[' && final == 'R') {
-    // cursor position
-    code = KEY_NONE;
-  }
+    // and translate
+    code_t code = KEY_NONE;
+    if (final == '~') {
+        // vt codes
+        code = esc_decode_vt(num1);
+    } else if (c1 == '[' && final == 'u') {
+        // unicode
+        code = key_unicode(num1);
+    } else if (c1 == 'O' && ((final >= 'A' && final <= 'Z') ||
+                             (final >= 'a' && final <= 'z'))) {
+        // ss3
+        code = esc_decode_ss3(final);
+    } else if (num1 == 1 && final >= 'A' && final <= 'Z') {
+        // xterm
+        code = esc_decode_xterm(final);
+    } else if (c1 == '[' && final == 'R') {
+        // cursor position
+        code = KEY_NONE;
+    }
 
-  if (code == KEY_NONE && final != 'R') {
-    debug_msg("tty: ignore escape sequence: ESC %c %zu;%zu %c\n", c1, num1,
-              num2, final);
-  }
-  return (code != KEY_NONE ? (code | modifiers) : KEY_NONE);
+    if (code == KEY_NONE && final != 'R') {
+        debug_msg("tty: ignore escape sequence: ESC %c %zu;%zu %c\n", c1, num1,
+                  num2, final);
+    }
+    return (code != KEY_NONE ? (code | modifiers) : KEY_NONE);
 }
 
 static code_t tty_read_osc(tty_t* tty, uint8_t* ppeek, long esc_timeout) {
-  debug_msg("discard OSC response..\n");
-  // keep reading until termination: OSC is terminated by BELL, or ESC \ (ST)
-  // (and STX)
-  while (true) {
-    uint8_t c = *ppeek;
-    if (c <= '\x07') {  // BELL and anything below (STX, ^C, ^D)
-      if (c != '\x07') {
-        tty_cpush_char(tty, c);
-      }
-      break;
-    } else if (c == '\x1B') {
-      uint8_t c1;
-      if (!tty_readc_noblock(tty, &c1, esc_timeout))
-        break;
-      if (c1 == '\\')
-        break;
-      tty_cpush_char(tty, c1);
+    debug_msg("discard OSC response..\n");
+    // keep reading until termination: OSC is terminated by BELL, or ESC \ (ST)
+    // (and STX)
+    while (true) {
+        uint8_t c = *ppeek;
+        if (c <= '\x07') {  // BELL and anything below (STX, ^C, ^D)
+            if (c != '\x07') {
+                tty_cpush_char(tty, c);
+            }
+            break;
+        } else if (c == '\x1B') {
+            uint8_t c1;
+            if (!tty_readc_noblock(tty, &c1, esc_timeout))
+                break;
+            if (c1 == '\\')
+                break;
+            tty_cpush_char(tty, c1);
+        }
+        if (!tty_readc_noblock(tty, ppeek, esc_timeout))
+            break;
     }
-    if (!tty_readc_noblock(tty, ppeek, esc_timeout))
-      break;
-  }
-  return KEY_NONE;
+    return KEY_NONE;
 }
 
 ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout,
                                long esc_timeout) {
-  code_t mods = 0;
-  uint8_t peek = 0;
+    code_t mods = 0;
+    uint8_t peek = 0;
 
-  // lone ESC?
-  if (!tty_readc_noblock(tty, &peek, esc_initial_timeout))
-    return KEY_ESC;
+    // lone ESC?
+    if (!tty_readc_noblock(tty, &peek, esc_initial_timeout))
+        return KEY_ESC;
 
-  // treat ESC ESC as Alt modifier (macOS sends ESC ESC [ [A-D] for
-  // alt-<cursor>)
-  if (peek == KEY_ESC) {
-    if (!tty_readc_noblock(tty, &peek, esc_timeout))
-      goto alt;
-    mods |= KEY_MOD_ALT;
-  }
-
-  // CSI ?
-  if (peek == '[') {
-    if (!tty_readc_noblock(tty, &peek, esc_timeout))
-      goto alt;
-    return tty_read_csi(tty, '[', peek, mods, esc_timeout);  // ESC [ ...
-  }
-
-  // SS3?
-  if (peek == 'O' || peek == 'o' || peek == '?' /*vt52*/) {
-    uint8_t c1 = peek;
-    if (!tty_readc_noblock(tty, &peek, esc_timeout))
-      goto alt;
-    if (c1 == 'o') {
-      // ETerm uses this for ctrl+<cursor>
-      mods |= KEY_MOD_CTRL;
+    // treat ESC ESC as Alt modifier (macOS sends ESC ESC [ [A-D] for
+    // alt-<cursor>)
+    if (peek == KEY_ESC) {
+        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+            goto alt;
+        mods |= KEY_MOD_ALT;
     }
-    // treat all as standard SS3 'O'
-    return tty_read_csi(tty, 'O', peek, mods, esc_timeout);  // ESC [Oo?] ...
-  }
 
-  // OSC: we may get a delayed query response; ensure it is ignored
-  if (peek == ']') {
-    if (!tty_readc_noblock(tty, &peek, esc_timeout))
-      goto alt;
-    return tty_read_osc(tty, &peek, esc_timeout);  // ESC ] ...
-  }
+    // CSI ?
+    if (peek == '[') {
+        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+            goto alt;
+        return tty_read_csi(tty, '[', peek, mods, esc_timeout);  // ESC [ ...
+    }
+
+    // SS3?
+    if (peek == 'O' || peek == 'o' || peek == '?' /*vt52*/) {
+        uint8_t c1 = peek;
+        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+            goto alt;
+        if (c1 == 'o') {
+            // ETerm uses this for ctrl+<cursor>
+            mods |= KEY_MOD_CTRL;
+        }
+        // treat all as standard SS3 'O'
+        return tty_read_csi(tty, 'O', peek, mods,
+                            esc_timeout);  // ESC [Oo?] ...
+    }
+
+    // OSC: we may get a delayed query response; ensure it is ignored
+    if (peek == ']') {
+        if (!tty_readc_noblock(tty, &peek, esc_timeout))
+            goto alt;
+        return tty_read_osc(tty, &peek, esc_timeout);  // ESC ] ...
+    }
 
 alt:
-  // Alt+<char>
-  return (key_unicode(peek) | KEY_MOD_ALT);  // ESC <anychar>
+    // Alt+<char>
+    return (key_unicode(peek) | KEY_MOD_ALT);  // ESC <anychar>
 }

@@ -11,8 +11,8 @@
 #include "isocline/common.h"
 
 typedef struct style_color_s {
-  const char* name;
-  ic_color_t color;
+    const char* name;
+    ic_color_t color;
 } style_color_t;
 
 #define IC_HTML_COLOR_COUNT (172)

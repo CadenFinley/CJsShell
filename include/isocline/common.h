@@ -53,10 +53,10 @@ typedef intptr_t ssize_t;
 
 #define ssizeof(tp) (ssize_t)(sizeof(tp))
 static inline size_t to_size_t(ssize_t sz) {
-  return (sz >= 0 ? (size_t)sz : 0);
+    return (sz >= 0 ? (size_t)sz : 0);
 }
 static inline ssize_t to_ssize_t(size_t sz) {
-  return (sz <= SIZE_MAX / 2 ? (ssize_t)sz : 0);
+    return (sz <= SIZE_MAX / 2 ? (ssize_t)sz : 0);
 }
 
 ic_private void ic_memmove(void* dest, const void* src, ssize_t n);
@@ -124,8 +124,8 @@ ic_private ic_color_t ic_rgbx(ssize_t r, ssize_t g, ssize_t b);
 
 #define IC_COLOR_NONE (0)
 #define IC_RGB(rgb) \
-  (0x1000000 |      \
-   (uint32_t)(rgb))  // ic_rgb(rgb)  // define to it can be used as a constant
+    (0x1000000 | (uint32_t)(rgb))  // ic_rgb(rgb)  // define to it can be used
+                                   // as a constant
 
 // ANSI colors.
 // The actual colors used is usually determined by the terminal theme
@@ -175,9 +175,9 @@ typedef struct ic_env_s ic_env_t;
 //-------------------------------------------------------------
 
 typedef struct alloc_s {
-  ic_malloc_fun_t* malloc;
-  ic_realloc_fun_t* realloc;
-  ic_free_fun_t* free;
+    ic_malloc_fun_t* malloc;
+    ic_realloc_fun_t* realloc;
+    ic_free_fun_t* free;
 } alloc_t;
 
 ic_private void* mem_malloc(alloc_t* mem, ssize_t sz);
@@ -191,6 +191,6 @@ ic_private char* mem_strndup(alloc_t* mem, const char* s, ssize_t n);
 #define mem_malloc_tp_n(mem, tp, n) (tp*)mem_malloc(mem, (n) * ssizeof(tp))
 #define mem_zalloc_tp_n(mem, tp, n) (tp*)mem_zalloc(mem, (n) * ssizeof(tp))
 #define mem_realloc_tp(mem, tp, p, n) \
-  (tp*)mem_realloc(mem, p, (n) * ssizeof(tp))
+    (tp*)mem_realloc(mem, p, (n) * ssizeof(tp))
 
 #endif  // IC_COMMON_H

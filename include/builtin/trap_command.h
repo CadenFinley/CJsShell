@@ -8,35 +8,35 @@
 class Shell;
 
 class TrapManager {
- public:
-  static TrapManager& instance();
+   public:
+    static TrapManager& instance();
 
-  void set_trap(int signal, const std::string& command);
+    void set_trap(int signal, const std::string& command);
 
-  void remove_trap(int signal);
+    void remove_trap(int signal);
 
-  std::string get_trap(int signal) const;
+    std::string get_trap(int signal) const;
 
-  void execute_trap(int signal);
+    void execute_trap(int signal);
 
-  std::vector<std::pair<int, std::string>> list_traps() const;
+    std::vector<std::pair<int, std::string>> list_traps() const;
 
-  void reset_all_traps();
+    void reset_all_traps();
 
-  bool has_trap(int signal) const;
+    bool has_trap(int signal) const;
 
-  void set_shell(Shell* shell);
+    void set_shell(Shell* shell);
 
-  void execute_exit_trap();
-  void execute_err_trap();
-  void execute_debug_trap();
-  void execute_return_trap();
+    void execute_exit_trap();
+    void execute_err_trap();
+    void execute_debug_trap();
+    void execute_return_trap();
 
- private:
-  TrapManager() = default;
-  std::unordered_map<int, std::string> traps;
-  Shell* shell_ref = nullptr;
-  bool exit_trap_executed = false;
+   private:
+    TrapManager() = default;
+    std::unordered_map<int, std::string> traps;
+    Shell* shell_ref = nullptr;
+    bool exit_trap_executed = false;
 };
 
 int signal_name_to_number(const std::string& signal_name);

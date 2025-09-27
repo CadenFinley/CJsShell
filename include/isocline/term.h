@@ -18,9 +18,9 @@ struct term_s;
 typedef struct term_s term_t;
 
 typedef enum buffer_mode_e {
-  UNBUFFERED,
-  LINEBUFFERED,
-  BUFFERED,
+    UNBUFFERED,
+    LINEBUFFERED,
+    BUFFERED,
 } buffer_mode_t;
 
 // Primitives

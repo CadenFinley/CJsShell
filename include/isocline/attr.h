@@ -24,15 +24,15 @@
 // note: order is important for some compilers
 // note: each color can actually be 25 bits
 typedef union attr_s {
-  struct {
-    unsigned int color : 28;
-    signed int bold : 2;
-    signed int reverse : 2;
-    unsigned int bgcolor : 28;
-    signed int underline : 2;
-    signed int italic : 2;
-  } x;
-  uint64_t value;
+    struct {
+        unsigned int color : 28;
+        signed int bold : 2;
+        signed int reverse : 2;
+        unsigned int bgcolor : 28;
+        signed int underline : 2;
+        signed int italic : 2;
+    } x;
+    uint64_t value;
 } attr_t;
 
 ic_private attr_t attr_none(void);

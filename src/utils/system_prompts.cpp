@@ -14,54 +14,54 @@ inline constexpr std::string_view COMMON_SYSTEM_PROMPT =
     "pipes, redirection, and background jobs.";
 
 std::string get_common_system_prompt() {
-  return std::string(COMMON_SYSTEM_PROMPT);
+    return std::string(COMMON_SYSTEM_PROMPT);
 }
 
 std::string build_system_prompt() {
-  std::stringstream prompt;
+    std::stringstream prompt;
 
-  const char* username = getenv("USER");
-  const char* hostname = getenv("HOSTNAME");
-  if (!hostname) {
-    hostname = getenv("HOST");
-  }
+    const char* username = getenv("USER");
+    const char* hostname = getenv("HOSTNAME");
+    if (!hostname) {
+        hostname = getenv("HOST");
+    }
 
-  std::time_t now = std::time(nullptr);
-  char time_buffer[80];
-  std::strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S",
-                std::localtime(&now));
+    std::time_t now = std::time(nullptr);
+    char time_buffer[80];
+    std::strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S",
+                  std::localtime(&now));
 
-  char date_buffer[80];
-  std::strftime(date_buffer, sizeof(date_buffer), "%Y-%m-%d",
-                std::localtime(&now));
+    char date_buffer[80];
+    std::strftime(date_buffer, sizeof(date_buffer), "%Y-%m-%d",
+                  std::localtime(&now));
 
-  prompt << get_common_system_prompt() << " ";
-  prompt << "Current context: ";
+    prompt << get_common_system_prompt() << " ";
+    prompt << "Current context: ";
 
-  if (username) {
-    prompt << "User: " << username << " ";
-  }
+    if (username) {
+        prompt << "User: " << username << " ";
+    }
 
-  if (hostname) {
-    prompt << "Machine: " << hostname << " ";
-  }
+    if (hostname) {
+        prompt << "Machine: " << hostname << " ";
+    }
 
-  prompt << "Time: " << time_buffer << " ";
-  prompt << "Date: " << date_buffer << " ";
+    prompt << "Time: " << time_buffer << " ";
+    prompt << "Date: " << date_buffer << " ";
 
-  prompt << "Shell: cjsh ";
+    prompt << "Shell: cjsh ";
 
-  const char* pwd = getenv("PWD");
-  if (pwd) {
-    prompt << "Directory: " << pwd << " ";
-  }
+    const char* pwd = getenv("PWD");
+    if (pwd) {
+        prompt << "Directory: " << pwd << " ";
+    }
 
-  const char* status = getenv("?");
-  if (status) {
-    prompt << "Last command status: " << status << " ";
-  }
+    const char* status = getenv("?");
+    if (status) {
+        prompt << "Last command status: " << status << " ";
+    }
 
-  return prompt.str();
+    return prompt.str();
 }
 
 inline constexpr std::string_view HELP_SYSTEM_PROMPT = R"(
@@ -91,12 +91,12 @@ When responding:
 )";
 
 std::string create_help_system_prompt() {
-  std::stringstream prompt;
+    std::stringstream prompt;
 
-  prompt << get_common_system_prompt() << "\n";
-  prompt << "Help users troubleshoot and fix issues with their commands or "
-            "shell usage.\n\n";
-  prompt << HELP_SYSTEM_PROMPT;
+    prompt << get_common_system_prompt() << "\n";
+    prompt << "Help users troubleshoot and fix issues with their commands or "
+              "shell usage.\n\n";
+    prompt << HELP_SYSTEM_PROMPT;
 
-  return prompt.str();
+    return prompt.str();
 }

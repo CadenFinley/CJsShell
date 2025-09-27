@@ -13,10 +13,10 @@ namespace colors {
 
 // Terminal color capability levels
 enum class ColorCapability {
-  NO_COLOR,         // Terminal doesn't support colors
-  BASIC_COLOR,      // Basic 8/16 ANSI colors
-  XTERM_256_COLOR,  // 256 color mode
-  TRUE_COLOR        // 24-bit true color (RGB)
+    NO_COLOR,         // Terminal doesn't support colors
+    BASIC_COLOR,      // Basic 8/16 ANSI colors
+    XTERM_256_COLOR,  // 256 color mode
+    TRUE_COLOR        // 24-bit true color (RGB)
 };
 
 // Global variable to store detected color capability
@@ -28,45 +28,45 @@ void initialize_color_support(bool enabled);
 
 // Color structure for RGB colors
 struct RGB {
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
 
-  constexpr RGB() noexcept : r(0), g(0), b(0) {
-  }
-  constexpr RGB(uint8_t r, uint8_t g, uint8_t b) noexcept : r(r), g(g), b(b) {
-  }
+    constexpr RGB() noexcept : r(0), g(0), b(0) {
+    }
+    constexpr RGB(uint8_t r, uint8_t g, uint8_t b) noexcept : r(r), g(g), b(b) {
+    }
 
-  // Operator overloads for color manipulation
-  constexpr RGB operator+(const RGB& other) const noexcept {
-    return RGB(std::min(255, int(r) + int(other.r)),
-               std::min(255, int(g) + int(other.g)),
-               std::min(255, int(b) + int(other.b)));
-  }
+    // Operator overloads for color manipulation
+    constexpr RGB operator+(const RGB& other) const noexcept {
+        return RGB(std::min(255, int(r) + int(other.r)),
+                   std::min(255, int(g) + int(other.g)),
+                   std::min(255, int(b) + int(other.b)));
+    }
 
-  constexpr RGB operator-(const RGB& other) const noexcept {
-    return RGB(std::max(0, int(r) - int(other.r)),
-               std::max(0, int(g) - int(other.g)),
-               std::max(0, int(b) - int(other.b)));
-  }
+    constexpr RGB operator-(const RGB& other) const noexcept {
+        return RGB(std::max(0, int(r) - int(other.r)),
+                   std::max(0, int(g) - int(other.g)),
+                   std::max(0, int(b) - int(other.b)));
+    }
 
-  constexpr RGB operator*(float factor) const noexcept {
-    return RGB(std::clamp(int(std::round(r * factor)), 0, 255),
-               std::clamp(int(std::round(g * factor)), 0, 255),
-               std::clamp(int(std::round(b * factor)), 0, 255));
-  }
+    constexpr RGB operator*(float factor) const noexcept {
+        return RGB(std::clamp(int(std::round(r * factor)), 0, 255),
+                   std::clamp(int(std::round(g * factor)), 0, 255),
+                   std::clamp(int(std::round(b * factor)), 0, 255));
+    }
 };
 
 // HSL (Hue, Saturation, Lightness) color model
 struct HSL {
-  float h;  // Hue [0-360]
-  float s;  // Saturation [0-1]
-  float l;  // Lightness [0-1]
+    float h;  // Hue [0-360]
+    float s;  // Saturation [0-1]
+    float l;  // Lightness [0-1]
 
-  constexpr HSL() noexcept : h(0), s(0), l(0) {
-  }
-  constexpr HSL(float h, float s, float l) noexcept : h(h), s(s), l(l) {
-  }
+    constexpr HSL() noexcept : h(0), s(0), l(0) {
+    }
+    constexpr HSL(float h, float s, float l) noexcept : h(h), s(s), l(l) {
+    }
 };
 
 // Color conversion functions
@@ -117,17 +117,19 @@ RGB blend(const RGB& color1, const RGB& color2, float factor);
 
 // Gradient structure for theme system
 struct GradientSpec {
-  RGB start;
-  RGB end;
-  std::string direction;  // "horizontal", "vertical", "diagonal"
+    RGB start;
+    RGB end;
+    std::string direction;  // "horizontal", "vertical", "diagonal"
 
-  GradientSpec()
-      : start(RGB(0, 0, 0)), end(RGB(255, 255, 255)), direction("horizontal") {
-  }
-  GradientSpec(const RGB& start_color, const RGB& end_color,
-               const std::string& dir = "horizontal")
-      : start(start_color), end(end_color), direction(dir) {
-  }
+    GradientSpec()
+        : start(RGB(0, 0, 0)),
+          end(RGB(255, 255, 255)),
+          direction("horizontal") {
+    }
+    GradientSpec(const RGB& start_color, const RGB& end_color,
+                 const std::string& dir = "horizontal")
+        : start(start_color), end(end_color), direction(dir) {
+    }
 };
 
 // Gradient generation
@@ -160,8 +162,8 @@ RGB get_color_by_name(const std::string& name);
 
 // Static color map
 struct NamedColor {
-  std::string_view name;
-  RGB color;
+    std::string_view name;
+    RGB color;
 };
 
 inline constexpr std::array<NamedColor, 16> g_basic_colors = {

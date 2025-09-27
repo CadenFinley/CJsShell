@@ -132,7 +132,7 @@ HeaderFilterRegex: '^/Users/cadenfinley/Documents/GitHub/CJsShell/(src|include)/
 WarningsAsErrors: false
 
 # Format style for fix suggestions
-FormatStyle: google
+FormatStyle: file
 
 # System headers to ignore
 SystemHeaders: false
