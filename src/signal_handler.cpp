@@ -209,6 +209,11 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             if (!is_observed) {
                 ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
                 (void)bytes_written;
+                
+                // In non-interactive mode, exit immediately with proper signal code
+                if (!config::interactive_mode) {
+                    exit(128 + SIGINT);  // 128 + 2 = 130
+                }
             }
             break;
         }
@@ -222,7 +227,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             s_sighup_received = 1;
 
             if (!is_observed) {
-                exit(0);
+                exit(128 + SIGHUP);  // 128 + 1 = 129
             }
             break;
         }
@@ -231,7 +236,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             s_sigterm_received = 1;
 
             if (!is_observed) {
-                exit(0);
+                exit(128 + SIGTERM);  // 128 + 15 = 143
             }
             break;
         }

@@ -116,10 +116,10 @@ fi
 # Test 9: Exit with invalid argument (non-numeric)
 log_test "Exit with invalid argument"
 "$SHELL_TO_TEST" -c "exit abc" 2>/dev/null
-if [ $? -eq 0 ]; then
+if [ $? -eq 128 ]; then
     pass
 else
-    fail "Exit with invalid argument should ignore and return 0, got $?"
+    fail "Exit with invalid argument should return 128, got $?"
 fi
 
 # Test 10: Exit within script execution

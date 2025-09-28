@@ -24,6 +24,9 @@ int exit_command(const std::vector<std::string>& args) {
                 break;
             } else {
                 // Invalid numeric argument
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Invalid exit argument: " << val << std::endl;
+                }
                 g_exit_flag = true;
                 setenv("EXIT_CODE", "128", 1);
                 return 0;
