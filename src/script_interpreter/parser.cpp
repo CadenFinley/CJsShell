@@ -1868,6 +1868,24 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 std::cerr << "DEBUG: Command validation failed for: " << cmd.args[0] << std::endl;
             }
             
+            // Check if this command is in our cache but no longer exists (stale entry)
+            if (cjsh_filesystem::is_executable_in_cache(cmd.args[0])) {
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Command '" << cmd.args[0] << "' found in cache during validation, checking if stale..." << std::endl;
+                }
+                // Double-check that it really doesn't exist in PATH
+                std::string full_path = cjsh_filesystem::find_executable_in_path(cmd.args[0]);
+                if (full_path.empty()) {
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: Removing stale cache entry during validation: " 
+                                  << cmd.args[0] << std::endl;
+                    }
+                    cjsh_filesystem::remove_executable_from_cache(cmd.args[0]);
+                } else if (g_debug_mode) {
+                    std::cerr << "DEBUG: Command '" << cmd.args[0] << "' found in PATH during validation: " << full_path << std::endl;
+                }
+            }
+            
             // Throw a runtime error with the command name that will be caught by the shell's error handling
             // The shell will generate proper suggestions in the error report
             throw std::runtime_error("command not found: " + cmd.args[0]);

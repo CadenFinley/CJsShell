@@ -18,6 +18,7 @@
 
 #include "builtin.h"
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "job_control.h"
 #include "performance.h"
@@ -552,6 +553,76 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     set_error(exit_result.type, args[0], exit_result.message,
               exit_result.suggestions);
     last_exit_code = exit_code;
+    
+    // Auto-update executable cache for successful external commands
+    if (exit_code == 0 && !cmd_args.empty()) {
+        const std::string& command_name = cmd_args[0];
+        
+        // Extract basename if command_name is a full path
+        std::string basename_command;
+        size_t last_slash = command_name.find_last_of('/');
+        if (last_slash != std::string::npos) {
+            basename_command = command_name.substr(last_slash + 1);
+        } else {
+            basename_command = command_name;
+        }
+        
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Checking cache update for external command: " << command_name;
+            if (basename_command != command_name) {
+                std::cerr << " (basename: " << basename_command << ")";
+            }
+            std::cerr << " with exit code: " << exit_code << std::endl;
+        }
+        
+        // Only add to cache if it's not already there
+        bool already_in_cache = cjsh_filesystem::is_executable_in_cache(basename_command);
+        
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: External command '" << basename_command 
+                      << "' already_in_cache: " << (already_in_cache ? "true" : "false") << std::endl;
+        }
+        
+        if (!already_in_cache) {
+            // Find the full path of the command using the basename
+            std::string full_path = cjsh_filesystem::find_executable_in_path(basename_command);
+            
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Found full path for '" << basename_command 
+                          << "': " << (full_path.empty() ? "EMPTY" : full_path) << std::endl;
+            }
+            
+            if (!full_path.empty()) {
+                cjsh_filesystem::add_executable_to_cache(basename_command, full_path);
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Added new executable '" << basename_command 
+                              << "' to cache after successful execution" << std::endl;
+                }
+            }
+        } else if (g_debug_mode) {
+            std::cerr << "DEBUG: Skipping cache update - '" << basename_command 
+                      << "' already in cache" << std::endl;
+        }
+    } else if (exit_code == 127 && !cmd_args.empty()) {
+        // Command not found - might be a stale cache entry
+        const std::string& command_name = cmd_args[0];
+        
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Command not found: " << command_name 
+                      << " - checking if it's a stale cache entry" << std::endl;
+        }
+        
+        if (cjsh_filesystem::is_executable_in_cache(command_name)) {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Removing stale cache entry for: " << command_name << std::endl;
+            }
+            cjsh_filesystem::remove_executable_from_cache(command_name);
+        }
+    } else if (g_debug_mode) {
+        std::cerr << "DEBUG: Skipping cache update - exit_code=" << exit_code 
+                  << ", cmd_args.empty()=" << (cmd_args.empty() ? "true" : "false") << std::endl;
+    }
+    
     return exit_code;
 }
 

@@ -199,11 +199,26 @@ const fs::path g_cjsh_found_executables_path =
     "cached_executables.cache";  // where the found executables are stored for
                                  // syntax highlighting and completions
 
+const fs::path g_cjsh_path_hash_cache_path =
+    g_cjsh_cache_path / "path_hash.cache";  // where the PATH hash is stored for
+                                            // auto-updating executable cache
+
 std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();
 bool file_exists(const cjsh_filesystem::fs::path& path);
 bool should_refresh_executable_cache();
 bool initialize_cjsh_path();
+
+// Auto-updating executable cache functions
+void add_executable_to_cache(const std::string& executable_name, const std::string& full_path);
+void remove_executable_from_cache(const std::string& executable_name);
+void invalidate_executable_cache();
+bool is_executable_in_cache(const std::string& executable_name);
+void set_last_path_hash(const std::string& path_hash);
+std::string get_current_path_hash();
+bool has_path_changed();
+void cleanup_stale_cache_entries();
+void notify_cache_systems_of_update();
 bool initialize_cjsh_directories();
 std::filesystem::path get_cjsh_path();
 std::string find_executable_in_path(const std::string& name);

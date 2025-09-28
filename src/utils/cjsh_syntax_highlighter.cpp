@@ -39,6 +39,13 @@ void SyntaxHighlighter::initialize() {
     }
 }
 
+void SyntaxHighlighter::refresh_executables_cache() {
+    external_executables_.clear();
+    for (const auto& e : cjsh_filesystem::read_cached_executables()) {
+        external_executables_.insert(e.filename().string());
+    }
+}
+
 bool SyntaxHighlighter::is_shell_keyword(const std::string& token) {
     return shell_keywords_.count(token) > 0;
 }

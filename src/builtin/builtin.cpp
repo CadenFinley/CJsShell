@@ -8,6 +8,7 @@
 #include <iomanip>
 
 #include "ai_command.h"
+#include "cjsh_filesystem.h"
 #include "aihelp_command.h"
 #include "alias_command.h"
 #include "approot_command.h"
@@ -350,6 +351,31 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
         return status;
     }
     auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+    
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: Command not found in builtins: " << args[0] << std::endl;
+    }
+    
+    // Check if this command is in our cache but no longer exists (stale entry)
+    if (cjsh_filesystem::is_executable_in_cache(args[0])) {
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Command '" << args[0] << "' found in cache, checking if stale..." << std::endl;
+        }
+        // Double-check that it really doesn't exist in PATH
+        std::string full_path = cjsh_filesystem::find_executable_in_path(args[0]);
+        if (full_path.empty()) {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Removing stale cache entry for command not found: " 
+                          << args[0] << std::endl;
+            }
+            cjsh_filesystem::remove_executable_from_cache(args[0]);
+        } else if (g_debug_mode) {
+            std::cerr << "DEBUG: Command '" << args[0] << "' found in PATH: " << full_path << std::endl;
+        }
+    } else if (g_debug_mode) {
+        std::cerr << "DEBUG: Command '" << args[0] << "' not in cache" << std::endl;
+    }
+    
     ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0],
                        "command not found", suggestions};
     print_error(error);
