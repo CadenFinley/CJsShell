@@ -38,4 +38,8 @@ ic_private bool history_search(const history_t* h, ssize_t from,
                                const char* search, bool backward, ssize_t* hidx,
                                ssize_t* hpos);
 
+ic_private bool history_search_prefix(const history_t* h, ssize_t from,
+                                      const char* prefix, bool backward,
+                                      ssize_t* hidx);
+
 #endif  // IC_HISTORY_H

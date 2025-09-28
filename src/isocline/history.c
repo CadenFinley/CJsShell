@@ -155,6 +155,55 @@ ic_private bool history_search(const history_t* h, ssize_t from /*including*/,
     return true;
 }
 
+ic_private bool history_search_prefix(const history_t* h,
+                                      ssize_t from /*including*/,
+                                      const char* prefix, bool backward,
+                                      ssize_t* hidx) {
+    if (prefix == NULL || h == NULL)
+        return false;
+
+    const size_t prefix_len = strlen(prefix);
+    if (prefix_len == 0) {
+        // Empty prefix matches any entry, just use regular navigation
+        if (backward) {
+            if (from < h->count) {
+                if (hidx != NULL)
+                    *hidx = from;
+                return true;
+            }
+        } else {
+            if (from >= 0) {
+                if (hidx != NULL)
+                    *hidx = from;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    ssize_t i;
+    if (backward) {
+        for (i = from; i < h->count; i++) {
+            const char* entry = history_get(h, i);
+            if (entry != NULL && strncmp(entry, prefix, prefix_len) == 0) {
+                if (hidx != NULL)
+                    *hidx = i;
+                return true;
+            }
+        }
+    } else {
+        for (i = from; i >= 0; i--) {
+            const char* entry = history_get(h, i);
+            if (entry != NULL && strncmp(entry, prefix, prefix_len) == 0) {
+                if (hidx != NULL)
+                    *hidx = i;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 //-------------------------------------------------------------
 //
 //-------------------------------------------------------------

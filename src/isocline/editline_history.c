@@ -46,6 +46,57 @@ static void edit_history_next(ic_env_t* env, editor_t* eb) {
     edit_history_at(env, eb, -1);
 }
 
+static void edit_history_prefix_search(ic_env_t* env, editor_t* eb, bool backward) {
+    if (eb->modified) {
+        history_update(env->history, sbuf_string(eb->input)); // update first entry if modified
+        eb->history_idx = 0; // and start again
+        eb->modified = false;
+    }
+    
+    // Get the current input
+    const char* current_input = sbuf_string(eb->input);
+    if (current_input == NULL) current_input = "";
+    
+    // If we're already navigating history (history_idx > 0) or input is empty,
+    // use regular history navigation instead of prefix search
+    if (eb->history_idx > 0 || strlen(current_input) == 0) {
+        if (backward) {
+            edit_history_prev(env, eb);
+        } else {
+            edit_history_next(env, eb);
+        }
+        return;
+    }
+    
+    // If we reach here, user has typed something and this is the first history navigation
+    // So we do prefix-based search
+    const char* prefix = current_input;
+    ssize_t start_idx = backward ? 1 : 0; // Start from history index 1 (skip current empty entry at 0)
+    
+    ssize_t found_idx;
+    if (history_search_prefix(env->history, start_idx, prefix, backward, &found_idx)) {
+        const char* entry = history_get(env->history, found_idx);
+        if (entry != NULL) {
+            eb->history_idx = found_idx;
+            sbuf_replace(eb->input, entry);
+            eb->pos = sbuf_len(eb->input); // position cursor at end
+            edit_refresh(env, eb);
+        } else {
+            term_beep(env->term);
+        }
+    } else {
+        term_beep(env->term);
+    }
+}
+
+static void edit_history_prefix_prev(ic_env_t* env, editor_t* eb) {
+    edit_history_prefix_search(env, eb, true);
+}
+
+static void edit_history_prefix_next(ic_env_t* env, editor_t* eb) {
+    edit_history_prefix_search(env, eb, false);
+}
+
 typedef struct hsearch_s {
     struct hsearch_s* next;
     ssize_t hidx;
