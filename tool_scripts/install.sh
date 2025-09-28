@@ -22,12 +22,6 @@ else
 	muted=""
 fi
 
-# Check required commands
-if ! command -v git >/dev/null 2>&1; then
-	echo "Error: git is required to install CJsShell" >&2
-	exit 1
-fi
-
 # Check for HTTP client (curl or wget)
 if command -v curl >/dev/null 2>&1; then
 	HTTP_CLIENT="curl"
@@ -35,6 +29,12 @@ elif command -v wget >/dev/null 2>&1; then
 	HTTP_CLIENT="wget"
 else
 	echo "Error: Either curl or wget is required to install CJsShell" >&2
+	exit 1
+fi
+
+# Check for tar
+if ! command -v tar >/dev/null 2>&1; then
+	echo "Error: tar is required to extract the release archive" >&2
 	exit 1
 fi
 
@@ -52,26 +52,62 @@ cleanup() {
 }
 trap cleanup EXIT
 
+get_latest_release() {
+	# Use GitHub API to get the latest release info
+	local api_url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
+	local response
+	
+	if [ "$HTTP_CLIENT" = "curl" ]; then
+		response=$(curl -fsSL "$api_url" 2>/dev/null)
+	else
+		response=$(wget -qO- "$api_url" 2>/dev/null)
+	fi
+	
+	if [ $? -eq 0 ] && [ -n "$response" ]; then
+		# Extract tag name and tarball URL
+		local tag_name=$(echo "$response" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+		local tarball_url=$(echo "$response" | grep '"tarball_url":' | sed -E 's/.*"([^"]+)".*/\1/')
+		
+		if [ -n "$tag_name" ] && [ -n "$tarball_url" ]; then
+			printf '%s\n%s' "$tag_name" "$tarball_url"
+			return 0
+		fi
+	fi
+	
+	# Fallback: construct tarball URL from latest tag
+	echo "Warning: Could not get release info from API, trying fallback..." >&2
+	printf 'latest\nhttps://github.com/%s/%s/archive/refs/heads/main.tar.gz' "$REPO_OWNER" "$REPO_NAME"
+}
+
 echo "Getting latest release information..."
+RELEASE_INFO=$(get_latest_release)
+LATEST_TAG=$(echo "$RELEASE_INFO" | head -n1)
+TARBALL_URL=$(echo "$RELEASE_INFO" | tail -n1)
+
+echo "Latest release: $LATEST_TAG"
+echo "Downloading CJsShell release..."
+
+# Download and extract the release
+cd "$TEMP_DIR"
+ARCHIVE_NAME="cjsshell.tar.gz"
+
 if [ "$HTTP_CLIENT" = "curl" ]; then
-	LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+	curl -fsSL -o "$ARCHIVE_NAME" "$TARBALL_URL"
 else
-	LATEST_TAG=$(wget -qO- "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+	wget -q -O "$ARCHIVE_NAME" "$TARBALL_URL"
 fi
 
-if [ -z "$LATEST_TAG" ]; then
-	echo "Error: Could not determine latest release tag" >&2
+echo "Extracting release..."
+tar -xzf "$ARCHIVE_NAME"
+
+# Find the extracted directory (GitHub tarballs create a directory with repo name and commit hash)
+EXTRACTED_DIR=$(find . -maxdepth 1 -type d -name "${REPO_OWNER}-${REPO_NAME}-*" | head -n1)
+if [ -z "$EXTRACTED_DIR" ]; then
+	echo "Error: Could not find extracted directory" >&2
 	exit 1
 fi
 
-echo "Latest release: $LATEST_TAG"
-echo "Cloning CJsShell..."
-
-# Clone the specific release tag
-cd "$TEMP_DIR"
-git clone --depth 1 --branch "$LATEST_TAG" "https://github.com/${REPO_OWNER}/${REPO_NAME}.git" cjsshell
-
-cd cjsshell
+cd "$EXTRACTED_DIR"
 
 echo "Building CJsShell..."
 ./tool_scripts/build.sh "$@"
