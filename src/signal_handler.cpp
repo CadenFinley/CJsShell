@@ -233,12 +233,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         }
 
         case SIGTERM: {
-            s_sigterm_received = 1;
-
-            if (!is_observed) {
-                exit(128 + SIGTERM);  // 128 + 15 = 143
-            }
-            break;
+            // SIGTERM should always cause immediate termination for fast response
+            exit(128 + SIGTERM);  // 128 + 15 = 143
         }
 
 #ifdef SIGWINCH
@@ -483,8 +479,11 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
     if (s_sigterm_received) {
         s_sigterm_received = 0;
+        
+        // SIGTERM should always trigger termination
+        g_exit_flag = true;
 
-        if (shell_exec && g_exit_flag) {
+        if (shell_exec) {
             if (g_debug_mode) {
                 std::cerr
                     << "DEBUG: SIGTERM received, terminating background jobs"
