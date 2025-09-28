@@ -7,6 +7,21 @@ set -euo pipefail
 REPO_OWNER="CadenFinley"
 REPO_NAME="CJsShell"
 
+# Styling helpers (no-op when not a TTY)
+if [ -t 1 ]; then
+	bold=$'\033[1m'
+	reset=$'\033[0m'
+	accent=$'\033[38;5;214m'
+	accent_alt=$'\033[38;5;45m'
+	muted=$'\033[38;5;244m'
+else
+	bold=""
+	reset=""
+	accent=""
+	accent_alt=""
+	muted=""
+fi
+
 # Check required commands
 if ! command -v git >/dev/null 2>&1; then
 	echo "Error: git is required to install CJsShell" >&2
@@ -22,6 +37,13 @@ else
 	echo "Error: Either curl or wget is required to install CJsShell" >&2
 	exit 1
 fi
+
+printf "\n${accent}%s${reset}\n" "┌────────────────────────────────────┐"
+printf "${accent}%s${reset}\n" "│         ${bold}CJsShell Installer${reset}${accent}         │"
+printf "${accent}%s${reset}\n" "├────────────────────────────────────┤"
+printf "${accent}%s${reset}\n" "│  Caden Finley - cadenfinley.com    │"
+printf "${accent}%s${reset}\n\n" "└────────────────────────────────────┘"
+printf "${muted}Hang tight cjsh might take a second to build...${reset}\n\n"
 
 # Create temporary directory
 TEMP_DIR="$(mktemp -d)"
@@ -73,6 +95,7 @@ case ":$PATH:" in
         ;;
 esac
 
+echo
 echo "Thank you for installing CJsShell!"
 echo "You can run it by typing 'cjsh' in your terminal."
 echo "For more information, visit: https://github.com/CadenFinley/CJsShell"
