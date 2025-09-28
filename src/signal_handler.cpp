@@ -1,6 +1,8 @@
 #include "signal_handler.h"
 
 #include <algorithm>
+#include <signal.h>
+#include <unistd.h>
 
 #include "cjsh.h"
 #include "error_out.h"
@@ -233,8 +235,9 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         }
 
         case SIGTERM: {
-            // SIGTERM should always cause immediate termination for fast response
-            exit(128 + SIGTERM);  // 128 + 15 = 143
+            // SIGTERM should cause immediate termination like bash
+            // The OS will handle cleanup of child processes
+            _exit(128 + SIGTERM);  // 128 + 15 = 143
         }
 
 #ifdef SIGWINCH
