@@ -1422,8 +1422,8 @@ int ShellScriptInterpreter::execute_block(
                                     print_runtime_error(
                                         "cjsh: " + std::string(e.what()),
                                         "$((" + expr + "))");
-                                // Return a default value instead of re-throwing
-                                out += "0";
+                                // Re-throw to properly propagate the error
+                                throw;
                             }
                             i = end_idx;
                             continue;
@@ -1557,12 +1557,13 @@ int ShellScriptInterpreter::execute_block(
                 }
             }
         } catch (const std::runtime_error& e) {
-            // Error already reported in nested handlers, don't re-throw
+            // Re-throw parameter expansion and arithmetic errors
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Caught runtime error in expand_substitutions: "
                           << e.what() << std::endl;
             }
-            // Continue execution rather than re-throwing
+            // Re-throw to properly propagate the error
+            throw;
         }
 
         if ((text == "case" || text.rfind("case ", 0) == 0) &&

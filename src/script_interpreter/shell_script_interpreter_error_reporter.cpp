@@ -120,6 +120,7 @@ void ErrorReporter::print_error_report(
 
     try {
         if (errors.empty()) {
+            std::cout << "\033[32m✓ No syntax errors found.\033[0m" << std::endl;
             error_reporting_in_progress = false;
             return;
         }
