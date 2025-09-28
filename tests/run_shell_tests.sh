@@ -89,7 +89,11 @@ run_test() {
             fi
             FILES_PASS=$((FILES_PASS+1))
         else
-            echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
+            if [ $subtests_skipped -gt 0 ]; then
+                echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed, ${subtests_skipped} skipped)"
+            else
+                echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
+            fi
             # Only show the failed test lines instead of all output
             fail_lines=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {print}')
             if [ -n "$fail_lines" ]; then
