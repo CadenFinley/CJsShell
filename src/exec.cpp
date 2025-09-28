@@ -1979,7 +1979,7 @@ void Exec::terminate_all_child_process() {
     }
 
     if (any_jobs_terminated) {
-        usleep(50000);
+        usleep(200000);
     }
 
     for (auto& job_pair : jobs) {
@@ -2000,6 +2000,13 @@ void Exec::terminate_all_child_process() {
                                       std::string(strerror(errno)));
                     }
                 }
+                
+                // Also kill individual PIDs in case process group kill failed
+                for (pid_t pid : job.pids) {
+                    if (kill(pid, SIGKILL) == 0 && g_debug_mode) {
+                        std::cerr << "DEBUG: Sent SIGKILL to individual PID " << pid << std::endl;
+                    }
+                }
             }
 
             job.completed = true;
@@ -2012,7 +2019,7 @@ void Exec::terminate_all_child_process() {
     pid_t pid;
     int zombie_count = 0;
     const int max_terminate_iterations =
-        50;  // Prevent infinite loops during termination
+        50;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0 &&
            zombie_count < max_terminate_iterations) {
         zombie_count++;

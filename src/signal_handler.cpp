@@ -358,6 +358,11 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             int status;
             int reaped_count = 0;
             const int max_reap_iterations = 100;  // Prevent infinite loops
+            
+            // Add small delay to let processes finish cleanly
+            if (s_sigchld_received == 1) {
+                usleep(1000); // 1ms delay on first SIGCHLD
+            }
 
             while ((pid = waitpid(-1, &status,
                                   WNOHANG | WUNTRACED | WCONTINUED)) > 0 &&
