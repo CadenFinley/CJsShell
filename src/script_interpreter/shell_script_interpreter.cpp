@@ -1846,6 +1846,12 @@ int ShellScriptInterpreter::execute_block(
                     error.error_code = "RUN001";
                     error.suggestion = "Check command syntax and system resources";
                 }
+                
+                errors.push_back(error);
+                shell_script_interpreter::ErrorReporter::print_error_report(
+                    errors, true, true);
+
+                return set_last_status(127);
             } else if (error_msg.find("Unclosed quote") != std::string::npos ||
                 error_msg.find("missing closing") != std::string::npos) {
                 error.severity = ErrorSeverity::ERROR;
