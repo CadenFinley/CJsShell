@@ -2,11 +2,22 @@
 
 # Debug install script - moves built binary to user's local bin directory
 
-# Install for current user only (no sudo required)
-INSTALL_PATH="$HOME/.local/bin"
+# Check if cjsh is already installed somewhere
+EXISTING_CJSH=$(which cjsh 2>/dev/null)
 
-# Create the directory if it doesn't exist
-mkdir -p "$INSTALL_PATH"
+if [ -n "$EXISTING_CJSH" ]; then
+    # Use the existing installation path
+    INSTALL_PATH=$(dirname "$EXISTING_CJSH")
+    echo "Found existing cjsh at: $EXISTING_CJSH"
+    echo "Will overwrite at: $INSTALL_PATH"
+else
+    # Install for current user only (no sudo required)
+    INSTALL_PATH="$HOME/.local/bin"
+    echo "No existing cjsh found, installing to: $INSTALL_PATH"
+    
+    # Create the directory if it doesn't exist
+    mkdir -p "$INSTALL_PATH"
+fi
 
 # Move the binary
 mv build/cjsh "$INSTALL_PATH/cjsh"
