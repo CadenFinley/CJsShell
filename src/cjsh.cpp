@@ -101,6 +101,7 @@ static void initialize_title_strings() {
 }
 
 // add a way to change keybindings via .cjshrc
+// auto updateing executables cache as things are run/installed/removed
 
 /*
  * Exit/Return Codes:
