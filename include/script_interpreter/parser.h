@@ -50,6 +50,13 @@ struct LogicalCommand {
 class Parser {
    public:
     std::vector<std::string> parse_into_lines(const std::string& scripts);
+    
+    // Command validation
+    bool should_validate_command(const std::string& command) const;
+    bool is_valid_command(const std::string& command_name) const;
+    std::string get_command_validation_error(const std::string& command_name) const;
+    void set_command_validation_enabled(bool enabled) { command_validation_enabled = enabled; }
+    bool get_command_validation_enabled() const { return command_validation_enabled; }
 
     std::vector<std::string> parse_command(const std::string& cmdline);
     std::vector<Command> parse_pipeline(const std::string& command);
@@ -88,6 +95,7 @@ class Parser {
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
     Shell* shell = nullptr;
+    bool command_validation_enabled = true;
 
     std::map<std::string, std::string> current_here_docs;
 };

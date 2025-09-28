@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <glob.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -20,7 +21,11 @@
 #include "command_preprocessor.h"
 #include "job_control.h"
 #include "readonly_command.h"
+#include "utils/cjsh_filesystem.h"
 #include "utils/performance.h"
+#include "utils/suggestion_utils.h"
+#include "builtin.h"
+#include "error_out.h"
 
 namespace {
 struct DelimiterState {
@@ -1844,6 +1849,17 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             expand_command_paths_with_home(cmd, std::string(home));
         }
 
+        // Validate command existence before adding to pipeline  
+        if (command_validation_enabled && !cmd.args.empty() && should_validate_command(cmd.args[0]) && !is_valid_command(cmd.args[0])) {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Command validation failed for: " << cmd.args[0] << std::endl;
+            }
+            
+            // Throw a runtime error with the command name that will be caught by the shell's error handling
+            // The shell will generate proper suggestions in the error report
+            throw std::runtime_error("command not found: " + cmd.args[0]);
+        }
+
         commands.push_back(cmd);
     }
 
@@ -2197,4 +2213,91 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
     }
 
     return result;
+}
+
+bool Parser::should_validate_command(const std::string& command) const {
+    // Skip validation for variable assignments
+    // Look for pattern: identifier=value (where identifier contains only alphanumeric and underscore)
+    size_t equals_pos = command.find('=');
+    if (equals_pos != std::string::npos) {
+        // Check if everything before '=' is a valid variable name
+        std::string var_name = command.substr(0, equals_pos);
+        if (!var_name.empty()) {
+            bool valid_var_name = true;
+            for (char c : var_name) {
+                if (!std::isalnum(c) && c != '_') {
+                    valid_var_name = false;
+                    break;
+                }
+            }
+            if (valid_var_name && std::isalpha(var_name[0])) {
+                return false; // It's a variable assignment
+            }
+        }
+    }
+    
+    // Skip validation for shell operators and keywords
+    if (command == "&&" || command == "||" || command == "|" || command == ";" ||
+        command == "(" || command == ")" || command == "{" || command == "}" ||
+        command == "if" || command == "then" || command == "else" || command == "elif" ||
+        command == "fi" || command == "for" || command == "while" || command == "do" ||
+        command == "done" || command == "case" || command == "esac" || command == "function") {
+        return false;
+    }
+    
+    // Skip validation for redirections and operators
+    if (command.empty() || command[0] == '>' ||  command[0] == '<' || 
+        command == ">>" || command == "<<" || command == "2>" || command == "2>>" || 
+        command == "&>" || command == "&>>") {
+        return false;
+    }
+    
+    return true;
+}
+
+bool Parser::is_valid_command(const std::string& command_name) const {
+    if (command_name.empty()) {
+        return false;
+    }
+    
+    // Check if it's a builtin command
+    if (shell && shell->get_built_ins() && 
+        shell->get_built_ins()->is_builtin_command(command_name)) {
+        return true;
+    }
+    
+    // Check if it's an alias
+    if (shell) {
+        auto aliases = shell->get_aliases();
+        if (aliases.find(command_name) != aliases.end()) {
+            return true;
+        }
+    }
+    
+    // Check if it's a shell function
+    if (shell && shell->get_shell_script_interpreter()) {
+        auto* interpreter = shell->get_shell_script_interpreter();
+        if (interpreter && interpreter->has_function(command_name)) {
+            return true;
+        }
+    }
+    
+    // Check if it's an executable in PATH or absolute/relative path
+    if (command_name.find('/') != std::string::npos) {
+        // For paths, let the shell handle them naturally - don't validate
+        // This allows the shell to give proper error messages for non-existent paths
+        return true;
+    } else {
+        // Search in PATH using existing filesystem utility
+        std::string path = cjsh_filesystem::find_executable_in_path(command_name);
+        return !path.empty();
+    }
+}
+
+std::string Parser::get_command_validation_error(const std::string& command_name) const {
+    if (command_name.empty()) {
+        return "cjsh: empty command name";
+    }
+    
+    return "cjsh: command not found: " + command_name;
 }

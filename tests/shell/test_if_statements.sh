@@ -83,14 +83,14 @@ else
 fi
 
 # Test if with exit codes
-OUTPUT=$("$CJSH_PATH" -c "if /bin/true; then echo 'exit_zero'; else echo 'exit_nonzero'; fi")
+OUTPUT=$("$CJSH_PATH" -c "if true; then echo 'exit_zero'; else echo 'exit_nonzero'; fi")
 if [ "$OUTPUT" = "exit_zero" ]; then
     pass_test "if with exit 0"
 else
     fail_test "if with exit 0 (got: '$OUTPUT')"
 fi
 
-OUTPUT=$("$CJSH_PATH" -c "if /bin/false; then echo 'exit_zero'; else echo 'exit_nonzero'; fi")
+OUTPUT=$("$CJSH_PATH" -c "if false; then echo 'exit_zero'; else echo 'exit_nonzero'; fi")
 if [ "$OUTPUT" = "exit_nonzero" ]; then
     pass_test "if with exit 1"
 else

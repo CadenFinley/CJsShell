@@ -52,6 +52,7 @@
 #include "utils/bookmark_database.h"
 #include "version_command.h"
 #include "which_command.h"
+#include "validate_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {
     builtins.reserve(64);
@@ -302,6 +303,10 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"which",
          [this](const std::vector<std::string>& args) {
              return ::which_command(args, shell);
+         }},
+        {"validate",
+         [this](const std::vector<std::string>& args) {
+             return ::validate_command(args, shell);
          }},
         {"hash",
          [](const std::vector<std::string>& args) {

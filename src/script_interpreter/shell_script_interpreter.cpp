@@ -28,6 +28,7 @@
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
+#include "suggestion_utils.h"
 
 using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::strip_inline_comment;
@@ -1780,7 +1781,65 @@ int ShellScriptInterpreter::execute_block(
             SyntaxError error(1, e.what(), text);
             std::string error_msg = e.what();
 
-            if (error_msg.find("Unclosed quote") != std::string::npos ||
+            if (error_msg.find("command not found: ") != std::string::npos) {
+                // Extract command name from error message
+                size_t pos = error_msg.find("command not found: ");
+                if (pos != std::string::npos) {
+                    std::string command_name = error_msg.substr(pos + 19); // length of "command not found: "
+                    
+                    // Generate suggestions using the suggestion system
+                    auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
+                    
+                    // Format the error message properly
+                    error.message = "cjsh: command not found: " + command_name;
+                    error.severity = ErrorSeverity::ERROR;
+                    error.category = ErrorCategory::COMMANDS;
+                    error.error_code = "RUN001";
+                    
+                    // Format suggestions properly for the error report
+                    if (!suggestions.empty()) {
+                        std::string suggestion_text;
+                        // Check if we have "Did you mean" suggestions
+                        std::vector<std::string> commands;
+                        for (const auto& suggestion : suggestions) {
+                            if (suggestion.find("Did you mean") != std::string::npos) {
+                                // Extract command names from "Did you mean 'command'?" format
+                                size_t start = suggestion.find("'");
+                                if (start != std::string::npos) {
+                                    start++; // skip the opening quote
+                                    size_t end = suggestion.find("'", start);
+                                    if (end != std::string::npos) {
+                                        commands.push_back(suggestion.substr(start, end - start));
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (!commands.empty()) {
+                            suggestion_text = "Did you mean: ";
+                            for (size_t i = 0; i < commands.size(); ++i) {
+                                suggestion_text += commands[i];
+                                if (i < commands.size() - 1) {
+                                    suggestion_text += ", ";
+                                }
+                            }
+                            suggestion_text += "?";
+                        } else {
+                            // Fallback to the first suggestion if no "Did you mean" format found
+                            suggestion_text = suggestions.empty() ? "Check command syntax and system resources" : suggestions[0];
+                        }
+                        
+                        error.suggestion = suggestion_text;
+                    } else {
+                        error.suggestion = "Check command syntax and system resources";
+                    }
+                } else {
+                    error.severity = ErrorSeverity::ERROR;
+                    error.category = ErrorCategory::COMMANDS;
+                    error.error_code = "RUN001";
+                    error.suggestion = "Check command syntax and system resources";
+                }
+            } else if (error_msg.find("Unclosed quote") != std::string::npos ||
                 error_msg.find("missing closing") != std::string::npos) {
                 error.severity = ErrorSeverity::ERROR;
                 error.category = ErrorCategory::SYNTAX;
