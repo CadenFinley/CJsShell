@@ -325,7 +325,6 @@ class PromptInfo {
         return language_info.is_language_project(language);
     }
 
-    // Container Info
     std::string get_container_name() {
         return container_info.get_container_name();
     }

@@ -62,7 +62,6 @@ std::chrono::steady_clock::time_point g_startup_begin_time;
 static int parse_command_line_arguments(int argc, char* argv[],
                                         std::string& script_file,
                                         std::vector<std::string>& script_args);
-static int handle_early_exit_modes();
 static int handle_non_interactive_mode(const std::string& script_file);
 static int initialize_interactive_components();
 static void save_startup_arguments(int argc, char* argv[]);
@@ -145,6 +144,17 @@ int main(int argc, char* argv[]) {
         g_shell->set_positional_parameters(script_args);
     }
 
+    // Handle early exit modes (version and help only) before environment setup
+    if (config::show_version) {  // -v --version
+        std::cout << c_version << std::endl;
+        return 0;
+    }
+
+    if (config::show_help) {  // -h --help
+        print_usage();
+        return 0;
+    }
+
     cjsh_env::setup_environment_variables();
     save_startup_arguments(argc, argv);
 
@@ -179,10 +189,34 @@ int main(int argc, char* argv[]) {
         setenv("0", "cjsh", 1);
     }
 
-    // Handle early exit modes (version, help, command execution)
-    int early_exit_result = handle_early_exit_modes();
-    if (early_exit_result >= 0) {
-        return early_exit_result;
+    // Handle command execution mode after environment is set up
+    if (config::execute_command) {  // -c --command
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Executing -c via Shell::execute: "
+                      << config::cmd_to_execute << std::endl;
+        }
+
+        // Set shell to non-interactive mode for command execution
+        if (g_shell) {
+            g_shell->set_interactive_mode(false);
+        }
+
+        int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
+
+        // Check if an exit code was set by the exit command
+        const char* exit_code_str = getenv("EXIT_CODE");
+        if (exit_code_str) {
+            code = std::atoi(exit_code_str);
+            unsetenv("EXIT_CODE");
+        }
+
+        // Execute EXIT trap before resetting shell for -c commands
+        if (g_shell) {
+            TrapManager::instance().set_shell(g_shell.get());
+            TrapManager::instance().execute_exit_trap();
+        }
+
+        return code;
     }
 
     // Handle non-interactive mode (script files or stdin)
@@ -453,49 +487,6 @@ static void save_startup_arguments(int argc, char* argv[]) {
             std::cerr << "DEBUG:   " << arg << std::endl;
         }
     }
-}
-
-static int handle_early_exit_modes() {
-    if (config::show_version) {  // -v --version
-        std::cout << c_version << std::endl;
-        return 0;
-    }
-
-    if (config::show_help) {  // -h --help
-        print_usage();
-        return 0;
-    }
-
-    if (config::execute_command) {  // -c --command
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Executing -c via Shell::execute: "
-                      << config::cmd_to_execute << std::endl;
-        }
-
-        // Set shell to non-interactive mode for command execution
-        if (g_shell) {
-            g_shell->set_interactive_mode(false);
-        }
-
-        int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
-
-        // Check if an exit code was set by the exit command
-        const char* exit_code_str = getenv("EXIT_CODE");
-        if (exit_code_str) {
-            code = std::atoi(exit_code_str);
-            unsetenv("EXIT_CODE");
-        }
-
-        // Execute EXIT trap before resetting shell for -c commands
-        if (g_shell) {
-            TrapManager::instance().set_shell(g_shell.get());
-            TrapManager::instance().execute_exit_trap();
-        }
-
-        return code;
-    }
-
-    return -1;  // Continue execution
 }
 
 static int handle_non_interactive_mode(const std::string& script_file) {

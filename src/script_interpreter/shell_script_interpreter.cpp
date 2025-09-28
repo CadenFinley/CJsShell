@@ -269,6 +269,8 @@ int ShellScriptInterpreter::execute_block(
         return true;
     };
 
+    std::function<int(const std::string&, bool)>
+        execute_simple_or_pipeline_impl;
     std::function<int(const std::string&)> execute_simple_or_pipeline;
 
     auto execute_case_sections =
@@ -624,6 +626,11 @@ int ShellScriptInterpreter::execute_block(
     };
 
     execute_simple_or_pipeline = [&](const std::string& cmd_text) -> int {
+        return execute_simple_or_pipeline_impl(cmd_text, true);
+    };
+
+    execute_simple_or_pipeline_impl =
+        [&](const std::string& cmd_text, bool allow_semicolon_split) -> int {
         if (g_debug_mode) {
             std::cerr << "DEBUG: execute_simple_or_pipeline called with: "
                       << cmd_text << std::endl;
@@ -632,6 +639,37 @@ int ShellScriptInterpreter::execute_block(
         std::string text = process_line_for_validation(cmd_text);
         if (text.empty())
             return 0;
+
+        if (allow_semicolon_split && text.find(';') != std::string::npos) {
+            auto semicolon_commands =
+                shell_parser->parse_semicolon_commands(text);
+
+            if (semicolon_commands.size() > 1) {
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Splitting semicolon command into "
+                              << semicolon_commands.size()
+                              << " parts" << std::endl;
+                }
+
+                int last_code = 0;
+                for (const auto& part : semicolon_commands) {
+                    last_code =
+                        execute_simple_or_pipeline_impl(part, false);
+
+                    if (g_shell && g_shell->is_errexit_enabled() &&
+                        last_code != 0 && last_code != 253 &&
+                        last_code != 254 && last_code != 255) {
+                        if (g_debug_mode) {
+                            std::cerr << "DEBUG: errexit triggered during "
+                                         "semicolon split with code "
+                                      << last_code << std::endl;
+                        }
+                        return last_code;
+                    }
+                }
+                return last_code;
+            }
+        }
 
         auto capture_internal_output =
             [&](const std::string& content) -> std::string {

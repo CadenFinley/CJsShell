@@ -136,14 +136,6 @@ else
     fail_test "command line arguments not preserved (got '$OUT')"
 fi
 
-# Test that login shell processes /etc/profile if it exists
-if [ -f "/etc/profile" ]; then
-    # This is hard to test without actually modifying system files
-    skip_test "/etc/profile exists and should be processed in login mode"
-else
-    skip_test "/etc/profile does not exist"
-fi
-
 # Cleanup
 rm -rf "$TEST_HOME"
 

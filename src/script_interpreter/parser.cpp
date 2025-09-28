@@ -1476,6 +1476,47 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
         return result;
     }
 
+    auto looks_like_assignment = [](const std::string& value) -> bool {
+        size_t equals_pos = value.find('=');
+        if (equals_pos == std::string::npos || equals_pos == 0) {
+            return false;
+        }
+
+        size_t name_end = equals_pos;
+        if (name_end > 0 && value[name_end - 1] == '+') {
+            name_end--;
+        }
+
+        if (name_end == 0) {
+            return false;
+        }
+
+        auto is_name_char = [](unsigned char ch) {
+            return std::isalnum(ch) || ch == '_';
+        };
+
+        unsigned char first = static_cast<unsigned char>(value[0]);
+        if (!(std::isalpha(first) || first == '_')) {
+            return false;
+        }
+
+        for (size_t i = 1; i < name_end; ++i) {
+            if (!is_name_char(static_cast<unsigned char>(value[i]))) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (looks_like_assignment(input)) {
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: split_by_ifs preserving assignment token '"
+                      << input << "'" << std::endl;
+        }
+        result.push_back(input);
+        return result;
+    }
+
     if (ifs.empty()) {
         result.push_back(input);
         return result;

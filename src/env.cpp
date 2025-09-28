@@ -48,53 +48,47 @@ void setup_path_variables(const struct passwd* pw) {
         setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
 
-// On macOS, use path_helper to set up standard paths
+// On macOS, use path_helper to set up standard paths (only for login shells)
 #ifdef __APPLE__
     // pw parameter is unused on macOS since we use path_helper
     (void)pw;
-    if (cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
+    
+    if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
         if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: Running /usr/libexec/path_helper via shell->execute"
-                << std::endl;
+            std::cerr << "DEBUG: Running /usr/libexec/path_helper via shell"
+                      << std::endl;
         }
 
-        // Use shell->execute to run path_helper and capture output
-        if (g_shell) {
-            // Temporarily redirect stdout to capture the path_helper output
-            std::string old_path = getenv("PATH") ? getenv("PATH") : "";
-            std::string old_manpath =
-                getenv("MANPATH") ? getenv("MANPATH") : "";
+        std::string old_path = getenv("PATH") ? getenv("PATH") : "";
+        std::string old_manpath = getenv("MANPATH") ? getenv("MANPATH") : "";
 
-            // Execute path_helper via the shell
-            int result = g_shell->execute("eval `/usr/libexec/path_helper -s`");
+        if (!g_shell) {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Shell not available for path_helper"
+                          << std::endl;
+            }
+        } else {
+            int result =
+                g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
 
             if (result == 0) {
-                // Check if PATH was updated
                 const char* new_path = getenv("PATH");
-                if (new_path && std::string(new_path) != old_path) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: PATH updated via path_helper: "
-                                  << new_path << std::endl;
-                    }
+                if (new_path && std::string(new_path) != old_path &&
+                    g_debug_mode) {
+                    std::cerr << "DEBUG: PATH updated via path_helper: "
+                              << new_path << std::endl;
                 }
 
-                // Check if MANPATH was updated
                 const char* new_manpath = getenv("MANPATH");
-                if (new_manpath && std::string(new_manpath) != old_manpath) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: MANPATH updated via path_helper: "
-                                  << new_manpath << std::endl;
-                    }
+                if (new_manpath && std::string(new_manpath) != old_manpath &&
+                    g_debug_mode) {
+                    std::cerr << "DEBUG: MANPATH updated via path_helper: "
+                              << new_manpath << std::endl;
                 }
             } else if (g_debug_mode) {
-                std::cerr
-                    << "DEBUG: path_helper execution failed with exit code: "
-                    << result << std::endl;
+                std::cerr << "DEBUG: path_helper execution failed with exit code "
+                          << result << std::endl;
             }
-        } else if (g_debug_mode) {
-            std::cerr << "DEBUG: Shell not available for path_helper execution"
-                      << std::endl;
         }
     }
 #endif
