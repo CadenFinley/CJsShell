@@ -52,8 +52,9 @@ void setup_path_variables(const struct passwd* pw) {
 #ifdef __APPLE__
     // pw parameter is unused on macOS since we use path_helper
     (void)pw;
-    
-    if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
+
+    if (config::login_mode &&
+        cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
         if (g_debug_mode) {
             std::cerr << "DEBUG: Running /usr/libexec/path_helper via shell"
                       << std::endl;
@@ -75,8 +76,9 @@ void setup_path_variables(const struct passwd* pw) {
                 const char* new_path = getenv("PATH");
                 if (new_path && std::string(new_path) != old_path &&
                     g_debug_mode) {
-                    std::cerr << "DEBUG: PATH updated via path_helper: "
-                              << new_path << std::endl;
+                    std::cerr
+                        << "DEBUG: PATH updated via path_helper: " << new_path
+                        << std::endl;
                 }
 
                 const char* new_manpath = getenv("MANPATH");
@@ -86,8 +88,9 @@ void setup_path_variables(const struct passwd* pw) {
                               << new_manpath << std::endl;
                 }
             } else if (g_debug_mode) {
-                std::cerr << "DEBUG: path_helper execution failed with exit code "
-                          << result << std::endl;
+                std::cerr
+                    << "DEBUG: path_helper execution failed with exit code "
+                    << result << std::endl;
             }
         }
     }

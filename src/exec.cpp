@@ -470,8 +470,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
         // execvp failed - save errno immediately and determine exit code inline
         int saved_errno = errno;
-        int exit_code = (saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127;
-        
+        int exit_code = (saved_errno == EACCES || saved_errno == EISDIR ||
+                         saved_errno == ENOEXEC)
+                            ? 126
+                            : 127;
+
         if (saved_errno == ENOENT) {
             auto suggestions =
                 suggestion_utils::generate_command_suggestions(cmd_args[0]);
@@ -484,7 +487,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
                       "invalid executable format", {});
         } else {
             set_error(ErrorType::RUNTIME_ERROR, cmd_args[0],
-                      "execution failed: " + std::string(strerror(saved_errno)), {});
+                      "execution failed: " + std::string(strerror(saved_errno)),
+                      {});
         }
         _exit(exit_code);
     }
@@ -553,11 +557,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     set_error(exit_result.type, args[0], exit_result.message,
               exit_result.suggestions);
     last_exit_code = exit_code;
-    
+
     // Auto-update executable cache for successful external commands
     if (exit_code == 0 && !cmd_args.empty()) {
         const std::string& command_name = cmd_args[0];
-        
+
         // Extract basename if command_name is a full path
         std::string basename_command;
         size_t last_slash = command_name.find_last_of('/');
@@ -566,63 +570,72 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         } else {
             basename_command = command_name;
         }
-        
+
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Checking cache update for external command: " << command_name;
+            std::cerr << "DEBUG: Checking cache update for external command: "
+                      << command_name;
             if (basename_command != command_name) {
                 std::cerr << " (basename: " << basename_command << ")";
             }
             std::cerr << " with exit code: " << exit_code << std::endl;
         }
-        
+
         // Only add to cache if it's not already there
-        bool already_in_cache = cjsh_filesystem::is_executable_in_cache(basename_command);
-        
+        bool already_in_cache =
+            cjsh_filesystem::is_executable_in_cache(basename_command);
+
         if (g_debug_mode) {
-            std::cerr << "DEBUG: External command '" << basename_command 
-                      << "' already_in_cache: " << (already_in_cache ? "true" : "false") << std::endl;
+            std::cerr << "DEBUG: External command '" << basename_command
+                      << "' already_in_cache: "
+                      << (already_in_cache ? "true" : "false") << std::endl;
         }
-        
+
         if (!already_in_cache) {
             // Find the full path of the command using the basename
-            std::string full_path = cjsh_filesystem::find_executable_in_path(basename_command);
-            
+            std::string full_path =
+                cjsh_filesystem::find_executable_in_path(basename_command);
+
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Found full path for '" << basename_command 
-                          << "': " << (full_path.empty() ? "EMPTY" : full_path) << std::endl;
+                std::cerr << "DEBUG: Found full path for '" << basename_command
+                          << "': " << (full_path.empty() ? "EMPTY" : full_path)
+                          << std::endl;
             }
-            
+
             if (!full_path.empty()) {
-                cjsh_filesystem::add_executable_to_cache(basename_command, full_path);
+                cjsh_filesystem::add_executable_to_cache(basename_command,
+                                                         full_path);
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Added new executable '" << basename_command 
-                              << "' to cache after successful execution" << std::endl;
+                    std::cerr
+                        << "DEBUG: Added new executable '" << basename_command
+                        << "' to cache after successful execution" << std::endl;
                 }
             }
         } else if (g_debug_mode) {
-            std::cerr << "DEBUG: Skipping cache update - '" << basename_command 
+            std::cerr << "DEBUG: Skipping cache update - '" << basename_command
                       << "' already in cache" << std::endl;
         }
     } else if (exit_code == 127 && !cmd_args.empty()) {
         // Command not found - might be a stale cache entry
         const std::string& command_name = cmd_args[0];
-        
+
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Command not found: " << command_name 
+            std::cerr << "DEBUG: Command not found: " << command_name
                       << " - checking if it's a stale cache entry" << std::endl;
         }
-        
+
         if (cjsh_filesystem::is_executable_in_cache(command_name)) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Removing stale cache entry for: " << command_name << std::endl;
+                std::cerr << "DEBUG: Removing stale cache entry for: "
+                          << command_name << std::endl;
             }
             cjsh_filesystem::remove_executable_from_cache(command_name);
         }
     } else if (g_debug_mode) {
-        std::cerr << "DEBUG: Skipping cache update - exit_code=" << exit_code 
-                  << ", cmd_args.empty()=" << (cmd_args.empty() ? "true" : "false") << std::endl;
+        std::cerr << "DEBUG: Skipping cache update - exit_code=" << exit_code
+                  << ", cmd_args.empty()="
+                  << (cmd_args.empty() ? "true" : "false") << std::endl;
     }
-    
+
     return exit_code;
 }
 
@@ -679,7 +692,10 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         auto c_args = build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
         int saved_errno = errno;
-        _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127);
+        _exit((saved_errno == EACCES || saved_errno == EISDIR ||
+               saved_errno == ENOEXEC)
+                  ? 126
+                  : 127);
     } else {
         if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
             set_error(
@@ -1437,7 +1453,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 auto c_args = build_exec_argv(cmd.args);
                 execvp(cmd.args[0].c_str(), c_args.data());
                 int saved_errno = errno;
-                _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127);
+                _exit((saved_errno == EACCES || saved_errno == EISDIR ||
+                       saved_errno == ENOEXEC)
+                          ? 126
+                          : 127);
             }
 
             if (g_shell && !g_shell->get_interactive_mode()) {
@@ -1714,7 +1733,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     auto c_args = build_exec_argv(cmd.args);
                     execvp(cmd.args[0].c_str(), c_args.data());
                     int saved_errno = errno;
-                    _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127);
+                    _exit((saved_errno == EACCES || saved_errno == EISDIR ||
+                           saved_errno == ENOEXEC)
+                              ? 126
+                              : 127);
                 }
             }
 
@@ -2083,11 +2105,12 @@ void Exec::terminate_all_child_process() {
                                       std::string(strerror(errno)));
                     }
                 }
-                
+
                 // Also kill individual PIDs in case process group kill failed
                 for (pid_t pid : job.pids) {
                     if (kill(pid, SIGKILL) == 0 && g_debug_mode) {
-                        std::cerr << "DEBUG: Sent SIGKILL to individual PID " << pid << std::endl;
+                        std::cerr << "DEBUG: Sent SIGKILL to individual PID "
+                                  << pid << std::endl;
                     }
                 }
             }
@@ -2101,8 +2124,7 @@ void Exec::terminate_all_child_process() {
     int status;
     pid_t pid;
     int zombie_count = 0;
-    const int max_terminate_iterations =
-        50;
+    const int max_terminate_iterations = 50;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0 &&
            zombie_count < max_terminate_iterations) {
         zombie_count++;

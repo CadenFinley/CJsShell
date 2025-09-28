@@ -8,7 +8,6 @@
 #include <iomanip>
 
 #include "ai_command.h"
-#include "cjsh_filesystem.h"
 #include "aihelp_command.h"
 #include "alias_command.h"
 #include "approot_command.h"
@@ -51,9 +50,9 @@
 #include "type_command.h"
 #include "umask_command.h"
 #include "utils/bookmark_database.h"
+#include "validate_command.h"
 #include "version_command.h"
 #include "which_command.h"
-#include "validate_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {
     builtins.reserve(64);
@@ -65,6 +64,37 @@ Built_ins::Built_ins() : shell(nullptr) {
                      "bookmark",
                      "Failed to load bookmark database: " + load_result.error(),
                      {}});
+    } else {
+        // Clean up any invalid bookmarks after loading
+        auto cleanup_result = bookmark_database::g_bookmark_db
+                                  .cleanup_invalid_bookmarks_with_count();
+        if (cleanup_result.is_error()) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "bookmark",
+                         "Failed to cleanup invalid bookmarks: " +
+                             cleanup_result.error(),
+                         {}});
+        } else {
+            int removed_count = cleanup_result.value();
+            if (removed_count > 0) {
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Pruned " << removed_count
+                              << " invalid bookmark"
+                              << (removed_count == 1 ? "" : "s")
+                              << " on startup" << std::endl;
+                }
+
+                // Save the cleaned database if any bookmarks were removed
+                auto save_result = bookmark_database::g_bookmark_db.save();
+                if (save_result.is_error()) {
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "bookmark",
+                                 "Failed to save cleaned bookmark database: " +
+                                     save_result.error(),
+                                 {}});
+                }
+            }
+        }
     }
 
     // Import existing bookmarks if any
@@ -110,12 +140,13 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"cd",
          [this](const std::vector<std::string>& args) {
              // args[0] == "cd"; optional directory operand at args[1]
-             // Check for too many arguments (cd should accept at most 1 argument)
+             // Check for too many arguments (cd should accept at most 1
+             // argument)
              if (args.size() > 2) {
                  ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                                  "cd",
-                                  "too many arguments",
-                                  {"Usage: cd [directory]"}};
+                                    "cd",
+                                    "too many arguments",
+                                    {"Usage: cd [directory]"}};
                  print_error(error);
                  return 2;  // Misuse of shell builtin
              }
@@ -351,31 +382,37 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
         return status;
     }
     auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
-    
+
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Command not found in builtins: " << args[0] << std::endl;
+        std::cerr << "DEBUG: Command not found in builtins: " << args[0]
+                  << std::endl;
     }
-    
+
     // Check if this command is in our cache but no longer exists (stale entry)
     if (cjsh_filesystem::is_executable_in_cache(args[0])) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Command '" << args[0] << "' found in cache, checking if stale..." << std::endl;
+            std::cerr << "DEBUG: Command '" << args[0]
+                      << "' found in cache, checking if stale..." << std::endl;
         }
         // Double-check that it really doesn't exist in PATH
-        std::string full_path = cjsh_filesystem::find_executable_in_path(args[0]);
+        std::string full_path =
+            cjsh_filesystem::find_executable_in_path(args[0]);
         if (full_path.empty()) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Removing stale cache entry for command not found: " 
+                std::cerr << "DEBUG: Removing stale cache entry for command "
+                             "not found: "
                           << args[0] << std::endl;
             }
             cjsh_filesystem::remove_executable_from_cache(args[0]);
         } else if (g_debug_mode) {
-            std::cerr << "DEBUG: Command '" << args[0] << "' found in PATH: " << full_path << std::endl;
+            std::cerr << "DEBUG: Command '" << args[0]
+                      << "' found in PATH: " << full_path << std::endl;
         }
     } else if (g_debug_mode) {
-        std::cerr << "DEBUG: Command '" << args[0] << "' not in cache" << std::endl;
+        std::cerr << "DEBUG: Command '" << args[0] << "' not in cache"
+                  << std::endl;
     }
-    
+
     ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0],
                        "command not found", suggestions};
     print_error(error);

@@ -17,7 +17,9 @@ static inline void print_help(void) {
     printf("  --debug           Build with debug symbols\n");
     printf("  --force-32bit     Force 32-bit build (if supported)\n");
     printf("  --dependencies    List project dependencies\n");
-    printf("  -j, --jobs N      Override parallel compilation jobs (default: auto)\n\n");
+    printf(
+        "  -j, --jobs N      Override parallel compilation jobs (default: "
+        "auto)\n\n");
     printf("Examples:\n");
     printf("  nob                # Build the project (auto parallel jobs)\n");
     printf("  nob --clean        # Clean build files\n");

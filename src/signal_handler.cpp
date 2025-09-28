@@ -1,8 +1,8 @@
 #include "signal_handler.h"
 
-#include <algorithm>
 #include <signal.h>
 #include <unistd.h>
+#include <algorithm>
 
 #include "cjsh.h"
 #include "error_out.h"
@@ -211,8 +211,9 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             if (!is_observed) {
                 ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
                 (void)bytes_written;
-                
-                // In non-interactive mode, exit immediately with proper signal code
+
+                // In non-interactive mode, exit immediately with proper signal
+                // code
                 if (!config::interactive_mode) {
                     exit(128 + SIGINT);  // 128 + 2 = 130
                 }
@@ -362,10 +363,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             int status;
             int reaped_count = 0;
             const int max_reap_iterations = 100;  // Prevent infinite loops
-            
+
             // Add small delay to let processes finish cleanly
             if (s_sigchld_received == 1) {
-                usleep(1000); // 1ms delay on first SIGCHLD
+                usleep(1000);  // 1ms delay on first SIGCHLD
             }
 
             while ((pid = waitpid(-1, &status,
@@ -482,7 +483,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
     if (s_sigterm_received) {
         s_sigterm_received = 0;
-        
+
         // SIGTERM should always trigger termination
         g_exit_flag = true;
 

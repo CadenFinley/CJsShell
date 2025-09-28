@@ -210,7 +210,8 @@ bool should_refresh_executable_cache();
 bool initialize_cjsh_path();
 
 // Auto-updating executable cache functions
-void add_executable_to_cache(const std::string& executable_name, const std::string& full_path);
+void add_executable_to_cache(const std::string& executable_name,
+                             const std::string& full_path);
 void remove_executable_from_cache(const std::string& executable_name);
 void invalidate_executable_cache();
 bool is_executable_in_cache(const std::string& executable_name);

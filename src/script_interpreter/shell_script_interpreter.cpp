@@ -630,8 +630,8 @@ int ShellScriptInterpreter::execute_block(
         return execute_simple_or_pipeline_impl(cmd_text, true);
     };
 
-    execute_simple_or_pipeline_impl =
-        [&](const std::string& cmd_text, bool allow_semicolon_split) -> int {
+    execute_simple_or_pipeline_impl = [&](const std::string& cmd_text,
+                                          bool allow_semicolon_split) -> int {
         if (g_debug_mode) {
             std::cerr << "DEBUG: execute_simple_or_pipeline called with: "
                       << cmd_text << std::endl;
@@ -648,14 +648,13 @@ int ShellScriptInterpreter::execute_block(
             if (semicolon_commands.size() > 1) {
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: Splitting semicolon command into "
-                              << semicolon_commands.size()
-                              << " parts" << std::endl;
+                              << semicolon_commands.size() << " parts"
+                              << std::endl;
                 }
 
                 int last_code = 0;
                 for (const auto& part : semicolon_commands) {
-                    last_code =
-                        execute_simple_or_pipeline_impl(part, false);
+                    last_code = execute_simple_or_pipeline_impl(part, false);
 
                     if (g_shell && g_shell->is_errexit_enabled() &&
                         last_code != 0 && last_code != 253 &&
@@ -1559,8 +1558,9 @@ int ShellScriptInterpreter::execute_block(
         } catch (const std::runtime_error& e) {
             // Re-throw parameter expansion and arithmetic errors
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Caught runtime error in expand_substitutions: "
-                          << e.what() << std::endl;
+                std::cerr
+                    << "DEBUG: Caught runtime error in expand_substitutions: "
+                    << e.what() << std::endl;
             }
             // Re-throw to properly propagate the error
             throw;
@@ -1799,36 +1799,42 @@ int ShellScriptInterpreter::execute_block(
                 // Extract command name from error message
                 size_t pos = error_msg.find("command not found: ");
                 if (pos != std::string::npos) {
-                    std::string command_name = error_msg.substr(pos + 19); // length of "command not found: "
-                    
+                    std::string command_name = error_msg.substr(
+                        pos + 19);  // length of "command not found: "
+
                     // Generate suggestions using the suggestion system
-                    auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
-                    
+                    auto suggestions =
+                        suggestion_utils::generate_command_suggestions(
+                            command_name);
+
                     // Format the error message properly
                     error.message = "cjsh: command not found: " + command_name;
                     error.severity = ErrorSeverity::ERROR;
                     error.category = ErrorCategory::COMMANDS;
                     error.error_code = "RUN001";
-                    
+
                     // Format suggestions properly for the error report
                     if (!suggestions.empty()) {
                         std::string suggestion_text;
                         // Check if we have "Did you mean" suggestions
                         std::vector<std::string> commands;
                         for (const auto& suggestion : suggestions) {
-                            if (suggestion.find("Did you mean") != std::string::npos) {
-                                // Extract command names from "Did you mean 'command'?" format
+                            if (suggestion.find("Did you mean") !=
+                                std::string::npos) {
+                                // Extract command names from "Did you mean
+                                // 'command'?" format
                                 size_t start = suggestion.find("'");
                                 if (start != std::string::npos) {
-                                    start++; // skip the opening quote
+                                    start++;  // skip the opening quote
                                     size_t end = suggestion.find("'", start);
                                     if (end != std::string::npos) {
-                                        commands.push_back(suggestion.substr(start, end - start));
+                                        commands.push_back(suggestion.substr(
+                                            start, end - start));
                                     }
                                 }
                             }
                         }
-                        
+
                         if (!commands.empty()) {
                             suggestion_text = "Did you mean: ";
                             for (size_t i = 0; i < commands.size(); ++i) {
@@ -1839,36 +1845,47 @@ int ShellScriptInterpreter::execute_block(
                             }
                             suggestion_text += "?";
                         } else {
-                            // Fallback to the first suggestion if no "Did you mean" format found
-                            suggestion_text = suggestions.empty() ? "Check command syntax and system resources" : suggestions[0];
+                            // Fallback to the first suggestion if no "Did you
+                            // mean" format found
+                            suggestion_text = suggestions.empty()
+                                                  ? "Check command syntax and "
+                                                    "system resources"
+                                                  : suggestions[0];
                         }
-                        
+
                         error.suggestion = suggestion_text;
                     } else {
-                        error.suggestion = "Check command syntax and system resources";
+                        error.suggestion =
+                            "Check command syntax and system resources";
                     }
                 } else {
                     error.severity = ErrorSeverity::ERROR;
                     error.category = ErrorCategory::COMMANDS;
                     error.error_code = "RUN001";
-                    error.suggestion = "Check command syntax and system resources";
+                    error.suggestion =
+                        "Check command syntax and system resources";
                 }
-                
+
                 errors.push_back(error);
                 shell_script_interpreter::ErrorReporter::print_error_report(
                     errors, true, true);
 
                 return set_last_status(127);
             } else if (error_msg.find("Unclosed quote") != std::string::npos ||
-                error_msg.find("missing closing") != std::string::npos ||
-                error_msg.find("syntax error near unexpected token") != std::string::npos) {
+                       error_msg.find("missing closing") != std::string::npos ||
+                       error_msg.find("syntax error near unexpected token") !=
+                           std::string::npos) {
                 error.severity = ErrorSeverity::ERROR;
                 error.category = ErrorCategory::SYNTAX;
                 error.error_code = "SYN001";
-                if (error_msg.find("syntax error near unexpected token") != std::string::npos) {
-                    error.suggestion = "Check for incomplete redirections or missing command arguments";
+                if (error_msg.find("syntax error near unexpected token") !=
+                    std::string::npos) {
+                    error.suggestion =
+                        "Check for incomplete redirections or missing command "
+                        "arguments";
                 } else {
-                    error.suggestion = "Make sure all quotes are properly closed";
+                    error.suggestion =
+                        "Make sure all quotes are properly closed";
                 }
             } else if (error_msg.find("Failed to open") != std::string::npos ||
                        error_msg.find("Failed to redirect") !=

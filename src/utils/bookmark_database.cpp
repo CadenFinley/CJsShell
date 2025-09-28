@@ -395,6 +395,30 @@ cjsh_filesystem::Result<void> BookmarkDatabase::cleanup_invalid_bookmarks() {
     return cjsh_filesystem::Result<void>::ok();
 }
 
+cjsh_filesystem::Result<int>
+BookmarkDatabase::cleanup_invalid_bookmarks_with_count() {
+    std::vector<std::string> invalid_bookmarks;
+
+    for (const auto& [name, entry] : bookmarks_) {
+        if (!std::filesystem::exists(entry.path) ||
+            !std::filesystem::is_directory(entry.path)) {
+            invalid_bookmarks.push_back(name);
+        }
+    }
+
+    int removed_count = static_cast<int>(invalid_bookmarks.size());
+
+    for (const auto& name : invalid_bookmarks) {
+        bookmarks_.erase(name);
+    }
+
+    if (!invalid_bookmarks.empty()) {
+        dirty_ = true;
+    }
+
+    return cjsh_filesystem::Result<int>::ok(removed_count);
+}
+
 size_t BookmarkDatabase::size() const {
     return bookmarks_.size();
 }

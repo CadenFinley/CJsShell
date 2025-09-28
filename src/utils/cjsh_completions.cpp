@@ -1490,10 +1490,12 @@ void cleanup_completion_system() {
 }
 
 void refresh_cached_executables() {
-    // The completion system already reads cached_executables fresh on each call,
-    // so this function is provided for consistency with the syntax highlighter
-    // and for potential future optimizations that might cache the executables.
+    // The completion system already reads cached_executables fresh on each
+    // call, so this function is provided for consistency with the syntax
+    // highlighter and for potential future optimizations that might cache the
+    // executables.
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Cached executables refreshed for completion system" << std::endl;
+        std::cerr << "DEBUG: Cached executables refreshed for completion system"
+                  << std::endl;
     }
 }

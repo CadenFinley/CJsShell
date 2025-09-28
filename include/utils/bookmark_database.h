@@ -45,6 +45,7 @@ class BookmarkDatabase {
     // Utilities
     void update_bookmark_access(const std::string& name);
     cjsh_filesystem::Result<void> cleanup_invalid_bookmarks();
+    cjsh_filesystem::Result<int> cleanup_invalid_bookmarks_with_count();
     size_t size() const;
     bool empty() const;
 

@@ -272,15 +272,16 @@ void Shell::restore_terminal_state() {
         // Force terminal restoration even if it fails
         if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Warning - failed to restore terminal state: " 
-                         << strerror(errno) << std::endl;
+                std::cerr
+                    << "DEBUG: Warning - failed to restore terminal state: "
+                    << strerror(errno) << std::endl;
             }
             // Try immediate restoration as fallback
             tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
         }
         terminal_state_saved = false;
     }
-    
+
     // Flush any remaining output
     fflush(stdout);
     fflush(stderr);

@@ -6,7 +6,7 @@
 int exit_command(const std::vector<std::string>& args) {
     int exit_code = 0;
     bool force_exit = false;
-    //bool found_numeric_arg = false;
+    // bool found_numeric_arg = false;
     int non_flag_args = 0;
 
     force_exit = std::find(args.begin(), args.end(), "-f") != args.end() ||
@@ -20,12 +20,13 @@ int exit_command(const std::vector<std::string>& args) {
             long code = std::strtol(val.c_str(), &endptr, 10);
             if (endptr && *endptr == '\0') {
                 exit_code = static_cast<int>(code) & 0xFF;
-                //found_numeric_arg = true;
+                // found_numeric_arg = true;
                 break;
             } else {
                 // Invalid numeric argument
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Invalid exit argument: " << val << std::endl;
+                    std::cerr << "DEBUG: Invalid exit argument: " << val
+                              << std::endl;
                 }
                 g_exit_flag = true;
                 setenv("EXIT_CODE", "128", 1);

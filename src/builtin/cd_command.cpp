@@ -199,6 +199,18 @@ int change_directory_smart(const std::string& dir,
 
             // If the relative path doesn't exist, check bookmarks
             if (!std::filesystem::exists(dir_path)) {
+                // Clean up any invalid bookmarks before searching
+                // This ensures we don't try to navigate to dead links
+                auto cleanup_result = bookmark_database::g_bookmark_db
+                                          .cleanup_invalid_bookmarks();
+                if (cleanup_result.is_error()) {
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "cd",
+                                 "Failed to clean up bookmarks: " +
+                                     cleanup_result.error(),
+                                 {"This can be ignored."}});
+                }
+
                 auto bookmark_path =
                     bookmark_database::g_bookmark_db.get_bookmark(target_dir);
                 if (bookmark_path.has_value()) {

@@ -101,7 +101,6 @@ static void initialize_title_strings() {
 }
 
 //  add a way to change keybindings via .cjshrc
-//  add pruneing to bookmarks to remove dead links
 
 /*
  * Exit/Return Codes:
