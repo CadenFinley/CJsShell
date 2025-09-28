@@ -453,6 +453,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         signal(SIGTTIN, SIG_DFL);
         signal(SIGTTOU, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
 
         sigset_t set;
         sigemptyset(&set);
@@ -460,6 +461,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         sigaddset(&set, SIGQUIT);
         sigaddset(&set, SIGTSTP);
         sigaddset(&set, SIGCHLD);
+        sigaddset(&set, SIGTERM);
         sigprocmask(SIG_UNBLOCK, &set, nullptr);
 
         auto c_args = build_exec_argv(cmd_args);
@@ -1103,6 +1105,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 signal(SIGTTIN, SIG_DFL);
                 signal(SIGTTOU, SIG_DFL);
                 signal(SIGCHLD, SIG_DFL);
+                signal(SIGTERM, SIG_DFL);
 
                 sigset_t set;
                 sigemptyset(&set);
@@ -1110,6 +1113,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 sigaddset(&set, SIGQUIT);
                 sigaddset(&set, SIGTSTP);
                 sigaddset(&set, SIGCHLD);
+                sigaddset(&set, SIGTERM);
                 sigprocmask(SIG_UNBLOCK, &set, nullptr);
 
                 if (!cmd.here_doc.empty()) {
@@ -1503,6 +1507,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 signal(SIGTTIN, SIG_DFL);
                 signal(SIGTTOU, SIG_DFL);
                 signal(SIGCHLD, SIG_DFL);
+                signal(SIGTERM, SIG_DFL);
                 if (i == 0) {
                     if (!cmd.here_doc.empty()) {
                         int here_pipe[2];
