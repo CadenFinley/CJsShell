@@ -41,7 +41,7 @@ typedef enum palette_e {
               // for background)
     ANSI256,  // ANSI 256 color palette      (ESC[38;5;<idx>m, idx: 0-15
               // standard color, 16-231 6x6x6 rbg colors, 232-255 gray shades)
-    ANSIRGB  // direct rgb colors supported (ESC[38;2;<r>;<g>;<b>m)
+    ANSIRGB   // direct rgb colors supported (ESC[38;2;<r>;<g>;<b>m)
 } palette_t;
 
 // The terminal screen

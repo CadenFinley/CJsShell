@@ -1408,7 +1408,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 void initialize_completion_system() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing completion system" << std::endl;
-    
+
     // Initialize default styles first
     ic_style_def("cjsh-unknown-command", "bold color=#FF5555");
     ic_style_def("cjsh-colon", "bold color=#8BE9FD");
@@ -1424,7 +1424,7 @@ void initialize_completion_system() {
     ic_style_def("cjsh-string", "color=#F1FA8C");
     ic_style_def("cjsh-comment", "color=#6272A4");
     ic_style_def("cjsh-function-definition", "bold color=#F1FA8C");
-    
+
     // Load any custom styles from .cjshrc
     load_custom_styles_from_config();
 

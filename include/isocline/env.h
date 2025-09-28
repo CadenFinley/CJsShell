@@ -27,24 +27,24 @@ struct ic_env_s {
     ic_env_t* next;  // next environment (used for proper deallocation)
     term_t* term;    // terminal
     tty_t* tty;      // keyboard (NULL if stdin is a pipe, file, etc)
-    completions_t* completions;  // current completions
-    history_t* history;          // edit history
-    bbcode_t* bbcode;            // print with bbcodes
-    const char* prompt_marker;   // the prompt marker (defaults to "> ")
-    const char* cprompt_marker;  // prompt marker for continuation lines
-                                 // (defaults to `prompt_marker`)
+    completions_t* completions;       // current completions
+    history_t* history;               // edit history
+    bbcode_t* bbcode;                 // print with bbcodes
+    const char* prompt_marker;        // the prompt marker (defaults to "> ")
+    const char* cprompt_marker;       // prompt marker for continuation lines
+                                      // (defaults to `prompt_marker`)
     ic_highlight_fun_t* highlighter;  // highlight callback
     void* highlighter_arg;            // user state for the highlighter.
     const char* match_braces;         // matching braces, e.g "()[]{}"
     const char* auto_braces;    // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;  // initial input text to insert into editor
-    char multiline_eol;  // character used for multiline input ("\") (set to 0
-                         // to disable)
-    bool initialized;         // are we initialized?
-    bool noedit;              // is rich editing possible (tty != NULL)
-    bool singleline_only;     // allow only single line editing?
-    bool complete_nopreview;  // do not show completion preview for each
-                              // selection in the completion menu?
+    char multiline_eol;    // character used for multiline input ("\") (set to 0
+                           // to disable)
+    bool initialized;      // are we initialized?
+    bool noedit;           // is rich editing possible (tty != NULL)
+    bool singleline_only;  // allow only single line editing?
+    bool complete_nopreview;   // do not show completion preview for each
+                               // selection in the completion menu?
     bool complete_autotab;     // try to keep completing after a completion?
     bool no_multiline_indent;  // indent continuation lines to line up under the
                                // initial prompt

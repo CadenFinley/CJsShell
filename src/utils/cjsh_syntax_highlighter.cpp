@@ -415,8 +415,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
                         std::filesystem::current_path().string() + "/" + token;
                 }
                 if (std::filesystem::exists(path_to_check)) {
-                    ic_highlight(henv, cmd_start, token_end,
-                                 "cjsh-installed");
+                    ic_highlight(henv, cmd_start, token_end, "cjsh-installed");
                 } else {
                     ic_highlight(henv, cmd_start, token_end,
                                  "cjsh-unknown-command");
@@ -428,14 +427,11 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
             } else {
                 auto cmds = g_shell->get_available_commands();
                 if (std::find(cmds.begin(), cmds.end(), token) != cmds.end()) {
-                    ic_highlight(henv, cmd_start, token_end,
-                                 "cjsh-builtin");
+                    ic_highlight(henv, cmd_start, token_end, "cjsh-builtin");
                 } else if (basic_unix_commands_.count(token) > 0) {
-                    ic_highlight(henv, cmd_start, token_end,
-                                 "cjsh-system");
+                    ic_highlight(henv, cmd_start, token_end, "cjsh-system");
                 } else if (external_executables_.count(token) > 0) {
-                    ic_highlight(henv, cmd_start, token_end,
-                                 "cjsh-installed");
+                    ic_highlight(henv, cmd_start, token_end, "cjsh-installed");
                 } else {
                     ic_highlight(henv, cmd_start, token_end,
                                  "cjsh-unknown-command");
@@ -486,28 +482,23 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
                                          "cjsh-unknown-command");
                         } else {
                             ic_highlight(henv, cmd_start + arg_start,
-                                         arg_end - arg_start,
-                                         "cjsh-installed");
+                                         arg_end - arg_start, "cjsh-installed");
                         }
                     } else {
                         auto cmds = g_shell->get_available_commands();
                         if (std::find(cmds.begin(), cmds.end(), arg) !=
                             cmds.end()) {
                             ic_highlight(henv, cmd_start + arg_start,
-                                         arg_end - arg_start,
-                                         "cjsh-builtin");
+                                         arg_end - arg_start, "cjsh-builtin");
                         } else if (is_shell_builtin(arg)) {
                             ic_highlight(henv, cmd_start + arg_start,
-                                         arg_end - arg_start,
-                                         "cjsh-builtin");
+                                         arg_end - arg_start, "cjsh-builtin");
                         } else if (basic_unix_commands_.count(arg) > 0) {
                             ic_highlight(henv, cmd_start + arg_start,
-                                         arg_end - arg_start,
-                                         "cjsh-system");
+                                         arg_end - arg_start, "cjsh-system");
                         } else if (external_executables_.count(arg) > 0) {
                             ic_highlight(henv, cmd_start + arg_start,
-                                         arg_end - arg_start,
-                                         "cjsh-installed");
+                                         arg_end - arg_start, "cjsh-installed");
                         } else {
                             ic_highlight(henv, cmd_start + arg_start,
                                          arg_end - arg_start,

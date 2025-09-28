@@ -1,4 +1,5 @@
 #define NOB_IMPLEMENTATION
+#define NOB_EXPERIMENTAL_DELETE_OLD
 #include "nob.h"
 
 #define PROJECT_NAME "cjsh"
@@ -13,11 +14,8 @@
 #include "nob_platform.h"
 
 int main(int argc, char** argv) {
-    NOB_GO_REBUILD_URSELF_PLUS(argc, argv, 
-                               "nob.h",
-                               "nob_cli.h", 
-                               "nob_compile.h", 
-                               "nob_dependencies.h", 
+    NOB_GO_REBUILD_URSELF_PLUS(argc, argv, "nob.h", "nob_cli.h",
+                               "nob_compile.h", "nob_dependencies.h",
                                "nob_platform.h");
 
     // Change to parent directory (project root)

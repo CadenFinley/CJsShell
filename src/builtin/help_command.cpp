@@ -219,7 +219,8 @@ int help_command() {
                  "issues\n";
     std::cout << "    Usage: syntax [options] <script_file>\n";
     std::cout << "           syntax [options] -c <command_string>\n";
-    std::cout << "  style_def TYPE STYLE    Define syntax highlighting colors\n";
+    std::cout
+        << "  style_def TYPE STYLE    Define syntax highlighting colors\n";
     std::cout << "    Usage: style_def <token_type> <style>\n";
     std::cout << "           style_def --reset  (reset to defaults)\n\n";
 

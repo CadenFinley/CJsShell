@@ -702,8 +702,6 @@ void cleanup_resources() {
     }
 }
 
-
-
 static void process_profile_files() {
     // sourcing if in login shell
     if (g_debug_mode)

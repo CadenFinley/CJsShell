@@ -33,7 +33,7 @@ typedef struct editor_s {
     ssize_t cur_rows;  // current used rows to display our content (including
                        // extra content)
     ssize_t cur_row;   // current row that has the cursor (0 based, relative to
-                      // the prompt)
+                       // the prompt)
     ssize_t termw;
     bool modified;  // has a modification happened? (used for history navigation
                     // for example)

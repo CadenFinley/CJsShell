@@ -41,7 +41,7 @@ static inline bool compile_cjsh(void) {
     // First pass: determine which files need to be compiled
     String_Array files_to_compile = {0};
     String_Array corresponding_obj_files = {0};
-    
+
     for (size_t i = 0; i < cpp_sources.count; i++) {
         const char* source = cpp_sources.items[i];
         const char* basename = strrchr(source, '/');
@@ -69,13 +69,13 @@ static inline bool compile_cjsh(void) {
             nob_sb_free(obj_name);
             return false;
         }
-        
+
         if (rebuild_result > 0) {
             // File needs to be compiled
             nob_da_append(&files_to_compile, source);
             nob_da_append(&corresponding_obj_files, strdup(obj_name.items));
         }
-        
+
         // Always add to obj_files for linking
         nob_da_append(&obj_files, strdup(obj_name.items));
         nob_sb_free(obj_name);
@@ -84,8 +84,11 @@ static inline bool compile_cjsh(void) {
     if (files_to_compile.count == 0) {
         nob_log(NOB_INFO, "All C++ files are up to date, skipping compilation");
     } else {
-        nob_log(NOB_INFO, "Starting parallel compilation of %zu C++ files (skipping %zu up-to-date)...",
-                files_to_compile.count, cpp_sources.count - files_to_compile.count);
+        nob_log(NOB_INFO,
+                "Starting parallel compilation of %zu C++ files (skipping %zu "
+                "up-to-date)...",
+                files_to_compile.count,
+                cpp_sources.count - files_to_compile.count);
         nob_minimal_log_level = NOB_WARNING;
         for (size_t i = 0; i < files_to_compile.count; i++) {
             Nob_Cmd cmd = {0};
@@ -113,7 +116,8 @@ static inline bool compile_cjsh(void) {
                 return false;
             }
 
-            const char* progress_label = (i + 1 == files_to_compile.count) ? "Complete!" : basename;
+            const char* progress_label =
+                (i + 1 == files_to_compile.count) ? "Complete!" : basename;
             update_progress(progress_label, i + 1, files_to_compile.count);
             completed_cpp_files++;
         }
@@ -134,7 +138,7 @@ static inline bool compile_cjsh(void) {
         nob_log(NOB_INFO, "All %zu C++ files compiled successfully",
                 files_to_compile.count);
     }
-    
+
     // Clean up temporary arrays and track totals
     size_t cpp_files_compiled = files_to_compile.count;
     nob_da_free(files_to_compile);
@@ -146,7 +150,7 @@ static inline bool compile_cjsh(void) {
     // Second pass: determine which C files need to be compiled
     String_Array c_files_to_compile = {0};
     String_Array c_corresponding_obj_files = {0};
-    
+
     for (size_t i = 0; i < c_sources.count; i++) {
         const char* source = c_sources.items[i];
         const char* basename = strrchr(source, '/');
@@ -174,13 +178,13 @@ static inline bool compile_cjsh(void) {
             nob_sb_free(obj_name);
             return false;
         }
-        
+
         if (rebuild_result > 0) {
             // File needs to be compiled
             nob_da_append(&c_files_to_compile, source);
             nob_da_append(&c_corresponding_obj_files, strdup(obj_name.items));
         }
-        
+
         // Always add to obj_files for linking
         nob_da_append(&obj_files, strdup(obj_name.items));
         nob_sb_free(obj_name);
@@ -189,8 +193,11 @@ static inline bool compile_cjsh(void) {
     if (c_files_to_compile.count == 0) {
         nob_log(NOB_INFO, "All C files are up to date, skipping compilation");
     } else {
-        nob_log(NOB_INFO, "Starting parallel compilation of %zu C files (skipping %zu up-to-date)...",
-                c_files_to_compile.count, c_sources.count - c_files_to_compile.count);
+        nob_log(NOB_INFO,
+                "Starting parallel compilation of %zu C files (skipping %zu "
+                "up-to-date)...",
+                c_files_to_compile.count,
+                c_sources.count - c_files_to_compile.count);
         nob_minimal_log_level = NOB_WARNING;
         for (size_t i = 0; i < c_files_to_compile.count; i++) {
             Nob_Cmd cmd = {0};
@@ -218,7 +225,8 @@ static inline bool compile_cjsh(void) {
                 return false;
             }
 
-            const char* progress_label = (i + 1 == c_files_to_compile.count) ? "Complete!" : basename;
+            const char* progress_label =
+                (i + 1 == c_files_to_compile.count) ? "Complete!" : basename;
             update_progress(progress_label, i + 1, c_files_to_compile.count);
         }
     }
@@ -236,7 +244,7 @@ static inline bool compile_cjsh(void) {
         clear_progress_line();
         nob_minimal_log_level = original_log_level;
     }
-    
+
     // Clean up temporary arrays
     size_t c_files_compiled = c_files_to_compile.count;
     nob_da_free(c_files_to_compile);
@@ -244,7 +252,7 @@ static inline bool compile_cjsh(void) {
         free((char*)c_corresponding_obj_files.items[i]);
     }
     nob_da_free(c_corresponding_obj_files);
-    
+
     size_t total_compiled = cpp_files_compiled + c_files_compiled;
     size_t total_files = cpp_sources.count + c_sources.count;
     if (total_compiled > 0) {
@@ -256,19 +264,21 @@ static inline bool compile_cjsh(void) {
 
     // Check if linking is needed
     const char* output_binary = "build/" PROJECT_NAME;
-    bool needs_linking = (total_compiled > 0); // If we compiled anything, we need to relink
-    
+    bool needs_linking =
+        (total_compiled > 0);  // If we compiled anything, we need to relink
+
     if (!needs_linking) {
         // Check if binary exists and is newer than all object files
         const char** obj_file_ptrs = (const char**)obj_files.items;
-        int rebuild_result = nob_needs_rebuild(output_binary, obj_file_ptrs, obj_files.count);
+        int rebuild_result =
+            nob_needs_rebuild(output_binary, obj_file_ptrs, obj_files.count);
         if (rebuild_result < 0) {
             nob_log(NOB_ERROR, "Failed to check if binary needs rebuild");
             return false;
         }
         needs_linking = (rebuild_result > 0);
     }
-    
+
     if (!needs_linking) {
         nob_log(NOB_INFO, "Binary is up to date, skipping linking");
         nob_minimal_log_level = original_log_level;
