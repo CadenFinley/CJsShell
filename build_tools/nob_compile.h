@@ -139,7 +139,7 @@ static inline int needs_rebuild_with_dependency_file(const char* obj_path,
     return rebuild_result;
 }
 
-static inline bool compile_cjsh(void) {
+static inline bool compile_cjsh(int override_parallel_jobs) {
     nob_log(NOB_INFO, "Compiling " PROJECT_NAME "...");
 
     String_Array cpp_sources = {0};
@@ -155,14 +155,11 @@ static inline bool compile_cjsh(void) {
     }
 
     Nob_Procs procs = {0};
-    int max_parallel_jobs = nob_nprocs();
-    if (max_parallel_jobs <= 0)
-        max_parallel_jobs = 4;
+    int max_cpu_cores = nob_nprocs();
+    if (max_cpu_cores <= 0)
+        max_cpu_cores = 4;
 
     size_t total_source_files = cpp_sources.count + c_sources.count;
-    (void)total_source_files;
-
-    nob_log(NOB_INFO, "Using %d parallel compilation jobs", max_parallel_jobs);
 
     Nob_Log_Level original_log_level = nob_minimal_log_level;
     size_t completed_cpp_files = 0;
@@ -227,9 +224,39 @@ static inline bool compile_cjsh(void) {
         nob_sb_free(obj_name);
     }
 
+    // Calculate parallel jobs based on files that actually need compilation
+    // (but consider total project size for context)
+    int max_parallel_jobs;
+    if (override_parallel_jobs > 0) {
+        max_parallel_jobs = override_parallel_jobs;  // Use user-specified value
+    } else {
+        // Automatic calculation based on files to compile and project size:
+        size_t files_needing_compilation = files_to_compile.count;
+        
+        if (files_needing_compilation == 0) {
+            max_parallel_jobs = 1;  // Doesn't matter, no compilation needed
+        } else if (files_needing_compilation <= 2) {
+            max_parallel_jobs = 1;  // Sequential for very few files
+        } else if (files_needing_compilation <= 8 || total_source_files <= 8) {
+            // For small compilations or small projects, use limited parallelism
+            max_parallel_jobs = (int)files_needing_compilation < max_cpu_cores / 2 ? 
+                               (int)files_needing_compilation : max_cpu_cores / 2;
+            if (max_parallel_jobs < 1) max_parallel_jobs = 1;
+        } else {
+            max_parallel_jobs = max_cpu_cores;  // Use all cores for larger compilations
+        }
+    }
+
     if (files_to_compile.count == 0) {
         nob_log(NOB_INFO, "All C++ files are up to date, skipping compilation");
     } else {
+        if (override_parallel_jobs > 0) {
+            nob_log(NOB_INFO, "Using %d parallel compilation jobs (user override) for %zu files",
+                    max_parallel_jobs, files_to_compile.count);
+        } else {
+            nob_log(NOB_INFO, "Using %d parallel compilation jobs (auto) for %zu files",
+                    max_parallel_jobs, files_to_compile.count);
+        }
         nob_log(NOB_INFO,
                 "Starting parallel compilation of %zu C++ files (skipping %zu "
                 "up-to-date)...",
@@ -358,14 +385,35 @@ static inline bool compile_cjsh(void) {
         nob_sb_free(obj_name);
     }
 
+    // Recalculate parallel jobs for C files if needed
+    if (c_files_to_compile.count > 0) {
+        if (override_parallel_jobs <= 0) {
+            // Only recalculate if we're using automatic calculation
+            size_t c_files_needing_compilation = c_files_to_compile.count;
+            
+            if (c_files_needing_compilation <= 2) {
+                max_parallel_jobs = 1;  // Sequential for very few files
+            } else if (c_files_needing_compilation <= 8 || total_source_files <= 8) {
+                // For small compilations or small projects, use limited parallelism
+                max_parallel_jobs = (int)c_files_needing_compilation < max_cpu_cores / 2 ? 
+                                   (int)c_files_needing_compilation : max_cpu_cores / 2;
+                if (max_parallel_jobs < 1) max_parallel_jobs = 1;
+            } else {
+                max_parallel_jobs = max_cpu_cores;  // Use all cores for larger compilations
+            }
+        }
+    }
+
     if (c_files_to_compile.count == 0) {
         nob_log(NOB_INFO, "All C files are up to date, skipping compilation");
     } else {
-        nob_log(NOB_INFO,
-                "Starting parallel compilation of %zu C files (skipping %zu "
-                "up-to-date)...",
-                c_files_to_compile.count,
-                c_sources.count - c_files_to_compile.count);
+        if (override_parallel_jobs > 0) {
+            nob_log(NOB_INFO, "Using %d parallel compilation jobs (user override) for %zu C files",
+                    max_parallel_jobs, c_files_to_compile.count);
+        } else {
+            nob_log(NOB_INFO, "Using %d parallel compilation jobs (auto) for %zu C files",
+                    max_parallel_jobs, c_files_to_compile.count);
+        }
         nob_minimal_log_level = NOB_WARNING;
         for (size_t i = 0; i < c_files_to_compile.count; i++) {
             Nob_Cmd cmd = {0};

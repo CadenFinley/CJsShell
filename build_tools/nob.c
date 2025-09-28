@@ -3,7 +3,7 @@
 #include "nob.h"
 
 #define PROJECT_NAME "cjsh"
-#define VERSION "3.5.4"
+#define VERSION "3.5.5"
 
 #include <stdbool.h>
 #include <string.h>
@@ -39,6 +39,7 @@ int main(int argc, char** argv) {
     bool debug = false;
     bool force_32bit = false;
     bool dependencies = false;
+    int override_jobs = -1;  // -1 means use automatic calculation
 
     // Skip the program name
     nob_shift_args(&argc, &argv);
@@ -57,6 +58,18 @@ int main(int argc, char** argv) {
             force_32bit = true;
         } else if (strcmp(arg, "--dependencies") == 0) {
             dependencies = true;
+        } else if (strcmp(arg, "--jobs") == 0 || strcmp(arg, "-j") == 0) {
+            if (argc == 0) {
+                nob_log(NOB_ERROR, "Expected number after %s", arg);
+                print_help();
+                return 1;
+            }
+            char* jobs_str = nob_shift_args(&argc, &argv);
+            override_jobs = atoi(jobs_str);
+            if (override_jobs < 1) {
+                nob_log(NOB_ERROR, "Invalid number of jobs: %s (must be >= 1)", jobs_str);
+                return 1;
+            }
         } else {
             nob_log(NOB_ERROR, "Unknown argument: %s", arg);
             print_help();
@@ -116,7 +129,7 @@ int main(int argc, char** argv) {
     }
 
     // Compile the project
-    if (!compile_cjsh()) {
+    if (!compile_cjsh(override_jobs)) {
         nob_log(NOB_ERROR, "Compilation failed");
         return 1;
     }
