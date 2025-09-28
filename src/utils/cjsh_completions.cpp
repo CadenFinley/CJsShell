@@ -1418,11 +1418,11 @@ void initialize_completion_system() {
     ic_style_def("cjsh-operator", "bold color=#FF79C6");
     ic_style_def("cjsh-keyword", "bold color=#BD93F9");
     ic_style_def("cjsh-builtin", "color=#FFB86C");
+    ic_style_def("cjsh-system", "color=#50FA7B");
+    ic_style_def("cjsh-installed", "color=#8BE9FD");
     ic_style_def("cjsh-variable", "color=#8BE9FD");
     ic_style_def("cjsh-string", "color=#F1FA8C");
     ic_style_def("cjsh-comment", "color=#6272A4");
-    ic_style_def("cjsh-known-command", "color=#50FA7B");
-    ic_style_def("cjsh-external-command", "color=#8BE9FD");
     ic_style_def("cjsh-function-definition", "bold color=#F1FA8C");
     
     // Load any custom styles from .cjshrc

@@ -22,11 +22,11 @@ static const std::unordered_map<std::string, std::string> default_styles = {
     {"operator", "bold color=#FF79C6"},
     {"keyword", "bold color=#BD93F9"},
     {"builtin", "color=#FFB86C"},
+    {"system", "color=#50FA7B"},
+    {"installed", "color=#8BE9FD"},
     {"variable", "color=#8BE9FD"},
     {"string", "color=#F1FA8C"},
     {"comment", "color=#6272A4"},
-    {"known-command", "color=#50FA7B"},
-    {"external-command", "color=#8BE9FD"},
     {"function-definition", "bold color=#F1FA8C"}
 };
 
@@ -44,6 +44,8 @@ int style_def_command(const std::vector<std::string>& args) {
         std::cout << "ANSI colors: ansi-black, ansi-red, ansi-green, ansi-yellow, etc.\n\n";
         std::cout << "Examples:\n";
         std::cout << "  style_def builtin \"bold color=#FFB86C\"\n";
+        std::cout << "  style_def system \"color=#50FA7B\"\n";
+        std::cout << "  style_def installed \"color=#8BE9FD\"\n";
         std::cout << "  style_def comment \"italic color=green\"\n";
         std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
         std::cout << "To reset all styles to defaults, use: style_def --reset\n";
