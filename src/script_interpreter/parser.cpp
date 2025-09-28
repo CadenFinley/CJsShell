@@ -1741,6 +1741,16 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         std::vector<std::string> tokens = merge_redirection_tokens(raw_tokens);
         std::vector<std::string> filtered_args;
 
+        // Check for incomplete redirections first
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            const std::string tok = strip_quote_tag(tokens[i]);
+            if ((tok == "<" || tok == ">" || tok == ">>" || tok == ">|" || 
+                 tok == "&>" || tok == "<<" || tok == "<<-" || tok == "<<<" ||
+                 tok == "2>" || tok == "2>>") && (i + 1 >= tokens.size())) {
+                throw std::runtime_error("cjsh: syntax error near unexpected token `newline'");
+            }
+        }
+
         for (size_t i = 0; i < tokens.size(); ++i) {
             const std::string tok = strip_quote_tag(tokens[i]);
             if (tok == "<" && i + 1 < tokens.size()) {

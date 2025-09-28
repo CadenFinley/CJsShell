@@ -1663,6 +1663,13 @@ int ShellScriptInterpreter::execute_block(
                                 int exit_code =
                                     g_shell->execute(subshell_content);
 
+                                // Check if exit command set EXIT_CODE
+                                const char* exit_code_str = getenv("EXIT_CODE");
+                                if (exit_code_str) {
+                                    exit_code = std::atoi(exit_code_str);
+                                    unsetenv("EXIT_CODE");
+                                }
+
                                 int child_status;
                                 while (waitpid(-1, &child_status, WNOHANG) >
                                        0) {
@@ -1853,11 +1860,16 @@ int ShellScriptInterpreter::execute_block(
 
                 return set_last_status(127);
             } else if (error_msg.find("Unclosed quote") != std::string::npos ||
-                error_msg.find("missing closing") != std::string::npos) {
+                error_msg.find("missing closing") != std::string::npos ||
+                error_msg.find("syntax error near unexpected token") != std::string::npos) {
                 error.severity = ErrorSeverity::ERROR;
                 error.category = ErrorCategory::SYNTAX;
                 error.error_code = "SYN001";
-                error.suggestion = "Make sure all quotes are properly closed";
+                if (error_msg.find("syntax error near unexpected token") != std::string::npos) {
+                    error.suggestion = "Check for incomplete redirections or missing command arguments";
+                } else {
+                    error.suggestion = "Make sure all quotes are properly closed";
+                }
             } else if (error_msg.find("Failed to open") != std::string::npos ||
                        error_msg.find("Failed to redirect") !=
                            std::string::npos ||

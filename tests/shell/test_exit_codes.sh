@@ -59,7 +59,7 @@ create_temp_file() {
     local permissions="$2"
     local temp_file
     temp_file=$(mktemp /tmp/cjsh_test_XXXXXX)
-    printf "%s\n" "$content" > "$temp_file"
+    printf "%b\n" "$content" > "$temp_file"
     if [ -n "$permissions" ]; then
         chmod "$permissions" "$temp_file"
     fi
