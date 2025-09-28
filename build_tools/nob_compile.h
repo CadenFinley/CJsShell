@@ -1,6 +1,7 @@
 #ifndef CJSH_NOB_COMPILE_H
 #define CJSH_NOB_COMPILE_H
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,6 +10,134 @@
 #include "nob_progress.h"
 #include "nob_sources.h"
 #include "nob_toolchain.h"
+
+static inline bool string_array_contains(const String_Array* array,
+                                         const char* value) {
+    for (size_t i = 0; i < array->count; i++) {
+        if (strcmp(array->items[i], value) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static inline bool parse_dependency_file(const char* dep_path,
+                                         String_Array* deps) {
+    Nob_String_Builder content = {0};
+    if (!nob_read_entire_file(dep_path, &content)) {
+        nob_da_free(content);
+        return false;
+    }
+
+    Nob_String_Builder sanitized = {0};
+    for (size_t i = 0; i < content.count; i++) {
+        char c = content.items[i];
+        if (c == '\\') {
+            size_t j = i + 1;
+            bool had_newline = false;
+            while (j < content.count &&
+                   (content.items[j] == '\n' || content.items[j] == '\r')) {
+                had_newline = true;
+                j++;
+            }
+            if (had_newline) {
+                i = j - 1;
+                continue;
+            }
+        }
+
+        if (c == '\n' || c == '\r') {
+            c = ' ';
+        }
+
+        nob_da_append(&sanitized, c);
+    }
+    nob_sb_append_null(&sanitized);
+
+    char* data = sanitized.items;
+    char* colon = strchr(data, ':');
+    if (colon == NULL) {
+        nob_da_free(content);
+        nob_da_free(sanitized);
+        return false;
+    }
+    *colon = ' ';
+
+    bool first_token = true;
+    char* ptr = data;
+    while (*ptr) {
+        while (*ptr && isspace((unsigned char)*ptr)) {
+            ptr++;
+        }
+
+        if (!*ptr) {
+            break;
+        }
+
+        char* end = ptr;
+        while (*end && !isspace((unsigned char)*end)) {
+            end++;
+        }
+
+        char saved = *end;
+        *end = '\0';
+
+        if (first_token) {
+            first_token = false;
+        } else {
+            size_t token_len = strlen(ptr);
+            if (token_len > 0 && ptr[token_len - 1] == ':') {
+                // Skip phony targets produced by dependency generators
+            } else if (!string_array_contains(deps, ptr)) {
+                nob_da_append(deps, strdup(ptr));
+            }
+        }
+
+        *end = saved;
+        ptr = end;
+    }
+
+    nob_da_free(content);
+    nob_da_free(sanitized);
+    return true;
+}
+
+static inline int needs_rebuild_with_dependency_file(const char* obj_path,
+                                                      const char* source_path,
+                                                      const char* dep_path) {
+    int dep_exists = nob_file_exists(dep_path);
+    if (dep_exists < 0) {
+        return -1;
+    }
+
+    if (dep_exists == 0) {
+        return 1;
+    }
+
+    String_Array inputs = {0};
+    nob_da_append(&inputs, source_path);
+
+    if (!parse_dependency_file(dep_path, &inputs)) {
+        for (size_t i = 1; i < inputs.count; i++) {
+            free((char*)inputs.items[i]);
+        }
+        nob_da_free(inputs);
+        nob_log(NOB_WARNING,
+                "Failed to parse dependency file %s. Forcing rebuild.",
+                dep_path);
+        return 1;
+    }
+
+    int rebuild_result = nob_needs_rebuild(obj_path, (const char**)inputs.items,
+                                           inputs.count);
+
+    for (size_t i = 1; i < inputs.count; i++) {
+        free((char*)inputs.items[i]);
+    }
+    nob_da_free(inputs);
+
+    return rebuild_result;
+}
 
 static inline bool compile_cjsh(void) {
     nob_log(NOB_INFO, "Compiling " PROJECT_NAME "...");
@@ -41,6 +170,7 @@ static inline bool compile_cjsh(void) {
     // First pass: determine which files need to be compiled
     String_Array files_to_compile = {0};
     String_Array corresponding_obj_files = {0};
+    String_Array corresponding_dep_files = {0};
 
     for (size_t i = 0; i < cpp_sources.count; i++) {
         const char* source = cpp_sources.items[i];
@@ -62,10 +192,24 @@ static inline bool compile_cjsh(void) {
         }
         nob_sb_append_null(&obj_name);
 
+        // Determine dependency file path
+        Nob_String_Builder dep_name = {0};
+        nob_sb_append_cstr(&dep_name, "build/obj/");
+        if (base_len > 4 && strcmp(basename + base_len - 4, ".cpp") == 0) {
+            nob_sb_append_buf(&dep_name, basename, base_len - 4);
+            nob_sb_append_cstr(&dep_name, ".d");
+        } else {
+            nob_sb_append_cstr(&dep_name, basename);
+            nob_sb_append_cstr(&dep_name, ".d");
+        }
+        nob_sb_append_null(&dep_name);
+
         // Check if compilation is needed
-        int rebuild_result = nob_needs_rebuild1(obj_name.items, source);
+        int rebuild_result = needs_rebuild_with_dependency_file(
+            obj_name.items, source, dep_name.items);
         if (rebuild_result < 0) {
             nob_log(NOB_ERROR, "Failed to check if %s needs rebuild", source);
+            nob_sb_free(dep_name);
             nob_sb_free(obj_name);
             return false;
         }
@@ -74,10 +218,12 @@ static inline bool compile_cjsh(void) {
             // File needs to be compiled
             nob_da_append(&files_to_compile, source);
             nob_da_append(&corresponding_obj_files, strdup(obj_name.items));
+            nob_da_append(&corresponding_dep_files, strdup(dep_name.items));
         }
 
         // Always add to obj_files for linking
         nob_da_append(&obj_files, strdup(obj_name.items));
+        nob_sb_free(dep_name);
         nob_sb_free(obj_name);
     }
 
@@ -97,6 +243,8 @@ static inline bool compile_cjsh(void) {
                 return false;
             }
 
+            nob_cmd_append(&cmd, "-MMD", "-MF", corresponding_dep_files.items[i],
+                           "-MT", corresponding_obj_files.items[i]);
             nob_cmd_append(&cmd, "-c");
             nob_cmd_append(&cmd, files_to_compile.items[i]);
 
@@ -146,10 +294,15 @@ static inline bool compile_cjsh(void) {
         free((char*)corresponding_obj_files.items[i]);
     }
     nob_da_free(corresponding_obj_files);
+    for (size_t i = 0; i < corresponding_dep_files.count; i++) {
+        free((char*)corresponding_dep_files.items[i]);
+    }
+    nob_da_free(corresponding_dep_files);
 
     // Second pass: determine which C files need to be compiled
     String_Array c_files_to_compile = {0};
     String_Array c_corresponding_obj_files = {0};
+    String_Array c_corresponding_dep_files = {0};
 
     for (size_t i = 0; i < c_sources.count; i++) {
         const char* source = c_sources.items[i];
@@ -171,10 +324,23 @@ static inline bool compile_cjsh(void) {
         }
         nob_sb_append_null(&obj_name);
 
+        Nob_String_Builder dep_name = {0};
+        nob_sb_append_cstr(&dep_name, "build/obj/");
+        if (base_len > 2 && strcmp(basename + base_len - 2, ".c") == 0) {
+            nob_sb_append_buf(&dep_name, basename, base_len - 2);
+            nob_sb_append_cstr(&dep_name, ".c.d");
+        } else {
+            nob_sb_append_cstr(&dep_name, basename);
+            nob_sb_append_cstr(&dep_name, ".d");
+        }
+        nob_sb_append_null(&dep_name);
+
         // Check if compilation is needed
-        int rebuild_result = nob_needs_rebuild1(obj_name.items, source);
+        int rebuild_result = needs_rebuild_with_dependency_file(
+            obj_name.items, source, dep_name.items);
         if (rebuild_result < 0) {
             nob_log(NOB_ERROR, "Failed to check if %s needs rebuild", source);
+            nob_sb_free(dep_name);
             nob_sb_free(obj_name);
             return false;
         }
@@ -183,10 +349,12 @@ static inline bool compile_cjsh(void) {
             // File needs to be compiled
             nob_da_append(&c_files_to_compile, source);
             nob_da_append(&c_corresponding_obj_files, strdup(obj_name.items));
+            nob_da_append(&c_corresponding_dep_files, strdup(dep_name.items));
         }
 
         // Always add to obj_files for linking
         nob_da_append(&obj_files, strdup(obj_name.items));
+        nob_sb_free(dep_name);
         nob_sb_free(obj_name);
     }
 
@@ -206,6 +374,9 @@ static inline bool compile_cjsh(void) {
                 return false;
             }
 
+            nob_cmd_append(&cmd, "-MMD", "-MF",
+                           c_corresponding_dep_files.items[i], "-MT",
+                           c_corresponding_obj_files.items[i]);
             nob_cmd_append(&cmd, "-c");
             nob_cmd_append(&cmd, c_files_to_compile.items[i]);
 
@@ -252,6 +423,10 @@ static inline bool compile_cjsh(void) {
         free((char*)c_corresponding_obj_files.items[i]);
     }
     nob_da_free(c_corresponding_obj_files);
+    for (size_t i = 0; i < c_corresponding_dep_files.count; i++) {
+        free((char*)c_corresponding_dep_files.items[i]);
+    }
+    nob_da_free(c_corresponding_dep_files);
 
     size_t total_compiled = cpp_files_compiled + c_files_compiled;
     size_t total_files = cpp_sources.count + c_sources.count;
