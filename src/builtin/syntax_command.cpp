@@ -253,7 +253,7 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << errors.size() << std::endl;
     } else {
         shell_script_interpreter::ErrorReporter::print_error_report(
-            errors, show_suggestions, show_context);
+            errors, show_suggestions, show_context, 1);
     }
 
     return errors.empty() ? 0 : 1;

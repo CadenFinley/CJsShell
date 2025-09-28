@@ -856,7 +856,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 try {
                     expand_env_vars(noenv_stripped);
                 } catch (const std::runtime_error& e) {
-                    throw e;
+                    // Log error but continue processing
+                    std::cerr << "Warning: Error expanding environment variables: " << e.what() << std::endl;
                 }
                 strip_subst_literal_markers(noenv_stripped);
             } else {
@@ -864,7 +865,9 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     expand_env_vars_selective(tmp);
                     noenv_stripped = tmp;
                 } catch (const std::runtime_error& e) {
-                    throw e;
+                    // Log error but continue with original value
+                    std::cerr << "Warning: Error in selective environment variable expansion: " << e.what() << std::endl;
+                    noenv_stripped = tmp;
                 }
                 strip_subst_literal_markers(noenv_stripped);
             }
@@ -1282,7 +1285,8 @@ void Parser::expand_env_vars(std::string& arg) {
                                     std::string::npos ||
                                 error_msg.find("parameter not set") !=
                                     std::string::npos) {
-                                throw e;
+                                // Use fallback value instead of re-throwing
+                                value = get_variable_value(param_expr);
                             } else {
                                 value = get_variable_value(param_expr);
                             }
