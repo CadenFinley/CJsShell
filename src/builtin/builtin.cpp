@@ -109,6 +109,15 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"cd",
          [this](const std::vector<std::string>& args) {
              // args[0] == "cd"; optional directory operand at args[1]
+             // Check for too many arguments (cd should accept at most 1 argument)
+             if (args.size() > 2) {
+                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                                  "cd",
+                                  "too many arguments",
+                                  {"Usage: cd [directory]"}};
+                 print_error(error);
+                 return 2;  // Misuse of shell builtin
+             }
              if (config::smart_cd_enabled) {
                  return ::change_directory_smart(
                      args.size() > 1 ? args[1] : "", current_directory,
