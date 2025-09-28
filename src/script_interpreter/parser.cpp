@@ -1705,8 +1705,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                         cmd_part.substr(lead + 1, close_paren - (lead + 1));
                     std::string remaining = cmd_part.substr(close_paren + 1);
 
-                    cmd.args.push_back("sh");
-                    cmd.args.push_back("-c");
+                    cmd.args.push_back("__INTERNAL_SUBSHELL__");
                     cmd.args.push_back(subshell_content);
 
                     if (!remaining.empty()) {
