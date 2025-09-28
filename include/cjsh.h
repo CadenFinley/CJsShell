@@ -50,7 +50,9 @@ extern bool smart_cd_enabled;
 extern bool show_version;
 extern bool show_help;
 extern bool startup_test;
+extern bool minimal_mode;
 extern bool disable_custom_ls;
+extern bool show_startup_time;
 }  // namespace config
 
 void initialize_colors();

@@ -36,6 +36,7 @@
 #include "shell.h"
 #include "trap_command.h"
 #include "usage.h"
+#include "utils/command_line_parser.h"
 
 bool g_debug_mode = false;
 bool g_title_line = true;
@@ -59,14 +60,10 @@ std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 std::chrono::steady_clock::time_point g_startup_begin_time;
 
-static int parse_command_line_arguments(int argc, char* argv[],
-                                        std::string& script_file,
-                                        std::vector<std::string>& script_args);
 static int handle_non_interactive_mode(const std::string& script_file);
 static int initialize_interactive_components();
 static void save_startup_arguments(int argc, char* argv[]);
 static void process_profile_files();
-static void apply_profile_startup_flags();
 
 namespace config {
 bool login_mode = false;
@@ -124,13 +121,12 @@ int main(int argc, char* argv[]) {
     g_startup_begin_time = std::chrono::steady_clock::now();
 
     // Parse command line arguments (includes login mode detection)
-    std::string script_file;
-    std::vector<std::string> script_args;
-    int parse_result =
-        parse_command_line_arguments(argc, argv, script_file, script_args);
-    if (parse_result != 0) {
-        return parse_result;
+    auto parse_result = cjsh::CommandLineParser::parse_arguments(argc, argv);
+    if (parse_result.should_exit) {
+        return parse_result.exit_code;
     }
+    std::string script_file = parse_result.script_file;
+    std::vector<std::string> script_args = parse_result.script_args;
 
     // Initialize directories and register cleanup
     cjsh_filesystem::initialize_cjsh_directories();
@@ -175,7 +171,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         process_profile_files();
-        apply_profile_startup_flags();
+        cjsh::CommandLineParser::apply_profile_startup_flags();
     }
 
     // Set shell environment variable
@@ -276,201 +272,6 @@ int main(int argc, char* argv[]) {
     }
 
     return exit_code;
-}
-
-static int parse_command_line_arguments(int argc, char* argv[],
-                                        std::string& script_file,
-                                        std::vector<std::string>& script_args) {
-    // Check if invoked as login shell (e.g., -cjsh)
-    if (argv && argv[0] && argv[0][0] == '-') {
-        config::login_mode = true;
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Login mode detected from argv[0]: " << argv[0]
-                      << std::endl;
-    }
-
-    static struct option long_options[] = {
-        {"login", no_argument, 0, 'l'},
-        {"interactive", no_argument, 0, 'i'},
-        {"debug", no_argument, 0, 'd'},
-        {"command", required_argument, 0, 'c'},
-        {"version", no_argument, 0, 'v'},
-        {"help", no_argument, 0, 'h'},
-        {"no-plugins", no_argument, 0, 'P'},
-        {"no-themes", no_argument, 0, 'T'},
-        {"no-ai", no_argument, 0, 'A'},
-        {"no-colors", no_argument, 0, 'C'},
-        {"no-titleline", no_argument, 0, 'L'},
-        {"show-startup-time", no_argument, 0, 'U'},
-        {"no-source", no_argument, 0, 'N'},
-        {"no-completions", no_argument, 0, 'O'},
-        {"no-syntax-highlighting", no_argument, 0, 'S'},
-        {"no-smart-cd", no_argument, 0, 'M'},
-        {"startup-test", no_argument, 0, 'X'},
-        {"minimal", no_argument, 0, 'm'},
-        {"disable-custom-ls", no_argument, 0, 'D'},
-        {0, 0, 0, 0}};
-    const char* short_options =
-        "+lic:vhdPTACLUNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT
-                                  // behavior
-    int option_index = 0;
-    int c;
-    optind = 1;
-
-    while ((c = getopt_long(argc, argv, short_options, long_options,
-                            &option_index)) != -1) {
-        switch (c) {
-            case 'l':
-                config::login_mode = true;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Login mode enabled" << std::endl;
-                break;
-            case 'i':
-                config::force_interactive = true;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Interactive mode forced" << std::endl;
-                break;
-            case 'd':
-                g_debug_mode = true;
-                std::cerr << "DEBUG: Debug mode enabled" << std::endl;
-                break;
-            case 'c':
-                config::execute_command = true;
-                config::cmd_to_execute = optarg;
-                config::interactive_mode = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Command to execute: "
-                              << config::cmd_to_execute << std::endl;
-                break;
-            case 'v':
-                config::show_version = true;
-                config::interactive_mode = false;
-                break;
-            case 'h':
-                config::show_help = true;
-                config::interactive_mode = false;
-                break;
-            case 'P':
-                config::plugins_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Plugins disabled" << std::endl;
-                break;
-            case 'T':
-                config::themes_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Themes disabled" << std::endl;
-                break;
-            case 'A':
-                config::ai_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: AI disabled" << std::endl;
-                break;
-            case 'C':
-                config::colors_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Colors disabled" << std::endl;
-                break;
-            case 'L':
-                g_title_line = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Title line disabled" << std::endl;
-                break;
-            case 'U':
-                config::show_startup_time = true;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Startup time display enabled"
-                              << std::endl;
-                break;
-            case 'N':
-                config::source_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Source file disabled" << std::endl;
-                break;
-            case 'O':
-                config::completions_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Completions disabled" << std::endl;
-                break;
-            case 'S':
-                config::syntax_highlighting_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Syntax highlighting disabled"
-                              << std::endl;
-                break;
-            case 'M':
-                config::smart_cd_enabled = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Smart cd disabled" << std::endl;
-                break;
-            case 'X':
-                config::startup_test = true;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Startup test mode enabled"
-                              << std::endl;
-                break;
-            case 'm':
-                config::minimal_mode = true;
-                config::plugins_enabled = false;
-                config::themes_enabled = false;
-                config::ai_enabled = false;
-                config::colors_enabled = false;
-                config::source_enabled = false;
-                config::completions_enabled = false;
-                config::syntax_highlighting_enabled = false;
-                config::smart_cd_enabled = false;
-                config::disable_custom_ls = true;
-                config::show_startup_time = false;
-                g_title_line = false;
-                if (g_debug_mode)
-                    std::cerr
-                        << "DEBUG: Minimal mode enabled - all features disabled"
-                        << std::endl;
-                break;
-            case 'D':
-                config::disable_custom_ls = true;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Disable custom ls enabled"
-                              << std::endl;
-                break;
-            case '?':
-                print_usage();
-                return 127;
-            default:
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             std::string(1, c),
-                             "Unrecognized option",
-                             {"Check command line arguments"}});
-                return 127;
-        }
-    }
-
-    // Check if there are script files to execute
-    if (optind < argc) {
-        script_file = argv[optind];
-        config::interactive_mode = false;
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Script file specified: " << script_file
-                      << std::endl;
-
-        // Collect script arguments (everything after the script file name)
-        for (int i = optind + 1; i < argc; i++) {
-            script_args.push_back(argv[i]);
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Script argument " << (i - optind) << ": "
-                          << argv[i] << std::endl;
-        }
-    }
-
-    // Check if stdin is a terminal - if not, disable interactive mode
-    if (!config::force_interactive && !isatty(STDIN_FILENO)) {
-        config::interactive_mode = false;
-        if (g_debug_mode)
-            std::cerr
-                << "DEBUG: Disabling interactive mode (stdin is not a terminal)"
-                << std::endl;
-    }
-
-    return 0;
 }
 
 static void save_startup_arguments(int argc, char* argv[]) {
@@ -711,116 +512,4 @@ static void process_profile_files() {
     g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path);
 }
 
-static void apply_profile_startup_flags() {
-    // Apply startup flags that were collected during profile processing
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Applying profile startup flags" << std::endl;
-        if (g_profile_startup_args.empty()) {
-            std::cerr << "DEBUG: No profile startup flags to process"
-                      << std::endl;
-        } else {
-            std::cerr << "DEBUG: Profile startup flags to process:"
-                      << std::endl;
-            for (const auto& flag : g_profile_startup_args) {
-                std::cerr << "DEBUG:   " << flag << std::endl;
-            }
-        }
-    }
 
-    for (const std::string& flag : g_profile_startup_args) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Processing profile startup flag: " << flag
-                      << std::endl;
-
-        if (flag == "--debug") {
-            g_debug_mode = true;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Debug mode enabled via profile"
-                          << std::endl;
-        } else if (flag == "--no-plugins") {
-            config::plugins_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Plugins disabled via profile" << std::endl;
-        } else if (flag == "--no-themes") {
-            config::themes_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Themes disabled via profile" << std::endl;
-        } else if (flag == "--no-ai") {
-            config::ai_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: AI disabled via profile" << std::endl;
-        } else if (flag == "--no-colors") {
-            config::colors_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Colors disabled via profile" << std::endl;
-        } else if (flag == "--no-titleline") {
-            g_title_line = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Title line disabled via profile"
-                          << std::endl;
-        } else if (flag == "--show-startup-time") {
-            config::show_startup_time = true;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Startup time display enabled via profile"
-                          << std::endl;
-        } else if (flag == "--no-source") {
-            config::source_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Source file disabled via profile"
-                          << std::endl;
-        } else if (flag == "--no-completions") {
-            config::completions_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Completions disabled via profile"
-                          << std::endl;
-        } else if (flag == "--no-syntax-highlighting") {
-            config::syntax_highlighting_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Syntax highlighting disabled via profile"
-                          << std::endl;
-        } else if (flag == "--no-smart-cd") {
-            config::smart_cd_enabled = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Smart cd disabled via profile"
-                          << std::endl;
-        } else if (flag == "--startup-test") {
-            config::startup_test = true;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Startup test mode enabled via profile"
-                          << std::endl;
-        } else if (flag == "--interactive") {
-            config::force_interactive = true;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Interactive mode forced via profile"
-                          << std::endl;
-        } else if (flag == "--login") {
-            // Login mode is already set during initial argument processing
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Login mode flag found in profile (already "
-                             "processed)"
-                          << std::endl;
-        } else if (flag == "--minimal") {
-            config::minimal_mode = true;
-            config::plugins_enabled = false;
-            config::themes_enabled = false;
-            config::ai_enabled = false;
-            config::colors_enabled = false;
-            config::source_enabled = false;
-            config::completions_enabled = false;
-            config::syntax_highlighting_enabled = false;
-            config::smart_cd_enabled = false;
-            config::disable_custom_ls = true;
-            config::show_startup_time = false;
-            g_title_line = false;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Minimal mode enabled via profile - all "
-                             "features disabled"
-                          << std::endl;
-        } else if (flag == "--disable-custom-ls") {
-            config::disable_custom_ls = true;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Disable custom ls enabled via profile"
-                          << std::endl;
-        }
-    }
-}
