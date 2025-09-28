@@ -40,6 +40,7 @@
 #include "set_command.h"
 #include "source_command.h"
 #include "startup_flag_command.h"
+#include "style_def_command.h"
 #include "suggestion_utils.h"
 #include "syntax_command.h"
 #include "test_command.h"
@@ -203,6 +204,10 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"syntax",
          [this](const std::vector<std::string>& args) {
              return ::syntax_command(args, shell);
+         }},
+        {"style_def",
+         [](const std::vector<std::string>& args) {
+             return ::style_def_command(args);
          }},
         {"history",
          [](const std::vector<std::string>& args) {

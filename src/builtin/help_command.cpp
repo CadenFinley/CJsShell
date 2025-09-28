@@ -218,7 +218,10 @@ int help_command() {
     std::cout << "  syntax [OPTIONS] <FILE> Check scripts for syntax/style "
                  "issues\n";
     std::cout << "    Usage: syntax [options] <script_file>\n";
-    std::cout << "           syntax [options] -c <command_string>\n\n";
+    std::cout << "           syntax [options] -c <command_string>\n";
+    std::cout << "  style_def TYPE STYLE    Define syntax highlighting colors\n";
+    std::cout << "    Usage: style_def <token_type> <style>\n";
+    std::cout << "           style_def --reset  (reset to defaults)\n\n";
 
     std::cout << "Flow Control:\n";
     std::cout << "  :                       Null command (always succeeds)\n";

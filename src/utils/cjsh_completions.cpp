@@ -17,6 +17,7 @@
 #include "cjsh_syntax_highlighter.h"
 #include "isocline/isocline.h"
 #include "shell.h"
+#include "style_def_command.h"
 
 std::map<std::string, int> g_completion_frequency;
 static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 500;
@@ -1407,6 +1408,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 void initialize_completion_system() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing completion system" << std::endl;
+    
+    // Initialize default styles first
     ic_style_def("cjsh-unknown-command", "bold color=#FF5555");
     ic_style_def("cjsh-colon", "bold color=#8BE9FD");
     ic_style_def("cjsh-path-exists", "color=#50FA7B");
@@ -1414,7 +1417,6 @@ void initialize_completion_system() {
     ic_style_def("cjsh-glob-pattern", "color=#F1FA8C");
     ic_style_def("cjsh-operator", "bold color=#FF79C6");
     ic_style_def("cjsh-keyword", "bold color=#BD93F9");
-
     ic_style_def("cjsh-builtin", "color=#FFB86C");
     ic_style_def("cjsh-variable", "color=#8BE9FD");
     ic_style_def("cjsh-string", "color=#F1FA8C");
@@ -1422,6 +1424,9 @@ void initialize_completion_system() {
     ic_style_def("cjsh-known-command", "color=#50FA7B");
     ic_style_def("cjsh-external-command", "color=#8BE9FD");
     ic_style_def("cjsh-function-definition", "bold color=#F1FA8C");
+    
+    // Load any custom styles from .cjshrc
+    load_custom_styles_from_config();
 
     if (config::completions_enabled) {
         ic_set_default_completer(cjsh_default_completer, NULL);
