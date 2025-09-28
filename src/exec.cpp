@@ -191,20 +191,6 @@ std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     return c_args;
 }
 
-// Helper function to determine correct exit code after execvp failure
-int get_exec_exit_code() {
-    switch (errno) {
-        case ENOENT:  // Command not found
-            return 127;
-        case EACCES:  // Permission denied (file exists but not executable)
-        case EISDIR:  // Is a directory
-        case ENOEXEC: // Invalid executable format
-            return 126;
-        default:
-            return 127;  // Default to command not found for other errors
-    }
-}
-
 bool command_consumes_terminal_stdin(const Command& cmd) {
     if (!cmd.input_file.empty() || !cmd.here_doc.empty() ||
         !cmd.here_string.empty()) {
@@ -479,21 +465,23 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         auto c_args = build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
 
-        // execvp failed - determine appropriate exit code and error type
-        int exit_code = get_exec_exit_code();
-        if (errno == ENOENT) {
+        // execvp failed - save errno immediately and determine exit code inline
+        int saved_errno = errno;
+        int exit_code = (saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127;
+        
+        if (saved_errno == ENOENT) {
             auto suggestions =
                 suggestion_utils::generate_command_suggestions(cmd_args[0]);
             set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "",
                       suggestions);
-        } else if (errno == EACCES || errno == EISDIR) {
+        } else if (saved_errno == EACCES || saved_errno == EISDIR) {
             set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "", {});
-        } else if (errno == ENOEXEC) {
+        } else if (saved_errno == ENOEXEC) {
             set_error(ErrorType::INVALID_ARGUMENT, cmd_args[0],
                       "invalid executable format", {});
         } else {
             set_error(ErrorType::RUNTIME_ERROR, cmd_args[0],
-                      "execution failed: " + std::string(strerror(errno)), {});
+                      "execution failed: " + std::string(strerror(saved_errno)), {});
         }
         _exit(exit_code);
     }
@@ -617,7 +605,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
         auto c_args = build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
-        _exit(get_exec_exit_code());
+        int saved_errno = errno;
+        _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127);
     } else {
         if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
             set_error(
@@ -1372,7 +1361,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                 auto c_args = build_exec_argv(cmd.args);
                 execvp(cmd.args[0].c_str(), c_args.data());
-                _exit(get_exec_exit_code());
+                int saved_errno = errno;
+                _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127);
             }
 
             if (g_shell && !g_shell->get_interactive_mode()) {
@@ -1647,7 +1637,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 } else {
                     auto c_args = build_exec_argv(cmd.args);
                     execvp(cmd.args[0].c_str(), c_args.data());
-                    _exit(get_exec_exit_code());
+                    int saved_errno = errno;
+                    _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127);
                 }
             }
 
