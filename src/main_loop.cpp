@@ -81,6 +81,117 @@ std::string to_debug_visible(const std::string& data) {
     return oss.str();
 }
 
+std::string filter_escape_sequences(const std::string& input) {
+    if (input.empty()) {
+        return input;
+    }
+
+    std::string filtered;
+    filtered.reserve(input.size());
+    
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        unsigned char ch = input[i];
+        
+        if (ch == '\x1b' && i + 1 < input.size()) {
+            // Handle escape sequences
+            char next = input[i + 1];
+            std::size_t seq_start = i;
+            
+            if (next == '[') {
+                // ANSI CSI sequence - skip until we find the terminator
+                i += 2; // Skip ESC[
+                while (i < input.size()) {
+                    char c = input[i];
+                    // CSI sequences end with a letter (A-Za-z) or certain symbols
+                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+                        c == '~' || c == 'c' || c == 'h' || c == 'l' ||
+                        c == 'm' || c == 'n' || c == 'r' || c == 'J' ||
+                        c == 'K' || c == 'H' || c == 'f') {
+                        break;
+                    }
+                    // Skip over parameters (digits, semicolons, etc.)
+                    if (!((c >= '0' && c <= '9') || c == ';' || c == '?' || 
+                          c == '!' || c == '=' || c == '>' || c == '<')) {
+                        // Invalid character in CSI sequence, abort
+                        break;
+                    }
+                    i++;
+                }
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Filtered ANSI CSI escape sequence: " 
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
+                              << std::endl;
+                }
+            } else if (next == ']') {
+                // OSC sequence - skip until ST (\x1b\\) or BEL (\x07)
+                i += 2; // Skip ESC]
+                while (i < input.size()) {
+                    if (input[i] == '\x07') {
+                        break;
+                    } else if (input[i] == '\x1b' && i + 1 < input.size() && input[i + 1] == '\\') {
+                        i++;
+                        break;
+                    }
+                    i++;
+                }
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Filtered OSC escape sequence: " 
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
+                              << std::endl;
+                }
+            } else if (next == '(' || next == ')') {
+                // Character set selection - skip 3 characters total
+                if (i + 2 < input.size()) {
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Filtered character set escape sequence: " 
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
+                              << std::endl;
+                }
+            } else if (next >= '0' && next <= '9') {
+                // Potential private escape sequence, skip it
+                i += 1;
+                while (i + 1 < input.size() && input[i + 1] >= '0' && input[i + 1] <= '9') {
+                    i++;
+                }
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Filtered numeric escape sequence: " 
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
+                              << std::endl;
+                }
+            } else {
+                // Single character escape sequence (like ESC c for reset)
+                i += 1;
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Filtered single-char escape sequence: " 
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
+                              << std::endl;
+                }
+            }
+        } else if (ch == '\x07') {
+            // BEL character - potentially part of incomplete escape sequence
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Filtered BEL character" << std::endl;
+            }
+        } else if (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r') {
+            // Filter out other control characters except tab, newline, carriage return
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Filtered control character: \\x" 
+                          << std::hex << std::setw(2) << std::setfill('0') 
+                          << static_cast<int>(ch) << std::dec << std::endl;
+            }
+        } else {
+            // Regular character, keep it
+            filtered.push_back(static_cast<char>(ch));
+        }
+    }
+    
+    return filtered;
+}
+
 std::string normalize_line_edit_sequences(const std::string& input) {
     std::string normalized;
     normalized.reserve(input.size());
@@ -129,11 +240,18 @@ void enqueue_queued_command(const std::string& command) {
         g_typeahead_queue.pop_front();
     }
 
-    g_typeahead_queue.push_back(command);
+    
+    if (g_debug_mode && sanitized_command != command) {
+        std::cerr << "DEBUG: Command sanitized before queuing: '"
+                  << to_debug_visible(command) << "' -> '"
+                  << to_debug_visible(sanitized_command) << "'" << std::endl;
+    }
+
+    g_typeahead_queue.push_back(sanitized_command);
 
     if (g_debug_mode) {
         std::cerr << "DEBUG: Queued typeahead command: '"
-                  << to_debug_visible(command) << "'" << std::endl;
+                  << to_debug_visible(sanitized_command) << "'" << std::endl;
     }
 }
 
@@ -159,14 +277,17 @@ void ingest_typeahead_input(const std::string& raw_input) {
     }
 
     if (combined.find('\x1b') != std::string::npos) {
-        g_input_buffer = combined;
         if (g_debug_mode) {
             std::cerr
-                << "DEBUG: Stored raw typeahead containing escape sequences;"
-                << " g_input_buffer='" << to_debug_visible(g_input_buffer)
-                << "'" << std::endl;
+                << "DEBUG: Found escape sequences in typeahead input, filtering..."
+                << std::endl;
         }
-        return;
+        combined = filter_escape_sequences(combined);
+        if (g_debug_mode) {
+            std::cerr
+                << "DEBUG: After filtering escape sequences: '" 
+                << to_debug_visible(combined) << "'" << std::endl;
+        }
     }
 
     std::string normalized = normalize_line_edit_sequences(combined);
@@ -406,8 +527,16 @@ void main_process_loop() {
 
             flush_pending_typeahead();
 
+            std::string sanitized_buffer = g_input_buffer;
+                sanitized_buffer = filter_escape_sequences(sanitized_buffer);
+                if (g_debug_mode && sanitized_buffer != g_input_buffer) {
+                    std::cerr << "DEBUG: Additional sanitization applied to input buffer"
+                              << std::endl;
+                }
+            }
+
             const char* initial_input =
-                g_input_buffer.empty() ? nullptr : g_input_buffer.c_str();
+                sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
             char* input = nullptr;
             if (!inline_right_text.empty()) {
                 input = ic_readline_inline(
