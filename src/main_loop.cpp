@@ -452,7 +452,7 @@ void main_process_loop() {
             }
             break;
         }
-        
+
         if (!perform_terminal_check()) {
             break;
         }

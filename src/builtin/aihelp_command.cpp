@@ -75,15 +75,23 @@ int aihelp_command(const std::vector<std::string>& args) {
     } else {
         // Enhanced error context
         message =
-            "I need help fixing a shell command error. Please analyze the error and provide:\n"
+            "I need help fixing a shell command error. Please analyze the "
+            "error and provide:\n"
             "1. What went wrong (brief explanation)\n"
             "2. Specific fix commands I can run\n"
             "3. Prevention tips for the future\n\n"
-            "ERROR: " + g_shell->last_terminal_output_error + "\n"
-            "COMMAND: " + g_shell->last_command + "\n"
-            "DIRECTORY: " + std::string(getenv("PWD") ? getenv("PWD") : "unknown") + "\n"
-            "EXIT_CODE: " + std::string(getenv("?") ? getenv("?") : "unknown") + "\n";
-        
+            "ERROR: " +
+            g_shell->last_terminal_output_error +
+            "\n"
+            "COMMAND: " +
+            g_shell->last_command +
+            "\n"
+            "DIRECTORY: " +
+            std::string(getenv("PWD") ? getenv("PWD") : "unknown") +
+            "\n"
+            "EXIT_CODE: " +
+            std::string(getenv("?") ? getenv("?") : "unknown") + "\n";
+
         // Add directory listing for context
         message += "CURRENT_FILES: ";
         try {
@@ -103,13 +111,12 @@ int aihelp_command(const std::vector<std::string>& args) {
         std::cout << "Using model: " << custom_model << std::endl;
     }
 
-    std::string response = g_ai->force_direct_chat_gpt(message +
-                                                 create_help_system_prompt() +
-                                                 "\n" + build_system_prompt(),
-                                                 false);
-    
+    std::string response = g_ai->force_direct_chat_gpt(
+        message + create_help_system_prompt() + "\n" + build_system_prompt(),
+        false);
+
     std::cout << response << std::endl;
-    
+
     // Check for --fix flag to attempt auto-fix
     bool auto_fix = false;
     for (const auto& arg : args) {
@@ -118,20 +125,24 @@ int aihelp_command(const std::vector<std::string>& args) {
             break;
         }
     }
-    
-    if (auto_fix && !remaining_args.empty() && remaining_args[0] != "--fix" && remaining_args[0] != "-F") {
+
+    if (auto_fix && !remaining_args.empty() && remaining_args[0] != "--fix" &&
+        remaining_args[0] != "-F") {
         std::cout << "\n" << std::string(50, '=') << std::endl;
         std::cout << "AUTO-FIX ATTEMPT:\n";
-        
+
         // Extract command suggestions from response
-        std::string fix_prompt = "Based on the error analysis above, provide ONLY the exact shell command(s) to fix the issue. "
-                                "One command per line, no explanations, no markdown formatting.";
-        
-        std::string fix_commands = g_ai->force_direct_chat_gpt(fix_prompt, false);
-        
+        std::string fix_prompt =
+            "Based on the error analysis above, provide ONLY the exact shell "
+            "command(s) to fix the issue. "
+            "One command per line, no explanations, no markdown formatting.";
+
+        std::string fix_commands =
+            g_ai->force_direct_chat_gpt(fix_prompt, false);
+
         std::cout << "Suggested fix command(s):\n" << fix_commands << std::endl;
         std::cout << "\nRun these commands? [y/N]: ";
-        
+
         char choice;
         std::cin >> choice;
         if (choice == 'y' || choice == 'Y') {
@@ -141,6 +152,6 @@ int aihelp_command(const std::vector<std::string>& args) {
             std::cout << "[This would execute the commands above]\n";
         }
     }
-    
+
     return 0;
 }
