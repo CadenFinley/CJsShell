@@ -511,5 +511,3 @@ static void process_profile_files() {
                   << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
     g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path);
 }
-
-

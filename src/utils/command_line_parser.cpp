@@ -14,9 +14,10 @@ extern bool g_title_line;
 
 namespace cjsh {
 
-CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char* argv[]) {
+CommandLineParser::ParseResult CommandLineParser::parse_arguments(
+    int argc, char* argv[]) {
     ParseResult result;
-    
+
     // Check if invoked as login shell (e.g., -cjsh)
     detect_login_mode(argv);
 
@@ -40,15 +41,17 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
         {"startup-test", no_argument, 0, 'X'},
         {"minimal", no_argument, 0, 'm'},
         {"disable-custom-ls", no_argument, 0, 'D'},
-        {0, 0, 0, 0}
-    };
-    
-    const char* short_options = "+lic:vhdPTACLUNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT behavior
+        {0, 0, 0, 0}};
+
+    const char* short_options =
+        "+lic:vhdPTACLUNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT
+                                  // behavior
     int option_index = 0;
     int c;
     optind = 1;
 
-    while ((c = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, short_options, long_options,
+                            &option_index)) != -1) {
         switch (c) {
             case 'l':
                 config::login_mode = true;
@@ -66,7 +69,8 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 config::execute_command = true;
                 config::cmd_to_execute = optarg;
                 config::interactive_mode = false;
-                print_debug_info("Command to execute: " + config::cmd_to_execute);
+                print_debug_info("Command to execute: " +
+                                 config::cmd_to_execute);
                 break;
             case 'v':
                 config::show_version = true;
@@ -122,7 +126,8 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 break;
             case 'm':
                 apply_minimal_mode();
-                print_debug_info("Minimal mode enabled - all features disabled");
+                print_debug_info(
+                    "Minimal mode enabled - all features disabled");
                 break;
             case 'D':
                 config::disable_custom_ls = true;
@@ -135,9 +140,9 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 return result;
             default:
                 print_error({ErrorType::INVALID_ARGUMENT,
-                           std::string(1, c),
-                           "Unrecognized option",
-                           {"Check command line arguments"}});
+                             std::string(1, c),
+                             "Unrecognized option",
+                             {"Check command line arguments"}});
                 result.exit_code = 127;
                 result.should_exit = true;
                 return result;
@@ -153,14 +158,16 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
         // Collect script arguments (everything after the script file name)
         for (int i = optind + 1; i < argc; i++) {
             result.script_args.push_back(argv[i]);
-            print_debug_info("Script argument " + std::to_string(i - optind) + ": " + argv[i]);
+            print_debug_info("Script argument " + std::to_string(i - optind) +
+                             ": " + argv[i]);
         }
     }
 
     // Check if stdin is a terminal - if not, disable interactive mode
     if (!config::force_interactive && !isatty(STDIN_FILENO)) {
         config::interactive_mode = false;
-        print_debug_info("Disabling interactive mode (stdin is not a terminal)");
+        print_debug_info(
+            "Disabling interactive mode (stdin is not a terminal)");
     }
 
     return result;
@@ -169,7 +176,8 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
 void CommandLineParser::detect_login_mode(char* argv[]) {
     if (argv && argv[0] && argv[0][0] == '-') {
         config::login_mode = true;
-        print_debug_info("Login mode detected from argv[0]: " + std::string(argv[0]));
+        print_debug_info("Login mode detected from argv[0]: " +
+                         std::string(argv[0]));
     }
 }
 
@@ -197,7 +205,7 @@ void CommandLineParser::print_debug_info(const std::string& message) {
 void CommandLineParser::apply_profile_startup_flags() {
     extern std::vector<std::string> g_profile_startup_args;
     extern bool g_title_line;
-    
+
     // Apply startup flags that were collected during profile processing
     if (::g_debug_mode) {
         std::cerr << "DEBUG: Applying profile startup flags" << std::endl;
