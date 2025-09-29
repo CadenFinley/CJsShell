@@ -30,6 +30,11 @@ namespace {
 std::string g_input_buffer;
 std::deque<std::string> g_typeahead_queue;
 
+struct TerminalStatus {
+    bool terminal_alive;
+    bool parent_alive;
+};
+
 constexpr std::size_t kMaxQueuedCommands = 32;
 
 std::string to_debug_visible(const std::string& data) {
@@ -437,6 +442,233 @@ void reprint_prompt() {
     ic_print_prompt(prompt.c_str(), false);
 }
 
+bool check_terminal_health() {
+    if (!config::interactive_mode) {
+        return true;
+    }
+    
+    if (!isatty(STDIN_FILENO)) {
+        // STDIN is no longer a TTY - terminal was likely closed
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: STDIN is no longer a TTY, exiting" << std::endl;
+        }
+        g_exit_flag = true;
+        return false;
+    }
+    
+    // Try to get the process group of the controlling terminal
+    pid_t tpgrp = tcgetpgrp(STDIN_FILENO);
+    if (tpgrp == -1) {
+        if (errno == ENOTTY || errno == ENXIO) {
+            // Terminal is no longer controlling terminal - exit immediately
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Controlling terminal lost (errno=" << errno << "), exiting" << std::endl;
+            }
+            g_exit_flag = true;
+            return false;
+        }
+    }
+    
+    // Additional safety: check if we can write to the terminal
+    if (write(STDOUT_FILENO, "", 0) == -1 && (errno == EBADF || errno == EIO)) {
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Cannot write to terminal (errno=" << errno << "), exiting" << std::endl;
+        }
+        g_exit_flag = true;
+        return false;
+    }
+    
+    return true;
+}
+
+void update_job_management() {
+    if (g_debug_mode)
+        std::cerr << "DEBUG: Calling JobManager::update_job_status()"
+                  << std::endl;
+    JobManager::instance().update_job_status();
+
+    if (g_debug_mode)
+        std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()"
+                  << std::endl;
+    JobManager::instance().cleanup_finished_jobs();
+}
+
+std::string generate_prompt() {
+    if (g_debug_mode)
+        std::cerr << "DEBUG: Generating prompt" << std::endl;
+
+    std::printf(" \r");
+    std::fflush(stdout);
+
+    std::chrono::steady_clock::time_point render_time_start;
+    if (g_debug_mode) {
+        render_time_start = std::chrono::steady_clock::now();
+    }
+
+    std::string prompt;
+    if (g_shell->get_menu_active()) {
+        prompt = g_shell->get_prompt();
+    } else {
+        prompt = g_shell->get_ai_prompt();
+    }
+    if (g_theme && g_theme->uses_newline()) {
+        prompt += "\n";
+        prompt += g_shell->get_newline_prompt();
+    }
+
+    if (g_debug_mode) {
+        auto render_time_end = std::chrono::steady_clock::now();
+        auto render_duration =
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                render_time_end - render_time_start);
+        std::cerr << "DEBUG: Prompt rendering took "
+                  << render_duration.count() << "μs" << std::endl;
+    }
+
+    return prompt;
+}
+
+TerminalStatus check_terminal_and_parent_status() {
+    TerminalStatus status{true, true};
+    
+    if (config::interactive_mode) {
+        // Check if we still have a controlling terminal
+        if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
+            status.terminal_alive = false;
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Terminal is no longer a TTY" << std::endl;
+            }
+        } else {
+            // Try to get the process group of the controlling terminal
+            pid_t tpgrp = tcgetpgrp(STDIN_FILENO);
+            if (tpgrp == -1 && (errno == ENOTTY || errno == ENXIO)) {
+                status.terminal_alive = false;
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Lost controlling terminal" << std::endl;
+                }
+            }
+        }
+        
+        // Check if parent process is still alive
+        pid_t parent_pid = getppid();
+        if (parent_pid == 1) {
+            // Parent PID is 1 (init), which usually means our parent died
+            status.parent_alive = false;
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Parent process appears to have died (PPID=1)" << std::endl;
+            }
+        } else if (kill(parent_pid, 0) == -1 && errno == ESRCH) {
+            // Parent process doesn't exist
+            status.parent_alive = false;
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Parent process no longer exists" << std::endl;
+            }
+        }
+    }
+    
+    return status;
+}
+
+bool handle_null_input() {
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: ic_readline returned NULL (could be EOF/Ctrl+D, interrupt/Ctrl+C, or terminal closed)" << std::endl;
+    }
+    
+    // Check if we're still in a live terminal session and parent is alive
+    TerminalStatus status = check_terminal_and_parent_status();
+    
+    // Only exit if terminal is dead or parent is dead
+    // If both are alive, this was likely just Ctrl+C, so continue the loop
+    if (!status.terminal_alive || !status.parent_alive) {
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Terminal or parent process dead, setting exit flag" << std::endl;
+        }
+        g_exit_flag = true;
+        notify_plugins("main_process_end", "");
+        return true; // Should exit
+    } else {
+        // Terminal and parent are alive, this was likely Ctrl+C - continue loop
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Terminal and parent alive, treating as interrupt - continuing loop" << std::endl;
+        }
+        notify_plugins("main_process_end", "");
+        return false; // Should continue
+    }
+}
+
+std::pair<std::string, bool> get_next_command() {
+    std::string command_to_run;
+    bool command_available = false;
+
+    if (!g_typeahead_queue.empty()) {
+        command_to_run = g_typeahead_queue.front();
+        g_typeahead_queue.pop_front();
+        command_available = true;
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Dequeued queued command: '"
+                      << command_to_run << "'" << std::endl;
+        }
+    } else {
+        std::string prompt = generate_prompt();
+        std::string inline_right_text = g_shell->get_inline_right_prompt();
+
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: About to call ic_readline with prompt: '"
+                      << prompt << "'" << std::endl;
+            if (!inline_right_text.empty()) {
+                std::cerr << "DEBUG: Inline right text: '"
+                          << inline_right_text << "'" << std::endl;
+            }
+        }
+
+        flush_pending_typeahead();
+
+        std::string sanitized_buffer = g_input_buffer;
+        if (!sanitized_buffer.empty()) {
+            sanitized_buffer = filter_escape_sequences(sanitized_buffer);
+            if (g_debug_mode && sanitized_buffer != g_input_buffer) {
+                std::cerr << "DEBUG: Additional sanitization applied to input buffer"
+                          << std::endl;
+            }
+        }
+
+        const char* initial_input =
+            sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
+        char* input = nullptr;
+        if (!inline_right_text.empty()) {
+            input = ic_readline_inline(
+                prompt.c_str(), inline_right_text.c_str(), initial_input);
+        } else {
+            input = ic_readline(prompt.c_str(), initial_input);
+        }
+        g_input_buffer.clear();
+
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: ic_readline returned" << std::endl;
+        }
+
+        if (input == nullptr) {
+            // handle_null_input returns true if we should exit the main loop
+            if (handle_null_input()) {
+                return {command_to_run, false}; // Exit requested
+            } else {
+                return {command_to_run, false}; // Continue loop, no command available
+            }
+        }
+
+        command_to_run.assign(input);
+        ic_free(input);
+        command_available = true;
+
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: User input: " << command_to_run
+                      << std::endl;
+        }
+    }
+
+    return {command_to_run, command_available};
+}
+
 void main_process_loop() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Entering main process loop" << std::endl;
@@ -468,48 +700,11 @@ void main_process_loop() {
         }
         
         // Check if controlling terminal is still valid (detect terminal closure)
-        if (config::interactive_mode) {
-            if (!isatty(STDIN_FILENO)) {
-                // STDIN is no longer a TTY - terminal was likely closed
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: STDIN is no longer a TTY, exiting" << std::endl;
-                }
-                g_exit_flag = true;
-                break;
-            }
-            
-            // Try to get the process group of the controlling terminal
-            pid_t tpgrp = tcgetpgrp(STDIN_FILENO);
-            if (tpgrp == -1) {
-                if (errno == ENOTTY || errno == ENXIO) {
-                    // Terminal is no longer controlling terminal - exit immediately
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Controlling terminal lost (errno=" << errno << "), exiting" << std::endl;
-                    }
-                    g_exit_flag = true;
-                    break;
-                }
-            }
-            
-            // Additional safety: check if we can write to the terminal
-            if (write(STDOUT_FILENO, "", 0) == -1 && (errno == EBADF || errno == EIO)) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Cannot write to terminal (errno=" << errno << "), exiting" << std::endl;
-                }
-                g_exit_flag = true;
-                break;
-            }
+        if (!check_terminal_health()) {
+            break;
         }
 
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Calling JobManager::update_job_status()"
-                      << std::endl;
-        JobManager::instance().update_job_status();
-
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()"
-                      << std::endl;
-        JobManager::instance().cleanup_finished_jobs();
+        update_job_management();
 
         if (g_debug_mode)
             std::cerr << "DEBUG: Calling update_terminal_title()" << std::endl;
@@ -517,158 +712,11 @@ void main_process_loop() {
 
         flush_pending_typeahead();
 
-        std::string command_to_run;
-        bool command_available = false;
-
-        if (!g_typeahead_queue.empty()) {
-            command_to_run = g_typeahead_queue.front();
-            g_typeahead_queue.pop_front();
-            command_available = true;
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Dequeued queued command: '"
-                          << command_to_run << "'" << std::endl;
-            }
-        } else {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Generating prompt" << std::endl;
-
-            std::printf(" \r");
-            std::fflush(stdout);
-
-            std::chrono::steady_clock::time_point render_time_start;
-            if (g_debug_mode) {
-                render_time_start = std::chrono::steady_clock::now();
-            }
-
-            std::string prompt;
-            std::string inline_right_text;
-            if (g_shell->get_menu_active()) {
-                prompt = g_shell->get_prompt();
-            } else {
-                prompt = g_shell->get_ai_prompt();
-            }
-            if (g_theme && g_theme->uses_newline()) {
-                prompt += "\n";
-                prompt += g_shell->get_newline_prompt();
-            }
-
-            inline_right_text = g_shell->get_inline_right_prompt();
-
-            if (g_debug_mode) {
-                auto render_time_end = std::chrono::steady_clock::now();
-                auto render_duration =
-                    std::chrono::duration_cast<std::chrono::microseconds>(
-                        render_time_end - render_time_start);
-                std::cerr << "DEBUG: Prompt rendering took "
-                          << render_duration.count() << "μs" << std::endl;
-            }
-
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: About to call ic_readline with prompt: '"
-                          << prompt << "'" << std::endl;
-                if (!inline_right_text.empty()) {
-                    std::cerr << "DEBUG: Inline right text: '"
-                              << inline_right_text << "'" << std::endl;
-                }
-            }
-
-            flush_pending_typeahead();
-
-            std::string sanitized_buffer = g_input_buffer;
-            if (!sanitized_buffer.empty()) {
-                sanitized_buffer = filter_escape_sequences(sanitized_buffer);
-                if (g_debug_mode && sanitized_buffer != g_input_buffer) {
-                    std::cerr << "DEBUG: Additional sanitization applied to input buffer"
-                              << std::endl;
-                }
-            }
-
-            const char* initial_input =
-                sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
-            char* input = nullptr;
-            if (!inline_right_text.empty()) {
-                input = ic_readline_inline(
-                    prompt.c_str(), inline_right_text.c_str(), initial_input);
-            } else {
-                input = ic_readline(prompt.c_str(), initial_input);
-            }
-            g_input_buffer.clear();
-
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: ic_readline returned" << std::endl;
-            }
-
-            if (input == nullptr) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: ic_readline returned NULL (could be EOF/Ctrl+D, interrupt/Ctrl+C, or terminal closed)" << std::endl;
-                }
-                
-                // Check if we're still in a live terminal session and parent is alive
-                bool terminal_alive = true;
-                bool parent_alive = true;
-                
-                if (config::interactive_mode) {
-                    // Check if we still have a controlling terminal
-                    if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
-                        terminal_alive = false;
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Terminal is no longer a TTY" << std::endl;
-                        }
-                    } else {
-                        // Try to get the process group of the controlling terminal
-                        pid_t tpgrp = tcgetpgrp(STDIN_FILENO);
-                        if (tpgrp == -1 && (errno == ENOTTY || errno == ENXIO)) {
-                            terminal_alive = false;
-                            if (g_debug_mode) {
-                                std::cerr << "DEBUG: Lost controlling terminal" << std::endl;
-                            }
-                        }
-                    }
-                    
-                    // Check if parent process is still alive
-                    pid_t parent_pid = getppid();
-                    if (parent_pid == 1) {
-                        // Parent PID is 1 (init), which usually means our parent died
-                        parent_alive = false;
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Parent process appears to have died (PPID=1)" << std::endl;
-                        }
-                    } else if (kill(parent_pid, 0) == -1 && errno == ESRCH) {
-                        // Parent process doesn't exist
-                        parent_alive = false;
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Parent process no longer exists" << std::endl;
-                        }
-                    }
-                }
-                
-                // Only exit if terminal is dead or parent is dead
-                // If both are alive, this was likely just Ctrl+C, so continue the loop
-                if (!terminal_alive || !parent_alive) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Terminal or parent process dead, setting exit flag" << std::endl;
-                    }
-                    g_exit_flag = true;
-                    notify_plugins("main_process_end", "");
-                    break;
-                } else {
-                    // Terminal and parent are alive, this was likely Ctrl+C - continue loop
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Terminal and parent alive, treating as interrupt - continuing loop" << std::endl;
-                    }
-                    notify_plugins("main_process_end", "");
-                    continue;
-                }
-            }
-
-            command_to_run.assign(input);
-            ic_free(input);
-            command_available = true;
-
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: User input: " << command_to_run
-                          << std::endl;
-            }
+        auto [command_to_run, command_available] = get_next_command();
+        
+        // Check if get_next_command requested an exit
+        if (g_exit_flag) {
+            break;
         }
 
         if (!command_available) {
