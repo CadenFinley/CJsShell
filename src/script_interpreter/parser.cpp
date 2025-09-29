@@ -1211,6 +1211,67 @@ void Parser::expand_env_vars(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
+        // Handle arithmetic expansion $((expression))
+        if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(') {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Found arithmetic expansion at position " << i << std::endl;
+            }
+            
+            size_t start = i + 3;
+            size_t paren_depth = 1;
+            size_t end = start;
+            
+            // Find the matching ))
+            while (end < arg.length() && paren_depth > 0) {
+                if (arg[end] == '(' && end + 1 < arg.length() && arg[end + 1] == '(') {
+                    paren_depth++;
+                    end += 2;
+                } else if (arg[end] == ')' && end + 1 < arg.length() && arg[end + 1] == ')') {
+                    paren_depth--;
+                    if (paren_depth == 0) {
+                        break;
+                    }
+                    end += 2;
+                } else {
+                    end++;
+                }
+            }
+            
+            if (paren_depth == 0 && end + 1 < arg.length()) {
+                std::string expr = arg.substr(start, end - start);
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Arithmetic expression: '" << expr << "'" << std::endl;
+                }
+                
+                // Expand variables within the arithmetic expression
+                std::string expanded_expr = expr;
+                expand_env_vars(expanded_expr);
+                
+                // Evaluate the arithmetic expression
+                try {
+                    long long arithmetic_result = evaluate_arithmetic(expanded_expr);
+                    std::string result_str = std::to_string(arithmetic_result);
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: Arithmetic result: " << result_str << std::endl;
+                    }
+                    result += result_str;
+                    i = end + 1; // Skip past the ))
+                    continue;
+                } catch (const std::exception& e) {
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: Arithmetic evaluation failed: " << e.what() << std::endl;
+                    }
+                    // Fall back to original text if evaluation fails
+                    result += arg.substr(i, end - i + 2);
+                    i = end + 1;
+                    continue;
+                }
+            } else {
+                // Malformed arithmetic expansion, treat as regular character
+                result += arg[i];
+                continue;
+            }
+        }
         if (!in_var && arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
             if (!result.empty() && result.back() == '\\') {
                 result.pop_back();
@@ -2373,4 +2434,106 @@ std::string Parser::get_command_validation_error(
     }
 
     return "cjsh: command not found: " + command_name;
+}
+
+long long Parser::evaluate_arithmetic(const std::string& expr) {
+    std::string trimmed = expr;
+    // Remove leading/trailing whitespace
+    size_t start = trimmed.find_first_not_of(" \t\n\r");
+    size_t end = trimmed.find_last_not_of(" \t\n\r");
+    if (start == std::string::npos) {
+        return 0;
+    }
+    trimmed = trimmed.substr(start, end - start + 1);
+    
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: evaluate_arithmetic called with: '" << trimmed << "'" << std::endl;
+    }
+    
+    // Simple arithmetic evaluator for basic operations
+    // Handle binary operators: +, -, *, /, %
+    
+    auto find_operator = [](const std::string& s, const std::string& op) -> size_t {
+        // Find operator not inside parentheses
+        int paren_depth = 0;
+        for (size_t i = 0; i <= s.length() - op.length(); ++i) {
+            if (s[i] == '(') paren_depth++;
+            else if (s[i] == ')') paren_depth--;
+            else if (paren_depth == 0 && s.substr(i, op.length()) == op) {
+                // Make sure it's not part of a larger operator
+                if (op.length() == 1) {
+                    // For single char operators, check it's not part of ++ or --
+                    if ((op == "+" || op == "-") && i > 0 && s[i-1] == op[0]) continue;
+                    if ((op == "+" || op == "-") && i + 1 < s.length() && s[i+1] == op[0]) continue;
+                }
+                return i;
+            }
+        }
+        return std::string::npos;
+    };
+    
+    auto parse_number = [](const std::string& s) -> long long {
+        if (s.empty()) return 0;
+        std::string clean = s;
+        // Remove leading/trailing whitespace
+        size_t start = clean.find_first_not_of(" \t\n\r");
+        size_t end = clean.find_last_not_of(" \t\n\r");
+        if (start == std::string::npos) return 0;
+        clean = clean.substr(start, end - start + 1);
+        
+        try {
+            return std::stoll(clean);
+        } catch (...) {
+            return 0;
+        }
+    };
+    
+    // Handle parentheses first
+    size_t paren_start = trimmed.find('(');
+    if (paren_start != std::string::npos) {
+        int depth = 1;
+        size_t paren_end = paren_start + 1;
+        while (paren_end < trimmed.length() && depth > 0) {
+            if (trimmed[paren_end] == '(') depth++;
+            else if (trimmed[paren_end] == ')') depth--;
+            paren_end++;
+        }
+        if (depth == 0) {
+            std::string inner = trimmed.substr(paren_start + 1, paren_end - paren_start - 2);
+            long long inner_result = evaluate_arithmetic(inner);
+            std::string new_expr = trimmed.substr(0, paren_start) + 
+                                 std::to_string(inner_result) + 
+                                 trimmed.substr(paren_end);
+            return evaluate_arithmetic(new_expr);
+        }
+    }
+    
+    // Check for binary operators in order of precedence (lowest to highest)
+    std::vector<std::string> operators = {"+", "-", "*", "/", "%"};
+    
+    for (const auto& op : operators) {
+        size_t pos = find_operator(trimmed, op);
+        if (pos != std::string::npos) {
+            std::string left = trimmed.substr(0, pos);
+            std::string right = trimmed.substr(pos + op.length());
+            
+            long long left_val = evaluate_arithmetic(left);
+            long long right_val = evaluate_arithmetic(right);
+            
+            if (op == "+") return left_val + right_val;
+            else if (op == "-") return left_val - right_val;
+            else if (op == "*") return left_val * right_val;
+            else if (op == "/") {
+                if (right_val == 0) throw std::runtime_error("Division by zero");
+                return left_val / right_val;
+            }
+            else if (op == "%") {
+                if (right_val == 0) throw std::runtime_error("Division by zero");
+                return left_val % right_val;
+            }
+        }
+    }
+    
+    // If no operators found, try to parse as a number
+    return parse_number(trimmed);
 }

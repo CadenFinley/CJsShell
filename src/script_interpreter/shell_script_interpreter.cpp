@@ -448,7 +448,72 @@ int ShellScriptInterpreter::execute_block(
                                  : std::optional<int>{0};
     };
 
-    auto evaluate_logical_condition = [&](const std::string& condition) -> int {
+    std::function<int(const std::string&)> evaluate_logical_condition;
+    
+    auto handle_parentheses = [&](const std::string& condition) -> std::string {
+        std::string result = condition;
+        
+        while (true) {
+            size_t start = std::string::npos;
+            size_t end = std::string::npos;
+            int depth = 0;
+            bool in_quotes = false;
+            char quote_char = '\0';
+            bool escaped = false;
+            
+            for (size_t i = 0; i < result.length(); ++i) {
+                char c = result[i];
+                
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+                
+                if (c == '\\') {
+                    escaped = true;
+                    continue;
+                }
+                
+                if (!in_quotes) {
+                    if (c == '"' || c == '\'' || c == '`') {
+                        in_quotes = true;
+                        quote_char = c;
+                        continue;
+                    } else if (c == '(') {
+                        if (depth == 0) {
+                            start = i;
+                        }
+                        depth++;
+                    } else if (c == ')') {
+                        depth--;
+                        if (depth == 0 && start != std::string::npos) {
+                            end = i;
+                            break;
+                        }
+                    }
+                } else {
+                    if (c == quote_char) {
+                        in_quotes = false;
+                        quote_char = '\0';
+                    }
+                }
+            }
+            
+            if (start == std::string::npos || end == std::string::npos) {
+                break;
+            }
+            
+            std::string inner = result.substr(start + 1, end - start - 1);
+            int inner_result = evaluate_logical_condition(inner);
+            std::string replacement = (inner_result == 0) ? "true" : "false";
+            
+            result = result.substr(0, start) + replacement + result.substr(end + 1);
+        }
+        
+        return result;
+    };
+
+    evaluate_logical_condition = [&](const std::string& condition) -> int {
         if (g_debug_mode) {
             std::cerr << "DEBUG: evaluate_logical_condition called with: "
                       << condition << std::endl;
@@ -457,12 +522,76 @@ int ShellScriptInterpreter::execute_block(
         std::string cond = trim(condition);
         if (cond.empty())
             return 1;
+        
+        // Handle arithmetic expansion $((...)) before anything else
+        std::string processed_cond = cond;
+        size_t pos = 0;
+        while ((pos = processed_cond.find("$((", pos)) != std::string::npos) {
+            size_t start = pos + 3;
+            size_t depth = 1;
+            size_t end = start;
+            
+            // Find matching ))
+            while (end < processed_cond.length() && depth > 0) {
+                if (end + 1 < processed_cond.length() && 
+                    processed_cond.substr(end, 2) == "((") {
+                    depth++;
+                    end += 2;
+                } else if (end + 1 < processed_cond.length() && 
+                          processed_cond.substr(end, 2) == "))") {
+                    depth--;
+                    if (depth == 0) {
+                        break;
+                    }
+                    end += 2;
+                } else {
+                    end++;
+                }
+            }
+            
+            if (depth == 0 && end + 1 < processed_cond.length()) {
+                std::string expr = processed_cond.substr(start, end - start);
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Found arithmetic expansion: $(('" << expr << "'))" << std::endl;
+                }
+                
+                // Expand variables in the expression first
+                shell_parser->expand_env_vars(expr);
+                
+                try {
+                    // Simple arithmetic evaluation for basic cases
+                    long long result = shell_parser->evaluate_arithmetic(expr);
+                    std::string result_str = std::to_string(result);
+                    
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: Arithmetic result: " << result_str << std::endl;
+                    }
+                    
+                    processed_cond = processed_cond.substr(0, pos) + result_str + 
+                                   processed_cond.substr(end + 2);
+                    pos = pos + result_str.length();
+                } catch (const std::exception& e) {
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: Arithmetic evaluation failed: " << e.what() << std::endl;
+                    }
+                    pos = end + 2;
+                }
+            } else {
+                pos++;
+            }
+        }
+        
+        cond = processed_cond;
+            
+        // Handle parentheses first
+        cond = handle_parentheses(cond);
 
         bool has_logical_ops = false;
         bool in_quotes = false;
         char quote_char = '\0';
         bool escaped = false;
         int bracket_depth = 0;
+        int paren_depth = 0;
 
         for (size_t i = 0; i < cond.length() - 1; ++i) {
             char c = cond[i];
@@ -486,6 +615,10 @@ int ShellScriptInterpreter::execute_block(
                     bracket_depth++;
                 } else if (c == ']') {
                     bracket_depth--;
+                } else if (c == '(') {
+                    paren_depth++;
+                } else if (c == ')') {
+                    paren_depth--;
                 }
             } else {
                 if (c == quote_char) {
@@ -495,7 +628,7 @@ int ShellScriptInterpreter::execute_block(
                 continue;
             }
 
-            if (!in_quotes && bracket_depth == 0) {
+            if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
                 if ((cond[i] == '&' && cond[i + 1] == '&') ||
                     (cond[i] == '|' && cond[i + 1] == '|')) {
                     has_logical_ops = true;
@@ -524,6 +657,7 @@ int ShellScriptInterpreter::execute_block(
         quote_char = '\0';
         escaped = false;
         bracket_depth = 0;
+        paren_depth = 0;
 
         for (size_t i = 0; i < cond.length(); ++i) {
             char c = cond[i];
@@ -550,6 +684,10 @@ int ShellScriptInterpreter::execute_block(
                     bracket_depth++;
                 } else if (c == ']') {
                     bracket_depth--;
+                } else if (c == '(') {
+                    paren_depth++;
+                } else if (c == ')') {
+                    paren_depth--;
                 }
             } else {
                 if (c == quote_char) {
@@ -560,7 +698,7 @@ int ShellScriptInterpreter::execute_block(
                 continue;
             }
 
-            if (!in_quotes && bracket_depth == 0) {
+            if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
                 if (i < cond.length() - 1) {
                     if (cond[i] == '&' && cond[i + 1] == '&') {
                         parts.push_back({trim(current_part), "&&"});
@@ -1554,6 +1692,18 @@ int ShellScriptInterpreter::execute_block(
                         shell_parser->parse_into_lines(buffer.str());
                     return execute_block(nested_lines);
                 }
+                
+                // Check if this is a control structure that should be handled by execute_block
+                if (prog == "if" || prog.rfind("if ", 0) == 0 || 
+                    prog == "for" || prog.rfind("for ", 0) == 0 ||
+                    prog == "while" || prog.rfind("while ", 0) == 0) {
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: Detected control structure '" << prog 
+                                  << "', delegating to execute_block" << std::endl;
+                    }
+                    std::vector<std::string> lines = {text};
+                    return execute_block(lines);
+                }
             }
         } catch (const std::runtime_error& e) {
             // Re-throw parameter expansion and arithmetic errors
@@ -2136,6 +2286,7 @@ int ShellScriptInterpreter::execute_block(
 
     auto handle_if_block = [&](const std::vector<std::string>& src_lines,
                                size_t& idx) -> int {
+
         std::string first = process_line_for_validation(src_lines[idx]);
 
         std::string cond_accum;
@@ -2150,7 +2301,11 @@ int ShellScriptInterpreter::execute_block(
         bool then_found = false;
 
         auto pos = first.find("; then");
+        if (pos == std::string::npos) {
+            pos = first.find(";then");
+        }
         if (pos != std::string::npos) {
+
             cond_accum = trim(first.substr(3, pos - 3));
             then_found = true;
         } else {
@@ -2161,6 +2316,9 @@ int ShellScriptInterpreter::execute_block(
                     break;
                 }
                 auto p = cur.rfind("; then");
+                if (p == std::string::npos) {
+                    p = cur.rfind(";then");
+                }
                 if (p != std::string::npos) {
                     if (!cond_accum.empty())
                         cond_accum += " ";
@@ -2192,11 +2350,43 @@ int ShellScriptInterpreter::execute_block(
             std::string rem = trim(first.substr(pos + 6));
 
             if (!rem.empty()) {
-                size_t fi_pos = rem.rfind("; fi");
-                if (fi_pos == std::string::npos) {
-                    if (rem.size() >= 2 && rem.substr(rem.size() - 2) == "fi") {
-                        fi_pos = rem.size() - 2;
+                // Find the matching fi for this if, accounting for nested if statements
+                size_t fi_pos = std::string::npos;
+                int if_depth = 1;  // We're already inside one if
+                size_t search_pos = 0;
+                bool in_quotes = false;
+                char quote_char = '\0';
+                
+                while (search_pos < rem.length() && if_depth > 0) {
+                    char c = rem[search_pos];
+                    
+                    if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
+                        in_quotes = true;
+                        quote_char = c;
+                    } else if (in_quotes && c == quote_char) {
+                        in_quotes = false;
+                        quote_char = '\0';
+                    } else if (!in_quotes) {
+                        // Check for nested if
+                        if (search_pos + 3 < rem.length() && rem.substr(search_pos, 3) == "if ") {
+                            if_depth++;
+                            search_pos += 2;
+                        }
+                        // Check for fi
+                        else if (search_pos + 2 <= rem.length() && rem.substr(search_pos, 2) == "fi") {
+                            // Make sure it's a word boundary
+                            bool is_word_start = (search_pos == 0 || !std::isalnum(rem[search_pos-1]));
+                            bool is_word_end = (search_pos + 2 >= rem.length() || !std::isalnum(rem[search_pos+2]));
+                            if (is_word_start && is_word_end) {
+                                if_depth--;
+                                if (if_depth == 0) {
+                                    fi_pos = search_pos;
+                                    break;
+                                }
+                            }
+                        }
                     }
+                    search_pos++;
                 }
 
                 if (rem.find("elif") != std::string::npos) {
@@ -2204,17 +2394,57 @@ int ShellScriptInterpreter::execute_block(
                     if (fi_pos != std::string::npos) {
                         std::string body = trim(rem.substr(0, fi_pos));
 
+
                         std::string then_body = body;
                         std::string else_body;
-                        size_t else_pos = body.find("; else");
-                        if (else_pos == std::string::npos) {
-                            size_t alt = body.find(" else ");
-                            if (alt != std::string::npos)
-                                else_pos = alt;
+                        
+                        // Find the else that belongs to this if (not nested ifs)
+                        size_t else_pos = std::string::npos;
+                        int nested_if_depth = 0;
+                        size_t search_else = 0;
+                        in_quotes = false;
+                        quote_char = '\0';
+                        
+                        while (search_else < body.length()) {
+                            char c = body[search_else];
+                            
+                            if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
+                                in_quotes = true;
+                                quote_char = c;
+                            } else if (in_quotes && c == quote_char) {
+                                in_quotes = false;
+                                quote_char = '\0';
+                            } else if (!in_quotes) {
+                                // Check for nested if
+                                if (search_else + 3 < body.length() && body.substr(search_else, 3) == "if ") {
+                                    nested_if_depth++;
+                                    search_else += 2;
+                                }
+                                // Check for fi
+                                else if (search_else + 2 <= body.length() && body.substr(search_else, 2) == "fi") {
+                                    bool is_word_start = (search_else == 0 || !std::isalnum(body[search_else-1]));
+                                    bool is_word_end = (search_else + 2 >= body.length() || !std::isalnum(body[search_else+2]));
+                                    if (is_word_start && is_word_end && nested_if_depth > 0) {
+                                        nested_if_depth--;
+                                    }
+                                }
+                                // Check for else
+                                else if (nested_if_depth == 0) {
+                                    if (search_else + 6 < body.length() && body.substr(search_else, 6) == "; else") {
+                                        else_pos = search_else;
+                                        break;
+                                    } else if (search_else + 5 < body.length() && body.substr(search_else, 5) == " else") {
+                                        else_pos = search_else;
+                                        break;
+                                    }
+                                }
+                            }
+                            search_else++;
                         }
                         if (else_pos != std::string::npos) {
                             then_body = trim(body.substr(0, else_pos));
                             else_body = trim(body.substr(else_pos + 6));
+                        } else {
                         }
                         int body_rc = 0;
                         if (cond_rc == 0) {
@@ -2248,9 +2478,37 @@ int ShellScriptInterpreter::execute_block(
         bool in_else = false;
         std::vector<std::string> then_lines;
         std::vector<std::string> else_lines;
+        
 
-        if (src_lines.size() == 1 &&
-            src_lines[0].find("fi") != std::string::npos) {
+
+        // Check if this is a simple single-line if (not nested)
+        bool is_simple_single_line = false;
+
+        if (src_lines.size() == 1 && src_lines[0].find("fi") != std::string::npos) {
+            std::string line = src_lines[0];
+            // Count if and fi occurrences to detect nesting
+            size_t if_count = 0;
+            size_t fi_count = 0;
+            size_t pos = 0;
+            while ((pos = line.find(" if ", pos)) != std::string::npos) {
+                if_count++;
+                pos += 4;
+            }
+            if (line.rfind("if ", 0) == 0) if_count++; // Count initial if
+            pos = 0;
+            while ((pos = line.find("fi", pos)) != std::string::npos) {
+                // Make sure it's a word boundary
+                bool is_word = (pos == 0 || !std::isalnum(line[pos-1])) && 
+                              (pos + 2 >= line.length() || !std::isalnum(line[pos+2]));
+                if (is_word) fi_count++;
+                pos += 2;
+            }
+            is_simple_single_line = (if_count == 1 && fi_count == 1);
+
+        }
+        
+        if (is_simple_single_line) {
+
             std::string full_line = src_lines[0];
 
             std::vector<std::string> parts;
@@ -2423,9 +2681,14 @@ int ShellScriptInterpreter::execute_block(
         while (k < src_lines.size() && depth > 0) {
             std::string cur_raw = src_lines[k];
             std::string cur = trim(strip_inline_comment(cur_raw));
-            if (cur == "if" || cur.rfind("if ", 0) == 0 ||
-                cur.find("; then") != std::string::npos)
+            if (cur == "if" || cur.rfind("if ", 0) == 0) {
                 depth++;
+            } else if (cur.find("; then") != std::string::npos || cur.find(";then") != std::string::npos) {
+                // Only count as depth if this is the start of a new if statement
+                if (cur.rfind("if ", 0) == 0 || cur == "if") {
+                    depth++;
+                }
+            }
             else if (cur == "fi") {
                 depth--;
                 if (depth == 0)
