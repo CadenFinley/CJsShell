@@ -1831,10 +1831,27 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         auto tilde_expanded_args = expand_tilde_tokens(filtered_args);
 
         std::vector<std::string> final_args_local;
-        for (const auto& raw : tilde_expanded_args) {
+        bool is_subshell_command = !filtered_args.empty() && 
+                                   strip_quote_tag(filtered_args[0]) == "__INTERNAL_SUBSHELL__";
+        
+        for (size_t arg_idx = 0; arg_idx < tilde_expanded_args.size(); ++arg_idx) {
+            const auto& raw = tilde_expanded_args[arg_idx];
             bool is_single = is_single_quoted_token(raw);
             bool is_double = is_double_quoted_token(raw);
             std::string val = strip_quote_tag(raw);
+
+            // Expand environment variables for non-single-quoted tokens
+            // BUT skip expansion for subshell content (argument 1 of __INTERNAL_SUBSHELL__)
+            if (!is_single && !(is_subshell_command && arg_idx == 1)) {
+                try {
+                    expand_env_vars(val);
+                } catch (const std::runtime_error& e) {
+                    // Log error but continue processing
+                    if (g_debug_mode) {
+                        std::cerr << "Warning: Error expanding environment variables in pipeline: " << e.what() << std::endl;
+                    }
+                }
+            }
 
             if (!is_single && !is_double &&
                 val.find('{') != std::string::npos &&
