@@ -957,6 +957,20 @@ int ShellScriptInterpreter::execute_block(
 
             auto get_variable_value =
                 [&](const std::string& name) -> long long {
+                // Check shell's env_vars map first (shell variables that may not be exported)
+                if (g_shell) {
+                    const auto& env_vars = g_shell->get_env_vars();
+                    auto it = env_vars.find(name);
+                    if (it != env_vars.end()) {
+                        try {
+                            return std::stoll(it->second);
+                        } catch (...) {
+                            return 0;
+                        }
+                    }
+                }
+                
+                // Fall back to system environment variables (exported variables)
                 const char* env_val = getenv(name.c_str());
                 if (env_val) {
                     try {
@@ -971,10 +985,16 @@ int ShellScriptInterpreter::execute_block(
             auto set_variable_value = [&](const std::string& name,
                                           long long value) {
                 std::string value_str = std::to_string(value);
-                setenv(name.c_str(), value_str.c_str(), 1);
-
+                
                 if (g_shell) {
                     g_shell->get_env_vars()[name] = value_str;
+                    
+                    // Only export to environment for special variables like PATH that need
+                    // to be inherited by child processes for shell functionality.
+                    if (name == "PATH" || name == "PWD" || name == "HOME" || 
+                        name == "USER" || name == "SHELL") {
+                        setenv(name.c_str(), value_str.c_str(), 1);
+                    }
 
                     if (shell_parser) {
                         shell_parser->set_env_vars(g_shell->get_env_vars());
@@ -1868,10 +1888,17 @@ int ShellScriptInterpreter::execute_block(
                                 expanded_args[0], var_name, var_value)) {
                             shell_parser->expand_env_vars(var_value);
 
-                            setenv(var_name.c_str(), var_value.c_str(), 1);
                             if (g_shell) {
                                 auto& env_vars = g_shell->get_env_vars();
                                 env_vars[var_name] = var_value;
+
+                                // Only export to environment for special variables like PATH that need
+                                // to be inherited by child processes for shell functionality.
+                                // Regular variables should only be exported via the 'export' command.
+                                if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || 
+                                    var_name == "USER" || var_name == "SHELL") {
+                                    setenv(var_name.c_str(), var_value.c_str(), 1);
+                                }
 
                                 if (shell_parser) {
                                     shell_parser->set_env_vars(env_vars);
@@ -2841,7 +2868,16 @@ int ShellScriptInterpreter::execute_block(
             if (range_info.is_range) {
                 auto execute_range_iteration = [&](int value) -> int {
                     std::string value_str = std::to_string(value);
-                    setenv(var.c_str(), value_str.c_str(), 1);
+                    // Store in shell's env_vars map and only export special variables
+                    if (g_shell) {
+                        auto& env_vars = g_shell->get_env_vars();
+                        env_vars[var] = value_str;
+                        
+                        if (var == "PATH" || var == "PWD" || var == "HOME" || 
+                            var == "USER" || var == "SHELL") {
+                            setenv(var.c_str(), value_str.c_str(), 1);
+                        }
+                    }
                     auto cmds = shell_parser->parse_semicolon_commands(body);
                     for (const auto& c : cmds) {
                         auto outcome = handle_loop_command_result(
@@ -2879,7 +2915,16 @@ int ShellScriptInterpreter::execute_block(
             } else {
                 bool break_outer = false;
                 for (const auto& it : items) {
-                    setenv(var.c_str(), it.c_str(), 1);
+                    // Store in shell's env_vars map and only export special variables
+                    if (g_shell) {
+                        auto& env_vars = g_shell->get_env_vars();
+                        env_vars[var] = it;
+                        
+                        if (var == "PATH" || var == "PWD" || var == "HOME" || 
+                            var == "USER" || var == "SHELL") {
+                            setenv(var.c_str(), it.c_str(), 1);
+                        }
+                    }
                     auto cmds = shell_parser->parse_semicolon_commands(body);
                     bool continue_outer = false;
                     for (const auto& c : cmds) {
@@ -2976,7 +3021,16 @@ int ShellScriptInterpreter::execute_block(
                 int rc_local = 0;
                 while (step > 0 ? value <= end : value >= end) {
                     std::string value_str = std::to_string(value);
-                    setenv(var.c_str(), value_str.c_str(), 1);
+                    // Store in shell's env_vars map and only export special variables
+                    if (g_shell) {
+                        auto& env_vars = g_shell->get_env_vars();
+                        env_vars[var] = value_str;
+                        
+                        if (var == "PATH" || var == "PWD" || var == "HOME" || 
+                            var == "USER" || var == "SHELL") {
+                            setenv(var.c_str(), value_str.c_str(), 1);
+                        }
+                    }
                     auto outcome = run_body_and_handle_result();
                     rc_local = outcome.code;
                     if (outcome.flow == LoopFlow::None) {
@@ -2996,7 +3050,16 @@ int ShellScriptInterpreter::execute_block(
                                     range_info.is_ascending ? 1 : -1);
         } else {
             for (const auto& it : items) {
-                setenv(var.c_str(), it.c_str(), 1);
+                // Store in shell's env_vars map and only export special variables
+                if (g_shell) {
+                    auto& env_vars = g_shell->get_env_vars();
+                    env_vars[var] = it;
+                    
+                    if (var == "PATH" || var == "PWD" || var == "HOME" || 
+                        var == "USER" || var == "SHELL") {
+                        setenv(var.c_str(), it.c_str(), 1);
+                    }
+                }
                 auto outcome = run_body_and_handle_result();
                 rc = outcome.code;
                 if (outcome.flow == LoopFlow::None)
@@ -4004,7 +4067,16 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
                           << std::endl;
                 return var_value;
             }
-            setenv(var_name.c_str(), operand.c_str(), 1);
+            // Store in shell's env_vars map and only export special variables
+            if (g_shell) {
+                auto& env_vars = g_shell->get_env_vars();
+                env_vars[var_name] = operand;
+                
+                if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || 
+                    var_name == "USER" || var_name == "SHELL") {
+                    setenv(var_name.c_str(), operand.c_str(), 1);
+                }
+            }
             return operand;
         }
         return var_value;
@@ -4015,7 +4087,16 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
                           << std::endl;
                 return var_value;
             }
-            setenv(var_name.c_str(), operand.c_str(), 1);
+            // Store in shell's env_vars map and only export special variables
+            if (g_shell) {
+                auto& env_vars = g_shell->get_env_vars();
+                env_vars[var_name] = operand;
+                
+                if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || 
+                    var_name == "USER" || var_name == "SHELL") {
+                    setenv(var_name.c_str(), operand.c_str(), 1);
+                }
+            }
             return operand;
         }
         return var_value;
@@ -4129,6 +4210,16 @@ std::string ShellScriptInterpreter::get_variable_value(
         return "";
     }
 
+    // Check shell's env_vars map first (shell variables that may not be exported)
+    if (g_shell) {
+        const auto& env_vars = g_shell->get_env_vars();
+        auto it = env_vars.find(var_name);
+        if (it != env_vars.end()) {
+            return it->second;
+        }
+    }
+
+    // Fall back to system environment variables (exported variables)
     const char* env_val = getenv(var_name.c_str());
     return env_val ? env_val : "";
 }
@@ -4155,6 +4246,14 @@ bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
             return static_cast<size_t>(param_num - 1) < params.size();
         }
         return false;
+    }
+
+    // Check shell's env_vars map first (shell variables that may not be exported)
+    if (g_shell) {
+        const auto& env_vars = g_shell->get_env_vars();
+        if (env_vars.find(var_name) != env_vars.end()) {
+            return true;
+        }
     }
 
     return getenv(var_name.c_str()) != nullptr;
@@ -4521,7 +4620,19 @@ void ShellScriptInterpreter::set_local_variable(const std::string& name,
                   << std::endl;
 
     if (local_variable_stack.empty()) {
-        setenv(name.c_str(), value.c_str(), 1);
+        // When not in a local scope, store the variable in the shell's env_vars map
+        // but only export special variables to the environment
+        if (g_shell) {
+            auto& env_vars = g_shell->get_env_vars();
+            env_vars[name] = value;
+            
+            // Only export to environment for special variables like PATH that need
+            // to be inherited by child processes for shell functionality.
+            if (name == "PATH" || name == "PWD" || name == "HOME" || 
+                name == "USER" || name == "SHELL") {
+                setenv(name.c_str(), value.c_str(), 1);
+            }
+        }
         return;
     }
 

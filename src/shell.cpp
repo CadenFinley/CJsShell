@@ -413,7 +413,23 @@ int Shell::execute_command(std::vector<std::string> args,
         std::string var_name, var_value;
         if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
             shell_parser->expand_env_vars(var_value);
-            setenv(var_name.c_str(), var_value.c_str(), 1);
+            
+            // Store the variable in shell's env_vars map
+            env_vars[var_name] = var_value;
+            
+            // Only export to environment for special variables like PATH that need
+            // to be inherited by child processes for shell functionality.
+            // Regular variables should only be exported via the 'export' command.
+            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || 
+                var_name == "USER" || var_name == "SHELL") {
+                setenv(var_name.c_str(), var_value.c_str(), 1);
+            }
+            
+            // Update parser's cache to keep it synchronized
+            if (shell_parser) {
+                shell_parser->set_env_vars(env_vars);
+            }
+            
             return 0;
         }
 

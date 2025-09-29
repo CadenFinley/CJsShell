@@ -1272,7 +1272,8 @@ void Parser::expand_env_vars(std::string& arg) {
                 continue;
             }
         }
-        if (!in_var && arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
+        // Handle escaped dollar signs first, before any other $ processing
+        if (arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
             if (!result.empty() && result.back() == '\\') {
                 result.pop_back();
             }
@@ -1543,8 +1544,25 @@ void Parser::expand_env_vars_selective(std::string& arg) {
 std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
     std::vector<std::string> result;
 
-    const char* ifs_env = getenv("IFS");
-    std::string ifs = ifs_env ? ifs_env : " \t\n";
+    // Check shell's env_vars first, then fall back to getenv for exported variables
+    std::string ifs = " \t\n"; // default
+    if (shell) {
+        const auto& env_vars = shell->get_env_vars();
+        auto it = env_vars.find("IFS");
+        if (it != env_vars.end()) {
+            ifs = it->second;
+        } else {
+            const char* ifs_env = getenv("IFS");
+            if (ifs_env) {
+                ifs = ifs_env;
+            }
+        }
+    } else {
+        const char* ifs_env = getenv("IFS");
+        if (ifs_env) {
+            ifs = ifs_env;
+        }
+    }
 
     if (input.empty()) {
         return result;
