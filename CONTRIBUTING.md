@@ -44,9 +44,7 @@ By participating in this project, you are expected to uphold our Code of Conduct
 To build the project locally:
 
 ```bash
-mkdir build && cd build
-cmake ..
-make
+    ./tool_scripts/build.sh
 ```
 
 ## How to Contribute
@@ -103,7 +101,7 @@ Please follow these guidelines when writing code:
 This project uses clang-format to enforce consistent code style. Before submitting a pull request, please run the following command from the project root to format your code:
 
 ```bash
-clang-format -i src/*/*.cpp && clang-format -i src/*.cpp && clang-format -i include/*.h && clang-format -i include/*/*.h && clang-format -i plugins/*/*.cpp
+    find . -name "*.cpp" -o -name "*.h" -o -name "*.c" -o -name "*.hpp" | grep -v "build/" | grep -v "CMakeFiles/" | grep -v "_deps/" | xargs clang-format -i
 ```
 
 This will automatically format all source files according to the project's style guidelines.
@@ -135,10 +133,8 @@ The repository is organized as follows:
 - `/themes`: Theme files
 - `/tests`: Test files
 - `/build`: Build output (not committed)
-- `/vendor`: Any third party build dependencies that can be statically linked
 - `/tool-scripts`: Scripts used for building or general automation
-- `/man`: Man pages and documentation
-- `/cmake`: CMake configuration files
+- `/build_tools` : The nob built tooling for cjsh
 
 
 ## Creating Plugins

@@ -27,7 +27,7 @@ TESTS_SKIP=0
 # Check if cjsh binary exists
 if [ ! -x "$CJSH" ]; then
     echo "${RED}Error: cjsh binary not found at $CJSH${NC}"
-    echo "Please run 'make' or 'cmake --build build' to build cjsh first."
+    echo "Please run './tool_scripts/build.sh' to build cjsh first."
     exit 1
 fi
 

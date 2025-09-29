@@ -96,7 +96,7 @@ def main():
     parser.add_argument('--by-extension', '-e', action='store_true',
                        help='Group results by file extension')
     parser.add_argument('--include-dirs', nargs='*', 
-                       help='Additional directories to include (default excludes: vendor, plugins, themes, cmake, build, tool-scripts, tests, src/isocline, include/isocline)')
+                       help='Additional directories to include (default excludes: vendor, plugins, themes, build, tool-scripts, tests, src/isocline, include/isocline)')
     parser.add_argument('--exclude-dirs', nargs='*',
                        help='Additional directories to exclude')
     parser.add_argument('--extensions', nargs='*', default=['.c', '.h', '.cpp', '.hpp', '.cc', '.sh'],
@@ -108,7 +108,7 @@ def main():
     os.chdir(project_root)
     
     # Set up excluded directories
-    excluded_dirs = {'vendor', 'plugins', 'themes', 'cmake', 'build'}
+    excluded_dirs = {'vendor', 'plugins', 'themes', 'build'}
     if args.exclude_dirs:
         excluded_dirs.update(args.exclude_dirs)
     if args.include_dirs:
