@@ -5,8 +5,8 @@
 
 class CommandInfo {
    private:
-    int min_time_threshold = 0;  // milliseconds
-    bool show_milliseconds = false;
+    int min_time_threshold = 0;  // microseconds
+    bool show_microseconds = false;
 
     std::chrono::time_point<std::chrono::high_resolution_clock>
         last_command_start;
@@ -14,7 +14,7 @@ class CommandInfo {
         last_command_end;
     bool timing_active = false;
 
-    std::string format_duration(long long milliseconds);
+    std::string format_duration(long long microseconds);
     std::string format_exit_code(int exit_code);
 
    public:
@@ -23,7 +23,7 @@ class CommandInfo {
     void start_command_timing();
     void end_command_timing(int exit_code);
     void reset_command_timing();
-    long long get_last_command_duration_ms();
+    long long get_last_command_duration_us();
     std::string get_formatted_duration();
     bool should_show_duration();
 
@@ -31,7 +31,7 @@ class CommandInfo {
     std::string get_exit_status_symbol();
     bool is_last_command_success();
 
-    void set_min_time_threshold(int milliseconds);
-    void set_show_milliseconds(bool show);
-    void set_initial_duration(long long milliseconds);
+    void set_min_time_threshold(int microseconds);
+    void set_show_microseconds(bool show);
+    void set_initial_duration(long long microseconds);
 };

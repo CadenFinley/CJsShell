@@ -92,9 +92,9 @@ class Shell {
         }
     }
 
-    void set_initial_duration(long long milliseconds) {
+    void set_initial_duration(long long microseconds) {
         if (shell_prompt) {
-            shell_prompt->set_initial_duration(milliseconds);
+            shell_prompt->set_initial_duration(microseconds);
         }
     }
 

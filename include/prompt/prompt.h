@@ -47,7 +47,7 @@ class Prompt {
     void reset_command_timing() {
         info.reset_command_timing();
     }
-    void set_initial_duration(long long milliseconds) {
-        info.set_initial_duration(milliseconds);
+    void set_initial_duration(long long microseconds) {
+        info.set_initial_duration(microseconds);
     }
 };

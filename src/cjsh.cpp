@@ -325,7 +325,7 @@ static void start_interactive_process() {
     // Set the startup duration as the initial command duration for the
     // prompt
     if (g_shell && g_theme) {
-        g_shell->set_initial_duration(startup_duration.count());
+        g_shell->set_initial_duration(startup_duration.count() * 1000);
     }
 
     if (g_title_line) {

@@ -133,7 +133,7 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "LAST_COMMAND_SUCCESS: "
               << (pi.is_last_command_success() ? "yes" : "no") << "\n";
     std::cout << "LAST_COMMAND_DURATION_MS: "
-              << pi.get_last_command_duration_ms() << "\n";
+              << pi.get_last_command_duration_us() << "\n";
     std::cout << "FORMATTED_DURATION: " << pi.get_formatted_duration() << "\n";
     std::cout << "SHOULD_SHOW_DURATION: "
               << (pi.should_show_duration() ? "yes" : "no") << "\n";

@@ -211,11 +211,11 @@ class PromptInfo {
     void reset_command_timing() {
         command_info.reset_command_timing();
     }
-    void set_initial_duration(long long milliseconds) {
-        command_info.set_initial_duration(milliseconds);
+    void set_initial_duration(long long microseconds) {
+        command_info.set_initial_duration(microseconds);
     }
-    long long get_last_command_duration_ms() {
-        return command_info.get_last_command_duration_ms();
+    long long get_last_command_duration_us() {
+        return command_info.get_last_command_duration_us();
     }
     std::string get_formatted_duration() {
         return command_info.get_formatted_duration();

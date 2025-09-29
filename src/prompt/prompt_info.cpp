@@ -526,7 +526,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
     if (needed_vars.count("CMD_DURATION_MS")) {
         vars["CMD_DURATION_MS"] =
-            std::to_string(get_last_command_duration_ms());
+            std::to_string(get_last_command_duration_us());
     }
 
     if (needed_vars.count("EXIT_CODE")) {
