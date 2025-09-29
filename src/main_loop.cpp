@@ -240,6 +240,7 @@ void enqueue_queued_command(const std::string& command) {
         g_typeahead_queue.pop_front();
     }
 
+    std::string sanitized_command = filter_escape_sequences(command);
     
     if (g_debug_mode && sanitized_command != command) {
         std::cerr << "DEBUG: Command sanitized before queuing: '"
@@ -528,6 +529,7 @@ void main_process_loop() {
             flush_pending_typeahead();
 
             std::string sanitized_buffer = g_input_buffer;
+            if (!sanitized_buffer.empty()) {
                 sanitized_buffer = filter_escape_sequences(sanitized_buffer);
                 if (g_debug_mode && sanitized_buffer != g_input_buffer) {
                     std::cerr << "DEBUG: Additional sanitization applied to input buffer"
