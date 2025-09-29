@@ -319,7 +319,7 @@ static void start_interactive_process() {
     // Calculate startup time
     auto startup_end_time = std::chrono::steady_clock::now();
     auto startup_duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
             startup_end_time - g_startup_begin_time);
 
     // Set the startup duration as the initial command duration for the
