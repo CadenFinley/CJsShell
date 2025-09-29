@@ -457,6 +457,11 @@ int main(int argc, char* argv[]) {
             unsetenv("EXIT_CODE");
         }
 
+        if (g_shell) {
+            TrapManager::instance().set_shell(g_shell.get());
+            TrapManager::instance().execute_exit_trap();
+        }
+
         return code;
     }
 
