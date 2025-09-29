@@ -105,21 +105,15 @@ static int safe_execute_git_command(const std::string& command,
 }
 
 GitInfo::GitInfo() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: GitInfo constructor" << std::endl;
 
     last_git_status_check =
         std::chrono::steady_clock::now() - std::chrono::seconds(30);
     is_git_status_check_running = false;
     cached_is_clean_repo = true;
 
-    if (g_debug_mode)
-        std::cerr << "DEBUG: GitInfo constructor END" << std::endl;
 }
 
 GitInfo::~GitInfo() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: GitInfo destructor" << std::endl;
 }
 
 std::string GitInfo::get_git_remote(const std::filesystem::path& repo_root) {

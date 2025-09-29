@@ -1732,6 +1732,60 @@ int ShellScriptInterpreter::execute_block(
                         }
                     }
 
+                    // Check if this is a function call first
+                    if (!expanded_args.empty() && functions.count(expanded_args[0])) {
+                        if (g_debug_mode) {
+                            std::cerr << "DEBUG: Function call detected in pipeline: " << expanded_args[0] << std::endl;
+                        }
+                        
+                        push_function_scope();
+
+                        std::vector<std::string> saved_params;
+                        if (g_shell) {
+                            saved_params = g_shell->get_positional_parameters();
+                        }
+
+                        std::vector<std::string> func_params;
+                        for (size_t pi = 1; pi < expanded_args.size(); ++pi) {
+                            func_params.push_back(expanded_args[pi]);
+                        }
+                        if (g_shell) {
+                            g_shell->set_positional_parameters(func_params);
+                        }
+
+                        std::vector<std::string> param_names;
+                        for (size_t pi = 1; pi < expanded_args.size() && pi <= 9; ++pi) {
+                            std::string name = std::to_string(pi);
+                            param_names.push_back(name);
+                            setenv(name.c_str(), expanded_args[pi].c_str(), 1);
+                        }
+
+                        int exit_code = execute_block(functions[expanded_args[0]]);
+
+                        if (exit_code == 253) {
+                            const char* return_code_env = getenv("CJSH_RETURN_CODE");
+                            if (return_code_env) {
+                                try {
+                                    exit_code = std::stoi(return_code_env);
+                                    unsetenv("CJSH_RETURN_CODE");
+                                } catch (const std::exception&) {
+                                    exit_code = 0;
+                                }
+                            }
+                        }
+
+                        if (g_shell) {
+                            g_shell->set_positional_parameters(saved_params);
+                        }
+
+                        for (const auto& n : param_names)
+                            unsetenv(n.c_str());
+
+                        pop_function_scope();
+                        
+                        return set_last_status(exit_code);
+                    }
+                    
                     if (g_debug_mode) {
                         std::cerr << "DEBUG: Simple exec: ";
                         for (const auto& a : expanded_args)
