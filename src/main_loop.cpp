@@ -452,9 +452,7 @@ void main_process_loop() {
             }
             break;
         }
-
-        // Fast terminal health check - prioritize speed over comprehensive
-        // checking
+        
         if (!perform_terminal_check()) {
             break;
         }
