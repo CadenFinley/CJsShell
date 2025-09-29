@@ -209,12 +209,10 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             s_sigint_received = 1;
 
             if (!is_observed) {
-                ssize_t bytes_written = write(STDOUT_FILENO, "\n", 1);
-                (void)bytes_written;
-
                 // In non-interactive mode, exit immediately with proper signal
                 // code
                 if (!config::interactive_mode) {
+                    g_exit_flag = true;
                     exit(128 + SIGINT);  // 128 + 2 = 130
                 }
             }
@@ -228,8 +226,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
         case SIGHUP: {
             s_sighup_received = 1;
-
             if (!is_observed) {
+                g_exit_flag = true;
                 exit(128 + SIGHUP);  // 128 + 1 = 129
             }
             break;
@@ -238,6 +236,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         case SIGTERM: {
             // SIGTERM should cause immediate termination like bash
             // The OS will handle cleanup of child processes
+            s_sigterm_received = 1;
+            g_exit_flag = true;
             _exit(128 + SIGTERM);  // 128 + 15 = 143
         }
 

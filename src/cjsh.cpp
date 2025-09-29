@@ -60,11 +60,6 @@ std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 std::chrono::steady_clock::time_point g_startup_begin_time;
 
-static int handle_non_interactive_mode(const std::string& script_file);
-static int initialize_interactive_components();
-static void save_startup_arguments(int argc, char* argv[]);
-static void process_profile_files();
-
 namespace config {
 bool login_mode = false;
 bool interactive_mode = true;
@@ -87,18 +82,6 @@ bool disable_custom_ls = false;
 bool show_startup_time = false;
 }  // namespace config
 
-static void initialize_title_strings() {
-    if (title_line.empty()) {
-        title_line = " CJ's Shell v" + c_version + " - Caden J Finley (c) 2025";
-    }
-    if (created_line.empty()) {
-        created_line =
-            " Created 2025 @ \033[1;35mAbilene Christian University\033[0m";
-    }
-}
-
-//  add a way to change keybindings via .cjshrc
-
 /*
  * Exit/Return Codes:
  * 0       - Success
@@ -115,164 +98,6 @@ static void initialize_title_strings() {
  * 143     - Process terminated (SIGTERM)
  * 255     - Exit status out of range
  */
-
-int main(int argc, char* argv[]) {
-    // Start timing the startup process
-    g_startup_begin_time = std::chrono::steady_clock::now();
-
-    // Parse command line arguments (includes login mode detection)
-    auto parse_result = cjsh::CommandLineParser::parse_arguments(argc, argv);
-    if (parse_result.should_exit) {
-        return parse_result.exit_code;
-    }
-    std::string script_file = parse_result.script_file;
-    std::vector<std::string> script_args = parse_result.script_args;
-
-    // Initialize directories and register cleanup
-    cjsh_filesystem::initialize_cjsh_directories();
-    std::atexit(cleanup_resources);
-
-    // Initialize core shell components
-    g_shell = std::make_unique<Shell>();
-
-    // Set positional parameters if we have script arguments
-    if (!script_args.empty()) {
-        g_shell->set_positional_parameters(script_args);
-    }
-
-    // Handle early exit modes (version and help only) before environment setup
-    if (config::show_version) {  // -v --version
-        std::cout << c_version << std::endl;
-        return 0;
-    }
-
-    if (config::show_help) {  // -h --help
-        print_usage();
-        return 0;
-    }
-
-    cjsh_env::setup_environment_variables();
-    save_startup_arguments(argc, argv);
-
-    // Sync shell's environment cache from system environment
-    if (g_shell) {
-        g_shell->sync_env_vars_from_system();
-    }
-
-    // Handle login mode initialization
-    if (config::login_mode) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Initializing login environment" << std::endl;
-        if (!cjsh_filesystem::init_login_filesystem()) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         nullptr,
-                         "Failed to initialize file system",
-                         {"Check file permissions", "Reinstall cjsh"}});
-            return 1;
-        }
-        process_profile_files();
-        cjsh::CommandLineParser::apply_profile_startup_flags();
-    }
-
-    // Set shell environment variable
-    if (argv[0]) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Setting $0=" << argv[0] << std::endl;
-        setenv("0", argv[0], 1);
-    } else {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Setting $0=unknown" << std::endl;
-        setenv("0", "cjsh", 1);
-    }
-
-    // Handle command execution mode after environment is set up
-    if (config::execute_command) {  // -c --command
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Executing -c via Shell::execute: "
-                      << config::cmd_to_execute << std::endl;
-        }
-
-        // Set shell to non-interactive mode for command execution
-        if (g_shell) {
-            g_shell->set_interactive_mode(false);
-        }
-
-        int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
-
-        // Check if an exit code was set by the exit command
-        const char* exit_code_str = getenv("EXIT_CODE");
-        if (exit_code_str) {
-            code = std::atoi(exit_code_str);
-            unsetenv("EXIT_CODE");
-        }
-
-        // Execute EXIT trap before resetting shell for -c commands
-        if (g_shell) {
-            TrapManager::instance().set_shell(g_shell.get());
-            TrapManager::instance().execute_exit_trap();
-        }
-
-        return code;
-    }
-
-    // Handle non-interactive mode (script files or stdin)
-    if (!config::interactive_mode && !config::force_interactive) {
-        return handle_non_interactive_mode(script_file);
-    }
-
-    // Initialize interactive mode
-    int interactive_result = initialize_interactive_components();
-    if (interactive_result != 0) {
-        return interactive_result;
-    }
-
-    // Enter main process loop
-    g_startup_active = false;
-    if (!g_exit_flag) {
-        // Calculate startup time
-        auto startup_end_time = std::chrono::steady_clock::now();
-        auto startup_duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                startup_end_time - g_startup_begin_time);
-
-        // Set the startup duration as the initial command duration for the
-        // prompt
-        if (g_shell && g_theme) {
-            g_shell->set_initial_duration(startup_duration.count());
-        }
-
-        if (g_title_line) {
-            initialize_title_strings();
-            std::cout << title_line << std::endl;
-            std::cout << created_line << std::endl;
-        }
-
-        if (g_title_line && config::show_startup_time) {
-            std::cout << std::endl;
-        }
-
-        if (config::show_startup_time) {
-            std::cout << " Started in " << startup_duration.count() << "ms."
-                      << std::endl;
-        }
-
-        if (!config::startup_test) {
-            main_process_loop();
-        }
-    }
-
-    std::cerr << "Cleaning up resources." << std::endl;
-
-    // Check for exit code set by exit command
-    const char* exit_code_str = getenv("EXIT_CODE");
-    int exit_code = 0;
-    if (exit_code_str) {
-        exit_code = std::atoi(exit_code_str);
-        unsetenv("EXIT_CODE");
-    }
-
-    return exit_code;
-}
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
@@ -455,6 +280,41 @@ static int initialize_interactive_components() {
     return 0;
 }
 
+static void process_profile_files() {
+    // sourcing if in login shell
+    if (g_debug_mode)
+        std::cerr << "DEBUG: Processing profile files" << std::endl;
+    std::filesystem::path user_profile =
+        cjsh_filesystem::g_user_home_path / ".profile";
+    if (std::filesystem::exists(user_profile)) {
+        if (g_debug_mode)
+            std::cerr << "DEBUG: Found user profile: " << user_profile.string()
+                      << std::endl;
+        g_shell->execute_script_file(user_profile, true);
+    }
+    if (g_debug_mode)
+        std::cerr << "DEBUG: Sourcing profile file: "
+                  << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
+    g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path);
+}
+
+static int initialize_login_mode() {
+    if (g_debug_mode)
+        std::cerr << "DEBUG: Initializing login environment" << std::endl;
+
+    if (!cjsh_filesystem::init_login_filesystem()) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     nullptr,
+                     "Failed to initialize file system",
+                     {"Check file permissions", "Reinstall cjsh"}});
+        return 1;
+    }
+
+    process_profile_files();
+    cjsh::CommandLineParser::apply_profile_startup_flags();
+    return 0;
+}
+
 void cleanup_resources() {
     if (g_debug_mode) {
         std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
@@ -494,20 +354,132 @@ void cleanup_resources() {
     }
 }
 
-static void process_profile_files() {
-    // sourcing if in login shell
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Processing profile files" << std::endl;
-    std::filesystem::path user_profile =
-        cjsh_filesystem::g_user_home_path / ".profile";
-    if (std::filesystem::exists(user_profile)) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Found user profile: " << user_profile.string()
-                      << std::endl;
-        g_shell->execute_script_file(user_profile, true);
+int main(int argc, char* argv[]) {
+    // Start timing the startup process
+    g_startup_begin_time = std::chrono::steady_clock::now();
+
+    // Parse command line arguments (includes login mode detection)
+    auto parse_result = cjsh::CommandLineParser::parse_arguments(argc, argv);
+    if (parse_result.should_exit) {
+        return parse_result.exit_code;
     }
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Sourcing profile file: "
-                  << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
-    g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path);
+    std::string script_file = parse_result.script_file;
+    std::vector<std::string> script_args = parse_result.script_args;
+
+    // Initialize directories and register cleanup
+    cjsh_filesystem::initialize_cjsh_directories();
+    std::atexit(cleanup_resources);
+
+    // Initialize core shell components
+    g_shell = std::make_unique<Shell>();
+
+    // Set positional parameters if we have script arguments
+    if (!script_args.empty()) {
+        g_shell->set_positional_parameters(script_args);
+    }
+
+    // Handle early exit modes (version and help only) before environment setup
+    if (config::show_version) {  // -v --version
+        std::cout << c_version << std::endl;
+        return 0;
+    }
+
+    if (config::show_help) {  // -h --help
+        print_usage();
+        return 0;
+    }
+
+    cjsh_env::setup_environment_variables(argv[0]);
+    save_startup_arguments(argc, argv);
+
+    // Sync shell's environment cache from system environment
+    if (g_shell) {
+        g_shell->sync_env_vars_from_system();
+    }
+
+    // Handle login mode initialization
+    if (config::login_mode) {
+        int login_result = initialize_login_mode();
+        if (login_result != 0) {
+            return login_result;
+        }
+    }
+
+    // Handle command execution mode after environment is set up
+    if (config::execute_command) {  // -c --command
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Executing -c via Shell::execute: "
+                      << config::cmd_to_execute << std::endl;
+        }
+
+        int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
+
+        // Check if an exit code was set by the exit command
+        const char* exit_code_str = getenv("EXIT_CODE");
+        if (exit_code_str) {
+            code = std::atoi(exit_code_str);
+            unsetenv("EXIT_CODE");
+        }
+
+        return code;
+    }
+
+    // Handle non-interactive mode (script files or stdin)
+    if (!config::interactive_mode && !config::force_interactive) {
+        return handle_non_interactive_mode(script_file);
+    }
+
+    // Initialize interactive mode
+    int interactive_result = initialize_interactive_components();
+    if (interactive_result != 0) {
+        return interactive_result;
+    }
+
+    // Enter main process loop
+    g_startup_active = false;
+    if (!g_exit_flag) {
+        // Calculate startup time
+        auto startup_end_time = std::chrono::steady_clock::now();
+        auto startup_duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                startup_end_time - g_startup_begin_time);
+
+        // Set the startup duration as the initial command duration for the
+        // prompt
+        if (g_shell && g_theme) {
+            g_shell->set_initial_duration(startup_duration.count());
+        }
+
+        if (g_title_line) {
+            std::cout << " CJ's Shell v" << c_version
+                      << " - Caden J Finley (c) 2025" << std::endl;
+            std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
+                         "University\033[0m"
+                      << std::endl;
+        }
+
+        if (g_title_line && config::show_startup_time) {
+            std::cout << std::endl;
+        }
+
+        if (config::show_startup_time) {
+            std::cout << " Started in " << startup_duration.count() << "ms."
+                      << std::endl;
+        }
+
+        if (!config::startup_test) {
+            main_process_loop();
+        }
+    }
+    std::cerr << "Cleaning up resources." << std::endl;
+
+    // Check for exit code set by exit command
+    const char* exit_code_str = getenv("EXIT_CODE");
+    int exit_code = 0;
+    if (exit_code_str) {
+        exit_code = std::atoi(exit_code_str);
+        unsetenv("EXIT_CODE");
+    }
+
+    return exit_code;
 }

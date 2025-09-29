@@ -13,10 +13,21 @@
 
 namespace cjsh_env {
 
-void setup_environment_variables() {
+void setup_environment_variables(const char* argv0) {
     // setup essential environment variables for the shell session
     if (g_debug_mode)
         std::cerr << "DEBUG: Setting up environment variables" << std::endl;
+
+    // Set shell environment variable ($0)
+    if (argv0) {
+        if (g_debug_mode)
+            std::cerr << "DEBUG: Setting $0=" << argv0 << std::endl;
+        setenv("0", argv0, 1);
+    } else {
+        if (g_debug_mode)
+            std::cerr << "DEBUG: Setting $0=cjsh" << std::endl;
+        setenv("0", "cjsh", 1);
+    }
 
     uid_t uid = getuid();
     struct passwd* pw = getpwuid(uid);
