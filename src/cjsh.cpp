@@ -315,6 +315,41 @@ static int initialize_login_mode() {
     return 0;
 }
 
+static void start_interactive_process() {
+    // Calculate startup time
+        auto startup_end_time = std::chrono::steady_clock::now();
+        auto startup_duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                startup_end_time - g_startup_begin_time);
+
+        // Set the startup duration as the initial command duration for the
+        // prompt
+        if (g_shell && g_theme) {
+            g_shell->set_initial_duration(startup_duration.count());
+        }
+
+        if (g_title_line) {
+            std::cout << " CJ's Shell v" << c_version
+                      << " - Caden J Finley (c) 2025" << std::endl;
+            std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
+                         "University\033[0m"
+                      << std::endl;
+        }
+
+        if (g_title_line && config::show_startup_time) {
+            std::cout << std::endl;
+        }
+
+        if (config::show_startup_time) {
+            std::cout << " Started in " << startup_duration.count() << "ms."
+                      << std::endl;
+        }
+
+        if (!config::startup_test) {
+            main_process_loop();
+        }
+}
+
 void cleanup_resources() {
     if (g_debug_mode) {
         std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
@@ -363,6 +398,7 @@ int main(int argc, char* argv[]) {
     if (parse_result.should_exit) {
         return parse_result.exit_code;
     }
+    
     std::string script_file = parse_result.script_file;
     std::vector<std::string> script_args = parse_result.script_args;
 
@@ -437,40 +473,10 @@ int main(int argc, char* argv[]) {
 
     // Enter main process loop
     g_startup_active = false;
-    if (!g_exit_flag) {
-        // Calculate startup time
-        auto startup_end_time = std::chrono::steady_clock::now();
-        auto startup_duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                startup_end_time - g_startup_begin_time);
-
-        // Set the startup duration as the initial command duration for the
-        // prompt
-        if (g_shell && g_theme) {
-            g_shell->set_initial_duration(startup_duration.count());
-        }
-
-        if (g_title_line) {
-            std::cout << " CJ's Shell v" << c_version
-                      << " - Caden J Finley (c) 2025" << std::endl;
-            std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
-                         "University\033[0m"
-                      << std::endl;
-        }
-
-        if (g_title_line && config::show_startup_time) {
-            std::cout << std::endl;
-        }
-
-        if (config::show_startup_time) {
-            std::cout << " Started in " << startup_duration.count() << "ms."
-                      << std::endl;
-        }
-
-        if (!config::startup_test) {
-            main_process_loop();
-        }
+    if (!g_exit_flag && (config::interactive_mode || config::force_interactive)) {
+        start_interactive_process();
     }
+
     std::cerr << "Cleaning up resources." << std::endl;
 
     // Check for exit code set by exit command
