@@ -35,15 +35,10 @@
 
 namespace {
 
-std::string g_input_buffer;
-std::deque<std::string> g_typeahead_queue;
-
 struct TerminalStatus {
     bool terminal_alive;
     bool parent_alive;
 };
-
-constexpr std::size_t kMaxQueuedCommands = 32;
 
 // Consolidated terminal health check with different levels of thoroughness
 enum class TerminalCheckLevel {
@@ -157,327 +152,24 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
     return status;
 }
 
-std::string to_debug_visible(const std::string& data) {
-    if (data.empty()) {
-        return "";
-    }
-
-    std::ostringstream oss;
-    oss << std::hex << std::uppercase;
-    for (unsigned char ch : data) {
-        switch (ch) {
-            case '\\':
-                oss << "\\\\";
-                break;
-            case '\n':
-                oss << "\\n";
-                break;
-            case '\r':
-                oss << "\\r";
-                break;
-            case '\t':
-                oss << "\\t";
-                break;
-            case '\f':
-                oss << "\\f";
-                break;
-            case '\v':
-                oss << "\\v";
-                break;
-            case '\b':
-                oss << "\\b";
-                break;
-            case '\a':
-                oss << "\\a";
-                break;
-            case '\0':
-                oss << "\\0";
-                break;
-            case 0x1B:
-                oss << "\\e";
-                break;
-            default:
-                if (std::isprint(ch)) {
-                    oss << static_cast<char>(ch);
-                } else {
-                    oss << "\\x" << std::setw(2) << std::setfill('0')
-                        << static_cast<int>(ch);
-                }
-                break;
-        }
-    }
-    oss << std::dec;
-    return oss.str();
-}
-
-std::string filter_escape_sequences(const std::string& input) {
-    if (input.empty()) {
-        return input;
-    }
-
-    std::string filtered;
-    filtered.reserve(input.size());
-    
-    for (std::size_t i = 0; i < input.size(); ++i) {
-        unsigned char ch = input[i];
-        
-        if (ch == '\x1b' && i + 1 < input.size()) {
-            // Handle escape sequences
-            char next = input[i + 1];
-            std::size_t seq_start = i;
-            
-            if (next == '[') {
-                // ANSI CSI sequence - skip until we find the terminator
-                i += 2; // Skip ESC[
-                while (i < input.size()) {
-                    char c = input[i];
-                    // CSI sequences end with a letter (A-Za-z) or certain symbols
-                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                        c == '~' || c == 'c' || c == 'h' || c == 'l' ||
-                        c == 'm' || c == 'n' || c == 'r' || c == 'J' ||
-                        c == 'K' || c == 'H' || c == 'f') {
-                        break;
-                    }
-                    // Skip over parameters (digits, semicolons, etc.)
-                    if (!((c >= '0' && c <= '9') || c == ';' || c == '?' || 
-                          c == '!' || c == '=' || c == '>' || c == '<')) {
-                        // Invalid character in CSI sequence, abort
-                        break;
-                    }
-                    i++;
-                }
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Filtered ANSI CSI escape sequence: " 
-                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
-                              << std::endl;
-                }
-            } else if (next == ']') {
-                // OSC sequence - skip until ST (\x1b\\) or BEL (\x07)
-                i += 2; // Skip ESC]
-                while (i < input.size()) {
-                    if (input[i] == '\x07') {
-                        break;
-                    } else if (input[i] == '\x1b' && i + 1 < input.size() && input[i + 1] == '\\') {
-                        i++;
-                        break;
-                    }
-                    i++;
-                }
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Filtered OSC escape sequence: " 
-                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
-                              << std::endl;
-                }
-            } else if (next == '(' || next == ')') {
-                // Character set selection - skip 3 characters total
-                if (i + 2 < input.size()) {
-                    i += 2;
-                } else {
-                    i += 1;
-                }
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Filtered character set escape sequence: " 
-                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
-                              << std::endl;
-                }
-            } else if (next >= '0' && next <= '9') {
-                // Potential private escape sequence, skip it
-                i += 1;
-                while (i + 1 < input.size() && input[i + 1] >= '0' && input[i + 1] <= '9') {
-                    i++;
-                }
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Filtered numeric escape sequence: " 
-                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
-                              << std::endl;
-                }
-            } else {
-                // Single character escape sequence (like ESC c for reset)
-                i += 1;
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Filtered single-char escape sequence: " 
-                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
-                              << std::endl;
-                }
-            }
-        } else if (ch == '\x07') {
-            // BEL character - potentially part of incomplete escape sequence
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Filtered BEL character" << std::endl;
-            }
-        } else if (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r') {
-            // Filter out other control characters except tab, newline, carriage return
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Filtered control character: \\x" 
-                          << std::hex << std::setw(2) << std::setfill('0') 
-                          << static_cast<int>(ch) << std::dec << std::endl;
-            }
-        } else {
-            // Regular character, keep it
-            filtered.push_back(static_cast<char>(ch));
-        }
-    }
-    
-    return filtered;
-}
-
-std::string normalize_line_edit_sequences(const std::string& input) {
-    std::string normalized;
-    normalized.reserve(input.size());
-
-    for (unsigned char ch : input) {
-        switch (ch) {
-            case '\b':
-            case 0x7F: {
-                if (!normalized.empty()) {
-                    normalized.pop_back();
-                }
-                break;
-            }
-            case 0x15: {
-                while (!normalized.empty() && normalized.back() != '\n') {
-                    normalized.pop_back();
-                }
-                break;
-            }
-            case 0x17: {
-                while (!normalized.empty() && (normalized.back() == ' ' ||
-                                               normalized.back() == '\t')) {
-                    normalized.pop_back();
-                }
-                while (!normalized.empty() && normalized.back() != ' ' &&
-                       normalized.back() != '\t' && normalized.back() != '\n') {
-                    normalized.pop_back();
-                }
-                break;
-            }
-            default:
-                normalized.push_back(static_cast<char>(ch));
-                break;
-        }
-    }
-
-    return normalized;
-}
-
-void enqueue_queued_command(const std::string& command) {
-    if (g_typeahead_queue.size() >= kMaxQueuedCommands) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead queue full, dropping oldest entry"
+void notify_plugins(const std::string& trigger, const std::string& data) {
+    if (g_plugin == nullptr) {
+        if (g_debug_mode)
+            std::cerr << "DEBUG: notify_plugins: plugin manager is nullptr"
                       << std::endl;
-        }
-        g_typeahead_queue.pop_front();
-    }
-
-    std::string sanitized_command = filter_escape_sequences(command);
-    
-    if (g_debug_mode && sanitized_command != command) {
-        std::cerr << "DEBUG: Command sanitized before queuing: '"
-                  << to_debug_visible(command) << "' -> '"
-                  << to_debug_visible(sanitized_command) << "'" << std::endl;
-    }
-
-    g_typeahead_queue.push_back(sanitized_command);
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Queued typeahead command: '"
-                  << to_debug_visible(sanitized_command) << "'" << std::endl;
-    }
-}
-
-void ingest_typeahead_input(const std::string& raw_input) {
-    if (raw_input.empty()) {
         return;
     }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: ingest_typeahead_input raw (len="
-                  << raw_input.size() << "): '" << to_debug_visible(raw_input)
-                  << "'" << std::endl;
-    }
-
-    std::string combined = g_input_buffer;
-    g_input_buffer.clear();
-    combined += raw_input;
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: ingest_typeahead_input combined buffer (len="
-                  << combined.size() << "): '" << to_debug_visible(combined)
-                  << "'" << std::endl;
-    }
-
-    if (combined.find('\x1b') != std::string::npos) {
-        if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: Found escape sequences in typeahead input, filtering..."
-                << std::endl;
-        }
-        combined = filter_escape_sequences(combined);
-        if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: After filtering escape sequences: '" 
-                << to_debug_visible(combined) << "'" << std::endl;
-        }
-    }
-
-    std::string normalized = normalize_line_edit_sequences(combined);
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: ingest_typeahead_input normalized (len="
-                  << normalized.size() << "): '" << to_debug_visible(normalized)
-                  << "'" << std::endl;
-    }
-
-    std::size_t start = 0;
-    while (start < normalized.size()) {
-        std::size_t newline_pos = normalized.find('\n', start);
-        if (newline_pos == std::string::npos) {
-            g_input_buffer += normalized.substr(start);
-            if (g_debug_mode && !g_input_buffer.empty()) {
-                std::cerr << "DEBUG: ingest_typeahead_input buffered prefill: '"
-                          << to_debug_visible(g_input_buffer) << "'"
-                          << std::endl;
-            }
-            break;
-        }
-
-        std::string line = normalized.substr(start, newline_pos - start);
-        enqueue_queued_command(line);
-        start = newline_pos + 1;
-
-        if (start == normalized.size()) {
-            g_input_buffer.clear();
-        }
-    }
-
-    if (!normalized.empty() && normalized.back() == '\n') {
-        g_input_buffer.clear();
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: ingest_typeahead_input cleared buffer after "
-                         "trailing newline"
+    if (g_plugin->get_enabled_plugins().empty()) {
+        if (g_debug_mode)
+            std::cerr << "DEBUG: notify_plugins: no enabled plugins"
                       << std::endl;
-        }
+        return;
     }
-
-    if (g_debug_mode && !g_input_buffer.empty()) {
-        std::cerr << "DEBUG: Buffered typeahead prefill: '"
-                  << to_debug_visible(g_input_buffer) << "'" << std::endl;
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: Notifying plugins of trigger: " << trigger
+                  << " with data: " << data << std::endl;
     }
-}
-
-void flush_pending_typeahead() {
-    std::string pending_input = typeahead::capture_available_input();
-    if (!pending_input.empty()) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: flush_pending_typeahead captured (len="
-                      << pending_input.size() << "): '"
-                      << to_debug_visible(pending_input) << "'" << std::endl;
-        }
-        ingest_typeahead_input(pending_input);
-    } else if (g_debug_mode) {
-        std::cerr << "DEBUG: flush_pending_typeahead captured no data"
-                  << std::endl;
-    }
+    g_plugin->trigger_subscribed_global_event(trigger, data);
 }
 
 bool process_command_line(const std::string& command) {
@@ -521,11 +213,11 @@ bool process_command_line(const std::string& command) {
         } else {
             std::cerr << "DEBUG: Post-command typeahead capture (len="
                       << typeahead_input.size() << "): '"
-                      << to_debug_visible(typeahead_input) << "'" << std::endl;
+                      << typeahead::to_debug_visible(typeahead_input) << "'" << std::endl;
         }
     }
     if (!typeahead_input.empty()) {
-        ingest_typeahead_input(typeahead_input);
+        typeahead::ingest_typeahead_input(typeahead_input);
     }
 
     return g_exit_flag;
@@ -652,14 +344,10 @@ std::pair<std::string, bool> get_next_command() {
     std::string command_to_run;
     bool command_available = false;
 
-    if (!g_typeahead_queue.empty()) {
-        command_to_run = g_typeahead_queue.front();
-        g_typeahead_queue.pop_front();
+    if (typeahead::has_queued_commands()) {
+        command_to_run = typeahead::dequeue_command();
         command_available = true;
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Dequeued queued command: '"
-                      << command_to_run << "'" << std::endl;
-        }
+        std::cout << command_to_run << std::endl;
     } else {
         // Before prompting for input, do a quick terminal responsiveness check
         TerminalStatus status = check_terminal_health(TerminalCheckLevel::RESPONSIVE);
@@ -683,12 +371,12 @@ std::pair<std::string, bool> get_next_command() {
             }
         }
 
-        flush_pending_typeahead();
+        typeahead::flush_pending_typeahead();
 
-        std::string sanitized_buffer = g_input_buffer;
+        std::string sanitized_buffer = typeahead::get_input_buffer();
         if (!sanitized_buffer.empty()) {
-            sanitized_buffer = filter_escape_sequences(sanitized_buffer);
-            if (g_debug_mode && sanitized_buffer != g_input_buffer) {
+            sanitized_buffer = typeahead::filter_escape_sequences(sanitized_buffer);
+            if (g_debug_mode && sanitized_buffer != typeahead::get_input_buffer()) {
                 std::cerr << "DEBUG: Additional sanitization applied to input buffer"
                           << std::endl;
             }
@@ -703,7 +391,7 @@ std::pair<std::string, bool> get_next_command() {
         } else {
             input = ic_readline(prompt.c_str(), initial_input);
         }
-        g_input_buffer.clear();
+        typeahead::clear_input_buffer();
 
         if (g_debug_mode) {
             std::cerr << "DEBUG: ic_readline returned" << std::endl;
@@ -749,10 +437,7 @@ void main_process_loop() {
     initialize_completion_system();
     typeahead::initialize();
 
-    g_input_buffer.clear();
-    g_typeahead_queue.clear();
-
-    flush_pending_typeahead();
+    typeahead::flush_pending_typeahead();
 
     while (true) {
         if (g_debug_mode) {
@@ -782,7 +467,7 @@ void main_process_loop() {
             std::cerr << "DEBUG: Calling update_terminal_title()" << std::endl;
         update_terminal_title();
 
-        flush_pending_typeahead();
+        typeahead::flush_pending_typeahead();
 
         auto [command_to_run, command_available] = get_next_command();
         
@@ -807,24 +492,4 @@ void main_process_loop() {
     }
 
     typeahead::cleanup();
-}
-
-void notify_plugins(const std::string& trigger, const std::string& data) {
-    if (g_plugin == nullptr) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: notify_plugins: plugin manager is nullptr"
-                      << std::endl;
-        return;
-    }
-    if (g_plugin->get_enabled_plugins().empty()) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: notify_plugins: no enabled plugins"
-                      << std::endl;
-        return;
-    }
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Notifying plugins of trigger: " << trigger
-                  << " with data: " << data << std::endl;
-    }
-    g_plugin->trigger_subscribed_global_event(trigger, data);
 }
