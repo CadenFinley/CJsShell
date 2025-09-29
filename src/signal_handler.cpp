@@ -229,19 +229,26 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             g_exit_flag = true;
             
             if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGHUP received in signal handler" << std::endl;
+                std::cerr << "DEBUG: SIGHUP received in signal handler - terminal likely closed" << std::endl;
             }
             
+            // SIGHUP typically means terminal window was closed
+            // exit immediately unless SIGHUP is trapped
             if (!is_observed) {
-                // For non-interactive mode or when SIGHUP is not trapped,
-                // exit immediately like bash does
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: SIGHUP not observed, exiting immediately" << std::endl;
+                    std::cerr << "DEBUG: SIGHUP not trapped, exiting immediately like bash" << std::endl;
                 }
-                _exit(128 + SIGHUP);  // 128 + 1 = 129
+                // Use _exit for immediate termination without cleanup
+                _exit(129);  // 128 + SIGHUP (1) = 129
+            } else {
+                // Even if SIGHUP is trapped, we should still exit quickly
+                // since the terminal is likely closed
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: SIGHUP trapped but terminal closed, will exit after brief cleanup" << std::endl;
+                }
+                // Set a flag to force exit after minimal cleanup
+                // The main loop will handle this via g_exit_flag
             }
-            // For interactive mode or when SIGHUP is trapped,
-            // let the main loop handle the cleanup but ensure we exit quickly
             break;
         }
 
@@ -469,50 +476,50 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         s_sighup_received = 0;
 
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Processing SIGHUP signal" << std::endl;
+            std::cerr << "DEBUG: Processing SIGHUP signal - terminal closed" << std::endl;
         }
 
-        // Always set exit flag when SIGHUP is received
+        // Always set exit flag when SIGHUP is received - terminal is closing
         g_exit_flag = true;
 
         if (shell_exec) {
             if (g_debug_mode) {
-                std::cerr
-                    << "DEBUG: SIGHUP received, terminating background jobs"
-                    << std::endl;
+                std::cerr << "DEBUG: SIGHUP received, quickly terminating background jobs" << std::endl;
             }
+            
+            // Send SIGTERM to all child processes immediately
             shell_exec->terminate_all_child_process();
 
+            // Aggressively terminate all jobs without waiting
             auto& job_manager = JobManager::instance();
             auto all_jobs = job_manager.get_all_jobs();
             for (auto& job : all_jobs) {
-                if (job->state == JobState::RUNNING ||
-                    job->state == JobState::STOPPED) {
+                if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
                     if (g_debug_mode) {
-                        std::cerr << "DEBUG: Terminating job " << job->job_id
-                                  << " via JobManager" << std::endl;
+                        std::cerr << "DEBUG: SIGHUP: Force terminating job " << job->job_id << std::endl;
                     }
-                    if (killpg(job->pgid, SIGTERM) == 0) {
-                        job->state = JobState::TERMINATED;
-                    }
+                    // Send SIGKILL after a brief SIGTERM to ensure quick cleanup
+                    killpg(job->pgid, SIGTERM);
+                    usleep(10000);  // 10ms grace period
+                    killpg(job->pgid, SIGKILL);  // Force kill
+                    job->state = JobState::TERMINATED;
                 }
             }
         }
 
-        // If SIGHUP is observed (trapped) by user script, still exit but allow cleanup
+        // If SIGHUP is observed (trapped) by user script, still exit but allow minimal cleanup
         if (!is_signal_observed(SIGHUP)) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGHUP not trapped, forcing exit" << std::endl;
+                std::cerr << "DEBUG: SIGHUP not trapped, forcing immediate exit" << std::endl;
             }
-            // Give a brief moment for cleanup, then force exit
-            std::quick_exit(128 + SIGHUP);
+            std::quick_exit(129);  // 128 + SIGHUP (1)
         } else {
-            // Even if trapped, set a timer to force exit after a reasonable delay
-            // This prevents runaway processes when terminal is closed
+            // Even if trapped, force exit quickly since terminal is closed
             if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGHUP trapped but terminal closed, will exit soon" << std::endl;
+                std::cerr << "DEBUG: SIGHUP trapped but terminal closed, forcing exit after minimal cleanup" << std::endl;
             }
-            // The main loop will handle the exit via g_exit_flag
+            // Give very brief time for cleanup, then force exit
+            alarm(1);  // Force exit in 1 second maximum
         }
     }
 
