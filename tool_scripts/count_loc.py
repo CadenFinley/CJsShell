@@ -30,11 +30,6 @@ def should_include_file(file_path: Path, project_root: Path,
     if file_path.name == 'nob.h':
         return False
     
-    # Exclude specific subdirectories (isocline directories)
-    relative_path_str = str(relative_path)
-    if 'src/isocline' in relative_path_str or 'include/isocline' in relative_path_str:
-        return False
-    
     # Include specific file extensions
     return file_path.suffix in included_extensions
 
@@ -96,7 +91,7 @@ def main():
     parser.add_argument('--by-extension', '-e', action='store_true',
                        help='Group results by file extension')
     parser.add_argument('--include-dirs', nargs='*', 
-                       help='Additional directories to include (default excludes: vendor, plugins, themes, build, tool-scripts, tests, src/isocline, include/isocline)')
+                       help='Additional directories to include (default excludes: vendor, plugins, themes, build, tool-scripts, tests)')
     parser.add_argument('--exclude-dirs', nargs='*',
                        help='Additional directories to exclude')
     parser.add_argument('--extensions', nargs='*', default=['.c', '.h', '.cpp', '.hpp', '.cc', '.sh'],
