@@ -1,6 +1,7 @@
 #include "aihelp_command.h"
 
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -72,12 +73,29 @@ int aihelp_command(const std::vector<std::string>& args) {
             message += " " + remaining_args[i];
         }
     } else {
+        // Enhanced error context
         message =
-            "I am encountering some issues with a cjsh command and would like "
-            "some "
-            "help. This is the most recent output: " +
-            g_shell->last_terminal_output_error +
-            " Here is the command I used: " + g_shell->last_command;
+            "I need help fixing a shell command error. Please analyze the error and provide:\n"
+            "1. What went wrong (brief explanation)\n"
+            "2. Specific fix commands I can run\n"
+            "3. Prevention tips for the future\n\n"
+            "ERROR: " + g_shell->last_terminal_output_error + "\n"
+            "COMMAND: " + g_shell->last_command + "\n"
+            "DIRECTORY: " + std::string(getenv("PWD") ? getenv("PWD") : "unknown") + "\n"
+            "EXIT_CODE: " + std::string(getenv("?") ? getenv("?") : "unknown") + "\n";
+        
+        // Add directory listing for context
+        message += "CURRENT_FILES: ";
+        try {
+            for (const auto& entry : std::filesystem::directory_iterator(".")) {
+                if (entry.is_regular_file()) {
+                    message += entry.path().filename().string() + " ";
+                }
+            }
+        } catch (...) {
+            message += "(could not list files) ";
+        }
+        message += "\n";
     }
 
     if (g_debug_mode) {
@@ -85,10 +103,44 @@ int aihelp_command(const std::vector<std::string>& args) {
         std::cout << "Using model: " << custom_model << std::endl;
     }
 
-    std::cout << g_ai->force_direct_chat_gpt(message +
+    std::string response = g_ai->force_direct_chat_gpt(message +
                                                  create_help_system_prompt() +
                                                  "\n" + build_system_prompt(),
-                                             false)
-              << std::endl;
+                                                 false);
+    
+    std::cout << response << std::endl;
+    
+    // Check for --fix flag to attempt auto-fix
+    bool auto_fix = false;
+    for (const auto& arg : args) {
+        if (arg == "--fix" || arg == "-F") {
+            auto_fix = true;
+            break;
+        }
+    }
+    
+    if (auto_fix && !remaining_args.empty() && remaining_args[0] != "--fix" && remaining_args[0] != "-F") {
+        std::cout << "\n" << std::string(50, '=') << std::endl;
+        std::cout << "AUTO-FIX ATTEMPT:\n";
+        
+        // Extract command suggestions from response
+        std::string fix_prompt = "Based on the error analysis above, provide ONLY the exact shell command(s) to fix the issue. "
+                                "One command per line, no explanations, no markdown formatting.";
+        
+        std::string fix_commands = g_ai->force_direct_chat_gpt(fix_prompt, false);
+        
+        std::cout << "Suggested fix command(s):\n" << fix_commands << std::endl;
+        std::cout << "\nRun these commands? [y/N]: ";
+        
+        char choice;
+        std::cin >> choice;
+        if (choice == 'y' || choice == 'Y') {
+            std::cout << "Executing fix commands...\n";
+            // Here you would integrate with the shell's command execution
+            // For now, just show what would be executed
+            std::cout << "[This would execute the commands above]\n";
+        }
+    }
+    
     return 0;
 }
