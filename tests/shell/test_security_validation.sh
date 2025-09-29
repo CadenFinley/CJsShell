@@ -54,20 +54,6 @@ else
     fail_test "long input caused crash"
 fi
 
-# Test 3: Path traversal protection
-echo "Testing path traversal protection..."
-"$CJSH_PATH" -c "cd ../../../../../../etc; pwd" >/tmp/path_traversal_test.out 2>&1
-if [ $? -eq 0 ]; then
-    # Check if it actually changed to /etc (which would be concerning)
-    if grep -q "/etc$" /tmp/path_traversal_test.out; then
-        skip_test "path traversal (normal cd behavior)"
-    else
-        pass_test "path traversal handled normally"
-    fi
-else
-    pass_test "path traversal prevented or failed"
-fi
-
 # Test 4: Environment variable security
 echo "Testing environment variable security..."
 # Test if dangerous environment variables are handled safely
@@ -178,20 +164,6 @@ if [ $? -eq 0 ]; then
     pass_test "alias command bypass"
 else
     skip_test "alias security test"
-fi
-
-# Test 14: Function security
-echo "Testing function security..."
-# Test if functions can override critical commands
-"$CJSH_PATH" -c "cd() { echo 'hijacked cd'; }; cd /tmp" >/tmp/function_security_test.out 2>&1
-if [ $? -eq 0 ]; then
-    if grep -q "hijacked cd" /tmp/function_security_test.out; then
-        skip_test "function override (normal shell behavior)"
-    else
-        pass_test "function override protection"
-    fi
-else
-    pass_test "function definition handling"
 fi
 
 # Test 15: Exit code manipulation

@@ -101,11 +101,6 @@ else
     fail "Signal trapping not implemented"
 fi
 
-# Test 8: Exit on SIGINT (Ctrl+C simulation)
-log_test "SIGINT handling"
-# This is difficult to test automatically without interactive session
-skip "SIGINT handling requires interactive testing"
-
 # Test 9: Pipeline signal propagation
 log_test "Pipeline signal propagation"
 "$SHELL_TO_TEST" -c "sleep 2 | sleep 2 & PID=\$!; kill \$PID" 2>/dev/null

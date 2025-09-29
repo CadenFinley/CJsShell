@@ -74,6 +74,8 @@ class Parser {
                            std::string& var_value);
     void expand_env_vars(std::string& arg);
     void expand_env_vars_selective(std::string& arg);
+    void expand_exported_env_vars_only(std::string& arg);
+    std::vector<std::string> parse_command_exported_vars_only(const std::string& cmdline);
     std::vector<std::string> split_by_ifs(const std::string& input);
     long long evaluate_arithmetic(const std::string& expr);
 
@@ -96,12 +98,14 @@ class Parser {
 
    private:
     std::string get_variable_value(const std::string& var_name);
+    std::string get_exported_variable_value(const std::string& var_name);
     std::string resolve_parameter_value(const std::string& var_name);
     std::vector<std::string> expand_braces(const std::string& pattern);
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
     Shell* shell = nullptr;
     bool command_validation_enabled = true;
+    bool use_exported_vars_only = false;
 
     std::map<std::string, std::string> current_here_docs;
 };

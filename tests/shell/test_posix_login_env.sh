@@ -63,11 +63,6 @@ else
     fail "Login shell flag not working"
 fi
 
-# Test 2: Login shell detection with argv[0] starting with -
-log_test "Login shell detection via argv[0]"
-# This is harder to test without actually invoking as -cjsh
-skip "Login shell detection via argv[0] requires special invocation"
-
 # Test 3: Essential environment variables
 log_test "Essential environment variables"
 result=$("$SHELL_TO_TEST" --login -c "echo \$HOME:\$USER:\$SHELL" 2>/dev/null)
@@ -116,15 +111,6 @@ if [ -n "$result" ] && [ "$result" -gt 0 ] 2>/dev/null; then
     pass
 else
     fail "SHLVL not incremented properly"
-fi
-
-# Test 8: System profile sourcing (/etc/profile)
-log_test "System profile sourcing"
-# Create a fake /etc/profile for testing
-if [ -w "/etc" ] 2>/dev/null; then
-    skip "Cannot test system profile without root access"
-else
-    skip "System profile testing requires controlled environment"
 fi
 
 # Test 9: User profile sourcing (~/.profile)
@@ -184,11 +170,6 @@ if [ -n "$result" ]; then
 else
     fail "umask builtin not implemented"
 fi
-
-# Test 15: Terminal settings preservation
-log_test "Terminal settings preservation"
-# This is complex to test without interactive terminal
-skip "Terminal settings require interactive session"
 
 # Test 16: Signal handler setup
 log_test "Signal handler setup"

@@ -854,7 +854,11 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(tmp);
             if (!had_noenv) {
                 try {
-                    expand_env_vars(noenv_stripped);
+                    if (use_exported_vars_only) {
+                        expand_exported_env_vars_only(noenv_stripped);
+                    } else {
+                        expand_env_vars(noenv_stripped);
+                    }
                 } catch (const std::runtime_error& e) {
                     // Log error but continue processing
                     std::cerr
@@ -1112,6 +1116,36 @@ std::string Parser::get_variable_value(const std::string& var_name) {
     std::string result = env_val ? env_val : "";
     if (g_debug_mode) {
         std::cerr << "DEBUG: getenv returned: '" << result << "'" << std::endl;
+    }
+    return result;
+}
+
+std::string Parser::get_exported_variable_value(const std::string& var_name) {
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: Parser::get_exported_variable_value called with: '"
+                  << var_name << "'" << std::endl;
+    }
+
+    // Handle special variables that need to work for external commands
+    if (var_name == "?" || var_name == "$" || var_name == "#" ||
+        var_name == "*" || var_name == "@" || var_name == "!") {
+        if (shell && shell->get_shell_script_interpreter()) {
+            return shell->get_shell_script_interpreter()->get_variable_value(var_name);
+        }
+    }
+
+    // For positional parameters
+    if (var_name.length() == 1 && isdigit(var_name[0])) {
+        if (shell && shell->get_shell_script_interpreter()) {
+            return shell->get_shell_script_interpreter()->get_variable_value(var_name);
+        }
+    }
+
+    // For regular variables, only check exported environment variables
+    const char* env_val = getenv(var_name.c_str());
+    std::string result = env_val ? env_val : "";
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: getenv (exported only) returned: '" << result << "'" << std::endl;
     }
     return result;
 }
@@ -1539,6 +1573,183 @@ void Parser::expand_env_vars_selective(std::string& arg) {
                   << "'" << std::endl;
     }
     arg = result;
+}
+
+void Parser::expand_exported_env_vars_only(std::string& arg) {
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: expand_exported_env_vars_only called with: '" << arg << "'"
+                  << std::endl;
+    }
+    std::string result;
+    result.reserve(arg.length() * 1.5);
+    bool in_var = false;
+    std::string var_name;
+    var_name.reserve(64);
+
+    for (size_t i = 0; i < arg.length(); ++i) {
+        // Handle arithmetic expansion $((expression))
+        if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(') {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Found arithmetic expansion at position " << i << std::endl;
+            }
+            
+            size_t start = i + 3;
+            size_t paren_depth = 1;
+            size_t end = start;
+            
+            // Find the matching ))
+            while (end < arg.length() && paren_depth > 0) {
+                if (arg[end] == '(' && end + 1 < arg.length() && arg[end + 1] == '(') {
+                    paren_depth++;
+                    end += 2;
+                } else if (arg[end] == ')' && end + 1 < arg.length() && arg[end + 1] == ')') {
+                    paren_depth--;
+                    if (paren_depth == 0) {
+                        break;
+                    }
+                    end += 2;
+                } else {
+                    end++;
+                }
+            }
+            
+            if (paren_depth == 0 && end + 1 < arg.length()) {
+                std::string expr = arg.substr(start, end - start);
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Arithmetic expression: '" << expr << "'" << std::endl;
+                }
+                
+                // Expand variables within the arithmetic expression (using exported only)
+                std::string expanded_expr = expr;
+                expand_exported_env_vars_only(expanded_expr);
+                
+                // Evaluate the arithmetic expression
+                try {
+                    long long arithmetic_result = evaluate_arithmetic(expanded_expr);
+                    result += std::to_string(arithmetic_result);
+                } catch (const std::exception& e) {
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: Arithmetic evaluation failed: " << e.what() << std::endl;
+                    }
+                    result += "0";  // Default to 0 on error
+                }
+                
+                i = end + 1;  // Skip past the ))
+                continue;
+            }
+        }
+
+        if (arg[i] == '$' && !in_var) {
+            in_var = true;
+            var_name.clear();
+        } else if (in_var) {
+            if (arg[i] == '{') {
+                // Parameter expansion ${var} or ${var:-default} etc.
+                size_t brace_start = i + 1;
+                size_t brace_end = brace_start;
+                int brace_depth = 1;
+                
+                while (brace_end < arg.length() && brace_depth > 0) {
+                    if (arg[brace_end] == '{') {
+                        brace_depth++;
+                    } else if (arg[brace_end] == '}') {
+                        brace_depth--;
+                    }
+                    if (brace_depth > 0) brace_end++;
+                }
+                
+                if (brace_depth == 0) {
+                    std::string param_expr = arg.substr(brace_start, brace_end - brace_start);
+                    
+                    // Handle various parameter expansion forms
+                    std::string value;
+                    if (param_expr.find(":-") != std::string::npos) {
+                        // ${var:-default}
+                        size_t sep_pos = param_expr.find(":-");
+                        std::string var_name = param_expr.substr(0, sep_pos);
+                        std::string default_val = param_expr.substr(sep_pos + 2);
+                        
+                        std::string env_val = get_exported_variable_value(var_name);
+                        if (env_val.empty()) {
+                            expand_exported_env_vars_only(default_val);
+                            value = default_val;
+                        } else {
+                            value = env_val;
+                        }
+                    } else if (param_expr.find(":=") != std::string::npos) {
+                        // ${var:=default}
+                        size_t sep_pos = param_expr.find(":=");
+                        std::string var_name = param_expr.substr(0, sep_pos);
+                        std::string default_val = param_expr.substr(sep_pos + 2);
+                        
+                        std::string env_val = get_exported_variable_value(var_name);
+                        if (env_val.empty()) {
+                            expand_exported_env_vars_only(default_val);
+                            value = default_val;
+                            // Note: We don't actually set the variable since we're only dealing with exported vars
+                        } else {
+                            value = env_val;
+                        }
+                    } else {
+                        // Simple ${var}
+                        value = get_exported_variable_value(param_expr);
+                    }
+                    
+                    result += value;
+                    i = brace_end;
+                    in_var = false;
+                } else {
+                    result += arg[i];
+                }
+            } else if (std::isalnum(arg[i]) || arg[i] == '_' || arg[i] == '?' || 
+                       arg[i] == '$' || arg[i] == '#' || arg[i] == '*' || 
+                       arg[i] == '@' || arg[i] == '!' || std::isdigit(arg[i])) {
+                var_name += arg[i];
+            } else {
+                // End of variable name
+                std::string value = get_exported_variable_value(var_name);
+                result += value;
+
+                if (arg[i] != '$' &&
+                    !(arg[i] == ':' && i + 1 < arg.length() &&
+                      arg[i + 1] == '-') &&
+                    arg[i] != '-') {
+                    result += arg[i];
+                } else if (arg[i] == '$') {
+                    i--;
+                }
+                in_var = false;
+                var_name.clear();
+            }
+        } else {
+            result += arg[i];
+        }
+    }
+
+    if (in_var) {
+        std::string value = get_exported_variable_value(var_name);
+        result += value;
+    }
+
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: expand_exported_env_vars_only result: '" << result << "'"
+                  << std::endl;
+    }
+    arg = result;
+}
+
+std::vector<std::string> Parser::parse_command_exported_vars_only(const std::string& cmdline) {
+    // Temporarily set the flag to use exported vars only
+    bool saved_flag = use_exported_vars_only;
+    use_exported_vars_only = true;
+    
+    // Call the regular parse_command method
+    std::vector<std::string> result = parse_command(cmdline);
+    
+    // Restore the original flag
+    use_exported_vars_only = saved_flag;
+    
+    return result;
 }
 
 std::vector<std::string> Parser::split_by_ifs(const std::string& input) {

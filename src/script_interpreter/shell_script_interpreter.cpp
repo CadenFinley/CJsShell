@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "cjsh.h"
+#include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "job_control.h"
@@ -1906,6 +1907,44 @@ int ShellScriptInterpreter::execute_block(
                             }
 
                             return 0;
+                        }
+                    }
+
+                    // For external commands, re-parse using only exported environment variables
+                    if (!expanded_args.empty() && g_shell && g_shell->get_built_ins() && 
+                        !g_shell->get_built_ins()->is_builtin_command(expanded_args[0])) {
+                        
+                        // Check if this will be a function call or plugin - these should use full variable expansion
+                        bool is_function = functions.count(expanded_args[0]) > 0;
+                        bool is_plugin = false;
+                        if (g_plugin) {
+                            std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
+                            for (const auto& plugin : enabled_plugins) {
+                                std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
+                                if (std::find(plugin_commands.begin(), plugin_commands.end(), expanded_args[0]) != plugin_commands.end()) {
+                                    is_plugin = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!is_function && !is_plugin) {
+                            // This is an external command - re-parse with exported variables only
+                            if (g_debug_mode) {
+                                std::cerr << "DEBUG: Re-parsing external command with exported vars only: " << text << std::endl;
+                            }
+                            
+                            std::vector<std::string> external_args = shell_parser->parse_command_exported_vars_only(text);
+                            if (!external_args.empty()) {
+                                expanded_args = external_args;
+                                if (g_debug_mode) {
+                                    std::cerr << "DEBUG: Re-parsed external command args: ";
+                                    for (const auto& arg : expanded_args) {
+                                        std::cerr << "[" << arg << "] ";
+                                    }
+                                    std::cerr << std::endl;
+                                }
+                            }
                         }
                     }
 
