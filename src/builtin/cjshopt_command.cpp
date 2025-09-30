@@ -205,11 +205,41 @@ int style_def_command(const std::vector<std::string>& args) {
 
 void apply_custom_style(const std::string& token_type,
                         const std::string& style) {
+    std::string full_style_name = "cjsh-" + token_type;
+
+    auto default_it = default_styles.find(token_type);
+    if (default_it != default_styles.end() &&
+        default_it->second == style) {
+        bool had_custom_override = g_custom_styles.erase(token_type) > 0;
+
+        if (had_custom_override) {
+            ic_style_def(full_style_name.c_str(), style.c_str());
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Reverted style " << full_style_name
+                          << " to default" << std::endl;
+            }
+        } else if (g_debug_mode) {
+            std::cerr
+                << "DEBUG: Skipped redefining default style for "
+                << full_style_name << std::endl;
+        }
+        return;
+    }
+
+    auto existing_style = g_custom_styles.find(token_type);
+    if (existing_style != g_custom_styles.end() &&
+        existing_style->second == style) {
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Custom style for " << full_style_name
+                      << " already set to requested value" << std::endl;
+        }
+        return;
+    }
+
     // Store the custom style
     g_custom_styles[token_type] = style;
 
     // Apply to isocline with the cjsh- prefix
-    std::string full_style_name = "cjsh-" + token_type;
     ic_style_def(full_style_name.c_str(), style.c_str());
 
     if (g_debug_mode) {
