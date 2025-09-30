@@ -37,10 +37,8 @@ static inline void clear_progress_line(void) {
 static inline void update_progress(const char* phase, size_t current,
                                    size_t total) {
     draw_progress_bar(phase, current, total, 40);
-    if (current == total) {
-        printf("\n");
-        fflush(stdout);
-    }
+    printf("\n");
+    fflush(stdout);
 }
 
 #endif  // CJSH_NOB_PROGRESS_H
