@@ -52,7 +52,7 @@ static inline void draw_progress_bar(const char* phase, size_t current,
 static inline void clear_progress_line(void) {
     if (!should_show_progress())
         return;
-    
+
     // More robust clearing - clear line and move cursor to beginning
     printf("\r\033[K\r");
     fflush(stdout);
@@ -85,7 +85,7 @@ static inline void handle_compiler_output_interruption(void) {
 
 // Enhanced progress update that handles interruptions better
 static inline void update_progress_safe(const char* phase, size_t current,
-                                       size_t total) {
+                                        size_t total) {
     if (should_show_progress()) {
         // Clear any existing content first
         printf("\r\033[K");

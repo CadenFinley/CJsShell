@@ -49,15 +49,16 @@ struct ic_env_s {
     bool no_multiline_indent;  // indent continuation lines to line up under the
                                // initial prompt
     bool no_help;              // show short help line for history search etc.
-  bool no_hint;              // allow hinting?
-  bool no_highlight;         // enable highlighting?
-  bool no_bracematch;        // enable brace matching?
-  bool no_autobrace;         // enable automatic brace insertion?
-  bool no_lscolors;          // use LSCOLORS/LS_COLORS to colorize file name
-                 // completions?
-  bool prompt_cleanup;       // after enter, rewrite prompt inline?
-  bool prompt_cleanup_add_empty_line;  // optionally add empty line after cleanup
-    long hint_delay;           // delay before displaying a hint in milliseconds
+    bool no_hint;              // allow hinting?
+    bool no_highlight;         // enable highlighting?
+    bool no_bracematch;        // enable brace matching?
+    bool no_autobrace;         // enable automatic brace insertion?
+    bool no_lscolors;          // use LSCOLORS/LS_COLORS to colorize file name
+                               // completions?
+    bool prompt_cleanup;       // after enter, rewrite prompt inline?
+    bool prompt_cleanup_add_empty_line;  // optionally add empty line after
+                                         // cleanup
+    long hint_delay;  // delay before displaying a hint in milliseconds
 };
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text);

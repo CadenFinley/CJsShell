@@ -28,15 +28,13 @@ bool has_inline_terminator(const std::string& text,
     size_t pos = 0;
     while ((pos = text.find(terminator, pos)) != std::string::npos) {
         // Check if it's a word boundary (not part of another word)
-        bool valid_start = (pos == 0 || 
-                           text[pos - 1] == ' ' || 
-                           text[pos - 1] == '\t' || 
-                           text[pos - 1] == ';');
+        bool valid_start = (pos == 0 || text[pos - 1] == ' ' ||
+                            text[pos - 1] == '\t' || text[pos - 1] == ';');
         bool valid_end = (pos + terminator.length() >= text.length() ||
-                         text[pos + terminator.length()] == ' ' ||
-                         text[pos + terminator.length()] == '\t' ||
-                         text[pos + terminator.length()] == ';');
-        
+                          text[pos + terminator.length()] == ' ' ||
+                          text[pos + terminator.length()] == '\t' ||
+                          text[pos + terminator.length()] == ';');
+
         if (valid_start && valid_end) {
             return true;
         }
@@ -180,10 +178,12 @@ void push_function_context(
         if (open_brace != std::string::npos) {
             std::string after_brace = trimmed_line.substr(open_brace + 1);
             // Count braces to see if they balance
-            int brace_count = 1; // We already found the opening brace
+            int brace_count = 1;  // We already found the opening brace
             for (char c : after_brace) {
-                if (c == '{') brace_count++;
-                else if (c == '}') brace_count--;
+                if (c == '{')
+                    brace_count++;
+                else if (c == '}')
+                    brace_count--;
             }
             // Only push to stack if braces don't balance (incomplete function)
             if (brace_count > 0) {
@@ -566,7 +566,8 @@ ShellScriptInterpreter::validate_script_syntax(
                             errors.push_back({display_line, message, line});
                             return false;
                         }
-                        const std::string& top = std::get<0>(control_stack.back());
+                        const std::string& top =
+                            std::get<0>(control_stack.back());
                         for (const char* value : allowed) {
                             if (top == value) {
                                 return true;
@@ -600,7 +601,8 @@ ShellScriptInterpreter::validate_script_syntax(
                 }
 
                 else if (first_token == "while" || first_token == "until") {
-                    control_stack.push_back({first_token, first_token, display_line});
+                    control_stack.push_back(
+                        {first_token, first_token, display_line});
                 } else if (first_token == "do") {
                     if (require_top({"while", "until", "for"},
                                     "'do' without matching 'while', 'until', "
@@ -680,24 +682,27 @@ ShellScriptInterpreter::validate_script_syntax(
             expected_close = "done";
         } else if (opening_statement == "case") {
             expected_close = "esac";
-        } else if (opening_statement == "{" || opening_statement == "function") {
+        } else if (opening_statement == "{" ||
+                   opening_statement == "function") {
             expected_close = "}";
         }
 
         {
-            std::string msg = "Unclosed '" + opening_statement + "' from line " +
-                              std::to_string(opening_line) + " - missing '" +
-                              expected_close + "'";
+            std::string msg = "Unclosed '" + opening_statement +
+                              "' from line " + std::to_string(opening_line) +
+                              " - missing '" + expected_close + "'";
             SyntaxError syn_err(opening_line, msg, "");
             if (opening_statement == "{" || opening_statement == "function") {
                 syn_err.error_code = "SYN007";
-                syn_err.suggestion = "Add closing '}' to match the opening on line " +
-                                     std::to_string(opening_line);
+                syn_err.suggestion =
+                    "Add closing '}' to match the opening on line " +
+                    std::to_string(opening_line);
                 syn_err.severity = ErrorSeverity::CRITICAL;
             } else {
                 syn_err.error_code = "SYN001";
-                syn_err.suggestion = "Add '" + expected_close + "' to close the '" +
-                                     opening_statement + "' that started on line " +
+                syn_err.suggestion = "Add '" + expected_close +
+                                     "' to close the '" + opening_statement +
+                                     "' that started on line " +
                                      std::to_string(opening_line);
             }
             syn_err.category = ErrorCategory::CONTROL_FLOW;
@@ -712,16 +717,19 @@ ShellScriptInterpreter::validate_script_syntax(
 
 bool ShellScriptInterpreter::has_syntax_errors(
     const std::vector<std::string>& lines, bool print_errors) {
-    // During execution, only check for basic syntax errors that would prevent parsing
-    // Don't run comprehensive validation which includes style and advanced checks
+    // During execution, only check for basic syntax errors that would prevent
+    // parsing Don't run comprehensive validation which includes style and
+    // advanced checks
     std::vector<SyntaxError> errors = validate_script_syntax(lines);
 
     bool has_blocking_errors = false;
     for (const auto& error : errors) {
         // For execution-time validation, be more lenient with function braces
-        // since multiline constructs like heredocs can confuse the simple validator
-        if (error.severity == ErrorSeverity::CRITICAL && 
-            error.error_code != "SYN007") { // SYN007 is unclosed function brace
+        // since multiline constructs like heredocs can confuse the simple
+        // validator
+        if (error.severity == ErrorSeverity::CRITICAL &&
+            error.error_code !=
+                "SYN007") {  // SYN007 is unclosed function brace
             has_blocking_errors = true;
             break;
         }
@@ -730,7 +738,7 @@ bool ShellScriptInterpreter::has_syntax_errors(
     if (has_blocking_errors && print_errors) {
         std::vector<SyntaxError> blocking_errors;
         for (const auto& error : errors) {
-            if (error.severity == ErrorSeverity::CRITICAL && 
+            if (error.severity == ErrorSeverity::CRITICAL &&
                 error.error_code != "SYN007") {
                 blocking_errors.push_back(error);
             }
@@ -1234,7 +1242,7 @@ ShellScriptInterpreter::validate_parameter_expansions(
 
                         while (j < line.length() && paren_count > 0) {
                             char ch = line[j];
-                            
+
                             if (escaped) {
                                 escaped = false;
                             } else if (ch == '\\') {
@@ -1367,27 +1375,36 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                 line.substr(var_start, i - var_start);
 
                             if (!var_name.empty()) {
-                                // Check if this is part of a built-in command like export/alias
-                                std::string line_prefix = line.substr(0, var_start);
-                                size_t first_word_end = line_prefix.find_first_of(" \t");
-                                std::string first_word = (first_word_end != std::string::npos) 
-                                    ? line_prefix.substr(0, first_word_end) 
-                                    : line_prefix;
-                                
+                                // Check if this is part of a built-in command
+                                // like export/alias
+                                std::string line_prefix =
+                                    line.substr(0, var_start);
+                                size_t first_word_end =
+                                    line_prefix.find_first_of(" \t");
+                                std::string first_word =
+                                    (first_word_end != std::string::npos)
+                                        ? line_prefix.substr(0, first_word_end)
+                                        : line_prefix;
+
                                 // Trim whitespace from first_word
-                                size_t start_pos = first_word.find_first_not_of(" \t");
+                                size_t start_pos =
+                                    first_word.find_first_not_of(" \t");
                                 if (start_pos != std::string::npos) {
                                     first_word = first_word.substr(start_pos);
                                 }
-                                
-                                // Skip validation for built-in commands that take assignments
-                                if (first_word == "export" || first_word == "alias" || 
-                                    first_word == "local" || first_word == "declare" ||
+
+                                // Skip validation for built-in commands that
+                                // take assignments
+                                if (first_word == "export" ||
+                                    first_word == "alias" ||
+                                    first_word == "local" ||
+                                    first_word == "declare" ||
                                     first_word == "readonly") {
-                                    // These commands properly handle VAR=value syntax
+                                    // These commands properly handle VAR=value
+                                    // syntax
                                     return IterationAction::Continue;
                                 }
-                                
+
                                 if (!is_valid_identifier_start(var_name[0])) {
                                     line_errors.push_back(SyntaxError(
                                         {display_line, var_start, i, 0},
@@ -1402,12 +1419,17 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                         "underscore"));
                                 }
 
-                                // Only check for spaces in actual variable assignments at line start
-                                if (var_start == 0 || line.substr(0, var_start).find_first_not_of(" \t") == std::string::npos) {
+                                // Only check for spaces in actual variable
+                                // assignments at line start
+                                if (var_start == 0 ||
+                                    line.substr(0, var_start)
+                                            .find_first_not_of(" \t") ==
+                                        std::string::npos) {
                                     if (var_start > 0 &&
                                         std::isspace(line[var_start - 1])) {
                                         line_errors.push_back(SyntaxError(
-                                            {display_line, var_start - 1, i + 1, 0},
+                                            {display_line, var_start - 1, i + 1,
+                                             0},
                                             ErrorSeverity::ERROR,
                                             ErrorCategory::VARIABLES, "VAR005",
                                             "Variable assignment cannot have "

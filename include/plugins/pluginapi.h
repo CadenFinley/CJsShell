@@ -101,51 +101,52 @@ typedef plugin_validation_t (*plugin_validate_func)();
 
 /**
  * Global Events System
- * 
+ *
  * The shell provides a global event system that plugins can subscribe to.
- * Events are triggered at specific points in the shell's execution and 
+ * Events are triggered at specific points in the shell's execution and
  * plugins can register to receive notifications for these events.
- * 
+ *
  * To subscribe to events, implement plugin_get_subscribed_events() to return
  * an array of event names your plugin wants to receive.
- * 
+ *
  * MAIN PROCESS EVENTS (triggered during shell main loop):
- * 
+ *
  * 1. "main_process_pre_run"
  *    - Triggered: Before entering the main command loop
  *    - Data: Empty string ""
  *    - Purpose: Initialize resources needed for command processing
- * 
- * 2. "main_process_start" 
- *    - Triggered: Before prompting user for input (start of each loop iteration)
+ *
+ * 2. "main_process_start"
+ *    - Triggered: Before prompting user for input (start of each loop
+ * iteration)
  *    - Data: Empty string ""
  *    - Purpose: Prepare for new command input, update prompt variables
- * 
+ *
  * 3. "main_process_command_process"
  *    - Triggered: Immediately after receiving user input
  *    - Data: The command string entered by the user
  *    - Purpose: Log commands, validate input, modify command before execution
- * 
+ *
  * 4. "main_process_end"
  *    - Triggered: After command execution completes
  *    - Data: Empty string ""
  *    - Purpose: Clean up command-specific resources, update statistics
- * 
+ *
  * 5. "main_process_exit"
  *    - Triggered: After leaving the main command loop (shell shutting down)
  *    - Data: Empty string ""
  *    - Purpose: Final cleanup, save state, close resources
- * 
+ *
  * PLUGIN LIFECYCLE EVENTS:
- * 
+ *
  * - "plugin_enabled" - When a plugin is enabled (data: plugin name)
  * - "plugin_disabled" - When a plugin is disabled (data: plugin name)
- * 
- * Event data is passed as a C string. For events with no data, an empty 
+ *
+ * Event data is passed as a C string. For events with no data, an empty
  * string "" is passed. Plugins should not modify the event data string.
- * 
+ *
  * Example subscription:
- * 
+ *
  * char** plugin_get_subscribed_events(int* count) {
  *     *count = 2;
  *     char** events = malloc(*count * sizeof(char*));

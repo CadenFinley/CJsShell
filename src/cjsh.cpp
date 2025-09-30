@@ -28,12 +28,12 @@
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
-#include "shell_env.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "main_loop.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "trap_command.h"
 #include "usage.h"
 #include "utils/command_line_parser.h"
@@ -87,6 +87,8 @@ bool show_startup_time = false;
 // add shell opts for style_def
 
 // add shellopts for enabling and disbling case completions
+
+// add shellopts for enabling and disabling prompt cleanup and newline after
 
 /*
  * Exit/Return Codes:

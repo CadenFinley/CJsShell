@@ -41,7 +41,7 @@ typedef struct editor_s {
     ssize_t history_idx;  // current index in the history
     editstate_t* undo;    // undo buffer
     editstate_t* redo;    // redo buffer
-    const char* prompt_text;  // text of the prompt before the prompt marker
+    const char* prompt_text;      // text of the prompt before the prompt marker
     ssize_t prompt_prefix_lines;  // number of prefix lines emitted for prompt
     const char* inline_right_text;  // inline right-aligned text on input line
     ssize_t inline_right_width;     // cached width of inline right text
@@ -607,8 +607,7 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb,
         return;
 
     const bool add_empty_line = env->prompt_cleanup_add_empty_line;
-    const char* prompt_line =
-        (eb->prompt_text != NULL ? eb->prompt_text : "");
+    const char* prompt_line = (eb->prompt_text != NULL ? eb->prompt_text : "");
     const char* prompt_marker =
         (env->prompt_marker != NULL ? env->prompt_marker : "");
     ssize_t promptw = bbcode_column_width(env->bbcode, prompt_line) +

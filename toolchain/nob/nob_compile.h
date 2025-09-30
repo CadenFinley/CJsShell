@@ -466,7 +466,8 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
             const char* progress_label =
                 (i + 1 == c_files_to_compile.count) ? "Complete!" : basename;
-            update_progress_safe(progress_label, i + 1, c_files_to_compile.count);
+            update_progress_safe(progress_label, i + 1,
+                                 c_files_to_compile.count);
         }
     }
 

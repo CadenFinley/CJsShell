@@ -259,8 +259,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
         theme_json["fill_bg_color"].is_string()) {
         fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
     }
-    if (theme_json.contains("cleanup") &&
-        theme_json["cleanup"].is_boolean()) {
+    if (theme_json.contains("cleanup") && theme_json["cleanup"].is_boolean()) {
         cleanup_ = theme_json["cleanup"].get<bool>();
     }
     if (theme_json.contains("cleanup_empty_line") &&
