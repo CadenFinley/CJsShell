@@ -301,21 +301,24 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
             const char* progress_label =
                 (i + 1 == files_to_compile.count) ? "Complete!" : basename;
-            update_progress(progress_label, i + 1, files_to_compile.count);
+            update_progress_safe(progress_label, i + 1, files_to_compile.count);
             completed_cpp_files++;
         }
     }
 
     nob_minimal_log_level = original_log_level;
     if (files_to_compile.count > 0) {
+        clear_progress_line();
         nob_log(NOB_INFO, "Waiting for C++ compilation to complete...");
         nob_minimal_log_level = NOB_WARNING;
         if (!nob_procs_flush(&procs)) {
+            handle_compiler_output_interruption();
             clear_progress_line();
             nob_minimal_log_level = original_log_level;
             nob_log(NOB_ERROR, "C++ compilation failed");
             return false;
         }
+        handle_compiler_output_interruption();
         clear_progress_line();
         nob_minimal_log_level = original_log_level;
         nob_log(NOB_INFO, "All %zu C++ files compiled successfully",
@@ -463,20 +466,23 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
             const char* progress_label =
                 (i + 1 == c_files_to_compile.count) ? "Complete!" : basename;
-            update_progress(progress_label, i + 1, c_files_to_compile.count);
+            update_progress_safe(progress_label, i + 1, c_files_to_compile.count);
         }
     }
 
     nob_minimal_log_level = original_log_level;
     if (c_files_to_compile.count > 0) {
+        clear_progress_line();
         nob_log(NOB_INFO, "Waiting for C compilation to complete...");
         nob_minimal_log_level = NOB_WARNING;
         if (!nob_procs_flush(&procs)) {
+            handle_compiler_output_interruption();
             clear_progress_line();
             nob_minimal_log_level = original_log_level;
             nob_log(NOB_ERROR, "C compilation failed");
             return false;
         }
+        handle_compiler_output_interruption();
         clear_progress_line();
         nob_minimal_log_level = original_log_level;
     }
