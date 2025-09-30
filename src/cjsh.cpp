@@ -353,7 +353,8 @@ static void start_interactive_process() {
     }
 
     if (config::show_startup_time) {
-        std::cout << " Started in " << startup_duration.count() << "ms."
+        std::string startup_ms = g_shell->get_initial_duration();
+        std::cout << " Started in " << startup_ms
                   << std::endl;
     }
 

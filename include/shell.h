@@ -98,6 +98,13 @@ class Shell {
         }
     }
 
+    std::string get_initial_duration() {
+        if (shell_prompt) {
+            return shell_prompt->get_initial_duration();
+        }
+        return "0";
+    }
+
     void set_interactive_mode(bool flag) {
         interactive_mode = flag;
     }

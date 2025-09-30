@@ -50,4 +50,7 @@ class Prompt {
     void set_initial_duration(long long microseconds) {
         info.set_initial_duration(microseconds);
     }
+    std::string get_initial_duration() {
+        return info.get_formatted_duration();
+    }
 };
