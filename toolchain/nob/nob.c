@@ -6,6 +6,7 @@
 #define VERSION "3.5.11"
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "nob_cli.h"
@@ -13,7 +14,84 @@
 #include "nob_dependencies.h"
 #include "nob_platform.h"
 
+#define NOB_SELF_REBUILD_ENV "NOB_JUST_REBUILT"
+
+static const char* nob_self_rebuild_sources[] = {
+    __FILE__,       "nob.h",          "nob_build_config.h",
+    "nob_cli.h",   "nob_compile.h",  "nob_dependencies.h",
+    "nob_platform.h","nob_progress.h","nob_sources.h",
+    "nob_toolchain.h", "nob_types.h"
+};
+
+static const size_t nob_self_rebuild_source_count =
+    sizeof(nob_self_rebuild_sources) / sizeof(nob_self_rebuild_sources[0]);
+
+static void nob_set_self_rebuild_env(bool value) {
+#ifdef _WIN32
+    if (value) {
+        _putenv(NOB_SELF_REBUILD_ENV "=1");
+    } else {
+        _putenv(NOB_SELF_REBUILD_ENV "=");
+    }
+#else
+    if (value) {
+        setenv(NOB_SELF_REBUILD_ENV, "1", 1);
+    } else {
+        unsetenv(NOB_SELF_REBUILD_ENV);
+    }
+#endif
+}
+
+static bool nob_consume_self_rebuild_env(void) {
+    const char* value = getenv(NOB_SELF_REBUILD_ENV);
+    if (value != NULL && value[0] != '\0') {
+        nob_set_self_rebuild_env(false);
+        return true;
+    }
+    return false;
+}
+
+static void nob_mark_self_rebuild_if_needed(int argc, char** argv) {
+    if (argc <= 0 || argv == NULL || argv[0] == NULL) {
+        return;
+    }
+
+    const char* binary_path = argv[0];
+#ifdef _WIN32
+    if (!nob_sv_end_with(nob_sv_from_cstr(binary_path), ".exe")) {
+        binary_path = nob_temp_sprintf("%s.exe", binary_path);
+    }
+#endif
+
+    int rebuild = nob_needs_rebuild(binary_path, nob_self_rebuild_sources,
+                                    nob_self_rebuild_source_count);
+    if (rebuild < 0) {
+        nob_log(NOB_ERROR, "Could not determine whether %s needs rebuild",
+                binary_path);
+        return;
+    }
+    if (rebuild > 0) {
+        nob_set_self_rebuild_env(true);
+    }
+}
+
+bool clean (void) {
+    // Remove build directory if it exists
+    if (nob_get_file_type("build") == NOB_FILE_DIRECTORY) {
+        Nob_Cmd cmd = {0};
+        nob_cmd_append(&cmd, "rm", "-rf", "build");
+        if (!nob_cmd_run(&cmd)) {
+            nob_log(NOB_ERROR, "Failed to clean build directory");
+            return false;
+        }
+    }
+    return true;
+}
+
 int main(int argc, char** argv) {
+    bool auto_clean = nob_consume_self_rebuild_env();
+    nob_mark_self_rebuild_if_needed(argc, argv);
+
     NOB_GO_REBUILD_URSELF_PLUS(
         argc, argv, "nob.h", "nob_build_config.h", "nob_cli.h", "nob_compile.h",
         "nob_dependencies.h", "nob_platform.h", "nob_progress.h",
@@ -28,7 +106,7 @@ int main(int argc, char** argv) {
     // Parse command line arguments
     bool help = false;
     bool version = false;
-    bool clean = false;
+    bool clean_requested = auto_clean;
     bool debug = false;
     bool force_32bit = false;
     bool dependencies = false;
@@ -44,7 +122,7 @@ int main(int argc, char** argv) {
         } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
             version = true;
         } else if (strcmp(arg, "--clean") == 0) {
-            clean = true;
+            clean_requested = true;
         } else if (strcmp(arg, "--debug") == 0) {
             debug = true;
         } else if (strcmp(arg, "--force-32bit") == 0) {
@@ -89,19 +167,8 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    if (clean) {
-        nob_log(NOB_INFO, "Cleaning build directory...");
-        // Remove build directory if it exists
-        if (nob_get_file_type("build") == NOB_FILE_DIRECTORY) {
-            Nob_Cmd cmd = {0};
-            nob_cmd_append(&cmd, "rm", "-rf", "build");
-            if (!nob_cmd_run(&cmd)) {
-                nob_log(NOB_ERROR, "Failed to clean build directory");
-                return 1;
-            }
-        }
-        nob_log(NOB_INFO, "Clean complete");
-        return 0;
+    if (clean_requested && !clean()) {
+        return 1;
     }
 
     // Check dependencies
