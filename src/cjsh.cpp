@@ -82,15 +82,9 @@ bool disable_custom_ls = false;
 bool show_startup_time = false;
 }  // namespace config
 
-// add shell opts to replace login-startup-arg command new syntax should be:
-// shellopts --start-arg="debug"
-// shellopts --start-arg="no-colors"
-// shellopts --start-arg="no-plugins"
-// shellopts --start-arg="no-themes"
-// etc...
+// add shell opts to replace login-startup-arg command
 
-// add shell opts for style_def new syntax should be:
-// shellopts --style_def="builtint:#FFFFFF,bold"
+// add shell opts for style_def
 
 // add shellopts for enabling and disbling case completions
 

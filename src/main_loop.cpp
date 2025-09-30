@@ -191,8 +191,6 @@ bool process_command_line(const std::string& command) {
         return g_exit_flag;
     }
 
-    notify_plugins("main_process_command_processed", command);
-
     g_shell->start_command_timing();
     int exit_code = g_shell->execute(command);
     g_shell->end_command_timing(exit_code);
@@ -346,7 +344,6 @@ bool handle_null_input() {
                 << std::endl;
         }
         g_exit_flag = true;
-        notify_plugins("main_process_end", "");
         return true;  // Should exit
     } else {
         // Terminal and parent are alive, this was likely Ctrl+C - continue loop
@@ -355,7 +352,6 @@ bool handle_null_input() {
                          "interrupt - continuing loop"
                       << std::endl;
         }
-        notify_plugins("main_process_end", "");
         return false;  // Should continue
     }
 }
@@ -427,19 +423,19 @@ std::pair<std::string, bool> get_next_command() {
 void main_process_loop() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Entering main process loop" << std::endl;
-    notify_plugins("main_process_pre_run", "");
 
     initialize_completion_system();
     typeahead::initialize();
 
     typeahead::flush_pending_typeahead();
 
+    notify_plugins("main_process_pre_run", "");
+
     while (true) {
         if (g_debug_mode) {
             std::cerr << "---------------------------------------" << std::endl;
             std::cerr << "DEBUG: Starting new command input cycle" << std::endl;
         }
-        notify_plugins("main_process_start", "");
 
         g_shell->process_pending_signals();
 
@@ -465,6 +461,8 @@ void main_process_loop() {
 
         typeahead::flush_pending_typeahead();
 
+        notify_plugins("main_process_start", "");
+
         auto [command_to_run, command_available] = get_next_command();
 
         // Check if get_next_command requested an exit
@@ -473,9 +471,10 @@ void main_process_loop() {
         }
 
         if (!command_available) {
-            notify_plugins("main_process_end", "");
             continue;
         }
+
+        notify_plugins("main_process_command_processed", command_to_run);
 
         bool exit_requested = process_command_line(command_to_run);
         notify_plugins("main_process_end", "");
@@ -486,6 +485,8 @@ void main_process_loop() {
             break;
         }
     }
+
+    notify_plugins("main_process_exit", "");
 
     typeahead::cleanup();
 }
