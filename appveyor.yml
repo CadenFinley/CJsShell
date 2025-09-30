@@ -36,7 +36,7 @@ before_build:
   # Linux build preparation - using nob build system
   - sh: |
       echo "Building with nob build system..."
-      cd toolchain/nob
+      cd $APPVEYOR_BUILD_FOLDER/toolchain/nob
       # Build nob if it doesn't exist
       if [ ! -f "./nob" ]; then
         echo "Building nob..."
@@ -50,7 +50,7 @@ before_build:
 build_script:
   # Linux build using nob
   - sh: |
-      cd toolchain
+      cd $APPVEYOR_BUILD_FOLDER/toolchain
       chmod +x build.sh
       ./build.sh
 
@@ -66,9 +66,9 @@ test_script:
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER
       chmod +x tests/run_shell_tests.sh
-      chmod +x tool_scripts/generate_test_badge.sh
+      chmod +x toolchain/generate_test_badge.sh
       # Run tests and generate badge data (continue even if tests fail)
-      ./tool_scripts/generate_test_badge.sh || true
+      ./toolchain/generate_test_badge.sh || true
       echo "Test badge generation completed (exit code: $?)"
 
 # Artifacts to save
