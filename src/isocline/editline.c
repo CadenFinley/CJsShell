@@ -641,17 +641,7 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb,
     }
 
     if (add_empty_line) {
-        bool final_has_trailing_newline = false;
-        if (final_input != NULL) {
-            ssize_t len = to_ssize_t(strlen(final_input));
-            if (len > 0 && final_input[len - 1] == '\n') {
-                final_has_trailing_newline = true;
-            }
-        }
         term_write_char(env->term, '\n');
-        if (!final_has_trailing_newline) {
-            term_write_char(env->term, '\n');
-        }
     }
     term_flush(env->term);
 }
