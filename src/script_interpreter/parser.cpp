@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <map>
@@ -99,6 +100,10 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     char quote_char = '\0';
     bool in_here_doc = false;
     bool strip_tabs = false;
+    bool here_doc_expand = true;
+    size_t here_doc_operator_pos = std::string::npos;
+    size_t here_doc_operator_len = 0;
+    size_t here_doc_delim_end_pos = std::string::npos;
     std::string here_doc_delimiter;
     here_doc_delimiter.reserve(64);
     std::string here_doc_content;
@@ -120,47 +125,136 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                     std::string_view segment_view{script.data() + start,
                                                   i - start};
 
-                    size_t here_pos = std::string::npos;
-
-                    here_pos = segment_view.find("<<- " + here_doc_delimiter);
-                    if (here_pos == std::string::npos) {
-                        here_pos =
-                            segment_view.find("<<-" + here_doc_delimiter);
-                        if (here_pos == std::string::npos) {
-                            here_pos =
-                                segment_view.find("<< " + here_doc_delimiter);
-                            if (here_pos == std::string::npos) {
-                                here_pos = segment_view.find(
-                                    "<<" + here_doc_delimiter);
-                            }
+                    bool segment_created = false;
+                    if (here_doc_operator_pos != std::string::npos &&
+                        here_doc_operator_len > 0) {
+                        size_t delim_end_in_segment = here_doc_delim_end_pos;
+                        if (delim_end_in_segment > segment_view.size()) {
+                            delim_end_in_segment = segment_view.size();
                         }
-                    }
 
-                    if (here_pos != std::string::npos) {
                         std::string before_here{
-                            segment_view.substr(0, here_pos)};
+                            segment_view.substr(0, here_doc_operator_pos)};
+                        size_t line_end =
+                            segment_view.find('\n', delim_end_in_segment);
+                        std::string rest_of_line;
+                        if (line_end != std::string::npos) {
+                            rest_of_line.assign(segment_view.substr(
+                                delim_end_in_segment,
+                                line_end - delim_end_in_segment));
+                        } else {
+                            rest_of_line.assign(segment_view.substr(
+                                delim_end_in_segment));
+                        }
 
                         std::string placeholder = "HEREDOC_PLACEHOLDER_" +
                                                   std::to_string(lines.size());
 
-                        std::string segment = before_here + "< " + placeholder;
+                        std::string stored_content = here_doc_content;
+                        if (here_doc_expand) {
+                            stored_content = "__EXPAND__" + stored_content;
+                        }
+                        current_here_docs[placeholder] =
+                            std::move(stored_content);
 
-                        current_here_docs[placeholder] = here_doc_content;
+                        std::string segment = before_here + "< " + placeholder +
+                                              rest_of_line;
 
                         if (!segment.empty() && segment.back() == '\r') {
                             segment.pop_back();
                         }
                         lines.push_back(std::move(segment));
-                    } else {
-                        std::string segment{segment_view};
-                        if (!segment.empty() && segment.back() == '\r') {
-                            segment.pop_back();
-                        }
-                        lines.push_back(std::move(segment));
+                        segment_created = true;
                     }
 
+                    if (!segment_created) {
+                        size_t here_pos = segment_view.find(
+                            "<<- " + here_doc_delimiter);
+                        if (here_pos == std::string::npos) {
+                            here_pos = segment_view.find(
+                                "<<-" + here_doc_delimiter);
+                            if (here_pos == std::string::npos) {
+                                here_pos = segment_view.find(
+                                    "<< " + here_doc_delimiter);
+                                if (here_pos == std::string::npos) {
+                                    here_pos = segment_view.find(
+                                        "<<" + here_doc_delimiter);
+                                }
+                            }
+                        }
+
+                        if (here_pos != std::string::npos) {
+                            size_t operator_len = 2;
+                            if (segment_view.substr(here_pos, 3) == "<<-") {
+                                operator_len = 3;
+                            }
+
+                            size_t delim_start_in_segment =
+                                here_pos + operator_len;
+                            while (delim_start_in_segment <
+                                       segment_view.size() &&
+                                   std::isspace(static_cast<unsigned char>(
+                                       segment_view[delim_start_in_segment]))) {
+                                delim_start_in_segment++;
+                            }
+
+                            size_t delim_end_in_segment = delim_start_in_segment;
+                            while (delim_end_in_segment < segment_view.size() &&
+                                   !std::isspace(static_cast<unsigned char>(
+                                       segment_view[delim_end_in_segment]))) {
+                                delim_end_in_segment++;
+                            }
+
+                            std::string before_here{
+                                segment_view.substr(0, here_pos)};
+                            size_t line_end =
+                                segment_view.find('\n', delim_end_in_segment);
+                            std::string rest_of_line;
+                            if (line_end != std::string::npos) {
+                                rest_of_line.assign(segment_view.substr(
+                                    delim_end_in_segment,
+                                    line_end - delim_end_in_segment));
+                            } else {
+                                rest_of_line.assign(segment_view.substr(
+                                    delim_end_in_segment));
+                            }
+
+                            std::string placeholder =
+                                "HEREDOC_PLACEHOLDER_" +
+                                std::to_string(lines.size());
+
+                            std::string stored_content = here_doc_content;
+                            if (here_doc_expand) {
+                                stored_content =
+                                    "__EXPAND__" + stored_content;
+                            }
+                            current_here_docs[placeholder] =
+                                std::move(stored_content);
+
+                            std::string segment =
+                                before_here + "< " + placeholder + rest_of_line;
+
+                            if (!segment.empty() && segment.back() == '\r') {
+                                segment.pop_back();
+                            }
+                            lines.push_back(std::move(segment));
+                            segment_created = true;
+                        } else {
+                            std::string segment{segment_view};
+                            if (!segment.empty() && segment.back() == '\r') {
+                                segment.pop_back();
+                            }
+                            lines.push_back(std::move(segment));
+                            segment_created = true;
+                        }
+                    }
+
+                    here_doc_operator_pos = std::string::npos;
+                    here_doc_operator_len = 0;
+                    here_doc_delim_end_pos = std::string::npos;
                     in_here_doc = false;
                     strip_tabs = false;
+                    here_doc_expand = true;
                     here_doc_delimiter.clear();
                     here_doc_content.clear();
                     start = i + 1;
@@ -214,6 +308,9 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                     }
                 }
 
+                here_doc_operator_pos = here_pos;
+                here_doc_operator_len = operator_len;
+
                 size_t delim_start = here_pos + operator_len;
                 while (delim_start < segment_no_comment.size() &&
                        std::isspace(segment_no_comment[delim_start])) {
@@ -224,9 +321,25 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                        !std::isspace(segment_no_comment[delim_end])) {
                     delim_end++;
                 }
+                here_doc_delim_end_pos = delim_end;
                 if (delim_start < delim_end) {
                     here_doc_delimiter = segment_no_comment.substr(
                         delim_start, delim_end - delim_start);
+
+                    if (!here_doc_delimiter.empty() &&
+                        ((here_doc_delimiter.front() == '"' &&
+                          here_doc_delimiter.back() == '"') ||
+                         (here_doc_delimiter.front() == '\'' &&
+                          here_doc_delimiter.back() == '\''))) {
+                        here_doc_expand = false;
+                        if (here_doc_delimiter.size() >= 2) {
+                            here_doc_delimiter = here_doc_delimiter.substr(
+                                1, here_doc_delimiter.size() - 2);
+                        }
+                    } else {
+                        here_doc_expand = true;
+                    }
+
                     in_here_doc = true;
                     strip_tabs = is_strip_tabs;
                     here_doc_content.clear();
@@ -243,6 +356,186 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             }
             lines.push_back(std::move(segment));
             start = i + 1;
+        }
+    }
+
+    if (in_here_doc) {
+        std::string trimmed_line = current_here_doc_line;
+        size_t first_non_ws = trimmed_line.find_first_not_of(" \t");
+        if (first_non_ws != std::string::npos) {
+            trimmed_line.erase(0, first_non_ws);
+        } else {
+            trimmed_line.clear();
+        }
+
+        if (!trimmed_line.empty()) {
+            size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r");
+            if (last_non_ws != std::string::npos) {
+                trimmed_line.erase(last_non_ws + 1);
+            } else {
+                trimmed_line.clear();
+            }
+        }
+
+        if (trimmed_line == here_doc_delimiter) {
+            size_t segment_len = script.size() - start;
+            if (segment_len >= current_here_doc_line.size()) {
+                segment_len -= current_here_doc_line.size();
+            } else {
+                segment_len = 0;
+            }
+
+            if (segment_len > 0 && script[start + segment_len - 1] == '\n') {
+                segment_len--;
+            }
+            if (segment_len > 0 && script[start + segment_len - 1] == '\r') {
+                segment_len--;
+            }
+
+            std::string segment = (segment_len > 0)
+                                      ? script.substr(start, segment_len)
+                                      : std::string();
+
+            std::string_view segment_view{segment};
+
+            bool segment_created = false;
+            if (here_doc_operator_pos != std::string::npos &&
+                here_doc_operator_len > 0) {
+                size_t delim_end_in_segment = here_doc_delim_end_pos;
+                if (delim_end_in_segment > segment_view.size()) {
+                    delim_end_in_segment = segment_view.size();
+                }
+
+                std::string before_here{
+                    segment_view.substr(0, here_doc_operator_pos)};
+                size_t line_end =
+                    segment_view.find('\n', delim_end_in_segment);
+                std::string rest_of_line;
+                if (line_end != std::string::npos) {
+                    rest_of_line.assign(segment_view.substr(
+                        delim_end_in_segment,
+                        line_end - delim_end_in_segment));
+                } else {
+                    rest_of_line.assign(segment_view.substr(
+                        delim_end_in_segment));
+                }
+
+                std::string placeholder = "HEREDOC_PLACEHOLDER_" +
+                                          std::to_string(lines.size());
+
+                std::string stored_content = here_doc_content;
+                if (here_doc_expand) {
+                    stored_content = "__EXPAND__" + stored_content;
+                }
+                current_here_docs[placeholder] = std::move(stored_content);
+
+                std::string rebuilt = before_here + "< " + placeholder +
+                                      rest_of_line;
+                if (!rebuilt.empty() && rebuilt.back() == '\r') {
+                    rebuilt.pop_back();
+                }
+                lines.push_back(std::move(rebuilt));
+                segment_created = true;
+            }
+
+            if (!segment_created) {
+                size_t here_pos = segment_view.find("<<- " +
+                                                   here_doc_delimiter);
+                if (here_pos == std::string::npos) {
+                    here_pos = segment_view.find("<<-" +
+                                                 here_doc_delimiter);
+                    if (here_pos == std::string::npos) {
+                        here_pos = segment_view.find("<< " +
+                                                     here_doc_delimiter);
+                        if (here_pos == std::string::npos) {
+                            here_pos = segment_view.find("<<" +
+                                                         here_doc_delimiter);
+                        }
+                    }
+                }
+
+                if (here_pos != std::string::npos) {
+                    size_t operator_len = 2;
+                    if (segment_view.substr(here_pos, 3) == "<<-") {
+                        operator_len = 3;
+                    }
+
+                    size_t delim_start_in_segment = here_pos + operator_len;
+                    while (delim_start_in_segment < segment_view.size() &&
+                           std::isspace(static_cast<unsigned char>(
+                               segment_view[delim_start_in_segment]))) {
+                        delim_start_in_segment++;
+                    }
+
+                    size_t delim_end_in_segment = delim_start_in_segment;
+                    while (delim_end_in_segment < segment_view.size() &&
+                           !std::isspace(static_cast<unsigned char>(
+                               segment_view[delim_end_in_segment]))) {
+                        delim_end_in_segment++;
+                    }
+
+                    std::string before_here{
+                        segment_view.substr(0, here_pos)};
+                    size_t line_end = segment_view.find(
+                        '\n', delim_end_in_segment);
+                    std::string rest_of_line;
+                    if (line_end != std::string::npos) {
+                        rest_of_line.assign(segment_view.substr(
+                            delim_end_in_segment,
+                            line_end - delim_end_in_segment));
+                    } else {
+                        rest_of_line.assign(segment_view.substr(
+                            delim_end_in_segment));
+                    }
+
+                    std::string placeholder = "HEREDOC_PLACEHOLDER_" +
+                                              std::to_string(lines.size());
+
+                    std::string stored_content = here_doc_content;
+                    if (here_doc_expand) {
+                        stored_content = "__EXPAND__" + stored_content;
+                    }
+                    current_here_docs[placeholder] =
+                        std::move(stored_content);
+
+                    std::string rebuilt = before_here + "< " + placeholder +
+                                          rest_of_line;
+                    if (!rebuilt.empty() && rebuilt.back() == '\r') {
+                        rebuilt.pop_back();
+                    }
+                    lines.push_back(std::move(rebuilt));
+                    segment_created = true;
+                } else {
+                    if (!segment.empty() && segment.back() == '\r') {
+                        segment.pop_back();
+                    }
+                    lines.push_back(std::move(segment));
+                    segment_created = true;
+                }
+            }
+
+            in_here_doc = false;
+            strip_tabs = false;
+            here_doc_expand = true;
+            here_doc_delimiter.clear();
+            here_doc_content.clear();
+            current_here_doc_line.clear();
+            start = script.size();
+            here_doc_operator_pos = std::string::npos;
+            here_doc_operator_len = 0;
+            here_doc_delim_end_pos = std::string::npos;
+        } else {
+            std::string tail{script.substr(start)};
+            if (!tail.empty() && tail.back() == '\r') {
+                tail.pop_back();
+            }
+            lines.push_back(std::move(tail));
+            in_here_doc = false;
+            strip_tabs = false;
+            here_doc_expand = true;
+            here_doc_operator_pos = std::string::npos;
+            here_doc_operator_len = 0;
+            here_doc_delim_end_pos = std::string::npos;
         }
     }
 
@@ -339,6 +632,108 @@ static inline bool strip_subst_literal_markers(std::string& value) {
     }
 
     return changed;
+}
+
+static void expand_command_substitutions_in_string(std::string& text) {
+    if (text.find('$') == std::string::npos &&
+        text.find('`') == std::string::npos) {
+        return;
+    }
+
+    std::string result;
+    result.reserve(text.size());
+
+    for (size_t i = 0; i < text.size();) {
+        if (text[i] == '$' && i + 1 < text.size() && text[i + 1] == '(') {
+            size_t pos = i + 2;
+            int depth = 1;
+            bool in_single = false;
+            bool in_double = false;
+            while (pos < text.size() && depth > 0) {
+                char ch = text[pos];
+                if (ch == '\\') {
+                    pos += 2;
+                    continue;
+                }
+                if (ch == '\'' && !in_double) {
+                    in_single = !in_single;
+                } else if (ch == '"' && !in_single) {
+                    in_double = !in_double;
+                } else if (!in_single) {
+                    if (ch == '(') {
+                        depth++;
+                    } else if (ch == ')') {
+                        depth--;
+                        if (depth == 0) {
+                            break;
+                        }
+                    }
+                }
+                pos++;
+            }
+
+            if (depth == 0 && pos < text.size()) {
+                std::string command = text.substr(i + 2, pos - (i + 2));
+                auto output =
+                    cjsh_filesystem::FileOperations::read_command_output(
+                        command);
+                if (output.is_ok()) {
+                    std::string value = output.value();
+                    while (!value.empty() &&
+                           (value.back() == '\n' || value.back() == '\r')) {
+                        value.pop_back();
+                    }
+                    result += value;
+                    i = pos + 1;
+                    continue;
+                }
+            }
+        } else if (text[i] == '`') {
+            size_t pos = i + 1;
+            while (pos < text.size()) {
+                if (text[pos] == '\\' && pos + 1 < text.size()) {
+                    pos += 2;
+                    continue;
+                }
+                if (text[pos] == '`') {
+                    break;
+                }
+                pos++;
+            }
+            if (pos < text.size() && text[pos] == '`') {
+                std::string command = text.substr(i + 1, pos - (i + 1));
+                std::string cleaned;
+                cleaned.reserve(command.size());
+                for (size_t k = 0; k < command.size(); ++k) {
+                    if (command[k] == '\\' && k + 1 < command.size() &&
+                        command[k + 1] == '`') {
+                        cleaned.push_back('`');
+                        ++k;
+                    } else {
+                        cleaned.push_back(command[k]);
+                    }
+                }
+                auto output =
+                    cjsh_filesystem::FileOperations::read_command_output(
+                        cleaned);
+                if (output.is_ok()) {
+                    std::string value = output.value();
+                    while (!value.empty() &&
+                           (value.back() == '\n' || value.back() == '\r')) {
+                        value.pop_back();
+                    }
+                    result += value;
+                    i = pos + 1;
+                    continue;
+                }
+            }
+        }
+
+        result += text[i];
+        ++i;
+    }
+
+    text.swap(result);
 }
 
 inline bool contains_tilde(const std::string& value) {
@@ -2280,6 +2675,7 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
                     content = content.substr(10);
 
                     expand_env_vars(content);
+                    expand_command_substitutions_in_string(content);
                 }
 
                 strip_subst_literal_markers(content);
@@ -2297,6 +2693,7 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(
                 content = content.substr(10);
 
                 expand_env_vars(content);
+                expand_command_substitutions_in_string(content);
             }
 
             strip_subst_literal_markers(content);

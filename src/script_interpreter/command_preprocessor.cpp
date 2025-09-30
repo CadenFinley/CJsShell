@@ -96,6 +96,9 @@ std::string CommandPreprocessor::process_here_documents(
     std::string placeholder =
         "HEREDOC_PLACEHOLDER_" + std::to_string(++placeholder_counter);
 
+    std::string rest_of_line =
+        result.substr(delim_end, content_start - delim_end);
+
     std::string stored_content = content;
     if (!delimiter_quoted) {
         stored_content = "__EXPAND__" + content;
@@ -106,7 +109,7 @@ std::string CommandPreprocessor::process_here_documents(
     std::string after_delimiter =
         result.substr(content_end + delimiter.length() + 1);
 
-    result = before_here + "< " + placeholder + after_delimiter;
+    result = before_here + "< " + placeholder + rest_of_line + after_delimiter;
 
     if (g_debug_mode) {
         std::cerr << "DEBUG: Extracted here document with delimiter '"
