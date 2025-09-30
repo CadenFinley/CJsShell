@@ -606,6 +606,7 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb,
     if (env == NULL || eb == NULL)
         return;
 
+    const bool add_empty_line = env->prompt_cleanup_add_empty_line;
     const char* prompt_line =
         (eb->prompt_text != NULL ? eb->prompt_text : "");
     const char* prompt_marker =
@@ -620,25 +621,36 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb,
     bbcode_print(env->bbcode, prompt_marker);
     bbcode_style_close(env->bbcode, NULL);
 
-    if (final_input == NULL || final_input[0] == '\0') {
-        term_flush(env->term);
-        return;
+    if (final_input != NULL && final_input[0] != '\0') {
+        const char* cursor = final_input;
+        while (*cursor != '\0') {
+            const char* newline = strchr(cursor, '\n');
+            if (newline == NULL) {
+                ssize_t remaining = to_ssize_t(strlen(cursor));
+                term_write_n(env->term, cursor, remaining);
+                break;
+            } else {
+                ssize_t segment = to_ssize_t(newline - cursor + 1);
+                term_write_n(env->term, cursor, segment);
+                cursor = newline + 1;
+                if (*cursor != '\0' && promptw > 0) {
+                    term_write_repeat(env->term, " ", promptw);
+                }
+            }
+        }
     }
 
-    const char* cursor = final_input;
-    while (*cursor != '\0') {
-        const char* newline = strchr(cursor, '\n');
-        if (newline == NULL) {
-            ssize_t remaining = to_ssize_t(strlen(cursor));
-            term_write_n(env->term, cursor, remaining);
-            break;
-        } else {
-            ssize_t segment = to_ssize_t(newline - cursor + 1);
-            term_write_n(env->term, cursor, segment);
-            cursor = newline + 1;
-            if (*cursor != '\0' && promptw > 0) {
-                term_write_repeat(env->term, " ", promptw);
+    if (add_empty_line) {
+        bool final_has_trailing_newline = false;
+        if (final_input != NULL) {
+            ssize_t len = to_ssize_t(strlen(final_input));
+            if (len > 0 && final_input[len - 1] == '\n') {
+                final_has_trailing_newline = true;
             }
+        }
+        term_write_char(env->term, '\n');
+        if (!final_has_trailing_newline) {
+            term_write_char(env->term, '\n');
         }
     }
     term_flush(env->term);

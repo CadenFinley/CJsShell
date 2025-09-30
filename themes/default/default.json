@@ -93,5 +93,7 @@
         }
     ],
     "requirements": {},
+    "cleanup": false,
+    "cleanup_empty_line": false,
     "terminal_title": "{PATH}"
 }

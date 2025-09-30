@@ -441,6 +441,10 @@ bool ic_enable_inline_help(bool enable);
 /// setting.
 bool ic_enable_prompt_cleanup(bool enable);
 
+/// Enable or disable inserting an empty line after prompt cleanup output.
+/// Returns the previous setting.
+bool ic_enable_prompt_cleanup_empty_line(bool enable);
+
 /// Disable or enable hinting (enabled by default)
 /// Shows a hint inline when there is a single possible completion.
 /// @returns the previous setting.

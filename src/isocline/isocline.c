@@ -391,6 +391,15 @@ ic_public bool ic_enable_prompt_cleanup(bool enable) {
     return prev;
 }
 
+ic_public bool ic_enable_prompt_cleanup_empty_line(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->prompt_cleanup_add_empty_line;
+    env->prompt_cleanup_add_empty_line = enable;
+    return prev;
+}
+
 ic_public bool ic_enable_brace_matching(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
