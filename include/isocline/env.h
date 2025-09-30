@@ -55,6 +55,7 @@ struct ic_env_s {
     bool no_autobrace;         // enable automatic brace insertion?
     bool no_lscolors;          // use LSCOLORS/LS_COLORS to colorize file name
                                // completions?
+  bool prompt_cleanup;       // after enter, rewrite prompt inline?
     long hint_delay;           // delay before displaying a hint in milliseconds
 };
 

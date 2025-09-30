@@ -435,6 +435,12 @@ bool ic_enable_multiline_indent(bool enable);
 /// @returns the previous setting.
 bool ic_enable_inline_help(bool enable);
 
+/// Enable or disable prompt cleanup after accepting input.
+/// When enabled, accepting a line removes the prompt and rewrites just the
+/// trailing prompt segment next to the submitted input. Returns the previous
+/// setting.
+bool ic_enable_prompt_cleanup(bool enable);
+
 /// Disable or enable hinting (enabled by default)
 /// Shows a hint inline when there is a single possible completion.
 /// @returns the previous setting.

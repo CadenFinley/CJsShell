@@ -42,6 +42,7 @@ typedef struct editor_s {
     editstate_t* undo;    // undo buffer
     editstate_t* redo;    // redo buffer
     const char* prompt_text;  // text of the prompt before the prompt marker
+    ssize_t prompt_prefix_lines;  // number of prefix lines emitted for prompt
     const char* inline_right_text;  // inline right-aligned text on input line
     ssize_t inline_right_width;     // cached width of inline right text
     alloc_t* mem;                   // allocator
@@ -227,22 +228,23 @@ static char* extract_last_prompt_line(alloc_t* mem, const char* prompt_text) {
 }
 
 // Helper function to print all but the last line of a multi-line prompt
-static void print_prompt_prefix_lines(ic_env_t* env, const char* prompt_text) {
+static ssize_t print_prompt_prefix_lines(ic_env_t* env,
+                                         const char* prompt_text) {
     if (prompt_text == NULL)
-        return;
+        return 0;
 
     const char* last_newline = strrchr(prompt_text, '\n');
     if (last_newline == NULL) {
         // No newlines, nothing to print
-        return;
+        return 0;
     }
 
     // Print everything up to (but not including) the last newline
     size_t prefix_length =
-        last_newline - prompt_text + 1;  // +1 to include the newline
+        to_size_t(last_newline - prompt_text + 1);  // +1 to include newline
     char* prefix = (char*)malloc(prefix_length + 1);
     if (prefix == NULL)
-        return;
+        return 0;
 
     strncpy(prefix, prompt_text, prefix_length);
     prefix[prefix_length] = '\0';
@@ -250,7 +252,15 @@ static void print_prompt_prefix_lines(ic_env_t* env, const char* prompt_text) {
     // Print the prefix lines directly to the terminal
     bbcode_print(env->bbcode, prefix);
 
+    // Count how many lines we emitted (number of newline characters)
+    ssize_t lines = 0;
+    for (const char* p = prompt_text; p <= last_newline; ++p) {
+        if (*p == '\n')
+            lines++;
+    }
+
     free(prefix);
+    return lines;
 }
 
 static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row,
@@ -563,6 +573,83 @@ static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
     edit_clear(env, eb);
     eb->cur_rows = cur_rows;
     edit_refresh(env, eb);
+}
+
+static void edit_cleanup_erase_prompt(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL)
+        return;
+    if (eb->cur_rows <= 0 && eb->prompt_prefix_lines <= 0)
+        return;
+
+    term_attr_reset(env->term);
+    term_start_of_line(env->term);
+
+    ssize_t rows = (eb->cur_rows < 0 ? 0 : eb->cur_rows);
+    ssize_t prefixes =
+        (eb->prompt_prefix_lines < 0 ? 0 : eb->prompt_prefix_lines);
+    ssize_t total = rows + prefixes;
+    if (total <= 0)
+        return;
+
+    ssize_t up = (eb->cur_row < 0 ? 0 : eb->cur_row) + prefixes;
+    if (up > 0) {
+        term_up(env->term, up);
+        term_start_of_line(env->term);
+    }
+
+    term_delete_lines(env->term, total);
+    term_start_of_line(env->term);
+}
+
+static void edit_cleanup_print(ic_env_t* env, editor_t* eb,
+                               const char* final_input) {
+    if (env == NULL || eb == NULL)
+        return;
+
+    const char* prompt_line =
+        (eb->prompt_text != NULL ? eb->prompt_text : "");
+    const char* prompt_marker =
+        (env->prompt_marker != NULL ? env->prompt_marker : "");
+    ssize_t promptw = bbcode_column_width(env->bbcode, prompt_line) +
+                      bbcode_column_width(env->bbcode, prompt_marker);
+    if (promptw < 0)
+        promptw = 0;
+
+    bbcode_style_open(env->bbcode, "ic-prompt");
+    bbcode_print(env->bbcode, prompt_line);
+    bbcode_print(env->bbcode, prompt_marker);
+    bbcode_style_close(env->bbcode, NULL);
+
+    if (final_input == NULL || final_input[0] == '\0') {
+        term_flush(env->term);
+        return;
+    }
+
+    const char* cursor = final_input;
+    while (*cursor != '\0') {
+        const char* newline = strchr(cursor, '\n');
+        if (newline == NULL) {
+            ssize_t remaining = to_ssize_t(strlen(cursor));
+            term_write_n(env->term, cursor, remaining);
+            break;
+        } else {
+            ssize_t segment = to_ssize_t(newline - cursor + 1);
+            term_write_n(env->term, cursor, segment);
+            cursor = newline + 1;
+            if (*cursor != '\0' && promptw > 0) {
+                term_write_repeat(env->term, " ", promptw);
+            }
+        }
+    }
+    term_flush(env->term);
+}
+
+static void edit_apply_prompt_cleanup(ic_env_t* env, editor_t* eb,
+                                      const char* final_input) {
+    if (env == NULL || eb == NULL)
+        return;
+    edit_cleanup_erase_prompt(env, eb);
+    edit_cleanup_print(env, eb, final_input);
 }
 
 // refresh after a terminal window resized (but before doing further edit
@@ -1089,7 +1176,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     // Handle multi-line prompts: print prefix lines and use only the last line
     // as the prompt
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
-    print_prompt_prefix_lines(env, original_prompt);
+    eb.prompt_prefix_lines = print_prompt_prefix_lines(env, original_prompt);
     char* last_line_prompt =
         extract_last_prompt_line(env->mem, original_prompt);
     eb.prompt_text = last_line_prompt;
@@ -1361,6 +1448,10 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
         res = sbuf_strdup(eb.input);
     }
 
+    if (env->prompt_cleanup && res != NULL && c == KEY_ENTER) {
+        edit_apply_prompt_cleanup(env, &eb, res);
+    }
+
     // update history in memory (file saving handled after execution)
     history_update(env->history, sbuf_string(eb.input));
     if (res == NULL || sbuf_len(eb.input) <= 1) {
@@ -1401,7 +1492,7 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
     // Handle multi-line prompts: print prefix lines and use only the last line
     // as the prompt
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
-    print_prompt_prefix_lines(env, original_prompt);
+    eb.prompt_prefix_lines = print_prompt_prefix_lines(env, original_prompt);
     char* last_line_prompt =
         extract_last_prompt_line(env->mem, original_prompt);
     eb.prompt_text = last_line_prompt;
@@ -1680,6 +1771,10 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
         res = sbuf_strdup_from_utf8(eb.input);
     } else {
         res = sbuf_strdup(eb.input);
+    }
+
+    if (env->prompt_cleanup && res != NULL && c == KEY_ENTER) {
+        edit_apply_prompt_cleanup(env, &eb, res);
     }
 
     // update history in memory (file saving handled after execution)

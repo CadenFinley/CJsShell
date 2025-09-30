@@ -116,6 +116,12 @@ ic_private void term_clear_to_end_of_line(term_t* term) {
     term_write(term, IC_CSI "K");
 }
 
+ic_private void term_delete_lines(term_t* term, ssize_t n) {
+    if (n <= 0)
+        return;
+    term_writef(term, IC_CSI "%zdM", n);
+}
+
 ic_private void term_start_of_line(term_t* term) {
     term_write(term, "\r");
 }

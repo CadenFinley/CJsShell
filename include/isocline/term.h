@@ -63,6 +63,7 @@ ic_private void term_down(term_t* term, ssize_t n);
 ic_private void term_start_of_line(term_t* term);
 ic_private void term_clear_line(term_t* term);
 ic_private void term_clear_to_end_of_line(term_t* term);
+ic_private void term_delete_lines(term_t* term, ssize_t n);
 // ic_private void term_clear_lines_to_end(term_t* term);
 
 ic_private void term_attr_reset(term_t* term);

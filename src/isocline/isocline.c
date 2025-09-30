@@ -382,6 +382,15 @@ ic_public bool ic_enable_inline_help(bool enable) {
     return !prev;
 }
 
+ic_public bool ic_enable_prompt_cleanup(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->prompt_cleanup;
+    env->prompt_cleanup = enable;
+    return prev;
+}
+
 ic_public bool ic_enable_brace_matching(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
