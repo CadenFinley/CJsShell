@@ -380,7 +380,7 @@ std::string format_size_human_readable(uintmax_t size) {
     if (unit_index == 0) {
         snprintf(buffer, sizeof(buffer), "%lu%s", (unsigned long)size,
                  units[unit_index]);
-    } else if (size_d < 10) {
+    } else if (size_d < 10.0) {
         snprintf(buffer, sizeof(buffer), "%.1f%s", size_d, units[unit_index]);
     } else {
         snprintf(buffer, sizeof(buffer), "%.0f%s", size_d, units[unit_index]);
