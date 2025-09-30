@@ -28,7 +28,7 @@
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
-#include "env.h"
+#include "shell_env.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "job_control.h"
