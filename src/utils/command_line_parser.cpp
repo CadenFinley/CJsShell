@@ -204,7 +204,6 @@ void CommandLineParser::print_debug_info(const std::string& message) {
 
 void CommandLineParser::apply_profile_startup_flags() {
     extern std::vector<std::string> g_profile_startup_args;
-    extern bool g_title_line;
 
     // Apply startup flags that were collected during profile processing
     if (::g_debug_mode) {
