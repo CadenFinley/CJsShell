@@ -4,9 +4,11 @@
 #include <unordered_map>
 #include <vector>
 
+int cjshopt_command(const std::vector<std::string>& args);
+
+int startup_flag_command(const std::vector<std::string>& args);
 int style_def_command(const std::vector<std::string>& args);
 
-// Style management functions
 void load_custom_styles_from_config();
 void apply_custom_style(const std::string& token_type,
                         const std::string& style);

@@ -14,6 +14,7 @@
 #include "cd_command.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "cjshopt_command.h"
 #include "double_bracket_command.h"
 #include "echo_command.h"
 #include "error_out.h"
@@ -39,8 +40,6 @@
 #include "readonly_command.h"
 #include "set_command.h"
 #include "source_command.h"
-#include "startup_flag_command.h"
-#include "style_def_command.h"
 #include "suggestion_utils.h"
 #include "syntax_command.h"
 #include "test_command.h"
@@ -208,10 +207,6 @@ Built_ins::Built_ins() : shell(nullptr) {
          [](const std::vector<std::string>& args) {
              return ::source_command(args);
          }},
-        {"login-startup-arg",
-         [](const std::vector<std::string>& args) {
-             return ::startup_flag_command(args);
-         }},
         {".",
          [](const std::vector<std::string>& args) {
              return ::source_command(args);
@@ -246,10 +241,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"syntax",
          [this](const std::vector<std::string>& args) {
              return ::syntax_command(args, shell);
-         }},
-        {"style_def",
-         [](const std::vector<std::string>& args) {
-             return ::style_def_command(args);
          }},
         {"history",
          [](const std::vector<std::string>& args) {
@@ -352,6 +343,10 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"hash",
          [](const std::vector<std::string>& args) {
              return ::hash_command(args, nullptr);
+         }},
+        {"cjshopt",
+         [](const std::vector<std::string>& args) {
+             return ::cjshopt_command(args);
          }},
     };
 }

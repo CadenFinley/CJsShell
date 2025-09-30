@@ -387,6 +387,7 @@ std::pair<std::string, bool> get_next_command() {
         if (handle_null_input()) {
             return {command_to_run, false};  // Exit requested
         } else {
+            g_shell->reset_command_timing();
             return {command_to_run,
                     false};  // Continue loop, no command available
         }

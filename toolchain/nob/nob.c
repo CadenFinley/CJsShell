@@ -17,11 +17,10 @@
 #define NOB_SELF_REBUILD_ENV "NOB_JUST_REBUILT"
 
 static const char* nob_self_rebuild_sources[] = {
-    __FILE__,       "nob.h",          "nob_build_config.h",
-    "nob_cli.h",   "nob_compile.h",  "nob_dependencies.h",
-    "nob_platform.h","nob_progress.h","nob_sources.h",
-    "nob_toolchain.h", "nob_types.h"
-};
+    __FILE__,          "nob.h",          "nob_build_config.h",
+    "nob_cli.h",       "nob_compile.h",  "nob_dependencies.h",
+    "nob_platform.h",  "nob_progress.h", "nob_sources.h",
+    "nob_toolchain.h", "nob_types.h"};
 
 static const size_t nob_self_rebuild_source_count =
     sizeof(nob_self_rebuild_sources) / sizeof(nob_self_rebuild_sources[0]);
@@ -75,7 +74,7 @@ static void nob_mark_self_rebuild_if_needed(int argc, char** argv) {
     }
 }
 
-bool clean (void) {
+bool clean(void) {
     // Remove build directory if it exists
     if (nob_get_file_type("build") == NOB_FILE_DIRECTORY) {
         Nob_Cmd cmd = {0};

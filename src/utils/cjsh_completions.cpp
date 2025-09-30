@@ -15,9 +15,9 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "cjsh_syntax_highlighter.h"
+#include "cjshopt_command.h"
 #include "isocline/isocline.h"
 #include "shell.h"
-#include "style_def_command.h"
 
 std::map<std::string, int> g_completion_frequency;
 static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 500;
