@@ -243,27 +243,6 @@ void update_terminal_title() {
     std::cout.flush();
 }
 
-void reprint_prompt() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Reprinting prompt" << std::endl;
-    }
-
-    update_terminal_title();
-
-    std::string prompt;
-    if (g_shell->get_menu_active()) {
-        prompt = g_shell->get_prompt();
-    } else {
-        prompt = g_shell->get_ai_prompt();
-    }
-
-    if (g_theme && g_theme->uses_newline()) {
-        prompt += "\n";
-        prompt += g_shell->get_newline_prompt();
-    }
-    ic_print_prompt(prompt.c_str(), false);
-}
-
 bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
     if (!status.terminal_alive) {
