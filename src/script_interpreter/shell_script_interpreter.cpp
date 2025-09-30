@@ -21,8 +21,8 @@
 #include <system_error>
 #include <utility>
 
-#include "cjsh.h"
 #include "builtin.h"
+#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "job_control.h"
@@ -450,10 +450,10 @@ int ShellScriptInterpreter::execute_block(
     };
 
     std::function<int(const std::string&)> evaluate_logical_condition;
-    
+
     auto handle_parentheses = [&](const std::string& condition) -> std::string {
         std::string result = condition;
-        
+
         while (true) {
             size_t start = std::string::npos;
             size_t end = std::string::npos;
@@ -461,20 +461,20 @@ int ShellScriptInterpreter::execute_block(
             bool in_quotes = false;
             char quote_char = '\0';
             bool escaped = false;
-            
+
             for (size_t i = 0; i < result.length(); ++i) {
                 char c = result[i];
-                
+
                 if (escaped) {
                     escaped = false;
                     continue;
                 }
-                
+
                 if (c == '\\') {
                     escaped = true;
                     continue;
                 }
-                
+
                 if (!in_quotes) {
                     if (c == '"' || c == '\'' || c == '`') {
                         in_quotes = true;
@@ -499,18 +499,19 @@ int ShellScriptInterpreter::execute_block(
                     }
                 }
             }
-            
+
             if (start == std::string::npos || end == std::string::npos) {
                 break;
             }
-            
+
             std::string inner = result.substr(start + 1, end - start - 1);
             int inner_result = evaluate_logical_condition(inner);
             std::string replacement = (inner_result == 0) ? "true" : "false";
-            
-            result = result.substr(0, start) + replacement + result.substr(end + 1);
+
+            result =
+                result.substr(0, start) + replacement + result.substr(end + 1);
         }
-        
+
         return result;
     };
 
@@ -523,7 +524,7 @@ int ShellScriptInterpreter::execute_block(
         std::string cond = trim(condition);
         if (cond.empty())
             return 1;
-        
+
         // Handle arithmetic expansion $((...)) before anything else
         std::string processed_cond = cond;
         size_t pos = 0;
@@ -531,15 +532,15 @@ int ShellScriptInterpreter::execute_block(
             size_t start = pos + 3;
             size_t depth = 1;
             size_t end = start;
-            
+
             // Find matching ))
             while (end < processed_cond.length() && depth > 0) {
-                if (end + 1 < processed_cond.length() && 
+                if (end + 1 < processed_cond.length() &&
                     processed_cond.substr(end, 2) == "((") {
                     depth++;
                     end += 2;
-                } else if (end + 1 < processed_cond.length() && 
-                          processed_cond.substr(end, 2) == "))") {
+                } else if (end + 1 < processed_cond.length() &&
+                           processed_cond.substr(end, 2) == "))") {
                     depth--;
                     if (depth == 0) {
                         break;
@@ -549,31 +550,35 @@ int ShellScriptInterpreter::execute_block(
                     end++;
                 }
             }
-            
+
             if (depth == 0 && end + 1 < processed_cond.length()) {
                 std::string expr = processed_cond.substr(start, end - start);
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Found arithmetic expansion: $(('" << expr << "'))" << std::endl;
+                    std::cerr << "DEBUG: Found arithmetic expansion: $(('"
+                              << expr << "'))" << std::endl;
                 }
-                
+
                 // Expand variables in the expression first
                 shell_parser->expand_env_vars(expr);
-                
+
                 try {
                     // Simple arithmetic evaluation for basic cases
                     long long result = shell_parser->evaluate_arithmetic(expr);
                     std::string result_str = std::to_string(result);
-                    
+
                     if (g_debug_mode) {
-                        std::cerr << "DEBUG: Arithmetic result: " << result_str << std::endl;
+                        std::cerr << "DEBUG: Arithmetic result: " << result_str
+                                  << std::endl;
                     }
-                    
-                    processed_cond = processed_cond.substr(0, pos) + result_str + 
-                                   processed_cond.substr(end + 2);
+
+                    processed_cond = processed_cond.substr(0, pos) +
+                                     result_str +
+                                     processed_cond.substr(end + 2);
                     pos = pos + result_str.length();
                 } catch (const std::exception& e) {
                     if (g_debug_mode) {
-                        std::cerr << "DEBUG: Arithmetic evaluation failed: " << e.what() << std::endl;
+                        std::cerr << "DEBUG: Arithmetic evaluation failed: "
+                                  << e.what() << std::endl;
                     }
                     pos = end + 2;
                 }
@@ -581,9 +586,9 @@ int ShellScriptInterpreter::execute_block(
                 pos++;
             }
         }
-        
+
         cond = processed_cond;
-            
+
         // Handle parentheses first
         cond = handle_parentheses(cond);
 
@@ -958,7 +963,8 @@ int ShellScriptInterpreter::execute_block(
 
             auto get_variable_value =
                 [&](const std::string& name) -> long long {
-                // Check shell's env_vars map first (shell variables that may not be exported)
+                // Check shell's env_vars map first (shell variables that may
+                // not be exported)
                 if (g_shell) {
                     const auto& env_vars = g_shell->get_env_vars();
                     auto it = env_vars.find(name);
@@ -970,8 +976,9 @@ int ShellScriptInterpreter::execute_block(
                         }
                     }
                 }
-                
-                // Fall back to system environment variables (exported variables)
+
+                // Fall back to system environment variables (exported
+                // variables)
                 const char* env_val = getenv(name.c_str());
                 if (env_val) {
                     try {
@@ -986,13 +993,14 @@ int ShellScriptInterpreter::execute_block(
             auto set_variable_value = [&](const std::string& name,
                                           long long value) {
                 std::string value_str = std::to_string(value);
-                
+
                 if (g_shell) {
                     g_shell->get_env_vars()[name] = value_str;
-                    
-                    // Only export to environment for special variables like PATH that need
-                    // to be inherited by child processes for shell functionality.
-                    if (name == "PATH" || name == "PWD" || name == "HOME" || 
+
+                    // Only export to environment for special variables like
+                    // PATH that need to be inherited by child processes for
+                    // shell functionality.
+                    if (name == "PATH" || name == "PWD" || name == "HOME" ||
                         name == "USER" || name == "SHELL") {
                         setenv(name.c_str(), value_str.c_str(), 1);
                     }
@@ -1713,14 +1721,16 @@ int ShellScriptInterpreter::execute_block(
                         shell_parser->parse_into_lines(buffer.str());
                     return execute_block(nested_lines);
                 }
-                
-                // Check if this is a control structure that should be handled by execute_block
-                if (prog == "if" || prog.rfind("if ", 0) == 0 || 
+
+                // Check if this is a control structure that should be handled
+                // by execute_block
+                if (prog == "if" || prog.rfind("if ", 0) == 0 ||
                     prog == "for" || prog.rfind("for ", 0) == 0 ||
                     prog == "while" || prog.rfind("while ", 0) == 0) {
                     if (g_debug_mode) {
-                        std::cerr << "DEBUG: Detected control structure '" << prog 
-                                  << "', delegating to execute_block" << std::endl;
+                        std::cerr << "DEBUG: Detected control structure '"
+                                  << prog << "', delegating to execute_block"
+                                  << std::endl;
                     }
                     std::vector<std::string> lines = {text};
                     return execute_block(lines);
@@ -1893,12 +1903,16 @@ int ShellScriptInterpreter::execute_block(
                                 auto& env_vars = g_shell->get_env_vars();
                                 env_vars[var_name] = var_value;
 
-                                // Only export to environment for special variables like PATH that need
-                                // to be inherited by child processes for shell functionality.
-                                // Regular variables should only be exported via the 'export' command.
-                                if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || 
-                                    var_name == "USER" || var_name == "SHELL") {
-                                    setenv(var_name.c_str(), var_value.c_str(), 1);
+                                // Only export to environment for special
+                                // variables like PATH that need to be inherited
+                                // by child processes for shell functionality.
+                                // Regular variables should only be exported via
+                                // the 'export' command.
+                                if (var_name == "PATH" || var_name == "PWD" ||
+                                    var_name == "HOME" || var_name == "USER" ||
+                                    var_name == "SHELL") {
+                                    setenv(var_name.c_str(), var_value.c_str(),
+                                           1);
                                 }
 
                                 if (shell_parser) {
@@ -1910,18 +1924,27 @@ int ShellScriptInterpreter::execute_block(
                         }
                     }
 
-                    // For external commands, re-parse using only exported environment variables
-                    if (!expanded_args.empty() && g_shell && g_shell->get_built_ins() && 
-                        !g_shell->get_built_ins()->is_builtin_command(expanded_args[0])) {
-                        
-                        // Check if this will be a function call or plugin - these should use full variable expansion
-                        bool is_function = functions.count(expanded_args[0]) > 0;
+                    // For external commands, re-parse using only exported
+                    // environment variables
+                    if (!expanded_args.empty() && g_shell &&
+                        g_shell->get_built_ins() &&
+                        !g_shell->get_built_ins()->is_builtin_command(
+                            expanded_args[0])) {
+                        // Check if this will be a function call or plugin -
+                        // these should use full variable expansion
+                        bool is_function =
+                            functions.count(expanded_args[0]) > 0;
                         bool is_plugin = false;
                         if (g_plugin) {
-                            std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
+                            std::vector<std::string> enabled_plugins =
+                                g_plugin->get_enabled_plugins();
                             for (const auto& plugin : enabled_plugins) {
-                                std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
-                                if (std::find(plugin_commands.begin(), plugin_commands.end(), expanded_args[0]) != plugin_commands.end()) {
+                                std::vector<std::string> plugin_commands =
+                                    g_plugin->get_plugin_commands(plugin);
+                                if (std::find(plugin_commands.begin(),
+                                              plugin_commands.end(),
+                                              expanded_args[0]) !=
+                                    plugin_commands.end()) {
                                     is_plugin = true;
                                     break;
                                 }
@@ -1929,16 +1952,22 @@ int ShellScriptInterpreter::execute_block(
                         }
 
                         if (!is_function && !is_plugin) {
-                            // This is an external command - re-parse with exported variables only
+                            // This is an external command - re-parse with
+                            // exported variables only
                             if (g_debug_mode) {
-                                std::cerr << "DEBUG: Re-parsing external command with exported vars only: " << text << std::endl;
+                                std::cerr << "DEBUG: Re-parsing external "
+                                             "command with exported vars only: "
+                                          << text << std::endl;
                             }
-                            
-                            std::vector<std::string> external_args = shell_parser->parse_command_exported_vars_only(text);
+
+                            std::vector<std::string> external_args =
+                                shell_parser->parse_command_exported_vars_only(
+                                    text);
                             if (!external_args.empty()) {
                                 expanded_args = external_args;
                                 if (g_debug_mode) {
-                                    std::cerr << "DEBUG: Re-parsed external command args: ";
+                                    std::cerr << "DEBUG: Re-parsed external "
+                                                 "command args: ";
                                     for (const auto& arg : expanded_args) {
                                         std::cerr << "[" << arg << "] ";
                                     }
@@ -1949,11 +1978,14 @@ int ShellScriptInterpreter::execute_block(
                     }
 
                     // Check if this is a function call first
-                    if (!expanded_args.empty() && functions.count(expanded_args[0])) {
+                    if (!expanded_args.empty() &&
+                        functions.count(expanded_args[0])) {
                         if (g_debug_mode) {
-                            std::cerr << "DEBUG: Function call detected in pipeline: " << expanded_args[0] << std::endl;
+                            std::cerr
+                                << "DEBUG: Function call detected in pipeline: "
+                                << expanded_args[0] << std::endl;
                         }
-                        
+
                         push_function_scope();
 
                         std::vector<std::string> saved_params;
@@ -1970,16 +2002,19 @@ int ShellScriptInterpreter::execute_block(
                         }
 
                         std::vector<std::string> param_names;
-                        for (size_t pi = 1; pi < expanded_args.size() && pi <= 9; ++pi) {
+                        for (size_t pi = 1;
+                             pi < expanded_args.size() && pi <= 9; ++pi) {
                             std::string name = std::to_string(pi);
                             param_names.push_back(name);
                             setenv(name.c_str(), expanded_args[pi].c_str(), 1);
                         }
 
-                        int exit_code = execute_block(functions[expanded_args[0]]);
+                        int exit_code =
+                            execute_block(functions[expanded_args[0]]);
 
                         if (exit_code == 253) {
-                            const char* return_code_env = getenv("CJSH_RETURN_CODE");
+                            const char* return_code_env =
+                                getenv("CJSH_RETURN_CODE");
                             if (return_code_env) {
                                 try {
                                     exit_code = std::stoi(return_code_env);
@@ -1998,10 +2033,10 @@ int ShellScriptInterpreter::execute_block(
                             unsetenv(n.c_str());
 
                         pop_function_scope();
-                        
+
                         return set_last_status(exit_code);
                     }
-                    
+
                     if (g_debug_mode) {
                         std::cerr << "DEBUG: Simple exec: ";
                         for (const auto& a : expanded_args)
@@ -2352,7 +2387,6 @@ int ShellScriptInterpreter::execute_block(
 
     auto handle_if_block = [&](const std::vector<std::string>& src_lines,
                                size_t& idx) -> int {
-
         std::string first = process_line_for_validation(src_lines[idx]);
 
         std::string cond_accum;
@@ -2371,7 +2405,6 @@ int ShellScriptInterpreter::execute_block(
             pos = first.find(";then");
         }
         if (pos != std::string::npos) {
-
             cond_accum = trim(first.substr(3, pos - 3));
             then_found = true;
         } else {
@@ -2416,16 +2449,17 @@ int ShellScriptInterpreter::execute_block(
             std::string rem = trim(first.substr(pos + 6));
 
             if (!rem.empty()) {
-                // Find the matching fi for this if, accounting for nested if statements
+                // Find the matching fi for this if, accounting for nested if
+                // statements
                 size_t fi_pos = std::string::npos;
                 int if_depth = 1;  // We're already inside one if
                 size_t search_pos = 0;
                 bool in_quotes = false;
                 char quote_char = '\0';
-                
+
                 while (search_pos < rem.length() && if_depth > 0) {
                     char c = rem[search_pos];
-                    
+
                     if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
                         in_quotes = true;
                         quote_char = c;
@@ -2434,15 +2468,21 @@ int ShellScriptInterpreter::execute_block(
                         quote_char = '\0';
                     } else if (!in_quotes) {
                         // Check for nested if
-                        if (search_pos + 3 < rem.length() && rem.substr(search_pos, 3) == "if ") {
+                        if (search_pos + 3 < rem.length() &&
+                            rem.substr(search_pos, 3) == "if ") {
                             if_depth++;
                             search_pos += 2;
                         }
                         // Check for fi
-                        else if (search_pos + 2 <= rem.length() && rem.substr(search_pos, 2) == "fi") {
+                        else if (search_pos + 2 <= rem.length() &&
+                                 rem.substr(search_pos, 2) == "fi") {
                             // Make sure it's a word boundary
-                            bool is_word_start = (search_pos == 0 || !std::isalnum(rem[search_pos-1]));
-                            bool is_word_end = (search_pos + 2 >= rem.length() || !std::isalnum(rem[search_pos+2]));
+                            bool is_word_start =
+                                (search_pos == 0 ||
+                                 !std::isalnum(rem[search_pos - 1]));
+                            bool is_word_end =
+                                (search_pos + 2 >= rem.length() ||
+                                 !std::isalnum(rem[search_pos + 2]));
                             if (is_word_start && is_word_end) {
                                 if_depth--;
                                 if (if_depth == 0) {
@@ -2460,21 +2500,22 @@ int ShellScriptInterpreter::execute_block(
                     if (fi_pos != std::string::npos) {
                         std::string body = trim(rem.substr(0, fi_pos));
 
-
                         std::string then_body = body;
                         std::string else_body;
-                        
-                        // Find the else that belongs to this if (not nested ifs)
+
+                        // Find the else that belongs to this if (not nested
+                        // ifs)
                         size_t else_pos = std::string::npos;
                         int nested_if_depth = 0;
                         size_t search_else = 0;
                         in_quotes = false;
                         quote_char = '\0';
-                        
+
                         while (search_else < body.length()) {
                             char c = body[search_else];
-                            
-                            if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
+
+                            if (!in_quotes &&
+                                (c == '"' || c == '\'' || c == '`')) {
                                 in_quotes = true;
                                 quote_char = c;
                             } else if (in_quotes && c == quote_char) {
@@ -2482,24 +2523,36 @@ int ShellScriptInterpreter::execute_block(
                                 quote_char = '\0';
                             } else if (!in_quotes) {
                                 // Check for nested if
-                                if (search_else + 3 < body.length() && body.substr(search_else, 3) == "if ") {
+                                if (search_else + 3 < body.length() &&
+                                    body.substr(search_else, 3) == "if ") {
                                     nested_if_depth++;
                                     search_else += 2;
                                 }
                                 // Check for fi
-                                else if (search_else + 2 <= body.length() && body.substr(search_else, 2) == "fi") {
-                                    bool is_word_start = (search_else == 0 || !std::isalnum(body[search_else-1]));
-                                    bool is_word_end = (search_else + 2 >= body.length() || !std::isalnum(body[search_else+2]));
-                                    if (is_word_start && is_word_end && nested_if_depth > 0) {
+                                else if (search_else + 2 <= body.length() &&
+                                         body.substr(search_else, 2) == "fi") {
+                                    bool is_word_start =
+                                        (search_else == 0 ||
+                                         !std::isalnum(body[search_else - 1]));
+                                    bool is_word_end =
+                                        (search_else + 2 >= body.length() ||
+                                         !std::isalnum(body[search_else + 2]));
+                                    if (is_word_start && is_word_end &&
+                                        nested_if_depth > 0) {
                                         nested_if_depth--;
                                     }
                                 }
                                 // Check for else
                                 else if (nested_if_depth == 0) {
-                                    if (search_else + 6 < body.length() && body.substr(search_else, 6) == "; else") {
+                                    if (search_else + 6 < body.length() &&
+                                        body.substr(search_else, 6) ==
+                                            "; else") {
                                         else_pos = search_else;
                                         break;
-                                    } else if (search_else + 5 < body.length() && body.substr(search_else, 5) == " else") {
+                                    } else if (search_else + 5 <
+                                                   body.length() &&
+                                               body.substr(search_else, 5) ==
+                                                   " else") {
                                         else_pos = search_else;
                                         break;
                                     }
@@ -2544,13 +2597,12 @@ int ShellScriptInterpreter::execute_block(
         bool in_else = false;
         std::vector<std::string> then_lines;
         std::vector<std::string> else_lines;
-        
-
 
         // Check if this is a simple single-line if (not nested)
         bool is_simple_single_line = false;
 
-        if (src_lines.size() == 1 && src_lines[0].find("fi") != std::string::npos) {
+        if (src_lines.size() == 1 &&
+            src_lines[0].find("fi") != std::string::npos) {
             std::string line = src_lines[0];
             // Count if and fi occurrences to detect nesting
             size_t if_count = 0;
@@ -2560,21 +2612,22 @@ int ShellScriptInterpreter::execute_block(
                 if_count++;
                 pos += 4;
             }
-            if (line.rfind("if ", 0) == 0) if_count++; // Count initial if
+            if (line.rfind("if ", 0) == 0)
+                if_count++;  // Count initial if
             pos = 0;
             while ((pos = line.find("fi", pos)) != std::string::npos) {
                 // Make sure it's a word boundary
-                bool is_word = (pos == 0 || !std::isalnum(line[pos-1])) && 
-                              (pos + 2 >= line.length() || !std::isalnum(line[pos+2]));
-                if (is_word) fi_count++;
+                bool is_word =
+                    (pos == 0 || !std::isalnum(line[pos - 1])) &&
+                    (pos + 2 >= line.length() || !std::isalnum(line[pos + 2]));
+                if (is_word)
+                    fi_count++;
                 pos += 2;
             }
             is_simple_single_line = (if_count == 1 && fi_count == 1);
-
         }
-        
-        if (is_simple_single_line) {
 
+        if (is_simple_single_line) {
             std::string full_line = src_lines[0];
 
             std::vector<std::string> parts;
@@ -2749,13 +2802,14 @@ int ShellScriptInterpreter::execute_block(
             std::string cur = trim(strip_inline_comment(cur_raw));
             if (cur == "if" || cur.rfind("if ", 0) == 0) {
                 depth++;
-            } else if (cur.find("; then") != std::string::npos || cur.find(";then") != std::string::npos) {
-                // Only count as depth if this is the start of a new if statement
+            } else if (cur.find("; then") != std::string::npos ||
+                       cur.find(";then") != std::string::npos) {
+                // Only count as depth if this is the start of a new if
+                // statement
                 if (cur.rfind("if ", 0) == 0 || cur == "if") {
                     depth++;
                 }
-            }
-            else if (cur == "fi") {
+            } else if (cur == "fi") {
                 depth--;
                 if (depth == 0)
                     break;
@@ -2907,12 +2961,13 @@ int ShellScriptInterpreter::execute_block(
             if (range_info.is_range) {
                 auto execute_range_iteration = [&](int value) -> int {
                     std::string value_str = std::to_string(value);
-                    // Store in shell's env_vars map and only export special variables
+                    // Store in shell's env_vars map and only export special
+                    // variables
                     if (g_shell) {
                         auto& env_vars = g_shell->get_env_vars();
                         env_vars[var] = value_str;
-                        
-                        if (var == "PATH" || var == "PWD" || var == "HOME" || 
+
+                        if (var == "PATH" || var == "PWD" || var == "HOME" ||
                             var == "USER" || var == "SHELL") {
                             setenv(var.c_str(), value_str.c_str(), 1);
                         }
@@ -2954,12 +3009,13 @@ int ShellScriptInterpreter::execute_block(
             } else {
                 bool break_outer = false;
                 for (const auto& it : items) {
-                    // Store in shell's env_vars map and only export special variables
+                    // Store in shell's env_vars map and only export special
+                    // variables
                     if (g_shell) {
                         auto& env_vars = g_shell->get_env_vars();
                         env_vars[var] = it;
-                        
-                        if (var == "PATH" || var == "PWD" || var == "HOME" || 
+
+                        if (var == "PATH" || var == "PWD" || var == "HOME" ||
                             var == "USER" || var == "SHELL") {
                             setenv(var.c_str(), it.c_str(), 1);
                         }
@@ -3060,12 +3116,13 @@ int ShellScriptInterpreter::execute_block(
                 int rc_local = 0;
                 while (step > 0 ? value <= end : value >= end) {
                     std::string value_str = std::to_string(value);
-                    // Store in shell's env_vars map and only export special variables
+                    // Store in shell's env_vars map and only export special
+                    // variables
                     if (g_shell) {
                         auto& env_vars = g_shell->get_env_vars();
                         env_vars[var] = value_str;
-                        
-                        if (var == "PATH" || var == "PWD" || var == "HOME" || 
+
+                        if (var == "PATH" || var == "PWD" || var == "HOME" ||
                             var == "USER" || var == "SHELL") {
                             setenv(var.c_str(), value_str.c_str(), 1);
                         }
@@ -3089,12 +3146,13 @@ int ShellScriptInterpreter::execute_block(
                                     range_info.is_ascending ? 1 : -1);
         } else {
             for (const auto& it : items) {
-                // Store in shell's env_vars map and only export special variables
+                // Store in shell's env_vars map and only export special
+                // variables
                 if (g_shell) {
                     auto& env_vars = g_shell->get_env_vars();
                     env_vars[var] = it;
-                    
-                    if (var == "PATH" || var == "PWD" || var == "HOME" || 
+
+                    if (var == "PATH" || var == "PWD" || var == "HOME" ||
                         var == "USER" || var == "SHELL") {
                         setenv(var.c_str(), it.c_str(), 1);
                     }
@@ -4110,9 +4168,10 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
             if (g_shell) {
                 auto& env_vars = g_shell->get_env_vars();
                 env_vars[var_name] = operand;
-                
-                if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || 
-                    var_name == "USER" || var_name == "SHELL") {
+
+                if (var_name == "PATH" || var_name == "PWD" ||
+                    var_name == "HOME" || var_name == "USER" ||
+                    var_name == "SHELL") {
                     setenv(var_name.c_str(), operand.c_str(), 1);
                 }
             }
@@ -4130,9 +4189,10 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
             if (g_shell) {
                 auto& env_vars = g_shell->get_env_vars();
                 env_vars[var_name] = operand;
-                
-                if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || 
-                    var_name == "USER" || var_name == "SHELL") {
+
+                if (var_name == "PATH" || var_name == "PWD" ||
+                    var_name == "HOME" || var_name == "USER" ||
+                    var_name == "SHELL") {
                     setenv(var_name.c_str(), operand.c_str(), 1);
                 }
             }
@@ -4249,7 +4309,8 @@ std::string ShellScriptInterpreter::get_variable_value(
         return "";
     }
 
-    // Check shell's env_vars map first (shell variables that may not be exported)
+    // Check shell's env_vars map first (shell variables that may not be
+    // exported)
     if (g_shell) {
         const auto& env_vars = g_shell->get_env_vars();
         auto it = env_vars.find(var_name);
@@ -4287,7 +4348,8 @@ bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
         return false;
     }
 
-    // Check shell's env_vars map first (shell variables that may not be exported)
+    // Check shell's env_vars map first (shell variables that may not be
+    // exported)
     if (g_shell) {
         const auto& env_vars = g_shell->get_env_vars();
         if (env_vars.find(var_name) != env_vars.end()) {
@@ -4659,15 +4721,15 @@ void ShellScriptInterpreter::set_local_variable(const std::string& name,
                   << std::endl;
 
     if (local_variable_stack.empty()) {
-        // When not in a local scope, store the variable in the shell's env_vars map
-        // but only export special variables to the environment
+        // When not in a local scope, store the variable in the shell's env_vars
+        // map but only export special variables to the environment
         if (g_shell) {
             auto& env_vars = g_shell->get_env_vars();
             env_vars[name] = value;
-            
-            // Only export to environment for special variables like PATH that need
-            // to be inherited by child processes for shell functionality.
-            if (name == "PATH" || name == "PWD" || name == "HOME" || 
+
+            // Only export to environment for special variables like PATH that
+            // need to be inherited by child processes for shell functionality.
+            if (name == "PATH" || name == "PWD" || name == "HOME" ||
                 name == "USER" || name == "SHELL") {
                 setenv(name.c_str(), value.c_str(), 1);
             }

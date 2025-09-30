@@ -105,12 +105,10 @@ static int safe_execute_git_command(const std::string& command,
 }
 
 GitInfo::GitInfo() {
-
     last_git_status_check =
         std::chrono::steady_clock::now() - std::chrono::seconds(30);
     is_git_status_check_running = false;
     cached_is_clean_repo = true;
-
 }
 
 GitInfo::~GitInfo() {

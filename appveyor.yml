@@ -36,7 +36,7 @@ before_build:
   # Linux build preparation - using nob build system
   - sh: |
       echo "Building with nob build system..."
-      cd build_tools
+      cd toolchain/nob
       # Build nob if it doesn't exist
       if [ ! -f "./nob" ]; then
         echo "Building nob..."
@@ -50,8 +50,9 @@ before_build:
 build_script:
   # Linux build using nob
   - sh: |
-      cd build_tools
-      ./nob
+      cd toolchain
+      chmod +x build.sh
+      ./build.sh
 
 after_build:
   # Linux packaging

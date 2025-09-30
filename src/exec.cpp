@@ -417,20 +417,21 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     size_t cmd_start_idx = collect_env_assignments(args, env_assignments);
 
     if (cmd_start_idx >= args.size()) {
-        // When there's no command after the assignments, set them as shell variables
-        // (not exported to environment) - this matches bash behavior
+        // When there's no command after the assignments, set them as shell
+        // variables (not exported to environment) - this matches bash behavior
         if (g_shell) {
             auto& env_vars = g_shell->get_env_vars();
             for (const auto& env : env_assignments) {
                 env_vars[env.first] = env.second;
-                
+
                 // Only export special variables like PATH
-                if (env.first == "PATH" || env.first == "PWD" || env.first == "HOME" || 
-                    env.first == "USER" || env.first == "SHELL") {
+                if (env.first == "PATH" || env.first == "PWD" ||
+                    env.first == "HOME" || env.first == "USER" ||
+                    env.first == "SHELL") {
                     setenv(env.first.c_str(), env.second.c_str(), 1);
                 }
             }
-            
+
             // Update parser cache
             if (g_shell->get_parser()) {
                 g_shell->get_parser()->set_env_vars(env_vars);

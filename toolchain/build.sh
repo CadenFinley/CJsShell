@@ -3,7 +3,7 @@
 # This allows running build.sh from tool_scripts directory
 
 # Change to build_tools directory
-cd "$(dirname "$0")/../build_tools"
+cd "$(dirname "$0")/nob"
 
 # Check if nob binary exists, if not compile it
 if [ ! -f "./nob" ]; then

@@ -53,7 +53,7 @@ For latest stable patch, you can build and install manually from a release on Gi
 3. Build the project:
 
    ```bash
-   ./tool_scripts/build.sh
+   ./toolchain/build.sh
    ```
 
 ## Uninstalling cjsh

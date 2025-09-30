@@ -44,7 +44,7 @@ By participating in this project, you are expected to uphold our Code of Conduct
 To build the project locally:
 
 ```bash
-    ./tool_scripts/build.sh
+    ./toolchain/build.sh
 ```
 
 ## How to Contribute
@@ -133,8 +133,7 @@ The repository is organized as follows:
 - `/themes`: Theme files
 - `/tests`: Test files
 - `/build`: Build output (not committed)
-- `/tool-scripts`: Scripts used for building or general automation
-- `/build_tools` : The nob built tooling for cjsh
+- `/toolchain`: Tool chain for cjsh
 
 
 ## Creating Plugins
