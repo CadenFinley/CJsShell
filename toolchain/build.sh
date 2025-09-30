@@ -8,7 +8,7 @@ cd "$(dirname "$0")/nob"
 # Check if nob binary exists, if not compile it
 if [ ! -f "./nob" ]; then
     echo "Building nob..."
-    cc -02 -o nob nob.c
+    cc -o nob nob.c
     if [ $? -ne 0 ]; then
         echo "Failed to compile nob"
         exit 1
