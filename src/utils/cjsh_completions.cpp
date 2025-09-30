@@ -20,6 +20,7 @@
 #include "shell.h"
 
 std::map<std::string, int> g_completion_frequency;
+bool g_completion_case_sensitive = false;
 static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 500;
 static const size_t MAX_TOTAL_COMPLETIONS = 100;
 
@@ -393,6 +394,12 @@ bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv,
 std::string quote_path_if_needed(const std::string& path);
 bool starts_with_case_insensitive(const std::string& str,
                                   const std::string& prefix);
+static bool matches_completion_prefix(const std::string& str,
+                                      const std::string& prefix);
+static bool equals_completion_token(const std::string& value,
+                                    const std::string& target);
+static bool starts_with_token(const std::string& value,
+                              const std::string& target_prefix);
 
 static bool completion_limit_hit() {
     return g_current_completion_tracker &&
@@ -480,7 +487,7 @@ static void process_command_candidates(
         std::string candidate = extractor(item);
         if (filter && !filter(candidate))
             continue;
-        if (!starts_with_case_insensitive(candidate, prefix))
+        if (!matches_completion_prefix(candidate, prefix))
             continue;
         if (!add_command_completion(cenv, candidate, prefix_len, source,
                                     debug_label))
@@ -521,7 +528,7 @@ static bool iterate_directory_entries(ic_completion_env_t* cenv,
             filename[0] == '.')
             continue;
         if (!match_prefix.empty() &&
-            !starts_with_case_insensitive(filename, match_prefix))
+            !matches_completion_prefix(filename, match_prefix))
             continue;
         long delete_before =
             match_prefix.empty() ? 0 : static_cast<long>(match_prefix.length());
@@ -957,7 +964,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         bool should_match = false;
         if (prefix_len == 0) {
             should_match = (line != prefix_str);
-        } else if (starts_with_case_insensitive(line, prefix_str) &&
+        } else if (matches_completion_prefix(line, prefix_str) &&
                    line != prefix_str) {
             should_match = true;
         }
@@ -1017,8 +1024,16 @@ bool should_complete_directories_only(const std::string& prefix) {
 
     static const std::unordered_set<std::string> directory_only_commands = {
         "cd", "ls", "dir", "rmdir"};
+    if (g_completion_case_sensitive) {
+        return directory_only_commands.find(command) !=
+               directory_only_commands.end();
+    }
 
-    return directory_only_commands.find(command) !=
+    std::string lowered_command = command;
+    std::transform(lowered_command.begin(), lowered_command.end(),
+                   lowered_command.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return directory_only_commands.find(lowered_command) !=
            directory_only_commands.end();
 }
 
@@ -1031,6 +1046,49 @@ bool starts_with_case_insensitive(const std::string& str,
     return std::equal(
         prefix.begin(), prefix.end(), str.begin(),
         [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+}
+
+static bool starts_with_case_sensitive(const std::string& str,
+                                       const std::string& prefix) {
+    if (prefix.length() > str.length()) {
+        return false;
+    }
+
+    return std::equal(prefix.begin(), prefix.end(), str.begin());
+}
+
+static bool matches_completion_prefix(const std::string& str,
+                                      const std::string& prefix) {
+    if (g_completion_case_sensitive) {
+        return starts_with_case_sensitive(str, prefix);
+    }
+
+    return starts_with_case_insensitive(str, prefix);
+}
+
+static bool equals_completion_token(const std::string& value,
+                                    const std::string& target) {
+    if (g_completion_case_sensitive) {
+        return value == target;
+    }
+
+    if (value.length() != target.length()) {
+        return false;
+    }
+
+    return std::equal(value.begin(), value.end(), target.begin(),
+                      [](char a, char b) {
+                          return std::tolower(a) == std::tolower(b);
+                      });
+}
+
+static bool starts_with_token(const std::string& value,
+                              const std::string& target_prefix) {
+    if (g_completion_case_sensitive) {
+        return starts_with_case_sensitive(value, target_prefix);
+    }
+
+    return starts_with_case_insensitive(value, target_prefix);
 }
 
 void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
@@ -1089,8 +1147,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                (prefix_str.length() == 1 || prefix_str[1] == '/')) {
         has_dash = true;
         special_part = prefix_str;
-    } else if (prefix_str.rfind("cd ", 0) == 0 && prefix_str.length() > 3) {
-        prefix_before = "cd ";
+    } else if (starts_with_token(prefix_str, "cd ") &&
+               prefix_str.length() > 3) {
+        prefix_before = prefix_str.substr(0, 3);
         special_part = prefix_str.substr(3);
     }
 
@@ -1197,7 +1256,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             command_part.pop_back();
         }
 
-        if (command_part == "cd" || command_part.rfind("cd ", 0) == 0) {
+        if (equals_completion_token(command_part, "cd") ||
+            starts_with_token(command_part, "cd ")) {
             if (!config::smart_cd_enabled) {
                 // if (g_debug_mode)
                 //   std::cerr
@@ -1214,13 +1274,16 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 if (g_shell && g_shell->get_built_ins()) {
                     const auto& bookmarks =
                         g_shell->get_built_ins()->get_directory_bookmarks();
+                    std::string bookmark_match_prefix =
+                        unquote_path(special_part);
 
                     for (const auto& bookmark : bookmarks) {
                         const std::string& bookmark_name = bookmark.first;
                         const std::string& bookmark_path = bookmark.second;
 
-                        if (special_part.empty() ||
-                            bookmark_name.rfind(special_part, 0) == 0) {
+                        if (bookmark_match_prefix.empty() ||
+                            matches_completion_prefix(bookmark_name,
+                                                       bookmark_match_prefix)) {
                             namespace fs = std::filesystem;
                             if (fs::exists(bookmark_path) &&
                                 fs::is_directory(bookmark_path)) {
@@ -1390,7 +1453,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string prefix_str(prefix);
             std::vector<std::string> tokens = tokenize_command_line(prefix_str);
 
-            if (!tokens.empty() && tokens[0] == "cd") {
+            if (!tokens.empty() &&
+                equals_completion_token(tokens[0], "cd")) {
                 if (g_debug_mode)
                     std::cerr << "DEBUG: Detected cd command, using only "
                                  "filename completion"
@@ -1487,6 +1551,14 @@ void cleanup_completion_system() {
     if (g_debug_mode) {
         std::cerr << "DEBUG: Completion system cleanup completed" << std::endl;
     }
+}
+
+void set_completion_case_sensitive(bool case_sensitive) {
+    g_completion_case_sensitive = case_sensitive;
+}
+
+bool is_completion_case_sensitive() {
+    return g_completion_case_sensitive;
 }
 
 void refresh_cached_executables() {
