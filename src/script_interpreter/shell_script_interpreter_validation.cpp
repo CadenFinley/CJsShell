@@ -24,18 +24,34 @@ using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
 
 bool has_inline_terminator(const std::string& text,
                            const std::string& terminator) {
-    return text.find(" " + terminator) != std::string::npos ||
-           text.find(";" + terminator) != std::string::npos ||
-           text.find(terminator + ";") != std::string::npos;
+    // Check for the terminator with common delimiters
+    size_t pos = 0;
+    while ((pos = text.find(terminator, pos)) != std::string::npos) {
+        // Check if it's a word boundary (not part of another word)
+        bool valid_start = (pos == 0 || 
+                           text[pos - 1] == ' ' || 
+                           text[pos - 1] == '\t' || 
+                           text[pos - 1] == ';');
+        bool valid_end = (pos + terminator.length() >= text.length() ||
+                         text[pos + terminator.length()] == ' ' ||
+                         text[pos + terminator.length()] == '\t' ||
+                         text[pos + terminator.length()] == ';');
+        
+        if (valid_start && valid_end) {
+            return true;
+        }
+        pos++;
+    }
+    return false;
 }
 
 bool handle_inline_loop_header(
     const std::string& line, const std::string& keyword, size_t display_line,
-    std::vector<std::pair<std::string, size_t>>& control_stack) {
+    std::vector<std::tuple<std::string, std::string, size_t>>& control_stack) {
     if (line.rfind(keyword + " ", 0) == 0 &&
         line.find("; do") != std::string::npos) {
         if (!has_inline_terminator(line, "done")) {
-            control_stack.push_back({"do", display_line});
+            control_stack.push_back({"do", keyword, display_line});
         }
         return true;
     }
@@ -156,11 +172,28 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
 
 void push_function_context(
     const std::string& trimmed_line, size_t display_line,
-    std::vector<std::pair<std::string, size_t>>& control_stack) {
+    std::vector<std::tuple<std::string, std::string, size_t>>& control_stack) {
+    // Check if this is a single-line function with inline closing brace
     if (!trimmed_line.empty() && trimmed_line.back() == '{') {
-        control_stack.push_back({"{", display_line});
+        // Check if the function is completed on the same line
+        size_t open_brace = trimmed_line.find('{');
+        if (open_brace != std::string::npos) {
+            std::string after_brace = trimmed_line.substr(open_brace + 1);
+            // Count braces to see if they balance
+            int brace_count = 1; // We already found the opening brace
+            for (char c : after_brace) {
+                if (c == '{') brace_count++;
+                else if (c == '}') brace_count--;
+            }
+            // Only push to stack if braces don't balance (incomplete function)
+            if (brace_count > 0) {
+                control_stack.push_back({"{", "{", display_line});
+            }
+        } else {
+            control_stack.push_back({"{", "{", display_line});
+        }
     } else {
-        control_stack.push_back({"function", display_line});
+        control_stack.push_back({"function", "function", display_line});
     }
 }
 
@@ -412,7 +445,8 @@ ShellScriptInterpreter::validate_script_syntax(
     const std::vector<std::string>& lines) {
     std::vector<SyntaxError> errors;
 
-    std::vector<std::pair<std::string, size_t>> control_stack;
+    // Track control structures: {current_state, opening_statement, line_number}
+    std::vector<std::tuple<std::string, std::string, size_t>> control_stack;
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
         const std::string& line = lines[line_num];
@@ -443,7 +477,7 @@ ShellScriptInterpreter::validate_script_syntax(
         bool in_case_block = false;
 
         for (const auto& stack_item : control_stack) {
-            if (stack_item.first == "case") {
+            if (std::get<0>(stack_item) == "case") {
                 in_case_block = true;
                 break;
             }
@@ -505,11 +539,12 @@ ShellScriptInterpreter::validate_script_syntax(
         }
 
         if (trimmed_for_parsing.rfind("if ", 0) == 0 &&
-            trimmed_for_parsing.find("; then") != std::string::npos) {
+            (trimmed_for_parsing.find("; then") != std::string::npos ||
+             trimmed_for_parsing.find(";then") != std::string::npos)) {
             if (!has_inline_terminator(trimmed_for_parsing, "fi")) {
-                control_stack.push_back({"if", display_line});
+                control_stack.push_back({"if", "if", display_line});
 
-                control_stack.back().first = "then";
+                std::get<0>(control_stack.back()) = "then";
             }
         } else if (handle_inline_loop_header(trimmed_for_parsing, "while",
                                              display_line, control_stack) ||
@@ -531,7 +566,7 @@ ShellScriptInterpreter::validate_script_syntax(
                             errors.push_back({display_line, message, line});
                             return false;
                         }
-                        const std::string& top = control_stack.back().first;
+                        const std::string& top = std::get<0>(control_stack.back());
                         for (const char* value : allowed) {
                             if (top == value) {
                                 return true;
@@ -542,20 +577,20 @@ ShellScriptInterpreter::validate_script_syntax(
                     };
 
                 if (first_token == "if") {
-                    control_stack.push_back({"if", display_line});
+                    control_stack.push_back({"if", "if", display_line});
                 } else if (first_token == "then") {
                     if (require_top({"if"}, "'then' without matching 'if'")) {
-                        control_stack.back().first = "then";
+                        std::get<0>(control_stack.back()) = "then";
                     }
                 } else if (first_token == "elif") {
                     if (require_top({"then", "elif"},
                                     "'elif' without matching 'if...then'")) {
-                        control_stack.back().first = "elif";
+                        std::get<0>(control_stack.back()) = "elif";
                     }
                 } else if (first_token == "else") {
                     if (require_top({"then", "elif"},
                                     "'else' without matching 'if...then'")) {
-                        control_stack.back().first = "else";
+                        std::get<0>(control_stack.back()) = "else";
                     }
                 } else if (first_token == "fi") {
                     if (require_top({"then", "elif", "else"},
@@ -565,12 +600,12 @@ ShellScriptInterpreter::validate_script_syntax(
                 }
 
                 else if (first_token == "while" || first_token == "until") {
-                    control_stack.push_back({first_token, display_line});
+                    control_stack.push_back({first_token, first_token, display_line});
                 } else if (first_token == "do") {
                     if (require_top({"while", "until", "for"},
                                     "'do' without matching 'while', 'until', "
                                     "or 'for'")) {
-                        control_stack.back().first = "do";
+                        std::get<0>(control_stack.back()) = "do";
                     }
                 } else if (first_token == "done") {
                     if (require_top({"do"}, "'done' without matching 'do'")) {
@@ -586,7 +621,7 @@ ShellScriptInterpreter::validate_script_syntax(
                                           "'for' statement missing 'in' clause",
                                           line});
                     }
-                    control_stack.push_back({"for", display_line});
+                    control_stack.push_back({"for", "for", display_line});
                 }
 
                 else if (first_token == "case") {
@@ -598,7 +633,7 @@ ShellScriptInterpreter::validate_script_syntax(
                     }
 
                     if (!has_inline_terminator(trimmed_for_parsing, "esac")) {
-                        control_stack.push_back({"case", display_line});
+                        control_stack.push_back({"case", "case", display_line});
                     }
                 } else if (first_token == "esac") {
                     if (require_top({"case"},
@@ -619,7 +654,7 @@ ShellScriptInterpreter::validate_script_syntax(
                 }
 
                 else if (!trimmed.empty() && trimmed.back() == '{') {
-                    control_stack.push_back({"{", display_line});
+                    control_stack.push_back({"{", "{", display_line});
                 } else if (first_token == "}") {
                     if (require_top({"{", "function"},
                                     "Unmatched closing brace '}'")) {
@@ -632,33 +667,41 @@ ShellScriptInterpreter::validate_script_syntax(
 
     while (!control_stack.empty()) {
         auto& unclosed = control_stack.back();
+        const std::string& current_state = std::get<0>(unclosed);
+        const std::string& opening_statement = std::get<1>(unclosed);
+        size_t opening_line = std::get<2>(unclosed);
         std::string expected_close;
 
-        if (unclosed.first == "if" || unclosed.first == "then" ||
-            unclosed.first == "elif" || unclosed.first == "else") {
+        if (opening_statement == "if" || current_state == "then" ||
+            current_state == "elif" || current_state == "else") {
             expected_close = "fi";
-        } else if (unclosed.first == "while" || unclosed.first == "for" ||
-                   unclosed.first == "do") {
+        } else if (opening_statement == "while" || opening_statement == "for" ||
+                   current_state == "do") {
             expected_close = "done";
-        } else if (unclosed.first == "case") {
+        } else if (opening_statement == "case") {
             expected_close = "esac";
-        } else if (unclosed.first == "{" || unclosed.first == "function") {
+        } else if (opening_statement == "{" || opening_statement == "function") {
             expected_close = "}";
         }
 
         {
-            std::string msg = "Unclosed '" + unclosed.first + "' - missing '" +
+            std::string msg = "Unclosed '" + opening_statement + "' from line " +
+                              std::to_string(opening_line) + " - missing '" +
                               expected_close + "'";
-            SyntaxError syn_err(unclosed.second, msg, "");
-            if (unclosed.first == "{" || unclosed.first == "function") {
+            SyntaxError syn_err(opening_line, msg, "");
+            if (opening_statement == "{" || opening_statement == "function") {
                 syn_err.error_code = "SYN007";
-                syn_err.suggestion = "Add closing '}'";
+                syn_err.suggestion = "Add closing '}' to match the opening on line " +
+                                     std::to_string(opening_line);
+                syn_err.severity = ErrorSeverity::CRITICAL;
             } else {
                 syn_err.error_code = "SYN001";
-                syn_err.suggestion = "Close the control structure";
+                syn_err.suggestion = "Add '" + expected_close + "' to close the '" +
+                                     opening_statement + "' that started on line " +
+                                     std::to_string(opening_line);
             }
             syn_err.category = ErrorCategory::CONTROL_FLOW;
-            syn_err.severity = ErrorSeverity::ERROR;
+            syn_err.severity = ErrorSeverity::CRITICAL;
             errors.push_back(syn_err);
         }
         control_stack.pop_back();
@@ -669,31 +712,36 @@ ShellScriptInterpreter::validate_script_syntax(
 
 bool ShellScriptInterpreter::has_syntax_errors(
     const std::vector<std::string>& lines, bool print_errors) {
-    std::vector<SyntaxError> errors =
-        validate_comprehensive_syntax(lines, true, false, false);
+    // During execution, only check for basic syntax errors that would prevent parsing
+    // Don't run comprehensive validation which includes style and advanced checks
+    std::vector<SyntaxError> errors = validate_script_syntax(lines);
 
-    bool has_critical_errors = false;
+    bool has_blocking_errors = false;
     for (const auto& error : errors) {
-        if (error.severity == ErrorSeverity::CRITICAL) {
-            has_critical_errors = true;
+        // For execution-time validation, be more lenient with function braces
+        // since multiline constructs like heredocs can confuse the simple validator
+        if (error.severity == ErrorSeverity::CRITICAL && 
+            error.error_code != "SYN007") { // SYN007 is unclosed function brace
+            has_blocking_errors = true;
             break;
         }
     }
 
-    if (has_critical_errors && print_errors) {
-        std::vector<SyntaxError> critical_errors;
+    if (has_blocking_errors && print_errors) {
+        std::vector<SyntaxError> blocking_errors;
         for (const auto& error : errors) {
-            if (error.severity == ErrorSeverity::CRITICAL) {
-                critical_errors.push_back(error);
+            if (error.severity == ErrorSeverity::CRITICAL && 
+                error.error_code != "SYN007") {
+                blocking_errors.push_back(error);
             }
         }
-        if (!critical_errors.empty()) {
+        if (!blocking_errors.empty()) {
             shell_script_interpreter::ErrorReporter::print_error_report(
-                critical_errors, true, true);
+                blocking_errors, true, true);
         }
     }
 
-    return has_critical_errors;
+    return has_blocking_errors;
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
@@ -1180,22 +1228,26 @@ ShellScriptInterpreter::validate_parameter_expansions(
                         size_t start = i;
                         size_t paren_count = 1;
                         size_t j = i + 2;
-                        const bool inside_quotes = state.in_quotes;
+                        bool in_single_quote = false;
+                        bool in_double_quote = false;
+                        bool escaped = false;
 
                         while (j < line.length() && paren_count > 0) {
-                            if (line[j] == '(' && !inside_quotes) {
-                                paren_count++;
-                            } else if (line[j] == ')' && !inside_quotes) {
-                                paren_count--;
-                            } else if ((line[j] == '"' || line[j] == '\'') &&
-                                       !inside_quotes) {
-                                char nested_quote = line[j];
-                                j++;
-                                while (j < line.length() &&
-                                       line[j] != nested_quote) {
-                                    if (line[j] == '\\')
-                                        j++;
-                                    j++;
+                            char ch = line[j];
+                            
+                            if (escaped) {
+                                escaped = false;
+                            } else if (ch == '\\') {
+                                escaped = true;
+                            } else if (!in_single_quote && ch == '"') {
+                                in_double_quote = !in_double_quote;
+                            } else if (!in_double_quote && ch == '\'') {
+                                in_single_quote = !in_single_quote;
+                            } else if (!in_single_quote && !in_double_quote) {
+                                if (ch == '(') {
+                                    paren_count++;
+                                } else if (ch == ')') {
+                                    paren_count--;
                                 }
                             }
                             j++;
@@ -1315,6 +1367,27 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                 line.substr(var_start, i - var_start);
 
                             if (!var_name.empty()) {
+                                // Check if this is part of a built-in command like export/alias
+                                std::string line_prefix = line.substr(0, var_start);
+                                size_t first_word_end = line_prefix.find_first_of(" \t");
+                                std::string first_word = (first_word_end != std::string::npos) 
+                                    ? line_prefix.substr(0, first_word_end) 
+                                    : line_prefix;
+                                
+                                // Trim whitespace from first_word
+                                size_t start_pos = first_word.find_first_not_of(" \t");
+                                if (start_pos != std::string::npos) {
+                                    first_word = first_word.substr(start_pos);
+                                }
+                                
+                                // Skip validation for built-in commands that take assignments
+                                if (first_word == "export" || first_word == "alias" || 
+                                    first_word == "local" || first_word == "declare" ||
+                                    first_word == "readonly") {
+                                    // These commands properly handle VAR=value syntax
+                                    return IterationAction::Continue;
+                                }
+                                
                                 if (!is_valid_identifier_start(var_name[0])) {
                                     line_errors.push_back(SyntaxError(
                                         {display_line, var_start, i, 0},
@@ -1329,29 +1402,32 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                         "underscore"));
                                 }
 
-                                if (var_start > 0 &&
-                                    std::isspace(line[var_start - 1])) {
-                                    line_errors.push_back(SyntaxError(
-                                        {display_line, var_start - 1, i + 1, 0},
-                                        ErrorSeverity::ERROR,
-                                        ErrorCategory::VARIABLES, "VAR005",
-                                        "Variable assignment cannot have "
-                                        "spaces around '='",
-                                        line,
-                                        "Remove spaces: " + var_name +
-                                            "=value"));
-                                }
-                                if (i + 1 < line.length() &&
-                                    std::isspace(line[i + 1])) {
-                                    line_errors.push_back(SyntaxError(
-                                        {display_line, var_start, i + 2, 0},
-                                        ErrorSeverity::ERROR,
-                                        ErrorCategory::VARIABLES, "VAR005",
-                                        "Variable assignment cannot have "
-                                        "spaces around '='",
-                                        line,
-                                        "Remove spaces: " + var_name +
-                                            "=value"));
+                                // Only check for spaces in actual variable assignments at line start
+                                if (var_start == 0 || line.substr(0, var_start).find_first_not_of(" \t") == std::string::npos) {
+                                    if (var_start > 0 &&
+                                        std::isspace(line[var_start - 1])) {
+                                        line_errors.push_back(SyntaxError(
+                                            {display_line, var_start - 1, i + 1, 0},
+                                            ErrorSeverity::ERROR,
+                                            ErrorCategory::VARIABLES, "VAR005",
+                                            "Variable assignment cannot have "
+                                            "spaces around '='",
+                                            line,
+                                            "Remove spaces: " + var_name +
+                                                "=value"));
+                                    }
+                                    if (i + 1 < line.length() &&
+                                        std::isspace(line[i + 1])) {
+                                        line_errors.push_back(SyntaxError(
+                                            {display_line, var_start, i + 2, 0},
+                                            ErrorSeverity::ERROR,
+                                            ErrorCategory::VARIABLES, "VAR005",
+                                            "Variable assignment cannot have "
+                                            "spaces around '='",
+                                            line,
+                                            "Remove spaces: " + var_name +
+                                                "=value"));
+                                    }
                                 }
                             }
                         }

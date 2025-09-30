@@ -82,7 +82,7 @@ bool disable_custom_ls = false;
 bool show_startup_time = false;
 }  // namespace config
 
-// add shell opts to replace login-startup-arg command
+// add shell opts to replace login-startup-arg command to set
 
 // add shell opts for style_def
 

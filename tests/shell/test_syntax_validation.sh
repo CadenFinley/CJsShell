@@ -229,7 +229,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/conditional_bad.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "CRITICAL\|ERROR"; then
     echo "FAIL: conditional statements (bad) should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
