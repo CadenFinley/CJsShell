@@ -308,11 +308,11 @@ std::string generate_prompt() {
         prompt = g_shell->get_ai_prompt();
     }
     if (g_theme && g_theme->uses_newline()) {
-        ic_enable_prompt_cleanup(true);
         prompt += "\n";
         prompt += g_shell->get_newline_prompt();
-    } else {
-        ic_enable_prompt_cleanup(false);
+    }
+    if (g_theme) {
+        ic_enable_prompt_cleanup(g_theme->uses_cleanup());
     }
 
     if (g_debug_mode) {

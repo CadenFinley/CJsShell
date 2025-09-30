@@ -107,6 +107,7 @@ void Theme::create_default_theme() {
     default_theme["fill_char"] = "";
     default_theme["fill_fg_color"] = "RESET";
     default_theme["fill_bg_color"] = "RESET";
+    default_theme["cleanup"] = false;
 
     std::ofstream file(theme_directory + "/default.json");
     file << default_theme.dump(4);
@@ -190,6 +191,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     fill_char_ = "";
     fill_fg_color_ = "RESET";
     fill_bg_color_ = "RESET";
+    cleanup_ = false;
 
     if (theme_json.contains("ps1_segments") &&
         theme_json["ps1_segments"].is_array()) {
@@ -254,6 +256,10 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     if (theme_json.contains("fill_bg_color") &&
         theme_json["fill_bg_color"].is_string()) {
         fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
+    }
+    if (theme_json.contains("cleanup") &&
+        theme_json["cleanup"].is_boolean()) {
+        cleanup_ = theme_json["cleanup"].get<bool>();
     }
     g_current_theme = theme_name_to_use;
     return true;
@@ -653,6 +659,10 @@ std::vector<std::string> Theme::list_themes() {
 
 bool Theme::uses_newline() const {
     return !newline_segments.empty();
+}
+
+bool Theme::uses_cleanup() const {
+    return cleanup_;
 }
 
 std::string Theme::get_terminal_title_format() const {

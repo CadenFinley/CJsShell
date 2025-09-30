@@ -52,6 +52,7 @@ class Theme {
     std::string fill_char_{""};
     std::string fill_fg_color_{"RESET"};
     std::string fill_bg_color_{"RESET"};
+    bool cleanup_{false};
 
    public:
     Theme(std::string theme_dir, bool enabled);
@@ -98,6 +99,8 @@ class Theme {
     bool get_enabled() const {
         return is_enabled;
     }
+
+    bool uses_cleanup() const;
 
     // Public method for testing conditional functionality
     std::string render_line(
