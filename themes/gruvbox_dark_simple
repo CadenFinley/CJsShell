@@ -50,7 +50,17 @@ theme_definition "gruvbox_dark_simple" {
     }
 
     segment "statusseg" {
-      content " [{STATUS}] in {CMD_DURATION} "
+      content " [{STATUS}] "
+      fg "{if = {STATUS} == 0 ? #008000 : #fb4934}"
+      bg "#3c3836"
+      separator "\uE0B0"
+      separator_fg "#3c3836"
+      separator_bg "#3c3836"
+      alignment "left"
+    }
+
+    segment "durationseg" {
+      content "in {CMD_DURATION} "
       fg "#ebdbb2"
       bg "#3c3836"
       separator "\uE0B0"
@@ -106,7 +116,7 @@ theme_definition "gruvbox_dark_simple" {
 
     segment "gitstatusseg" {
       content " {GIT_STATUS} "
-      fg "#b8bb26"
+      fg "{if = {GIT_STATUS} == '✓' ? #b8bb26 : #fb4934}"
       bg "#7c6f64"
       separator "\uE0B0"
       separator_fg "#7c6f64"
@@ -115,7 +125,17 @@ theme_definition "gruvbox_dark_simple" {
     }
 
     segment "statusseg" {
-      content " [{STATUS}] in {CMD_DURATION} "
+      content " [{STATUS}] "
+      fg "{if = {STATUS} == 0 ? #008000 : #fb4934}"
+      bg "#3c3836"
+      separator "\uE0B0"
+      separator_fg "#3c3836"
+      separator_bg "#3c3836"
+      alignment "left"
+    }
+
+    segment "durationseg" {
+      content "in {CMD_DURATION} "
       fg "#ebdbb2"
       bg "#3c3836"
       separator "\uE0B0"

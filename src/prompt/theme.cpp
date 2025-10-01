@@ -6,8 +6,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <regex>
 #include <unordered_set>
+#include <cctype>
 
 #include "utils/utf8_utils.h"
 
@@ -257,26 +257,50 @@ std::string Theme::render_line_aligned(
 
     auto build = [&](const std::vector<ThemeSegment>& bucket) {
         std::string out;
+
+        auto render_if_needed = [&](const std::string& text) -> std::string {
+            if (text.empty()) {
+                return {};
+            }
+            if (text.find('{') != std::string::npos) {
+                return render_line(text, vars);
+            }
+            return escape_brackets_for_isocline(text);
+        };
+
+        auto render_with_fallback = [&](const std::string& value,
+                                        const char* fallback) -> std::string {
+            if (value.empty()) {
+                return render_if_needed(std::string(fallback));
+            }
+            return render_if_needed(value);
+        };
+
+        auto is_whitespace_only = [](const std::string& text) {
+            for (unsigned char ch : text) {
+                if (!std::isspace(ch)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
         for (const auto& segment : bucket) {
             std::string segment_result;
-            std::string content = render_line(segment.content, vars);
-            std::string separator = render_line(segment.separator, vars);
+            std::string content = render_if_needed(segment.content);
+            std::string separator = render_if_needed(segment.separator);
 
-            if (content.empty() || trim(content).empty()) {
+            if (content.empty() || is_whitespace_only(content)) {
                 continue;
             }
 
             if (!segment.forward_separator.empty()) {
-                std::string forward_sep = render_line(segment.forward_separator, vars);
+                std::string forward_sep = render_if_needed(segment.forward_separator);
                 if (!forward_sep.empty()) {
-                    std::string forward_fg = render_line(
-                        segment.forward_separator_fg.empty() ? "RESET"
-                                                             : segment.forward_separator_fg,
-                        vars);
-                    std::string forward_bg = render_line(
-                        segment.forward_separator_bg.empty() ? "RESET"
-                                                             : segment.forward_separator_bg,
-                        vars);
+                    std::string forward_fg = render_with_fallback(
+                        segment.forward_separator_fg, "RESET");
+                    std::string forward_bg = render_with_fallback(
+                        segment.forward_separator_bg, "RESET");
 
                     if (forward_fg != "RESET") {
                         out += colors::fg_color(
@@ -292,10 +316,10 @@ std::string Theme::render_line_aligned(
                 }
             }
 
-            std::string bg_color_name = render_line(segment.bg_color.empty() ? "RESET" : segment.bg_color, vars);
-            std::string fg_color_name = render_line(segment.fg_color.empty() ? "RESET" : segment.fg_color, vars);
-            std::string sep_fg_name = render_line(segment.separator_fg.empty() ? "RESET" : segment.separator_fg, vars);
-            std::string sep_bg_name = render_line(segment.separator_bg.empty() ? "RESET" : segment.separator_bg, vars);
+            std::string bg_color_name = render_with_fallback(segment.bg_color, "RESET");
+            std::string fg_color_name = render_with_fallback(segment.fg_color, "RESET");
+            std::string sep_fg_name = render_with_fallback(segment.separator_fg, "RESET");
+            std::string sep_bg_name = render_with_fallback(segment.separator_bg, "RESET");
 
             std::string styled_content = content;
 
@@ -645,11 +669,57 @@ std::string Theme::get_terminal_title_format() const {
 
 std::string Theme::escape_brackets_for_isocline(
     const std::string& input) const {
-    std::string result = input;
+    std::string result;
+    result.reserve(input.size());
 
-    std::regex numeric_bracket_pattern(R"(\[\s*([+-]?\d+)\s*\])");
+    const size_t len = input.size();
+    size_t i = 0;
 
-    result = std::regex_replace(result, numeric_bracket_pattern, R"(\[$1])");
+    while (i < len) {
+        char ch = input[i];
+        if (ch == '[') {
+            bool already_escaped = (i > 0 && input[i - 1] == '\\');
+            size_t cursor = i + 1;
+            while (cursor < len &&
+                   std::isspace(static_cast<unsigned char>(input[cursor]))) {
+                ++cursor;
+            }
+
+            char sign = '\0';
+            if (cursor < len && (input[cursor] == '+' || input[cursor] == '-')) {
+                sign = input[cursor];
+                ++cursor;
+            }
+
+            size_t digits_begin = cursor;
+            while (cursor < len &&
+                   std::isdigit(static_cast<unsigned char>(input[cursor]))) {
+                ++cursor;
+            }
+
+            bool has_digits = cursor > digits_begin;
+
+            while (cursor < len &&
+                   std::isspace(static_cast<unsigned char>(input[cursor]))) {
+                ++cursor;
+            }
+
+            if (!already_escaped && has_digits && cursor < len && input[cursor] == ']') {
+                result.push_back('\\');
+                result.push_back('[');
+                if (sign != '\0') {
+                    result.push_back(sign);
+                }
+                result.append(input, digits_begin, cursor - digits_begin);
+                result.push_back(']');
+                i = cursor + 1;
+                continue;
+            }
+        }
+
+        result.push_back(ch);
+        ++i;
+    }
 
     if (g_debug_mode) {
         std::cout << "After bracket escaping: " << result << std::endl;
@@ -1074,11 +1144,37 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
     size_t ansi_chars = 0;
     size_t visible_chars = 0;
 
-    std::string str_without_isocline_escapes = str;
+    std::string str_without_isocline_escapes;
+    str_without_isocline_escapes.reserve(str.size());
 
-    std::regex isocline_bracket_pattern(R"(\\(\[[+-]?\d+\]))");
-    str_without_isocline_escapes = std::regex_replace(
-        str_without_isocline_escapes, isocline_bracket_pattern, "$1");
+    for (size_t i = 0; i < str.size(); ++i) {
+        char ch = str[i];
+        if (ch == '\\' && i + 1 < str.size() && str[i + 1] == '[') {
+            size_t cursor = i + 2;
+            if (cursor < str.size() &&
+                (str[cursor] == '+' || str[cursor] == '-')) {
+                ++cursor;
+            }
+
+            size_t digits_begin = cursor;
+            while (cursor < str.size() &&
+                   std::isdigit(static_cast<unsigned char>(str[cursor]))) {
+                ++cursor;
+            }
+
+            if (cursor > digits_begin && cursor < str.size() &&
+                str[cursor] == ']') {
+                str_without_isocline_escapes.push_back('[');
+                str_without_isocline_escapes.append(str, digits_begin,
+                                                    cursor - digits_begin);
+                str_without_isocline_escapes.push_back(']');
+                i = cursor;
+                continue;
+            }
+        }
+
+        str_without_isocline_escapes.push_back(ch);
+    }
 
     size_t raw_length = utf8_utils::calculate_display_width(
         str_without_isocline_escapes, &ansi_chars, &visible_chars);

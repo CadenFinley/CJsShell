@@ -81,7 +81,7 @@ theme_definition "gruvbox_dark_true" {
 
     segment "statusseg" {
       content " [{STATUS}] "
-      fg "#ebdbb2"
+      fg "{if = {STATUS} == 0 ? #b8bb26 : #fb4934}"
       bg "#504945"
       separator "\uE0B0"
       separator_fg "#504945"
@@ -182,7 +182,7 @@ theme_definition "gruvbox_dark_true" {
 
     segment "statusseg" {
       content " [{STATUS}] "
-      fg "#ebdbb2"
+      fg "{if = {STATUS} == 0 ? #b8bb26 : #fb4934}"
       bg "#504945"
       separator "\uE0B0"
       separator_fg "#504945"
