@@ -7,6 +7,7 @@
 int cjshopt_command(const std::vector<std::string>& args);
 
 int startup_flag_command(const std::vector<std::string>& args);
+int completion_case_command(const std::vector<std::string>& args);
 int style_def_command(const std::vector<std::string>& args);
 
 void reset_to_default_styles();
@@ -14,4 +15,3 @@ void load_custom_styles_from_config();
 void apply_custom_style(const std::string& token_type,
                         const std::string& style);
 const std::unordered_map<std::string, std::string>& get_custom_styles();
-void reset_to_default_styles();

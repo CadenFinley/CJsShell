@@ -1,6 +1,7 @@
 #include "cjshopt_command.h"
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -8,6 +9,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
+#include "utils/cjsh_completions.h"
 
 // CJSHOPT_COMMAND
 
@@ -21,7 +23,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
               "  style_def <token_type> <style>   Define or redefine a syntax "
               "highlighting style",
               "  login-startup-arg [--flag-name]  Add a startup flag to be "
-              "applied when sourcing the profile"}});
+              "applied when sourcing the profile",
+              "  completion-case <on|off|status>  Configure completion case "
+              "sensitivity"}});
         return 1;
     }
 
@@ -33,18 +37,121 @@ int cjshopt_command(const std::vector<std::string>& args) {
     } else if (subcommand == "login-startup-arg") {
         return startup_flag_command(
             std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "completion-case") {
+        return completion_case_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
     } else {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
                      "unknown subcommand '" + subcommand + "'",
-                     {"Available subcommands: style_def, login-startup-arg"}});
+                     {"Available subcommands: style_def, login-startup-arg, completion-case"}});
         return 1;
     }
 }
 
-// LOGIN_STARTUP_ARG
+// COMPLETION_CASE
 
 extern bool g_debug_mode;
+
+int completion_case_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: completion-case <on|off|status>",
+        "Examples:",
+        "  completion-case on       Enable case sensitive completions",
+        "  completion-case off      Use case insensitive completions",
+        "  completion-case status   Show the current setting"};
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "completion-case",
+                     "Missing option argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+        for (const auto& line : usage_lines) {
+            std::cout << line << '\n';
+        }
+        std::cout << "Current: "
+                  << (is_completion_case_sensitive() ? "enabled"
+                                                    : "disabled")
+                  << std::endl;
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "completion-case",
+                     "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    std::string option = args[1];
+    std::string normalized = option;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    if (normalized == "status" || normalized == "--status") {
+        std::cout << "Completion case sensitivity is currently "
+                  << (is_completion_case_sensitive() ? "enabled"
+                                                    : "disabled")
+                  << "." << std::endl;
+        return 0;
+    }
+
+    bool enable_case_sensitive = false;
+    bool recognized_option = true;
+
+    if (normalized == "on" || normalized == "enable" ||
+        normalized == "enabled" || normalized == "true" ||
+        normalized == "1" || normalized == "case-sensitive" ||
+        normalized == "--enable" || normalized == "--case-sensitive") {
+        enable_case_sensitive = true;
+    } else if (normalized == "off" || normalized == "disable" ||
+               normalized == "disabled" || normalized == "false" ||
+               normalized == "0" || normalized == "case-insensitive" ||
+               normalized == "--disable" ||
+               normalized == "--case-insensitive") {
+        enable_case_sensitive = false;
+    } else {
+        recognized_option = false;
+    }
+
+    if (!recognized_option) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "completion-case",
+                     "Unknown option '" + option + "'",
+                     usage_lines});
+        return 1;
+    }
+
+    bool currently_enabled = is_completion_case_sensitive();
+    if (currently_enabled == enable_case_sensitive) {
+        std::cout << "Completion case sensitivity is already "
+                  << (currently_enabled ? "enabled" : "disabled") << "."
+                  << std::endl;
+        return 0;
+    }
+
+    set_completion_case_sensitive(enable_case_sensitive);
+
+    if (g_debug_mode) {
+        std::cerr << "DEBUG: Completion case sensitivity set to "
+                  << (enable_case_sensitive ? "enabled" : "disabled")
+                  << std::endl;
+    }
+
+    std::cout << "Completion case sensitivity "
+              << (enable_case_sensitive ? "enabled" : "disabled") << "."
+              << std::endl;
+
+    return 0;
+}
+
+// LOGIN_STARTUP_ARG
+
 extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
