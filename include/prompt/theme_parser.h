@@ -1,28 +1,34 @@
 #pragma once
 
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include <variant>
-#include <optional>
+#include <vector>
 
 #include "error_out.h"
 
 class ThemeParseException : public std::runtime_error {
-public:
+   public:
     ThemeParseException(size_t line, std::string detail,
                         std::string source = "",
                         std::optional<ErrorInfo> error_info = std::nullopt);
 
-    size_t line() const noexcept { return line_; }
-    const std::string& detail() const noexcept { return detail_; }
-    const std::string& source() const noexcept { return source_; }
+    size_t line() const noexcept {
+        return line_;
+    }
+    const std::string& detail() const noexcept {
+        return detail_;
+    }
+    const std::string& source() const noexcept {
+        return source_;
+    }
     const std::optional<ErrorInfo>& error_info() const noexcept {
         return error_info_;
     }
 
-private:
+   private:
     static std::string build_message(size_t line, const std::string& detail,
                                      const std::string& source);
 
@@ -40,8 +46,10 @@ struct ThemeDefinition;
 struct ThemeProperty {
     std::string key;
     std::string value;
-    
-    ThemeProperty(const std::string& k, const std::string& v) : key(k), value(v) {}
+
+    ThemeProperty(const std::string& k, const std::string& v)
+        : key(k), value(v) {
+    }
 };
 
 // Represents a segment in the theme
@@ -57,11 +65,10 @@ struct ThemeSegment {
     std::string forward_separator_fg;
     std::string forward_separator_bg;
     std::string alignment;  // "left", "center", "right"
-    
+
     ThemeSegment() = default;
-    ThemeSegment(const std::string& n) : name(n) {}
-    
-    // Convert to the old json-like structure for compatibility
+    ThemeSegment(const std::string& n) : name(n) {
+    }
     std::unordered_map<std::string, std::string> to_map() const;
 };
 
@@ -91,21 +98,22 @@ struct ThemeFill {
 struct ThemeDefinition {
     std::string name;
     std::string terminal_title;
-    
+
     ThemeFill fill;
     ThemeBehavior behavior;
     ThemeRequirements requirements;
     std::unordered_map<std::string, std::string> variables;
     std::unordered_map<std::string, ThemeSegment> segment_variables;
-    
+
     std::vector<ThemeSegment> ps1_segments;
     std::vector<ThemeSegment> git_segments;
     std::vector<ThemeSegment> ai_segments;
     std::vector<ThemeSegment> newline_segments;
     std::vector<ThemeSegment> inline_right_segments;
-    
+
     ThemeDefinition() = default;
-    ThemeDefinition(const std::string& n) : name(n) {}
+    ThemeDefinition(const std::string& n) : name(n) {
+    }
 };
 
 struct ThemeVariableSet {
@@ -115,23 +123,23 @@ struct ThemeVariableSet {
 
 // Parser for the new DSL
 class ThemeParser {
-private:
+   private:
     std::string content;
     size_t position;
     size_t line_number;
     std::string source_name;
     std::unordered_map<std::string, ThemeSegment> segment_variable_definitions;
-    
+
     void skip_whitespace();
     void skip_comments();
     char peek() const;
     char advance();
     bool is_at_end() const;
-    
+
     std::string parse_string();
     std::string parse_identifier();
     std::string parse_value();
-    
+
     ThemeProperty parse_property();
     ThemeSegment parse_segment();
     ThemeSegment parse_segment_body(ThemeSegment segment);
@@ -142,16 +150,15 @@ private:
     ThemeBehavior parse_behavior_block();
     ThemeRequirements parse_requirements_block();
     ThemeVariableSet parse_variables_block();
-    
+
     void expect_token(const std::string& expected);
     [[noreturn]] void parse_error(const std::string& message);
 
-public:
-    ThemeParser(const std::string& theme_content,
-                std::string source_name = "");
-    
+   public:
+    ThemeParser(const std::string& theme_content, std::string source_name = "");
+
     ThemeDefinition parse();
-    
+
     // Static utility methods
     static ThemeDefinition parse_file(const std::string& filepath);
     static std::string write_theme(const ThemeDefinition& theme);

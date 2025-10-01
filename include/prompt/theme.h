@@ -52,8 +52,8 @@ class Theme {
         const std::vector<ThemeSegment>& segments,
         const std::unordered_map<std::string, std::string>& vars) const;
 
-        std::filesystem::path resolve_theme_file(
-            const std::string& theme_name) const;
+    std::filesystem::path resolve_theme_file(
+        const std::string& theme_name) const;
 
     bool apply_theme_definition(const ThemeDefinition& definition,
                                 const std::string& theme_name,
@@ -72,12 +72,13 @@ class Theme {
     ~Theme();
 
     ThemeDefinition theme_data;
-    
+
     std::vector<ThemeSegment>& ps1_segments = theme_data.ps1_segments;
     std::vector<ThemeSegment>& git_segments = theme_data.git_segments;
     std::vector<ThemeSegment>& ai_segments = theme_data.ai_segments;
     std::vector<ThemeSegment>& newline_segments = theme_data.newline_segments;
-    std::vector<ThemeSegment>& inline_right_segments = theme_data.inline_right_segments;
+    std::vector<ThemeSegment>& inline_right_segments =
+        theme_data.inline_right_segments;
 
     bool load_theme(const std::string& theme_name, bool allow_fallback);
     bool load_theme_from_path(const std::filesystem::path& file_path,

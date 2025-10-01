@@ -74,7 +74,8 @@ int completion_case_command(const std::vector<std::string>& args) {
                 std::cout << line << '\n';
             }
             std::cout << "Current: "
-                      << (is_completion_case_sensitive() ? "enabled" : "disabled")
+                      << (is_completion_case_sensitive() ? "enabled"
+                                                         : "disabled")
                       << std::endl;
         }
         return 0;
@@ -94,7 +95,8 @@ int completion_case_command(const std::vector<std::string>& args) {
     if (normalized == "status" || normalized == "--status") {
         if (!g_startup_active) {
             std::cout << "Completion case sensitivity is currently "
-                      << (is_completion_case_sensitive() ? "enabled" : "disabled")
+                      << (is_completion_case_sensitive() ? "enabled"
+                                                         : "disabled")
                       << "." << std::endl;
         }
         return 0;
@@ -259,8 +261,9 @@ int style_def_command(const std::vector<std::string>& args) {
             }
             std::cout << "\nStyle format: [bold] [italic] [underline] "
                          "color=#RRGGBB|color=name\n";
-            std::cout << "Color names: red, green, blue, yellow, magenta, cyan, "
-                         "white, black\n";
+            std::cout
+                << "Color names: red, green, blue, yellow, magenta, cyan, "
+                   "white, black\n";
             std::cout << "ANSI colors: ansi-black, ansi-red, ansi-green, "
                          "ansi-yellow, etc.\n\n";
             std::cout << "Examples:\n";

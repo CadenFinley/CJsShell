@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -11,8 +13,6 @@
 #include <sstream>
 #include <string_view>
 #include <unordered_map>
-#include <algorithm>
-#include <cctype>
 
 #include "builtin.h"
 #include "cjsh.h"
@@ -34,8 +34,9 @@ std::unordered_map<std::string, CachedScript> g_script_cache;
 
 std::string to_lower_copy(std::string_view value) {
     std::string result(value);
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    std::transform(
+        result.begin(), result.end(), result.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     return result;
 }
 
@@ -269,7 +270,8 @@ int Shell::load_theme_from_file(const std::filesystem::path& path,
         print_error({ErrorType::RUNTIME_ERROR,
                      "theme",
                      "Themes are disabled",
-                     {"Enable themes via configuration or run 'cjshopt --themes on'."}});
+                     {"Enable themes via configuration or run 'cjshopt "
+                      "--themes on'."}});
         return 1;
     }
 
@@ -278,10 +280,11 @@ int Shell::load_theme_from_file(const std::filesystem::path& path,
     }
 
     if (!g_theme) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "theme",
-                     "Theme manager not initialized",
-                     {"Try running 'theme' again after initialization completes."}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR,
+             "theme",
+             "Theme manager not initialized",
+             {"Try running 'theme' again after initialization completes."}});
         return 1;
     }
 

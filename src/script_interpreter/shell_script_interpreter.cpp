@@ -10,11 +10,11 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iostream>
-#include <filesystem>
 #include <optional>
 #include <regex>
 #include <sstream>
@@ -96,8 +96,8 @@ int ShellScriptInterpreter::execute_block(
         return value;
     };
 
-    auto has_theme_extension = [&](const std::filesystem::path& candidate)
-        -> bool {
+    auto has_theme_extension =
+        [&](const std::filesystem::path& candidate) -> bool {
         if (!candidate.has_extension()) {
             return false;
         }

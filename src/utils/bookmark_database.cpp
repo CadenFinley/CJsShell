@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
-#include <nlohmann/json.hpp>
 #include <regex>
 #include <sstream>
 #include "error_out.h"
@@ -16,7 +15,7 @@ BookmarkDatabase g_bookmark_db;
 BookmarkDatabase::BookmarkDatabase() : dirty_(false) {
     // Initialize database path using cjsh_filesystem paths
     database_path_ =
-        (cjsh_filesystem::g_cjsh_cache_path / "directory_bookmarks.json")
+        (cjsh_filesystem::g_cjsh_cache_path / "directory_bookmarks.txt")
             .string();
 }
 
@@ -71,10 +70,10 @@ cjsh_filesystem::Result<void> BookmarkDatabase::load() {
             "Failed to read bookmark database: " + content_result.error());
     }
 
-    // Parse JSON
-    auto json_result = from_json(content_result.value());
-    if (json_result.is_error()) {
-        return json_result;
+    // Parse text format
+    auto parse_result = from_text_format(content_result.value());
+    if (parse_result.is_error()) {
+        return parse_result;
     }
 
     dirty_ = false;
@@ -88,12 +87,12 @@ cjsh_filesystem::Result<void> BookmarkDatabase::save() {
         return dir_result;
     }
 
-    // Convert to JSON
-    std::string json_content = to_json();
+    // Convert to text format
+    std::string text_content = to_text_format();
 
     // Write to file
     auto write_result = cjsh_filesystem::FileOperations::write_file_content(
-        database_path_, json_content);
+        database_path_, text_content);
     if (write_result.is_error()) {
         return cjsh_filesystem::Result<void>::error(
             "Failed to write bookmark database: " + write_result.error());
@@ -103,88 +102,94 @@ cjsh_filesystem::Result<void> BookmarkDatabase::save() {
     return cjsh_filesystem::Result<void>::ok();
 }
 
-std::string BookmarkDatabase::to_json() const {
-    using json = nlohmann::json;
+std::string BookmarkDatabase::to_text_format() const {
+    std::stringstream ss;
 
-    json root;
-    root["version"] = "1.0";
-    root["last_updated"] = time_to_iso_string(std::chrono::system_clock::now());
+    // Write header
+    ss << "version=1.0\n";
+    ss << "last_updated="
+       << time_to_iso_string(std::chrono::system_clock::now()) << "\n";
+    ss << "# Format: name|path|access_count|added_time|last_accessed\n";
 
-    json bookmarks_obj;
+    // Write bookmarks
     for (const auto& [name, entry] : bookmarks_) {
-        json bookmark_entry;
-        bookmark_entry["path"] = entry.path;
-        bookmark_entry["added_time"] = time_to_iso_string(entry.added_time);
-        bookmark_entry["last_accessed"] =
-            time_to_iso_string(entry.last_accessed);
-        bookmark_entry["access_count"] = entry.access_count;
-
-        bookmarks_obj[name] = bookmark_entry;
+        ss << name << "|" << entry.path << "|" << entry.access_count << "|"
+           << time_to_iso_string(entry.added_time) << "|"
+           << time_to_iso_string(entry.last_accessed) << "\n";
     }
 
-    root["bookmarks"] = bookmarks_obj;
-
-    return root.dump(2);  // Pretty print with 2-space indentation
+    return ss.str();
 }
 
-cjsh_filesystem::Result<void> BookmarkDatabase::from_json(
-    const std::string& json_str) {
+cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(
+    const std::string& text_content) {
     try {
-        using json = nlohmann::json;
-
-        json root = json::parse(json_str);
-
-        // Validate version
-        if (!root.contains("version")) {
-            return cjsh_filesystem::Result<void>::error(
-                "Invalid bookmark database: missing version");
-        }
-
-        std::string version = root["version"];
-        if (version != "1.0") {
-            return cjsh_filesystem::Result<void>::error(
-                "Unsupported bookmark database version: " + version);
-        }
+        std::stringstream ss(text_content);
+        std::string line;
+        std::string version;
+        bool version_found = false;
 
         // Clear existing bookmarks
         bookmarks_.clear();
 
-        // Load bookmarks
-        if (root.contains("bookmarks") && root["bookmarks"].is_object()) {
-            for (const auto& [name, bookmark_data] :
-                 root["bookmarks"].items()) {
-                if (!bookmark_data.is_object()) {
-                    continue;  // Skip invalid entries
-                }
+        while (std::getline(ss, line)) {
+            // Skip empty lines and comments
+            if (line.empty() || line[0] == '#') {
+                continue;
+            }
 
+            // Parse version line
+            if (line.substr(0, 8) == "version=") {
+                version = line.substr(8);
+                version_found = true;
+                if (version != "1.0") {
+                    return cjsh_filesystem::Result<void>::error(
+                        "Unsupported bookmark database version: " + version);
+                }
+                continue;
+            }
+
+            // Skip last_updated line
+            if (line.substr(0, 13) == "last_updated=") {
+                continue;
+            }
+
+            // Parse bookmark lines
+            // (name|path|access_count|added_time|last_accessed)
+            std::vector<std::string> parts;
+            std::stringstream line_ss(line);
+            std::string part;
+
+            while (std::getline(line_ss, part, '|')) {
+                parts.push_back(part);
+            }
+
+            if (parts.size() >= 2) {  // At minimum need name and path
                 BookmarkEntry entry;
+                std::string name = parts[0];
+                entry.path = parts[1];
 
-                if (bookmark_data.contains("path") &&
-                    bookmark_data["path"].is_string()) {
-                    entry.path = bookmark_data["path"];
-                } else {
-                    continue;  // Skip entries without valid path
-                }
-
-                if (bookmark_data.contains("access_count") &&
-                    bookmark_data["access_count"].is_number()) {
-                    entry.access_count = bookmark_data["access_count"];
+                // Parse access count (default to 1)
+                if (parts.size() > 2 && !parts[2].empty()) {
+                    try {
+                        entry.access_count = std::stoi(parts[2]);
+                    } catch (...) {
+                        entry.access_count = 1;
+                    }
                 } else {
                     entry.access_count = 1;
                 }
 
-                if (bookmark_data.contains("added_time") &&
-                    bookmark_data["added_time"].is_string()) {
-                    entry.added_time =
-                        time_from_iso_string(bookmark_data["added_time"]);
+                // Parse added time (default to now)
+                if (parts.size() > 3 && !parts[3].empty()) {
+                    entry.added_time = time_from_iso_string(parts[3]);
                 } else {
                     entry.added_time = std::chrono::system_clock::now();
                 }
 
-                if (bookmark_data.contains("last_accessed") &&
-                    bookmark_data["last_accessed"].is_string()) {
-                    entry.last_accessed =
-                        time_from_iso_string(bookmark_data["last_accessed"]);
+                // Parse last accessed (default to added time)
+                if (parts.size() > 4 && !parts[4].empty()) {
+                    entry.last_accessed = time_from_iso_string(parts[4]);
                 } else {
                     entry.last_accessed = entry.added_time;
                 }
@@ -193,14 +198,16 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_json(
             }
         }
 
+        if (!version_found) {
+            return cjsh_filesystem::Result<void>::error(
+                "Invalid bookmark database: missing version");
+        }
+
         return cjsh_filesystem::Result<void>::ok();
 
-    } catch (const nlohmann::json::parse_error& e) {
-        return cjsh_filesystem::Result<void>::error(
-            "Failed to parse bookmark database JSON: " + std::string(e.what()));
     } catch (const std::exception& e) {
         return cjsh_filesystem::Result<void>::error(
-            "Error loading bookmark database: " + std::string(e.what()));
+            "Failed to parse bookmark database: " + std::string(e.what()));
     }
 }
 

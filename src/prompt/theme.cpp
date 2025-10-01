@@ -4,11 +4,11 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
-#include <cctype>
 #include <utility>
 
 #include "utils/utf8_utils.h"
@@ -31,26 +31,26 @@ Theme::~Theme() {
 
 void Theme::create_default_theme() {
     ThemeDefinition default_theme("default");
-    
+
     default_theme.terminal_title = "{PATH}";
-    
+
     // Fill settings
     default_theme.fill.character = "";
     default_theme.fill.fg_color = "RESET";
     default_theme.fill.bg_color = "RESET";
-    
+
     // Behavior settings
     default_theme.behavior.cleanup = false;
     default_theme.behavior.cleanup_empty_line = false;
     default_theme.behavior.newline_after_execution = false;
-    
+
     // PS1 segments
     ThemeSegment username_seg("username");
     username_seg.content = "{USERNAME}@{HOSTNAME}:";
     username_seg.fg_color = "#5555FF";
     username_seg.bg_color = "RESET";
     default_theme.ps1_segments.push_back(username_seg);
-    
+
     ThemeSegment directory_seg("directory");
     directory_seg.content = " {DIRECTORY} ";
     directory_seg.fg_color = "#55FF55";
@@ -59,13 +59,13 @@ void Theme::create_default_theme() {
     directory_seg.separator_fg = "#FFFFFF";
     directory_seg.separator_bg = "RESET";
     default_theme.ps1_segments.push_back(directory_seg);
-    
+
     ThemeSegment prompt_seg("prompt");
     prompt_seg.content = "$ ";
-    prompt_seg.fg_color = "#FFFFFF";  
+    prompt_seg.fg_color = "#FFFFFF";
     prompt_seg.bg_color = "RESET";
     default_theme.ps1_segments.push_back(prompt_seg);
-    
+
     // Git segments
     ThemeSegment git_path_seg("path");
     git_path_seg.content = " {LOCAL_PATH} ";
@@ -75,13 +75,13 @@ void Theme::create_default_theme() {
     git_path_seg.separator_fg = "#FFFFFF";
     git_path_seg.separator_bg = "RESET";
     default_theme.git_segments.push_back(git_path_seg);
-    
+
     ThemeSegment git_branch_seg("branch");
     git_branch_seg.content = "{GIT_BRANCH}";
     git_branch_seg.fg_color = "#FFFF55";
     git_branch_seg.bg_color = "RESET";
     default_theme.git_segments.push_back(git_branch_seg);
-    
+
     ThemeSegment git_status_seg("status");
     git_status_seg.content = "{GIT_STATUS}";
     git_status_seg.fg_color = "#FF5555";
@@ -90,7 +90,7 @@ void Theme::create_default_theme() {
     git_status_seg.separator_fg = "#FFFFFF";
     git_status_seg.separator_bg = "RESET";
     default_theme.git_segments.push_back(git_status_seg);
-    
+
     // AI segments
     ThemeSegment ai_model_seg("model");
     ai_model_seg.content = " {AI_MODEL} ";
@@ -100,20 +100,20 @@ void Theme::create_default_theme() {
     ai_model_seg.separator_fg = "#FFFFFF";
     ai_model_seg.separator_bg = "RESET";
     default_theme.ai_segments.push_back(ai_model_seg);
-    
+
     ThemeSegment ai_mode_seg("mode");
     ai_mode_seg.content = "{AI_AGENT_TYPE} ";
     ai_mode_seg.fg_color = "#55FFFF";
     ai_mode_seg.bg_color = "RESET";
     default_theme.ai_segments.push_back(ai_mode_seg);
-    
+
     // Inline right segment
     ThemeSegment time_seg("time");
     time_seg.content = "[{TIME}]";
     time_seg.fg_color = "#888888";
     time_seg.bg_color = "RESET";
     default_theme.inline_right_segments.push_back(time_seg);
-    
+
     // Write to file
     std::string theme_content = ThemeParser::write_theme(default_theme);
     std::ofstream file(resolve_theme_file("default"));
@@ -145,8 +145,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     }
 
     try {
-        ThemeDefinition parsed_definition =
-            ThemeParser::parse_file(theme_file);
+        ThemeDefinition parsed_definition = ThemeParser::parse_file(theme_file);
         return apply_theme_definition(parsed_definition, theme_name_to_use,
                                       allow_fallback, theme_path);
     } catch (const ThemeParseException& e) {
@@ -164,7 +163,8 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
             error.command_used = "load_theme";
             error.message = message;
             if (error.suggestions.empty()) {
-                error.suggestions.push_back("Check theme syntax and try again.");
+                error.suggestions.push_back(
+                    "Check theme syntax and try again.");
             }
             print_error(error);
         } else {
@@ -175,11 +175,11 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
         }
         return false;
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "load_theme",
-                     "Failed to load theme '" + theme_name_to_use +
-                         "': " + e.what(),
-                     {}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR,
+             "load_theme",
+             "Failed to load theme '" + theme_name_to_use + "': " + e.what(),
+             {}});
         return false;
     }
 }
@@ -203,8 +203,7 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path,
     if (status_ec || !std::filesystem::is_regular_file(status)) {
         print_error({ErrorType::FILE_NOT_FOUND,
                      "load_theme",
-                     "Theme file '" + normalized.string() +
-                         "' does not exist.",
+                     "Theme file '" + normalized.string() + "' does not exist.",
                      {"Use 'theme' to see available themes."}});
         return false;
     }
@@ -247,27 +246,25 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path,
         }
         return false;
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "load_theme",
-                     "Failed to load theme '" + theme_name_to_use +
-                         "': " + e.what(),
-                     {}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR,
+             "load_theme",
+             "Failed to load theme '" + theme_name_to_use + "': " + e.what(),
+             {}});
         return false;
     }
 }
 
-bool Theme::apply_theme_definition(
-    const ThemeDefinition& definition,
-    const std::string& theme_name,
-    bool allow_fallback,
-    const std::filesystem::path& source_path) {
+bool Theme::apply_theme_definition(const ThemeDefinition& definition,
+                                   const std::string& theme_name,
+                                   bool allow_fallback,
+                                   const std::filesystem::path& source_path) {
     theme_data = definition;
 
     const auto& requirements = theme_data.requirements;
-    bool has_requirements = !requirements.plugins.empty() ||
-                            !requirements.colors.empty() ||
-                            !requirements.fonts.empty() ||
-                            !requirements.custom.empty();
+    bool has_requirements =
+        !requirements.plugins.empty() || !requirements.colors.empty() ||
+        !requirements.fonts.empty() || !requirements.custom.empty();
 
     if (has_requirements) {
         if (!check_theme_requirements(requirements)) {
@@ -334,10 +331,11 @@ bool Theme::apply_theme_definition(
         has_duplicate_tags(ai_segments) ||
         has_duplicate_tags(newline_segments) ||
         has_duplicate_tags(inline_right_segments)) {
-        print_error({ErrorType::SYNTAX_ERROR,
-                     "load_theme",
-                     "Duplicate tags found in theme segments.",
-                     {"Ensure all segment tags are unique within their section."}});
+        print_error(
+            {ErrorType::SYNTAX_ERROR,
+             "load_theme",
+             "Duplicate tags found in theme segments.",
+             {"Ensure all segment tags are unique within their section."}});
         return false;
     }
 
@@ -413,7 +411,8 @@ std::string Theme::render_line_aligned(
             }
 
             if (!segment.forward_separator.empty()) {
-                std::string forward_sep = render_if_needed(segment.forward_separator);
+                std::string forward_sep =
+                    render_if_needed(segment.forward_separator);
                 if (!forward_sep.empty()) {
                     std::string forward_fg = render_with_fallback(
                         segment.forward_separator_fg, "RESET");
@@ -434,10 +433,14 @@ std::string Theme::render_line_aligned(
                 }
             }
 
-            std::string bg_color_name = render_with_fallback(segment.bg_color, "RESET");
-            std::string fg_color_name = render_with_fallback(segment.fg_color, "RESET");
-            std::string sep_fg_name = render_with_fallback(segment.separator_fg, "RESET");
-            std::string sep_bg_name = render_with_fallback(segment.separator_bg, "RESET");
+            std::string bg_color_name =
+                render_with_fallback(segment.bg_color, "RESET");
+            std::string fg_color_name =
+                render_with_fallback(segment.fg_color, "RESET");
+            std::string sep_fg_name =
+                render_with_fallback(segment.separator_fg, "RESET");
+            std::string sep_bg_name =
+                render_with_fallback(segment.separator_bg, "RESET");
 
             std::string styled_content = content;
 
@@ -808,11 +811,9 @@ std::string Theme::escape_brackets_for_isocline(
             return false;
         }
 
-        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx),
-                           trimmed.end(),
-                           [](unsigned char c) {
-                               return std::isdigit(c);
-                           });
+        return std::all_of(
+            trimmed.begin() + static_cast<std::string::difference_type>(idx),
+            trimmed.end(), [](unsigned char c) { return std::isdigit(c); });
     };
 
     while (i < len) {
@@ -1134,15 +1135,15 @@ void Theme::view_theme_requirements(const std::string& theme) const {
 
         if (!requirements.plugins.empty()) {
             for (const auto& plugin_name : requirements.plugins) {
-                std::cout << "Plugin requirement for this theme: " << plugin_name
-                          << std::endl;
+                std::cout << "Plugin requirement for this theme: "
+                          << plugin_name << std::endl;
             }
         }
 
         if (!requirements.custom.empty()) {
             for (const auto& [key, value] : requirements.custom) {
-                std::cout << "Custom requirement: " << key
-                          << " = " << value << std::endl;
+                std::cout << "Custom requirement: " << key << " = " << value
+                          << std::endl;
             }
         }
 
@@ -1152,8 +1153,7 @@ void Theme::view_theme_requirements(const std::string& theme) const {
                       << std::endl;
         }
     } catch (const ThemeParseException& e) {
-        std::string message =
-            "Failed to parse theme file '" + theme_file + "'";
+        std::string message = "Failed to parse theme file '" + theme_file + "'";
         if (e.line() > 0) {
             message += " at line " + std::to_string(e.line());
         }
@@ -1214,7 +1214,8 @@ std::string Theme::ensure_theme_extension(const std::string& theme_name) {
     return stripped + std::string(Theme::kThemeFileExtension);
 }
 
-bool Theme::check_theme_requirements(const ThemeRequirements& requirements) const {
+bool Theme::check_theme_requirements(
+    const ThemeRequirements& requirements) const {
     bool requirements_met = true;
     std::vector<std::string> missing_requirements;
 
@@ -1247,9 +1248,9 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
             bool plugin_enabled = false;
             if (g_plugin != nullptr) {
                 auto enabled_plugins = g_plugin->get_enabled_plugins();
-                plugin_enabled = std::find(enabled_plugins.begin(),
-                                           enabled_plugins.end(),
-                                           plugin_name) != enabled_plugins.end();
+                plugin_enabled =
+                    std::find(enabled_plugins.begin(), enabled_plugins.end(),
+                              plugin_name) != enabled_plugins.end();
             }
 
             if (!plugin_enabled) {
@@ -1260,7 +1261,8 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
                                 g_plugin->get_available_plugins();
                             requirements_met = false;
                             if ((std::find(available_plugins.begin(),
-                                           available_plugins.end(), plugin_name) ==
+                                           available_plugins.end(),
+                                           plugin_name) ==
                                  available_plugins.end())) {
                                 missing_requirements.push_back(
                                     "Plugin '" + plugin_name +
@@ -1275,8 +1277,8 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
                         auto available_plugins =
                             g_plugin->get_available_plugins();
                         if ((std::find(available_plugins.begin(),
-                                       available_plugins.end(),
-                                       plugin_name) == available_plugins.end())) {
+                                       available_plugins.end(), plugin_name) ==
+                             available_plugins.end())) {
                             missing_requirements.push_back(
                                 "Plugin '" + plugin_name +
                                 "' is required but not found");
@@ -1290,8 +1292,7 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
                     }
                 } else {
                     requirements_met = false;
-                    missing_requirements.push_back(
-                        "Plugin system is disabled");
+                    missing_requirements.push_back("Plugin system is disabled");
                 }
             }
         }
@@ -1299,16 +1300,14 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
 
     if (!requirements.custom.empty()) {
         for (const auto& [key, value] : requirements.custom) {
-            std::cout << "Custom requirement: " << key << " = "
-                      << value << std::endl;
+            std::cout << "Custom requirement: " << key << " = " << value
+                      << std::endl;
         }
     }
 
     if (!requirements_met) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "load_theme",
-                     "Theme requirements not met.",
-                     missing_requirements});
+        print_error({ErrorType::RUNTIME_ERROR, "load_theme",
+                     "Theme requirements not met.", missing_requirements});
     }
 
     return requirements_met;
@@ -1336,11 +1335,9 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
             return false;
         }
 
-        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx),
-                           trimmed.end(),
-                           [](unsigned char c) {
-                               return std::isdigit(c);
-                           });
+        return std::all_of(
+            trimmed.begin() + static_cast<std::string::difference_type>(idx),
+            trimmed.end(), [](unsigned char c) { return std::isdigit(c); });
     };
 
     for (size_t i = 0; i < str.size(); ++i) {

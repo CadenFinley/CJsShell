@@ -58,8 +58,9 @@ class BookmarkDatabase {
     bool dirty_;  // Track if data has been modified
 
     cjsh_filesystem::Result<void> ensure_database_directory();
-    std::string to_json() const;
-    cjsh_filesystem::Result<void> from_json(const std::string& json_str);
+    std::string to_text_format() const;
+    cjsh_filesystem::Result<void> from_text_format(
+        const std::string& text_content);
     std::string time_to_iso_string(
         const std::chrono::system_clock::time_point& tp) const;
     std::chrono::system_clock::time_point time_from_iso_string(

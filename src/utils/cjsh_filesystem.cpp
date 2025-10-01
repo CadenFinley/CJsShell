@@ -587,10 +587,10 @@ void create_source_file() {
         "# cjshopt style_def string \"color=#F1FA8C\"\n"
         "# Run 'cjshopt style_def' for more information\n"
         "\n"
-    "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
-    "cjsh_uninstall() {\n"
-    "    rm $(readlink -f $(which cjsh))\n"
-    "    echo \"Uninstalled cjsh\"\n"
+        "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
+        "cjsh_uninstall() {\n"
+        "    rm $(readlink -f $(which cjsh))\n"
+        "    echo \"Uninstalled cjsh\"\n"
         "}\n";
 
     auto write_result = FileOperations::write_file_content(

@@ -21,7 +21,7 @@ std::filesystem::path resolve_theme_file_path(const std::string& theme_name) {
            Theme::ensure_theme_extension(theme_name);
 }
 
-}
+}  // namespace
 
 int theme_command(const std::vector<std::string>& args) {
     if (!config::themes_enabled) {
@@ -216,8 +216,7 @@ int theme_command(const std::vector<std::string>& args) {
             if (!requirements.custom.empty()) {
                 std::cout << "  Custom requirements:" << std::endl;
                 for (const auto& [key, value] : requirements.custom) {
-                    std::cout << "    " << key << ": " << value
-                              << std::endl;
+                    std::cout << "    " << key << ": " << value << std::endl;
                 }
             }
         } else {
@@ -365,8 +364,7 @@ int uninstall_theme(const std::string& themeName) {
         return 1;
     }
 
-    std::filesystem::path theme_file =
-        resolve_theme_file_path(canonical_theme);
+    std::filesystem::path theme_file = resolve_theme_file_path(canonical_theme);
 
     if (!std::filesystem::exists(theme_file)) {
         print_error({ErrorType::FILE_NOT_FOUND,
@@ -377,17 +375,18 @@ int uninstall_theme(const std::string& themeName) {
     }
 
     if (g_current_theme == canonical_theme) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "theme",
-                     "Cannot uninstall the active theme '" + canonical_theme + "'",
-                     {"Switch to a different theme before uninstalling."}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT,
+             "theme",
+             "Cannot uninstall the active theme '" + canonical_theme + "'",
+             {"Switch to a different theme before uninstalling."}});
         return 1;
     }
 
     try {
         std::filesystem::remove(theme_file);
-        std::cout << "Theme '" << canonical_theme << "' uninstalled successfully."
-                  << std::endl;
+        std::cout << "Theme '" << canonical_theme
+                  << "' uninstalled successfully." << std::endl;
         std::cout << "If you are loading this theme from your .cjshrc file or "
                      "another source file, please remove that line."
                   << std::endl;

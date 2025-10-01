@@ -34,8 +34,9 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
     if (args.size() <= command_index) {
         if (!g_startup_active) {
-            std::cout << "To invoke regular commands prefix all commands with ':'"
-                      << std::endl;
+            std::cout
+                << "To invoke regular commands prefix all commands with ':'"
+                << std::endl;
             built_ins->get_shell()->set_menu_active(false);
             if (!g_ai->get_chat_cache().empty()) {
                 std::cout << "Chat history:" << std::endl;
@@ -79,9 +80,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         if (api_key.empty()) {
             if (!g_startup_active) {
                 std::cout << "No OpenAI API key is set." << std::endl;
-                std::cout << "To set your OpenAI API key, set the OPENAI_API_KEY "
-                             "environment variable."
-                          << std::endl;
+                std::cout
+                    << "To set your OpenAI API key, set the OPENAI_API_KEY "
+                       "environment variable."
+                    << std::endl;
             }
             return 1;
         } else {
@@ -206,7 +208,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
         g_ai->set_model(args[command_index + 1]);
         if (!g_startup_active) {
-            std::cout << "Model set to " << args[command_index + 1] << std::endl;
+            std::cout << "Model set to " << args[command_index + 1]
+                      << std::endl;
         }
         return 0;
     }
@@ -278,7 +281,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
         g_ai->set_voice_dictation_voice(args[command_index + 1]);
         if (!g_startup_active) {
-            std::cout << "Voice set to " << args[command_index + 1] << std::endl;
+            std::cout << "Voice set to " << args[command_index + 1]
+                      << std::endl;
         }
         return 0;
     }
@@ -318,7 +322,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
                 std::cout << "The current voice dictation instructions are:\n"
-                          << g_ai->get_voice_dictation_instructions() << std::endl;
+                          << g_ai->get_voice_dictation_instructions()
+                          << std::endl;
             }
             return 0;
         }
@@ -337,57 +342,68 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "help") {
         if (!g_startup_active) {
             std::cout
-            << "AI Command Help:\n"
-            << "  ai                             Enter AI mode and show chat "
-               "history\n"
-            << "  ai log                         Save the last chat to a file\n"
-            << "  ai apikey                      Show API key status\n"
-            << "  ai chat <message>              Send a chat message\n"
-            << "  ai chat history [clear]        Show or clear chat history\n"
-            << "  ai chat help                   Show chat-specific help\n"
-            << "  ai file                        List active files and files "
-               "in "
-               "the current directory\n"
-            << "  ai file add <file>|all         Add file(s) from the current "
-               "directory\n"
-            << "  ai file remove <file>|all      Remove file(s) from context\n"
-            << "  ai file active                 Show files currently in "
-               "context\n"
-            << "  ai file available              List files from the current "
-               "directory\n"
-            << "  ai file refresh                Re-read active files from "
-               "disk\n"
-            << "  ai file clear                  Remove all files from "
-               "context\n"
-            << "  ai directory                   Show the current save "
-               "directory\n"
-            << "  ai directory set               Use the present working "
-               "directory for saves\n"
-            << "  ai directory clear             Reset the save directory to "
-               "default\n"
-            << "  ai get <key>                   Show a specific response "
-               "field\n"
-            << "  ai dump                        Dump all response data and "
-               "the "
-               "last prompt\n"
-            << "  ai mode [type]                 Get or set the assistant "
-               "mode\n"
-            << "  ai model [name]                Get or set the model\n"
-            << "  ai initialinstruction [text]   Get or set the initial system "
-               "instruction\n"
-            << "  ai name [name]                 Get or set the assistant "
-               "name\n"
-            << "  ai timeoutflag [sec]           Get or set the request "
-               "timeout "
-               "in seconds\n"
+                << "AI Command Help:\n"
+                << "  ai                             Enter AI mode and show "
+                   "chat "
+                   "history\n"
+                << "  ai log                         Save the last chat to a "
+                   "file\n"
+                << "  ai apikey                      Show API key status\n"
+                << "  ai chat <message>              Send a chat message\n"
+                << "  ai chat history [clear]        Show or clear chat "
+                   "history\n"
+                << "  ai chat help                   Show chat-specific help\n"
+                << "  ai file                        List active files and "
+                   "files "
+                   "in "
+                   "the current directory\n"
+                << "  ai file add <file>|all         Add file(s) from the "
+                   "current "
+                   "directory\n"
+                << "  ai file remove <file>|all      Remove file(s) from "
+                   "context\n"
+                << "  ai file active                 Show files currently in "
+                   "context\n"
+                << "  ai file available              List files from the "
+                   "current "
+                   "directory\n"
+                << "  ai file refresh                Re-read active files from "
+                   "disk\n"
+                << "  ai file clear                  Remove all files from "
+                   "context\n"
+                << "  ai directory                   Show the current save "
+                   "directory\n"
+                << "  ai directory set               Use the present working "
+                   "directory for saves\n"
+                << "  ai directory clear             Reset the save directory "
+                   "to "
+                   "default\n"
+                << "  ai get <key>                   Show a specific response "
+                   "field\n"
+                << "  ai dump                        Dump all response data "
+                   "and "
+                   "the "
+                   "last prompt\n"
+                << "  ai mode [type]                 Get or set the assistant "
+                   "mode\n"
+                << "  ai model [name]                Get or set the model\n"
+                << "  ai initialinstruction [text]   Get or set the initial "
+                   "system "
+                   "instruction\n"
+                << "  ai name [name]                 Get or set the assistant "
+                   "name\n"
+                << "  ai timeoutflag [sec]           Get or set the request "
+                   "timeout "
+                   "in seconds\n"
                 << "  ai rejectchanges               Reject the most recent AI "
-                    "suggested edits\n"
-            << "  ai voice [voice]               Get or set the dictation "
-               "voice\n"
-            << "  ai voicedictation [enable|disable]  Toggle voice dictation\n"
-            << "  ai voicedictationinstructions [text] Set dictation "
-               "instructions\n"
-            << "  ai help                        Show this summary\n";
+                   "suggested edits\n"
+                << "  ai voice [voice]               Get or set the dictation "
+                   "voice\n"
+                << "  ai voicedictation [enable|disable]  Toggle voice "
+                   "dictation\n"
+                << "  ai voicedictationinstructions [text] Set dictation "
+                   "instructions\n"
+                << "  ai help                        Show this summary\n";
         }
         return 0;
     }
@@ -505,8 +521,9 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
         if (args[cmd_index + 2] == "all") {
             int charsProcessed = g_ai->add_files(filesAtPath);
             if (!g_startup_active) {
-                std::cout << "Processed " << charsProcessed << " characters from "
-                          << filesAtPath.size() << " files." << std::endl;
+                std::cout << "Processed " << charsProcessed
+                          << " characters from " << filesAtPath.size()
+                          << " files." << std::endl;
             }
             return 0;
         }
@@ -543,8 +560,8 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
             int fileCount = g_ai->get_files().size();
             g_ai->clear_files();
             if (!g_startup_active) {
-                std::cout << "Removed all " << fileCount << " files from context."
-                          << std::endl;
+                std::cout << "Removed all " << fileCount
+                          << " files from context." << std::endl;
             }
             return 0;
         }

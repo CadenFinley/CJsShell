@@ -1,25 +1,25 @@
 #include "theme_parser.h"
 
+#include <utf8proc.h>
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <sstream>
-#include <filesystem>
 #include <stdexcept>
 #include <utility>
-#include <cctype>
-#include <algorithm>
-#include <optional>
-#include <utf8proc.h>
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail,
-                             std::string source,
-                             std::optional<ErrorInfo> error_info)
-    : std::runtime_error(
-        build_message(line, detail, source)),
-    line_(line),
-    detail_(std::move(detail)),
-    source_(std::move(source)),
-    error_info_(std::move(error_info)) {}
+                                         std::string source,
+                                         std::optional<ErrorInfo> error_info)
+    : std::runtime_error(build_message(line, detail, source)),
+      line_(line),
+      detail_(std::move(detail)),
+      source_(std::move(source)),
+      error_info_(std::move(error_info)) {
+}
 
 std::string ThemeParseException::build_message(size_t line,
                                                const std::string& detail,
@@ -68,11 +68,12 @@ std::string encode_utf8(char32_t codepoint) {
     }
 
     utf8proc_uint8_t buffer[4];
-    utf8proc_ssize_t length = utf8proc_encode_char(
-        static_cast<utf8proc_int32_t>(codepoint), buffer);
+    utf8proc_ssize_t length =
+        utf8proc_encode_char(static_cast<utf8proc_int32_t>(codepoint), buffer);
 
     if (length < 0 || length > 4) {
-        throw std::runtime_error("Failed to encode Unicode codepoint in theme string");
+        throw std::runtime_error(
+            "Failed to encode Unicode codepoint in theme string");
     }
 
     return std::string(reinterpret_cast<char*>(buffer),
@@ -85,8 +86,10 @@ bool is_hex_digit(char c) {
 }
 
 int hex_value(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return 10 + (c - 'a');
     return 10 + (c - 'A');
 }
 
@@ -168,14 +171,15 @@ std::string expand_variable_reference(
 
     auto it = variables.find(name);
     if (it == variables.end()) {
-        throw std::runtime_error(
-            "Undefined theme variable referenced: '" + name + "'");
+        throw std::runtime_error("Undefined theme variable referenced: '" +
+                                 name + "'");
     }
 
     stack.push_back(name);
     std::string expanded = it->second;
     if (expanded.find("${") != std::string::npos) {
-        expanded = expand_variables_in_string(expanded, variables, cache, stack);
+        expanded =
+            expand_variables_in_string(expanded, variables, cache, stack);
     }
     stack.pop_back();
 
@@ -194,7 +198,8 @@ std::unordered_map<std::string, std::string> resolve_theme_variables(
 
     for (const auto& [name, _] : variables) {
         std::vector<std::string> stack;
-        resolved[name] = expand_variable_reference(name, variables, cache, stack);
+        resolved[name] =
+            expand_variable_reference(name, variables, cache, stack);
     }
 
     return resolved;
@@ -281,7 +286,7 @@ std::unordered_map<std::string, std::string> ThemeSegment::to_map() const {
     result["tag"] = name;
     result["content"] = content;
     result["fg_color"] = fg_color;
-    result["bg_color"] = bg_color;  
+    result["bg_color"] = bg_color;
     result["separator"] = separator;
     result["separator_fg"] = separator_fg;
     result["separator_bg"] = separator_bg;
@@ -294,12 +299,13 @@ std::unordered_map<std::string, std::string> ThemeSegment::to_map() const {
 }
 
 ThemeParser::ThemeParser(const std::string& theme_content,
-                                                 std::string source_name) 
-        : content(theme_content),
-            position(0),
-            line_number(1),
-            source_name(std::move(source_name)),
-            segment_variable_definitions() {}
+                         std::string source_name)
+    : content(theme_content),
+      position(0),
+      line_number(1),
+      source_name(std::move(source_name)),
+      segment_variable_definitions() {
+}
 
 void ThemeParser::skip_whitespace() {
     while (!is_at_end() && std::isspace(peek())) {
@@ -317,19 +323,21 @@ void ThemeParser::skip_comments() {
             advance();
         }
         if (!is_at_end()) {
-            advance(); // Skip the newline
+            advance();  // Skip the newline
             line_number++;
         }
     }
 }
 
 char ThemeParser::peek() const {
-    if (is_at_end()) return '\0';
+    if (is_at_end())
+        return '\0';
     return content[position];
 }
 
 char ThemeParser::advance() {
-    if (is_at_end()) return '\0';
+    if (is_at_end())
+        return '\0';
     return content[position++];
 }
 
@@ -362,37 +370,49 @@ std::string ThemeParser::parse_string() {
     if (peek() != '"') {
         parse_error("Expected string literal");
     }
-    
-    advance(); // Skip opening quote
+
+    advance();  // Skip opening quote
     std::string result;
-    
+
     while (!is_at_end() && peek() != '"') {
         if (peek() == '\\') {
-            advance(); // Skip backslash
+            advance();  // Skip backslash
             if (is_at_end()) {
                 parse_error("Unterminated string literal");
             }
-            
+
             char escaped = advance();
             switch (escaped) {
-                case 'n': result += '\n'; break;
-                case 't': result += '\t'; break;
-                case 'r': result += '\r'; break;
-                case '\\': result += '\\'; break;
-                case '"': result += '"'; break;
+                case 'n':
+                    result += '\n';
+                    break;
+                case 't':
+                    result += '\t';
+                    break;
+                case 'r':
+                    result += '\r';
+                    break;
+                case '\\':
+                    result += '\\';
+                    break;
+                case '"':
+                    result += '"';
+                    break;
                 case 'u': {
                     char32_t codepoint = 0;
                     int digits_parsed = 0;
 
                     if (peek() == '{') {
-                        advance(); // Skip '{'
+                        advance();  // Skip '{'
                         while (!is_at_end() && peek() != '}') {
                             char hex = advance();
                             if (!is_hex_digit(hex)) {
-                                parse_error("Invalid hex digit in unicode escape");
+                                parse_error(
+                                    "Invalid hex digit in unicode escape");
                             }
                             if (digits_parsed >= 8) {
-                                parse_error("Unicode escape sequence is too long");
+                                parse_error(
+                                    "Unicode escape sequence is too long");
                             }
                             codepoint = (codepoint << 4) | hex_value(hex);
                             digits_parsed++;
@@ -401,7 +421,7 @@ std::string ThemeParser::parse_string() {
                         if (is_at_end() || peek() != '}') {
                             parse_error("Unterminated unicode escape sequence");
                         }
-                        advance(); // Skip '}'
+                        advance();  // Skip '}'
 
                         if (digits_parsed == 0) {
                             parse_error("Empty unicode escape sequence");
@@ -409,11 +429,13 @@ std::string ThemeParser::parse_string() {
                     } else {
                         for (int i = 0; i < 4; ++i) {
                             if (is_at_end()) {
-                                parse_error("Incomplete unicode escape sequence");
+                                parse_error(
+                                    "Incomplete unicode escape sequence");
                             }
                             char hex = advance();
                             if (!is_hex_digit(hex)) {
-                                parse_error("Invalid hex digit in unicode escape");
+                                parse_error(
+                                    "Invalid hex digit in unicode escape");
                             }
                             codepoint = (codepoint << 4) | hex_value(hex);
                             digits_parsed++;
@@ -447,7 +469,7 @@ std::string ThemeParser::parse_string() {
                     }
                     break;
                 }
-                default: 
+                default:
                     result += escaped;
                     break;
             }
@@ -455,38 +477,39 @@ std::string ThemeParser::parse_string() {
             result += advance();
         }
     }
-    
+
     if (is_at_end()) {
         parse_error("Unterminated string literal");
     }
-    
-    advance(); // Skip closing quote
+
+    advance();  // Skip closing quote
     return result;
 }
 
 std::string ThemeParser::parse_identifier() {
     std::string result;
-    
+
     if (!std::isalpha(peek()) && peek() != '_') {
         parse_error("Expected identifier");
     }
-    
+
     while (!is_at_end() && (std::isalnum(peek()) || peek() == '_')) {
         result += advance();
     }
-    
+
     return result;
 }
 
 std::string ThemeParser::parse_value() {
     skip_whitespace();
-    
+
     if (peek() == '"') {
         return parse_string();
     } else if (std::isalpha(peek()) || peek() == '_' || peek() == '#') {
         // Parse identifier or color code
         std::string result;
-        while (!is_at_end() && !std::isspace(peek()) && peek() != ',' && peek() != '}') {
+        while (!is_at_end() && !std::isspace(peek()) && peek() != ',' &&
+               peek() != '}') {
             result += advance();
         }
         return result;
@@ -503,14 +526,17 @@ std::string ThemeParser::parse_value() {
         int brace_count = 0;
         while (!is_at_end()) {
             char c = peek();
-            if (c == '{') brace_count++;
-            if (c == '}') brace_count--;
+            if (c == '{')
+                brace_count++;
+            if (c == '}')
+                brace_count--;
             result += advance();
-            if (brace_count == 0) break;
+            if (brace_count == 0)
+                break;
         }
         return result;
     }
-    
+
     parse_error("Expected value");
     return "";
 }
@@ -518,35 +544,35 @@ std::string ThemeParser::parse_value() {
 ThemeProperty ThemeParser::parse_property() {
     skip_whitespace();
     skip_comments();
-    
+
     std::string key = parse_identifier();
-    
+
     skip_whitespace();
-    
+
     std::string value;
     if (peek() == '"') {
         value = parse_string();
     } else {
         value = parse_value();
     }
-    
+
     skip_whitespace();
-    
+
     // Optional comma
     if (peek() == ',') {
         advance();
     }
-    
+
     return ThemeProperty(key, value);
 }
 
 ThemeSegment ThemeParser::parse_segment() {
     skip_whitespace();
     skip_comments();
-    
+
     expect_token("segment");
     skip_whitespace();
-    
+
     std::string segment_name = parse_string();
     ThemeSegment segment(segment_name);
 
@@ -556,18 +582,18 @@ ThemeSegment ThemeParser::parse_segment() {
 ThemeSegment ThemeParser::parse_segment_body(ThemeSegment segment) {
     skip_whitespace();
     expect_token("{");
-    
+
     while (!is_at_end()) {
         skip_whitespace();
         skip_comments();
-        
+
         if (peek() == '}') {
             advance();
             break;
         }
-        
+
         ThemeProperty prop = parse_property();
-        
+
         if (prop.key == "content") {
             segment.content = prop.value;
         } else if (prop.key == "fg") {
@@ -643,14 +669,14 @@ ThemeSegment ThemeParser::parse_segment_reference() {
 
 std::vector<ThemeSegment> ThemeParser::parse_segments_block() {
     std::vector<ThemeSegment> segments;
-    
+
     skip_whitespace();
     expect_token("{");
-    
+
     while (!is_at_end()) {
         skip_whitespace();
         skip_comments();
-        
+
         if (peek() == '}') {
             advance();
             break;
@@ -662,27 +688,27 @@ std::vector<ThemeSegment> ThemeParser::parse_segments_block() {
             segments.push_back(parse_segment());
         }
     }
-    
+
     return segments;
 }
 
 ThemeFill ThemeParser::parse_fill_block() {
     ThemeFill fill;
-    
+
     skip_whitespace();
     expect_token("{");
-    
+
     while (!is_at_end()) {
         skip_whitespace();
         skip_comments();
-        
+
         if (peek() == '}') {
             advance();
             break;
         }
-        
+
         ThemeProperty prop = parse_property();
-        
+
         if (prop.key == "char") {
             fill.character = prop.value;
         } else if (prop.key == "fg") {
@@ -691,27 +717,27 @@ ThemeFill ThemeParser::parse_fill_block() {
             fill.bg_color = prop.value;
         }
     }
-    
+
     return fill;
 }
 
 ThemeBehavior ThemeParser::parse_behavior_block() {
     ThemeBehavior behavior;
-    
+
     skip_whitespace();
     expect_token("{");
-    
+
     while (!is_at_end()) {
         skip_whitespace();
         skip_comments();
-        
+
         if (peek() == '}') {
             advance();
             break;
         }
-        
+
         ThemeProperty prop = parse_property();
-        
+
         if (prop.key == "cleanup") {
             behavior.cleanup = (prop.value == "true");
         } else if (prop.key == "cleanup_empty_line") {
@@ -720,40 +746,40 @@ ThemeBehavior ThemeParser::parse_behavior_block() {
             behavior.newline_after_execution = (prop.value == "true");
         }
     }
-    
+
     return behavior;
 }
 
 ThemeRequirements ThemeParser::parse_requirements_block() {
     ThemeRequirements requirements;
-    
+
     skip_whitespace();
     expect_token("{");
-    
+
     while (!is_at_end()) {
         skip_whitespace();
         skip_comments();
-        
+
         if (peek() == '}') {
             advance();
             break;
         }
-        
+
         ThemeProperty prop = parse_property();
-        
+
         if (prop.key == "plugins") {
             // Parse array of plugins (simplified for now)
             requirements.plugins.push_back(prop.value);
         } else if (prop.key == "colors") {
             requirements.colors = prop.value;
         } else if (prop.key == "fonts") {
-            // Parse array of fonts (simplified for now) 
+            // Parse array of fonts (simplified for now)
             requirements.fonts.push_back(prop.value);
         } else {
             requirements.custom[prop.key] = prop.value;
         }
     }
-    
+
     return requirements;
 }
 
@@ -803,9 +829,12 @@ ThemeVariableSet ThemeParser::parse_variables_block() {
         }
 
         ThemeProperty prop = parse_property();
-        if (variables.string_variables.find(prop.key) != variables.string_variables.end() ||
-            variables.segment_variables.find(prop.key) != variables.segment_variables.end() ||
-            segment_variable_definitions.find(prop.key) != segment_variable_definitions.end()) {
+        if (variables.string_variables.find(prop.key) !=
+                variables.string_variables.end() ||
+            variables.segment_variables.find(prop.key) !=
+                variables.segment_variables.end() ||
+            segment_variable_definitions.find(prop.key) !=
+                segment_variable_definitions.end()) {
             parse_error("Duplicate variable definition: " + prop.key);
         }
         variables.string_variables[prop.key] = prop.value;
@@ -816,7 +845,7 @@ ThemeVariableSet ThemeParser::parse_variables_block() {
 
 void ThemeParser::expect_token(const std::string& expected) {
     skip_whitespace();
-    
+
     for (char c : expected) {
         if (is_at_end() || peek() != c) {
             parse_error("Expected '" + expected + "'");
@@ -838,21 +867,21 @@ ThemeDefinition ThemeParser::parse() {
     skip_comments();
 
     segment_variable_definitions.clear();
-    
+
     // Skip shebang if present
     if (position == 0 && content.length() > 2 && content.substr(0, 2) == "#!") {
         while (!is_at_end() && peek() != '\n') {
             advance();
         }
         if (!is_at_end()) {
-            advance(); // Skip newline
+            advance();  // Skip newline
             line_number++;
         }
     }
-    
+
     skip_whitespace();
     skip_comments();
-    
+
     expect_token("theme_definition");
     skip_whitespace();
 
@@ -872,19 +901,19 @@ ThemeDefinition ThemeParser::parse() {
 
     skip_whitespace();
     expect_token("{");
-    
+
     while (!is_at_end()) {
         skip_whitespace();
         skip_comments();
-        
+
         if (peek() == '}') {
             advance();
             break;
         }
-        
+
         std::string block_name = parse_identifier();
         skip_whitespace();
-        
+
         if (block_name == "terminal_title") {
             theme.terminal_title = parse_string();
         } else if (block_name == "fill") {
@@ -896,7 +925,8 @@ ThemeDefinition ThemeParser::parse() {
         } else if (block_name == "variables") {
             ThemeVariableSet parsed_variables = parse_variables_block();
             theme.variables = std::move(parsed_variables.string_variables);
-            theme.segment_variables = std::move(parsed_variables.segment_variables);
+            theme.segment_variables =
+                std::move(parsed_variables.segment_variables);
         } else if (block_name == "ps1") {
             theme.ps1_segments = parse_segments_block();
         } else if (block_name == "git_segments") {
@@ -911,7 +941,7 @@ ThemeDefinition ThemeParser::parse() {
             parse_error("Unknown block: " + block_name);
         }
     }
-    
+
     try {
         auto resolved_variables = resolve_theme_variables(theme.variables);
         apply_variables_to_theme(theme, resolved_variables);
@@ -931,18 +961,18 @@ ThemeDefinition ThemeParser::parse() {
 ThemeDefinition ThemeParser::parse_file(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-    ErrorInfo info{ErrorType::FILE_NOT_FOUND,
-               filepath,
-               "Could not open theme file",
-               {"Verify the file path and permissions."}};
-    throw ThemeParseException(0, "Could not open theme file", filepath,
-                  info);
+        ErrorInfo info{ErrorType::FILE_NOT_FOUND,
+                       filepath,
+                       "Could not open theme file",
+                       {"Verify the file path and permissions."}};
+        throw ThemeParseException(0, "Could not open theme file", filepath,
+                                  info);
     }
-    
+
     std::string content((std::istreambuf_iterator<char>(file)),
                         std::istreambuf_iterator<char>());
     file.close();
-    
+
     ThemeParser parser(content, filepath);
     return parser.parse();
 }
@@ -951,11 +981,11 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     std::ostringstream oss;
     oss << "#! usr/bin/env cjsh\n\n";
     oss << "theme_definition {\n";
-    
+
     if (!theme.terminal_title.empty()) {
         oss << "  terminal_title \"" << theme.terminal_title << "\"\n\n";
     }
-    
+
     // Write fill block
     oss << "  fill {\n";
     oss << "    char \"" << theme.fill.character << "\",\n";
@@ -971,17 +1001,24 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         oss << inner_indent << "fg \"" << segment.fg_color << "\"\n";
         oss << inner_indent << "bg \"" << segment.bg_color << "\"\n";
         if (!segment.separator.empty()) {
-            oss << inner_indent << "separator \"" << segment.separator << "\"\n";
-            oss << inner_indent << "separator_fg \"" << segment.separator_fg << "\"\n";
-            oss << inner_indent << "separator_bg \"" << segment.separator_bg << "\"\n";
+            oss << inner_indent << "separator \"" << segment.separator
+                << "\"\n";
+            oss << inner_indent << "separator_fg \"" << segment.separator_fg
+                << "\"\n";
+            oss << inner_indent << "separator_bg \"" << segment.separator_bg
+                << "\"\n";
         }
         if (!segment.forward_separator.empty()) {
-            oss << inner_indent << "forward_separator \"" << segment.forward_separator << "\"\n";
-            oss << inner_indent << "forward_separator_fg \"" << segment.forward_separator_fg << "\"\n";
-            oss << inner_indent << "forward_separator_bg \"" << segment.forward_separator_bg << "\"\n";
+            oss << inner_indent << "forward_separator \""
+                << segment.forward_separator << "\"\n";
+            oss << inner_indent << "forward_separator_fg \""
+                << segment.forward_separator_fg << "\"\n";
+            oss << inner_indent << "forward_separator_bg \""
+                << segment.forward_separator_bg << "\"\n";
         }
         if (!segment.alignment.empty()) {
-            oss << inner_indent << "alignment \"" << segment.alignment << "\"\n";
+            oss << inner_indent << "alignment \"" << segment.alignment
+                << "\"\n";
         }
         oss << base_indent << "}\n";
     };
@@ -994,7 +1031,8 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
                       return lhs.first < rhs.first;
                   });
 
-        std::vector<std::pair<std::string, const ThemeSegment*>> segment_variables;
+        std::vector<std::pair<std::string, const ThemeSegment*>>
+            segment_variables;
         segment_variables.reserve(theme.segment_variables.size());
         for (const auto& [name, segment] : theme.segment_variables) {
             segment_variables.emplace_back(name, &segment);
@@ -1022,9 +1060,10 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
 
         oss << "  }\n\n";
     }
-    
+
     // Write segments
-    auto write_segments = [&](const std::string& name, const std::vector<ThemeSegment>& segments) {
+    auto write_segments = [&](const std::string& name,
+                              const std::vector<ThemeSegment>& segments) {
         if (!segments.empty()) {
             oss << "  " << name << " {\n";
             for (const auto& segment : segments) {
@@ -1033,21 +1072,24 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
             oss << "  }\n\n";
         }
     };
-    
+
     write_segments("ps1", theme.ps1_segments);
     write_segments("git_segments", theme.git_segments);
     write_segments("ai_segments", theme.ai_segments);
     write_segments("newline", theme.newline_segments);
     write_segments("inline_right", theme.inline_right_segments);
-    
+
     // Write behavior
     oss << "  behavior {\n";
-    oss << "    cleanup " << (theme.behavior.cleanup ? "true" : "false") << "\n";
-    oss << "    cleanup_empty_line " << (theme.behavior.cleanup_empty_line ? "true" : "false") << "\n";
-    oss << "    newline_after_execution " << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
+    oss << "    cleanup " << (theme.behavior.cleanup ? "true" : "false")
+        << "\n";
+    oss << "    cleanup_empty_line "
+        << (theme.behavior.cleanup_empty_line ? "true" : "false") << "\n";
+    oss << "    newline_after_execution "
+        << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
     oss << "  }\n";
-    
+
     oss << "}\n";
-    
+
     return oss.str();
 }
