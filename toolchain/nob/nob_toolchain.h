@@ -99,6 +99,27 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-DJSON_NOEXCEPTION=1");
     nob_cmd_append(cmd, "-DJSON_USE_IMPLICIT_CONVERSIONS=1");
 
+    // Define architecture and platform for runtime use
+#ifdef ARCH_ARM64
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"arm64\"");
+#elif defined(ARCH_X86_64)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"x86_64\"");
+#elif defined(ARCH_X86)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"x86\"");
+#else
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"unknown\"");
+#endif
+
+#ifdef PLATFORM_MACOS
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"apple-darwin\"");
+#elif defined(PLATFORM_LINUX)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"linux\"");
+#elif defined(PLATFORM_WINDOWS)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"windows\"");
+#else
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"unix\"");
+#endif
+
     for (size_t i = 0; i < build_config.include_directories_count; i++) {
         nob_cmd_append(cmd, "-I", build_config.include_directories[i]);
     }
@@ -125,6 +146,27 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
 
     nob_cmd_append(cmd, "-O2");
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
+
+    // Define architecture and platform for runtime use
+#ifdef ARCH_ARM64
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"arm64\"");
+#elif defined(ARCH_X86_64)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"x86_64\"");
+#elif defined(ARCH_X86)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"x86\"");
+#else
+    nob_cmd_append(cmd, "-DCJSH_BUILD_ARCH=\"unknown\"");
+#endif
+
+#ifdef PLATFORM_MACOS
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"apple-darwin\"");
+#elif defined(PLATFORM_LINUX)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"linux\"");
+#elif defined(PLATFORM_WINDOWS)
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"windows\"");
+#else
+    nob_cmd_append(cmd, "-DCJSH_BUILD_PLATFORM=\"unix\"");
+#endif
 
     for (size_t i = 0; i < build_config.c_include_directories_count; i++) {
         nob_cmd_append(cmd, "-I", build_config.c_include_directories[i]);

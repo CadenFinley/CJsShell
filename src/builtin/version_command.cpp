@@ -6,9 +6,17 @@
 
 int version_command(const std::vector<std::string>& args) {
     (void)args;
-    std::cout << "CJ's Shell v" << c_version << " (git " << c_git_hash
-              << ")" << std::endl;
-    std::cout << "Copyright (c) 2025 Caden Finley" << std::endl;
-    std::cout << "Licensed under the MIT License" << std::endl;
+    
+    // Build architecture and platform info
+#ifndef CJSH_BUILD_ARCH
+#define CJSH_BUILD_ARCH "unknown"
+#endif
+#ifndef CJSH_BUILD_PLATFORM
+#define CJSH_BUILD_PLATFORM "unknown"
+#endif
+    
+    std::cout << "cjsh v" << c_version << " (git " << c_git_hash
+              << ") (" << CJSH_BUILD_ARCH << "-" << CJSH_BUILD_PLATFORM << ")" << std::endl;
+    std::cout << "Copyright (c) 2025 Caden Finley MIT License" << std::endl;
     return 0;
 }
