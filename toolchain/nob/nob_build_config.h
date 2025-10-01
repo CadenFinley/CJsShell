@@ -29,19 +29,17 @@ static const Build_Config build_config = {
     .isocline_c_sources_count = 15,
 
     .include_directories =
-        (const char*[]){"include", "include/isocline", "include/builtin",
-                        "include/utils", "include/prompt",
-                        "include/prompt/modules", "include/ai",
-                        "include/plugins", "include/script_interpreter",
-                        "build/vendor"},
+        (const char*[]){
+            "include", "include/isocline", "include/builtin", "include/utils",
+            "include/prompt", "include/prompt/modules", "include/ai",
+            "include/plugins", "include/script_interpreter", "build/vendor"},
     .include_directories_count = 10,
 
-    .c_include_directories =
-        (const char*[]){"include", "include/isocline"},
+    .c_include_directories = (const char*[]){"include", "include/isocline"},
     .c_include_directories_count = 2,
 
     .required_directories =
-    (const char*[]){"build", "build/obj", "build/vendor"},
+        (const char*[]){"build", "build/obj", "build/vendor"},
     .required_directories_count = 3,
 
     .external_dependencies = NULL,

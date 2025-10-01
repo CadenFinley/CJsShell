@@ -63,8 +63,8 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
 
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint,
-                                      &bytes_read);
+        bool ok =
+            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             ++display_width;
             ++visible_chars;
@@ -101,8 +101,8 @@ size_t calculate_utf8_width(const std::string& str) {
     while (pos < len) {
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint,
-                                      &bytes_read);
+        bool ok =
+            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             ++width;
             pos += (bytes_read > 0) ? bytes_read : 1;
@@ -141,8 +141,8 @@ std::string to_lowercase(const std::string& str) {
     while (pos < len) {
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint,
-                                      &bytes_read);
+        bool ok =
+            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             result.push_back(static_cast<char>(data[pos]));
             pos += (bytes_read > 0) ? bytes_read : 1;
@@ -180,8 +180,8 @@ std::string to_uppercase(const std::string& str) {
     while (pos < len) {
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint,
-                                      &bytes_read);
+        bool ok =
+            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             result.push_back(static_cast<char>(data[pos]));
             pos += (bytes_read > 0) ? bytes_read : 1;
@@ -214,7 +214,8 @@ std::string normalize_nfc(const std::string& str) {
     return str;
 }
 
-bool is_grapheme_boundary(unicode_codepoint_t /*cp1*/, unicode_codepoint_t cp2) {
+bool is_grapheme_boundary(unicode_codepoint_t /*cp1*/,
+                          unicode_codepoint_t cp2) {
     return !unicode_is_combining_codepoint(cp2);
 }
 

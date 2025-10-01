@@ -221,8 +221,7 @@ static inline int needs_rebuild_with_dependency_file(const char* obj_path,
     return rebuild_result;
 }
 
-static inline bool nob_cmd_run_with_spinner(Nob_Cmd* cmd,
-                                            const char* label) {
+static inline bool nob_cmd_run_with_spinner(Nob_Cmd* cmd, const char* label) {
     if (label == NULL) {
         label = "Working";
     }
@@ -762,8 +761,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 #ifdef PLATFORM_MACOS
         nob_cmd_append(&strip_cmd, "strip", "-x", output_binary);
 #elif defined(PLATFORM_LINUX)
-        nob_cmd_append(&strip_cmd, "strip", "--strip-unneeded",
-                       output_binary);
+        nob_cmd_append(&strip_cmd, "strip", "--strip-unneeded", output_binary);
 #endif
         if (strip_cmd.count > 0) {
             nob_log(NOB_INFO, "Stripping symbols for smaller binary size...");

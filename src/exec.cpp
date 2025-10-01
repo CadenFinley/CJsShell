@@ -745,7 +745,6 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 }
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
-
     if (commands.empty()) {
         set_error(ErrorType::INVALID_ARGUMENT, "",
                   "cannot execute empty pipeline - no commands provided", {});

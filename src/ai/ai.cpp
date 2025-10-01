@@ -5,84 +5,123 @@
 
 // Simple JSON helper functions
 namespace {
-    std::string escape_json_string(const std::string& str) {
-        std::string escaped;
-        for (char c : str) {
-            switch (c) {
-                case '"': escaped += "\\\""; break;
-                case '\\': escaped += "\\\\"; break;
-                case '\b': escaped += "\\b"; break;
-                case '\f': escaped += "\\f"; break;
-                case '\n': escaped += "\\n"; break;
-                case '\r': escaped += "\\r"; break;
-                case '\t': escaped += "\\t"; break;
-                default: escaped += c; break;
-            }
+std::string escape_json_string(const std::string& str) {
+    std::string escaped;
+    for (char c : str) {
+        switch (c) {
+            case '"':
+                escaped += "\\\"";
+                break;
+            case '\\':
+                escaped += "\\\\";
+                break;
+            case '\b':
+                escaped += "\\b";
+                break;
+            case '\f':
+                escaped += "\\f";
+                break;
+            case '\n':
+                escaped += "\\n";
+                break;
+            case '\r':
+                escaped += "\\r";
+                break;
+            case '\t':
+                escaped += "\\t";
+                break;
+            default:
+                escaped += c;
+                break;
         }
-        return escaped;
     }
-    
-    std::string create_chat_request_json(const std::string& model, const std::string& content) {
-        return "{\"model\":\"" + escape_json_string(model) + 
-               "\",\"messages\":[{\"role\":\"user\",\"content\":\"" + 
-               escape_json_string(content) + "\"}]}";
-    }
-    
-    std::string create_tts_request_json(const std::string& model, const std::string& input, 
-                                       const std::string& voice, const std::string& instructions) {
-        return "{\"model\":\"" + escape_json_string(model) + 
-               "\",\"input\":\"" + escape_json_string(input) + 
-               "\",\"voice\":\"" + escape_json_string(voice) + 
-               "\",\"instructions\":\"" + escape_json_string(instructions) + "\"}";
-    }
-    
-    std::string extract_json_string_value(const std::string& json, const std::string& key) {
-        std::string search_key = "\"" + key + "\":";
-        size_t pos = json.find(search_key);
-        if (pos == std::string::npos) return "";
-        
-        pos += search_key.length();
-        while (pos < json.length() && std::isspace(json[pos])) pos++;
-        
-        if (pos >= json.length() || json[pos] != '"') return "";
-        pos++; // Skip opening quote
-        
-        std::string value;
-        while (pos < json.length() && json[pos] != '"') {
-            if (json[pos] == '\\' && pos + 1 < json.length()) {
-                pos++; // Skip backslash
-                switch (json[pos]) {
-                    case '"': value += '"'; break;
-                    case '\\': value += '\\'; break;
-                    case 'n': value += '\n'; break;
-                    case 'r': value += '\r'; break;
-                    case 't': value += '\t'; break;
-                    default: value += json[pos]; break;
-                }
-            } else {
-                value += json[pos];
-            }
-            pos++;
-        }
-        return value;
-    }
-    
-    std::string extract_json_number_value(const std::string& json, const std::string& key) {
-        std::string search_key = "\"" + key + "\":";
-        size_t pos = json.find(search_key);
-        if (pos == std::string::npos) return "";
-        
-        pos += search_key.length();
-        while (pos < json.length() && std::isspace(json[pos])) pos++;
-        
-        std::string value;
-        while (pos < json.length() && (std::isdigit(json[pos]) || json[pos] == '.' || json[pos] == '-')) {
-            value += json[pos];
-            pos++;
-        }
-        return value;
-    }
+    return escaped;
 }
+
+std::string create_chat_request_json(const std::string& model,
+                                     const std::string& content) {
+    return "{\"model\":\"" + escape_json_string(model) +
+           "\",\"messages\":[{\"role\":\"user\",\"content\":\"" +
+           escape_json_string(content) + "\"}]}";
+}
+
+std::string create_tts_request_json(const std::string& model,
+                                    const std::string& input,
+                                    const std::string& voice,
+                                    const std::string& instructions) {
+    return "{\"model\":\"" + escape_json_string(model) + "\",\"input\":\"" +
+           escape_json_string(input) + "\",\"voice\":\"" +
+           escape_json_string(voice) + "\",\"instructions\":\"" +
+           escape_json_string(instructions) + "\"}";
+}
+
+std::string extract_json_string_value(const std::string& json,
+                                      const std::string& key) {
+    std::string search_key = "\"" + key + "\":";
+    size_t pos = json.find(search_key);
+    if (pos == std::string::npos)
+        return "";
+
+    pos += search_key.length();
+    while (pos < json.length() && std::isspace(json[pos]))
+        pos++;
+
+    if (pos >= json.length() || json[pos] != '"')
+        return "";
+    pos++;  // Skip opening quote
+
+    std::string value;
+    while (pos < json.length() && json[pos] != '"') {
+        if (json[pos] == '\\' && pos + 1 < json.length()) {
+            pos++;  // Skip backslash
+            switch (json[pos]) {
+                case '"':
+                    value += '"';
+                    break;
+                case '\\':
+                    value += '\\';
+                    break;
+                case 'n':
+                    value += '\n';
+                    break;
+                case 'r':
+                    value += '\r';
+                    break;
+                case 't':
+                    value += '\t';
+                    break;
+                default:
+                    value += json[pos];
+                    break;
+            }
+        } else {
+            value += json[pos];
+        }
+        pos++;
+    }
+    return value;
+}
+
+std::string extract_json_number_value(const std::string& json,
+                                      const std::string& key) {
+    std::string search_key = "\"" + key + "\":";
+    size_t pos = json.find(search_key);
+    if (pos == std::string::npos)
+        return "";
+
+    pos += search_key.length();
+    while (pos < json.length() && std::isspace(json[pos]))
+        pos++;
+
+    std::string value;
+    while (pos < json.length() &&
+           (std::isdigit(json[pos]) || json[pos] == '.' || json[pos] == '-')) {
+        value += json[pos];
+        pos++;
+    }
+    return value;
+}
+}  // namespace
 
 Ai::Ai(const std::string& api_key, const std::string& assistant_type,
        const std::string& initial_instruction) {
@@ -595,7 +634,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     std::string filtered_message = filter_message(message);
     last_prompt_used = filtered_message;
 
-    std::string request_body_str = create_chat_request_json(current_model, filtered_message);
+    std::string request_body_str =
+        create_chat_request_json(current_model, filtered_message);
 
     std::atomic<bool> loading(true);
     std::atomic<bool> request_cancelled(false);
@@ -659,23 +699,41 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
         // Look for "choices":[{"message":{"content":"..."}]
         size_t choices_pos = response.body.find("\"choices\"");
         if (choices_pos != std::string::npos) {
-            size_t content_start = response.body.find("\"content\":", choices_pos);
+            size_t content_start =
+                response.body.find("\"content\":", choices_pos);
             if (content_start != std::string::npos) {
-                content_start += 10; // Skip "content":
-                while (content_start < response.body.length() && std::isspace(response.body[content_start])) content_start++;
-                if (content_start < response.body.length() && response.body[content_start] == '"') {
-                    content_start++; // Skip opening quote
+                content_start += 10;  // Skip "content":
+                while (content_start < response.body.length() &&
+                       std::isspace(response.body[content_start]))
+                    content_start++;
+                if (content_start < response.body.length() &&
+                    response.body[content_start] == '"') {
+                    content_start++;  // Skip opening quote
                     std::string content;
-                    while (content_start < response.body.length() && response.body[content_start] != '"') {
-                        if (response.body[content_start] == '\\' && content_start + 1 < response.body.length()) {
-                            content_start++; // Skip backslash
+                    while (content_start < response.body.length() &&
+                           response.body[content_start] != '"') {
+                        if (response.body[content_start] == '\\' &&
+                            content_start + 1 < response.body.length()) {
+                            content_start++;  // Skip backslash
                             switch (response.body[content_start]) {
-                                case '"': content += '"'; break;
-                                case '\\': content += '\\'; break;
-                                case 'n': content += '\n'; break;
-                                case 'r': content += '\r'; break;
-                                case 't': content += '\t'; break;
-                                default: content += response.body[content_start]; break;
+                                case '"':
+                                    content += '"';
+                                    break;
+                                case '\\':
+                                    content += '\\';
+                                    break;
+                                case 'n':
+                                    content += '\n';
+                                    break;
+                                case 'r':
+                                    content += '\r';
+                                    break;
+                                case 't':
+                                    content += '\t';
+                                    break;
+                                default:
+                                    content += response.body[content_start];
+                                    break;
                             }
                         } else {
                             content += response.body[content_start];
@@ -690,14 +748,17 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
         auto end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = end - start;
 
-        response_data_map["processing_time_ms"] = std::to_string(elapsed.count() * 1000);
-        response_data_map["total_tokens"] = extract_json_number_value(response.body, "total_tokens");
+        response_data_map["processing_time_ms"] =
+            std::to_string(elapsed.count() * 1000);
+        response_data_map["total_tokens"] =
+            extract_json_number_value(response.body, "total_tokens");
 
         if (!files.empty() && assistant_type == "file-search") {
             // Store file names as comma-separated string
             std::string file_names_str;
             for (size_t i = 0; i < files.size(); ++i) {
-                if (i > 0) file_names_str += ",";
+                if (i > 0)
+                    file_names_str += ",";
                 file_names_str += files[i];
             }
             response_data_map["file_names"] = file_names_str;
@@ -705,7 +766,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
 
         response_data_map["assistant_type"] = assistant_type;
         response_data_map["initial_instruction"] = initial_instruction;
-        response_data_map["received_message_length"] = std::to_string(last_response_received.length());
+        response_data_map["received_message_length"] =
+            std::to_string(last_response_received.length());
 
         return last_response_received;
     } catch (const std::exception& e) {
@@ -767,10 +829,14 @@ std::map<std::string, std::string> Ai::parse_json_response(
     std::map<std::string, std::string> response_data;
     try {
         // Simple key-value extraction for common fields
-        response_data["total_tokens"] = extract_json_number_value(json_response, "total_tokens");
-        response_data["prompt_tokens"] = extract_json_number_value(json_response, "prompt_tokens");
-        response_data["completion_tokens"] = extract_json_number_value(json_response, "completion_tokens");
-        response_data["model"] = extract_json_string_value(json_response, "model");
+        response_data["total_tokens"] =
+            extract_json_number_value(json_response, "total_tokens");
+        response_data["prompt_tokens"] =
+            extract_json_number_value(json_response, "prompt_tokens");
+        response_data["completion_tokens"] =
+            extract_json_number_value(json_response, "completion_tokens");
+        response_data["model"] =
+            extract_json_string_value(json_response, "model");
     } catch (const std::exception& e) {
         std::cerr << "Failed to parse JSON response: " << e.what() << std::endl;
     }
@@ -783,9 +849,11 @@ std::string Ai::extract_content_from_json(
         // Extract content from nested JSON structure
         size_t choices_pos = json_response.find("\"choices\"");
         if (choices_pos != std::string::npos) {
-            size_t content_start = json_response.find("\"content\":", choices_pos);
+            size_t content_start =
+                json_response.find("\"content\":", choices_pos);
             if (content_start != std::string::npos) {
-                return extract_json_string_value(json_response.substr(content_start), "content");
+                return extract_json_string_value(
+                    json_response.substr(content_start), "content");
             }
         }
         return "";
@@ -1129,8 +1197,9 @@ bool Ai::process_voice_dictation(const std::string& message) {
     if (!ofs.is_open())
         return false;
 
-    std::string jsonData = create_tts_request_json("gpt-4o-mini-tts", message, 
-                                                   voice_dictation_voice, voice_dictation_instructions);
+    std::string jsonData = create_tts_request_json(
+        "gpt-4o-mini-tts", message, voice_dictation_voice,
+        voice_dictation_instructions);
 
     std::atomic<bool> loading(true);
     std::atomic<bool> request_cancelled(false);

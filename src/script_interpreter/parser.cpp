@@ -1123,7 +1123,6 @@ std::vector<std::string> merge_redirection_tokens(
 }
 
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
-
     std::vector<std::string> args;
     args.reserve(8);
 
