@@ -7,6 +7,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "error_out.h"
 #include "prompt.h"
 #include "prompt_info.h"
 #include "theme.h"
@@ -23,14 +24,19 @@ int preview_theme(const std::string& theme_name) {
         Theme::ensure_theme_extension(canonical_theme);
 
     if (!std::filesystem::exists(theme_file)) {
-        std::cerr << "cjsh: preview-theme: Theme '" << canonical_theme
-                  << "' not found." << std::endl;
+        print_error({ErrorType::FILE_NOT_FOUND,
+                     "preview_theme",
+                     "Theme '" + canonical_theme + "' not found.",
+                     {"Run 'theme' to list installed themes."}});
         return 1;
     }
 
     if (!temp_theme->load_theme(canonical_theme, false)) {
-        std::cerr << "cjsh: preview-theme: Failed to load theme '" << canonical_theme
-                  << "'." << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "preview_theme",
+                     "Failed to load theme '" + canonical_theme +
+                         "' for preview. See previous errors for details.",
+                     {}});
         return 1;
     }
 

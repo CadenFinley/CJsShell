@@ -104,11 +104,26 @@ int theme_command(const std::vector<std::string>& args) {
         ThemeDefinition theme_def;
         try {
             theme_def = ThemeParser::parse_file(theme_file.string());
-        } catch (const std::runtime_error& e) {
+        } catch (const ThemeParseException& e) {
+            std::string message =
+                "Failed to parse theme file '" + theme_file.string() + "'";
+            if (e.line() > 0) {
+                message += " at line " + std::to_string(e.line());
+            }
+            if (!e.detail().empty()) {
+                message += ": " + e.detail();
+            }
             print_error({ErrorType::SYNTAX_ERROR,
                          "theme",
-                         "Failed to parse theme file '" + theme_file.string() + "': " + e.what(),
+                         message,
                          {"Check theme syntax and try again."}});
+            return 1;
+        } catch (const std::exception& e) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "theme",
+                         "Failed to process theme '" + theme_file.string() +
+                             "': " + e.what(),
+                         {}});
             return 1;
         }
 

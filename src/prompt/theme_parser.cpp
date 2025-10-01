@@ -4,9 +4,35 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 #include <cctype>
 #include <algorithm>
 #include <utf8proc.h>
+
+ThemeParseException::ThemeParseException(size_t line, std::string detail,
+                                         std::string source)
+    : std::runtime_error(
+          build_message(line, detail, source)),
+      line_(line),
+      detail_(std::move(detail)),
+      source_(std::move(source)) {}
+
+std::string ThemeParseException::build_message(size_t line,
+                                               const std::string& detail,
+                                               const std::string& source) {
+    std::ostringstream oss;
+    oss << "Theme parse error";
+    if (!source.empty()) {
+        oss << " in '" << source << "'";
+    }
+    if (line > 0) {
+        oss << " at line " << line;
+    }
+    if (!detail.empty()) {
+        oss << ": " << detail;
+    }
+    return oss.str();
+}
 
 namespace {
 
@@ -246,8 +272,12 @@ std::unordered_map<std::string, std::string> ThemeSegment::to_map() const {
     return result;
 }
 
-ThemeParser::ThemeParser(const std::string& theme_content) 
-    : content(theme_content), position(0), line_number(1) {}
+ThemeParser::ThemeParser(const std::string& theme_content,
+                                                 std::string source_name) 
+        : content(theme_content),
+            position(0),
+            line_number(1),
+            source_name(std::move(source_name)) {}
 
 void ThemeParser::skip_whitespace() {
     while (!is_at_end() && std::isspace(peek())) {
@@ -666,9 +696,7 @@ void ThemeParser::expect_token(const std::string& expected) {
 }
 
 void ThemeParser::parse_error(const std::string& message) {
-    std::ostringstream oss;
-    oss << "Parse error at line " << line_number << ": " << message;
-    throw std::runtime_error(oss.str());
+    throw ThemeParseException(line_number, message, source_name);
 }
 
 ThemeDefinition ThemeParser::parse() {
@@ -735,8 +763,14 @@ ThemeDefinition ThemeParser::parse() {
         }
     }
     
-    auto resolved_variables = resolve_theme_variables(theme.variables);
-    apply_variables_to_theme(theme, resolved_variables);
+    try {
+        auto resolved_variables = resolve_theme_variables(theme.variables);
+        apply_variables_to_theme(theme, resolved_variables);
+    } catch (const ThemeParseException&) {
+        throw;
+    } catch (const std::exception& e) {
+        throw ThemeParseException(0, e.what(), source_name);
+    }
 
     return theme;
 }
@@ -744,14 +778,14 @@ ThemeDefinition ThemeParser::parse() {
 ThemeDefinition ThemeParser::parse_file(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        throw std::runtime_error("Could not open theme file: " + filepath);
+        throw ThemeParseException(0, "Could not open theme file", filepath);
     }
     
     std::string content((std::istreambuf_iterator<char>(file)),
                         std::istreambuf_iterator<char>());
     file.close();
     
-    ThemeParser parser(content);
+    ThemeParser parser(content, filepath);
     return parser.parse();
 }
 

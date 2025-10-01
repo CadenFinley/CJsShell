@@ -1,9 +1,28 @@
 #pragma once
 
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <variant>
+
+class ThemeParseException : public std::runtime_error {
+public:
+    ThemeParseException(size_t line, std::string detail,
+                        std::string source = "");
+
+    size_t line() const noexcept { return line_; }
+    const std::string& detail() const noexcept { return detail_; }
+    const std::string& source() const noexcept { return source_; }
+
+private:
+    static std::string build_message(size_t line, const std::string& detail,
+                                     const std::string& source);
+
+    size_t line_;
+    std::string detail_;
+    std::string source_;
+};
 
 // Forward declarations
 struct ThemeSegment;
@@ -86,6 +105,7 @@ private:
     std::string content;
     size_t position;
     size_t line_number;
+    std::string source_name;
     
     void skip_whitespace();
     void skip_comments();
@@ -106,10 +126,11 @@ private:
     std::unordered_map<std::string, std::string> parse_variables_block();
     
     void expect_token(const std::string& expected);
-    void parse_error(const std::string& message);
+    [[noreturn]] void parse_error(const std::string& message);
 
 public:
-    ThemeParser(const std::string& theme_content);
+    ThemeParser(const std::string& theme_content,
+                std::string source_name = "");
     
     ThemeDefinition parse();
     

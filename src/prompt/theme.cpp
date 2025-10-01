@@ -149,12 +149,25 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
             ThemeParser::parse_file(theme_file);
         return apply_theme_definition(parsed_definition, theme_name_to_use,
                                       allow_fallback, theme_path);
-    } catch (const std::runtime_error& e) {
+    } catch (const ThemeParseException& e) {
+        std::string message = "Failed to parse theme file '" + theme_file + "'";
+        if (e.line() > 0) {
+            message += " at line " + std::to_string(e.line());
+        }
+        if (!e.detail().empty()) {
+            message += ": " + e.detail();
+        }
         print_error({ErrorType::SYNTAX_ERROR,
                      "load_theme",
-                     "Failed to parse theme file '" + theme_file + "': " +
-                         e.what(),
+                     message,
                      {"Check theme syntax and try again."}});
+        return false;
+    } catch (const std::exception& e) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Failed to load theme '" + theme_name_to_use +
+                         "': " + e.what(),
+                     {}});
         return false;
     }
 }
@@ -195,12 +208,26 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path,
             ThemeParser::parse_file(normalized.string());
         return apply_theme_definition(parsed_definition, theme_name_to_use,
                                       allow_fallback, normalized);
-    } catch (const std::runtime_error& e) {
+    } catch (const ThemeParseException& e) {
+        std::string message =
+            "Failed to parse theme file '" + normalized.string() + "'";
+        if (e.line() > 0) {
+            message += " at line " + std::to_string(e.line());
+        }
+        if (!e.detail().empty()) {
+            message += ": " + e.detail();
+        }
         print_error({ErrorType::SYNTAX_ERROR,
                      "load_theme",
-                     "Failed to parse theme file '" + normalized.string() +
-                         "': " + e.what(),
+                     message,
                      {"Check theme syntax and try again."}});
+        return false;
+    } catch (const std::exception& e) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Failed to load theme '" + theme_name_to_use +
+                         "': " + e.what(),
+                     {}});
         return false;
     }
 }
@@ -1095,11 +1122,25 @@ void Theme::view_theme_requirements(const std::string& theme) const {
             std::cout << "No specific requirements found for theme " << theme
                       << std::endl;
         }
-    } catch (const std::runtime_error& e) {
+    } catch (const ThemeParseException& e) {
+        std::string message =
+            "Failed to parse theme file '" + theme_file + "'";
+        if (e.line() > 0) {
+            message += " at line " + std::to_string(e.line());
+        }
+        if (!e.detail().empty()) {
+            message += ": " + e.detail();
+        }
         print_error({ErrorType::SYNTAX_ERROR,
                      "view_theme_requirements",
-                     "Failed to parse theme file '" + theme_file + "': " + e.what(),
+                     message,
                      {"Check theme syntax and try again."}});
+    } catch (const std::exception& e) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "view_theme_requirements",
+                     "Failed to process theme requirements for '" + theme +
+                         "': " + e.what(),
+                     {}});
     }
 }
 
