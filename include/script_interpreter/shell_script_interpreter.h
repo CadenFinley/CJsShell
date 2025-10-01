@@ -164,7 +164,6 @@ class ShellScriptInterpreter {
 
     std::vector<std::unordered_map<std::string, std::string>>
         local_variable_stack;
-    std::vector<std::vector<std::string>> saved_env_stack;
     bool variable_is_set(const std::string& var_name);
     std::string pattern_match_prefix(const std::string& value,
                                      const std::string& pattern,

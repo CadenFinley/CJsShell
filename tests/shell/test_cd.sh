@@ -34,6 +34,15 @@ else
   exit 1
 fi
 
+# Test cd inside a function preserves updated PWD
+OUTPUT=$("$CJSH_PATH" -c 'my_cd(){ cd /tmp; }; my_cd; pwd')
+if [ "$OUTPUT" = "/tmp" ] || [ "$OUTPUT" = "/private/tmp" ]; then
+  pass_test "cd inside function updates PWD"
+else
+  fail_test "cd inside function - expected '/tmp', got '$OUTPUT'"
+  exit 1
+fi
+
 echo ""
 echo "CD Tests Summary:"
 echo "Passed: $TESTS_PASSED"

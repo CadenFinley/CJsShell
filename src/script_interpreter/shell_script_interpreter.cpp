@@ -4647,18 +4647,6 @@ void ShellScriptInterpreter::push_function_scope() {
         std::cerr << "DEBUG: Pushing function scope" << std::endl;
 
     local_variable_stack.emplace_back();
-
-    std::vector<std::string> saved_vars;
-    extern char** environ;
-    for (char** env = environ; *env; ++env) {
-        std::string env_str(*env);
-        size_t eq_pos = env_str.find('=');
-        if (eq_pos != std::string::npos) {
-            std::string name = env_str.substr(0, eq_pos);
-            saved_vars.push_back(env_str);
-        }
-    }
-    saved_env_stack.push_back(saved_vars);
 }
 
 void ShellScriptInterpreter::pop_function_scope() {
@@ -4670,45 +4658,6 @@ void ShellScriptInterpreter::pop_function_scope() {
             std::cerr << "DEBUG: Warning - trying to pop empty variable scope"
                       << std::endl;
         return;
-    }
-
-    if (!saved_env_stack.empty()) {
-        const auto& saved_vars = saved_env_stack.back();
-
-        extern char** environ;
-        std::vector<std::string> current_vars;
-        for (char** env = environ; *env; ++env) {
-            std::string env_str(*env);
-            size_t eq_pos = env_str.find('=');
-            if (eq_pos != std::string::npos) {
-                std::string name = env_str.substr(0, eq_pos);
-                current_vars.push_back(name);
-            }
-        }
-
-        for (const std::string& name : current_vars) {
-            bool was_saved = false;
-            for (const std::string& saved_var : saved_vars) {
-                if (saved_var.substr(0, saved_var.find('=')) == name) {
-                    was_saved = true;
-                    break;
-                }
-            }
-            if (!was_saved) {
-                unsetenv(name.c_str());
-            }
-        }
-
-        for (const std::string& saved_var : saved_vars) {
-            size_t eq_pos = saved_var.find('=');
-            if (eq_pos != std::string::npos) {
-                std::string name = saved_var.substr(0, eq_pos);
-                std::string value = saved_var.substr(eq_pos + 1);
-                setenv(name.c_str(), value.c_str(), 1);
-            }
-        }
-
-        saved_env_stack.pop_back();
     }
 
     local_variable_stack.pop_back();
