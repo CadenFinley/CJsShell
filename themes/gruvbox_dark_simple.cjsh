@@ -57,7 +57,7 @@ theme_definition {
     }
 
     segment "statusseg" {
-      content " [{STATUS}] "
+      content " [{STATUS}]"
       fg "{if = {STATUS} == 0 ? #008000 : #fb4934}"
       bg "#3c3836"
       separator "\uE0B0"
@@ -132,7 +132,7 @@ theme_definition {
     }
 
     segment "statusseg" {
-      content " [{STATUS}] "
+      content " [{STATUS}]"
       fg "{if = {STATUS} == 0 ? #008000 : #fb4934}"
       bg "#3c3836"
       separator "\uE0B0"
