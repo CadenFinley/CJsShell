@@ -9,20 +9,24 @@ theme_definition "default" {
     bg RESET
   }
 
-  ai_segments {
-    segment "model" {
-      content " {AI_MODEL} "
-      fg "#FF55FF"
-      bg RESET
-      separator " / "
-      separator_fg "#FFFFFF"
-      separator_bg RESET
+  ps1 {
+    segment "username" {
+      content "{USERNAME}@{HOSTNAME}:"
+      fg "#5555FF"
+      bg "RESET"
     }
-
-    segment "mode" {
-      content "{AI_AGENT_TYPE} "
-      fg "#55FFFF"
-      bg RESET
+    segment "directory" {
+      content " {DIRECTORY} "
+      fg "#55FF55"
+      bg "RESET"
+      separator " "
+      separator_fg "#FFFFFF"
+      separator_bg "RESET"
+    }
+    segment "prompt" {
+      content "$ "
+      fg "#FFFFFF"
+      bg "RESET"
     }
   }
 
@@ -30,48 +34,39 @@ theme_definition "default" {
     segment "path" {
       content " {LOCAL_PATH} "
       fg "#55FF55"
-      bg RESET
+      bg "RESET"
       separator " "
       separator_fg "#FFFFFF"
-      separator_bg RESET
+      separator_bg "RESET"
     }
-
     segment "branch" {
       content "{GIT_BRANCH}"
       fg "#FFFF55"
-      bg RESET
+      bg "RESET"
     }
-
     segment "status" {
       content "{GIT_STATUS}"
       fg "#FF5555"
-      bg RESET
+      bg "RESET"
       separator " $ "
       separator_fg "#FFFFFF"
-      separator_bg RESET
+      separator_bg "RESET"
     }
   }
 
-  ps1 {
-    segment "username" {
-      content "{USERNAME}@{HOSTNAME}:"
-      fg "#5555FF"
-      bg RESET
-    }
-
-    segment "directory" {
-      content " {DIRECTORY} "
-      fg "#55FF55"
-      bg RESET
-      separator " "
+  ai_segments {
+    segment "model" {
+      content " {AI_MODEL} "
+      fg "#FF55FF"
+      bg "RESET"
+      separator " / "
       separator_fg "#FFFFFF"
-      separator_bg RESET
+      separator_bg "RESET"
     }
-
-    segment "prompt" {
-      content "$ "
-      fg "#FFFFFF"
-      bg RESET
+    segment "mode" {
+      content "{AI_AGENT_TYPE} "
+      fg "#55FFFF"
+      bg "RESET"
     }
   }
 
@@ -79,11 +74,13 @@ theme_definition "default" {
     segment "time" {
       content "[{TIME}]"
       fg "#888888"
-      bg RESET
+      bg "RESET"
     }
   }
 
   behavior {
     cleanup false
+    cleanup_empty_line false
+    newline_after_execution false
   }
 }

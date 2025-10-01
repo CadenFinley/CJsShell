@@ -6,27 +6,25 @@
 #include <stdexcept>
 #include <cctype>
 #include <algorithm>
+#include <utf8proc.h>
 
 namespace {
 
 std::string encode_utf8(char32_t codepoint) {
-    std::string result;
-    if (codepoint <= 0x7F) {
-        result.push_back(static_cast<char>(codepoint));
-    } else if (codepoint <= 0x7FF) {
-        result.push_back(static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F)));
-        result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-    } else if (codepoint <= 0xFFFF) {
-        result.push_back(static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F)));
-        result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-        result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-    } else {
-        result.push_back(static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07)));
-        result.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
-        result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-        result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+    if (!utf8proc_codepoint_valid(static_cast<utf8proc_int32_t>(codepoint))) {
+        throw std::runtime_error("Invalid Unicode codepoint in theme string");
     }
-    return result;
+
+    utf8proc_uint8_t buffer[4];
+    utf8proc_ssize_t length = utf8proc_encode_char(
+        static_cast<utf8proc_int32_t>(codepoint), buffer);
+
+    if (length < 0 || length > 4) {
+        throw std::runtime_error("Failed to encode Unicode codepoint in theme string");
+    }
+
+    return std::string(reinterpret_cast<char*>(buffer),
+                       reinterpret_cast<char*>(buffer) + length);
 }
 
 bool is_hex_digit(char c) {
@@ -122,7 +120,54 @@ std::string ThemeParser::parse_string() {
                 case '"': result += '"'; break;
                 case 'u': {
                     char32_t codepoint = 0;
-                    for (int i = 0; i < 4; ++i) {
+                    int digits_parsed = 0;
+
+                    if (peek() == '{') {
+                        advance(); // Skip '{'
+                        while (!is_at_end() && peek() != '}') {
+                            char hex = advance();
+                            if (!is_hex_digit(hex)) {
+                                parse_error("Invalid hex digit in unicode escape");
+                            }
+                            if (digits_parsed >= 8) {
+                                parse_error("Unicode escape sequence is too long");
+                            }
+                            codepoint = (codepoint << 4) | hex_value(hex);
+                            digits_parsed++;
+                        }
+
+                        if (is_at_end() || peek() != '}') {
+                            parse_error("Unterminated unicode escape sequence");
+                        }
+                        advance(); // Skip '}'
+
+                        if (digits_parsed == 0) {
+                            parse_error("Empty unicode escape sequence");
+                        }
+                    } else {
+                        for (int i = 0; i < 4; ++i) {
+                            if (is_at_end()) {
+                                parse_error("Incomplete unicode escape sequence");
+                            }
+                            char hex = advance();
+                            if (!is_hex_digit(hex)) {
+                                parse_error("Invalid hex digit in unicode escape");
+                            }
+                            codepoint = (codepoint << 4) | hex_value(hex);
+                            digits_parsed++;
+                        }
+                    }
+
+                    try {
+                        result += encode_utf8(codepoint);
+                    } catch (const std::runtime_error& err) {
+                        parse_error(err.what());
+                    }
+                    break;
+                }
+                case 'U': {
+                    char32_t codepoint = 0;
+                    for (int i = 0; i < 8; ++i) {
                         if (is_at_end()) {
                             parse_error("Incomplete unicode escape sequence");
                         }
@@ -132,7 +177,12 @@ std::string ThemeParser::parse_string() {
                         }
                         codepoint = (codepoint << 4) | hex_value(hex);
                     }
-                    result += encode_utf8(codepoint);
+
+                    try {
+                        result += encode_utf8(codepoint);
+                    } catch (const std::runtime_error& err) {
+                        parse_error(err.what());
+                    }
                     break;
                 }
                 default: 

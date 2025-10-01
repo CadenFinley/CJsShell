@@ -1,0 +1,273 @@
+#! usr/bin/env cjsh
+
+theme_definition "powerline_aligned" {
+  terminal_title "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME} "
+
+  fill {
+    char "—",
+    fg "#555555",
+    bg "RESET"
+  }
+
+  ps1 {
+    segment "userseg" {
+      content " {USERNAME} "
+      fg "#FFFFFF"
+      bg "#005F87"
+      separator "\uE0B0"
+      separator_fg "#005F87"
+      separator_bg "#0000AA"
+      forward_separator "\ue0b6"
+      forward_separator_fg "#005F87"
+      forward_separator_bg "RESET"
+      alignment "left"
+    }
+
+    segment "transitionseg1" {
+      content "\uE0B0"
+      fg "#0000AA"
+      bg "#5555FF"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "transitionseg2" {
+      content "\uE0B0"
+      fg "#5555FF"
+      bg "#0087AF"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "hostseg" {
+      content " {HOSTNAME} "
+      fg "#FFFFFF"
+      bg "#0087AF"
+      separator "\uE0B0"
+      separator_fg "#0087AF"
+      separator_bg "#0000AA"
+      alignment "left"
+    }
+
+    segment "transitionseg3" {
+      content "\uE0B0"
+      fg "#0000AA"
+      bg "#5555FF"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "transitionseg4" {
+      content "\uE0B0"
+      fg "#5555FF"
+      bg "#00AFAF"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "dirseg" {
+      content " 📁 {PATH} "
+      fg "#FFFFFF"
+      bg "#00AFAF"
+      alignment "left"
+    }
+
+    segment "statusseg" {
+      content " [ {STATUS} ] "
+      fg "#FFFFFF"
+      bg "#00AFAF"
+      separator "\uE0B0"
+      separator_fg "#00AFAF"
+      separator_bg "RESET"
+      alignment "left"
+    }
+
+    segment "timeseg" {
+      content " {TIME12} "
+      fg "#FFFFFF"
+      bg "#5F5FAF"
+      separator "\uE0B4"
+      separator_fg "#5F5FAF"
+      separator_bg "RESET"
+      forward_separator "\ue0b2"
+      forward_separator_fg "#5F5FAF"
+      forward_separator_bg "RESET"
+      alignment "right"
+    }
+  }
+
+  git_segments {
+    segment "userseg" {
+      content " {USERNAME} "
+      fg "#FFFFFF"
+      bg "#005F87"
+      separator "\uE0B0"
+      separator_fg "#005F87"
+      separator_bg "#00AFAF"
+      forward_separator "\ue0b6"
+      forward_separator_fg "#005F87"
+      forward_separator_bg "RESET"
+      alignment "left"
+    }
+
+    segment "dirseg" {
+      content " 📁 {LOCAL_PATH} "
+      fg "#FFFFFF"
+      bg "#00AFAF"
+      separator "\uE0B0"
+      separator_fg "#00AFAF"
+      separator_bg "#5FAF00"
+      alignment "left"
+    }
+
+    segment "gitseg" {
+      content " {GIT_BRANCH} : {GIT_STATUS} "
+      fg "#FFFFFF"
+      bg "#5FAF00"
+      alignment "left"
+    }
+
+    segment "statusseg" {
+      content " [ {STATUS} ] "
+      fg "#FFFFFF"
+      bg "#5FAF00"
+      separator "\uE0B0"
+      separator_fg "#5FAF00"
+      separator_bg "RESET"
+      alignment "left"
+    }
+
+    segment "timeseg" {
+      content " {TIME12} "
+      fg "#FFFFFF"
+      bg "#5F5FAF"
+      separator "\uE0B4"
+      separator_fg "#5F5FAF"
+      separator_bg "RESET"
+      forward_separator "\ue0b2"
+      forward_separator_fg "#5F5FAF"
+      forward_separator_bg "RESET"
+      alignment "right"
+    }
+  }
+
+  ai_segments {
+    segment "ai_userseg" {
+      content " {AI_MODEL} "
+      fg "#FFFFFF"
+      bg "#5F0087"
+      separator "\uE0B0"
+      separator_fg "#5F0087"
+      separator_bg "#8700AF"
+      forward_separator "\ue0b6"
+      forward_separator_fg "#5F0087"
+      forward_separator_bg "RESET"
+      alignment "left"
+    }
+
+    segment "ai_transitionseg1" {
+      content "\uE0B0"
+      fg "#5F0087"
+      bg "#8700AF"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "ai_transitionseg2" {
+      content "\uE0B0"
+      fg "#8700AF"
+      bg "#AF00D7"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "ai_hostseg" {
+      content " {AI_AGENT_TYPE} "
+      fg "#FFFFFF"
+      bg "#AF00D7"
+      separator "\uE0B0"
+      separator_fg "#AF00D7"
+      separator_bg "#8700AF"
+      alignment "left"
+    }
+
+    segment "ai_transitionseg3" {
+      content "\uE0B0"
+      fg "#AF00D7"
+      bg "#8700AF"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "ai_transitionseg4" {
+      content "\uE0B0"
+      fg "#8700AF"
+      bg "#D700D7"
+      separator ""
+      separator_fg ""
+      separator_bg ""
+      alignment "left"
+    }
+
+    segment "ai_dirseg" {
+      content " 📁 {DIRECTORY} "
+      fg "#FFFFFF"
+      bg "#D700D7"
+      alignment "left"
+    }
+
+    segment "ai_statusseg" {
+      content " {AI_CONTEXT_COMPARISON} "
+      fg "#FFFFFF"
+      bg "#D700D7"
+      separator "\uE0B0"
+      separator_fg "#D700D7"
+      separator_bg "RESET"
+      alignment "left"
+    }
+
+    segment "ai_timeseg" {
+      content " {TIME12} "
+      fg "#FFFFFF"
+      bg "#8700AF"
+      separator "\uE0B4"
+      separator_fg "#8700AF"
+      separator_bg "RESET"
+      forward_separator "\ue0b2"
+      forward_separator_fg "#8700AF"
+      forward_separator_bg "RESET"
+      alignment "right"
+    }
+  }
+
+  newline {
+    segment "promptseg" {
+      content " → "
+      fg "#87D700"
+      bg "RESET"
+      separator ""
+      separator_fg "RESET"
+      separator_bg "RESET"
+    }
+  }
+
+  behavior {
+    cleanup true
+    cleanup_empty_line false
+    newline_after_execution true
+  }
+}
