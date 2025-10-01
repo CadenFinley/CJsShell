@@ -264,9 +264,8 @@ bool build_executable_cache() {
     const char* path_env = std::getenv("PATH");
     if (!path_env) {
         if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: Skipping executable cache refresh - PATH unset"
-                << std::endl;
+            std::cerr << "DEBUG: Skipping executable cache refresh - PATH unset"
+                      << std::endl;
         }
         return false;
     }
@@ -285,8 +284,8 @@ bool build_executable_cache() {
 
         if (!fs::exists(directory_path, ec)) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Skipping non-existent PATH entry: "
-                          << dir << std::endl;
+                std::cerr << "DEBUG: Skipping non-existent PATH entry: " << dir
+                          << std::endl;
             }
             continue;
         }
@@ -304,9 +303,8 @@ bool build_executable_cache() {
             continue;
         }
 
-        fs::directory_iterator it(directory_path,
-                                  fs::directory_options::skip_permission_denied,
-                                  ec);
+        fs::directory_iterator it(
+            directory_path, fs::directory_options::skip_permission_denied, ec);
         if (ec) {
             if (g_debug_mode) {
                 std::cerr

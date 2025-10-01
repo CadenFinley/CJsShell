@@ -371,15 +371,15 @@ Built_ins::Built_ins() : shell(nullptr) {
 
              auto builtin_it = builtins.find(target_command);
              if (builtin_it == builtins.end()) {
-                 ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND,
-                                    "builtin",
-                                    "'" + target_command +
-                                        "' is not a builtin command",
-                                    {"Use 'help' to list available builtins"}};
+                 ErrorInfo error = {
+                     ErrorType::COMMAND_NOT_FOUND,
+                     "builtin",
+                     "'" + target_command + "' is not a builtin command",
+                     {"Use 'help' to list available builtins"}};
                  print_error(error);
-                 last_terminal_output_error = "cjsh: builtin: " +
-                                              target_command +
-                                              ": not a builtin command";
+                 last_terminal_output_error =
+                     "cjsh: builtin: " + target_command +
+                     ": not a builtin command";
                  return 1;
              }
 
