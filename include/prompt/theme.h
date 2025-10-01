@@ -1,9 +1,9 @@
 #pragma once
 
-#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "theme_parser.h"
 
 class Theme {
    private:
@@ -12,7 +12,7 @@ class Theme {
     void create_default_theme();
 
     std::string terminal_title_format;
-    bool check_theme_requirements(const nlohmann::json& requirements) const;
+    bool check_theme_requirements(const ThemeRequirements& requirements) const;
 
     mutable size_t last_ps1_raw_length = 0;
     mutable size_t last_git_raw_length = 0;
@@ -46,7 +46,7 @@ class Theme {
     size_t calculate_raw_length(const std::string& str) const;
     size_t get_terminal_width() const;
     std::string render_line_aligned(
-        const std::vector<nlohmann::json>& segments,
+        const std::vector<ThemeSegment>& segments,
         const std::unordered_map<std::string, std::string>& vars) const;
 
     std::string fill_char_{""};
@@ -60,11 +60,13 @@ class Theme {
     Theme(std::string theme_dir, bool enabled);
     ~Theme();
 
-    std::vector<nlohmann::json> ps1_segments;
-    std::vector<nlohmann::json> git_segments;
-    std::vector<nlohmann::json> ai_segments;
-    std::vector<nlohmann::json> newline_segments;
-    std::vector<nlohmann::json> inline_right_segments;
+    ThemeDefinition theme_data;
+    
+    std::vector<ThemeSegment>& ps1_segments = theme_data.ps1_segments;
+    std::vector<ThemeSegment>& git_segments = theme_data.git_segments;
+    std::vector<ThemeSegment>& ai_segments = theme_data.ai_segments;
+    std::vector<ThemeSegment>& newline_segments = theme_data.newline_segments;
+    std::vector<ThemeSegment>& inline_right_segments = theme_data.inline_right_segments;
 
     bool load_theme(const std::string& theme_name, bool allow_fallback);
     std::vector<std::string> list_themes();

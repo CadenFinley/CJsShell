@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 #include "cjsh.h"
+#include "theme_parser.h"
 
 /* Available prompt placeholders:
  * -----------------------------
@@ -161,7 +162,7 @@ std::string PromptInfo::get_basic_title() {
 }
 
 bool PromptInfo::is_variable_used(const std::string& var_name,
-                                  const std::vector<nlohmann::json>& segments) {
+                                  const std::vector<ThemeSegment>& segments) {
     if (g_debug_mode)
         std::cerr << "DEBUG: is_variable_used START: " << var_name << std::endl;
 
@@ -185,16 +186,13 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
     }
 
     for (const auto& segment : segments) {
-        if (segment.contains("content")) {
-            std::string content = segment["content"];
-            if (content.find(placeholder) != std::string::npos) {
-                std::lock_guard<std::mutex> lock(cache_mutex);
-                cache[cache_key] = true;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: is_variable_used END: " << var_name
-                              << " = true" << std::endl;
-                return true;
-            }
+        if (segment.content.find(placeholder) != std::string::npos) {
+            std::lock_guard<std::mutex> lock(cache_mutex);
+            cache[cache_key] = true;
+            if (g_debug_mode)
+                std::cerr << "DEBUG: is_variable_used END: " << var_name
+                          << " = true" << std::endl;
+            return true;
         }
     }
 
@@ -207,7 +205,7 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
 }
 
 std::unordered_map<std::string, std::string> PromptInfo::get_variables(
-    const std::vector<nlohmann::json>& segments, bool is_git_repo,
+    const std::vector<ThemeSegment>& segments, bool is_git_repo,
     const std::filesystem::path& repo_root) {
     if (g_debug_mode)
         std::cerr << "DEBUG: Getting prompt variables, is_git_repo="
@@ -229,8 +227,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
     std::unordered_set<std::string> needed_vars;
     for (const auto& segment : segments) {
-        if (segment.contains("content")) {
-            std::string content = segment["content"];
+        if (!segment.content.empty()) {
+            std::string content = segment.content;
 
             std::regex placeholder_pattern("\\{([^}]+)\\}");
             std::smatch matches;

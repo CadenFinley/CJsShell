@@ -4,6 +4,7 @@
 
 #include "cjsh.h"
 #include "theme.h"
+#include "theme_parser.h"
 
 Prompt::Prompt() : repo_root() {
 }
@@ -161,7 +162,7 @@ std::string Prompt::replace_placeholder(const std::string& format,
 std::unordered_map<std::string, std::string> Prompt::get_variables(
     PromptType type, bool is_git_repo) {
     // Collect only the segments needed for the requested prompt type
-    std::vector<nlohmann::json> segments;
+    std::vector<ThemeSegment> segments;
 
     switch (type) {
         case PromptType::PS1:
@@ -186,8 +187,8 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(
                             g_theme->inline_right_segments.end());
             break;
         case PromptType::TITLE: {
-            nlohmann::json title_segment;
-            title_segment["content"] = g_theme->get_terminal_title_format();
+            ThemeSegment title_segment("title");
+            title_segment.content = g_theme->get_terminal_title_format();
             segments.push_back(title_segment);
             break;
         }
@@ -204,8 +205,8 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(
                             g_theme->inline_right_segments.begin(),
                             g_theme->inline_right_segments.end());
 
-            nlohmann::json title_segment;
-            title_segment["content"] = g_theme->get_terminal_title_format();
+            ThemeSegment title_segment("title");
+            title_segment.content = g_theme->get_terminal_title_format();
             segments.push_back(title_segment);
             break;
     }

@@ -19,7 +19,7 @@
 #include "git_info.h"
 #include "language_info.h"
 #include "network_info.h"
-#include "nlohmann/json.hpp"
+#include "theme_parser.h"
 #include "system_info.h"
 #include "time_info.h"
 
@@ -41,9 +41,9 @@ class PromptInfo {
     std::string get_basic_title();
     std::string get_basic_ai_prompt();
     bool is_variable_used(const std::string& var_name,
-                          const std::vector<nlohmann::json>& segments);
+                          const std::vector<ThemeSegment>& segments);
     std::unordered_map<std::string, std::string> get_variables(
-        const std::vector<nlohmann::json>& segments, bool is_git_repo = false,
+        const std::vector<ThemeSegment>& segments, bool is_git_repo = false,
         const std::filesystem::path& repo_root = {});
 
     bool is_root_path(const std::filesystem::path& path) {

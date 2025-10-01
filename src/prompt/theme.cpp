@@ -17,7 +17,7 @@
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(theme_dir), is_enabled(enabled) {
-    if (!std::filesystem::exists(theme_directory + "/default.json")) {
+    if (!std::filesystem::exists(theme_directory + "/default")) {
         create_default_theme();
     }
     is_enabled = enabled;
@@ -27,92 +27,94 @@ Theme::~Theme() {
 }
 
 void Theme::create_default_theme() {
-    nlohmann::json default_theme;
-
-    default_theme["terminal_title"] = "{PATH}";
-    default_theme["requirements"] = nlohmann::json::object();
-    default_theme["ps1_segments"] = nlohmann::json::array();
-    default_theme["ps1_segments"].push_back(
-        {{"tag", "username"},
-         {"content", "{USERNAME}@{HOSTNAME}:"},
-         {"bg_color", "RESET"},
-         {"fg_color", "#5555FF"},
-         {"separator", ""},
-         {"separator_fg", "RESET"},
-         {"separator_bg", "RESET"}});
-    default_theme["ps1_segments"].push_back({{"tag", "directory"},
-                                             {"content", " {DIRECTORY} "},
-                                             {"bg_color", "RESET"},
-                                             {"fg_color", "#55FF55"},
-                                             {"separator", " "},
-                                             {"separator_fg", "#FFFFFF"},
-                                             {"separator_bg", "RESET"}});
-    default_theme["ps1_segments"].push_back({{"tag", "prompt"},
-                                             {"content", "$ "},
-                                             {"bg_color", "RESET"},
-                                             {"fg_color", "#FFFFFF"},
-                                             {"separator", ""},
-                                             {"separator_fg", "RESET"},
-                                             {"separator_bg", "RESET"}});
-
-    default_theme["git_segments"] = nlohmann::json::array();
-    default_theme["git_segments"].push_back({{"tag", "path"},
-                                             {"content", " {LOCAL_PATH} "},
-                                             {"bg_color", "RESET"},
-                                             {"fg_color", "#55FF55"},
-                                             {"separator", " "},
-                                             {"separator_fg", "#FFFFFF"},
-                                             {"separator_bg", "RESET"}});
-    default_theme["git_segments"].push_back({{"tag", "branch"},
-                                             {"content", "{GIT_BRANCH}"},
-                                             {"bg_color", "RESET"},
-                                             {"fg_color", "#FFFF55"},
-                                             {"separator", ""},
-                                             {"separator_fg", "RESET"},
-                                             {"separator_bg", "RESET"}});
-    default_theme["git_segments"].push_back({{"tag", "status"},
-                                             {"content", "{GIT_STATUS}"},
-                                             {"bg_color", "RESET"},
-                                             {"fg_color", "#FF5555"},
-                                             {"separator", " $ "},
-                                             {"separator_fg", "#FFFFFF"},
-                                             {"separator_bg", "RESET"}});
-
-    default_theme["ai_segments"] = nlohmann::json::array();
-    default_theme["ai_segments"].push_back({{"tag", "model"},
-                                            {"content", " {AI_MODEL} "},
-                                            {"bg_color", "RESET"},
-                                            {"fg_color", "#FF55FF"},
-                                            {"separator", " / "},
-                                            {"separator_fg", "#FFFFFF"},
-                                            {"separator_bg", "RESET"}});
-    default_theme["ai_segments"].push_back({{"tag", "mode"},
-                                            {"content", "{AI_AGENT_TYPE} "},
-                                            {"bg_color", "RESET"},
-                                            {"fg_color", "#55FFFF"},
-                                            {"separator", ""},
-                                            {"separator_fg", "RESET"},
-                                            {"separator_bg", "RESET"}});
-
-    default_theme["newline_segments"] = nlohmann::json::array();
-    default_theme["inline_right_segments"] = nlohmann::json::array();
-    default_theme["inline_right_segments"].push_back(
-        {{"tag", "time"},
-         {"content", "[{TIME}]"},
-         {"bg_color", "RESET"},
-         {"fg_color", "#888888"},
-         {"separator", ""},
-         {"separator_fg", "RESET"},
-         {"separator_bg", "RESET"}});
-    default_theme["fill_char"] = "";
-    default_theme["fill_fg_color"] = "RESET";
-    default_theme["fill_bg_color"] = "RESET";
-    default_theme["cleanup"] = false;
-    default_theme["cleanup_empty_line"] = false;
-    default_theme["newline_after_execution"] = false;
-
-    std::ofstream file(theme_directory + "/default.json");
-    file << default_theme.dump(4);
+    ThemeDefinition default_theme("default");
+    
+    default_theme.terminal_title = "{PATH}";
+    
+    // Fill settings
+    default_theme.fill.character = "";
+    default_theme.fill.fg_color = "RESET";
+    default_theme.fill.bg_color = "RESET";
+    
+    // Behavior settings
+    default_theme.behavior.cleanup = false;
+    default_theme.behavior.cleanup_empty_line = false;
+    default_theme.behavior.newline_after_execution = false;
+    
+    // PS1 segments
+    ThemeSegment username_seg("username");
+    username_seg.content = "{USERNAME}@{HOSTNAME}:";
+    username_seg.fg_color = "#5555FF";
+    username_seg.bg_color = "RESET";
+    default_theme.ps1_segments.push_back(username_seg);
+    
+    ThemeSegment directory_seg("directory");
+    directory_seg.content = " {DIRECTORY} ";
+    directory_seg.fg_color = "#55FF55";
+    directory_seg.bg_color = "RESET";
+    directory_seg.separator = " ";
+    directory_seg.separator_fg = "#FFFFFF";
+    directory_seg.separator_bg = "RESET";
+    default_theme.ps1_segments.push_back(directory_seg);
+    
+    ThemeSegment prompt_seg("prompt");
+    prompt_seg.content = "$ ";
+    prompt_seg.fg_color = "#FFFFFF";  
+    prompt_seg.bg_color = "RESET";
+    default_theme.ps1_segments.push_back(prompt_seg);
+    
+    // Git segments
+    ThemeSegment git_path_seg("path");
+    git_path_seg.content = " {LOCAL_PATH} ";
+    git_path_seg.fg_color = "#55FF55";
+    git_path_seg.bg_color = "RESET";
+    git_path_seg.separator = " ";
+    git_path_seg.separator_fg = "#FFFFFF";
+    git_path_seg.separator_bg = "RESET";
+    default_theme.git_segments.push_back(git_path_seg);
+    
+    ThemeSegment git_branch_seg("branch");
+    git_branch_seg.content = "{GIT_BRANCH}";
+    git_branch_seg.fg_color = "#FFFF55";
+    git_branch_seg.bg_color = "RESET";
+    default_theme.git_segments.push_back(git_branch_seg);
+    
+    ThemeSegment git_status_seg("status");
+    git_status_seg.content = "{GIT_STATUS}";
+    git_status_seg.fg_color = "#FF5555";
+    git_status_seg.bg_color = "RESET";
+    git_status_seg.separator = " $ ";
+    git_status_seg.separator_fg = "#FFFFFF";
+    git_status_seg.separator_bg = "RESET";
+    default_theme.git_segments.push_back(git_status_seg);
+    
+    // AI segments
+    ThemeSegment ai_model_seg("model");
+    ai_model_seg.content = " {AI_MODEL} ";
+    ai_model_seg.fg_color = "#FF55FF";
+    ai_model_seg.bg_color = "RESET";
+    ai_model_seg.separator = " / ";
+    ai_model_seg.separator_fg = "#FFFFFF";
+    ai_model_seg.separator_bg = "RESET";
+    default_theme.ai_segments.push_back(ai_model_seg);
+    
+    ThemeSegment ai_mode_seg("mode");
+    ai_mode_seg.content = "{AI_AGENT_TYPE} ";
+    ai_mode_seg.fg_color = "#55FFFF";
+    ai_mode_seg.bg_color = "RESET";
+    default_theme.ai_segments.push_back(ai_mode_seg);
+    
+    // Inline right segment
+    ThemeSegment time_seg("time");
+    time_seg.content = "[{TIME}]";
+    time_seg.fg_color = "#888888";
+    time_seg.bg_color = "RESET";
+    default_theme.inline_right_segments.push_back(time_seg);
+    
+    // Write to file
+    std::string theme_content = ThemeParser::write_theme(default_theme);
+    std::ofstream file(theme_directory + "/default");
+    file << theme_content;
     file.close();
 }
 
@@ -128,8 +130,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
                   << (g_startup_active ? "true" : "false") << std::endl;
     }
 
-    std::string theme_file =
-        theme_directory + "/" + theme_name_to_use + ".json";
+    std::string theme_file = theme_directory + "/" + theme_name_to_use;
 
     if (!std::filesystem::exists(theme_file)) {
         print_error({ErrorType::FILE_NOT_FOUND,
@@ -139,142 +140,91 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
         return false;
     }
 
-    std::ifstream file(theme_file);
-    nlohmann::json theme_json;
-    file >> theme_json;
-    file.close();
-
-    if (theme_json.contains("requirements") &&
-        theme_json["requirements"].is_object() &&
-        !theme_json["requirements"].empty()) {
-        if (!check_theme_requirements(theme_json["requirements"])) {
-            if (!allow_fallback) {
+    try {
+        theme_data = ThemeParser::parse_file(theme_file);
+        
+        // Check requirements if they exist
+        if (!theme_data.requirements.plugins.empty() || 
+            !theme_data.requirements.colors.empty() ||
+            !theme_data.requirements.fonts.empty() ||
+            !theme_data.requirements.custom.empty()) {
+            
+            if (!check_theme_requirements(theme_data.requirements)) {
+                if (!allow_fallback) {
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "load_theme",
+                                 "Theme '" + theme_name_to_use +
+                                     "' requirements not met, cannot load theme.",
+                                 {}});
+                    return false;
+                }
+                std::string previous_theme =
+                    (g_current_theme == "" ? "default" : g_current_theme);
                 print_error({ErrorType::RUNTIME_ERROR,
                              "load_theme",
                              "Theme '" + theme_name_to_use +
-                                 "' requirements not met, cannot load theme.",
+                                 "' requirements not met, falling back to previous "
+                                 "theme: '" +
+                                 previous_theme + "'.",
                              {}});
-                return false;
-            }
-            std::string previous_theme =
-                (g_current_theme == "" ? "default" : g_current_theme);
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "load_theme",
-                         "Theme '" + theme_name_to_use +
-                             "' requirements not met, falling back to previous "
-                             "theme: '" +
-                             previous_theme + "'.",
-                         {}});
-            if (theme_name_to_use != previous_theme) {
-                return load_theme(previous_theme, allow_fallback);
-            } else {
-                if (theme_name_to_use != "default") {
-                    std::cerr << "Falling back to default theme" << std::endl;
-                    return load_theme("default", allow_fallback);
+                if (theme_name_to_use != previous_theme) {
+                    return load_theme(previous_theme, allow_fallback);
+                } else {
+                    if (theme_name_to_use != "default") {
+                        std::cerr << "Falling back to default theme" << std::endl;
+                        return load_theme("default", allow_fallback);
+                    }
+                    print_error({ErrorType::FILE_NOT_FOUND,
+                                 "load_theme",
+                                 "Theme file '" + theme_file + "' does not exist.",
+                                 {"Use 'theme' to see available themes."}});
+                    return false;
                 }
-                print_error({ErrorType::FILE_NOT_FOUND,
-                             "load_theme",
-                             "Theme file '" + theme_file + "' does not exist.",
-                             {"Use 'theme' to see available themes."}});
-                return false;
             }
         }
-    }
 
-    // reset all old segments and theme properties
-    ps1_segments.clear();
-    git_segments.clear();
-    ai_segments.clear();
-    newline_segments.clear();
-    inline_right_segments.clear();
+        // Set theme properties from loaded data
+        terminal_title_format = theme_data.terminal_title;
+        fill_char_ = theme_data.fill.character;
+        fill_fg_color_ = theme_data.fill.fg_color;
+        fill_bg_color_ = theme_data.fill.bg_color;
+        cleanup_ = theme_data.behavior.cleanup;
+        cleanup_add_empty_line_ = theme_data.behavior.cleanup_empty_line;
+        newline_after_execution_ = theme_data.behavior.newline_after_execution;
 
-    // Reset other theme properties to defaults
-    terminal_title_format = "";
-    fill_char_ = "";
-    fill_fg_color_ = "RESET";
-    fill_bg_color_ = "RESET";
-    cleanup_ = false;
-    cleanup_add_empty_line_ = false;
-    newline_after_execution_ = false;
-
-    if (theme_json.contains("ps1_segments") &&
-        theme_json["ps1_segments"].is_array()) {
-        ps1_segments = theme_json["ps1_segments"];
-    }
-
-    if (theme_json.contains("git_segments") &&
-        theme_json["git_segments"].is_array()) {
-        git_segments = theme_json["git_segments"];
-    }
-
-    if (theme_json.contains("ai_segments") &&
-        theme_json["ai_segments"].is_array()) {
-        ai_segments = theme_json["ai_segments"];
-    }
-
-    if (theme_json.contains("newline_segments") &&
-        theme_json["newline_segments"].is_array()) {
-        newline_segments = theme_json["newline_segments"];
-    }
-
-    if (theme_json.contains("inline_right_segments") &&
-        theme_json["inline_right_segments"].is_array()) {
-        inline_right_segments = theme_json["inline_right_segments"];
-    }
-
-    auto has_duplicate_tags = [](const std::vector<nlohmann::json>& segs) {
-        std::unordered_set<std::string> seen;
-        for (const auto& s : segs) {
-            std::string tag = s.value("tag", "");
-            if (!seen.insert(tag).second) {
-                return true;
+        // Check for duplicate segment tags
+        auto has_duplicate_tags = [](const std::vector<ThemeSegment>& segs) {
+            std::unordered_set<std::string> seen;
+            for (const auto& s : segs) {
+                if (!seen.insert(s.name).second) {
+                    return true;
+                }
             }
+            return false;
+        };
+
+        if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
+            has_duplicate_tags(ai_segments) ||
+            has_duplicate_tags(newline_segments) ||
+            has_duplicate_tags(inline_right_segments)) {
+            print_error(
+                {ErrorType::SYNTAX_ERROR,
+                 "load_theme",
+                 "Duplicate tags found in theme segments.",
+                 {"Ensure all segment tags are unique within their section."}});
+            return false;
         }
-        return false;
-    };
 
-    if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
-        has_duplicate_tags(ai_segments) ||
-        has_duplicate_tags(newline_segments) ||
-        has_duplicate_tags(inline_right_segments)) {
-        print_error(
-            {ErrorType::SYNTAX_ERROR,
-             "load_theme",
-             "Duplicate tags found in theme segments.",
-             {"Ensure all segment tags are unique within their section."}});
+        g_current_theme = theme_name_to_use;
+        return true;
+        
+    } catch (const std::runtime_error& e) {
+        print_error({ErrorType::SYNTAX_ERROR,
+                     "load_theme",
+                     "Failed to parse theme file '" + theme_file + "': " + e.what(),
+                     {"Check theme syntax and try again."}});
         return false;
     }
-
-    if (theme_json.contains("terminal_title")) {
-        terminal_title_format = theme_json["terminal_title"];
-    }
-
-    if (theme_json.contains("fill_char") &&
-        theme_json["fill_char"].is_string()) {
-        fill_char_ = theme_json["fill_char"].get<std::string>();
-    }
-    if (theme_json.contains("fill_fg_color") &&
-        theme_json["fill_fg_color"].is_string()) {
-        fill_fg_color_ = theme_json["fill_fg_color"].get<std::string>();
-    }
-    if (theme_json.contains("fill_bg_color") &&
-        theme_json["fill_bg_color"].is_string()) {
-        fill_bg_color_ = theme_json["fill_bg_color"].get<std::string>();
-    }
-    if (theme_json.contains("cleanup") && theme_json["cleanup"].is_boolean()) {
-        cleanup_ = theme_json["cleanup"].get<bool>();
-    }
-    if (theme_json.contains("cleanup_empty_line") &&
-        theme_json["cleanup_empty_line"].is_boolean()) {
-        cleanup_add_empty_line_ = theme_json["cleanup_empty_line"].get<bool>();
-    }
-    if (theme_json.contains("newline_after_execution") &&
-        theme_json["newline_after_execution"].is_boolean()) {
-        newline_after_execution_ =
-            theme_json["newline_after_execution"].get<bool>();
-    }
-    g_current_theme = theme_name_to_use;
-    return true;
 }
 
 size_t Theme::get_terminal_width() const {
@@ -298,54 +248,54 @@ size_t Theme::get_terminal_width() const {
 }
 
 std::string Theme::render_line_aligned(
-    const std::vector<nlohmann::json>& segments,
+    const std::vector<ThemeSegment>& segments,
     const std::unordered_map<std::string, std::string>& vars) const {
     if (segments.empty())
         return "";
 
     bool isNewlineSegments = (&segments == &newline_segments);
 
-    auto build = [&](const std::vector<nlohmann::json>& bucket) {
+    auto build = [&](const std::vector<ThemeSegment>& bucket) {
         std::string out;
-        for (auto& segment : bucket) {
+        for (const auto& segment : bucket) {
             std::string segment_result;
-            std::string content =
-                render_line(segment.value("content", ""), vars);
-            std::string separator =
-                render_line(segment.value("separator", ""), vars);
+            std::string content = render_line(segment.content, vars);
+            std::string separator = render_line(segment.separator, vars);
 
             if (content.empty() || trim(content).empty()) {
                 continue;
             }
 
-            std::string bg_color_name =
-                render_line(segment.value("bg_color", "RESET"), vars);
-            std::string fg_color_name =
-                render_line(segment.value("fg_color", "RESET"), vars);
-            std::string sep_fg_name =
-                render_line(segment.value("separator_fg", "RESET"), vars);
-            std::string sep_bg_name =
-                render_line(segment.value("separator_bg", "RESET"), vars);
+            if (!segment.forward_separator.empty()) {
+                std::string forward_sep = render_line(segment.forward_separator, vars);
+                if (!forward_sep.empty()) {
+                    std::string forward_fg = render_line(
+                        segment.forward_separator_fg.empty() ? "RESET"
+                                                             : segment.forward_separator_fg,
+                        vars);
+                    std::string forward_bg = render_line(
+                        segment.forward_separator_bg.empty() ? "RESET"
+                                                             : segment.forward_separator_bg,
+                        vars);
 
-            if (segment.contains("forward_separator") &&
-                !segment["forward_separator"].empty()) {
-                std::string fsep = segment["forward_separator"];
-                std::string fsep_fg = render_line(
-                    segment.value("forward_separator_fg", "RESET"), vars);
-                std::string fsep_bg = render_line(
-                    segment.value("forward_separator_bg", "RESET"), vars);
-                if (fsep_bg != "RESET") {
-                    segment_result +=
-                        colors::bg_color(colors::parse_color_value(fsep_bg));
-                } else {
-                    segment_result += colors::ansi::BG_RESET;
+                    if (forward_fg != "RESET") {
+                        out += colors::fg_color(
+                            colors::parse_color_value(forward_fg));
+                    }
+                    if (forward_bg != "RESET") {
+                        out += colors::bg_color(
+                            colors::parse_color_value(forward_bg));
+                    } else {
+                        out += colors::ansi::BG_RESET;
+                    }
+                    out += forward_sep;
                 }
-                if (fsep_fg != "RESET") {
-                    segment_result +=
-                        colors::fg_color(colors::parse_color_value(fsep_fg));
-                }
-                segment_result += fsep;
             }
+
+            std::string bg_color_name = render_line(segment.bg_color.empty() ? "RESET" : segment.bg_color, vars);
+            std::string fg_color_name = render_line(segment.fg_color.empty() ? "RESET" : segment.fg_color, vars);
+            std::string sep_fg_name = render_line(segment.separator_fg.empty() ? "RESET" : segment.separator_fg, vars);
+            std::string sep_bg_name = render_line(segment.separator_bg.empty() ? "RESET" : segment.separator_bg, vars);
 
             std::string styled_content = content;
 
@@ -397,8 +347,8 @@ std::string Theme::render_line_aligned(
     };
 
     bool hasAlign = false;
-    for (auto& seg : segments)
-        if (seg.contains("align")) {
+    for (const auto& seg : segments)
+        if (!seg.alignment.empty()) {
             hasAlign = true;
             break;
         }
@@ -408,12 +358,12 @@ std::string Theme::render_line_aligned(
         return result;
     }
 
-    std::vector<nlohmann::json> left, center, right;
-    for (auto& seg : segments) {
-        auto a = seg.value("align", "left");
-        if (a == "center")
+    std::vector<ThemeSegment> left, center, right;
+    for (const auto& seg : segments) {
+        std::string alignment = seg.alignment.empty() ? "left" : seg.alignment;
+        if (alignment == "center")
             center.push_back(seg);
-        else if (a == "right")
+        else if (alignment == "right")
             right.push_back(seg);
         else
             left.push_back(seg);
@@ -662,8 +612,12 @@ std::vector<std::string> Theme::list_themes() {
 
     for (const auto& entry :
          std::filesystem::directory_iterator(theme_directory)) {
-        if (entry.path().extension() == ".json") {
-            themes.push_back(entry.path().stem().string());
+        if (entry.is_regular_file() && entry.path().extension().empty()) {
+            std::string name = entry.path().filename().string();
+            // Filter out system files
+            if (name != ".DS_Store" && !name.empty() && name[0] != '.') {
+                themes.push_back(name);
+            }
         }
     }
     return themes;
@@ -955,7 +909,7 @@ std::string Theme::render_line(
 }
 
 void Theme::view_theme_requirements(const std::string& theme) const {
-    std::string theme_file = theme_directory + "/" + theme + ".json";
+    std::string theme_file = theme_directory + "/" + theme;
 
     if (!std::filesystem::exists(theme_file)) {
         print_error({ErrorType::FILE_NOT_FOUND,
@@ -964,79 +918,64 @@ void Theme::view_theme_requirements(const std::string& theme) const {
                      {"Use 'theme' to see available themes."}});
         return;
     }
-    std::ifstream file(theme_file);
-    nlohmann::json theme_json;
-    file >> theme_json;
-    file.close();
 
-    if (theme_json.contains("requirements") &&
-        theme_json["requirements"].is_object() &&
-        !theme_json["requirements"].empty()) {
-        const nlohmann::json& requirements = theme_json["requirements"];
+    try {
+        ThemeDefinition theme_def = ThemeParser::parse_file(theme_file);
+        const ThemeRequirements& requirements = theme_def.requirements;
 
-        if (requirements.contains("colors") &&
-            requirements["colors"].is_string()) {
-            std::string required_capability =
-                requirements["colors"].get<std::string>();
-            std::cout << "Terminal color support for " << required_capability
+        if (!requirements.colors.empty()) {
+            std::cout << "Terminal color support for " << requirements.colors
                       << " is required." << std::endl;
         }
 
-        if (requirements.contains("fonts") &&
-            requirements["fonts"].is_array()) {
+        if (!requirements.fonts.empty()) {
             std::stringstream font_req;
             font_req << "This theme works best with one of these fonts: ";
             bool first = true;
 
-            for (const auto& font : requirements["fonts"]) {
-                if (font.is_string()) {
-                    if (!first)
-                        font_req << ", ";
-                    font_req << font.get<std::string>();
-                    first = false;
-                }
+            for (const auto& font : requirements.fonts) {
+                if (!first)
+                    font_req << ", ";
+                font_req << font;
+                first = false;
             }
 
             std::cout << font_req.str() << std::endl;
         }
 
-        if (requirements.contains("plugins") &&
-            requirements["plugins"].is_array()) {
-            for (const auto& plugin_name : requirements["plugins"]) {
-                if (plugin_name.is_string()) {
-                    std::string name = plugin_name.get<std::string>();
-                    std::cout << "Plugin requirement for this theme: " << name
-                              << std::endl;
-                }
+        if (!requirements.plugins.empty()) {
+            for (const auto& plugin_name : requirements.plugins) {
+                std::cout << "Plugin requirement for this theme: " << plugin_name
+                          << std::endl;
             }
         }
 
-        if (requirements.contains("custom") &&
-            requirements["custom"].is_object()) {
-            for (auto it = requirements["custom"].begin();
-                 it != requirements["custom"].end(); ++it) {
-                std::string requirement_name = it.key();
-                if (it.value().is_string()) {
-                    std::string requirement_value =
-                        it.value().get<std::string>();
-                    std::cout << "Custom requirement: " << requirement_name
-                              << " = " << requirement_value << std::endl;
-                }
+        if (!requirements.custom.empty()) {
+            for (const auto& [key, value] : requirements.custom) {
+                std::cout << "Custom requirement: " << key
+                          << " = " << value << std::endl;
             }
         }
-    } else {
-        std::cout << "No specific requirements found for theme " << theme
-                  << std::endl;
+
+        if (requirements.colors.empty() && requirements.fonts.empty() &&
+            requirements.plugins.empty() && requirements.custom.empty()) {
+            std::cout << "No specific requirements found for theme " << theme
+                      << std::endl;
+        }
+    } catch (const std::runtime_error& e) {
+        print_error({ErrorType::SYNTAX_ERROR,
+                     "view_theme_requirements",
+                     "Failed to parse theme file '" + theme_file + "': " + e.what(),
+                     {"Check theme syntax and try again."}});
     }
 }
 
-bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
+bool Theme::check_theme_requirements(const ThemeRequirements& requirements) const {
     bool requirements_met = true;
     std::vector<std::string> missing_requirements;
 
-    if (requirements.contains("colors") && requirements["colors"].is_string()) {
-        std::string required_capability =
-            requirements["colors"].get<std::string>();
+    if (!requirements.colors.empty()) {
+        std::string required_capability = requirements.colors;
 
         if (required_capability == "true_color" &&
             colors::g_color_capability != colors::ColorCapability::TRUE_COLOR) {
@@ -1059,75 +998,65 @@ bool Theme::check_theme_requirements(const nlohmann::json& requirements) const {
         }
     }
 
-    if (requirements.contains("plugins") &&
-        requirements["plugins"].is_array()) {
-        for (const auto& plugin_name : requirements["plugins"]) {
-            if (plugin_name.is_string()) {
-                std::string name = plugin_name.get<std::string>();
+    if (!requirements.plugins.empty()) {
+        for (const auto& plugin_name : requirements.plugins) {
+            bool plugin_enabled = false;
+            if (g_plugin != nullptr) {
+                auto enabled_plugins = g_plugin->get_enabled_plugins();
+                plugin_enabled = std::find(enabled_plugins.begin(),
+                                           enabled_plugins.end(),
+                                           plugin_name) != enabled_plugins.end();
+            }
 
-                bool plugin_enabled = false;
-                if (g_plugin != nullptr) {
-                    auto enabled_plugins = g_plugin->get_enabled_plugins();
-                    plugin_enabled = std::find(enabled_plugins.begin(),
-                                               enabled_plugins.end(),
-                                               name) != enabled_plugins.end();
-                }
-
-                if (!plugin_enabled) {
-                    if (g_plugin->get_enabled()) {
-                        if (requirements_met) {
-                            if (!g_plugin->enable_plugin(name)) {
-                                auto available_plugins =
-                                    g_plugin->get_available_plugins();
-                                requirements_met = false;
-                                if ((std::find(available_plugins.begin(),
-                                               available_plugins.end(), name) ==
-                                     available_plugins.end())) {
-                                    missing_requirements.push_back(
-                                        "Plugin '" + name +
-                                        "' is required but not found");
-                                } else {
-                                    missing_requirements.push_back(
-                                        "Plugin '" + name +
-                                        "' is required but not enabled");
-                                }
-                            }
-                        } else {
+            if (!plugin_enabled) {
+                if (g_plugin->get_enabled()) {
+                    if (requirements_met) {
+                        if (!g_plugin->enable_plugin(plugin_name)) {
                             auto available_plugins =
                                 g_plugin->get_available_plugins();
+                            requirements_met = false;
                             if ((std::find(available_plugins.begin(),
-                                           available_plugins.end(),
-                                           name) == available_plugins.end())) {
+                                           available_plugins.end(), plugin_name) ==
+                                 available_plugins.end())) {
                                 missing_requirements.push_back(
-                                    "Plugin '" + name +
+                                    "Plugin '" + plugin_name +
                                     "' is required but not found");
                             } else {
                                 missing_requirements.push_back(
-                                    "Other requirements are not passing. Not "
-                                    "attempting to "
-                                    "enable plugin '" +
-                                    name + "'");
+                                    "Plugin '" + plugin_name +
+                                    "' is required but not enabled");
                             }
                         }
                     } else {
-                        requirements_met = false;
-                        missing_requirements.push_back(
-                            "Plugin system is disabled");
+                        auto available_plugins =
+                            g_plugin->get_available_plugins();
+                        if ((std::find(available_plugins.begin(),
+                                       available_plugins.end(),
+                                       plugin_name) == available_plugins.end())) {
+                            missing_requirements.push_back(
+                                "Plugin '" + plugin_name +
+                                "' is required but not found");
+                        } else {
+                            missing_requirements.push_back(
+                                "Other requirements are not passing. Not "
+                                "attempting to "
+                                "enable plugin '" +
+                                plugin_name + "'");
+                        }
                     }
+                } else {
+                    requirements_met = false;
+                    missing_requirements.push_back(
+                        "Plugin system is disabled");
                 }
             }
         }
     }
 
-    if (requirements.contains("custom") && requirements["custom"].is_object()) {
-        for (auto it = requirements["custom"].begin();
-             it != requirements["custom"].end(); ++it) {
-            std::string requirement_name = it.key();
-            if (it.value().is_string()) {
-                std::string requirement_value = it.value().get<std::string>();
-                std::cout << "Custom requirement: " << requirement_name << " = "
-                          << requirement_value << std::endl;
-            }
+    if (!requirements.custom.empty()) {
+        for (const auto& [key, value] : requirements.custom) {
+            std::cout << "Custom requirement: " << key << " = "
+                      << value << std::endl;
         }
     }
 

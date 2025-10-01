@@ -11,6 +11,7 @@
 #include "prompt_info.h"
 #include "theme.h"
 #include "theme_command.h"
+#include "theme_parser.h"
 
 int preview_theme(const std::string& theme_name) {
     auto temp_theme = std::make_unique<Theme>(
@@ -41,7 +42,7 @@ int preview_theme(const std::string& theme_name) {
     std::filesystem::path repo_root = std::filesystem::current_path();
     bool is_git_repo = prompt.is_git_repository(repo_root);
 
-    std::vector<nlohmann::json> all_segments;
+    std::vector<ThemeSegment> all_segments;
     all_segments.insert(all_segments.end(), temp_theme->ps1_segments.begin(),
                         temp_theme->ps1_segments.end());
     all_segments.insert(all_segments.end(), temp_theme->git_segments.begin(),
@@ -51,8 +52,8 @@ int preview_theme(const std::string& theme_name) {
     all_segments.insert(all_segments.end(),
                         temp_theme->newline_segments.begin(),
                         temp_theme->newline_segments.end());
-    nlohmann::json title_segment;
-    title_segment["content"] = temp_theme->get_terminal_title_format();
+    ThemeSegment title_segment("title");
+    title_segment.content = temp_theme->get_terminal_title_format();
     all_segments.push_back(title_segment);
 
     auto vars = prompt_info.get_variables(all_segments, is_git_repo, repo_root);

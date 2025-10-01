@@ -11,6 +11,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "prompt/theme_parser.h"
 
 int theme_command(const std::vector<std::string>& args) {
     if (!config::themes_enabled) {
@@ -79,7 +80,7 @@ int theme_command(const std::vector<std::string>& args) {
     if (args[1] == "info" && args.size() > 2) {
         std::string themeName = args[2];
         std::string theme_file = cjsh_filesystem::g_cjsh_theme_path.string() +
-                                 "/" + themeName + ".json";
+                                 "/" + themeName;
 
         if (!std::filesystem::exists(theme_file)) {
             print_error(
@@ -90,10 +91,16 @@ int theme_command(const std::vector<std::string>& args) {
             return 1;
         }
 
-        std::ifstream file(theme_file);
-        nlohmann::json theme_json;
-        file >> theme_json;
-        file.close();
+        ThemeDefinition theme_def;
+        try {
+            theme_def = ThemeParser::parse_file(theme_file);
+        } catch (const std::runtime_error& e) {
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "theme",
+                         "Failed to parse theme file '" + theme_file + "': " + e.what(),
+                         {"Check theme syntax and try again."}});
+            return 1;
+        }
 
         std::cout << "Theme: " << themeName << std::endl;
 
@@ -119,71 +126,60 @@ int theme_command(const std::vector<std::string>& args) {
             return emoji_count;
         };
 
-        for (const auto& segment_array : {"ps1_segments", "git_segments",
-                                          "ai_segments", "newline_segments"}) {
-            if (theme_json.contains(segment_array) &&
-                theme_json[segment_array].is_array()) {
-                for (const auto& segment : theme_json[segment_array]) {
-                    if (segment.contains("content") &&
-                        segment["content"].is_string()) {
-                        std::string content =
-                            segment["content"].get<std::string>();
-                        int emoji_count = count_emoji(content);
-                        if (emoji_count > 0) {
-                            total_emoji_count += emoji_count;
-                            total_segment_count++;
-                        }
-                    }
+        // Count emojis in all segment types
+        auto count_segments = [&](const std::vector<ThemeSegment>& segments) {
+            for (const auto& segment : segments) {
+                int emoji_count = count_emoji(segment.content);
+                if (emoji_count > 0) {
+                    total_emoji_count += emoji_count;
+                    total_segment_count++;
                 }
             }
-        }
+        };
 
-        if (theme_json.contains("requirements") &&
-            theme_json["requirements"].is_object() &&
-            !theme_json["requirements"].empty()) {
+        count_segments(theme_def.ps1_segments);
+        count_segments(theme_def.git_segments);
+        count_segments(theme_def.ai_segments);
+        count_segments(theme_def.newline_segments);
+        count_segments(theme_def.inline_right_segments);
+
+        const ThemeRequirements& requirements = theme_def.requirements;
+        if (!requirements.plugins.empty() || !requirements.colors.empty() ||
+            !requirements.fonts.empty() || !requirements.custom.empty()) {
             std::cout << "Requirements:" << std::endl;
 
-            if (theme_json["requirements"].contains("plugins") &&
-                theme_json["requirements"]["plugins"].is_array()) {
+            if (!requirements.plugins.empty()) {
                 std::cout << "  Plugins: ";
                 bool first = true;
-                for (const auto& plugin :
-                     theme_json["requirements"]["plugins"]) {
+                for (const auto& plugin : requirements.plugins) {
                     if (!first)
                         std::cout << ", ";
-                    std::cout << plugin.get<std::string>();
+                    std::cout << plugin;
                     first = false;
                 }
                 std::cout << std::endl;
             }
 
-            if (theme_json["requirements"].contains("colors") &&
-                theme_json["requirements"]["colors"].is_string()) {
-                std::cout
-                    << "  Colors: "
-                    << theme_json["requirements"]["colors"].get<std::string>()
-                    << std::endl;
+            if (!requirements.colors.empty()) {
+                std::cout << "  Colors: " << requirements.colors << std::endl;
             }
 
-            if (theme_json["requirements"].contains("fonts") &&
-                theme_json["requirements"]["fonts"].is_array()) {
+            if (!requirements.fonts.empty()) {
                 std::cout << "  Fonts: ";
                 bool first = true;
-                for (const auto& font : theme_json["requirements"]["fonts"]) {
+                for (const auto& font : requirements.fonts) {
                     if (!first)
                         std::cout << ", ";
-                    std::cout << font.get<std::string>();
+                    std::cout << font;
                     first = false;
                 }
                 std::cout << std::endl;
             }
 
-            if (theme_json["requirements"].contains("custom") &&
-                theme_json["requirements"]["custom"].is_object()) {
+            if (!requirements.custom.empty()) {
                 std::cout << "  Custom requirements:" << std::endl;
-                for (auto it = theme_json["requirements"]["custom"].begin();
-                     it != theme_json["requirements"]["custom"].end(); ++it) {
-                    std::cout << "    " << it.key() << ": " << it.value()
+                for (const auto& [key, value] : requirements.custom) {
+                    std::cout << "    " << key << ": " << value
                               << std::endl;
                 }
             }
@@ -241,7 +237,7 @@ int theme_command(const std::vector<std::string>& args) {
             } else {
                 std::string theme_file =
                     cjsh_filesystem::g_cjsh_theme_path.string() + "/" +
-                    theme_name + ".json";
+                    theme_name;
                 if (std::filesystem::exists(theme_file)) {
                     return preview_theme(theme_name);
                 } else {
@@ -330,7 +326,7 @@ int uninstall_theme(const std::string& themeName) {
     }
 
     std::string theme_file =
-        cjsh_filesystem::g_cjsh_theme_path.string() + "/" + themeName + ".json";
+        cjsh_filesystem::g_cjsh_theme_path.string() + "/" + themeName;
 
     if (!std::filesystem::exists(theme_file)) {
         print_error({ErrorType::FILE_NOT_FOUND,
