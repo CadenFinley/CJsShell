@@ -19,6 +19,8 @@ int help_command() {
     std::cout << "  ai                      Access AI assistant features and "
                  "settings\n";
     std::cout << "    Usage: ai [subcommand] [options]\n";
+    std::cout << "    Authentication:\n";
+    std::cout << "      ai apikey                  Show OpenAI API key status\n";
     std::cout << "    Chatting:\n";
     std::cout << "      ai chat <message>            Send a prompt to the "
                  "assistant\n";
@@ -265,10 +267,14 @@ int help_command() {
 
     std::cout << "Shell-Specific Commands:\n";
     std::cout << "  version                 Display cjsh version information\n";
-    std::cout
-        << "  login-startup-arg FLAG  Persist a startup flag in ~/.cjprofile\n";
+    std::cout << "  cjshopt style_def <token_type> <style>  Define syntax "
+                 "highlighting styles\n";
+    std::cout << "  cjshopt login-startup-arg [--flag]      Persist startup "
+                 "flags in ~/.cjprofile\n";
     std::cout << "    Example flags: --no-plugins, --no-themes, --minimal, "
                  "--debug\n";
+    std::cout << "  cjshopt completion-case <on|off|status> Toggle completion "
+                 "case sensitivity\n";
     std::cout
         << "  approot                 Change to the cjsh data directory\n";
     std::cout

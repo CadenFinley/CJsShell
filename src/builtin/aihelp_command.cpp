@@ -19,6 +19,15 @@ int aihelp_command(const std::vector<std::string>& args) {
         initialize_ai();
     }
 
+    auto print_usage = []() {
+        std::cout << "Usage: aihelp [-f] [-p prompt] [-m model] [error description]\n";
+        std::cout << "Options:\n";
+        std::cout << "  -f              Force assistance even if last exit status was 0\n";
+        std::cout << "  -p <prompt>     Override the generated troubleshooting prompt\n";
+        std::cout << "  -m <model>      Override the AI model for this request\n";
+        std::cout << "With no description, the last failing command is analyzed automatically.\n";
+    };
+
     if (!g_ai || g_ai->get_api_key().empty()) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "aihelp",
@@ -33,7 +42,10 @@ int aihelp_command(const std::vector<std::string>& args) {
     std::vector<std::string> remaining_args;
 
     for (size_t i = 1; i < args.size(); ++i) {
-        if (args[i] == "-f") {
+        if (args[i] == "--help" || args[i] == "-h") {
+            print_usage();
+            return 0;
+        } else if (args[i] == "-f") {
             force_mode = true;
         } else if (args[i] == "-p" && i + 1 < args.size()) {
             custom_prompt = args[++i];
@@ -116,42 +128,6 @@ int aihelp_command(const std::vector<std::string>& args) {
         false);
 
     std::cout << response << std::endl;
-
-    // Check for --fix flag to attempt auto-fix
-    bool auto_fix = false;
-    for (const auto& arg : args) {
-        if (arg == "--fix" || arg == "-F") {
-            auto_fix = true;
-            break;
-        }
-    }
-
-    if (auto_fix && !remaining_args.empty() && remaining_args[0] != "--fix" &&
-        remaining_args[0] != "-F") {
-        std::cout << "\n" << std::string(50, '=') << std::endl;
-        std::cout << "AUTO-FIX ATTEMPT:\n";
-
-        // Extract command suggestions from response
-        std::string fix_prompt =
-            "Based on the error analysis above, provide ONLY the exact shell "
-            "command(s) to fix the issue. "
-            "One command per line, no explanations, no markdown formatting.";
-
-        std::string fix_commands =
-            g_ai->force_direct_chat_gpt(fix_prompt, false);
-
-        std::cout << "Suggested fix command(s):\n" << fix_commands << std::endl;
-        std::cout << "\nRun these commands? [y/N]: ";
-
-        char choice;
-        std::cin >> choice;
-        if (choice == 'y' || choice == 'Y') {
-            std::cout << "Executing fix commands...\n";
-            // Here you would integrate with the shell's command execution
-            // For now, just show what would be executed
-            std::cout << "[This would execute the commands above]\n";
-        }
-    }
 
     return 0;
 }

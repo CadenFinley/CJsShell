@@ -82,9 +82,7 @@ bool disable_custom_ls = false;
 bool show_startup_time = false;
 }  // namespace config
 
-
 // add shellopts for enabling and disbling case completions
-
 // add shellopts for enabling and disabling prompt cleanup and newline after
 
 /*
