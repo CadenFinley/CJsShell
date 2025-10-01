@@ -10,6 +10,15 @@
 
 namespace {
 
+std::string trim_copy(const std::string& str) {
+    size_t start = str.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos) {
+        return "";
+    }
+    size_t end = str.find_last_not_of(" \t\n\r");
+    return str.substr(start, end - start + 1);
+}
+
 std::string encode_utf8(char32_t codepoint) {
     if (!utf8proc_codepoint_valid(static_cast<utf8proc_int32_t>(codepoint))) {
         throw std::runtime_error("Invalid Unicode codepoint in theme string");
@@ -36,6 +45,186 @@ int hex_value(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
     return 10 + (c - 'A');
+}
+
+std::string expand_variables_in_string(
+    const std::string& input,
+    const std::unordered_map<std::string, std::string>& variables,
+    std::unordered_map<std::string, std::string>& cache,
+    std::vector<std::string>& stack);
+
+std::string expand_variable_reference(
+    const std::string& name,
+    const std::unordered_map<std::string, std::string>& variables,
+    std::unordered_map<std::string, std::string>& cache,
+    std::vector<std::string>& stack);
+
+std::string expand_variables_in_string(
+    const std::string& input,
+    const std::unordered_map<std::string, std::string>& variables,
+    std::unordered_map<std::string, std::string>& cache,
+    std::vector<std::string>& stack) {
+    if (input.empty() || variables.empty()) {
+        return input;
+    }
+
+    std::string result;
+    size_t position = 0;
+
+    while (position < input.size()) {
+        size_t marker = input.find("${", position);
+        if (marker == std::string::npos) {
+            result.append(input.substr(position));
+            break;
+        }
+
+        result.append(input.substr(position, marker - position));
+
+        size_t close_brace = input.find('}', marker + 2);
+        if (close_brace == std::string::npos) {
+            throw std::runtime_error(
+                "Unterminated theme variable reference in '" + input + "'");
+        }
+
+        std::string raw_name =
+            input.substr(marker + 2, close_brace - (marker + 2));
+        std::string name = trim_copy(raw_name);
+
+        if (name.empty()) {
+            throw std::runtime_error("Empty theme variable reference detected");
+        }
+
+        std::string replacement =
+            expand_variable_reference(name, variables, cache, stack);
+        result.append(replacement);
+
+        position = close_brace + 1;
+    }
+
+    if (result.empty()) {
+        return input;
+    }
+
+    return result;
+}
+
+std::string expand_variable_reference(
+    const std::string& name,
+    const std::unordered_map<std::string, std::string>& variables,
+    std::unordered_map<std::string, std::string>& cache,
+    std::vector<std::string>& stack) {
+    auto cached = cache.find(name);
+    if (cached != cache.end()) {
+        return cached->second;
+    }
+
+    if (std::find(stack.begin(), stack.end(), name) != stack.end()) {
+        throw std::runtime_error(
+            "Cyclic theme variable reference detected for '" + name + "'");
+    }
+
+    auto it = variables.find(name);
+    if (it == variables.end()) {
+        throw std::runtime_error(
+            "Undefined theme variable referenced: '" + name + "'");
+    }
+
+    stack.push_back(name);
+    std::string expanded = it->second;
+    if (expanded.find("${") != std::string::npos) {
+        expanded = expand_variables_in_string(expanded, variables, cache, stack);
+    }
+    stack.pop_back();
+
+    cache[name] = expanded;
+    return expanded;
+}
+
+std::unordered_map<std::string, std::string> resolve_theme_variables(
+    const std::unordered_map<std::string, std::string>& variables) {
+    if (variables.empty()) {
+        return {};
+    }
+
+    std::unordered_map<std::string, std::string> cache;
+    std::unordered_map<std::string, std::string> resolved;
+
+    for (const auto& [name, _] : variables) {
+        std::vector<std::string> stack;
+        resolved[name] = expand_variable_reference(name, variables, cache, stack);
+    }
+
+    return resolved;
+}
+
+void substitute_variables_in_string(
+    std::string& target,
+    const std::unordered_map<std::string, std::string>& variables) {
+    if (target.empty() || variables.empty()) {
+        return;
+    }
+
+    if (target.find("${") == std::string::npos) {
+        return;
+    }
+
+    std::unordered_map<std::string, std::string> cache;
+    std::vector<std::string> stack;
+    target = expand_variables_in_string(target, variables, cache, stack);
+}
+
+void apply_variables_to_segment(
+    ThemeSegment& segment,
+    const std::unordered_map<std::string, std::string>& variables) {
+    substitute_variables_in_string(segment.content, variables);
+    substitute_variables_in_string(segment.fg_color, variables);
+    substitute_variables_in_string(segment.bg_color, variables);
+    substitute_variables_in_string(segment.separator, variables);
+    substitute_variables_in_string(segment.separator_fg, variables);
+    substitute_variables_in_string(segment.separator_bg, variables);
+    substitute_variables_in_string(segment.forward_separator, variables);
+    substitute_variables_in_string(segment.forward_separator_fg, variables);
+    substitute_variables_in_string(segment.forward_separator_bg, variables);
+    substitute_variables_in_string(segment.alignment, variables);
+}
+
+void apply_variables_to_segments(
+    std::vector<ThemeSegment>& segments,
+    const std::unordered_map<std::string, std::string>& variables) {
+    for (auto& segment : segments) {
+        apply_variables_to_segment(segment, variables);
+    }
+}
+
+void apply_variables_to_theme(
+    ThemeDefinition& theme,
+    const std::unordered_map<std::string, std::string>& variables) {
+    if (variables.empty()) {
+        return;
+    }
+
+    substitute_variables_in_string(theme.terminal_title, variables);
+
+    substitute_variables_in_string(theme.fill.character, variables);
+    substitute_variables_in_string(theme.fill.fg_color, variables);
+    substitute_variables_in_string(theme.fill.bg_color, variables);
+
+    substitute_variables_in_string(theme.requirements.colors, variables);
+    for (auto& plugin : theme.requirements.plugins) {
+        substitute_variables_in_string(plugin, variables);
+    }
+    for (auto& font : theme.requirements.fonts) {
+        substitute_variables_in_string(font, variables);
+    }
+    for (auto& custom_pair : theme.requirements.custom) {
+        substitute_variables_in_string(custom_pair.second, variables);
+    }
+
+    apply_variables_to_segments(theme.ps1_segments, variables);
+    apply_variables_to_segments(theme.git_segments, variables);
+    apply_variables_to_segments(theme.ai_segments, variables);
+    apply_variables_to_segments(theme.newline_segments, variables);
+    apply_variables_to_segments(theme.inline_right_segments, variables);
 }
 
 }  // namespace
@@ -440,6 +629,31 @@ ThemeRequirements ThemeParser::parse_requirements_block() {
     return requirements;
 }
 
+std::unordered_map<std::string, std::string> ThemeParser::parse_variables_block() {
+    std::unordered_map<std::string, std::string> variables;
+
+    skip_whitespace();
+    expect_token("{");
+
+    while (!is_at_end()) {
+        skip_whitespace();
+        skip_comments();
+
+        if (peek() == '}') {
+            advance();
+            break;
+        }
+
+        ThemeProperty prop = parse_property();
+        if (variables.find(prop.key) != variables.end()) {
+            parse_error("Duplicate variable definition: " + prop.key);
+        }
+        variables[prop.key] = prop.value;
+    }
+
+    return variables;
+}
+
 void ThemeParser::expect_token(const std::string& expected) {
     skip_whitespace();
     
@@ -504,6 +718,8 @@ ThemeDefinition ThemeParser::parse() {
             theme.behavior = parse_behavior_block();
         } else if (block_name == "requirements") {
             theme.requirements = parse_requirements_block();
+        } else if (block_name == "variables") {
+            theme.variables = parse_variables_block();
         } else if (block_name == "ps1") {
             theme.ps1_segments = parse_segments_block();
         } else if (block_name == "git_segments") {
@@ -519,6 +735,9 @@ ThemeDefinition ThemeParser::parse() {
         }
     }
     
+    auto resolved_variables = resolve_theme_variables(theme.variables);
+    apply_variables_to_theme(theme, resolved_variables);
+
     return theme;
 }
 
@@ -550,6 +769,21 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     oss << "    fg " << theme.fill.fg_color << "\n";
     oss << "    bg " << theme.fill.bg_color << "\n";
     oss << "  }\n\n";
+
+    if (!theme.variables.empty()) {
+        std::vector<std::pair<std::string, std::string>> variables(
+            theme.variables.begin(), theme.variables.end());
+        std::sort(variables.begin(), variables.end(),
+                  [](const auto& lhs, const auto& rhs) {
+                      return lhs.first < rhs.first;
+                  });
+
+        oss << "  variables {\n";
+        for (const auto& [name, value] : variables) {
+            oss << "    " << name << " \"" << value << "\"\n";
+        }
+        oss << "  }\n\n";
+    }
     
     // Write segments
     auto write_segments = [&](const std::string& name, const std::vector<ThemeSegment>& segments) {

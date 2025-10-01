@@ -68,6 +68,7 @@ struct ThemeDefinition {
     ThemeFill fill;
     ThemeBehavior behavior;
     ThemeRequirements requirements;
+    std::unordered_map<std::string, std::string> variables;
     
     std::vector<ThemeSegment> ps1_segments;
     std::vector<ThemeSegment> git_segments;
@@ -102,6 +103,7 @@ private:
     ThemeFill parse_fill_block();
     ThemeBehavior parse_behavior_block();
     ThemeRequirements parse_requirements_block();
+    std::unordered_map<std::string, std::string> parse_variables_block();
     
     void expect_token(const std::string& expected);
     void parse_error(const std::string& message);

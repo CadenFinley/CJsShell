@@ -15,6 +15,11 @@ theme_definition "gruvbox_dark_simple" {
     fonts "Source Code Pro"
   }
 
+  variables {
+    project_type_bg "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}"
+    project_language_badge " {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}"
+  }
+
   ps1 {
     segment "userseg" {
       content " {USERNAME} "
@@ -90,12 +95,12 @@ theme_definition "gruvbox_dark_simple" {
       bg "#3c3836"
       separator "\uE0B0"
       separator_fg "#3c3836"
-      separator_bg "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}"
+      separator_bg "${project_type_bg}"
       alignment "left"
     }
 
     segment "langseg" {
-      content " {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}"
+      content "${project_language_badge}"
       fg "#83a598"
       bg "#504945"
       separator "\uE0B0"
@@ -165,12 +170,12 @@ theme_definition "gruvbox_dark_simple" {
       bg "#3c3836"
       separator "\uE0B0"
       separator_fg "#3c3836"
-      separator_bg "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}"
+      separator_bg "${project_type_bg}"
       alignment "left"
     }
 
     segment "ai_langseg" {
-      content " {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}"
+      content "${project_language_badge}"
       fg "#83a598"
       bg "#504945"
       separator "\uE0B0"
