@@ -95,5 +95,6 @@
     "requirements": {},
     "cleanup": false,
     "cleanup_empty_line": false,
+    "newline_after_execution": false,
     "terminal_title": "{PATH}"
 }

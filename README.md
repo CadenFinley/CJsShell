@@ -21,7 +21,7 @@ CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes wi
 
 - **Built-in AI Assistant**: First-class AI integration with context-aware code assistance, file searching, and multi-model support directly in your terminal; no external plugins required.
 - **Dynamic Plugin Engine**: Language-agnostic plugin API with compiled shared libraries, centralized management, and event hooks for deep integration—beyond just "sourced" scripts.
-- **Rich Theme System**: JSON-based themes with segmented prompts, dynamic variables (git status, CPU/memory usage), and aligned fields managed through a built-in theme command.
+- **Rich Theme System**: JSON-based themes with segmented prompts, dynamic variables (git status, CPU/memory usage), aligned fields managed through a built-in theme command, and optional newline-after-execution spacing when you want extra breathing room between commands.
 - **Modern Interactive Experience**: Syntax highlighting, rich, comprehensive, and dynamic completions, and clean configuration files with clear separation between login and interactive settings.
 
 ## Why Developers Should Choose cjsh

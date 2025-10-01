@@ -229,6 +229,11 @@ bool process_command_line(const std::string& command) {
         typeahead::ingest_typeahead_input(typeahead_input);
     }
 
+    if (g_theme && g_theme->newline_after_execution()) {
+        std::fputc('\n', stdout);
+        std::fflush(stdout);
+    }
+
     return g_exit_flag;
 }
 }  // namespace

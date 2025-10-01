@@ -109,6 +109,7 @@ void Theme::create_default_theme() {
     default_theme["fill_bg_color"] = "RESET";
     default_theme["cleanup"] = false;
     default_theme["cleanup_empty_line"] = false;
+    default_theme["newline_after_execution"] = false;
 
     std::ofstream file(theme_directory + "/default.json");
     file << default_theme.dump(4);
@@ -194,6 +195,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     fill_bg_color_ = "RESET";
     cleanup_ = false;
     cleanup_add_empty_line_ = false;
+    newline_after_execution_ = false;
 
     if (theme_json.contains("ps1_segments") &&
         theme_json["ps1_segments"].is_array()) {
@@ -265,6 +267,11 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     if (theme_json.contains("cleanup_empty_line") &&
         theme_json["cleanup_empty_line"].is_boolean()) {
         cleanup_add_empty_line_ = theme_json["cleanup_empty_line"].get<bool>();
+    }
+    if (theme_json.contains("newline_after_execution") &&
+        theme_json["newline_after_execution"].is_boolean()) {
+        newline_after_execution_ =
+            theme_json["newline_after_execution"].get<bool>();
     }
     g_current_theme = theme_name_to_use;
     return true;
@@ -672,6 +679,10 @@ bool Theme::uses_cleanup() const {
 
 bool Theme::cleanup_adds_empty_line() const {
     return cleanup_add_empty_line_;
+}
+
+bool Theme::newline_after_execution() const {
+    return newline_after_execution_;
 }
 
 std::string Theme::get_terminal_title_format() const {
