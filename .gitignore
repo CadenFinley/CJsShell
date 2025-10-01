@@ -4,7 +4,6 @@ install_manifest.txt
 compile_commands.json
 _deps
 .DS_Store
-.vscode
 build/
 .cache/
 *.dylib

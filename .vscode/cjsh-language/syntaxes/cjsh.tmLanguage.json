@@ -1,0 +1,86 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "CJsShell Theme",
+  "scopeName": "source.cjsh",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#variables" },
+    { "include": "#numbers" },
+    { "include": "#booleans" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.cjsh",
+      "match": "^\\s*#.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.cjsh",
+      "match": "\\b(theme_definition|terminal_title|requirements|colors|fonts|plugins|fill|char|fg|bg|ps1|git_segments|ai_segments|newline|inline_right|variables|segment|use_segment|as|content|separator|separator_fg|separator_bg|forward_separator|forward_separator_fg|forward_separator_bg|alignment|behavior|cleanup|cleanup_empty_line|newline_after_execution|true|false)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.cjsh",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.cjsh" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.cjsh" }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.cjsh",
+          "match": "\\\\(?:[nrt\"\\\\]|u[0-9a-fA-F]{4})"
+        },
+        {
+          "include": "#interpolations"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "support.variable.placeholder.cjsh",
+          "match": "\\{[A-Z0-9_]+\\}"
+        },
+        {
+          "name": "support.variable.expression.cjsh",
+          "match": "\\$\\{[^}]+\\}"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.cjsh",
+      "match": "\\b-?(?:0x[0-9A-Fa-f]+|\\d+(?:\\.\\d+)?)\\b"
+    },
+    "booleans": {
+      "name": "constant.language.boolean.cjsh",
+      "match": "\\b(true|false)\\b"
+    },
+    "interpolations": {
+      "name": "meta.interpolation.cjsh",
+      "begin": "\\$\\{",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.interpolation.begin.cjsh"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.interpolation.end.cjsh"
+        }
+      },
+      "patterns": [
+        { "include": "#strings" },
+        { "include": "#numbers" },
+        {
+          "name": "keyword.operator.cjsh",
+          "match": "[?:=]"
+        }
+      ]
+    }
+  }
+}

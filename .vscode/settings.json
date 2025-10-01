@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "*.cjsh": "cjsh-theme"
+  },
+  "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue"
+}
