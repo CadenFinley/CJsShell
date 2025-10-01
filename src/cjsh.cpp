@@ -393,6 +393,7 @@ void cleanup_resources() {
 }
 
 int main(int argc, char* argv[]) {
+    
     // Start timing the startup process
     g_startup_begin_time = std::chrono::steady_clock::now();
 
