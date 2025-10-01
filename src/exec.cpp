@@ -21,7 +21,6 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "job_control.h"
-#include "performance.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 
@@ -746,7 +745,6 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 }
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
-    PERF_TIMER("execute_pipeline");
 
     if (commands.empty()) {
         set_error(ErrorType::INVALID_ARGUMENT, "",
@@ -759,7 +757,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         const Command& cmd = commands[0];
 
         if (can_execute_in_process(cmd)) {
-            PERF_TIMER("builtin_in_process");
             last_exit_code =
                 g_shell->get_built_ins()->builtin_command(cmd.args);
             return last_exit_code;

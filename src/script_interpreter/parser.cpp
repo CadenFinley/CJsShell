@@ -25,7 +25,6 @@
 #include "job_control.h"
 #include "readonly_command.h"
 #include "utils/cjsh_filesystem.h"
-#include "utils/performance.h"
 #include "utils/suggestion_utils.h"
 
 namespace {
@@ -1124,7 +1123,6 @@ std::vector<std::string> merge_redirection_tokens(
 }
 
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
-    PERF_TIMER("parse_command");
 
     std::vector<std::string> args;
     args.reserve(8);
