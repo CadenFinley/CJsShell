@@ -42,8 +42,5 @@ coverage:
   per_file: 70
 
 exclude_paths:
-  - vendor/**
   - plugins/**
   - themes/**
-  - tests/**
-  - tool_scripts/**
