@@ -3,7 +3,7 @@
 #include "nob.h"
 
 #define PROJECT_NAME "cjsh"
-#define VERSION "3.5.13"
+#define VERSION "3.5.14"
 
 #include <stdbool.h>
 #include <stdlib.h>
