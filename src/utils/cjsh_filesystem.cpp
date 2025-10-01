@@ -10,6 +10,7 @@
 #include <fstream>
 #include <functional>
 #include <sstream>
+#include <system_error>
 #include <vector>
 
 #include "cjsh.h"
@@ -261,41 +262,117 @@ bool should_refresh_executable_cache() {
 
 bool build_executable_cache() {
     const char* path_env = std::getenv("PATH");
-    if (!path_env)
+    if (!path_env) {
+        if (g_debug_mode) {
+            std::cerr
+                << "DEBUG: Skipping executable cache refresh - PATH unset"
+                << std::endl;
+        }
         return false;
+    }
+
     std::stringstream ss(path_env);
     std::string dir;
     std::vector<fs::path> executables;
+
     while (std::getline(ss, dir, ':')) {
-        fs::path p(dir);
-        if (!fs::is_directory(p))
+        if (dir.empty()) {
             continue;
-        try {
-            for (auto& entry : fs::directory_iterator(
-                     p, fs::directory_options::skip_permission_denied)) {
-                auto perms = fs::status(entry.path()).permissions();
-                if (fs::is_regular_file(entry.path()) &&
-                    (perms & fs::perms::owner_exec) != fs::perms::none) {
-                    executables.push_back(entry.path());
-                }
+        }
+
+        fs::path directory_path(dir);
+        std::error_code ec;
+
+        if (!fs::exists(directory_path, ec)) {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Skipping non-existent PATH entry: "
+                          << dir << std::endl;
             }
-        } catch (const fs::filesystem_error& e) {
+            continue;
+        }
+
+        ec.clear();
+        if (!fs::is_directory(directory_path, ec) || ec) {
+            if (g_debug_mode) {
+                std::cerr << "DEBUG: Skipping non-directory PATH entry: "
+                          << dir;
+                if (ec) {
+                    std::cerr << " (reason: " << ec.message() << ")";
+                }
+                std::cerr << std::endl;
+            }
+            continue;
+        }
+
+        fs::directory_iterator it(directory_path,
+                                  fs::directory_options::skip_permission_denied,
+                                  ec);
+        if (ec) {
+            if (g_debug_mode) {
+                std::cerr
+                    << "DEBUG: Unable to iterate PATH entry due to error: "
+                    << dir << " (" << ec.message() << ")" << std::endl;
+            }
+            continue;
+        }
+
+        for (; it != fs::directory_iterator(); it.increment(ec)) {
+            if (ec) {
+                if (g_debug_mode) {
+                    std::cerr << "DEBUG: Error while scanning directory '"
+                              << dir << "': " << ec.message() << std::endl;
+                }
+                break;
+            }
+
+            const auto& entry = *it;
+            auto status = entry.status(ec);
+            if (ec) {
+                ec.clear();
+                continue;
+            }
+
+            if (!fs::is_regular_file(status)) {
+                continue;
+            }
+
+            auto perms = status.permissions();
+            constexpr auto exec_mask = fs::perms::owner_exec |
+                                       fs::perms::group_exec |
+                                       fs::perms::others_exec;
+
+            if ((perms & exec_mask) != fs::perms::none) {
+                executables.push_back(entry.path());
+            }
         }
     }
 
-    // Build content string
-    std::string content;
-    for (auto& e : executables) {
-        content += e.filename().string() + "\n";
+    if (executables.empty()) {
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Executable cache refresh produced no entries"
+                      << std::endl;
+        }
     }
 
-    // Use FileOperations for safe writing
+    std::string content;
+    content.reserve(executables.size() * 16);  // rough heuristic
+    for (const auto& executable : executables) {
+        content += executable.filename().string();
+        content.push_back('\n');
+    }
+
     auto write_result = FileOperations::write_file_content(
         g_cjsh_found_executables_path.string(), content);
 
-    if (write_result.is_ok() && g_debug_mode) {
-        std::cerr << "DEBUG: Built fresh executable cache with "
-                  << executables.size() << " executables" << std::endl;
+    if (write_result.is_ok()) {
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: Built fresh executable cache with "
+                      << executables.size() << " executables" << std::endl;
+        }
+        notify_cache_systems_of_update();
+    } else if (g_debug_mode) {
+        std::cerr << "DEBUG: Failed to write executable cache: "
+                  << write_result.error() << std::endl;
     }
 
     return write_result.is_ok();
@@ -328,7 +405,9 @@ bool file_exists(const fs::path& path) {
 bool initialize_cjsh_path() {
     char path[PATH_MAX];
 #ifdef __linux__
-    if (readlink("/proc/self/exe", path, PATH_MAX) != -1) {
+    ssize_t len = readlink("/proc/self/exe", path, PATH_MAX - 1);
+    if (len != -1) {
+        path[len] = '\0';
         g_cjsh_path = path;
         return true;
     }
