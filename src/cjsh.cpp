@@ -28,7 +28,6 @@
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
-#include "version_command.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "job_control.h"
@@ -38,6 +37,7 @@
 #include "trap_command.h"
 #include "usage.h"
 #include "utils/command_line_parser.h"
+#include "version_command.h"
 
 bool g_debug_mode = false;
 bool g_title_line = true;

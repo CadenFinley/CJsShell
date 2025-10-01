@@ -20,7 +20,8 @@ int help_command() {
                  "settings\n";
     std::cout << "    Usage: ai [subcommand] [options]\n";
     std::cout << "    Authentication:\n";
-    std::cout << "      ai apikey                  Show OpenAI API key status\n";
+    std::cout
+        << "      ai apikey                  Show OpenAI API key status\n";
     std::cout << "    Chatting:\n";
     std::cout << "      ai chat <message>            Send a prompt to the "
                  "assistant\n";

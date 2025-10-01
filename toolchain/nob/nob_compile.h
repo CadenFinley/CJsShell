@@ -12,8 +12,7 @@
 #include "nob_sources.h"
 #include "nob_toolchain.h"
 
-static inline bool capture_git_output(const char* const* args,
-                                      size_t arg_count,
+static inline bool capture_git_output(const char* const* args, size_t arg_count,
                                       Nob_String_Builder* output) {
     if (output == NULL) {
         return false;
@@ -40,16 +39,14 @@ static inline bool capture_git_output(const char* const* args,
     return true;
 }
 
-static inline bool compute_git_hash_string(char* buffer,
-                                           size_t buffer_size) {
+static inline bool compute_git_hash_string(char* buffer, size_t buffer_size) {
     if (buffer == NULL || buffer_size == 0) {
         return false;
     }
 
     Nob_String_Builder hash_output = {0};
     const char* rev_args[] = {"rev-parse", "--short", "HEAD"};
-    if (!capture_git_output(rev_args, NOB_ARRAY_LEN(rev_args),
-                            &hash_output)) {
+    if (!capture_git_output(rev_args, NOB_ARRAY_LEN(rev_args), &hash_output)) {
         nob_da_free(hash_output);
         return false;
     }
@@ -62,8 +59,9 @@ static inline bool compute_git_hash_string(char* buffer,
 
     size_t hash_len = strlen(hash_data);
     while (hash_len > 0 &&
-           (hash_data[hash_len - 1] == '\n' || hash_data[hash_len - 1] == '\r' ||
-            hash_data[hash_len - 1] == ' ' || hash_data[hash_len - 1] == '\t')) {
+           (hash_data[hash_len - 1] == '\n' ||
+            hash_data[hash_len - 1] == '\r' || hash_data[hash_len - 1] == ' ' ||
+            hash_data[hash_len - 1] == '\t')) {
         hash_data[--hash_len] = '\0';
     }
 
@@ -77,8 +75,8 @@ static inline bool compute_git_hash_string(char* buffer,
     bool dirty = false;
     if (capture_git_output(status_args, NOB_ARRAY_LEN(status_args),
                            &status_output)) {
-        size_t status_len = status_output.count > 0 ? status_output.count - 1
-                                                    : 0;
+        size_t status_len =
+            status_output.count > 0 ? status_output.count - 1 : 0;
         for (size_t i = 0; i < status_len; ++i) {
             char c = status_output.items[i];
             if (!isspace((unsigned char)c)) {

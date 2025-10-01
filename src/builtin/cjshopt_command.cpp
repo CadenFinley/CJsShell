@@ -44,7 +44,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
                      "unknown subcommand '" + subcommand + "'",
-                     {"Available subcommands: style_def, login-startup-arg, completion-case"}});
+                     {"Available subcommands: style_def, login-startup-arg, "
+                      "completion-case"}});
         return 1;
     }
 }
@@ -55,17 +56,14 @@ extern bool g_debug_mode;
 
 int completion_case_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: completion-case <on|off|status>",
-        "Examples:",
+        "Usage: completion-case <on|off|status>", "Examples:",
         "  completion-case on       Enable case sensitive completions",
         "  completion-case off      Use case insensitive completions",
         "  completion-case status   Show the current setting"};
 
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "completion-case",
-                     "Missing option argument",
-                     usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-case",
+                     "Missing option argument", usage_lines});
         return 1;
     }
 
@@ -74,17 +72,14 @@ int completion_case_command(const std::vector<std::string>& args) {
             std::cout << line << '\n';
         }
         std::cout << "Current: "
-                  << (is_completion_case_sensitive() ? "enabled"
-                                                    : "disabled")
+                  << (is_completion_case_sensitive() ? "enabled" : "disabled")
                   << std::endl;
         return 0;
     }
 
     if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "completion-case",
-                     "Too many arguments provided",
-                     usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-case",
+                     "Too many arguments provided", usage_lines});
         return 1;
     }
 
@@ -95,8 +90,7 @@ int completion_case_command(const std::vector<std::string>& args) {
 
     if (normalized == "status" || normalized == "--status") {
         std::cout << "Completion case sensitivity is currently "
-                  << (is_completion_case_sensitive() ? "enabled"
-                                                    : "disabled")
+                  << (is_completion_case_sensitive() ? "enabled" : "disabled")
                   << "." << std::endl;
         return 0;
     }
@@ -105,9 +99,9 @@ int completion_case_command(const std::vector<std::string>& args) {
     bool recognized_option = true;
 
     if (normalized == "on" || normalized == "enable" ||
-        normalized == "enabled" || normalized == "true" ||
-        normalized == "1" || normalized == "case-sensitive" ||
-        normalized == "--enable" || normalized == "--case-sensitive") {
+        normalized == "enabled" || normalized == "true" || normalized == "1" ||
+        normalized == "case-sensitive" || normalized == "--enable" ||
+        normalized == "--case-sensitive") {
         enable_case_sensitive = true;
     } else if (normalized == "off" || normalized == "disable" ||
                normalized == "disabled" || normalized == "false" ||
@@ -120,10 +114,8 @@ int completion_case_command(const std::vector<std::string>& args) {
     }
 
     if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "completion-case",
-                     "Unknown option '" + option + "'",
-                     usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-case",
+                     "Unknown option '" + option + "'", usage_lines});
         return 1;
     }
 
@@ -315,8 +307,7 @@ void apply_custom_style(const std::string& token_type,
     std::string full_style_name = "cjsh-" + token_type;
 
     auto default_it = default_styles.find(token_type);
-    if (default_it != default_styles.end() &&
-        default_it->second == style) {
+    if (default_it != default_styles.end() && default_it->second == style) {
         bool had_custom_override = g_custom_styles.erase(token_type) > 0;
 
         if (had_custom_override) {
@@ -326,9 +317,8 @@ void apply_custom_style(const std::string& token_type,
                           << " to default" << std::endl;
             }
         } else if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: Skipped redefining default style for "
-                << full_style_name << std::endl;
+            std::cerr << "DEBUG: Skipped redefining default style for "
+                      << full_style_name << std::endl;
         }
         return;
     }

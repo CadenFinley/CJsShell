@@ -1076,10 +1076,9 @@ static bool equals_completion_token(const std::string& value,
         return false;
     }
 
-    return std::equal(value.begin(), value.end(), target.begin(),
-                      [](char a, char b) {
-                          return std::tolower(a) == std::tolower(b);
-                      });
+    return std::equal(
+        value.begin(), value.end(), target.begin(),
+        [](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
 
 static bool starts_with_token(const std::string& value,
@@ -1283,7 +1282,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
                         if (bookmark_match_prefix.empty() ||
                             matches_completion_prefix(bookmark_name,
-                                                       bookmark_match_prefix)) {
+                                                      bookmark_match_prefix)) {
                             namespace fs = std::filesystem;
                             if (fs::exists(bookmark_path) &&
                                 fs::is_directory(bookmark_path)) {
@@ -1453,8 +1452,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::string prefix_str(prefix);
             std::vector<std::string> tokens = tokenize_command_line(prefix_str);
 
-            if (!tokens.empty() &&
-                equals_completion_token(tokens[0], "cd")) {
+            if (!tokens.empty() && equals_completion_token(tokens[0], "cd")) {
                 if (g_debug_mode)
                     std::cerr << "DEBUG: Detected cd command, using only "
                                  "filename completion"

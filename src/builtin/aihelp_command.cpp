@@ -20,12 +20,17 @@ int aihelp_command(const std::vector<std::string>& args) {
     }
 
     auto print_usage = []() {
-        std::cout << "Usage: aihelp [-f] [-p prompt] [-m model] [error description]\n";
+        std::cout << "Usage: aihelp [-f] [-p prompt] [-m model] [error "
+                     "description]\n";
         std::cout << "Options:\n";
-        std::cout << "  -f              Force assistance even if last exit status was 0\n";
-        std::cout << "  -p <prompt>     Override the generated troubleshooting prompt\n";
-        std::cout << "  -m <model>      Override the AI model for this request\n";
-        std::cout << "With no description, the last failing command is analyzed automatically.\n";
+        std::cout << "  -f              Force assistance even if last exit "
+                     "status was 0\n";
+        std::cout << "  -p <prompt>     Override the generated troubleshooting "
+                     "prompt\n";
+        std::cout
+            << "  -m <model>      Override the AI model for this request\n";
+        std::cout << "With no description, the last failing command is "
+                     "analyzed automatically.\n";
     };
 
     if (!g_ai || g_ai->get_api_key().empty()) {
