@@ -646,6 +646,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
     const char* linker = get_linker();
     nob_cmd_append(&link_cmd, linker);
+    nob_cmd_append(&link_cmd, "-flto");
 
 #ifdef PLATFORM_MACOS
     if (strcmp(linker, "clang++") == 0) {
@@ -656,12 +657,14 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 #elif defined(ARCH_X86_64)
     nob_cmd_append(&link_cmd, "-arch", "x86_64");
 #endif
+    nob_cmd_append(&link_cmd, "-Wl,-dead_strip", "-Wl,-dead_strip_dylibs");
 #endif
 
 #ifdef PLATFORM_LINUX
     if (strcmp(linker, "g++") == 0) {
         nob_cmd_append(&link_cmd, "-static-libgcc", "-static-libstdc++");
     }
+    nob_cmd_append(&link_cmd, "-Wl,--gc-sections", "-Wl,--as-needed");
 #endif
 
     for (size_t i = 0; i < obj_files.count; i++) {
@@ -695,6 +698,32 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
     }
 
     nob_minimal_log_level = original_log_level;
+
+    const char* strip_env = getenv("CJSH_STRIP_BINARY");
+#if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
+    bool strip_requested = strip_env != NULL && strip_env[0] != '\0' &&
+                           strcmp(strip_env, "0") != 0;
+    if (strip_requested) {
+        Nob_Cmd strip_cmd = {0};
+#ifdef PLATFORM_MACOS
+        nob_cmd_append(&strip_cmd, "strip", "-x", output_binary);
+#elif defined(PLATFORM_LINUX)
+        nob_cmd_append(&strip_cmd, "strip", "--strip-unneeded",
+                       output_binary);
+#endif
+        if (strip_cmd.count > 0) {
+            nob_log(NOB_INFO, "Stripping symbols for smaller binary size...");
+            if (!nob_cmd_run(&strip_cmd)) {
+                nob_log(NOB_WARNING,
+                        "Failed to strip binary; continuing with unstripped "
+                        "output");
+            }
+        }
+    }
+#endif
+#if !(defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX))
+    (void)strip_env;
+#endif
 
     nob_da_free(cpp_sources);
     nob_da_free(c_sources);

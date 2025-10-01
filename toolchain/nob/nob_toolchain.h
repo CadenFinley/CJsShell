@@ -94,6 +94,7 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
 #endif
 
     nob_cmd_append(cmd, "-O3");
+    nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
 
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
     nob_cmd_append(cmd, "-DJSON_NOEXCEPTION=1");
@@ -145,6 +146,7 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
 #endif
 
     nob_cmd_append(cmd, "-O3");
+    nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
 
     // Define architecture and platform for runtime use
