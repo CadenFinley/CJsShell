@@ -125,8 +125,6 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(
     try {
         std::stringstream ss(text_content);
         std::string line;
-        std::string version;
-        bool version_found = false;
 
         // Clear existing bookmarks
         bookmarks_.clear();
@@ -137,14 +135,8 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(
                 continue;
             }
 
-            // Parse version line
+            // Skip version line (for backward compatibility)
             if (line.substr(0, 8) == "version=") {
-                version = line.substr(8);
-                version_found = true;
-                if (version != "1.0") {
-                    return cjsh_filesystem::Result<void>::error(
-                        "Unsupported bookmark database version: " + version);
-                }
                 continue;
             }
 
@@ -195,11 +187,6 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(
 
                 bookmarks_[name] = entry;
             }
-        }
-
-        if (!version_found) {
-            return cjsh_filesystem::Result<void>::error(
-                "Invalid bookmark database: missing version");
         }
 
         return cjsh_filesystem::Result<void>::ok();
