@@ -737,45 +737,45 @@ std::string Theme::escape_brackets_for_isocline(
     const size_t len = input.size();
     size_t i = 0;
 
+    auto is_numeric_placeholder = [&](const std::string& text) -> bool {
+        std::string trimmed = trim(text);
+        if (trimmed.empty()) {
+            return false;
+        }
+
+        size_t idx = 0;
+        if (trimmed[idx] == '+' || trimmed[idx] == '-') {
+            ++idx;
+        }
+
+        if (idx >= trimmed.size()) {
+            return false;
+        }
+
+        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx),
+                           trimmed.end(),
+                           [](unsigned char c) {
+                               return std::isdigit(c);
+                           });
+    };
+
     while (i < len) {
         char ch = input[i];
         if (ch == '[') {
             bool already_escaped = (i > 0 && input[i - 1] == '\\');
-            size_t cursor = i + 1;
-            while (cursor < len &&
-                   std::isspace(static_cast<unsigned char>(input[cursor]))) {
-                ++cursor;
+            size_t closing = i + 1;
+            while (closing < len && input[closing] != ']') {
+                ++closing;
             }
 
-            char sign = '\0';
-            if (cursor < len && (input[cursor] == '+' || input[cursor] == '-')) {
-                sign = input[cursor];
-                ++cursor;
-            }
-
-            size_t digits_begin = cursor;
-            while (cursor < len &&
-                   std::isdigit(static_cast<unsigned char>(input[cursor]))) {
-                ++cursor;
-            }
-
-            bool has_digits = cursor > digits_begin;
-
-            while (cursor < len &&
-                   std::isspace(static_cast<unsigned char>(input[cursor]))) {
-                ++cursor;
-            }
-
-            if (!already_escaped && has_digits && cursor < len && input[cursor] == ']') {
-                result.push_back('\\');
-                result.push_back('[');
-                if (sign != '\0') {
-                    result.push_back(sign);
+            if (!already_escaped && closing < len) {
+                std::string inside = input.substr(i + 1, closing - i - 1);
+                if (is_numeric_placeholder(inside)) {
+                    result.push_back('\\');
+                    result.append(input, i, closing - i + 1);
+                    i = closing + 1;
+                    continue;
                 }
-                result.append(input, digits_begin, cursor - digits_begin);
-                result.push_back(']');
-                i = cursor + 1;
-                continue;
             }
         }
 
@@ -1239,29 +1239,45 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
     std::string str_without_isocline_escapes;
     str_without_isocline_escapes.reserve(str.size());
 
+    auto is_numeric_placeholder = [&](const std::string& text) -> bool {
+        std::string trimmed = trim(text);
+        if (trimmed.empty()) {
+            return false;
+        }
+
+        size_t idx = 0;
+        if (trimmed[idx] == '+' || trimmed[idx] == '-') {
+            ++idx;
+        }
+
+        if (idx >= trimmed.size()) {
+            return false;
+        }
+
+        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx),
+                           trimmed.end(),
+                           [](unsigned char c) {
+                               return std::isdigit(c);
+                           });
+    };
+
     for (size_t i = 0; i < str.size(); ++i) {
         char ch = str[i];
         if (ch == '\\' && i + 1 < str.size() && str[i + 1] == '[') {
-            size_t cursor = i + 2;
-            if (cursor < str.size() &&
-                (str[cursor] == '+' || str[cursor] == '-')) {
-                ++cursor;
+            size_t closing = i + 2;
+            while (closing < str.size() && str[closing] != ']') {
+                ++closing;
             }
 
-            size_t digits_begin = cursor;
-            while (cursor < str.size() &&
-                   std::isdigit(static_cast<unsigned char>(str[cursor]))) {
-                ++cursor;
-            }
-
-            if (cursor > digits_begin && cursor < str.size() &&
-                str[cursor] == ']') {
-                str_without_isocline_escapes.push_back('[');
-                str_without_isocline_escapes.append(str, digits_begin,
-                                                    cursor - digits_begin);
-                str_without_isocline_escapes.push_back(']');
-                i = cursor;
-                continue;
+            if (closing < str.size()) {
+                std::string inside = str.substr(i + 2, closing - (i + 2));
+                if (is_numeric_placeholder(inside)) {
+                    str_without_isocline_escapes.push_back('[');
+                    str_without_isocline_escapes.append(inside);
+                    str_without_isocline_escapes.push_back(']');
+                    i = closing;
+                    continue;
+                }
             }
         }
 

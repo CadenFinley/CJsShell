@@ -1,3 +1,5 @@
+#! usr/bin/env cjsh
+
 theme_definition "gruvbox_dark_true" {
   terminal_title "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME}"
 
