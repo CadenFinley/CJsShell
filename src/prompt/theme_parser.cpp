@@ -538,7 +538,6 @@ ThemeDefinition ThemeParser::parse_file(const std::string& filepath) {
 
 std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     std::ostringstream oss;
-    oss << "#! usr/bin/env cjsh\n\n";
     oss << "theme_definition \"" << theme.name << "\" {\n";
     
     if (!theme.terminal_title.empty()) {
