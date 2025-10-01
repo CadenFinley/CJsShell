@@ -8,6 +8,7 @@
 #include <utility>
 #include <cctype>
 #include <algorithm>
+#include <optional>
 #include <utf8proc.h>
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail,
@@ -251,6 +252,10 @@ void apply_variables_to_theme(
     substitute_variables_in_string(theme.fill.fg_color, variables);
     substitute_variables_in_string(theme.fill.bg_color, variables);
 
+    for (auto& [name, segment_var] : theme.segment_variables) {
+        apply_variables_to_segment(segment_var, variables);
+    }
+
     substitute_variables_in_string(theme.requirements.colors, variables);
     for (auto& plugin : theme.requirements.plugins) {
         substitute_variables_in_string(plugin, variables);
@@ -293,7 +298,8 @@ ThemeParser::ThemeParser(const std::string& theme_content,
         : content(theme_content),
             position(0),
             line_number(1),
-            source_name(std::move(source_name)) {}
+            source_name(std::move(source_name)),
+            segment_variable_definitions() {}
 
 void ThemeParser::skip_whitespace() {
     while (!is_at_end() && std::isspace(peek())) {
@@ -329,6 +335,27 @@ char ThemeParser::advance() {
 
 bool ThemeParser::is_at_end() const {
     return position >= content.length();
+}
+
+bool ThemeParser::is_keyword(const std::string& keyword) const {
+    size_t remaining = content.size() - position;
+    if (remaining < keyword.size()) {
+        return false;
+    }
+
+    if (content.compare(position, keyword.size(), keyword) != 0) {
+        return false;
+    }
+
+    size_t next_pos = position + keyword.size();
+    if (next_pos < content.size()) {
+        unsigned char next = static_cast<unsigned char>(content[next_pos]);
+        if (std::isalnum(next) || next == '_') {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::string ThemeParser::parse_string() {
@@ -522,7 +549,11 @@ ThemeSegment ThemeParser::parse_segment() {
     
     std::string segment_name = parse_string();
     ThemeSegment segment(segment_name);
-    
+
+    return parse_segment_body(std::move(segment));
+}
+
+ThemeSegment ThemeParser::parse_segment_body(ThemeSegment segment) {
     skip_whitespace();
     expect_token("{");
     
@@ -559,8 +590,55 @@ ThemeSegment ThemeParser::parse_segment() {
             segment.alignment = prop.value;
         }
     }
-    
+
     return segment;
+}
+
+ThemeSegment ThemeParser::parse_segment_reference() {
+    skip_whitespace();
+    skip_comments();
+
+    expect_token("use_segment");
+    skip_whitespace();
+
+    std::string reference_name;
+    if (peek() == '"') {
+        reference_name = parse_string();
+    } else {
+        reference_name = parse_identifier();
+    }
+
+    skip_whitespace();
+    skip_comments();
+
+    std::optional<std::string> alias;
+    if (is_keyword("as")) {
+        expect_token("as");
+        skip_whitespace();
+        skip_comments();
+        if (peek() == '"') {
+            alias = parse_string();
+        } else {
+            alias = parse_identifier();
+        }
+    }
+
+    auto it = segment_variable_definitions.find(reference_name);
+    if (it == segment_variable_definitions.end()) {
+        parse_error("Undefined segment variable referenced: " + reference_name);
+    }
+
+    ThemeSegment segment_copy = it->second;
+    if (alias) {
+        segment_copy.name = *alias;
+    }
+
+    skip_whitespace();
+    if (peek() == ',') {
+        advance();
+    }
+
+    return segment_copy;
 }
 
 std::vector<ThemeSegment> ThemeParser::parse_segments_block() {
@@ -577,8 +655,12 @@ std::vector<ThemeSegment> ThemeParser::parse_segments_block() {
             advance();
             break;
         }
-        
-        segments.push_back(parse_segment());
+
+        if (is_keyword("use_segment")) {
+            segments.push_back(parse_segment_reference());
+        } else {
+            segments.push_back(parse_segment());
+        }
     }
     
     return segments;
@@ -675,8 +757,8 @@ ThemeRequirements ThemeParser::parse_requirements_block() {
     return requirements;
 }
 
-std::unordered_map<std::string, std::string> ThemeParser::parse_variables_block() {
-    std::unordered_map<std::string, std::string> variables;
+ThemeVariableSet ThemeParser::parse_variables_block() {
+    ThemeVariableSet variables;
 
     skip_whitespace();
     expect_token("{");
@@ -690,11 +772,43 @@ std::unordered_map<std::string, std::string> ThemeParser::parse_variables_block(
             break;
         }
 
+        if (is_keyword("segment")) {
+            expect_token("segment");
+            skip_whitespace();
+
+            std::string segment_key;
+            if (peek() == '"') {
+                segment_key = parse_string();
+            } else {
+                segment_key = parse_identifier();
+            }
+
+            if (variables.string_variables.count(segment_key) ||
+                variables.segment_variables.count(segment_key) ||
+                segment_variable_definitions.count(segment_key)) {
+                parse_error("Duplicate variable definition: " + segment_key);
+            }
+
+            ThemeSegment segment(segment_key);
+            segment = parse_segment_body(std::move(segment));
+
+            variables.segment_variables[segment_key] = segment;
+            segment_variable_definitions[segment_key] = segment;
+
+            skip_whitespace();
+            if (peek() == ',') {
+                advance();
+            }
+            continue;
+        }
+
         ThemeProperty prop = parse_property();
-        if (variables.find(prop.key) != variables.end()) {
+        if (variables.string_variables.find(prop.key) != variables.string_variables.end() ||
+            variables.segment_variables.find(prop.key) != variables.segment_variables.end() ||
+            segment_variable_definitions.find(prop.key) != segment_variable_definitions.end()) {
             parse_error("Duplicate variable definition: " + prop.key);
         }
-        variables[prop.key] = prop.value;
+        variables.string_variables[prop.key] = prop.value;
     }
 
     return variables;
@@ -722,6 +836,8 @@ void ThemeParser::parse_error(const std::string& message) {
 ThemeDefinition ThemeParser::parse() {
     skip_whitespace();
     skip_comments();
+
+    segment_variable_definitions.clear();
     
     // Skip shebang if present
     if (position == 0 && content.length() > 2 && content.substr(0, 2) == "#!") {
@@ -778,7 +894,9 @@ ThemeDefinition ThemeParser::parse() {
         } else if (block_name == "requirements") {
             theme.requirements = parse_requirements_block();
         } else if (block_name == "variables") {
-            theme.variables = parse_variables_block();
+            ThemeVariableSet parsed_variables = parse_variables_block();
+            theme.variables = std::move(parsed_variables.string_variables);
+            theme.segment_variables = std::move(parsed_variables.segment_variables);
         } else if (block_name == "ps1") {
             theme.ps1_segments = parse_segments_block();
         } else if (block_name == "git_segments") {
@@ -845,18 +963,63 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     oss << "    bg " << theme.fill.bg_color << "\n";
     oss << "  }\n\n";
 
-    if (!theme.variables.empty()) {
-        std::vector<std::pair<std::string, std::string>> variables(
+    auto write_segment_definition = [&](const ThemeSegment& segment,
+                                        const std::string& base_indent) {
+        std::string inner_indent = base_indent + "  ";
+        oss << base_indent << "segment \"" << segment.name << "\" {\n";
+        oss << inner_indent << "content \"" << segment.content << "\"\n";
+        oss << inner_indent << "fg \"" << segment.fg_color << "\"\n";
+        oss << inner_indent << "bg \"" << segment.bg_color << "\"\n";
+        if (!segment.separator.empty()) {
+            oss << inner_indent << "separator \"" << segment.separator << "\"\n";
+            oss << inner_indent << "separator_fg \"" << segment.separator_fg << "\"\n";
+            oss << inner_indent << "separator_bg \"" << segment.separator_bg << "\"\n";
+        }
+        if (!segment.forward_separator.empty()) {
+            oss << inner_indent << "forward_separator \"" << segment.forward_separator << "\"\n";
+            oss << inner_indent << "forward_separator_fg \"" << segment.forward_separator_fg << "\"\n";
+            oss << inner_indent << "forward_separator_bg \"" << segment.forward_separator_bg << "\"\n";
+        }
+        if (!segment.alignment.empty()) {
+            oss << inner_indent << "alignment \"" << segment.alignment << "\"\n";
+        }
+        oss << base_indent << "}\n";
+    };
+
+    if (!theme.variables.empty() || !theme.segment_variables.empty()) {
+        std::vector<std::pair<std::string, std::string>> scalar_variables(
             theme.variables.begin(), theme.variables.end());
-        std::sort(variables.begin(), variables.end(),
+        std::sort(scalar_variables.begin(), scalar_variables.end(),
+                  [](const auto& lhs, const auto& rhs) {
+                      return lhs.first < rhs.first;
+                  });
+
+        std::vector<std::pair<std::string, const ThemeSegment*>> segment_variables;
+        segment_variables.reserve(theme.segment_variables.size());
+        for (const auto& [name, segment] : theme.segment_variables) {
+            segment_variables.emplace_back(name, &segment);
+        }
+        std::sort(segment_variables.begin(), segment_variables.end(),
                   [](const auto& lhs, const auto& rhs) {
                       return lhs.first < rhs.first;
                   });
 
         oss << "  variables {\n";
-        for (const auto& [name, value] : variables) {
+        for (const auto& [name, value] : scalar_variables) {
             oss << "    " << name << " \"" << value << "\"\n";
         }
+
+        if (!segment_variables.empty()) {
+            if (!scalar_variables.empty()) {
+                oss << "\n";
+            }
+            for (const auto& [name, segment_ptr] : segment_variables) {
+                ThemeSegment segment_copy = *segment_ptr;
+                segment_copy.name = name;
+                write_segment_definition(segment_copy, "    ");
+            }
+        }
+
         oss << "  }\n\n";
     }
     
@@ -865,24 +1028,7 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         if (!segments.empty()) {
             oss << "  " << name << " {\n";
             for (const auto& segment : segments) {
-                oss << "    segment \"" << segment.name << "\" {\n";
-                oss << "      content \"" << segment.content << "\"\n";
-                oss << "      fg \"" << segment.fg_color << "\"\n";
-                oss << "      bg \"" << segment.bg_color << "\"\n";
-                if (!segment.separator.empty()) {
-                    oss << "      separator \"" << segment.separator << "\"\n";
-                    oss << "      separator_fg \"" << segment.separator_fg << "\"\n";
-                    oss << "      separator_bg \"" << segment.separator_bg << "\"\n";
-                }
-                if (!segment.forward_separator.empty()) {
-                    oss << "      forward_separator \"" << segment.forward_separator << "\"\n";
-                    oss << "      forward_separator_fg \"" << segment.forward_separator_fg << "\"\n";
-                    oss << "      forward_separator_bg \"" << segment.forward_separator_bg << "\"\n";
-                }
-                if (!segment.alignment.empty()) {
-                    oss << "      alignment \"" << segment.alignment << "\"\n";
-                }
-                oss << "    }\n";
+                write_segment_definition(segment, "    ");
             }
             oss << "  }\n\n";
         }

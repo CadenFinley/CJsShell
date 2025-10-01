@@ -17,15 +17,15 @@ theme_definition {
     bg "RESET"
   }
 
-  ps1 {
+  variables {
     segment "box_top" {
-        content " ╭─"
-        fg "#b8bb26"
-        bg "RESET"
-        separator ""
-        separator_fg "RESET"
-        separator_bg "RESET"
-        alignment "left"
+      content " ╭─"
+      fg "#b8bb26"
+      bg "RESET"
+      separator ""
+      separator_fg "RESET"
+      separator_bg "RESET"
+      alignment "left"
     }
 
     segment "userseg" {
@@ -40,6 +40,48 @@ theme_definition {
       forward_separator_bg "RESET"
       alignment "left"
     }
+
+    segment "dateseg" {
+      content " {MONTH_NAME} {DAY}, {YEAR} "
+      fg "#ebdbb2"
+      bg "#504945"
+      separator ""
+      separator_fg "#504945"
+      separator_bg "RESET"
+      forward_separator "\uE0B2"
+      forward_separator_fg "#504945"
+      forward_separator_bg "RESET"
+      alignment "right"
+    }
+
+    segment "timeseg" {
+      content " {TIME24} "
+      fg "#ebdbb2"
+      bg "#282828"
+      separator "\uE0B4"
+      separator_fg "#282828"
+      separator_bg "RESET"
+      forward_separator "\uE0B2"
+      forward_separator_fg "#282828"
+      forward_separator_bg "#504945"
+      alignment "right"
+    }
+
+    segment "promptseg" {
+      content "─╮"
+      fg "#b8bb26"
+      bg "RESET"
+      separator ""
+      separator_fg "RESET"
+      separator_bg "RESET"
+      alignment "right"
+    }
+  }
+
+  ps1 {
+    use_segment box_top
+
+    use_segment userseg
 
     segment "hostseg" {
       content " {HOSTNAME} "
@@ -101,66 +143,17 @@ theme_definition {
       alignment "left"
     }
 
-    segment "dateseg" {
-      content " {MONTH_NAME} {DAY}, {YEAR} "
-      fg "#ebdbb2"
-      bg "#504945"
-      separator ""
-      separator_fg "#504945"
-      separator_bg "RESET"
-      forward_separator "\uE0B2"
-      forward_separator_fg "#504945"
-      forward_separator_bg "RESET"
-      alignment "right"
-    }
+    use_segment dateseg
 
-    segment "timeseg" {
-      content " {TIME24} "
-      fg "#ebdbb2"
-      bg "#282828"
-      separator "\uE0B4"
-      separator_fg "#282828"
-      separator_bg "RESET"
-      forward_separator "\uE0B2"
-      forward_separator_fg "#282828"
-      forward_separator_bg "#504945"
-      alignment "right"
-    }
+    use_segment timeseg
 
-    segment "promptseg" {
-      content "─╮"
-      fg "#b8bb26"
-      bg "RESET"
-      separator ""
-      separator_fg "RESET"
-      separator_bg "RESET"
-      alignment "right"
-    }
+    use_segment promptseg
   }
 
   git_segments {
+    use_segment box_top
 
-        segment "box_top" {
-        content " ╭─"
-        fg "#b8bb26"
-        bg "RESET"
-        separator ""
-        separator_fg "RESET"
-        separator_bg "RESET"
-        alignment "left"
-    }
-    segment "userseg" {
-      content " {USERNAME} "
-      fg "#ebdbb2"
-      bg "#282828"
-      separator "\uE0B0"
-      separator_fg "#282828"
-      separator_bg "#3c3836"
-      forward_separator "\uE0B6"
-      forward_separator_fg "#282828"
-      forward_separator_bg "RESET"
-      alignment "left"
-    }
+    use_segment userseg
 
     segment "dirseg" {
       content " {LOCAL_PATH} "
@@ -222,54 +215,16 @@ theme_definition {
       alignment "left"
     }
 
-    segment "dateseg" {
-      content " {MONTH_NAME} {DAY}, {YEAR} "
-      fg "#ebdbb2"
-      bg "#504945"
-      separator ""
-      separator_fg "#504945"
-      separator_bg "RESET"
-      forward_separator "\uE0B2"
-      forward_separator_fg "#504945"
-      forward_separator_bg "RESET"
-      alignment "right"
-    }
+    use_segment dateseg
 
-    segment "timeseg" {
-      content " {TIME24} "
-      fg "#ebdbb2"
-      bg "#282828"
-      separator "\uE0B4"
-      separator_fg "#282828"
-      separator_bg "RESET"
-      forward_separator "\uE0B2"
-      forward_separator_fg "#282828"
-      forward_separator_bg "#504945"
-      alignment "right"
-    }
+    use_segment timeseg
 
-    segment "promptseg" {
-      content "─╮"
-      fg "#b8bb26"
-      bg "RESET"
-      separator ""
-      separator_fg "RESET"
-      separator_bg "RESET"
-      alignment "right"
-    }
+    use_segment promptseg
   }
 
   ai_segments {
+    use_segment box_top
 
-        segment "box_top" {
-        content " ╭─"
-        fg "#b8bb26"
-        bg "RESET"
-        separator ""
-        separator_fg "RESET"
-        separator_bg "RESET"
-        alignment "left"
-    }
     segment "ai_userseg" {
       content " {AI_MODEL} "
       fg "#d3869b"
@@ -323,41 +278,11 @@ theme_definition {
       alignment "left"
     }
 
-    segment "ai_dateseg" {
-      content " {MONTH_NAME} {DAY}, {YEAR} "
-      fg "#ebdbb2"
-      bg "#504945"
-      separator ""
-      separator_fg "#504945"
-      separator_bg "RESET"
-      forward_separator "\uE0B2"
-      forward_separator_fg "#504945"
-      forward_separator_bg "RESET"
-      alignment "right"
-    }
+    use_segment dateseg as "ai_dateseg"
 
-    segment "ai_timeseg" {
-      content " {TIME24} "
-      fg "#ebdbb2"
-      bg "#282828"
-      separator "\uE0B4"
-      separator_fg "#282828"
-      separator_bg "RESET"
-      forward_separator "\uE0B2"
-      forward_separator_fg "#282828"
-      forward_separator_bg "#504945"
-      alignment "right"
-    }
+    use_segment timeseg as "ai_timeseg"
 
-    segment "promptseg" {
-      content "─╮"
-      fg "#b8bb26"
-      bg "RESET"
-      separator ""
-      separator_fg "RESET"
-      separator_bg "RESET"
-      alignment "right"
-    }
+    use_segment promptseg
   }
 
   newline {

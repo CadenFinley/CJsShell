@@ -96,6 +96,7 @@ struct ThemeDefinition {
     ThemeBehavior behavior;
     ThemeRequirements requirements;
     std::unordered_map<std::string, std::string> variables;
+    std::unordered_map<std::string, ThemeSegment> segment_variables;
     
     std::vector<ThemeSegment> ps1_segments;
     std::vector<ThemeSegment> git_segments;
@@ -107,6 +108,11 @@ struct ThemeDefinition {
     ThemeDefinition(const std::string& n) : name(n) {}
 };
 
+struct ThemeVariableSet {
+    std::unordered_map<std::string, std::string> string_variables;
+    std::unordered_map<std::string, ThemeSegment> segment_variables;
+};
+
 // Parser for the new DSL
 class ThemeParser {
 private:
@@ -114,6 +120,7 @@ private:
     size_t position;
     size_t line_number;
     std::string source_name;
+    std::unordered_map<std::string, ThemeSegment> segment_variable_definitions;
     
     void skip_whitespace();
     void skip_comments();
@@ -127,11 +134,14 @@ private:
     
     ThemeProperty parse_property();
     ThemeSegment parse_segment();
+    ThemeSegment parse_segment_body(ThemeSegment segment);
+    ThemeSegment parse_segment_reference();
+    bool is_keyword(const std::string& keyword) const;
     std::vector<ThemeSegment> parse_segments_block();
     ThemeFill parse_fill_block();
     ThemeBehavior parse_behavior_block();
     ThemeRequirements parse_requirements_block();
-    std::unordered_map<std::string, std::string> parse_variables_block();
+    ThemeVariableSet parse_variables_block();
     
     void expect_token(const std::string& expected);
     [[noreturn]] void parse_error(const std::string& message);
