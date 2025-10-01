@@ -169,8 +169,156 @@ Plugins must implement all required functions from the Plugin API, including:
 
 ## Creating Themes
 
+CJ's Shell features a powerful theming system that allows you to customize the appearance of your shell prompt, colors, and other visual elements. Themes are defined in `.cjsh` files using a structured configuration syntax.
+
+### Theme File Structure
+
+Theme files should be placed in the `/themes` directory and follow the naming convention `theme_name.cjsh`. Each theme file begins with:
+
+```bash
+#! usr/bin/env cjsh
+
+theme_definition {
+  # Theme configuration goes here
+}
+```
+
+### Core Theme Components
+
+#### 1. Terminal Title
+Set the terminal window title:
+```bash
+terminal_title "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME}"
+```
+
+#### 2. Fill Character
+Define the background fill character and colors:
+```bash
+fill {
+  char "",
+  fg RESET
+  bg RESET
+}
+```
+
+#### 3. Primary Prompt (ps1)
+Define the main prompt structure with segments:
+```bash
+ps1 {
+  segment "username" {
+    content "{USERNAME}@{HOSTNAME}:"
+    fg "#5555FF"
+    bg "RESET"
+  }
+  segment "directory" {
+    content " {DIRECTORY} "
+    fg "#55FF55"
+    bg "RESET"
+    separator " "
+    separator_fg "#FFFFFF"
+    separator_bg "RESET"
+  }
+  segment "prompt" {
+    content "$ "
+    fg "#FFFFFF"
+    bg "RESET"
+  }
+}
+```
+
+#### 4. Git Integration
+Add Git-aware segments for repository information:
+```bash
+git_segments {
+  segment "branch" {
+    content "{GIT_BRANCH}"
+    fg "#FFFF55"
+    bg "RESET"
+  }
+  segment "status" {
+    content "{GIT_STATUS}"
+    fg "#FF5555"
+    bg "RESET"
+  }
+}
+```
+
+### Advanced Features
+
+#### Requirements
+Specify font and color requirements:
+```bash
+requirements {
+  colors "true_color"
+  fonts "FiraCode Nerd Font"
+  fonts "Hack Nerd Font"
+}
+```
+
+#### Variables
+Define reusable variables for complex logic:
+```bash
+variables {
+  project_type_bg "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : #665c54}"
+  project_language_badge "🐍 {PYTHON_VERSION}"
+}
+```
+
+### Available Variables
+
+CJ's Shell provides numerous built-in variables for dynamic content:
+
+- **User Info**: `{USERNAME}`, `{HOSTNAME}`, `{UID}`, `{GID}`
+- **Directory**: `{DIRECTORY}`, `{PATH}`, `{LOCAL_PATH}`
+- **Shell**: `{SHELL}`, `{SHELL_VER}`, `{SHELL_PID}`
+- **Git**: `{GIT_BRANCH}`, `{GIT_STATUS}`, `{GIT_AHEAD}`, `{GIT_BEHIND}`
+- **Project Detection**: `{IS_PYTHON_PROJECT}`, `{IS_NODEJS_PROJECT}`, `{IS_RUST_PROJECT}`, etc.
+- **Language Versions**: `{PYTHON_VERSION}`, `{NODEJS_VERSION}`, `{JAVA_VERSION}`, etc.
+- **Time**: `{TIME}`, `{DATE}`, `{TIME_24H}`
+- **System**: `{OS}`, `{ARCH}`, `{KERNEL}`
+
+### Color Specification
+
+Colors can be specified in multiple formats:
+- **Hex**: `#FF5555`, `#AABBCC`
+- **Named**: `RESET`, `BLACK`, `RED`, `GREEN`, `YELLOW`, `BLUE`, `MAGENTA`, `CYAN`, `WHITE`
+- **ANSI**: `30-37` (foreground), `40-47` (background)
+- **256-color**: `0-255`
+
+### Best Practices
+
+1. **Test thoroughly**: Test your theme in different scenarios (various directories, Git repos, different projects)
+2. **Consider accessibility**: Ensure sufficient contrast for readability
+3. **Font requirements**: If using special characters or symbols, specify required fonts in the `requirements` section
+4. **Performance**: Avoid overly complex conditional logic that might slow down prompt rendering
+5. **Fallbacks**: Provide fallback content for unsupported terminals or missing fonts
+
+### Example Themes
+
+Study the existing themes for reference:
+- `default.cjsh`: Simple, universal theme
+- `gruvbox_dark_simple.cjsh`: Modern theme with project detection
+- `powerline_aligned.cjsh`: Advanced powerline-style theme
 
 ## Contributing Themes
 
+When contributing a new theme to CJ's Shell:
+
+1. **Create your theme file** in the `/themes` directory following the naming convention
+2. **Test extensively** across different environments and use cases
+3. **Document requirements** (fonts, color support) in the theme file
+4. **Provide a screenshot** or example output in your pull request
+5. **Include a brief description** of the theme's purpose and style
+6. **Ensure compatibility** with both basic and advanced terminal features
+
+### Theme Submission Checklist
+
+- [ ] Theme file follows proper `.cjsh` syntax
+- [ ] All required segments are properly defined
+- [ ] Colors are specified correctly and provide good contrast
+- [ ] Font requirements (if any) are documented
+- [ ] Theme has been tested in multiple scenarios
+- [ ] No syntax errors or parsing issues
+- [ ] Theme name is descriptive and unique
 
 By following these steps, you help maintain the quality and consistency of themes in CJ's Shell. Thank you for your contribution!
