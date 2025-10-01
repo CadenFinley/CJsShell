@@ -221,6 +221,60 @@ static inline int needs_rebuild_with_dependency_file(const char* obj_path,
     return rebuild_result;
 }
 
+static inline bool nob_cmd_run_with_spinner(Nob_Cmd* cmd,
+                                            const char* label) {
+    if (label == NULL) {
+        label = "Working";
+    }
+
+    Nob_Proc proc = nob__cmd_start_process(*cmd, NULL, NULL, NULL);
+    if (proc == NOB_INVALID_PROC) {
+        cmd->count = 0;
+        return false;
+    }
+
+    static const char spinner_chars[] = "|/-\\";
+    const size_t spinner_count = sizeof(spinner_chars) - 1;
+    size_t spinner_index = 0;
+    size_t tick = 0;
+    const int wait_interval_ms = 120;
+    bool show_spinner = should_show_progress();
+
+    for (;;) {
+        int wait_result = nob__proc_wait_async(proc, wait_interval_ms);
+        if (wait_result < 0) {
+            if (show_spinner) {
+                clear_progress_line();
+                fflush(stdout);
+            }
+            cmd->count = 0;
+            return false;
+        }
+
+        if (wait_result > 0) {
+            if (show_spinner) {
+                clear_progress_line();
+                printf("%s %s\n", label, "✓");
+                fflush(stdout);
+            } else {
+                nob_log(NOB_INFO, "%s complete.", label);
+            }
+            cmd->count = 0;
+            return true;
+        }
+
+        if (show_spinner && spinner_count > 0) {
+            printf("\r\033[K%s %c", label, spinner_chars[spinner_index]);
+            fflush(stdout);
+            spinner_index = (spinner_index + 1) % spinner_count;
+        } else if (tick > 0 && tick % 25 == 0) {
+            nob_log(NOB_INFO, "%s still running...", label);
+        }
+
+        tick++;
+    }
+}
+
 static inline bool compile_cjsh(int override_parallel_jobs) {
     nob_log(NOB_INFO, "Compiling " PROJECT_NAME "...");
 
@@ -691,7 +745,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
         nob_cmd_append(&link_cmd, build_config.external_library_paths[i]);
     }
 
-    if (!nob_cmd_run(&link_cmd)) {
+    if (!nob_cmd_run_with_spinner(&link_cmd, "Linking cjsh")) {
         nob_minimal_log_level = original_log_level;
         nob_log(NOB_ERROR, "Linking failed");
         return false;
