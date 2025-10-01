@@ -228,84 +228,6 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         return 0;
     }
 
-    if (cmd == "saveconfig") {
-        g_ai->save_ai_config();
-        std::cout << "AI configuration saved." << std::endl;
-        return 0;
-    }
-
-    if (cmd == "config") {
-        if (args.size() <= command_index + 1) {
-            std::cout << "Current AI config: " << g_ai->get_config_name()
-                      << std::endl;
-            return 0;
-        }
-
-        const std::string& subcmd = args[command_index + 1];
-
-        if (subcmd == "list") {
-            std::vector<std::string> configs = g_ai->list_configs();
-            if (configs.empty()) {
-                std::cout << "No AI configs found." << std::endl;
-            } else {
-                std::cout << "Available AI configs:" << std::endl;
-                for (const auto& config : configs) {
-                    if (config == g_ai->get_config_name()) {
-                        std::cout << "* " << config << " (current)"
-                                  << std::endl;
-                    } else {
-                        std::cout << "  " << config << std::endl;
-                    }
-                }
-            }
-            return 0;
-        }
-
-        if (subcmd == "switch" || subcmd == "load") {
-            if (args.size() <= command_index + 2) {
-                std::cout
-                    << "ai: missing config name. Usage: ai config switch <name>"
-                    << std::endl;
-                return 1;
-            }
-            std::string config_name = args[command_index + 2];
-            if (g_ai->load_config(config_name)) {
-                if (!g_startup_active) {
-                    std::cout << "Switched to AI config: " << config_name
-                              << std::endl;
-                }
-            } else {
-                std::cout << "Failed to switch to AI config: " << config_name
-                          << std::endl;
-                return 1;
-            }
-            return 0;
-        }
-
-        if (subcmd == "save" || subcmd == "saveas") {
-            if (args.size() <= command_index + 2) {
-                std::cout
-                    << "ai: missing config name. Usage: ai config save <name>"
-                    << std::endl;
-                return 1;
-            }
-            std::string config_name = args[command_index + 2];
-            if (g_ai->save_config_as(config_name)) {
-                std::cout << "Saved AI config as: " << config_name << std::endl;
-            } else {
-                std::cout << "Failed to save AI config as: " << config_name
-                          << std::endl;
-                return 1;
-            }
-            return 0;
-        }
-
-        std::cout
-            << "Unknown config command. Available commands: list, switch, save"
-            << std::endl;
-        return 1;
-    }
-
     if (cmd == "voice") {
         if (args.size() <= command_index + 1) {
             std::cout << "The current voice is "
@@ -403,22 +325,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             << "  ai timeoutflag [sec]           Get or set the request "
                "timeout "
                "in seconds\n"
-            << "  ai rejectchanges               Reject the most recent AI "
-               "suggested edits\n"
-            << "  ai saveconfig                  Persist the current AI "
-               "configuration\n"
-            << "  ai config                      Show the active configuration "
-               "name\n"
-            << "  ai config list                 List available "
-               "configurations\n"
-            << "  ai config switch <name>        Switch to another "
-               "configuration\n"
-            << "  ai config load <name>          Alias for 'config switch'\n"
-            << "  ai config save <name>          Save over an existing "
-               "configuration\n"
-            << "  ai config saveas <name>        Save the current settings "
-               "under "
-               "a new name\n"
+                << "  ai rejectchanges               Reject the most recent AI "
+                    "suggested edits\n"
             << "  ai voice [voice]               Get or set the dictation "
                "voice\n"
             << "  ai voicedictation [enable|disable]  Toggle voice dictation\n"
@@ -428,12 +336,11 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         return 0;
     }
 
-    std::string message = cmd;
-    for (unsigned int i = command_index + 1; i < args.size(); i++) {
-        message += " " + args[i];
-    }
-    do_ai_request(message);
-    return 0;
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "ai",
+                 "invalid argument. try 'help' for a list of commands",
+                 {}});
+    return 1;
 }
 
 int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {

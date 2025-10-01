@@ -18,11 +18,9 @@ Ai::Ai(const std::string& api_key, const std::string& assistant_type,
        const std::string& initial_instruction,
        const std::vector<std::string>& user_files,
        const std::string& save_directory, bool enabled) {
-    (void)save_directory;
+    initialize(api_key, assistant_type, initial_instruction, user_files,
+               save_directory);
     set_enabled(enabled);
-    if (enabled) {
-        initialize(api_key, assistant_type, initial_instruction, user_files);
-    }
 }
 
 Ai::Ai() {
@@ -400,229 +398,20 @@ int Ai::add_files(const std::vector<std::string>& user_files) {
     return 0;
 }
 
-void Ai::load_ai_config() {
-    cjsh_filesystem::fs::path config_file_path;
-    if (config_name == "default") {
-        config_file_path = cjsh_filesystem::g_cjsh_ai_default_config_path;
-
-        if (!cjsh_filesystem::fs::exists(config_file_path)) {
-            config_file_path = cjsh_filesystem::g_cjsh_ai_config_file_path;
-        }
-    } else {
-        config_file_path =
-            cjsh_filesystem::g_cjsh_ai_config_path / (config_name + ".json");
-    }
-
-    if (!cjsh_filesystem::fs::exists(config_file_path)) {
-        if (config_name == "default") {
-            create_default_config_file();
-
-            if (cjsh_filesystem::fs::exists(
-                    cjsh_filesystem::g_cjsh_ai_default_config_path)) {
-                config_file_path =
-                    cjsh_filesystem::g_cjsh_ai_default_config_path;
-            } else {
-                std::cerr
-                    << "cjsh: ai: Could not create default AI config file."
-                    << std::endl;
-                return;
-            }
-        } else {
-            std::cerr << "cjsh: ai: AI config file '" << config_name
-                      << "' not found." << std::endl;
-            return;
-        }
-    }
-
-    auto config_content =
-        cjsh_filesystem::FileOperations::read_file_content(config_file_path);
-    if (config_content.is_ok()) {
-        nlohmann::json config_json;
-        try {
-            config_json = nlohmann::json::parse(config_content.value());
-            if (config_json.contains("assistant_name")) {
-                assistant_name =
-                    config_json["assistant_name"].get<std::string>();
-            }
-            if (config_json.contains("initial_instruction")) {
-                set_initial_instruction(
-                    config_json["initial_instruction"].get<std::string>());
-            }
-            if (config_json.contains("assistant_type")) {
-                this->assistant_type =
-                    config_json["assistant_type"].get<std::string>();
-            }
-            if (config_json.contains("max_prompt_length")) {
-                max_prompt_length = config_json["max_prompt_length"].get<int>();
-            }
-            if (config_json.contains("cache_tokens")) {
-                cache_tokens = config_json["cache_tokens"].get<bool>();
-            }
-            if (config_json.contains("max_prompt_precision")) {
-                max_prompt_precision =
-                    config_json["max_prompt_precision"].get<bool>();
-            }
-            if (config_json.contains("dynamic_prompt_length")) {
-                dynamic_prompt_length =
-                    config_json["dynamic_prompt_length"].get<bool>();
-            }
-            if (config_json.contains("dynamic_prompt_length_scale")) {
-                dynamic_prompt_length_scale =
-                    config_json["dynamic_prompt_length_scale"].get<float>();
-            }
-            if (config_json.contains("timeout_flag_seconds")) {
-                timeout_flag_seconds =
-                    config_json["timeout_flag_seconds"].get<float>();
-            }
-            if (config_json.contains("model")) {
-                current_model = config_json["model"].get<std::string>();
-            }
-            set_save_directory(cjsh_filesystem::g_cjsh_data_path);
-            if (config_json.contains("enabled")) {
-                enabled = config_json["enabled"].get<bool>();
-            } else {
-                enabled = true;
-            }
-            if (config_json.contains("voice_dictation_enabled")) {
-                voice_dictation_enabled =
-                    config_json["voice_dictation_enabled"].get<bool>();
-            } else {
-                voice_dictation_enabled = true;
-            }
-            if (config_json.contains("voice_dictation_voice")) {
-                voice_dictation_voice =
-                    config_json["voice_dictation_voice"].get<std::string>();
-            } else {
-                voice_dictation_voice = "onyx";
-            }
-            if (config_json.contains("voice_dictation_instructions")) {
-                voice_dictation_instructions =
-                    config_json["voice_dictation_instructions"]
-                        .get<std::string>();
-            } else {
-                voice_dictation_instructions =
-                    "Accent/Affect: Moderate British accent; sophisticated yet "
-                    "friendly, clearly understandable but lower voice tones. "
-                    "Tone: "
-                    "Warm, Calm. Pacing: Moderate.";
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "cjsh: ai: Error parsing AI config file: " << e.what()
-                      << std::endl;
-        }
-    } else {
-        std::cerr << "cjsh: ai: Error reading AI config file." << std::endl;
-    }
-}
-
-void Ai::save_ai_config() {
-    cjsh_filesystem::fs::path config_file_path;
-    if (config_name == "default") {
-        config_file_path = cjsh_filesystem::g_cjsh_ai_default_config_path;
-    } else {
-        config_file_path =
-            cjsh_filesystem::g_cjsh_ai_config_path / (config_name + ".json");
-    }
-
-    std::string config_content =
-        nlohmann::json{
-            {"assistant_name", assistant_name},
-            {"initial_instruction", initial_instruction},
-            {"assistant_type", assistant_type},
-            {"max_prompt_length", max_prompt_length},
-            {"cache_tokens", cache_tokens},
-            {"max_prompt_precision", max_prompt_precision},
-            {"dynamic_prompt_length", dynamic_prompt_length},
-            {"dynamic_prompt_length_scale", dynamic_prompt_length_scale},
-            {"timeout_flag_seconds", timeout_flag_seconds},
-            {"model", current_model},
-            {"enabled", enabled},
-            {"voice_dictation_enabled", voice_dictation_enabled},
-            {"voice_dictation_voice", voice_dictation_voice},
-            {"voice_dictation_instructions", voice_dictation_instructions}}
-            .dump(4);
-
-    auto write_result = cjsh_filesystem::FileOperations::write_file_content(
-        config_file_path, config_content);
-    if (write_result.is_error()) {
-        std::cerr << "cjsh: ai: Error saving AI config file." << std::endl;
-    }
-}
-
-void Ai::create_default_config_file() {
-    std::string default_config_content =
-        nlohmann::json{
-            {"assistant_name", "CJ's Shell Assistant"},
-            {"initial_instruction",
-             "You are a helpful AI assistant within the user's shell "
-             "environment. "
-             "Provide concise, accurate information and assist with shell "
-             "tasks "
-             "when requested."},
-            {"assistant_type", "chat"},
-            {"max_prompt_length", 1000},
-            {"cache_tokens", false},
-            {"max_prompt_precision", true},
-            {"dynamic_prompt_length", true},
-            {"dynamic_prompt_length_scale", 3},
-            {"timeout_flag_seconds", 180},
-            {"model", "gpt-3.5-turbo"},
-            {"enabled", true},
-            {"voice_dictation_enabled", false},
-            {"voice_dictation_voice", "alloy"},
-            {"voice_dictation_instructions",
-             "Use a natural, conversational tone with clear pronunciation and "
-             "moderate pacing."}}
-            .dump(4);
-
-    auto write_result = cjsh_filesystem::FileOperations::write_file_content(
-        cjsh_filesystem::g_cjsh_ai_default_config_path, default_config_content);
-    if (write_result.is_error()) {
-        std::cerr << "cjsh: ai: Error creating default AI config file."
-                  << std::endl;
-    }
-}
-
 void Ai::initialize(const std::string& api_key,
                     const std::string& assistant_type,
                     const std::string& initial_instruction,
-                    const std::vector<std::string>& user_files) {
+                    const std::vector<std::string>& user_files,
+                    const std::string& save_directory) {
     user_api_key = api_key;
     this->assistant_type = assistant_type;
     this->initial_instruction = initial_instruction;
     this->files = user_files;
-
-    cjsh_filesystem::fs::path ai_config_dir =
-        cjsh_filesystem::g_cjsh_ai_config_path;
-    if (!cjsh_filesystem::fs::exists(ai_config_dir)) {
-        try {
-            cjsh_filesystem::fs::create_directories(ai_config_dir);
-        } catch (const cjsh_filesystem::fs::filesystem_error& e) {
-            std::cerr << "cjsh: ai: Error creating AI config directory: "
-                      << e.what() << std::endl;
-        }
+    if (!save_directory.empty()) {
+        set_save_directory(save_directory);
+    } else if (this->save_directory.empty()) {
+        set_save_directory(cjsh_filesystem::g_cjsh_data_path.string());
     }
-
-    bool has_default_config = cjsh_filesystem::fs::exists(
-        cjsh_filesystem::g_cjsh_ai_default_config_path);
-    bool has_legacy_config = cjsh_filesystem::fs::exists(
-        cjsh_filesystem::g_cjsh_ai_config_file_path);
-
-    if (!has_default_config && !has_legacy_config) {
-        create_default_config_file();
-    } else if (!has_default_config && has_legacy_config) {
-        try {
-            cjsh_filesystem::fs::copy_file(
-                cjsh_filesystem::g_cjsh_ai_config_file_path,
-                cjsh_filesystem::g_cjsh_ai_default_config_path);
-        } catch (const cjsh_filesystem::fs::filesystem_error& e) {
-            std::cerr << "cjsh: ai: Error copying legacy config to default: "
-                      << e.what() << std::endl;
-        }
-    }
-
-    config_name = "default";
-    load_ai_config();
 }
 
 bool Ai::is_valid_configuration() const {

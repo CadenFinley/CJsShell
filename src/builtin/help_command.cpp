@@ -56,21 +56,6 @@ int help_command() {
     std::cout
         << "      ai directory clear           Reset the save directory to "
            "default\n";
-    std::cout << "      ai saveconfig                Write current settings to "
-                 "disk\n";
-    std::cout << "      ai config                    Show the active "
-                 "configuration name\n";
-    std::cout
-        << "      ai config list               List saved configurations\n";
-    std::cout << "      ai config switch <name>      Switch (alias: load) to a "
-                 "configuration\n";
-    std::cout
-        << "      ai config load <name>        Alias for 'config switch'\n";
-    std::cout << "      ai config save <name>        Overwrite an existing "
-                 "configuration\n";
-    std::cout
-        << "      ai config saveas <name>      Save current settings under "
-           "a new name\n";
     std::cout << "    Personalization & limits:\n";
     std::cout
         << "      ai mode [type]               Get or set assistant mode\n";

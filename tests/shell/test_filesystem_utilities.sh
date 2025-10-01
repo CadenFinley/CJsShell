@@ -54,7 +54,6 @@ fs::path g_cjsh_data_path;
 fs::path g_cjsh_cache_path;
 fs::path g_cjsh_plugin_path;
 fs::path g_cjsh_theme_path;
-fs::path g_cjsh_ai_config_path;
 fs::path g_cjsh_ai_conversations_path;
 fs::path g_cjsh_found_executables_path;
 fs::path g_cjsh_path;
@@ -73,7 +72,6 @@ void initialize_paths() {
     g_cjsh_cache_path = g_cache_path / "cjsh";
     g_cjsh_plugin_path = g_cjsh_data_path / "plugins";
     g_cjsh_theme_path = g_cjsh_data_path / "themes";
-    g_cjsh_ai_config_path = g_cjsh_data_path / "ai";
     g_cjsh_ai_conversations_path = g_cjsh_cache_path / "conversations";
     g_cjsh_found_executables_path = g_cjsh_cache_path / "cached_executables.cache";
 }
@@ -88,10 +86,9 @@ bool initialize_cjsh_directories() {
         fs::create_directories(g_cache_path);
         fs::create_directories(g_cjsh_data_path);
         fs::create_directories(g_cjsh_cache_path);
-        fs::create_directories(g_cjsh_plugin_path);
-        fs::create_directories(g_cjsh_theme_path);
-        fs::create_directories(g_cjsh_ai_config_path);
-        fs::create_directories(g_cjsh_ai_conversations_path);
+    fs::create_directories(g_cjsh_plugin_path);
+    fs::create_directories(g_cjsh_theme_path);
+    fs::create_directories(g_cjsh_ai_conversations_path);
         return true;
     } catch (const fs::filesystem_error& e) {
         std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;
@@ -272,7 +269,6 @@ int main(int argc, char* argv[]) {
                                fs::exists(g_cjsh_cache_path) &&
                                fs::exists(g_cjsh_plugin_path) &&
                                fs::exists(g_cjsh_theme_path) &&
-                               fs::exists(g_cjsh_ai_config_path) &&
                                fs::exists(g_cjsh_ai_conversations_path);
                 
                 if (all_exist) {

@@ -73,11 +73,6 @@ class Ai {
     std::string get_save_directory() const;
     void set_enabled(bool enabled);
     bool is_enabled() const;
-    void set_config_name(const std::string& config_name);
-    std::string get_config_name() const;
-    std::vector<std::string> list_configs() const;
-    bool load_config(const std::string& config_name);
-    bool save_config_as(const std::string& config_name);
 
     std::string chat_gpt(const std::string& sys_prompt,
                          const std::string& message, bool format);
@@ -89,7 +84,6 @@ class Ai {
     static bool test_api_key(const std::string& api_key);
     void reject_changes();
     void refresh_files();
-    void save_ai_config();
 
     void set_voice_dictation_enabled(bool enabled);
     bool get_voice_dictation_enabled() const;
@@ -102,7 +96,8 @@ class Ai {
     void initialize(const std::string& api_key,
                     const std::string& assistant_type,
                     const std::string& initial_instruction,
-                    const std::vector<std::string>& user_files);
+                    const std::vector<std::string>& user_files,
+                    const std::string& save_directory = "");
     bool is_valid_configuration() const;
     std::string get_invalid_configuration_message() const;
     std::string build_prompt(const std::string& sys_prompt,
@@ -129,9 +124,6 @@ class Ai {
     static void handle_error_response(int status_code,
                                       const std::string& error_body);
 
-    void load_ai_config();
-    void create_default_config_file();
-
     bool process_voice_dictation(const std::string& message);
 
     std::string user_api_key;
@@ -153,7 +145,6 @@ class Ai {
     std::string last_response_received;
     std::map<std::string, nlohmann::json> response_data_map;
     std::string save_directory;
-    std::string config_name = "default";
     bool enabled = true;
     std::atomic<bool> request_in_progress{false};
 
