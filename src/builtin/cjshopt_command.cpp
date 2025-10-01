@@ -53,6 +53,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
 // COMPLETION_CASE
 
 extern bool g_debug_mode;
+extern bool g_startup_active;
 
 int completion_case_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
@@ -68,12 +69,14 @@ int completion_case_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        for (const auto& line : usage_lines) {
-            std::cout << line << '\n';
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+            std::cout << "Current: "
+                      << (is_completion_case_sensitive() ? "enabled" : "disabled")
+                      << std::endl;
         }
-        std::cout << "Current: "
-                  << (is_completion_case_sensitive() ? "enabled" : "disabled")
-                  << std::endl;
         return 0;
     }
 
@@ -89,9 +92,11 @@ int completion_case_command(const std::vector<std::string>& args) {
                    [](unsigned char c) { return std::tolower(c); });
 
     if (normalized == "status" || normalized == "--status") {
-        std::cout << "Completion case sensitivity is currently "
-                  << (is_completion_case_sensitive() ? "enabled" : "disabled")
-                  << "." << std::endl;
+        if (!g_startup_active) {
+            std::cout << "Completion case sensitivity is currently "
+                      << (is_completion_case_sensitive() ? "enabled" : "disabled")
+                      << "." << std::endl;
+        }
         return 0;
     }
 
@@ -121,9 +126,11 @@ int completion_case_command(const std::vector<std::string>& args) {
 
     bool currently_enabled = is_completion_case_sensitive();
     if (currently_enabled == enable_case_sensitive) {
-        std::cout << "Completion case sensitivity is already "
-                  << (currently_enabled ? "enabled" : "disabled") << "."
-                  << std::endl;
+        if (!g_startup_active) {
+            std::cout << "Completion case sensitivity is already "
+                      << (currently_enabled ? "enabled" : "disabled") << "."
+                      << std::endl;
+        }
         return 0;
     }
 
@@ -135,9 +142,11 @@ int completion_case_command(const std::vector<std::string>& args) {
                   << std::endl;
     }
 
-    std::cout << "Completion case sensitivity "
-              << (enable_case_sensitive ? "enabled" : "disabled") << "."
-              << std::endl;
+    if (!g_startup_active) {
+        std::cout << "Completion case sensitivity "
+                  << (enable_case_sensitive ? "enabled" : "disabled") << "."
+                  << std::endl;
+    }
 
     return 0;
 }
@@ -240,34 +249,38 @@ static const std::unordered_map<std::string, std::string> default_styles = {
 int style_def_command(const std::vector<std::string>& args) {
     if (args.size() == 1) {
         // Show help
-        std::cout << "Usage: style_def <token_type> <style>\n\n";
-        std::cout << "Define or redefine a syntax highlighting style.\n\n";
-        std::cout << "Token types:\n";
-        for (const auto& pair : default_styles) {
-            std::cout << "  " << pair.first << " (default: " << pair.second
-                      << ")\n";
+        if (!g_startup_active) {
+            std::cout << "Usage: style_def <token_type> <style>\n\n";
+            std::cout << "Define or redefine a syntax highlighting style.\n\n";
+            std::cout << "Token types:\n";
+            for (const auto& pair : default_styles) {
+                std::cout << "  " << pair.first << " (default: " << pair.second
+                          << ")\n";
+            }
+            std::cout << "\nStyle format: [bold] [italic] [underline] "
+                         "color=#RRGGBB|color=name\n";
+            std::cout << "Color names: red, green, blue, yellow, magenta, cyan, "
+                         "white, black\n";
+            std::cout << "ANSI colors: ansi-black, ansi-red, ansi-green, "
+                         "ansi-yellow, etc.\n\n";
+            std::cout << "Examples:\n";
+            std::cout << "  style_def builtin \"bold color=#FFB86C\"\n";
+            std::cout << "  style_def system \"color=#50FA7B\"\n";
+            std::cout << "  style_def installed \"color=#8BE9FD\"\n";
+            std::cout << "  style_def comment \"italic color=green\"\n";
+            std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
+            std::cout
+                << "To reset all styles to defaults, use: style_def --reset\n";
         }
-        std::cout << "\nStyle format: [bold] [italic] [underline] "
-                     "color=#RRGGBB|color=name\n";
-        std::cout << "Color names: red, green, blue, yellow, magenta, cyan, "
-                     "white, black\n";
-        std::cout << "ANSI colors: ansi-black, ansi-red, ansi-green, "
-                     "ansi-yellow, etc.\n\n";
-        std::cout << "Examples:\n";
-        std::cout << "  style_def builtin \"bold color=#FFB86C\"\n";
-        std::cout << "  style_def system \"color=#50FA7B\"\n";
-        std::cout << "  style_def installed \"color=#8BE9FD\"\n";
-        std::cout << "  style_def comment \"italic color=green\"\n";
-        std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
-        std::cout
-            << "To reset all styles to defaults, use: style_def --reset\n";
         return 0;
     }
 
     if (args.size() == 2 && args[1] == "--reset") {
         // Reset to default styles
         reset_to_default_styles();
-        std::cout << "All syntax highlighting styles reset to defaults.\n";
+        if (!g_startup_active) {
+            std::cout << "All syntax highlighting styles reset to defaults.\n";
+        }
         return 0;
     }
 
