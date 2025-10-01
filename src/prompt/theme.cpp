@@ -157,10 +157,22 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
         if (!e.detail().empty()) {
             message += ": " + e.detail();
         }
-        print_error({ErrorType::SYNTAX_ERROR,
-                     "load_theme",
-                     message,
-                     {"Check theme syntax and try again."}});
+
+        if (e.error_info()) {
+            ErrorInfo error = *e.error_info();
+            error.type = ErrorType::SYNTAX_ERROR;
+            error.command_used = "load_theme";
+            error.message = message;
+            if (error.suggestions.empty()) {
+                error.suggestions.push_back("Check theme syntax and try again.");
+            }
+            print_error(error);
+        } else {
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "load_theme",
+                         message,
+                         {"Check theme syntax and try again."}});
+        }
         return false;
     } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -217,10 +229,22 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path,
         if (!e.detail().empty()) {
             message += ": " + e.detail();
         }
-        print_error({ErrorType::SYNTAX_ERROR,
-                     "load_theme",
-                     message,
-                     {"Check theme syntax and try again."}});
+        if (e.error_info()) {
+            ErrorInfo error = *e.error_info();
+            error.type = ErrorType::SYNTAX_ERROR;
+            error.command_used = "load_theme";
+            error.message = message;
+            if (error.suggestions.empty()) {
+                error.suggestions.push_back(
+                    "Check theme syntax and try again.");
+            }
+            print_error(error);
+        } else {
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "load_theme",
+                         message,
+                         {"Check theme syntax and try again."}});
+        }
         return false;
     } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -270,7 +294,12 @@ bool Theme::apply_theme_definition(
                 return load_theme(previous_theme, allow_fallback);
             } else {
                 if (theme_name != "default") {
-                    std::cerr << "Falling back to default theme" << std::endl;
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "load_theme",
+                                 "Theme '" + theme_name +
+                                     "' requirements not met, falling back to "
+                                     "default theme.",
+                                 {}});
                     return load_theme("default", allow_fallback);
                 }
                 print_error({ErrorType::FILE_NOT_FOUND,
@@ -1131,10 +1160,22 @@ void Theme::view_theme_requirements(const std::string& theme) const {
         if (!e.detail().empty()) {
             message += ": " + e.detail();
         }
-        print_error({ErrorType::SYNTAX_ERROR,
-                     "view_theme_requirements",
-                     message,
-                     {"Check theme syntax and try again."}});
+        if (e.error_info()) {
+            ErrorInfo error = *e.error_info();
+            error.type = ErrorType::SYNTAX_ERROR;
+            error.command_used = "view_theme_requirements";
+            error.message = message;
+            if (error.suggestions.empty()) {
+                error.suggestions.push_back(
+                    "Check theme syntax and try again.");
+            }
+            print_error(error);
+        } else {
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "view_theme_requirements",
+                         message,
+                         {"Check theme syntax and try again."}});
+        }
     } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "view_theme_requirements",
@@ -1264,10 +1305,10 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
     }
 
     if (!requirements_met) {
-        std::cerr << "Theme requirements not met:" << std::endl;
-        for (const auto& req : missing_requirements) {
-            std::cerr << " - " << req << std::endl;
-        }
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Theme requirements not met.",
+                     missing_requirements});
     }
 
     return requirements_met;

@@ -18,6 +18,16 @@ theme_definition {
   }
 
   ps1 {
+    segment "box_top" {
+        content " ╭─"
+        fg "#b8bb26"
+        bg "RESET"
+        separator ""
+        separator_fg "RESET"
+        separator_bg "RESET"
+        alignment "left"
+    }
+
     segment "userseg" {
       content " {USERNAME} "
       fg "#ebdbb2"
@@ -116,9 +126,29 @@ theme_definition {
       forward_separator_bg "#504945"
       alignment "right"
     }
+
+    segment "promptseg" {
+      content "─╮"
+      fg "#b8bb26"
+      bg "RESET"
+      separator ""
+      separator_fg "RESET"
+      separator_bg "RESET"
+      alignment "right"
+    }
   }
 
   git_segments {
+
+        segment "box_top" {
+        content " ╭─"
+        fg "#b8bb26"
+        bg "RESET"
+        separator ""
+        separator_fg "RESET"
+        separator_bg "RESET"
+        alignment "left"
+    }
     segment "userseg" {
       content " {USERNAME} "
       fg "#ebdbb2"
@@ -217,9 +247,29 @@ theme_definition {
       forward_separator_bg "#504945"
       alignment "right"
     }
+
+    segment "promptseg" {
+      content "─╮"
+      fg "#b8bb26"
+      bg "RESET"
+      separator ""
+      separator_fg "RESET"
+      separator_bg "RESET"
+      alignment "right"
+    }
   }
 
   ai_segments {
+
+        segment "box_top" {
+        content " ╭─"
+        fg "#b8bb26"
+        bg "RESET"
+        separator ""
+        separator_fg "RESET"
+        separator_bg "RESET"
+        alignment "left"
+    }
     segment "ai_userseg" {
       content " {AI_MODEL} "
       fg "#d3869b"
@@ -298,6 +348,16 @@ theme_definition {
       forward_separator_bg "#504945"
       alignment "right"
     }
+
+    segment "promptseg" {
+      content "─╮"
+      fg "#b8bb26"
+      bg "RESET"
+      separator ""
+      separator_fg "RESET"
+      separator_bg "RESET"
+      alignment "right"
+    }
   }
 
   newline {
@@ -308,6 +368,14 @@ theme_definition {
       separator ""
       separator_fg "RESET"
       separator_bg "RESET"
+    }
+  }
+
+  inline_right {
+    segment "inline" {
+        content "─╯"
+        fg "#b8bb26"
+        bg "RESET"
     }
   }
 

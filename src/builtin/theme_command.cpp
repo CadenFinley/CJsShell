@@ -113,10 +113,22 @@ int theme_command(const std::vector<std::string>& args) {
             if (!e.detail().empty()) {
                 message += ": " + e.detail();
             }
-            print_error({ErrorType::SYNTAX_ERROR,
-                         "theme",
-                         message,
-                         {"Check theme syntax and try again."}});
+            if (e.error_info()) {
+                ErrorInfo error = *e.error_info();
+                error.type = ErrorType::SYNTAX_ERROR;
+                error.command_used = "theme";
+                error.message = message;
+                if (error.suggestions.empty()) {
+                    error.suggestions.push_back(
+                        "Check theme syntax and try again.");
+                }
+                print_error(error);
+            } else {
+                print_error({ErrorType::SYNTAX_ERROR,
+                             "theme",
+                             message,
+                             {"Check theme syntax and try again."}});
+            }
             return 1;
         } catch (const std::exception& e) {
             print_error({ErrorType::RUNTIME_ERROR,

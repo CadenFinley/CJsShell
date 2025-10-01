@@ -11,12 +11,14 @@
 #include <utf8proc.h>
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail,
-                                         std::string source)
+                             std::string source,
+                             std::optional<ErrorInfo> error_info)
     : std::runtime_error(
-          build_message(line, detail, source)),
-      line_(line),
-      detail_(std::move(detail)),
-      source_(std::move(source)) {}
+        build_message(line, detail, source)),
+    line_(line),
+    detail_(std::move(detail)),
+    source_(std::move(source)),
+    error_info_(std::move(error_info)) {}
 
 std::string ThemeParseException::build_message(size_t line,
                                                const std::string& detail,
@@ -710,7 +712,11 @@ void ThemeParser::expect_token(const std::string& expected) {
 }
 
 void ThemeParser::parse_error(const std::string& message) {
-    throw ThemeParseException(line_number, message, source_name);
+    ErrorInfo info{ErrorType::SYNTAX_ERROR,
+                   source_name.empty() ? "theme_parser" : source_name,
+                   message,
+                   {"Check theme syntax and try again."}};
+    throw ThemeParseException(line_number, message, source_name, info);
 }
 
 ThemeDefinition ThemeParser::parse() {
@@ -794,7 +800,11 @@ ThemeDefinition ThemeParser::parse() {
     } catch (const ThemeParseException&) {
         throw;
     } catch (const std::exception& e) {
-        throw ThemeParseException(0, e.what(), source_name);
+        ErrorInfo info{ErrorType::RUNTIME_ERROR,
+                       source_name.empty() ? "theme_parser" : source_name,
+                       e.what(),
+                       {}};
+        throw ThemeParseException(0, e.what(), source_name, info);
     }
 
     return theme;
@@ -803,7 +813,12 @@ ThemeDefinition ThemeParser::parse() {
 ThemeDefinition ThemeParser::parse_file(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        throw ThemeParseException(0, "Could not open theme file", filepath);
+    ErrorInfo info{ErrorType::FILE_NOT_FOUND,
+               filepath,
+               "Could not open theme file",
+               {"Verify the file path and permissions."}};
+    throw ThemeParseException(0, "Could not open theme file", filepath,
+                  info);
     }
     
     std::string content((std::istreambuf_iterator<char>(file)),

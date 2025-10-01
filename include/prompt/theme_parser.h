@@ -5,15 +5,22 @@
 #include <unordered_map>
 #include <vector>
 #include <variant>
+#include <optional>
+
+#include "error_out.h"
 
 class ThemeParseException : public std::runtime_error {
 public:
     ThemeParseException(size_t line, std::string detail,
-                        std::string source = "");
+                        std::string source = "",
+                        std::optional<ErrorInfo> error_info = std::nullopt);
 
     size_t line() const noexcept { return line_; }
     const std::string& detail() const noexcept { return detail_; }
     const std::string& source() const noexcept { return source_; }
+    const std::optional<ErrorInfo>& error_info() const noexcept {
+        return error_info_;
+    }
 
 private:
     static std::string build_message(size_t line, const std::string& detail,
@@ -22,6 +29,7 @@ private:
     size_t line_;
     std::string detail_;
     std::string source_;
+    std::optional<ErrorInfo> error_info_;
 };
 
 // Forward declarations
