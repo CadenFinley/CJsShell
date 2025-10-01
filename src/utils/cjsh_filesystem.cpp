@@ -590,8 +590,7 @@ void create_source_file() {
         "\n"
         "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
         "cjsh_uninstall() {\n"
-        "    rm -rf " +
-        g_cjsh_path.string() +
+        "    rm $(readlink -f $(which cjsh))" +
         "\n"
         "    echo \"Uninstalled cjsh\"\n"
         "}\n";
