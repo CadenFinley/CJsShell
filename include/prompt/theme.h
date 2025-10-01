@@ -1,8 +1,11 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
+
 #include "theme_parser.h"
 
 class Theme {
@@ -48,6 +51,9 @@ class Theme {
     std::string render_line_aligned(
         const std::vector<ThemeSegment>& segments,
         const std::unordered_map<std::string, std::string>& vars) const;
+
+        std::filesystem::path resolve_theme_file(
+            const std::string& theme_name) const;
 
     std::string fill_char_{""};
     std::string fill_fg_color_{"RESET"};
@@ -112,4 +118,8 @@ class Theme {
     std::string render_line(
         const std::string& line,
         const std::unordered_map<std::string, std::string>& vars) const;
+
+    static inline constexpr std::string_view kThemeFileExtension = ".cjsh";
+    static std::string ensure_theme_extension(const std::string& theme_name);
+    static std::string strip_theme_extension(const std::string& theme_name);
 };

@@ -17,23 +17,25 @@ int preview_theme(const std::string& theme_name) {
     auto temp_theme = std::make_unique<Theme>(
         cjsh_filesystem::g_cjsh_theme_path.string(), true);
 
-    std::string theme_file = cjsh_filesystem::g_cjsh_theme_path.string() + "/" +
-                             theme_name + ".json";
+    std::string canonical_theme = Theme::strip_theme_extension(theme_name);
+    std::filesystem::path theme_file =
+        cjsh_filesystem::g_cjsh_theme_path /
+        Theme::ensure_theme_extension(canonical_theme);
 
     if (!std::filesystem::exists(theme_file)) {
-        std::cerr << "cjsh: preview-theme: Theme '" << theme_name
+        std::cerr << "cjsh: preview-theme: Theme '" << canonical_theme
                   << "' not found." << std::endl;
         return 1;
     }
 
-    if (!temp_theme->load_theme(theme_name, false)) {
-        std::cerr << "cjsh: preview-theme: Failed to load theme '" << theme_name
+    if (!temp_theme->load_theme(canonical_theme, false)) {
+        std::cerr << "cjsh: preview-theme: Failed to load theme '" << canonical_theme
                   << "'." << std::endl;
         return 1;
     }
 
-    std::cout << "\nPreview of theme '" << theme_name << "':" << std::endl;
-    temp_theme->view_theme_requirements(theme_name);
+    std::cout << "\nPreview of theme '" << canonical_theme << "':" << std::endl;
+    temp_theme->view_theme_requirements(canonical_theme);
     std::cout << "==========================================\n" << std::endl;
 
     PromptInfo prompt_info;

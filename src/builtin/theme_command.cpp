@@ -11,7 +11,17 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "prompt/theme.h"
 #include "prompt/theme_parser.h"
+
+namespace {
+
+std::filesystem::path resolve_theme_file_path(const std::string& theme_name) {
+    return cjsh_filesystem::g_cjsh_theme_path /
+           Theme::ensure_theme_extension(theme_name);
+}
+
+}
 
 int theme_command(const std::vector<std::string>& args) {
     if (!config::themes_enabled) {
@@ -78,9 +88,9 @@ int theme_command(const std::vector<std::string>& args) {
     }
 
     if (args[1] == "info" && args.size() > 2) {
-        std::string themeName = args[2];
-        std::string theme_file = cjsh_filesystem::g_cjsh_theme_path.string() +
-                                 "/" + themeName;
+        std::string theme_input = args[2];
+        std::string themeName = Theme::strip_theme_extension(theme_input);
+        std::filesystem::path theme_file = resolve_theme_file_path(themeName);
 
         if (!std::filesystem::exists(theme_file)) {
             print_error(
@@ -93,11 +103,11 @@ int theme_command(const std::vector<std::string>& args) {
 
         ThemeDefinition theme_def;
         try {
-            theme_def = ThemeParser::parse_file(theme_file);
+            theme_def = ThemeParser::parse_file(theme_file.string());
         } catch (const std::runtime_error& e) {
             print_error({ErrorType::SYNTAX_ERROR,
                          "theme",
-                         "Failed to parse theme file '" + theme_file + "': " + e.what(),
+                         "Failed to parse theme file '" + theme_file.string() + "': " + e.what(),
                          {"Check theme syntax and try again."}});
             return 1;
         }
@@ -235,11 +245,12 @@ int theme_command(const std::vector<std::string>& args) {
 
                 return success ? 0 : 1;
             } else {
-                std::string theme_file =
-                    cjsh_filesystem::g_cjsh_theme_path.string() + "/" +
-                    theme_name;
+                std::string canonical_theme =
+                    Theme::strip_theme_extension(theme_name);
+                std::filesystem::path theme_file =
+                    resolve_theme_file_path(canonical_theme);
                 if (std::filesystem::exists(theme_file)) {
-                    return preview_theme(theme_name);
+                    return preview_theme(canonical_theme);
                 } else {
                     print_error(
                         {ErrorType::FILE_NOT_FOUND,
@@ -317,7 +328,9 @@ int theme_command(const std::vector<std::string>& args) {
 }
 
 int uninstall_theme(const std::string& themeName) {
-    if (themeName == "default") {
+    std::string canonical_theme = Theme::strip_theme_extension(themeName);
+
+    if (canonical_theme == "default") {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "theme",
                      "Cannot uninstall the default theme",
@@ -325,28 +338,28 @@ int uninstall_theme(const std::string& themeName) {
         return 1;
     }
 
-    std::string theme_file =
-        cjsh_filesystem::g_cjsh_theme_path.string() + "/" + themeName;
+    std::filesystem::path theme_file =
+        resolve_theme_file_path(canonical_theme);
 
     if (!std::filesystem::exists(theme_file)) {
         print_error({ErrorType::FILE_NOT_FOUND,
                      "theme",
-                     "Theme '" + themeName + "' not found",
+                     "Theme '" + canonical_theme + "' not found",
                      {"Run 'theme' to list installed themes."}});
         return 1;
     }
 
-    if (g_current_theme == themeName) {
+    if (g_current_theme == canonical_theme) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "theme",
-                     "Cannot uninstall the active theme '" + themeName + "'",
+                     "Cannot uninstall the active theme '" + canonical_theme + "'",
                      {"Switch to a different theme before uninstalling."}});
         return 1;
     }
 
     try {
         std::filesystem::remove(theme_file);
-        std::cout << "Theme '" << themeName << "' uninstalled successfully."
+        std::cout << "Theme '" << canonical_theme << "' uninstalled successfully."
                   << std::endl;
         std::cout << "If you are loading this theme from your .cjshrc file or "
                      "another source file, please remove that line."
@@ -355,7 +368,7 @@ int uninstall_theme(const std::string& themeName) {
     } catch (const std::filesystem::filesystem_error& e) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "theme",
-                     "Failed to uninstall theme '" + themeName + "'",
+                     "Failed to uninstall theme '" + canonical_theme + "'",
                      {e.what()}});
         return 1;
     }

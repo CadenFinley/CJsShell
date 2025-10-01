@@ -3,11 +3,13 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <unordered_set>
 #include <cctype>
+#include <utility>
 
 #include "utils/utf8_utils.h"
 
@@ -16,8 +18,9 @@
 #include "error_out.h"
 
 Theme::Theme(std::string theme_dir, bool enabled)
-    : theme_directory(theme_dir), is_enabled(enabled) {
-    if (!std::filesystem::exists(theme_directory + "/default")) {
+    : theme_directory(std::move(theme_dir)), is_enabled(enabled) {
+    std::filesystem::path default_theme_path = resolve_theme_file("default");
+    if (!std::filesystem::exists(default_theme_path)) {
         create_default_theme();
     }
     is_enabled = enabled;
@@ -113,14 +116,14 @@ void Theme::create_default_theme() {
     
     // Write to file
     std::string theme_content = ThemeParser::write_theme(default_theme);
-    std::ofstream file(theme_directory + "/default");
+    std::ofstream file(resolve_theme_file("default"));
     file << theme_content;
     file.close();
 }
 
 bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
-    std::string theme_name_to_use = theme_name;
-    if (!is_enabled || theme_name_to_use == "") {
+    std::string theme_name_to_use = strip_theme_extension(theme_name);
+    if (!is_enabled || theme_name_to_use.empty()) {
         theme_name_to_use = "default";
     }
 
@@ -130,9 +133,10 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
                   << (g_startup_active ? "true" : "false") << std::endl;
     }
 
-    std::string theme_file = theme_directory + "/" + theme_name_to_use;
+    std::filesystem::path theme_path = resolve_theme_file(theme_name_to_use);
+    std::string theme_file = theme_path.string();
 
-    if (!std::filesystem::exists(theme_file)) {
+    if (!std::filesystem::exists(theme_path)) {
         print_error({ErrorType::FILE_NOT_FOUND,
                      "load_theme",
                      "Theme file '" + theme_file + "' does not exist.",
@@ -215,7 +219,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
             return false;
         }
 
-        g_current_theme = theme_name_to_use;
+    g_current_theme = theme_name_to_use;
         return true;
         
     } catch (const std::runtime_error& e) {
@@ -636,10 +640,10 @@ std::vector<std::string> Theme::list_themes() {
 
     for (const auto& entry :
          std::filesystem::directory_iterator(theme_directory)) {
-        if (entry.is_regular_file() && entry.path().extension().empty()) {
-            std::string name = entry.path().filename().string();
-            // Filter out system files
-            if (name != ".DS_Store" && !name.empty() && name[0] != '.') {
+        if (entry.is_regular_file() &&
+            entry.path().extension() == Theme::kThemeFileExtension) {
+            std::string name = entry.path().stem().string();
+            if (!name.empty() && name[0] != '.') {
                 themes.push_back(name);
             }
         }
@@ -979,9 +983,10 @@ std::string Theme::render_line(
 }
 
 void Theme::view_theme_requirements(const std::string& theme) const {
-    std::string theme_file = theme_directory + "/" + theme;
+    std::filesystem::path theme_path = resolve_theme_file(theme);
+    std::string theme_file = theme_path.string();
 
-    if (!std::filesystem::exists(theme_file)) {
+    if (!std::filesystem::exists(theme_path)) {
         print_error({ErrorType::FILE_NOT_FOUND,
                      "view_theme_requirements",
                      "Theme file '" + theme_file + "' does not exist.",
@@ -1038,6 +1043,35 @@ void Theme::view_theme_requirements(const std::string& theme) const {
                      "Failed to parse theme file '" + theme_file + "': " + e.what(),
                      {"Check theme syntax and try again."}});
     }
+}
+
+std::filesystem::path Theme::resolve_theme_file(
+    const std::string& theme_name) const {
+    std::filesystem::path theme_dir(theme_directory);
+    return theme_dir / Theme::ensure_theme_extension(theme_name);
+}
+
+std::string Theme::strip_theme_extension(const std::string& theme_name) {
+    const std::string ext(Theme::kThemeFileExtension);
+    if (theme_name.size() >= ext.size()) {
+        std::string suffix = theme_name.substr(theme_name.size() - ext.size());
+        std::string suffix_lower = suffix;
+        std::transform(suffix_lower.begin(), suffix_lower.end(),
+                       suffix_lower.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
+        std::string ext_lower = ext;
+        std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
+        if (suffix_lower == ext_lower) {
+            return theme_name.substr(0, theme_name.size() - ext.size());
+        }
+    }
+    return theme_name;
+}
+
+std::string Theme::ensure_theme_extension(const std::string& theme_name) {
+    std::string stripped = strip_theme_extension(theme_name);
+    return stripped + std::string(Theme::kThemeFileExtension);
 }
 
 bool Theme::check_theme_requirements(const ThemeRequirements& requirements) const {
