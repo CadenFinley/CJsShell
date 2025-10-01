@@ -76,6 +76,16 @@ theme_definition {
       separator_bg "RESET"
       alignment "right"
     }
+
+    segment "sysseg" {
+      content " CPU:{CPU_USAGE}% MEM:{MEM_USAGE}% "
+      fg "#ebdbb2"
+      bg "#3c3836"
+      separator "\uE0B0"
+      separator_fg "#3c3836"
+      separator_bg "RESET"
+      alignment "left"
+    }
   }
 
   ps1 {
@@ -99,19 +109,11 @@ theme_definition {
       bg "#504945"
       separator "\uE0B0"
       separator_fg "#504945"
-      separator_bg "#665c54"
-      alignment "left"
-    }
-
-    segment "sysseg" {
-      content " "
-      fg "#ebdbb2"
-      bg "#665c54"
-      separator "\uE0B0"
-      separator_fg "#665c54"
       separator_bg "#7c6f64"
       alignment "left"
     }
+
+    # use_segment sysseg as "ps1_sysseg"
 
     segment "batteryseg" {
       content " {BATTERY} "
@@ -191,19 +193,11 @@ theme_definition {
       bg "#7c6f64"
       separator "\uE0B0"
       separator_fg "#7c6f64"
-      separator_bg "#3c3836"
-      alignment "left"
-    }
-
-    segment "sysseg" {
-      content " "
-      fg "#ebdbb2"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
       separator_bg "#504945"
       alignment "left"
     }
+
+    # use_segment sysseg as "git_sysseg"
 
     segment "statusseg" {
       content " [{STATUS}] "
@@ -268,15 +262,7 @@ theme_definition {
       alignment "left"
     }
 
-    segment "ai_sysseg" {
-      content " CPU:{CPU_USAGE}% MEM:{MEM_USAGE}% "
-      fg "#ebdbb2"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
-      separator_bg "RESET"
-      alignment "left"
-    }
+    use_segment sysseg as "ai_sysseg"
 
     use_segment dateseg as "ai_dateseg"
 
