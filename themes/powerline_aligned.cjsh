@@ -1,6 +1,6 @@
 #! usr/bin/env cjsh
 
-theme_definition "powerline_aligned" {
+theme_definition {
   terminal_title "{SHELL} {SHELL_VER} | {USERNAME}@{HOSTNAME} "
 
   fill {

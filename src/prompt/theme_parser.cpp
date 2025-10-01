@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <filesystem>
 #include <stdexcept>
 #include <utility>
 #include <cctype>
@@ -43,6 +44,19 @@ std::string trim_copy(const std::string& str) {
     }
     size_t end = str.find_last_not_of(" \t\n\r");
     return str.substr(start, end - start + 1);
+}
+
+std::string derive_theme_name_from_source(const std::string& source_name) {
+    if (source_name.empty()) {
+        return "";
+    }
+
+    std::filesystem::path source_path(source_name);
+    if (source_path.has_stem()) {
+        return source_path.stem().string();
+    }
+
+    return source_name;
 }
 
 std::string encode_utf8(char32_t codepoint) {
@@ -719,10 +733,21 @@ ThemeDefinition ThemeParser::parse() {
     
     expect_token("theme_definition");
     skip_whitespace();
-    
-    std::string theme_name = parse_string();
+
+    std::string theme_name;
+    if (!is_at_end() && peek() == '"') {
+        theme_name = parse_string();
+    }
+
+    if (theme_name.empty()) {
+        theme_name = derive_theme_name_from_source(source_name);
+        if (theme_name.empty()) {
+            theme_name = "unnamed_theme";
+        }
+    }
+
     ThemeDefinition theme(theme_name);
-    
+
     skip_whitespace();
     expect_token("{");
     
@@ -792,7 +817,7 @@ ThemeDefinition ThemeParser::parse_file(const std::string& filepath) {
 std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     std::ostringstream oss;
     oss << "#! usr/bin/env cjsh\n\n";
-    oss << "theme_definition \"" << theme.name << "\" {\n";
+    oss << "theme_definition {\n";
     
     if (!theme.terminal_title.empty()) {
         oss << "  terminal_title \"" << theme.terminal_title << "\"\n\n";

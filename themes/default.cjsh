@@ -1,6 +1,6 @@
 #! usr/bin/env cjsh
 
-theme_definition "default" {
+theme_definition {
   terminal_title "{PATH}"
 
   fill {
