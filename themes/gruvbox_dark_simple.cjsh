@@ -18,12 +18,10 @@ theme_definition {
   }
 
   variables {
-  project_type_bg "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}"
-  project_language_badge " {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}"
-  }
+    project_type_bg "{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}"
+    project_language_badge " {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}"
 
-  ps1 {
-    segment "userseg" {
+    segment "shared_user_segment" {
       content " {USERNAME} "
       fg "#ebdbb2"
       bg "#282828"
@@ -35,6 +33,40 @@ theme_definition {
       forward_separator_bg RESET
       alignment "left"
     }
+
+    segment "shared_status_segment" {
+      content " [{STATUS}]"
+      fg "{if = {STATUS} == 0 ? #008000 : #fb4934}"
+      bg "#3c3836"
+      separator "\uE0B0"
+      separator_fg "#3c3836"
+      separator_bg "#3c3836"
+      alignment "left"
+    }
+
+    segment "shared_duration_segment" {
+      content "in {CMD_DURATION} "
+      fg "#ebdbb2"
+      bg "#3c3836"
+      separator "\uE0B0"
+      separator_fg "#3c3836"
+      separator_bg RESET
+      alignment "left"
+    }
+
+    segment "shared_language_badge_segment" {
+      content "${project_language_badge}"
+      fg "#83a598"
+      bg "#504945"
+      separator "\uE0B0"
+      separator_fg "#504945"
+      separator_bg "#665c54"
+      alignment "left"
+    }
+  }
+
+  ps1 {
+    use_segment "shared_user_segment" as "userseg"
 
     segment "hostseg" {
       content " {HOSTNAME} "
@@ -56,40 +88,13 @@ theme_definition {
       alignment "left"
     }
 
-    segment "statusseg" {
-      content " [{STATUS}]"
-      fg "{if = {STATUS} == 0 ? #008000 : #fb4934}"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
-      separator_bg "#3c3836"
-      alignment "left"
-    }
+    use_segment "shared_status_segment" as "statusseg"
 
-    segment "durationseg" {
-      content "in {CMD_DURATION} "
-      fg "#ebdbb2"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
-      separator_bg RESET
-      alignment "left"
-    }
+    use_segment "shared_duration_segment" as "durationseg"
   }
 
   git_segments {
-    segment "userseg" {
-      content " {USERNAME} "
-      fg "#ebdbb2"
-      bg "#282828"
-      separator "\uE0B0"
-      separator_fg "#282828"
-      separator_bg "#3c3836"
-      forward_separator "\uE0B6"
-      forward_separator_fg "#282828"
-      forward_separator_bg RESET
-      alignment "left"
-    }
+    use_segment "shared_user_segment" as "userseg"
 
     segment "dirseg" {
       content " {LOCAL_PATH} "
@@ -101,15 +106,7 @@ theme_definition {
       alignment "left"
     }
 
-    segment "langseg" {
-      content "${project_language_badge}"
-      fg "#83a598"
-      bg "#504945"
-      separator "\uE0B0"
-      separator_fg "#504945"
-      separator_bg "#665c54"
-      alignment "left"
-    }
+    use_segment "shared_language_badge_segment" as "langseg"
 
     segment "gitseg" {
       content " {GIT_BRANCH} "
@@ -131,25 +128,9 @@ theme_definition {
       alignment "left"
     }
 
-    segment "statusseg" {
-      content " [{STATUS}]"
-      fg "{if = {STATUS} == 0 ? #008000 : #fb4934}"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
-      separator_bg "#3c3836"
-      alignment "left"
-    }
+    use_segment "shared_status_segment" as "statusseg"
 
-    segment "durationseg" {
-      content "in {CMD_DURATION} "
-      fg "#ebdbb2"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
-      separator_bg RESET
-      alignment "left"
-    }
+    use_segment "shared_duration_segment" as "durationseg"
   }
 
   ai_segments {
@@ -176,15 +157,7 @@ theme_definition {
       alignment "left"
     }
 
-    segment "ai_langseg" {
-      content "${project_language_badge}"
-      fg "#83a598"
-      bg "#504945"
-      separator "\uE0B0"
-      separator_fg "#504945"
-      separator_bg "#665c54"
-      alignment "left"
-    }
+    use_segment "shared_language_badge_segment" as "ai_langseg"
 
     segment "ai_dirseg" {
       content " {DIRECTORY} "
