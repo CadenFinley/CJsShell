@@ -76,12 +76,6 @@ This test can be ran from the root of the repository, and is recommended to run 
 
 - **isocline**  
   https://github.com/daanx/isocline (MIT License)
- 
-- **nlohmann/json**  
-  https://github.com/nlohmann/json (MIT License)
-
-- **utf8proc**  
-  https://github.com/JuliaStrings/utf8proc (MIT License)
 
 # License
 

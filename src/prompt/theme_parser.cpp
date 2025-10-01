@@ -1,6 +1,5 @@
 #include "theme_parser.h"
-
-#include <utf8proc.h>
+#include "utils/unicode_support.h"
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -63,21 +62,21 @@ std::string derive_theme_name_from_source(const std::string& source_name) {
 }
 
 std::string encode_utf8(char32_t codepoint) {
-    if (!utf8proc_codepoint_valid(static_cast<utf8proc_int32_t>(codepoint))) {
+    if (!unicode_is_valid_codepoint(static_cast<unicode_codepoint_t>(codepoint))) {
         throw std::runtime_error("Invalid Unicode codepoint in theme string");
     }
 
-    utf8proc_uint8_t buffer[4];
-    utf8proc_ssize_t length =
-        utf8proc_encode_char(static_cast<utf8proc_int32_t>(codepoint), buffer);
+    uint8_t buffer[4] = {0};
+    int length =
+        unicode_encode_utf8(static_cast<unicode_codepoint_t>(codepoint), buffer);
 
-    if (length < 0 || length > 4) {
+    if (length <= 0 || length > 4) {
         throw std::runtime_error(
             "Failed to encode Unicode codepoint in theme string");
     }
 
-    return std::string(reinterpret_cast<char*>(buffer),
-                       reinterpret_cast<char*>(buffer) + length);
+    return std::string(reinterpret_cast<const char*>(buffer),
+                       static_cast<size_t>(length));
 }
 
 bool is_hex_digit(char c) {

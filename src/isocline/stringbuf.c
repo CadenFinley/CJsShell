@@ -6,9 +6,7 @@
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
 
-// Use utf8proc for Unicode character width calculations
-// This provides more accurate and up-to-date Unicode support
-#include <utf8proc.h>
+#include "utils/unicode_support.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -32,27 +30,23 @@ struct stringbuf_s {
 // String column width
 //-------------------------------------------------------------
 
-// column width of a utf8 single character sequence using utf8proc.
+// column width of a utf8 single character sequence using internal Unicode data.
 static ssize_t utf8_char_width(const char* s, ssize_t n) {
     if (n <= 0)
         return 0;
 
-    // Use utf8proc to iterate and get character width
-    utf8proc_int32_t codepoint;
-    ssize_t bytes_read =
-        utf8proc_iterate((const utf8proc_uint8_t*)s, n, &codepoint);
+    unicode_codepoint_t codepoint = 0;
+    ssize_t bytes_read = 0;
+    bool ok =
+        unicode_decode_utf8((const uint8_t*)s, n, &codepoint, &bytes_read);
 
-    if (bytes_read < 0) {
-        // Invalid UTF-8, treat as single-width
+    if (!ok || bytes_read <= 0) {
+        // Invalid UTF-8, treat as single-width printable character
         return 1;
     }
 
-    // Get character width using utf8proc
-    int width = utf8proc_charwidth(codepoint);
-
-    // Handle special cases
-    if (width < 0) {
-        // Control characters - return 0 for most, but 1 for some
+    int width = unicode_codepoint_width(codepoint);
+    if (width <= 0) {
         return 0;
     }
 

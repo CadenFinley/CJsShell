@@ -42,66 +42,7 @@ static inline bool create_required_directories(void) {
 }
 
 static inline bool download_dependencies(void) {
-    nob_log(NOB_INFO, "Checking external dependencies...");
-
-    bool need_download = true;
-    if (nob_get_file_type("build/vendor/utf8proc") == NOB_FILE_DIRECTORY) {
-        if (nob_get_file_type("build/vendor/utf8proc/Makefile") ==
-            NOB_FILE_REGULAR) {
-            need_download = false;
-        } else {
-            nob_log(NOB_INFO, "Removing empty utf8proc directory...");
-            Nob_Cmd cleanup_cmd = {0};
-            nob_cmd_append(&cleanup_cmd, "rm", "-rf", "build/vendor/utf8proc");
-            nob_cmd_run(&cleanup_cmd);
-        }
-    }
-
-    if (need_download) {
-        nob_log(NOB_INFO, "Downloading utf8proc...");
-
-        const char* utf8proc_url = build_config.dependency_urls[0];
-        Nob_Cmd cmd = {0};
-        nob_cmd_append(&cmd, "git", "clone", "--depth", "1", "--branch",
-                       "v2.10.0", utf8proc_url, "build/vendor/utf8proc");
-        if (!nob_cmd_run(&cmd)) {
-            nob_log(NOB_ERROR, "Failed to download utf8proc");
-            return false;
-        }
-
-        if (nob_get_file_type("build/vendor/utf8proc/Makefile") !=
-            NOB_FILE_REGULAR) {
-            nob_log(
-                NOB_ERROR,
-                "utf8proc download appears to have failed - no Makefile found");
-            return false;
-        }
-    }
-
-    const char* utf8proc_lib_path = build_config.external_dependencies[0];
-    if (nob_get_file_type(utf8proc_lib_path) != NOB_FILE_REGULAR) {
-        nob_log(NOB_INFO, "Building utf8proc from source...");
-
-        const char* old_cwd = nob_get_current_dir_temp();
-        if (!nob_set_current_dir("build/vendor/utf8proc")) {
-            nob_log(NOB_ERROR, "Could not enter utf8proc directory");
-            return false;
-        }
-
-        Nob_Cmd cmd = {0};
-        nob_cmd_append(&cmd, "make", "-j");
-        if (!nob_cmd_run(&cmd)) {
-            nob_log(NOB_ERROR, "Failed to build utf8proc");
-            nob_set_current_dir(old_cwd);
-            return false;
-        }
-
-        nob_set_current_dir(old_cwd);
-        nob_log(NOB_INFO, "Built utf8proc successfully");
-    } else {
-        nob_log(NOB_INFO, "utf8proc already built");
-    }
-
+    nob_log(NOB_INFO, "No external dependencies to download.");
     return true;
 }
 

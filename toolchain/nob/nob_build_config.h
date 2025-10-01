@@ -33,28 +33,24 @@ static const Build_Config build_config = {
                         "include/utils", "include/prompt",
                         "include/prompt/modules", "include/ai",
                         "include/plugins", "include/script_interpreter",
-                        "build/vendor", "build/vendor/utf8proc"},
-    .include_directories_count = 11,
+                        "build/vendor"},
+    .include_directories_count = 10,
 
     .c_include_directories =
-        (const char*[]){"include", "include/isocline", "build/vendor/utf8proc"},
-    .c_include_directories_count = 3,
+        (const char*[]){"include", "include/isocline"},
+    .c_include_directories_count = 2,
 
     .required_directories =
-        (const char*[]){"build", "build/obj", "build/vendor",
-                        "build/vendor/utf8proc"},
-    .required_directories_count = 4,
+    (const char*[]){"build", "build/obj", "build/vendor"},
+    .required_directories_count = 3,
 
-    .external_dependencies =
-        (const char*[]){"build/vendor/utf8proc/libutf8proc.a"},
-    .external_dependencies_count = 1,
+    .external_dependencies = NULL,
+    .external_dependencies_count = 0,
 
-    .external_library_paths =
-        (const char*[]){"build/vendor/utf8proc/libutf8proc.a"},
-    .external_library_paths_count = 1,
+    .external_library_paths = NULL,
+    .external_library_paths_count = 0,
 
-    .dependency_urls =
-        (const char*[]){"https://github.com/JuliaStrings/utf8proc.git"},
-    .dependency_urls_count = 1};
+    .dependency_urls = NULL,
+    .dependency_urls_count = 0};
 
 #endif  // CJSH_NOB_BUILD_CONFIG_H

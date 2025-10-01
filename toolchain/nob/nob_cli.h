@@ -42,18 +42,11 @@ static inline void print_dependencies(void) {
     printf("Build Dependencies:\n");
     printf("  - C++ compiler (g++ or clang++)\n");
     printf("  - C compiler (gcc or clang)\n");
-    printf("  - make (for building utf8proc)\n");
-    printf("  - git (for downloading dependencies)\n");
+    printf("  - git (for cloning the repository)\n");
     printf("  - curl or wget (for downloading files)\n\n");
 
-    printf("Runtime Dependencies (automatically downloaded):\n");
-    for (size_t i = 0; i < build_config.external_dependencies_count; i++) {
-        const char* dep = build_config.external_dependencies[i];
-        if (strstr(dep, "utf8proc")) {
-            printf("  - utf8proc v2.10.0 (Unicode text processing library)\n");
-            printf("    URL: https://github.com/JuliaStrings/utf8proc\n");
-        }
-    }
+    printf("Runtime Dependencies:\n");
+    printf("  - None (all functionality built-in)\n");
 
     printf("\nSystem Libraries (linked at build time):\n");
     printf("  - pthread (POSIX threads)\n");
@@ -61,10 +54,8 @@ static inline void print_dependencies(void) {
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_UNIX)
     printf("  - dl (dynamic loading)\n");
 #endif
-
-    printf("\nNote: This build system downloads and builds all external\n");
-    printf("dependencies from source for maximum compatibility.\n");
-    printf("No system package manager dependencies are required.\n");
+    printf("\nNote: This build system has no external library downloads\n");
+    printf("and builds all components from the source tree.\n");
 }
 
 #endif  // CJSH_NOB_CLI_H
