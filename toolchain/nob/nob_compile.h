@@ -3,6 +3,7 @@
 
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,6 +11,89 @@
 #include "nob_progress.h"
 #include "nob_sources.h"
 #include "nob_toolchain.h"
+
+static inline bool capture_git_output(const char* const* args,
+                                      size_t arg_count,
+                                      Nob_String_Builder* output) {
+    if (output == NULL) {
+        return false;
+    }
+
+    const char* temp_path = "build/.git_info_tmp";
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, "git");
+    for (size_t i = 0; i < arg_count; ++i) {
+        nob_cmd_append(&cmd, args[i]);
+    }
+
+    if (!nob_cmd_run(&cmd, .stdout_path = temp_path)) {
+        return false;
+    }
+
+    bool ok = nob_read_entire_file(temp_path, output);
+    remove(temp_path);
+    if (!ok) {
+        return false;
+    }
+
+    nob_sb_append_null(output);
+    return true;
+}
+
+static inline bool compute_git_hash_string(char* buffer,
+                                           size_t buffer_size) {
+    if (buffer == NULL || buffer_size == 0) {
+        return false;
+    }
+
+    Nob_String_Builder hash_output = {0};
+    const char* rev_args[] = {"rev-parse", "--short", "HEAD"};
+    if (!capture_git_output(rev_args, NOB_ARRAY_LEN(rev_args),
+                            &hash_output)) {
+        nob_da_free(hash_output);
+        return false;
+    }
+
+    char* hash_data = hash_output.items;
+    if (hash_data == NULL) {
+        nob_da_free(hash_output);
+        return false;
+    }
+
+    size_t hash_len = strlen(hash_data);
+    while (hash_len > 0 &&
+           (hash_data[hash_len - 1] == '\n' || hash_data[hash_len - 1] == '\r' ||
+            hash_data[hash_len - 1] == ' ' || hash_data[hash_len - 1] == '\t')) {
+        hash_data[--hash_len] = '\0';
+    }
+
+    if (hash_len == 0) {
+        nob_da_free(hash_output);
+        return false;
+    }
+
+    Nob_String_Builder status_output = {0};
+    const char* status_args[] = {"status", "--porcelain"};
+    bool dirty = false;
+    if (capture_git_output(status_args, NOB_ARRAY_LEN(status_args),
+                           &status_output)) {
+        size_t status_len = status_output.count > 0 ? status_output.count - 1
+                                                    : 0;
+        for (size_t i = 0; i < status_len; ++i) {
+            char c = status_output.items[i];
+            if (!isspace((unsigned char)c)) {
+                dirty = true;
+                break;
+            }
+        }
+    }
+
+    snprintf(buffer, buffer_size, "%s%s", hash_data, dirty ? "-dirty" : "");
+
+    nob_da_free(hash_output);
+    nob_da_free(status_output);
+    return true;
+}
 
 static inline bool string_array_contains(const String_Array* array,
                                          const char* value) {
@@ -141,6 +225,24 @@ static inline int needs_rebuild_with_dependency_file(const char* obj_path,
 
 static inline bool compile_cjsh(int override_parallel_jobs) {
     nob_log(NOB_INFO, "Compiling " PROJECT_NAME "...");
+
+    char git_hash_buffer[64] = {0};
+    const char* env_git_hash = getenv("CJSH_GIT_HASH_OVERRIDE");
+    if (env_git_hash != NULL && env_git_hash[0] != '\0') {
+        snprintf(git_hash_buffer, sizeof(git_hash_buffer), "%s", env_git_hash);
+        nob_set_git_hash_define(git_hash_buffer);
+        nob_log(NOB_INFO,
+                "Embedding git revision from CJSH_GIT_HASH_OVERRIDE: %s",
+                git_hash_buffer);
+    } else if (compute_git_hash_string(git_hash_buffer,
+                                       sizeof(git_hash_buffer))) {
+        nob_set_git_hash_define(git_hash_buffer);
+        nob_log(NOB_INFO, "Embedding git revision: %s", git_hash_buffer);
+    } else {
+        nob_set_git_hash_define("unknown");
+        nob_log(NOB_WARNING,
+                "Unable to determine git revision; embedding 'unknown'");
+    }
 
     String_Array cpp_sources = {0};
     String_Array c_sources = {0};

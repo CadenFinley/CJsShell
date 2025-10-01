@@ -20,6 +20,12 @@ const std::string pre_release_line = " (pre-release)";
 // using semver.org principles MAJOR.MINOR.PATCH
 const std::string c_version = "3.5.11" + (PRE_RELEASE ? pre_release_line : "");
 
+#ifndef CJSH_GIT_HASH
+#define CJSH_GIT_HASH "unknown"
+#endif
+
+const std::string c_git_hash = CJSH_GIT_HASH;
+
 extern bool g_debug_mode;
 extern bool g_exit_flag;
 extern std::string g_current_theme;

@@ -2,6 +2,7 @@
 #define CJSH_NOB_TOOLCHAIN_H
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "nob_build_config.h"
@@ -10,6 +11,18 @@
 static const char* cached_cxx_compiler = NULL;
 static const char* cached_c_compiler = NULL;
 static const char* cached_linker = NULL;
+
+static char git_hash_define[128] = "-DCJSH_GIT_HASH=\"unknown\"";
+
+static inline void nob_set_git_hash_define(const char* hash) {
+    if (hash != NULL && hash[0] != '\0') {
+        snprintf(git_hash_define, sizeof(git_hash_define),
+                 "-DCJSH_GIT_HASH=\"%s\"", hash);
+    } else {
+        snprintf(git_hash_define, sizeof(git_hash_define),
+                 "-DCJSH_GIT_HASH=\"unknown\"");
+    }
+}
 
 static inline const char* get_cxx_compiler(void) {
     if (cached_cxx_compiler != NULL) {
@@ -90,6 +103,8 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-I", build_config.include_directories[i]);
     }
 
+    nob_cmd_append(cmd, git_hash_define);
+
     return true;
 }
 
@@ -114,6 +129,8 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
     for (size_t i = 0; i < build_config.c_include_directories_count; i++) {
         nob_cmd_append(cmd, "-I", build_config.c_include_directories[i]);
     }
+
+    nob_cmd_append(cmd, git_hash_define);
 
     return true;
 }

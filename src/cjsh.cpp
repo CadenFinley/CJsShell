@@ -82,7 +82,6 @@ bool disable_custom_ls = false;
 bool show_startup_time = false;
 }  // namespace config
 
-// add shellopts for enabling and disbling case completions
 // add shellopts for enabling and disabling prompt cleanup and newline after
 
 /*
@@ -419,7 +418,8 @@ int main(int argc, char* argv[]) {
 
     // Handle early exit modes (version and help only) before environment setup
     if (config::show_version) {  // -v --version
-        std::cout << c_version << std::endl;
+        std::cout << c_version << " (git " << c_git_hash
+              << ")" << std::endl;
         return 0;
     }
 
