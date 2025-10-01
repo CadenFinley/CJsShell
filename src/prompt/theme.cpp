@@ -145,90 +145,148 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     }
 
     try {
-        theme_data = ThemeParser::parse_file(theme_file);
-        
-        // Check requirements if they exist
-        if (!theme_data.requirements.plugins.empty() || 
-            !theme_data.requirements.colors.empty() ||
-            !theme_data.requirements.fonts.empty() ||
-            !theme_data.requirements.custom.empty()) {
-            
-            if (!check_theme_requirements(theme_data.requirements)) {
-                if (!allow_fallback) {
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 "load_theme",
-                                 "Theme '" + theme_name_to_use +
-                                     "' requirements not met, cannot load theme.",
-                                 {}});
-                    return false;
-                }
-                std::string previous_theme =
-                    (g_current_theme == "" ? "default" : g_current_theme);
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "load_theme",
-                             "Theme '" + theme_name_to_use +
-                                 "' requirements not met, falling back to previous "
-                                 "theme: '" +
-                                 previous_theme + "'.",
-                             {}});
-                if (theme_name_to_use != previous_theme) {
-                    return load_theme(previous_theme, allow_fallback);
-                } else {
-                    if (theme_name_to_use != "default") {
-                        std::cerr << "Falling back to default theme" << std::endl;
-                        return load_theme("default", allow_fallback);
-                    }
-                    print_error({ErrorType::FILE_NOT_FOUND,
-                                 "load_theme",
-                                 "Theme file '" + theme_file + "' does not exist.",
-                                 {"Use 'theme' to see available themes."}});
-                    return false;
-                }
-            }
-        }
-
-        // Set theme properties from loaded data
-        terminal_title_format = theme_data.terminal_title;
-        fill_char_ = theme_data.fill.character;
-        fill_fg_color_ = theme_data.fill.fg_color;
-        fill_bg_color_ = theme_data.fill.bg_color;
-        cleanup_ = theme_data.behavior.cleanup;
-        cleanup_add_empty_line_ = theme_data.behavior.cleanup_empty_line;
-        newline_after_execution_ = theme_data.behavior.newline_after_execution;
-
-        // Check for duplicate segment tags
-        auto has_duplicate_tags = [](const std::vector<ThemeSegment>& segs) {
-            std::unordered_set<std::string> seen;
-            for (const auto& s : segs) {
-                if (!seen.insert(s.name).second) {
-                    return true;
-                }
-            }
-            return false;
-        };
-
-        if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
-            has_duplicate_tags(ai_segments) ||
-            has_duplicate_tags(newline_segments) ||
-            has_duplicate_tags(inline_right_segments)) {
-            print_error(
-                {ErrorType::SYNTAX_ERROR,
-                 "load_theme",
-                 "Duplicate tags found in theme segments.",
-                 {"Ensure all segment tags are unique within their section."}});
-            return false;
-        }
-
-    g_current_theme = theme_name_to_use;
-        return true;
-        
+        ThemeDefinition parsed_definition =
+            ThemeParser::parse_file(theme_file);
+        return apply_theme_definition(parsed_definition, theme_name_to_use,
+                                      allow_fallback, theme_path);
     } catch (const std::runtime_error& e) {
         print_error({ErrorType::SYNTAX_ERROR,
                      "load_theme",
-                     "Failed to parse theme file '" + theme_file + "': " + e.what(),
+                     "Failed to parse theme file '" + theme_file + "': " +
+                         e.what(),
                      {"Check theme syntax and try again."}});
         return false;
     }
+}
+
+bool Theme::load_theme_from_path(const std::filesystem::path& file_path,
+                                 bool allow_fallback) {
+    if (!is_enabled) {
+        return load_theme("default", allow_fallback);
+    }
+
+    std::filesystem::path normalized = file_path.lexically_normal();
+
+    std::error_code abs_ec;
+    auto absolute_path = std::filesystem::absolute(normalized, abs_ec);
+    if (!abs_ec) {
+        normalized = absolute_path.lexically_normal();
+    }
+
+    std::error_code status_ec;
+    auto status = std::filesystem::status(normalized, status_ec);
+    if (status_ec || !std::filesystem::is_regular_file(status)) {
+        print_error({ErrorType::FILE_NOT_FOUND,
+                     "load_theme",
+                     "Theme file '" + normalized.string() +
+                         "' does not exist.",
+                     {"Use 'theme' to see available themes."}});
+        return false;
+    }
+
+    std::string theme_name_to_use =
+        strip_theme_extension(normalized.filename().string());
+    if (theme_name_to_use.empty()) {
+        theme_name_to_use = "default";
+    }
+
+    try {
+        ThemeDefinition parsed_definition =
+            ThemeParser::parse_file(normalized.string());
+        return apply_theme_definition(parsed_definition, theme_name_to_use,
+                                      allow_fallback, normalized);
+    } catch (const std::runtime_error& e) {
+        print_error({ErrorType::SYNTAX_ERROR,
+                     "load_theme",
+                     "Failed to parse theme file '" + normalized.string() +
+                         "': " + e.what(),
+                     {"Check theme syntax and try again."}});
+        return false;
+    }
+}
+
+bool Theme::apply_theme_definition(
+    const ThemeDefinition& definition,
+    const std::string& theme_name,
+    bool allow_fallback,
+    const std::filesystem::path& source_path) {
+    theme_data = definition;
+
+    const auto& requirements = theme_data.requirements;
+    bool has_requirements = !requirements.plugins.empty() ||
+                            !requirements.colors.empty() ||
+                            !requirements.fonts.empty() ||
+                            !requirements.custom.empty();
+
+    if (has_requirements) {
+        if (!check_theme_requirements(requirements)) {
+            if (!allow_fallback) {
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "load_theme",
+                             "Theme '" + theme_name +
+                                 "' requirements not met, cannot load theme.",
+                             {}});
+                return false;
+            }
+
+            std::string previous_theme =
+                (g_current_theme.empty() ? "default" : g_current_theme);
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "load_theme",
+                         "Theme '" + theme_name +
+                             "' requirements not met, falling back to previous "
+                             "theme: '" +
+                             previous_theme + "'.",
+                         {}});
+
+            if (theme_name != previous_theme) {
+                return load_theme(previous_theme, allow_fallback);
+            } else {
+                if (theme_name != "default") {
+                    std::cerr << "Falling back to default theme" << std::endl;
+                    return load_theme("default", allow_fallback);
+                }
+                print_error({ErrorType::FILE_NOT_FOUND,
+                             "load_theme",
+                             "Theme file '" + source_path.string() +
+                                 "' does not exist.",
+                             {"Use 'theme' to see available themes."}});
+                return false;
+            }
+        }
+    }
+
+    terminal_title_format = theme_data.terminal_title;
+    fill_char_ = theme_data.fill.character;
+    fill_fg_color_ = theme_data.fill.fg_color;
+    fill_bg_color_ = theme_data.fill.bg_color;
+    cleanup_ = theme_data.behavior.cleanup;
+    cleanup_add_empty_line_ = theme_data.behavior.cleanup_empty_line;
+    newline_after_execution_ = theme_data.behavior.newline_after_execution;
+
+    auto has_duplicate_tags = [](const std::vector<ThemeSegment>& segs) {
+        std::unordered_set<std::string> seen;
+        for (const auto& s : segs) {
+            if (!seen.insert(s.name).second) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
+        has_duplicate_tags(ai_segments) ||
+        has_duplicate_tags(newline_segments) ||
+        has_duplicate_tags(inline_right_segments)) {
+        print_error({ErrorType::SYNTAX_ERROR,
+                     "load_theme",
+                     "Duplicate tags found in theme segments.",
+                     {"Ensure all segment tags are unique within their section."}});
+        return false;
+    }
+
+    g_current_theme = theme_name;
+    return true;
 }
 
 size_t Theme::get_terminal_width() const {

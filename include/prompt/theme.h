@@ -55,6 +55,11 @@ class Theme {
         std::filesystem::path resolve_theme_file(
             const std::string& theme_name) const;
 
+    bool apply_theme_definition(const ThemeDefinition& definition,
+                                const std::string& theme_name,
+                                bool allow_fallback,
+                                const std::filesystem::path& source_path);
+
     std::string fill_char_{""};
     std::string fill_fg_color_{"RESET"};
     std::string fill_bg_color_{"RESET"};
@@ -75,6 +80,8 @@ class Theme {
     std::vector<ThemeSegment>& inline_right_segments = theme_data.inline_right_segments;
 
     bool load_theme(const std::string& theme_name, bool allow_fallback);
+    bool load_theme_from_path(const std::filesystem::path& file_path,
+                              bool allow_fallback);
     std::vector<std::string> list_themes();
     void view_theme_requirements(const std::string& theme) const;
 
