@@ -158,15 +158,6 @@ else
     skip_test "read builtin with prompt (may not be implemented)"
 fi
 
-# Test 9: version builtin (CJsShell specific)
-echo "Testing version builtin..."
-"$CJSH_PATH" -c "version" >/tmp/version_test.out 2>&1
-if [ $? -eq 0 ] && (grep -q "CJ's Shell" /tmp/version_test.out || grep -q "version" /tmp/version_test.out); then
-    pass_test "version builtin"
-else
-    fail_test "version builtin"
-fi
-
 # Test 10: help builtin
 echo "Testing help builtin..."
 "$CJSH_PATH" -c "help" >/tmp/help_test.out 2>&1

@@ -344,6 +344,49 @@ Built_ins::Built_ins() : shell(nullptr) {
          [](const std::vector<std::string>& args) {
              return ::hash_command(args, nullptr);
          }},
+        {"builtin",
+         [this](const std::vector<std::string>& args) {
+             if (args.size() < 2) {
+                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                                    "builtin",
+                                    "missing command operand",
+                                    {"Usage: builtin <command> [args...]"}};
+                 print_error(error);
+                 last_terminal_output_error =
+                     "cjsh: builtin: missing command operand";
+                 return 2;
+             }
+
+             const std::string& target_command = args[1];
+             if (target_command == "builtin") {
+                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                                    "builtin",
+                                    "cannot invoke builtin recursively",
+                                    {"Usage: builtin <command> [args...]"}};
+                 print_error(error);
+                 last_terminal_output_error =
+                     "cjsh: builtin: cannot invoke builtin recursively";
+                 return 2;
+             }
+
+             auto builtin_it = builtins.find(target_command);
+             if (builtin_it == builtins.end()) {
+                 ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND,
+                                    "builtin",
+                                    "'" + target_command +
+                                        "' is not a builtin command",
+                                    {"Use 'help' to list available builtins"}};
+                 print_error(error);
+                 last_terminal_output_error = "cjsh: builtin: " +
+                                              target_command +
+                                              ": not a builtin command";
+                 return 1;
+             }
+
+             std::vector<std::string> forwarded_args(args.begin() + 1,
+                                                     args.end());
+             return builtin_it->second(forwarded_args);
+         }},
         {"cjshopt",
          [](const std::vector<std::string>& args) {
              return ::cjshopt_command(args);
