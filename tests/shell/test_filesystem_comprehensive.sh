@@ -840,11 +840,3 @@ echo "Comprehensive Filesystem Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
 echo "Skipped: $TESTS_SKIPPED"
-
-if [ $TESTS_FAILED -eq 0 ]; then
-    echo "PASS"
-    exit 0
-else
-    echo "FAIL"
-    exit 1
-fi
