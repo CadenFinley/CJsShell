@@ -49,10 +49,7 @@ static inline void print_dependencies(void) {
     printf("Runtime Dependencies (automatically downloaded):\n");
     for (size_t i = 0; i < build_config.external_dependencies_count; i++) {
         const char* dep = build_config.external_dependencies[i];
-        if (strstr(dep, "json.hpp")) {
-            printf("  - nlohmann/json v3.11.3 (JSON parsing library)\n");
-            printf("    URL: https://github.com/nlohmann/json\n");
-        } else if (strstr(dep, "utf8proc")) {
+        if (strstr(dep, "utf8proc")) {
             printf("  - utf8proc v2.10.0 (Unicode text processing library)\n");
             printf("    URL: https://github.com/JuliaStrings/utf8proc\n");
         }

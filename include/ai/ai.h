@@ -9,15 +9,12 @@
 #include <future>
 #include <iostream>
 #include <map>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "cjsh_filesystem.h"
 #include "libintl_shim.h"
-
-using json = nlohmann::json;
 
 class Ai {
    public:
@@ -104,7 +101,7 @@ class Ai {
                              const std::string& message);
     std::string make_call_to_chat_gpt(const std::string& message);
     static std::string filter_message(const std::string& message);
-    std::map<std::string, nlohmann::json> parse_json_response(
+    std::map<std::string, std::string> parse_json_response(
         const std::string& json_response) const;
     std::string extract_content_from_json(
         const std::string& json_response) const;
@@ -143,7 +140,7 @@ class Ai {
     std::vector<std::string> chat_cache;
     std::string last_prompt_used;
     std::string last_response_received;
-    std::map<std::string, nlohmann::json> response_data_map;
+    std::map<std::string, std::string> response_data_map;
     std::string save_directory;
     bool enabled = true;
     std::atomic<bool> request_in_progress{false};

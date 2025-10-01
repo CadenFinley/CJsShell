@@ -44,28 +44,6 @@ static inline bool create_required_directories(void) {
 static inline bool download_dependencies(void) {
     nob_log(NOB_INFO, "Checking external dependencies...");
 
-    const char* json_header_path = build_config.external_dependencies[0];
-    if (nob_get_file_type(json_header_path) != NOB_FILE_REGULAR) {
-        nob_log(NOB_INFO, "Downloading nlohmann/json...");
-
-        const char* json_url = build_config.dependency_urls[0];
-        Nob_Cmd cmd = {0};
-        nob_cmd_append(&cmd, "curl", "-L", "-o", json_header_path, json_url);
-        if (!nob_cmd_run(&cmd)) {
-            nob_log(NOB_WARNING,
-                    "Failed to download with curl, trying wget...");
-            cmd.count = 0;
-            nob_cmd_append(&cmd, "wget", "-O", json_header_path, json_url);
-            if (!nob_cmd_run(&cmd)) {
-                nob_log(NOB_ERROR,
-                        "Failed to download nlohmann/json. Please download "
-                        "manually or install system package.");
-                return false;
-            }
-        }
-        nob_log(NOB_INFO, "Downloaded nlohmann/json successfully");
-    }
-
     bool need_download = true;
     if (nob_get_file_type("build/vendor/utf8proc") == NOB_FILE_DIRECTORY) {
         if (nob_get_file_type("build/vendor/utf8proc/Makefile") ==
@@ -82,7 +60,7 @@ static inline bool download_dependencies(void) {
     if (need_download) {
         nob_log(NOB_INFO, "Downloading utf8proc...");
 
-        const char* utf8proc_url = build_config.dependency_urls[1];
+        const char* utf8proc_url = build_config.dependency_urls[0];
         Nob_Cmd cmd = {0};
         nob_cmd_append(&cmd, "git", "clone", "--depth", "1", "--branch",
                        "v2.10.0", utf8proc_url, "build/vendor/utf8proc");
@@ -100,7 +78,7 @@ static inline bool download_dependencies(void) {
         }
     }
 
-    const char* utf8proc_lib_path = build_config.external_dependencies[1];
+    const char* utf8proc_lib_path = build_config.external_dependencies[0];
     if (nob_get_file_type(utf8proc_lib_path) != NOB_FILE_REGULAR) {
         nob_log(NOB_INFO, "Building utf8proc from source...");
 

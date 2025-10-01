@@ -42,22 +42,19 @@ static const Build_Config build_config = {
 
     .required_directories =
         (const char*[]){"build", "build/obj", "build/vendor",
-                        "build/vendor/nlohmann", "build/vendor/utf8proc"},
-    .required_directories_count = 5,
+                        "build/vendor/utf8proc"},
+    .required_directories_count = 4,
 
     .external_dependencies =
-        (const char*[]){"build/vendor/nlohmann/json.hpp",
-                        "build/vendor/utf8proc/libutf8proc.a"},
-    .external_dependencies_count = 2,
+        (const char*[]){"build/vendor/utf8proc/libutf8proc.a"},
+    .external_dependencies_count = 1,
 
     .external_library_paths =
         (const char*[]){"build/vendor/utf8proc/libutf8proc.a"},
     .external_library_paths_count = 1,
 
     .dependency_urls =
-        (const char*[]){"https://github.com/nlohmann/json/releases/download/"
-                        "v3.11.3/json.hpp",
-                        "https://github.com/JuliaStrings/utf8proc.git"},
-    .dependency_urls_count = 2};
+        (const char*[]){"https://github.com/JuliaStrings/utf8proc.git"},
+    .dependency_urls_count = 1};
 
 #endif  // CJSH_NOB_BUILD_CONFIG_H
