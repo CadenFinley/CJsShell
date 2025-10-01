@@ -106,7 +106,6 @@ std::string BookmarkDatabase::to_text_format() const {
     std::stringstream ss;
 
     // Write header
-    ss << "version=1.0\n";
     ss << "last_updated="
        << time_to_iso_string(std::chrono::system_clock::now()) << "\n";
     ss << "# Format: name|path|access_count|added_time|last_accessed\n";
