@@ -198,32 +198,18 @@ Result<std::string> FileOperations::read_file_content(const std::string& path) {
 bool should_refresh_executable_cache() {
     try {
         if (has_path_changed()) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Cache refresh needed due to PATH change" << std::endl;
-            }
             return true;
         }
 
         if (!fs::exists(g_cjsh_found_executables_path)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Cache refresh needed - cache file missing" << std::endl;
-            }
             return true;
         }
 
         auto last = fs::last_write_time(g_cjsh_found_executables_path);
         auto now = decltype(last)::clock::now();
         bool is_old = (now - last) > std::chrono::hours(24);
-
-        if (is_old && g_debug_mode) {
-            std::cerr << "DEBUG: Cache refresh needed - cache older than 24 hours" << std::endl;
-        }
-
         return is_old;
     } catch (...) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Cache refresh needed due to exception" << std::endl;
-        }
         return true;
     }
 }
@@ -231,9 +217,6 @@ bool should_refresh_executable_cache() {
 bool build_executable_cache() {
     const char* path_env = std::getenv("PATH");
     if (!path_env) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Skipping executable cache refresh - PATH unset" << std::endl;
-        }
         return false;
     }
 
@@ -250,37 +233,21 @@ bool build_executable_cache() {
         std::error_code ec;
 
         if (!fs::exists(directory_path, ec)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Skipping non-existent PATH entry: " << dir << std::endl;
-            }
             continue;
         }
 
         ec.clear();
         if (!fs::is_directory(directory_path, ec) || ec) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Skipping non-directory PATH entry: " << dir;
-                if (ec) {
-                    std::cerr << " (reason: " << ec.message() << ")";
-                }
-                std::cerr << std::endl;
-            }
             continue;
         }
 
         fs::directory_iterator it(directory_path, fs::directory_options::skip_permission_denied, ec);
         if (ec) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Unable to iterate PATH entry due to error: " << dir << " (" << ec.message() << ")" << std::endl;
-            }
             continue;
         }
 
         for (; it != fs::directory_iterator(); it.increment(ec)) {
             if (ec) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Error while scanning directory '" << dir << "': " << ec.message() << std::endl;
-                }
                 break;
             }
 
@@ -304,12 +271,6 @@ bool build_executable_cache() {
         }
     }
 
-    if (executables.empty()) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Executable cache refresh produced no entries" << std::endl;
-        }
-    }
-
     std::string content;
     content.reserve(executables.size() * 16);
     for (const auto& executable : executables) {
@@ -320,12 +281,7 @@ bool build_executable_cache() {
     auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
 
     if (write_result.is_ok()) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Built fresh executable cache with " << executables.size() << " executables" << std::endl;
-        }
         notify_cache_systems_of_update();
-    } else if (g_debug_mode) {
-        std::cerr << "DEBUG: Failed to write executable cache: " << write_result.error() << std::endl;
     }
 
     return write_result.is_ok();
@@ -547,8 +503,6 @@ void create_source_file() {
 }
 
 bool init_login_filesystem() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
     try {
         if (!std::filesystem::exists(g_user_home_path)) {
             print_error({ErrorType::RUNTIME_ERROR, nullptr, "User home path not found", {"Check user account configuration"}});
@@ -556,8 +510,6 @@ bool init_login_filesystem() {
         }
 
         if (!std::filesystem::exists(g_cjsh_profile_path)) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Creating profile file" << std::endl;
             create_profile_file();
         }
     } catch (const std::exception& e) {
@@ -569,12 +521,8 @@ bool init_login_filesystem() {
 }
 
 bool init_interactive_filesystem() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
 
     std::string current_path = std::filesystem::current_path().string();
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Current path: " << current_path << std::endl;
     setenv("PWD", current_path.c_str(), 1);
 
     try {
@@ -589,8 +537,6 @@ bool init_interactive_filesystem() {
         }
 
         if (!history_exists) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Creating history file" << std::endl;
             auto write_result = FileOperations::write_file_content(g_cjsh_history_path.string(), "");
             if (!write_result.is_ok()) {
                 print_error(
@@ -600,23 +546,14 @@ bool init_interactive_filesystem() {
         }
 
         if (!source_exists) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Creating source file" << std::endl;
             create_source_file();
         }
 
         if (should_refresh_cache) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Refreshing executable cache" << std::endl;
             build_executable_cache();
         } else {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Using existing executable cache" << std::endl;
-
             static int cleanup_counter = 0;
             if (++cleanup_counter % 10 == 0) {
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Performing periodic stale cache cleanup" << std::endl;
                 cleanup_stale_cache_entries();
             }
         }
@@ -654,10 +591,6 @@ void add_executable_to_cache(const std::string& executable_name, const std::stri
 
     auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
 
-    if (g_debug_mode && write_result.is_ok()) {
-        std::cerr << "DEBUG: Added '" << executable_name << "' to executable cache" << std::endl;
-    }
-
     if (write_result.is_ok()) {
         notify_cache_systems_of_update();
     }
@@ -667,20 +600,11 @@ void invalidate_executable_cache() {
     try {
         if (fs::exists(g_cjsh_found_executables_path)) {
             fs::remove(g_cjsh_found_executables_path);
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Executable cache invalidated" << std::endl;
-            }
         }
         if (fs::exists(g_cjsh_path_hash_cache_path)) {
             fs::remove(g_cjsh_path_hash_cache_path);
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: PATH hash cache invalidated" << std::endl;
-            }
         }
     } catch (const fs::filesystem_error& e) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Error invalidating cache: " << e.what() << std::endl;
-        }
     }
 }
 
@@ -689,17 +613,9 @@ bool is_executable_in_cache(const std::string& executable_name) {
         return false;
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Checking if '" << executable_name << "' is in cache" << std::endl;
-    }
-
     auto cached_executables = read_cached_executables();
     bool found = std::any_of(cached_executables.begin(), cached_executables.end(),
                              [&executable_name](const fs::path& exec_path) { return exec_path.filename().string() == executable_name; });
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: '" << executable_name << "' " << (found ? "IS" : "IS NOT") << " in cache" << std::endl;
-    }
 
     return found;
 }
@@ -723,10 +639,6 @@ void set_last_path_hash(const std::string& path_hash) {
     }
 
     auto write_result = FileOperations::write_file_content(g_cjsh_path_hash_cache_path.string(), path_hash);
-
-    if (g_debug_mode && write_result.is_ok()) {
-        std::cerr << "DEBUG: Updated PATH hash cache" << std::endl;
-    }
 }
 
 bool has_path_changed() {
@@ -751,9 +663,6 @@ bool has_path_changed() {
     bool changed = (cached_hash != current_hash);
     if (changed) {
         set_last_path_hash(current_hash);
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: PATH environment variable has changed" << std::endl;
-        }
     }
 
     return changed;
@@ -779,11 +688,6 @@ void remove_executable_from_cache(const std::string& executable_name) {
         }
 
         auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
-
-        if (g_debug_mode && write_result.is_ok()) {
-            std::cerr << "DEBUG: Removed '" << executable_name << "' from executable cache (no longer exists)" << std::endl;
-        }
-
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
@@ -791,9 +695,6 @@ void remove_executable_from_cache(const std::string& executable_name) {
 }
 
 void cleanup_stale_cache_entries() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Starting cleanup of stale cache entries" << std::endl;
-    }
 
     auto cached_executables = read_cached_executables();
     std::vector<fs::path> valid_executables;
@@ -807,9 +708,6 @@ void cleanup_stale_cache_entries() {
             valid_executables.push_back(exec_path);
         } else {
             removed_count++;
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Removing stale cache entry: " << exec_name << std::endl;
-            }
         }
     }
 
@@ -821,24 +719,13 @@ void cleanup_stale_cache_entries() {
 
         auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
 
-        if (g_debug_mode && write_result.is_ok()) {
-            std::cerr << "DEBUG: Cleaned up " << removed_count << " stale cache entries" << std::endl;
-        }
-
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
-    } else if (g_debug_mode) {
-        std::cerr << "DEBUG: No stale cache entries found" << std::endl;
     }
 }
 
 void notify_cache_systems_of_update() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Notifying syntax highlighter and completions of "
-                     "cache update"
-                  << std::endl;
-    }
 
     SyntaxHighlighter::refresh_executables_cache();
 

@@ -39,21 +39,15 @@ using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing ShellScriptInterpreter" << std::endl;
     debug_level = DebugLevel::NONE;
 
     shell_parser = nullptr;
 }
 
 ShellScriptInterpreter::~ShellScriptInterpreter() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Destroying ShellScriptInterpreter" << std::endl;
 }
 
 void ShellScriptInterpreter::set_debug_level(DebugLevel level) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Setting script interpreter debug level to " << static_cast<int>(level) << std::endl;
     debug_level = level;
 }
 
@@ -62,8 +56,6 @@ DebugLevel ShellScriptInterpreter::get_debug_level() const {
 }
 
 int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Executing script block with " << lines.size() << " lines" << std::endl;
 
     if (g_shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
@@ -174,10 +166,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 result.pop_back();
             info.outputs.push_back(result);
             text = text.substr(0, start) + result + text.substr(end + 1);
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: " << debug_context << " " << result_label << ": '" << result << "'" << std::endl;
-                std::cerr << "DEBUG: " << debug_context << " " << expanded_label << ": '" << text << "'" << std::endl;
-            }
             search_pos = start + result.size();
         }
         info.text = text;
@@ -291,38 +279,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
         for (size_t idx = 0; idx < filtered_sections.size(); ++idx) {
             const auto& section = filtered_sections[idx];
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: " << debug_context;
-                if (!debug_context.empty())
-                    std::cerr << " ";
-                std::cerr << ((idx + 1 == filtered_sections.size()) ? "final pattern_section" : "pattern_section") << "='" << section << "'"
-                          << std::endl;
-            }
 
             CaseSectionData data;
             if (!parse_case_section(section, data))
                 continue;
 
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: " << debug_context;
-                if (!debug_context.empty())
-                    std::cerr << " ";
-                std::cerr << "Pattern: '" << data.raw_pattern << "', Command: '" << data.command << "'" << std::endl;
-                std::cerr << "DEBUG: " << debug_context;
-                if (!debug_context.empty())
-                    std::cerr << " ";
-                std::cerr << "Matching case_value='" << case_value << "' against pattern='" << data.pattern << "'" << std::endl;
-            }
-
             bool pattern_matches = matches_pattern(case_value, data.pattern);
-
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: " << debug_context;
-                if (!debug_context.empty())
-                    std::cerr << " ";
-                std::cerr << "Pattern match result: " << pattern_matches << std::endl;
-            }
-
             if (!pattern_matches)
                 continue;
 
@@ -370,10 +332,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         std::string processed_case_part = case_part;
 
         if (allow_command_substitution && processed_case_part.find("$(") != std::string::npos) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: " << debug_context << " expanding command substitution in inline case: '" << processed_case_part << "'"
-                          << std::endl;
-            }
             auto expansion =
                 expand_command_substitutions(processed_case_part, debug_context, "command substitution result", "expanded case part");
             processed_case_part = expansion.text;
@@ -409,14 +367,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
         if (!case_value.empty())
             shell_parser->expand_env_vars(case_value);
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: " << debug_context << " case_part='" << case_part << "'" << std::endl;
-            std::cerr << "DEBUG: " << debug_context << " raw_case_value='" << raw_case_value << "' -> expanded='" << case_value << "'"
-                      << std::endl;
-            std::string debug_patterns = sanitize_case_patterns(patterns_part);
-            std::cerr << "DEBUG: " << debug_context << " patterns_part after esac removal='" << debug_patterns << "'" << std::endl;
-        }
 
         auto case_result = evaluate_case_patterns(patterns_part, case_value, debug_context, trim_sections);
         return case_result.first ? std::optional<int>{case_result.second} : std::optional<int>{0};
@@ -488,10 +438,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     };
 
     evaluate_logical_condition = [&](const std::string& condition) -> int {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: evaluate_logical_condition called with: " << condition << std::endl;
-        }
-
         std::string cond = trim(condition);
         if (cond.empty())
             return 1;
@@ -520,9 +466,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
             if (depth == 0 && end + 1 < processed_cond.length()) {
                 std::string expr = processed_cond.substr(start, end - start);
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Found arithmetic expansion: $(('" << expr << "'))" << std::endl;
-                }
 
                 shell_parser->expand_env_vars(expr);
 
@@ -530,16 +473,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     long long result = shell_parser->evaluate_arithmetic(expr);
                     std::string result_str = std::to_string(result);
 
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Arithmetic result: " << result_str << std::endl;
-                    }
-
                     processed_cond = processed_cond.substr(0, pos) + result_str + processed_cond.substr(end + 2);
                     pos = pos + result_str.length();
                 } catch (const std::exception& e) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Arithmetic evaluation failed: " << e.what() << std::endl;
-                    }
                     pos = end + 2;
                 }
             } else {
@@ -602,16 +538,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         }
 
         if (!has_logical_ops) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: no logical operators found, using "
-                             "original method"
-                          << std::endl;
-            }
             return execute_simple_or_pipeline(cond);
-        }
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: logical operators found, parsing manually" << std::endl;
         }
 
         std::vector<std::pair<std::string, std::string>> parts;
@@ -690,9 +617,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         int result = 0;
 
         std::string first_cond = parts[0].first;
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: evaluating condition part: " << first_cond << std::endl;
-        }
 
         result = execute_simple_or_pipeline(first_cond);
 
@@ -710,15 +634,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 }
             }
 
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: evaluating condition part: " << cond_part << std::endl;
-            }
-
             result = execute_simple_or_pipeline(cond_part);
-        }
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: logical condition result: " << result << std::endl;
         }
 
         return result;
@@ -727,9 +643,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     execute_simple_or_pipeline = [&](const std::string& cmd_text) -> int { return execute_simple_or_pipeline_impl(cmd_text, true); };
 
     execute_simple_or_pipeline_impl = [&](const std::string& cmd_text, bool allow_semicolon_split) -> int {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: execute_simple_or_pipeline called with: " << cmd_text << std::endl;
-        }
 
         std::string text = process_line_for_validation(cmd_text);
         if (text.empty())
@@ -739,9 +652,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             auto semicolon_commands = shell_parser->parse_semicolon_commands(text);
 
             if (semicolon_commands.size() > 1) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Splitting semicolon command into " << semicolon_commands.size() << " parts" << std::endl;
-                }
 
                 int last_code = 0;
                 for (const auto& part : semicolon_commands) {
@@ -749,11 +659,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                     if (g_shell && g_shell->is_errexit_enabled() && last_code != 0 && last_code != 253 && last_code != 254 &&
                         last_code != 255) {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: errexit triggered during "
-                                         "semicolon split with code "
-                                      << last_code << std::endl;
-                        }
                         return last_code;
                     }
                 }
@@ -1558,8 +1463,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                 const std::string& prog = head[0];
                 if (should_interpret_as_cjsh_script(prog)) {
-                    if (g_debug_mode)
-                        std::cerr << "DEBUG: Interpreting script file: " << prog << std::endl;
                     std::ifstream f(prog);
                     if (!f) {
                         print_error({ErrorType::RUNTIME_ERROR, "", "Failed to open script file: " + prog, {}});
@@ -1573,47 +1476,22 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                 if (prog == "if" || prog.rfind("if ", 0) == 0 || prog == "for" || prog.rfind("for ", 0) == 0 || prog == "while" ||
                     prog.rfind("while ", 0) == 0) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Detected control structure '" << prog << "', delegating to execute_block" << std::endl;
-                    }
                     std::vector<std::string> lines = {text};
                     return execute_block(lines);
                 }
             }
         } catch (const std::runtime_error& e) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Caught runtime error in expand_substitutions: " << e.what() << std::endl;
-            }
-
             throw;
         }
 
         if ((text == "case" || text.rfind("case ", 0) == 0) && (text.find(" in ") != std::string::npos) &&
             (text.find("esac") == std::string::npos)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Found incomplete case statement (missing esac): " << text << std::endl;
-            }
-
             std::string completed_case = text + ";; esac";
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Attempting to complete case statement: " << completed_case << std::endl;
-            }
 
             return execute_simple_or_pipeline(completed_case);
         }
 
-        if (g_debug_mode && (text == "case" || text.rfind("case ", 0) == 0)) {
-            std::cerr << "DEBUG: execute_simple_or_pipeline checking case: '" << text << "'" << std::endl;
-            std::cerr << "DEBUG:   has ' in ': " << (text.find(" in ") != std::string::npos) << std::endl;
-            std::cerr << "DEBUG:   has 'esac': " << (text.find("esac") != std::string::npos) << std::endl;
-        }
-
         if (auto inline_case_result = handle_inline_case(text, "[inline case]", false, true)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Handling inline case statement in "
-                             "execute_simple_or_pipeline: "
-                          << text << std::endl;
-            }
             return *inline_case_result;
         }
 
@@ -1635,26 +1513,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr || !c.input_file.empty() || !c.output_file.empty() ||
                                      !c.append_file.empty() || !c.stderr_file.empty() || !c.here_doc.empty();
 
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: INTERNAL_SUBSHELL has_redir=" << has_redir << " stderr_to_stdout=" << c.stderr_to_stdout
-                                  << std::endl;
-                    }
-
                     if (has_redir) {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Executing subshell with "
-                                         "redirections via pipeline"
-                                      << std::endl;
-                        }
                         return run_pipeline(cmds);
                     } else {
                         if (c.args.size() >= 2) {
                             std::string subshell_content = c.args[1];
-                            if (g_debug_mode) {
-                                std::cerr << "DEBUG: Executing subshell "
-                                             "content in child process: "
-                                          << subshell_content << std::endl;
-                            }
 
                             pid_t pid = fork();
                             if (pid == 0) {
@@ -1696,11 +1559,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         return 0;
 
                     if (expanded_args.size() == 2 && expanded_args[0] == "__ALIAS_PIPELINE__") {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Detected alias pipeline, "
-                                         "re-processing: "
-                                      << expanded_args[1] << std::endl;
-                        }
 
                         std::vector<Command> pipeline_cmds = shell_parser->parse_pipeline_with_preprocessing(expanded_args[1]);
                         return run_pipeline(pipeline_cmds);
@@ -1745,31 +1603,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         }
 
                         if (!is_function && !is_plugin) {
-                            if (g_debug_mode) {
-                                std::cerr << "DEBUG: Re-parsing external "
-                                             "command with exported vars only: "
-                                          << text << std::endl;
-                            }
-
                             std::vector<std::string> external_args = shell_parser->parse_command_exported_vars_only(text);
                             if (!external_args.empty()) {
                                 expanded_args = external_args;
-                                if (g_debug_mode) {
-                                    std::cerr << "DEBUG: Re-parsed external "
-                                                 "command args: ";
-                                    for (const auto& arg : expanded_args) {
-                                        std::cerr << "[" << arg << "] ";
-                                    }
-                                    std::cerr << std::endl;
-                                }
                             }
                         }
                     }
 
                     if (!expanded_args.empty() && functions.count(expanded_args[0])) {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Function call detected in pipeline: " << expanded_args[0] << std::endl;
-                        }
 
                         push_function_scope();
 
@@ -1818,15 +1659,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                         return set_last_status(exit_code);
                     }
-
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Simple exec: ";
-                        for (const auto& a : expanded_args)
-                            std::cerr << "[" << a << "]";
-                        if (c.background)
-                            std::cerr << " &";
-                        std::cerr << std::endl;
-                    }
                     int exit_code = g_shell->execute_command(expanded_args, c.background);
                     return set_last_status(exit_code);
                 }
@@ -1834,17 +1666,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
             if (cmds.empty())
                 return 0;
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Executing pipeline of size " << cmds.size() << std::endl;
-                for (size_t i = 0; i < cmds.size(); i++) {
-                    const auto& cmd = cmds[i];
-                    std::cerr << "DEBUG: Command " << i << ": ";
-                    for (const auto& arg : cmd.args) {
-                        std::cerr << "'" << arg << "' ";
-                    }
-                    std::cerr << " stderr_to_stdout=" << cmd.stderr_to_stdout << std::endl;
-                }
-            }
             return run_pipeline(cmds);
         } catch (const std::bad_alloc& e) {
             std::vector<SyntaxError> errors;
@@ -2572,12 +2393,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                             range_info.end = std::stoi(end_str);
                             range_info.is_range = true;
                             range_info.is_ascending = range_info.start <= range_info.end;
-
-                            if (g_debug_mode) {
-                                std::cerr << "DEBUG: Detected numeric range: " << range_info.start << ".." << range_info.end
-                                          << " (lazy evaluation)" << std::endl;
-                            }
-
                             return !var.empty();
                         } catch (...) {
                         }
@@ -2811,16 +2626,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         std::string first = trim(strip_inline_comment(src_lines[idx]));
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: handle_case_block called with: '" << first << "'" << std::endl;
-        }
         if (!(first == "case" || first.rfind("case ", 0) == 0))
             return 1;
 
         if (auto inline_case_result = handle_inline_case(first, "[case inline]", true, true)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: handle_case_block processed inline case" << std::endl;
-            }
             return *inline_case_result;
         }
 
@@ -2844,10 +2653,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
         }
 
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Processing case header: '" << header_accum << "'" << std::endl;
-        }
-
         if (!found_in) {
             idx = j;
             return 1;
@@ -2855,9 +2660,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
         std::string expanded_header = header_accum;
         if (header_accum.find("$(") != std::string::npos) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Found command substitution in header" << std::endl;
-            }
             auto expansion = expand_command_substitutions(header_accum, "[case header]", "Command substitution result", "Expanded header");
             expanded_header = expansion.text;
         }
@@ -3119,55 +2921,40 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         const auto& raw_line = lines[line_index];
         std::string line = trim(strip_inline_comment(raw_line));
         if (line.empty()) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: skipping empty/comment line" << std::endl;
             continue;
         }
 
         if (line == "fi" || line == "then" || line == "else" || line == "done" || line == "esac" || line == "}" || line == ";;") {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: ignoring orphaned control structure keyword: " << line << std::endl;
             continue;
         }
 
         if (line == "if" || line.rfind("if ", 0) == 0) {
             int rc = handle_if_block(lines, line_index);
             last_code = rc;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: if block completed with exit code: " << rc << std::endl;
-
             continue;
         }
 
         if (line == "for" || line.rfind("for ", 0) == 0) {
             int rc = handle_for_block(lines, line_index);
             last_code = rc;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: for block completed with exit code: " << rc << std::endl;
             continue;
         }
 
         if (line == "while" || line.rfind("while ", 0) == 0) {
             int rc = handle_while_block(lines, line_index);
             last_code = rc;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: while block completed with exit code: " << rc << std::endl;
             continue;
         }
 
         if (line == "until" || line.rfind("until ", 0) == 0) {
             int rc = handle_until_block(lines, line_index);
             last_code = rc;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: until block completed with exit code: " << rc << std::endl;
             continue;
         }
 
         if (line == "case" || line.rfind("case ", 0) == 0) {
             int rc = handle_case_block(lines, line_index);
             last_code = rc;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: case block completed with exit code: " << rc << std::endl;
             continue;
         }
 
@@ -3176,8 +2963,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             bool found_function = true;
             while (!current_line.empty() && found_function) {
                 found_function = false;
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Processing current_line: '" << current_line << "'" << std::endl;
                 size_t name_end = current_line.find("()");
                 size_t brace_pos = current_line.find("{");
                 if (name_end != std::string::npos && brace_pos != std::string::npos && name_end < brace_pos) {
@@ -3194,8 +2979,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                                     body_lines.push_back(body_part);
 
                                 functions[func_name] = body_lines;
-                                if (g_debug_mode)
-                                    std::cerr << "DEBUG: Defined function '" << func_name << "' (single-line)" << std::endl;
 
                                 std::string remainder = trim(after_brace.substr(end_brace + 1));
 
@@ -3241,9 +3024,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                                 }
                             }
                             functions[func_name] = body_lines;
-                            if (g_debug_mode)
-                                std::cerr << "DEBUG: Defined function '" << func_name << "' with " << body_lines.size() << " lines"
-                                          << std::endl;
 
                             if (after_closing_brace.empty()) {
                                 current_line.clear();
@@ -3283,22 +3063,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                 bool is_control_flow = (last_code == 253 || last_code == 254 || last_code == 255);
                 if (prev_op == "&&" && last_code != 0 && !is_control_flow) {
-                    if (g_debug_mode)
-                        std::cerr << "DEBUG: Skipping due to && short-circuit" << std::endl;
                     continue;
                 }
                 if (prev_op == "||" && last_code == 0) {
-                    if (g_debug_mode)
-                        std::cerr << "DEBUG: Skipping due to || short-circuit" << std::endl;
                     continue;
                 }
 
                 if (is_control_flow) {
-                    if (g_debug_mode)
-                        std::cerr << "DEBUG: Breaking logical command sequence "
-                                     "due to "
-                                     "control flow: "
-                                  << last_code << std::endl;
                     break;
                 }
             }
@@ -3330,9 +3101,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
             if ((trimmed_cmd == "case" || trimmed_cmd.rfind("case ", 0) == 0) && (trimmed_cmd.find(" in ") != std::string::npos) &&
                 (trimmed_cmd.find("esac") != std::string::npos)) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Detected inline case statement: " << trimmed_cmd << std::endl;
-                }
                 size_t local_idx = 0;
                 std::vector<std::string> one{trimmed_cmd};
                 int code = handle_case_block(one, local_idx);
@@ -3359,12 +3127,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     std::string t = trim(strip_inline_comment(cmd_text));
 
                     if (t.find("()") != std::string::npos && t.find("{") != std::string::npos) {
-                        if (g_debug_mode)
-                            std::cerr << "DEBUG: Processing function "
-                                         "definition in semicolon "
-                                         "command: '"
-                                      << t << "'" << std::endl;
-
                         size_t name_end = t.find("()");
                         size_t brace_pos = t.find("{");
                         if (name_end != std::string::npos && brace_pos != std::string::npos && name_end < brace_pos) {
@@ -3378,14 +3140,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                                         std::string body_part = trim(after_brace.substr(0, end_brace));
                                         if (!body_part.empty())
                                             body_lines.push_back(body_part);
-
                                         functions[func_name] = body_lines;
-                                        if (g_debug_mode)
-                                            std::cerr << "DEBUG: Defined function '" << func_name
-                                                      << "' (single-line) in "
-                                                         "semicolon command"
-                                                      << std::endl;
-
                                         last_code = 0;
                                         continue;
                                     }
@@ -3522,20 +3277,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                     if (g_shell && g_shell->is_errexit_enabled() && code != 0) {
                         if (code != 253 && code != 254 && code != 255) {
-                            if (g_debug_mode) {
-                                std::cerr << "DEBUG: errexit triggered, "
-                                             "exiting due to error code: "
-                                          << code << std::endl;
-                            }
                             return code;
                         }
                     }
 
                     if (!is_function_call && (code == 253 || code == 254 || code == 255)) {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Control flow signal detected: " << code << std::endl;
-                        }
-
                         goto control_flow_exit;
                     }
 
@@ -3549,15 +3295,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     control_flow_exit:
 
         if (last_code == 127) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Stopping script block due to critical error: " << last_code << std::endl;
             return last_code;
         } else if (last_code == 253 || last_code == 254 || last_code == 255) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Passing through control flow code: " << last_code << std::endl;
             return last_code;
-        } else if (last_code != 0 && g_debug_mode) {
-            std::cerr << "DEBUG: Command failed with exit code " << last_code << " but continuing execution" << std::endl;
+        } else if (last_code != 0) {
+            continue;
         }
     }
 
@@ -4142,19 +3884,12 @@ std::vector<std::string> ShellScriptInterpreter::get_function_names() const {
 }
 
 void ShellScriptInterpreter::push_function_scope() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Pushing function scope" << std::endl;
-
     local_variable_stack.emplace_back();
 }
 
 void ShellScriptInterpreter::pop_function_scope() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Popping function scope" << std::endl;
 
     if (local_variable_stack.empty()) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Warning - trying to pop empty variable scope" << std::endl;
         return;
     }
 
@@ -4162,8 +3897,6 @@ void ShellScriptInterpreter::pop_function_scope() {
 }
 
 void ShellScriptInterpreter::set_local_variable(const std::string& name, const std::string& value) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Setting local variable " << name << "=" << value << std::endl;
 
     if (local_variable_stack.empty()) {
         if (g_shell) {

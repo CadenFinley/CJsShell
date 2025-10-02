@@ -4,17 +4,11 @@
 #include <regex>
 #include <sstream>
 
-extern bool g_debug_mode;
-
 int CommandPreprocessor::placeholder_counter = 0;
 
 CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(const std::string& command) {
     PreprocessedCommand result;
     result.processed_text = command;
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Preprocessing command: " << command << std::endl;
-    }
 
     result.processed_text = process_here_documents(result.processed_text, result.here_documents);
 
@@ -23,17 +17,6 @@ CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(const s
     result.has_subshells = (original_text != result.processed_text);
 
     result.needs_special_handling = !result.here_documents.empty() || result.has_subshells;
-
-    if (g_debug_mode && result.needs_special_handling) {
-        std::cerr << "DEBUG: Preprocessed to: " << result.processed_text << std::endl;
-        if (!result.here_documents.empty()) {
-            std::cerr << "DEBUG: Found " << result.here_documents.size() << " here documents" << std::endl;
-        }
-        if (result.has_subshells) {
-            std::cerr << "DEBUG: Processed subshells" << std::endl;
-        }
-    }
-
     return result;
 }
 
@@ -100,11 +83,6 @@ std::string CommandPreprocessor::process_here_documents(const std::string& comma
 
     result = before_here + "< " + placeholder + rest_of_line + after_delimiter;
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Extracted here document with delimiter '" << delimiter << "' to placeholder '" << placeholder << "'"
-                  << std::endl;
-    }
-
     return result;
 }
 
@@ -153,11 +131,6 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
 
     std::string prefix = result.substr(0, lead);
     result = prefix + "SUBSHELL{" + subshell_content + "}" + remaining;
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Converted " << ((result[lead] == '(') ? "subshell" : "brace group") << " (" << subshell_content
-                  << ") to internal subshell marker" << std::endl;
-    }
 
     return result;
 }

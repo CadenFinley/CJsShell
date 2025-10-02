@@ -9,20 +9,14 @@
 #include "cjsh.h"
 
 bool BasicInfo::is_root_path(const std::filesystem::path& path) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: is_root_path for " << path.string() << std::endl;
     return path == path.root_path();
 }
 
 std::string BasicInfo::get_current_file_path() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_current_file_path START" << std::endl;
 
     std::string path = std::filesystem::current_path().string();
 
     if (path == "/") {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: get_current_file_path END: /" << std::endl;
         return "/";
     }
 
@@ -37,15 +31,10 @@ std::string BasicInfo::get_current_file_path() {
             }
         }
     }
-
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_current_file_path END: " << path << std::endl;
     return path;
 }
 
 std::string BasicInfo::get_current_file_name() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_current_file_name START" << std::endl;
 
     std::filesystem::path current_path = std::filesystem::current_path();
     std::string filename = current_path.filename().string();
@@ -67,8 +56,6 @@ std::string BasicInfo::get_current_file_name() {
         }
     }
 
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_current_file_name END: " << filename << std::endl;
     return filename;
 }
 

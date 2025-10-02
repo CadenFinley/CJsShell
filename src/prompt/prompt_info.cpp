@@ -125,8 +125,6 @@
  */
 
 std::string PromptInfo::get_basic_prompt() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_basic_prompt START" << std::endl;
 
     std::string username = get_username();
     std::string hostname = get_hostname();
@@ -137,15 +135,10 @@ std::string PromptInfo::get_basic_prompt() {
     prompt.reserve(size);
 
     prompt = username + "@" + hostname + " : " + cwd + " $ ";
-
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_basic_prompt END" << std::endl;
     return prompt;
 }
 
 std::string PromptInfo::get_basic_ai_prompt() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_basic_ai_prompt START" << std::endl;
 
     std::string cwd = get_current_file_path();
     std::string ai_model = g_ai->get_model();
@@ -158,21 +151,14 @@ std::string PromptInfo::get_basic_ai_prompt() {
     prompt.reserve(size);
 
     prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " + cwd + " " + ai_type + " > ";
-
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_basic_ai_prompt END" << std::endl;
     return prompt;
 }
 
 std::string PromptInfo::get_basic_title() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_basic_title START/END" << std::endl;
     return "cjsh v" + c_version + " " + get_current_file_path();
 }
 
 bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector<ThemeSegment>& segments) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: is_variable_used START: " << var_name << std::endl;
 
     std::string placeholder = "{" + var_name + "}";
 
@@ -185,8 +171,6 @@ bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector
         std::lock_guard<std::mutex> lock(cache_mutex);
         auto it = cache.find(cache_key);
         if (it != cache.end()) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: is_variable_used END (cached): " << var_name << " = " << (it->second ? "true" : "false") << std::endl;
             return it->second;
         }
     }
@@ -195,23 +179,17 @@ bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector
         if (segment.content.find(placeholder) != std::string::npos) {
             std::lock_guard<std::mutex> lock(cache_mutex);
             cache[cache_key] = true;
-            if (g_debug_mode)
-                std::cerr << "DEBUG: is_variable_used END: " << var_name << " = true" << std::endl;
             return true;
         }
     }
 
     std::lock_guard<std::mutex> lock(cache_mutex);
     cache[cache_key] = false;
-    if (g_debug_mode)
-        std::cerr << "DEBUG: is_variable_used END: " << var_name << " = false" << std::endl;
     return false;
 }
 
 std::unordered_map<std::string, std::string> PromptInfo::get_variables(const std::vector<ThemeSegment>& segments, bool is_git_repo,
                                                                        const std::filesystem::path& repo_root) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Getting prompt variables, is_git_repo=" << is_git_repo << std::endl;
 
     static std::unordered_map<std::string, std::pair<bool, std::chrono::steady_clock::time_point>> language_cache;
     static std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> version_cache;

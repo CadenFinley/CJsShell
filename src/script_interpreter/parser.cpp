@@ -949,14 +949,6 @@ std::vector<std::string> merge_redirection_tokens(const std::vector<std::string>
     std::vector<std::string> result;
     result.reserve(tokens.size());
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: merge_redirection_tokens input: ";
-        for (const auto& token : tokens) {
-            std::cerr << "'" << token << "' ";
-        }
-        std::cerr << std::endl;
-    }
-
     for (size_t i = 0; i < tokens.size(); ++i) {
         const std::string& token = tokens[i];
 
@@ -1086,14 +1078,6 @@ std::vector<std::string> merge_redirection_tokens(const std::vector<std::string>
         }
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: merge_redirection_tokens output: ";
-        for (const auto& token : result) {
-            std::cerr << "'" << token << "' ";
-        }
-        std::cerr << std::endl;
-    }
-
     return result;
 }
 
@@ -1104,10 +1088,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     try {
         std::vector<std::string> raw_args = tokenize_command(cmdline);
         args = merge_redirection_tokens(raw_args);
-    } catch (const std::exception& e) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: tokenize_command failed: " << e.what() << std::endl;
-        }
+    } catch (const std::exception&) {
         return args;
     }
 
@@ -1140,20 +1121,10 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     }
 
                     if (has_pipe) {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Alias expansion resulted in "
-                                         "pipeline, "
-                                         "should be re-processed"
-                                      << std::endl;
-                        }
-
                         return {"__ALIAS_PIPELINE__", alias_it->second};
                     }
                 }
-            } catch (const std::exception& e) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: tokenize_command for alias failed: " << e.what() << std::endl;
-                }
+            } catch (const std::exception&) {
             }
         }
     }
@@ -1320,13 +1291,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
             size_t range_size = std::abs(end - start) + 1;
 
             if (range_size > MAX_EXPANSION_SIZE) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Brace expansion range too large (" << range_size
-                              << " items), returning unexpanded pattern to "
-                                 "avoid memory issues"
-                              << std::endl;
-                }
-
                 result.push_back(pattern);
                 return result;
             }
@@ -1355,11 +1319,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
                 size_t char_range_size = std::abs(end_char - start_char) + 1;
 
                 if (char_range_size > MAX_EXPANSION_SIZE) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Character brace expansion range "
-                                     "too large ("
-                                  << char_range_size << " items), returning unexpanded pattern" << std::endl;
-                    }
                     result.push_back(pattern);
                     return result;
                 }
@@ -1399,10 +1358,6 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
     }
 
     if (options.size() > MAX_EXPANSION_SIZE) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Comma brace expansion too large (" << options.size() << " options), returning unexpanded pattern"
-                      << std::endl;
-        }
         result.push_back(pattern);
         return result;
     }
@@ -1418,31 +1373,17 @@ std::vector<std::string> Parser::expand_braces(const std::string& pattern) {
 }
 
 std::string Parser::get_variable_value(const std::string& var_name) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Parser::get_variable_value called with: '" << var_name << "'" << std::endl;
-    }
-
     if (shell && shell->get_shell_script_interpreter()) {
         std::string result = shell->get_shell_script_interpreter()->get_variable_value(var_name);
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Script interpreter returned: '" << result << "'" << std::endl;
-        }
         return result;
     }
 
     const char* env_val = getenv(var_name.c_str());
     std::string result = env_val ? env_val : "";
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: getenv returned: '" << result << "'" << std::endl;
-    }
     return result;
 }
 
 std::string Parser::get_exported_variable_value(const std::string& var_name) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Parser::get_exported_variable_value called with: '" << var_name << "'" << std::endl;
-    }
-
     if (var_name == "?" || var_name == "$" || var_name == "#" || var_name == "*" || var_name == "@" || var_name == "!") {
         if (shell && shell->get_shell_script_interpreter()) {
             return shell->get_shell_script_interpreter()->get_variable_value(var_name);
@@ -1457,9 +1398,6 @@ std::string Parser::get_exported_variable_value(const std::string& var_name) {
 
     const char* env_val = getenv(var_name.c_str());
     std::string result = env_val ? env_val : "";
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: getenv (exported only) returned: '" << result << "'" << std::endl;
-    }
     return result;
 }
 
@@ -1544,9 +1482,6 @@ std::string Parser::resolve_parameter_value(const std::string& var_name) {
 }
 
 void Parser::expand_env_vars(std::string& arg) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: expand_env_vars called with: '" << arg << "'" << std::endl;
-    }
     std::string result;
     result.reserve(arg.length() * 1.5);
     bool in_var = false;
@@ -1555,10 +1490,6 @@ void Parser::expand_env_vars(std::string& arg) {
 
     for (size_t i = 0; i < arg.length(); ++i) {
         if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(') {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Found arithmetic expansion at position " << i << std::endl;
-            }
-
             size_t start = i + 3;
             size_t paren_depth = 1;
             size_t end = start;
@@ -1580,27 +1511,16 @@ void Parser::expand_env_vars(std::string& arg) {
 
             if (paren_depth == 0 && end + 1 < arg.length()) {
                 std::string expr = arg.substr(start, end - start);
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Arithmetic expression: '" << expr << "'" << std::endl;
-                }
-
                 std::string expanded_expr = expr;
                 expand_env_vars(expanded_expr);
 
                 try {
                     long long arithmetic_result = evaluate_arithmetic(expanded_expr);
                     std::string result_str = std::to_string(arithmetic_result);
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Arithmetic result: " << result_str << std::endl;
-                    }
                     result += result_str;
                     i = end + 1;
                     continue;
                 } catch (const std::exception& e) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Arithmetic evaluation failed: " << e.what() << std::endl;
-                    }
-
                     result += arg.substr(i, end - i + 2);
                     i = end + 1;
                     continue;
@@ -1620,9 +1540,6 @@ void Parser::expand_env_vars(std::string& arg) {
         }
 
         if (arg[i] == '$' && i + 1 < arg.length() && arg[i + 1] == '{') {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Found ${...} expression at position " << i << std::endl;
-            }
             size_t start = i + 2;
             size_t brace_depth = 1;
             size_t end = start;
@@ -1639,10 +1556,6 @@ void Parser::expand_env_vars(std::string& arg) {
 
             if (brace_depth == 0 && end < arg.length()) {
                 std::string param_expr = arg.substr(start, end - start);
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Parameter expression: '" << param_expr << "'" << std::endl;
-                    std::cerr << "DEBUG: start=" << start << ", end=" << end << ", arg[end]='" << arg[end] << "'" << std::endl;
-                }
                 std::string value;
 
                 size_t colon_pos = param_expr.find(':');
@@ -1691,16 +1604,10 @@ void Parser::expand_env_vars(std::string& arg) {
                     }
                 }
 
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Parameter expansion result: '" << value << "'" << std::endl;
-                }
                 result += value;
                 i = end;
                 continue;
             } else {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Unmatched braces in parameter expansion" << std::endl;
-                }
             }
         }
 
@@ -1731,12 +1638,6 @@ void Parser::expand_env_vars(std::string& arg) {
                 };
 
                 if (arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Found parameter expansion without "
-                                     "braces: "
-                                  << var_name << ":-..." << std::endl;
-                    }
-
                     std::string env_val = get_variable_value(var_name);
                     if (!env_val.empty()) {
                         value = env_val;
@@ -1754,12 +1655,6 @@ void Parser::expand_env_vars(std::string& arg) {
                         value = read_default_value(2);
                     }
                 } else if (arg[i] == '-' && i >= 1) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Found parameter expansion without "
-                                     "braces: "
-                                  << var_name << "-..." << std::endl;
-                    }
-
                     std::string env_val = get_variable_value(var_name);
                     if (!env_val.empty()) {
                         value = env_val;
@@ -1800,17 +1695,10 @@ void Parser::expand_env_vars(std::string& arg) {
         result += resolve_parameter_value(var_name);
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: expand_env_vars result: '" << result << "'" << std::endl;
-    }
     arg = result;
 }
 
 void Parser::expand_env_vars_selective(std::string& arg) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: expand_env_vars_selective called with: '" << arg << "'" << std::endl;
-    }
-
     const std::string start_marker = "\x1E__NOENV_START__\x1E";
     const std::string end_marker = "\x1E__NOENV_END__\x1E";
 
@@ -1845,16 +1733,10 @@ void Parser::expand_env_vars_selective(std::string& arg) {
         pos = end_pos + end_marker.length();
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: expand_env_vars_selective result: '" << result << "'" << std::endl;
-    }
     arg = result;
 }
 
 void Parser::expand_exported_env_vars_only(std::string& arg) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: expand_exported_env_vars_only called with: '" << arg << "'" << std::endl;
-    }
     std::string result;
     result.reserve(arg.length() * 1.5);
     bool in_var = false;
@@ -1863,10 +1745,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
 
     for (size_t i = 0; i < arg.length(); ++i) {
         if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(') {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Found arithmetic expansion at position " << i << std::endl;
-            }
-
             size_t start = i + 3;
             size_t paren_depth = 1;
             size_t end = start;
@@ -1888,10 +1766,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
 
             if (paren_depth == 0 && end + 1 < arg.length()) {
                 std::string expr = arg.substr(start, end - start);
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Arithmetic expression: '" << expr << "'" << std::endl;
-                }
-
                 std::string expanded_expr = expr;
                 expand_exported_env_vars_only(expanded_expr);
 
@@ -1899,9 +1773,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                     long long arithmetic_result = evaluate_arithmetic(expanded_expr);
                     result += std::to_string(arithmetic_result);
                 } catch (const std::exception& e) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Arithmetic evaluation failed: " << e.what() << std::endl;
-                    }
                     result += "0";
                 }
 
@@ -1993,9 +1864,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
         result += value;
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: expand_exported_env_vars_only result: '" << result << "'" << std::endl;
-    }
     arg = result;
 }
 
@@ -2067,9 +1935,6 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
     };
 
     if (looks_like_assignment(input)) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: split_by_ifs preserving assignment token '" << input << "'" << std::endl;
-        }
         result.push_back(input);
         return result;
     }
@@ -2420,9 +2285,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 }
             } else {
                 if ((tok.find("<(") == 0 && tok.back() == ')') || (tok.find(">(") == 0 && tok.back() == ')')) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: detected process substitution token '" << tok << "'" << std::endl;
-                    }
                     cmd.process_substitutions.push_back(tok);
                     filtered_args.push_back(tokens[i]);
                 } else {
@@ -2447,12 +2309,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             if (!is_single && !(is_subshell_command && arg_idx == 1)) {
                 try {
                     expand_env_vars(val);
-                } catch (const std::runtime_error& e) {
-                    if (g_debug_mode) {
-                        std::cerr << "Warning: Error expanding environment "
-                                     "variables in pipeline: "
-                                  << e.what() << std::endl;
-                    }
+                } catch (const std::runtime_error&) {
                 }
             }
 
@@ -2481,50 +2338,14 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
 
         if (command_validation_enabled && !cmd.args.empty() && should_validate_command(cmd.args[0]) && !is_valid_command(cmd.args[0])) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Command validation failed for: " << cmd.args[0] << std::endl;
-            }
-
             if (cjsh_filesystem::is_executable_in_cache(cmd.args[0])) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Command '" << cmd.args[0]
-                              << "' found in cache during validation, checking "
-                                 "if stale..."
-                              << std::endl;
-                }
-
                 std::string full_path = cjsh_filesystem::find_executable_in_path(cmd.args[0]);
                 if (full_path.empty()) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Removing stale cache entry during "
-                                     "validation: "
-                                  << cmd.args[0] << std::endl;
-                    }
                     cjsh_filesystem::remove_executable_from_cache(cmd.args[0]);
-                } else if (g_debug_mode) {
-                    std::cerr << "DEBUG: Command '" << cmd.args[0] << "' found in PATH during validation: " << full_path << std::endl;
                 }
             }
 
             throw std::runtime_error("command not found: " + cmd.args[0]);
-        }
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: parser finalized command with " << cmd.args.size() << " args";
-            if (!cmd.args.empty()) {
-                std::cerr << ":";
-                for (const auto& arg : cmd.args) {
-                    std::cerr << " '" << arg << "'";
-                }
-            }
-            std::cerr << std::endl;
-            if (!cmd.process_substitutions.empty()) {
-                std::cerr << "DEBUG: parser stored " << cmd.process_substitutions.size() << " process substitution token(s):";
-                for (const auto& ps : cmd.process_substitutions) {
-                    std::cerr << " '" << ps << "'";
-                }
-                std::cerr << std::endl;
-            }
         }
 
         commands.push_back(cmd);
@@ -2941,10 +2762,6 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         return 0;
     }
     trimmed = trimmed.substr(start, end - start + 1);
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: evaluate_arithmetic called with: '" << trimmed << "'" << std::endl;
-    }
 
     auto find_operator = [](const std::string& s, const std::string& op) -> size_t {
         int paren_depth = 0;

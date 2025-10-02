@@ -179,8 +179,6 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType ty
 }
 
 bool Prompt::is_git_repository(std::filesystem::path& repo_root) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: is_git_repository START" << std::endl;
 
     std::filesystem::path current_path = std::filesystem::current_path();
     std::filesystem::path git_head_path;
@@ -190,14 +188,9 @@ bool Prompt::is_git_repository(std::filesystem::path& repo_root) {
     while (!info.is_root_path(repo_root)) {
         git_head_path = repo_root / ".git" / "HEAD";
         if (std::filesystem::exists(git_head_path)) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: is_git_repository END: true, repo_root=" << repo_root.string() << std::endl;
             return true;
         }
         repo_root = repo_root.parent_path();
     }
-
-    if (g_debug_mode)
-        std::cerr << "DEBUG: is_git_repository END: false" << std::endl;
     return false;
 }

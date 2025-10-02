@@ -19,17 +19,11 @@ static int safe_execute_git_command(const std::string& command, std::string& res
 
     int pipefd[2];
     if (pipe(pipefd) == -1) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: pipe() failed: " << strerror(errno) << std::endl;
-        }
         return -1;
     }
 
     pid_t pid = fork();
     if (pid == -1) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: fork() failed: " << strerror(errno) << std::endl;
-        }
         cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
         cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
         return -1;
@@ -68,8 +62,6 @@ static int safe_execute_git_command(const std::string& command, std::string& res
 
     int status;
     if (waitpid(pid, &status, 0) == -1) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: waitpid() failed: " << strerror(errno) << std::endl;
         }
         return -1;
     }
@@ -152,14 +144,10 @@ std::string GitInfo::get_git_author(const std::filesystem::path& repo_root) {
 }
 
 std::string GitInfo::get_git_branch(const std::filesystem::path& git_head_path) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_git_branch START for " << git_head_path.string() << std::endl;
 
     try {
         auto read_result = cjsh_filesystem::FileOperations::read_file_content(git_head_path.string());
         if (read_result.is_error()) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: get_git_branch unable to read HEAD file: " << read_result.error() << std::endl;
             return "";
         }
 
@@ -172,24 +160,16 @@ std::string GitInfo::get_git_branch(const std::filesystem::path& git_head_path) 
         const std::string ref_prefix = "ref: refs/heads/";
         if (head_contents.substr(0, ref_prefix.length()) == ref_prefix) {
             std::string branch = head_contents.substr(ref_prefix.length());
-            if (g_debug_mode)
-                std::cerr << "DEBUG: get_git_branch END: " << branch << std::endl;
             return branch;
         } else {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: get_git_branch END: detached HEAD" << std::endl;
             return head_contents.substr(0, 7);
         }
     } catch (const std::exception& e) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: get_git_branch exception: " << e.what() << std::endl;
         return "";
     }
 }
 
 std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_git_status START for " << repo_root.string() << std::endl;
 
     std::string status_symbols = "";
     std::string git_dir = repo_root.string();
@@ -231,9 +211,6 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
         is_clean_repo = cached_is_clean_repo;
     }
 
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_git_status END: " << status_symbols << std::endl;
-
     if (is_clean_repo) {
         return "✓";
     } else {
@@ -242,9 +219,6 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
 }
 
 std::string GitInfo::get_local_path(const std::filesystem::path& repo_root) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_local_path START for " << repo_root.string() << std::endl;
-
     std::filesystem::path cwd = std::filesystem::current_path();
     std::string repo_root_path = repo_root.string();
     std::string repo_root_name = repo_root.filename().string();
@@ -261,9 +235,6 @@ std::string GitInfo::get_local_path(const std::filesystem::path& repo_root) {
             result = cwd.filename().string();
         }
     }
-
-    if (g_debug_mode)
-        std::cerr << "DEBUG: get_local_path END: " << result << std::endl;
     return result;
 }
 

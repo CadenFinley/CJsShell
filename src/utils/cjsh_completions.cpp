@@ -72,9 +72,6 @@ struct CompletionTracker {
     }
 
     ~CompletionTracker() {
-        if (g_debug_mode && added_completions.size() > 1000) {
-            std::cerr << "DEBUG: CompletionTracker had large size: " << added_completions.size() << std::endl;
-        }
         added_completions.clear();
     }
 
@@ -113,13 +110,6 @@ struct CompletionTracker {
                     bookmark_result.pop_back();
                     auto bookmark_it = added_completions.find(bookmark_result);
                     if (bookmark_it != added_completions.end() && bookmark_it->second == PRIORITY_BOOKMARK) {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Directory '" << completion_text
-                                      << "' will replace existing bookmark "
-                                         "with same name"
-                                      << std::endl;
-                        }
-
                         added_completions.erase(bookmark_it);
                     }
                 }
@@ -146,9 +136,6 @@ struct CompletionTracker {
         std::string final_result = calculate_final_result(completion_text, 0);
         added_completions[final_result] = get_source_priority(source);
         total_completions_added++;
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Adding unique completion: '" << completion_text << "' -> final: '" << final_result
-                      << "' (total: " << total_completions_added << ")" << std::endl;
         return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
     }
 
@@ -165,9 +152,6 @@ struct CompletionTracker {
         std::string final_result = calculate_final_result(completion_text, delete_before);
         added_completions[final_result] = get_source_priority(source);
         total_completions_added++;
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Adding unique completion (prim): '" << completion_text << "' -> final: '" << final_result
-                      << "' (total: " << total_completions_added << ")" << std::endl;
         return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
     }
 
@@ -194,13 +178,6 @@ struct CompletionTracker {
                     bookmark_result.pop_back();
                     auto bookmark_it = added_completions.find(bookmark_result);
                     if (bookmark_it != added_completions.end() && bookmark_it->second == PRIORITY_BOOKMARK) {
-                        if (g_debug_mode) {
-                            std::cerr << "DEBUG: Directory '" << completion_text
-                                      << "' will replace existing bookmark "
-                                         "with same name"
-                                      << std::endl;
-                        }
-
                         added_completions.erase(bookmark_it);
                     }
                 }
@@ -213,18 +190,9 @@ struct CompletionTracker {
             if (new_priority <= existing_priority) {
                 return true;
             }
-
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Replacing lower priority completion with: '" << completion_text << "' (source: '"
-                          << (source ? source : "null") << "', priority: " << new_priority << " vs existing: " << existing_priority << ")"
-                          << std::endl;
         }
 
         added_completions[final_result] = new_priority;
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Adding unique completion (prim with source): '" << completion_text << "' (source: '"
-                      << (source ? source : "null") << "') -> final: '" << final_result << "' (total: " << total_completions_added << ")"
-                      << std::endl;
         return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
     }
 };
@@ -235,11 +203,6 @@ class CompletionSession {
    public:
     CompletionSession(ic_completion_env_t* cenv, const char* prefix) {
         if (g_current_completion_tracker) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Warning - completion tracker already exists, "
-                             "cleaning up previous session"
-                          << std::endl;
-            }
             delete g_current_completion_tracker;
         }
 
@@ -304,17 +267,12 @@ static bool completion_limit_hit() {
 static bool completion_limit_hit_with_log(const char* label) {
     if (!completion_limit_hit())
         return false;
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Reached completion limit in " << label << std::endl;
     return true;
 }
 
 static bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate, size_t prefix_len, const char* source,
                                    const char* debug_label) {
     long delete_before = static_cast<long>(prefix_len);
-    if (g_debug_mode)
-        std::cerr << "DEBUG: " << debug_label << " completion found: '" << candidate << "' (deleting " << delete_before << " chars before)"
-                  << std::endl;
     return safe_add_completion_prim_with_source(cenv, candidate.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
 
@@ -383,8 +341,6 @@ static bool iterate_directory_entries(ic_completion_env_t* cenv, const std::file
     std::string limit_label = std::string(debug_label) + " completion";
     for (const auto& entry : fs::directory_iterator(dir_path)) {
         if (completion_count >= max_completions) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Limiting " << debug_label << " completions to " << max_completions << " entries" << std::endl;
             break;
         }
         if (ic_stop_completing(cenv))
@@ -402,15 +358,6 @@ static bool iterate_directory_entries(ic_completion_env_t* cenv, const std::file
             continue;
         long delete_before = match_prefix.empty() ? 0 : static_cast<long>(match_prefix.length());
         std::string completion_suffix = build_completion_suffix(entry);
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Adding " << debug_label;
-            if (match_prefix.empty()) {
-                std::cerr << " completion: '" << completion_suffix << "'";
-            } else {
-                std::cerr << " completion (full name): '" << completion_suffix << "' (deleting " << delete_before << " chars before)";
-            }
-            std::cerr << std::endl;
-        }
         if (!add_path_completion(cenv, entry, delete_before, completion_suffix))
             return false;
         ++completion_count;
@@ -586,40 +533,24 @@ bool is_interactive_builtin(const std::string& cmd) {
 CompletionContext detect_completion_context(const char* prefix) {
     std::string prefix_str(prefix);
 
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Detecting completion context for prefix: '" << prefix << "'" << std::endl;
-
     if (prefix_str.find('/') == 0 || prefix_str.find("./") == 0 || prefix_str.find("../") == 0) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Context detected: PATH" << std::endl;
         return CONTEXT_PATH;
     }
 
     std::vector<std::string> tokens = tokenize_command_line(prefix_str);
 
     if (tokens.size() > 1) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Context detected: ARGUMENT (found " << tokens.size() << " tokens)" << std::endl;
         return CONTEXT_ARGUMENT;
     }
 
     size_t last_unquoted_space = find_last_unquoted_space(prefix_str);
     if (last_unquoted_space != std::string::npos) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Context detected: ARGUMENT (incomplete token "
-                         "with spaces)"
-                      << std::endl;
         return CONTEXT_ARGUMENT;
     }
-
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Context detected: COMMAND" << std::endl;
     return CONTEXT_COMMAND;
 }
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Command completer called with prefix: '" << prefix << "'" << std::endl;
 
     if (ic_stop_completing(cenv))
         return;
@@ -691,9 +622,6 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     process_command_candidates(cenv, cached_executables, prefix_str, prefix_len, "system", "cached executables",
                                [](const std::filesystem::path& value) { return value.filename().string(); });
-
-    if (g_debug_mode && !ic_has_completions(cenv))
-        std::cerr << "DEBUG: No command completions found for prefix: '" << prefix << "'" << std::endl;
 }
 
 bool looks_like_file_path(const std::string& str) {
@@ -726,8 +654,6 @@ bool looks_like_file_path(const std::string& str) {
 }
 
 void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: History completer called with prefix: '" << prefix << "'" << std::endl;
 
     if (ic_stop_completing(cenv))
         return;
@@ -744,8 +670,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
     if (!history_file.is_open()) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Failed to open history file: " << cjsh_filesystem::g_cjsh_history_path << std::endl;
         return;
     }
 
@@ -783,9 +707,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         line.clear();
     }
 
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Found " << matches.size() << " history matches for prefix: '" << prefix << "'" << std::endl;
-
     std::sort(matches.begin(), matches.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
     const size_t max_suggestions = 15;
     size_t count = 0;
@@ -796,10 +717,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         const std::string& completion = match.first;
         long delete_before = static_cast<long>(prefix_len);
-
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Adding history completion: '" << match.first << "' -> '" << completion << "' (deleting " << delete_before
-                      << " chars before, freq: " << match.second << ")" << std::endl;
 
         if (!safe_add_completion_prim_with_source(cenv, completion.c_str(), nullptr, nullptr, "history", delete_before, 0))
             return;
@@ -874,8 +791,6 @@ static bool starts_with_token(const std::string& value, const std::string& targe
 }
 
 void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Filename completer called with prefix: '" << prefix << "'" << std::endl;
 
     if (ic_stop_completing(cenv))
         return;
@@ -886,9 +801,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     std::string prefix_str(prefix);
     bool directories_only = should_complete_directories_only(prefix_str);
-
-    if (g_debug_mode && directories_only)
-        std::cerr << "DEBUG: Directory-only completion mode enabled for prefix: '" << prefix << "'" << std::endl;
 
     size_t last_space = find_last_unquoted_space(prefix_str);
 
@@ -922,8 +834,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     if (has_tilde && (special_part.length() == 1 || special_part[1] == '/')) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Processing tilde completion: '" << special_part << "'" << std::endl;
 
         std::string unquoted_special = unquote_path(special_part);
         std::string path_after_tilde = unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
@@ -939,33 +849,23 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         bool treat_as_directory = !unquoted_special.empty() && unquoted_special.back() == '/';
         determine_directory_target(dir_to_complete, treat_as_directory, dir_path, match_prefix);
 
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Looking in directory: '" << dir_path << "'" << std::endl;
-            std::cerr << "DEBUG: Matching prefix: '" << match_prefix << "'" << std::endl;
-        }
-
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false, "tilde"))
                     return;
             }
         } catch (const std::exception& e) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Error reading directory: " << e.what() << std::endl;
+
         }
 
         return;
     } else if (has_dash && (special_part.length() == 1 || special_part[1] == '/')) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Processing dash completion for previous directory: '" << special_part << "'" << std::endl;
 
         std::string unquoted_special = unquote_path(special_part);
         std::string path_after_dash = unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
         std::string dir_to_complete = g_shell->get_previous_directory();
 
         if (dir_to_complete.empty()) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: No previous directory set" << std::endl;
             return;
         }
 
@@ -979,19 +879,12 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         bool treat_as_directory = !unquoted_special.empty() && unquoted_special.back() == '/';
         determine_directory_target(dir_to_complete, treat_as_directory, dir_path, match_prefix);
 
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Looking in directory: '" << dir_path << "'" << std::endl;
-            std::cerr << "DEBUG: Matching prefix: '" << match_prefix << "'" << std::endl;
-        }
-
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false, "dash"))
                     return;
             }
         } catch (const std::exception& e) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Error reading directory: " << e.what() << std::endl;
         }
 
         return;
@@ -1007,11 +900,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         if (equals_completion_token(command_part, "cd") || starts_with_token(command_part, "cd ")) {
             if (!config::smart_cd_enabled) {
             } else {
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Processing bookmark completions for "
-                                 "cd command "
-                                 "with prefix: '"
-                              << special_part << "'" << std::endl;
 
                 if (g_shell && g_shell->get_built_ins()) {
                     const auto& bookmarks = g_shell->get_built_ins()->get_directory_bookmarks();
@@ -1032,12 +920,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                 size_t delete_before = special_part.length();
 
                                 std::string completion_text = bookmark_name;
-
-                                if (g_debug_mode)
-                                    std::cerr << "DEBUG: Adding bookmark "
-                                                 "completion: '"
-                                              << bookmark_name << "' -> '" << completion_text << "' (deleting " << delete_before
-                                              << " chars before)" << std::endl;
 
                                 if (!safe_add_completion_prim_with_source(cenv, completion_text.c_str(), NULL, NULL, "bookmark",
                                                                           delete_before, 0))
@@ -1061,10 +943,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     return;
             }
         } catch (const std::exception& e) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Error reading directory for all files "
-                             "completion: "
-                          << e.what() << std::endl;
         }
         return;
     }
@@ -1084,14 +962,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     return;
             }
         } catch (const std::exception& e) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Error in directory-only completion: " << e.what() << std::endl;
         }
     } else {
         std::string path_to_complete = special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
-
-        if (g_debug_mode)
-            std::cerr << "DEBUG: General filename completion for unquoted path: '" << path_to_complete << "'" << std::endl;
 
         namespace fs = std::filesystem;
         fs::path dir_path;
@@ -1105,22 +978,11 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     return;
             }
         } catch (const std::exception& e) {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Error in general filename completion: " << e.what() << std::endl;
         }
-    }
-
-    if (g_debug_mode) {
-        if (ic_has_completions(cenv))
-            std::cerr << "DEBUG: Filename completions found for prefix: '" << prefix << "'" << std::endl;
-        else
-            std::cerr << "DEBUG: No filename completions found for prefix: '" << prefix << "'" << std::endl;
     }
 }
 
 void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Default completer called with prefix: '" << prefix << "'" << std::endl;
 
     if (ic_stop_completing(cenv))
         return;
@@ -1154,10 +1016,6 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::vector<std::string> tokens = tokenize_command_line(prefix_str);
 
             if (!tokens.empty() && equals_completion_token(tokens[0], "cd")) {
-                if (g_debug_mode)
-                    std::cerr << "DEBUG: Detected cd command, using only "
-                                 "filename completion"
-                              << std::endl;
                 cjsh_filename_completer(cenv, prefix);
             } else {
                 cjsh_history_completer(cenv, prefix);
@@ -1169,8 +1027,6 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 }
 
 void initialize_completion_system() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing completion system" << std::endl;
 
     reset_to_default_styles();
 
@@ -1208,12 +1064,6 @@ void initialize_completion_system() {
 }
 
 void update_completion_frequency(const std::string& command) {
-    if (g_debug_mode) {
-        if (!command.empty())
-            std::cerr << "DEBUG: Updating completion frequency for command: '" << command << "'" << std::endl;
-        else
-            std::cerr << "DEBUG: Skipped updating frequency (empty command)" << std::endl;
-    }
 
     if (!command.empty()) {
         g_completion_frequency[command]++;
@@ -1221,17 +1071,9 @@ void update_completion_frequency(const std::string& command) {
 }
 
 void cleanup_completion_system() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Cleaning up completion system memory" << std::endl;
-    }
-
     if (g_current_completion_tracker) {
         delete g_current_completion_tracker;
         g_current_completion_tracker = nullptr;
-    }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Completion system cleanup completed" << std::endl;
     }
 }
 
@@ -1241,10 +1083,4 @@ void set_completion_case_sensitive(bool case_sensitive) {
 
 bool is_completion_case_sensitive() {
     return g_completion_case_sensitive;
-}
-
-void refresh_cached_executables() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Cached executables refreshed for completion system" << std::endl;
-    }
 }

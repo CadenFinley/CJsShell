@@ -121,11 +121,6 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
         theme_name_to_use = "default";
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Loading theme '" << theme_name_to_use << "', startup_active=" << (g_startup_active ? "true" : "false")
-                  << std::endl;
-    }
-
     std::filesystem::path theme_path = resolve_theme_file(theme_name_to_use);
     std::string theme_file = theme_path.string();
 
@@ -306,14 +301,7 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
 size_t Theme::get_terminal_width() const {
     struct winsize w;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
-        if (g_debug_mode) {
-            std::cout << "Detected terminal width: " << w.ws_col << " columns" << std::endl;
-        }
         return w.ws_col;
-    }
-
-    if (g_debug_mode) {
-        print_error({ErrorType::RUNTIME_ERROR, "get_terminal_width", "Failed to detect terminal width, defaulting to 80 columns.", {}});
     }
     return 80;
 }
@@ -561,10 +549,6 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
         size_t pad = 0;
         if (w > total_content_width) {
             pad = w - total_content_width;
-
-            if (g_debug_mode) {
-                std::cout << "Raw pad calculation: " << pad << " chars" << std::endl;
-            }
         }
 
         std::string fill;
@@ -609,47 +593,30 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
         }
     }
     out += colors::ansi::RESET;
-    if (g_debug_mode) {
-        std::cout << "\nCombined render:\n" << out << std::endl;
-        std::cout << "Terminal width: " << w << " chars" << std::endl;
-        std::cout << "Left segments width: " << lL << " chars" << std::endl;
-        std::cout << "Center segments width: " << lC << " chars" << std::endl;
-        std::cout << "Right segments width: " << lR << " chars" << std::endl;
-        std::cout << "Total content width: " << (lL + lC + lR) << " chars" << std::endl;
-        std::cout << "Final rendered width: " << calculate_raw_length(out) << " chars" << std::endl;
-    }
     return out;
 }
 
 std::string Theme::get_ps1_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(ps1_segments, vars);
     last_ps1_raw_length = calculate_raw_length(result);
-    if (g_debug_mode)
-        std::cout << "Last PS1 raw length: " << last_ps1_raw_length << std::endl;
     return result;
 }
 
 std::string Theme::get_git_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(git_segments, vars);
     last_git_raw_length = calculate_raw_length(result);
-    if (g_debug_mode)
-        std::cout << "Last Git raw length: " << last_git_raw_length << std::endl;
     return result;
 }
 
 std::string Theme::get_ai_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(ai_segments, vars);
     last_ai_raw_length = calculate_raw_length(result);
-    if (g_debug_mode)
-        std::cout << "Last AI raw length: " << last_ai_raw_length << std::endl;
     return result;
 }
 
 std::string Theme::get_newline_prompt(const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(newline_segments, vars);
     last_newline_raw_length = calculate_raw_length(result);
-    if (g_debug_mode)
-        std::cout << "Last newline raw length: " << last_newline_raw_length << std::endl;
     return result;
 }
 
@@ -658,8 +625,6 @@ std::string Theme::get_inline_right_prompt(const std::unordered_map<std::string,
         return "";
     }
     auto result = render_line_aligned(inline_right_segments, vars);
-    if (g_debug_mode)
-        std::cout << "Inline right prompt: " << result << std::endl;
     return result;
 }
 
@@ -747,10 +712,6 @@ std::string Theme::escape_brackets_for_isocline(const std::string& input) const 
         ++i;
     }
 
-    if (g_debug_mode) {
-        std::cout << "After bracket escaping: " << result << std::endl;
-    }
-
     return result;
 }
 
@@ -787,23 +748,14 @@ std::string Theme::process_conditionals(const std::string& line, const std::unor
 }
 
 std::string Theme::evaluate_conditional(const std::string& expr, const std::unordered_map<std::string, std::string>& vars) const {
-    if (g_debug_mode) {
-        std::cout << "Evaluating conditional: " << expr << std::endl;
-    }
 
     size_t question_pos = expr.find('?');
     if (question_pos == std::string::npos) {
-        if (g_debug_mode) {
-            std::cout << "No '?' found in conditional expression" << std::endl;
-        }
         return "";
     }
 
     size_t colon_pos = expr.find(':', question_pos + 1);
     if (colon_pos == std::string::npos) {
-        if (g_debug_mode) {
-            std::cout << "No ':' found in conditional expression" << std::endl;
-        }
         return "";
     }
 
@@ -811,17 +763,7 @@ std::string Theme::evaluate_conditional(const std::string& expr, const std::unor
     std::string true_value = expr.substr(question_pos + 1, colon_pos - question_pos - 1);
     std::string false_value = expr.substr(colon_pos + 1);
 
-    if (g_debug_mode) {
-        std::cout << "Condition: '" << condition << "'" << std::endl;
-        std::cout << "True value: '" << true_value << "'" << std::endl;
-        std::cout << "False value: '" << false_value << "'" << std::endl;
-    }
-
     bool condition_result = evaluate_condition(condition, vars);
-
-    if (g_debug_mode) {
-        std::cout << "Condition result: " << (condition_result ? "true" : "false") << std::endl;
-    }
 
     std::string selected_value = condition_result ? true_value : false_value;
 
@@ -889,10 +831,6 @@ bool Theme::evaluate_comparison(const std::string& condition, const std::string&
 
     std::string left_value = resolve_value(left, vars);
     std::string right_value = resolve_value(right, vars);
-
-    if (g_debug_mode) {
-        std::cout << "Comparing: '" << left_value << "' " << op << " '" << right_value << "'" << std::endl;
-    }
 
     if (op == "==") {
         return left_value == right_value;
@@ -978,10 +916,6 @@ std::string Theme::render_line(const std::string& line, const std::unordered_map
     }
 
     result = escape_brackets_for_isocline(result);
-
-    if (g_debug_mode) {
-        std::cout << "Rendered line: \n" << result << " With length: " << result.length() << std::endl;
-    }
     return result;
 }
 
@@ -1214,11 +1148,5 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
     }
 
     size_t raw_length = utf8_utils::calculate_display_width(str_without_isocline_escapes, &ansi_chars, &visible_chars);
-
-    if (g_debug_mode) {
-        std::cout << "String length: " << str.size() << " bytes, Visible chars: " << visible_chars << ", ANSI chars: " << ansi_chars
-                  << ", Raw display width: " << raw_length << std::endl;
-    }
-
     return raw_length;
 }
