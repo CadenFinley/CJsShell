@@ -1,5 +1,6 @@
 #include "export_command.h"
 
+#include <cerrno>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -7,12 +8,8 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "error_out.h"
 #include "readonly_command.h"
-
-#define PRINT_ERROR(MSG)          \
-    do {                          \
-        std::cerr << MSG << '\n'; \
-    } while (0)
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() == 1) {
@@ -30,8 +27,10 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         std::string name, value;
         if (parse_env_assignment(args[i], name, value)) {
             if (ReadonlyManager::instance().is_readonly(name)) {
-                std::cerr << "export: " << name << ": readonly variable"
-                          << std::endl;
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "export",
+                             name + ": readonly variable",
+                             {}});
                 all_successful = false;
                 continue;
             }
@@ -61,7 +60,10 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                               << "='" << env_val << "'" << std::endl;
                 }
             } else {
-                PRINT_ERROR("export: " + args[i] + ": not found");
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "export",
+                             args[i] + ": not found",
+                             {}});
                 all_successful = false;
             }
         }
@@ -76,7 +78,10 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
 int unset_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        PRINT_ERROR("unset: not enough arguments");
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "unset",
+                     "not enough arguments",
+                     {}});
         return 1;
     }
 
@@ -87,8 +92,10 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& name = args[i];
 
         if (ReadonlyManager::instance().is_readonly(name)) {
-            std::cerr << "unset: " << name << ": readonly variable"
-                      << std::endl;
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "unset",
+                         name + ": readonly variable",
+                         {}});
             success = false;
             continue;
         }
@@ -96,8 +103,11 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
         env_vars.erase(name);
 
         if (unsetenv(name.c_str()) != 0) {
-            PRINT_ERROR(std::string("unset: error unsetting ") + name + ": " +
-                        strerror(errno));
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "unset",
+                         std::string("error unsetting ") + name +
+                             ": " + strerror(errno),
+                         {}});
             success = false;
         } else {
             if (g_debug_mode) {
@@ -182,8 +192,11 @@ int save_env_var_to_file(const std::string& name, const std::string& value,
                       << config_path.string() << std::endl;
         }
     } else {
-        PRINT_ERROR("export: unable to open config file for writing at " +
-                    config_path.string());
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "export",
+                     "unable to open config file for writing at " +
+                         config_path.string(),
+                     {}});
     }
     return 0;
 }
@@ -226,8 +239,11 @@ int remove_env_var_from_file(const std::string& name, bool login_mode) {
                       << config_path.string() << std::endl;
         }
     } else {
-        PRINT_ERROR("unset: unable to open config file for writing at " +
-                    config_path.string());
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "unset",
+                     "unable to open config file for writing at " +
+                         config_path.string(),
+                     {}});
     }
     return 0;
 }

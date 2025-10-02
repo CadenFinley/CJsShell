@@ -1,9 +1,13 @@
 #include "times_command.h"
 #include <sys/times.h>
 #include <unistd.h>
+#include <cerrno>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+
+#include "error_out.h"
 
 int times_command(const std::vector<std::string>& args, Shell* shell) {
     (void)args;
@@ -13,13 +17,20 @@ int times_command(const std::vector<std::string>& args, Shell* shell) {
     clock_t wall_time = times(&time_buf);
 
     if (wall_time == (clock_t)-1) {
-        perror("times");
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "times",
+                     std::string("system call failed: ") +
+                         std::strerror(errno),
+                     {}});
         return 1;
     }
 
     long clock_ticks = sysconf(_SC_CLK_TCK);
     if (clock_ticks <= 0) {
-        std::cerr << "times: unable to get clock ticks per second" << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "times",
+                     "unable to get clock ticks per second",
+                     {}});
         return 1;
     }
 

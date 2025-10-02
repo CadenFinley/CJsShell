@@ -1,18 +1,23 @@
 #include "getopts_command.h"
 #include <cstdlib>
-#include <iostream>
 #include "cjsh.h"
+#include "error_out.h"
 #include "shell.h"
 
 int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     if (!shell) {
-        std::cerr << "getopts: shell not available" << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "getopts",
+                     "shell not available",
+                     {}});
         return 1;
     }
 
     if (args.size() < 2) {
-        std::cerr << "getopts: usage: getopts optstring name [args...]"
-                  << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "getopts",
+                     "usage: getopts optstring name [args...]",
+                     {}});
         return 1;
     }
 
@@ -105,7 +110,10 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
             return 0;
         }
 
-        std::cerr << "getopts: illegal option -- " << opt << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "getopts",
+                     std::string("illegal option -- ") + opt,
+                     {}});
         return 0;
     }
 
@@ -129,8 +137,11 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
                     setenv(name.c_str(), ":", 1);
                     setenv("OPTARG", opt_val.c_str(), 1);
                 } else {
-                    std::cerr << "getopts: option requires an argument -- "
-                              << opt << std::endl;
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "getopts",
+                                 std::string("option requires an argument -- ") +
+                                     opt,
+                                 {}});
                     setenv(name.c_str(), "?", 1);
                     setenv("OPTARG", opt_val.c_str(), 1);
                 }

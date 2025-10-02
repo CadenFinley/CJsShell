@@ -1,6 +1,8 @@
 #include "read_command.h"
 #include <unistd.h>
+#include <cerrno>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <sstream>
 #include "error_out.h"
@@ -94,8 +96,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                          "implemented and will return an error.\n";
             return 0;
         } else if (arg[0] == '-') {
-            std::cerr << "read: invalid option -- '" << arg << "'\n";
-            std::cerr << "Try 'read --help' for more information.\n";
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "read",
+                         "invalid option -- '" + arg + "'",
+                         {"Try 'read --help' for more information."}});
             return 1;
         } else {
             var_names.push_back(arg);
@@ -197,7 +201,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& var_name = var_names[i];
 
         if (ReadonlyManager::instance().is_readonly(var_name)) {
-            std::cerr << "read: " << var_name << ": readonly variable\n";
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "read",
+                         var_name + ": readonly variable",
+                         {}});
             return 1;
         }
 
@@ -215,7 +222,11 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (setenv(var_name.c_str(), value.c_str(), 1) != 0) {
-            perror("read: setenv");
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "read",
+                         std::string("failed to set ") + var_name +
+                             ": " + std::strerror(errno),
+                         {}});
             return 1;
         }
 

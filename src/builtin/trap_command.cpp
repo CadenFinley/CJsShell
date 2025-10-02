@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include "cjsh.h"
+#include "error_out.h"
 #include "shell.h"
 
 static const std::unordered_map<std::string, int> signal_map = {
@@ -249,7 +250,10 @@ int trap_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() < 3) {
-        std::cerr << "trap: usage: trap [-lp] [arg] [signal ...]" << std::endl;
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "trap",
+                     "usage: trap [-lp] [arg] [signal ...]",
+                     {}});
         return 2;
     }
 
@@ -258,10 +262,12 @@ int trap_command(const std::vector<std::string>& args) {
 
     for (size_t i = 2; i < args.size(); ++i) {
         int signal_num = signal_name_to_number(args[i]);
-        if (signal_num == -1) {
-            std::cerr << "trap: " << args[i] << ": invalid signal specification"
-                      << std::endl;
-            return 1;
+            if (signal_num == -1) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "trap",
+                             args[i] + ": invalid signal specification",
+                             {}});
+                return 1;
         }
 
         if (command.empty() || command == "-") {

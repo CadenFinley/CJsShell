@@ -251,8 +251,11 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
                         multi_column_across = true;
                         break;
                     default:
-                        std::cerr << "ls: unknown option: -" << args[i][j]
-                                  << std::endl;
+                        print_error({ErrorType::INVALID_ARGUMENT,
+                                     "ls",
+                                     std::string("unknown option: -") +
+                                         args[i][j],
+                                     {"Try 'ls --help' for usage."}});
                         return 1;
                 }
             }
@@ -315,7 +318,10 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
                 << std::endl;
             return 0;
         } else if (args[i][0] == '-') {
-            std::cerr << "ls: unknown option: " << args[i] << std::endl;
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "ls",
+                         "unknown option: " + args[i],
+                         {"Try 'ls --help' for usage."}});
             return 1;
         } else {
             path = args[i];
@@ -712,8 +718,11 @@ int list_directory(const std::string& path, bool show_hidden,
         } else if (std::filesystem::is_directory(fs_path, ec)) {
             auto dir_iter = std::filesystem::directory_iterator(path, ec);
             if (ec) {
-                std::cerr << "ls: cannot open directory '" << path
-                          << "': " << ec.message() << std::endl;
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "ls",
+                             "cannot open directory '" + path +
+                                 "': " + ec.message(),
+                             {}});
                 return 1;
             }
 
@@ -1046,7 +1055,10 @@ int list_directory(const std::string& path, bool show_hidden,
 
         return 0;
     } catch (const std::filesystem::filesystem_error& ex) {
-        std::cerr << "ls: " << ex.what() << std::endl;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "ls",
+                     ex.what(),
+                     {}});
         return 1;
     }
 }
