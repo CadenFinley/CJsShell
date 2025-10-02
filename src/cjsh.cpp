@@ -86,7 +86,7 @@ bool secure_mode = false;
 bool show_title_line = true;
 }  // namespace config
 
-// add --tiny option to disable all extra cjsh compoenents at compile time
+// add --tiny option nob build system to disable all extra cjsh compoenents at compile time and not compile theme to cjsh binary
 // cleanup and refactor parser
 
 static void save_startup_arguments(int argc, char* argv[]) {
