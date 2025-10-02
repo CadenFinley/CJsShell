@@ -247,6 +247,16 @@ void replace_all_instances(std::string& target, const std::string& from,
     }
 }
 
+bool replace_first_instance(std::string& target, const std::string& from,
+                            const std::string& to) {
+    size_t pos = target.find(from);
+    if (pos == std::string::npos) {
+        return false;
+    }
+    target.replace(pos, from.length(), to);
+    return true;
+}
+
 ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     ProcessSubstitutionResources resources;
 
@@ -360,30 +370,44 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
             resources.child_pids.push_back(pid);
             resources.fifo_paths.push_back(fifo_path);
 
+            bool replaced_arg = false;
             for (auto& arg : cmd.args) {
-                replace_all_instances(arg, proc_sub, fifo_path);
+                if (replace_first_instance(arg, proc_sub, fifo_path)) {
+                    replaced_arg = true;
+                    break;
+                }
             }
 
             // Update redirection targets that might include the substitution
             // token
             if (!cmd.input_file.empty()) {
-                replace_all_instances(cmd.input_file, proc_sub, fifo_path);
+                replace_first_instance(cmd.input_file, proc_sub, fifo_path);
             }
             if (!cmd.output_file.empty()) {
-                replace_all_instances(cmd.output_file, proc_sub, fifo_path);
+                replace_first_instance(cmd.output_file, proc_sub, fifo_path);
             }
             if (!cmd.append_file.empty()) {
-                replace_all_instances(cmd.append_file, proc_sub, fifo_path);
+                replace_first_instance(cmd.append_file, proc_sub, fifo_path);
             }
             if (!cmd.stderr_file.empty()) {
-                replace_all_instances(cmd.stderr_file, proc_sub, fifo_path);
+                replace_first_instance(cmd.stderr_file, proc_sub, fifo_path);
             }
             if (!cmd.both_output_file.empty()) {
-                replace_all_instances(cmd.both_output_file, proc_sub,
+                replace_first_instance(cmd.both_output_file, proc_sub,
                                       fifo_path);
             }
             for (auto& [fd, path] : cmd.fd_redirections) {
-                replace_all_instances(path, proc_sub, fifo_path);
+                replace_first_instance(path, proc_sub, fifo_path);
+            }
+
+            if (!replaced_arg) {
+                // If we didn't find a direct match in args, fall back to
+                // replacing all occurrences in case the token appeared in
+                // multiple locations (e.g., command substitution inside
+                // redirections)
+                for (auto& arg : cmd.args) {
+                    replace_all_instances(arg, proc_sub, fifo_path);
+                }
             }
         }
     } catch (...) {
@@ -931,6 +955,29 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
     std::vector<std::string> cmd_args(args.begin() + cmd_start_idx, args.end());
 
+    Command proc_cmd;
+    proc_cmd.args = cmd_args;
+    for (const auto& arg : cmd_args) {
+        if (arg.size() >= 4 && arg.back() == ')' &&
+            (arg.rfind("<(", 0) == 0 || arg.rfind(">(", 0) == 0)) {
+            proc_cmd.process_substitutions.push_back(arg);
+        }
+    }
+
+    ProcessSubstitutionResources proc_resources;
+    if (!proc_cmd.process_substitutions.empty()) {
+        try {
+            proc_resources = setup_process_substitutions(proc_cmd);
+            cmd_args = proc_cmd.args;
+        } catch (const std::exception& e) {
+            set_error(ErrorType::RUNTIME_ERROR,
+                      cmd_args.empty() ? "command" : cmd_args[0],
+                      e.what(), {});
+            last_exit_code = EX_OSERR;
+            return EX_OSERR;
+        }
+    }
+
     pid_t pid = fork();
 
     if (pid == -1) {
@@ -939,6 +986,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
                   "failed to fork process: " + std::string(strerror(errno)),
                   {});
         last_exit_code = EX_OSERR;
+        cleanup_process_substitutions(proc_resources, true);
         return EX_OSERR;
     }
 
@@ -971,7 +1019,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         sigaddset(&set, SIGTERM);
         sigprocmask(SIG_UNBLOCK, &set, nullptr);
 
-        auto c_args = build_exec_argv(cmd_args);
+    auto c_args = build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
 
         // execvp failed - save errno immediately and determine exit code inline
@@ -1063,6 +1111,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     set_error(exit_result.type, args[0], exit_result.message,
               exit_result.suggestions);
     last_exit_code = exit_code;
+
+    cleanup_process_substitutions(proc_resources, false);
 
     // Auto-update executable cache for successful external commands
     if (exit_code == 0 && !cmd_args.empty()) {

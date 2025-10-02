@@ -2718,7 +2718,12 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             } else {
                 if ((tok.find("<(") == 0 && tok.back() == ')') ||
                     (tok.find(">(") == 0 && tok.back() == ')')) {
+                    if (g_debug_mode) {
+                        std::cerr << "DEBUG: detected process substitution token '"
+                                  << tok << "'" << std::endl;
+                    }
                     cmd.process_substitutions.push_back(tok);
+                    filtered_args.push_back(tokens[i]);
                 } else {
                     filtered_args.push_back(tokens[i]);
                 }
@@ -2830,6 +2835,27 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             // by the shell's error handling The shell will generate proper
             // suggestions in the error report
             throw std::runtime_error("command not found: " + cmd.args[0]);
+        }
+
+        if (g_debug_mode) {
+            std::cerr << "DEBUG: parser finalized command with "
+                      << cmd.args.size() << " args";
+            if (!cmd.args.empty()) {
+                std::cerr << ":";
+                for (const auto& arg : cmd.args) {
+                    std::cerr << " '" << arg << "'";
+                }
+            }
+            std::cerr << std::endl;
+            if (!cmd.process_substitutions.empty()) {
+                std::cerr << "DEBUG: parser stored "
+                          << cmd.process_substitutions.size()
+                          << " process substitution token(s):";
+                for (const auto& ps : cmd.process_substitutions) {
+                    std::cerr << " '" << ps << "'";
+                }
+                std::cerr << std::endl;
+            }
         }
 
         commands.push_back(cmd);
