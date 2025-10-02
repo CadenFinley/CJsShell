@@ -566,7 +566,6 @@ int ShellScriptInterpreter::execute_block(
         if (cond.empty())
             return 1;
 
-        
         std::string processed_cond = cond;
         size_t pos = 0;
         while ((pos = processed_cond.find("$((", pos)) != std::string::npos) {
@@ -574,7 +573,6 @@ int ShellScriptInterpreter::execute_block(
             size_t depth = 1;
             size_t end = start;
 
-            
             while (end < processed_cond.length() && depth > 0) {
                 if (end + 1 < processed_cond.length() &&
                     processed_cond.substr(end, 2) == "((") {
@@ -599,11 +597,9 @@ int ShellScriptInterpreter::execute_block(
                               << expr << "'))" << std::endl;
                 }
 
-                
                 shell_parser->expand_env_vars(expr);
 
                 try {
-                    
                     long long result = shell_parser->evaluate_arithmetic(expr);
                     std::string result_str = std::to_string(result);
 
@@ -630,7 +626,6 @@ int ShellScriptInterpreter::execute_block(
 
         cond = processed_cond;
 
-        
         cond = handle_parentheses(cond);
 
         bool has_logical_ops = false;
@@ -1004,8 +999,6 @@ int ShellScriptInterpreter::execute_block(
 
             auto get_variable_value =
                 [&](const std::string& name) -> long long {
-                
-                
                 if (g_shell) {
                     const auto& env_vars = g_shell->get_env_vars();
                     auto it = env_vars.find(name);
@@ -1018,8 +1011,6 @@ int ShellScriptInterpreter::execute_block(
                     }
                 }
 
-                
-                
                 const char* env_val = getenv(name.c_str());
                 if (env_val) {
                     try {
@@ -1038,9 +1029,6 @@ int ShellScriptInterpreter::execute_block(
                 if (g_shell) {
                     g_shell->get_env_vars()[name] = value_str;
 
-                    
-                    
-                    
                     if (name == "PATH" || name == "PWD" || name == "HOME" ||
                         name == "USER" || name == "SHELL") {
                         setenv(name.c_str(), value_str.c_str(), 1);
@@ -1629,7 +1617,7 @@ int ShellScriptInterpreter::execute_block(
                                     print_runtime_error(
                                         "cjsh: " + std::string(e.what()),
                                         "$((" + expr + "))");
-                                
+
                                 throw;
                             }
                             i = end_idx;
@@ -1767,8 +1755,6 @@ int ShellScriptInterpreter::execute_block(
                     return execute_block(nested_lines);
                 }
 
-                
-                
                 if (prog == "if" || prog.rfind("if ", 0) == 0 ||
                     prog == "for" || prog.rfind("for ", 0) == 0 ||
                     prog == "while" || prog.rfind("while ", 0) == 0) {
@@ -1782,13 +1768,12 @@ int ShellScriptInterpreter::execute_block(
                 }
             }
         } catch (const std::runtime_error& e) {
-            
             if (g_debug_mode) {
                 std::cerr
                     << "DEBUG: Caught runtime error in expand_substitutions: "
                     << e.what() << std::endl;
             }
-            
+
             throw;
         }
 
@@ -1889,7 +1874,6 @@ int ShellScriptInterpreter::execute_block(
                                 int exit_code =
                                     g_shell->execute(subshell_content);
 
-                                
                                 const char* exit_code_str = getenv("EXIT_CODE");
                                 if (exit_code_str) {
                                     exit_code = std::atoi(exit_code_str);
@@ -1948,11 +1932,6 @@ int ShellScriptInterpreter::execute_block(
                                 auto& env_vars = g_shell->get_env_vars();
                                 env_vars[var_name] = var_value;
 
-                                
-                                
-                                
-                                
-                                
                                 if (var_name == "PATH" || var_name == "PWD" ||
                                     var_name == "HOME" || var_name == "USER" ||
                                     var_name == "SHELL") {
@@ -1969,14 +1948,10 @@ int ShellScriptInterpreter::execute_block(
                         }
                     }
 
-                    
-                    
                     if (!expanded_args.empty() && g_shell &&
                         g_shell->get_built_ins() &&
                         !g_shell->get_built_ins()->is_builtin_command(
                             expanded_args[0])) {
-                        
-                        
                         bool is_function =
                             functions.count(expanded_args[0]) > 0;
                         bool is_plugin = false;
@@ -1997,8 +1972,6 @@ int ShellScriptInterpreter::execute_block(
                         }
 
                         if (!is_function && !is_plugin) {
-                            
-                            
                             if (g_debug_mode) {
                                 std::cerr << "DEBUG: Re-parsing external "
                                              "command with exported vars only: "
@@ -2022,7 +1995,6 @@ int ShellScriptInterpreter::execute_block(
                         }
                     }
 
-                    
                     if (!expanded_args.empty() &&
                         functions.count(expanded_args[0])) {
                         if (g_debug_mode) {
@@ -2146,36 +2118,29 @@ int ShellScriptInterpreter::execute_block(
             std::string error_msg = e.what();
 
             if (error_msg.find("command not found: ") != std::string::npos) {
-                
                 size_t pos = error_msg.find("command not found: ");
                 if (pos != std::string::npos) {
-                    std::string command_name = error_msg.substr(
-                        pos + 19);  
+                    std::string command_name = error_msg.substr(pos + 19);
 
-                    
                     auto suggestions =
                         suggestion_utils::generate_command_suggestions(
                             command_name);
 
-                    
                     error.message = "cjsh: command not found: " + command_name;
                     error.severity = ErrorSeverity::ERROR;
                     error.category = ErrorCategory::COMMANDS;
                     error.error_code = "RUN001";
 
-                    
                     if (!suggestions.empty()) {
                         std::string suggestion_text;
-                        
+
                         std::vector<std::string> commands;
                         for (const auto& suggestion : suggestions) {
                             if (suggestion.find("Did you mean") !=
                                 std::string::npos) {
-                                
-                                
                                 size_t start = suggestion.find("'");
                                 if (start != std::string::npos) {
-                                    start++;  
+                                    start++;
                                     size_t end = suggestion.find("'", start);
                                     if (end != std::string::npos) {
                                         commands.push_back(suggestion.substr(
@@ -2195,8 +2160,6 @@ int ShellScriptInterpreter::execute_block(
                             }
                             suggestion_text += "?";
                         } else {
-                            
-                            
                             suggestion_text = suggestions.empty()
                                                   ? "Check command syntax and "
                                                     "system resources"
@@ -2497,10 +2460,8 @@ int ShellScriptInterpreter::execute_block(
             std::string rem = trim(first.substr(pos + 6));
 
             if (!rem.empty()) {
-                
-                
                 size_t fi_pos = std::string::npos;
-                int if_depth = 1;  
+                int if_depth = 1;
                 size_t search_pos = 0;
                 bool in_quotes = false;
                 char quote_char = '\0';
@@ -2515,16 +2476,14 @@ int ShellScriptInterpreter::execute_block(
                         in_quotes = false;
                         quote_char = '\0';
                     } else if (!in_quotes) {
-                        
                         if (search_pos + 3 < rem.length() &&
                             rem.substr(search_pos, 3) == "if ") {
                             if_depth++;
                             search_pos += 2;
                         }
-                        
+
                         else if (search_pos + 2 <= rem.length() &&
                                  rem.substr(search_pos, 2) == "fi") {
-                            
                             bool is_word_start =
                                 (search_pos == 0 ||
                                  !std::isalnum(rem[search_pos - 1]));
@@ -2551,8 +2510,6 @@ int ShellScriptInterpreter::execute_block(
                         std::string then_body = body;
                         std::string else_body;
 
-                        
-                        
                         size_t else_pos = std::string::npos;
                         int nested_if_depth = 0;
                         size_t search_else = 0;
@@ -2570,13 +2527,12 @@ int ShellScriptInterpreter::execute_block(
                                 in_quotes = false;
                                 quote_char = '\0';
                             } else if (!in_quotes) {
-                                
                                 if (search_else + 3 < body.length() &&
                                     body.substr(search_else, 3) == "if ") {
                                     nested_if_depth++;
                                     search_else += 2;
                                 }
-                                
+
                                 else if (search_else + 2 <= body.length() &&
                                          body.substr(search_else, 2) == "fi") {
                                     bool is_word_start =
@@ -2590,7 +2546,7 @@ int ShellScriptInterpreter::execute_block(
                                         nested_if_depth--;
                                     }
                                 }
-                                
+
                                 else if (nested_if_depth == 0) {
                                     if (search_else + 6 < body.length() &&
                                         body.substr(search_else, 6) ==
@@ -2646,13 +2602,12 @@ int ShellScriptInterpreter::execute_block(
         std::vector<std::string> then_lines;
         std::vector<std::string> else_lines;
 
-        
         bool is_simple_single_line = false;
 
         if (src_lines.size() == 1 &&
             src_lines[0].find("fi") != std::string::npos) {
             std::string line = src_lines[0];
-            
+
             size_t if_count = 0;
             size_t fi_count = 0;
             size_t pos = 0;
@@ -2661,10 +2616,9 @@ int ShellScriptInterpreter::execute_block(
                 pos += 4;
             }
             if (line.rfind("if ", 0) == 0)
-                if_count++;  
+                if_count++;
             pos = 0;
             while ((pos = line.find("fi", pos)) != std::string::npos) {
-                
                 bool is_word =
                     (pos == 0 || !std::isalnum(line[pos - 1])) &&
                     (pos + 2 >= line.length() || !std::isalnum(line[pos + 2]));
@@ -2852,8 +2806,6 @@ int ShellScriptInterpreter::execute_block(
                 depth++;
             } else if (cur.find("; then") != std::string::npos ||
                        cur.find(";then") != std::string::npos) {
-                
-                
                 if (cur.rfind("if ", 0) == 0 || cur == "if") {
                     depth++;
                 }
@@ -3009,8 +2961,7 @@ int ShellScriptInterpreter::execute_block(
             if (range_info.is_range) {
                 auto execute_range_iteration = [&](int value) -> int {
                     std::string value_str = std::to_string(value);
-                    
-                    
+
                     if (g_shell) {
                         auto& env_vars = g_shell->get_env_vars();
                         env_vars[var] = value_str;
@@ -3057,8 +3008,6 @@ int ShellScriptInterpreter::execute_block(
             } else {
                 bool break_outer = false;
                 for (const auto& it : items) {
-                    
-                    
                     if (g_shell) {
                         auto& env_vars = g_shell->get_env_vars();
                         env_vars[var] = it;
@@ -3164,8 +3113,7 @@ int ShellScriptInterpreter::execute_block(
                 int rc_local = 0;
                 while (step > 0 ? value <= end : value >= end) {
                     std::string value_str = std::to_string(value);
-                    
-                    
+
                     if (g_shell) {
                         auto& env_vars = g_shell->get_env_vars();
                         env_vars[var] = value_str;
@@ -3194,8 +3142,6 @@ int ShellScriptInterpreter::execute_block(
                                     range_info.is_ascending ? 1 : -1);
         } else {
             for (const auto& it : items) {
-                
-                
                 if (g_shell) {
                     auto& env_vars = g_shell->get_env_vars();
                     env_vars[var] = it;
@@ -4212,7 +4158,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
                           << std::endl;
                 return var_value;
             }
-            
+
             if (g_shell) {
                 auto& env_vars = g_shell->get_env_vars();
                 env_vars[var_name] = operand;
@@ -4233,7 +4179,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(
                           << std::endl;
                 return var_value;
             }
-            
+
             if (g_shell) {
                 auto& env_vars = g_shell->get_env_vars();
                 env_vars[var_name] = operand;
@@ -4357,8 +4303,6 @@ std::string ShellScriptInterpreter::get_variable_value(
         return "";
     }
 
-    
-    
     if (g_shell) {
         const auto& env_vars = g_shell->get_env_vars();
         auto it = env_vars.find(var_name);
@@ -4367,7 +4311,6 @@ std::string ShellScriptInterpreter::get_variable_value(
         }
     }
 
-    
     const char* env_val = getenv(var_name.c_str());
     return env_val ? env_val : "";
 }
@@ -4396,8 +4339,6 @@ bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
         return false;
     }
 
-    
-    
     if (g_shell) {
         const auto& env_vars = g_shell->get_env_vars();
         if (env_vars.find(var_name) != env_vars.end()) {
@@ -4718,14 +4659,10 @@ void ShellScriptInterpreter::set_local_variable(const std::string& name,
                   << std::endl;
 
     if (local_variable_stack.empty()) {
-        
-        
         if (g_shell) {
             auto& env_vars = g_shell->get_env_vars();
             env_vars[name] = value;
 
-            
-            
             if (name == "PATH" || name == "PWD" || name == "HOME" ||
                 name == "USER" || name == "SHELL") {
                 setenv(name.c_str(), value.c_str(), 1);

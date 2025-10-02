@@ -197,10 +197,7 @@ int change_directory_smart(const std::string& dir,
         } else {
             dir_path = std::filesystem::path(current_directory) / target_dir;
 
-            
             if (!std::filesystem::exists(dir_path)) {
-                
-                
                 auto cleanup_result = bookmark_database::g_bookmark_db
                                           .cleanup_invalid_bookmarks();
                 if (cleanup_result.is_error()) {
@@ -263,9 +260,6 @@ int change_directory_smart(const std::string& dir,
 
         previous_directory = old_directory;
 
-        
-        
-        
         if (!used_bookmark &&
             !std::filesystem::path(target_dir).is_absolute()) {
             std::filesystem::path path(current_directory);
@@ -274,7 +268,6 @@ int change_directory_smart(const std::string& dir,
                 auto add_result = bookmark_database::g_bookmark_db.add_bookmark(
                     basename, current_directory);
                 if (add_result.is_error()) {
-                    
                     print_error(
                         {ErrorType::RUNTIME_ERROR,
                          "cd",

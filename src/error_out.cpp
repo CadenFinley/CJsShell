@@ -43,14 +43,11 @@ void print_error(const ErrorInfo& error) {
     std::cerr << std::endl;
 
     if (!error.suggestions.empty()) {
-        
-        
         std::vector<std::string> commands;
         bool has_command_suggestions = false;
 
         for (const auto& suggestion : error.suggestions) {
             if (suggestion.find("Did you mean '") != std::string::npos) {
-                
                 size_t start = suggestion.find("'") + 1;
                 size_t end = suggestion.find("'", start);
                 if (start != std::string::npos && end != std::string::npos &&
@@ -62,7 +59,6 @@ void print_error(const ErrorInfo& error) {
         }
 
         if (has_command_suggestions && !commands.empty()) {
-            
             std::cerr << "Did you mean: ";
             for (size_t i = 0; i < commands.size(); ++i) {
                 std::cerr << commands[i];
@@ -72,15 +68,12 @@ void print_error(const ErrorInfo& error) {
             }
             std::cerr << "?" << std::endl;
 
-            
             for (const auto& suggestion : error.suggestions) {
                 if (suggestion.find("Did you mean '") == std::string::npos) {
                     std::cerr << suggestion << std::endl;
                 }
             }
         } else {
-            
-            
             for (const auto& suggestion : error.suggestions) {
                 std::cerr << suggestion << std::endl;
             }

@@ -13,7 +13,7 @@
 int internal_subshell_command(const std::vector<std::string>& args,
                               Shell* shell) {
     if (args.size() < 2) {
-        return 1;  
+        return 1;
     }
 
     std::string subshell_content = args[1];

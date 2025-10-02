@@ -50,9 +50,9 @@ class SignalMask {
 };
 
 struct SignalInfo {
-    int signal;               
-    const char* name;         
-    const char* description;  
+    int signal;
+    const char* name;
+    const char* description;
 };
 
 class SignalHandler {

@@ -11,8 +11,6 @@
 #include "isocline/isocline.h"
 #include "utils/cjsh_completions.h"
 
-
-
 int cjshopt_command(const std::vector<std::string>& args) {
     if (args.size() < 2) {
         print_error(
@@ -49,8 +47,6 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return 1;
     }
 }
-
-
 
 extern bool g_debug_mode;
 extern bool g_startup_active;
@@ -153,8 +149,6 @@ int completion_case_command(const std::vector<std::string>& args) {
     return 0;
 }
 
-
-
 extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
@@ -230,7 +224,6 @@ int startup_flag_command(const std::vector<std::string>& args) {
     return 0;
 }
 
-
 static std::unordered_map<std::string, std::string> g_custom_styles;
 static const std::unordered_map<std::string, std::string> default_styles = {
     {"unknown-command", "bold color=#FF5555"},
@@ -250,7 +243,6 @@ static const std::unordered_map<std::string, std::string> default_styles = {
 
 int style_def_command(const std::vector<std::string>& args) {
     if (args.size() == 1) {
-        
         if (!g_startup_active) {
             std::cout << "Usage: style_def <token_type> <style>\n\n";
             std::cout << "Define or redefine a syntax highlighting style.\n\n";
@@ -279,7 +271,6 @@ int style_def_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && args[1] == "--reset") {
-        
         reset_to_default_styles();
         if (!g_startup_active) {
             std::cout << "All syntax highlighting styles reset to defaults.\n";
@@ -298,7 +289,6 @@ int style_def_command(const std::vector<std::string>& args) {
     const std::string& token_type = args[1];
     const std::string& style = args[2];
 
-    
     if (default_styles.find(token_type) == default_styles.end()) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "style_def",
@@ -307,7 +297,6 @@ int style_def_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    
     apply_custom_style(token_type, style);
 
     if (g_debug_mode) {
@@ -349,10 +338,8 @@ void apply_custom_style(const std::string& token_type,
         return;
     }
 
-    
     g_custom_styles[token_type] = style;
 
-    
     ic_style_def(full_style_name.c_str(), style.c_str());
 
     if (g_debug_mode) {
@@ -364,7 +351,6 @@ void apply_custom_style(const std::string& token_type,
 void reset_to_default_styles() {
     g_custom_styles.clear();
 
-    
     for (const auto& pair : default_styles) {
         std::string full_style_name = "cjsh-" + pair.first;
         ic_style_def(full_style_name.c_str(), pair.second.c_str());
@@ -395,23 +381,18 @@ void load_custom_styles_from_config() {
     while (std::getline(config_file, line)) {
         line_number++;
 
-        
         std::string trimmed = line;
         trimmed.erase(0, trimmed.find_first_not_of(" \t"));
         if (trimmed.empty() || trimmed[0] == '#') {
             continue;
         }
 
-        
         if (trimmed.find("style_def ") == 0) {
-            
             std::istringstream iss(trimmed);
             std::string command, token_type, style;
 
-            
             iss >> command;
 
-            
             if (!(iss >> token_type)) {
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: Invalid style_def at line "
@@ -421,11 +402,9 @@ void load_custom_styles_from_config() {
                 continue;
             }
 
-            
             std::string remaining;
             std::getline(iss, remaining);
 
-            
             remaining.erase(0, remaining.find_first_not_of(" \t"));
 
             if (remaining.empty()) {
@@ -436,13 +415,11 @@ void load_custom_styles_from_config() {
                 continue;
             }
 
-            
             if ((remaining.front() == '"' && remaining.back() == '"') ||
                 (remaining.front() == '\'' && remaining.back() == '\'')) {
                 remaining = remaining.substr(1, remaining.length() - 2);
             }
 
-            
             if (default_styles.find(token_type) != default_styles.end()) {
                 apply_custom_style(token_type, remaining);
                 if (g_debug_mode) {

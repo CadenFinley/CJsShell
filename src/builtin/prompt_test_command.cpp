@@ -72,7 +72,6 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "LANG_VER:rust: " << pi.get_active_language_version("rust")
               << "\n";
 
-    
     std::cout << "IS_PYTHON_PROJECT: "
               << (pi.is_python_project() ? "yes" : "no") << "\n";
     std::cout << "IS_NODEJS_PROJECT: "
@@ -94,7 +93,6 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "NODEJS_PACKAGE_MANAGER: " << pi.get_nodejs_package_manager()
               << "\n";
 
-    
     std::cout << "LANG_VER_GENERIC:python: "
               << pi.get_language_version("python") << "\n";
     std::cout << "LANG_VER_GENERIC:node: " << pi.get_language_version("node")
@@ -128,7 +126,6 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "BG_JOBS: " << pi.get_background_jobs_count() << "\n";
     std::cout << "STATUS: " << getenv("?") << "\n";
 
-    
     std::cout << "EXIT_STATUS_SYMBOL: " << pi.get_exit_status_symbol() << "\n";
     std::cout << "LAST_COMMAND_SUCCESS: "
               << (pi.is_last_command_success() ? "yes" : "no") << "\n";
@@ -142,7 +139,7 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "IP_EXTERNAL: " << pi.get_ip_address(true) << "\n";
     std::cout << "VPN_STATUS: " << (pi.is_vpn_active() ? "on" : "off") << "\n";
     std::cout << "NET_IFACE: " << pi.get_active_network_interface() << "\n";
-    
+
     if (g_ai) {
         std::cout << "AI_MODEL: " << g_ai->get_model() << "\n";
         std::cout << "AI_AGENT_TYPE: " << g_ai->get_assistant_type() << "\n";
@@ -156,7 +153,6 @@ int prompt_test_command(const std::vector<std::string>& args) {
         std::cout << "AI_CONTEXT_COMPARISON: " << ai_context_cmp << "\n";
     }
 
-    
     std::cout << "DISPLAY_DIRECTORY: " << pi.get_display_directory() << "\n";
     std::cout << "DIRECTORY_NAME: " << pi.get_directory_name() << "\n";
     std::cout << "TRUNCATED_PATH: " << pi.get_truncated_path() << "\n";
@@ -167,7 +163,6 @@ int prompt_test_command(const std::vector<std::string>& args) {
                   << pi.get_repo_relative_path(repo_root) << "\n";
     }
 
-    
     std::cout << "CONTAINER_NAME: " << pi.get_container_name() << "\n";
     std::cout << "IN_CONTAINER: " << (pi.is_in_container() ? "yes" : "no")
               << "\n";

@@ -49,8 +49,7 @@ bool has_theme_extension(const std::filesystem::path& path) {
         to_lower_copy(std::string(Theme::kThemeFileExtension));
     return ext_lower == expected;
 }
-}  
-
+}  // namespace
 
 ScopedRawMode::ScopedRawMode() : ScopedRawMode(STDIN_FILENO) {
 }
@@ -367,20 +366,18 @@ void Shell::restore_terminal_state() {
     }
 
     if (terminal_state_saved) {
-        
         if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
             if (g_debug_mode) {
                 std::cerr
                     << "DEBUG: Warning - failed to restore terminal state: "
                     << strerror(errno) << std::endl;
             }
-            
+
             tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
         }
         terminal_state_saved = false;
     }
 
-    
     fflush(stdout);
     fflush(stderr);
 }
@@ -466,8 +463,6 @@ int Shell::do_ai_request(const std::string& command) {
 
             if (!response.empty() &&
                 (response[0] == 'y' || response[0] == 'Y')) {
-                
-                
                 std::vector<std::string> lines =
                     shell_parser->parse_into_lines(command);
                 if (shell_script_interpreter) {
@@ -512,19 +507,13 @@ int Shell::execute_command(std::vector<std::string> args,
         if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
             shell_parser->expand_env_vars(var_value);
 
-            
             env_vars[var_name] = var_value;
 
-            
-            
-            
-            
             if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
                 var_name == "USER" || var_name == "SHELL") {
                 setenv(var_name.c_str(), var_value.c_str(), 1);
             }
 
-            
             if (shell_parser) {
                 shell_parser->set_env_vars(env_vars);
             }
@@ -623,7 +612,7 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
             cmds.insert(plugin_commands.begin(), plugin_commands.end());
         }
     }
-    
+
     if (shell_script_interpreter) {
         auto function_names = shell_script_interpreter->get_function_names();
         cmds.insert(function_names.begin(), function_names.end());

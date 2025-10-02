@@ -9,11 +9,9 @@
 
 namespace bookmark_database {
 
-
 BookmarkDatabase g_bookmark_db;
 
 BookmarkDatabase::BookmarkDatabase() : dirty_(false) {
-    
     database_path_ =
         (cjsh_filesystem::g_cjsh_cache_path / "directory_bookmarks.txt")
             .string();
@@ -21,7 +19,6 @@ BookmarkDatabase::BookmarkDatabase() : dirty_(false) {
 
 BookmarkDatabase::~BookmarkDatabase() {
     if (dirty_) {
-        
         auto result = save();
         if (result.is_error()) {
             print_error({ErrorType::RUNTIME_ERROR,
@@ -49,20 +46,17 @@ cjsh_filesystem::Result<void> BookmarkDatabase::ensure_database_directory() {
 }
 
 cjsh_filesystem::Result<void> BookmarkDatabase::load() {
-    
     auto dir_result = ensure_database_directory();
     if (dir_result.is_error()) {
         return dir_result;
     }
 
-    
     if (!std::filesystem::exists(database_path_)) {
         bookmarks_.clear();
         dirty_ = false;
         return cjsh_filesystem::Result<void>::ok();
     }
 
-    
     auto content_result =
         cjsh_filesystem::FileOperations::read_file_content(database_path_);
     if (content_result.is_error()) {
@@ -70,7 +64,6 @@ cjsh_filesystem::Result<void> BookmarkDatabase::load() {
             "Failed to read bookmark database: " + content_result.error());
     }
 
-    
     auto parse_result = from_text_format(content_result.value());
     if (parse_result.is_error()) {
         return parse_result;
@@ -81,16 +74,13 @@ cjsh_filesystem::Result<void> BookmarkDatabase::load() {
 }
 
 cjsh_filesystem::Result<void> BookmarkDatabase::save() {
-    
     auto dir_result = ensure_database_directory();
     if (dir_result.is_error()) {
         return dir_result;
     }
 
-    
     std::string text_content = to_text_format();
 
-    
     auto write_result = cjsh_filesystem::FileOperations::write_file_content(
         database_path_, text_content);
     if (write_result.is_error()) {
@@ -105,12 +95,10 @@ cjsh_filesystem::Result<void> BookmarkDatabase::save() {
 std::string BookmarkDatabase::to_text_format() const {
     std::stringstream ss;
 
-    
     ss << "last_updated="
        << time_to_iso_string(std::chrono::system_clock::now()) << "\n";
     ss << "# Format: name|path|access_count|added_time|last_accessed\n";
 
-    
     for (const auto& [name, entry] : bookmarks_) {
         ss << name << "|" << entry.path << "|" << entry.access_count << "|"
            << time_to_iso_string(entry.added_time) << "|"
@@ -126,27 +114,21 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(
         std::stringstream ss(text_content);
         std::string line;
 
-        
         bookmarks_.clear();
 
         while (std::getline(ss, line)) {
-            
             if (line.empty() || line[0] == '#') {
                 continue;
             }
 
-            
             if (line.substr(0, 8) == "version=") {
                 continue;
             }
 
-            
             if (line.substr(0, 13) == "last_updated=") {
                 continue;
             }
 
-            
-            
             std::vector<std::string> parts;
             std::stringstream line_ss(line);
             std::string part;
@@ -155,12 +137,11 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(
                 parts.push_back(part);
             }
 
-            if (parts.size() >= 2) {  
+            if (parts.size() >= 2) {
                 BookmarkEntry entry;
                 std::string name = parts[0];
                 entry.path = parts[1];
 
-                
                 if (parts.size() > 2 && !parts[2].empty()) {
                     try {
                         entry.access_count = std::stoi(parts[2]);
@@ -171,14 +152,12 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(
                     entry.access_count = 1;
                 }
 
-                
                 if (parts.size() > 3 && !parts[3].empty()) {
                     entry.added_time = time_from_iso_string(parts[3]);
                 } else {
                     entry.added_time = std::chrono::system_clock::now();
                 }
 
-                
                 if (parts.size() > 4 && !parts[4].empty()) {
                     entry.last_accessed = time_from_iso_string(parts[4]);
                 } else {
@@ -212,7 +191,6 @@ std::chrono::system_clock::time_point BookmarkDatabase::time_from_iso_string(
     ss >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
 
     if (ss.fail()) {
-        
         return std::chrono::system_clock::now();
     }
 
@@ -222,7 +200,6 @@ std::chrono::system_clock::time_point BookmarkDatabase::time_from_iso_string(
 
 cjsh_filesystem::Result<void> BookmarkDatabase::add_bookmark(
     const std::string& name, const std::string& path) {
-    
     try {
         std::filesystem::path fs_path(path);
         if (!std::filesystem::exists(fs_path)) {
@@ -235,18 +212,14 @@ cjsh_filesystem::Result<void> BookmarkDatabase::add_bookmark(
                 "Path is not a directory: " + path);
         }
 
-        
         std::string canonical_path =
             std::filesystem::canonical(fs_path).string();
 
-        
         if (bookmarks_.find(name) != bookmarks_.end()) {
-            
             bookmarks_[name].path = canonical_path;
             bookmarks_[name].last_accessed = std::chrono::system_clock::now();
             bookmarks_[name].access_count++;
         } else {
-            
             BookmarkEntry entry(canonical_path);
             bookmarks_[name] = entry;
         }
@@ -280,7 +253,6 @@ std::optional<std::string> BookmarkDatabase::get_bookmark(
         return std::nullopt;
     }
 
-    
     it->second.last_accessed = std::chrono::system_clock::now();
     it->second.access_count++;
     dirty_ = true;
@@ -311,7 +283,6 @@ std::vector<std::string> BookmarkDatabase::search_bookmarks(
             }
         }
     } catch (const std::regex_error&) {
-        
         std::string lower_pattern = pattern;
         std::transform(lower_pattern.begin(), lower_pattern.end(),
                        lower_pattern.begin(), ::tolower);
@@ -342,7 +313,6 @@ BookmarkDatabase::get_most_used_bookmarks(int limit) {
         bookmarks_with_count.emplace_back(name, entry.path);
     }
 
-    
     std::sort(bookmarks_with_count.begin(), bookmarks_with_count.end(),
               [this](const auto& a, const auto& b) {
                   auto it_a = bookmarks_.find(a.first);
@@ -350,7 +320,6 @@ BookmarkDatabase::get_most_used_bookmarks(int limit) {
                   return it_a->second.access_count > it_b->second.access_count;
               });
 
-    
     if (limit > 0 && bookmarks_with_count.size() > static_cast<size_t>(limit)) {
         bookmarks_with_count.resize(limit);
     }
@@ -425,7 +394,6 @@ cjsh_filesystem::Result<void> BookmarkDatabase::import_from_map(
     for (const auto& [name, path] : old_bookmarks) {
         auto result = add_bookmark(name, path);
         if (result.is_error()) {
-            
             print_error(
                 {ErrorType::RUNTIME_ERROR,
                  "bookmark",
@@ -437,4 +405,4 @@ cjsh_filesystem::Result<void> BookmarkDatabase::import_from_map(
     return cjsh_filesystem::Result<void>::ok();
 }
 
-}  
+}  // namespace bookmark_database

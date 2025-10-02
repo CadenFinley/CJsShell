@@ -258,7 +258,7 @@ plugin_error_t plugin_register_prompt_variable(
  *         PLUGIN_FREE(ptr);
  *     }
  * }
-*/
+ */
 
 #ifdef __cplusplus
 }

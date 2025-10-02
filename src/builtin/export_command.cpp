@@ -36,7 +36,6 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            
             if (shell) {
                 shell->expand_env_vars(value);
             }
@@ -45,7 +44,6 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
             setenv(name.c_str(), value.c_str(), 1);
 
-            
             if (shell && shell->get_parser()) {
                 shell->get_parser()->set_env_vars(env_vars);
             }

@@ -11,21 +11,17 @@
 
 namespace colors {
 
-
 enum class ColorCapability {
-    NO_COLOR,         
-    BASIC_COLOR,      
-    XTERM_256_COLOR,  
-    TRUE_COLOR        
+    NO_COLOR,
+    BASIC_COLOR,
+    XTERM_256_COLOR,
+    TRUE_COLOR
 };
-
 
 extern ColorCapability g_color_capability;
 
-
 ColorCapability detect_color_capability();
 void initialize_color_support(bool enabled);
-
 
 struct RGB {
     uint8_t r;
@@ -37,7 +33,6 @@ struct RGB {
     constexpr RGB(uint8_t r, uint8_t g, uint8_t b) noexcept : r(r), g(g), b(b) {
     }
 
-    
     constexpr RGB operator+(const RGB& other) const noexcept {
         return RGB(std::min(255, int(r) + int(other.r)),
                    std::min(255, int(g) + int(other.g)),
@@ -57,11 +52,10 @@ struct RGB {
     }
 };
 
-
 struct HSL {
-    float h;  
-    float s;  
-    float l;  
+    float h;
+    float s;
+    float l;
 
     constexpr HSL() noexcept : h(0), s(0), l(0) {
     }
@@ -69,10 +63,8 @@ struct HSL {
     }
 };
 
-
 constexpr HSL rgb_to_hsl(const RGB& rgb);
 constexpr RGB hsl_to_rgb(const HSL& hsl);
-
 
 namespace basic {
 inline constexpr RGB BLACK(0, 0, 0);
@@ -84,7 +76,6 @@ inline constexpr RGB MAGENTA(170, 0, 170);
 inline constexpr RGB CYAN(0, 170, 170);
 inline constexpr RGB WHITE(170, 170, 170);
 
-
 inline constexpr RGB BRIGHT_BLACK(85, 85, 85);
 inline constexpr RGB BRIGHT_RED(255, 85, 85);
 inline constexpr RGB BRIGHT_GREEN(85, 255, 85);
@@ -93,14 +84,12 @@ inline constexpr RGB BRIGHT_BLUE(85, 85, 255);
 inline constexpr RGB BRIGHT_MAGENTA(255, 85, 255);
 inline constexpr RGB BRIGHT_CYAN(85, 255, 255);
 inline constexpr RGB BRIGHT_WHITE(255, 255, 255);
-}  
+}  // namespace basic
 
-
-std::string fg_color(const RGB& color);  
-std::string bg_color(const RGB& color);  
-std::string fg_color(uint8_t index);     
-std::string bg_color(uint8_t index);     
-
+std::string fg_color(const RGB& color);
+std::string bg_color(const RGB& color);
+std::string fg_color(uint8_t index);
+std::string bg_color(uint8_t index);
 
 std::string style(const std::string& text, const RGB& fg);
 std::string style(const std::string& text, const RGB& fg, const RGB& bg);
@@ -112,14 +101,12 @@ std::string style_reverse(const std::string& text);
 std::string style_hidden(const std::string& text);
 std::string style_reset();
 
-
 RGB blend(const RGB& color1, const RGB& color2, float factor);
-
 
 struct GradientSpec {
     RGB start;
     RGB end;
-    std::string direction;  
+    std::string direction;
 
     GradientSpec()
         : start(RGB(0, 0, 0)),
@@ -132,18 +119,15 @@ struct GradientSpec {
     }
 };
 
-
 std::vector<RGB> gradient(const RGB& start, const RGB& end, size_t steps);
 std::string gradient_text(const std::string& text, const RGB& start,
                           const RGB& end);
-
 
 std::string gradient_bg(const std::string& text, const GradientSpec& spec);
 std::string gradient_fg(const std::string& text, const GradientSpec& spec);
 std::string gradient_bg_with_fg(const std::string& text,
                                 const GradientSpec& bg_spec, const RGB& fg_rgb);
 GradientSpec parse_gradient_value(const std::string& value);
-
 
 bool is_gradient_value(const std::string& value);
 std::string apply_color_or_gradient(const std::string& text,
@@ -156,9 +140,7 @@ std::string apply_gradient_bg_with_fg(const std::string& text,
 uint8_t rgb_to_xterm256(const RGB& color);
 constexpr RGB xterm256_to_rgb(uint8_t index);
 
-
 RGB get_color_by_name(const std::string& name);
-
 
 struct NamedColor {
     std::string_view name;
@@ -185,18 +167,14 @@ inline constexpr std::array<NamedColor, 16> g_basic_colors = {
 
 std::unordered_map<std::string, std::string> get_color_map();
 
-
 std::string get_color_capability_string(ColorCapability capability);
-
 
 namespace ansi {
 
 inline constexpr const char* ESC = "\033[";
 inline constexpr const char* RESET = "\033[0m";
-inline constexpr const char* BG_RESET =
-    "\033[49m";  
-inline constexpr const char* FG_RESET =
-    "\033[39m";  
+inline constexpr const char* BG_RESET = "\033[49m";
+inline constexpr const char* FG_RESET = "\033[39m";
 inline constexpr const char* BOLD = "\033[1m";
 inline constexpr const char* DIM = "\033[2m";
 inline constexpr const char* ITALIC = "\033[3m";
@@ -205,7 +183,6 @@ inline constexpr const char* BLINK = "\033[5m";
 inline constexpr const char* REVERSE = "\033[7m";
 inline constexpr const char* HIDDEN = "\033[8m";
 inline constexpr const char* STRIKETHROUGH = "\033[9m";
-
 
 inline constexpr const char* FG_BLACK = "\033[30m";
 inline constexpr const char* FG_RED = "\033[31m";
@@ -216,7 +193,6 @@ inline constexpr const char* FG_MAGENTA = "\033[35m";
 inline constexpr const char* FG_CYAN = "\033[36m";
 inline constexpr const char* FG_WHITE = "\033[37m";
 
-
 inline constexpr const char* FG_BRIGHT_BLACK = "\033[90m";
 inline constexpr const char* FG_BRIGHT_RED = "\033[91m";
 inline constexpr const char* FG_BRIGHT_GREEN = "\033[92m";
@@ -225,7 +201,6 @@ inline constexpr const char* FG_BRIGHT_BLUE = "\033[94m";
 inline constexpr const char* FG_BRIGHT_MAGENTA = "\033[95m";
 inline constexpr const char* FG_BRIGHT_CYAN = "\033[96m";
 inline constexpr const char* FG_BRIGHT_WHITE = "\033[97m";
-
 
 inline constexpr const char* BG_BLACK = "\033[40m";
 inline constexpr const char* BG_RED = "\033[41m";
@@ -236,7 +211,6 @@ inline constexpr const char* BG_MAGENTA = "\033[45m";
 inline constexpr const char* BG_CYAN = "\033[46m";
 inline constexpr const char* BG_WHITE = "\033[47m";
 
-
 inline constexpr const char* BG_BRIGHT_BLACK = "\033[100m";
 inline constexpr const char* BG_BRIGHT_RED = "\033[101m";
 inline constexpr const char* BG_BRIGHT_GREEN = "\033[102m";
@@ -245,6 +219,6 @@ inline constexpr const char* BG_BRIGHT_BLUE = "\033[104m";
 inline constexpr const char* BG_BRIGHT_MAGENTA = "\033[105m";
 inline constexpr const char* BG_BRIGHT_CYAN = "\033[106m";
 inline constexpr const char* BG_BRIGHT_WHITE = "\033[107m";
-}  
+}  // namespace ansi
 RGB parse_color_value(const std::string& value);
-}  
+}  // namespace colors

@@ -24,10 +24,8 @@ using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
 
 bool has_inline_terminator(const std::string& text,
                            const std::string& terminator) {
-    
     size_t pos = 0;
     while ((pos = text.find(terminator, pos)) != std::string::npos) {
-        
         bool valid_start = (pos == 0 || text[pos - 1] == ' ' ||
                             text[pos - 1] == '\t' || text[pos - 1] == ';');
         bool valid_end = (pos + terminator.length() >= text.length() ||
@@ -171,21 +169,19 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
 void push_function_context(
     const std::string& trimmed_line, size_t display_line,
     std::vector<std::tuple<std::string, std::string, size_t>>& control_stack) {
-    
     if (!trimmed_line.empty() && trimmed_line.back() == '{') {
-        
         size_t open_brace = trimmed_line.find('{');
         if (open_brace != std::string::npos) {
             std::string after_brace = trimmed_line.substr(open_brace + 1);
-            
-            int brace_count = 1;  
+
+            int brace_count = 1;
             for (char c : after_brace) {
                 if (c == '{')
                     brace_count++;
                 else if (c == '}')
                     brace_count--;
             }
-            
+
             if (brace_count > 0) {
                 control_stack.push_back({"{", "{", display_line});
             }
@@ -438,14 +434,13 @@ bool validate_array_index_expression(const std::string& index_text,
     return true;
 }
 
-}  
+}  // namespace
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_script_syntax(
     const std::vector<std::string>& lines) {
     std::vector<SyntaxError> errors;
 
-    
     std::vector<std::tuple<std::string, std::string, size_t>> control_stack;
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
@@ -552,7 +547,6 @@ ShellScriptInterpreter::validate_script_syntax(
                                              display_line, control_stack) ||
                    handle_inline_loop_header(trimmed_for_parsing, "for",
                                              display_line, control_stack)) {
-            
         } else {
             auto tokens = tokenize_whitespace(trimmed_for_parsing);
 
@@ -717,19 +711,12 @@ ShellScriptInterpreter::validate_script_syntax(
 
 bool ShellScriptInterpreter::has_syntax_errors(
     const std::vector<std::string>& lines, bool print_errors) {
-    
-    
-    
     std::vector<SyntaxError> errors = validate_script_syntax(lines);
 
     bool has_blocking_errors = false;
     for (const auto& error : errors) {
-        
-        
-        
         if (error.severity == ErrorSeverity::CRITICAL &&
-            error.error_code !=
-                "SYN007") {  
+            error.error_code != "SYN007") {
             has_blocking_errors = true;
             break;
         }
@@ -916,8 +903,7 @@ ShellScriptInterpreter::validate_redirection_syntax(
     const std::vector<std::string>& lines) {
     return process_lines_for_validation(
         lines,
-        [](const std::string& line, const std::string&,
-           size_t display_line,
+        [](const std::string& line, const std::string&, size_t display_line,
            size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 
@@ -1093,8 +1079,7 @@ ShellScriptInterpreter::validate_arithmetic_expressions(
     const std::vector<std::string>& lines) {
     return process_lines_for_validation(
         lines,
-        [](const std::string& line, const std::string&,
-           size_t display_line,
+        [](const std::string& line, const std::string&, size_t display_line,
            size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
             for_each_effective_char(
@@ -1223,8 +1208,7 @@ ShellScriptInterpreter::validate_parameter_expansions(
     const std::vector<std::string>& lines) {
     return process_lines_for_validation(
         lines,
-        [](const std::string& line, const std::string&,
-           size_t display_line,
+        [](const std::string& line, const std::string&, size_t display_line,
            size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
             for_each_effective_char(
@@ -1375,8 +1359,6 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                 line.substr(var_start, i - var_start);
 
                             if (!var_name.empty()) {
-                                
-                                
                                 std::string line_prefix =
                                     line.substr(0, var_start);
                                 size_t first_word_end =
@@ -1386,22 +1368,17 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                         ? line_prefix.substr(0, first_word_end)
                                         : line_prefix;
 
-                                
                                 size_t start_pos =
                                     first_word.find_first_not_of(" \t");
                                 if (start_pos != std::string::npos) {
                                     first_word = first_word.substr(start_pos);
                                 }
 
-                                
-                                
                                 if (first_word == "export" ||
                                     first_word == "alias" ||
                                     first_word == "local" ||
                                     first_word == "declare" ||
                                     first_word == "readonly") {
-                                    
-                                    
                                     return IterationAction::Continue;
                                 }
 
@@ -1419,8 +1396,6 @@ ShellScriptInterpreter::validate_parameter_expansions(
                                         "underscore"));
                                 }
 
-                                
-                                
                                 if (var_start == 0 ||
                                     line.substr(0, var_start)
                                             .find_first_not_of(" \t") ==
@@ -1696,8 +1671,7 @@ ShellScriptInterpreter::validate_function_syntax(
     return process_lines_for_validation(
         lines,
         [](const std::string& line, const std::string& trimmed_line,
-           size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
+           size_t display_line, size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 
             if (trimmed_line.rfind("function", 0) == 0) {
@@ -1736,8 +1710,7 @@ ShellScriptInterpreter::validate_loop_syntax(
     return process_lines_for_validation(
         lines,
         [](const std::string& line, const std::string& trimmed_line,
-           size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
+           size_t display_line, size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 
             auto tokens = tokenize_whitespace(trimmed_line);
@@ -1807,8 +1780,7 @@ ShellScriptInterpreter::validate_conditional_syntax(
     return process_lines_for_validation(
         lines,
         [](const std::string& line, const std::string& trimmed_line,
-           size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
+           size_t display_line, size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 
             auto tokens = tokenize_whitespace(trimmed_line);
@@ -1862,8 +1834,7 @@ ShellScriptInterpreter::validate_array_syntax(
     const std::vector<std::string>& lines) {
     return process_lines_for_validation(
         lines,
-        [](const std::string& line, const std::string&,
-           size_t display_line,
+        [](const std::string& line, const std::string&, size_t display_line,
            size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 

@@ -38,10 +38,8 @@ class ThemeParseException : public std::runtime_error {
     std::optional<ErrorInfo> error_info_;
 };
 
-
 struct ThemeSegment;
 struct ThemeDefinition;
-
 
 struct ThemeProperty {
     std::string key;
@@ -51,7 +49,6 @@ struct ThemeProperty {
         : key(k), value(v) {
     }
 };
-
 
 struct ThemeSegment {
     std::string name;
@@ -64,14 +61,13 @@ struct ThemeSegment {
     std::string forward_separator;
     std::string forward_separator_fg;
     std::string forward_separator_bg;
-    std::string alignment;  
+    std::string alignment;
 
     ThemeSegment() = default;
     ThemeSegment(const std::string& n) : name(n) {
     }
     std::unordered_map<std::string, std::string> to_map() const;
 };
-
 
 struct ThemeRequirements {
     std::vector<std::string> plugins;
@@ -80,20 +76,17 @@ struct ThemeRequirements {
     std::unordered_map<std::string, std::string> custom;
 };
 
-
 struct ThemeBehavior {
     bool cleanup = false;
     bool cleanup_empty_line = false;
     bool newline_after_execution = false;
 };
 
-
 struct ThemeFill {
     std::string character = "";
     std::string fg_color = "RESET";
     std::string bg_color = "RESET";
 };
-
 
 struct ThemeDefinition {
     std::string name;
@@ -120,7 +113,6 @@ struct ThemeVariableSet {
     std::unordered_map<std::string, std::string> string_variables;
     std::unordered_map<std::string, ThemeSegment> segment_variables;
 };
-
 
 class ThemeParser {
    private:
@@ -159,7 +151,6 @@ class ThemeParser {
 
     ThemeDefinition parse();
 
-    
     static ThemeDefinition parse_file(const std::string& filepath);
     static std::string write_theme(const ThemeDefinition& theme);
 };

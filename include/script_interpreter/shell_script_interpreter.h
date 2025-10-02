@@ -36,42 +36,40 @@ class ShellScriptInterpreter {
     }
 
     enum class ErrorSeverity {
-        INFO = 0,     
-        WARNING = 1,  
-        ERROR = 2,    
-        CRITICAL = 3  
+        INFO = 0,
+        WARNING = 1,
+        ERROR = 2,
+        CRITICAL = 3
     };
 
     enum class ErrorCategory {
-        SYNTAX,        
-        CONTROL_FLOW,  
-        REDIRECTION,   
-        VARIABLES,     
-        COMMANDS,      
-        SEMANTICS,     
-        STYLE,         
-        PERFORMANCE    
+        SYNTAX,
+        CONTROL_FLOW,
+        REDIRECTION,
+        VARIABLES,
+        COMMANDS,
+        SEMANTICS,
+        STYLE,
+        PERFORMANCE
     };
 
     struct ErrorPosition {
         size_t line_number;
-        size_t column_start;  
-        size_t column_end;    
-        size_t char_offset;   
+        size_t column_start;
+        size_t column_end;
+        size_t char_offset;
     };
 
     struct SyntaxError {
         ErrorPosition position;
         ErrorSeverity severity;
         ErrorCategory category;
-        std::string
-            error_code;  
-        std::string message;       
-        std::string line_content;  
-        std::string suggestion;    
-        std::vector<std::string>
-            related_info;               
-        std::string documentation_url;  
+        std::string error_code;
+        std::string message;
+        std::string line_content;
+        std::string suggestion;
+        std::vector<std::string> related_info;
+        std::string documentation_url;
 
         SyntaxError(size_t line_num, const std::string& msg,
                     const std::string& line_content)
@@ -126,7 +124,6 @@ class ShellScriptInterpreter {
     std::vector<SyntaxError> check_style_guidelines(
         const std::vector<std::string>& lines);
 
-    
     std::vector<SyntaxError> validate_pipeline_syntax(
         const std::vector<std::string>& lines);
 

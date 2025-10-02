@@ -13,8 +13,8 @@ void CommandInfo::start_command_timing() {
 }
 
 void CommandInfo::end_command_timing(int exit_code) {
-    (void)exit_code;  
-                      
+    (void)exit_code;
+
     if (timing_active) {
         last_command_end = std::chrono::high_resolution_clock::now();
         timing_active = false;
@@ -23,7 +23,7 @@ void CommandInfo::end_command_timing(int exit_code) {
 
 void CommandInfo::reset_command_timing() {
     timing_active = false;
-    
+
     last_command_start = std::chrono::high_resolution_clock::time_point{};
     last_command_end = std::chrono::high_resolution_clock::time_point{};
 }
@@ -77,7 +77,6 @@ void CommandInfo::set_show_microseconds(bool show) {
 }
 
 void CommandInfo::set_initial_duration(long long microseconds) {
-    
     timing_active = false;
     auto now = std::chrono::high_resolution_clock::now();
     last_command_end = now;
@@ -87,32 +86,31 @@ void CommandInfo::set_initial_duration(long long microseconds) {
 std::string CommandInfo::format_duration(long long microseconds) {
     std::ostringstream oss;
 
-    
     if (microseconds < 1000) {
         oss << microseconds << "μs";
     }
-    
+
     else if (microseconds < 1000000) {
         double milliseconds_val = microseconds / 1000.0;
         oss << std::fixed << std::setprecision(2) << milliseconds_val << "ms";
     }
-    
+
     else if (microseconds < 10000000) {
         double seconds = microseconds / 1000000.0;
         oss << std::fixed << std::setprecision(3) << seconds << "s";
     }
-    
+
     else if (microseconds < 60000000) {
         double seconds = microseconds / 1000000.0;
         oss << std::fixed << std::setprecision(1) << seconds << "s";
     }
-    
+
     else if (microseconds < 3600000000LL) {
         int minutes = microseconds / 60000000;
         int seconds = (microseconds % 60000000) / 1000000;
         oss << minutes << "m " << seconds << "s";
     }
-    
+
     else {
         int hours = microseconds / 3600000000LL;
         int minutes = (microseconds % 3600000000LL) / 60000000;

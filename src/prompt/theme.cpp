@@ -34,17 +34,14 @@ void Theme::create_default_theme() {
 
     default_theme.terminal_title = "{PATH}";
 
-    
     default_theme.fill.character = "";
     default_theme.fill.fg_color = "RESET";
     default_theme.fill.bg_color = "RESET";
 
-    
     default_theme.behavior.cleanup = false;
     default_theme.behavior.cleanup_empty_line = false;
     default_theme.behavior.newline_after_execution = false;
 
-    
     ThemeSegment username_seg("username");
     username_seg.content = "{USERNAME}@{HOSTNAME}:";
     username_seg.fg_color = "#5555FF";
@@ -66,7 +63,6 @@ void Theme::create_default_theme() {
     prompt_seg.bg_color = "RESET";
     default_theme.ps1_segments.push_back(prompt_seg);
 
-    
     ThemeSegment git_path_seg("path");
     git_path_seg.content = " {LOCAL_PATH} ";
     git_path_seg.fg_color = "#55FF55";
@@ -91,7 +87,6 @@ void Theme::create_default_theme() {
     git_status_seg.separator_bg = "RESET";
     default_theme.git_segments.push_back(git_status_seg);
 
-    
     ThemeSegment ai_model_seg("model");
     ai_model_seg.content = " {AI_MODEL} ";
     ai_model_seg.fg_color = "#FF55FF";
@@ -107,14 +102,12 @@ void Theme::create_default_theme() {
     ai_mode_seg.bg_color = "RESET";
     default_theme.ai_segments.push_back(ai_mode_seg);
 
-    
     ThemeSegment time_seg("time");
     time_seg.content = "[{TIME}]";
     time_seg.fg_color = "#888888";
     time_seg.bg_color = "RESET";
     default_theme.inline_right_segments.push_back(time_seg);
 
-    
     std::string theme_content = ThemeParser::write_theme(default_theme);
     std::ofstream file(resolve_theme_file("default"));
     file << theme_content;

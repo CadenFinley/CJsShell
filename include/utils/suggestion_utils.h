@@ -33,7 +33,6 @@ void update_command_usage_stats(const std::string& command);
 
 int get_command_usage_frequency(const std::string& command);
 
-
 std::vector<std::string> generate_fuzzy_suggestions(
     const std::string& command,
     const std::vector<std::string>& available_commands);
@@ -41,4 +40,4 @@ std::vector<std::string> generate_fuzzy_suggestions(
 int calculate_fuzzy_score(const std::string& input,
                           const std::string& candidate);
 
-}  
+}  // namespace suggestion_utils

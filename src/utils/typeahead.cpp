@@ -19,7 +19,6 @@
 
 namespace typeahead {
 
-
 bool initialized = false;
 std::string g_input_buffer;
 std::deque<std::string> g_typeahead_queue;
@@ -90,27 +89,23 @@ std::string filter_escape_sequences(const std::string& input) {
         unsigned char ch = input[i];
 
         if (ch == '\x1b' && i + 1 < input.size()) {
-            
             char next = input[i + 1];
             std::size_t seq_start = i;
 
             if (next == '[') {
-                
-                i += 2;  
+                i += 2;
                 while (i < input.size()) {
                     char c = input[i];
-                    
-                    
+
                     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
                         c == '~' || c == 'c' || c == 'h' || c == 'l' ||
                         c == 'm' || c == 'n' || c == 'r' || c == 'J' ||
                         c == 'K' || c == 'H' || c == 'f') {
                         break;
                     }
-                    
+
                     if (!((c >= '0' && c <= '9') || c == ';' || c == '?' ||
                           c == '!' || c == '=' || c == '>' || c == '<')) {
-                        
                         break;
                     }
                     i++;
@@ -122,8 +117,7 @@ std::string filter_escape_sequences(const std::string& input) {
                               << std::endl;
                 }
             } else if (next == ']') {
-                
-                i += 2;  
+                i += 2;
                 while (i < input.size()) {
                     if (input[i] == '\x07') {
                         break;
@@ -141,7 +135,6 @@ std::string filter_escape_sequences(const std::string& input) {
                               << std::endl;
                 }
             } else if (next == '(' || next == ')') {
-                
                 if (i + 2 < input.size()) {
                     i += 2;
                 } else {
@@ -155,7 +148,6 @@ std::string filter_escape_sequences(const std::string& input) {
                         << std::endl;
                 }
             } else if (next >= '0' && next <= '9') {
-                
                 i += 1;
                 while (i + 1 < input.size() && input[i + 1] >= '0' &&
                        input[i + 1] <= '9') {
@@ -168,7 +160,6 @@ std::string filter_escape_sequences(const std::string& input) {
                               << std::endl;
                 }
             } else {
-                
                 i += 1;
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: Filtered single-char escape sequence: "
@@ -178,20 +169,16 @@ std::string filter_escape_sequences(const std::string& input) {
                 }
             }
         } else if (ch == '\x07') {
-            
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Filtered BEL character" << std::endl;
             }
         } else if (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r') {
-            
-            
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Filtered control character: \\x"
                           << std::hex << std::setw(2) << std::setfill('0')
                           << static_cast<int>(ch) << std::dec << std::endl;
             }
         } else {
-            
             filtered.push_back(static_cast<char>(ch));
         }
     }
@@ -356,7 +343,6 @@ void flush_pending_typeahead() {
                   << std::endl;
     }
 }
-
 
 bool has_queued_commands() {
     return !g_typeahead_queue.empty();
@@ -581,4 +567,4 @@ void cleanup() {
     }
 }
 
-}  
+}  // namespace typeahead

@@ -15,30 +15,27 @@ std::vector<std::string> tokenize_command(const std::string& cmdline);
 
 struct Command {
     std::vector<std::string> args;
-    std::string input_file;         
-    std::string output_file;        
-    std::string append_file;        
-    bool background = false;        
-    bool stderr_to_stdout = false;  
-    bool stdout_to_stderr = false;  
-    std::string stderr_file;        
-    bool stderr_append = false;     
-    std::string here_doc;           
-    std::string here_string;        
-    bool both_output =
-        false;  
-    std::string both_output_file;  
-    bool force_overwrite = false;  
+    std::string input_file;
+    std::string output_file;
+    std::string append_file;
+    bool background = false;
+    bool stderr_to_stdout = false;
+    bool stdout_to_stderr = false;
+    std::string stderr_file;
+    bool stderr_append = false;
+    std::string here_doc;
+    std::string here_string;
+    bool both_output = false;
+    std::string both_output_file;
+    bool force_overwrite = false;
 
-    
-    std::map<int, std::string> fd_redirections;      
-    std::map<int, int> fd_duplications;              
-    std::vector<std::string> process_substitutions;  
+    std::map<int, std::string> fd_redirections;
+    std::map<int, int> fd_duplications;
+    std::vector<std::string> process_substitutions;
 
     Command() {
-        args.reserve(8);  
-        process_substitutions.reserve(
-            2);  
+        args.reserve(8);
+        process_substitutions.reserve(2);
     }
 };
 
@@ -51,7 +48,6 @@ class Parser {
    public:
     std::vector<std::string> parse_into_lines(const std::string& scripts);
 
-    
     bool should_validate_command(const std::string& command) const;
     bool is_valid_command(const std::string& command_name) const;
     std::string get_command_validation_error(

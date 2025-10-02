@@ -52,7 +52,7 @@ struct DelimiterState {
         *this = {};
     }
 };
-}  
+}  // namespace
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     auto strip_inline_comment = [](std::string_view s) -> std::string {
@@ -168,8 +168,8 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                                 segment_view.substr(delim_end_in_segment));
                         }
 
-                        add_here_doc_placeholder_line(
-                            std::move(before_here), std::move(rest_of_line));
+                        add_here_doc_placeholder_line(std::move(before_here),
+                                                      std::move(rest_of_line));
                         segment_created = true;
                     }
 
@@ -787,7 +787,7 @@ void expand_command_paths_with_home(Command& cmd, const std::string& home) {
         expand_path(fd_redir.second);
     }
 }
-}  
+}  // namespace
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
     std::vector<std::string> tokens;
@@ -984,10 +984,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
                 if (c == '<' && i + 1 < cmdline.length() &&
                     cmdline[i + 1] == '&') {
                     size_t j = i + 2;
-                    while (j < cmdline.length() &&
-                           (std::isdigit(static_cast<unsigned char>(
-                                cmdline[j])) ||
-                            cmdline[j] == '-')) {
+                    while (
+                        j < cmdline.length() &&
+                        (std::isdigit(static_cast<unsigned char>(cmdline[j])) ||
+                         cmdline[j] == '-')) {
                         j++;
                     }
                     if (j > i + 2) {
@@ -999,10 +999,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
                 if (c == '>' && i + 1 < cmdline.length() &&
                     cmdline[i + 1] == '&') {
                     size_t j = i + 2;
-                    while (j < cmdline.length() &&
-                           (std::isdigit(static_cast<unsigned char>(
-                                cmdline[j])) ||
-                            cmdline[j] == '-')) {
+                    while (
+                        j < cmdline.length() &&
+                        (std::isdigit(static_cast<unsigned char>(cmdline[j])) ||
+                         cmdline[j] == '-')) {
                         j++;
                     }
                     if (j > i + 2) {
@@ -1016,10 +1016,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
                      tokens.back() == ">>") &&
                     i + 1 < cmdline.length()) {
                     size_t j = i + 1;
-                    while (j < cmdline.length() &&
-                           (std::isdigit(static_cast<unsigned char>(
-                                cmdline[j])) ||
-                            cmdline[j] == '-')) {
+                    while (
+                        j < cmdline.length() &&
+                        (std::isdigit(static_cast<unsigned char>(cmdline[j])) ||
+                         cmdline[j] == '-')) {
                         j++;
                     }
                     if (j > i + 1) {
@@ -1179,19 +1179,15 @@ std::vector<std::string> merge_redirection_tokens(
         }
 
         else if (std::isdigit(token[0]) &&
-                 token.find_first_not_of("0123456789") ==
-                     std::string::npos &&
-                 i + 1 < tokens.size() &&
-                 tokens[i + 1].rfind("<&", 0) == 0) {
+                 token.find_first_not_of("0123456789") == std::string::npos &&
+                 i + 1 < tokens.size() && tokens[i + 1].rfind("<&", 0) == 0) {
             result.push_back(token + tokens[i + 1]);
             i++;
         }
 
         else if (std::isdigit(token[0]) &&
-                 token.find_first_not_of("0123456789") ==
-                     std::string::npos &&
-                 i + 1 < tokens.size() &&
-                 tokens[i + 1].rfind(">&", 0) == 0) {
+                 token.find_first_not_of("0123456789") == std::string::npos &&
+                 i + 1 < tokens.size() && tokens[i + 1].rfind(">&", 0) == 0) {
             result.push_back(token + tokens[i + 1]);
             i++;
         }
@@ -1353,7 +1349,6 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                         expand_env_vars(noenv_stripped);
                     }
                 } catch (const std::runtime_error& e) {
-                    
                     std::cerr
                         << "Warning: Error expanding environment variables: "
                         << e.what() << std::endl;
@@ -1364,7 +1359,6 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     expand_env_vars_selective(tmp);
                     noenv_stripped = tmp;
                 } catch (const std::runtime_error& e) {
-                    
                     std::cerr << "Warning: Error in selective environment "
                                  "variable expansion: "
                               << e.what() << std::endl;
@@ -1619,7 +1613,6 @@ std::string Parser::get_exported_variable_value(const std::string& var_name) {
                   << var_name << "'" << std::endl;
     }
 
-    
     if (var_name == "?" || var_name == "$" || var_name == "#" ||
         var_name == "*" || var_name == "@" || var_name == "!") {
         if (shell && shell->get_shell_script_interpreter()) {
@@ -1628,7 +1621,6 @@ std::string Parser::get_exported_variable_value(const std::string& var_name) {
         }
     }
 
-    
     if (var_name.length() == 1 && isdigit(var_name[0])) {
         if (shell && shell->get_shell_script_interpreter()) {
             return shell->get_shell_script_interpreter()->get_variable_value(
@@ -1636,7 +1628,6 @@ std::string Parser::get_exported_variable_value(const std::string& var_name) {
         }
     }
 
-    
     const char* env_val = getenv(var_name.c_str());
     std::string result = env_val ? env_val : "";
     if (g_debug_mode) {
@@ -1741,7 +1732,6 @@ void Parser::expand_env_vars(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        
         if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' &&
             arg[i + 2] == '(') {
             if (g_debug_mode) {
@@ -1753,7 +1743,6 @@ void Parser::expand_env_vars(std::string& arg) {
             size_t paren_depth = 1;
             size_t end = start;
 
-            
             while (end < arg.length() && paren_depth > 0) {
                 if (arg[end] == '(' && end + 1 < arg.length() &&
                     arg[end + 1] == '(') {
@@ -1778,11 +1767,9 @@ void Parser::expand_env_vars(std::string& arg) {
                               << "'" << std::endl;
                 }
 
-                
                 std::string expanded_expr = expr;
                 expand_env_vars(expanded_expr);
 
-                
                 try {
                     long long arithmetic_result =
                         evaluate_arithmetic(expanded_expr);
@@ -1792,25 +1779,24 @@ void Parser::expand_env_vars(std::string& arg) {
                                   << std::endl;
                     }
                     result += result_str;
-                    i = end + 1;  
+                    i = end + 1;
                     continue;
                 } catch (const std::exception& e) {
                     if (g_debug_mode) {
                         std::cerr << "DEBUG: Arithmetic evaluation failed: "
                                   << e.what() << std::endl;
                     }
-                    
+
                     result += arg.substr(i, end - i + 2);
                     i = end + 1;
                     continue;
                 }
             } else {
-                
                 result += arg[i];
                 continue;
             }
         }
-        
+
         if (arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
             if (!result.empty() && result.back() == '\\') {
                 result.pop_back();
@@ -1889,7 +1875,6 @@ void Parser::expand_env_vars(std::string& arg) {
                                     std::string::npos ||
                                 error_msg.find("parameter not set") !=
                                     std::string::npos) {
-                                
                                 value = get_variable_value(param_expr);
                             } else {
                                 value = get_variable_value(param_expr);
@@ -2091,7 +2076,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        
         if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' &&
             arg[i + 2] == '(') {
             if (g_debug_mode) {
@@ -2103,7 +2087,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
             size_t paren_depth = 1;
             size_t end = start;
 
-            
             while (end < arg.length() && paren_depth > 0) {
                 if (arg[end] == '(' && end + 1 < arg.length() &&
                     arg[end + 1] == '(') {
@@ -2128,12 +2111,9 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                               << "'" << std::endl;
                 }
 
-                
-                
                 std::string expanded_expr = expr;
                 expand_exported_env_vars_only(expanded_expr);
 
-                
                 try {
                     long long arithmetic_result =
                         evaluate_arithmetic(expanded_expr);
@@ -2143,10 +2123,10 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                         std::cerr << "DEBUG: Arithmetic evaluation failed: "
                                   << e.what() << std::endl;
                     }
-                    result += "0";  
+                    result += "0";
                 }
 
-                i = end + 1;  
+                i = end + 1;
                 continue;
             }
         }
@@ -2156,7 +2136,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
             var_name.clear();
         } else if (in_var) {
             if (arg[i] == '{') {
-                
                 size_t brace_start = i + 1;
                 size_t brace_end = brace_start;
                 int brace_depth = 1;
@@ -2175,10 +2154,8 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                     std::string param_expr =
                         arg.substr(brace_start, brace_end - brace_start);
 
-                    
                     std::string value;
                     if (param_expr.find(":-") != std::string::npos) {
-                        
                         size_t sep_pos = param_expr.find(":-");
                         std::string var_name = param_expr.substr(0, sep_pos);
                         std::string default_val =
@@ -2193,7 +2170,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                             value = env_val;
                         }
                     } else if (param_expr.find(":=") != std::string::npos) {
-                        
                         size_t sep_pos = param_expr.find(":=");
                         std::string var_name = param_expr.substr(0, sep_pos);
                         std::string default_val =
@@ -2204,13 +2180,11 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                         if (env_val.empty()) {
                             expand_exported_env_vars_only(default_val);
                             value = default_val;
-                            
-                            
+
                         } else {
                             value = env_val;
                         }
                     } else {
-                        
                         value = get_exported_variable_value(param_expr);
                     }
 
@@ -2225,7 +2199,6 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                        arg[i] == '@' || arg[i] == '!' || std::isdigit(arg[i])) {
                 var_name += arg[i];
             } else {
-                
                 std::string value = get_exported_variable_value(var_name);
                 result += value;
 
@@ -2259,14 +2232,11 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
 
 std::vector<std::string> Parser::parse_command_exported_vars_only(
     const std::string& cmdline) {
-    
     bool saved_flag = use_exported_vars_only;
     use_exported_vars_only = true;
 
-    
     std::vector<std::string> result = parse_command(cmdline);
 
-    
     use_exported_vars_only = saved_flag;
 
     return result;
@@ -2275,9 +2245,7 @@ std::vector<std::string> Parser::parse_command_exported_vars_only(
 std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
     std::vector<std::string> result;
 
-    
-    
-    std::string ifs = " \t\n";  
+    std::string ifs = " \t\n";
     if (shell) {
         const auto& env_vars = shell->get_env_vars();
         auto it = env_vars.find("IFS");
@@ -2610,7 +2578,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         std::vector<std::string> tokens = merge_redirection_tokens(raw_tokens);
         std::vector<std::string> filtered_args;
 
-        
         auto is_all_digits = [](const std::string& s) {
             return !s.empty() &&
                    std::all_of(s.begin(), s.end(), [](unsigned char ch) {
@@ -2719,8 +2686,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 if ((tok.find("<(") == 0 && tok.back() == ')') ||
                     (tok.find(">(") == 0 && tok.back() == ')')) {
                     if (g_debug_mode) {
-                        std::cerr << "DEBUG: detected process substitution token '"
-                                  << tok << "'" << std::endl;
+                        std::cerr
+                            << "DEBUG: detected process substitution token '"
+                            << tok << "'" << std::endl;
                     }
                     cmd.process_substitutions.push_back(tok);
                     filtered_args.push_back(tokens[i]);
@@ -2747,14 +2715,10 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             bool is_double = is_double_quoted_token(raw);
             std::string val = strip_quote_tag(raw);
 
-            
-            
-            
             if (!is_single && !(is_subshell_command && arg_idx == 1)) {
                 try {
                     expand_env_vars(val);
                 } catch (const std::runtime_error& e) {
-                    
                     if (g_debug_mode) {
                         std::cerr << "Warning: Error expanding environment "
                                      "variables in pipeline: "
@@ -2795,7 +2759,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             expand_command_paths_with_home(cmd, std::string(home));
         }
 
-        
         if (command_validation_enabled && !cmd.args.empty() &&
             should_validate_command(cmd.args[0]) &&
             !is_valid_command(cmd.args[0])) {
@@ -2804,8 +2767,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                           << cmd.args[0] << std::endl;
             }
 
-            
-            
             if (cjsh_filesystem::is_executable_in_cache(cmd.args[0])) {
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: Command '" << cmd.args[0]
@@ -2813,7 +2774,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                                  "if stale..."
                               << std::endl;
                 }
-                
+
                 std::string full_path =
                     cjsh_filesystem::find_executable_in_path(cmd.args[0]);
                 if (full_path.empty()) {
@@ -2831,9 +2792,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 }
             }
 
-            
-            
-            
             throw std::runtime_error("command not found: " + cmd.args[0]);
         }
 
@@ -3216,12 +3174,8 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
 }
 
 bool Parser::should_validate_command(const std::string& command) const {
-    
-    
-    
     size_t equals_pos = command.find('=');
     if (equals_pos != std::string::npos) {
-        
         std::string var_name = command.substr(0, equals_pos);
         if (!var_name.empty()) {
             bool valid_var_name = true;
@@ -3232,12 +3186,11 @@ bool Parser::should_validate_command(const std::string& command) const {
                 }
             }
             if (valid_var_name && std::isalpha(var_name[0])) {
-                return false;  
+                return false;
             }
         }
     }
 
-    
     if (command == "&&" || command == "||" || command == "|" ||
         command == ";" || command == "(" || command == ")" || command == "{" ||
         command == "}" || command == "if" || command == "then" ||
@@ -3248,7 +3201,6 @@ bool Parser::should_validate_command(const std::string& command) const {
         return false;
     }
 
-    
     if (command.empty() || command[0] == '>' || command[0] == '<' ||
         command == ">>" || command == "<<" || command == "2>" ||
         command == "2>>" || command == "&>" || command == "&>>") {
@@ -3263,13 +3215,11 @@ bool Parser::is_valid_command(const std::string& command_name) const {
         return false;
     }
 
-    
     if (shell && shell->get_built_ins() &&
         shell->get_built_ins()->is_builtin_command(command_name)) {
         return true;
     }
 
-    
     if (shell) {
         auto aliases = shell->get_aliases();
         if (aliases.find(command_name) != aliases.end()) {
@@ -3277,7 +3227,6 @@ bool Parser::is_valid_command(const std::string& command_name) const {
         }
     }
 
-    
     if (shell && shell->get_shell_script_interpreter()) {
         auto* interpreter = shell->get_shell_script_interpreter();
         if (interpreter && interpreter->has_function(command_name)) {
@@ -3285,14 +3234,9 @@ bool Parser::is_valid_command(const std::string& command_name) const {
         }
     }
 
-    
     if (command_name.find('/') != std::string::npos) {
-        
-        
-        
         return true;
     } else {
-        
         std::string path =
             cjsh_filesystem::find_executable_in_path(command_name);
         return !path.empty();
@@ -3310,7 +3254,7 @@ std::string Parser::get_command_validation_error(
 
 long long Parser::evaluate_arithmetic(const std::string& expr) {
     std::string trimmed = expr;
-    
+
     size_t start = trimmed.find_first_not_of(" \t\n\r");
     size_t end = trimmed.find_last_not_of(" \t\n\r");
     if (start == std::string::npos) {
@@ -3323,12 +3267,8 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
                   << "'" << std::endl;
     }
 
-    
-    
-
     auto find_operator = [](const std::string& s,
                             const std::string& op) -> size_t {
-        
         int paren_depth = 0;
         for (size_t i = 0; i <= s.length() - op.length(); ++i) {
             if (s[i] == '(')
@@ -3336,10 +3276,7 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
             else if (s[i] == ')')
                 paren_depth--;
             else if (paren_depth == 0 && s.substr(i, op.length()) == op) {
-                
                 if (op.length() == 1) {
-                    
-                    
                     if ((op == "+" || op == "-") && i > 0 && s[i - 1] == op[0])
                         continue;
                     if ((op == "+" || op == "-") && i + 1 < s.length() &&
@@ -3356,7 +3293,7 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         if (s.empty())
             return 0;
         std::string clean = s;
-        
+
         size_t start = clean.find_first_not_of(" \t\n\r");
         size_t end = clean.find_last_not_of(" \t\n\r");
         if (start == std::string::npos)
@@ -3370,7 +3307,6 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         }
     };
 
-    
     size_t paren_start = trimmed.find('(');
     if (paren_start != std::string::npos) {
         int depth = 1;
@@ -3393,7 +3329,6 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         }
     }
 
-    
     std::vector<std::string> operators = {"+", "-", "*", "/", "%"};
 
     for (const auto& op : operators) {
@@ -3423,6 +3358,5 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         }
     }
 
-    
     return parse_number(trimmed);
 }

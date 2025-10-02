@@ -56,7 +56,6 @@
 Built_ins::Built_ins() : shell(nullptr) {
     builtins.reserve(64);
 
-    
     auto load_result = bookmark_database::g_bookmark_db.load();
     if (load_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -64,7 +63,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                      "Failed to load bookmark database: " + load_result.error(),
                      {}});
     } else {
-        
         auto cleanup_result = bookmark_database::g_bookmark_db
                                   .cleanup_invalid_bookmarks_with_count();
         if (cleanup_result.is_error()) {
@@ -83,7 +81,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                               << " on startup" << std::endl;
                 }
 
-                
                 auto save_result = bookmark_database::g_bookmark_db.save();
                 if (save_result.is_error()) {
                     print_error({ErrorType::RUNTIME_ERROR,
@@ -96,7 +93,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         }
     }
 
-    
     if (!directory_bookmarks.empty()) {
         auto import_result = bookmark_database::g_bookmark_db.import_from_map(
             directory_bookmarks);
@@ -107,7 +103,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                              import_result.error(),
                          {}});
         } else {
-            
             auto save_result = bookmark_database::g_bookmark_db.save();
             if (save_result.is_error()) {
                 print_error({ErrorType::RUNTIME_ERROR,
@@ -138,16 +133,13 @@ Built_ins::Built_ins() : shell(nullptr) {
          }},
         {"cd",
          [this](const std::vector<std::string>& args) {
-             
-             
-             
              if (args.size() > 2) {
                  ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                     "cd",
                                     "too many arguments",
                                     {"Usage: cd [directory]"}};
                  print_error(error);
-                 return 2;  
+                 return 2;
              }
              if (config::smart_cd_enabled) {
                  return ::change_directory_smart(
@@ -395,7 +387,6 @@ Built_ins::Built_ins() : shell(nullptr) {
 }
 
 Built_ins::~Built_ins() {
-    
     auto save_result = bookmark_database::g_bookmark_db.save();
     if (save_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -426,13 +417,12 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
                   << std::endl;
     }
 
-    
     if (cjsh_filesystem::is_executable_in_cache(args[0])) {
         if (g_debug_mode) {
             std::cerr << "DEBUG: Command '" << args[0]
                       << "' found in cache, checking if stale..." << std::endl;
         }
-        
+
         std::string full_path =
             cjsh_filesystem::find_executable_in_path(args[0]);
         if (full_path.empty()) {
@@ -463,20 +453,17 @@ int Built_ins::is_builtin_command(const std::string& cmd) const {
         return 0;
     }
 
-    
     if (cmd == "ls") {
-        
         if (config::disable_custom_ls) {
-            return 0;  
+            return 0;
         }
 
-        
         if (!isatty(STDOUT_FILENO)) {
-            return 0;  
+            return 0;
         }
 
         if (shell && !shell->get_interactive_mode()) {
-            return 0;  
+            return 0;
         }
     }
 
@@ -499,7 +486,6 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
                          "Failed to add bookmark: " + result.error(),
                          {}});
         } else {
-            
             directory_bookmarks[basename] = dir_path;
         }
     }
@@ -507,14 +493,12 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
 
 std::string Built_ins::find_bookmark_path(
     const std::string& bookmark_name) const {
-    
     auto bookmark_path =
         bookmark_database::g_bookmark_db.get_bookmark(bookmark_name);
     if (bookmark_path.has_value()) {
         return bookmark_path.value();
     }
 
-    
     auto it = directory_bookmarks.find(bookmark_name);
     if (it != directory_bookmarks.end()) {
         return it->second;
@@ -524,7 +508,6 @@ std::string Built_ins::find_bookmark_path(
 
 const std::unordered_map<std::string, std::string>&
 Built_ins::get_directory_bookmarks() const {
-    
     const_cast<Built_ins*>(this)->directory_bookmarks =
         bookmark_database::g_bookmark_db.get_all_bookmarks();
     return directory_bookmarks;

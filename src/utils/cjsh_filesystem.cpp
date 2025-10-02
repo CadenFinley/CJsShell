@@ -66,7 +66,6 @@ Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd,
 
     int file_fd = open_result.value();
 
-    
     if (file_fd != target_fd) {
         auto dup_result = safe_dup2(file_fd, target_fd);
         safe_close(file_fd);
@@ -77,7 +76,6 @@ Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd,
 
     return Result<void>::ok();
 }
-
 
 Result<FILE*> FileOperations::safe_fopen(const std::string& path,
                                          const std::string& mode) {
@@ -113,7 +111,6 @@ int FileOperations::safe_pclose(FILE* file) {
     return ::pclose(file);
 }
 
-
 Result<std::string> FileOperations::create_temp_file(
     const std::string& prefix) {
     std::string temp_path = "/tmp/" + prefix + "_" + std::to_string(getpid()) +
@@ -148,7 +145,6 @@ Result<void> FileOperations::write_temp_file(const std::string& path,
 void FileOperations::cleanup_temp_file(const std::string& path) {
     std::remove(path.c_str());
 }
-
 
 Result<std::string> FileOperations::read_command_output(
     const std::string& command) {
@@ -221,7 +217,6 @@ Result<std::string> FileOperations::read_file_content(const std::string& path) {
 
 bool should_refresh_executable_cache() {
     try {
-        
         if (has_path_changed()) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Cache refresh needed due to PATH change"
@@ -230,7 +225,6 @@ bool should_refresh_executable_cache() {
             return true;
         }
 
-        
         if (!fs::exists(g_cjsh_found_executables_path)) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Cache refresh needed - cache file missing"
@@ -239,7 +233,6 @@ bool should_refresh_executable_cache() {
             return true;
         }
 
-        
         auto last = fs::last_write_time(g_cjsh_found_executables_path);
         auto now = decltype(last)::clock::now();
         bool is_old = (now - last) > std::chrono::hours(24);
@@ -353,7 +346,7 @@ bool build_executable_cache() {
     }
 
     std::string content;
-    content.reserve(executables.size() * 16);  
+    content.reserve(executables.size() * 16);
     for (const auto& executable : executables) {
         content += executable.filename().string();
         content.push_back('\n');
@@ -379,7 +372,6 @@ bool build_executable_cache() {
 std::vector<fs::path> read_cached_executables() {
     std::vector<fs::path> executables;
 
-    
     auto read_result = FileOperations::read_file_content(
         g_cjsh_found_executables_path.string());
     if (read_result.is_error()) {
@@ -605,7 +597,6 @@ void create_source_file() {
 }
 
 bool init_login_filesystem() {
-    
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
     try {
@@ -636,14 +627,12 @@ bool init_interactive_filesystem() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
 
-    
     std::string current_path = std::filesystem::current_path().string();
     if (g_debug_mode)
         std::cerr << "DEBUG: Current path: " << current_path << std::endl;
     setenv("PWD", current_path.c_str(), 1);
 
     try {
-        
         bool home_exists = std::filesystem::exists(g_user_home_path);
         bool history_exists = std::filesystem::exists(g_cjsh_history_path);
         bool source_exists = std::filesystem::exists(g_cjsh_source_path);
@@ -657,7 +646,6 @@ bool init_interactive_filesystem() {
             return false;
         }
 
-        
         if (!history_exists) {
             if (g_debug_mode)
                 std::cerr << "DEBUG: Creating history file" << std::endl;
@@ -672,14 +660,12 @@ bool init_interactive_filesystem() {
             }
         }
 
-        
         if (!source_exists) {
             if (g_debug_mode)
                 std::cerr << "DEBUG: Creating source file" << std::endl;
             create_source_file();
         }
 
-        
         if (should_refresh_cache) {
             if (g_debug_mode)
                 std::cerr << "DEBUG: Refreshing executable cache" << std::endl;
@@ -689,11 +675,8 @@ bool init_interactive_filesystem() {
                 std::cerr << "DEBUG: Using existing executable cache"
                           << std::endl;
 
-            
-            
-            
             static int cleanup_counter = 0;
-            if (++cleanup_counter % 10 == 0) {  
+            if (++cleanup_counter % 10 == 0) {
                 if (g_debug_mode)
                     std::cerr
                         << "DEBUG: Performing periodic stale cache cleanup"
@@ -712,31 +695,25 @@ bool init_interactive_filesystem() {
     return true;
 }
 
-
 void add_executable_to_cache(const std::string& executable_name,
                              const std::string& full_path) {
     if (executable_name.empty() || full_path.empty()) {
         return;
     }
 
-    
     if (is_executable_in_cache(executable_name)) {
         return;
     }
 
-    
     auto cached_executables = read_cached_executables();
 
-    
     cached_executables.emplace_back(executable_name);
 
-    
     std::sort(cached_executables.begin(), cached_executables.end());
     cached_executables.erase(
         std::unique(cached_executables.begin(), cached_executables.end()),
         cached_executables.end());
 
-    
     std::string content;
     for (const auto& exec : cached_executables) {
         content += exec.filename().string() + "\n";
@@ -750,7 +727,6 @@ void add_executable_to_cache(const std::string& executable_name,
                   << "' to executable cache" << std::endl;
     }
 
-    
     if (write_result.is_ok()) {
         notify_cache_systems_of_update();
     }
@@ -809,7 +785,6 @@ std::string get_current_path_hash() {
         return "";
     }
 
-    
     std::string path_str(path_env);
     std::hash<std::string> hasher;
     size_t path_hash = hasher(path_str);
@@ -833,20 +808,19 @@ void set_last_path_hash(const std::string& path_hash) {
 bool has_path_changed() {
     std::string current_hash = get_current_path_hash();
     if (current_hash.empty()) {
-        return true;  
+        return true;
     }
 
     auto read_result =
         FileOperations::read_file_content(g_cjsh_path_hash_cache_path.string());
 
     if (read_result.is_error()) {
-        
         set_last_path_hash(current_hash);
         return true;
     }
 
     std::string cached_hash = read_result.value();
-    
+
     if (!cached_hash.empty() && cached_hash.back() == '\n') {
         cached_hash.pop_back();
     }
@@ -868,10 +842,8 @@ void remove_executable_from_cache(const std::string& executable_name) {
         return;
     }
 
-    
     auto cached_executables = read_cached_executables();
 
-    
     auto original_size = cached_executables.size();
     cached_executables.erase(
         std::remove_if(cached_executables.begin(), cached_executables.end(),
@@ -881,7 +853,6 @@ void remove_executable_from_cache(const std::string& executable_name) {
                        }),
         cached_executables.end());
 
-    
     if (cached_executables.size() < original_size) {
         std::string content;
         for (const auto& exec : cached_executables) {
@@ -897,7 +868,6 @@ void remove_executable_from_cache(const std::string& executable_name) {
                       << std::endl;
         }
 
-        
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
@@ -929,7 +899,6 @@ void cleanup_stale_cache_entries() {
         }
     }
 
-    
     if (removed_count > 0) {
         std::string content;
         for (const auto& exec : valid_executables) {
@@ -944,7 +913,6 @@ void cleanup_stale_cache_entries() {
                       << " stale cache entries" << std::endl;
         }
 
-        
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
@@ -960,11 +928,9 @@ void notify_cache_systems_of_update() {
                   << std::endl;
     }
 
-    
     SyntaxHighlighter::refresh_executables_cache();
 
-    
     refresh_cached_executables();
 }
 
-}  
+}  // namespace cjsh_filesystem

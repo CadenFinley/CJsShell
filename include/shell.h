@@ -23,7 +23,6 @@ class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
 
-
 class ScopedRawMode {
    public:
     ScopedRawMode();
@@ -73,7 +72,6 @@ class Shell {
         return shell_prompt->get_title_prompt();
     }
 
-    
     void start_command_timing() {
         if (shell_prompt) {
             shell_prompt->start_command_timing();
@@ -150,10 +148,8 @@ class Shell {
     bool get_shell_option(const std::string& option) const;
     bool is_errexit_enabled() const;
 
-    
     void expand_env_vars(std::string& value);
 
-    
     void sync_env_vars_from_system();
 
     void setup_signal_handlers();

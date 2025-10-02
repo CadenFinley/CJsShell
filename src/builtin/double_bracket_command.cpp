@@ -9,8 +9,7 @@
 #include <regex>
 #include <sstream>
 
-#include "cjsh.h"  
-
+#include "cjsh.h"
 
 bool pattern_match(const std::string& text, const std::string& pattern) {
     if (g_debug_mode) {
@@ -29,7 +28,7 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
         }
         std::cerr << std::endl;
     }
-    
+
     std::string regex_pattern;
     for (size_t i = 0; i < pattern.size(); ++i) {
         char c = pattern[i];
@@ -45,7 +44,6 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
                 regex_pattern += ".";
                 break;
             case '[': {
-                
                 regex_pattern += "[";
                 size_t j = i + 1;
                 while (j < pattern.size() && pattern[j] != ']') {
@@ -56,7 +54,6 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
                     regex_pattern += "]";
                     i = j;
                 } else {
-                    
                     regex_pattern += "\\[";
                 }
                 break;
@@ -72,12 +69,9 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
                                   << (int)(unsigned char)pattern[i + 1]
                                   << std::endl;
                     }
-                    
-                    regex_pattern += "\\\\";  
-                                              
 
-                    
-                    
+                    regex_pattern += "\\\\";
+
                     char next_char = pattern[i + 1];
                     if (next_char == '.' || next_char == '^' ||
                         next_char == '$' || next_char == '*' ||
@@ -135,14 +129,12 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
     }
 }
 
-
 int evaluate_expression(const std::vector<std::string>& tokens) {
     if (tokens.empty()) {
         return 1;
     }
 
     if (tokens.size() == 1) {
-        
         return tokens[0].empty() ? 1 : 0;
     }
 
@@ -178,7 +170,6 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
 
     if (tokens.size() == 3) {
         if (tokens[0] == "!") {
-            
             std::vector<std::string> sub_tokens(tokens.begin() + 1,
                                                 tokens.end());
             return evaluate_expression(sub_tokens) == 0 ? 1 : 0;
@@ -189,7 +180,6 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
         const std::string& arg2 = tokens[2];
 
         if (op == "=" || op == "==") {
-            
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Comparing '" << arg1 << "' == '" << arg2
                           << "'" << std::endl;
@@ -198,7 +188,6 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
         } else if (op == "!=") {
             return pattern_match(arg1, arg2) ? 1 : 0;
         } else if (op == "=~") {
-            
             try {
                 std::regex re(arg2);
                 return std::regex_search(arg1, re) ? 0 : 1;
@@ -257,7 +246,6 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
     }
 
     if (tokens.size() == 4 && tokens[0] == "!") {
-        
         std::vector<std::string> sub_tokens(tokens.begin() + 1, tokens.end());
         return evaluate_expression(sub_tokens) == 0 ? 1 : 0;
     }
@@ -270,28 +258,19 @@ int double_bracket_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    
-    
-    
-    
-    
-    
-
     std::vector<std::string> expression_args = args;
 
-    
     if (args[0] == "[[" && args.size() > 1 && args.back() == "]]") {
-        expression_args.pop_back();                      
-        expression_args.erase(expression_args.begin());  
+        expression_args.pop_back();
+        expression_args.erase(expression_args.begin());
     } else if (args[0] == "[[") {
-        expression_args.erase(expression_args.begin());  
+        expression_args.erase(expression_args.begin());
     }
 
     if (expression_args.empty()) {
         return 1;
     }
 
-    
     std::vector<std::vector<std::string>> expressions;
     std::vector<std::string> operators;
     std::vector<std::string> current_expr;
@@ -318,21 +297,19 @@ int double_bracket_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    
     int result = evaluate_expression(expressions[0]);
 
     for (size_t i = 0; i < operators.size() && i + 1 < expressions.size();
          ++i) {
         if (operators[i] == "&&") {
-            if (result == 0) {  
+            if (result == 0) {
                 result = evaluate_expression(expressions[i + 1]);
             }
-            
+
         } else if (operators[i] == "||") {
-            if (result != 0) {  
+            if (result != 0) {
                 result = evaluate_expression(expressions[i + 1]);
             }
-            
         }
     }
 

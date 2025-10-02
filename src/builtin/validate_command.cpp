@@ -39,7 +39,6 @@ int validate_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    
     int exit_code = 0;
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& cmd_name = args[i];
@@ -47,7 +46,6 @@ int validate_command(const std::vector<std::string>& args, Shell* shell) {
         if (parser->is_valid_command(cmd_name)) {
             std::cout << cmd_name << ": valid command" << std::endl;
         } else {
-            
             auto suggestions =
                 suggestion_utils::generate_command_suggestions(cmd_name);
             ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, cmd_name,

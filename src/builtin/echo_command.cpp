@@ -14,37 +14,36 @@ std::string process_escape_sequences(const std::string& input) {
                 case 'a':
                     result += '\a';
                     i++;
-                    break;  
+                    break;
                 case 'b':
                     result += '\b';
                     i++;
-                    break;  
+                    break;
                 case 'f':
                     result += '\f';
                     i++;
-                    break;  
+                    break;
                 case 'n':
                     result += '\n';
                     i++;
-                    break;  
+                    break;
                 case 'r':
                     result += '\r';
                     i++;
-                    break;  
+                    break;
                 case 't':
                     result += '\t';
                     i++;
-                    break;  
+                    break;
                 case 'v':
                     result += '\v';
                     i++;
-                    break;  
+                    break;
                 case '\\':
                     result += '\\';
                     i++;
-                    break;  
+                    break;
                 case '0': {
-                    
                     if (i + 4 < input.length() && input[i + 2] >= '0' &&
                         input[i + 2] <= '7' && input[i + 3] >= '0' &&
                         input[i + 3] <= '7' && input[i + 4] >= '0' &&
@@ -60,7 +59,7 @@ std::string process_escape_sequences(const std::string& input) {
                     break;
                 }
                 default:
-                    result += input[i];  
+                    result += input[i];
                     break;
             }
         } else {
@@ -81,7 +80,6 @@ int echo_command(const std::vector<std::string>& args) {
         echo_args.pop_back();
     }
 
-    
     size_t start_idx = 1;
     while (start_idx < echo_args.size() && echo_args[start_idx][0] == '-' &&
            echo_args[start_idx].length() > 1) {
@@ -95,9 +93,9 @@ int echo_command(const std::vector<std::string>& args) {
             interpret_escapes = false;
         } else if (flag == "--") {
             start_idx++;
-            break;  
+            break;
         } else {
-            break;  
+            break;
         }
         start_idx++;
     }

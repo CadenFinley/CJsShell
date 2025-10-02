@@ -60,11 +60,10 @@ struct TerminalStatus {
     bool parent_alive;
 };
 
-
 enum class TerminalCheckLevel {
-    QUICK,         
-    RESPONSIVE,    
-    COMPREHENSIVE  
+    QUICK,
+    RESPONSIVE,
+    COMPREHENSIVE
 };
 
 TerminalStatus check_terminal_health(
@@ -75,7 +74,6 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    
     if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
         status.terminal_alive = false;
         if (g_debug_mode) {
@@ -89,7 +87,6 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    
     fd_set readfds;
     struct timeval timeout;
     FD_ZERO(&readfds);
@@ -123,8 +120,6 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    
-    
     if (!isatty(STDERR_FILENO)) {
         status.terminal_alive = false;
         if (g_debug_mode) {
@@ -133,7 +128,6 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    
     pid_t tpgrp = tcgetpgrp(STDIN_FILENO);
     if (tpgrp == -1) {
         if (errno == ENOTTY || errno == ENXIO || errno == EIO) {
@@ -153,7 +147,6 @@ TerminalStatus check_terminal_health(
         }
     }
 
-    
     char* tty_name = ttyname(STDIN_FILENO);
     if (tty_name == nullptr) {
         status.terminal_alive = false;
@@ -164,7 +157,6 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    
     pid_t parent_pid = getppid();
     if (parent_pid == 1) {
         status.parent_alive = false;
@@ -236,7 +228,7 @@ bool process_command_line(const std::string& command) {
 
     return g_exit_flag;
 }
-}  
+}  // namespace
 
 void update_terminal_title() {
     if (g_debug_mode) {
@@ -319,12 +311,9 @@ bool handle_null_input() {
                   << std::endl;
     }
 
-    
     TerminalStatus status =
         check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
-    
-    
     if (!status.terminal_alive || !status.parent_alive) {
         if (g_debug_mode) {
             std::cerr
@@ -332,15 +321,14 @@ bool handle_null_input() {
                 << std::endl;
         }
         g_exit_flag = true;
-        return true;  
+        return true;
     } else {
-        
         if (g_debug_mode) {
             std::cerr << "DEBUG: Terminal and parent alive, treating as "
                          "interrupt - continuing loop"
                       << std::endl;
         }
-        return false;  
+        return false;
     }
 }
 
@@ -388,13 +376,11 @@ std::pair<std::string, bool> get_next_command() {
     }
 
     if (input == nullptr) {
-        
         if (handle_null_input()) {
-            return {command_to_run, false};  
+            return {command_to_run, false};
         } else {
             g_shell->reset_command_timing();
-            return {command_to_run,
-                    false};  
+            return {command_to_run, false};
         }
     }
 
@@ -428,7 +414,6 @@ void main_process_loop() {
 
         g_shell->process_pending_signals();
 
-        
         if (g_exit_flag) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Exit flag set after processing signals, "
@@ -454,7 +439,6 @@ void main_process_loop() {
 
         auto [command_to_run, command_available] = get_next_command();
 
-        
         if (g_exit_flag) {
             break;
         }

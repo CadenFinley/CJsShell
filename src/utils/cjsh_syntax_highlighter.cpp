@@ -109,27 +109,24 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input,
     func_name_end = 0;
 
     std::string trimmed = input;
-    
+
     size_t first_non_space = trimmed.find_first_not_of(" \t");
     if (first_non_space == std::string::npos) {
         return false;
     }
 
-    
-    
     if (trimmed.substr(first_non_space, 8) == "function") {
         size_t name_start = first_non_space + 8;
-        
+
         while (name_start < trimmed.length() &&
                std::isspace(trimmed[name_start])) {
             name_start++;
         }
 
         if (name_start >= trimmed.length()) {
-            return false;  
+            return false;
         }
 
-        
         size_t name_end = name_start;
         while (name_end < trimmed.length() &&
                !std::isspace(trimmed[name_end]) && trimmed[name_end] != '{') {
@@ -143,20 +140,16 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input,
         }
     }
 
-    
     size_t paren_pos = trimmed.find("()");
     if (paren_pos != std::string::npos && paren_pos >= first_non_space) {
-        
         size_t name_start = first_non_space;
         size_t name_end = paren_pos;
 
-        
         while (name_end > name_start && std::isspace(trimmed[name_end - 1])) {
             name_end--;
         }
 
         if (name_end > name_start) {
-            
             std::string func_name =
                 trimmed.substr(name_start, name_end - name_start);
             if (!func_name.empty() &&
@@ -310,26 +303,22 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
         }
     }
 
-    
     size_t func_name_start, func_name_end;
     std::string input_str(input, len);
     if (is_function_definition(input_str, func_name_start, func_name_end)) {
-        
         ic_highlight(henv, func_name_start, func_name_end - func_name_start,
                      "cjsh-function-definition");
 
-        
         size_t paren_pos = input_str.find("()", func_name_end);
         if (paren_pos != std::string::npos && paren_pos < len) {
             ic_highlight(henv, paren_pos, 2, "cjsh-function-definition");
         }
 
-        
         size_t brace_pos = input_str.find("{");
         if (brace_pos != std::string::npos && brace_pos < len) {
             ic_highlight(henv, brace_pos, 1, "cjsh-operator");
         }
-        return;  
+        return;
     }
 
     if (!g_shell->get_menu_active() && input[0] == ':') {

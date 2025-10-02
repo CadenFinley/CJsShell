@@ -13,7 +13,6 @@ Prompt::~Prompt() {
 }
 
 std::string Prompt::get_prompt() {
-    
     if (g_current_theme.empty()) {
         if (!g_theme || !g_theme->get_enabled()) {
             return info.get_basic_prompt();
@@ -43,7 +42,6 @@ std::string Prompt::get_ai_prompt() {
     std::string modelInfo = g_ai->get_model();
     std::string modeInfo = g_ai->get_assistant_type();
 
-    
     if (g_current_theme.empty()) {
         if (!g_theme || !g_theme->get_enabled()) {
             return info.get_basic_ai_prompt();
@@ -61,11 +59,9 @@ std::string Prompt::get_ai_prompt() {
     if (modeInfo.empty())
         modeInfo = "Chat";
 
-    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::AI);
 
-    
     vars["AI_MODEL"] = modelInfo;
     vars["AI_AGENT_TYPE"] = modeInfo;
     vars["AI_DIVIDER"] = ">";
@@ -80,7 +76,6 @@ std::string Prompt::get_ai_prompt() {
 }
 
 std::string Prompt::get_newline_prompt() {
-    
     if (g_current_theme.empty()) {
         if (!g_theme || !g_theme->get_enabled()) {
             return " ";
@@ -93,7 +88,6 @@ std::string Prompt::get_newline_prompt() {
         return " ";
     }
 
-    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::NEWLINE);
 
@@ -113,7 +107,6 @@ std::string Prompt::get_inline_right_prompt() {
         return "";
     }
 
-    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::INLINE_RIGHT);
 
@@ -134,7 +127,6 @@ std::string Prompt::get_title_prompt() {
     }
     std::string prompt_format = g_theme->get_terminal_title_format();
 
-    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::TITLE);
 
@@ -158,10 +150,8 @@ std::string Prompt::replace_placeholder(const std::string& format,
     return result;
 }
 
-
 std::unordered_map<std::string, std::string> Prompt::get_variables(
     PromptType type, bool is_git_repo) {
-    
     std::vector<ThemeSegment> segments;
 
     switch (type) {
@@ -211,7 +201,6 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(
             break;
     }
 
-    
     return info.get_variables(segments, is_git_repo, repo_root);
 }
 

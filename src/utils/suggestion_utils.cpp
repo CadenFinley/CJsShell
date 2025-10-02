@@ -584,4 +584,4 @@ int calculate_fuzzy_score(const std::string& input,
     return std::max(0, score);
 }
 
-}  
+}  // namespace suggestion_utils

@@ -19,7 +19,6 @@ bool LanguageInfo::is_project_detected(
     const std::vector<std::string>& folders) {
     std::filesystem::path current_path = std::filesystem::current_path();
 
-    
     return scan_directory_recursive(current_path, files, extensions, folders);
 }
 
@@ -32,14 +31,12 @@ bool LanguageInfo::scan_directory_recursive(
     }
 
     try {
-        
         for (const auto& file : files) {
             if (std::filesystem::exists(dir / file)) {
                 return true;
             }
         }
 
-        
         for (const auto& folder : folders) {
             if (std::filesystem::exists(dir / folder) &&
                 std::filesystem::is_directory(dir / folder)) {
@@ -47,7 +44,6 @@ bool LanguageInfo::scan_directory_recursive(
             }
         }
 
-        
         for (const auto& entry : std::filesystem::directory_iterator(dir)) {
             if (entry.is_regular_file()) {
                 std::string ext = entry.path().extension().string();
@@ -58,14 +54,9 @@ bool LanguageInfo::scan_directory_recursive(
             }
         }
 
-        
-        
-        
         if (max_depth == 3) {
-            
             for (const auto& entry : std::filesystem::directory_iterator(dir)) {
                 if (entry.is_directory()) {
-                    
                     std::string dirname = entry.path().filename().string();
                     if (dirname == "src" || dirname == "lib" ||
                         dirname == "app") {
@@ -93,7 +84,7 @@ std::string LanguageInfo::execute_command(const std::string& command) {
     }
 
     std::string output = result.value();
-    
+
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();
     }
@@ -117,16 +108,13 @@ std::string LanguageInfo::get_cached_version(
     const std::function<std::string()>& version_func) const {
     std::lock_guard<std::mutex> lock(cache_mutex);
 
-    
     auto it = version_cache.find(language_key);
     if (it != version_cache.end() && it->second.is_valid()) {
         return it->second.version;
     }
 
-    
     std::string version = version_func();
 
-    
     version_cache[language_key] =
         CachedVersion{version, std::chrono::steady_clock::now()};
 
@@ -138,7 +126,6 @@ bool LanguageInfo::is_python_project() {
 }
 
 bool LanguageInfo::is_nodejs_project() {
-    
     return is_project_detected(nodejs_files, nodejs_extensions, nodejs_folders);
 }
 
@@ -265,7 +252,6 @@ std::string LanguageInfo::get_java_version() {
 
 std::string LanguageInfo::get_cpp_version() {
     return get_cached_version("cpp", [this]() -> std::string {
-        
         std::string output =
             execute_command("g++ --version 2>/dev/null | head -n 1");
         if (output.empty()) {

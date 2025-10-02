@@ -17,7 +17,6 @@ volatile sig_atomic_t SignalHandler::s_sigterm_received = 0;
 pid_t SignalHandler::s_main_pid = getpid();
 std::vector<int> SignalHandler::s_observed_signals;
 
-
 const std::vector<SignalInfo> SignalHandler::s_signal_table = {
 #ifdef SIGHUP
     {SIGHUP, "SIGHUP", "Terminal hung up"},
@@ -209,11 +208,9 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             s_sigint_received = 1;
 
             if (!is_observed) {
-                
-                
                 if (!config::interactive_mode) {
                     g_exit_flag = true;
-                    exit(128 + SIGINT);  
+                    exit(128 + SIGINT);
                 }
             }
             break;
@@ -234,36 +231,28 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
                           << std::endl;
             }
 
-            
-            
             if (!is_observed) {
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: SIGHUP not trapped, exiting "
                                  "immediately like bash"
                               << std::endl;
                 }
-                
-                _exit(129);  
+
+                _exit(129);
             } else {
-                
-                
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: SIGHUP trapped but terminal closed, "
                                  "will exit after brief cleanup"
                               << std::endl;
                 }
-                
-                
             }
             break;
         }
 
         case SIGTERM: {
-            
-            
             s_sigterm_received = 1;
             g_exit_flag = true;
-            _exit(128 + SIGTERM);  
+            _exit(128 + SIGTERM);
         }
 
 #ifdef SIGWINCH
@@ -387,11 +376,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             pid_t pid;
             int status;
             int reaped_count = 0;
-            const int max_reap_iterations = 100;  
+            const int max_reap_iterations = 100;
 
-            
             if (s_sigchld_received == 1) {
-                usleep(1000);  
+                usleep(1000);
             }
 
             while ((pid = waitpid(-1, &status,
@@ -455,7 +443,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                 }
             }
 
-            
             if (reaped_count >= max_reap_iterations) {
                 std::cerr
                     << "WARNING: SIGCHLD handler hit maximum iteration limit ("
@@ -486,7 +473,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                       << std::endl;
         }
 
-        
         g_exit_flag = true;
 
         if (shell_exec) {
@@ -496,10 +482,8 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                           << std::endl;
             }
 
-            
             shell_exec->terminate_all_child_process();
 
-            
             auto& job_manager = JobManager::instance();
             auto all_jobs = job_manager.get_all_jobs();
             for (auto& job : all_jobs) {
@@ -509,40 +493,35 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                         std::cerr << "DEBUG: SIGHUP: Force terminating job "
                                   << job->job_id << std::endl;
                     }
-                    
-                    
+
                     killpg(job->pgid, SIGTERM);
-                    usleep(10000);               
-                    killpg(job->pgid, SIGKILL);  
+                    usleep(10000);
+                    killpg(job->pgid, SIGKILL);
                     job->state = JobState::TERMINATED;
                 }
             }
         }
 
-        
-        
         if (!is_signal_observed(SIGHUP)) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: SIGHUP not trapped, forcing immediate exit"
                           << std::endl;
             }
-            std::quick_exit(129);  
+            std::quick_exit(129);
         } else {
-            
             if (g_debug_mode) {
                 std::cerr << "DEBUG: SIGHUP trapped but terminal closed, "
                              "forcing exit after minimal cleanup"
                           << std::endl;
             }
-            
-            alarm(1);  
+
+            alarm(1);
         }
     }
 
     if (s_sigterm_received) {
         s_sigterm_received = 0;
 
-        
         g_exit_flag = true;
 
         if (shell_exec) {

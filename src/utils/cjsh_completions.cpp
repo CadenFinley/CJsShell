@@ -99,11 +99,6 @@ struct CompletionTracker {
     bool would_create_duplicate(const char* completion_text, const char* source,
                                 long delete_before = 0) {
         if (added_completions.size() >= MAX_COMPLETION_TRACKER_ENTRIES) {
-            
-            
-            
-            
-            
             return true;
         }
 
@@ -116,13 +111,6 @@ struct CompletionTracker {
                 std::string directory_result = final_result + "/";
                 auto dir_it = added_completions.find(directory_result);
                 if (dir_it != added_completions.end()) {
-                    
-                    
-                    
-                    
-                    
-                    
-                    
                     return true;
                 }
             } else if (source && strcmp(source, "directory") == 0) {
@@ -156,16 +144,9 @@ struct CompletionTracker {
     bool add_completion_if_unique(const char* completion_text) {
         const char* source = nullptr;
         if (has_reached_completion_limit()) {
-            
-            
-            
-            
             return true;
         }
         if (would_create_duplicate(completion_text, source, 0)) {
-            
-            
-            
             return true;
         }
 
@@ -186,16 +167,9 @@ struct CompletionTracker {
                                        long delete_before, long delete_after) {
         const char* source = nullptr;
         if (has_reached_completion_limit()) {
-            
-            
-            
-            
             return true;
         }
         if (would_create_duplicate(completion_text, source, delete_before)) {
-            
-            
-            
             return true;
         }
 
@@ -217,12 +191,6 @@ struct CompletionTracker {
         const char* completion_text, const char* display, const char* help,
         const char* source, long delete_before, long delete_after) {
         if (has_reached_completion_limit()) {
-            
-            
-            
-            
-            
-            
             return true;
         }
 
@@ -236,13 +204,6 @@ struct CompletionTracker {
                 std::string directory_result = final_result + "/";
                 auto dir_it = added_completions.find(directory_result);
                 if (dir_it != added_completions.end()) {
-                    
-                    
-                    
-                    
-                    
-                    
-                    
                     return true;
                 }
             } else if (source && strcmp(source, "directory") == 0) {
@@ -269,16 +230,6 @@ struct CompletionTracker {
             SourcePriority existing_priority = it->second;
 
             if (new_priority <= existing_priority) {
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
                 return true;
             }
 
@@ -350,9 +301,6 @@ bool safe_add_completion_with_source(ic_completion_env_t* cenv,
                                      const char* source) {
     if (g_current_completion_tracker &&
         g_current_completion_tracker->has_reached_completion_limit()) {
-        
-        
-        
         return true;
     }
     return ic_add_completion_ex_with_source(cenv, completion_text, nullptr,
@@ -775,12 +723,6 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     if (completion_limit_hit()) {
-        
-        
-        
-        
-        
-        
         return;
     }
 
@@ -823,9 +765,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     auto builtin_filter = [&](const std::string& cmd) {
         if (is_interactive_builtin(cmd))
             return true;
-        
-        
-        
+
         return false;
     };
 
@@ -907,12 +847,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     if (completion_limit_hit()) {
-        
-        
-        
-        
-        
-        
         return;
     }
 
@@ -920,11 +854,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     size_t prefix_len = prefix_str.length();
 
     if (prefix_len == 0) {
-        
-        
-        
-        
-        
     }
 
     std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
@@ -946,18 +875,10 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
             continue;
 
         if (line.length() > 1 && line[0] == '#' && line[1] == ' ') {
-            
-            
-            
             continue;
         }
 
         if (looks_like_file_path(line)) {
-            
-            
-            
-            
-            
             continue;
         }
 
@@ -1099,12 +1020,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     if (completion_limit_hit()) {
-        
-        
-        
-        
-        
-        
         return;
     }
 
@@ -1258,11 +1173,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         if (equals_completion_token(command_part, "cd") ||
             starts_with_token(command_part, "cd ")) {
             if (!config::smart_cd_enabled) {
-                
-                
-                
-                
-                
             } else {
                 if (g_debug_mode)
                     std::cerr << "DEBUG: Processing bookmark completions for "
@@ -1290,14 +1200,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                     "./" + bookmark_name;
                                 if (fs::exists(current_dir_item) &&
                                     fs::is_directory(current_dir_item)) {
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
-                                    
                                     continue;
                                 }
 
@@ -1471,10 +1373,8 @@ void initialize_completion_system() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing completion system" << std::endl;
 
-    
     reset_to_default_styles();
 
-    
     load_custom_styles_from_config();
 
     if (config::completions_enabled) {
@@ -1547,10 +1447,6 @@ bool is_completion_case_sensitive() {
 }
 
 void refresh_cached_executables() {
-    
-    
-    
-    
     if (g_debug_mode) {
         std::cerr << "DEBUG: Cached executables refreshed for completion system"
                   << std::endl;
