@@ -1,6 +1,7 @@
 #include "prompt_info.h"
 
 #include <pwd.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 

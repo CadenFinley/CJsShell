@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-// Forward declarations instead of includes
 class Shell;
 class Theme;
 class Ai;

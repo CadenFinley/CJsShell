@@ -4,8 +4,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
-#include <cstring>  // for strlen, memcpy
-#include <cstdlib>  // for malloc
+#include <cstring>
+#include <cstdlib>
 
 #include "cjsh.h"
 #include "error_out.h"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <signal.h>  // for sigset_t, sigemptyset, sigaddset, sigprocmask
+#include <signal.h>
 
 #include <atomic>
 #include <functional>

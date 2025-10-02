@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
-#include <sys/types.h>  // for pid_t
-#include <termios.h>    // for struct termios
+#include <sys/types.h>
+#include <termios.h>
 
-#include "error_out.h"  // ErrorInfo is a member, need full definition
+#include "error_out.h"
 
 struct Command;
 

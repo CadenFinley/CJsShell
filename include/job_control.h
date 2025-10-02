@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sys/types.h>  // for pid_t
+#include <sys/types.h>
 
 #include <string>
 #include <unordered_map>

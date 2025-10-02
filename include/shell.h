@@ -7,15 +7,12 @@
 #include <memory>
 #include <filesystem>
 
-// Only include <termios.h> for struct termios in ScopedRawMode
 #include <termios.h>
 
-// Need full definitions for types used in inline methods
 #include "parser.h"
 #include "prompt.h"
 #include "signal_handler.h"
 
-// Forward declarations for types only used by pointer
 class Exec;
 class Built_ins;
 class ShellScriptInterpreter;

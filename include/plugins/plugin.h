@@ -7,8 +7,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <ctime>       // for std::time_t
-#include <filesystem>  // for std::filesystem::path used in plugin_metadata
+#include <ctime>
+#include <filesystem>
 
 #include "pluginapi.h"
 
