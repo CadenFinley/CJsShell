@@ -629,6 +629,50 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
     try {
         proc_resources = setup_process_substitutions(cmd);
 
+        if (!cmd.here_doc.empty()) {
+            int here_pipe[2] = {-1, -1};
+            if (pipe(here_pipe) == -1) {
+                throw std::runtime_error("cjsh: failed to create pipe for here document: " +
+                                         std::string(strerror(errno)));
+            }
+
+            auto write_all = [](int fd, const char* data, size_t len) {
+                size_t total_written = 0;
+                while (total_written < len) {
+                    ssize_t written = write(fd, data + total_written, len - total_written);
+                    if (written == -1) {
+                        if (errno == EINTR) {
+                            continue;
+                        }
+                        return std::string(strerror(errno));
+                    }
+                    total_written += static_cast<size_t>(written);
+                }
+                return std::string();
+            };
+
+            std::string error = write_all(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.size());
+            if (error.empty()) {
+                error = write_all(here_pipe[1], "\n", 1);
+            }
+
+            cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+
+            if (!error.empty()) {
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+                throw std::runtime_error("cjsh: failed to write here document content: " +
+                                         error);
+            }
+
+            auto dup_result =
+                cjsh_filesystem::FileOperations::safe_dup2(here_pipe[0], STDIN_FILENO);
+            cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+            if (dup_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stdin for here document: " +
+                                         dup_result.error());
+            }
+        }
+
         if (!cmd.input_file.empty()) {
             auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
                 cmd.input_file.c_str(), STDIN_FILENO, O_RDONLY);
