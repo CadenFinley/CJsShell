@@ -86,10 +86,8 @@ bool secure_mode = false;
 bool show_title_line = true;
 }  // namespace config
 
-// add --tiny option to disable all extra cjsh compoenents at compile time and
-// compile with -0z add --fast opttim to compile with -O3 NFC normalization
-// requires full Unicode decomposition and composition. Until a dedicated
-// normalization routine is added, return the input.
+// add --tiny option to disable all extra cjsh compoenents at compile time
+// cleanup and refactor parser
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
