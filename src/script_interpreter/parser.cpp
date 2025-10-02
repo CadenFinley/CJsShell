@@ -110,6 +110,28 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     std::string current_here_doc_line;
     current_here_doc_line.reserve(256);
 
+    auto add_here_doc_placeholder_line = [&](std::string before,
+                                             std::string rest) {
+        std::string placeholder =
+            "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
+
+        std::string stored_content = here_doc_content;
+        if (here_doc_expand) {
+            stored_content = "__EXPAND__" + stored_content;
+        }
+        current_here_docs[placeholder] = std::move(stored_content);
+
+        std::string segment = std::move(before);
+        segment += "< ";
+        segment += placeholder;
+        segment += rest;
+
+        if (!segment.empty() && segment.back() == '\r') {
+            segment.pop_back();
+        }
+        lines.push_back(std::move(segment));
+    };
+
     for (size_t i = 0; i < script.size(); ++i) {
         char c = script[i];
 
@@ -146,23 +168,8 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                                 segment_view.substr(delim_end_in_segment));
                         }
 
-                        std::string placeholder = "HEREDOC_PLACEHOLDER_" +
-                                                  std::to_string(lines.size());
-
-                        std::string stored_content = here_doc_content;
-                        if (here_doc_expand) {
-                            stored_content = "__EXPAND__" + stored_content;
-                        }
-                        current_here_docs[placeholder] =
-                            std::move(stored_content);
-
-                        std::string segment =
-                            before_here + "< " + placeholder + rest_of_line;
-
-                        if (!segment.empty() && segment.back() == '\r') {
-                            segment.pop_back();
-                        }
-                        lines.push_back(std::move(segment));
+                        add_here_doc_placeholder_line(
+                            std::move(before_here), std::move(rest_of_line));
                         segment_created = true;
                     }
 
@@ -219,24 +226,9 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                                     segment_view.substr(delim_end_in_segment));
                             }
 
-                            std::string placeholder =
-                                "HEREDOC_PLACEHOLDER_" +
-                                std::to_string(lines.size());
-
-                            std::string stored_content = here_doc_content;
-                            if (here_doc_expand) {
-                                stored_content = "__EXPAND__" + stored_content;
-                            }
-                            current_here_docs[placeholder] =
-                                std::move(stored_content);
-
-                            std::string segment =
-                                before_here + "< " + placeholder + rest_of_line;
-
-                            if (!segment.empty() && segment.back() == '\r') {
-                                segment.pop_back();
-                            }
-                            lines.push_back(std::move(segment));
+                            add_here_doc_placeholder_line(
+                                std::move(before_here),
+                                std::move(rest_of_line));
                             segment_created = true;
                         } else {
                             std::string segment{segment_view};
