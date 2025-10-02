@@ -174,8 +174,8 @@ bool initialize_cjsh_directories();
 std::filesystem::path get_cjsh_path();
 std::string find_executable_in_path(const std::string& name);
 
-void create_profile_file();
-void create_source_file();
+bool create_profile_file();
+bool create_source_file();
 
 bool init_login_filesystem();
 bool init_interactive_filesystem();

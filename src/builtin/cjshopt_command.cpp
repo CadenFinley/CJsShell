@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include "cjsh.h"
@@ -10,6 +11,9 @@
 #include "error_out.h"
 #include "isocline/isocline.h"
 #include "utils/cjsh_completions.h"
+
+static int generate_profile_command(const std::vector<std::string>& args);
+static int generate_rc_command(const std::vector<std::string>& args);
 
 int cjshopt_command(const std::vector<std::string>& args) {
     if (args.size() < 2) {
@@ -22,7 +26,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                       "  login-startup-arg [--flag-name]  Add a startup flag to be "
                       "applied when sourcing the profile",
                       "  completion-case <on|off|status>  Configure completion case "
-                      "sensitivity"}});
+                      "sensitivity",
+                      "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
+                      "  generate-rc [--force]            Create or overwrite ~/.cjshrc"}});
         return 1;
     }
 
@@ -34,17 +40,92 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return startup_flag_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "completion-case") {
         return completion_case_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "generate-profile") {
+        return generate_profile_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "generate-rc") {
+        return generate_rc_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
                      "unknown subcommand '" + subcommand + "'",
-                     {"Available subcommands: style_def, login-startup-arg, "
-                      "completion-case"}});
+                     {"Available subcommands: style_def, login-startup-arg, completion-case, "
+                      "generate-profile, generate-rc"}});
         return 1;
     }
 }
 
 extern bool g_startup_active;
+
+static int handle_generate_command_common(const std::vector<std::string>& args,
+                                          const std::string& command_name,
+                                          const cjsh_filesystem::fs::path& target_path,
+                                          const std::string& description,
+                                          const std::function<bool()>& generator) {
+    static const std::vector<std::string> base_usage = {
+        "Options:", "  -f, --force   Overwrite the existing file if it exists"};
+
+    bool force = false;
+
+    for (size_t i = 1; i < args.size(); ++i) {
+        const std::string& option = args[i];
+        if (option == "--help" || option == "-h") {
+            if (!g_startup_active) {
+                std::cout << "Usage: " << command_name << " [--force]\n";
+                std::cout << description << "\n";
+                for (const auto& line : base_usage) {
+                    std::cout << line << '\n';
+                }
+            }
+            return 0;
+        }
+
+        if (option == "--force" || option == "-f") {
+            force = true;
+            continue;
+        }
+
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     command_name,
+                     "Unknown option '" + option + "'",
+                     {"Use --help to view available options"}});
+        return 1;
+    }
+
+    bool file_exists = cjsh_filesystem::fs::exists(target_path);
+    if (file_exists && !force) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     command_name,
+                     "File already exists at '" + target_path.string() + "'",
+                     {"Pass --force to overwrite the existing file"}});
+        return 1;
+    }
+
+    if (!generator()) {
+        return 1;
+    }
+
+    if (!g_startup_active) {
+        std::cout << (file_exists ? "Updated" : "Created") << " " << target_path << '\n';
+    }
+
+    return 0;
+}
+
+static int generate_profile_command(const std::vector<std::string>& args) {
+    return handle_generate_command_common(args,
+                                          "generate-profile",
+                                          cjsh_filesystem::g_cjsh_profile_path,
+                                          "Create a default ~/.cjprofile configuration file.",
+                                          []() { return cjsh_filesystem::create_profile_file(); });
+}
+
+static int generate_rc_command(const std::vector<std::string>& args) {
+    return handle_generate_command_common(args,
+                                          "generate-rc",
+                                          cjsh_filesystem::g_cjsh_source_path,
+                                          "Create a default ~/.cjshrc configuration file.",
+                                          []() { return cjsh_filesystem::create_source_file(); });
+}
 
 int completion_case_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {

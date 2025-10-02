@@ -410,7 +410,7 @@ std::string find_executable_in_path(const std::string& name) {
     return "";
 }
 
-void create_profile_file() {
+bool create_profile_file() {
     std::string profile_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Configuration File\n"
@@ -475,10 +475,13 @@ void create_profile_file() {
                      nullptr,
                      write_result.error().c_str(),
                      {"Check file permissions"}});
+        return false;
     }
+
+    return true;
 }
 
-void create_source_file() {
+bool create_source_file() {
     std::string source_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
@@ -521,7 +524,10 @@ void create_source_file() {
                      nullptr,
                      write_result.error().c_str(),
                      {"Check file permissions"}});
+        return false;
     }
+
+    return true;
 }
 
 bool init_login_filesystem() {
@@ -534,9 +540,6 @@ bool init_login_filesystem() {
             return false;
         }
 
-        if (!std::filesystem::exists(g_cjsh_profile_path)) {
-            create_profile_file();
-        }
     } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
                      nullptr,
@@ -554,7 +557,6 @@ bool init_interactive_filesystem() {
     try {
         bool home_exists = std::filesystem::exists(g_user_home_path);
         bool history_exists = std::filesystem::exists(g_cjsh_history_path);
-        bool source_exists = std::filesystem::exists(g_cjsh_source_path);
         bool should_refresh_cache = should_refresh_executable_cache();
 
         if (!home_exists) {
@@ -575,10 +577,6 @@ bool init_interactive_filesystem() {
                              {"Check file permissions"}});
                 return false;
             }
-        }
-
-        if (!source_exists) {
-            create_source_file();
         }
 
         if (should_refresh_cache) {
