@@ -47,17 +47,14 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
         switch (c) {
             case 'l':
                 config::login_mode = true;
-                print_debug_info("Login mode enabled");
                 break;
             case 'i':
                 config::force_interactive = true;
-                print_debug_info("Interactive mode forced");
                 break;
             case 'c':
                 config::execute_command = true;
                 config::cmd_to_execute = optarg;
                 config::interactive_mode = false;
-                print_debug_info("Command to execute: " + config::cmd_to_execute);
                 break;
             case 'v':
                 config::show_version = true;
@@ -69,59 +66,45 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 break;
             case 'P':
                 config::plugins_enabled = false;
-                print_debug_info("Plugins disabled");
                 break;
             case 'T':
                 config::themes_enabled = false;
-                print_debug_info("Themes disabled");
                 break;
             case 'A':
                 config::ai_enabled = false;
-                print_debug_info("AI disabled");
                 break;
             case 'C':
                 config::colors_enabled = false;
-                print_debug_info("Colors disabled");
                 break;
             case 'L':
                 config::show_title_line = false;
-                print_debug_info("Title line disabled");
                 break;
             case 'U':
                 config::show_startup_time = true;
-                print_debug_info("Startup time display enabled");
                 break;
             case 'N':
                 config::source_enabled = false;
-                print_debug_info("Source file disabled");
                 break;
             case 'O':
                 config::completions_enabled = false;
-                print_debug_info("Completions disabled");
                 break;
             case 'S':
                 config::syntax_highlighting_enabled = false;
-                print_debug_info("Syntax highlighting disabled");
                 break;
             case 'M':
                 config::smart_cd_enabled = false;
-                print_debug_info("Smart cd disabled");
                 break;
             case 'X':
                 config::startup_test = true;
-                print_debug_info("Startup test mode enabled");
                 break;
             case 'm':
                 apply_minimal_mode();
-                print_debug_info("Minimal mode enabled - all features disabled");
                 break;
             case 'D':
                 config::disable_custom_ls = true;
-                print_debug_info("Disable custom ls enabled");
                 break;
             case 's':
                 config::secure_mode = true;
-                print_debug_info("Secure mode enabled - profile and source files disabled");
                 break;
             case '?':
                 print_usage();
@@ -139,17 +122,14 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
     if (optind < argc) {
         result.script_file = argv[optind];
         config::interactive_mode = false;
-        print_debug_info("Script file specified: " + result.script_file);
 
         for (int i = optind + 1; i < argc; i++) {
             result.script_args.push_back(argv[i]);
-            print_debug_info("Script argument " + std::to_string(i - optind) + ": " + argv[i]);
         }
     }
 
     if (!config::force_interactive && !isatty(STDIN_FILENO)) {
         config::interactive_mode = false;
-        print_debug_info("Disabling interactive mode (stdin is not a terminal)");
     }
 
     return result;
@@ -158,7 +138,6 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
 void CommandLineParser::detect_login_mode(char* argv[]) {
     if (argv && argv[0] && argv[0][0] == '-') {
         config::login_mode = true;
-        print_debug_info("Login mode detected from argv[0]: " + std::string(argv[0]));
     }
 }
 

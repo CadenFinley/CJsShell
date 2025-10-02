@@ -9,20 +9,11 @@
 
 #include "parser.h"
 
-enum class DebugLevel {
-    NONE = 0,
-    BASIC = 1,
-    VERBOSE = 2,
-    TRACE = 3
-};
-
 class ShellScriptInterpreter {
    public:
     ShellScriptInterpreter();
     ~ShellScriptInterpreter();
 
-    void set_debug_level(DebugLevel level);
-    DebugLevel get_debug_level() const;
     void set_parser(Parser* parser) {
         this->shell_parser = parser;
     }
@@ -133,7 +124,6 @@ class ShellScriptInterpreter {
     bool is_local_variable(const std::string& name) const;
 
    private:
-    DebugLevel debug_level;
     Parser* shell_parser = nullptr;
     std::unordered_map<std::string, std::vector<std::string>> functions;
 

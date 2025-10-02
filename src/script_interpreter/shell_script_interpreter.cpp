@@ -39,20 +39,11 @@ using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
 ShellScriptInterpreter::ShellScriptInterpreter() {
-    debug_level = DebugLevel::NONE;
 
     shell_parser = nullptr;
 }
 
 ShellScriptInterpreter::~ShellScriptInterpreter() {
-}
-
-void ShellScriptInterpreter::set_debug_level(DebugLevel level) {
-    debug_level = level;
-}
-
-DebugLevel ShellScriptInterpreter::get_debug_level() const {
-    return debug_level;
 }
 
 int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
@@ -142,8 +133,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         return std::nullopt;
     };
 
-    auto expand_command_substitutions = [&](const std::string& input, const std::string& debug_context, const std::string& result_label,
-                                            const std::string& expanded_label) -> CommandSubstitutionExpansion {
+    auto expand_command_substitutions = [&](const std::string& input) -> CommandSubstitutionExpansion {
         CommandSubstitutionExpansion info{input, {}};
         std::string text = input;
         size_t search_pos = 0;
@@ -266,7 +256,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     std::function<int(const std::string&)> execute_simple_or_pipeline;
 
     auto execute_case_sections = [&](const std::vector<std::string>& sections, const std::string& case_value,
-                                     const std::function<int(const std::string&)>& executor, const std::string& debug_context,
+                                     const std::function<int(const std::string&)>& executor,
                                      int& matched_exit_code) -> bool {
         matched_exit_code = 0;
         std::vector<std::string> filtered_sections;
@@ -310,16 +300,16 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         return patterns;
     };
 
-    auto evaluate_case_patterns = [&](std::string patterns, const std::string& case_value, const std::string& debug_context,
+    auto evaluate_case_patterns = [&](std::string patterns, const std::string& case_value,
                                       bool trim_sections) -> std::pair<bool, int> {
         auto sanitized = sanitize_case_patterns(patterns);
         auto sections = split_case_sections(sanitized, trim_sections);
         int matched_exit_code = 0;
-        bool matched = execute_case_sections(sections, case_value, execute_simple_or_pipeline, debug_context, matched_exit_code);
+        bool matched = execute_case_sections(sections, case_value, execute_simple_or_pipeline, matched_exit_code);
         return {matched, matched_exit_code};
     };
 
-    auto handle_inline_case = [&](const std::string& text, const std::string& debug_context, bool allow_command_substitution,
+    auto handle_inline_case = [&](const std::string& text, bool allow_command_substitution,
                                   bool trim_sections) -> std::optional<int> {
         if (!(text == "case" || text.rfind("case ", 0) == 0))
             return std::nullopt;
@@ -332,8 +322,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         std::string processed_case_part = case_part;
 
         if (allow_command_substitution && processed_case_part.find("$(") != std::string::npos) {
-            auto expansion =
-                expand_command_substitutions(processed_case_part, debug_context, "command substitution result", "expanded case part");
+            auto expansion = expand_command_substitutions(processed_case_part);
             processed_case_part = expansion.text;
         }
 
@@ -368,7 +357,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         if (!case_value.empty())
             shell_parser->expand_env_vars(case_value);
 
-        auto case_result = evaluate_case_patterns(patterns_part, case_value, debug_context, trim_sections);
+        auto case_result = evaluate_case_patterns(patterns_part, case_value, trim_sections);
         return case_result.first ? std::optional<int>{case_result.second} : std::optional<int>{0};
     };
 
@@ -1491,7 +1480,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             return execute_simple_or_pipeline(completed_case);
         }
 
-        if (auto inline_case_result = handle_inline_case(text, "[inline case]", false, true)) {
+        if (auto inline_case_result = handle_inline_case(text, false, true)) {
             return *inline_case_result;
         }
 
@@ -1993,8 +1982,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         }
 
         if (!then_found) {
-            if (debug_level >= DebugLevel::BASIC)
-                std::cerr << "DEBUG: if without matching then" << std::endl;
             idx = j;
             return 1;
         }
@@ -2321,8 +2308,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             k++;
         }
         if (depth != 0) {
-            if (debug_level >= DebugLevel::BASIC)
-                std::cerr << "DEBUG: if without matching fi" << std::endl;
             idx = k;
             return 1;
         }
@@ -2629,7 +2614,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         if (!(first == "case" || first.rfind("case ", 0) == 0))
             return 1;
 
-        if (auto inline_case_result = handle_inline_case(first, "[case inline]", true, true)) {
+        if (auto inline_case_result = handle_inline_case(first, true, true)) {
             return *inline_case_result;
         }
 
@@ -2660,7 +2645,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
         std::string expanded_header = header_accum;
         if (header_accum.find("$(") != std::string::npos) {
-            auto expansion = expand_command_substitutions(header_accum, "[case header]", "Command substitution result", "Expanded header");
+            auto expansion = expand_command_substitutions(header_accum);
             expanded_header = expansion.text;
         }
 
@@ -2674,8 +2659,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             raw_case_value = expanded_tokens[tok_idx++];
 
         if (std::find(expanded_tokens.begin(), expanded_tokens.end(), "in") == expanded_tokens.end() || raw_case_value.empty()) {
-            if (debug_level >= DebugLevel::BASIC)
-                std::cerr << "DEBUG: case without valid syntax" << std::endl;
             idx = j;
             return 1;
         }
@@ -2688,10 +2671,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
         if (!case_value.empty())
             shell_parser->expand_env_vars(case_value);
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Final case value: '" << case_value << "'" << std::endl;
-        }
 
         size_t in_pos = expanded_header.find(" in ");
         std::string inline_segment;
@@ -2727,7 +2706,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             esac_index = j;
         }
 
-        auto case_result = evaluate_case_patterns(combined_patterns, case_value, "[case block]", false);
+        auto case_result = evaluate_case_patterns(combined_patterns, case_value, false);
         idx = esac_index;
         return case_result.first ? case_result.second : 0;
     };
@@ -3080,9 +3059,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             if (!trimmed_cmd.empty() && (trimmed_cmd[0] == '(' || trimmed_cmd[0] == '{')) {
                 int code = execute_simple_or_pipeline(cmd_to_parse);
                 last_code = code;
-                if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                    std::cerr << "DEBUG: Grouped command failed (" << code << ") -> '" << cmd_to_parse << "'" << std::endl;
-                }
                 continue;
             }
 
@@ -3093,9 +3069,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 std::vector<std::string> one{trimmed_cmd};
                 int code = handle_if_block(one, local_idx);
                 last_code = code;
-                if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                    std::cerr << "DEBUG: if block failed (" << code << ") -> '" << trimmed_cmd << "'" << std::endl;
-                }
                 continue;
             }
 
@@ -3105,9 +3078,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 std::vector<std::string> one{trimmed_cmd};
                 int code = handle_case_block(one, local_idx);
                 last_code = code;
-                if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                    std::cerr << "DEBUG: case block failed (" << code << ") -> '" << trimmed_cmd << "'" << std::endl;
-                }
                 continue;
             }
 
@@ -3154,9 +3124,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         std::vector<std::string> one{t};
                         int code = handle_for_block(one, local_idx);
                         last_code = code;
-                        if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                            std::cerr << "DEBUG: for block failed (" << code << ") -> '" << t << "'" << std::endl;
-                        }
                         continue;
                     }
                     if ((t.rfind("while ", 0) == 0 || t == "while") && t.find("; do") != std::string::npos) {
@@ -3164,9 +3131,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         std::vector<std::string> one{t};
                         int code = handle_while_block(one, local_idx);
                         last_code = code;
-                        if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                            std::cerr << "DEBUG: while block failed (" << code << ") -> '" << t << "'" << std::endl;
-                        }
                         continue;
                     }
                     if ((t.rfind("until ", 0) == 0 || t == "until") && t.find("; do") != std::string::npos) {
@@ -3174,9 +3138,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         std::vector<std::string> one{t};
                         int code = handle_until_block(one, local_idx);
                         last_code = code;
-                        if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                            std::cerr << "DEBUG: until block failed (" << code << ") -> '" << t << "'" << std::endl;
-                        }
                         continue;
                     }
 
@@ -3186,9 +3147,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         std::vector<std::string> one{t};
                         int code = handle_if_block(one, local_idx);
                         last_code = code;
-                        if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                            std::cerr << "DEBUG: if block failed (" << code << ") -> '" << t << "'" << std::endl;
-                        }
                         continue;
                     }
 
@@ -3283,10 +3241,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                     if (!is_function_call && (code == 253 || code == 254 || code == 255)) {
                         goto control_flow_exit;
-                    }
-
-                    if (code != 0 && debug_level >= DebugLevel::BASIC) {
-                        std::cerr << "DEBUG: Command failed (" << code << ") -> '" << cmd_text << "'" << std::endl;
                     }
                 }
             }

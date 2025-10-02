@@ -729,7 +729,7 @@ void notify_cache_systems_of_update() {
 
     SyntaxHighlighter::refresh_executables_cache();
 
-    refresh_cached_executables();
+    //refresh_cached_executables();
 }
 
 }  // namespace cjsh_filesystem

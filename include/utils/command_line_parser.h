@@ -20,7 +20,6 @@ class CommandLineParser {
    private:
     static void detect_login_mode(char* argv[]);
     static void apply_minimal_mode();
-    static void print_debug_info(const std::string& message);
 };
 
 }  // namespace cjsh
