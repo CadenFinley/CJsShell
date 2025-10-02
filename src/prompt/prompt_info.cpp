@@ -1,14 +1,26 @@
 #include "prompt_info.h"
 
+#include <pwd.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <array>
+#include <cstdio>
+#include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <regex>
 #include <sstream>
+#include <stdexcept>
 #include <unordered_set>
 
+#include "ai.h"
 #include "cjsh.h"
+#include "plugin.h"
+#include "pluginapi.h"
 #include "theme_parser.h"
 
 /* Available prompt placeholders:

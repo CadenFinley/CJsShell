@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "parser.h"  // Need full definition for inline methods
 
 class Shell;
 struct Command;

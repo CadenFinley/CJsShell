@@ -1,17 +1,12 @@
 #pragma once
 
-#include <limits.h>
-#include <unistd.h>
+#include <limits.h>  // for PATH_MAX
+#include <unistd.h>  // for getcwd
 
-#include <filesystem>
-#include <fstream>
 #include <functional>
-#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "shell.h"
 
 class Shell;
 

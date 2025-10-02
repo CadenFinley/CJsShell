@@ -1,7 +1,19 @@
 #include "ai.h"
 
+#include <termios.h>
+#include <unistd.h>
+#include <chrono>
+#include <fstream>
+#include <future>
+#include <iostream>
+#include <thread>
+
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
+#include "exec.h"
 #include "http_client.h"
+#include "libintl_shim.h"
+#include "shell.h"
 
 namespace {
 std::string escape_json_string(const std::string& str) {

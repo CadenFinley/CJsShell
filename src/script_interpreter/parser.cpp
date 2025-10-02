@@ -24,6 +24,8 @@
 #include "error_out.h"
 #include "job_control.h"
 #include "readonly_command.h"
+#include "shell.h"
+#include "shell_script_interpreter.h"
 #include "utils/cjsh_filesystem.h"
 #include "utils/suggestion_utils.h"
 

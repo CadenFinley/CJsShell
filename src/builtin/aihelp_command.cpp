@@ -5,8 +5,10 @@
 #include <iostream>
 #include <string>
 
+#include "ai.h"
 #include "cjsh.h"
 #include "error_out.h"
+#include "shell.h"
 #include "system_prompts.h"
 
 int aihelp_command(const std::vector<std::string>& args) {

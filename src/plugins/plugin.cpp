@@ -1,5 +1,12 @@
 #include "plugin.h"
 
+#include <dlfcn.h>
+#include <algorithm>
+#include <filesystem>
+#include <iostream>
+#include <cstring>  // for strlen, memcpy
+#include <cstdlib>  // for malloc
+
 #include "cjsh.h"
 #include "error_out.h"
 #include "pluginapi.h"

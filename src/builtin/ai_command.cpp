@@ -1,17 +1,22 @@
 #include "ai_command.h"
 
+#include <algorithm>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "ai.h"
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "shell.h"
 #include "system_prompts.h"
 
 int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {

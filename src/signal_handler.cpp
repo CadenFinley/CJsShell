@@ -3,6 +3,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <algorithm>
+#include <iostream>
 
 #include "cjsh.h"
 #include "error_out.h"

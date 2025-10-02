@@ -1,5 +1,11 @@
 #include "exit_command.h"
 
+#include <algorithm>
+#include <cstdlib>
+#include <iostream>
+#include <string>
+#include <vector>
+
 #include "cjsh.h"
 #include "trap_command.h"
 

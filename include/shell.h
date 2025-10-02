@@ -1,27 +1,25 @@
 #pragma once
 
-#include <signal.h>
-#include <sys/types.h>
-#include <termios.h>
-#include <unistd.h>
-#include <cstdlib>
-
-#include <filesystem>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <memory>
+#include <filesystem>
 
-#include "exec.h"
+// Only include <termios.h> for struct termios in ScopedRawMode
+#include <termios.h>
+
+// Need full definitions for types used in inline methods
 #include "parser.h"
 #include "prompt.h"
-#include "shell_script_interpreter.h"
 #include "signal_handler.h"
 
+// Forward declarations for types only used by pointer
 class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
+struct Command;
 
 class ScopedRawMode {
    public:

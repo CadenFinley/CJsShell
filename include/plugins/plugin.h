@@ -1,18 +1,14 @@
 #pragma once
 
-#include <dlfcn.h>
-
-#include <algorithm>
-#include <filesystem>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <ctime>       // for std::time_t
+#include <filesystem>  // for std::filesystem::path used in plugin_metadata
 
 #include "pluginapi.h"
 

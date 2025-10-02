@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <unordered_set>
 #include <utility>
 
@@ -16,6 +17,7 @@
 #include "cjsh.h"
 #include "colors.h"
 #include "error_out.h"
+#include "plugin.h"
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(std::move(theme_dir)), is_enabled(enabled) {

@@ -1,11 +1,9 @@
 #pragma once
 
-#include <signal.h>
-#include <unistd.h>
+#include <signal.h>  // for sigset_t, sigemptyset, sigaddset, sigprocmask
 
 #include <atomic>
 #include <functional>
-#include <iostream>
 #include <string>
 #include <vector>
 

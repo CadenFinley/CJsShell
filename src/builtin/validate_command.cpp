@@ -4,6 +4,8 @@
 
 #include "cjsh.h"
 #include "error_out.h"
+#include "parser.h"
+#include "shell.h"
 #include "suggestion_utils.h"
 
 int validate_command(const std::vector<std::string>& args, Shell* shell) {

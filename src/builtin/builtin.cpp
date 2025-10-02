@@ -1,11 +1,15 @@
 #include "builtin.h"
 
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
 
 #include "ai_command.h"
 #include "aihelp_command.h"

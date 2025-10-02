@@ -8,6 +8,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell.h"
+#include "shell_script_interpreter.h"
 
 int which_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {

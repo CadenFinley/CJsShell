@@ -1,20 +1,9 @@
 #pragma once
 
-#include <termios.h>
-#include <unistd.h>
-
 #include <atomic>
-#include <chrono>
-#include <fstream>
-#include <future>
-#include <iostream>
 #include <map>
 #include <string>
-#include <thread>
 #include <vector>
-
-#include "cjsh_filesystem.h"
-#include "libintl_shim.h"
 
 class Ai {
    public:

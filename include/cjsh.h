@@ -1,19 +1,14 @@
 #pragma once
 
-#include <pwd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <termios.h>
-#include <unistd.h>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include <atomic>
-#include <ctime>
-
-#include "ai.h"
-#include "main_loop.h"
-#include "plugin.h"
-#include "shell.h"
-#include "theme.h"
+// Forward declarations instead of includes
+class Shell;
+class Theme;
+class Ai;
+class Plugin;
 
 const bool PRE_RELEASE = true;
 const std::string pre_release_line = " (pre-release)";

@@ -1,18 +1,16 @@
 #pragma once
-#include <fcntl.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <termios.h>
-#include <unistd.h>
 
-#include <cstring>
 #include <map>
 #include <mutex>
 #include <string>
 #include <vector>
 
-#include "error_out.h"
-#include "parser.h"
+#include <sys/types.h>  // for pid_t
+#include <termios.h>    // for struct termios
+
+#include "error_out.h"  // ErrorInfo is a member, need full definition
+
+struct Command;
 
 struct Job {
     pid_t pgid;

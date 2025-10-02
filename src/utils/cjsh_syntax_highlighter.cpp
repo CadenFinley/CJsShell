@@ -10,6 +10,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "shell.h"
 
 const std::unordered_set<std::string> SyntaxHighlighter::basic_unix_commands_ =
     {"cat",  "mv",    "cp",    "rm", "mkdir", "rmdir", "touch",  "grep",

@@ -8,6 +8,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "plugin.h"
 
 int plugin_command(const std::vector<std::string>& args) {
     if (g_debug_mode) {

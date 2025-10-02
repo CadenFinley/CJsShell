@@ -31,6 +31,9 @@
 #include "cjsh_completions.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "plugin.h"
+#include "shell.h"
+#include "theme.h"
 #include "typeahead.h"
 
 void notify_plugins(const std::string& trigger, const std::string& data) {

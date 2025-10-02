@@ -24,6 +24,8 @@
 #include <malloc.h>
 #endif
 
+// Now include the actual class definitions that cjsh.h forward-declared
+#include "ai.h"
 #include "builtin.h"
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
@@ -32,8 +34,10 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "main_loop.h"
+#include "plugin.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "theme.h"
 #include "trap_command.h"
 #include "usage.h"
 #include "utils/command_line_parser.h"

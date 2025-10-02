@@ -3,6 +3,8 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -18,7 +20,12 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "exec.h"
 #include "job_control.h"
+#include "parser.h"
+#include "plugin.h"
+#include "prompt.h"
+#include "shell_script_interpreter.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 #include "trap_command.h"

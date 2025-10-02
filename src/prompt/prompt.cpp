@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "ai.h"
 #include "cjsh.h"
 #include "theme.h"
 #include "theme_parser.h"

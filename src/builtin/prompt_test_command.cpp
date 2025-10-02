@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "ai.h"
 #include "cjsh.h"
 #include "prompt.h"
 #include "prompt_info.h"

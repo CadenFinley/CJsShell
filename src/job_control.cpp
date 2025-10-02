@@ -1,4 +1,5 @@
 #include "job_control.h"
+
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -6,6 +7,8 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <memory>
+
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
