@@ -195,10 +195,12 @@ static void process_profile_files() {
     if (config::secure_mode) {
         return;
     }
-
     std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
     if (std::filesystem::exists(user_profile)) {
         g_shell->execute_script_file(user_profile, true);
+    }
+    if (std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
+        g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path, true);
     }
 }
 
