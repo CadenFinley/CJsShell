@@ -13,15 +13,7 @@ Prompt::~Prompt() {
 }
 
 std::string Prompt::get_prompt() {
-    if (g_current_theme.empty()) {
-        if (!g_theme || !g_theme->get_enabled()) {
-            return info.get_basic_prompt();
-        } else {
-            g_theme->load_theme("default", true);
-        }
-    }
-
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (g_current_theme.empty() || (!g_theme || !g_theme->get_enabled())) {
         return info.get_basic_prompt();
     }
 
@@ -40,15 +32,7 @@ std::string Prompt::get_ai_prompt() {
     std::string modelInfo = g_ai->get_model();
     std::string modeInfo = g_ai->get_assistant_type();
 
-    if (g_current_theme.empty()) {
-        if (!g_theme || !g_theme->get_enabled()) {
-            return info.get_basic_ai_prompt();
-        } else {
-            g_theme->load_theme("default", true);
-        }
-    }
-
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (g_current_theme.empty() || (!g_ai->is_enabled() || !g_theme || !g_theme->get_enabled())) {
         return info.get_basic_ai_prompt();
     }
 
@@ -70,15 +54,7 @@ std::string Prompt::get_ai_prompt() {
 }
 
 std::string Prompt::get_newline_prompt() {
-    if (g_current_theme.empty()) {
-        if (!g_theme || !g_theme->get_enabled()) {
-            return " ";
-        } else {
-            g_theme->load_theme("default", true);
-        }
-    }
-
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (g_current_theme.empty() && (!g_theme || !g_theme->get_enabled())) {
         return " ";
     }
 
@@ -88,15 +64,7 @@ std::string Prompt::get_newline_prompt() {
 }
 
 std::string Prompt::get_inline_right_prompt() {
-    if (g_current_theme.empty()) {
-        if (!g_theme || !g_theme->get_enabled()) {
-            return "";
-        } else {
-            g_theme->load_theme("default", true);
-        }
-    }
-
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (g_current_theme.empty() || (!g_theme || !g_theme->get_enabled())) {
         return "";
     }
 
@@ -106,17 +74,10 @@ std::string Prompt::get_inline_right_prompt() {
 }
 
 std::string Prompt::get_title_prompt() {
-    if (g_current_theme.empty()) {
-        if (!g_theme || !g_theme->get_enabled()) {
-            return info.get_basic_title();
-        } else {
-            g_theme->load_theme("default", true);
-        }
-    }
-
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (g_current_theme.empty() || (!g_theme || !g_theme->get_enabled())) {
         return info.get_basic_title();
     }
+
     std::string prompt_format = g_theme->get_terminal_title_format();
 
     std::unordered_map<std::string, std::string> vars = get_variables(PromptType::TITLE);
