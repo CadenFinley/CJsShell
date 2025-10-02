@@ -38,11 +38,11 @@ class ThemeParseException : public std::runtime_error {
     std::optional<ErrorInfo> error_info_;
 };
 
-// Forward declarations
+
 struct ThemeSegment;
 struct ThemeDefinition;
 
-// Represents a key-value pair in the DSL
+
 struct ThemeProperty {
     std::string key;
     std::string value;
@@ -52,7 +52,7 @@ struct ThemeProperty {
     }
 };
 
-// Represents a segment in the theme
+
 struct ThemeSegment {
     std::string name;
     std::string content;
@@ -64,7 +64,7 @@ struct ThemeSegment {
     std::string forward_separator;
     std::string forward_separator_fg;
     std::string forward_separator_bg;
-    std::string alignment;  // "left", "center", "right"
+    std::string alignment;  
 
     ThemeSegment() = default;
     ThemeSegment(const std::string& n) : name(n) {
@@ -72,7 +72,7 @@ struct ThemeSegment {
     std::unordered_map<std::string, std::string> to_map() const;
 };
 
-// Represents requirements for a theme
+
 struct ThemeRequirements {
     std::vector<std::string> plugins;
     std::string colors;
@@ -80,21 +80,21 @@ struct ThemeRequirements {
     std::unordered_map<std::string, std::string> custom;
 };
 
-// Represents behavior settings
+
 struct ThemeBehavior {
     bool cleanup = false;
     bool cleanup_empty_line = false;
     bool newline_after_execution = false;
 };
 
-// Represents fill settings
+
 struct ThemeFill {
     std::string character = "";
     std::string fg_color = "RESET";
     std::string bg_color = "RESET";
 };
 
-// Main theme definition structure
+
 struct ThemeDefinition {
     std::string name;
     std::string terminal_title;
@@ -121,7 +121,7 @@ struct ThemeVariableSet {
     std::unordered_map<std::string, ThemeSegment> segment_variables;
 };
 
-// Parser for the new DSL
+
 class ThemeParser {
    private:
     std::string content;
@@ -152,14 +152,14 @@ class ThemeParser {
     ThemeVariableSet parse_variables_block();
 
     void expect_token(const std::string& expected);
-    [[noreturn]] void parse_error(const std::string& message);
+    void parse_error(const std::string& message);
 
    public:
     ThemeParser(const std::string& theme_content, std::string source_name = "");
 
     ThemeDefinition parse();
 
-    // Static utility methods
+    
     static ThemeDefinition parse_file(const std::string& filepath);
     static std::string write_theme(const ThemeDefinition& theme);
 };

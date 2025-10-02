@@ -24,4 +24,4 @@ class ErrorReporter {
     static size_t get_terminal_width();
 };
 
-}  // namespace shell_script_interpreter
+}  

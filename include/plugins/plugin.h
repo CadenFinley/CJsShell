@@ -50,7 +50,7 @@ struct plugin_data {
     plugin_get_default_settings_func get_default_settings;
     plugin_update_setting_func update_setting;
     plugin_free_memory_func free_memory;
-    plugin_validate_func validate;  // Optional enhanced validation function
+    plugin_validate_func validate;
 };
 
 class Plugin {

@@ -56,7 +56,7 @@
 Built_ins::Built_ins() : shell(nullptr) {
     builtins.reserve(64);
 
-    // Initialize the bookmark database
+    
     auto load_result = bookmark_database::g_bookmark_db.load();
     if (load_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -64,7 +64,7 @@ Built_ins::Built_ins() : shell(nullptr) {
                      "Failed to load bookmark database: " + load_result.error(),
                      {}});
     } else {
-        // Clean up any invalid bookmarks after loading
+        
         auto cleanup_result = bookmark_database::g_bookmark_db
                                   .cleanup_invalid_bookmarks_with_count();
         if (cleanup_result.is_error()) {
@@ -83,7 +83,7 @@ Built_ins::Built_ins() : shell(nullptr) {
                               << " on startup" << std::endl;
                 }
 
-                // Save the cleaned database if any bookmarks were removed
+                
                 auto save_result = bookmark_database::g_bookmark_db.save();
                 if (save_result.is_error()) {
                     print_error({ErrorType::RUNTIME_ERROR,
@@ -96,7 +96,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         }
     }
 
-    // Import existing bookmarks if any
+    
     if (!directory_bookmarks.empty()) {
         auto import_result = bookmark_database::g_bookmark_db.import_from_map(
             directory_bookmarks);
@@ -107,7 +107,7 @@ Built_ins::Built_ins() : shell(nullptr) {
                              import_result.error(),
                          {}});
         } else {
-            // Save the imported bookmarks
+            
             auto save_result = bookmark_database::g_bookmark_db.save();
             if (save_result.is_error()) {
                 print_error({ErrorType::RUNTIME_ERROR,
@@ -138,16 +138,16 @@ Built_ins::Built_ins() : shell(nullptr) {
          }},
         {"cd",
          [this](const std::vector<std::string>& args) {
-             // args[0] == "cd"; optional directory operand at args[1]
-             // Check for too many arguments (cd should accept at most 1
-             // argument)
+             
+             
+             
              if (args.size() > 2) {
                  ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                     "cd",
                                     "too many arguments",
                                     {"Usage: cd [directory]"}};
                  print_error(error);
-                 return 2;  // Misuse of shell builtin
+                 return 2;  
              }
              if (config::smart_cd_enabled) {
                  return ::change_directory_smart(
@@ -395,7 +395,7 @@ Built_ins::Built_ins() : shell(nullptr) {
 }
 
 Built_ins::~Built_ins() {
-    // Save the bookmark database when the shell exits
+    
     auto save_result = bookmark_database::g_bookmark_db.save();
     if (save_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -426,13 +426,13 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
                   << std::endl;
     }
 
-    // Check if this command is in our cache but no longer exists (stale entry)
+    
     if (cjsh_filesystem::is_executable_in_cache(args[0])) {
         if (g_debug_mode) {
             std::cerr << "DEBUG: Command '" << args[0]
                       << "' found in cache, checking if stale..." << std::endl;
         }
-        // Double-check that it really doesn't exist in PATH
+        
         std::string full_path =
             cjsh_filesystem::find_executable_in_path(args[0]);
         if (full_path.empty()) {
@@ -463,20 +463,20 @@ int Built_ins::is_builtin_command(const std::string& cmd) const {
         return 0;
     }
 
-    // Special case for ls: check if custom ls should be used
+    
     if (cmd == "ls") {
-        // Check config flag first
+        
         if (config::disable_custom_ls) {
-            return 0;  // Don't treat as builtin
+            return 0;  
         }
 
-        // Check TTY and interactive mode
+        
         if (!isatty(STDOUT_FILENO)) {
-            return 0;  // Don't treat as builtin when output is not a TTY
+            return 0;  
         }
 
         if (shell && !shell->get_interactive_mode()) {
-            return 0;  // Don't treat as builtin in non-interactive mode
+            return 0;  
         }
     }
 
@@ -499,7 +499,7 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
                          "Failed to add bookmark: " + result.error(),
                          {}});
         } else {
-            // Also update the legacy map for backward compatibility
+            
             directory_bookmarks[basename] = dir_path;
         }
     }
@@ -507,14 +507,14 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
 
 std::string Built_ins::find_bookmark_path(
     const std::string& bookmark_name) const {
-    // First try the new database
+    
     auto bookmark_path =
         bookmark_database::g_bookmark_db.get_bookmark(bookmark_name);
     if (bookmark_path.has_value()) {
         return bookmark_path.value();
     }
 
-    // Fall back to legacy map
+    
     auto it = directory_bookmarks.find(bookmark_name);
     if (it != directory_bookmarks.end()) {
         return it->second;
@@ -524,7 +524,7 @@ std::string Built_ins::find_bookmark_path(
 
 const std::unordered_map<std::string, std::string>&
 Built_ins::get_directory_bookmarks() const {
-    // Update the legacy map from the database for backward compatibility
+    
     const_cast<Built_ins*>(this)->directory_bookmarks =
         bookmark_database::g_bookmark_db.get_all_bookmarks();
     return directory_bookmarks;

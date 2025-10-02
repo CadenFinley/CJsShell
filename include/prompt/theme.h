@@ -122,7 +122,7 @@ class Theme {
     bool cleanup_adds_empty_line() const;
     bool newline_after_execution() const;
 
-    // Public method for testing conditional functionality
+    
     std::string render_line(
         const std::string& line,
         const std::unordered_map<std::string, std::string>& vars) const;

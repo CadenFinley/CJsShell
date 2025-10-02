@@ -197,10 +197,10 @@ int change_directory_smart(const std::string& dir,
         } else {
             dir_path = std::filesystem::path(current_directory) / target_dir;
 
-            // If the relative path doesn't exist, check bookmarks
+            
             if (!std::filesystem::exists(dir_path)) {
-                // Clean up any invalid bookmarks before searching
-                // This ensures we don't try to navigate to dead links
+                
+                
                 auto cleanup_result = bookmark_database::g_bookmark_db
                                           .cleanup_invalid_bookmarks();
                 if (cleanup_result.is_error()) {
@@ -263,9 +263,9 @@ int change_directory_smart(const std::string& dir,
 
         previous_directory = old_directory;
 
-        // Update bookmark database with the new directory, but only if we
-        // didn't use a bookmark to get here and only if we used a relative path
-        // (to avoid overriding bookmarks when navigating via relative paths)
+        
+        
+        
         if (!used_bookmark &&
             !std::filesystem::path(target_dir).is_absolute()) {
             std::filesystem::path path(current_directory);
@@ -274,7 +274,7 @@ int change_directory_smart(const std::string& dir,
                 auto add_result = bookmark_database::g_bookmark_db.add_bookmark(
                     basename, current_directory);
                 if (add_result.is_error()) {
-                    // Don't fail the cd operation, just log the warning
+                    
                     print_error(
                         {ErrorType::RUNTIME_ERROR,
                          "cd",

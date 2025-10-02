@@ -36,13 +36,13 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> remove_bookmark(const std::string& name);
     std::optional<std::string> get_bookmark(const std::string& name);
 
-    // Query operations
+    
     std::unordered_map<std::string, std::string> get_all_bookmarks();
     std::vector<std::string> search_bookmarks(const std::string& pattern);
     std::vector<std::pair<std::string, std::string>> get_most_used_bookmarks(
         int limit = 10);
 
-    // Utilities
+    
     void update_bookmark_access(const std::string& name);
     cjsh_filesystem::Result<void> cleanup_invalid_bookmarks();
     cjsh_filesystem::Result<int> cleanup_invalid_bookmarks_with_count();
@@ -55,7 +55,7 @@ class BookmarkDatabase {
    private:
     std::unordered_map<std::string, BookmarkEntry> bookmarks_;
     std::string database_path_;
-    bool dirty_;  // Track if data has been modified
+    bool dirty_;  
 
     cjsh_filesystem::Result<void> ensure_database_directory();
     std::string to_text_format() const;
@@ -83,4 +83,4 @@ inline std::unordered_map<std::string, std::string> get_directory_bookmarks() {
     return g_bookmark_db.get_all_bookmarks();
 }
 
-}  // namespace bookmark_database
+}  

@@ -3,7 +3,7 @@
 #include "cjsh.h"
 #include "http_client.h"
 
-// Simple JSON helper functions
+
 namespace {
 std::string escape_json_string(const std::string& str) {
     std::string escaped;
@@ -68,12 +68,12 @@ std::string extract_json_string_value(const std::string& json,
 
     if (pos >= json.length() || json[pos] != '"')
         return "";
-    pos++;  // Skip opening quote
+    pos++;  
 
     std::string value;
     while (pos < json.length() && json[pos] != '"') {
         if (json[pos] == '\\' && pos + 1 < json.length()) {
-            pos++;  // Skip backslash
+            pos++;  
             switch (json[pos]) {
                 case '"':
                     value += '"';
@@ -121,7 +121,7 @@ std::string extract_json_number_value(const std::string& json,
     }
     return value;
 }
-}  // namespace
+}  
 
 Ai::Ai(const std::string& api_key, const std::string& assistant_type,
        const std::string& initial_instruction) {
@@ -695,26 +695,26 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     }
 
     try {
-        // Extract content from nested JSON structure
-        // Look for "choices":[{"message":{"content":"..."}]
+        
+        
         size_t choices_pos = response.body.find("\"choices\"");
         if (choices_pos != std::string::npos) {
             size_t content_start =
                 response.body.find("\"content\":", choices_pos);
             if (content_start != std::string::npos) {
-                content_start += 10;  // Skip "content":
+                content_start += 10;  
                 while (content_start < response.body.length() &&
                        std::isspace(response.body[content_start]))
                     content_start++;
                 if (content_start < response.body.length() &&
                     response.body[content_start] == '"') {
-                    content_start++;  // Skip opening quote
+                    content_start++;  
                     std::string content;
                     while (content_start < response.body.length() &&
                            response.body[content_start] != '"') {
                         if (response.body[content_start] == '\\' &&
                             content_start + 1 < response.body.length()) {
-                            content_start++;  // Skip backslash
+                            content_start++;  
                             switch (response.body[content_start]) {
                                 case '"':
                                     content += '"';
@@ -754,7 +754,7 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
             extract_json_number_value(response.body, "total_tokens");
 
         if (!files.empty() && assistant_type == "file-search") {
-            // Store file names as comma-separated string
+            
             std::string file_names_str;
             for (size_t i = 0; i < files.size(); ++i) {
                 if (i > 0)
@@ -828,7 +828,7 @@ std::map<std::string, std::string> Ai::parse_json_response(
     const std::string& json_response) const {
     std::map<std::string, std::string> response_data;
     try {
-        // Simple key-value extraction for common fields
+        
         response_data["total_tokens"] =
             extract_json_number_value(json_response, "total_tokens");
         response_data["prompt_tokens"] =
@@ -846,7 +846,7 @@ std::map<std::string, std::string> Ai::parse_json_response(
 std::string Ai::extract_content_from_json(
     const std::string& json_response) const {
     try {
-        // Extract content from nested JSON structure
+        
         size_t choices_pos = json_response.find("\"choices\"");
         if (choices_pos != std::string::npos) {
             size_t content_start =

@@ -39,7 +39,7 @@ class Exec {
     int last_exit_code = 0;
     ErrorInfo last_error;
 
-    // Smart pipeline optimization helpers
+    
     bool requires_fork(const Command& cmd) const;
     bool can_execute_in_process(const Command& cmd) const;
     int execute_builtin_with_redirections(Command cmd);
@@ -66,7 +66,7 @@ class Exec {
                    const std::string& message = "",
                    const std::vector<std::string>& suggestions = {});
     ErrorInfo get_error();
-    std::string get_error_string();  // For backward compatibility
+    std::string get_error_string();  
     void print_last_error();
     int get_exit_code() const {
         return last_exit_code;
@@ -77,5 +77,5 @@ class Exec {
     void terminate_all_child_process();
 
     std::string
-        last_terminal_output_error;  // Deprecated - use get_error() instead
+        last_terminal_output_error;  
 };

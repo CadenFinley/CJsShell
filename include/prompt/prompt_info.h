@@ -62,7 +62,7 @@ class PromptInfo {
         return basic_info.get_hostname();
     }
 
-    // Git Info
+    
     std::string get_git_branch(const std::filesystem::path& git_head_path) {
         return git_info.get_git_branch(git_head_path);
     }
@@ -98,7 +98,7 @@ class PromptInfo {
         return git_info.get_git_uncommitted_changes(repo_root);
     }
 
-    // System Info
+    
     std::string get_os_info() {
         return system_info.get_os_info();
     }
@@ -127,7 +127,7 @@ class PromptInfo {
         return system_info.get_load_avg();
     }
 
-    // Environment Info
+    
     std::string get_terminal_type() {
         return environment_info.get_terminal_type();
     }
@@ -150,7 +150,7 @@ class PromptInfo {
         return environment_info.get_shell_version();
     }
 
-    // Network Info
+    
     std::string get_ip_address(bool external = false) {
         return network_info.get_ip_address(external);
     }
@@ -161,7 +161,7 @@ class PromptInfo {
         return network_info.get_active_network_interface();
     }
 
-    // Time Info
+    
     std::string get_current_time(bool twelve_hour_format = false) {
         return time_info.get_current_time(twelve_hour_format);
     }
@@ -184,7 +184,7 @@ class PromptInfo {
         return time_info.get_current_month_name();
     }
 
-    // Directory Info
+    
     std::string get_display_directory() {
         return directory_info.get_display_directory();
     }
@@ -201,7 +201,7 @@ class PromptInfo {
         return directory_info.is_truncated();
     }
 
-    // Command Info
+    
     void start_command_timing() {
         command_info.start_command_timing();
     }
@@ -233,7 +233,7 @@ class PromptInfo {
         return command_info.is_last_command_success();
     }
 
-    // Language Info
+    
     bool is_python_project() {
         return language_info.is_python_project();
     }

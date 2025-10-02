@@ -10,8 +10,8 @@ class CommandLineParser {
     struct ParseResult {
         std::string script_file;
         std::vector<std::string> script_args;
-        int exit_code = 0;  // 0 = continue, non-zero = exit with this code
-        bool should_exit = false;  // true if should exit immediately
+        int exit_code = 0;  
+        bool should_exit = false;  
     };
 
     static ParseResult parse_arguments(int argc, char* argv[]);
@@ -23,4 +23,4 @@ class CommandLineParser {
     static void print_debug_info(const std::string& message);
 };
 
-}  // namespace cjsh
+}  

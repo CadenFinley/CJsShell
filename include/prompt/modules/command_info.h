@@ -5,7 +5,7 @@
 
 class CommandInfo {
    private:
-    int min_time_threshold = 0;  // microseconds
+    int min_time_threshold = 0;
     bool show_microseconds = false;
 
     std::chrono::time_point<std::chrono::high_resolution_clock>

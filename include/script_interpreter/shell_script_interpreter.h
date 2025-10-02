@@ -36,28 +36,28 @@ class ShellScriptInterpreter {
     }
 
     enum class ErrorSeverity {
-        INFO = 0,     // Informational messages
-        WARNING = 1,  // Potential issues that won't break execution
-        ERROR = 2,    // Syntax errors that will prevent execution
-        CRITICAL = 3  // Critical errors that indicate major problems
+        INFO = 0,     
+        WARNING = 1,  
+        ERROR = 2,    
+        CRITICAL = 3  
     };
 
     enum class ErrorCategory {
-        SYNTAX,        // Basic syntax errors (quotes, parentheses, etc.)
-        CONTROL_FLOW,  // Control structure issues (if/then/fi, loops, etc.)
-        REDIRECTION,   // Input/output redirection problems
-        VARIABLES,     // Variable usage and definition issues
-        COMMANDS,      // Command existence and parameter issues
-        SEMANTICS,     // Semantic analysis issues
-        STYLE,         // Style and best practice recommendations
-        PERFORMANCE    // Performance-related suggestions
+        SYNTAX,        
+        CONTROL_FLOW,  
+        REDIRECTION,   
+        VARIABLES,     
+        COMMANDS,      
+        SEMANTICS,     
+        STYLE,         
+        PERFORMANCE    
     };
 
     struct ErrorPosition {
         size_t line_number;
-        size_t column_start;  // 0-based column where error starts
-        size_t column_end;    // 0-based column where error ends
-        size_t char_offset;   // Absolute character offset in the script
+        size_t column_start;  
+        size_t column_end;    
+        size_t char_offset;   
     };
 
     struct SyntaxError {
@@ -65,13 +65,13 @@ class ShellScriptInterpreter {
         ErrorSeverity severity;
         ErrorCategory category;
         std::string
-            error_code;  // Unique error identifier (e.g., "SH001", "VAR002")
-        std::string message;       // Human-readable error message
-        std::string line_content;  // The problematic line content
-        std::string suggestion;    // Suggested fix or improvement
+            error_code;  
+        std::string message;       
+        std::string line_content;  
+        std::string suggestion;    
         std::vector<std::string>
-            related_info;               // Additional context or related errors
-        std::string documentation_url;  // Link to documentation or help
+            related_info;               
+        std::string documentation_url;  
 
         SyntaxError(size_t line_num, const std::string& msg,
                     const std::string& line_content)
@@ -126,7 +126,7 @@ class ShellScriptInterpreter {
     std::vector<SyntaxError> check_style_guidelines(
         const std::vector<std::string>& lines);
 
-    // New enhanced validation functions
+    
     std::vector<SyntaxError> validate_pipeline_syntax(
         const std::vector<std::string>& lines);
 

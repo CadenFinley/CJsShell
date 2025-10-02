@@ -15,30 +15,30 @@ std::vector<std::string> tokenize_command(const std::string& cmdline);
 
 struct Command {
     std::vector<std::string> args;
-    std::string input_file;         // < redirection
-    std::string output_file;        // > redirection
-    std::string append_file;        // >> redirection
-    bool background = false;        // & at the end
-    bool stderr_to_stdout = false;  // 2>&1 redirection
-    bool stdout_to_stderr = false;  // >&2 redirection
-    std::string stderr_file;        // 2> redirection (stderr to file)
-    bool stderr_append = false;     // 2>> append redirection
-    std::string here_doc;           // << HERE document
-    std::string here_string;        // <<< here string
+    std::string input_file;         
+    std::string output_file;        
+    std::string append_file;        
+    bool background = false;        
+    bool stderr_to_stdout = false;  
+    bool stdout_to_stderr = false;  
+    std::string stderr_file;        
+    bool stderr_append = false;     
+    std::string here_doc;           
+    std::string here_string;        
     bool both_output =
-        false;  // &> redirection (stdout and stderr to same file)
-    std::string both_output_file;  // file for &> redirection
-    bool force_overwrite = false;  // >| force overwrite (noclobber bypass)
+        false;  
+    std::string both_output_file;  
+    bool force_overwrite = false;  
 
-    // File descriptor redirections (fd_num -> target)
-    std::map<int, std::string> fd_redirections;      // e.g., 3< file.txt
-    std::map<int, int> fd_duplications;              // e.g., 2>&1, 3>&2
-    std::vector<std::string> process_substitutions;  // <(cmd) or >(cmd)
+    
+    std::map<int, std::string> fd_redirections;      
+    std::map<int, int> fd_duplications;              
+    std::vector<std::string> process_substitutions;  
 
     Command() {
-        args.reserve(8);  // Reserve space for typical command + arguments
+        args.reserve(8);  
         process_substitutions.reserve(
-            2);  // Reserve space for typical process substitutions
+            2);  
     }
 };
 
@@ -51,7 +51,7 @@ class Parser {
    public:
     std::vector<std::string> parse_into_lines(const std::string& scripts);
 
-    // Command validation
+    
     bool should_validate_command(const std::string& command) const;
     bool is_valid_command(const std::string& command_name) const;
     std::string get_command_validation_error(

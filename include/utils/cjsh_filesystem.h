@@ -11,18 +11,18 @@
 #include <string>
 #include <vector>
 
-// the cjsh file system
+
 namespace cjsh_filesystem {
 namespace fs = std::filesystem;
 
-// Error type for Result
+
 struct Error {
     std::string message;
     explicit Error(const std::string& msg) : message(msg) {
     }
 };
 
-// Result template for safe error handling
+
 template <typename T>
 class Result {
    public:
@@ -32,7 +32,7 @@ class Result {
         : error_(error.message), has_value_(false) {
     }
 
-    // Factory methods
+    
     static Result<T> ok(T value) {
         return Result<T>(std::move(value));
     }
@@ -73,7 +73,7 @@ class Result {
     bool has_value_;
 };
 
-// Specialization for void
+
 template <>
 class Result<void> {
    public:
@@ -83,7 +83,7 @@ class Result<void> {
         : error_(error.message), has_value_(false) {
     }
 
-    // Factory methods
+    
     static Result<void> ok() {
         return Result<void>();
     }
@@ -109,7 +109,7 @@ class Result<void> {
     bool has_value_;
 };
 
-// Safe file operations class
+
 class FileOperations {
    public:
     static Result<int> safe_open(const std::string& path, int flags,
@@ -119,7 +119,7 @@ class FileOperations {
     static Result<void> redirect_fd(const std::string& file, int target_fd,
                                     int flags);
 
-    // FILE* based operations
+    
     static Result<FILE*> safe_fopen(const std::string& path,
                                     const std::string& mode);
     static void safe_fclose(FILE* file);
@@ -127,21 +127,21 @@ class FileOperations {
                                     const std::string& mode);
     static int safe_pclose(FILE* file);
 
-    // Temporary file utilities
+    
     static Result<std::string> create_temp_file(
         const std::string& prefix = "cjsh_temp");
     static Result<void> write_temp_file(const std::string& path,
                                         const std::string& content);
     static void cleanup_temp_file(const std::string& path);
 
-    // High-level utilities
+    
     static Result<std::string> read_command_output(const std::string& command);
     static Result<void> write_file_content(const std::string& path,
                                            const std::string& content);
     static Result<std::string> read_file_content(const std::string& path);
 };
 
-// ALL STORED IN FULL PATHS
+
 const fs::path g_user_home_path = []() {
     const char* home = std::getenv("HOME");
     if (!home || home[0] == '\0') {
@@ -154,47 +154,47 @@ const fs::path g_user_home_path = []() {
     return fs::path(home);
 }();
 
-// This needs to be non-const because it's initialized at runtime
+
 extern fs::path g_cjsh_path;
 
-// used if login
+
 const fs::path g_cjsh_profile_path =
     g_user_home_path /
-    ".cjprofile";  // envvars loaded on login shell also startup flags
+    ".cjprofile";  
 
-// used if interactive
+
 const fs::path g_cjsh_source_path =
-    g_user_home_path / ".cjshrc";  // aliases, prompt, functions, themes loaded
-                                   // on interactive shell
+    g_user_home_path / ".cjshrc";  
+                                   
 
 const fs::path g_config_path =
-    g_user_home_path / ".config";                           // config directory
-const fs::path g_cache_path = g_user_home_path / ".cache";  // cache directory
+    g_user_home_path / ".config";                           
+const fs::path g_cache_path = g_user_home_path / ".cache";  
 
 const fs::path g_cjsh_data_path =
-    g_config_path / "cjsh";  // directory for all cjsh things
+    g_config_path / "cjsh";  
 const fs::path g_cjsh_cache_path =
-    g_cache_path / "cjsh";  // cache directory for cjsh
+    g_cache_path / "cjsh";  
 
 const fs::path g_cjsh_plugin_path =
-    g_cjsh_data_path / "plugins";  // where all plugins are stored
+    g_cjsh_data_path / "plugins";  
 const fs::path g_cjsh_theme_path =
-    g_cjsh_data_path / "themes";  // where all themes are stored
+    g_cjsh_data_path / "themes";  
 const fs::path g_cjsh_history_path =
-    g_cjsh_cache_path / "history.txt";  // where the history is stored
+    g_cjsh_cache_path / "history.txt";  
 
 const fs::path g_cjsh_ai_conversations_path =
     g_cjsh_cache_path /
-    "conversations";  // where the ai conversations are stored
+    "conversations";  
 
 const fs::path g_cjsh_found_executables_path =
     g_cjsh_cache_path /
-    "cached_executables.cache";  // where the found executables are stored for
-                                 // syntax highlighting and completions
+    "cached_executables.cache";  
+                                 
 
 const fs::path g_cjsh_path_hash_cache_path =
-    g_cjsh_cache_path / "path_hash.cache";  // where the PATH hash is stored for
-                                            // auto-updating executable cache
+    g_cjsh_cache_path / "path_hash.cache";  
+                                            
 
 std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();
@@ -202,7 +202,7 @@ bool file_exists(const cjsh_filesystem::fs::path& path);
 bool should_refresh_executable_cache();
 bool initialize_cjsh_path();
 
-// Auto-updating executable cache functions
+
 void add_executable_to_cache(const std::string& executable_name,
                              const std::string& full_path);
 void remove_executable_from_cache(const std::string& executable_name);
@@ -217,11 +217,11 @@ bool initialize_cjsh_directories();
 std::filesystem::path get_cjsh_path();
 std::string find_executable_in_path(const std::string& name);
 
-// Configuration file creation utilities
+
 void create_profile_file();
 void create_source_file();
 
-// Filesystem initialization utilities
+
 bool init_login_filesystem();
 bool init_interactive_filesystem();
-}  // namespace cjsh_filesystem
+}  

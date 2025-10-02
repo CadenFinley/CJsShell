@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 /**
- * CJSH Plugin API - Enhanced Version
+ * CJSH Plugin API
  *
  * This header defines the interface for creating plugins for CJ's Shell.
  * This version includes enhanced memory safety and error handling.
@@ -200,8 +200,6 @@ plugin_error_t plugin_register_prompt_variable(
 #define PLUGIN_API __attribute__((visibility("default")))
 
 /**
- * Enhanced plugin template with better error handling
- *
  * Example implementation:
  *
  * PLUGIN_API plugin_info_t* plugin_get_info() {
@@ -260,16 +258,7 @@ plugin_error_t plugin_register_prompt_variable(
  *         PLUGIN_FREE(ptr);
  *     }
  * }
- *
- * MEMORY SAFETY CHECKLIST:
- * □ Implemented plugin_free_memory() correctly
- * □ All returned arrays/strings are heap-allocated
- * □ Checked for NULL pointers before dereferencing
- * □ Matched every malloc() with corresponding free()
- * □ Used consistent allocation strategy throughout plugin
- * □ Implemented proper error handling for allocation failures
- * □ Tested plugin with Valgrind or similar memory checker
- */
+*/
 
 #ifdef __cplusplus
 }

@@ -23,7 +23,7 @@ class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
 
-// Lightweight scoped raw mode for non-blocking input capture
+
 class ScopedRawMode {
    public:
     ScopedRawMode();
@@ -73,7 +73,7 @@ class Shell {
         return shell_prompt->get_title_prompt();
     }
 
-    // Command timing methods
+    
     void start_command_timing() {
         if (shell_prompt) {
             shell_prompt->start_command_timing();
@@ -150,10 +150,10 @@ class Shell {
     bool get_shell_option(const std::string& option) const;
     bool is_errexit_enabled() const;
 
-    // Variable expansion method
+    
     void expand_env_vars(std::string& value);
 
-    // Environment synchronization method
+    
     void sync_env_vars_from_system();
 
     void setup_signal_handlers();
