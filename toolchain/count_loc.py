@@ -26,6 +26,10 @@ def should_include_file(file_path: Path, project_root: Path,
     if any(part in excluded_dirs for part in relative_path.parts):
         return False
     
+    # Exclude isocline directories specifically
+    # if 'isocline' in relative_path.parts:
+    #     return False
+    
     # Exclude specific files
     if file_path.name == 'nob.h':
         return False
@@ -91,7 +95,7 @@ def main():
     parser.add_argument('--by-extension', '-e', action='store_true',
                        help='Group results by file extension')
     parser.add_argument('--include-dirs', nargs='*', 
-                       help='Additional directories to include (default excludes: vendor, plugins, themes, build, tool-scripts, tests)')
+                       help='Additional directories to include (default excludes: vendor, plugins, themes, build, toolchain, tests)')
     parser.add_argument('--exclude-dirs', nargs='*',
                        help='Additional directories to exclude')
     parser.add_argument('--extensions', nargs='*', default=['.c', '.h', '.cpp', '.hpp', '.cc', '.sh'],
@@ -103,7 +107,7 @@ def main():
     os.chdir(project_root)
     
     # Set up excluded directories
-    excluded_dirs = {'vendor', 'plugins', 'themes', 'build'}
+    excluded_dirs = {'vendor', 'plugins', 'themes', 'build', 'toolchain', 'tests'}
     if args.exclude_dirs:
         excluded_dirs.update(args.exclude_dirs)
     if args.include_dirs:

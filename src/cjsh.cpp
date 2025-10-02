@@ -83,6 +83,11 @@ bool disable_custom_ls = false;
 bool show_startup_time = false;
 }  // namespace config
 
+// add --tiny option to disable all extra cjsh compoenents at compile time and compile with -0z
+// add --fast opttim to compile with -O3
+// NFC normalization requires full Unicode decomposition and composition.
+// Until a dedicated normalization routine is added, return the input.
+
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
