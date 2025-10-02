@@ -89,7 +89,6 @@ std::string filter_escape_sequences(const std::string& input) {
 
         if (ch == '\x1b' && i + 1 < input.size()) {
             char next = input[i + 1];
-            std::size_t seq_start = i;
 
             if (next == '[') {
                 i += 2;
@@ -352,7 +351,7 @@ std::string capture_available_input() {
         struct pollfd pfd{};
         pfd.fd = STDIN_FILENO;
         pfd.events = POLLIN;
-        int poll_result = poll(&pfd, 1, 0);
+        poll(&pfd, 1, 0);
     }
 
     for (char& c : captured_data) {

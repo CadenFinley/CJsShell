@@ -280,6 +280,7 @@ static bool completion_limit_hit() {
 }
 
 static bool completion_limit_hit_with_log(const char* label) {
+    (void)label;
     if (!completion_limit_hit())
         return false;
     return true;
@@ -287,6 +288,7 @@ static bool completion_limit_hit_with_log(const char* label) {
 
 static bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate,
                                    size_t prefix_len, const char* source, const char* debug_label) {
+    (void)debug_label;
     long delete_before = static_cast<long>(prefix_len);
     return safe_add_completion_prim_with_source(cenv, candidate.c_str(), nullptr, nullptr, source,
                                                 delete_before, 0);
