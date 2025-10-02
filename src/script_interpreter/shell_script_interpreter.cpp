@@ -2348,7 +2348,10 @@ int ShellScriptInterpreter::execute_block(
                     if (i + 1 < s.size() && s[i + 1] == '&') {
                         cur += c;
                     } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
-                               std::isdigit(s[i + 1])) {
+                               (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
+                        cur += c;
+                    } else if (i > 0 && s[i - 1] == '<' && i + 1 < s.size() &&
+                               (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
                         cur += c;
                     } else if (i + 1 < s.size() && s[i + 1] == '>') {
                         cur += c;

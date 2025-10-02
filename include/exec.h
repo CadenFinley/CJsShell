@@ -42,6 +42,7 @@ class Exec {
     // Smart pipeline optimization helpers
     bool requires_fork(const Command& cmd) const;
     bool can_execute_in_process(const Command& cmd) const;
+    int execute_builtin_with_redirections(Command cmd);
 
    public:
     Exec();
