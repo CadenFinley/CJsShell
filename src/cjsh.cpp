@@ -42,12 +42,6 @@
 #include "utils/command_line_parser.h"
 #include "version_command.h"
 
-struct termios g_original_termios;
-bool g_terminal_state_saved = false;
-int g_shell_terminal = 0;
-pid_t g_shell_pgid = 0;
-struct termios g_shell_tmodes;
-bool g_job_control_enabled = false;
 bool g_exit_flag = false;
 std::string g_cached_version;
 std::string g_current_theme;
@@ -86,7 +80,6 @@ bool secure_mode = false;
 bool show_title_line = true;
 }  // namespace config
 
-// add --tiny option nob build system to disable all extra cjsh compoenents at compile time and not compile theme to cjsh binary
 // cleanup and refactor parser
 
 static void save_startup_arguments(int argc, char* argv[]) {

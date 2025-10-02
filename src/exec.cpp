@@ -12,6 +12,7 @@
 #include <cctype>
 #include <csignal>
 #include <cstdint>
+#include <cstring>
 #include <ctime>
 #include <iostream>
 #include <memory>
