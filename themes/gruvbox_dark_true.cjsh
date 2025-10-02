@@ -12,8 +12,8 @@ theme_definition {
   }
 
   fill {
-    char " ",
-    fg "RESET",
+    char "—",
+    fg "#504945",
     bg "RESET"
   }
 
@@ -273,7 +273,7 @@ theme_definition {
 
   newline {
     segment "promptseg" {
-      content " ╰─> "
+      content " ╰──> "
       fg "#b8bb26"
       bg "RESET"
       separator ""
@@ -284,14 +284,14 @@ theme_definition {
 
   inline_right {
     segment "inline" {
-        content "─╯"
+        content "──╯"
         fg "#b8bb26"
         bg "RESET"
     }
   }
 
   behavior {
-    cleanup true
+    cleanup false
     cleanup_empty_line false
     newline_after_execution true
   }
