@@ -236,6 +236,87 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool al
     }
 }
 
+bool Theme::load_theme_from_string(const std::string& theme_content, const std::string& source_name,
+                                   bool allow_fallback) {
+    if (!is_enabled) {
+        return load_theme("default", allow_fallback);
+    }
+
+    std::string source_label = source_name.empty() ? std::string("inline_theme") : source_name;
+
+    auto sanitize_for_path = [](const std::string& label, const std::string& fallback) {
+        std::string safe;
+        safe.reserve(label.size());
+        for (char ch : label) {
+            switch (ch) {
+                case '<':
+                case '>':
+                case ':':
+                case '"':
+                case '|':
+                case '?':
+                case '*':
+                    safe.push_back('_');
+                    break;
+                default:
+                    safe.push_back(ch);
+                    break;
+            }
+        }
+        if (safe.empty()) {
+            safe = fallback;
+        }
+        return std::filesystem::path(safe);
+    };
+
+    try {
+        ThemeParser parser(theme_content, source_label);
+        ThemeDefinition parsed_definition = parser.parse();
+
+        std::string theme_name_to_use = parsed_definition.name.empty() ? std::string("default")
+                                                                       : parsed_definition.name;
+
+        std::filesystem::path pseudo_source = sanitize_for_path(source_label, theme_name_to_use);
+
+        return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback,
+                                      pseudo_source);
+    } catch (const ThemeParseException& e) {
+        std::string message = "Failed to parse inline theme";
+        if (!source_label.empty()) {
+            message += " '" + source_label + "'";
+        }
+        if (e.line() > 0) {
+            message += " at line " + std::to_string(e.line());
+        }
+        if (!e.detail().empty()) {
+            message += ": " + e.detail();
+        }
+
+        if (e.error_info()) {
+            ErrorInfo error = *e.error_info();
+            error.type = ErrorType::SYNTAX_ERROR;
+            error.command_used = "load_theme";
+            error.message = message;
+            if (error.suggestions.empty()) {
+                error.suggestions.push_back("Check theme syntax and try again.");
+            }
+            print_error(error);
+        } else {
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "load_theme",
+                         message,
+                         {"Check theme syntax and try again."}});
+        }
+        return false;
+    } catch (const std::exception& e) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Failed to load inline theme '" + source_label + "': " + e.what(),
+                     {}});
+        return false;
+    }
+}
+
 bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name,
                                    bool allow_fallback, const std::filesystem::path& source_path) {
     theme_data = definition;

@@ -72,6 +72,8 @@ class Theme {
 
     bool load_theme(const std::string& theme_name, bool allow_fallback);
     bool load_theme_from_path(const std::filesystem::path& file_path, bool allow_fallback);
+    bool load_theme_from_string(const std::string& theme_content, const std::string& source_name,
+                                bool allow_fallback);
     std::vector<std::string> list_themes();
     void view_theme_requirements(const std::string& theme) const;
 
