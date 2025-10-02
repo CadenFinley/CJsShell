@@ -25,7 +25,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                       "  completion-case <on|off|status>  Configure completion case "
                       "sensitivity",
                       "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
-                      "  generate-rc [--force]            Create or overwrite ~/.cjshrc"}});
+                      "  generate-rc [--force]            Create or overwrite ~/.cjshrc"
+                      "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
+                    }});
         return 1;
     }
 
@@ -41,6 +43,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return generate_profile_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "generate-rc") {
         return generate_rc_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "generate-logout") {
+        return generate_logout_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
