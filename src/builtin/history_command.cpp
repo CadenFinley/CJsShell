@@ -12,15 +12,19 @@
 int history_command(const std::vector<std::string>& args) {
     cjsh_filesystem::initialize_cjsh_directories();
 
-    auto read_result = cjsh_filesystem::FileOperations::read_file_content(cjsh_filesystem::g_cjsh_history_path.string());
+    auto read_result = cjsh_filesystem::FileOperations::read_file_content(
+        cjsh_filesystem::g_cjsh_history_path.string());
 
     std::string content;
     if (read_result.is_error()) {
-        auto write_result = cjsh_filesystem::FileOperations::write_file_content(cjsh_filesystem::g_cjsh_history_path.string(), "");
+        auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+            cjsh_filesystem::g_cjsh_history_path.string(), "");
         if (write_result.is_error()) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "history",
-                         "could not create history file at " + cjsh_filesystem::g_cjsh_history_path.string() + ": " + write_result.error(),
+                         "could not create history file at " +
+                             cjsh_filesystem::g_cjsh_history_path.string() + ": " +
+                             write_result.error(),
                          {}});
             return 1;
         }

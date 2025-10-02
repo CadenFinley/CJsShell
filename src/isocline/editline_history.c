@@ -71,7 +71,8 @@ static void edit_history_prefix_search(ic_env_t* env, editor_t* eb, bool backwar
     // If we reach here, user has typed something and this is the first history
     // navigation So we do prefix-based search
     const char* prefix = current_input;
-    ssize_t start_idx = backward ? 1 : 0;  // Start from history index 1 (skip current empty entry at 0)
+    ssize_t start_idx =
+        backward ? 1 : 0;  // Start from history index 1 (skip current empty entry at 0)
 
     ssize_t found_idx;
     if (history_search_prefix(env->history, start_idx, prefix, backward, &found_idx)) {
@@ -105,7 +106,8 @@ typedef struct hsearch_s {
     bool cinsert;
 } hsearch_t;
 
-static void hsearch_push(alloc_t* mem, hsearch_t** hs, ssize_t hidx, ssize_t mpos, ssize_t mlen, bool cinsert) {
+static void hsearch_push(alloc_t* mem, hsearch_t** hs, ssize_t hidx, ssize_t mpos, ssize_t mlen,
+                         bool cinsert) {
     hsearch_t* h = mem_zalloc_tp(mem, hsearch_t);
     if (h == NULL)
         return;
@@ -117,7 +119,8 @@ static void hsearch_push(alloc_t* mem, hsearch_t** hs, ssize_t hidx, ssize_t mpo
     *hs = h;
 }
 
-static bool hsearch_pop(alloc_t* mem, hsearch_t** hs, ssize_t* hidx, ssize_t* match_pos, ssize_t* match_len, bool* cinsert) {
+static bool hsearch_pop(alloc_t* mem, hsearch_t** hs, ssize_t* hidx, ssize_t* match_pos,
+                        ssize_t* match_len, bool* cinsert) {
     hsearch_t* h = *hs;
     if (h == NULL)
         return false;
@@ -245,7 +248,8 @@ again:
     } else if (c == KEY_CTRL_R || c == KEY_TAB || c == KEY_UP) {
         // search backward
         hsearch_push(env->mem, &hs, hidx, match_pos, match_len, false);
-        if (!history_search(env->history, hidx + 1, sbuf_string(eb->input), true, &hidx, &match_pos)) {
+        if (!history_search(env->history, hidx + 1, sbuf_string(eb->input), true, &hidx,
+                            &match_pos)) {
             hsearch_pop(env->mem, &hs, NULL, NULL, NULL, NULL);
             term_beep(env->term);
         };
@@ -253,7 +257,8 @@ again:
     } else if (c == KEY_CTRL_S || c == KEY_SHIFT_TAB || c == KEY_DOWN) {
         // search forward
         hsearch_push(env->mem, &hs, hidx, match_pos, match_len, false);
-        if (!history_search(env->history, hidx - 1, sbuf_string(eb->input), false, &hidx, &match_pos)) {
+        if (!history_search(env->history, hidx - 1, sbuf_string(eb->input), false, &hidx,
+                            &match_pos)) {
             hsearch_pop(env->mem, &hs, NULL, NULL, NULL, NULL);
             term_beep(env->term);
         };

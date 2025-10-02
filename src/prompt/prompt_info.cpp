@@ -125,7 +125,6 @@
  */
 
 std::string PromptInfo::get_basic_prompt() {
-
     std::string username = get_username();
     std::string hostname = get_hostname();
     std::string cwd = get_current_file_path();
@@ -139,18 +138,20 @@ std::string PromptInfo::get_basic_prompt() {
 }
 
 std::string PromptInfo::get_basic_ai_prompt() {
-
     std::string cwd = get_current_file_path();
     std::string ai_model = g_ai->get_model();
     std::string ai_context = g_ai->get_save_directory();
     std::string ai_type = g_ai->get_assistant_type();
-    std::string ai_context_comparison = (std::filesystem::current_path().string() + "/" == ai_context) ? "✔" : "✖";
+    std::string ai_context_comparison =
+        (std::filesystem::current_path().string() + "/" == ai_context) ? "✔" : "✖";
 
-    size_t size = ai_model.length() + ai_context.length() + cwd.length() + ai_type.length() + ai_context_comparison.length() + 10;
+    size_t size = ai_model.length() + ai_context.length() + cwd.length() + ai_type.length() +
+                  ai_context_comparison.length() + 10;
     std::string prompt;
     prompt.reserve(size);
 
-    prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " + cwd + " " + ai_type + " > ";
+    prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " + cwd + " " + ai_type +
+             " > ";
     return prompt;
 }
 
@@ -158,8 +159,8 @@ std::string PromptInfo::get_basic_title() {
     return "cjsh v" + c_version + " " + get_current_file_path();
 }
 
-bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector<ThemeSegment>& segments) {
-
+bool PromptInfo::is_variable_used(const std::string& var_name,
+                                  const std::vector<ThemeSegment>& segments) {
     std::string placeholder = "{" + var_name + "}";
 
     static std::unordered_map<std::string, bool> cache;
@@ -188,11 +189,14 @@ bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector
     return false;
 }
 
-std::unordered_map<std::string, std::string> PromptInfo::get_variables(const std::vector<ThemeSegment>& segments, bool is_git_repo,
-                                                                       const std::filesystem::path& repo_root) {
-
-    static std::unordered_map<std::string, std::pair<bool, std::chrono::steady_clock::time_point>> language_cache;
-    static std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> version_cache;
+std::unordered_map<std::string, std::string> PromptInfo::get_variables(
+    const std::vector<ThemeSegment>& segments, bool is_git_repo,
+    const std::filesystem::path& repo_root) {
+    static std::unordered_map<std::string, std::pair<bool, std::chrono::steady_clock::time_point>>
+        language_cache;
+    static std::unordered_map<std::string,
+                              std::pair<std::string, std::chrono::steady_clock::time_point>>
+        version_cache;
     static std::mutex cache_mutex;
     static const std::chrono::seconds CACHE_DURATION(30);
 
@@ -219,7 +223,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(const std
                     std::string conditional = matches[0];
                     std::string::const_iterator nested_search_start(conditional.cbegin());
 
-                    while (std::regex_search(nested_search_start, conditional.cend(), nested_matches, nested_var_pattern)) {
+                    while (std::regex_search(nested_search_start, conditional.cend(),
+                                             nested_matches, nested_var_pattern)) {
                         needed_vars.insert(nested_matches[1]);
                         nested_search_start = nested_matches.suffix().first;
                     }
@@ -231,10 +236,12 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(const std
     }
 
     std::vector<std::pair<std::string, std::string>> lang_dependencies = {
-        {"PYTHON_VERSION", "IS_PYTHON_PROJECT"}, {"NODEJS_VERSION", "IS_NODEJS_PROJECT"}, {"RUST_VERSION", "IS_RUST_PROJECT"},
-        {"GOLANG_VERSION", "IS_GOLANG_PROJECT"}, {"JAVA_VERSION", "IS_JAVA_PROJECT"},     {"CPP_VERSION", "IS_CPP_PROJECT"},
-        {"CSHARP_VERSION", "IS_CSHARP_PROJECT"}, {"PHP_VERSION", "IS_PHP_PROJECT"},       {"RUBY_VERSION", "IS_RUBY_PROJECT"},
-        {"KOTLIN_VERSION", "IS_KOTLIN_PROJECT"}, {"SWIFT_VERSION", "IS_SWIFT_PROJECT"},   {"DART_VERSION", "IS_DART_PROJECT"},
+        {"PYTHON_VERSION", "IS_PYTHON_PROJECT"}, {"NODEJS_VERSION", "IS_NODEJS_PROJECT"},
+        {"RUST_VERSION", "IS_RUST_PROJECT"},     {"GOLANG_VERSION", "IS_GOLANG_PROJECT"},
+        {"JAVA_VERSION", "IS_JAVA_PROJECT"},     {"CPP_VERSION", "IS_CPP_PROJECT"},
+        {"CSHARP_VERSION", "IS_CSHARP_PROJECT"}, {"PHP_VERSION", "IS_PHP_PROJECT"},
+        {"RUBY_VERSION", "IS_RUBY_PROJECT"},     {"KOTLIN_VERSION", "IS_KOTLIN_PROJECT"},
+        {"SWIFT_VERSION", "IS_SWIFT_PROJECT"},   {"DART_VERSION", "IS_DART_PROJECT"},
         {"SCALA_VERSION", "IS_SCALA_PROJECT"}};
 
     for (const auto& [version_var, project_var] : lang_dependencies) {
@@ -551,8 +558,9 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(const std
     if (needed_vars.count("LANGUAGE_VERSIONS")) {
         std::string combined_versions;
 
-        std::vector<std::string> languages = {"python", "nodejs", "rust",   "golang", "java", "cpp",  "csharp",
-                                              "php",    "ruby",   "kotlin", "swift",  "dart", "scala"};
+        std::vector<std::string> languages = {"python", "nodejs", "rust", "golang", "java",
+                                              "cpp",    "csharp", "php",  "ruby",   "kotlin",
+                                              "swift",  "dart",   "scala"};
 
         for (const std::string& lang : languages) {
             if (get_cached_language_detection(lang)) {

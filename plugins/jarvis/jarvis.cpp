@@ -31,7 +31,8 @@ static pid_t worker_pid = 0;
 
 // Required plugin information
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
-    static plugin_info_t info = {const_cast<char*>("jarvis"), const_cast<char*>("0.1.0"), const_cast<char*>("Test prompt variable plugin"),
+    static plugin_info_t info = {const_cast<char*>("jarvis"), const_cast<char*>("0.1.0"),
+                                 const_cast<char*>("Test prompt variable plugin"),
                                  const_cast<char*>("caden finley"), PLUGIN_INTERFACE_VERSION};
     return &info;
 }

@@ -11,7 +11,10 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "getopts", "usage: getopts optstring name [args...]", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "getopts",
+                     "usage: getopts optstring name [args...]",
+                     {}});
         return 1;
     }
 
@@ -104,7 +107,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
             return 0;
         }
 
-        print_error({ErrorType::INVALID_ARGUMENT, "getopts", std::string("illegal option -- ") + opt, {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "getopts", std::string("illegal option -- ") + opt, {}});
         return 0;
     }
 
@@ -128,7 +132,10 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
                     setenv(name.c_str(), ":", 1);
                     setenv("OPTARG", opt_val.c_str(), 1);
                 } else {
-                    print_error({ErrorType::INVALID_ARGUMENT, "getopts", std::string("option requires an argument -- ") + opt, {}});
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "getopts",
+                                 std::string("option requires an argument -- ") + opt,
+                                 {}});
                     setenv(name.c_str(), "?", 1);
                     setenv("OPTARG", opt_val.c_str(), 1);
                 }

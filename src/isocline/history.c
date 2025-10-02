@@ -128,8 +128,8 @@ ic_private const char* history_get(const history_t* h, ssize_t n) {
     return h->elems[h->count - n - 1];
 }
 
-ic_private bool history_search(const history_t* h, ssize_t from /*including*/, const char* search, bool backward, ssize_t* hidx,
-                               ssize_t* hpos) {
+ic_private bool history_search(const history_t* h, ssize_t from /*including*/, const char* search,
+                               bool backward, ssize_t* hidx, ssize_t* hpos) {
     const char* p = NULL;
     ssize_t i;
     if (backward) {
@@ -154,7 +154,8 @@ ic_private bool history_search(const history_t* h, ssize_t from /*including*/, c
     return true;
 }
 
-ic_private bool history_search_prefix(const history_t* h, ssize_t from /*including*/, const char* prefix, bool backward, ssize_t* hidx) {
+ic_private bool history_search_prefix(const history_t* h, ssize_t from /*including*/,
+                                      const char* prefix, bool backward, ssize_t* hidx) {
     if (prefix == NULL || h == NULL)
         return false;
 

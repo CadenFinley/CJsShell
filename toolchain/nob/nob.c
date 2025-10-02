@@ -17,10 +17,13 @@
 #define NOB_SELF_REBUILD_ENV "NOB_JUST_REBUILT"
 
 static const char* nob_self_rebuild_sources[] = {
-    __FILE__,         "nob.h",          "nob_build_config.h", "nob_cli.h",       "nob_compile.h", "nob_dependencies.h",
-    "nob_platform.h", "nob_progress.h", "nob_sources.h",      "nob_toolchain.h", "nob_types.h"};
+    __FILE__,          "nob.h",          "nob_build_config.h",
+    "nob_cli.h",       "nob_compile.h",  "nob_dependencies.h",
+    "nob_platform.h",  "nob_progress.h", "nob_sources.h",
+    "nob_toolchain.h", "nob_types.h"};
 
-static const size_t nob_self_rebuild_source_count = sizeof(nob_self_rebuild_sources) / sizeof(nob_self_rebuild_sources[0]);
+static const size_t nob_self_rebuild_source_count =
+    sizeof(nob_self_rebuild_sources) / sizeof(nob_self_rebuild_sources[0]);
 
 static void nob_set_self_rebuild_env(bool value) {
 #ifdef _WIN32
@@ -59,7 +62,8 @@ static void nob_mark_self_rebuild_if_needed(int argc, char** argv) {
     }
 #endif
 
-    int rebuild = nob_needs_rebuild(binary_path, nob_self_rebuild_sources, nob_self_rebuild_source_count);
+    int rebuild =
+        nob_needs_rebuild(binary_path, nob_self_rebuild_sources, nob_self_rebuild_source_count);
     if (rebuild < 0) {
         nob_log(NOB_ERROR, "Could not determine whether %s needs rebuild", binary_path);
         return;
@@ -86,8 +90,9 @@ int main(int argc, char** argv) {
     bool auto_clean = nob_consume_self_rebuild_env();
     nob_mark_self_rebuild_if_needed(argc, argv);
 
-    NOB_GO_REBUILD_URSELF_PLUS(argc, argv, "nob.h", "nob_build_config.h", "nob_cli.h", "nob_compile.h", "nob_dependencies.h",
-                               "nob_platform.h", "nob_progress.h", "nob_sources.h", "nob_toolchain.h", "nob_types.h");
+    NOB_GO_REBUILD_URSELF_PLUS(argc, argv, "nob.h", "nob_build_config.h", "nob_cli.h",
+                               "nob_compile.h", "nob_dependencies.h", "nob_platform.h",
+                               "nob_progress.h", "nob_sources.h", "nob_toolchain.h", "nob_types.h");
 
     // Change to parent directory (project root)
     if (!nob_set_current_dir("../..")) {

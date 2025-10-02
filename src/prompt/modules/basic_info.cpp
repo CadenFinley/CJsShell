@@ -13,7 +13,6 @@ bool BasicInfo::is_root_path(const std::filesystem::path& path) {
 }
 
 std::string BasicInfo::get_current_file_path() {
-
     std::string path = std::filesystem::current_path().string();
 
     if (path == "/") {
@@ -35,7 +34,6 @@ std::string BasicInfo::get_current_file_path() {
 }
 
 std::string BasicInfo::get_current_file_name() {
-
     std::filesystem::path current_path = std::filesystem::current_path();
     std::string filename = current_path.filename().string();
 
@@ -50,7 +48,8 @@ std::string BasicInfo::get_current_file_name() {
 
         if (current_str == home_str) {
             filename = "~";
-        } else if (current_str.length() > home_str.length() && current_str.substr(0, home_str.length()) == home_str &&
+        } else if (current_str.length() > home_str.length() &&
+                   current_str.substr(0, home_str.length()) == home_str &&
                    current_str[home_str.length()] == '/') {
             filename = current_path.filename().string();
         }

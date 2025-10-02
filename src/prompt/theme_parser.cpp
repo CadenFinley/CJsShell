@@ -10,7 +10,8 @@
 #include <utility>
 #include "utils/unicode_support.h"
 
-ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source, std::optional<ErrorInfo> error_info)
+ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source,
+                                         std::optional<ErrorInfo> error_info)
     : std::runtime_error(build_message(line, detail, source)),
       line_(line),
       detail_(std::move(detail)),
@@ -18,7 +19,8 @@ ThemeParseException::ThemeParseException(size_t line, std::string detail, std::s
       error_info_(std::move(error_info)) {
 }
 
-std::string ThemeParseException::build_message(size_t line, const std::string& detail, const std::string& source) {
+std::string ThemeParseException::build_message(size_t line, const std::string& detail,
+                                               const std::string& source) {
     std::ostringstream oss;
     oss << "Theme parse error";
     if (!source.empty()) {
@@ -84,14 +86,18 @@ int hex_value(char c) {
     return 10 + (c - 'A');
 }
 
-std::string expand_variables_in_string(const std::string& input, const std::unordered_map<std::string, std::string>& variables,
-                                       std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack);
+std::string expand_variables_in_string(
+    const std::string& input, const std::unordered_map<std::string, std::string>& variables,
+    std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack);
 
-std::string expand_variable_reference(const std::string& name, const std::unordered_map<std::string, std::string>& variables,
-                                      std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack);
+std::string expand_variable_reference(const std::string& name,
+                                      const std::unordered_map<std::string, std::string>& variables,
+                                      std::unordered_map<std::string, std::string>& cache,
+                                      std::vector<std::string>& stack);
 
-std::string expand_variables_in_string(const std::string& input, const std::unordered_map<std::string, std::string>& variables,
-                                       std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack) {
+std::string expand_variables_in_string(
+    const std::string& input, const std::unordered_map<std::string, std::string>& variables,
+    std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack) {
     if (input.empty() || variables.empty()) {
         return input;
     }
@@ -133,8 +139,10 @@ std::string expand_variables_in_string(const std::string& input, const std::unor
     return result;
 }
 
-std::string expand_variable_reference(const std::string& name, const std::unordered_map<std::string, std::string>& variables,
-                                      std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack) {
+std::string expand_variable_reference(const std::string& name,
+                                      const std::unordered_map<std::string, std::string>& variables,
+                                      std::unordered_map<std::string, std::string>& cache,
+                                      std::vector<std::string>& stack) {
     auto cached = cache.find(name);
     if (cached != cache.end()) {
         return cached->second;
@@ -160,7 +168,8 @@ std::string expand_variable_reference(const std::string& name, const std::unorde
     return expanded;
 }
 
-std::unordered_map<std::string, std::string> resolve_theme_variables(const std::unordered_map<std::string, std::string>& variables) {
+std::unordered_map<std::string, std::string> resolve_theme_variables(
+    const std::unordered_map<std::string, std::string>& variables) {
     if (variables.empty()) {
         return {};
     }
@@ -176,7 +185,8 @@ std::unordered_map<std::string, std::string> resolve_theme_variables(const std::
     return resolved;
 }
 
-void substitute_variables_in_string(std::string& target, const std::unordered_map<std::string, std::string>& variables) {
+void substitute_variables_in_string(std::string& target,
+                                    const std::unordered_map<std::string, std::string>& variables) {
     if (target.empty() || variables.empty()) {
         return;
     }
@@ -190,7 +200,8 @@ void substitute_variables_in_string(std::string& target, const std::unordered_ma
     target = expand_variables_in_string(target, variables, cache, stack);
 }
 
-void apply_variables_to_segment(ThemeSegment& segment, const std::unordered_map<std::string, std::string>& variables) {
+void apply_variables_to_segment(ThemeSegment& segment,
+                                const std::unordered_map<std::string, std::string>& variables) {
     substitute_variables_in_string(segment.content, variables);
     substitute_variables_in_string(segment.fg_color, variables);
     substitute_variables_in_string(segment.bg_color, variables);
@@ -203,13 +214,15 @@ void apply_variables_to_segment(ThemeSegment& segment, const std::unordered_map<
     substitute_variables_in_string(segment.alignment, variables);
 }
 
-void apply_variables_to_segments(std::vector<ThemeSegment>& segments, const std::unordered_map<std::string, std::string>& variables) {
+void apply_variables_to_segments(std::vector<ThemeSegment>& segments,
+                                 const std::unordered_map<std::string, std::string>& variables) {
     for (auto& segment : segments) {
         apply_variables_to_segment(segment, variables);
     }
 }
 
-void apply_variables_to_theme(ThemeDefinition& theme, const std::unordered_map<std::string, std::string>& variables) {
+void apply_variables_to_theme(ThemeDefinition& theme,
+                              const std::unordered_map<std::string, std::string>& variables) {
     if (variables.empty()) {
         return;
     }
@@ -262,7 +275,11 @@ std::unordered_map<std::string, std::string> ThemeSegment::to_map() const {
 }
 
 ThemeParser::ThemeParser(const std::string& theme_content, std::string source_name)
-    : content(theme_content), position(0), line_number(1), source_name(std::move(source_name)), segment_variable_definitions() {
+    : content(theme_content),
+      position(0),
+      line_number(1),
+      source_name(std::move(source_name)),
+      segment_variable_definitions() {
 }
 
 void ThemeParser::skip_whitespace() {
@@ -755,7 +772,8 @@ ThemeVariableSet ThemeParser::parse_variables_block() {
                 segment_key = parse_identifier();
             }
 
-            if (variables.string_variables.count(segment_key) || variables.segment_variables.count(segment_key) ||
+            if (variables.string_variables.count(segment_key) ||
+                variables.segment_variables.count(segment_key) ||
                 segment_variable_definitions.count(segment_key)) {
                 parse_error("Duplicate variable definition: " + segment_key);
             }
@@ -797,8 +815,10 @@ void ThemeParser::expect_token(const std::string& expected) {
 }
 
 void ThemeParser::parse_error(const std::string& message) {
-    ErrorInfo info{
-        ErrorType::SYNTAX_ERROR, source_name.empty() ? "theme_parser" : source_name, message, {"Check theme syntax and try again."}};
+    ErrorInfo info{ErrorType::SYNTAX_ERROR,
+                   source_name.empty() ? "theme_parser" : source_name,
+                   message,
+                   {"Check theme syntax and try again."}};
     throw ThemeParseException(line_number, message, source_name, info);
 }
 
@@ -886,7 +906,10 @@ ThemeDefinition ThemeParser::parse() {
     } catch (const ThemeParseException&) {
         throw;
     } catch (const std::exception& e) {
-        ErrorInfo info{ErrorType::RUNTIME_ERROR, source_name.empty() ? "theme_parser" : source_name, e.what(), {}};
+        ErrorInfo info{ErrorType::RUNTIME_ERROR,
+                       source_name.empty() ? "theme_parser" : source_name,
+                       e.what(),
+                       {}};
         throw ThemeParseException(0, e.what(), source_name, info);
     }
 
@@ -896,7 +919,10 @@ ThemeDefinition ThemeParser::parse() {
 ThemeDefinition ThemeParser::parse_file(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        ErrorInfo info{ErrorType::FILE_NOT_FOUND, filepath, "Could not open theme file", {"Verify the file path and permissions."}};
+        ErrorInfo info{ErrorType::FILE_NOT_FOUND,
+                       filepath,
+                       "Could not open theme file",
+                       {"Verify the file path and permissions."}};
         throw ThemeParseException(0, "Could not open theme file", filepath, info);
     }
 
@@ -922,7 +948,8 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     oss << "    bg " << theme.fill.bg_color << "\n";
     oss << "  }\n\n";
 
-    auto write_segment_definition = [&](const ThemeSegment& segment, const std::string& base_indent) {
+    auto write_segment_definition = [&](const ThemeSegment& segment,
+                                        const std::string& base_indent) {
         std::string inner_indent = base_indent + "  ";
         oss << base_indent << "segment \"" << segment.name << "\" {\n";
         oss << inner_indent << "content \"" << segment.content << "\"\n";
@@ -935,8 +962,10 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         }
         if (!segment.forward_separator.empty()) {
             oss << inner_indent << "forward_separator \"" << segment.forward_separator << "\"\n";
-            oss << inner_indent << "forward_separator_fg \"" << segment.forward_separator_fg << "\"\n";
-            oss << inner_indent << "forward_separator_bg \"" << segment.forward_separator_bg << "\"\n";
+            oss << inner_indent << "forward_separator_fg \"" << segment.forward_separator_fg
+                << "\"\n";
+            oss << inner_indent << "forward_separator_bg \"" << segment.forward_separator_bg
+                << "\"\n";
         }
         if (!segment.alignment.empty()) {
             oss << inner_indent << "alignment \"" << segment.alignment << "\"\n";
@@ -945,8 +974,10 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     };
 
     if (!theme.variables.empty() || !theme.segment_variables.empty()) {
-        std::vector<std::pair<std::string, std::string>> scalar_variables(theme.variables.begin(), theme.variables.end());
-        std::sort(scalar_variables.begin(), scalar_variables.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+        std::vector<std::pair<std::string, std::string>> scalar_variables(theme.variables.begin(),
+                                                                          theme.variables.end());
+        std::sort(scalar_variables.begin(), scalar_variables.end(),
+                  [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
 
         std::vector<std::pair<std::string, const ThemeSegment*>> segment_variables;
         segment_variables.reserve(theme.segment_variables.size());
@@ -993,8 +1024,10 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
 
     oss << "  behavior {\n";
     oss << "    cleanup " << (theme.behavior.cleanup ? "true" : "false") << "\n";
-    oss << "    cleanup_empty_line " << (theme.behavior.cleanup_empty_line ? "true" : "false") << "\n";
-    oss << "    newline_after_execution " << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
+    oss << "    cleanup_empty_line " << (theme.behavior.cleanup_empty_line ? "true" : "false")
+        << "\n";
+    oss << "    newline_after_execution "
+        << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
     oss << "  }\n";
 
     oss << "}\n";

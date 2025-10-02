@@ -10,7 +10,8 @@
 
 int type_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "type", "usage: type [-afptP] name [name ...]", {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "type", "usage: type [-afptP] name [name ...]", {}});
         return 1;
     }
 
@@ -47,7 +48,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                     no_path_search = true;
                     break;
                 default:
-                    print_error({ErrorType::INVALID_ARGUMENT, "type", "invalid option: -" + std::string(1, option[j]), {}});
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "type",
+                                 "invalid option: -" + std::string(1, option[j]),
+                                 {}});
                     return 1;
             }
         }
@@ -61,9 +65,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         bool found = false;
 
         if (!force_path && !inhibit_functions) {
-            const std::vector<std::string> keywords = {"if",  "then",   "else",  "elif",  "fi",   "case", "esac",
-                                                       "for", "select", "while", "until", "do",   "done", "function",
-                                                       "{",   "}",      "[[",    "]]",    "time", "!",    "in"};
+            const std::vector<std::string> keywords = {
+                "if",  "then",   "else",  "elif",  "fi",   "case", "esac",
+                "for", "select", "while", "until", "do",   "done", "function",
+                "{",   "}",      "[[",    "]]",    "time", "!",    "in"};
 
             for (const auto& keyword : keywords) {
                 if (name == keyword) {
@@ -100,7 +105,8 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                     if (show_type_only) {
                         std::cout << "alias" << std::endl;
                     } else {
-                        std::cout << name << " is aliased to `" << alias_it->second << "'" << std::endl;
+                        std::cout << name << " is aliased to `" << alias_it->second << "'"
+                                  << std::endl;
                     }
                     found = true;
                     if (!show_all)

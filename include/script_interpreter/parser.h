@@ -59,7 +59,8 @@ class Parser {
     std::vector<std::string> expand_wildcards(const std::string& pattern);
     std::vector<LogicalCommand> parse_logical_commands(const std::string& command);
     std::vector<std::string> parse_semicolon_commands(const std::string& command);
-    bool is_env_assignment(const std::string& command, std::string& var_name, std::string& var_value);
+    bool is_env_assignment(const std::string& command, std::string& var_name,
+                           std::string& var_value);
     void expand_env_vars(std::string& arg);
     void expand_env_vars_selective(std::string& arg);
     void expand_exported_env_vars_only(std::string& arg);

@@ -360,7 +360,8 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     uint8_t final = peek;
     code_t modifiers = mods0;
 
-    debug_msg("tty: escape sequence: ESC %c %c %d;%d %c\n", c1, (special == 0 ? '_' : special), num1, num2, final);
+    debug_msg("tty: escape sequence: ESC %c %c %d;%d %c\n", c1, (special == 0 ? '_' : special),
+              num1, num2, final);
 
     // Adjust special cases into standard ones.
     if ((final == '@' || final == '9') && c1 == '[' && num1 == 1) {
@@ -379,13 +380,15 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
         if (final == '@')
             modifiers |= KEY_MOD_SHIFT | KEY_MOD_CTRL;
         final = '~';
-    } else if (c1 == '[' && final >= 'a' && final <= 'd') {  // note: do not catch ESC [ .. u  (for unicode)
+    } else if (c1 == '[' && final >= 'a' &&
+               final <= 'd') {  // note: do not catch ESC [ .. u  (for unicode)
         // ESC [ [a-d]  : on Eterm for shift+ cursor
         modifiers |= KEY_MOD_SHIFT;
         final = 'A' + (final - 'a');
     }
 
-    if (((c1 == 'O') || (c1 == '[' && final != '~' && final != 'u')) && (num2 == 1 && num1 > 1 && num1 <= 8)) {
+    if (((c1 == 'O') || (c1 == '[' && final != '~' && final != 'u')) &&
+        (num2 == 1 && num1 > 1 && num1 <= 8)) {
         // on haiku the modifier can be parameter 1, make it parameter 2 instead
         num2 = num1;
         num1 = 1;

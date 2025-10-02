@@ -35,7 +35,8 @@ int aihelp_command(const std::vector<std::string>& args) {
     };
 
     if (!g_ai || g_ai->get_api_key().empty()) {
-        print_error({ErrorType::RUNTIME_ERROR, "aihelp", "Please set your OpenAI API key first", {}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "aihelp", "Please set your OpenAI API key first", {}});
         return 1;
     }
 
@@ -62,12 +63,18 @@ int aihelp_command(const std::vector<std::string>& args) {
     if (!force_mode) {
         const char* status_env = getenv("?");
         if (!status_env) {
-            print_error({ErrorType::RUNTIME_ERROR, "aihelp", "The last executed command status is unavailable", {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "aihelp",
+                         "The last executed command status is unavailable",
+                         {}});
             return 0;
         }
         int status = std::atoi(status_env);
         if (status == 0) {
-            print_error({ErrorType::RUNTIME_ERROR, "aihelp", "The last executed command returned exitcode 0", {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "aihelp",
+                         "The last executed command returned exitcode 0",
+                         {}});
             return 0;
         }
     }
@@ -113,7 +120,8 @@ int aihelp_command(const std::vector<std::string>& args) {
         message += "\n";
     }
 
-    std::string response = g_ai->force_direct_chat_gpt(message + create_help_system_prompt() + "\n" + build_system_prompt(), false);
+    std::string response = g_ai->force_direct_chat_gpt(
+        message + create_help_system_prompt() + "\n" + build_system_prompt(), false);
 
     std::cout << response << std::endl;
 

@@ -50,14 +50,16 @@ std::string escape_json_string(const std::string& str) {
 }
 
 std::string create_chat_request_json(const std::string& model, const std::string& content) {
-    return "{\"model\":\"" + escape_json_string(model) + "\",\"messages\":[{\"role\":\"user\",\"content\":\"" +
-           escape_json_string(content) + "\"}]}";
+    return "{\"model\":\"" + escape_json_string(model) +
+           "\",\"messages\":[{\"role\":\"user\",\"content\":\"" + escape_json_string(content) +
+           "\"}]}";
 }
 
-std::string create_tts_request_json(const std::string& model, const std::string& input, const std::string& voice,
-                                    const std::string& instructions) {
-    return "{\"model\":\"" + escape_json_string(model) + "\",\"input\":\"" + escape_json_string(input) + "\",\"voice\":\"" +
-           escape_json_string(voice) + "\",\"instructions\":\"" + escape_json_string(instructions) + "\"}";
+std::string create_tts_request_json(const std::string& model, const std::string& input,
+                                    const std::string& voice, const std::string& instructions) {
+    return "{\"model\":\"" + escape_json_string(model) + "\",\"input\":\"" +
+           escape_json_string(input) + "\",\"voice\":\"" + escape_json_string(voice) +
+           "\",\"instructions\":\"" + escape_json_string(instructions) + "\"}";
 }
 
 std::string extract_json_string_value(const std::string& json, const std::string& key) {
@@ -117,7 +119,8 @@ std::string extract_json_number_value(const std::string& json, const std::string
         pos++;
 
     std::string value;
-    while (pos < json.length() && (std::isdigit(json[pos]) || json[pos] == '.' || json[pos] == '-')) {
+    while (pos < json.length() &&
+           (std::isdigit(json[pos]) || json[pos] == '.' || json[pos] == '-')) {
         value += json[pos];
         pos++;
     }
@@ -125,17 +128,19 @@ std::string extract_json_number_value(const std::string& json, const std::string
 }
 }  // namespace
 
-Ai::Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction) {
+Ai::Ai(const std::string& api_key, const std::string& assistant_type,
+       const std::string& initial_instruction) {
     initialize(api_key, assistant_type, initial_instruction, {});
 }
 
-Ai::Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
-       const std::vector<std::string>& user_files) {
+Ai::Ai(const std::string& api_key, const std::string& assistant_type,
+       const std::string& initial_instruction, const std::vector<std::string>& user_files) {
     initialize(api_key, assistant_type, initial_instruction, user_files);
 }
 
-Ai::Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
-       const std::vector<std::string>& user_files, const std::string& save_directory, bool enabled) {
+Ai::Ai(const std::string& api_key, const std::string& assistant_type,
+       const std::string& initial_instruction, const std::vector<std::string>& user_files,
+       const std::string& save_directory, bool enabled) {
     initialize(api_key, assistant_type, initial_instruction, user_files, save_directory);
     set_enabled(enabled);
 }
@@ -362,8 +367,10 @@ std::string Ai::chat_gpt(const std::string& sys_prompt, const std::string& messa
 
     std::string response = make_call_to_chat_gpt(build_prompt(sys_prompt, message));
 
-    if (max_prompt_precision && max_prompt_length > 0 && response.length() > static_cast<std::string::size_type>(max_prompt_length)) {
-        std::string shorter = make_call_to_chat_gpt(build_prompt(sys_prompt, message) + " Please shorten your answer.");
+    if (max_prompt_precision && max_prompt_length > 0 &&
+        response.length() > static_cast<std::string::size_type>(max_prompt_length)) {
+        std::string shorter = make_call_to_chat_gpt(build_prompt(sys_prompt, message) +
+                                                    " Please shorten your answer.");
         if (shorter.length() <= static_cast<std::size_t>(max_prompt_length))
             response = shorter;
     }
@@ -495,7 +502,8 @@ int Ai::add_files(const std::vector<std::string>& user_files) {
     return 0;
 }
 
-void Ai::initialize(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
+void Ai::initialize(const std::string& api_key, const std::string& assistant_type,
+                    const std::string& initial_instruction,
                     const std::vector<std::string>& user_files, const std::string& save_directory) {
     user_api_key = api_key;
     this->assistant_type = assistant_type;
@@ -513,8 +521,10 @@ bool Ai::is_valid_configuration() const {
         return false;
     }
 
-    bool valid_assistant_type = assistant_type == "chat" || assistant_type == "file-search" || assistant_type == "code-interpreter";
-    return !user_api_key.empty() && !initial_instruction.empty() && !assistant_type.empty() && valid_assistant_type;
+    bool valid_assistant_type = assistant_type == "chat" || assistant_type == "file-search" ||
+                                assistant_type == "code-interpreter";
+    return !user_api_key.empty() && !initial_instruction.empty() && !assistant_type.empty() &&
+           valid_assistant_type;
 }
 
 std::string Ai::get_invalid_configuration_message() const {
@@ -546,7 +556,10 @@ std::string Ai::build_prompt(const std::string& sys_prompt, const std::string& m
     if (assistant_type != "code-interpreter") {
         if (max_prompt_length != -1) {
             int prompt_length =
-                dynamic_prompt_length ? std::max(static_cast<int>(message.length() * dynamic_prompt_length_scale), 100) : max_prompt_length;
+                dynamic_prompt_length
+                    ? std::max(static_cast<int>(message.length() * dynamic_prompt_length_scale),
+                               100)
+                    : max_prompt_length;
             prompt << " Please keep the response length under " << prompt_length << " characters.";
         }
     }
@@ -573,7 +586,8 @@ std::string Ai::build_prompt(const std::string& sys_prompt, const std::string& m
     }
 
     if (assistant_type == "file-search" && file_contents.length() > 0) {
-        prompt << " This is the contents of the provided files from the user: [ " << file_contents << " ]";
+        prompt << " This is the contents of the provided files from the user: [ " << file_contents
+               << " ]";
         if (cache_tokens) {
             prompt << " Please keep this content of these files in cached tokens.";
         }
@@ -598,7 +612,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     std::atomic<bool> request_cancelled(false);
     request_in_progress = true;
 
-    std::thread cancellation_thread([&loading, &request_cancelled]() { monitor_cancellation(loading, request_cancelled); });
+    std::thread cancellation_thread(
+        [&loading, &request_cancelled]() { monitor_cancellation(loading, request_cancelled); });
 
     std::thread loading_thread([&loading]() {
         const char* loading_chars = "|/-\\";
@@ -616,7 +631,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
 
     HttpResponse response;
     if (!request_cancelled) {
-        response = HttpClient::post(url, request_body_str, headers, static_cast<int>(timeout_flag_seconds));
+        response = HttpClient::post(url, request_body_str, headers,
+                                    static_cast<int>(timeout_flag_seconds));
     }
 
     loading = false;
@@ -637,7 +653,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
     if (!response.success) {
         if (response.status_code >= 400) {
             handle_error_response(response.status_code, response.body);
-            return "Error: API request failed with status code " + std::to_string(response.status_code) + ". See console for details.";
+            return "Error: API request failed with status code " +
+                   std::to_string(response.status_code) + ". See console for details.";
         } else {
             std::cerr << "HTTP error: " << response.error_message << std::endl;
             return "Error: Failed to connect to API server. Please check your "
@@ -652,13 +669,16 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
             size_t content_start = response.body.find("\"content\":", choices_pos);
             if (content_start != std::string::npos) {
                 content_start += 10;
-                while (content_start < response.body.length() && std::isspace(response.body[content_start]))
+                while (content_start < response.body.length() &&
+                       std::isspace(response.body[content_start]))
                     content_start++;
                 if (content_start < response.body.length() && response.body[content_start] == '"') {
                     content_start++;
                     std::string content;
-                    while (content_start < response.body.length() && response.body[content_start] != '"') {
-                        if (response.body[content_start] == '\\' && content_start + 1 < response.body.length()) {
+                    while (content_start < response.body.length() &&
+                           response.body[content_start] != '"') {
+                        if (response.body[content_start] == '\\' &&
+                            content_start + 1 < response.body.length()) {
                             content_start++;
                             switch (response.body[content_start]) {
                                 case '"':
@@ -694,7 +714,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
         std::chrono::duration<double> elapsed = end - start;
 
         response_data_map["processing_time_ms"] = std::to_string(elapsed.count() * 1000);
-        response_data_map["total_tokens"] = extract_json_number_value(response.body, "total_tokens");
+        response_data_map["total_tokens"] =
+            extract_json_number_value(response.body, "total_tokens");
 
         if (!files.empty() && assistant_type == "file-search") {
             std::string file_names_str;
@@ -708,7 +729,8 @@ std::string Ai::make_call_to_chat_gpt(const std::string& message) {
 
         response_data_map["assistant_type"] = assistant_type;
         response_data_map["initial_instruction"] = initial_instruction;
-        response_data_map["received_message_length"] = std::to_string(last_response_received.length());
+        response_data_map["received_message_length"] =
+            std::to_string(last_response_received.length());
 
         return last_response_received;
     } catch (const std::exception& e) {
@@ -753,7 +775,10 @@ void Ai::monitor_cancellation(std::atomic<bool>& loading, std::atomic<bool>& req
 std::string Ai::filter_message(const std::string& message) {
     std::string filtered = message;
     filtered.erase(std::remove_if(filtered.begin(), filtered.end(),
-                                  [](char c) { return !(std::isalnum(c) || c == ' ' || c == '-' || c == '_' || c == '.' || c == '~'); }),
+                                  [](char c) {
+                                      return !(std::isalnum(c) || c == ' ' || c == '-' ||
+                                               c == '_' || c == '.' || c == '~');
+                                  }),
                    filtered.end());
 
     std::replace(filtered.begin(), filtered.end(), '\n', ' ');
@@ -765,7 +790,8 @@ std::map<std::string, std::string> Ai::parse_json_response(const std::string& js
     try {
         response_data["total_tokens"] = extract_json_number_value(json_response, "total_tokens");
         response_data["prompt_tokens"] = extract_json_number_value(json_response, "prompt_tokens");
-        response_data["completion_tokens"] = extract_json_number_value(json_response, "completion_tokens");
+        response_data["completion_tokens"] =
+            extract_json_number_value(json_response, "completion_tokens");
         response_data["model"] = extract_json_string_value(json_response, "model");
     } catch (const std::exception& e) {
         std::cerr << "Failed to parse JSON response: " << e.what() << std::endl;
@@ -790,7 +816,8 @@ std::string Ai::extract_content_from_json(const std::string& json_response) cons
 }
 
 bool ends_with(const std::string& str, const std::string& suffix) {
-    return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+    return str.size() >= suffix.size() &&
+           str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 int Ai::process_file_contents() {
@@ -855,7 +882,8 @@ std::string Ai::process_code_blocks_for_code_interpreter(const std::string& mess
     std::string directory = save_directory;
     if (code_blocks.size() > files.size()) {
         for (size_t j = files.size(); j < code_blocks.size(); j++) {
-            std::string language_and_file_name = code_blocks[j].substr(0, code_blocks[j].find('\n'));
+            std::string language_and_file_name =
+                code_blocks[j].substr(0, code_blocks[j].find('\n'));
             std::istringstream iss(language_and_file_name);
             std::string language, file_name;
             iss >> language >> file_name;
@@ -863,11 +891,13 @@ std::string Ai::process_code_blocks_for_code_interpreter(const std::string& mess
                 continue;
             }
             if (file_name.find("/") != std::string::npos) {
-                std::filesystem::create_directories(directory + file_name.substr(0, file_name.find_last_of("/")));
+                std::filesystem::create_directories(
+                    directory + file_name.substr(0, file_name.find_last_of("/")));
                 std::cout << "New file created: " << files.back() << std::endl;
                 files.push_back(directory + file_name);
                 file_name = file_name.substr(file_name.find_last_of("/") + 1);
-                code_blocks[j] = language + " " + file_name + code_blocks[j].substr(code_blocks[j].find('\n'));
+                code_blocks[j] =
+                    language + " " + file_name + code_blocks[j].substr(code_blocks[j].find('\n'));
             } else {
                 files.push_back(directory + file_name);
                 std::cout << "New file created: " << files.back() << std::endl;
@@ -898,7 +928,8 @@ std::string Ai::process_code_blocks_for_code_interpreter(const std::string& mess
                 std::filesystem::path new_file_path = save_directory + file_name;
                 std::filesystem::create_directories(new_file_path.parent_path());
 
-                auto write_result = cjsh_filesystem::FileOperations::write_file_content(new_file_path, "");
+                auto write_result =
+                    cjsh_filesystem::FileOperations::write_file_content(new_file_path, "");
                 if (write_result.is_ok()) {
                     file_to_change = new_file_path.string();
                     files.push_back(file_to_change);
@@ -940,7 +971,8 @@ std::string Ai::process_code_blocks_for_code_interpreter(const std::string& mess
                         break;
                     }
                 }
-                if (start_index != std::string::npos && start_index + new_lines.size() <= original_lines.size()) {
+                if (start_index != std::string::npos &&
+                    start_index + new_lines.size() <= original_lines.size()) {
                     updated_lines = original_lines;
                     for (size_t j = 0; j < new_lines.size(); j++) {
                         updated_lines[start_index + j] = new_lines[j];
@@ -955,26 +987,32 @@ std::string Ai::process_code_blocks_for_code_interpreter(const std::string& mess
                 output_stream << updated_line << "\n";
             }
 
-            auto write_result = cjsh_filesystem::FileOperations::write_file_content(file_to_change, output_stream.str());
+            auto write_result = cjsh_filesystem::FileOperations::write_file_content(
+                file_to_change, output_stream.str());
             if (write_result.is_error()) {
-                std::cerr << "Failed to write updated content to file: " << file_to_change << std::endl;
+                std::cerr << "Failed to write updated content to file: " << file_to_change
+                          << std::endl;
             }
 
             changes_summary << "\033[1;34m" << file_to_change << "\033[0m\n";
             size_t common_lines = std::min(original_lines.size(), new_lines.size());
             for (size_t j = 0; j < common_lines; j++) {
                 if (original_lines[j] != new_lines[j]) {
-                    changes_summary << "\033[1;31m- " << j + 1 << ": " << original_lines[j] << "\033[0m\n";
-                    changes_summary << "\033[1;32m+ " << j + 1 << ": " << new_lines[j] << "\033[0m\n";
+                    changes_summary << "\033[1;31m- " << j + 1 << ": " << original_lines[j]
+                                    << "\033[0m\n";
+                    changes_summary << "\033[1;32m+ " << j + 1 << ": " << new_lines[j]
+                                    << "\033[0m\n";
                 }
             }
             if (original_lines.size() > new_lines.size()) {
                 for (size_t j = new_lines.size(); j < original_lines.size(); j++) {
-                    changes_summary << "\033[1;31m- " << j + 1 << ": " << original_lines[j] << "\033[0m\n";
+                    changes_summary << "\033[1;31m- " << j + 1 << ": " << original_lines[j]
+                                    << "\033[0m\n";
                 }
             } else if (new_lines.size() > original_lines.size()) {
                 for (size_t j = original_lines.size(); j < new_lines.size(); j++) {
-                    changes_summary << "\033[1;32m+ " << j + 1 << ": " << new_lines[j] << "\033[0m\n";
+                    changes_summary << "\033[1;32m+ " << j + 1 << ": " << new_lines[j]
+                                    << "\033[0m\n";
                 }
             }
         } catch (const std::exception& e) {
@@ -993,7 +1031,8 @@ void Ai::reject_changes() {
         }
         auto write_result = cjsh_filesystem::FileOperations::write_file_content(file, content);
         if (write_result.is_error()) {
-            std::cerr << "Failed to restore file " << file << ": " << write_result.error() << std::endl;
+            std::cerr << "Failed to restore file " << file << ": " << write_result.error()
+                      << std::endl;
         }
     }
     original_file_contents.clear();
@@ -1005,7 +1044,8 @@ void Ai::process_text_file(const std::string& file, std::string& out) {
     if (read_result.is_ok()) {
         out += read_result.value() + "\n";
     } else {
-        std::cerr << "Failed to read text file: " << file << ": " << read_result.error() << std::endl;
+        std::cerr << "Failed to read text file: " << file << ": " << read_result.error()
+                  << std::endl;
     }
 }
 
@@ -1074,20 +1114,22 @@ std::vector<std::string> Ai::split_string(const std::string& str, char delimiter
 }
 
 bool Ai::process_voice_dictation(const std::string& message) {
-    std::string temp_file_name =
-        cjsh_filesystem::g_cjsh_ai_conversations_path.string() + "/" + current_model + "_" + assistant_type + ".mp3";
+    std::string temp_file_name = cjsh_filesystem::g_cjsh_ai_conversations_path.string() + "/" +
+                                 current_model + "_" + assistant_type + ".mp3";
 
     std::ofstream ofs(temp_file_name, std::ios::binary);
     if (!ofs.is_open())
         return false;
 
-    std::string jsonData = create_tts_request_json("gpt-4o-mini-tts", message, voice_dictation_voice, voice_dictation_instructions);
+    std::string jsonData = create_tts_request_json(
+        "gpt-4o-mini-tts", message, voice_dictation_voice, voice_dictation_instructions);
 
     std::atomic<bool> loading(true);
     std::atomic<bool> request_cancelled(false);
     request_in_progress = true;
 
-    std::thread cancellation_thread([&loading, &request_cancelled]() { monitor_cancellation(loading, request_cancelled); });
+    std::thread cancellation_thread(
+        [&loading, &request_cancelled]() { monitor_cancellation(loading, request_cancelled); });
 
     std::thread loading_thread([&loading]() {
         const char* loading_chars = "|/-\\";
@@ -1105,7 +1147,8 @@ bool Ai::process_voice_dictation(const std::string& message) {
 
     HttpResponse response;
     if (!request_cancelled) {
-        response = HttpClient::post("https://api.openai.com/v1/audio/speech", jsonData, headers, static_cast<int>(timeout_flag_seconds));
+        response = HttpClient::post("https://api.openai.com/v1/audio/speech", jsonData, headers,
+                                    static_cast<int>(timeout_flag_seconds));
     }
 
     loading = false;
@@ -1252,7 +1295,8 @@ void Ai::handle_error_response(int status_code, const std::string& error_body) {
                 "the upstream server.";
             break;
         default:
-            error_message = "Unexpected Error: Received HTTP response code " + std::to_string(status_code);
+            error_message =
+                "Unexpected Error: Received HTTP response code " + std::to_string(status_code);
     }
 
     error_message += "\nDetails: " + error_body;

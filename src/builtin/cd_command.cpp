@@ -12,7 +12,8 @@
 #include "suggestion_utils.h"
 #include "utils/bookmark_database.h"
 
-void update_directory_bookmarks(const std::string& dir_path, std::unordered_map<std::string, std::string>& directory_bookmarks) {
+void update_directory_bookmarks(const std::string& dir_path,
+                                std::unordered_map<std::string, std::string>& directory_bookmarks) {
     std::filesystem::path path(dir_path);
     std::string basename = path.filename().string();
     if (!basename.empty() && basename != "." && basename != "..") {
@@ -20,14 +21,15 @@ void update_directory_bookmarks(const std::string& dir_path, std::unordered_map<
     }
 }
 
-int change_directory(const std::string& dir, std::string& current_directory, std::string& previous_directory,
-                     std::string& last_terminal_output_error) {
+int change_directory(const std::string& dir, std::string& current_directory,
+                     std::string& previous_directory, std::string& last_terminal_output_error) {
     std::string target_dir = dir;
 
     if (target_dir.empty() || target_dir == "~") {
         const char* home_dir = getenv("HOME");
         if (!home_dir) {
-            ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "HOME environment variable is not set", {}};
+            ErrorInfo error = {
+                ErrorType::RUNTIME_ERROR, "cd", "HOME environment variable is not set", {}};
             print_error(error);
             last_terminal_output_error = "cd: HOME environment variable is not set";
             return 1;
@@ -48,9 +50,13 @@ int change_directory(const std::string& dir, std::string& current_directory, std
     if (target_dir[0] == '~') {
         const char* home_dir = getenv("HOME");
         if (!home_dir) {
-            ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "Cannot expand '~' - HOME environment variable is not set", {}};
+            ErrorInfo error = {ErrorType::RUNTIME_ERROR,
+                               "cd",
+                               "Cannot expand '~' - HOME environment variable is not set",
+                               {}};
             print_error(error);
-            last_terminal_output_error = "cd: Cannot expand '~' - HOME environment variable is not set";
+            last_terminal_output_error =
+                "cd: Cannot expand '~' - HOME environment variable is not set";
             return 1;
         }
         target_dir.replace(0, 1, home_dir);
@@ -66,15 +72,18 @@ int change_directory(const std::string& dir, std::string& current_directory, std
         }
 
         if (!std::filesystem::exists(dir_path)) {
-            auto suggestions = suggestion_utils::generate_cd_suggestions(target_dir, current_directory);
-            ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd", target_dir + ": no such file or directory", suggestions};
+            auto suggestions =
+                suggestion_utils::generate_cd_suggestions(target_dir, current_directory);
+            ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd",
+                               target_dir + ": no such file or directory", suggestions};
             print_error(error);
             last_terminal_output_error = "cd: " + target_dir + ": no such file or directory";
             return 1;
         }
 
         if (!std::filesystem::is_directory(dir_path)) {
-            ErrorInfo error = {ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
+            ErrorInfo error = {
+                ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
             print_error(error);
             last_terminal_output_error = "cd: " + target_dir + ": not a directory";
             return 1;
@@ -103,21 +112,24 @@ int change_directory(const std::string& dir, std::string& current_directory, std
         last_terminal_output_error = "cd: " + std::string(e.what());
         return 1;
     } catch (const std::exception& e) {
-        ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "unexpected error: " + std::string(e.what()), {}};
+        ErrorInfo error = {
+            ErrorType::RUNTIME_ERROR, "cd", "unexpected error: " + std::string(e.what()), {}};
         print_error(error);
         last_terminal_output_error = "cd: unexpected error: " + std::string(e.what());
         return 1;
     }
 }
 
-int change_directory_smart(const std::string& dir, std::string& current_directory, std::string& previous_directory,
+int change_directory_smart(const std::string& dir, std::string& current_directory,
+                           std::string& previous_directory,
                            std::string& last_terminal_output_error) {
     std::string target_dir = dir;
 
     if (target_dir.empty() || target_dir == "~") {
         const char* home_dir = getenv("HOME");
         if (!home_dir) {
-            ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "HOME environment variable is not set", {}};
+            ErrorInfo error = {
+                ErrorType::RUNTIME_ERROR, "cd", "HOME environment variable is not set", {}};
             print_error(error);
             last_terminal_output_error = "cd: HOME environment variable is not set";
             return 1;
@@ -138,9 +150,13 @@ int change_directory_smart(const std::string& dir, std::string& current_director
     if (target_dir[0] == '~') {
         const char* home_dir = getenv("HOME");
         if (!home_dir) {
-            ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "Cannot expand '~' - HOME environment variable is not set", {}};
+            ErrorInfo error = {ErrorType::RUNTIME_ERROR,
+                               "cd",
+                               "Cannot expand '~' - HOME environment variable is not set",
+                               {}};
             print_error(error);
-            last_terminal_output_error = "cd: Cannot expand '~' - HOME environment variable is not set";
+            last_terminal_output_error =
+                "cd: Cannot expand '~' - HOME environment variable is not set";
             return 1;
         }
         target_dir.replace(0, 1, home_dir);
@@ -173,15 +189,18 @@ int change_directory_smart(const std::string& dir, std::string& current_director
         }
 
         if (!std::filesystem::exists(dir_path)) {
-            auto suggestions = suggestion_utils::generate_cd_suggestions(target_dir, current_directory);
-            ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd", target_dir + ": no such file or directory", suggestions};
+            auto suggestions =
+                suggestion_utils::generate_cd_suggestions(target_dir, current_directory);
+            ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd",
+                               target_dir + ": no such file or directory", suggestions};
             print_error(error);
             last_terminal_output_error = "cd: " + target_dir + ": no such file or directory";
             return 1;
         }
 
         if (!std::filesystem::is_directory(dir_path)) {
-            ErrorInfo error = {ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
+            ErrorInfo error = {
+                ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
             print_error(error);
             last_terminal_output_error = "cd: " + target_dir + ": not a directory";
             return 1;
@@ -207,9 +226,13 @@ int change_directory_smart(const std::string& dir, std::string& current_director
             std::filesystem::path path(current_directory);
             std::string basename = path.filename().string();
             if (!basename.empty() && basename != "." && basename != "..") {
-                auto add_result = bookmark_database::g_bookmark_db.add_bookmark(basename, current_directory);
+                auto add_result =
+                    bookmark_database::g_bookmark_db.add_bookmark(basename, current_directory);
                 if (add_result.is_error()) {
-                    print_error({ErrorType::RUNTIME_ERROR, "cd", "Failed to update bookmark: " + add_result.error(), {}});
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "cd",
+                                 "Failed to update bookmark: " + add_result.error(),
+                                 {}});
                 }
             }
         }
@@ -221,7 +244,8 @@ int change_directory_smart(const std::string& dir, std::string& current_director
         last_terminal_output_error = "cd: " + std::string(e.what());
         return 1;
     } catch (const std::exception& e) {
-        ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "unexpected error: " + std::string(e.what()), {}};
+        ErrorInfo error = {
+            ErrorType::RUNTIME_ERROR, "cd", "unexpected error: " + std::string(e.what()), {}};
         print_error(error);
         last_terminal_output_error = "cd: unexpected error: " + std::string(e.what());
         return 1;

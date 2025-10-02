@@ -45,7 +45,8 @@ class BookmarkDatabase {
     size_t size() const;
     bool empty() const;
 
-    cjsh_filesystem::Result<void> import_from_map(const std::unordered_map<std::string, std::string>& old_bookmarks);
+    cjsh_filesystem::Result<void> import_from_map(
+        const std::unordered_map<std::string, std::string>& old_bookmarks);
 
    private:
     std::unordered_map<std::string, BookmarkEntry> bookmarks_;
@@ -61,7 +62,8 @@ class BookmarkDatabase {
 
 extern BookmarkDatabase g_bookmark_db;
 
-inline cjsh_filesystem::Result<void> add_directory_bookmark(const std::string& name, const std::string& path) {
+inline cjsh_filesystem::Result<void> add_directory_bookmark(const std::string& name,
+                                                            const std::string& path) {
     return g_bookmark_db.add_bookmark(name, path);
 }
 

@@ -14,16 +14,22 @@ struct HttpResponse {
 
 class HttpClient {
    public:
-    static HttpResponse post(const std::string& url, const std::string& data, const std::map<std::string, std::string>& headers = {},
+    static HttpResponse post(const std::string& url, const std::string& data,
+                             const std::map<std::string, std::string>& headers = {},
                              int timeout_seconds = 300);
 
-    static HttpResponse head(const std::string& url, const std::map<std::string, std::string>& headers = {}, int timeout_seconds = 30);
+    static HttpResponse head(const std::string& url,
+                             const std::map<std::string, std::string>& headers = {},
+                             int timeout_seconds = 30);
 
    private:
-    static HttpResponse system_curl_post(const std::string& url, const std::string& data, const std::map<std::string, std::string>& headers,
+    static HttpResponse system_curl_post(const std::string& url, const std::string& data,
+                                         const std::map<std::string, std::string>& headers,
                                          int timeout_seconds);
 
-    static HttpResponse system_curl_head(const std::string& url, const std::map<std::string, std::string>& headers, int timeout_seconds);
+    static HttpResponse system_curl_head(const std::string& url,
+                                         const std::map<std::string, std::string>& headers,
+                                         int timeout_seconds);
 
     static bool is_curl_available();
     static std::string escape_for_shell(const std::string& input);

@@ -11,7 +11,6 @@
 #include "plugin.h"
 
 int plugin_command(const std::vector<std::string>& args) {
-
     if (!config::plugins_enabled) {
         print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugins are disabled", {}});
         return 1;
@@ -28,7 +27,8 @@ int plugin_command(const std::vector<std::string>& args) {
             std::cout << "Available plugins:" << std::endl;
             for (const auto& name : plugins) {
                 std::cout << name;
-                if (std::find(enabled_plugins.begin(), enabled_plugins.end(), name) != enabled_plugins.end()) {
+                if (std::find(enabled_plugins.begin(), enabled_plugins.end(), name) !=
+                    enabled_plugins.end()) {
                     std::cout << "  (enabled)" << std::endl;
                 } else {
                     std::cout << std::endl;
@@ -70,7 +70,8 @@ int plugin_command(const std::vector<std::string>& args) {
             std::cout << "Available plugins:" << std::endl;
             for (const auto& name : plugins) {
                 std::cout << name;
-                if (std::find(enabled_plugins.begin(), enabled_plugins.end(), name) != enabled_plugins.end()) {
+                if (std::find(enabled_plugins.begin(), enabled_plugins.end(), name) !=
+                    enabled_plugins.end()) {
                     std::cout << "  (enabled)" << std::endl;
                 } else {
                     std::cout << std::endl;
@@ -131,12 +132,16 @@ int plugin_command(const std::vector<std::string>& args) {
     if (cmd == "stats") {
         if (g_plugin) {
             std::cout << "Plugin System Statistics:" << std::endl;
-            std::cout << "Lazy loading: " << (g_plugin->is_lazy_loading_enabled() ? "Enabled" : "Disabled") << std::endl;
-            std::cout << "Available plugins: " << g_plugin->get_available_plugins().size() << std::endl;
+            std::cout << "Lazy loading: "
+                      << (g_plugin->is_lazy_loading_enabled() ? "Enabled" : "Disabled")
+                      << std::endl;
+            std::cout << "Available plugins: " << g_plugin->get_available_plugins().size()
+                      << std::endl;
             std::cout << "Enabled plugins: " << g_plugin->get_enabled_plugins().size() << std::endl;
             std::cout << "Loaded plugins: " << g_plugin->get_loaded_plugin_count() << std::endl;
             if (g_plugin->is_lazy_loading_enabled()) {
-                std::cout << "Metadata cache size: " << g_plugin->get_metadata_cache_size() << std::endl;
+                std::cout << "Metadata cache size: " << g_plugin->get_metadata_cache_size()
+                          << std::endl;
             }
         } else {
             print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin manager not initialized", {}});
@@ -178,7 +183,8 @@ int plugin_command(const std::vector<std::string>& args) {
         if (g_plugin) {
             std::string pluginName = args[2];
             std::cout << "Commands for " << pluginName << ":" << std::endl;
-            std::vector<std::string> listOfPluginCommands = g_plugin->get_plugin_commands(pluginName);
+            std::vector<std::string> listOfPluginCommands =
+                g_plugin->get_plugin_commands(pluginName);
             for (const auto& cmd : listOfPluginCommands) {
                 std::cout << "  " << cmd << std::endl;
             }
@@ -208,9 +214,11 @@ int plugin_command(const std::vector<std::string>& args) {
                 std::string settingValue = args.size() > 5 ? args[5] : "";
 
                 if (g_plugin->update_plugin_setting(pluginName, settingName, settingValue)) {
-                    std::cout << "Setting " << settingName << " set to " << settingValue << " for plugin " << pluginName << std::endl;
+                    std::cout << "Setting " << settingName << " set to " << settingValue
+                              << " for plugin " << pluginName << std::endl;
                 } else {
-                    std::cout << "Setting " << settingName << " not found for plugin " << pluginName << std::endl;
+                    std::cout << "Setting " << settingName << " not found for plugin " << pluginName
+                              << std::endl;
                 }
                 return 0;
             }
@@ -223,7 +231,8 @@ int plugin_command(const std::vector<std::string>& args) {
     if (g_plugin) {
         std::string pluginName = cmd;
         std::vector<std::string> enabledPlugins = g_plugin->get_enabled_plugins();
-        if (std::find(enabledPlugins.begin(), enabledPlugins.end(), pluginName) != enabledPlugins.end()) {
+        if (std::find(enabledPlugins.begin(), enabledPlugins.end(), pluginName) !=
+            enabledPlugins.end()) {
             if (args.size() > 2) {
                 if (args[2] == "enable") {
                     g_plugin->enable_plugin(pluginName);
@@ -239,7 +248,8 @@ int plugin_command(const std::vector<std::string>& args) {
                 }
                 if (args[2] == "commands" || args[2] == "cmds" || args[2] == "help") {
                     std::cout << "Commands for " << pluginName << ":" << std::endl;
-                    std::vector<std::string> listOfPluginCommands = g_plugin->get_plugin_commands(pluginName);
+                    std::vector<std::string> listOfPluginCommands =
+                        g_plugin->get_plugin_commands(pluginName);
                     for (const auto& cmd : listOfPluginCommands) {
                         std::cout << "  " << cmd << std::endl;
                     }
@@ -248,7 +258,8 @@ int plugin_command(const std::vector<std::string>& args) {
             }
         } else {
             std::vector<std::string> availablePlugins = g_plugin->get_available_plugins();
-            if (std::find(availablePlugins.begin(), availablePlugins.end(), pluginName) != availablePlugins.end()) {
+            if (std::find(availablePlugins.begin(), availablePlugins.end(), pluginName) !=
+                availablePlugins.end()) {
                 if (args.size() > 2 && args[2] == "enable") {
                     g_plugin->enable_plugin(pluginName);
                     return 0;
@@ -259,12 +270,18 @@ int plugin_command(const std::vector<std::string>& args) {
                              {"Run 'plugin " + pluginName + " enable' to enable it."}});
                 return 0;
             } else {
-                print_error({ErrorType::COMMAND_NOT_FOUND, "plugin", "Plugin " + pluginName + " does not exist", {}});
+                print_error({ErrorType::COMMAND_NOT_FOUND,
+                             "plugin",
+                             "Plugin " + pluginName + " does not exist",
+                             {}});
                 return 1;
             }
         }
     }
 
-    print_error({ErrorType::SYNTAX_ERROR, "plugin", "Unknown command. Try 'help' for available commands", {}});
+    print_error({ErrorType::SYNTAX_ERROR,
+                 "plugin",
+                 "Unknown command. Try 'help' for available commands",
+                 {}});
     return 1;
 }

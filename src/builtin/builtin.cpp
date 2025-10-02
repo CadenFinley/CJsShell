@@ -63,19 +63,27 @@ Built_ins::Built_ins() : shell(nullptr) {
 
     auto load_result = bookmark_database::g_bookmark_db.load();
     if (load_result.is_error()) {
-        print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to load bookmark database: " + load_result.error(), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "bookmark",
+                     "Failed to load bookmark database: " + load_result.error(),
+                     {}});
     } else {
-        auto cleanup_result = bookmark_database::g_bookmark_db.cleanup_invalid_bookmarks_with_count();
+        auto cleanup_result =
+            bookmark_database::g_bookmark_db.cleanup_invalid_bookmarks_with_count();
         if (cleanup_result.is_error()) {
-            print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to cleanup invalid bookmarks: " + cleanup_result.error(), {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "bookmark",
+                         "Failed to cleanup invalid bookmarks: " + cleanup_result.error(),
+                         {}});
         } else {
             int removed_count = cleanup_result.value();
             if (removed_count > 0) {
-
                 auto save_result = bookmark_database::g_bookmark_db.save();
                 if (save_result.is_error()) {
-                    print_error(
-                        {ErrorType::RUNTIME_ERROR, "bookmark", "Failed to save cleaned bookmark database: " + save_result.error(), {}});
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "bookmark",
+                                 "Failed to save cleaned bookmark database: " + save_result.error(),
+                                 {}});
                 }
             }
         }
@@ -84,11 +92,17 @@ Built_ins::Built_ins() : shell(nullptr) {
     if (!directory_bookmarks.empty()) {
         auto import_result = bookmark_database::g_bookmark_db.import_from_map(directory_bookmarks);
         if (import_result.is_error()) {
-            print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to import existing bookmarks: " + import_result.error(), {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "bookmark",
+                         "Failed to import existing bookmarks: " + import_result.error(),
+                         {}});
         } else {
             auto save_result = bookmark_database::g_bookmark_db.save();
             if (save_result.is_error()) {
-                print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to save imported bookmarks: " + save_result.error(), {}});
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "bookmark",
+                             "Failed to save imported bookmarks: " + save_result.error(),
+                             {}});
             }
         }
     }
@@ -101,25 +115,35 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"cd",
          [this](const std::vector<std::string>& args) {
              if (args.size() > 2) {
-                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT, "cd", "too many arguments", {"Usage: cd [directory]"}};
+                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                                    "cd",
+                                    "too many arguments",
+                                    {"Usage: cd [directory]"}};
                  print_error(error);
                  return 2;
              }
              if (config::smart_cd_enabled) {
-                 return ::change_directory_smart(args.size() > 1 ? args[1] : "", current_directory, previous_directory,
-                                                 last_terminal_output_error);
+                 return ::change_directory_smart(args.size() > 1 ? args[1] : "", current_directory,
+                                                 previous_directory, last_terminal_output_error);
              } else {
-                 return ::change_directory(args.size() > 1 ? args[1] : "", current_directory, previous_directory,
-                                           last_terminal_output_error);
+                 return ::change_directory(args.size() > 1 ? args[1] : "", current_directory,
+                                           previous_directory, last_terminal_output_error);
              }
          }},
-        {"local", [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
-        {"alias", [this](const std::vector<std::string>& args) { return ::alias_command(args, shell); }},
-        {"export", [this](const std::vector<std::string>& args) { return ::export_command(args, shell); }},
-        {"unalias", [this](const std::vector<std::string>& args) { return ::unalias_command(args, shell); }},
-        {"unset", [this](const std::vector<std::string>& args) { return ::unset_command(args, shell); }},
-        {"set", [this](const std::vector<std::string>& args) { return ::set_command(args, shell); }},
-        {"shift", [this](const std::vector<std::string>& args) { return ::shift_command(args, shell); }},
+        {"local",
+         [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
+        {"alias",
+         [this](const std::vector<std::string>& args) { return ::alias_command(args, shell); }},
+        {"export",
+         [this](const std::vector<std::string>& args) { return ::export_command(args, shell); }},
+        {"unalias",
+         [this](const std::vector<std::string>& args) { return ::unalias_command(args, shell); }},
+        {"unset",
+         [this](const std::vector<std::string>& args) { return ::unset_command(args, shell); }},
+        {"set",
+         [this](const std::vector<std::string>& args) { return ::set_command(args, shell); }},
+        {"shift",
+         [this](const std::vector<std::string>& args) { return ::shift_command(args, shell); }},
         {"break", [](const std::vector<std::string>& args) { return ::break_command(args); }},
         {"continue", [](const std::vector<std::string>& args) { return ::continue_command(args); }},
         {"return", [](const std::vector<std::string>& args) { return ::return_command(args); }},
@@ -131,12 +155,15 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"help", [](const std::vector<std::string>&) { return ::help_command(); }},
         {"approot",
          [this](const std::vector<std::string>&) {
-             return ::change_to_approot(current_directory, previous_directory, last_terminal_output_error);
+             return ::change_to_approot(current_directory, previous_directory,
+                                        last_terminal_output_error);
          }},
         {"aihelp", [](const std::vector<std::string>& args) { return ::aihelp_command(args); }},
         {"version", [](const std::vector<std::string>& args) { return ::version_command(args); }},
-        {"eval", [this](const std::vector<std::string>& args) { return ::eval_command(args, shell); }},
-        {"syntax", [this](const std::vector<std::string>& args) { return ::syntax_command(args, shell); }},
+        {"eval",
+         [this](const std::vector<std::string>& args) { return ::eval_command(args, shell); }},
+        {"syntax",
+         [this](const std::vector<std::string>& args) { return ::syntax_command(args, shell); }},
         {"history", [](const std::vector<std::string>& args) { return ::history_command(args); }},
         {"exit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"quit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
@@ -148,30 +175,49 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[[", [](const std::vector<std::string>& args) { return ::double_bracket_command(args); }},
-        {"exec", [this](const std::vector<std::string>& args) { return ::exec_command(args, shell, last_terminal_output_error); }},
+        {"exec",
+         [this](const std::vector<std::string>& args) {
+             return ::exec_command(args, shell, last_terminal_output_error);
+         }},
         {":", [](const std::vector<std::string>&) { return 0; }},
-        {"if", [this](const std::vector<std::string>& args) { return ::if_command(args, shell, last_terminal_output_error); }},
-        {"__INTERNAL_SUBSHELL__", [this](const std::vector<std::string>& args) { return internal_subshell_command(args, shell); }},
+        {"if",
+         [this](const std::vector<std::string>& args) {
+             return ::if_command(args, shell, last_terminal_output_error);
+         }},
+        {"__INTERNAL_SUBSHELL__",
+         [this](const std::vector<std::string>& args) {
+             return internal_subshell_command(args, shell);
+         }},
         {"trap", [](const std::vector<std::string>& args) { return ::trap_command(args); }},
         {"jobs", [](const std::vector<std::string>& args) { return ::jobs_command(args); }},
         {"fg", [](const std::vector<std::string>& args) { return ::fg_command(args); }},
         {"bg", [](const std::vector<std::string>& args) { return ::bg_command(args); }},
         {"wait", [](const std::vector<std::string>& args) { return ::wait_command(args); }},
         {"kill", [](const std::vector<std::string>& args) { return ::kill_command(args); }},
-        {"readonly", [this](const std::vector<std::string>& args) { return ::readonly_command(args, shell); }},
-        {"read", [this](const std::vector<std::string>& args) { return ::read_command(args, shell); }},
+        {"readonly",
+         [this](const std::vector<std::string>& args) { return ::readonly_command(args, shell); }},
+        {"read",
+         [this](const std::vector<std::string>& args) { return ::read_command(args, shell); }},
         {"umask", [](const std::vector<std::string>& args) { return ::umask_command(args); }},
-        {"getopts", [this](const std::vector<std::string>& args) { return ::getopts_command(args, shell); }},
-        {"times", [](const std::vector<std::string>& args) { return ::times_command(args, nullptr); }},
-        {"type", [this](const std::vector<std::string>& args) { return ::type_command(args, shell); }},
-        {"which", [this](const std::vector<std::string>& args) { return ::which_command(args, shell); }},
-        {"validate", [this](const std::vector<std::string>& args) { return ::validate_command(args, shell); }},
-        {"hash", [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
+        {"getopts",
+         [this](const std::vector<std::string>& args) { return ::getopts_command(args, shell); }},
+        {"times",
+         [](const std::vector<std::string>& args) { return ::times_command(args, nullptr); }},
+        {"type",
+         [this](const std::vector<std::string>& args) { return ::type_command(args, shell); }},
+        {"which",
+         [this](const std::vector<std::string>& args) { return ::which_command(args, shell); }},
+        {"validate",
+         [this](const std::vector<std::string>& args) { return ::validate_command(args, shell); }},
+        {"hash",
+         [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
         {"builtin",
          [this](const std::vector<std::string>& args) {
              if (args.size() < 2) {
-                 ErrorInfo error = {
-                     ErrorType::INVALID_ARGUMENT, "builtin", "missing command operand", {"Usage: builtin <command> [args...]"}};
+                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                                    "builtin",
+                                    "missing command operand",
+                                    {"Usage: builtin <command> [args...]"}};
                  print_error(error);
                  last_terminal_output_error = "cjsh: builtin: missing command operand";
                  return 2;
@@ -179,8 +225,10 @@ Built_ins::Built_ins() : shell(nullptr) {
 
              const std::string& target_command = args[1];
              if (target_command == "builtin") {
-                 ErrorInfo error = {
-                     ErrorType::INVALID_ARGUMENT, "builtin", "cannot invoke builtin recursively", {"Usage: builtin <command> [args...]"}};
+                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                                    "builtin",
+                                    "cannot invoke builtin recursively",
+                                    {"Usage: builtin <command> [args...]"}};
                  print_error(error);
                  last_terminal_output_error = "cjsh: builtin: cannot invoke builtin recursively";
                  return 2;
@@ -193,7 +241,8 @@ Built_ins::Built_ins() : shell(nullptr) {
                                     "'" + target_command + "' is not a builtin command",
                                     {"Use 'help' to list available builtins"}};
                  print_error(error);
-                 last_terminal_output_error = "cjsh: builtin: " + target_command + ": not a builtin command";
+                 last_terminal_output_error =
+                     "cjsh: builtin: " + target_command + ": not a builtin command";
                  return 1;
              }
 
@@ -207,7 +256,10 @@ Built_ins::Built_ins() : shell(nullptr) {
 Built_ins::~Built_ins() {
     auto save_result = bookmark_database::g_bookmark_db.save();
     if (save_result.is_error()) {
-        print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to save bookmark database: " + save_result.error(), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "bookmark",
+                     "Failed to save bookmark database: " + save_result.error(),
+                     {}});
     }
 }
 
@@ -218,16 +270,15 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     auto it = builtins.find(args[0]);
     if (it != builtins.end()) {
         if (args[0] == "cd" && args.size() == 1) {
-            return ::change_directory_smart("", current_directory, previous_directory, last_terminal_output_error);
+            return ::change_directory_smart("", current_directory, previous_directory,
+                                            last_terminal_output_error);
         }
         int status = it->second(args);
         return status;
     }
     auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
 
-
     if (cjsh_filesystem::is_executable_in_cache(args[0])) {
-
         std::string full_path = cjsh_filesystem::find_executable_in_path(args[0]);
         if (full_path.empty()) {
             cjsh_filesystem::remove_executable_from_cache(args[0]);
@@ -272,7 +323,10 @@ void Built_ins::add_directory_bookmark(const std::string& dir_path) {
     if (!basename.empty() && basename != "." && basename != "..") {
         auto result = bookmark_database::g_bookmark_db.add_bookmark(basename, dir_path);
         if (result.is_error()) {
-            print_error({ErrorType::RUNTIME_ERROR, "bookmark", "Failed to add bookmark: " + result.error(), {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "bookmark",
+                         "Failed to add bookmark: " + result.error(),
+                         {}});
         } else {
             directory_bookmarks[basename] = dir_path;
         }
@@ -293,6 +347,7 @@ std::string Built_ins::find_bookmark_path(const std::string& bookmark_name) cons
 }
 
 const std::unordered_map<std::string, std::string>& Built_ins::get_directory_bookmarks() const {
-    const_cast<Built_ins*>(this)->directory_bookmarks = bookmark_database::g_bookmark_db.get_all_bookmarks();
+    const_cast<Built_ins*>(this)->directory_bookmarks =
+        bookmark_database::g_bookmark_db.get_all_bookmarks();
     return directory_bookmarks;
 }

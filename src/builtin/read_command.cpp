@@ -32,14 +32,20 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                 nchars = std::stoi(args[i + 1]);
                 i++;
             } catch (const std::exception&) {
-                print_error({ErrorType::INVALID_ARGUMENT, "read", "invalid number of characters: " + args[i + 1], {}});
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "read",
+                             "invalid number of characters: " + args[i + 1],
+                             {}});
                 return 1;
             }
         } else if (arg.substr(0, 2) == "-n" && arg.length() > 2) {
             try {
                 nchars = std::stoi(arg.substr(2));
             } catch (const std::exception&) {
-                print_error({ErrorType::INVALID_ARGUMENT, "read", "invalid number of characters: " + arg.substr(2), {}});
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "read",
+                             "invalid number of characters: " + arg.substr(2),
+                             {}});
                 return 1;
             }
         } else if (arg == "-p" && i + 1 < args.size()) {
@@ -76,8 +82,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                          "implemented and will return an error.\n";
             return 0;
         } else if (arg[0] == '-') {
-            print_error(
-                {ErrorType::INVALID_ARGUMENT, "read", "invalid option -- '" + arg + "'", {"Try 'read --help' for more information."}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "read",
+                         "invalid option -- '" + arg + "'",
+                         {"Try 'read --help' for more information."}});
             return 1;
         } else {
             var_names.push_back(arg);
@@ -179,7 +187,8 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& var_name = var_names[i];
 
         if (ReadonlyManager::instance().is_readonly(var_name)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "read", var_name + ": readonly variable", {}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "read", var_name + ": readonly variable", {}});
             return 1;
         }
 
@@ -197,7 +206,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (setenv(var_name.c_str(), value.c_str(), 1) != 0) {
-            print_error({ErrorType::RUNTIME_ERROR, "read", std::string("failed to set ") + var_name + ": " + std::strerror(errno), {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "read",
+                         std::string("failed to set ") + var_name + ": " + std::strerror(errno),
+                         {}});
             return 1;
         }
 

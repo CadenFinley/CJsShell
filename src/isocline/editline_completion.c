@@ -41,14 +41,16 @@ ic_private void sbuf_append_tagged(stringbuf_t* sb, const char* tag, const char*
     sbuf_append(sb, "[/]");
 }
 
-static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, ssize_t width, bool numbered, bool selected) {
+static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, ssize_t width,
+                                     bool numbered, bool selected) {
     const char* help = NULL;
     const char* display = completions_get_display(env->completions, idx, &help);
     const char* source = completions_get_source(env->completions, idx);
     if (display == NULL)
         return;
     if (numbered) {
-        sbuf_appendf(eb->extra, "[ic-info]%s%zd [/]", (selected ? (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : "*") : " "), 1 + idx);
+        sbuf_appendf(eb->extra, "[ic-info]%s%zd [/]",
+                     (selected ? (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : "*") : " "), 1 + idx);
         width -= 3;
     }
 
@@ -89,14 +91,15 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
 #define IC_DISPLAY3_COL (3 + IC_DISPLAY3_MAX)
 #define IC_DISPLAY3_WIDTH (3 * IC_DISPLAY3_COL + 2 * 2)  // 76
 
-static void editor_append_completion2(ic_env_t* env, editor_t* eb, ssize_t col_width, ssize_t idx1, ssize_t idx2, ssize_t selected) {
+static void editor_append_completion2(ic_env_t* env, editor_t* eb, ssize_t col_width, ssize_t idx1,
+                                      ssize_t idx2, ssize_t selected) {
     editor_append_completion(env, eb, idx1, col_width, true, (idx1 == selected));
     sbuf_append(eb->extra, "  ");
     editor_append_completion(env, eb, idx2, col_width, true, (idx2 == selected));
 }
 
-static void editor_append_completion3(ic_env_t* env, editor_t* eb, ssize_t col_width, ssize_t idx1, ssize_t idx2, ssize_t idx3,
-                                      ssize_t selected) {
+static void editor_append_completion3(ic_env_t* env, editor_t* eb, ssize_t col_width, ssize_t idx1,
+                                      ssize_t idx2, ssize_t idx3, ssize_t selected) {
     editor_append_completion(env, eb, idx1, col_width, true, (idx1 == selected));
     sbuf_append(eb->extra, "  ");
     editor_append_completion(env, eb, idx2, col_width, true, (idx2 == selected));
@@ -109,7 +112,8 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     for (ssize_t i = 0; i < count; i++) {
         const char* help = NULL;
         const char* source = completions_get_source(env->completions, i);
-        ssize_t w = bbcode_column_width(env->bbcode, completions_get_display(env->completions, i, &help));
+        ssize_t w =
+            bbcode_column_width(env->bbcode, completions_get_display(env->completions, i, &help));
 
         // Add space for source information if available
         if (source != NULL) {
@@ -141,16 +145,19 @@ again:
     ssize_t twidth = term_get_width(env->term) - 1;
     ssize_t colwidth;
     ssize_t max_display = expanded_mode ? count : 9;  // show all in expanded mode
-    if (count > 3 && ((colwidth = 3 + edit_completions_max_width(env, max_display)) * 3 + 2 * 2) < twidth) {
+    if (count > 3 &&
+        ((colwidth = 3 + edit_completions_max_width(env, max_display)) * 3 + 2 * 2) < twidth) {
         // display as a 3 column block
         count_displayed = (count > max_display ? max_display : count);
         percolumn = (count_displayed + 2) / 3;  // calculate rows needed
         for (ssize_t rw = 0; rw < percolumn; rw++) {
             if (rw > 0)
                 sbuf_append(eb->extra, "\n");
-            editor_append_completion3(env, eb, colwidth, rw, percolumn + rw, (2 * percolumn) + rw, selected);
+            editor_append_completion3(env, eb, colwidth, rw, percolumn + rw, (2 * percolumn) + rw,
+                                      selected);
         }
-    } else if (count > 4 && ((colwidth = 3 + edit_completions_max_width(env, max_display)) * 2 + 2) < twidth) {
+    } else if (count > 4 &&
+               ((colwidth = 3 + edit_completions_max_width(env, max_display)) * 2 + 2) < twidth) {
         // display as a 2 column block if some entries are too wide for three
         // columns
         max_display = expanded_mode ? count : 8;
@@ -228,7 +235,8 @@ again:
         completions_clear(env->completions);
         edit_refresh(env, eb);
         c = 0;  // ignore and return
-    } else if (selected >= 0 && (c == KEY_ENTER || c == KEY_RIGHT || c == KEY_END)) /* || c == KEY_TAB*/ {
+    } else if (selected >= 0 &&
+               (c == KEY_ENTER || c == KEY_RIGHT || c == KEY_END)) /* || c == KEY_TAB*/ {
         // select the current entry
         assert(selected < count);
         c = 0;
@@ -246,7 +254,8 @@ again:
         c = 0;
         if (more_available) {
             // generate all entries (up to the max (= 1000))
-            count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, IC_MAX_COMPLETIONS_TO_SHOW);
+            count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
+                                         IC_MAX_COMPLETIONS_TO_SHOW);
             more_available = false;  // we now have all available completions
         }
         // Enable expanded mode to show all completions
@@ -267,7 +276,8 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
     debug_msg("edit: complete: %zd: %s\n", eb->pos, sbuf_string(eb->input));
     if (eb->pos < 0)
         return;
-    ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, IC_MAX_COMPLETIONS_TO_TRY);
+    ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
+                                         IC_MAX_COMPLETIONS_TO_TRY);
     bool more_available = (count >= IC_MAX_COMPLETIONS_TO_TRY);
     if (count <= 0) {
         // no completions

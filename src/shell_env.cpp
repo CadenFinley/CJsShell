@@ -14,7 +14,6 @@
 namespace cjsh_env {
 
 void setup_environment_variables(const char* argv0) {
-
     if (argv0) {
         setenv("0", argv0, 1);
     } else {
@@ -46,7 +45,6 @@ void setup_path_variables(const struct passwd* pw) {
     (void)pw;
 
     if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
-
         std::string old_path = getenv("PATH") ? getenv("PATH") : "";
         std::string old_manpath = getenv("MANPATH") ? getenv("MANPATH") : "";
 
@@ -65,8 +63,9 @@ void setup_path_variables(const struct passwd* pw) {
         std::string home_bin = std::string(pw->pw_dir) + "/bin";
         std::string home_local_bin = std::string(pw->pw_dir) + "/.local/bin";
 
-        std::vector<std::string> system_paths = {"/usr/local/sbin", "/snap/bin",   "/var/lib/snapd/snap/bin", "/opt/bin", "/usr/games",
-                                                 home_bin,          home_local_bin};
+        std::vector<std::string> system_paths = {
+            "/usr/local/sbin", "/snap/bin",   "/var/lib/snapd/snap/bin", "/opt/bin", "/usr/games",
+            home_bin,          home_local_bin};
 
         for (const auto& path : system_paths) {
             if (cjsh_filesystem::file_exists(path)) {
@@ -88,7 +87,8 @@ void setup_path_variables(const struct passwd* pw) {
         }
 
         if (getenv("MANPATH") == nullptr) {
-            std::vector<std::string> manpaths = {"/usr/local/man", "/usr/local/share/man", "/usr/share/man", "/usr/man"};
+            std::vector<std::string> manpaths = {"/usr/local/man", "/usr/local/share/man",
+                                                 "/usr/share/man", "/usr/man"};
 
             std::string manpath_str;
             for (const auto& path : manpaths) {

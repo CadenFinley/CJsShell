@@ -236,7 +236,8 @@ ic_private void term_write_formatted(term_t* term, const char* s, const attr_t* 
     term_write_formatted_n(term, s, attrs, ic_strlen(s));
 }
 
-ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t* attrs, ssize_t len) {
+ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t* attrs,
+                                       ssize_t len) {
     if (attrs == NULL) {
         // write directly
         term_write(term, s);
@@ -332,7 +333,8 @@ ic_private buffer_mode_t term_set_buffer_mode(term_t* term, buffer_mode_t mode) 
 }
 
 static void term_check_flush(term_t* term, bool contains_nl) {
-    if (term->bufmode == UNBUFFERED || sbuf_len(term->buf) > 4000 || (term->bufmode == LINEBUFFERED && contains_nl)) {
+    if (term->bufmode == UNBUFFERED || sbuf_len(term->buf) > 4000 ||
+        (term->bufmode == LINEBUFFERED && contains_nl)) {
         term_flush(term);
     }
 }
@@ -370,7 +372,8 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
         // COLORTERM takes precedence
         const char* colorterm = getenv("COLORTERM");
         const char* eterm = getenv("TERM");
-        if (ic_contains(colorterm, "24bit") || ic_contains(colorterm, "truecolor") || ic_contains(colorterm, "direct")) {
+        if (ic_contains(colorterm, "24bit") || ic_contains(colorterm, "truecolor") ||
+            ic_contains(colorterm, "direct")) {
             term->palette = ANSIRGB;
         } else if (ic_contains(colorterm, "8bit") || ic_contains(colorterm, "256color")) {
             term->palette = ANSI256;
@@ -378,7 +381,8 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
             term->palette = ANSI16;
         } else if (ic_contains(colorterm, "3bit") || ic_contains(colorterm, "8color")) {
             term->palette = ANSI8;
-        } else if (ic_contains(colorterm, "1bit") || ic_contains(colorterm, "nocolor") || ic_contains(colorterm, "monochrome")) {
+        } else if (ic_contains(colorterm, "1bit") || ic_contains(colorterm, "nocolor") ||
+                   ic_contains(colorterm, "monochrome")) {
             term->palette = MONOCHROME;
         }
         // otherwise check for some specific terminals
@@ -393,7 +397,8 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
         }  // vscode terminal
         else {
             // and otherwise fall back to checking TERM
-            if (ic_contains(eterm, "truecolor") || ic_contains(eterm, "direct") || ic_contains(colorterm, "24bit")) {
+            if (ic_contains(eterm, "truecolor") || ic_contains(eterm, "direct") ||
+                ic_contains(colorterm, "24bit")) {
                 term->palette = ANSIRGB;
             } else if (ic_contains(eterm, "alacritty") || ic_contains(eterm, "kitty")) {
                 term->palette = ANSIRGB;
@@ -403,11 +408,13 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
                 term->palette = ANSI16;
             } else if (ic_contains(eterm, "8color")) {
                 term->palette = ANSI8;
-            } else if (ic_contains(eterm, "monochrome") || ic_contains(eterm, "nocolor") || ic_contains(eterm, "dumb")) {
+            } else if (ic_contains(eterm, "monochrome") || ic_contains(eterm, "nocolor") ||
+                       ic_contains(eterm, "dumb")) {
                 term->palette = MONOCHROME;
             }
         }
-        debug_msg("term: color-bits: %d (COLORTERM=%s, TERM=%s)\n", term_get_color_bits(term), colorterm, eterm);
+        debug_msg("term: color-bits: %d (COLORTERM=%s, TERM=%s)\n", term_get_color_bits(term),
+                  colorterm, eterm);
     }
 
     // read COLUMS/LINES from the environment for a better initial guess.
@@ -510,8 +517,8 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
         // handle ascii sequences in bulk
         ssize_t ascii = 0;
         ssize_t next;
-        while ((next = str_next_ofs(s, len, pos + ascii, NULL)) > 0 && (uint8_t)s[pos + ascii] > '\x1B' &&
-               (uint8_t)s[pos + ascii] <= 0x7F) {
+        while ((next = str_next_ofs(s, len, pos + ascii, NULL)) > 0 &&
+               (uint8_t)s[pos + ascii] > '\x1B' && (uint8_t)s[pos + ascii] <= 0x7F) {
             ascii += next;
         }
         if (ascii > 0) {
@@ -701,7 +708,8 @@ static void term_clear_screen(term_t* term, ssize_t mode) {
     } else {
         // from cursor
         start = info.dwCursorPosition;
-        length = (width * ((ssize_t)info.dwSize.Y - info.dwCursorPosition.Y)) + (width - info.dwCursorPosition.X + 1);
+        length = (width * ((ssize_t)info.dwSize.Y - info.dwCursorPosition.Y)) +
+                 (width - info.dwCursorPosition.X + 1);
     }
     DWORD written;
     FillConsoleOutputAttribute(term->hcon, term->hcon_default_attr, (DWORD)length, start, &written);
@@ -739,16 +747,19 @@ static void term_set_win_attr(term_t* term, attr_t ta) {
         if (ta.x.bgcolor >= IC_ANSI_BLACK && ta.x.bgcolor <= IC_ANSI_SILVER) {
             attr = (attr & 0xFF0F) | (WORD)(attr_color[ta.x.bgcolor - IC_ANSI_BLACK] << 4);
         } else if (ta.x.bgcolor >= IC_ANSI_GRAY && ta.x.bgcolor <= IC_ANSI_WHITE) {
-            attr = (attr & 0xFF0F) | (WORD)(attr_color[ta.x.bgcolor - IC_ANSI_GRAY] << 4) | BACKGROUND_INTENSITY;
+            attr = (attr & 0xFF0F) | (WORD)(attr_color[ta.x.bgcolor - IC_ANSI_GRAY] << 4) |
+                   BACKGROUND_INTENSITY;
         } else if (ta.x.bgcolor == IC_ANSI_DEFAULT) {
             attr = (attr & 0xFF0F) | (def_attr & 0x00F0);
         }
     }
     if (ta.x.underline != IC_NONE) {
-        attr = (attr & ~COMMON_LVB_UNDERSCORE) | (ta.x.underline == IC_ON ? COMMON_LVB_UNDERSCORE : 0);
+        attr =
+            (attr & ~COMMON_LVB_UNDERSCORE) | (ta.x.underline == IC_ON ? COMMON_LVB_UNDERSCORE : 0);
     }
     if (ta.x.reverse != IC_NONE) {
-        attr = (attr & ~COMMON_LVB_REVERSE_VIDEO) | (ta.x.reverse == IC_ON ? COMMON_LVB_REVERSE_VIDEO : 0);
+        attr = (attr & ~COMMON_LVB_REVERSE_VIDEO) |
+               (ta.x.reverse == IC_ON ? COMMON_LVB_REVERSE_VIDEO : 0);
     }
     if (attr != cur_attr) {
         SetConsoleTextAttribute(term->hcon, attr);
@@ -864,8 +875,8 @@ static bool term_write_direct(term_t* term, const char* s, ssize_t len) {
             // to always be in utf-8 mode)
             ssize_t nonctrl = 0;
             ssize_t next;
-            while ((next = str_next_ofs(s, len, pos + nonctrl, NULL)) > 0 && (uint8_t)s[pos + nonctrl] >= ' ' &&
-                   (uint8_t)s[pos + nonctrl] <= 0x7F) {
+            while ((next = str_next_ofs(s, len, pos + nonctrl, NULL)) > 0 &&
+                   (uint8_t)s[pos + nonctrl] >= ' ' && (uint8_t)s[pos + nonctrl] <= 0x7F) {
                 nonctrl += next;
             }
             if (nonctrl > 0) {
@@ -882,7 +893,8 @@ static bool term_write_direct(term_t* term, const char* s, ssize_t len) {
                 // handle control (note: str_next_ofs considers whole CSI escape
                 // sequences at a time)
                 term_write_esc(term, s + pos, next);
-            } else if (next == 1 && (s[pos] == '\r' || s[pos] == '\n' || s[pos] == '\t' || s[pos] == '\b')) {
+            } else if (next == 1 &&
+                       (s[pos] == '\r' || s[pos] == '\n' || s[pos] == '\t' || s[pos] == '\b')) {
                 term_write_console(term, s + pos, next);
             } else {
                 // ignore
@@ -1055,7 +1067,8 @@ static void term_update_ansi16(term_t* term) {
     if (ioctl(term->fd_out, GIO_CMAP, &cmap) >= 0) {
         // success
         for (ssize_t i = 0; i < 48; i += 3) {
-            uint32_t color = ((uint32_t)(cmap[i]) << 16) | ((uint32_t)(cmap[i + 1]) << 8) | cmap[i + 2];
+            uint32_t color =
+                ((uint32_t)(cmap[i]) << 16) | ((uint32_t)(cmap[i + 1]) << 8) | cmap[i + 2];
             debug_msg("term (ioctl) ansi color %d: 0x%06x\n", i, color);
             ansi256[i] = color;
         }
@@ -1100,13 +1113,15 @@ ic_private void term_start_raw(term_t* term) {
     SetConsoleOutputCP(CP_UTF8);
     if (term->hcon_mode == 0) {
         // first time initialization
-        DWORD mode = ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_LVB_GRID_WORLDWIDE;  // for \r \n and \b
+        DWORD mode = ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT |
+                     ENABLE_LVB_GRID_WORLDWIDE;  // for \r \n and \b
         // use escape sequence handling if available and the terminal supports
         // it (so we can use rgb colors in Windows terminal) Unfortunately, in
         // plain powershell, we can successfully enable terminal processing but
         // it still fails to render correctly; so we require the palette be
         // large enough (like in Windows Terminal)
-        if (term->palette >= ANSI256 && SetConsoleMode(term->hcon, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
+        if (term->palette >= ANSI256 &&
+            SetConsoleMode(term->hcon, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING)) {
             term->hcon_mode = mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
             debug_msg("term: console mode: virtual terminal processing enabled\n");
         }
@@ -1116,7 +1131,8 @@ ic_private void term_start_raw(term_t* term) {
             term->palette = ANSI16;
         }
         GetConsoleMode(term->hcon, &mode);
-        debug_msg("term: console mode: orig: 0x%x, new: 0x%x, current 0x%x\n", term->hcon_orig_mode, term->hcon_mode, mode);
+        debug_msg("term: console mode: orig: 0x%x, new: 0x%x, current 0x%x\n", term->hcon_orig_mode,
+                  term->hcon_mode, mode);
     } else {
         SetConsoleMode(term->hcon, term->hcon_mode);
     }
@@ -1147,7 +1163,8 @@ static void term_init_raw(term_t* term) {
         // update our color table with the actual colors used.
         for (unsigned i = 0; i < 16; i++) {
             COLORREF cr = info.ColorTable[i];
-            uint32_t color = (ic_cap8(GetRValue(cr)) << 16) | (ic_cap8(GetGValue(cr)) << 8) | ic_cap8(GetBValue(cr));  // COLORREF = BGR
+            uint32_t color = (ic_cap8(GetRValue(cr)) << 16) | (ic_cap8(GetGValue(cr)) << 8) |
+                             ic_cap8(GetBValue(cr));  // COLORREF = BGR
             // index is also in reverse in the bits 0 and 2
             unsigned j = (i & 0x08) | ((i & 0x04) >> 2) | (i & 0x02) | (i & 0x01) << 2;
             debug_msg("term: ansi color %d is 0x%06x\n", j, color);

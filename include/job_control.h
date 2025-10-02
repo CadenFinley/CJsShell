@@ -32,8 +32,8 @@ struct JobControlJob {
     int stdin_signal_count;
     std::chrono::steady_clock::time_point last_stdin_signal_time;
 
-    JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids, const std::string& cmd, bool is_background,
-                  bool consumes_stdin)
+    JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
+                  const std::string& cmd, bool is_background, bool consumes_stdin)
         : job_id(id),
           pgid(group_id),
           pids(process_ids),
@@ -54,7 +54,8 @@ class JobManager {
    public:
     static JobManager& instance();
 
-    int add_job(pid_t pgid, const std::vector<pid_t>& pids, const std::string& command, bool background = false, bool reads_stdin = true);
+    int add_job(pid_t pgid, const std::vector<pid_t>& pids, const std::string& command,
+                bool background = false, bool reads_stdin = true);
 
     void remove_job(int job_id);
 

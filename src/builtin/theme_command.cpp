@@ -115,11 +115,17 @@ int theme_command(const std::vector<std::string>& args) {
                 }
                 print_error(error);
             } else {
-                print_error({ErrorType::SYNTAX_ERROR, "theme", message, {"Check theme syntax and try again."}});
+                print_error({ErrorType::SYNTAX_ERROR,
+                             "theme",
+                             message,
+                             {"Check theme syntax and try again."}});
             }
             return 1;
         } catch (const std::exception& e) {
-            print_error({ErrorType::RUNTIME_ERROR, "theme", "Failed to process theme '" + theme_file.string() + "': " + e.what(), {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "theme",
+                         "Failed to process theme '" + theme_file.string() + "': " + e.what(),
+                         {}});
             return 1;
         }
 
@@ -164,7 +170,8 @@ int theme_command(const std::vector<std::string>& args) {
         count_segments(theme_def.inline_right_segments);
 
         const ThemeRequirements& requirements = theme_def.requirements;
-        if (!requirements.plugins.empty() || !requirements.colors.empty() || !requirements.fonts.empty() || !requirements.custom.empty()) {
+        if (!requirements.plugins.empty() || !requirements.colors.empty() ||
+            !requirements.fonts.empty() || !requirements.custom.empty()) {
             std::cout << "Requirements:" << std::endl;
 
             if (!requirements.plugins.empty()) {
@@ -207,11 +214,13 @@ int theme_command(const std::vector<std::string>& args) {
 
         if (total_emoji_count > 0) {
             std::cout << "\nDisplay Information:" << std::endl;
-            std::cout << "  Emoji/Wide Characters: " << total_emoji_count << " (in " << total_segment_count << " segments)" << std::endl;
+            std::cout << "  Emoji/Wide Characters: " << total_emoji_count << " (in "
+                      << total_segment_count << " segments)" << std::endl;
             std::cout << "  Terminal Width Impact: Each emoji typically takes 2 "
                          "character spaces"
                       << std::endl;
-            std::cout << "  Estimated Extra Width: ~" << total_emoji_count << " characters" << std::endl;
+            std::cout << "  Estimated Extra Width: ~" << total_emoji_count << " characters"
+                      << std::endl;
             std::cout << "  Note: Minimum recommended terminal width for this theme: "
                          "100+ columns"
                       << std::endl;
@@ -233,7 +242,8 @@ int theme_command(const std::vector<std::string>& args) {
             std::string theme_name = args[2];
             if (theme_name == "all") {
                 std::vector<std::string> all_themes = g_theme->list_themes();
-                all_themes.erase(std::remove(all_themes.begin(), all_themes.end(), g_current_theme), all_themes.end());
+                all_themes.erase(std::remove(all_themes.begin(), all_themes.end(), g_current_theme),
+                                 all_themes.end());
                 bool success = true;
 
                 for (const auto& theme : all_themes) {
@@ -250,16 +260,19 @@ int theme_command(const std::vector<std::string>& args) {
                 if (std::filesystem::exists(theme_file)) {
                     return preview_theme(canonical_theme);
                 } else {
-                    print_error({ErrorType::FILE_NOT_FOUND,
-                                 "theme",
-                                 "Theme '" + theme_name + "' not found locally. Please install it first.",
-                                 {"Run 'theme' to list installed themes."}});
+                    print_error(
+                        {ErrorType::FILE_NOT_FOUND,
+                         "theme",
+                         "Theme '" + theme_name + "' not found locally. Please install it first.",
+                         {"Run 'theme' to list installed themes."}});
                     return 1;
                 }
             }
         } else {
-            print_error(
-                {ErrorType::RUNTIME_ERROR, "theme", "Theme manager not initialized", {"Try running 'theme reload' or restart the shell."}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "theme",
+                         "Theme manager not initialized",
+                         {"Try running 'theme reload' or restart the shell."}});
             return 1;
         }
     }
@@ -324,16 +337,20 @@ int uninstall_theme(const std::string& themeName) {
     std::string canonical_theme = Theme::strip_theme_extension(themeName);
 
     if (canonical_theme == "default") {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "theme", "Cannot uninstall the default theme", {"The default theme is required by cjsh."}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "theme",
+                     "Cannot uninstall the default theme",
+                     {"The default theme is required by cjsh."}});
         return 1;
     }
 
     std::filesystem::path theme_file = resolve_theme_file_path(canonical_theme);
 
     if (!std::filesystem::exists(theme_file)) {
-        print_error(
-            {ErrorType::FILE_NOT_FOUND, "theme", "Theme '" + canonical_theme + "' not found", {"Run 'theme' to list installed themes."}});
+        print_error({ErrorType::FILE_NOT_FOUND,
+                     "theme",
+                     "Theme '" + canonical_theme + "' not found",
+                     {"Run 'theme' to list installed themes."}});
         return 1;
     }
 
@@ -353,7 +370,10 @@ int uninstall_theme(const std::string& themeName) {
                   << std::endl;
         return 0;
     } catch (const std::filesystem::filesystem_error& e) {
-        print_error({ErrorType::RUNTIME_ERROR, "theme", "Failed to uninstall theme '" + canonical_theme + "'", {e.what()}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "theme",
+                     "Failed to uninstall theme '" + canonical_theme + "'",
+                     {e.what()}});
         return 1;
     }
 }

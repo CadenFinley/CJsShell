@@ -44,9 +44,11 @@ std::string process_escape_sequences(const std::string& input) {
                     i++;
                     break;
                 case '0': {
-                    if (i + 4 < input.length() && input[i + 2] >= '0' && input[i + 2] <= '7' && input[i + 3] >= '0' &&
-                        input[i + 3] <= '7' && input[i + 4] >= '0' && input[i + 4] <= '7') {
-                        int octal = (input[i + 2] - '0') * 64 + (input[i + 3] - '0') * 8 + (input[i + 4] - '0');
+                    if (i + 4 < input.length() && input[i + 2] >= '0' && input[i + 2] <= '7' &&
+                        input[i + 3] >= '0' && input[i + 3] <= '7' && input[i + 4] >= '0' &&
+                        input[i + 4] <= '7') {
+                        int octal = (input[i + 2] - '0') * 64 + (input[i + 3] - '0') * 8 +
+                                    (input[i + 4] - '0');
                         result += static_cast<char>(octal);
                         i += 4;
                     } else {
@@ -77,7 +79,8 @@ int echo_command(const std::vector<std::string>& args) {
     }
 
     size_t start_idx = 1;
-    while (start_idx < echo_args.size() && echo_args[start_idx][0] == '-' && echo_args[start_idx].length() > 1) {
+    while (start_idx < echo_args.size() && echo_args[start_idx][0] == '-' &&
+           echo_args[start_idx].length() > 1) {
         const std::string& flag = echo_args[start_idx];
 
         if (flag == "-n") {

@@ -5,4 +5,5 @@
 
 class Shell;
 
-int if_command(const std::vector<std::string>& args, Shell* shell, std::string& last_terminal_output_error);
+int if_command(const std::vector<std::string>& args, Shell* shell,
+               std::string& last_terminal_output_error);

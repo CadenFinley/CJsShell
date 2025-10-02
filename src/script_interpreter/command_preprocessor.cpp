@@ -6,7 +6,8 @@
 
 int CommandPreprocessor::placeholder_counter = 0;
 
-CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(const std::string& command) {
+CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(
+    const std::string& command) {
     PreprocessedCommand result;
     result.processed_text = command;
 
@@ -20,7 +21,8 @@ CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(const s
     return result;
 }
 
-std::string CommandPreprocessor::process_here_documents(const std::string& command, std::map<std::string, std::string>& here_docs) {
+std::string CommandPreprocessor::process_here_documents(
+    const std::string& command, std::map<std::string, std::string>& here_docs) {
     std::string result = command;
 
     size_t here_pos = result.find("<<");
@@ -46,7 +48,8 @@ std::string CommandPreprocessor::process_here_documents(const std::string& comma
 
     bool delimiter_quoted = false;
     if (delimiter.length() >= 2) {
-        if ((delimiter.front() == '\'' && delimiter.back() == '\'') || (delimiter.front() == '"' && delimiter.back() == '"')) {
+        if ((delimiter.front() == '\'' && delimiter.back() == '\'') ||
+            (delimiter.front() == '"' && delimiter.back() == '"')) {
             delimiter_quoted = true;
 
             delimiter = delimiter.substr(1, delimiter.length() - 2);

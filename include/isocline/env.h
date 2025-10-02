@@ -62,7 +62,8 @@ struct ic_env_s {
 };
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text);
-ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text, const char* inline_right_text);
+ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text,
+                                    const char* inline_right_text);
 
 ic_private ic_env_t* ic_get_env(void);
 ic_private const char* ic_env_get_auto_braces(ic_env_t* env);

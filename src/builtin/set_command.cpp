@@ -30,17 +30,20 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
             if (arg == "-o") {
                 ++i;
             }
-        } else if (arg == "+e" || (arg == "+o" && i + 1 < args.size() && args[i + 1] == "errexit")) {
+        } else if (arg == "+e" ||
+                   (arg == "+o" && i + 1 < args.size() && args[i + 1] == "errexit")) {
             shell->set_shell_option("errexit", false);
             if (arg == "+o") {
                 ++i;
             }
-        } else if (arg == "-C" || (arg == "-o" && i + 1 < args.size() && args[i + 1] == "noclobber")) {
+        } else if (arg == "-C" ||
+                   (arg == "-o" && i + 1 < args.size() && args[i + 1] == "noclobber")) {
             shell->set_shell_option("noclobber", true);
             if (arg == "-o") {
                 ++i;
             }
-        } else if (arg == "+C" || (arg == "+o" && i + 1 < args.size() && args[i + 1] == "noclobber")) {
+        } else if (arg == "+C" ||
+                   (arg == "+o" && i + 1 < args.size() && args[i + 1] == "noclobber")) {
             shell->set_shell_option("noclobber", false);
             if (arg == "+o") {
                 ++i;
@@ -54,7 +57,8 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
             shell->set_positional_parameters(positional_params);
             return 0;
         } else {
-            print_error({ErrorType::INVALID_ARGUMENT, "set", "option '" + arg + "' not supported yet", {}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "set", "option '" + arg + "' not supported yet", {}});
             return 1;
         }
     }
@@ -78,7 +82,8 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
                 return 1;
             }
         } catch (const std::exception&) {
-            print_error({ErrorType::INVALID_ARGUMENT, "shift", "invalid shift count: " + args[1], {}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "shift", "invalid shift count: " + args[1], {}});
             return 1;
         }
     }

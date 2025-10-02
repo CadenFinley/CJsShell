@@ -49,10 +49,15 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "log") {
         std::string lastChatSent = g_ai->get_last_prompt_used();
         std::string lastChatReceived = g_ai->get_last_response_received();
-        std::string fileName = (cjsh_filesystem::g_cjsh_data_path / ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt")).string();
+        std::string fileName = (cjsh_filesystem::g_cjsh_data_path /
+                                ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt"))
+                                   .string();
         std::ofstream file(fileName);
         if (!file.is_open()) {
-            print_error({ErrorType::RUNTIME_ERROR, "ai", "unable to create the chat log file at " + fileName, {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "ai",
+                         "unable to create the chat log file at " + fileName,
+                         {}});
         } else {
             file << "Chat Sent: " << lastChatSent << "\n";
             file << "Chat Received: " << lastChatReceived << "\n";
@@ -90,7 +95,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
     if (cmd == "get") {
         if (args.size() <= command_index + 1) {
-            print_error({ErrorType::INVALID_ARGUMENT, "ai", "no arguments provided. try 'help' for a list of commands", {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "ai",
+                         "no arguments provided. try 'help' for a list of commands",
+                         {}});
             return 1;
         }
         if (!g_startup_active) {
@@ -110,7 +118,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "mode") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current assistant mode is " << g_ai->get_assistant_type() << std::endl;
+                std::cout << "The current assistant mode is " << g_ai->get_assistant_type()
+                          << std::endl;
             }
             return 0;
         }
@@ -149,14 +158,18 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             }
             return 0;
         }
-        print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid directory command. use 'set' or 'clear'", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "ai",
+                     "invalid directory command. use 'set' or 'clear'",
+                     {}});
         return 1;
     }
 
     if (cmd == "initialinstruction") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current initial instruction is:\n" << g_ai->get_initial_instruction() << std::endl;
+                std::cout << "The current initial instruction is:\n"
+                          << g_ai->get_initial_instruction() << std::endl;
             }
             return 0;
         }
@@ -166,7 +179,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
         g_ai->set_initial_instruction(instruction);
         if (!g_startup_active) {
-            std::cout << "Initial instruction set to:\n" << g_ai->get_initial_instruction() << std::endl;
+            std::cout << "Initial instruction set to:\n"
+                      << g_ai->get_initial_instruction() << std::endl;
         }
         return 0;
     }
@@ -196,7 +210,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "timeoutflag") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current timeout flag is " << g_ai->get_timeout_flag_seconds() << std::endl;
+                std::cout << "The current timeout flag is " << g_ai->get_timeout_flag_seconds()
+                          << std::endl;
             }
             return 0;
         }
@@ -208,7 +223,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
                 std::cout << "Timeout flag set to " << timeout << " seconds." << std::endl;
             }
         } catch (const std::exception& e) {
-            print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid timeout value. please provide a number", {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "ai",
+                         "invalid timeout value. please provide a number",
+                         {}});
             return 1;
         }
         return 0;
@@ -218,7 +236,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
                 if (g_ai->get_assistant_name().length() > 0) {
-                    std::cout << "The current assistant name is " << g_ai->get_assistant_name() << std::endl;
+                    std::cout << "The current assistant name is " << g_ai->get_assistant_name()
+                              << std::endl;
                 } else {
                     std::cout << "No assistant name is set." << std::endl;
                 }
@@ -239,7 +258,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "voice") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current voice is " << g_ai->get_voice_dictation_voice() << std::endl;
+                std::cout << "The current voice is " << g_ai->get_voice_dictation_voice()
+                          << std::endl;
             }
             return 0;
         }
@@ -253,7 +273,9 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "voicedictation") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "Voice dictation is currently " << (g_ai->get_voice_dictation_enabled() ? "enabled" : "disabled") << std::endl;
+                std::cout << "Voice dictation is currently "
+                          << (g_ai->get_voice_dictation_enabled() ? "enabled" : "disabled")
+                          << std::endl;
             }
             return 0;
         }
@@ -271,14 +293,16 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             }
             return 0;
         }
-        print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid argument. use 'enable' or 'disable'", {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "ai", "invalid argument. use 'enable' or 'disable'", {}});
         return 1;
     }
 
     if (cmd == "voicedictationinstructions") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current voice dictation instructions are:\n" << g_ai->get_voice_dictation_instructions() << std::endl;
+                std::cout << "The current voice dictation instructions are:\n"
+                          << g_ai->get_voice_dictation_instructions() << std::endl;
             }
             return 0;
         }
@@ -288,7 +312,8 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
         g_ai->set_voice_dictation_instructions(instructions);
         if (!g_startup_active) {
-            std::cout << "Voice dictation instructions set to:\n" << g_ai->get_voice_dictation_instructions() << std::endl;
+            std::cout << "Voice dictation instructions set to:\n"
+                      << g_ai->get_voice_dictation_instructions() << std::endl;
         }
         return 0;
     }
@@ -361,13 +386,19 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         return 0;
     }
 
-    print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid argument. try 'help' for a list of commands", {}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "ai",
+                 "invalid argument. try 'help' for a list of commands",
+                 {}});
     return 1;
 }
 
 int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "ai", "no arguments provided. Try 'help' for a list of commands", {}});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "ai",
+                     "no arguments provided. Try 'help' for a list of commands",
+                     {}});
         return 1;
     }
 
@@ -420,7 +451,8 @@ int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
     return 0;
 }
 
-int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index, const std::string& current_directory) {
+int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
+                            const std::string& current_directory) {
     std::vector<std::string> filesAtPath;
     try {
         for (const auto& entry : std::filesystem::directory_iterator(current_directory)) {
@@ -429,7 +461,10 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
             }
         }
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR, "ai", "Error reading directory: " + std::string(e.what()), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "ai",
+                     "Error reading directory: " + std::string(e.what()),
+                     {}});
     }
 
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
@@ -439,7 +474,8 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
             for (const auto& file : activeFiles) {
                 std::cout << file << std::endl;
             }
-            std::cout << "Total characters processed: " << g_ai->get_file_contents().length() << std::endl;
+            std::cout << "Total characters processed: " << g_ai->get_file_contents().length()
+                      << std::endl;
             std::cout << "Files at current path: " << std::endl;
             for (const auto& file : filesAtPath) {
                 std::cout << file << std::endl;
@@ -452,14 +488,18 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
     if (subcmd == "add") {
         if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-            print_error({ErrorType::INVALID_ARGUMENT, "ai", "no file specified. Try 'help' for a list of commands", {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "ai",
+                         "no file specified. Try 'help' for a list of commands",
+                         {}});
             return 1;
         }
 
         if (args[cmd_index + 2] == "all") {
             int charsProcessed = g_ai->add_files(filesAtPath);
             if (!g_startup_active) {
-                std::cout << "Processed " << charsProcessed << " characters from " << filesAtPath.size() << " files." << std::endl;
+                std::cout << "Processed " << charsProcessed << " characters from "
+                          << filesAtPath.size() << " files." << std::endl;
             }
             return 0;
         }
@@ -474,14 +514,18 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
         int charsProcessed = g_ai->add_file(filePath);
         if (!g_startup_active) {
-            std::cout << "Processed " << charsProcessed << " characters from file: " << filename << std::endl;
+            std::cout << "Processed " << charsProcessed << " characters from file: " << filename
+                      << std::endl;
         }
         return 0;
     }
 
     if (subcmd == "remove") {
         if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-            print_error({ErrorType::INVALID_ARGUMENT, "ai", "no file specified. Try 'help' for a list of commands", {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "ai",
+                         "no file specified. Try 'help' for a list of commands",
+                         {}});
             return 1;
         }
 
@@ -519,7 +563,8 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
                 for (const auto& file : activeFiles) {
                     std::cout << "  " << file << std::endl;
                 }
-                std::cout << "Total characters processed: " << g_ai->get_file_contents().length() << std::endl;
+                std::cout << "Total characters processed: " << g_ai->get_file_contents().length()
+                          << std::endl;
             }
         }
         return 0;
@@ -551,7 +596,10 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
         return 0;
     }
 
-    print_error({ErrorType::INVALID_ARGUMENT, "ai", "unknown command. try 'help' for a list of commands", {}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "ai",
+                 "unknown command. try 'help' for a list of commands",
+                 {}});
     return 1;
 }
 

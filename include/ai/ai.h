@@ -7,11 +7,13 @@
 
 class Ai {
    public:
-    Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction);
-    Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
-       const std::vector<std::string>& user_files);
-    Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
-       const std::vector<std::string>& user_files, const std::string& save_directory, bool enabled);
+    Ai(const std::string& api_key, const std::string& assistant_type,
+       const std::string& initial_instruction);
+    Ai(const std::string& api_key, const std::string& assistant_type,
+       const std::string& initial_instruction, const std::vector<std::string>& user_files);
+    Ai(const std::string& api_key, const std::string& assistant_type,
+       const std::string& initial_instruction, const std::vector<std::string>& user_files,
+       const std::string& save_directory, bool enabled);
     Ai();
 
     void set_api_key(const std::string& api_key);
@@ -74,8 +76,10 @@ class Ai {
     std::string get_voice_dictation_instructions() const;
 
    private:
-    void initialize(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
-                    const std::vector<std::string>& user_files, const std::string& save_directory = "");
+    void initialize(const std::string& api_key, const std::string& assistant_type,
+                    const std::string& initial_instruction,
+                    const std::vector<std::string>& user_files,
+                    const std::string& save_directory = "");
     bool is_valid_configuration() const;
     std::string get_invalid_configuration_message() const;
     std::string build_prompt(const std::string& sys_prompt, const std::string& message);
@@ -91,7 +95,8 @@ class Ai {
     static std::string format_markdown(const std::string& text);
     std::vector<std::string> split_string(const std::string& str, char delimiter);
     std::string sanitize_file_name(const std::string& file_name);
-    static void monitor_cancellation(std::atomic<bool>& loading, std::atomic<bool>& request_cancelled);
+    static void monitor_cancellation(std::atomic<bool>& loading,
+                                     std::atomic<bool>& request_cancelled);
     static void handle_error_response(int status_code, const std::string& error_body);
 
     bool process_voice_dictation(const std::string& message);

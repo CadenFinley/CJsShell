@@ -24,7 +24,8 @@ static inline int should_show_progress(void) {
     return nob_use_progress_bars;
 }
 
-static inline void draw_progress_bar(const char* phase, size_t current, size_t total, size_t width) {
+static inline void draw_progress_bar(const char* phase, size_t current, size_t total,
+                                     size_t width) {
     if (total == 0 || !should_show_progress())
         return;
 

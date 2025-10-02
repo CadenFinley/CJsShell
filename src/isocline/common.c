@@ -71,7 +71,8 @@ ic_private bool ic_strcpy(char* dest, ssize_t dest_size /* including 0 */, const
     return true;
 }
 
-ic_private bool ic_strncpy(char* dest, ssize_t dest_size /* including 0 */, const char* src, ssize_t n) {
+ic_private bool ic_strncpy(char* dest, ssize_t dest_size /* including 0 */, const char* src,
+                           ssize_t n) {
     assert(dest != NULL && n < dest_size);
     if (dest == NULL || dest_size <= 0)
         return false;
@@ -268,12 +269,16 @@ ic_private unicode_t unicode_from_qutf8(const uint8_t* s, ssize_t len, ssize_t* 
         return (((c0 & 0x0F) << 12) | ((unicode_t)(s[1] & 0x3F) << 6) | (s[2] & 0x3F));
     }
     // 4 bytes: reject overlong
-    else if (len >= 4 && (((c0 == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && utf8_is_cont(s[2]) && utf8_is_cont(s[3])) ||
-                           (c0 >= 0xF1 && c0 <= 0xF3 && utf8_is_cont(s[1]) && utf8_is_cont(s[2]) && utf8_is_cont(s[3])) ||
-                           (c0 == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && utf8_is_cont(s[2]) && utf8_is_cont(s[3]))))) {
+    else if (len >= 4 && (((c0 == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && utf8_is_cont(s[2]) &&
+                            utf8_is_cont(s[3])) ||
+                           (c0 >= 0xF1 && c0 <= 0xF3 && utf8_is_cont(s[1]) && utf8_is_cont(s[2]) &&
+                            utf8_is_cont(s[3])) ||
+                           (c0 == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && utf8_is_cont(s[2]) &&
+                            utf8_is_cont(s[3]))))) {
         if (count != NULL)
             *count = 4;
-        return (((c0 & 0x07) << 18) | ((unicode_t)(s[1] & 0x3F) << 12) | ((unicode_t)(s[2] & 0x3F) << 6) | (s[3] & 0x3F));
+        return (((c0 & 0x07) << 18) | ((unicode_t)(s[1] & 0x3F) << 12) |
+                ((unicode_t)(s[2] & 0x3F) << 6) | (s[3] & 0x3F));
     }
 fail:
     if (count != NULL)

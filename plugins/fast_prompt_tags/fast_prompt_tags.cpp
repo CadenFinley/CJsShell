@@ -129,14 +129,16 @@ class PromptInfoCache {
     PromptThreadPool thread_pool;
 
     // Core system info that's refreshed on a schedule
-    std::vector<std::string> core_keys = {"CPU_USAGE", "MEM_USAGE", "BATTERY",    "TIME",      "DATE",
-                                          "IP_LOCAL",  "NET_IFACE", "GIT_STATUS", "GIT_BRANCH"};
+    std::vector<std::string> core_keys = {"CPU_USAGE", "MEM_USAGE",  "BATTERY",
+                                          "TIME",      "DATE",       "IP_LOCAL",
+                                          "NET_IFACE", "GIT_STATUS", "GIT_BRANCH"};
 
     // How frequently to refresh data in seconds
-    std::unordered_map<std::string, int> refresh_intervals = {{"CPU_USAGE", 5},  {"MEM_USAGE", 5},  {"BATTERY", 30},    {"TIME", 1},
-                                                              {"DATE", 60},      {"IP_LOCAL", 60},  {"NET_IFACE", 60},  {"GIT_STATUS", 5},
-                                                              {"GIT_BRANCH", 5}, {"GIT_AHEAD", 30}, {"GIT_BEHIND", 30}, {"GIT_STASHES", 30},
-                                                              {"GIT_STAGED", 5}, {"GIT_CHANGES", 5}};
+    std::unordered_map<std::string, int> refresh_intervals = {
+        {"CPU_USAGE", 5},  {"MEM_USAGE", 5},  {"BATTERY", 30},    {"TIME", 1},
+        {"DATE", 60},      {"IP_LOCAL", 60},  {"NET_IFACE", 60},  {"GIT_STATUS", 5},
+        {"GIT_BRANCH", 5}, {"GIT_AHEAD", 30}, {"GIT_BEHIND", 30}, {"GIT_STASHES", 30},
+        {"GIT_STAGED", 5}, {"GIT_CHANGES", 5}};
 
    public:
     PromptInfoCache() : thread_pool(4) {
@@ -224,7 +226,10 @@ class PromptInfoCache {
 
                     {
                         std::lock_guard<std::mutex> lock(cache_mutex);
-                        cache[key] = {value, std::chrono::steady_clock::now() + std::chrono::seconds(interval), true};
+                        cache[key] = {
+                            value,
+                            std::chrono::steady_clock::now() + std::chrono::seconds(interval),
+                            true};
                     }
                 } catch (...) {
                     // Catch any exceptions during data fetching to prevent
@@ -233,7 +238,8 @@ class PromptInfoCache {
                         break;
 
                     std::lock_guard<std::mutex> lock(cache_mutex);
-                    cache[key].expires = std::chrono::steady_clock::now() + std::chrono::seconds(interval);
+                    cache[key].expires =
+                        std::chrono::steady_clock::now() + std::chrono::seconds(interval);
                 }
 
                 // Sleep with periodic checking of stop flag
@@ -589,7 +595,8 @@ class PromptInfoCache {
 
         // Check if we have a cached value that's still valid
         auto it = cache.find(key);
-        if (it != cache.end() && it->second.ready && std::chrono::steady_clock::now() < it->second.expires) {
+        if (it != cache.end() && it->second.ready &&
+            std::chrono::steady_clock::now() < it->second.expires) {
             return it->second.value;
         }
 
@@ -607,7 +614,8 @@ class PromptInfoCache {
 
         int interval = refresh_intervals.count(key) ? refresh_intervals[key] : 30;
         cache[key] = {value,
-                      std::chrono::steady_clock::now() + std::chrono::seconds(1),  // Short expiry to prompt quick refresh
+                      std::chrono::steady_clock::now() +
+                          std::chrono::seconds(1),  // Short expiry to prompt quick refresh
                       true};
 
         // Schedule background refresh if this is a new key
@@ -627,7 +635,8 @@ static plugin_string_t cpu_usage_callback() {
     std::string result = g_cache ? g_cache->getValue("CPU_USAGE") : "0";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -635,7 +644,8 @@ static plugin_string_t memory_usage_callback() {
     std::string result = g_cache ? g_cache->getValue("MEM_USAGE") : "0";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -643,7 +653,8 @@ static plugin_string_t battery_callback() {
     std::string result = g_cache ? g_cache->getValue("BATTERY") : "N/A";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -651,7 +662,8 @@ static plugin_string_t time_callback() {
     std::string result = g_cache ? g_cache->getValue("TIME") : "00:00:00";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -659,7 +671,8 @@ static plugin_string_t date_callback() {
     std::string result = g_cache ? g_cache->getValue("DATE") : "1970-01-01";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -667,7 +680,8 @@ static plugin_string_t ip_local_callback() {
     std::string result = g_cache ? g_cache->getValue("IP_LOCAL") : "N/A";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -675,7 +689,8 @@ static plugin_string_t net_iface_callback() {
     std::string result = g_cache ? g_cache->getValue("NET_IFACE") : "N/A";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -683,7 +698,8 @@ static plugin_string_t git_status_callback() {
     std::string result = g_cache ? g_cache->getValue("GIT_STATUS") : "✓";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -691,7 +707,8 @@ static plugin_string_t git_branch_callback() {
     std::string result = g_cache ? g_cache->getValue("GIT_BRANCH") : "N/A";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -699,7 +716,8 @@ static plugin_string_t git_ahead_callback() {
     std::string result = g_cache ? g_cache->getValue("GIT_AHEAD") : "0";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -707,7 +725,8 @@ static plugin_string_t git_behind_callback() {
     std::string result = g_cache ? g_cache->getValue("GIT_BEHIND") : "0";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -715,7 +734,8 @@ static plugin_string_t git_stashes_callback() {
     std::string result = g_cache ? g_cache->getValue("GIT_STASHES") : "0";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -723,7 +743,8 @@ static plugin_string_t git_staged_callback() {
     std::string result = g_cache ? g_cache->getValue("GIT_STAGED") : "0";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
@@ -731,13 +752,15 @@ static plugin_string_t git_changes_callback() {
     std::string result = g_cache ? g_cache->getValue("GIT_CHANGES") : "0";
     char* data = (char*)PLUGIN_MALLOC(result.length() + 1);
     std::memcpy(data, result.c_str(), result.length() + 1);
-    plugin_string_t string_result = {data, static_cast<int>(result.length()), static_cast<int>(result.length() + 1)};
+    plugin_string_t string_result = {data, static_cast<int>(result.length()),
+                                     static_cast<int>(result.length() + 1)};
     return string_result;
 }
 
 // Required plugin information
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
-    static plugin_info_t info = {(char*)"fast_prompt_tags", (char*)"0.3.0", (char*)"Fast prompt info using background threads",
+    static plugin_info_t info = {(char*)"fast_prompt_tags", (char*)"0.3.0",
+                                 (char*)"Fast prompt info using background threads",
                                  (char*)"Caden Finley", PLUGIN_INTERFACE_VERSION};
     return &info;
 }

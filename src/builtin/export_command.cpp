@@ -28,7 +28,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         std::string name, value;
         if (parse_env_assignment(args[i], name, value)) {
             if (ReadonlyManager::instance().is_readonly(name)) {
-                print_error({ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
+                print_error(
+                    {ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
                 all_successful = false;
                 continue;
             }
@@ -83,7 +84,10 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
         env_vars.erase(name);
 
         if (unsetenv(name.c_str()) != 0) {
-            print_error({ErrorType::RUNTIME_ERROR, "unset", std::string("error unsetting ") + name + ": " + strerror(errno), {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "unset",
+                         std::string("error unsetting ") + name + ": " + strerror(errno),
+                         {}});
             success = false;
         }
     }
@@ -105,7 +109,8 @@ bool parse_env_assignment(const std::string& arg, std::string& name, std::string
     value = arg.substr(equals_pos + 1);
 
     if (value.size() >= 2) {
-        if ((value.front() == '"' && value.back() == '"') || (value.front() == '\'' && value.back() == '\'')) {
+        if ((value.front() == '"' && value.back() == '"') ||
+            (value.front() == '\'' && value.back() == '\'')) {
             value = value.substr(1, value.size() - 2);
         }
     }

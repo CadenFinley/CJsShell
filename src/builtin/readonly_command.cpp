@@ -63,7 +63,8 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
             function_mode = true;
             start_index = i + 1;
         } else if (args[i].substr(0, 1) == "-") {
-            print_error({ErrorType::INVALID_ARGUMENT, "readonly", args[i] + ": invalid option", {}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "readonly", args[i] + ": invalid option", {}});
             return 2;
         } else {
             break;
@@ -98,12 +99,16 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
             std::string value = arg.substr(eq_pos + 1);
 
             if (readonly_manager.is_readonly(name)) {
-                print_error({ErrorType::RUNTIME_ERROR, "readonly", name + ": readonly variable", {}});
+                print_error(
+                    {ErrorType::RUNTIME_ERROR, "readonly", name + ": readonly variable", {}});
                 return 1;
             }
 
             if (setenv(name.c_str(), value.c_str(), 1) != 0) {
-                print_error({ErrorType::RUNTIME_ERROR, "readonly", "setenv failed: " + std::string(strerror(errno)), {}});
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "readonly",
+                             "setenv failed: " + std::string(strerror(errno)),
+                             {}});
                 return 1;
             }
 
@@ -112,7 +117,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
             const char* value = getenv(arg.c_str());
             if (value == nullptr) {
                 if (setenv(arg.c_str(), "", 1) != 0) {
-                    print_error({ErrorType::RUNTIME_ERROR, "readonly", "setenv failed: " + std::string(strerror(errno)), {}});
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "readonly",
+                                 "setenv failed: " + std::string(strerror(errno)),
+                                 {}});
                     return 1;
                 }
             }

@@ -9,7 +9,8 @@
 #include <sstream>
 #include "cjsh_filesystem.h"
 
-HttpResponse HttpClient::post(const std::string& url, const std::string& data, const std::map<std::string, std::string>& headers,
+HttpResponse HttpClient::post(const std::string& url, const std::string& data,
+                              const std::map<std::string, std::string>& headers,
                               int timeout_seconds) {
     if (is_curl_available()) {
         return system_curl_post(url, data, headers, timeout_seconds);
@@ -21,7 +22,9 @@ HttpResponse HttpClient::post(const std::string& url, const std::string& data, c
     return response;
 }
 
-HttpResponse HttpClient::head(const std::string& url, const std::map<std::string, std::string>& headers, int timeout_seconds) {
+HttpResponse HttpClient::head(const std::string& url,
+                              const std::map<std::string, std::string>& headers,
+                              int timeout_seconds) {
     if (is_curl_available()) {
         return system_curl_head(url, headers, timeout_seconds);
     }
@@ -56,15 +59,19 @@ std::string HttpClient::escape_for_shell(const std::string& input) {
 }
 
 HttpResponse HttpClient::system_curl_post(const std::string& url, const std::string& data,
-                                          const std::map<std::string, std::string>& headers, int timeout_seconds) {
+                                          const std::map<std::string, std::string>& headers,
+                                          int timeout_seconds) {
     HttpResponse response;
     response.success = false;
 
     auto temp_data_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_data");
-    auto temp_response_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_response");
-    auto temp_headers_result = cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_headers");
+    auto temp_response_result =
+        cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_response");
+    auto temp_headers_result =
+        cjsh_filesystem::FileOperations::create_temp_file("cjsh_http_headers");
 
-    if (temp_data_result.is_error() || temp_response_result.is_error() || temp_headers_result.is_error()) {
+    if (temp_data_result.is_error() || temp_response_result.is_error() ||
+        temp_headers_result.is_error()) {
         response.error_message = "Failed to create temporary files";
         return response;
     }
@@ -89,7 +96,8 @@ HttpResponse HttpClient::system_curl_post(const std::string& url, const std::str
     cmd << " -X POST -d @\"" << temp_data_file << "\"";
 
     for (const auto& header : headers) {
-        cmd << " -H \"" << escape_for_shell(header.first) << ": " << escape_for_shell(header.second) << "\"";
+        cmd << " -H \"" << escape_for_shell(header.first) << ": " << escape_for_shell(header.second)
+            << "\"";
     }
 
     cmd << " \"" << escape_for_shell(url) << "\" 2>/dev/null";
@@ -143,13 +151,16 @@ HttpResponse HttpClient::system_curl_post(const std::string& url, const std::str
 
     response.success = (response.status_code >= 200 && response.status_code < 400);
     if (!response.success && response.error_message.empty()) {
-        response.error_message = "HTTP request failed with status code " + std::to_string(response.status_code);
+        response.error_message =
+            "HTTP request failed with status code " + std::to_string(response.status_code);
     }
 
     return response;
 }
 
-HttpResponse HttpClient::system_curl_head(const std::string& url, const std::map<std::string, std::string>& headers, int timeout_seconds) {
+HttpResponse HttpClient::system_curl_head(const std::string& url,
+                                          const std::map<std::string, std::string>& headers,
+                                          int timeout_seconds) {
     HttpResponse response;
     response.success = false;
 
@@ -160,7 +171,8 @@ HttpResponse HttpClient::system_curl_head(const std::string& url, const std::map
     cmd << " -D \"" << temp_headers_file << "\"";
 
     for (const auto& header : headers) {
-        cmd << " -H \"" << escape_for_shell(header.first) << ": " << escape_for_shell(header.second) << "\"";
+        cmd << " -H \"" << escape_for_shell(header.first) << ": " << escape_for_shell(header.second)
+            << "\"";
     }
 
     cmd << " \"" << escape_for_shell(url) << "\" 2>/dev/null";
@@ -203,7 +215,8 @@ HttpResponse HttpClient::system_curl_head(const std::string& url, const std::map
 
     response.success = (response.status_code >= 200 && response.status_code < 400);
     if (!response.success && response.error_message.empty()) {
-        response.error_message = "HTTP request failed with status code " + std::to_string(response.status_code);
+        response.error_message =
+            "HTTP request failed with status code " + std::to_string(response.status_code);
     }
 
     return response;

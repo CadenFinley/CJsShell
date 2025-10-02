@@ -48,11 +48,14 @@ extern bool g_startup_active;
 
 int completion_case_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: completion-case <on|off|status>", "Examples:", "  completion-case on       Enable case sensitive completions",
-        "  completion-case off      Use case insensitive completions", "  completion-case status   Show the current setting"};
+        "Usage: completion-case <on|off|status>",
+        "Examples:", "  completion-case on       Enable case sensitive completions",
+        "  completion-case off      Use case insensitive completions",
+        "  completion-case status   Show the current setting"};
 
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-case", "Missing option argument", usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-case", "Missing option argument",
+                     usage_lines});
         return 1;
     }
 
@@ -61,23 +64,27 @@ int completion_case_command(const std::vector<std::string>& args) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
-            std::cout << "Current: " << (is_completion_case_sensitive() ? "enabled" : "disabled") << std::endl;
+            std::cout << "Current: " << (is_completion_case_sensitive() ? "enabled" : "disabled")
+                      << std::endl;
         }
         return 0;
     }
 
     if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-case", "Too many arguments provided", usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-case", "Too many arguments provided",
+                     usage_lines});
         return 1;
     }
 
     std::string option = args[1];
     std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
 
     if (normalized == "status" || normalized == "--status") {
         if (!g_startup_active) {
-            std::cout << "Completion case sensitivity is currently " << (is_completion_case_sensitive() ? "enabled" : "disabled") << "."
+            std::cout << "Completion case sensitivity is currently "
+                      << (is_completion_case_sensitive() ? "enabled" : "disabled") << "."
                       << std::endl;
         }
         return 0;
@@ -86,34 +93,38 @@ int completion_case_command(const std::vector<std::string>& args) {
     bool enable_case_sensitive = false;
     bool recognized_option = true;
 
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" || normalized == "true" || normalized == "1" ||
-        normalized == "case-sensitive" || normalized == "--enable" || normalized == "--case-sensitive") {
+    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
+        normalized == "true" || normalized == "1" || normalized == "case-sensitive" ||
+        normalized == "--enable" || normalized == "--case-sensitive") {
         enable_case_sensitive = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" || normalized == "false" || normalized == "0" ||
-               normalized == "case-insensitive" || normalized == "--disable" || normalized == "--case-insensitive") {
+    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
+               normalized == "false" || normalized == "0" || normalized == "case-insensitive" ||
+               normalized == "--disable" || normalized == "--case-insensitive") {
         enable_case_sensitive = false;
     } else {
         recognized_option = false;
     }
 
     if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-case", "Unknown option '" + option + "'", usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-case",
+                     "Unknown option '" + option + "'", usage_lines});
         return 1;
     }
 
     bool currently_enabled = is_completion_case_sensitive();
     if (currently_enabled == enable_case_sensitive) {
         if (!g_startup_active) {
-            std::cout << "Completion case sensitivity is already " << (currently_enabled ? "enabled" : "disabled") << "." << std::endl;
+            std::cout << "Completion case sensitivity is already "
+                      << (currently_enabled ? "enabled" : "disabled") << "." << std::endl;
         }
         return 0;
     }
 
     set_completion_case_sensitive(enable_case_sensitive);
 
-
     if (!g_startup_active) {
-        std::cout << "Completion case sensitivity " << (enable_case_sensitive ? "enabled" : "disabled") << "." << std::endl;
+        std::cout << "Completion case sensitivity "
+                  << (enable_case_sensitive ? "enabled" : "disabled") << "." << std::endl;
     }
 
     return 0;
@@ -123,32 +134,39 @@ extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "login-startup-arg",
-                     "Missing flag argument",
-                     {"Usage: login-startup-arg [--flag-name]", "Available flags:", "  --login              Set login mode",
-                      "  --interactive        Force interactive mode", "  --debug              Enable debug mode",
-                      "  --no-plugins         Disable plugins", "  --no-themes          Disable themes",
-                      "  --no-ai              Disable AI features", "  --no-colors          Disable colors",
-                      "  --no-titleline       Disable title line", "  --show-startup-time  Display shell startup time",
-                      "  --no-source          Don't source the .cjshrc file", "  --no-completions     Disable tab completions",
-                      "  --no-syntax-highlighting Disable syntax highlighting", "  --no-smart-cd        Disable smart cd functionality",
-                      "  --minimal            Disable all unique cjsh features "
-                      "(plugins, "
-                      "themes, AI, colors, completions, syntax highlighting, smart cd, "
-                      "sourcing, custom ls, startup time display)",
-                      "  --disable-custom-ls  Use system ls command instead of builtin "
-                      "ls",
-                      "  --startup-test       Enable startup test mode"}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT,
+             "login-startup-arg",
+             "Missing flag argument",
+             {"Usage: login-startup-arg [--flag-name]",
+              "Available flags:", "  --login              Set login mode",
+              "  --interactive        Force interactive mode",
+              "  --debug              Enable debug mode", "  --no-plugins         Disable plugins",
+              "  --no-themes          Disable themes", "  --no-ai              Disable AI features",
+              "  --no-colors          Disable colors", "  --no-titleline       Disable title line",
+              "  --show-startup-time  Display shell startup time",
+              "  --no-source          Don't source the .cjshrc file",
+              "  --no-completions     Disable tab completions",
+              "  --no-syntax-highlighting Disable syntax highlighting",
+              "  --no-smart-cd        Disable smart cd functionality",
+              "  --minimal            Disable all unique cjsh features "
+              "(plugins, "
+              "themes, AI, colors, completions, syntax highlighting, smart cd, "
+              "sourcing, custom ls, startup time display)",
+              "  --disable-custom-ls  Use system ls command instead of builtin "
+              "ls",
+              "  --startup-test       Enable startup test mode"}});
         return 1;
     }
 
     const std::string& flag = args[1];
 
-    if (flag == "--login" || flag == "--interactive" || flag == "--debug" || flag == "--no-plugins" || flag == "--no-themes" ||
-        flag == "--no-ai" || flag == "--no-colors" || flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
-        flag == "--no-completions" || flag == "--no-syntax-highlighting" || flag == "--no-smart-cd" || flag == "--minimal" ||
-        flag == "--startup-test" || flag == "--disable-custom-ls") {
+    if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
+        flag == "--no-plugins" || flag == "--no-themes" || flag == "--no-ai" ||
+        flag == "--no-colors" || flag == "--no-titleline" || flag == "--show-startup-time" ||
+        flag == "--no-source" || flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
+        flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test" ||
+        flag == "--disable-custom-ls") {
         bool flag_exists = false;
         for (const auto& existing_flag : g_profile_startup_args) {
             if (existing_flag == flag) {
@@ -161,7 +179,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
             g_profile_startup_args.push_back(flag);
         }
     } else {
-        print_error({ErrorType::INVALID_ARGUMENT, "login-startup-arg", "unknown flag '" + flag + "'", {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "login-startup-arg", "unknown flag '" + flag + "'", {}});
         return 1;
     }
 
@@ -169,20 +188,21 @@ int startup_flag_command(const std::vector<std::string>& args) {
 }
 
 static std::unordered_map<std::string, std::string> g_custom_styles;
-static const std::unordered_map<std::string, std::string> default_styles = {{"unknown-command", "bold color=#FF5555"},
-                                                                            {"colon", "bold color=#8BE9FD"},
-                                                                            {"path-exists", "color=#50FA7B"},
-                                                                            {"path-not-exists", "color=#FF5555"},
-                                                                            {"glob-pattern", "color=#F1FA8C"},
-                                                                            {"operator", "bold color=#FF79C6"},
-                                                                            {"keyword", "bold color=#BD93F9"},
-                                                                            {"builtin", "color=#FFB86C"},
-                                                                            {"system", "color=#50FA7B"},
-                                                                            {"installed", "color=#8BE9FD"},
-                                                                            {"variable", "color=#8BE9FD"},
-                                                                            {"string", "color=#F1FA8C"},
-                                                                            {"comment", "color=#6272A4"},
-                                                                            {"function-definition", "bold color=#F1FA8C"}};
+static const std::unordered_map<std::string, std::string> default_styles = {
+    {"unknown-command", "bold color=#FF5555"},
+    {"colon", "bold color=#8BE9FD"},
+    {"path-exists", "color=#50FA7B"},
+    {"path-not-exists", "color=#FF5555"},
+    {"glob-pattern", "color=#F1FA8C"},
+    {"operator", "bold color=#FF79C6"},
+    {"keyword", "bold color=#BD93F9"},
+    {"builtin", "color=#FFB86C"},
+    {"system", "color=#50FA7B"},
+    {"installed", "color=#8BE9FD"},
+    {"variable", "color=#8BE9FD"},
+    {"string", "color=#F1FA8C"},
+    {"comment", "color=#6272A4"},
+    {"function-definition", "bold color=#F1FA8C"}};
 
 int style_def_command(const std::vector<std::string>& args) {
     if (args.size() == 1) {
@@ -239,7 +259,6 @@ int style_def_command(const std::vector<std::string>& args) {
 
     apply_custom_style(token_type, style);
 
-
     return 0;
 }
 
@@ -288,7 +307,6 @@ void load_custom_styles_from_config() {
     std::string line;
 
     while (std::getline(config_file, line)) {
-
         std::string trimmed = line;
         trimmed.erase(0, trimmed.find_first_not_of(" \t"));
         if (trimmed.empty() || trimmed[0] == '#') {
@@ -314,7 +332,8 @@ void load_custom_styles_from_config() {
                 continue;
             }
 
-            if ((remaining.front() == '"' && remaining.back() == '"') || (remaining.front() == '\'' && remaining.back() == '\'')) {
+            if ((remaining.front() == '"' && remaining.back() == '"') ||
+                (remaining.front() == '\'' && remaining.back() == '\'')) {
                 remaining = remaining.substr(1, remaining.length() - 2);
             }
 

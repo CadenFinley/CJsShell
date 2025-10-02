@@ -129,7 +129,8 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
     const char* c_compiler = get_c_compiler();
     nob_cmd_append(cmd, c_compiler);
 
-    nob_cmd_append(cmd, "-std=c11", "-Wall", "-Wno-error", "-Wno-unused-function", "-Wno-unused-variable");
+    nob_cmd_append(cmd, "-std=c11", "-Wall", "-Wno-error", "-Wno-unused-function",
+                   "-Wno-unused-variable");
 
 #ifdef PLATFORM_MACOS
 #ifdef ARCH_ARM64

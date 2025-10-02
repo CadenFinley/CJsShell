@@ -191,9 +191,11 @@
 #if defined(__GNUC__) || defined(__clang__)
 //   https://gcc.gnu.org/onlinedocs/gcc-4.7.2/gcc/Function-Attributes.html
 #ifdef __MINGW_PRINTF_FORMAT
-#define NOB_PRINTF_FORMAT(STRING_INDEX, FIRST_TO_CHECK) __attribute__((format(__MINGW_PRINTF_FORMAT, STRING_INDEX, FIRST_TO_CHECK)))
+#define NOB_PRINTF_FORMAT(STRING_INDEX, FIRST_TO_CHECK) \
+    __attribute__((format(__MINGW_PRINTF_FORMAT, STRING_INDEX, FIRST_TO_CHECK)))
 #else
-#define NOB_PRINTF_FORMAT(STRING_INDEX, FIRST_TO_CHECK) __attribute__((format(printf, STRING_INDEX, FIRST_TO_CHECK)))
+#define NOB_PRINTF_FORMAT(STRING_INDEX, FIRST_TO_CHECK) \
+    __attribute__((format(printf, STRING_INDEX, FIRST_TO_CHECK)))
 #endif  // __MINGW_PRINTF_FORMAT
 #else
 //   TODO: implement NOB_PRINTF_FORMAT for MSVC
@@ -213,7 +215,8 @@
     } while (0)
 
 #define NOB_ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
-#define NOB_ARRAY_GET(array, index) (NOB_ASSERT((size_t)index < NOB_ARRAY_LEN(array)), array[(size_t)index])
+#define NOB_ARRAY_GET(array, index) \
+    (NOB_ASSERT((size_t)index < NOB_ARRAY_LEN(array)), array[(size_t)index])
 
 typedef enum {
     NOB_INFO,
@@ -276,18 +279,19 @@ NOBDEF bool nob_delete_file(const char* path);
 #define NOB_DECLTYPE_CAST(T)
 #endif  // __cplusplus
 
-#define nob_da_reserve(da, expected_capacity)                                                                             \
-    do {                                                                                                                  \
-        if ((expected_capacity) > (da)->capacity) {                                                                       \
-            if ((da)->capacity == 0) {                                                                                    \
-                (da)->capacity = NOB_DA_INIT_CAP;                                                                         \
-            }                                                                                                             \
-            while ((expected_capacity) > (da)->capacity) {                                                                \
-                (da)->capacity *= 2;                                                                                      \
-            }                                                                                                             \
-            (da)->items = NOB_DECLTYPE_CAST((da)->items) NOB_REALLOC((da)->items, (da)->capacity * sizeof(*(da)->items)); \
-            NOB_ASSERT((da)->items != NULL && "Buy more RAM lol");                                                        \
-        }                                                                                                                 \
+#define nob_da_reserve(da, expected_capacity)                                    \
+    do {                                                                         \
+        if ((expected_capacity) > (da)->capacity) {                              \
+            if ((da)->capacity == 0) {                                           \
+                (da)->capacity = NOB_DA_INIT_CAP;                                \
+            }                                                                    \
+            while ((expected_capacity) > (da)->capacity) {                       \
+                (da)->capacity *= 2;                                             \
+            }                                                                    \
+            (da)->items = NOB_DECLTYPE_CAST((da)->items)                         \
+                NOB_REALLOC((da)->items, (da)->capacity * sizeof(*(da)->items)); \
+            NOB_ASSERT((da)->items != NULL && "Buy more RAM lol");               \
+        }                                                                        \
     } while (0)
 
 // Append an item to a dynamic array
@@ -343,7 +347,8 @@ NOBDEF bool nob_delete_file(const char* path);
 //     nob_log(INFO, "%zu: %d", index, *x);
 // }
 // ```
-#define nob_da_foreach(Type, it, da) for (Type* it = (da)->items; it < (da)->items + (da)->count; ++it)
+#define nob_da_foreach(Type, it, da) \
+    for (Type* it = (da)->items; it < (da)->items + (da)->count; ++it)
 
 typedef struct {
     char* items;
@@ -488,11 +493,13 @@ typedef struct {
 // nob_sb_append_null if you plan to use it as a C string.
 NOBDEF void nob_cmd_render(Nob_Cmd cmd, Nob_String_Builder* render);
 
-#define nob_cmd_append(cmd, ...) \
-    nob_da_append_many(cmd, ((const char*[]){__VA_ARGS__}), (sizeof((const char*[]){__VA_ARGS__}) / sizeof(const char*)))
+#define nob_cmd_append(cmd, ...)                            \
+    nob_da_append_many(cmd, ((const char*[]){__VA_ARGS__}), \
+                       (sizeof((const char*[]){__VA_ARGS__}) / sizeof(const char*)))
 
 // TODO: nob_cmd_extend() evaluates other_cmd twice
-#define nob_cmd_extend(cmd, other_cmd) nob_da_append_many(cmd, (other_cmd)->items, (other_cmd)->count)
+#define nob_cmd_extend(cmd, other_cmd) \
+    nob_da_append_many(cmd, (other_cmd)->items, (other_cmd)->count)
 
 // Free all the memory allocated by command arguments
 #define nob_cmd_free(cmd) NOB_FREE(cmd.items)
@@ -596,7 +603,8 @@ NOBDEF void nob_temp_rewind(size_t checkpoint);
 // "/path/to/a/file.c" -> "file.c"; "/path/to/a/directory" -> "directory"
 NOBDEF const char* nob_path_name(const char* path);
 NOBDEF bool nob_rename(const char* old_path, const char* new_path);
-NOBDEF int nob_needs_rebuild(const char* output_path, const char** input_paths, size_t input_paths_count);
+NOBDEF int nob_needs_rebuild(const char* output_path, const char** input_paths,
+                             size_t input_paths_count);
 NOBDEF int nob_needs_rebuild1(const char* output_path, const char* input_path);
 NOBDEF int nob_file_exists(const char* file_path);
 NOBDEF const char* nob_get_current_dir_temp(void);
@@ -633,7 +641,8 @@ NOBDEF bool nob_set_current_dir(const char* path);
 
 #ifndef nob_cc_output
 #if defined(_MSC_VER) && !defined(__clang__)
-#define nob_cc_output(cmd, output_path) nob_cmd_append(cmd, nob_temp_sprintf("/Fe:%s", (output_path)))
+#define nob_cc_output(cmd, output_path) \
+    nob_cmd_append(cmd, nob_temp_sprintf("/Fe:%s", (output_path)))
 #else
 #define nob_cc_output(cmd, output_path) nob_cmd_append(cmd, "-o", (output_path))
 #endif
@@ -658,7 +667,8 @@ NOBDEF bool nob_set_current_dir(const char* path);
 #elif defined(__clang__)
 #define NOB_REBUILD_URSELF(binary_path, source_path) "clang", "-o", binary_path, source_path
 #elif defined(_MSC_VER)
-#define NOB_REBUILD_URSELF(binary_path, source_path) "cl.exe", nob_temp_sprintf("/Fe:%s", (binary_path)), source_path
+#define NOB_REBUILD_URSELF(binary_path, source_path) \
+    "cl.exe", nob_temp_sprintf("/Fe:%s", (binary_path)), source_path
 #endif
 #else
 #define NOB_REBUILD_URSELF(binary_path, source_path) "cc", "-o", binary_path, source_path
@@ -707,7 +717,8 @@ NOBDEF void nob__go_rebuild_urself(int argc, char** argv, const char* source_pat
 //     // ...
 //     return 0;
 // }
-#define NOB_GO_REBUILD_URSELF_PLUS(argc, argv, ...) nob__go_rebuild_urself(argc, argv, __FILE__, __VA_ARGS__, NULL);
+#define NOB_GO_REBUILD_URSELF_PLUS(argc, argv, ...) \
+    nob__go_rebuild_urself(argc, argv, __FILE__, __VA_ARGS__, NULL);
 
 typedef struct {
     size_t count;
@@ -841,8 +852,9 @@ Nob_Log_Level nob_minimal_log_level = NOB_INFO;
 
 NOBDEF char* nob_win32_error_message(DWORD err) {
     static char win32ErrMsg[NOB_WIN32_ERR_MSG_SIZE] = {0};
-    DWORD errMsgSize = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err, LANG_USER_DEFAULT, win32ErrMsg,
-                                      NOB_WIN32_ERR_MSG_SIZE, NULL);
+    DWORD errMsgSize =
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err,
+                       LANG_USER_DEFAULT, win32ErrMsg, NOB_WIN32_ERR_MSG_SIZE, NULL);
 
     if (errMsgSize == 0) {
         if (GetLastError() != ERROR_MR_MID_NOT_FOUND) {
@@ -1202,11 +1214,13 @@ static Nob_Proc nob__cmd_start_process(Nob_Cmd cmd, Nob_Fd* fdin, Nob_Fd* fdout,
 
     nob__win32_cmd_quote(cmd, &sb);
     nob_sb_append_null(&sb);
-    BOOL bSuccess = CreateProcessA(NULL, sb.items, NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &piProcInfo);
+    BOOL bSuccess =
+        CreateProcessA(NULL, sb.items, NULL, NULL, TRUE, 0, NULL, NULL, &siStartInfo, &piProcInfo);
     nob_sb_free(sb);
 
     if (!bSuccess) {
-        nob_log(NOB_ERROR, "Could not create child process for %s: %s", cmd.items[0], nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not create child process for %s: %s", cmd.items[0],
+                nob_win32_error_message(GetLastError()));
         return NOB_INVALID_PROC;
     }
 
@@ -1249,7 +1263,8 @@ static Nob_Proc nob__cmd_start_process(Nob_Cmd cmd, Nob_Fd* fdin, Nob_Fd* fdout,
         nob_cmd_append(&cmd_null, NULL);
 
         if (execvp(cmd.items[0], (char* const*)cmd_null.items) < 0) {
-            nob_log(NOB_ERROR, "Could not exec child process for %s: %s", cmd.items[0], strerror(errno));
+            nob_log(NOB_ERROR, "Could not exec child process for %s: %s", cmd.items[0],
+                    strerror(errno));
             exit(1);
         }
         NOB_UNREACHABLE("nob_cmd_run_async_redirect");
@@ -1301,10 +1316,12 @@ NOBDEF Nob_Fd nob_fd_open_for_read(const char* path) {
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
 
-    Nob_Fd result = CreateFile(path, GENERIC_READ, 0, &saAttr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+    Nob_Fd result =
+        CreateFile(path, GENERIC_READ, 0, &saAttr, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
 
     if (result == INVALID_HANDLE_VALUE) {
-        nob_log(NOB_ERROR, "Could not open file %s: %s", path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not open file %s: %s", path,
+                nob_win32_error_message(GetLastError()));
         return NOB_INVALID_FD;
     }
 
@@ -1335,7 +1352,8 @@ NOBDEF Nob_Fd nob_fd_open_for_write(const char* path) {
     );
 
     if (result == INVALID_HANDLE_VALUE) {
-        nob_log(NOB_ERROR, "Could not open file %s: %s", path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not open file %s: %s", path,
+                nob_win32_error_message(GetLastError()));
         return NOB_INVALID_FD;
     }
 
@@ -1379,13 +1397,15 @@ NOBDEF bool nob_proc_wait(Nob_Proc proc) {
     );
 
     if (result == WAIT_FAILED) {
-        nob_log(NOB_ERROR, "could not wait on child process: %s", nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not wait on child process: %s",
+                nob_win32_error_message(GetLastError()));
         return false;
     }
 
     DWORD exit_status;
     if (!GetExitCodeProcess(proc, &exit_status)) {
-        nob_log(NOB_ERROR, "could not get process exit code: %s", nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not get process exit code: %s",
+                nob_win32_error_message(GetLastError()));
         return false;
     }
 
@@ -1439,13 +1459,15 @@ static int nob__proc_wait_async(Nob_Proc proc, int ms) {
     }
 
     if (result == WAIT_FAILED) {
-        nob_log(NOB_ERROR, "could not wait on child process: %s", nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not wait on child process: %s",
+                nob_win32_error_message(GetLastError()));
         return -1;
     }
 
     DWORD exit_status;
     if (!GetExitCodeProcess(proc, &exit_status)) {
-        nob_log(NOB_ERROR, "could not get process exit code: %s", nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not get process exit code: %s",
+                nob_win32_error_message(GetLastError()));
         return -1;
     }
 
@@ -1576,7 +1598,8 @@ NOBDEF bool nob_read_entire_dir(const char* parent, Nob_File_Paths* children) {
     dir = opendir(parent);
     if (dir == NULL) {
 #ifdef _WIN32
-        nob_log(NOB_ERROR, "Could not open directory %s: %s", parent, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not open directory %s: %s", parent,
+                nob_win32_error_message(GetLastError()));
 #else
         nob_log(NOB_ERROR, "Could not open directory %s: %s", parent, strerror(errno));
 #endif  // _WIN32
@@ -1592,7 +1615,8 @@ NOBDEF bool nob_read_entire_dir(const char* parent, Nob_File_Paths* children) {
 
     if (errno != 0) {
 #ifdef _WIN32
-        nob_log(NOB_ERROR, "Could not read directory %s: %s", parent, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not read directory %s: %s", parent,
+                nob_win32_error_message(GetLastError()));
 #else
         nob_log(NOB_ERROR, "Could not read directory %s: %s", parent, strerror(errno));
 #endif  // _WIN32
@@ -1642,7 +1666,8 @@ NOBDEF Nob_File_Type nob_get_file_type(const char* path) {
 #ifdef _WIN32
     DWORD attr = GetFileAttributesA(path);
     if (attr == INVALID_FILE_ATTRIBUTES) {
-        nob_log(NOB_ERROR, "Could not get file attributes of %s: %s", path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not get file attributes of %s: %s", path,
+                nob_win32_error_message(GetLastError()));
         return -1;
     }
 
@@ -1671,7 +1696,8 @@ NOBDEF bool nob_delete_file(const char* path) {
     nob_log(NOB_INFO, "deleting %s", path);
 #ifdef _WIN32
     if (!DeleteFileA(path)) {
-        nob_log(NOB_ERROR, "Could not delete file %s: %s", path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not delete file %s: %s", path,
+                nob_win32_error_message(GetLastError()));
         return false;
     }
     return true;
@@ -1809,40 +1835,47 @@ NOBDEF const char* nob_temp_sv_to_cstr(Nob_String_View sv) {
     return result;
 }
 
-NOBDEF int nob_needs_rebuild(const char* output_path, const char** input_paths, size_t input_paths_count) {
+NOBDEF int nob_needs_rebuild(const char* output_path, const char** input_paths,
+                             size_t input_paths_count) {
 #ifdef _WIN32
     BOOL bSuccess;
 
-    HANDLE output_path_fd = CreateFile(output_path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+    HANDLE output_path_fd = CreateFile(output_path, GENERIC_READ, 0, NULL, OPEN_EXISTING,
+                                       FILE_ATTRIBUTE_READONLY, NULL);
     if (output_path_fd == INVALID_HANDLE_VALUE) {
         // NOTE: if output does not exist it 100% must be rebuilt
         if (GetLastError() == ERROR_FILE_NOT_FOUND)
             return 1;
-        nob_log(NOB_ERROR, "Could not open file %s: %s", output_path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not open file %s: %s", output_path,
+                nob_win32_error_message(GetLastError()));
         return -1;
     }
     FILETIME output_path_time;
     bSuccess = GetFileTime(output_path_fd, NULL, NULL, &output_path_time);
     CloseHandle(output_path_fd);
     if (!bSuccess) {
-        nob_log(NOB_ERROR, "Could not get time of %s: %s", output_path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "Could not get time of %s: %s", output_path,
+                nob_win32_error_message(GetLastError()));
         return -1;
     }
 
     for (size_t i = 0; i < input_paths_count; ++i) {
         const char* input_path = input_paths[i];
-        HANDLE input_path_fd = CreateFile(input_path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+        HANDLE input_path_fd = CreateFile(input_path, GENERIC_READ, 0, NULL, OPEN_EXISTING,
+                                          FILE_ATTRIBUTE_READONLY, NULL);
         if (input_path_fd == INVALID_HANDLE_VALUE) {
             // NOTE: non-existing input is an error cause it is needed for
             // building in the first place
-            nob_log(NOB_ERROR, "Could not open file %s: %s", input_path, nob_win32_error_message(GetLastError()));
+            nob_log(NOB_ERROR, "Could not open file %s: %s", input_path,
+                    nob_win32_error_message(GetLastError()));
             return -1;
         }
         FILETIME input_path_time;
         bSuccess = GetFileTime(input_path_fd, NULL, NULL, &input_path_time);
         CloseHandle(input_path_fd);
         if (!bSuccess) {
-            nob_log(NOB_ERROR, "Could not get time of %s: %s", input_path, nob_win32_error_message(GetLastError()));
+            nob_log(NOB_ERROR, "Could not get time of %s: %s", input_path,
+                    nob_win32_error_message(GetLastError()));
             return -1;
         }
 
@@ -1904,7 +1937,8 @@ NOBDEF bool nob_rename(const char* old_path, const char* new_path) {
     nob_log(NOB_INFO, "renaming %s -> %s", old_path, new_path);
 #ifdef _WIN32
     if (!MoveFileEx(old_path, new_path, MOVEFILE_REPLACE_EXISTING)) {
-        nob_log(NOB_ERROR, "could not rename %s to %s: %s", old_path, new_path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not rename %s to %s: %s", old_path, new_path,
+                nob_win32_error_message(GetLastError()));
         return false;
     }
 #else
@@ -2098,13 +2132,15 @@ NOBDEF const char* nob_get_current_dir_temp(void) {
 #ifdef _WIN32
     DWORD nBufferLength = GetCurrentDirectory(0, NULL);
     if (nBufferLength == 0) {
-        nob_log(NOB_ERROR, "could not get current directory: %s", nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not get current directory: %s",
+                nob_win32_error_message(GetLastError()));
         return NULL;
     }
 
     char* buffer = (char*)nob_temp_alloc(nBufferLength);
     if (GetCurrentDirectory(nBufferLength, buffer) == 0) {
-        nob_log(NOB_ERROR, "could not get current directory: %s", nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not get current directory: %s",
+                nob_win32_error_message(GetLastError()));
         return NULL;
     }
 
@@ -2123,7 +2159,8 @@ NOBDEF const char* nob_get_current_dir_temp(void) {
 NOBDEF bool nob_set_current_dir(const char* path) {
 #ifdef _WIN32
     if (!SetCurrentDirectory(path)) {
-        nob_log(NOB_ERROR, "could not set current directory to %s: %s", path, nob_win32_error_message(GetLastError()));
+        nob_log(NOB_ERROR, "could not set current directory to %s: %s", path,
+                nob_win32_error_message(GetLastError()));
         return false;
     }
     return true;

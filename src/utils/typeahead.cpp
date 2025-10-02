@@ -96,12 +96,14 @@ std::string filter_escape_sequences(const std::string& input) {
                 while (i < input.size()) {
                     char c = input[i];
 
-                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '~' || c == 'c' || c == 'h' || c == 'l' || c == 'm' ||
-                        c == 'n' || c == 'r' || c == 'J' || c == 'K' || c == 'H' || c == 'f') {
+                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '~' || c == 'c' ||
+                        c == 'h' || c == 'l' || c == 'm' || c == 'n' || c == 'r' || c == 'J' ||
+                        c == 'K' || c == 'H' || c == 'f') {
                         break;
                     }
 
-                    if (!((c >= '0' && c <= '9') || c == ';' || c == '?' || c == '!' || c == '=' || c == '>' || c == '<')) {
+                    if (!((c >= '0' && c <= '9') || c == ';' || c == '?' || c == '!' || c == '=' ||
+                          c == '>' || c == '<')) {
                         break;
                     }
                     i++;
@@ -163,10 +165,12 @@ std::string normalize_line_edit_sequences(const std::string& input) {
                 break;
             }
             case 0x17: {
-                while (!normalized.empty() && (normalized.back() == ' ' || normalized.back() == '\t')) {
+                while (!normalized.empty() &&
+                       (normalized.back() == ' ' || normalized.back() == '\t')) {
                     normalized.pop_back();
                 }
-                while (!normalized.empty() && normalized.back() != ' ' && normalized.back() != '\t' && normalized.back() != '\n') {
+                while (!normalized.empty() && normalized.back() != ' ' &&
+                       normalized.back() != '\t' && normalized.back() != '\n') {
                     normalized.pop_back();
                 }
                 break;

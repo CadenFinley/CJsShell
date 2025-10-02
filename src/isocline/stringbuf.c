@@ -154,9 +154,10 @@ ic_private bool skip_esc(const char* s, ssize_t len, ssize_t* esclen) {
         ssize_t n = 2;
         while (len > n) {
             char c = s[n++];
-            if ((finalCSI && (uint8_t)c >= 0x40 && (uint8_t)c <= 0x7F) ||  // terminating byte: @A–Z[\]^_`a–z{|}~
-                (!finalCSI && c == '\x07') ||                              // bell
-                (c == '\x02'))                                             // STX terminates as well
+            if ((finalCSI && (uint8_t)c >= 0x40 &&
+                 (uint8_t)c <= 0x7F) ||        // terminating byte: @A–Z[\]^_`a–z{|}~
+                (!finalCSI && c == '\x07') ||  // bell
+                (c == '\x02'))                 // STX terminates as well
             {
                 if (esclen != NULL)
                     *esclen = n;
@@ -217,7 +218,8 @@ static ssize_t str_limit_to_length(const char* s, ssize_t n) {
 // String searching prev/next word, line, ws_word
 //-------------------------------------------------------------
 
-static ssize_t str_find_backward(const char* s, ssize_t len, ssize_t pos, ic_is_char_class_fun_t* match, bool skip_immediate_matches) {
+static ssize_t str_find_backward(const char* s, ssize_t len, ssize_t pos,
+                                 ic_is_char_class_fun_t* match, bool skip_immediate_matches) {
     if (pos > len)
         pos = len;
     if (pos < 0)
@@ -250,7 +252,8 @@ static ssize_t str_find_backward(const char* s, ssize_t len, ssize_t pos, ic_is_
     return -1;  // not found
 }
 
-static ssize_t str_find_forward(const char* s, ssize_t len, ssize_t pos, ic_is_char_class_fun_t* match, bool skip_immediate_matches) {
+static ssize_t str_find_forward(const char* s, ssize_t len, ssize_t pos,
+                                ic_is_char_class_fun_t* match, bool skip_immediate_matches) {
     if (s == NULL || len < 0)
         return -1;
     if (pos > len)
@@ -290,7 +293,8 @@ static bool char_is_linefeed(const char* s, long n) {
 }
 
 static ssize_t str_find_line_start(const char* s, ssize_t len, ssize_t pos) {
-    ssize_t start = str_find_backward(s, len, pos, &char_is_linefeed, false /* don't skip immediate matches */);
+    ssize_t start =
+        str_find_backward(s, len, pos, &char_is_linefeed, false /* don't skip immediate matches */);
     return (start < 0 ? 0 : start);
 }
 
@@ -300,22 +304,26 @@ static ssize_t str_find_line_end(const char* s, ssize_t len, ssize_t pos) {
 }
 
 static ssize_t str_find_word_start(const char* s, ssize_t len, ssize_t pos) {
-    ssize_t start = str_find_backward(s, len, pos, &ic_char_is_idletter, true /* skip immediate matches */);
+    ssize_t start =
+        str_find_backward(s, len, pos, &ic_char_is_idletter, true /* skip immediate matches */);
     return (start < 0 ? 0 : start);
 }
 
 static ssize_t str_find_word_end(const char* s, ssize_t len, ssize_t pos) {
-    ssize_t end = str_find_forward(s, len, pos, &ic_char_is_idletter, true /* skip immediate matches */);
+    ssize_t end =
+        str_find_forward(s, len, pos, &ic_char_is_idletter, true /* skip immediate matches */);
     return (end < 0 ? len : end);
 }
 
 static ssize_t str_find_ws_word_start(const char* s, ssize_t len, ssize_t pos) {
-    ssize_t start = str_find_backward(s, len, pos, &ic_char_is_white, true /* skip immediate matches */);
+    ssize_t start =
+        str_find_backward(s, len, pos, &ic_char_is_white, true /* skip immediate matches */);
     return (start < 0 ? 0 : start);
 }
 
 static ssize_t str_find_ws_word_end(const char* s, ssize_t len, ssize_t pos) {
-    ssize_t end = str_find_forward(s, len, pos, &ic_char_is_white, true /* skip immediate matches */);
+    ssize_t end =
+        str_find_forward(s, len, pos, &ic_char_is_white, true /* skip immediate matches */);
     return (end < 0 ? len : end);
 }
 
@@ -324,8 +332,8 @@ static ssize_t str_find_ws_word_end(const char* s, ssize_t len, ssize_t pos) {
 //-------------------------------------------------------------
 
 // invoke a function for each terminal row; returns total row count.
-static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize_t promptw, ssize_t cpromptw, row_fun_t* fun,
-                                const void* arg, void* res) {
+static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize_t promptw,
+                                ssize_t cpromptw, row_fun_t* fun, const void* arg, void* res) {
     if (s == NULL)
         s = "";
     ssize_t i;
@@ -378,8 +386,8 @@ static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize
 // String: get row/column position
 //-------------------------------------------------------------
 
-static bool str_get_current_pos_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len, ssize_t startw, bool is_wrap,
-                                     const void* arg, void* res) {
+static bool str_get_current_pos_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
+                                     ssize_t startw, bool is_wrap, const void* arg, void* res) {
     ic_unused(is_wrap);
     ic_unused(startw);
     rowcol_t* rc = (rowcol_t*)res;
@@ -406,9 +414,11 @@ static bool str_get_current_pos_iter(const char* s, ssize_t row, ssize_t row_sta
     return false;  // always continue to count all rows
 }
 
-static ssize_t str_get_rc_at_pos(const char* s, ssize_t len, ssize_t termw, ssize_t promptw, ssize_t cpromptw, ssize_t pos, rowcol_t* rc) {
+static ssize_t str_get_rc_at_pos(const char* s, ssize_t len, ssize_t termw, ssize_t promptw,
+                                 ssize_t cpromptw, ssize_t pos, rowcol_t* rc) {
     memset(rc, 0, sizeof(*rc));
-    ssize_t rows = str_for_each_row(s, len, termw, promptw, cpromptw, &str_get_current_pos_iter, &pos, rc);
+    ssize_t rows =
+        str_for_each_row(s, len, termw, promptw, cpromptw, &str_get_current_pos_iter, &pos, rc);
     // debug_msg("edit: current pos: (%d, %d) %s %s\n", rc->row, rc->col,
     // rc->first_on_row ? "first" : "", rc->last_on_row ? "last" : "");
     return rows;
@@ -428,7 +438,8 @@ typedef struct wrowcol_s {
     ssize_t hrows;  // count of hard-wrapped extra rows
 } wrowcol_t;
 
-static bool str_get_current_wrapped_pos_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len, ssize_t startw, bool is_wrap,
+static bool str_get_current_wrapped_pos_iter(const char* s, ssize_t row, ssize_t row_start,
+                                             ssize_t row_len, ssize_t startw, bool is_wrap,
                                              const void* arg, void* res) {
     ic_unused(is_wrap);
     wrowcol_t* wrc = (wrowcol_t*)res;
@@ -482,16 +493,19 @@ static bool str_get_current_wrapped_pos_iter(const char* s, ssize_t row, ssize_t
     return false;  // always continue to count all rows
 }
 
-static ssize_t str_get_wrapped_rc_at_pos(const char* s, ssize_t len, ssize_t termw, ssize_t newtermw, ssize_t promptw, ssize_t cpromptw,
+static ssize_t str_get_wrapped_rc_at_pos(const char* s, ssize_t len, ssize_t termw,
+                                         ssize_t newtermw, ssize_t promptw, ssize_t cpromptw,
                                          ssize_t pos, rowcol_t* rc) {
     wrapped_arg_t warg;
     warg.pos = pos;
     warg.newtermw = newtermw;
     wrowcol_t wrc;
     memset(&wrc, 0, sizeof(wrc));
-    ssize_t rows = str_for_each_row(s, len, termw, promptw, cpromptw, &str_get_current_wrapped_pos_iter, &warg, &wrc);
-    debug_msg("edit: wrapped pos: (%zd,%zd) rows %zd %s %s, hrows: %zd\n", wrc.rc.row, wrc.rc.col, rows, wrc.rc.first_on_row ? "first" : "",
-              wrc.rc.last_on_row ? "last" : "", wrc.hrows);
+    ssize_t rows = str_for_each_row(s, len, termw, promptw, cpromptw,
+                                    &str_get_current_wrapped_pos_iter, &warg, &wrc);
+    debug_msg("edit: wrapped pos: (%zd,%zd) rows %zd %s %s, hrows: %zd\n", wrc.rc.row, wrc.rc.col,
+              rows, wrc.rc.first_on_row ? "first" : "", wrc.rc.last_on_row ? "last" : "",
+              wrc.hrows);
     *rc = wrc.rc;
     return (rows + wrc.hrows);
 }
@@ -500,8 +514,8 @@ static ssize_t str_get_wrapped_rc_at_pos(const char* s, ssize_t len, ssize_t ter
 // Set position
 //-------------------------------------------------------------
 
-static bool str_set_pos_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len, ssize_t startw, bool is_wrap, const void* arg,
-                             void* res) {
+static bool str_set_pos_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
+                             ssize_t startw, bool is_wrap, const void* arg, void* res) {
     ic_unused(arg);
     ic_unused(is_wrap);
     ic_unused(startw);
@@ -524,8 +538,8 @@ static bool str_set_pos_iter(const char* s, ssize_t row, ssize_t row_start, ssiz
     return true;  // stop iteration
 }
 
-static ssize_t str_get_pos_at_rc(const char* s, ssize_t len, ssize_t termw, ssize_t promptw, ssize_t cpromptw, ssize_t row,
-                                 ssize_t col /* without prompt */) {
+static ssize_t str_get_pos_at_rc(const char* s, ssize_t len, ssize_t termw, ssize_t promptw,
+                                 ssize_t cpromptw, ssize_t row, ssize_t col /* without prompt */) {
     rowcol_t rc;
     memset(&rc, 0, ssizeof(rc));
     rc.row = row;
@@ -841,22 +855,26 @@ ic_private ssize_t sbuf_find_ws_word_end(stringbuf_t* sbuf, ssize_t pos) {
 }
 
 // find row/col position
-ic_private ssize_t sbuf_get_pos_at_rc(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw, ssize_t cpromptw, ssize_t row, ssize_t col) {
+ic_private ssize_t sbuf_get_pos_at_rc(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
+                                      ssize_t cpromptw, ssize_t row, ssize_t col) {
     return str_get_pos_at_rc(sbuf->buf, sbuf->count, termw, promptw, cpromptw, row, col);
 }
 
 // get row/col for a given position
-ic_private ssize_t sbuf_get_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw, ssize_t cpromptw, ssize_t pos, rowcol_t* rc) {
+ic_private ssize_t sbuf_get_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
+                                      ssize_t cpromptw, ssize_t pos, rowcol_t* rc) {
     return str_get_rc_at_pos(sbuf->buf, sbuf->count, termw, promptw, cpromptw, pos, rc);
 }
 
-ic_private ssize_t sbuf_get_wrapped_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t newtermw, ssize_t promptw, ssize_t cpromptw,
-                                              ssize_t pos, rowcol_t* rc) {
-    return str_get_wrapped_rc_at_pos(sbuf->buf, sbuf->count, termw, newtermw, promptw, cpromptw, pos, rc);
+ic_private ssize_t sbuf_get_wrapped_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t newtermw,
+                                              ssize_t promptw, ssize_t cpromptw, ssize_t pos,
+                                              rowcol_t* rc) {
+    return str_get_wrapped_rc_at_pos(sbuf->buf, sbuf->count, termw, newtermw, promptw, cpromptw,
+                                     pos, rc);
 }
 
-ic_private ssize_t sbuf_for_each_row(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw, ssize_t cpromptw, row_fun_t* fun, void* arg,
-                                     void* res) {
+ic_private ssize_t sbuf_for_each_row(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw,
+                                     ssize_t cpromptw, row_fun_t* fun, void* arg, void* res) {
     if (sbuf == NULL)
         return 0;
     return str_for_each_row(sbuf->buf, sbuf->count, termw, promptw, cpromptw, fun, arg, res);
@@ -1000,7 +1018,8 @@ ic_public bool ic_char_is_idletter(const char* s, long len) {
     if (s == NULL || len <= 0)
         return false;
     const char c = *s;
-    return ((uint8_t)c >= 0x80 || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c == '_') || (c == '-'));
+    return ((uint8_t)c >= 0x80 || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') || (c == '_') || (c == '-'));
 }
 
 // Convenience: character class for filename letters (`[^ \t\r\n`@$><=;|&{(]`).
@@ -1041,7 +1060,8 @@ static int ic_strncmp(const char* s1, const char* s2, ssize_t n) {
 // Ensures not to match prefixes or suffixes, and returns the length of the
 // match (in bytes). E.g.
 // `ic_match_token("function",0,&ic_char_is_letter,"fun")` returns 0.
-ic_public long ic_match_token(const char* s, long pos, ic_is_char_class_fun_t* is_token_char, const char* token) {
+ic_public long ic_match_token(const char* s, long pos, ic_is_char_class_fun_t* is_token_char,
+                              const char* token) {
     long n = ic_is_token(s, pos, is_token_char);
     if (n > 0 && token != NULL && n == ic_strlen(token) && ic_strncmp(s + pos, token, n) == 0) {
         return n;
@@ -1055,7 +1075,8 @@ ic_public long ic_match_token(const char* s, long pos, ic_is_char_class_fun_t* i
 // match (in bytes). Ensures not to match prefixes or suffixes. E.g.
 // `ic_match_any_token("function",0,&ic_char_is_letter,{"fun","func",NULL})`
 // returns 0.
-ic_public long ic_match_any_token(const char* s, long pos, ic_is_char_class_fun_t* is_token_char, const char** tokens) {
+ic_public long ic_match_any_token(const char* s, long pos, ic_is_char_class_fun_t* is_token_char,
+                                  const char** tokens) {
     long n = ic_is_token(s, pos, is_token_char);
     if (n <= 0 || tokens == NULL)
         return 0;

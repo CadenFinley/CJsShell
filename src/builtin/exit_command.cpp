@@ -15,7 +15,8 @@ int exit_command(const std::vector<std::string>& args) {
 
     int non_flag_args = 0;
 
-    force_exit = std::find(args.begin(), args.end(), "-f") != args.end() || std::find(args.begin(), args.end(), "--force") != args.end();
+    force_exit = std::find(args.begin(), args.end(), "-f") != args.end() ||
+                 std::find(args.begin(), args.end(), "--force") != args.end();
 
     for (size_t i = 1; i < args.size(); i++) {
         const std::string& val = args[i];

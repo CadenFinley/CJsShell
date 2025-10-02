@@ -18,7 +18,8 @@ int preview_theme(const std::string& theme_name) {
     auto temp_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path.string(), true);
 
     std::string canonical_theme = Theme::strip_theme_extension(theme_name);
-    std::filesystem::path theme_file = cjsh_filesystem::g_cjsh_theme_path / Theme::ensure_theme_extension(canonical_theme);
+    std::filesystem::path theme_file =
+        cjsh_filesystem::g_cjsh_theme_path / Theme::ensure_theme_extension(canonical_theme);
 
     if (!std::filesystem::exists(theme_file)) {
         print_error({ErrorType::FILE_NOT_FOUND,
@@ -31,7 +32,8 @@ int preview_theme(const std::string& theme_name) {
     if (!temp_theme->load_theme(canonical_theme, false)) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "preview_theme",
-                     "Failed to load theme '" + canonical_theme + "' for preview. See previous errors for details.",
+                     "Failed to load theme '" + canonical_theme +
+                         "' for preview. See previous errors for details.",
                      {}});
         return 1;
     }
@@ -47,10 +49,14 @@ int preview_theme(const std::string& theme_name) {
     bool is_git_repo = prompt.is_git_repository(repo_root);
 
     std::vector<ThemeSegment> all_segments;
-    all_segments.insert(all_segments.end(), temp_theme->ps1_segments.begin(), temp_theme->ps1_segments.end());
-    all_segments.insert(all_segments.end(), temp_theme->git_segments.begin(), temp_theme->git_segments.end());
-    all_segments.insert(all_segments.end(), temp_theme->ai_segments.begin(), temp_theme->ai_segments.end());
-    all_segments.insert(all_segments.end(), temp_theme->newline_segments.begin(), temp_theme->newline_segments.end());
+    all_segments.insert(all_segments.end(), temp_theme->ps1_segments.begin(),
+                        temp_theme->ps1_segments.end());
+    all_segments.insert(all_segments.end(), temp_theme->git_segments.begin(),
+                        temp_theme->git_segments.end());
+    all_segments.insert(all_segments.end(), temp_theme->ai_segments.begin(),
+                        temp_theme->ai_segments.end());
+    all_segments.insert(all_segments.end(), temp_theme->newline_segments.begin(),
+                        temp_theme->newline_segments.end());
     ThemeSegment title_segment("title");
     title_segment.content = temp_theme->get_terminal_title_format();
     all_segments.push_back(title_segment);

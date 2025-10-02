@@ -71,7 +71,8 @@ class Plugin {
     void save_metadata_cache();
     std::string get_current_architecture() const;
     std::string get_file_architecture(const std::filesystem::path& path) const;
-    bool is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const;
+    bool is_architecture_compatible(const std::string& file_arch,
+                                    const std::string& current_arch) const;
     bool is_rosetta_translated() const;
 
    public:
@@ -91,7 +92,8 @@ class Plugin {
     bool handle_plugin_command(const std::string& targeted_plugin, std::vector<std::string>& args);
     std::vector<std::string> get_plugin_commands(const std::string& name) const;
     std::string get_plugin_info(const std::string& name) const;
-    bool update_plugin_setting(const std::string& plugin_name, const std::string& key, const std::string& value);
+    bool update_plugin_setting(const std::string& plugin_name, const std::string& key,
+                               const std::string& value);
     std::map<std::string, std::map<std::string, std::string>> get_all_plugin_settings() const;
     void trigger_subscribed_global_event(const std::string& event, const std::string& event_data);
     plugin_data* get_plugin_data(const std::string& name);

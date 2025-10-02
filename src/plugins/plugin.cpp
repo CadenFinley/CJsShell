@@ -19,7 +19,8 @@
 
 static thread_local std::string current_plugin_context;
 
-extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(const char* name, plugin_get_prompt_variable_func func) {
+extern "C" PLUGIN_API plugin_error_t
+plugin_register_prompt_variable(const char* name, plugin_get_prompt_variable_func func) {
     if (current_plugin_context.empty() || !g_plugin) {
         return PLUGIN_ERROR_GENERAL;
     }
@@ -160,26 +161,33 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     std::string current_arch = get_current_architecture();
 
     if (!is_architecture_compatible(file_arch, current_arch)) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR,
-             "plugin",
-             "Architecture mismatch for plugin: " + path.filename().string() + " (plugin: " + file_arch + ", system: " + current_arch + ")",
-             {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "plugin",
+                     "Architecture mismatch for plugin: " + path.filename().string() +
+                         " (plugin: " + file_arch + ", system: " + current_arch + ")",
+                     {}});
         return false;
     }
 
     void* handle = dlopen(path.c_str(), RTLD_LAZY);
     if (!handle) {
-        print_error({ErrorType::RUNTIME_ERROR, "plugin", "Failed to load plugin: " + path.string() + " - " + std::string(dlerror()), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "plugin",
+                     "Failed to load plugin: " + path.string() + " - " + std::string(dlerror()),
+                     {}});
         return false;
     }
 
     dlerror();
 
-    plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(dlsym(handle, "plugin_get_info"));
+    plugin_get_info_func get_info =
+        reinterpret_cast<plugin_get_info_func>(dlsym(handle, "plugin_get_info"));
     const char* dlsym_error = dlerror();
     if (dlsym_error) {
-        print_error({ErrorType::RUNTIME_ERROR, "plugin", "Cannot load symbol 'plugin_get_info': " + std::string(dlsym_error), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "plugin",
+                     "Cannot load symbol 'plugin_get_info': " + std::string(dlsym_error),
+                     {}});
         dlclose(handle);
         return false;
     }
@@ -195,7 +203,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "plugin",
                      "Plugin interface version mismatch for " + std::string(info->name) +
-                         ". Expected: " + std::to_string(PLUGIN_INTERFACE_VERSION) + ", Got: " + std::to_string(info->interface_version),
+                         ". Expected: " + std::to_string(PLUGIN_INTERFACE_VERSION) +
+                         ", Got: " + std::to_string(info->interface_version),
                      {}});
         dlclose(handle);
         return false;
@@ -206,7 +215,10 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     {
         std::shared_lock plugins_lock(plugins_mutex);
         if (loaded_plugins.find(name) != loaded_plugins.end()) {
-            print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugin '" + name + "' is already loaded. Ignoring duplicate", {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "plugin",
+                         "Plugin '" + name + "' is already loaded. Ignoring duplicate",
+                         {}});
             dlclose(handle);
             return false;
         }
@@ -220,15 +232,22 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     data.get_info = get_info;
     data.initialize = reinterpret_cast<plugin_initialize_func>(dlsym(handle, "plugin_initialize"));
     data.shutdown = reinterpret_cast<plugin_shutdown_func>(dlsym(handle, "plugin_shutdown"));
-    data.handle_command = reinterpret_cast<plugin_handle_command_func>(dlsym(handle, "plugin_handle_command"));
-    data.get_commands = reinterpret_cast<plugin_get_commands_func>(dlsym(handle, "plugin_get_commands"));
-    data.get_subscribed_events = reinterpret_cast<plugin_get_subscribed_events_func>(dlsym(handle, "plugin_get_subscribed_events"));
-    data.get_default_settings = reinterpret_cast<plugin_get_default_settings_func>(dlsym(handle, "plugin_get_default_settings"));
-    data.update_setting = reinterpret_cast<plugin_update_setting_func>(dlsym(handle, "plugin_update_setting"));
-    data.free_memory = reinterpret_cast<plugin_free_memory_func>(dlsym(handle, "plugin_free_memory"));
+    data.handle_command =
+        reinterpret_cast<plugin_handle_command_func>(dlsym(handle, "plugin_handle_command"));
+    data.get_commands =
+        reinterpret_cast<plugin_get_commands_func>(dlsym(handle, "plugin_get_commands"));
+    data.get_subscribed_events = reinterpret_cast<plugin_get_subscribed_events_func>(
+        dlsym(handle, "plugin_get_subscribed_events"));
+    data.get_default_settings = reinterpret_cast<plugin_get_default_settings_func>(
+        dlsym(handle, "plugin_get_default_settings"));
+    data.update_setting =
+        reinterpret_cast<plugin_update_setting_func>(dlsym(handle, "plugin_update_setting"));
+    data.free_memory =
+        reinterpret_cast<plugin_free_memory_func>(dlsym(handle, "plugin_free_memory"));
     data.validate = reinterpret_cast<plugin_validate_func>(dlsym(handle, "plugin_validate"));
 
-    if (!data.initialize || !data.shutdown || !data.handle_command || !data.get_commands || !data.free_memory) {
+    if (!data.initialize || !data.shutdown || !data.handle_command || !data.get_commands ||
+        !data.free_memory) {
         std::cerr << "Plugin " << name << " is missing required functions" << std::endl;
         dlclose(handle);
         return false;
@@ -295,7 +314,8 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
         return false;
     }
 
-    plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(dlsym(temp_handle, "plugin_get_info"));
+    plugin_get_info_func get_info =
+        reinterpret_cast<plugin_get_info_func>(dlsym(temp_handle, "plugin_get_info"));
     if (!get_info) {
         dlclose(temp_handle);
         metadata.load_failed = true;
@@ -314,7 +334,8 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
     metadata.description = info->description;
     metadata.author = info->author;
 
-    plugin_free_memory_func free_memory = reinterpret_cast<plugin_free_memory_func>(dlsym(temp_handle, "plugin_free_memory"));
+    plugin_free_memory_func free_memory =
+        reinterpret_cast<plugin_free_memory_func>(dlsym(temp_handle, "plugin_free_memory"));
 
     auto release_string_array = [&](char** entries, int entry_count) {
         if (!entries || entry_count <= 0) {
@@ -337,7 +358,8 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
         free(entries);
     };
 
-    plugin_get_commands_func get_commands = reinterpret_cast<plugin_get_commands_func>(dlsym(temp_handle, "plugin_get_commands"));
+    plugin_get_commands_func get_commands =
+        reinterpret_cast<plugin_get_commands_func>(dlsym(temp_handle, "plugin_get_commands"));
     if (get_commands) {
         int count = 0;
         char** commands = get_commands(&count);
@@ -353,7 +375,8 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path, plugin_m
     }
 
     plugin_get_subscribed_events_func get_events =
-        reinterpret_cast<plugin_get_subscribed_events_func>(dlsym(temp_handle, "plugin_get_subscribed_events"));
+        reinterpret_cast<plugin_get_subscribed_events_func>(
+            dlsym(temp_handle, "plugin_get_subscribed_events"));
     if (get_events) {
         int count = 0;
         char** events = get_events(&count);
@@ -407,7 +430,8 @@ bool Plugin::is_metadata_stale(const plugin_metadata& metadata) const {
         return true;
     }
 
-    auto current_mtime = std::filesystem::last_write_time(metadata.library_path).time_since_epoch().count();
+    auto current_mtime =
+        std::filesystem::last_write_time(metadata.library_path).time_since_epoch().count();
     return current_mtime != metadata.last_modified;
 }
 
@@ -454,7 +478,10 @@ bool Plugin::uninstall_plugin(const std::string& name) {
     }
 
     if (it->second.enabled) {
-        print_error({ErrorType::RUNTIME_ERROR, "plugin", "Please disable the plugin before uninstalling: " + name, {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "plugin",
+                     "Please disable the plugin before uninstalling: " + name,
+                     {}});
         return false;
     }
     plugins_lock.unlock();
@@ -470,7 +497,8 @@ bool Plugin::uninstall_plugin(const std::string& name) {
             continue;
         }
 
-        plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(dlsym(temp_handle, "plugin_get_info"));
+        plugin_get_info_func get_info =
+            reinterpret_cast<plugin_get_info_func>(dlsym(temp_handle, "plugin_get_info"));
         if (!get_info) {
             dlclose(temp_handle);
             continue;
@@ -498,7 +526,8 @@ bool Plugin::uninstall_plugin(const std::string& name) {
         std::cout << "Successfully uninstalled plugin: " << name << std::endl;
         return true;
     } catch (const std::filesystem::filesystem_error& e) {
-        std::cerr << "cjsh: plugin: uninstall_plugin: Failed to remove plugin file: " << e.what() << std::endl;
+        std::cerr << "cjsh: plugin: uninstall_plugin: Failed to remove plugin file: " << e.what()
+                  << std::endl;
         return false;
     }
 }
@@ -580,7 +609,8 @@ bool Plugin::enable_plugin(const std::string& name) {
         if (lazy_loading_enabled && it == loaded_plugins.end()) {
             plugins_lock.unlock();
             if (!load_plugin_on_demand(name)) {
-                print_error({ErrorType::RUNTIME_ERROR, "plugin", "Failed to load plugin: " + name, {}});
+                print_error(
+                    {ErrorType::RUNTIME_ERROR, "plugin", "Failed to load plugin: " + name, {}});
                 return false;
             }
             plugins_lock.lock();
@@ -599,7 +629,8 @@ bool Plugin::enable_plugin(const std::string& name) {
     bool init_ok = (init_func && init_func() == PLUGIN_SUCCESS);
     current_plugin_context.clear();
     if (!init_ok) {
-        print_error({ErrorType::RUNTIME_ERROR, "plugin", "Failed to initialize plugin: " + name, {}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "plugin", "Failed to initialize plugin: " + name, {}});
         return false;
     }
 
@@ -686,14 +717,17 @@ bool Plugin::disable_plugin(const std::string& name) {
         for (const auto& event : events_to_unsubscribe) {
             auto eventIt = subscribed_events.find(event);
             if (eventIt != subscribed_events.end()) {
-                eventIt->second.erase(std::remove(eventIt->second.begin(), eventIt->second.end(), name), eventIt->second.end());
+                eventIt->second.erase(
+                    std::remove(eventIt->second.begin(), eventIt->second.end(), name),
+                    eventIt->second.end());
             }
         }
     }
     return true;
 }
 
-bool Plugin::handle_plugin_command(const std::string& targeted_plugin, std::vector<std::string>& args) {
+bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
+                                   std::vector<std::string>& args) {
     if (!enabled) {
         return false;
     }
@@ -777,14 +811,17 @@ std::string Plugin::get_plugin_info(const std::string& name) const {
     auto it = loaded_plugins.find(name);
     if (it != loaded_plugins.end()) {
         const auto& data = it->second;
-        return "Name: " + std::string(data.info->name) + "\n" + "Version: " + std::string(data.info->version) + "\n" +
-               "Author: " + std::string(data.info->author) + "\n" + "Description: " + std::string(data.info->description) + "\n" +
+        return "Name: " + std::string(data.info->name) + "\n" +
+               "Version: " + std::string(data.info->version) + "\n" +
+               "Author: " + std::string(data.info->author) + "\n" +
+               "Description: " + std::string(data.info->description) + "\n" +
                "Status: " + (data.enabled ? "Enabled" : "Disabled");
     }
     return "Plugin not found: " + name;
 }
 
-bool Plugin::update_plugin_setting(const std::string& plugin_name, const std::string& key, const std::string& value) {
+bool Plugin::update_plugin_setting(const std::string& plugin_name, const std::string& key,
+                                   const std::string& value) {
     if (!enabled) {
         return false;
     }
@@ -815,7 +852,8 @@ std::map<std::string, std::map<std::string, std::string>> Plugin::get_all_plugin
     return allSettings;
 }
 
-void Plugin::trigger_subscribed_global_event(const std::string& event, const std::string& event_data) {
+void Plugin::trigger_subscribed_global_event(const std::string& event,
+                                             const std::string& event_data) {
     if (!enabled) {
         return;
     }
@@ -928,14 +966,16 @@ std::string Plugin::get_file_architecture(const std::filesystem::path& path) con
 
     if (output.find("x86_64") != std::string::npos) {
         result = "x86_64";
-    } else if (output.find("arm64") != std::string::npos || output.find("ARM64") != std::string::npos ||
+    } else if (output.find("arm64") != std::string::npos ||
+               output.find("ARM64") != std::string::npos ||
                output.find("aarch64") != std::string::npos) {
         result = "arm64";
     }
     return result;
 }
 
-bool Plugin::is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const {
+bool Plugin::is_architecture_compatible(const std::string& file_arch,
+                                        const std::string& current_arch) const {
     if (file_arch == current_arch) {
         return true;
     }

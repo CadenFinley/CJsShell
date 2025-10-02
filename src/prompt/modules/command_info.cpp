@@ -31,9 +31,12 @@ void CommandInfo::reset_command_timing() {
 long long CommandInfo::get_last_command_duration_us() {
     if (timing_active) {
         auto now = std::chrono::high_resolution_clock::now();
-        return std::chrono::duration_cast<std::chrono::microseconds>(now - last_command_start).count();
+        return std::chrono::duration_cast<std::chrono::microseconds>(now - last_command_start)
+            .count();
     } else {
-        return std::chrono::duration_cast<std::chrono::microseconds>(last_command_end - last_command_start).count();
+        return std::chrono::duration_cast<std::chrono::microseconds>(last_command_end -
+                                                                     last_command_start)
+            .count();
     }
 }
 

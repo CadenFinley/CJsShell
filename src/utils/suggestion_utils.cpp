@@ -19,18 +19,19 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
 
     static const std::unordered_map<std::string, std::vector<std::string>> essential_typos = {
 
-        {"sl", {"ls"}},       {"ll", {"ls -l"}},      {"la", {"ls -la"}},  {"ks", {"ls"}},       {"dir", {"ls"}},
-        {"cls", {"clear"}},
+        {"sl", {"ls"}},      {"ll", {"ls -l"}},    {"la", {"ls -la"}},       {"ks", {"ls"}},
+        {"dir", {"ls"}},     {"cls", {"clear"}},
 
-        {"ehco", {"echo"}},   {"exot", {"exit"}},     {"eixt", {"exit"}},  {"quit", {"exit"}},   {"clea", {"clear"}},
-        {"clera", {"clear"}}, {"whcih", {"which"}},   {"wich", {"which"}},
+        {"ehco", {"echo"}},  {"exot", {"exit"}},   {"eixt", {"exit"}},       {"quit", {"exit"}},
+        {"clea", {"clear"}}, {"clera", {"clear"}}, {"whcih", {"which"}},     {"wich", {"which"}},
 
-        {"gii", {"git"}},     {"gitt", {"git"}},      {"tig", {"git"}},
+        {"gii", {"git"}},    {"gitt", {"git"}},    {"tig", {"git"}},
 
-        {"grpe", {"grep"}},   {"gerp", {"grep"}},     {"sudp", {"sudo"}},  {"sduo", {"sudo"}},   {"crul", {"curl"}},
-        {"wgte", {"wget"}},   {"vmi", {"vim"}},       {"ivm", {"vim"}},    {"tarr", {"tar"}},    {"unizp", {"unzip"}},
-        {"gizp", {"gzip"}},   {"gunizp", {"gunzip"}}, {"findd", {"find"}}, {"whoa", {"whoami"}}, {"hisotry", {"history"}},
-        {"basrh", {"bash"}},  {"zhs", {"zsh"}},       {"shh", {"ssh"}},    {"rsyn", {"rsync"}},
+        {"grpe", {"grep"}},  {"gerp", {"grep"}},   {"sudp", {"sudo"}},       {"sduo", {"sudo"}},
+        {"crul", {"curl"}},  {"wgte", {"wget"}},   {"vmi", {"vim"}},         {"ivm", {"vim"}},
+        {"tarr", {"tar"}},   {"unizp", {"unzip"}}, {"gizp", {"gzip"}},       {"gunizp", {"gunzip"}},
+        {"findd", {"find"}}, {"whoa", {"whoami"}}, {"hisotry", {"history"}}, {"basrh", {"bash"}},
+        {"zhs", {"zsh"}},    {"shh", {"ssh"}},     {"rsyn", {"rsync"}},
     };
 
     auto it = essential_typos.find(command);
@@ -44,11 +45,13 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     std::unordered_set<std::string> all_commands_set;
 
     static const std::vector<std::string> shell_builtins = {
-        "echo",        "printf", "pwd",      "cd",        "ls",    "alias",  "export",  "unalias", "unset",  "set",
-        "shift",       "break",  "continue", "return",    "ai",    "source", ".",       "theme",   "plugin", "help",
-        "approot",     "aihelp", "version",  "uninstall", "eval",  "syntax", "history", "exit",    "quit",   "terminal",
-        "prompt_test", "test",   "[",        "exec",      "trap",  "jobs",   "fg",      "bg",      "wait",   "kill",
-        "readonly",    "read",   "umask",    "getopts",   "times", "type",   "hash"};
+        "echo",    "printf",   "pwd",         "cd",    "ls",     "alias",    "export",
+        "unalias", "unset",    "set",         "shift", "break",  "continue", "return",
+        "ai",      "source",   ".",           "theme", "plugin", "help",     "approot",
+        "aihelp",  "version",  "uninstall",   "eval",  "syntax", "history",  "exit",
+        "quit",    "terminal", "prompt_test", "test",  "[",      "exec",     "trap",
+        "jobs",    "fg",       "bg",          "wait",  "kill",   "readonly", "read",
+        "umask",   "getopts",  "times",       "type",  "hash"};
 
     for (const auto& builtin : shell_builtins) {
         all_commands_set.insert(builtin);
@@ -60,16 +63,21 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     }
 
     std::vector<std::string> common_commands = {
-        "man",     "info",    "sudo", "su",     "which",   "whereis", "locate", "find",  "grep",   "egrep",   "fgrep", "sed",
-        "awk",     "cut",     "sort", "uniq",   "wc",      "head",    "tail",   "less",  "more",   "cat",     "tac",   "rev",
-        "tr",      "paste",   "join", "comm",   "diff",    "cmp",     "file",   "stat",  "touch",  "cp",      "mv",    "rm",
-        "rmdir",   "mkdir",   "ln",   "chmod",  "chown",   "chgrp",   "umask",  "tar",   "gzip",   "gunzip",  "zip",   "unzip",
-        "bzip2",   "bunzip2", "xz",   "unxz",   "curl",    "wget",    "ping",   "ssh",   "scp",    "rsync",   "ftp",   "sftp",
-        "ps",      "top",     "htop", "kill",   "killall", "jobs",    "bg",     "fg",    "nohup",  "df",      "du",    "mount",
-        "umount",  "fdisk",   "free", "uptime", "uname",   "whoami",  "who",    "w",     "last",   "finger",  "id",    "groups",
-        "su",      "sudo",    "git",  "svn",    "hg",      "bzr",     "cvs",    "make",  "cmake",  "gcc",     "g++",   "clang",
-        "python",  "python3", "node", "npm",    "ruby",    "perl",    "java",   "javac", "docker", "kubectl", "helm",  "terraform",
-        "ansible", "vagrant", "vim",  "vi",     "nano",    "emacs",   "less",   "more",  "cat"};
+        "man",     "info",    "sudo",  "su",        "which",   "whereis", "locate", "find",
+        "grep",    "egrep",   "fgrep", "sed",       "awk",     "cut",     "sort",   "uniq",
+        "wc",      "head",    "tail",  "less",      "more",    "cat",     "tac",    "rev",
+        "tr",      "paste",   "join",  "comm",      "diff",    "cmp",     "file",   "stat",
+        "touch",   "cp",      "mv",    "rm",        "rmdir",   "mkdir",   "ln",     "chmod",
+        "chown",   "chgrp",   "umask", "tar",       "gzip",    "gunzip",  "zip",    "unzip",
+        "bzip2",   "bunzip2", "xz",    "unxz",      "curl",    "wget",    "ping",   "ssh",
+        "scp",     "rsync",   "ftp",   "sftp",      "ps",      "top",     "htop",   "kill",
+        "killall", "jobs",    "bg",    "fg",        "nohup",   "df",      "du",     "mount",
+        "umount",  "fdisk",   "free",  "uptime",    "uname",   "whoami",  "who",    "w",
+        "last",    "finger",  "id",    "groups",    "su",      "sudo",    "git",    "svn",
+        "hg",      "bzr",     "cvs",   "make",      "cmake",   "gcc",     "g++",    "clang",
+        "python",  "python3", "node",  "npm",       "ruby",    "perl",    "java",   "javac",
+        "docker",  "kubectl", "helm",  "terraform", "ansible", "vagrant", "vim",    "vi",
+        "nano",    "emacs",   "less",  "more",      "cat"};
 
     for (const auto& cmd : common_commands) {
         all_commands_set.insert(cmd);
@@ -86,7 +94,8 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     return suggestions;
 }
 
-std::vector<std::string> generate_cd_suggestions(const std::string& target_dir, const std::string& current_dir) {
+std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
+                                                 const std::string& current_dir) {
     std::vector<std::string> suggestions;
 
     std::vector<std::string> similar = find_similar_entries(target_dir, current_dir, 3);
@@ -110,7 +119,8 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir, 
     return suggestions;
 }
 
-std::vector<std::string> generate_ls_suggestions(const std::string& path, const std::string& current_dir) {
+std::vector<std::string> generate_ls_suggestions(const std::string& path,
+                                                 const std::string& current_dir) {
     std::vector<std::string> suggestions;
 
     std::string directory = current_dir;
@@ -174,7 +184,8 @@ int edit_distance(const std::string& str1, const std::string& str2) {
     return dp[m][n];
 }
 
-std::vector<std::string> find_similar_entries(const std::string& target_name, const std::string& directory, int max_suggestions) {
+std::vector<std::string> find_similar_entries(const std::string& target_name,
+                                              const std::string& directory, int max_suggestions) {
     std::vector<std::string> suggestions;
 
     try {
@@ -206,8 +217,8 @@ std::vector<std::string> find_similar_entries(const std::string& target_name, co
     return suggestions;
 }
 
-std::vector<std::string> generate_executable_suggestions(const std::string& command,
-                                                         const std::unordered_set<std::string>& available_commands) {
+std::vector<std::string> generate_executable_suggestions(
+    const std::string& command, const std::unordered_set<std::string>& available_commands) {
     std::vector<std::string> suggestions;
 
     if (command.length() < 2) {
@@ -227,7 +238,8 @@ std::vector<std::string> generate_executable_suggestions(const std::string& comm
         if (distance <= 3 && distance > 0) {
             int score = distance;
 
-            if (!command.empty() && !exec_name.empty() && std::tolower(command[0]) == std::tolower(exec_name[0])) {
+            if (!command.empty() && !exec_name.empty() &&
+                std::tolower(command[0]) == std::tolower(exec_name[0])) {
                 score -= 1;
             }
 
@@ -386,7 +398,8 @@ int get_command_usage_frequency(const std::string& command) {
     return 0;
 }
 
-std::vector<std::string> generate_fuzzy_suggestions(const std::string& command, const std::vector<std::string>& available_commands) {
+std::vector<std::string> generate_fuzzy_suggestions(
+    const std::string& command, const std::vector<std::string>& available_commands) {
     std::vector<std::string> suggestions;
 
     if (command.empty()) {
@@ -414,7 +427,8 @@ std::vector<std::string> generate_fuzzy_suggestions(const std::string& command, 
             }
         }
 
-        std::sort(single_letter_candidates.begin(), single_letter_candidates.end(), std::greater<std::pair<int, std::string>>());
+        std::sort(single_letter_candidates.begin(), single_letter_candidates.end(),
+                  std::greater<std::pair<int, std::string>>());
 
         for (size_t i = 0; i < single_letter_candidates.size() && i < 5; i++) {
             suggestions.push_back("Did you mean '" + single_letter_candidates[i].second + "'?");
@@ -481,7 +495,8 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
         score += 25;
     }
 
-    int length_diff = std::abs(static_cast<int>(input.length()) - static_cast<int>(candidate.length()));
+    int length_diff =
+        std::abs(static_cast<int>(input.length()) - static_cast<int>(candidate.length()));
     if (length_diff <= 2) {
         score += 15;
     }
@@ -501,7 +516,8 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
         }
     }
 
-    double char_overlap = static_cast<double>(common_chars) / std::max(input.length(), candidate.length());
+    double char_overlap =
+        static_cast<double>(common_chars) / std::max(input.length(), candidate.length());
     score += static_cast<int>(char_overlap * 20);
 
     if (input.length() <= 3 && candidate.length() > 8) {
@@ -509,11 +525,13 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
     }
 
     static const std::unordered_set<std::string> shell_builtins = {
-        "echo",        "printf", "pwd",      "cd",        "ls",    "alias",  "export",  "unalias", "unset",  "set",
-        "shift",       "break",  "continue", "return",    "ai",    "source", ".",       "theme",   "plugin", "help",
-        "approot",     "aihelp", "version",  "uninstall", "eval",  "syntax", "history", "exit",    "quit",   "terminal",
-        "prompt_test", "test",   "[",        "exec",      "trap",  "jobs",   "fg",      "bg",      "wait",   "kill",
-        "readonly",    "read",   "umask",    "getopts",   "times", "type",   "hash"};
+        "echo",    "printf",   "pwd",         "cd",    "ls",     "alias",    "export",
+        "unalias", "unset",    "set",         "shift", "break",  "continue", "return",
+        "ai",      "source",   ".",           "theme", "plugin", "help",     "approot",
+        "aihelp",  "version",  "uninstall",   "eval",  "syntax", "history",  "exit",
+        "quit",    "terminal", "prompt_test", "test",  "[",      "exec",     "trap",
+        "jobs",    "fg",       "bg",          "wait",  "kill",   "readonly", "read",
+        "umask",   "getopts",  "times",       "type",  "hash"};
 
     if (shell_builtins.count(candidate)) {
         score += 15;

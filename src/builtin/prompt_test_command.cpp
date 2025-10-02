@@ -39,7 +39,8 @@ int prompt_test_command(const std::vector<std::string>& args) {
         std::cout << "GIT_AHEAD: " << ahead << "\n";
         std::cout << "GIT_BEHIND: " << behind << "\n";
         std::cout << "GIT_STASHES: " << pi.get_git_stash_count(repo_root) << "\n";
-        std::cout << "GIT_STAGED: " << (pi.get_git_has_staged_changes(repo_root) ? "✓" : "") << "\n";
+        std::cout << "GIT_STAGED: " << (pi.get_git_has_staged_changes(repo_root) ? "✓" : "")
+                  << "\n";
         std::cout << "GIT_CHANGES: " << pi.get_git_uncommitted_changes(repo_root) << "\n";
         std::cout << "GIT_REMOTE: " << pi.get_git_remote(repo_root) << "\n";
         std::cout << "GIT_TAG: " << pi.get_git_tag(repo_root) << "\n";
@@ -82,17 +83,22 @@ int prompt_test_command(const std::vector<std::string>& args) {
     std::cout << "LANG_VER_GENERIC:go: " << pi.get_language_version("go") << "\n";
     std::cout << "LANG_VER_GENERIC:java: " << pi.get_language_version("java") << "\n";
 
-    std::cout << "IS_LANG_PROJECT:python: " << (pi.is_language_project("python") ? "yes" : "no") << "\n";
-    std::cout << "IS_LANG_PROJECT:node: " << (pi.is_language_project("node") ? "yes" : "no") << "\n";
-    std::cout << "IS_LANG_PROJECT:rust: " << (pi.is_language_project("rust") ? "yes" : "no") << "\n";
+    std::cout << "IS_LANG_PROJECT:python: " << (pi.is_language_project("python") ? "yes" : "no")
+              << "\n";
+    std::cout << "IS_LANG_PROJECT:node: " << (pi.is_language_project("node") ? "yes" : "no")
+              << "\n";
+    std::cout << "IS_LANG_PROJECT:rust: " << (pi.is_language_project("rust") ? "yes" : "no")
+              << "\n";
     std::cout << "IS_LANG_PROJECT:go: " << (pi.is_language_project("go") ? "yes" : "no") << "\n";
-    std::cout << "IS_LANG_PROJECT:java: " << (pi.is_language_project("java") ? "yes" : "no") << "\n";
+    std::cout << "IS_LANG_PROJECT:java: " << (pi.is_language_project("java") ? "yes" : "no")
+              << "\n";
 
     std::cout << "DISK_USAGE: " << pi.get_disk_usage(std::filesystem::current_path()) << "\n";
     std::cout << "SWAP_USAGE: " << pi.get_swap_usage() << "\n";
     std::cout << "LOAD_AVG: " << pi.get_load_avg() << "\n";
     std::string venv_name;
-    std::cout << "VIRTUAL_ENV: " << (pi.is_in_virtual_environment(venv_name) ? venv_name : "") << "\n";
+    std::cout << "VIRTUAL_ENV: " << (pi.is_in_virtual_environment(venv_name) ? venv_name : "")
+              << "\n";
     std::cout << "BG_JOBS: " << pi.get_background_jobs_count() << "\n";
     std::cout << "STATUS: " << getenv("?") << "\n";
 
@@ -112,7 +118,9 @@ int prompt_test_command(const std::vector<std::string>& args) {
         std::cout << "AI_AGENT_TYPE: " << g_ai->get_assistant_type() << "\n";
         std::cout << "AI_DIVIDER: >\n";
         std::cout << "AI_CONTEXT: " << g_ai->get_save_directory() << "\n";
-        std::string ai_context_cmp = (std::filesystem::current_path().string() + "/" == g_ai->get_save_directory()) ? "✔" : "✖";
+        std::string ai_context_cmp =
+            (std::filesystem::current_path().string() + "/" == g_ai->get_save_directory()) ? "✔"
+                                                                                           : "✖";
         std::cout << "AI_CONTEXT_COMPARISON: " << ai_context_cmp << "\n";
     }
 

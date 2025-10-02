@@ -13,15 +13,18 @@
 LanguageInfo::LanguageInfo() {
 }
 
-bool LanguageInfo::is_project_detected(const std::vector<std::string>& files, const std::vector<std::string>& extensions,
+bool LanguageInfo::is_project_detected(const std::vector<std::string>& files,
+                                       const std::vector<std::string>& extensions,
                                        const std::vector<std::string>& folders) {
     std::filesystem::path current_path = std::filesystem::current_path();
 
     return scan_directory_recursive(current_path, files, extensions, folders);
 }
 
-bool LanguageInfo::scan_directory_recursive(const std::filesystem::path& dir, const std::vector<std::string>& files,
-                                            const std::vector<std::string>& extensions, const std::vector<std::string>& folders,
+bool LanguageInfo::scan_directory_recursive(const std::filesystem::path& dir,
+                                            const std::vector<std::string>& files,
+                                            const std::vector<std::string>& extensions,
+                                            const std::vector<std::string>& folders,
                                             int max_depth) {
     if (max_depth <= 0) {
         return false;
@@ -35,7 +38,8 @@ bool LanguageInfo::scan_directory_recursive(const std::filesystem::path& dir, co
         }
 
         for (const auto& folder : folders) {
-            if (std::filesystem::exists(dir / folder) && std::filesystem::is_directory(dir / folder)) {
+            if (std::filesystem::exists(dir / folder) &&
+                std::filesystem::is_directory(dir / folder)) {
                 return true;
             }
         }
@@ -54,7 +58,8 @@ bool LanguageInfo::scan_directory_recursive(const std::filesystem::path& dir, co
                 if (entry.is_directory()) {
                     std::string dirname = entry.path().filename().string();
                     if (dirname == "src" || dirname == "lib" || dirname == "app") {
-                        if (scan_directory_recursive(entry.path(), files, extensions, folders, max_depth - 1)) {
+                        if (scan_directory_recursive(entry.path(), files, extensions, folders,
+                                                     max_depth - 1)) {
                             return true;
                         }
                     }
@@ -95,7 +100,8 @@ std::string LanguageInfo::extract_version(const std::string& output) {
     return "";
 }
 
-std::string LanguageInfo::get_cached_version(const std::string& language_key, const std::function<std::string()>& version_func) const {
+std::string LanguageInfo::get_cached_version(
+    const std::string& language_key, const std::function<std::string()>& version_func) const {
     std::lock_guard<std::mutex> lock(cache_mutex);
 
     auto it = version_cache.find(language_key);
@@ -164,7 +170,8 @@ bool LanguageInfo::is_scala_project() {
 
 std::string LanguageInfo::get_python_version() {
     return get_cached_version("python", [this]() -> std::string {
-        std::string output = execute_command("python3 --version 2>/dev/null || python --version 2>/dev/null");
+        std::string output =
+            execute_command("python3 --version 2>/dev/null || python --version 2>/dev/null");
         if (output.empty()) {
             return "";
         }

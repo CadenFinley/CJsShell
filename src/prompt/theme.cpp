@@ -19,7 +19,8 @@
 #include "error_out.h"
 #include "plugin.h"
 
-Theme::Theme(std::string theme_dir, bool enabled) : theme_directory(std::move(theme_dir)), is_enabled(enabled) {
+Theme::Theme(std::string theme_dir, bool enabled)
+    : theme_directory(std::move(theme_dir)), is_enabled(enabled) {
     std::filesystem::path default_theme_path = resolve_theme_file("default");
     if (!std::filesystem::exists(default_theme_path)) {
         create_default_theme();
@@ -134,7 +135,8 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
 
     try {
         ThemeDefinition parsed_definition = ThemeParser::parse_file(theme_file);
-        return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback, theme_path);
+        return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback,
+                                      theme_path);
     } catch (const ThemeParseException& e) {
         std::string message = "Failed to parse theme file '" + theme_file + "'";
         if (e.line() > 0) {
@@ -154,11 +156,17 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
             }
             print_error(error);
         } else {
-            print_error({ErrorType::SYNTAX_ERROR, "load_theme", message, {"Check theme syntax and try again."}});
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "load_theme",
+                         message,
+                         {"Check theme syntax and try again."}});
         }
         return false;
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR, "load_theme", "Failed to load theme '" + theme_name_to_use + "': " + e.what(), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Failed to load theme '" + theme_name_to_use + "': " + e.what(),
+                     {}});
         return false;
     }
 }
@@ -193,7 +201,8 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool al
 
     try {
         ThemeDefinition parsed_definition = ThemeParser::parse_file(normalized.string());
-        return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback, normalized);
+        return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback,
+                                      normalized);
     } catch (const ThemeParseException& e) {
         std::string message = "Failed to parse theme file '" + normalized.string() + "'";
         if (e.line() > 0) {
@@ -212,28 +221,36 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool al
             }
             print_error(error);
         } else {
-            print_error({ErrorType::SYNTAX_ERROR, "load_theme", message, {"Check theme syntax and try again."}});
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "load_theme",
+                         message,
+                         {"Check theme syntax and try again."}});
         }
         return false;
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR, "load_theme", "Failed to load theme '" + theme_name_to_use + "': " + e.what(), {}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Failed to load theme '" + theme_name_to_use + "': " + e.what(),
+                     {}});
         return false;
     }
 }
 
-bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name, bool allow_fallback,
-                                   const std::filesystem::path& source_path) {
+bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name,
+                                   bool allow_fallback, const std::filesystem::path& source_path) {
     theme_data = definition;
 
     const auto& requirements = theme_data.requirements;
-    bool has_requirements =
-        !requirements.plugins.empty() || !requirements.colors.empty() || !requirements.fonts.empty() || !requirements.custom.empty();
+    bool has_requirements = !requirements.plugins.empty() || !requirements.colors.empty() ||
+                            !requirements.fonts.empty() || !requirements.custom.empty();
 
     if (has_requirements) {
         if (!check_theme_requirements(requirements)) {
             if (!allow_fallback) {
-                print_error(
-                    {ErrorType::RUNTIME_ERROR, "load_theme", "Theme '" + theme_name + "' requirements not met, cannot load theme.", {}});
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "load_theme",
+                             "Theme '" + theme_name + "' requirements not met, cannot load theme.",
+                             {}});
                 return false;
             }
 
@@ -285,8 +302,9 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
         return false;
     };
 
-    if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) || has_duplicate_tags(ai_segments) ||
-        has_duplicate_tags(newline_segments) || has_duplicate_tags(inline_right_segments)) {
+    if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
+        has_duplicate_tags(ai_segments) || has_duplicate_tags(newline_segments) ||
+        has_duplicate_tags(inline_right_segments)) {
         print_error({ErrorType::SYNTAX_ERROR,
                      "load_theme",
                      "Duplicate tags found in theme segments.",
@@ -306,8 +324,9 @@ size_t Theme::get_terminal_width() const {
     return 80;
 }
 
-std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments,
-                                       const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::render_line_aligned(
+    const std::vector<ThemeSegment>& segments,
+    const std::unordered_map<std::string, std::string>& vars) const {
     if (segments.empty())
         return "";
 
@@ -326,7 +345,8 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
             return escape_brackets_for_isocline(text);
         };
 
-        auto render_with_fallback = [&](const std::string& value, const char* fallback) -> std::string {
+        auto render_with_fallback = [&](const std::string& value,
+                                        const char* fallback) -> std::string {
             if (value.empty()) {
                 return render_if_needed(std::string(fallback));
             }
@@ -354,8 +374,10 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
             if (!segment.forward_separator.empty()) {
                 std::string forward_sep = render_if_needed(segment.forward_separator);
                 if (!forward_sep.empty()) {
-                    std::string forward_fg = render_with_fallback(segment.forward_separator_fg, "RESET");
-                    std::string forward_bg = render_with_fallback(segment.forward_separator_bg, "RESET");
+                    std::string forward_fg =
+                        render_with_fallback(segment.forward_separator_fg, "RESET");
+                    std::string forward_bg =
+                        render_with_fallback(segment.forward_separator_bg, "RESET");
 
                     if (forward_fg != "RESET") {
                         out += colors::fg_color(colors::parse_color_value(forward_fg));
@@ -377,7 +399,8 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
             std::string styled_content = content;
 
             if (colors::is_gradient_value(bg_color_name)) {
-                styled_content = colors::apply_gradient_bg_with_fg(content, bg_color_name, fg_color_name);
+                styled_content =
+                    colors::apply_gradient_bg_with_fg(content, bg_color_name, fg_color_name);
                 segment_result += styled_content;
             } else if (colors::is_gradient_value(fg_color_name)) {
                 if (bg_color_name != "RESET") {
@@ -472,13 +495,16 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
                     fillL += colors::ansi::BG_RESET;
                 }
 
-                if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
+                if (colors::is_gradient_value(fill_fg_color_) ||
+                    colors::is_gradient_value(fill_bg_color_)) {
                     if (!fill_char_.empty()) {
                         std::string fill_text(padL, fill_char_[0]);
                         if (colors::is_gradient_value(fill_bg_color_)) {
-                            fillL += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+                            fillL +=
+                                colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
                         } else if (colors::is_gradient_value(fill_fg_color_)) {
-                            fillL += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+                            fillL +=
+                                colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
                         }
                     }
                 } else {
@@ -503,13 +529,16 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
                     fillR += colors::ansi::BG_RESET;
                 }
 
-                if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
+                if (colors::is_gradient_value(fill_fg_color_) ||
+                    colors::is_gradient_value(fill_bg_color_)) {
                     if (!fill_char_.empty()) {
                         std::string fill_text(padR, fill_char_[0]);
                         if (colors::is_gradient_value(fill_bg_color_)) {
-                            fillR += colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
+                            fillR +=
+                                colors::apply_color_or_gradient(fill_text, fill_bg_color_, false);
                         } else if (colors::is_gradient_value(fill_fg_color_)) {
-                            fillR += colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
+                            fillR +=
+                                colors::apply_color_or_gradient(fill_text, fill_fg_color_, true);
                         }
                     }
                 } else {
@@ -561,7 +590,8 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
             fill += colors::ansi::BG_RESET;
         }
 
-        if (colors::is_gradient_value(fill_fg_color_) || colors::is_gradient_value(fill_bg_color_)) {
+        if (colors::is_gradient_value(fill_fg_color_) ||
+            colors::is_gradient_value(fill_bg_color_)) {
             if (!fill_char_.empty()) {
                 std::string fill_text(pad, fill_char_[0]);
                 if (colors::is_gradient_value(fill_bg_color_)) {
@@ -596,31 +626,36 @@ std::string Theme::render_line_aligned(const std::vector<ThemeSegment>& segments
     return out;
 }
 
-std::string Theme::get_ps1_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::get_ps1_prompt_format(
+    const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(ps1_segments, vars);
     last_ps1_raw_length = calculate_raw_length(result);
     return result;
 }
 
-std::string Theme::get_git_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::get_git_prompt_format(
+    const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(git_segments, vars);
     last_git_raw_length = calculate_raw_length(result);
     return result;
 }
 
-std::string Theme::get_ai_prompt_format(const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::get_ai_prompt_format(
+    const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(ai_segments, vars);
     last_ai_raw_length = calculate_raw_length(result);
     return result;
 }
 
-std::string Theme::get_newline_prompt(const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::get_newline_prompt(
+    const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(newline_segments, vars);
     last_newline_raw_length = calculate_raw_length(result);
     return result;
 }
 
-std::string Theme::get_inline_right_prompt(const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::get_inline_right_prompt(
+    const std::unordered_map<std::string, std::string>& vars) const {
     if (inline_right_segments.empty()) {
         return "";
     }
@@ -684,8 +719,8 @@ std::string Theme::escape_brackets_for_isocline(const std::string& input) const 
             return false;
         }
 
-        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx), trimmed.end(),
-                           [](unsigned char c) { return std::isdigit(c); });
+        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx),
+                           trimmed.end(), [](unsigned char c) { return std::isdigit(c); });
     };
 
     while (i < len) {
@@ -715,7 +750,8 @@ std::string Theme::escape_brackets_for_isocline(const std::string& input) const 
     return result;
 }
 
-std::string Theme::process_conditionals(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::process_conditionals(
+    const std::string& line, const std::unordered_map<std::string, std::string>& vars) const {
     std::string result = line;
     size_t pos = 0;
 
@@ -747,8 +783,8 @@ std::string Theme::process_conditionals(const std::string& line, const std::unor
     return result;
 }
 
-std::string Theme::evaluate_conditional(const std::string& expr, const std::unordered_map<std::string, std::string>& vars) const {
-
+std::string Theme::evaluate_conditional(
+    const std::string& expr, const std::unordered_map<std::string, std::string>& vars) const {
     size_t question_pos = expr.find('?');
     if (question_pos == std::string::npos) {
         return "";
@@ -770,7 +806,8 @@ std::string Theme::evaluate_conditional(const std::string& expr, const std::unor
     return render_line(selected_value, vars);
 }
 
-bool Theme::evaluate_condition(const std::string& condition, const std::unordered_map<std::string, std::string>& vars) const {
+bool Theme::evaluate_condition(const std::string& condition,
+                               const std::unordered_map<std::string, std::string>& vars) const {
     std::string trimmed_condition = trim(condition);
 
     if (trimmed_condition == "true") {
@@ -864,7 +901,8 @@ bool Theme::evaluate_comparison(const std::string& condition, const std::string&
     return false;
 }
 
-std::string Theme::resolve_value(const std::string& value, const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::resolve_value(const std::string& value,
+                                 const std::unordered_map<std::string, std::string>& vars) const {
     std::string trimmed = trim(value);
 
     if (trimmed.front() == '{' && trimmed.back() == '}') {
@@ -873,7 +911,8 @@ std::string Theme::resolve_value(const std::string& value, const std::unordered_
         return (it != vars.end()) ? it->second : "";
     }
 
-    if ((trimmed.front() == '"' && trimmed.back() == '"') || (trimmed.front() == '\'' && trimmed.back() == '\'')) {
+    if ((trimmed.front() == '"' && trimmed.back() == '"') ||
+        (trimmed.front() == '\'' && trimmed.back() == '\'')) {
         return trimmed.substr(1, trimmed.length() - 2);
     }
 
@@ -889,7 +928,8 @@ std::string Theme::trim(const std::string& str) const {
     return str.substr(start, end - start + 1);
 }
 
-std::string Theme::render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const {
+std::string Theme::render_line(const std::string& line,
+                               const std::unordered_map<std::string, std::string>& vars) const {
     if (line.empty()) {
         return "";
     }
@@ -936,7 +976,8 @@ void Theme::view_theme_requirements(const std::string& theme) const {
         const ThemeRequirements& requirements = theme_def.requirements;
 
         if (!requirements.colors.empty()) {
-            std::cout << "Terminal color support for " << requirements.colors << " is required." << std::endl;
+            std::cout << "Terminal color support for " << requirements.colors << " is required."
+                      << std::endl;
         }
 
         if (!requirements.fonts.empty()) {
@@ -966,7 +1007,8 @@ void Theme::view_theme_requirements(const std::string& theme) const {
             }
         }
 
-        if (requirements.colors.empty() && requirements.fonts.empty() && requirements.plugins.empty() && requirements.custom.empty()) {
+        if (requirements.colors.empty() && requirements.fonts.empty() &&
+            requirements.plugins.empty() && requirements.custom.empty()) {
             std::cout << "No specific requirements found for theme " << theme << std::endl;
         }
     } catch (const ThemeParseException& e) {
@@ -987,7 +1029,10 @@ void Theme::view_theme_requirements(const std::string& theme) const {
             }
             print_error(error);
         } else {
-            print_error({ErrorType::SYNTAX_ERROR, "view_theme_requirements", message, {"Check theme syntax and try again."}});
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "view_theme_requirements",
+                         message,
+                         {"Check theme syntax and try again."}});
         }
     } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -1007,9 +1052,11 @@ std::string Theme::strip_theme_extension(const std::string& theme_name) {
     if (theme_name.size() >= ext.size()) {
         std::string suffix = theme_name.substr(theme_name.size() - ext.size());
         std::string suffix_lower = suffix;
-        std::transform(suffix_lower.begin(), suffix_lower.end(), suffix_lower.begin(), [](unsigned char ch) { return std::tolower(ch); });
+        std::transform(suffix_lower.begin(), suffix_lower.end(), suffix_lower.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
         std::string ext_lower = ext;
-        std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(), [](unsigned char ch) { return std::tolower(ch); });
+        std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
         if (suffix_lower == ext_lower) {
             return theme_name.substr(0, theme_name.size() - ext.size());
         }
@@ -1029,14 +1076,16 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
     if (!requirements.colors.empty()) {
         std::string required_capability = requirements.colors;
 
-        if (required_capability == "true_color" && colors::g_color_capability != colors::ColorCapability::TRUE_COLOR) {
+        if (required_capability == "true_color" &&
+            colors::g_color_capability != colors::ColorCapability::TRUE_COLOR) {
             requirements_met = false;
             missing_requirements.push_back(
                 "True color (24-bit) terminal support is required. Current "
                 "terminal "
                 "support: " +
                 colors::get_color_capability_string(colors::g_color_capability));
-        } else if (required_capability == "256_color" && colors::g_color_capability < colors::ColorCapability::XTERM_256_COLOR) {
+        } else if (required_capability == "256_color" &&
+                   colors::g_color_capability < colors::ColorCapability::XTERM_256_COLOR) {
             requirements_met = false;
             missing_requirements.push_back(
                 "256-color terminal support is required. Current terminal "
@@ -1050,7 +1099,8 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
             bool plugin_enabled = false;
             if (g_plugin != nullptr) {
                 auto enabled_plugins = g_plugin->get_enabled_plugins();
-                plugin_enabled = std::find(enabled_plugins.begin(), enabled_plugins.end(), plugin_name) != enabled_plugins.end();
+                plugin_enabled = std::find(enabled_plugins.begin(), enabled_plugins.end(),
+                                           plugin_name) != enabled_plugins.end();
             }
 
             if (!plugin_enabled) {
@@ -1059,16 +1109,21 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
                         if (!g_plugin->enable_plugin(plugin_name)) {
                             auto available_plugins = g_plugin->get_available_plugins();
                             requirements_met = false;
-                            if ((std::find(available_plugins.begin(), available_plugins.end(), plugin_name) == available_plugins.end())) {
-                                missing_requirements.push_back("Plugin '" + plugin_name + "' is required but not found");
+                            if ((std::find(available_plugins.begin(), available_plugins.end(),
+                                           plugin_name) == available_plugins.end())) {
+                                missing_requirements.push_back("Plugin '" + plugin_name +
+                                                               "' is required but not found");
                             } else {
-                                missing_requirements.push_back("Plugin '" + plugin_name + "' is required but not enabled");
+                                missing_requirements.push_back("Plugin '" + plugin_name +
+                                                               "' is required but not enabled");
                             }
                         }
                     } else {
                         auto available_plugins = g_plugin->get_available_plugins();
-                        if ((std::find(available_plugins.begin(), available_plugins.end(), plugin_name) == available_plugins.end())) {
-                            missing_requirements.push_back("Plugin '" + plugin_name + "' is required but not found");
+                        if ((std::find(available_plugins.begin(), available_plugins.end(),
+                                       plugin_name) == available_plugins.end())) {
+                            missing_requirements.push_back("Plugin '" + plugin_name +
+                                                           "' is required but not found");
                         } else {
                             missing_requirements.push_back(
                                 "Other requirements are not passing. Not "
@@ -1092,7 +1147,8 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
     }
 
     if (!requirements_met) {
-        print_error({ErrorType::RUNTIME_ERROR, "load_theme", "Theme requirements not met.", missing_requirements});
+        print_error({ErrorType::RUNTIME_ERROR, "load_theme", "Theme requirements not met.",
+                     missing_requirements});
     }
 
     return requirements_met;
@@ -1120,8 +1176,8 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
             return false;
         }
 
-        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx), trimmed.end(),
-                           [](unsigned char c) { return std::isdigit(c); });
+        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx),
+                           trimmed.end(), [](unsigned char c) { return std::isdigit(c); });
     };
 
     for (size_t i = 0; i < str.size(); ++i) {
@@ -1147,6 +1203,7 @@ size_t Theme::calculate_raw_length(const std::string& str) const {
         str_without_isocline_escapes.push_back(ch);
     }
 
-    size_t raw_length = utf8_utils::calculate_display_width(str_without_isocline_escapes, &ansi_chars, &visible_chars);
+    size_t raw_length = utf8_utils::calculate_display_width(str_without_isocline_escapes,
+                                                            &ansi_chars, &visible_chars);
     return raw_length;
 }

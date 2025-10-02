@@ -217,8 +217,9 @@ struct attrbuf_s {
 static bool attrbuf_ensure_capacity(attrbuf_t* ab, ssize_t needed) {
     if (needed <= ab->capacity)
         return true;
-    ssize_t newcap = (ab->capacity <= 0 ? 512  // Increased from 240 to 512
-                                        : (ab->capacity > 1000 ? ab->capacity + 1000 : 2 * ab->capacity));
+    ssize_t newcap =
+        (ab->capacity <= 0 ? 512  // Increased from 240 to 512
+                           : (ab->capacity > 1000 ? ab->capacity + 1000 : 2 * ab->capacity));
     if (needed > newcap) {
         newcap = needed;
     }
@@ -276,7 +277,8 @@ ic_private const attr_t* attrbuf_attrs(attrbuf_t* ab, ssize_t expected_len) {
     return ab->attrs;
 }
 
-static void attrbuf_update_set_at(attrbuf_t* ab, ssize_t pos, ssize_t count, attr_t attr, bool update) {
+static void attrbuf_update_set_at(attrbuf_t* ab, ssize_t pos, ssize_t count, attr_t attr,
+                                  bool update) {
     const ssize_t end = pos + count;
     if (!attrbuf_ensure_capacity(ab, end))
         return;
@@ -314,7 +316,8 @@ ic_private void attrbuf_insert_at(attrbuf_t* ab, ssize_t pos, ssize_t count, att
 }
 
 // note: must allow ab == NULL!
-ic_private ssize_t attrbuf_append_n(stringbuf_t* sb, attrbuf_t* ab, const char* s, ssize_t len, attr_t attr) {
+ic_private ssize_t attrbuf_append_n(stringbuf_t* sb, attrbuf_t* ab, const char* s, ssize_t len,
+                                    attr_t attr) {
     if (s == NULL || len == 0)
         return sbuf_len(sb);
     if (ab != NULL) {

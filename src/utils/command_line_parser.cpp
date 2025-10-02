@@ -112,7 +112,10 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 result.should_exit = true;
                 return result;
             default:
-                print_error({ErrorType::INVALID_ARGUMENT, std::string(1, c), "Unrecognized option", {"Check command line arguments"}});
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             std::string(1, c),
+                             "Unrecognized option",
+                             {"Check command line arguments"}});
                 result.exit_code = 127;
                 result.should_exit = true;
                 return result;

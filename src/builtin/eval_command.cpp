@@ -7,7 +7,6 @@
 #include "shell.h"
 
 int eval_command(const std::vector<std::string>& args, Shell* shell) {
-
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT, "eval", "missing arguments", {}});
         return 1;

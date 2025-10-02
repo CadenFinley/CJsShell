@@ -186,7 +186,8 @@ std::string process_printf_escapes(const std::string& input) {
                 case '7': {
                     int octal = 0;
                     int digits = 0;
-                    while (i + 1 < input.length() && digits < 3 && input[i + 1] >= '0' && input[i + 1] <= '7') {
+                    while (i + 1 < input.length() && digits < 3 && input[i + 1] >= '0' &&
+                           input[i + 1] <= '7') {
                         i++;
                         octal = octal * 8 + (input[i] - '0');
                         digits++;
@@ -239,7 +240,8 @@ int printf_command(const std::vector<std::string>& args) {
                     i++;
 
                     while (i < format.length() &&
-                           (format[i] == '-' || format[i] == '+' || format[i] == ' ' || format[i] == '#' || format[i] == '0')) {
+                           (format[i] == '-' || format[i] == '+' || format[i] == ' ' ||
+                            format[i] == '#' || format[i] == '0')) {
                         i++;
                     }
 
@@ -256,7 +258,8 @@ int printf_command(const std::vector<std::string>& args) {
 
                     if (i < format.length()) {
                         std::string format_spec = format.substr(spec_start + 1, i - spec_start);
-                        std::string arg = (arg_index < printf_args.size()) ? printf_args[arg_index] : "";
+                        std::string arg =
+                            (arg_index < printf_args.size()) ? printf_args[arg_index] : "";
 
                         std::cout << format_printf_arg(format_spec, arg);
                         arg_index++;

@@ -66,7 +66,8 @@ ic_private bool ic_memnmove(void* dest, ssize_t dest_size, const void* src, ssiz
 
 ic_private ssize_t ic_strlen(const char* s);
 ic_private bool ic_strcpy(char* dest, ssize_t dest_size /* including 0 */, const char* src);
-ic_private bool ic_strncpy(char* dest, ssize_t dest_size /* including 0 */, const char* src, ssize_t n);
+ic_private bool ic_strncpy(char* dest, ssize_t dest_size /* including 0 */, const char* src,
+                           ssize_t n);
 
 ic_private bool ic_contains(const char* big, const char* s);
 ic_private bool ic_icontains(const char* big, const char* s);

@@ -147,7 +147,8 @@ const char* SignalHandler::get_signal_description(int signum) {
 int SignalHandler::name_to_signal(const std::string& name) {
     std::string search_name = name;
 
-    if (search_name.size() > 3 && (search_name.substr(0, 3) == "SIG" || search_name.substr(0, 3) == "sig")) {
+    if (search_name.size() > 3 &&
+        (search_name.substr(0, 3) == "SIG" || search_name.substr(0, 3) == "sig")) {
         search_name = search_name.substr(3);
     }
 
@@ -242,7 +243,6 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 }
 
 void SignalHandler::setup_signal_handlers() {
-
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
     sigset_t block_mask;
@@ -271,7 +271,6 @@ void SignalHandler::setup_signal_handlers() {
 }
 
 void SignalHandler::setup_interactive_handlers() {
-
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
     sigset_t block_mask;
@@ -304,7 +303,6 @@ void SignalHandler::restore_original_handlers() {
 }
 
 void SignalHandler::process_pending_signals(Exec* shell_exec) {
-
     if (s_sigint_received) {
         s_sigint_received = 0;
 
@@ -339,7 +337,8 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                 usleep(1000);
             }
 
-            while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0 && reaped_count < max_reap_iterations) {
+            while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0 &&
+                   reaped_count < max_reap_iterations) {
                 reaped_count++;
                 shell_exec->handle_child_signal(pid, status);
 
@@ -359,11 +358,13 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                 if (job) {
                     if (WIFEXITED(status) || WIFSIGNALED(status)) {
                         job->state = WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED;
-                        job->exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
+                        job->exit_status =
+                            WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
 
                         JobManager::instance().clear_stdin_signal(job->pgid);
 
-                        job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid), job->pids.end());
+                        job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid),
+                                        job->pids.end());
 
                         if (job->pids.empty()) {
                             job->notified = true;
@@ -384,8 +385,9 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             }
 
             if (reaped_count >= max_reap_iterations) {
-                std::cerr << "WARNING: SIGCHLD handler hit maximum iteration limit (" << max_reap_iterations
-                          << "), breaking to prevent infinite loop" << std::endl;
+                std::cerr << "WARNING: SIGCHLD handler hit maximum iteration limit ("
+                          << max_reap_iterations << "), breaking to prevent infinite loop"
+                          << std::endl;
             }
 
             // if (pid == -1 && errno == ECHILD && g_debug_mode) {
@@ -402,14 +404,12 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         g_exit_flag = true;
 
         if (shell_exec) {
-
             shell_exec->terminate_all_child_process();
 
             auto& job_manager = JobManager::instance();
             auto all_jobs = job_manager.get_all_jobs();
             for (auto& job : all_jobs) {
                 if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
-
                     killpg(job->pgid, SIGTERM);
                     usleep(10000);
                     killpg(job->pgid, SIGKILL);
@@ -460,7 +460,8 @@ void SignalHandler::unobserve_signal(int signum) {
 }
 
 bool SignalHandler::is_signal_observed(int signum) {
-    return std::find(s_observed_signals.begin(), s_observed_signals.end(), signum) != s_observed_signals.end();
+    return std::find(s_observed_signals.begin(), s_observed_signals.end(), signum) !=
+           s_observed_signals.end();
 }
 
 std::vector<int> SignalHandler::get_observed_signals() {

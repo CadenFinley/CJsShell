@@ -28,8 +28,8 @@ std::string strip_inline_comment(const std::string& s) {
 
         if (!in_quotes && !in_brace_expansion && c == '$' && i + 1 < s.size()) {
             char next = s[i + 1];
-            if (next == '#' || next == '?' || next == '$' || next == '*' || next == '@' || next == '!' ||
-                std::isdigit(static_cast<unsigned char>(next))) {
+            if (next == '#' || next == '?' || next == '$' || next == '*' || next == '@' ||
+                next == '!' || std::isdigit(static_cast<unsigned char>(next))) {
                 ++i;
                 continue;
             }

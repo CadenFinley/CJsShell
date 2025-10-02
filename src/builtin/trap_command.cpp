@@ -8,11 +8,14 @@
 #include "shell.h"
 
 static const std::unordered_map<std::string, int> signal_map = {
-    {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},   {"ILL", SIGILL},   {"TRAP", SIGTRAP}, {"ABRT", SIGABRT},
-    {"BUS", SIGBUS},       {"FPE", SIGFPE},   {"KILL", SIGKILL},   {"USR1", SIGUSR1}, {"SEGV", SIGSEGV}, {"USR2", SIGUSR2},
-    {"PIPE", SIGPIPE},     {"ALRM", SIGALRM}, {"TERM", SIGTERM},   {"CHLD", SIGCHLD}, {"CONT", SIGCONT}, {"STOP", SIGSTOP},
-    {"TSTP", SIGTSTP},     {"TTIN", SIGTTIN}, {"TTOU", SIGTTOU},   {"URG", SIGURG},   {"XCPU", SIGXCPU}, {"XFSZ", SIGXFSZ},
-    {"VTALRM", SIGVTALRM}, {"PROF", SIGPROF}, {"WINCH", SIGWINCH}, {"IO", SIGIO},     {"SYS", SIGSYS},
+    {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},   {"ILL", SIGILL},
+    {"TRAP", SIGTRAP},     {"ABRT", SIGABRT}, {"BUS", SIGBUS},     {"FPE", SIGFPE},
+    {"KILL", SIGKILL},     {"USR1", SIGUSR1}, {"SEGV", SIGSEGV},   {"USR2", SIGUSR2},
+    {"PIPE", SIGPIPE},     {"ALRM", SIGALRM}, {"TERM", SIGTERM},   {"CHLD", SIGCHLD},
+    {"CONT", SIGCONT},     {"STOP", SIGSTOP}, {"TSTP", SIGTSTP},   {"TTIN", SIGTTIN},
+    {"TTOU", SIGTTOU},     {"URG", SIGURG},   {"XCPU", SIGXCPU},   {"XFSZ", SIGXFSZ},
+    {"VTALRM", SIGVTALRM}, {"PROF", SIGPROF}, {"WINCH", SIGWINCH}, {"IO", SIGIO},
+    {"SYS", SIGSYS},
 
     {"EXIT", 0},           {"ERR", -2},       {"DEBUG", -3},       {"RETURN", -4}};
 
@@ -196,7 +199,8 @@ int trap_command(const std::vector<std::string>& args) {
         }
 
         for (const auto& pair : traps) {
-            std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first) << std::endl;
+            std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first)
+                      << std::endl;
         }
         return 0;
     }
@@ -214,13 +218,15 @@ int trap_command(const std::vector<std::string>& args) {
         auto traps = trap_manager.list_traps();
 
         for (const auto& pair : traps) {
-            std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first) << std::endl;
+            std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first)
+                      << std::endl;
         }
         return 0;
     }
 
     if (args.size() < 3) {
-        print_error({ErrorType::INVALID_ARGUMENT, "trap", "usage: trap [-lp] [arg] [signal ...]", {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "trap", "usage: trap [-lp] [arg] [signal ...]", {}});
         return 2;
     }
 
@@ -230,7 +236,10 @@ int trap_command(const std::vector<std::string>& args) {
     for (size_t i = 2; i < args.size(); ++i) {
         int signal_num = signal_name_to_number(args[i]);
         if (signal_num == -1) {
-            print_error({ErrorType::INVALID_ARGUMENT, "trap", args[i] + ": invalid signal specification", {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "trap",
+                         args[i] + ": invalid signal specification",
+                         {}});
             return 1;
         }
 

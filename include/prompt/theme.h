@@ -22,16 +22,20 @@ class Theme {
     mutable size_t last_ai_raw_length = 0;
     mutable size_t last_newline_raw_length = 0;
 
-    std::string process_conditionals(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const;
+    std::string process_conditionals(
+        const std::string& line, const std::unordered_map<std::string, std::string>& vars) const;
 
-    std::string evaluate_conditional(const std::string& expr, const std::unordered_map<std::string, std::string>& vars) const;
+    std::string evaluate_conditional(
+        const std::string& expr, const std::unordered_map<std::string, std::string>& vars) const;
 
-    bool evaluate_condition(const std::string& condition, const std::unordered_map<std::string, std::string>& vars) const;
+    bool evaluate_condition(const std::string& condition,
+                            const std::unordered_map<std::string, std::string>& vars) const;
 
     bool evaluate_comparison(const std::string& condition, const std::string& op,
                              const std::unordered_map<std::string, std::string>& vars) const;
 
-    std::string resolve_value(const std::string& value, const std::unordered_map<std::string, std::string>& vars) const;
+    std::string resolve_value(const std::string& value,
+                              const std::unordered_map<std::string, std::string>& vars) const;
 
     std::string trim(const std::string& str) const;
 
@@ -44,8 +48,8 @@ class Theme {
 
     std::filesystem::path resolve_theme_file(const std::string& theme_name) const;
 
-    bool apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name, bool allow_fallback,
-                                const std::filesystem::path& source_path);
+    bool apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name,
+                                bool allow_fallback, const std::filesystem::path& source_path);
 
     std::string fill_char_{""};
     std::string fill_fg_color_{"RESET"};
@@ -89,10 +93,14 @@ class Theme {
     }
 
     std::string get_newline_prompt(const std::unordered_map<std::string, std::string>& vars) const;
-    std::string get_ps1_prompt_format(const std::unordered_map<std::string, std::string>& vars) const;
-    std::string get_git_prompt_format(const std::unordered_map<std::string, std::string>& vars) const;
-    std::string get_ai_prompt_format(const std::unordered_map<std::string, std::string>& vars) const;
-    std::string get_inline_right_prompt(const std::unordered_map<std::string, std::string>& vars) const;
+    std::string get_ps1_prompt_format(
+        const std::unordered_map<std::string, std::string>& vars) const;
+    std::string get_git_prompt_format(
+        const std::unordered_map<std::string, std::string>& vars) const;
+    std::string get_ai_prompt_format(
+        const std::unordered_map<std::string, std::string>& vars) const;
+    std::string get_inline_right_prompt(
+        const std::unordered_map<std::string, std::string>& vars) const;
 
     bool get_enabled() const {
         return is_enabled;
@@ -102,7 +110,8 @@ class Theme {
     bool cleanup_adds_empty_line() const;
     bool newline_after_execution() const;
 
-    std::string render_line(const std::string& line, const std::unordered_map<std::string, std::string>& vars) const;
+    std::string render_line(const std::string& line,
+                            const std::unordered_map<std::string, std::string>& vars) const;
 
     static inline constexpr std::string_view kThemeFileExtension = ".cjsh";
     static std::string ensure_theme_extension(const std::string& theme_name);

@@ -12,7 +12,8 @@
 
 int which_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "which", "usage: which [-as] name [name ...]", {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "which", "usage: which [-as] name [name ...]", {}});
         return 1;
     }
 
@@ -37,7 +38,10 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                     silent = true;
                     break;
                 default:
-                    print_error({ErrorType::INVALID_ARGUMENT, "which", "invalid option: -" + std::string(1, option[j]), {}});
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "which",
+                                 "invalid option: -" + std::string(1, option[j]),
+                                 {}});
                     return 1;
             }
         }
@@ -53,7 +57,8 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
 
         const std::vector<std::string> cjsh_custom_commands = {"echo", "printf", "pwd", "cd", "ls"};
 
-        bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(), name) != cjsh_custom_commands.end();
+        bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
+                                        name) != cjsh_custom_commands.end();
 
         if (name == "ls" && config::disable_custom_ls) {
             is_cjsh_custom = false;
@@ -117,7 +122,8 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                 auto alias_it = aliases.find(name);
                 if (alias_it != aliases.end()) {
                     if (!silent) {
-                        std::cout << "which: " << name << " is aliased to `" << alias_it->second << "'" << std::endl;
+                        std::cout << "which: " << name << " is aliased to `" << alias_it->second
+                                  << "'" << std::endl;
                     }
                     found = true;
                 }

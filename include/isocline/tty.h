@@ -48,7 +48,8 @@ ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout,
                                long esc_timeout);  // in tty_esc.c
 
 // used by term.c to read back ANSI escape responses
-ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st, char* buf, ssize_t buflen);
+ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st, char* buf,
+                                      ssize_t buflen);
 
 //-------------------------------------------------------------
 // Key codes: a code_t is 32 bits.

@@ -74,7 +74,8 @@ ic_private char* ic_editline(ic_env_t* env, const char* prompt_text) {
     return line;
 }
 
-ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
+ic_private char* ic_editline_inline(ic_env_t* env, const char* prompt_text,
+                                    const char* inline_right_text) {
     tty_start_raw(env->tty);
     term_start_raw(env->term);
     char* line = edit_line_inline(env, prompt_text, inline_right_text);
@@ -148,7 +149,8 @@ static bool editor_pos_is_at_end(editor_t* eb) {
 // Row/Column width and positioning
 //-------------------------------------------------------------
 
-static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ssize_t* promptw, ssize_t* cpromptw) {
+static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ssize_t* promptw,
+                                  ssize_t* cpromptw) {
     if (in_extra) {
         *promptw = 0;
         *cpromptw = 0;
@@ -286,8 +288,8 @@ typedef struct refresh_info_s {
     ssize_t last_row;
 } refresh_info_t;
 
-static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len, ssize_t startw, bool is_wrap,
-                                   const void* arg, void* res) {
+static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
+                                   ssize_t startw, bool is_wrap, const void* arg, void* res) {
     ic_unused(res);
     ic_unused(startw);
     const refresh_info_t* info = (const refresh_info_t*)(arg);
@@ -306,7 +308,9 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
     if (info->attrs == NULL || (info->env->no_highlight && info->env->no_bracematch)) {
         term_write_n(term, s + row_start, row_len);
     } else {
-        term_write_formatted_n(term, s + row_start, attrbuf_attrs(info->attrs, row_start + row_len) + row_start, row_len);
+        term_write_formatted_n(term, s + row_start,
+                               attrbuf_attrs(info->attrs, row_start + row_len) + row_start,
+                               row_len);
     }
 
     // write line ending
@@ -347,9 +351,10 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
                 // Look for time pattern [HH:MM:SS] in the text to extract from
                 // bbcode formatting
                 for (const char* p = text_to_write; *p; p++) {
-                    if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' && p[3] == ':' && p[4] >= '0' &&
-                        p[4] <= '9' && p[5] >= '0' && p[5] <= '9' && p[6] == ':' && p[7] >= '0' && p[7] <= '9' && p[8] >= '0' &&
-                        p[8] <= '9' && p[9] == ']') {
+                    if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' &&
+                        p[3] == ':' && p[4] >= '0' && p[4] <= '9' && p[5] >= '0' && p[5] <= '9' &&
+                        p[6] == ':' && p[7] >= '0' && p[7] <= '9' && p[8] >= '0' && p[8] <= '9' &&
+                        p[9] == ']') {
                         time_start = p;
                         break;
                     }
@@ -377,8 +382,9 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
     return (row >= info->last_row);
 }
 
-static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, attrbuf_t* attrs, ssize_t promptw, ssize_t cpromptw,
-                              bool in_extra, ssize_t first_row, ssize_t last_row) {
+static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, attrbuf_t* attrs,
+                              ssize_t promptw, ssize_t cpromptw, bool in_extra, ssize_t first_row,
+                              ssize_t last_row) {
     if (input == NULL)
         return;
     refresh_info_t info;
@@ -397,20 +403,22 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
 
     if (eb->attrs != NULL) {
-        highlight(env->mem, env->bbcode, sbuf_string(eb->input), eb->attrs, (env->no_highlight ? NULL : env->highlighter),
-                  env->highlighter_arg);
+        highlight(env->mem, env->bbcode, sbuf_string(eb->input), eb->attrs,
+                  (env->no_highlight ? NULL : env->highlighter), env->highlighter_arg);
     }
 
     // highlight matching braces
     if (eb->attrs != NULL && !env->no_bracematch) {
-        highlight_match_braces(sbuf_string(eb->input), eb->attrs, eb->pos, ic_env_get_match_braces(env),
-                               bbcode_style(env->bbcode, "ic-bracematch"), bbcode_style(env->bbcode, "ic-error"));
+        highlight_match_braces(
+            sbuf_string(eb->input), eb->attrs, eb->pos, ic_env_get_match_braces(env),
+            bbcode_style(env->bbcode, "ic-bracematch"), bbcode_style(env->bbcode, "ic-error"));
     }
 
     // insert hint
     if (sbuf_len(eb->hint) > 0) {
         if (eb->attrs != NULL) {
-            attrbuf_insert_at(eb->attrs, eb->pos, sbuf_len(eb->hint), bbcode_style(env->bbcode, "ic-hint"));
+            attrbuf_insert_at(eb->attrs, eb->pos, sbuf_len(eb->hint),
+                              bbcode_style(env->bbcode, "ic-hint"));
         }
         sbuf_insert_at(eb->input, sbuf_string(eb->hint), eb->pos);
     }
@@ -429,7 +437,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
     // calculate rows and row/col position
     rowcol_t rc = {0};
-    const ssize_t rows_input = sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, eb->pos, &rc);
+    const ssize_t rows_input =
+        sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, eb->pos, &rc);
     rowcol_t rc_extra = {0};
     ssize_t rows_extra = 0;
     if (extra != NULL) {
@@ -564,7 +573,8 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb, const char* final_in
     const bool add_empty_line = env->prompt_cleanup_add_empty_line;
     const char* prompt_line = (eb->prompt_text != NULL ? eb->prompt_text : "");
     const char* prompt_marker = (env->prompt_marker != NULL ? env->prompt_marker : "");
-    ssize_t promptw = bbcode_column_width(env->bbcode, prompt_line) + bbcode_column_width(env->bbcode, prompt_marker);
+    ssize_t promptw = bbcode_column_width(env->bbcode, prompt_line) +
+                      bbcode_column_width(env->bbcode, prompt_marker);
     if (promptw < 0)
         promptw = 0;
 
@@ -633,11 +643,13 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
         }
     }
     rowcol_t rc = {0};
-    const ssize_t rows_input = sbuf_get_wrapped_rc_at_pos(eb->input, eb->termw, newtermw, promptw, cpromptw, eb->pos, &rc);
+    const ssize_t rows_input =
+        sbuf_get_wrapped_rc_at_pos(eb->input, eb->termw, newtermw, promptw, cpromptw, eb->pos, &rc);
     rowcol_t rc_extra = {0};
     ssize_t rows_extra = 0;
     if (extra != NULL) {
-        rows_extra = sbuf_get_wrapped_rc_at_pos(extra, eb->termw, newtermw, 0, 0, 0 /*pos*/, &rc_extra);
+        rows_extra =
+            sbuf_get_wrapped_rc_at_pos(extra, eb->termw, newtermw, 0, 0, 0 /*pos*/, &rc_extra);
     }
     ssize_t rows = rows_input + rows_extra;
     debug_msg(
@@ -697,7 +709,8 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
                         if (newpos <= pos)
                             break;
                         pos = newpos;
-                        count = completions_generate(env, env->completions, sbuf_string(sb), pos, 2);
+                        count =
+                            completions_generate(env, env->completions, sbuf_string(sb), pos, 2);
                         if (count == 1) {
                             const char* extra_help = NULL;
                             extra_hint = completions_get_hint(env->completions, 0, &extra_help);
@@ -839,7 +852,8 @@ static void edit_cursor_row_down(ic_env_t* env, editor_t* eb) {
 }
 
 static void edit_cursor_match_brace(ic_env_t* env, editor_t* eb) {
-    ssize_t match = find_matching_brace(sbuf_string(eb->input), eb->pos, ic_env_get_match_braces(env), NULL);
+    ssize_t match =
+        find_matching_brace(sbuf_string(eb->input), eb->pos, ic_env_get_match_braces(env), NULL);
     if (match < 0)
         return;
     eb->pos = match;
@@ -1197,7 +1211,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
 
         // Operations that may return
         if (c == KEY_ENTER) {
-            if (!env->singleline_only && eb.pos > 0 && sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
+            if (!env->singleline_only && eb.pos > 0 &&
+                sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
                 edit_pos_is_at_row_end(env, &eb)) {
                 // replace line-continuation with newline
                 edit_multiline_eol(env, &eb);
@@ -1411,7 +1426,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     return res;
 }
 
-static char* edit_line_inline(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
+static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
+                              const char* inline_right_text) {
     // set up an edit buffer
     editor_t eb;
     memset(&eb, 0, sizeof(eb));
@@ -1517,7 +1533,8 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text, const char
 
         // Operations that may return
         if (c == KEY_ENTER) {
-            if (!env->singleline_only && eb.pos > 0 && sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
+            if (!env->singleline_only && eb.pos > 0 &&
+                sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
                 edit_pos_is_at_row_end(env, &eb)) {
                 // replace line-continuation with newline
                 edit_multiline_eol(env, &eb);

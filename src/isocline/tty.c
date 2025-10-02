@@ -64,8 +64,9 @@ struct tty_s {
 // Forward declarations of platform dependent primitives below
 //-------------------------------------------------------------
 
-ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c,
-                                  long timeout_ms);  // does not modify `c` when no input (false is returned)
+ic_private bool tty_readc_noblock(
+    tty_t* tty, uint8_t* c,
+    long timeout_ms);  // does not modify `c` when no input (false is returned)
 
 //-------------------------------------------------------------
 // Key code helpers
@@ -128,7 +129,8 @@ static code_t tty_read_utf8(tty_t* tty, uint8_t c0) {
     }
 
     buf[count] = 0;
-    debug_msg("tty: read utf8: count: %zd: %02x,%02x,%02x,%02x", count, buf[0], buf[1], buf[2], buf[3]);
+    debug_msg("tty: read utf8: count: %zd: %02x,%02x,%02x,%02x", count, buf[0], buf[1], buf[2],
+              buf[3]);
 
     // decode the utf8 to unicode
     ssize_t read = 0;
@@ -182,8 +184,9 @@ ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
 static code_t modify_code(code_t code) {
     code_t key = KEY_NO_MODS(code);
     code_t mods = KEY_MODS(code);
-    debug_msg("tty: readc %s%s%s 0x%03x ('%c')\n", mods & KEY_MOD_SHIFT ? "shift+" : "", mods & KEY_MOD_CTRL ? "ctrl+" : "",
-              mods & KEY_MOD_ALT ? "alt+" : "", key, (key >= ' ' && key <= '~' ? key : ' '));
+    debug_msg("tty: readc %s%s%s 0x%03x ('%c')\n", mods & KEY_MOD_SHIFT ? "shift+" : "",
+              mods & KEY_MOD_CTRL ? "ctrl+" : "", mods & KEY_MOD_ALT ? "alt+" : "", key,
+              (key >= ' ' && key <= '~' ? key : ' '));
 
     // treat KEY_RUBOUT (0x7F) as KEY_BACKSP
     if (key == KEY_RUBOUT) {
@@ -195,7 +198,8 @@ static code_t modify_code(code_t code) {
         code = WITH_CTRL(key_char('_'));
     }
     // treat ctrl/shift + enter always as KEY_LINEFEED for portability
-    else if (key == KEY_ENTER && (mods == KEY_MOD_SHIFT || mods == KEY_MOD_ALT || mods == KEY_MOD_CTRL)) {
+    else if (key == KEY_ENTER &&
+             (mods == KEY_MOD_SHIFT || mods == KEY_MOD_ALT || mods == KEY_MOD_CTRL)) {
         code = KEY_LINEFEED;
     }
     // treat ctrl+tab always as shift+tab for portability
@@ -230,7 +234,8 @@ ic_private code_t tty_read(tty_t* tty) {
 // Read back an ANSI query response
 //-------------------------------------------------------------
 
-ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st, char* buf, ssize_t buflen) {
+ic_private bool tty_read_esc_response(tty_t* tty, char esc_start, bool final_st, char* buf,
+                                      ssize_t buflen) {
     buf[0] = 0;
     ssize_t len = 0;
     uint8_t c = 0;
@@ -365,8 +370,8 @@ static void tty_cpush_csi_xterm(tty_t* tty, code_t mods, char xcode) {
 // push ESC [ <unicode> ; <mods> u
 static void tty_cpush_csi_unicode(tty_t* tty, code_t mods, uint32_t unicode) {
     if ((unicode < 0x80 && mods == 0) ||
-        (mods == KEY_MOD_CTRL && unicode < ' ' && unicode != KEY_TAB && unicode != KEY_ENTER && unicode != KEY_LINEFEED &&
-         unicode != KEY_BACKSP) ||
+        (mods == KEY_MOD_CTRL && unicode < ' ' && unicode != KEY_TAB && unicode != KEY_ENTER &&
+         unicode != KEY_LINEFEED && unicode != KEY_BACKSP) ||
         (mods == KEY_MOD_SHIFT && unicode >= ' ' && unicode <= KEY_RUBOUT)) {
         tty_cpush_char(tty, (uint8_t)unicode);
     } else {
@@ -386,7 +391,8 @@ static bool tty_init_utf8(tty_t* tty) {
     tty->is_utf8 = true;
 #else
     const char* loc = setlocale(LC_ALL, "");
-    tty->is_utf8 = (ic_icontains(loc, "UTF-8") || ic_icontains(loc, "utf8") || ic_stricmp(loc, "C") == 0);
+    tty->is_utf8 =
+        (ic_icontains(loc, "UTF-8") || ic_icontains(loc, "utf8") || ic_stricmp(loc, "C") == 0);
     debug_msg("tty: utf8: %s (loc=%s)\n", tty->is_utf8 ? "true" : "false", loc);
 #endif
     return true;
@@ -437,8 +443,10 @@ ic_private bool tty_term_resize_event(tty_t* tty) {
 }
 
 ic_private void tty_set_esc_delay(tty_t* tty, long initial_delay_ms, long followup_delay_ms) {
-    tty->esc_initial_timeout = (initial_delay_ms < 0 ? 0 : (initial_delay_ms > 1000 ? 1000 : initial_delay_ms));
-    tty->esc_timeout = (followup_delay_ms < 0 ? 0 : (followup_delay_ms > 1000 ? 1000 : followup_delay_ms));
+    tty->esc_initial_timeout =
+        (initial_delay_ms < 0 ? 0 : (initial_delay_ms > 1000 ? 1000 : initial_delay_ms));
+    tty->esc_timeout =
+        (followup_delay_ms < 0 ? 0 : (followup_delay_ms > 1000 ? 1000 : followup_delay_ms));
 }
 
 //-------------------------------------------------------------
@@ -566,8 +574,9 @@ typedef struct signal_handler_s {
     } action;
 } signal_handler_t;
 
-static signal_handler_t sighandlers[] = {{SIGWINCH, {0}}, {SIGTERM, {0}}, {SIGINT, {0}},  {SIGQUIT, {0}}, {SIGHUP, {0}},  {SIGSEGV, {0}},
-                                         {SIGTRAP, {0}},  {SIGBUS, {0}},  {SIGTSTP, {0}}, {SIGTTIN, {0}}, {SIGTTOU, {0}}, {0, {0}}};
+static signal_handler_t sighandlers[] = {
+    {SIGWINCH, {0}}, {SIGTERM, {0}}, {SIGINT, {0}},  {SIGQUIT, {0}}, {SIGHUP, {0}},  {SIGSEGV, {0}},
+    {SIGTRAP, {0}},  {SIGBUS, {0}},  {SIGTSTP, {0}}, {SIGTTIN, {0}}, {SIGTTOU, {0}}, {0, {0}}};
 
 static bool sigaction_is_valid(struct sigaction* sa) {
     return (sa->sa_sigaction != NULL && sa->sa_handler != SIG_DFL && sa->sa_handler != SIG_IGN);
@@ -609,10 +618,11 @@ static void signals_install(tty_t* tty) {
     handler.sa_flags = SA_RESTART;
     // install for all signals
     for (signal_handler_t* sh = sighandlers; sh->signum != 0; sh++) {
-        if (sigaction(sh->signum, NULL, &sh->action.previous) == 0) {             // get previous
-            if (sh->action.previous.sa_handler != SIG_IGN) {                      // if not to be ignored
-                if (sigaction(sh->signum, &handler, &sh->action.previous) < 0) {  // install our handler
-                    sh->action.previous.sa_sigaction = NULL;                      // do not restore on error
+        if (sigaction(sh->signum, NULL, &sh->action.previous) == 0) {  // get previous
+            if (sh->action.previous.sa_handler != SIG_IGN) {           // if not to be ignored
+                if (sigaction(sh->signum, &handler, &sh->action.previous) <
+                    0) {                                      // install our handler
+                    sh->action.previous.sa_sigaction = NULL;  // do not restore on error
                 } else if (sh->signum == SIGWINCH) {
                     sig_tty->has_term_resize_event = true;
                 };
@@ -796,8 +806,9 @@ static void tty_waitc_console(tty_t* tty, long timeout_ms) {
         // virtual keys
         uint32_t chr = (uint32_t)inp.Event.KeyEvent.uChar.UnicodeChar;
         WORD virt = inp.Event.KeyEvent.wVirtualKeyCode;
-        debug_msg("tty: console %s: %s%s%s virt 0x%04x, chr 0x%04x ('%c')\n", inp.Event.KeyEvent.bKeyDown ? "down" : "up",
-                  mods & KEY_MOD_CTRL ? "ctrl-" : "", mods & KEY_MOD_ALT ? "alt-" : "", mods & KEY_MOD_SHIFT ? "shift-" : "", virt, chr,
+        debug_msg("tty: console %s: %s%s%s virt 0x%04x, chr 0x%04x ('%c')\n",
+                  inp.Event.KeyEvent.bKeyDown ? "down" : "up", mods & KEY_MOD_CTRL ? "ctrl-" : "",
+                  mods & KEY_MOD_ALT ? "alt-" : "", mods & KEY_MOD_SHIFT ? "shift-" : "", virt, chr,
                   chr);
 
         // only process keydown events (except for Alt-up which is used for

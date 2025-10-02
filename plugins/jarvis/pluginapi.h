@@ -134,7 +134,8 @@ void plugin_register_deallocation(void* ptr, const char* file, int line);
  * Prompt variable registration
  */
 typedef plugin_string_t (*plugin_get_prompt_variable_func)();
-plugin_error_t plugin_register_prompt_variable(const char* name, plugin_get_prompt_variable_func func);
+plugin_error_t plugin_register_prompt_variable(const char* name,
+                                               plugin_get_prompt_variable_func func);
 
 /**
  * Macro for defining exported functions

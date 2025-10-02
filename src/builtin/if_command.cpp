@@ -4,7 +4,8 @@
 #include "error_out.h"
 #include "shell.h"
 
-int if_command(const std::vector<std::string>& args, Shell* shell, std::string& last_terminal_output_error) {
+int if_command(const std::vector<std::string>& args, Shell* shell,
+               std::string& last_terminal_output_error) {
     auto record_error = [&](const ErrorInfo& info) {
         last_terminal_output_error = info.message;
         print_error(info);
@@ -26,7 +27,8 @@ int if_command(const std::vector<std::string>& args, Shell* shell, std::string& 
     size_t fi_pos = full_cmd.rfind("; fi");
 
     if (then_pos == std::string::npos || fi_pos == std::string::npos) {
-        record_error({ErrorType::SYNTAX_ERROR, "if", "syntax error: expected '; then' and '; fi'", {}});
+        record_error(
+            {ErrorType::SYNTAX_ERROR, "if", "syntax error: expected '; then' and '; fi'", {}});
         return 2;
     }
 

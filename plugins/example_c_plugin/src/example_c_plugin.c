@@ -76,7 +76,8 @@ static plugin_string_t current_theme_callback() {
 
 // Get plugin information
 PLUGIN_API plugin_info_t* plugin_get_info() {
-    static plugin_info_t info = {PLUGIN_NAME, PLUGIN_VERSION, "A simple example plugin written in C for CJSH", "GitHub Copilot",
+    static plugin_info_t info = {PLUGIN_NAME, PLUGIN_VERSION,
+                                 "A simple example plugin written in C for CJSH", "GitHub Copilot",
                                  PLUGIN_INTERFACE_VERSION};
     return &info;
 }
@@ -257,7 +258,8 @@ PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
     *count = 2;
 
     // Allocate memory for the settings array
-    plugin_setting_t* settings = (plugin_setting_t*)PLUGIN_MALLOC(*count * sizeof(plugin_setting_t));
+    plugin_setting_t* settings =
+        (plugin_setting_t*)PLUGIN_MALLOC(*count * sizeof(plugin_setting_t));
     if (!settings) {
         *count = 0;
         return NULL;

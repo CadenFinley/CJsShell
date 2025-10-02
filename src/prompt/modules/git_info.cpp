@@ -13,7 +13,8 @@
 #include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
-static int safe_execute_git_command(const std::string& command, std::string& result, int& exit_code) {
+static int safe_execute_git_command(const std::string& command, std::string& result,
+                                    int& exit_code) {
     result.clear();
     exit_code = -1;
 
@@ -116,7 +117,8 @@ std::string GitInfo::get_git_tag(const std::filesystem::path& repo_root) {
 }
 
 std::string GitInfo::get_git_last_commit(const std::filesystem::path& repo_root) {
-    std::string cmd = "git -C '" + repo_root.string() + "' log -1 --pretty=format:%h:%s 2>/dev/null";
+    std::string cmd =
+        "git -C '" + repo_root.string() + "' log -1 --pretty=format:%h:%s 2>/dev/null";
     std::string result;
     int exit_code;
 
@@ -143,9 +145,9 @@ std::string GitInfo::get_git_author(const std::filesystem::path& repo_root) {
 }
 
 std::string GitInfo::get_git_branch(const std::filesystem::path& git_head_path) {
-
     try {
-        auto read_result = cjsh_filesystem::FileOperations::read_file_content(git_head_path.string());
+        auto read_result =
+            cjsh_filesystem::FileOperations::read_file_content(git_head_path.string());
         if (read_result.is_error()) {
             return "";
         }
@@ -169,13 +171,13 @@ std::string GitInfo::get_git_branch(const std::filesystem::path& git_head_path) 
 }
 
 std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
-
     std::string status_symbols = "";
     std::string git_dir = repo_root.string();
     bool is_clean_repo = true;
 
     auto now = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_git_status_check).count();
+    auto elapsed =
+        std::chrono::duration_cast<std::chrono::seconds>(now - last_git_status_check).count();
 
     if ((elapsed > 60 || cached_git_dir != git_dir) && !is_git_status_check_running) {
         std::lock_guard<std::mutex> lock(git_status_mutex);
@@ -247,7 +249,8 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& a
         return -1;
     }
 
-    std::string upstream_cmd = "git -C '" + repo_root.string() + "' rev-parse --abbrev-ref " + branch + "@{upstream} 2>/dev/null";
+    std::string upstream_cmd = "git -C '" + repo_root.string() + "' rev-parse --abbrev-ref " +
+                               branch + "@{upstream} 2>/dev/null";
     std::string upstream;
     int exit_code;
 
@@ -263,8 +266,8 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& a
         return -1;
     }
 
-    std::string count_cmd =
-        "git -C '" + repo_root.string() + "' rev-list --left-right --count " + branch + "..." + upstream + " 2>/dev/null";
+    std::string count_cmd = "git -C '" + repo_root.string() + "' rev-list --left-right --count " +
+                            branch + "..." + upstream + " 2>/dev/null";
     std::string count_result;
 
     if (safe_execute_git_command(count_cmd, count_result, exit_code) != 0 || exit_code != 0) {

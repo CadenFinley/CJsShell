@@ -4,7 +4,8 @@
 
 namespace utf8_utils {
 
-size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars, size_t* count_visible_chars) {
+size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
+                               size_t* count_visible_chars) {
     size_t display_width = 0;
     size_t ansi_chars = 0;
     size_t visible_chars = 0;
@@ -22,8 +23,9 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
                 pos++;
                 ansi_chars++;
 
-                while (pos < len && ((data[pos] >= '0' && data[pos] <= '9') || data[pos] == ';' || data[pos] == ':' || data[pos] == '<' ||
-                                     data[pos] == '=' || data[pos] == '>' || data[pos] == '?')) {
+                while (pos < len && ((data[pos] >= '0' && data[pos] <= '9') || data[pos] == ';' ||
+                                     data[pos] == ':' || data[pos] == '<' || data[pos] == '=' ||
+                                     data[pos] == '>' || data[pos] == '?')) {
                     pos++;
                     ansi_chars++;
                 }

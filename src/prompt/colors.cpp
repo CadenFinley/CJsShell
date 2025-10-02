@@ -33,16 +33,19 @@ ColorCapability detect_color_capability() {
     }
     if (colorterm) {
         std::string colortermStr = colorterm;
-        std::transform(colortermStr.begin(), colortermStr.end(), colortermStr.begin(), [](unsigned char c) { return std::tolower(c); });
+        std::transform(colortermStr.begin(), colortermStr.end(), colortermStr.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
 
-        if (colortermStr.find("truecolor") != std::string::npos || colortermStr.find("24bit") != std::string::npos) {
+        if (colortermStr.find("truecolor") != std::string::npos ||
+            colortermStr.find("24bit") != std::string::npos) {
             return ColorCapability::TRUE_COLOR;
         }
     }
 
     if (term) {
         std::string termStr = term;
-        if (termStr.find("256") != std::string::npos || termStr.find("xterm") != std::string::npos) {
+        if (termStr.find("256") != std::string::npos ||
+            termStr.find("xterm") != std::string::npos) {
             return ColorCapability::XTERM_256_COLOR;
         }
     }
@@ -97,7 +100,8 @@ uint8_t get_closest_ansi_color(const RGB& color) {
 
     for (size_t i = 0; i < basic_colors.size(); i++) {
         const RGB& c = basic_colors[i];
-        int distance = (c.r - color.r) * (c.r - color.r) + (c.g - color.g) * (c.g - color.g) + (c.b - color.b) * (c.b - color.b);
+        int distance = (c.r - color.r) * (c.r - color.r) + (c.g - color.g) * (c.g - color.g) +
+                       (c.b - color.b) * (c.b - color.b);
 
         if (distance < closest_distance) {
             closest_distance = distance;
@@ -166,7 +170,8 @@ constexpr RGB hsl_to_rgb(const HSL& hsl) {
     float g = hue_to_rgb(p, q, h);
     float b = hue_to_rgb(p, q, h - 1.0f / 3.0f);
 
-    return RGB(static_cast<uint8_t>(r * 255), static_cast<uint8_t>(g * 255), static_cast<uint8_t>(b * 255));
+    return RGB(static_cast<uint8_t>(r * 255), static_cast<uint8_t>(g * 255),
+               static_cast<uint8_t>(b * 255));
 }
 
 std::string fg_color(const RGB& color) {
@@ -191,7 +196,8 @@ std::string fg_color(const RGB& color) {
             break;
 
         case ColorCapability::TRUE_COLOR:
-            ss << "\033[38;2;" << static_cast<int>(color.r) << ";" << static_cast<int>(color.g) << ";" << static_cast<int>(color.b) << "m";
+            ss << "\033[38;2;" << static_cast<int>(color.r) << ";" << static_cast<int>(color.g)
+               << ";" << static_cast<int>(color.b) << "m";
             break;
     }
 
@@ -220,7 +226,8 @@ std::string bg_color(const RGB& color) {
             break;
 
         case ColorCapability::TRUE_COLOR:
-            ss << "\033[48;2;" << static_cast<int>(color.r) << ";" << static_cast<int>(color.g) << ";" << static_cast<int>(color.b) << "m";
+            ss << "\033[48;2;" << static_cast<int>(color.r) << ";" << static_cast<int>(color.g)
+               << ";" << static_cast<int>(color.b) << "m";
             break;
     }
 
@@ -319,7 +326,8 @@ std::string gradient_text(const std::string& text, const RGB& start, const RGB& 
     size_t steps = text.length();
 
     if (steps == 1) {
-        return fg_color(start) + text + (g_color_capability != ColorCapability::NO_COLOR ? ansi::RESET : "");
+        return fg_color(start) + text +
+               (g_color_capability != ColorCapability::NO_COLOR ? ansi::RESET : "");
     }
 
     if (g_color_capability == ColorCapability::BASIC_COLOR) {
@@ -358,7 +366,8 @@ std::string gradient_bg(const std::string& text, const GradientSpec& spec) {
     size_t steps = text.length();
 
     if (steps == 1) {
-        return bg_color(spec.start) + text + (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET : "");
+        return bg_color(spec.start) + text +
+               (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET : "");
     }
 
     if (g_color_capability == ColorCapability::BASIC_COLOR) {
@@ -383,7 +392,8 @@ std::string gradient_bg(const std::string& text, const GradientSpec& spec) {
     return result;
 }
 
-std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_spec, const RGB& fg_rgb) {
+std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_spec,
+                                const RGB& fg_rgb) {
     if (text.empty())
         return "";
     if (g_color_capability == ColorCapability::NO_COLOR)
@@ -394,7 +404,8 @@ std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_
     std::string fg_code = fg_color(fg_rgb);
 
     if (steps == 1) {
-        return bg_color(bg_spec.start) + fg_code + text + (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET : "");
+        return bg_color(bg_spec.start) + fg_code + text +
+               (g_color_capability != ColorCapability::NO_COLOR ? ansi::BG_RESET : "");
     }
 
     if (g_color_capability == ColorCapability::BASIC_COLOR) {
@@ -419,7 +430,8 @@ std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_
     return result;
 }
 
-std::string apply_gradient_bg_with_fg(const std::string& text, const std::string& bg_value, const std::string& fg_value) {
+std::string apply_gradient_bg_with_fg(const std::string& text, const std::string& bg_value,
+                                      const std::string& fg_value) {
     if (is_gradient_value(bg_value)) {
         GradientSpec bg_spec = parse_gradient_value(bg_value);
         RGB fg_rgb = (fg_value == "RESET") ? RGB(255, 255, 255) : parse_color_value(fg_value);
@@ -470,7 +482,8 @@ bool is_gradient_value(const std::string& value) {
     return std::regex_search(trimmed_value, gradient_check);
 }
 
-std::string apply_color_or_gradient(const std::string& text, const std::string& color_value, bool is_foreground) {
+std::string apply_color_or_gradient(const std::string& text, const std::string& color_value,
+                                    bool is_foreground) {
     if (color_value == "RESET") {
         return is_foreground ? "" : colors::ansi::BG_RESET;
     }
@@ -575,7 +588,8 @@ RGB parse_color_value(const std::string& value) {
         }
     }
 
-    std::regex rgb_regex("rgb\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)", std::regex_constants::icase);
+    std::regex rgb_regex("rgb\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\)",
+                         std::regex_constants::icase);
     std::smatch rgb_match;
     if (std::regex_match(trimmed_value, rgb_match, rgb_regex)) {
         try {

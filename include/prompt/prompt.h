@@ -21,8 +21,10 @@ class Prompt {
    private:
     PromptInfo info;
     std::filesystem::path repo_root;
-    std::string replace_placeholder(const std::string& format, const std::string& placeholder, const std::string& value);
-    std::unordered_map<std::string, std::string> get_variables(PromptType type, bool is_git_repo = false);
+    std::string replace_placeholder(const std::string& format, const std::string& placeholder,
+                                    const std::string& value);
+    std::unordered_map<std::string, std::string> get_variables(PromptType type,
+                                                               bool is_git_repo = false);
 
    public:
     Prompt();

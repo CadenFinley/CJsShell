@@ -10,7 +10,6 @@
 #include "shell.h"
 
 int syntax_command(const std::vector<std::string>& args, Shell* shell) {
-
     if (args.size() < 2) {
         std::cout << "Usage: syntax [options] <script_file>" << std::endl;
         std::cout << "       syntax [options] -c <command_string>" << std::endl;
@@ -97,13 +96,15 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (is_command_string) {
         if (command_string.empty()) {
-            print_error({ErrorType::INVALID_ARGUMENT, "syntax", "-c option requires a command string", {}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "syntax", "-c option requires a command string", {}});
             return 1;
         }
 
         auto script_interpreter = shell->get_shell_script_interpreter();
         if (!script_interpreter) {
-            print_error({ErrorType::RUNTIME_ERROR, "syntax", "script interpreter not available", {}});
+            print_error(
+                {ErrorType::RUNTIME_ERROR, "syntax", "script interpreter not available", {}});
             return 1;
         }
 
@@ -116,7 +117,10 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
         std::ifstream file(target_file);
         if (!file.is_open()) {
-            print_error({ErrorType::FILE_NOT_FOUND, "syntax", "cannot open file '" + target_file + "'", {}});
+            print_error({ErrorType::FILE_NOT_FOUND,
+                         "syntax",
+                         "cannot open file '" + target_file + "'",
+                         {}});
             return 1;
         }
 
@@ -136,7 +140,8 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     std::vector<ShellScriptInterpreter::SyntaxError> errors;
 
     if (comprehensive) {
-        errors = script_interpreter->validate_comprehensive_syntax(lines, check_semantics, check_style, check_performance);
+        errors = script_interpreter->validate_comprehensive_syntax(lines, check_semantics,
+                                                                   check_style, check_performance);
     } else {
         errors = script_interpreter->validate_script_syntax(lines);
 
@@ -171,7 +176,9 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
         errors.erase(
             std::remove_if(errors.begin(), errors.end(),
-                           [filter_severity](const ShellScriptInterpreter::SyntaxError& err) { return err.severity != filter_severity; }),
+                           [filter_severity](const ShellScriptInterpreter::SyntaxError& err) {
+                               return err.severity != filter_severity;
+                           }),
             errors.end());
     }
 
@@ -204,14 +211,17 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
         errors.erase(
             std::remove_if(errors.begin(), errors.end(),
-                           [filter_category](const ShellScriptInterpreter::SyntaxError& err) { return err.category != filter_category; }),
+                           [filter_category](const ShellScriptInterpreter::SyntaxError& err) {
+                               return err.category != filter_category;
+                           }),
             errors.end());
     }
 
     if (quiet) {
         std::cout << errors.size() << std::endl;
     } else {
-        shell_script_interpreter::ErrorReporter::print_error_report(errors, show_suggestions, show_context, 1);
+        shell_script_interpreter::ErrorReporter::print_error_report(errors, show_suggestions,
+                                                                    show_context, 1);
     }
 
     return errors.empty() ? 0 : 1;

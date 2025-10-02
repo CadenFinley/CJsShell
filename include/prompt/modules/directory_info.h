@@ -13,11 +13,16 @@ class DirectoryInfo {
     std::string home_symbol = "~";
     std::unordered_map<std::string, std::string> substitutions;
 
-    std::string contract_path(const std::filesystem::path& path, const std::filesystem::path& home_dir, const std::string& home_symbol);
-    std::string contract_repo_path(const std::filesystem::path& path, const std::filesystem::path& repo_root);
-    std::string substitute_path(const std::string& path, const std::unordered_map<std::string, std::string>& substitutions);
+    std::string contract_path(const std::filesystem::path& path,
+                              const std::filesystem::path& home_dir,
+                              const std::string& home_symbol);
+    std::string contract_repo_path(const std::filesystem::path& path,
+                                   const std::filesystem::path& repo_root);
+    std::string substitute_path(const std::string& path,
+                                const std::unordered_map<std::string, std::string>& substitutions);
     std::string truncate_path(const std::string& path, int max_length);
-    std::string to_fish_style(int dir_length, const std::string& full_path, const std::string& truncated_path);
+    std::string to_fish_style(int dir_length, const std::string& full_path,
+                              const std::string& truncated_path);
     bool is_readonly_dir(const std::filesystem::path& path);
 
    public:

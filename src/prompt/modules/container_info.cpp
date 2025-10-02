@@ -89,7 +89,8 @@ std::string ContainerInfo::get_container_name() {
 
     if (file_exists("/proc/version")) {
         std::string content = read_file_content("/proc/version");
-        if (content.find("Microsoft") != std::string::npos || content.find("WSL") != std::string::npos) {
+        if (content.find("Microsoft") != std::string::npos ||
+            content.find("WSL") != std::string::npos) {
             return "WSL";
         }
     }
@@ -132,7 +133,8 @@ std::string ContainerInfo::get_docker_image() {
 
     std::string hostname = execute_command("hostname");
     if (!hostname.empty()) {
-        std::string image_cmd = "docker inspect " + hostname + " --format='{{.Config.Image}}' 2>/dev/null";
+        std::string image_cmd =
+            "docker inspect " + hostname + " --format='{{.Config.Image}}' 2>/dev/null";
         std::string image = execute_command(image_cmd);
         if (!image.empty()) {
             return image;
@@ -165,7 +167,8 @@ bool ContainerInfo::is_in_systemd_nspawn() {
 bool ContainerInfo::is_in_wsl() {
     if (file_exists("/proc/version")) {
         std::string content = read_file_content("/proc/version");
-        return content.find("Microsoft") != std::string::npos || content.find("WSL") != std::string::npos;
+        return content.find("Microsoft") != std::string::npos ||
+               content.find("WSL") != std::string::npos;
     }
     return false;
 }

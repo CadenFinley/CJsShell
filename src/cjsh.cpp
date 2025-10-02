@@ -89,8 +89,7 @@ bool show_title_line = true;
 // add --tiny option to disable all extra cjsh compoenents at compile time and
 // compile with -0z add --fast opttim to compile with -O3 NFC normalization
 // requires full Unicode decomposition and composition. Until a dedicated
-// normalization routine is added, return the input. rework all d_debug_mode
-// checks to use a debug_log function break up monolith of execute_block
+// normalization routine is added, return the input.
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
@@ -110,7 +109,10 @@ static int handle_non_interactive_mode(const std::string& script_file) {
                 error_type = ErrorType::PERMISSION_DENIED;
             }
 
-            print_error({error_type, script_file.c_str(), read_result.error().c_str(), {"Check file path and permissions"}});
+            print_error({error_type,
+                         script_file.c_str(),
+                         read_result.error().c_str(),
+                         {"Check file path and permissions"}});
             return 127;
         }
 
@@ -147,7 +149,8 @@ void initialize_colors() {
 }
 
 void initialize_plugins() {
-    g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path, config::plugins_enabled, true);
+    g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
+                                        config::plugins_enabled, true);
 }
 
 void initialize_themes() {
@@ -160,15 +163,19 @@ void initialize_ai() {
     if (env_key) {
         api_key = env_key;
     }
-    g_ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""), std::vector<std::string>{},
-                                cjsh_filesystem::g_cjsh_data_path, config::ai_enabled);
+    g_ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
+                                std::vector<std::string>{}, cjsh_filesystem::g_cjsh_data_path,
+                                config::ai_enabled);
 }
 
 static int initialize_interactive_components() {
     g_shell->set_interactive_mode(true);
 
     if (!cjsh_filesystem::init_interactive_filesystem()) {
-        print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize file system", {"Check file permissions", "Reinstall cjsh"}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     nullptr,
+                     "Failed to initialize file system",
+                     {"Check file permissions", "Reinstall cjsh"}});
         return 1;
     }
 
@@ -205,9 +212,11 @@ static void process_profile_files() {
 }
 
 static int initialize_login_mode() {
-
     if (!cjsh_filesystem::init_login_filesystem()) {
-        print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize file system", {"Check file permissions", "Reinstall cjsh"}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     nullptr,
+                     "Failed to initialize file system",
+                     {"Check file permissions", "Reinstall cjsh"}});
         return 1;
     }
 
@@ -218,7 +227,8 @@ static int initialize_login_mode() {
 
 static void start_interactive_process() {
     auto startup_end_time = std::chrono::steady_clock::now();
-    auto startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(startup_end_time - g_startup_begin_time);
+    auto startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+        startup_end_time - g_startup_begin_time);
 
     if (g_shell && g_theme) {
         g_shell->set_initial_duration(startup_duration.count());
@@ -246,7 +256,6 @@ static void start_interactive_process() {
 }
 
 void cleanup_resources() {
-
     if (g_shell) {
         TrapManager::instance().set_shell(g_shell.get());
         TrapManager::instance().execute_exit_trap();
@@ -318,7 +327,6 @@ int main(int argc, char* argv[]) {
     }
 
     if (config::execute_command) {
-
         int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
 
         const char* exit_code_str = getenv("EXIT_CODE");

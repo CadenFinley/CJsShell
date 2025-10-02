@@ -39,13 +39,14 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
             }
             case '\\':
                 if (i + 1 < pattern.size()) {
-
                     regex_pattern += "\\\\";
 
                     char next_char = pattern[i + 1];
-                    if (next_char == '.' || next_char == '^' || next_char == '$' || next_char == '*' || next_char == '+' ||
-                        next_char == '?' || next_char == '(' || next_char == ')' || next_char == '[' || next_char == ']' ||
-                        next_char == '{' || next_char == '}' || next_char == '|' || next_char == '\\') {
+                    if (next_char == '.' || next_char == '^' || next_char == '$' ||
+                        next_char == '*' || next_char == '+' || next_char == '?' ||
+                        next_char == '(' || next_char == ')' || next_char == '[' ||
+                        next_char == ']' || next_char == '{' || next_char == '}' ||
+                        next_char == '|' || next_char == '\\') {
                         regex_pattern += "\\";
                     }
                     regex_pattern += next_char;

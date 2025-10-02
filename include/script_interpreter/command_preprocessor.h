@@ -16,7 +16,8 @@ class CommandPreprocessor {
     static PreprocessedCommand preprocess(const std::string& command);
 
    private:
-    static std::string process_here_documents(const std::string& command, std::map<std::string, std::string>& here_docs);
+    static std::string process_here_documents(const std::string& command,
+                                              std::map<std::string, std::string>& here_docs);
 
     static std::string process_subshells(const std::string& command);
 

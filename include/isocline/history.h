@@ -33,8 +33,10 @@ ic_private bool history_update(history_t* h, const char* entry);
 ic_private const char* history_get(const history_t* h, ssize_t n);
 ic_private void history_remove_last(history_t* h);
 
-ic_private bool history_search(const history_t* h, ssize_t from, const char* search, bool backward, ssize_t* hidx, ssize_t* hpos);
+ic_private bool history_search(const history_t* h, ssize_t from, const char* search, bool backward,
+                               ssize_t* hidx, ssize_t* hpos);
 
-ic_private bool history_search_prefix(const history_t* h, ssize_t from, const char* prefix, bool backward, ssize_t* hidx);
+ic_private bool history_search_prefix(const history_t* h, ssize_t from, const char* prefix,
+                                      bool backward, ssize_t* hidx);
 
 #endif  // IC_HISTORY_H

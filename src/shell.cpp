@@ -38,7 +38,8 @@ std::unordered_map<std::string, CachedScript> g_script_cache;
 
 std::string to_lower_copy(std::string_view value) {
     std::string result(value);
-    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     return result;
 }
 
@@ -86,7 +87,8 @@ void ScopedRawMode::release() {
     }
 
     if (tcsetattr(fd_, TCSANOW, &saved_modes_) == -1) {
-        // Failed to restore terminal modes, but there's not much we can do here as shell is likely exiting.
+        // Failed to restore terminal modes, but there's not much we can do here as shell is likely
+        // exiting.
     }
 
     entered_ = false;
@@ -99,7 +101,6 @@ void Shell::process_pending_signals() {
 }
 
 Shell::Shell() {
-
     save_terminal_state();
 
     shell_prompt = std::make_unique<Prompt>();
@@ -176,13 +177,17 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
             if (optional) {
                 return 0;
             }
-            print_error({ErrorType::FILE_NOT_FOUND, "source", "cannot open file '" + display_path + "'", {}});
+            print_error({ErrorType::FILE_NOT_FOUND,
+                         "source",
+                         "cannot open file '" + display_path + "'",
+                         {}});
             return 1;
         }
 
         std::stringstream buffer;
         buffer << file.rdbuf();
-        auto parsed_lines = std::make_shared<std::vector<std::string>>(shell_script_interpreter->parse_into_lines(buffer.str()));
+        auto parsed_lines = std::make_shared<std::vector<std::string>>(
+            shell_script_interpreter->parse_into_lines(buffer.str()));
         cached_lines = parsed_lines;
 
         if (!mod_ec) {
@@ -275,7 +280,8 @@ int Shell::execute(const std::string& script) {
         last_command = processed_script;
         return exit_code;
     } else {
-        print_error(ErrorInfo{ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
+        print_error(ErrorInfo{
+            ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
         return 1;
     }
 }
@@ -303,7 +309,6 @@ void Shell::restore_terminal_state() {
 
     if (terminal_state_saved) {
         if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
-
             tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
         }
         terminal_state_saved = false;
@@ -323,10 +328,11 @@ void Shell::setup_job_control() {
 
     if (setpgid(shell_pgid, shell_pgid) < 0) {
         if (errno != EPERM) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "setpgid",
-                         "couldn't put the shell in its own process group: " + std::string(strerror(errno)),
-                         {}});
+            print_error(
+                {ErrorType::RUNTIME_ERROR,
+                 "setpgid",
+                 "couldn't put the shell in its own process group: " + std::string(strerror(errno)),
+                 {}});
         }
     }
 
@@ -336,13 +342,17 @@ void Shell::setup_job_control() {
         int tpgrp = tcgetpgrp(shell_terminal);
         if (tpgrp != -1) {
             if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-                print_error({ErrorType::RUNTIME_ERROR, "tcsetpgrp", "couldn't grab terminal control: " + std::string(strerror(errno)), {}});
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "tcsetpgrp",
+                             "couldn't grab terminal control: " + std::string(strerror(errno)),
+                             {}});
             }
         }
 
         job_control_enabled = true;
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
         job_control_enabled = false;
     }
 }
@@ -385,7 +395,10 @@ int Shell::do_ai_request(const std::string& command) {
                     last_command = command;
                     return exit_code;
                 } else {
-                    print_error(ErrorInfo{ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
+                    print_error(ErrorInfo{ErrorType::RUNTIME_ERROR,
+                                          "",
+                                          "No script interpreter available",
+                                          {"Restart cjsh"}});
                     return 1;
                 }
             }
@@ -396,13 +409,13 @@ int Shell::do_ai_request(const std::string& command) {
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
-
     if (args.empty()) {
         return 0;
     }
     if (!shell_exec || !built_ins) {
         g_exit_flag = true;
-        print_error({ErrorType::RUNTIME_ERROR, "", "Shell not properly initialized", {"Restart cjsh"}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "", "Shell not properly initialized", {"Restart cjsh"}});
         return 1;
     }
 
@@ -413,7 +426,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
             env_vars[var_name] = var_value;
 
-            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || var_name == "USER" || var_name == "SHELL") {
+            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
+                var_name == "USER" || var_name == "SHELL") {
                 setenv(var_name.c_str(), var_value.c_str(), 1);
             }
 
@@ -441,7 +455,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         if (!args.empty() && !enabled_plugins.empty()) {
             for (const auto& plugin : enabled_plugins) {
                 std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
-                if (std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()) {
+                if (std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) !=
+                    plugin_commands.end()) {
                     return g_plugin->handle_plugin_command(plugin, args) ? 0 : 1;
                 }
             }
@@ -473,7 +488,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
         if (exit_code != 0) {
             ErrorInfo error = shell_exec->get_error();
-            if (error.type != ErrorType::RUNTIME_ERROR || error.message.find("command failed with exit code") == std::string::npos) {
+            if (error.type != ErrorType::RUNTIME_ERROR ||
+                error.message.find("command failed with exit code") == std::string::npos) {
                 shell_exec->print_last_error();
             }
         }
@@ -521,7 +537,8 @@ int Shell::shift_positional_parameters(int count) {
     if (static_cast<size_t>(count) >= positional_parameters.size()) {
         positional_parameters.clear();
     } else {
-        positional_parameters.erase(positional_parameters.begin(), positional_parameters.begin() + count);
+        positional_parameters.erase(positional_parameters.begin(),
+                                    positional_parameters.begin() + count);
     }
 
     return 0;
@@ -555,7 +572,6 @@ void Shell::expand_env_vars(std::string& value) {
 }
 
 void Shell::sync_env_vars_from_system() {
-
     extern char** environ;
     for (char** env = environ; *env != nullptr; env++) {
         std::string env_str(*env);

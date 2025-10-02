@@ -182,7 +182,6 @@ void update_job_management() {
 }
 
 std::string generate_prompt() {
-
     std::printf(" \r");
     std::fflush(stdout);
 
@@ -205,7 +204,6 @@ std::string generate_prompt() {
 }
 
 bool handle_null_input() {
-
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
     if (!status.terminal_alive || !status.parent_alive) {
@@ -256,7 +254,6 @@ std::pair<std::string, bool> get_next_command() {
 }
 
 void main_process_loop() {
-
     initialize_completion_system();
     typeahead::initialize();
 
@@ -265,7 +262,6 @@ void main_process_loop() {
     notify_plugins("main_process_pre_run", "");
 
     while (true) {
-
         g_shell->process_pending_signals();
 
         if (g_exit_flag) {
@@ -277,7 +273,7 @@ void main_process_loop() {
         }
 
         update_job_management();
-        
+
         update_terminal_title();
 
         typeahead::flush_pending_typeahead();

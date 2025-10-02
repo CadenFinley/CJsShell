@@ -7,7 +7,6 @@
 #include "usage.h"
 
 int help_command() {
-
     const std::string section_separator = "\n" + std::string(80, '-') + "\n";
     std::cout << "\nCJ'S SHELL COMMAND REFERENCE" << section_separator;
 

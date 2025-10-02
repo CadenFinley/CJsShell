@@ -69,7 +69,8 @@ bool DirectoryInfo::is_truncated() {
     return full_path.length() != display_path.length();
 }
 
-std::string DirectoryInfo::contract_path(const std::filesystem::path& path, const std::filesystem::path& home_dir,
+std::string DirectoryInfo::contract_path(const std::filesystem::path& path,
+                                         const std::filesystem::path& home_dir,
                                          const std::string& home_symbol) {
     std::string path_str = path.string();
     std::string home_str = home_dir.string();
@@ -78,14 +79,16 @@ std::string DirectoryInfo::contract_path(const std::filesystem::path& path, cons
         return home_symbol;
     }
 
-    if (path_str.length() >= home_str.length() + 1 && path_str.substr(0, home_str.length() + 1) == home_str + "/") {
+    if (path_str.length() >= home_str.length() + 1 &&
+        path_str.substr(0, home_str.length() + 1) == home_str + "/") {
         return home_symbol + path_str.substr(home_str.length());
     }
 
     return path_str;
 }
 
-std::string DirectoryInfo::contract_repo_path(const std::filesystem::path& path, const std::filesystem::path& repo_root) {
+std::string DirectoryInfo::contract_repo_path(const std::filesystem::path& path,
+                                              const std::filesystem::path& repo_root) {
     std::string path_str = path.string();
     std::string repo_str = repo_root.string();
 
@@ -93,7 +96,8 @@ std::string DirectoryInfo::contract_repo_path(const std::filesystem::path& path,
         return repo_root.filename().string();
     }
 
-    if (path_str.length() >= repo_str.length() + 1 && path_str.substr(0, repo_str.length() + 1) == repo_str + "/") {
+    if (path_str.length() >= repo_str.length() + 1 &&
+        path_str.substr(0, repo_str.length() + 1) == repo_str + "/") {
         std::string relative = path_str.substr(repo_str.length() + 1);
         return repo_root.filename().string() + "/" + relative;
     }
@@ -101,7 +105,8 @@ std::string DirectoryInfo::contract_repo_path(const std::filesystem::path& path,
     return path_str;
 }
 
-std::string DirectoryInfo::substitute_path(const std::string& path, const std::unordered_map<std::string, std::string>& substitutions) {
+std::string DirectoryInfo::substitute_path(
+    const std::string& path, const std::unordered_map<std::string, std::string>& substitutions) {
     std::string result = path;
 
     for (const auto& [from, to] : substitutions) {
@@ -142,7 +147,8 @@ std::string DirectoryInfo::truncate_path(const std::string& path, int max_length
     return result;
 }
 
-std::string DirectoryInfo::to_fish_style(int dir_length, const std::string& full_path, const std::string& truncated_path) {
+std::string DirectoryInfo::to_fish_style(int dir_length, const std::string& full_path,
+                                         const std::string& truncated_path) {
     if (dir_length <= 0) {
         return truncated_path;
     }

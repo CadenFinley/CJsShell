@@ -67,7 +67,8 @@ struct CompletionTracker {
     std::string original_prefix;
     size_t total_completions_added;
 
-    CompletionTracker(ic_completion_env_t* env, const char* prefix) : cenv(env), original_prefix(prefix), total_completions_added(0) {
+    CompletionTracker(ic_completion_env_t* env, const char* prefix)
+        : cenv(env), original_prefix(prefix), total_completions_added(0) {
         added_completions.reserve(128);
     }
 
@@ -89,7 +90,8 @@ struct CompletionTracker {
         return prefix_str + completion_text;
     }
 
-    bool would_create_duplicate(const char* completion_text, const char* source, long delete_before = 0) {
+    bool would_create_duplicate(const char* completion_text, const char* source,
+                                long delete_before = 0) {
         if (added_completions.size() >= MAX_COMPLETION_TRACKER_ENTRIES) {
             return true;
         }
@@ -109,7 +111,8 @@ struct CompletionTracker {
                 if (bookmark_result.back() == '/') {
                     bookmark_result.pop_back();
                     auto bookmark_it = added_completions.find(bookmark_result);
-                    if (bookmark_it != added_completions.end() && bookmark_it->second == PRIORITY_BOOKMARK) {
+                    if (bookmark_it != added_completions.end() &&
+                        bookmark_it->second == PRIORITY_BOOKMARK) {
                         added_completions.erase(bookmark_it);
                     }
                 }
@@ -139,8 +142,8 @@ struct CompletionTracker {
         return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
     }
 
-    bool add_completion_prim_if_unique(const char* completion_text, const char* display, const char* help, long delete_before,
-                                       long delete_after) {
+    bool add_completion_prim_if_unique(const char* completion_text, const char* display,
+                                       const char* help, long delete_before, long delete_after) {
         const char* source = nullptr;
         if (has_reached_completion_limit()) {
             return true;
@@ -152,10 +155,12 @@ struct CompletionTracker {
         std::string final_result = calculate_final_result(completion_text, delete_before);
         added_completions[final_result] = get_source_priority(source);
         total_completions_added++;
-        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
+        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
+                                                  delete_before, delete_after);
     }
 
-    bool add_completion_prim_with_source_if_unique(const char* completion_text, const char* display, const char* help, const char* source,
+    bool add_completion_prim_with_source_if_unique(const char* completion_text, const char* display,
+                                                   const char* help, const char* source,
                                                    long delete_before, long delete_after) {
         if (has_reached_completion_limit()) {
             return true;
@@ -177,7 +182,8 @@ struct CompletionTracker {
                 if (bookmark_result.back() == '/') {
                     bookmark_result.pop_back();
                     auto bookmark_it = added_completions.find(bookmark_result);
-                    if (bookmark_it != added_completions.end() && bookmark_it->second == PRIORITY_BOOKMARK) {
+                    if (bookmark_it != added_completions.end() &&
+                        bookmark_it->second == PRIORITY_BOOKMARK) {
                         added_completions.erase(bookmark_it);
                     }
                 }
@@ -193,7 +199,8 @@ struct CompletionTracker {
         }
 
         added_completions[final_result] = new_priority;
-        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
+        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
+                                                  delete_before, delete_after);
     }
 };
 
@@ -228,29 +235,36 @@ bool safe_add_completion(ic_completion_env_t* cenv, const char* completion_text)
     }
 }
 
-bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text, const char* source) {
-    if (g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit()) {
+bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text,
+                                     const char* source) {
+    if (g_current_completion_tracker &&
+        g_current_completion_tracker->has_reached_completion_limit()) {
         return true;
     }
     return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
 }
 
-bool safe_add_completion_prim(ic_completion_env_t* cenv, const char* completion_text, const char* display, const char* help,
-                              long delete_before, long delete_after) {
+bool safe_add_completion_prim(ic_completion_env_t* cenv, const char* completion_text,
+                              const char* display, const char* help, long delete_before,
+                              long delete_after) {
     if (g_current_completion_tracker) {
-        return g_current_completion_tracker->add_completion_prim_if_unique(completion_text, display, help, delete_before, delete_after);
+        return g_current_completion_tracker->add_completion_prim_if_unique(
+            completion_text, display, help, delete_before, delete_after);
     } else {
-        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, nullptr, delete_before, delete_after);
+        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, nullptr,
+                                                  delete_before, delete_after);
     }
 }
 
-bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char* completion_text, const char* display, const char* help,
-                                          const char* source, long delete_before, long delete_after) {
+bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char* completion_text,
+                                          const char* display, const char* help, const char* source,
+                                          long delete_before, long delete_after) {
     if (g_current_completion_tracker) {
-        return g_current_completion_tracker->add_completion_prim_with_source_if_unique(completion_text, display, help, source,
-                                                                                       delete_before, delete_after);
+        return g_current_completion_tracker->add_completion_prim_with_source_if_unique(
+            completion_text, display, help, source, delete_before, delete_after);
     } else {
-        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source, delete_before, delete_after);
+        return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
+                                                  delete_before, delete_after);
     }
 }
 
@@ -261,7 +275,8 @@ static bool equals_completion_token(const std::string& value, const std::string&
 static bool starts_with_token(const std::string& value, const std::string& target_prefix);
 
 static bool completion_limit_hit() {
-    return g_current_completion_tracker && g_current_completion_tracker->has_reached_completion_limit();
+    return g_current_completion_tracker &&
+           g_current_completion_tracker->has_reached_completion_limit();
 }
 
 static bool completion_limit_hit_with_log(const char* label) {
@@ -270,10 +285,11 @@ static bool completion_limit_hit_with_log(const char* label) {
     return true;
 }
 
-static bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate, size_t prefix_len, const char* source,
-                                   const char* debug_label) {
+static bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate,
+                                   size_t prefix_len, const char* source, const char* debug_label) {
     long delete_before = static_cast<long>(prefix_len);
-    return safe_add_completion_prim_with_source(cenv, candidate.c_str(), nullptr, nullptr, source, delete_before, 0);
+    return safe_add_completion_prim_with_source(cenv, candidate.c_str(), nullptr, nullptr, source,
+                                                delete_before, 0);
 }
 
 static std::string build_completion_suffix(const std::filesystem::directory_entry& entry) {
@@ -283,16 +299,18 @@ static std::string build_completion_suffix(const std::filesystem::directory_entr
     return completion_suffix;
 }
 
-static bool add_path_completion(ic_completion_env_t* cenv, const std::filesystem::directory_entry& entry, long delete_before,
+static bool add_path_completion(ic_completion_env_t* cenv,
+                                const std::filesystem::directory_entry& entry, long delete_before,
                                 const std::string& completion_suffix) {
     const char* source = entry.is_directory() ? "directory" : "file";
     if (delete_before == 0)
         return safe_add_completion_with_source(cenv, completion_suffix.c_str(), source);
-    return safe_add_completion_prim_with_source(cenv, completion_suffix.c_str(), nullptr, nullptr, source, delete_before, 0);
+    return safe_add_completion_prim_with_source(cenv, completion_suffix.c_str(), nullptr, nullptr,
+                                                source, delete_before, 0);
 }
 
-static void determine_directory_target(const std::string& path, bool treat_as_directory, std::filesystem::path& dir_path,
-                                       std::string& match_prefix) {
+static void determine_directory_target(const std::string& path, bool treat_as_directory,
+                                       std::filesystem::path& dir_path, std::string& match_prefix) {
     namespace fs = std::filesystem;
     if (treat_as_directory || path.empty() || path.back() == '/') {
         dir_path = path.empty() ? fs::path(".") : fs::path(path);
@@ -313,8 +331,10 @@ static void determine_directory_target(const std::string& path, bool treat_as_di
 }
 
 template <typename Container, typename Extractor>
-static void process_command_candidates(ic_completion_env_t* cenv, const Container& container, const std::string& prefix, size_t prefix_len,
-                                       const char* source, const char* debug_label, Extractor extractor,
+static void process_command_candidates(ic_completion_env_t* cenv, const Container& container,
+                                       const std::string& prefix, size_t prefix_len,
+                                       const char* source, const char* debug_label,
+                                       Extractor extractor,
                                        const std::function<bool(const std::string&)>& filter = {}) {
     for (const auto& item : container) {
         if (completion_limit_hit_with_log(debug_label))
@@ -333,8 +353,10 @@ static void process_command_candidates(ic_completion_env_t* cenv, const Containe
     }
 }
 
-static bool iterate_directory_entries(ic_completion_env_t* cenv, const std::filesystem::path& dir_path, const std::string& match_prefix,
-                                      bool directories_only, size_t max_completions, bool skip_hidden_without_prefix,
+static bool iterate_directory_entries(ic_completion_env_t* cenv,
+                                      const std::filesystem::path& dir_path,
+                                      const std::string& match_prefix, bool directories_only,
+                                      size_t max_completions, bool skip_hidden_without_prefix,
                                       const char* debug_label) {
     namespace fs = std::filesystem;
     size_t completion_count = 0;
@@ -501,8 +523,9 @@ std::string quote_path_if_needed(const std::string& path) {
 
     bool needs_quoting = false;
     for (char c : path) {
-        if (c == ' ' || c == '\t' || c == '\'' || c == '"' || c == '\\' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' ||
-            c == '}' || c == '&' || c == '|' || c == ';' || c == '<' || c == '>' || c == '*' || c == '?' || c == '$' || c == '`') {
+        if (c == ' ' || c == '\t' || c == '\'' || c == '"' || c == '\\' || c == '(' || c == ')' ||
+            c == '[' || c == ']' || c == '{' || c == '}' || c == '&' || c == '|' || c == ';' ||
+            c == '<' || c == '>' || c == '*' || c == '?' || c == '$' || c == '`') {
             needs_quoting = true;
             break;
         }
@@ -525,7 +548,8 @@ std::string quote_path_if_needed(const std::string& path) {
 
 bool is_interactive_builtin(const std::string& cmd) {
     static const std::unordered_set<std::string> script_only_builtins = {
-        "break", "continue", "return", "__INTERNAL_SUBSHELL__", "local", "shift", "if", "[[", "[", ":", "login-startup-arg", "prompt_test"};
+        "break", "continue", "return", "__INTERNAL_SUBSHELL__", "local",      "shift", "if",
+        "[[",    "[",        ":",      "login-startup-arg",     "prompt_test"};
 
     return script_only_builtins.find(cmd) == script_only_builtins.end();
 }
@@ -551,7 +575,6 @@ CompletionContext detect_completion_context(const char* prefix) {
 }
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
-
     if (ic_stop_completing(cenv))
         return;
 
@@ -601,35 +624,37 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     };
 
     process_command_candidates(
-        cenv, builtin_cmds, prefix_str, prefix_len, "builtin", "builtin commands", [](const std::string& value) { return value; },
-        builtin_filter);
+        cenv, builtin_cmds, prefix_str, prefix_len, "builtin", "builtin commands",
+        [](const std::string& value) { return value; }, builtin_filter);
     if (completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    process_command_candidates(cenv, function_names, prefix_str, prefix_len, "function", "function commands",
+    process_command_candidates(cenv, function_names, prefix_str, prefix_len, "function",
+                               "function commands", [](const std::string& value) { return value; });
+    if (completion_limit_hit() || ic_stop_completing(cenv))
+        return;
+
+    process_command_candidates(cenv, plugin_cmds, prefix_str, prefix_len, "plugin",
+                               "plugin commands", [](const std::string& value) { return value; });
+    if (completion_limit_hit() || ic_stop_completing(cenv))
+        return;
+
+    process_command_candidates(cenv, aliases, prefix_str, prefix_len, "alias", "aliases",
                                [](const std::string& value) { return value; });
     if (completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    process_command_candidates(cenv, plugin_cmds, prefix_str, prefix_len, "plugin", "plugin commands",
-                               [](const std::string& value) { return value; });
-    if (completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    process_command_candidates(cenv, aliases, prefix_str, prefix_len, "alias", "aliases", [](const std::string& value) { return value; });
-    if (completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    process_command_candidates(cenv, cached_executables, prefix_str, prefix_len, "system", "cached executables",
-                               [](const std::filesystem::path& value) { return value.filename().string(); });
+    process_command_candidates(
+        cenv, cached_executables, prefix_str, prefix_len, "system", "cached executables",
+        [](const std::filesystem::path& value) { return value.filename().string(); });
 }
 
 bool looks_like_file_path(const std::string& str) {
     if (str.empty())
         return false;
 
-    if (str[0] == '/' || str.rfind("./", 0) == 0 || str.rfind("../", 0) == 0 || str.rfind("~/", 0) == 0 ||
-        str.find('/') != std::string::npos) {
+    if (str[0] == '/' || str.rfind("./", 0) == 0 || str.rfind("../", 0) == 0 ||
+        str.rfind("~/", 0) == 0 || str.find('/') != std::string::npos) {
         return true;
     }
 
@@ -638,12 +663,14 @@ bool looks_like_file_path(const std::string& str) {
         std::string extension = str.substr(dot_pos + 1);
 
         static const std::unordered_set<std::string> file_extensions = {
-            "txt", "log", "conf", "config", "json", "xml",  "yaml", "yml",  "cpp",  "c",   "h",   "hpp",
-            "py",  "js",  "ts",   "java",   "sh",   "bash", "md",   "html", "css",  "sql", "tar", "gz",
-            "zip", "pdf", "doc",  "docx",   "xls",  "xlsx", "png",  "jpg",  "jpeg", "gif", "mp3", "mp4"};
+            "txt",  "log",  "conf", "config", "json", "xml",  "yaml", "yml", "cpp",
+            "c",    "h",    "hpp",  "py",     "js",   "ts",   "java", "sh",  "bash",
+            "md",   "html", "css",  "sql",    "tar",  "gz",   "zip",  "pdf", "doc",
+            "docx", "xls",  "xlsx", "png",    "jpg",  "jpeg", "gif",  "mp3", "mp4"};
 
         std::string ext_lower = extension;
-        std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(), [](unsigned char c) { return std::tolower(c); });
+        std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
 
         if (file_extensions.find(ext_lower) != file_extensions.end()) {
             return true;
@@ -654,7 +681,6 @@ bool looks_like_file_path(const std::string& str) {
 }
 
 void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
-
     if (ic_stop_completing(cenv))
         return;
 
@@ -707,7 +733,8 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         line.clear();
     }
 
-    std::sort(matches.begin(), matches.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+    std::sort(matches.begin(), matches.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
     const size_t max_suggestions = 15;
     size_t count = 0;
 
@@ -718,7 +745,8 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         const std::string& completion = match.first;
         long delete_before = static_cast<long>(prefix_len);
 
-        if (!safe_add_completion_prim_with_source(cenv, completion.c_str(), nullptr, nullptr, "history", delete_before, 0))
+        if (!safe_add_completion_prim_with_source(cenv, completion.c_str(), nullptr, nullptr,
+                                                  "history", delete_before, 0))
             return;
         if (++count >= max_suggestions || ic_stop_completing(cenv))
             return;
@@ -735,7 +763,8 @@ bool should_complete_directories_only(const std::string& prefix) {
         return false;
     }
 
-    static const std::unordered_set<std::string> directory_only_commands = {"cd", "ls", "dir", "rmdir"};
+    static const std::unordered_set<std::string> directory_only_commands = {"cd", "ls", "dir",
+                                                                            "rmdir"};
     if (g_completion_case_sensitive) {
         return directory_only_commands.find(command) != directory_only_commands.end();
     }
@@ -751,7 +780,8 @@ bool starts_with_case_insensitive(const std::string& str, const std::string& pre
         return false;
     }
 
-    return std::equal(prefix.begin(), prefix.end(), str.begin(), [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+    return std::equal(prefix.begin(), prefix.end(), str.begin(),
+                      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
 
 static bool starts_with_case_sensitive(const std::string& str, const std::string& prefix) {
@@ -779,7 +809,8 @@ static bool equals_completion_token(const std::string& value, const std::string&
         return false;
     }
 
-    return std::equal(value.begin(), value.end(), target.begin(), [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+    return std::equal(value.begin(), value.end(), target.begin(),
+                      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
 
 static bool starts_with_token(const std::string& value, const std::string& target_prefix) {
@@ -791,7 +822,6 @@ static bool starts_with_token(const std::string& value, const std::string& targe
 }
 
 void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
-
     if (ic_stop_completing(cenv))
         return;
 
@@ -814,7 +844,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             has_tilde = true;
             prefix_before = prefix_str.substr(0, last_space + 1);
             special_part = prefix_str.substr(last_space + 1);
-        } else if (prefix_str[last_space + 1] == '-' && (prefix_str.length() == last_space + 2 || prefix_str[last_space + 2] == '/')) {
+        } else if (prefix_str[last_space + 1] == '-' &&
+                   (prefix_str.length() == last_space + 2 || prefix_str[last_space + 2] == '/')) {
             has_dash = true;
             prefix_before = prefix_str.substr(0, last_space + 1);
             special_part = prefix_str.substr(last_space + 1);
@@ -825,7 +856,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     } else if (!prefix_str.empty() && prefix_str[0] == '~') {
         has_tilde = true;
         special_part = prefix_str;
-    } else if (!prefix_str.empty() && prefix_str[0] == '-' && (prefix_str.length() == 1 || prefix_str[1] == '/')) {
+    } else if (!prefix_str.empty() && prefix_str[0] == '-' &&
+               (prefix_str.length() == 1 || prefix_str[1] == '/')) {
         has_dash = true;
         special_part = prefix_str;
     } else if (starts_with_token(prefix_str, "cd ") && prefix_str.length() > 3) {
@@ -834,9 +866,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     if (has_tilde && (special_part.length() == 1 || special_part[1] == '/')) {
-
         std::string unquoted_special = unquote_path(special_part);
-        std::string path_after_tilde = unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
+        std::string path_after_tilde =
+            unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
         std::string dir_to_complete = cjsh_filesystem::g_user_home_path.string();
 
         if (unquoted_special.length() > 1) {
@@ -851,18 +883,18 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false, "tilde"))
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false,
+                                               "tilde"))
                     return;
             }
         } catch (const std::exception& e) {
-
         }
 
         return;
     } else if (has_dash && (special_part.length() == 1 || special_part[1] == '/')) {
-
         std::string unquoted_special = unquote_path(special_part);
-        std::string path_after_dash = unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
+        std::string path_after_dash =
+            unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
         std::string dir_to_complete = g_shell->get_previous_directory();
 
         if (dir_to_complete.empty()) {
@@ -881,7 +913,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false, "dash"))
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false,
+                                               "dash"))
                     return;
             }
         } catch (const std::exception& e) {
@@ -893,14 +926,14 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (!prefix_before.empty()) {
         std::string command_part = prefix_before;
 
-        while (!command_part.empty() && (command_part.back() == ' ' || command_part.back() == '\t')) {
+        while (!command_part.empty() &&
+               (command_part.back() == ' ' || command_part.back() == '\t')) {
             command_part.pop_back();
         }
 
         if (equals_completion_token(command_part, "cd") || starts_with_token(command_part, "cd ")) {
             if (!config::smart_cd_enabled) {
             } else {
-
                 if (g_shell && g_shell->get_built_ins()) {
                     const auto& bookmarks = g_shell->get_built_ins()->get_directory_bookmarks();
                     std::string bookmark_match_prefix = unquote_path(special_part);
@@ -909,11 +942,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                         const std::string& bookmark_name = bookmark.first;
                         const std::string& bookmark_path = bookmark.second;
 
-                        if (bookmark_match_prefix.empty() || matches_completion_prefix(bookmark_name, bookmark_match_prefix)) {
+                        if (bookmark_match_prefix.empty() ||
+                            matches_completion_prefix(bookmark_name, bookmark_match_prefix)) {
                             namespace fs = std::filesystem;
                             if (fs::exists(bookmark_path) && fs::is_directory(bookmark_path)) {
                                 std::string current_dir_item = "./" + bookmark_name;
-                                if (fs::exists(current_dir_item) && fs::is_directory(current_dir_item)) {
+                                if (fs::exists(current_dir_item) &&
+                                    fs::is_directory(current_dir_item)) {
                                     continue;
                                 }
 
@@ -921,8 +956,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
                                 std::string completion_text = bookmark_name;
 
-                                if (!safe_add_completion_prim_with_source(cenv, completion_text.c_str(), NULL, NULL, "bookmark",
-                                                                          delete_before, 0))
+                                if (!safe_add_completion_prim_with_source(
+                                        cenv, completion_text.c_str(), NULL, NULL, "bookmark",
+                                        delete_before, 0))
                                     return;
                             }
                         }
@@ -932,14 +968,16 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
     }
 
-    std::string path_to_check = special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
+    std::string path_to_check =
+        special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
 
     if (!ic_stop_completing(cenv) && !path_to_check.empty() && path_to_check.back() == '/') {
         namespace fs = std::filesystem;
         fs::path dir_path(path_to_check);
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, "", directories_only, 30, false, "all files"))
+                if (!iterate_directory_entries(cenv, dir_path, "", directories_only, 30, false,
+                                               "all files"))
                     return;
             }
         } catch (const std::exception& e) {
@@ -948,7 +986,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     if (directories_only) {
-        std::string path_to_complete = special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
+        std::string path_to_complete =
+            special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
 
         namespace fs = std::filesystem;
         fs::path dir_path;
@@ -958,13 +997,15 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, 30, true, "directory-only"))
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, 30, true,
+                                               "directory-only"))
                     return;
             }
         } catch (const std::exception& e) {
         }
     } else {
-        std::string path_to_complete = special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
+        std::string path_to_complete =
+            special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
 
         namespace fs = std::filesystem;
         fs::path dir_path;
@@ -974,7 +1015,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, true, "general filename"))
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, true,
+                                               "general filename"))
                     return;
             }
         } catch (const std::exception& e) {
@@ -983,7 +1025,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 }
 
 void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
-
     if (ic_stop_completing(cenv))
         return;
 
@@ -1027,7 +1068,6 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 }
 
 void initialize_completion_system() {
-
     reset_to_default_styles();
 
     load_custom_styles_from_config();
@@ -1064,7 +1104,6 @@ void initialize_completion_system() {
 }
 
 void update_completion_frequency(const std::string& command) {
-
     if (!command.empty()) {
         g_completion_frequency[command]++;
     }

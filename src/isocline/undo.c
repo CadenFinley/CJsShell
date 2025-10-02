@@ -59,7 +59,8 @@ ic_private void editstate_capture(alloc_t* mem, editstate_t** es, const char* in
 }
 
 // caller should free *input
-ic_private bool editstate_restore(alloc_t* mem, editstate_t** es, const char** input, ssize_t* pos) {
+ic_private bool editstate_restore(alloc_t* mem, editstate_t** es, const char** input,
+                                  ssize_t* pos) {
     if (*es == NULL)
         return false;
     // pop
