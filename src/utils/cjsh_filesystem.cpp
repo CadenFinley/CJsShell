@@ -412,6 +412,7 @@ std::string find_executable_in_path(const std::string& name) {
 
 void create_profile_file() {
     std::string profile_content =
+        "#!/usr/bin/env cjsh\n"
         "# cjsh Configuration File\n"
         "# this file is sourced when the shell starts in login "
         "mode and is sourced after /etc/profile and ~/.profile\n"
@@ -479,6 +480,7 @@ void create_profile_file() {
 
 void create_source_file() {
     std::string source_content =
+        "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
         "# this file is sourced when the shell starts in interactive mode\n"
         "# this is where your aliases, theme setup, enabled "
