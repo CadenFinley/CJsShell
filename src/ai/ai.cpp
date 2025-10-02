@@ -1,5 +1,6 @@
 #include "ai.h"
 
+#include <algorithm>
 #include <termios.h>
 #include <unistd.h>
 #include <chrono>
