@@ -1,6 +1,7 @@
 #include "signal_handler.h"
 
 #include <signal.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
 #include <iostream>
