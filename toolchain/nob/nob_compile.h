@@ -754,8 +754,10 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
     const char* strip_env = getenv("CJSH_STRIP_BINARY");
 #if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
-    bool strip_requested = strip_env != NULL && strip_env[0] != '\0' &&
-                           strcmp(strip_env, "0") != 0;
+    bool strip_requested = true;
+    if (strip_env != NULL && strip_env[0] != '\0') {
+        strip_requested = strcmp(strip_env, "0") != 0;
+    }
     if (strip_requested) {
         Nob_Cmd strip_cmd = {0};
 #ifdef PLATFORM_MACOS

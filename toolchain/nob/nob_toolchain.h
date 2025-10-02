@@ -93,7 +93,7 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
     nob_cmd_append(cmd, "-static-libgcc", "-static-libstdc++");
 #endif
 
-    nob_cmd_append(cmd, "-O3");
+    nob_cmd_append(cmd, "-O2", "-DNDEBUG");
     nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
 
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
@@ -145,7 +145,7 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
 #endif
 #endif
 
-    nob_cmd_append(cmd, "-O3");
+    nob_cmd_append(cmd, "-O2", "-DNDEBUG");
     nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
 
