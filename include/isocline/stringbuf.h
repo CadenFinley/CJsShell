@@ -36,8 +36,7 @@ ic_private char* sbuf_strdup(stringbuf_t* sbuf);
 ic_private char* sbuf_strdup_from_utf8(stringbuf_t* sbuf);  // decode to locale
 
 ic_private ssize_t sbuf_appendf(stringbuf_t* sb, const char* fmt, ...);
-ic_private ssize_t sbuf_append_vprintf(stringbuf_t* sb, const char* fmt,
-                                       va_list args);
+ic_private ssize_t sbuf_append_vprintf(stringbuf_t* sb, const char* fmt, va_list args);
 
 ic_private stringbuf_t* sbuf_split_at(stringbuf_t* sb, ssize_t pos);
 
@@ -45,16 +44,12 @@ ic_private stringbuf_t* sbuf_split_at(stringbuf_t* sb, ssize_t pos);
 ic_private void sbuf_clear(stringbuf_t* sbuf);
 ic_private void sbuf_replace(stringbuf_t* sbuf, const char* s);
 ic_private void sbuf_delete_at(stringbuf_t* sbuf, ssize_t pos, ssize_t count);
-ic_private void sbuf_delete_from_to(stringbuf_t* sbuf, ssize_t pos,
-                                    ssize_t end);
+ic_private void sbuf_delete_from_to(stringbuf_t* sbuf, ssize_t pos, ssize_t end);
 ic_private void sbuf_delete_from(stringbuf_t* sbuf, ssize_t pos);
-ic_private ssize_t sbuf_insert_at_n(stringbuf_t* sbuf, const char* s, ssize_t n,
-                                    ssize_t pos);
-ic_private ssize_t sbuf_insert_at(stringbuf_t* sbuf, const char* s,
-                                  ssize_t pos);
+ic_private ssize_t sbuf_insert_at_n(stringbuf_t* sbuf, const char* s, ssize_t n, ssize_t pos);
+ic_private ssize_t sbuf_insert_at(stringbuf_t* sbuf, const char* s, ssize_t pos);
 ic_private ssize_t sbuf_insert_char_at(stringbuf_t* sbuf, char c, ssize_t pos);
-ic_private ssize_t sbuf_insert_unicode_at(stringbuf_t* sbuf, unicode_t u,
-                                          ssize_t pos);
+ic_private ssize_t sbuf_insert_unicode_at(stringbuf_t* sbuf, unicode_t u, ssize_t pos);
 ic_private ssize_t sbuf_append_n(stringbuf_t* sbuf, const char* s, ssize_t n);
 ic_private ssize_t sbuf_append(stringbuf_t* sbuf, const char* s);
 ic_private ssize_t sbuf_append_char(stringbuf_t* sbuf, char c);
@@ -62,8 +57,7 @@ ic_private ssize_t sbuf_append_char(stringbuf_t* sbuf, char c);
 // high level edit operations (return the new position)
 ic_private ssize_t sbuf_next(stringbuf_t* sbuf, ssize_t pos, ssize_t* cwidth);
 ic_private ssize_t sbuf_prev(stringbuf_t* sbuf, ssize_t pos, ssize_t* cwidth);
-ic_private ssize_t sbuf_next_ofs(stringbuf_t* sbuf, ssize_t pos,
-                                 ssize_t* cwidth);
+ic_private ssize_t sbuf_next_ofs(stringbuf_t* sbuf, ssize_t pos, ssize_t* cwidth);
 
 ic_private ssize_t sbuf_delete_char_before(stringbuf_t* sbuf, ssize_t pos);
 ic_private void sbuf_delete_char_at(stringbuf_t* sbuf, ssize_t pos);
@@ -93,28 +87,20 @@ typedef struct rowcol_s {
 } rowcol_t;
 
 // find row/col position
-ic_private ssize_t sbuf_get_pos_at_rc(stringbuf_t* sbuf, ssize_t termw,
-                                      ssize_t promptw, ssize_t cpromptw,
-                                      ssize_t row, ssize_t col);
+ic_private ssize_t sbuf_get_pos_at_rc(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw, ssize_t cpromptw, ssize_t row, ssize_t col);
 // get row/col for a given position
-ic_private ssize_t sbuf_get_rc_at_pos(stringbuf_t* sbuf, ssize_t termw,
-                                      ssize_t promptw, ssize_t cpromptw,
-                                      ssize_t pos, rowcol_t* rc);
+ic_private ssize_t sbuf_get_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw, ssize_t cpromptw, ssize_t pos, rowcol_t* rc);
 
-ic_private ssize_t sbuf_get_wrapped_rc_at_pos(stringbuf_t* sbuf, ssize_t termw,
-                                              ssize_t newtermw, ssize_t promptw,
-                                              ssize_t cpromptw, ssize_t pos,
-                                              rowcol_t* rc);
+ic_private ssize_t sbuf_get_wrapped_rc_at_pos(stringbuf_t* sbuf, ssize_t termw, ssize_t newtermw, ssize_t promptw, ssize_t cpromptw,
+                                              ssize_t pos, rowcol_t* rc);
 
 // row iteration
-typedef bool(row_fun_t)(const char* s, ssize_t row, ssize_t row_start,
-                        ssize_t row_len,
+typedef bool(row_fun_t)(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
                         ssize_t startw,  // prompt width
                         bool is_wrap, const void* arg, void* res);
 
-ic_private ssize_t sbuf_for_each_row(stringbuf_t* sbuf, ssize_t termw,
-                                     ssize_t promptw, ssize_t cpromptw,
-                                     row_fun_t* fun, void* arg, void* res);
+ic_private ssize_t sbuf_for_each_row(stringbuf_t* sbuf, ssize_t termw, ssize_t promptw, ssize_t cpromptw, row_fun_t* fun, void* arg,
+                                     void* res);
 
 //-------------------------------------------------------------
 // Strings
@@ -126,8 +112,7 @@ ic_private bool skip_csi_esc(const char* s, ssize_t len,
 
 ic_private ssize_t str_column_width(const char* s);
 ic_private ssize_t str_prev_ofs(const char* s, ssize_t pos, ssize_t* cwidth);
-ic_private ssize_t str_next_ofs(const char* s, ssize_t len, ssize_t pos,
-                                ssize_t* cwidth);
+ic_private ssize_t str_next_ofs(const char* s, ssize_t len, ssize_t pos, ssize_t* cwidth);
 ic_private ssize_t str_skip_until_fit(const char* s,
                                       ssize_t max_width);  // tail that fits
 ic_private ssize_t str_take_while_fit(const char* s,

@@ -9,16 +9,12 @@ extern std::unique_ptr<Shell> g_shell;
 
 int source_command(const std::vector<std::string>& args) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "source",
-                     "missing file operand",
-                     {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "source", "missing file operand", {}});
         return 1;
     }
 
     if (!g_shell) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "source", "shell not initialized", {}});
+        print_error({ErrorType::RUNTIME_ERROR, "source", "shell not initialized", {}});
         return 1;
     }
 

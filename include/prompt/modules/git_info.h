@@ -14,15 +14,11 @@ class GitInfo {
     bool cached_is_clean_repo;
     std::mutex git_status_mutex;
     bool is_git_status_check_running;
-    std::unordered_map<
-        std::string,
-        std::pair<std::string, std::chrono::steady_clock::time_point>>
-        cache;
+    std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> cache;
     std::mutex cache_mutex;
 
     template <typename F>
-    std::string get_cached_value(const std::string& key, F value_func,
-                                 int ttl_seconds = 60);
+    std::string get_cached_value(const std::string& key, F value_func, int ttl_seconds = 60);
 
    public:
     GitInfo();
@@ -35,16 +31,14 @@ class GitInfo {
     std::string get_git_tag(const std::filesystem::path& repo_root);
     std::string get_git_last_commit(const std::filesystem::path& repo_root);
     std::string get_git_author(const std::filesystem::path& repo_root);
-    int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead,
-                             int& behind);
+    int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int& behind);
     int get_git_stash_count(const std::filesystem::path& repo_root);
     bool get_git_has_staged_changes(const std::filesystem::path& repo_root);
     int get_git_uncommitted_changes(const std::filesystem::path& repo_root);
 };
 
 template <typename F>
-std::string GitInfo::get_cached_value(const std::string& key, F value_func,
-                                      int ttl_seconds) {
+std::string GitInfo::get_cached_value(const std::string& key, F value_func, int ttl_seconds) {
     auto now = std::chrono::steady_clock::now();
 
     {
@@ -52,9 +46,7 @@ std::string GitInfo::get_cached_value(const std::string& key, F value_func,
         auto it = cache.find(key);
         if (it != cache.end()) {
             auto& [value, timestamp] = it->second;
-            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-                               now - timestamp)
-                               .count();
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - timestamp).count();
             if (elapsed < ttl_seconds) {
                 return value;
             }

@@ -42,8 +42,7 @@ class Shell {
     ~Shell();
     int execute(const std::string& script);
 
-    int execute_command(std::vector<std::string> args,
-                        bool run_in_background = false);
+    int execute_command(std::vector<std::string> args, bool run_in_background = false);
     int do_ai_request(const std::string& command);
     void process_pending_signals();
 
@@ -111,16 +110,14 @@ class Shell {
         return status_env ? std::atoi(status_env) : 0;
     }
 
-    void set_aliases(
-        const std::unordered_map<std::string, std::string>& new_aliases) {
+    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
         aliases = new_aliases;
         if (shell_parser) {
             shell_parser->set_aliases(aliases);
         }
     }
 
-    void set_env_vars(
-        const std::unordered_map<std::string, std::string>& new_env_vars) {
+    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
         env_vars = new_env_vars;
         if (shell_parser) {
             shell_parser->set_env_vars(env_vars);
@@ -194,10 +191,8 @@ class Shell {
         return shell_parser.get();
     }
 
-    int execute_script_file(const std::filesystem::path& path,
-                            bool optional = false);
-    int load_theme_from_file(const std::filesystem::path& path,
-                             bool optional = false);
+    int execute_script_file(const std::filesystem::path& path, bool optional = false);
+    int load_theme_from_file(const std::filesystem::path& path, bool optional = false);
 
    private:
     bool interactive_mode = false;

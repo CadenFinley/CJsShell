@@ -128,8 +128,7 @@ ic_private const char* history_get(const history_t* h, ssize_t n) {
     return h->elems[h->count - n - 1];
 }
 
-ic_private bool history_search(const history_t* h, ssize_t from /*including*/,
-                               const char* search, bool backward, ssize_t* hidx,
+ic_private bool history_search(const history_t* h, ssize_t from /*including*/, const char* search, bool backward, ssize_t* hidx,
                                ssize_t* hpos) {
     const char* p = NULL;
     ssize_t i;
@@ -155,10 +154,7 @@ ic_private bool history_search(const history_t* h, ssize_t from /*including*/,
     return true;
 }
 
-ic_private bool history_search_prefix(const history_t* h,
-                                      ssize_t from /*including*/,
-                                      const char* prefix, bool backward,
-                                      ssize_t* hidx) {
+ic_private bool history_search_prefix(const history_t* h, ssize_t from /*including*/, const char* prefix, bool backward, ssize_t* hidx) {
     if (prefix == NULL || h == NULL)
         return false;
 
@@ -208,8 +204,7 @@ ic_private bool history_search_prefix(const history_t* h,
 //
 //-------------------------------------------------------------
 
-ic_private void history_load_from(history_t* h, const char* fname,
-                                  long max_entries) {
+ic_private void history_load_from(history_t* h, const char* fname, long max_entries) {
     history_clear(h);
     h->fname = mem_strdup(h->mem, fname);
     if (max_entries == 0) {
@@ -248,8 +243,7 @@ static char to_xdigit(uint8_t c) {
 }
 
 static bool ic_isxdigit(int c) {
-    return ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') ||
-            (c >= '0' && c <= '9'));
+    return ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || (c >= '0' && c <= '9'));
 }
 
 static bool history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {

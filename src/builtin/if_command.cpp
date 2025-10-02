@@ -4,16 +4,14 @@
 #include "error_out.h"
 #include "shell.h"
 
-int if_command(const std::vector<std::string>& args, Shell* shell,
-               std::string& last_terminal_output_error) {
+int if_command(const std::vector<std::string>& args, Shell* shell, std::string& last_terminal_output_error) {
     auto record_error = [&](const ErrorInfo& info) {
         last_terminal_output_error = info.message;
         print_error(info);
     };
 
     if (args.size() < 2) {
-        record_error(
-            {ErrorType::INVALID_ARGUMENT, "if", "missing arguments", {}});
+        record_error({ErrorType::INVALID_ARGUMENT, "if", "missing arguments", {}});
         return 2;
     }
 
@@ -28,20 +26,15 @@ int if_command(const std::vector<std::string>& args, Shell* shell,
     size_t fi_pos = full_cmd.rfind("; fi");
 
     if (then_pos == std::string::npos || fi_pos == std::string::npos) {
-        record_error({ErrorType::SYNTAX_ERROR,
-                      "if",
-                      "syntax error: expected '; then' and '; fi'",
-                      {}});
+        record_error({ErrorType::SYNTAX_ERROR, "if", "syntax error: expected '; then' and '; fi'", {}});
         return 2;
     }
 
     std::string condition = full_cmd.substr(0, then_pos);
-    std::string then_cmd =
-        full_cmd.substr(then_pos + 7, fi_pos - (then_pos + 7));
+    std::string then_cmd = full_cmd.substr(then_pos + 7, fi_pos - (then_pos + 7));
 
     if (!shell) {
-        record_error(
-            {ErrorType::RUNTIME_ERROR, "if", "shell context is null", {}});
+        record_error({ErrorType::RUNTIME_ERROR, "if", "shell context is null", {}});
         return 1;
     }
 

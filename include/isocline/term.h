@@ -24,8 +24,7 @@ typedef enum buffer_mode_e {
 } buffer_mode_t;
 
 // Primitives
-ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
-                            int fd_out);
+ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent, int fd_out);
 ic_private void term_free(term_t* term);
 
 ic_private bool term_is_interactive(const term_t* term);
@@ -79,10 +78,8 @@ ic_private void term_bgcolor(term_t* term, ic_color_t color);
 
 ic_private attr_t term_get_attr(const term_t* term);
 ic_private void term_set_attr(term_t* term, attr_t attr);
-ic_private void term_write_formatted(term_t* term, const char* s,
-                                     const attr_t* attrs);
-ic_private void term_write_formatted_n(term_t* term, const char* s,
-                                       const attr_t* attrs, ssize_t n);
+ic_private void term_write_formatted(term_t* term, const char* s, const attr_t* attrs);
+ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t* attrs, ssize_t n);
 
 ic_private ic_color_t color_from_ansi256(ssize_t i);
 

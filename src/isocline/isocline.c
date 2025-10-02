@@ -61,8 +61,7 @@ static bool getline_interrupt = false;
 
 static char* ic_getline(alloc_t* mem);
 
-ic_public char* ic_readline(const char* prompt_text,
-                            const char* initial_input) {
+ic_public char* ic_readline(const char* prompt_text, const char* initial_input) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return NULL;
@@ -91,9 +90,7 @@ ic_public char* ic_readline(const char* prompt_text,
     }
 }
 
-ic_public char* ic_readline_inline(const char* prompt_text,
-                                   const char* inline_right_text,
-                                   const char* initial_input) {
+ic_public char* ic_readline_inline(const char* prompt_text, const char* inline_right_text, const char* initial_input) {
     // fprintf(stderr, "DEBUG: ic_readline_inline called with prompt='%s',
     // inline_right='%s'\n",
     //         prompt_text ? prompt_text : "NULL",
@@ -215,8 +212,7 @@ ic_public bool ic_async_interrupt_getline(void) {
     return true;
 }
 
-static void set_prompt_marker(ic_env_t* env, const char* prompt_marker,
-                              const char* cprompt_marker) {
+static void set_prompt_marker(ic_env_t* env, const char* prompt_marker, const char* cprompt_marker) {
     if (prompt_marker == NULL)
         prompt_marker = "> ";
     if (cprompt_marker == NULL)
@@ -241,8 +237,7 @@ ic_public const char* ic_get_continuation_prompt_marker(void) {
     return env->cprompt_marker;
 }
 
-ic_public void ic_set_prompt_marker(const char* prompt_marker,
-                                    const char* cprompt_marker) {
+ic_public void ic_set_prompt_marker(const char* prompt_marker, const char* cprompt_marker) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return;
@@ -354,8 +349,7 @@ ic_public long ic_set_hint_delay(long delay_ms) {
     return prev;
 }
 
-ic_public void ic_set_tty_esc_delay(long initial_delay_ms,
-                                    long followup_delay_ms) {
+ic_public void ic_set_tty_esc_delay(long initial_delay_ms, long followup_delay_ms) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return;
@@ -454,8 +448,7 @@ ic_private const char* ic_env_get_auto_braces(ic_env_t* env) {
     return (env->auto_braces == NULL ? "()[]{}\"\"''" : env->auto_braces);
 }
 
-ic_private void ic_env_set_initial_input(ic_env_t* env,
-                                         const char* initial_input) {
+ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input) {
     if (env == NULL)
         return;
     mem_free(env->mem, (void*)env->initial_input);
@@ -472,8 +465,7 @@ ic_private void ic_env_clear_initial_input(ic_env_t* env) {
     env->initial_input = NULL;
 }
 
-ic_public void ic_set_default_highlighter(ic_highlight_fun_t* highlighter,
-                                          void* arg) {
+ic_public void ic_set_default_highlighter(ic_highlight_fun_t* highlighter, void* arg) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return;
@@ -575,8 +567,7 @@ ic_public void ic_term_vwritef(const char* fmt, va_list args) {
     term_vwritef(env->term, fmt, args);
 }
 
-ic_public void ic_print_prompt(const char* prompt_text,
-                               bool continuation_line) {
+ic_public void ic_print_prompt(const char* prompt_text, bool continuation_line) {
     ic_env_t* env = ic_get_env();
     if (env == NULL || env->term == NULL || env->bbcode == NULL) {
         return;
@@ -599,16 +590,14 @@ ic_public void ic_print_prompt(const char* prompt_text,
         // edit_write_prompt
         ssize_t textw = bbcode_column_width(env->bbcode, text);
         ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
-        ssize_t cmarkerw =
-            bbcode_column_width(env->bbcode, env->cprompt_marker);
+        ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
         if (cmarkerw < markerw + textw) {
             term_write_repeat(env->term, " ", markerw + textw - cmarkerw);
         }
     }
 
     // Print the marker
-    bbcode_print(env->bbcode, (continuation_line ? env->cprompt_marker
-                                                 : env->prompt_marker));
+    bbcode_print(env->bbcode, (continuation_line ? env->cprompt_marker : env->prompt_marker));
 
     // Close the style
     bbcode_style_close(env->bbcode, NULL);
@@ -698,10 +687,7 @@ ic_public void ic_term_color_rgb(bool foreground, uint32_t hcolor) {
 // Readline with temporary completer and highlighter
 //-------------------------------------------------------------
 
-ic_public char* ic_readline_ex(const char* prompt_text,
-                               ic_completer_fun_t* completer,
-                               void* completer_arg,
-                               ic_highlight_fun_t* highlighter,
+ic_public char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* completer, void* completer_arg, ic_highlight_fun_t* highlighter,
                                void* highlighter_arg) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
@@ -709,8 +695,7 @@ ic_public char* ic_readline_ex(const char* prompt_text,
     // save previous
     ic_completer_fun_t* prev_completer;
     void* prev_completer_arg;
-    completions_get_completer(env->completions, &prev_completer,
-                              &prev_completer_arg);
+    completions_get_completer(env->completions, &prev_completer, &prev_completer_arg);
     ic_highlight_fun_t* prev_highlighter = env->highlighter;
     void* prev_highlighter_arg = env->highlighter_arg;
     // call with current
@@ -761,9 +746,7 @@ static void ic_env_free(ic_env_t* env) {
     mem_free(mem, mem);
 }
 
-static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc,
-                               ic_realloc_fun_t* _realloc,
-                               ic_free_fun_t* _free) {
+static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _realloc, ic_free_fun_t* _free) {
     if (_malloc == NULL)
         _malloc = &malloc;
     if (_realloc == NULL)
@@ -797,8 +780,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc,
 
     env->hint_delay = 400;
 
-    if (env->tty == NULL || env->term == NULL || env->completions == NULL ||
-        env->history == NULL || env->bbcode == NULL ||
+    if (env->tty == NULL || env->term == NULL || env->completions == NULL || env->history == NULL || env->bbcode == NULL ||
         !term_is_interactive(env->term)) {
         env->noedit = true;
     }
@@ -844,9 +826,7 @@ ic_private ic_env_t* ic_get_env(void) {
     return rpenv;
 }
 
-ic_public void ic_init_custom_malloc(ic_malloc_fun_t* _malloc,
-                                     ic_realloc_fun_t* _realloc,
-                                     ic_free_fun_t* _free) {
+ic_public void ic_init_custom_malloc(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _realloc, ic_free_fun_t* _free) {
     assert(rpenv == NULL);
     if (rpenv != NULL) {
         ic_env_free(rpenv);

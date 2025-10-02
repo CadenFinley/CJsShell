@@ -15,8 +15,7 @@ int exit_command(const std::vector<std::string>& args) {
 
     int non_flag_args = 0;
 
-    force_exit = std::find(args.begin(), args.end(), "-f") != args.end() ||
-                 std::find(args.begin(), args.end(), "--force") != args.end();
+    force_exit = std::find(args.begin(), args.end(), "-f") != args.end() || std::find(args.begin(), args.end(), "--force") != args.end();
 
     for (size_t i = 1; i < args.size(); i++) {
         const std::string& val = args[i];
@@ -29,10 +28,6 @@ int exit_command(const std::vector<std::string>& args) {
 
                 break;
             } else {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Invalid exit argument: " << val
-                              << std::endl;
-                }
                 g_exit_flag = true;
                 setenv("EXIT_CODE", "128", 1);
                 return 0;

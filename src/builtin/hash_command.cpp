@@ -17,8 +17,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
 
         std::cout << "hits\tcommand" << std::endl;
         for (const auto& pair : command_hash) {
-            int hits =
-                command_hits.count(pair.first) ? command_hits[pair.first] : 0;
+            int hits = command_hits.count(pair.first) ? command_hits[pair.first] : 0;
             std::cout << hits << "\t" << pair.second << std::endl;
         }
         return 0;
@@ -43,10 +42,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
         } else if (option == "-p") {
         } else if (option == "-t") {
         } else {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "hash",
-                         "invalid option: " + option,
-                         {}});
+            print_error({ErrorType::INVALID_ARGUMENT, "hash", "invalid option: " + option, {}});
             return 1;
         }
         start_index = i + 1;
@@ -77,10 +73,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
 
                 std::cout << path << std::endl;
             } else {
-                print_error({ErrorType::COMMAND_NOT_FOUND,
-                             "hash",
-                             name + ": not found",
-                             {}});
+                print_error({ErrorType::COMMAND_NOT_FOUND, "hash", name + ": not found", {}});
                 return 1;
             }
         }

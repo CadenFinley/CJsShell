@@ -67,8 +67,7 @@ std::string to_debug_visible(const std::string& data) {
                 if (std::isprint(ch)) {
                     oss << static_cast<char>(ch);
                 } else {
-                    oss << "\\x" << std::setw(2) << std::setfill('0')
-                        << static_cast<int>(ch);
+                    oss << "\\x" << std::setw(2) << std::setfill('0') << static_cast<int>(ch);
                 }
                 break;
         }
@@ -97,41 +96,33 @@ std::string filter_escape_sequences(const std::string& input) {
                 while (i < input.size()) {
                     char c = input[i];
 
-                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-                        c == '~' || c == 'c' || c == 'h' || c == 'l' ||
-                        c == 'm' || c == 'n' || c == 'r' || c == 'J' ||
-                        c == 'K' || c == 'H' || c == 'f') {
+                    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '~' || c == 'c' || c == 'h' || c == 'l' || c == 'm' ||
+                        c == 'n' || c == 'r' || c == 'J' || c == 'K' || c == 'H' || c == 'f') {
                         break;
                     }
 
-                    if (!((c >= '0' && c <= '9') || c == ';' || c == '?' ||
-                          c == '!' || c == '=' || c == '>' || c == '<')) {
+                    if (!((c >= '0' && c <= '9') || c == ';' || c == '?' || c == '!' || c == '=' || c == '>' || c == '<')) {
                         break;
                     }
                     i++;
                 }
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: Filtered ANSI CSI escape sequence: "
-                              << to_debug_visible(
-                                     input.substr(seq_start, i - seq_start + 1))
-                              << std::endl;
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1)) << std::endl;
                 }
             } else if (next == ']') {
                 i += 2;
                 while (i < input.size()) {
                     if (input[i] == '\x07') {
                         break;
-                    } else if (input[i] == '\x1b' && i + 1 < input.size() &&
-                               input[i + 1] == '\\') {
+                    } else if (input[i] == '\x1b' && i + 1 < input.size() && input[i + 1] == '\\') {
                         i++;
                         break;
                     }
                     i++;
                 }
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Filtered OSC escape sequence: "
-                              << to_debug_visible(
-                                     input.substr(seq_start, i - seq_start + 1))
+                    std::cerr << "DEBUG: Filtered OSC escape sequence: " << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
                               << std::endl;
                 }
             } else if (next == '(' || next == ')') {
@@ -141,31 +132,23 @@ std::string filter_escape_sequences(const std::string& input) {
                     i += 1;
                 }
                 if (g_debug_mode) {
-                    std::cerr
-                        << "DEBUG: Filtered character set escape sequence: "
-                        << to_debug_visible(
-                               input.substr(seq_start, i - seq_start + 1))
-                        << std::endl;
+                    std::cerr << "DEBUG: Filtered character set escape sequence: "
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1)) << std::endl;
                 }
             } else if (next >= '0' && next <= '9') {
                 i += 1;
-                while (i + 1 < input.size() && input[i + 1] >= '0' &&
-                       input[i + 1] <= '9') {
+                while (i + 1 < input.size() && input[i + 1] >= '0' && input[i + 1] <= '9') {
                     i++;
                 }
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Filtered numeric escape sequence: "
-                              << to_debug_visible(
-                                     input.substr(seq_start, i - seq_start + 1))
+                    std::cerr << "DEBUG: Filtered numeric escape sequence: " << to_debug_visible(input.substr(seq_start, i - seq_start + 1))
                               << std::endl;
                 }
             } else {
                 i += 1;
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: Filtered single-char escape sequence: "
-                              << to_debug_visible(
-                                     input.substr(seq_start, i - seq_start + 1))
-                              << std::endl;
+                              << to_debug_visible(input.substr(seq_start, i - seq_start + 1)) << std::endl;
                 }
             }
         } else if (ch == '\x07') {
@@ -174,8 +157,7 @@ std::string filter_escape_sequences(const std::string& input) {
             }
         } else if (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r') {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Filtered control character: \\x"
-                          << std::hex << std::setw(2) << std::setfill('0')
+                std::cerr << "DEBUG: Filtered control character: \\x" << std::hex << std::setw(2) << std::setfill('0')
                           << static_cast<int>(ch) << std::dec << std::endl;
             }
         } else {
@@ -206,12 +188,10 @@ std::string normalize_line_edit_sequences(const std::string& input) {
                 break;
             }
             case 0x17: {
-                while (!normalized.empty() && (normalized.back() == ' ' ||
-                                               normalized.back() == '\t')) {
+                while (!normalized.empty() && (normalized.back() == ' ' || normalized.back() == '\t')) {
                     normalized.pop_back();
                 }
-                while (!normalized.empty() && normalized.back() != ' ' &&
-                       normalized.back() != '\t' && normalized.back() != '\n') {
+                while (!normalized.empty() && normalized.back() != ' ' && normalized.back() != '\t' && normalized.back() != '\n') {
                     normalized.pop_back();
                 }
                 break;
@@ -228,8 +208,7 @@ std::string normalize_line_edit_sequences(const std::string& input) {
 void enqueue_queued_command(const std::string& command) {
     if (g_typeahead_queue.size() >= kMaxQueuedCommands) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead queue full, dropping oldest entry"
-                      << std::endl;
+            std::cerr << "DEBUG: Typeahead queue full, dropping oldest entry" << std::endl;
         }
         g_typeahead_queue.pop_front();
     }
@@ -237,16 +216,14 @@ void enqueue_queued_command(const std::string& command) {
     std::string sanitized_command = filter_escape_sequences(command);
 
     if (g_debug_mode && sanitized_command != command) {
-        std::cerr << "DEBUG: Command sanitized before queuing: '"
-                  << to_debug_visible(command) << "' -> '"
+        std::cerr << "DEBUG: Command sanitized before queuing: '" << to_debug_visible(command) << "' -> '"
                   << to_debug_visible(sanitized_command) << "'" << std::endl;
     }
 
     g_typeahead_queue.push_back(sanitized_command);
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Queued typeahead command: '"
-                  << to_debug_visible(sanitized_command) << "'" << std::endl;
+        std::cerr << "DEBUG: Queued typeahead command: '" << to_debug_visible(sanitized_command) << "'" << std::endl;
     }
 }
 
@@ -256,9 +233,8 @@ void ingest_typeahead_input(const std::string& raw_input) {
     }
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: ingest_typeahead_input raw (len="
-                  << raw_input.size() << "): '" << to_debug_visible(raw_input)
-                  << "'" << std::endl;
+        std::cerr << "DEBUG: ingest_typeahead_input raw (len=" << raw_input.size() << "): '" << to_debug_visible(raw_input) << "'"
+                  << std::endl;
     }
 
     std::string combined = g_input_buffer;
@@ -266,9 +242,8 @@ void ingest_typeahead_input(const std::string& raw_input) {
     combined += raw_input;
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: ingest_typeahead_input combined buffer (len="
-                  << combined.size() << "): '" << to_debug_visible(combined)
-                  << "'" << std::endl;
+        std::cerr << "DEBUG: ingest_typeahead_input combined buffer (len=" << combined.size() << "): '" << to_debug_visible(combined) << "'"
+                  << std::endl;
     }
 
     if (combined.find('\x1b') != std::string::npos) {
@@ -279,17 +254,15 @@ void ingest_typeahead_input(const std::string& raw_input) {
         }
         combined = filter_escape_sequences(combined);
         if (g_debug_mode) {
-            std::cerr << "DEBUG: After filtering escape sequences: '"
-                      << to_debug_visible(combined) << "'" << std::endl;
+            std::cerr << "DEBUG: After filtering escape sequences: '" << to_debug_visible(combined) << "'" << std::endl;
         }
     }
 
     std::string normalized = normalize_line_edit_sequences(combined);
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: ingest_typeahead_input normalized (len="
-                  << normalized.size() << "): '" << to_debug_visible(normalized)
-                  << "'" << std::endl;
+        std::cerr << "DEBUG: ingest_typeahead_input normalized (len=" << normalized.size() << "): '" << to_debug_visible(normalized) << "'"
+                  << std::endl;
     }
 
     std::size_t start = 0;
@@ -298,9 +271,7 @@ void ingest_typeahead_input(const std::string& raw_input) {
         if (newline_pos == std::string::npos) {
             g_input_buffer += normalized.substr(start);
             if (g_debug_mode && !g_input_buffer.empty()) {
-                std::cerr << "DEBUG: ingest_typeahead_input buffered prefill: '"
-                          << to_debug_visible(g_input_buffer) << "'"
-                          << std::endl;
+                std::cerr << "DEBUG: ingest_typeahead_input buffered prefill: '" << to_debug_visible(g_input_buffer) << "'" << std::endl;
             }
             break;
         }
@@ -324,8 +295,7 @@ void ingest_typeahead_input(const std::string& raw_input) {
     }
 
     if (g_debug_mode && !g_input_buffer.empty()) {
-        std::cerr << "DEBUG: Buffered typeahead prefill: '"
-                  << to_debug_visible(g_input_buffer) << "'" << std::endl;
+        std::cerr << "DEBUG: Buffered typeahead prefill: '" << to_debug_visible(g_input_buffer) << "'" << std::endl;
     }
 }
 
@@ -333,14 +303,12 @@ void flush_pending_typeahead() {
     std::string pending_input = capture_available_input();
     if (!pending_input.empty()) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: flush_pending_typeahead captured (len="
-                      << pending_input.size() << "): '"
+            std::cerr << "DEBUG: flush_pending_typeahead captured (len=" << pending_input.size() << "): '"
                       << to_debug_visible(pending_input) << "'" << std::endl;
         }
         ingest_typeahead_input(pending_input);
     } else if (g_debug_mode) {
-        std::cerr << "DEBUG: flush_pending_typeahead captured no data"
-                  << std::endl;
+        std::cerr << "DEBUG: flush_pending_typeahead captured no data" << std::endl;
     }
 }
 
@@ -357,8 +325,7 @@ std::string dequeue_command() {
     g_typeahead_queue.pop_front();
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Dequeued queued command: '" << command << "'"
-                  << std::endl;
+        std::cerr << "DEBUG: Dequeued queued command: '" << command << "'" << std::endl;
     }
 
     return command;
@@ -379,25 +346,22 @@ std::string get_input_buffer() {
 std::string capture_available_input() {
     if (!initialized) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead capture skipped (not initialized)"
-                      << std::endl;
+            std::cerr << "DEBUG: Typeahead capture skipped (not initialized)" << std::endl;
         }
         return {};
     }
 
     if (!isatty(STDIN_FILENO)) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead capture skipped (stdin not a TTY)"
-                      << std::endl;
+            std::cerr << "DEBUG: Typeahead capture skipped (stdin not a TTY)" << std::endl;
         }
         return {};
     }
 
     if (JobManager::instance().foreground_job_reads_stdin()) {
         if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: Typeahead capture skipped (foreground job reads"
-                << " stdin)" << std::endl;
+            std::cerr << "DEBUG: Typeahead capture skipped (foreground job reads"
+                      << " stdin)" << std::endl;
         }
         return {};
     }
@@ -405,8 +369,7 @@ std::string capture_available_input() {
     int fd_flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     if (fd_flags == -1) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead capture failed to get file flags"
-                      << std::endl;
+            std::cerr << "DEBUG: Typeahead capture failed to get file flags" << std::endl;
         }
         return {};
     }
@@ -416,13 +379,10 @@ std::string capture_available_input() {
         if (fcntl(STDIN_FILENO, F_SETFL, fd_flags | O_NONBLOCK) == 0) {
             restore_flags = true;
             if (g_debug_mode) {
-                std::cerr
-                    << "DEBUG: Typeahead capture temporarily enabled O_NONBLOCK"
-                    << std::endl;
+                std::cerr << "DEBUG: Typeahead capture temporarily enabled O_NONBLOCK" << std::endl;
             }
         } else if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead capture failed to enable O_NONBLOCK"
-                      << std::endl;
+            std::cerr << "DEBUG: Typeahead capture failed to enable O_NONBLOCK" << std::endl;
         }
     }
 
@@ -441,12 +401,10 @@ std::string capture_available_input() {
                           << std::endl;
             }
         } else if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead capture failed to apply raw termios"
-                      << std::endl;
+            std::cerr << "DEBUG: Typeahead capture failed to apply raw termios" << std::endl;
         }
     } else if (g_debug_mode) {
-        std::cerr << "DEBUG: Typeahead capture failed to read termios"
-                  << std::endl;
+        std::cerr << "DEBUG: Typeahead capture failed to read termios" << std::endl;
     }
 
     struct RestoreState {
@@ -459,16 +417,13 @@ std::string capture_available_input() {
             if (restore_termios) {
                 tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Typeahead capture restored ICANON/ECHO"
-                              << std::endl;
+                    std::cerr << "DEBUG: Typeahead capture restored ICANON/ECHO" << std::endl;
                 }
             }
             if (restore_flags) {
                 fcntl(STDIN_FILENO, F_SETFL, fd_flags);
                 if (g_debug_mode) {
-                    std::cerr
-                        << "DEBUG: Typeahead capture restored O_NONBLOCK flag"
-                        << std::endl;
+                    std::cerr << "DEBUG: Typeahead capture restored O_NONBLOCK flag" << std::endl;
                 }
             }
         }
@@ -477,12 +432,10 @@ std::string capture_available_input() {
     int queued_bytes = 0;
     if (ioctl(STDIN_FILENO, FIONREAD, &queued_bytes) == 0) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead ioctl(FIONREAD) queued_bytes="
-                      << queued_bytes << std::endl;
+            std::cerr << "DEBUG: Typeahead ioctl(FIONREAD) queued_bytes=" << queued_bytes << std::endl;
         }
     } else if (g_debug_mode) {
-        std::cerr << "DEBUG: Typeahead ioctl(FIONREAD) failed (errno=" << errno
-                  << ")" << std::endl;
+        std::cerr << "DEBUG: Typeahead ioctl(FIONREAD) failed (errno=" << errno << ")" << std::endl;
     }
 
     std::string captured_data;
@@ -491,8 +444,7 @@ std::string capture_available_input() {
     for (;;) {
         ssize_t bytes_read = ::read(STDIN_FILENO, buffer.data(), buffer.size());
         if (bytes_read > 0) {
-            captured_data.append(buffer.data(),
-                                 static_cast<size_t>(bytes_read));
+            captured_data.append(buffer.data(), static_cast<size_t>(bytes_read));
             if (bytes_read < static_cast<ssize_t>(buffer.size())) {
                 break;
             }
@@ -512,8 +464,7 @@ std::string capture_available_input() {
         }
 
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead read error (errno=" << errno << ")"
-                      << std::endl;
+            std::cerr << "DEBUG: Typeahead read error (errno=" << errno << ")" << std::endl;
         }
         break;
     }
@@ -524,9 +475,8 @@ std::string capture_available_input() {
         pfd.events = POLLIN;
         int poll_result = poll(&pfd, 1, 0);
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Typeahead poll after read returned "
-                      << poll_result << " (revents=0x" << std::hex
-                      << pfd.revents << std::dec << ")" << std::endl;
+            std::cerr << "DEBUG: Typeahead poll after read returned " << poll_result << " (revents=0x" << std::hex << pfd.revents
+                      << std::dec << ")" << std::endl;
         }
     }
 
@@ -540,8 +490,7 @@ std::string capture_available_input() {
         if (captured_data.empty()) {
             std::cerr << "DEBUG: Typeahead capture read 0 bytes" << std::endl;
         } else {
-            std::cerr << "DEBUG: Captured typeahead input (length="
-                      << captured_data.length() << ", raw='"
+            std::cerr << "DEBUG: Captured typeahead input (length=" << captured_data.length() << ", raw='"
                       << to_debug_visible(captured_data) << "')" << std::endl;
         }
     }

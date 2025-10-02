@@ -50,8 +50,7 @@ void print_error(const ErrorInfo& error) {
             if (suggestion.find("Did you mean '") != std::string::npos) {
                 size_t start = suggestion.find("'") + 1;
                 size_t end = suggestion.find("'", start);
-                if (start != std::string::npos && end != std::string::npos &&
-                    end > start) {
+                if (start != std::string::npos && end != std::string::npos && end > start) {
                     commands.push_back(suggestion.substr(start, end - start));
                     has_command_suggestions = true;
                 }

@@ -79,8 +79,7 @@ char* ic_readline(const char* prompt_text, const char* initial_input);
 ///   Returns NULL on error, or if the user typed ctrl+d or ctrl+c.
 ///
 /// @see ic_readline(), ic_set_prompt_marker(), ic_style_def()
-char* ic_readline_inline(const char* prompt_text, const char* inline_right_text,
-                         const char* initial_input);
+char* ic_readline_inline(const char* prompt_text, const char* inline_right_text, const char* initial_input);
 
 /// \}
 
@@ -217,8 +216,7 @@ bool ic_add_completion(ic_completion_env_t* cenv, const char* completion);
 /// Returns `true` if the callback should continue trying to find more possible
 /// completions. If `false` is returned, the callback should try to return and
 /// not add more completions (for improved latency).
-bool ic_add_completion_ex(ic_completion_env_t* cenv, const char* completion,
-                          const char* display, const char* help);
+bool ic_add_completion_ex(ic_completion_env_t* cenv, const char* completion, const char* display, const char* help);
 
 /// In a completion callback (usually from ic_complete_word()), use this
 /// function to add a completion with source information. The `display` is used
@@ -230,9 +228,7 @@ bool ic_add_completion_ex(ic_completion_env_t* cenv, const char* completion,
 /// Returns `true` if the callback should continue trying to find more possible
 /// completions. If `false` is returned, the callback should try to return and
 /// not add more completions (for improved latency).
-bool ic_add_completion_ex_with_source(ic_completion_env_t* cenv,
-                                      const char* completion,
-                                      const char* display, const char* help,
+bool ic_add_completion_ex_with_source(ic_completion_env_t* cenv, const char* completion, const char* display, const char* help,
                                       const char* source);
 
 /// In a completion callback (usually from ic_complete_word()), use this
@@ -243,8 +239,7 @@ bool ic_add_completion_ex_with_source(ic_completion_env_t* cenv,
 /// Returns `true` if the callback should continue trying to find more possible
 /// completions. If `false` is returned, the callback should try to return and
 /// not add more completions (for improved latency).
-bool ic_add_completions(ic_completion_env_t* cenv, const char* prefix,
-                        const char** completions);
+bool ic_add_completions(ic_completion_env_t* cenv, const char* prefix, const char** completions);
 
 /// Complete a filename.
 /// Complete a filename given a semi-colon separated list of root directories
@@ -261,9 +256,7 @@ bool ic_add_completions(ic_completion_env_t* cenv, const char* prefix,
 /// ```
 /// (This already uses ic_complete_quoted_word() so do not call it from inside a
 /// word handler).
-void ic_complete_filename(ic_completion_env_t* cenv, const char* prefix,
-                          char dir_separator, const char* roots,
-                          const char* extensions);
+void ic_complete_filename(ic_completion_env_t* cenv, const char* prefix, char dir_separator, const char* roots, const char* extensions);
 
 /// Function that returns whether a (utf8) character (of length `len`) is in a
 /// certain character class
@@ -280,9 +273,7 @@ typedef bool(ic_is_char_class_fun_t)(const char* s, long len);
 /// user `fun` only gets `w` and can just complete with "world" resulting in
 /// "hello world" without needing to consider `delete_before` etc.
 /// @see ic_complete_qword() for completing quoted and escaped tokens.
-void ic_complete_word(ic_completion_env_t* cenv, const char* prefix,
-                      ic_completer_fun_t* fun,
-                      ic_is_char_class_fun_t* is_word_char);
+void ic_complete_word(ic_completion_env_t* cenv, const char* prefix, ic_completer_fun_t* fun, ic_is_char_class_fun_t* is_word_char);
 
 /// Complete a quoted _word_.
 /// Calls the user provided function `fun` to complete while taking
@@ -302,9 +293,7 @@ void ic_complete_word(ic_completion_env_t* cenv, const char* prefix,
 /// with proper quotes and escapes.
 /// If `is_word_char` is NULL, the default `&ic_char_is_nonseparator` is used.
 /// @see ic_complete_quoted_word() to customize the word boundary, quotes etc.
-void ic_complete_qword(ic_completion_env_t* cenv, const char* prefix,
-                       ic_completer_fun_t* fun,
-                       ic_is_char_class_fun_t* is_word_char);
+void ic_complete_qword(ic_completion_env_t* cenv, const char* prefix, ic_completer_fun_t* fun, ic_is_char_class_fun_t* is_word_char);
 
 /// Complete a _word_.
 /// Calls the user provided function `fun` to complete while taking
@@ -316,9 +305,7 @@ void ic_complete_qword(ic_completion_env_t* cenv, const char* prefix,
 /// default `"\'\""` quotes.
 /// @see ic_complete_word() which uses the default values for `non_word_chars`,
 /// `quote_chars` and `\` for escape characters.
-void ic_complete_qword_ex(ic_completion_env_t* cenv, const char* prefix,
-                          ic_completer_fun_t fun,
-                          ic_is_char_class_fun_t* is_word_char,
+void ic_complete_qword_ex(ic_completion_env_t* cenv, const char* prefix, ic_completer_fun_t fun, ic_is_char_class_fun_t* is_word_char,
                           char escape_char, const char* quote_chars);
 
 /// \}
@@ -334,8 +321,7 @@ typedef struct ic_highlight_env_s ic_highlight_env_t;
 
 /// A syntax highlighter callback that is called by readline to syntax highlight
 /// user input.
-typedef void(ic_highlight_fun_t)(ic_highlight_env_t* henv, const char* input,
-                                 void* arg);
+typedef void(ic_highlight_fun_t)(ic_highlight_env_t* henv, const char* input, void* arg);
 
 /// Set a syntax highlighter.
 /// There can only be one highlight function, setting it again disables the
@@ -343,8 +329,7 @@ typedef void(ic_highlight_fun_t)(ic_highlight_env_t* henv, const char* input,
 void ic_set_default_highlighter(ic_highlight_fun_t* highlighter, void* arg);
 
 /// Set the style of characters starting at position `pos`.
-void ic_highlight(ic_highlight_env_t* henv, long pos, long count,
-                  const char* style);
+void ic_highlight(ic_highlight_env_t* henv, long pos, long count, const char* style);
 
 /// Experimental: Convenience callback for a function that highlights `s` using
 /// bbcode's. The returned string should be allocated and is free'd by the
@@ -356,8 +341,7 @@ typedef char*(ic_highlight_format_fun_t)(const char* s, void* arg);
 /// using the the provided `formatted` input that is the styled `input` with
 /// bbcodes. The content of `formatted` without bbcode tags should match `input`
 /// exactly.
-void ic_highlight_formatted(ic_highlight_env_t* henv, const char* input,
-                            const char* formatted);
+void ic_highlight_formatted(ic_highlight_env_t* henv, const char* input, const char* formatted);
 
 /// \}
 
@@ -373,8 +357,7 @@ void ic_highlight_formatted(ic_highlight_env_t* henv, const char* input,
 /// both can be NULL in which case the defaults are used.
 /// @see ic_readline(), ic_set_prompt_marker(), ic_set_default_completer(),
 /// ic_set_default_highlighter().
-char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* completer,
-                     void* completer_arg, ic_highlight_fun_t* highlighter,
+char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* completer, void* completer_arg, ic_highlight_fun_t* highlighter,
                      void* highlighter_arg);
 
 /// \}
@@ -390,8 +373,7 @@ char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* completer,
 /// input. Pass \a NULL for the `prompt_marker` for the default marker (`"> "`).
 /// Pass \a NULL for continuation prompt marker to make it equal to the
 /// `prompt_marker`.
-void ic_set_prompt_marker(const char* prompt_marker,
-                          const char* continuation_prompt_marker);
+void ic_set_prompt_marker(const char* prompt_marker, const char* continuation_prompt_marker);
 
 /// Get the current prompt marker.
 const char* ic_get_prompt_marker(void);
@@ -515,9 +497,8 @@ bool ic_stop_completing(const ic_completion_env_t* cenv);
 /// Returns `true` if the callback should continue trying to find more possible
 /// completions. If `false` is returned, the callback should try to return and
 /// not add more completions (for improved latency).
-bool ic_add_completion_prim(ic_completion_env_t* cenv, const char* completion,
-                            const char* display, const char* help,
-                            long delete_before, long delete_after);
+bool ic_add_completion_prim(ic_completion_env_t* cenv, const char* completion, const char* display, const char* help, long delete_before,
+                            long delete_after);
 
 /// Primitive completion with source information. When completed,
 /// `delete_before` _bytes_ are deleted before the cursor position,
@@ -531,11 +512,8 @@ bool ic_add_completion_prim(ic_completion_env_t* cenv, const char* completion,
 /// Returns `true` if the callback should continue trying to find more possible
 /// completions. If `false` is returned, the callback should try to return and
 /// not add more completions (for improved latency).
-bool ic_add_completion_prim_with_source(ic_completion_env_t* cenv,
-                                        const char* completion,
-                                        const char* display, const char* help,
-                                        const char* source, long delete_before,
-                                        long delete_after);
+bool ic_add_completion_prim_with_source(ic_completion_env_t* cenv, const char* completion, const char* display, const char* help,
+                                        const char* source, long delete_before, long delete_after);
 
 /// \}
 
@@ -595,16 +573,14 @@ bool ic_char_is_filename_letter(const char* s, long len);
 
 /// Convenience: If this is a token start, return the length. Otherwise return
 /// 0.
-long ic_is_token(const char* s, long pos,
-                 ic_is_char_class_fun_t* is_token_char);
+long ic_is_token(const char* s, long pos, ic_is_char_class_fun_t* is_token_char);
 
 /// Convenience: Does this match the specified token?
 /// Ensures not to match prefixes or suffixes, and returns the length of the
 /// match (in bytes). E.g.
 /// `ic_match_token("function",0,&ic_char_is_letter,"fun")` returns 0. while
 /// `ic_match_token("fun x",0,&ic_char_is_letter,"fun"})` returns 3.
-long ic_match_token(const char* s, long pos,
-                    ic_is_char_class_fun_t* is_token_char, const char* token);
+long ic_match_token(const char* s, long pos, ic_is_char_class_fun_t* is_token_char, const char* token);
 
 /// Convenience: Do any of the specified tokens match?
 /// Ensures not to match prefixes or suffixes, and returns the length of the
@@ -612,9 +588,7 @@ long ic_match_token(const char* s, long pos,
 /// `ic_match_any_token("function",0,&ic_char_is_letter,{"fun","func",NULL})`
 /// returns 0. while `ic_match_any_token("func
 /// x",0,&ic_char_is_letter,{"fun","func",NULL})` returns 4.
-long ic_match_any_token(const char* s, long pos,
-                        ic_is_char_class_fun_t* is_token_char,
-                        const char** tokens);
+long ic_match_any_token(const char* s, long pos, ic_is_char_class_fun_t* is_token_char, const char** tokens);
 
 /// \}
 
@@ -735,8 +709,7 @@ typedef void(ic_free_fun_t)(void* p);
 
 /// Initialize with custom allocation functions.
 /// This must be called as the first function in a program!
-void ic_init_custom_alloc(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _realloc,
-                          ic_free_fun_t* _free);
+void ic_init_custom_alloc(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _realloc, ic_free_fun_t* _free);
 
 /// Free a potentially custom alloc'd pointer (in particular, the result
 /// returned from `ic_readline`)

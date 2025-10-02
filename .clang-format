@@ -5,7 +5,7 @@ TabWidth: 4
 UseTab: Never
 
 # Column limit and line breaking
-ColumnLimit: 80
+ColumnLimit: 140
 ReflowComments: true
 BreakBeforeBraces: Attach
 BreakBeforeTernaryOperators: true

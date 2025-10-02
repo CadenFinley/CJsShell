@@ -15,8 +15,7 @@ class LanguageInfo {
         std::chrono::steady_clock::time_point timestamp;
         bool is_valid() const {
             auto now = std::chrono::steady_clock::now();
-            auto age = std::chrono::duration_cast<std::chrono::seconds>(
-                now - timestamp);
+            auto age = std::chrono::duration_cast<std::chrono::seconds>(now - timestamp);
             return age.count() < 300;
         }
     };
@@ -25,105 +24,72 @@ class LanguageInfo {
     mutable std::mutex cache_mutex;
 
     std::vector<std::string> python_files = {
-        "requirements.txt", "requirements-dev.txt",
-        "pyproject.toml",   "Pipfile",
-        "Pipfile.lock",     "setup.py",
-        "setup.cfg",        "tox.ini",
-        ".python-version",  "environment.yml",
-        "conda.yml",        "__init__.py"};
+        "requirements.txt", "requirements-dev.txt", "pyproject.toml",  "Pipfile",   "Pipfile.lock", "setup.py", "setup.cfg",
+        "tox.ini",          ".python-version",      "environment.yml", "conda.yml", "__init__.py"};
     std::vector<std::string> python_extensions = {".py", ".ipynb"};
     std::vector<std::string> python_folders = {};
 
-    std::vector<std::string> nodejs_files = {"package.json", ".node-version",
-                                             ".nvmrc"};
-    std::vector<std::string> nodejs_extensions = {".js", ".mjs", ".cjs",
-                                                  ".ts", ".mts", ".cts"};
+    std::vector<std::string> nodejs_files = {"package.json", ".node-version", ".nvmrc"};
+    std::vector<std::string> nodejs_extensions = {".js", ".mjs", ".cjs", ".ts", ".mts", ".cts"};
     std::vector<std::string> nodejs_folders = {"node_modules"};
 
     std::vector<std::string> rust_files = {"Cargo.toml"};
     std::vector<std::string> rust_extensions = {".rs"};
     std::vector<std::string> rust_folders = {};
 
-    std::vector<std::string> golang_files = {
-        "go.mod",    "go.sum",     "go.work",    "glide.yaml",
-        "Gopkg.yml", "Gopkg.lock", ".go-version"};
+    std::vector<std::string> golang_files = {"go.mod", "go.sum", "go.work", "glide.yaml", "Gopkg.yml", "Gopkg.lock", ".go-version"};
     std::vector<std::string> golang_extensions = {".go"};
     std::vector<std::string> golang_folders = {"Godeps"};
 
-    std::vector<std::string> java_files = {
-        "pom.xml",     "build.gradle.kts", ".java-version", "deps.edn",
-        "project.clj", "build.boot",       ".sdkmanrc"};
-    std::vector<std::string> java_extensions = {".java", ".class", ".gradle",
-                                                ".jar",  ".cljs",  ".cljc"};
+    std::vector<std::string> java_files = {"pom.xml",     "build.gradle.kts", ".java-version", "deps.edn",
+                                           "project.clj", "build.boot",       ".sdkmanrc"};
+    std::vector<std::string> java_extensions = {".java", ".class", ".gradle", ".jar", ".cljs", ".cljc"};
     std::vector<std::string> java_folders = {};
 
-    std::vector<std::string> cpp_files = {
-        "CMakeLists.txt", "Makefile",    "makefile",   "configure.ac",
-        "configure.in",   "meson.build", "SConstruct", "vcpkg.json",
-        "conanfile.txt",  "conanfile.py"};
-    std::vector<std::string> cpp_extensions = {".c",   ".cpp", ".cxx", ".cc",
-                                               ".c++", ".h",   ".hpp", ".hxx",
-                                               ".hh",  ".h++"};
+    std::vector<std::string> cpp_files = {"CMakeLists.txt", "Makefile",   "makefile",   "configure.ac",  "configure.in",
+                                          "meson.build",    "SConstruct", "vcpkg.json", "conanfile.txt", "conanfile.py"};
+    std::vector<std::string> cpp_extensions = {".c", ".cpp", ".cxx", ".cc", ".c++", ".h", ".hpp", ".hxx", ".hh", ".h++"};
     std::vector<std::string> cpp_folders = {"build", "cmake"};
 
-    std::vector<std::string> csharp_files = {"global.json",
-                                             "project.json",
-                                             "Directory.Build.props",
-                                             "Directory.Build.targets",
-                                             "Packages.props",
-                                             ".csproj",
-                                             ".sln",
-                                             "nuget.config"};
+    std::vector<std::string> csharp_files = {
+        "global.json", "project.json", "Directory.Build.props", "Directory.Build.targets", "Packages.props",
+        ".csproj",     ".sln",         "nuget.config"};
     std::vector<std::string> csharp_extensions = {".cs", ".csx", ".vb"};
     std::vector<std::string> csharp_folders = {"bin", "obj"};
 
-    std::vector<std::string> php_files = {"composer.json", "composer.lock",
-                                          ".php-version", "artisan"};
-    std::vector<std::string> php_extensions = {".php",  ".phtml", ".php3",
-                                               ".php4", ".php5",  ".phps"};
+    std::vector<std::string> php_files = {"composer.json", "composer.lock", ".php-version", "artisan"};
+    std::vector<std::string> php_extensions = {".php", ".phtml", ".php3", ".php4", ".php5", ".phps"};
     std::vector<std::string> php_folders = {};
 
-    std::vector<std::string> ruby_files = {
-        "Gemfile", "Gemfile.lock",   ".ruby-version", "Rakefile",
-        ".rvmrc",  ".rbenv-version", "config.ru",     ".irbrc"};
-    std::vector<std::string> ruby_extensions = {".rb", ".rbx", ".rbi",
-                                                ".gemspec", ".rake"};
+    std::vector<std::string> ruby_files = {"Gemfile", "Gemfile.lock",   ".ruby-version", "Rakefile",
+                                           ".rvmrc",  ".rbenv-version", "config.ru",     ".irbrc"};
+    std::vector<std::string> ruby_extensions = {".rb", ".rbx", ".rbi", ".gemspec", ".rake"};
     std::vector<std::string> ruby_folders = {".bundle"};
 
-    std::vector<std::string> kotlin_files = {"build.gradle.kts",
-                                             "settings.gradle.kts"};
+    std::vector<std::string> kotlin_files = {"build.gradle.kts", "settings.gradle.kts"};
     std::vector<std::string> kotlin_extensions = {".kt", ".kts"};
     std::vector<std::string> kotlin_folders = {};
 
     std::vector<std::string> swift_files = {"Package.swift", "Project.swift"};
     std::vector<std::string> swift_extensions = {".swift"};
-    std::vector<std::string> swift_folders = {".swiftpm", "xcodeproj",
-                                              "xcworkspace"};
+    std::vector<std::string> swift_folders = {".swiftpm", "xcodeproj", "xcworkspace"};
 
-    std::vector<std::string> dart_files = {"pubspec.yaml", "pubspec.yml",
-                                           "pubspec.lock", ".dart_tool"};
+    std::vector<std::string> dart_files = {"pubspec.yaml", "pubspec.yml", "pubspec.lock", ".dart_tool"};
     std::vector<std::string> dart_extensions = {".dart"};
     std::vector<std::string> dart_folders = {"lib", ".dart_tool"};
 
-    std::vector<std::string> scala_files = {"build.sbt", "build.sc",
-                                            ".scalaenv", ".sbtrc", ".sbtopts"};
+    std::vector<std::string> scala_files = {"build.sbt", "build.sc", ".scalaenv", ".sbtrc", ".sbtopts"};
     std::vector<std::string> scala_extensions = {".scala", ".sc"};
     std::vector<std::string> scala_folders = {"project"};
 
-    bool is_project_detected(const std::vector<std::string>& files,
-                             const std::vector<std::string>& extensions,
+    bool is_project_detected(const std::vector<std::string>& files, const std::vector<std::string>& extensions,
                              const std::vector<std::string>& folders);
-    bool scan_directory_recursive(const std::filesystem::path& dir,
-                                  const std::vector<std::string>& files,
-                                  const std::vector<std::string>& extensions,
-                                  const std::vector<std::string>& folders,
-                                  int max_depth = 3);
+    bool scan_directory_recursive(const std::filesystem::path& dir, const std::vector<std::string>& files,
+                                  const std::vector<std::string>& extensions, const std::vector<std::string>& folders, int max_depth = 3);
     std::string execute_command(const std::string& command);
     std::string extract_version(const std::string& output);
 
-    std::string get_cached_version(
-        const std::string& language_key,
-        const std::function<std::string()>& version_func) const;
+    std::string get_cached_version(const std::string& language_key, const std::function<std::string()>& version_func) const;
 
    public:
     LanguageInfo();

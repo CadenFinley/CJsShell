@@ -68,8 +68,7 @@ class ShellScriptInterpreter {
         std::vector<std::string> related_info;
         std::string documentation_url;
 
-        SyntaxError(size_t line_num, const std::string& msg,
-                    const std::string& line_content)
+        SyntaxError(size_t line_num, const std::string& msg, const std::string& line_content)
             : position({line_num, 0, 0, 0}),
               severity(ErrorSeverity::ERROR),
               category(ErrorCategory::SYNTAX),
@@ -77,10 +76,8 @@ class ShellScriptInterpreter {
               message(msg),
               line_content(line_content) {
         }
-        SyntaxError(ErrorPosition pos, ErrorSeverity sev, ErrorCategory cat,
-                    const std::string& code, const std::string& msg,
-                    const std::string& line_content = "",
-                    const std::string& suggestion = "")
+        SyntaxError(ErrorPosition pos, ErrorSeverity sev, ErrorCategory cat, const std::string& code, const std::string& msg,
+                    const std::string& line_content = "", const std::string& suggestion = "")
             : position(pos),
               severity(sev),
               category(cat),
@@ -91,53 +88,37 @@ class ShellScriptInterpreter {
         }
     };
 
-    std::vector<SyntaxError> validate_script_syntax(
-        const std::vector<std::string>& lines);
-    bool has_syntax_errors(const std::vector<std::string>& lines,
-                           bool print_errors = true);
+    std::vector<SyntaxError> validate_script_syntax(const std::vector<std::string>& lines);
+    bool has_syntax_errors(const std::vector<std::string>& lines, bool print_errors = true);
 
-    std::vector<SyntaxError> validate_comprehensive_syntax(
-        const std::vector<std::string>& lines, bool check_semantics = true,
-        bool check_style = false, bool check_performance = false);
+    std::vector<SyntaxError> validate_comprehensive_syntax(const std::vector<std::string>& lines, bool check_semantics = true,
+                                                           bool check_style = false, bool check_performance = false);
 
-    std::vector<SyntaxError> validate_variable_usage(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_variable_usage(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_command_existence(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_command_existence(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_redirection_syntax(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_redirection_syntax(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_arithmetic_expressions(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_arithmetic_expressions(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_parameter_expansions(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_parameter_expansions(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> analyze_control_flow(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> analyze_control_flow(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> check_style_guidelines(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> check_style_guidelines(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_pipeline_syntax(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_pipeline_syntax(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_function_syntax(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_function_syntax(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_loop_syntax(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_loop_syntax(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_conditional_syntax(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_conditional_syntax(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_array_syntax(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_array_syntax(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_heredoc_syntax(
-        const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_heredoc_syntax(const std::vector<std::string>& lines);
 
     bool has_function(const std::string& name) const;
     std::vector<std::string> get_function_names() const;
@@ -156,21 +137,12 @@ class ShellScriptInterpreter {
     Parser* shell_parser = nullptr;
     std::unordered_map<std::string, std::vector<std::string>> functions;
 
-    std::vector<std::unordered_map<std::string, std::string>>
-        local_variable_stack;
+    std::vector<std::unordered_map<std::string, std::string>> local_variable_stack;
     bool variable_is_set(const std::string& var_name);
-    std::string pattern_match_prefix(const std::string& value,
-                                     const std::string& pattern,
-                                     bool longest = false);
-    std::string pattern_match_suffix(const std::string& value,
-                                     const std::string& pattern,
-                                     bool longest = false);
-    std::string pattern_substitute(const std::string& value,
-                                   const std::string& replacement_expr,
-                                   bool global = false);
-    std::string case_convert(const std::string& value,
-                             const std::string& pattern, bool uppercase,
-                             bool all_chars);
+    std::string pattern_match_prefix(const std::string& value, const std::string& pattern, bool longest = false);
+    std::string pattern_match_suffix(const std::string& value, const std::string& pattern, bool longest = false);
+    std::string pattern_substitute(const std::string& value, const std::string& replacement_expr, bool global = false);
+    std::string case_convert(const std::string& value, const std::string& pattern, bool uppercase, bool all_chars);
     bool matches_pattern(const std::string& text, const std::string& pattern);
     bool matches_char_class(char c, const std::string& char_class);
     int set_last_status(int code);

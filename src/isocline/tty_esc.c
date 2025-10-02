@@ -308,8 +308,7 @@ static code_t esc_decode_ss3(uint8_t ss3_code) {
     return KEY_NONE;
 }
 
-static void tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num,
-                             long esc_timeout) {
+static void tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num, long esc_timeout) {
     *num = 1;  // default
     ssize_t count = 0;
     uint32_t i = 0;
@@ -324,8 +323,7 @@ static void tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num,
         *num = i;
 }
 
-static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0,
-                           long esc_timeout) {
+static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, long esc_timeout) {
     // CSI starts with 0x9b (c1=='[') | ESC [ (c1=='[') | ESC [Oo?] (c1 == 'O')
     // /* = SS3 */
 
@@ -362,8 +360,7 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0,
     uint8_t final = peek;
     code_t modifiers = mods0;
 
-    debug_msg("tty: escape sequence: ESC %c %c %d;%d %c\n", c1,
-              (special == 0 ? '_' : special), num1, num2, final);
+    debug_msg("tty: escape sequence: ESC %c %c %d;%d %c\n", c1, (special == 0 ? '_' : special), num1, num2, final);
 
     // Adjust special cases into standard ones.
     if ((final == '@' || final == '9') && c1 == '[' && num1 == 1) {
@@ -382,15 +379,13 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0,
         if (final == '@')
             modifiers |= KEY_MOD_SHIFT | KEY_MOD_CTRL;
         final = '~';
-    } else if (c1 == '[' && final >= 'a' &&
-               final <= 'd') {  // note: do not catch ESC [ .. u  (for unicode)
+    } else if (c1 == '[' && final >= 'a' && final <= 'd') {  // note: do not catch ESC [ .. u  (for unicode)
         // ESC [ [a-d]  : on Eterm for shift+ cursor
         modifiers |= KEY_MOD_SHIFT;
         final = 'A' + (final - 'a');
     }
 
-    if (((c1 == 'O') || (c1 == '[' && final != '~' && final != 'u')) &&
-        (num2 == 1 && num1 > 1 && num1 <= 8)) {
+    if (((c1 == 'O') || (c1 == '[' && final != '~' && final != 'u')) && (num2 == 1 && num1 > 1 && num1 <= 8)) {
         // on haiku the modifier can be parameter 1, make it parameter 2 instead
         num2 = num1;
         num1 = 1;
@@ -417,8 +412,7 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0,
     } else if (c1 == '[' && final == 'u') {
         // unicode
         code = key_unicode(num1);
-    } else if (c1 == 'O' && ((final >= 'A' && final <= 'Z') ||
-                             (final >= 'a' && final <= 'z'))) {
+    } else if (c1 == 'O' && ((final >= 'A' && final <= 'Z') || (final >= 'a' && final <= 'z'))) {
         // ss3
         code = esc_decode_ss3(final);
     } else if (num1 == 1 && final >= 'A' && final <= 'Z') {
@@ -430,8 +424,7 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0,
     }
 
     if (code == KEY_NONE && final != 'R') {
-        debug_msg("tty: ignore escape sequence: ESC %c %zu;%zu %c\n", c1, num1,
-                  num2, final);
+        debug_msg("tty: ignore escape sequence: ESC %c %zu;%zu %c\n", c1, num1, num2, final);
     }
     return (code != KEY_NONE ? (code | modifiers) : KEY_NONE);
 }
@@ -461,8 +454,7 @@ static code_t tty_read_osc(tty_t* tty, uint8_t* ppeek, long esc_timeout) {
     return KEY_NONE;
 }
 
-ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout,
-                               long esc_timeout) {
+ic_private code_t tty_read_esc(tty_t* tty, long esc_initial_timeout, long esc_timeout) {
     code_t mods = 0;
     uint8_t peek = 0;
 

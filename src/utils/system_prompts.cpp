@@ -34,12 +34,10 @@ std::string build_system_prompt() {
 
     std::time_t now = std::time(nullptr);
     char time_buffer[80];
-    std::strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S",
-                  std::localtime(&now));
+    std::strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", std::localtime(&now));
 
     char date_buffer[80];
-    std::strftime(date_buffer, sizeof(date_buffer), "%Y-%m-%d",
-                  std::localtime(&now));
+    std::strftime(date_buffer, sizeof(date_buffer), "%Y-%m-%d", std::localtime(&now));
 
     prompt << get_common_system_prompt() << " ";
     prompt << "Current context: ";

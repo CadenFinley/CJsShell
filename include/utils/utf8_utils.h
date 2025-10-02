@@ -7,9 +7,7 @@
 
 namespace utf8_utils {
 
-size_t calculate_display_width(const std::string& str,
-                               size_t* count_ansi_chars = nullptr,
-                               size_t* count_visible_chars = nullptr);
+size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars = nullptr, size_t* count_visible_chars = nullptr);
 
 size_t calculate_utf8_width(const std::string& str);
 

@@ -10,18 +10,13 @@
 
 int validate_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT,
-             "validate",
-             "usage: validate [on|off|status] or validate <command_name>...",
-             {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "validate", "usage: validate [on|off|status] or validate <command_name>...", {}});
         return 1;
     }
 
     auto* parser = shell ? shell->get_parser() : nullptr;
     if (!parser) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "validate", "Parser not available", {}});
+        print_error({ErrorType::RUNTIME_ERROR, "validate", "Parser not available", {}});
         return 1;
     }
 
@@ -34,10 +29,7 @@ int validate_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << "Command validation disabled" << std::endl;
         return 0;
     } else if (args[1] == "status") {
-        std::cout << "Command validation is "
-                  << (parser->get_command_validation_enabled() ? "enabled"
-                                                               : "disabled")
-                  << std::endl;
+        std::cout << "Command validation is " << (parser->get_command_validation_enabled() ? "enabled" : "disabled") << std::endl;
         return 0;
     }
 
@@ -48,10 +40,8 @@ int validate_command(const std::vector<std::string>& args, Shell* shell) {
         if (parser->is_valid_command(cmd_name)) {
             std::cout << cmd_name << ": valid command" << std::endl;
         } else {
-            auto suggestions =
-                suggestion_utils::generate_command_suggestions(cmd_name);
-            ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, cmd_name,
-                               "command not found", suggestions};
+            auto suggestions = suggestion_utils::generate_command_suggestions(cmd_name);
+            ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, cmd_name, "command not found", suggestions};
             print_error(error);
 
             exit_code = 1;

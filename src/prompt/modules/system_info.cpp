@@ -23,8 +23,7 @@ std::string SystemInfo::get_disk_usage(const std::filesystem::path& path) {
 
 std::string SystemInfo::get_swap_usage() {
 #ifdef __APPLE__
-    std::string cmd =
-        "sysctl vm.swapusage | awk '{print $7}' | sed 's/[(),]//g'";
+    std::string cmd = "sysctl vm.swapusage | awk '{print $7}' | sed 's/[(),]//g'";
 #elif defined(__linux__)
     std::string cmd = "free | awk 'NR==3{printf \"%.2f%%\", $3/$2*100}'";
 #else
@@ -77,8 +76,7 @@ std::string SystemInfo::get_os_info() {
     std::string cmd = "uname -s";
 #endif
 
-    auto result_data =
-        cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result_data.is_error()) {
         return "Unknown";
     }
@@ -109,8 +107,7 @@ std::string SystemInfo::get_kernel_version() {
     std::string cmd = "uname -r";
 #endif
 
-    auto result_data =
-        cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result_data.is_error()) {
         return "Unknown";
     }
@@ -125,8 +122,7 @@ std::string SystemInfo::get_kernel_version() {
 
 float SystemInfo::get_cpu_usage() {
 #ifdef __APPLE__
-    std::string cmd =
-        "top -l 1 -n 0 | awk '/CPU usage/ {print $3}' | sed 's/%//'";
+    std::string cmd = "top -l 1 -n 0 | awk '/CPU usage/ {print $3}' | sed 's/%//'";
 #elif defined(__linux__)
     std::string cmd = R"(
     grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4)} END {printf "%.1f", usage}'
@@ -135,8 +131,7 @@ float SystemInfo::get_cpu_usage() {
     return 0.0f;
 #endif
 
-    auto result_data =
-        cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result_data.is_error()) {
         return 0.0f;
     }
@@ -172,8 +167,7 @@ float SystemInfo::get_memory_usage() {
     return 0.0f;
 #endif
 
-    auto result_data =
-        cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result_data.is_error()) {
         return 0.0f;
     }
@@ -215,8 +209,7 @@ std::string SystemInfo::get_battery_status() {
     return "N/A";
 #endif
 
-    auto result_data =
-        cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result_data.is_error()) {
         return "N/A";
     }
@@ -238,8 +231,7 @@ std::string SystemInfo::get_uptime() {
     std::string cmd = "uptime";
 #endif
 
-    auto result_data =
-        cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result_data.is_error()) {
         return "Unknown";
     }

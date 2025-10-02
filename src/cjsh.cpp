@@ -42,8 +42,6 @@
 #include "utils/command_line_parser.h"
 #include "version_command.h"
 
-bool g_debug_mode = false;
-bool g_title_line = true;
 struct termios g_original_termios;
 bool g_terminal_state_saved = false;
 int g_shell_terminal = 0;
@@ -85,6 +83,7 @@ bool minimal_mode = false;
 bool disable_custom_ls = false;
 bool show_startup_time = false;
 bool secure_mode = false;
+bool show_title_line = true;
 }  // namespace config
 
 // add --tiny option to disable all extra cjsh compoenents at compile time and
@@ -98,41 +97,20 @@ static void save_startup_arguments(int argc, char* argv[]) {
     for (int i = 0; i < argc; i++) {
         g_startup_args.push_back(std::string(argv[i]));
     }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Starting CJ's Shell version " << c_version
-                  << " with PID: " << getpid()
-                  << " with original command line args: " << std::endl;
-        for (const auto& arg : g_startup_args) {
-            std::cerr << "DEBUG:   " << arg << std::endl;
-        }
-    }
 }
 
 static int handle_non_interactive_mode(const std::string& script_file) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Running in non-interactive mode" << std::endl;
-
     std::string script_content;
 
     if (!script_file.empty()) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Reading script file: " << script_file
-                      << std::endl;
-
-        auto read_result =
-            cjsh_filesystem::FileOperations::read_file_content(script_file);
+        auto read_result = cjsh_filesystem::FileOperations::read_file_content(script_file);
         if (!read_result.is_ok()) {
             ErrorType error_type = ErrorType::FILE_NOT_FOUND;
-            if (read_result.error().find("Permission denied") !=
-                std::string::npos) {
+            if (read_result.error().find("Permission denied") != std::string::npos) {
                 error_type = ErrorType::PERMISSION_DENIED;
             }
 
-            print_error({error_type,
-                         script_file.c_str(),
-                         read_result.error().c_str(),
-                         {"Check file path and permissions"}});
+            print_error({error_type, script_file.c_str(), read_result.error().c_str(), {"Check file path and permissions"}});
             return 127;
         }
 
@@ -145,15 +123,6 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     }
 
     if (!script_content.empty()) {
-        if (g_debug_mode) {
-            if (!script_file.empty()) {
-                std::cerr << "DEBUG: Executing script file content"
-                          << std::endl;
-            } else {
-                std::cerr << "DEBUG: Executing piped script content"
-                          << std::endl;
-            }
-        }
         int code = g_shell ? g_shell->execute(script_content) : 1;
 
         const char* exit_code_str = getenv("EXIT_CODE");
@@ -169,38 +138,20 @@ static int handle_non_interactive_mode(const std::string& script_file) {
 }
 
 void initialize_colors() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing colors with enabled="
-                  << config::colors_enabled << std::endl;
     colors::initialize_color_support(config::colors_enabled);
-    if (g_debug_mode)
-        std::cerr
-            << "DEBUG: Disabling isocline colors and resetting prompt style"
-            << std::endl;
 
     if (!config::colors_enabled) {
         ic_enable_color(false);
-
         ic_style_def("ic-prompt", "");
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Colors disabled." << std::endl;
     }
 }
 
 void initialize_plugins() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing plugin system with enabled="
-                  << config::plugins_enabled << std::endl;
-    g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
-                                        config::plugins_enabled, true);
+    g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path, config::plugins_enabled, true);
 }
 
 void initialize_themes() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing theme system with enabled="
-                  << config::themes_enabled << std::endl;
-    g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path,
-                                      config::themes_enabled);
+    g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path, config::themes_enabled);
 }
 
 void initialize_ai() {
@@ -209,24 +160,15 @@ void initialize_ai() {
     if (env_key) {
         api_key = env_key;
     }
-
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing AI with enabled="
-                  << config::ai_enabled << std::endl;
-    g_ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
-                                std::vector<std::string>{},
-                                cjsh_filesystem::g_cjsh_data_path,
-                                config::ai_enabled);
+    g_ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""), std::vector<std::string>{},
+                                cjsh_filesystem::g_cjsh_data_path, config::ai_enabled);
 }
 
 static int initialize_interactive_components() {
     g_shell->set_interactive_mode(true);
 
     if (!cjsh_filesystem::init_interactive_filesystem()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     "Failed to initialize file system",
-                     {"Check file permissions", "Reinstall cjsh"}});
+        print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize file system", {"Check file permissions", "Reinstall cjsh"}});
         return 1;
     }
 
@@ -235,24 +177,12 @@ static int initialize_interactive_components() {
     initialize_colors();
 
     std::string saved_current_dir = std::filesystem::current_path().string();
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Saved current directory: " << saved_current_dir
-                  << std::endl;
 
     if (config::source_enabled && !config::secure_mode) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Processing source file" << std::endl;
         if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
             g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
         }
     } else {
-        if (config::secure_mode && g_debug_mode)
-            std::cerr << "DEBUG: Secure mode enabled - skipping source file"
-                      << std::endl;
-        if (g_debug_mode)
-            std::cerr
-                << "DEBUG: Restoring current directory due to --no-source: "
-                << saved_current_dir << std::endl;
         if (std::filesystem::current_path() != saved_current_dir) {
             std::filesystem::current_path(saved_current_dir);
             setenv("PWD", saved_current_dir.c_str(), 1);
@@ -265,37 +195,19 @@ static int initialize_interactive_components() {
 
 static void process_profile_files() {
     if (config::secure_mode) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Secure mode enabled - skipping profile files"
-                      << std::endl;
         return;
     }
 
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Processing profile files" << std::endl;
-    std::filesystem::path user_profile =
-        cjsh_filesystem::g_user_home_path / ".profile";
+    std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
     if (std::filesystem::exists(user_profile)) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Found user profile: " << user_profile.string()
-                      << std::endl;
         g_shell->execute_script_file(user_profile, true);
     }
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Sourcing profile file: "
-                  << cjsh_filesystem::g_cjsh_profile_path.string() << std::endl;
-    g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path);
 }
 
 static int initialize_login_mode() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Initializing login environment" << std::endl;
 
     if (!cjsh_filesystem::init_login_filesystem()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     "Failed to initialize file system",
-                     {"Check file permissions", "Reinstall cjsh"}});
+        print_error({ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize file system", {"Check file permissions", "Reinstall cjsh"}});
         return 1;
     }
 
@@ -306,23 +218,20 @@ static int initialize_login_mode() {
 
 static void start_interactive_process() {
     auto startup_end_time = std::chrono::steady_clock::now();
-    auto startup_duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(
-            startup_end_time - g_startup_begin_time);
+    auto startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(startup_end_time - g_startup_begin_time);
 
     if (g_shell && g_theme) {
         g_shell->set_initial_duration(startup_duration.count());
     }
 
-    if (g_title_line) {
-        std::cout << " CJ's Shell v" << c_version
-                  << " - Caden J Finley (c) 2025" << std::endl;
+    if (show_title_line) {
+        std::cout << " CJ's Shell v" << c_version << " - Caden J Finley (c) 2025" << std::endl;
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
                      "University\033[0m"
                   << std::endl;
     }
 
-    if (g_title_line && config::show_startup_time) {
+    if (show_title_line && config::show_startup_time) {
         std::cout << std::endl;
     }
 
@@ -337,9 +246,6 @@ static void start_interactive_process() {
 }
 
 void cleanup_resources() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Cleaning up resources..." << std::endl;
-    }
 
     if (g_shell) {
         TrapManager::instance().set_shell(g_shell.get());
@@ -362,9 +268,6 @@ void cleanup_resources() {
         g_shell.reset();
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Cleanup complete." << std::endl;
-    }
     if (config::interactive_mode) {
         std::cerr << "Shutdown complete." << std::endl;
     }
@@ -415,10 +318,6 @@ int main(int argc, char* argv[]) {
     }
 
     if (config::execute_command) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Executing -c via Shell::execute: "
-                      << config::cmd_to_execute << std::endl;
-        }
 
         int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
 
@@ -446,8 +345,7 @@ int main(int argc, char* argv[]) {
     }
 
     g_startup_active = false;
-    if (!g_exit_flag &&
-        (config::interactive_mode || config::force_interactive)) {
+    if (!g_exit_flag && (config::interactive_mode || config::force_interactive)) {
         start_interactive_process();
     }
 

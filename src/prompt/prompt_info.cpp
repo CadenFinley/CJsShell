@@ -151,17 +151,13 @@ std::string PromptInfo::get_basic_ai_prompt() {
     std::string ai_model = g_ai->get_model();
     std::string ai_context = g_ai->get_save_directory();
     std::string ai_type = g_ai->get_assistant_type();
-    std::string ai_context_comparison =
-        (std::filesystem::current_path().string() + "/" == ai_context) ? "✔"
-                                                                       : "✖";
+    std::string ai_context_comparison = (std::filesystem::current_path().string() + "/" == ai_context) ? "✔" : "✖";
 
-    size_t size = ai_model.length() + ai_context.length() + cwd.length() +
-                  ai_type.length() + ai_context_comparison.length() + 10;
+    size_t size = ai_model.length() + ai_context.length() + cwd.length() + ai_type.length() + ai_context_comparison.length() + 10;
     std::string prompt;
     prompt.reserve(size);
 
-    prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " +
-             cwd + " " + ai_type + " > ";
+    prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " + cwd + " " + ai_type + " > ";
 
     if (g_debug_mode)
         std::cerr << "DEBUG: get_basic_ai_prompt END" << std::endl;
@@ -174,8 +170,7 @@ std::string PromptInfo::get_basic_title() {
     return "cjsh v" + c_version + " " + get_current_file_path();
 }
 
-bool PromptInfo::is_variable_used(const std::string& var_name,
-                                  const std::vector<ThemeSegment>& segments) {
+bool PromptInfo::is_variable_used(const std::string& var_name, const std::vector<ThemeSegment>& segments) {
     if (g_debug_mode)
         std::cerr << "DEBUG: is_variable_used START: " << var_name << std::endl;
 
@@ -191,9 +186,7 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
         auto it = cache.find(cache_key);
         if (it != cache.end()) {
             if (g_debug_mode)
-                std::cerr << "DEBUG: is_variable_used END (cached): "
-                          << var_name << " = "
-                          << (it->second ? "true" : "false") << std::endl;
+                std::cerr << "DEBUG: is_variable_used END (cached): " << var_name << " = " << (it->second ? "true" : "false") << std::endl;
             return it->second;
         }
     }
@@ -203,8 +196,7 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
             std::lock_guard<std::mutex> lock(cache_mutex);
             cache[cache_key] = true;
             if (g_debug_mode)
-                std::cerr << "DEBUG: is_variable_used END: " << var_name
-                          << " = true" << std::endl;
+                std::cerr << "DEBUG: is_variable_used END: " << var_name << " = true" << std::endl;
             return true;
         }
     }
@@ -212,25 +204,17 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
     std::lock_guard<std::mutex> lock(cache_mutex);
     cache[cache_key] = false;
     if (g_debug_mode)
-        std::cerr << "DEBUG: is_variable_used END: " << var_name << " = false"
-                  << std::endl;
+        std::cerr << "DEBUG: is_variable_used END: " << var_name << " = false" << std::endl;
     return false;
 }
 
-std::unordered_map<std::string, std::string> PromptInfo::get_variables(
-    const std::vector<ThemeSegment>& segments, bool is_git_repo,
-    const std::filesystem::path& repo_root) {
+std::unordered_map<std::string, std::string> PromptInfo::get_variables(const std::vector<ThemeSegment>& segments, bool is_git_repo,
+                                                                       const std::filesystem::path& repo_root) {
     if (g_debug_mode)
-        std::cerr << "DEBUG: Getting prompt variables, is_git_repo="
-                  << is_git_repo << std::endl;
+        std::cerr << "DEBUG: Getting prompt variables, is_git_repo=" << is_git_repo << std::endl;
 
-    static std::unordered_map<
-        std::string, std::pair<bool, std::chrono::steady_clock::time_point>>
-        language_cache;
-    static std::unordered_map<
-        std::string,
-        std::pair<std::string, std::chrono::steady_clock::time_point>>
-        version_cache;
+    static std::unordered_map<std::string, std::pair<bool, std::chrono::steady_clock::time_point>> language_cache;
+    static std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> version_cache;
     static std::mutex cache_mutex;
     static const std::chrono::seconds CACHE_DURATION(30);
 
@@ -247,8 +231,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             std::smatch matches;
             std::string::const_iterator search_start(content.cbegin());
 
-            while (std::regex_search(search_start, content.cend(), matches,
-                                     placeholder_pattern)) {
+            while (std::regex_search(search_start, content.cend(), matches, placeholder_pattern)) {
                 std::string var_name = matches[1];
                 needed_vars.insert(var_name);
 
@@ -256,12 +239,9 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                     std::regex nested_var_pattern("\\{([A-Z_]+)\\}");
                     std::smatch nested_matches;
                     std::string conditional = matches[0];
-                    std::string::const_iterator nested_search_start(
-                        conditional.cbegin());
+                    std::string::const_iterator nested_search_start(conditional.cbegin());
 
-                    while (std::regex_search(nested_search_start,
-                                             conditional.cend(), nested_matches,
-                                             nested_var_pattern)) {
+                    while (std::regex_search(nested_search_start, conditional.cend(), nested_matches, nested_var_pattern)) {
                         needed_vars.insert(nested_matches[1]);
                         nested_search_start = nested_matches.suffix().first;
                     }
@@ -273,18 +253,10 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
 
     std::vector<std::pair<std::string, std::string>> lang_dependencies = {
-        {"PYTHON_VERSION", "IS_PYTHON_PROJECT"},
-        {"NODEJS_VERSION", "IS_NODEJS_PROJECT"},
-        {"RUST_VERSION", "IS_RUST_PROJECT"},
-        {"GOLANG_VERSION", "IS_GOLANG_PROJECT"},
-        {"JAVA_VERSION", "IS_JAVA_PROJECT"},
-        {"CPP_VERSION", "IS_CPP_PROJECT"},
-        {"CSHARP_VERSION", "IS_CSHARP_PROJECT"},
-        {"PHP_VERSION", "IS_PHP_PROJECT"},
-        {"RUBY_VERSION", "IS_RUBY_PROJECT"},
-        {"KOTLIN_VERSION", "IS_KOTLIN_PROJECT"},
-        {"SWIFT_VERSION", "IS_SWIFT_PROJECT"},
-        {"DART_VERSION", "IS_DART_PROJECT"},
+        {"PYTHON_VERSION", "IS_PYTHON_PROJECT"}, {"NODEJS_VERSION", "IS_NODEJS_PROJECT"}, {"RUST_VERSION", "IS_RUST_PROJECT"},
+        {"GOLANG_VERSION", "IS_GOLANG_PROJECT"}, {"JAVA_VERSION", "IS_JAVA_PROJECT"},     {"CPP_VERSION", "IS_CPP_PROJECT"},
+        {"CSHARP_VERSION", "IS_CSHARP_PROJECT"}, {"PHP_VERSION", "IS_PHP_PROJECT"},       {"RUBY_VERSION", "IS_RUBY_PROJECT"},
+        {"KOTLIN_VERSION", "IS_KOTLIN_PROJECT"}, {"SWIFT_VERSION", "IS_SWIFT_PROJECT"},   {"DART_VERSION", "IS_DART_PROJECT"},
         {"SCALA_VERSION", "IS_SCALA_PROJECT"}};
 
     for (const auto& [version_var, project_var] : lang_dependencies) {
@@ -301,8 +273,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         auto key = std::filesystem::current_path().string() + "_" + lang;
         auto it = language_cache.find(key);
 
-        if (it != language_cache.end() &&
-            (now - it->second.second) < CACHE_DURATION) {
+        if (it != language_cache.end() && (now - it->second.second) < CACHE_DURATION) {
             return it->second.first;
         }
 
@@ -343,12 +314,10 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             return "";
 
         std::lock_guard<std::mutex> lock(cache_mutex);
-        auto key =
-            std::filesystem::current_path().string() + "_" + lang + "_version";
+        auto key = std::filesystem::current_path().string() + "_" + lang + "_version";
         auto it = version_cache.find(key);
 
-        if (it != version_cache.end() &&
-            (now - it->second.second) < CACHE_DURATION) {
+        if (it != version_cache.end() && (now - it->second.second) < CACHE_DURATION) {
             return it->second.first;
         }
 
@@ -446,13 +415,11 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
 
     if (needed_vars.count("CPU_USAGE")) {
-        vars["CPU_USAGE"] =
-            std::to_string(static_cast<int>(get_cpu_usage())) + "%";
+        vars["CPU_USAGE"] = std::to_string(static_cast<int>(get_cpu_usage())) + "%";
     }
 
     if (needed_vars.count("MEM_USAGE")) {
-        vars["MEM_USAGE"] =
-            std::to_string(static_cast<int>(get_memory_usage())) + "%";
+        vars["MEM_USAGE"] = std::to_string(static_cast<int>(get_memory_usage())) + "%";
     }
 
     if (needed_vars.count("BATTERY")) {
@@ -469,8 +436,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
     if (needed_vars.count("TERM_SIZE")) {
         auto [width, height] = get_terminal_dimensions();
-        vars["TERM_SIZE"] =
-            std::to_string(width) + "x" + std::to_string(height);
+        vars["TERM_SIZE"] = std::to_string(width) + "x" + std::to_string(height);
     }
 
     for (const auto& var_name : needed_vars) {
@@ -536,8 +502,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
 
     if (needed_vars.count("CMD_DURATION_MS")) {
-        vars["CMD_DURATION_MS"] =
-            std::to_string(get_last_command_duration_us());
+        vars["CMD_DURATION_MS"] = std::to_string(get_last_command_duration_us());
     }
 
     if (needed_vars.count("EXIT_CODE")) {
@@ -608,9 +573,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     if (needed_vars.count("LANGUAGE_VERSIONS")) {
         std::string combined_versions;
 
-        std::vector<std::string> languages = {
-            "python", "nodejs", "rust",   "golang", "java", "cpp",  "csharp",
-            "php",    "ruby",   "kotlin", "swift",  "dart", "scala"};
+        std::vector<std::string> languages = {"python", "nodejs", "rust",   "golang", "java", "cpp",  "csharp",
+                                              "php",    "ruby",   "kotlin", "swift",  "dart", "scala"};
 
         for (const std::string& lang : languages) {
             if (get_cached_language_detection(lang)) {
@@ -634,68 +598,55 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
 
     if (needed_vars.count("IS_PYTHON_PROJECT")) {
-        vars["IS_PYTHON_PROJECT"] =
-            get_cached_language_detection("python") ? "true" : "false";
+        vars["IS_PYTHON_PROJECT"] = get_cached_language_detection("python") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_NODEJS_PROJECT")) {
-        vars["IS_NODEJS_PROJECT"] =
-            get_cached_language_detection("nodejs") ? "true" : "false";
+        vars["IS_NODEJS_PROJECT"] = get_cached_language_detection("nodejs") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_RUST_PROJECT")) {
-        vars["IS_RUST_PROJECT"] =
-            get_cached_language_detection("rust") ? "true" : "false";
+        vars["IS_RUST_PROJECT"] = get_cached_language_detection("rust") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_GOLANG_PROJECT")) {
-        vars["IS_GOLANG_PROJECT"] =
-            get_cached_language_detection("golang") ? "true" : "false";
+        vars["IS_GOLANG_PROJECT"] = get_cached_language_detection("golang") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_JAVA_PROJECT")) {
-        vars["IS_JAVA_PROJECT"] =
-            get_cached_language_detection("java") ? "true" : "false";
+        vars["IS_JAVA_PROJECT"] = get_cached_language_detection("java") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_CPP_PROJECT")) {
-        vars["IS_CPP_PROJECT"] =
-            get_cached_language_detection("cpp") ? "true" : "false";
+        vars["IS_CPP_PROJECT"] = get_cached_language_detection("cpp") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_CSHARP_PROJECT")) {
-        vars["IS_CSHARP_PROJECT"] =
-            get_cached_language_detection("csharp") ? "true" : "false";
+        vars["IS_CSHARP_PROJECT"] = get_cached_language_detection("csharp") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_PHP_PROJECT")) {
-        vars["IS_PHP_PROJECT"] =
-            get_cached_language_detection("php") ? "true" : "false";
+        vars["IS_PHP_PROJECT"] = get_cached_language_detection("php") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_RUBY_PROJECT")) {
-        vars["IS_RUBY_PROJECT"] =
-            get_cached_language_detection("ruby") ? "true" : "false";
+        vars["IS_RUBY_PROJECT"] = get_cached_language_detection("ruby") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_KOTLIN_PROJECT")) {
-        vars["IS_KOTLIN_PROJECT"] =
-            get_cached_language_detection("kotlin") ? "true" : "false";
+        vars["IS_KOTLIN_PROJECT"] = get_cached_language_detection("kotlin") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_SWIFT_PROJECT")) {
-        vars["IS_SWIFT_PROJECT"] =
-            get_cached_language_detection("swift") ? "true" : "false";
+        vars["IS_SWIFT_PROJECT"] = get_cached_language_detection("swift") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_DART_PROJECT")) {
-        vars["IS_DART_PROJECT"] =
-            get_cached_language_detection("dart") ? "true" : "false";
+        vars["IS_DART_PROJECT"] = get_cached_language_detection("dart") ? "true" : "false";
     }
 
     if (needed_vars.count("IS_SCALA_PROJECT")) {
-        vars["IS_SCALA_PROJECT"] =
-            get_cached_language_detection("scala") ? "true" : "false";
+        vars["IS_SCALA_PROJECT"] = get_cached_language_detection("scala") ? "true" : "false";
     }
 
     if (needed_vars.count("CONTAINER_NAME")) {
@@ -749,18 +700,15 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
 
         if (needed_vars.count("GIT_STASHES")) {
-            vars["GIT_STASHES"] =
-                std::to_string(get_git_stash_count(repo_root));
+            vars["GIT_STASHES"] = std::to_string(get_git_stash_count(repo_root));
         }
 
         if (needed_vars.count("GIT_STAGED")) {
-            vars["GIT_STAGED"] =
-                get_git_has_staged_changes(repo_root) ? "✓" : "";
+            vars["GIT_STAGED"] = get_git_has_staged_changes(repo_root) ? "✓" : "";
         }
 
         if (needed_vars.count("GIT_CHANGES")) {
-            vars["GIT_CHANGES"] =
-                std::to_string(get_git_uncommitted_changes(repo_root));
+            vars["GIT_CHANGES"] = std::to_string(get_git_uncommitted_changes(repo_root));
         }
     }
 

@@ -37,11 +37,9 @@ class PromptInfo {
     std::string get_basic_prompt();
     std::string get_basic_title();
     std::string get_basic_ai_prompt();
-    bool is_variable_used(const std::string& var_name,
-                          const std::vector<ThemeSegment>& segments);
-    std::unordered_map<std::string, std::string> get_variables(
-        const std::vector<ThemeSegment>& segments, bool is_git_repo = false,
-        const std::filesystem::path& repo_root = {});
+    bool is_variable_used(const std::string& var_name, const std::vector<ThemeSegment>& segments);
+    std::unordered_map<std::string, std::string> get_variables(const std::vector<ThemeSegment>& segments, bool is_git_repo = false,
+                                                               const std::filesystem::path& repo_root = {});
 
     bool is_root_path(const std::filesystem::path& path) {
         return basic_info.is_root_path(path);
@@ -80,8 +78,7 @@ class PromptInfo {
     std::string get_git_author(const std::filesystem::path& repo_root) {
         return git_info.get_git_author(repo_root);
     }
-    int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead,
-                             int& behind) {
+    int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int& behind) {
         return git_info.get_git_ahead_behind(repo_root, ahead, behind);
     }
     int get_git_stash_count(const std::filesystem::path& repo_root) {

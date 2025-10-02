@@ -20,13 +20,6 @@
 #include "system_prompts.h"
 
 int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: ai_commands called with " << args.size()
-                  << " arguments" << std::endl;
-        if (args.size() > 1)
-            std::cerr << "DEBUG: ai subcommand: " << args[1] << std::endl;
-    }
-
     if (!config::ai_enabled) {
         print_error({ErrorType::RUNTIME_ERROR, "ai", "AI is disabled", {}});
         return 1;
@@ -39,9 +32,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
     if (args.size() <= command_index) {
         if (!g_startup_active) {
-            std::cout
-                << "To invoke regular commands prefix all commands with ':'"
-                << std::endl;
+            std::cout << "To invoke regular commands prefix all commands with ':'" << std::endl;
             built_ins->get_shell()->set_menu_active(false);
             if (!g_ai->get_chat_cache().empty()) {
                 std::cout << "Chat history:" << std::endl;
@@ -58,16 +49,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "log") {
         std::string lastChatSent = g_ai->get_last_prompt_used();
         std::string lastChatReceived = g_ai->get_last_response_received();
-        std::string fileName =
-            (cjsh_filesystem::g_cjsh_data_path /
-             ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt"))
-                .string();
+        std::string fileName = (cjsh_filesystem::g_cjsh_data_path / ("OpenAPI_Chat_" + std::to_string(time(nullptr)) + ".txt")).string();
         std::ofstream file(fileName);
         if (!file.is_open()) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "ai",
-                         "unable to create the chat log file at " + fileName,
-                         {}});
+            print_error({ErrorType::RUNTIME_ERROR, "ai", "unable to create the chat log file at " + fileName, {}});
         } else {
             file << "Chat Sent: " << lastChatSent << "\n";
             file << "Chat Received: " << lastChatReceived << "\n";
@@ -80,15 +65,13 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     }
 
     if (cmd == "apikey") {
-        std::string api_key =
-            getenv("OPENAI_API_KEY") ? getenv("OPENAI_API_KEY") : "";
+        std::string api_key = getenv("OPENAI_API_KEY") ? getenv("OPENAI_API_KEY") : "";
         if (api_key.empty()) {
             if (!g_startup_active) {
                 std::cout << "No OpenAI API key is set." << std::endl;
-                std::cout
-                    << "To set your OpenAI API key, set the OPENAI_API_KEY "
-                       "environment variable."
-                    << std::endl;
+                std::cout << "To set your OpenAI API key, set the OPENAI_API_KEY "
+                             "environment variable."
+                          << std::endl;
             }
             return 1;
         } else {
@@ -107,16 +90,11 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
     if (cmd == "get") {
         if (args.size() <= command_index + 1) {
-            print_error(
-                {ErrorType::INVALID_ARGUMENT,
-                 "ai",
-                 "no arguments provided. try 'help' for a list of commands",
-                 {}});
+            print_error({ErrorType::INVALID_ARGUMENT, "ai", "no arguments provided. try 'help' for a list of commands", {}});
             return 1;
         }
         if (!g_startup_active) {
-            std::cout << g_ai->get_response_data(args[command_index + 1])
-                      << std::endl;
+            std::cout << g_ai->get_response_data(args[command_index + 1]) << std::endl;
         }
         return 0;
     }
@@ -132,30 +110,26 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "mode") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current assistant mode is "
-                          << g_ai->get_assistant_type() << std::endl;
+                std::cout << "The current assistant mode is " << g_ai->get_assistant_type() << std::endl;
             }
             return 0;
         }
         g_ai->set_assistant_type(args[command_index + 1]);
         if (!g_startup_active) {
-            std::cout << "Assistant mode set to " << args[command_index + 1]
-                      << std::endl;
+            std::cout << "Assistant mode set to " << args[command_index + 1] << std::endl;
         }
         return 0;
     }
 
     if (cmd == "file") {
-        handle_ai_file_commands(args, command_index,
-                                built_ins->get_current_directory());
+        handle_ai_file_commands(args, command_index, built_ins->get_current_directory());
         return 0;
     }
 
     if (cmd == "directory") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current directory is "
-                          << g_ai->get_save_directory() << std::endl;
+                std::cout << "The current directory is " << g_ai->get_save_directory() << std::endl;
             }
             return 0;
         }
@@ -163,8 +137,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         if (args[command_index + 1] == "set") {
             g_ai->set_save_directory(built_ins->get_current_directory());
             if (!g_startup_active) {
-                std::cout << "Directory set to "
-                          << built_ins->get_current_directory() << std::endl;
+                std::cout << "Directory set to " << built_ins->get_current_directory() << std::endl;
             }
             return 0;
         }
@@ -176,18 +149,14 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             }
             return 0;
         }
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "ai",
-                     "invalid directory command. use 'set' or 'clear'",
-                     {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid directory command. use 'set' or 'clear'", {}});
         return 1;
     }
 
     if (cmd == "initialinstruction") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current initial instruction is:\n"
-                          << g_ai->get_initial_instruction() << std::endl;
+                std::cout << "The current initial instruction is:\n" << g_ai->get_initial_instruction() << std::endl;
             }
             return 0;
         }
@@ -197,8 +166,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
         g_ai->set_initial_instruction(instruction);
         if (!g_startup_active) {
-            std::cout << "Initial instruction set to:\n"
-                      << g_ai->get_initial_instruction() << std::endl;
+            std::cout << "Initial instruction set to:\n" << g_ai->get_initial_instruction() << std::endl;
         }
         return 0;
     }
@@ -206,15 +174,13 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "model") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current model is " << g_ai->get_model()
-                          << std::endl;
+                std::cout << "The current model is " << g_ai->get_model() << std::endl;
             }
             return 0;
         }
         g_ai->set_model(args[command_index + 1]);
         if (!g_startup_active) {
-            std::cout << "Model set to " << args[command_index + 1]
-                      << std::endl;
+            std::cout << "Model set to " << args[command_index + 1] << std::endl;
         }
         return 0;
     }
@@ -230,8 +196,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "timeoutflag") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current timeout flag is "
-                          << g_ai->get_timeout_flag_seconds() << std::endl;
+                std::cout << "The current timeout flag is " << g_ai->get_timeout_flag_seconds() << std::endl;
             }
             return 0;
         }
@@ -240,14 +205,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             int timeout = std::stoi(args[command_index + 1]);
             g_ai->set_timeout_flag_seconds(timeout);
             if (!g_startup_active) {
-                std::cout << "Timeout flag set to " << timeout << " seconds."
-                          << std::endl;
+                std::cout << "Timeout flag set to " << timeout << " seconds." << std::endl;
             }
         } catch (const std::exception& e) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "ai",
-                         "invalid timeout value. please provide a number",
-                         {}});
+            print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid timeout value. please provide a number", {}});
             return 1;
         }
         return 0;
@@ -257,8 +218,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
                 if (g_ai->get_assistant_name().length() > 0) {
-                    std::cout << "The current assistant name is "
-                              << g_ai->get_assistant_name() << std::endl;
+                    std::cout << "The current assistant name is " << g_ai->get_assistant_name() << std::endl;
                 } else {
                     std::cout << "No assistant name is set." << std::endl;
                 }
@@ -279,15 +239,13 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "voice") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current voice is "
-                          << g_ai->get_voice_dictation_voice() << std::endl;
+                std::cout << "The current voice is " << g_ai->get_voice_dictation_voice() << std::endl;
             }
             return 0;
         }
         g_ai->set_voice_dictation_voice(args[command_index + 1]);
         if (!g_startup_active) {
-            std::cout << "Voice set to " << args[command_index + 1]
-                      << std::endl;
+            std::cout << "Voice set to " << args[command_index + 1] << std::endl;
         }
         return 0;
     }
@@ -295,10 +253,7 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (cmd == "voicedictation") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "Voice dictation is currently "
-                          << (g_ai->get_voice_dictation_enabled() ? "enabled"
-                                                                  : "disabled")
-                          << std::endl;
+                std::cout << "Voice dictation is currently " << (g_ai->get_voice_dictation_enabled() ? "enabled" : "disabled") << std::endl;
             }
             return 0;
         }
@@ -316,19 +271,14 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             }
             return 0;
         }
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "ai",
-                     "invalid argument. use 'enable' or 'disable'",
-                     {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid argument. use 'enable' or 'disable'", {}});
         return 1;
     }
 
     if (cmd == "voicedictationinstructions") {
         if (args.size() <= command_index + 1) {
             if (!g_startup_active) {
-                std::cout << "The current voice dictation instructions are:\n"
-                          << g_ai->get_voice_dictation_instructions()
-                          << std::endl;
+                std::cout << "The current voice dictation instructions are:\n" << g_ai->get_voice_dictation_instructions() << std::endl;
             }
             return 0;
         }
@@ -338,94 +288,86 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
         g_ai->set_voice_dictation_instructions(instructions);
         if (!g_startup_active) {
-            std::cout << "Voice dictation instructions set to:\n"
-                      << g_ai->get_voice_dictation_instructions() << std::endl;
+            std::cout << "Voice dictation instructions set to:\n" << g_ai->get_voice_dictation_instructions() << std::endl;
         }
         return 0;
     }
 
     if (cmd == "help") {
         if (!g_startup_active) {
-            std::cout
-                << "AI Command Help:\n"
-                << "  ai                             Enter AI mode and show "
-                   "chat "
-                   "history\n"
-                << "  ai log                         Save the last chat to a "
-                   "file\n"
-                << "  ai apikey                      Show API key status\n"
-                << "  ai chat <message>              Send a chat message\n"
-                << "  ai chat history [clear]        Show or clear chat "
-                   "history\n"
-                << "  ai chat help                   Show chat-specific help\n"
-                << "  ai file                        List active files and "
-                   "files "
-                   "in "
-                   "the current directory\n"
-                << "  ai file add <file>|all         Add file(s) from the "
-                   "current "
-                   "directory\n"
-                << "  ai file remove <file>|all      Remove file(s) from "
-                   "context\n"
-                << "  ai file active                 Show files currently in "
-                   "context\n"
-                << "  ai file available              List files from the "
-                   "current "
-                   "directory\n"
-                << "  ai file refresh                Re-read active files from "
-                   "disk\n"
-                << "  ai file clear                  Remove all files from "
-                   "context\n"
-                << "  ai directory                   Show the current save "
-                   "directory\n"
-                << "  ai directory set               Use the present working "
-                   "directory for saves\n"
-                << "  ai directory clear             Reset the save directory "
-                   "to "
-                   "default\n"
-                << "  ai get <key>                   Show a specific response "
-                   "field\n"
-                << "  ai dump                        Dump all response data "
-                   "and "
-                   "the "
-                   "last prompt\n"
-                << "  ai mode [type]                 Get or set the assistant "
-                   "mode\n"
-                << "  ai model [name]                Get or set the model\n"
-                << "  ai initialinstruction [text]   Get or set the initial "
-                   "system "
-                   "instruction\n"
-                << "  ai name [name]                 Get or set the assistant "
-                   "name\n"
-                << "  ai timeoutflag [sec]           Get or set the request "
-                   "timeout "
-                   "in seconds\n"
-                << "  ai rejectchanges               Reject the most recent AI "
-                   "suggested edits\n"
-                << "  ai voice [voice]               Get or set the dictation "
-                   "voice\n"
-                << "  ai voicedictation [enable|disable]  Toggle voice "
-                   "dictation\n"
-                << "  ai voicedictationinstructions [text] Set dictation "
-                   "instructions\n"
-                << "  ai help                        Show this summary\n";
+            std::cout << "AI Command Help:\n"
+                      << "  ai                             Enter AI mode and show "
+                         "chat "
+                         "history\n"
+                      << "  ai log                         Save the last chat to a "
+                         "file\n"
+                      << "  ai apikey                      Show API key status\n"
+                      << "  ai chat <message>              Send a chat message\n"
+                      << "  ai chat history [clear]        Show or clear chat "
+                         "history\n"
+                      << "  ai chat help                   Show chat-specific help\n"
+                      << "  ai file                        List active files and "
+                         "files "
+                         "in "
+                         "the current directory\n"
+                      << "  ai file add <file>|all         Add file(s) from the "
+                         "current "
+                         "directory\n"
+                      << "  ai file remove <file>|all      Remove file(s) from "
+                         "context\n"
+                      << "  ai file active                 Show files currently in "
+                         "context\n"
+                      << "  ai file available              List files from the "
+                         "current "
+                         "directory\n"
+                      << "  ai file refresh                Re-read active files from "
+                         "disk\n"
+                      << "  ai file clear                  Remove all files from "
+                         "context\n"
+                      << "  ai directory                   Show the current save "
+                         "directory\n"
+                      << "  ai directory set               Use the present working "
+                         "directory for saves\n"
+                      << "  ai directory clear             Reset the save directory "
+                         "to "
+                         "default\n"
+                      << "  ai get <key>                   Show a specific response "
+                         "field\n"
+                      << "  ai dump                        Dump all response data "
+                         "and "
+                         "the "
+                         "last prompt\n"
+                      << "  ai mode [type]                 Get or set the assistant "
+                         "mode\n"
+                      << "  ai model [name]                Get or set the model\n"
+                      << "  ai initialinstruction [text]   Get or set the initial "
+                         "system "
+                         "instruction\n"
+                      << "  ai name [name]                 Get or set the assistant "
+                         "name\n"
+                      << "  ai timeoutflag [sec]           Get or set the request "
+                         "timeout "
+                         "in seconds\n"
+                      << "  ai rejectchanges               Reject the most recent AI "
+                         "suggested edits\n"
+                      << "  ai voice [voice]               Get or set the dictation "
+                         "voice\n"
+                      << "  ai voicedictation [enable|disable]  Toggle voice "
+                         "dictation\n"
+                      << "  ai voicedictationinstructions [text] Set dictation "
+                         "instructions\n"
+                      << "  ai help                        Show this summary\n";
         }
         return 0;
     }
 
-    print_error({ErrorType::INVALID_ARGUMENT,
-                 "ai",
-                 "invalid argument. try 'help' for a list of commands",
-                 {}});
+    print_error({ErrorType::INVALID_ARGUMENT, "ai", "invalid argument. try 'help' for a list of commands", {}});
     return 1;
 }
 
 int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "ai",
-                     "no arguments provided. Try 'help' for a list of commands",
-                     {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "ai", "no arguments provided. Try 'help' for a list of commands", {}});
         return 1;
     }
 
@@ -478,21 +420,16 @@ int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
     return 0;
 }
 
-int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
-                            const std::string& current_directory) {
+int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index, const std::string& current_directory) {
     std::vector<std::string> filesAtPath;
     try {
-        for (const auto& entry :
-             std::filesystem::directory_iterator(current_directory)) {
+        for (const auto& entry : std::filesystem::directory_iterator(current_directory)) {
             if (entry.is_regular_file()) {
                 filesAtPath.push_back(entry.path().filename().string());
             }
         }
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "ai",
-                     "Error reading directory: " + std::string(e.what()),
-                     {}});
+        print_error({ErrorType::RUNTIME_ERROR, "ai", "Error reading directory: " + std::string(e.what()), {}});
     }
 
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
@@ -502,8 +439,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
             for (const auto& file : activeFiles) {
                 std::cout << file << std::endl;
             }
-            std::cout << "Total characters processed: "
-                      << g_ai->get_file_contents().length() << std::endl;
+            std::cout << "Total characters processed: " << g_ai->get_file_contents().length() << std::endl;
             std::cout << "Files at current path: " << std::endl;
             for (const auto& file : filesAtPath) {
                 std::cout << file << std::endl;
@@ -516,19 +452,14 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
 
     if (subcmd == "add") {
         if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "ai",
-                         "no file specified. Try 'help' for a list of commands",
-                         {}});
+            print_error({ErrorType::INVALID_ARGUMENT, "ai", "no file specified. Try 'help' for a list of commands", {}});
             return 1;
         }
 
         if (args[cmd_index + 2] == "all") {
             int charsProcessed = g_ai->add_files(filesAtPath);
             if (!g_startup_active) {
-                std::cout << "Processed " << charsProcessed
-                          << " characters from " << filesAtPath.size()
-                          << " files." << std::endl;
+                std::cout << "Processed " << charsProcessed << " characters from " << filesAtPath.size() << " files." << std::endl;
             }
             return 0;
         }
@@ -537,27 +468,20 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
         std::string filePath = current_directory + "/" + filename;
 
         if (!std::filesystem::exists(filePath)) {
-            print_error({ErrorType::FILE_NOT_FOUND,
-                         "ai",
-                         "file not found: " + filename,
-                         {}});
+            print_error({ErrorType::FILE_NOT_FOUND, "ai", "file not found: " + filename, {}});
             return 1;
         }
 
         int charsProcessed = g_ai->add_file(filePath);
         if (!g_startup_active) {
-            std::cout << "Processed " << charsProcessed
-                      << " characters from file: " << filename << std::endl;
+            std::cout << "Processed " << charsProcessed << " characters from file: " << filename << std::endl;
         }
         return 0;
     }
 
     if (subcmd == "remove") {
         if (args.size() <= static_cast<unsigned int>(cmd_index) + 2) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "ai",
-                         "no file specified. Try 'help' for a list of commands",
-                         {}});
+            print_error({ErrorType::INVALID_ARGUMENT, "ai", "no file specified. Try 'help' for a list of commands", {}});
             return 1;
         }
 
@@ -565,8 +489,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
             int fileCount = g_ai->get_files().size();
             g_ai->clear_files();
             if (!g_startup_active) {
-                std::cout << "Removed all " << fileCount
-                          << " files from context." << std::endl;
+                std::cout << "Removed all " << fileCount << " files from context." << std::endl;
             }
             return 0;
         }
@@ -575,17 +498,13 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
         std::string filePath = current_directory + "/" + filename;
 
         if (!std::filesystem::exists(filePath)) {
-            print_error({ErrorType::FILE_NOT_FOUND,
-                         "ai",
-                         "file not found: " + filename,
-                         {}});
+            print_error({ErrorType::FILE_NOT_FOUND, "ai", "file not found: " + filename, {}});
             return 1;
         }
 
         g_ai->remove_file(filePath);
         if (!g_startup_active) {
-            std::cout << "Removed file: " << filename << " from context."
-                      << std::endl;
+            std::cout << "Removed file: " << filename << " from context." << std::endl;
         }
         return 0;
     }
@@ -600,8 +519,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
                 for (const auto& file : activeFiles) {
                     std::cout << "  " << file << std::endl;
                 }
-                std::cout << "Total characters processed: "
-                          << g_ai->get_file_contents().length() << std::endl;
+                std::cout << "Total characters processed: " << g_ai->get_file_contents().length() << std::endl;
             }
         }
         return 0;
@@ -633,10 +551,7 @@ int handle_ai_file_commands(const std::vector<std::string>& args, int cmd_index,
         return 0;
     }
 
-    print_error({ErrorType::INVALID_ARGUMENT,
-                 "ai",
-                 "unknown command. try 'help' for a list of commands",
-                 {}});
+    print_error({ErrorType::INVALID_ARGUMENT, "ai", "unknown command. try 'help' for a list of commands", {}});
     return 1;
 }
 
@@ -647,8 +562,7 @@ int do_ai_request(const std::string& prompt) {
         std::string response = g_ai->chat_gpt(system_prompt, prompt, true);
         if (!g_startup_active) {
             if (g_ai->get_assistant_name().length() > 0) {
-                std::cout << g_ai->get_assistant_name() << ": " << response
-                          << std::endl;
+                std::cout << g_ai->get_assistant_name() << ": " << response << std::endl;
                 return 0;
             }
             std::cout << g_ai->get_model() << ": " << response << std::endl;

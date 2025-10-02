@@ -24,8 +24,7 @@ static inline int should_show_progress(void) {
     return nob_use_progress_bars;
 }
 
-static inline void draw_progress_bar(const char* phase, size_t current,
-                                     size_t total, size_t width) {
+static inline void draw_progress_bar(const char* phase, size_t current, size_t total, size_t width) {
     if (total == 0 || !should_show_progress())
         return;
 
@@ -58,8 +57,7 @@ static inline void clear_progress_line(void) {
     fflush(stdout);
 }
 
-static inline void update_progress(const char* phase, size_t current,
-                                   size_t total) {
+static inline void update_progress(const char* phase, size_t current, size_t total) {
     if (should_show_progress()) {
         draw_progress_bar(phase, current, total, 40);
     } else {
@@ -84,8 +82,7 @@ static inline void handle_compiler_output_interruption(void) {
 }
 
 // Enhanced progress update that handles interruptions better
-static inline void update_progress_safe(const char* phase, size_t current,
-                                        size_t total) {
+static inline void update_progress_safe(const char* phase, size_t current, size_t total) {
     if (should_show_progress()) {
         // Clear any existing content first
         printf("\r\033[K");

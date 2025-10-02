@@ -12,10 +12,7 @@
 
 int which_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "which",
-                     "usage: which [-as] name [name ...]",
-                     {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "which", "usage: which [-as] name [name ...]", {}});
         return 1;
     }
 
@@ -40,11 +37,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                     silent = true;
                     break;
                 default:
-                    print_error(
-                        {ErrorType::INVALID_ARGUMENT,
-                         "which",
-                         "invalid option: -" + std::string(1, option[j]),
-                         {}});
+                    print_error({ErrorType::INVALID_ARGUMENT, "which", "invalid option: -" + std::string(1, option[j]), {}});
                     return 1;
             }
         }
@@ -58,23 +51,17 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         bool found = false;
         bool found_executable = false;
 
-        const std::vector<std::string> cjsh_custom_commands = {
-            "echo", "printf", "pwd", "cd", "ls"};
+        const std::vector<std::string> cjsh_custom_commands = {"echo", "printf", "pwd", "cd", "ls"};
 
-        bool is_cjsh_custom =
-            std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
-                      name) != cjsh_custom_commands.end();
+        bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(), name) != cjsh_custom_commands.end();
 
         if (name == "ls" && config::disable_custom_ls) {
             is_cjsh_custom = false;
         }
 
-        if (is_cjsh_custom && shell &&
-            shell->get_built_ins()->is_builtin_command(name)) {
+        if (is_cjsh_custom && shell && shell->get_built_ins()->is_builtin_command(name)) {
             if (!silent) {
-                std::cout << name
-                          << " is a cjsh builtin (custom implementation)"
-                          << std::endl;
+                std::cout << name << " is a cjsh builtin (custom implementation)" << std::endl;
             }
             found = true;
             if (!show_all) {
@@ -120,8 +107,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         if (show_all || (!found_executable && !is_cjsh_custom)) {
             if (shell && shell->get_built_ins()->is_builtin_command(name)) {
                 if (!silent) {
-                    std::cout << "which: " << name << " is a shell builtin"
-                              << std::endl;
+                    std::cout << "which: " << name << " is a shell builtin" << std::endl;
                 }
                 found = true;
             }
@@ -131,8 +117,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                 auto alias_it = aliases.find(name);
                 if (alias_it != aliases.end()) {
                     if (!silent) {
-                        std::cout << "which: " << name << " is aliased to `"
-                                  << alias_it->second << "'" << std::endl;
+                        std::cout << "which: " << name << " is aliased to `" << alias_it->second << "'" << std::endl;
                     }
                     found = true;
                 }
@@ -142,8 +127,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                 auto* interpreter = shell->get_shell_script_interpreter();
                 if (interpreter && interpreter->has_function(name)) {
                     if (!silent) {
-                        std::cout << "which: " << name << " is a function"
-                                  << std::endl;
+                        std::cout << "which: " << name << " is a function" << std::endl;
                     }
                     found = true;
                 }

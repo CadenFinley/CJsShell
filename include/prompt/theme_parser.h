@@ -11,9 +11,7 @@
 
 class ThemeParseException : public std::runtime_error {
    public:
-    ThemeParseException(size_t line, std::string detail,
-                        std::string source = "",
-                        std::optional<ErrorInfo> error_info = std::nullopt);
+    ThemeParseException(size_t line, std::string detail, std::string source = "", std::optional<ErrorInfo> error_info = std::nullopt);
 
     size_t line() const noexcept {
         return line_;
@@ -29,8 +27,7 @@ class ThemeParseException : public std::runtime_error {
     }
 
    private:
-    static std::string build_message(size_t line, const std::string& detail,
-                                     const std::string& source);
+    static std::string build_message(size_t line, const std::string& detail, const std::string& source);
 
     size_t line_;
     std::string detail_;
@@ -45,8 +42,7 @@ struct ThemeProperty {
     std::string key;
     std::string value;
 
-    ThemeProperty(const std::string& k, const std::string& v)
-        : key(k), value(v) {
+    ThemeProperty(const std::string& k, const std::string& v) : key(k), value(v) {
     }
 };
 

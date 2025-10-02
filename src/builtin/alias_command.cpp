@@ -16,8 +16,7 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
             std::cout << "No aliases defined." << std::endl;
         } else {
             for (const auto& [name, value] : aliases) {
-                std::cout << "alias " << name << "='" << value << "'"
-                          << std::endl;
+                std::cout << "alias " << name << "='" << value << "'" << std::endl;
             }
         }
         return 0;
@@ -30,20 +29,12 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
         std::string name, value;
         if (parse_assignment(args[i], name, value)) {
             aliases[name] = value;
-            if (g_debug_mode) {
-                std::cout << "Added alias: " << name << "='" << value << "'"
-                          << std::endl;
-            }
         } else {
             auto it = aliases.find(args[i]);
             if (it != aliases.end()) {
-                std::cout << "alias " << it->first << "='" << it->second << "'"
-                          << std::endl;
+                std::cout << "alias " << it->first << "='" << it->second << "'" << std::endl;
             } else {
-                print_error({ErrorType::COMMAND_NOT_FOUND,
-                             "alias",
-                             args[i] + ": not found",
-                             {}});
+                print_error({ErrorType::COMMAND_NOT_FOUND, "alias", args[i] + ": not found", {}});
                 all_successful = false;
             }
         }
@@ -58,10 +49,7 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
 
 int unalias_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "unalias",
-                     "not enough arguments",
-                     {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "unalias", "not enough arguments", {}});
         return 1;
     }
 
@@ -74,14 +62,8 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (it != aliases.end()) {
             aliases.erase(it);
-            if (g_debug_mode) {
-                std::cout << "Removed alias: " << name << std::endl;
-            }
         } else {
-            print_error({ErrorType::COMMAND_NOT_FOUND,
-                         "unalias",
-                         name + ": not found",
-                         {}});
+            print_error({ErrorType::COMMAND_NOT_FOUND, "unalias", name + ": not found", {}});
             success = false;
         }
     }
@@ -93,8 +75,7 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
     return success ? 0 : 1;
 }
 
-bool parse_assignment(const std::string& arg, std::string& name,
-                      std::string& value) {
+bool parse_assignment(const std::string& arg, std::string& name, std::string& value) {
     size_t equals_pos = arg.find('=');
     if (equals_pos == std::string::npos || equals_pos == 0) {
         return false;
@@ -104,8 +85,7 @@ bool parse_assignment(const std::string& arg, std::string& name,
     value = arg.substr(equals_pos + 1);
 
     if (value.size() >= 2) {
-        if ((value.front() == '"' && value.back() == '"') ||
-            (value.front() == '\'' && value.back() == '\'')) {
+        if ((value.front() == '"' && value.back() == '"') || (value.front() == '\'' && value.back() == '\'')) {
             value = value.substr(1, value.size() - 2);
         }
     }

@@ -36,19 +36,16 @@
 void notify_plugins(const std::string& trigger, const std::string& data) {
     if (g_plugin == nullptr) {
         if (g_debug_mode)
-            std::cerr << "DEBUG: notify_plugins: plugin manager is nullptr"
-                      << std::endl;
+            std::cerr << "DEBUG: notify_plugins: plugin manager is nullptr" << std::endl;
         return;
     }
     if (g_plugin->get_enabled_plugins().empty()) {
         if (g_debug_mode)
-            std::cerr << "DEBUG: notify_plugins: no enabled plugins"
-                      << std::endl;
+            std::cerr << "DEBUG: notify_plugins: no enabled plugins" << std::endl;
         return;
     }
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Notifying plugins of trigger: " << trigger
-                  << " with data: " << data << std::endl;
+        std::cerr << "DEBUG: Notifying plugins of trigger: " << trigger << " with data: " << data << std::endl;
     }
     g_plugin->trigger_subscribed_global_event(trigger, data);
 }
@@ -66,8 +63,7 @@ enum class TerminalCheckLevel {
     COMPREHENSIVE
 };
 
-TerminalStatus check_terminal_health(
-    TerminalCheckLevel level = TerminalCheckLevel::COMPREHENSIVE) {
+TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLevel::COMPREHENSIVE) {
     TerminalStatus status{true, true};
 
     if (!config::interactive_mode) {
@@ -77,8 +73,7 @@ TerminalStatus check_terminal_health(
     if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
         status.terminal_alive = false;
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Standard file descriptors no longer TTY"
-                      << std::endl;
+            std::cerr << "DEBUG: Standard file descriptors no longer TTY" << std::endl;
         }
         return status;
     }
@@ -101,16 +96,13 @@ TerminalStatus check_terminal_health(
         if (bytes == 0) {
             status.terminal_alive = false;
             if (g_debug_mode) {
-                std::cerr << "DEBUG: EOF detected on stdin, terminal closed"
-                          << std::endl;
+                std::cerr << "DEBUG: EOF detected on stdin, terminal closed" << std::endl;
             }
             return status;
-        } else if (bytes < 0 &&
-                   (errno == ECONNRESET || errno == EIO || errno == ENXIO)) {
+        } else if (bytes < 0 && (errno == ECONNRESET || errno == EIO || errno == ENXIO)) {
             status.terminal_alive = false;
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Terminal connection broken (errno="
-                          << errno << ")" << std::endl;
+                std::cerr << "DEBUG: Terminal connection broken (errno=" << errno << ")" << std::endl;
             }
             return status;
         }
@@ -133,17 +125,14 @@ TerminalStatus check_terminal_health(
         if (errno == ENOTTY || errno == ENXIO || errno == EIO) {
             status.terminal_alive = false;
             if (g_debug_mode) {
-                std::cerr
-                    << "DEBUG: Lost controlling terminal (tcgetpgrp failed)"
-                    << std::endl;
+                std::cerr << "DEBUG: Lost controlling terminal (tcgetpgrp failed)" << std::endl;
             }
             return status;
         }
     } else {
         pid_t our_pgrp = getpgrp();
         if (tpgrp != our_pgrp && g_debug_mode) {
-            std::cerr << "DEBUG: Not in foreground process group (tpgrp="
-                      << tpgrp << ", our_pgrp=" << our_pgrp << ")" << std::endl;
+            std::cerr << "DEBUG: Not in foreground process group (tpgrp=" << tpgrp << ", our_pgrp=" << our_pgrp << ")" << std::endl;
         }
     }
 
@@ -151,8 +140,7 @@ TerminalStatus check_terminal_health(
     if (tty_name == nullptr) {
         status.terminal_alive = false;
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Cannot get terminal name, terminal closed"
-                      << std::endl;
+            std::cerr << "DEBUG: Cannot get terminal name, terminal closed" << std::endl;
         }
         return status;
     }
@@ -161,8 +149,7 @@ TerminalStatus check_terminal_health(
     if (parent_pid == 1) {
         status.parent_alive = false;
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Parent process appears to have died (PPID=1)"
-                      << std::endl;
+            std::cerr << "DEBUG: Parent process appears to have died (PPID=1)" << std::endl;
         }
     } else if (kill(parent_pid, 0) == -1 && errno == ESRCH) {
         status.parent_alive = false;
@@ -207,14 +194,10 @@ bool process_command_line(const std::string& command) {
     std::string typeahead_input = typeahead::capture_available_input();
     if (g_debug_mode) {
         if (typeahead_input.empty()) {
-            std::cerr
-                << "DEBUG: Post-command typeahead capture returned no data"
-                << std::endl;
+            std::cerr << "DEBUG: Post-command typeahead capture returned no data" << std::endl;
         } else {
-            std::cerr << "DEBUG: Post-command typeahead capture (len="
-                      << typeahead_input.size() << "): '"
-                      << typeahead::to_debug_visible(typeahead_input) << "'"
-                      << std::endl;
+            std::cerr << "DEBUG: Post-command typeahead capture (len=" << typeahead_input.size() << "): '"
+                      << typeahead::to_debug_visible(typeahead_input) << "'" << std::endl;
         }
     }
     if (!typeahead_input.empty()) {
@@ -244,8 +227,7 @@ bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
     if (!status.terminal_alive) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Fast check: terminal no longer alive, exiting"
-                      << std::endl;
+            std::cerr << "DEBUG: Fast check: terminal no longer alive, exiting" << std::endl;
         }
         g_exit_flag = true;
         return false;
@@ -255,13 +237,11 @@ bool perform_terminal_check() {
 
 void update_job_management() {
     if (g_debug_mode)
-        std::cerr << "DEBUG: Calling JobManager::update_job_status()"
-                  << std::endl;
+        std::cerr << "DEBUG: Calling JobManager::update_job_status()" << std::endl;
     JobManager::instance().update_job_status();
 
     if (g_debug_mode)
-        std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()"
-                  << std::endl;
+        std::cerr << "DEBUG: Calling JobManager::cleanup_finished_jobs()" << std::endl;
     JobManager::instance().cleanup_finished_jobs();
 }
 
@@ -294,11 +274,8 @@ std::string generate_prompt() {
 
     if (g_debug_mode) {
         auto render_time_end = std::chrono::steady_clock::now();
-        auto render_duration =
-            std::chrono::duration_cast<std::chrono::microseconds>(
-                render_time_end - render_time_start);
-        std::cerr << "DEBUG: Prompt rendering took " << render_duration.count()
-                  << "μs" << std::endl;
+        auto render_duration = std::chrono::duration_cast<std::chrono::microseconds>(render_time_end - render_time_start);
+        std::cerr << "DEBUG: Prompt rendering took " << render_duration.count() << "μs" << std::endl;
     }
 
     return prompt;
@@ -311,14 +288,11 @@ bool handle_null_input() {
                   << std::endl;
     }
 
-    TerminalStatus status =
-        check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
+    TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
     if (!status.terminal_alive || !status.parent_alive) {
         if (g_debug_mode) {
-            std::cerr
-                << "DEBUG: Terminal or parent process dead, setting exit flag"
-                << std::endl;
+            std::cerr << "DEBUG: Terminal or parent process dead, setting exit flag" << std::endl;
         }
         g_exit_flag = true;
         return true;
@@ -340,11 +314,9 @@ std::pair<std::string, bool> get_next_command() {
     std::string inline_right_text = g_shell->get_inline_right_prompt();
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt
-                  << "'" << std::endl;
+        std::cerr << "DEBUG: About to call ic_readline with prompt: '" << prompt << "'" << std::endl;
         if (!inline_right_text.empty()) {
-            std::cerr << "DEBUG: Inline right text: '" << inline_right_text
-                      << "'" << std::endl;
+            std::cerr << "DEBUG: Inline right text: '" << inline_right_text << "'" << std::endl;
         }
     }
 
@@ -354,18 +326,14 @@ std::pair<std::string, bool> get_next_command() {
     if (!sanitized_buffer.empty()) {
         sanitized_buffer = typeahead::filter_escape_sequences(sanitized_buffer);
         if (g_debug_mode && sanitized_buffer != typeahead::get_input_buffer()) {
-            std::cerr
-                << "DEBUG: Additional sanitization applied to input buffer"
-                << std::endl;
+            std::cerr << "DEBUG: Additional sanitization applied to input buffer" << std::endl;
         }
     }
 
-    const char* initial_input =
-        sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
+    const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
     char* input = nullptr;
     if (!inline_right_text.empty()) {
-        input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(),
-                                   initial_input);
+        input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(), initial_input);
     } else {
         input = ic_readline(prompt.c_str(), initial_input);
     }

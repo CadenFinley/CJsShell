@@ -29,8 +29,7 @@ std::string BasicInfo::get_current_file_path() {
     char* home_dir = getenv("HOME");
     if (home_dir) {
         std::string home_str(home_dir);
-        if (path.length() >= home_str.length() &&
-            path.substr(0, home_str.length()) == home_str) {
+        if (path.length() >= home_str.length() && path.substr(0, home_str.length()) == home_str) {
             if (path == home_str) {
                 path = "~";
             } else {
@@ -62,16 +61,14 @@ std::string BasicInfo::get_current_file_name() {
 
         if (current_str == home_str) {
             filename = "~";
-        } else if (current_str.length() > home_str.length() &&
-                   current_str.substr(0, home_str.length()) == home_str &&
+        } else if (current_str.length() > home_str.length() && current_str.substr(0, home_str.length()) == home_str &&
                    current_str[home_str.length()] == '/') {
             filename = current_path.filename().string();
         }
     }
 
     if (g_debug_mode)
-        std::cerr << "DEBUG: get_current_file_name END: " << filename
-                  << std::endl;
+        std::cerr << "DEBUG: get_current_file_name END: " << filename << std::endl;
     return filename;
 }
 

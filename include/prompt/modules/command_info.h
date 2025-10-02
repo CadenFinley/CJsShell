@@ -8,10 +8,8 @@ class CommandInfo {
     int min_time_threshold = 0;
     bool show_microseconds = false;
 
-    std::chrono::time_point<std::chrono::high_resolution_clock>
-        last_command_start;
-    std::chrono::time_point<std::chrono::high_resolution_clock>
-        last_command_end;
+    std::chrono::time_point<std::chrono::high_resolution_clock> last_command_start;
+    std::chrono::time_point<std::chrono::high_resolution_clock> last_command_end;
     bool timing_active = false;
 
     std::string format_duration(long long microseconds);

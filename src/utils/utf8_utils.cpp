@@ -4,8 +4,7 @@
 
 namespace utf8_utils {
 
-size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
-                               size_t* count_visible_chars) {
+size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars, size_t* count_visible_chars) {
     size_t display_width = 0;
     size_t ansi_chars = 0;
     size_t visible_chars = 0;
@@ -23,10 +22,8 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
                 pos++;
                 ansi_chars++;
 
-                while (pos < len && ((data[pos] >= '0' && data[pos] <= '9') ||
-                                     data[pos] == ';' || data[pos] == ':' ||
-                                     data[pos] == '<' || data[pos] == '=' ||
-                                     data[pos] == '>' || data[pos] == '?')) {
+                while (pos < len && ((data[pos] >= '0' && data[pos] <= '9') || data[pos] == ';' || data[pos] == ':' || data[pos] == '<' ||
+                                     data[pos] == '=' || data[pos] == '>' || data[pos] == '?')) {
                     pos++;
                     ansi_chars++;
                 }
@@ -45,8 +42,7 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
                         ansi_chars++;
                         break;
                     }
-                    if (data[pos] == '\033' && pos + 1 < len &&
-                        data[pos + 1] == '\\') {
+                    if (data[pos] == '\033' && pos + 1 < len && data[pos + 1] == '\\') {
                         pos += 2;
                         ansi_chars += 2;
                         break;
@@ -63,8 +59,7 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
 
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok =
-            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
+        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             ++display_width;
             ++visible_chars;
@@ -101,8 +96,7 @@ size_t calculate_utf8_width(const std::string& str) {
     while (pos < len) {
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok =
-            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
+        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             ++width;
             pos += (bytes_read > 0) ? bytes_read : 1;
@@ -141,8 +135,7 @@ std::string to_lowercase(const std::string& str) {
     while (pos < len) {
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok =
-            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
+        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             result.push_back(static_cast<char>(data[pos]));
             pos += (bytes_read > 0) ? bytes_read : 1;
@@ -156,11 +149,9 @@ std::string to_lowercase(const std::string& str) {
         uint8_t buffer[4] = {0};
         int written = unicode_encode_utf8(codepoint, buffer);
         if (written <= 0) {
-            result.append(str, static_cast<size_t>(pos),
-                          static_cast<size_t>(bytes_read));
+            result.append(str, static_cast<size_t>(pos), static_cast<size_t>(bytes_read));
         } else {
-            result.append(reinterpret_cast<char*>(buffer),
-                          static_cast<size_t>(written));
+            result.append(reinterpret_cast<char*>(buffer), static_cast<size_t>(written));
         }
 
         pos += bytes_read;
@@ -180,8 +171,7 @@ std::string to_uppercase(const std::string& str) {
     while (pos < len) {
         unicode_codepoint_t codepoint = 0;
         ssize_t bytes_read = 0;
-        bool ok =
-            unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
+        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
         if (!ok || bytes_read <= 0) {
             result.push_back(static_cast<char>(data[pos]));
             pos += (bytes_read > 0) ? bytes_read : 1;
@@ -195,11 +185,9 @@ std::string to_uppercase(const std::string& str) {
         uint8_t buffer[4] = {0};
         int written = unicode_encode_utf8(codepoint, buffer);
         if (written <= 0) {
-            result.append(str, static_cast<size_t>(pos),
-                          static_cast<size_t>(bytes_read));
+            result.append(str, static_cast<size_t>(pos), static_cast<size_t>(bytes_read));
         } else {
-            result.append(reinterpret_cast<char*>(buffer),
-                          static_cast<size_t>(written));
+            result.append(reinterpret_cast<char*>(buffer), static_cast<size_t>(written));
         }
 
         pos += bytes_read;
@@ -214,8 +202,7 @@ std::string normalize_nfc(const std::string& str) {
     return str;
 }
 
-bool is_grapheme_boundary(unicode_codepoint_t /*cp1*/,
-                          unicode_codepoint_t cp2) {
+bool is_grapheme_boundary(unicode_codepoint_t /*cp1*/, unicode_codepoint_t cp2) {
     return !unicode_is_combining_codepoint(cp2);
 }
 

@@ -11,8 +11,7 @@ static inline bool collect_sources(String_Array* sources) {
     nob_log(NOB_INFO, "Collecting source files...");
 
     for (size_t i = 0; i < build_config.main_sources_count; i++) {
-        if (nob_get_file_type(build_config.main_sources[i]) ==
-            NOB_FILE_REGULAR) {
+        if (nob_get_file_type(build_config.main_sources[i]) == NOB_FILE_REGULAR) {
             nob_da_append(sources, build_config.main_sources[i]);
         }
     }
@@ -26,8 +25,7 @@ static inline bool collect_sources(String_Array* sources) {
                 const char* file = module_files.items[i];
                 size_t len = strlen(file);
                 if (len > 4 && strcmp(file + len - 4, ".cpp") == 0) {
-                    if (strcmp(module_dir, "src/utils") == 0 &&
-                        strcmp(file, "libintl_shim.cpp") == 0) {
+                    if (strcmp(module_dir, "src/utils") == 0 && strcmp(file, "libintl_shim.cpp") == 0) {
                         continue;
                     }
 
@@ -52,8 +50,7 @@ static inline bool collect_c_sources(String_Array* c_sources) {
     nob_log(NOB_INFO, "Collecting C source files...");
 
     for (size_t i = 0; i < build_config.isocline_c_sources_count; i++) {
-        if (nob_get_file_type(build_config.isocline_c_sources[i]) ==
-            NOB_FILE_REGULAR) {
+        if (nob_get_file_type(build_config.isocline_c_sources[i]) == NOB_FILE_REGULAR) {
             nob_da_append(c_sources, build_config.isocline_c_sources[i]);
         }
     }

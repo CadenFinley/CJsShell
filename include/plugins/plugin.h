@@ -34,8 +34,7 @@ struct plugin_data {
     bool enabled;
     std::map<std::string, std::string> settings;
 
-    std::unordered_map<std::string, plugin_get_prompt_variable_func>
-        prompt_variables;
+    std::unordered_map<std::string, plugin_get_prompt_variable_func> prompt_variables;
 
     plugin_get_info_func get_info;
     plugin_initialize_func initialize;
@@ -64,8 +63,7 @@ class Plugin {
     std::mutex discovery_mutex;
 
     void unload_plugin(const std::string& name);
-    bool extract_plugin_metadata(const std::filesystem::path& path,
-                                 plugin_metadata& metadata);
+    bool extract_plugin_metadata(const std::filesystem::path& path, plugin_metadata& metadata);
     bool load_plugin_on_demand(const std::string& name);
     bool is_metadata_stale(const plugin_metadata& metadata) const;
     void cache_plugin_metadata();
@@ -73,13 +71,11 @@ class Plugin {
     void save_metadata_cache();
     std::string get_current_architecture() const;
     std::string get_file_architecture(const std::filesystem::path& path) const;
-    bool is_architecture_compatible(const std::string& file_arch,
-                                    const std::string& current_arch) const;
+    bool is_architecture_compatible(const std::string& file_arch, const std::string& current_arch) const;
     bool is_rosetta_translated() const;
 
    public:
-    Plugin(const std::filesystem::path& plugins_dir, bool enabled,
-           bool lazy_loading = true);
+    Plugin(const std::filesystem::path& plugins_dir, bool enabled, bool lazy_loading = true);
     ~Plugin();
     bool discover_plugins();
     bool load_plugin(const std::filesystem::path& path);
@@ -92,23 +88,17 @@ class Plugin {
     int get_interface_version() const {
         return PLUGIN_INTERFACE_VERSION;
     }
-    bool handle_plugin_command(const std::string& targeted_plugin,
-                               std::vector<std::string>& args);
+    bool handle_plugin_command(const std::string& targeted_plugin, std::vector<std::string>& args);
     std::vector<std::string> get_plugin_commands(const std::string& name) const;
     std::string get_plugin_info(const std::string& name) const;
-    bool update_plugin_setting(const std::string& plugin_name,
-                               const std::string& key,
-                               const std::string& value);
-    std::map<std::string, std::map<std::string, std::string>>
-    get_all_plugin_settings() const;
-    void trigger_subscribed_global_event(const std::string& event,
-                                         const std::string& event_data);
+    bool update_plugin_setting(const std::string& plugin_name, const std::string& key, const std::string& value);
+    std::map<std::string, std::map<std::string, std::string>> get_all_plugin_settings() const;
+    void trigger_subscribed_global_event(const std::string& event, const std::string& event_data);
     plugin_data* get_plugin_data(const std::string& name);
     void clear_plugin_cache();
     bool is_plugin_loaded(const std::string& name) const;
 
-    std::vector<std::string> get_available_commands(
-        const std::string& plugin_name) const;
+    std::vector<std::string> get_available_commands(const std::string& plugin_name) const;
     bool is_lazy_loading_enabled() const {
         return lazy_loading_enabled;
     }

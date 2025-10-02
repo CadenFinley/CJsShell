@@ -46,8 +46,7 @@ class Parser {
 
     bool should_validate_command(const std::string& command) const;
     bool is_valid_command(const std::string& command_name) const;
-    std::string get_command_validation_error(
-        const std::string& command_name) const;
+    std::string get_command_validation_error(const std::string& command_name) const;
     void set_command_validation_enabled(bool enabled) {
         command_validation_enabled = enabled;
     }
@@ -58,30 +57,23 @@ class Parser {
     std::vector<std::string> parse_command(const std::string& cmdline);
     std::vector<Command> parse_pipeline(const std::string& command);
     std::vector<std::string> expand_wildcards(const std::string& pattern);
-    std::vector<LogicalCommand> parse_logical_commands(
-        const std::string& command);
-    std::vector<std::string> parse_semicolon_commands(
-        const std::string& command);
-    bool is_env_assignment(const std::string& command, std::string& var_name,
-                           std::string& var_value);
+    std::vector<LogicalCommand> parse_logical_commands(const std::string& command);
+    std::vector<std::string> parse_semicolon_commands(const std::string& command);
+    bool is_env_assignment(const std::string& command, std::string& var_name, std::string& var_value);
     void expand_env_vars(std::string& arg);
     void expand_env_vars_selective(std::string& arg);
     void expand_exported_env_vars_only(std::string& arg);
-    std::vector<std::string> parse_command_exported_vars_only(
-        const std::string& cmdline);
+    std::vector<std::string> parse_command_exported_vars_only(const std::string& cmdline);
     std::vector<std::string> split_by_ifs(const std::string& input);
     long long evaluate_arithmetic(const std::string& expr);
 
-    std::vector<Command> parse_pipeline_with_preprocessing(
-        const std::string& command);
+    std::vector<Command> parse_pipeline_with_preprocessing(const std::string& command);
 
-    void set_aliases(
-        const std::unordered_map<std::string, std::string>& new_aliases) {
+    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
         this->aliases = new_aliases;
     }
 
-    void set_env_vars(
-        const std::unordered_map<std::string, std::string>& new_env_vars) {
+    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
         this->env_vars = new_env_vars;
     }
 

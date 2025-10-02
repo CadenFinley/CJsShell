@@ -7,14 +7,9 @@
 #include "shell.h"
 
 int eval_command(const std::vector<std::string>& args, Shell* shell) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: eval_command called with " << args.size()
-                  << " arguments" << std::endl;
-    }
 
     if (args.size() < 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "eval", "missing arguments", {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "eval", "missing arguments", {}});
         return 1;
     }
 
@@ -25,22 +20,11 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
         }
         command_to_eval += args[i];
     }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Evaluating command: " << command_to_eval
-                  << std::endl;
-    }
-
     if (shell) {
         int result = shell->execute(command_to_eval);
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: eval command returned: " << result
-                      << std::endl;
-        }
         return result;
     } else {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "eval", "shell not initialized", {}});
+        print_error({ErrorType::RUNTIME_ERROR, "eval", "shell not initialized", {}});
         return 1;
     }
 }

@@ -24,8 +24,7 @@ ic_private void history_clear(history_t* h);
 ic_private bool history_enable_duplicates(history_t* h, bool enable);
 ic_private ssize_t history_count(const history_t* h);
 
-ic_private void history_load_from(history_t* h, const char* fname,
-                                  long max_entries);
+ic_private void history_load_from(history_t* h, const char* fname, long max_entries);
 ic_private void history_load(history_t* h);
 ic_private void history_save(const history_t* h);
 
@@ -34,12 +33,8 @@ ic_private bool history_update(history_t* h, const char* entry);
 ic_private const char* history_get(const history_t* h, ssize_t n);
 ic_private void history_remove_last(history_t* h);
 
-ic_private bool history_search(const history_t* h, ssize_t from,
-                               const char* search, bool backward, ssize_t* hidx,
-                               ssize_t* hpos);
+ic_private bool history_search(const history_t* h, ssize_t from, const char* search, bool backward, ssize_t* hidx, ssize_t* hpos);
 
-ic_private bool history_search_prefix(const history_t* h, ssize_t from,
-                                      const char* prefix, bool backward,
-                                      ssize_t* hidx);
+ic_private bool history_search_prefix(const history_t* h, ssize_t from, const char* prefix, bool backward, ssize_t* hidx);
 
 #endif  // IC_HISTORY_H

@@ -13,19 +13,16 @@
 LanguageInfo::LanguageInfo() {
 }
 
-bool LanguageInfo::is_project_detected(
-    const std::vector<std::string>& files,
-    const std::vector<std::string>& extensions,
-    const std::vector<std::string>& folders) {
+bool LanguageInfo::is_project_detected(const std::vector<std::string>& files, const std::vector<std::string>& extensions,
+                                       const std::vector<std::string>& folders) {
     std::filesystem::path current_path = std::filesystem::current_path();
 
     return scan_directory_recursive(current_path, files, extensions, folders);
 }
 
-bool LanguageInfo::scan_directory_recursive(
-    const std::filesystem::path& dir, const std::vector<std::string>& files,
-    const std::vector<std::string>& extensions,
-    const std::vector<std::string>& folders, int max_depth) {
+bool LanguageInfo::scan_directory_recursive(const std::filesystem::path& dir, const std::vector<std::string>& files,
+                                            const std::vector<std::string>& extensions, const std::vector<std::string>& folders,
+                                            int max_depth) {
     if (max_depth <= 0) {
         return false;
     }
@@ -38,8 +35,7 @@ bool LanguageInfo::scan_directory_recursive(
         }
 
         for (const auto& folder : folders) {
-            if (std::filesystem::exists(dir / folder) &&
-                std::filesystem::is_directory(dir / folder)) {
+            if (std::filesystem::exists(dir / folder) && std::filesystem::is_directory(dir / folder)) {
                 return true;
             }
         }
@@ -47,8 +43,7 @@ bool LanguageInfo::scan_directory_recursive(
         for (const auto& entry : std::filesystem::directory_iterator(dir)) {
             if (entry.is_regular_file()) {
                 std::string ext = entry.path().extension().string();
-                if (std::find(extensions.begin(), extensions.end(), ext) !=
-                    extensions.end()) {
+                if (std::find(extensions.begin(), extensions.end(), ext) != extensions.end()) {
                     return true;
                 }
             }
@@ -58,11 +53,8 @@ bool LanguageInfo::scan_directory_recursive(
             for (const auto& entry : std::filesystem::directory_iterator(dir)) {
                 if (entry.is_directory()) {
                     std::string dirname = entry.path().filename().string();
-                    if (dirname == "src" || dirname == "lib" ||
-                        dirname == "app") {
-                        if (scan_directory_recursive(entry.path(), files,
-                                                     extensions, folders,
-                                                     max_depth - 1)) {
+                    if (dirname == "src" || dirname == "lib" || dirname == "app") {
+                        if (scan_directory_recursive(entry.path(), files, extensions, folders, max_depth - 1)) {
                             return true;
                         }
                     }
@@ -103,9 +95,7 @@ std::string LanguageInfo::extract_version(const std::string& output) {
     return "";
 }
 
-std::string LanguageInfo::get_cached_version(
-    const std::string& language_key,
-    const std::function<std::string()>& version_func) const {
+std::string LanguageInfo::get_cached_version(const std::string& language_key, const std::function<std::string()>& version_func) const {
     std::lock_guard<std::mutex> lock(cache_mutex);
 
     auto it = version_cache.find(language_key);
@@ -115,8 +105,7 @@ std::string LanguageInfo::get_cached_version(
 
     std::string version = version_func();
 
-    version_cache[language_key] =
-        CachedVersion{version, std::chrono::steady_clock::now()};
+    version_cache[language_key] = CachedVersion{version, std::chrono::steady_clock::now()};
 
     return version;
 }
@@ -175,8 +164,7 @@ bool LanguageInfo::is_scala_project() {
 
 std::string LanguageInfo::get_python_version() {
     return get_cached_version("python", [this]() -> std::string {
-        std::string output = execute_command(
-            "python3 --version 2>/dev/null || python --version 2>/dev/null");
+        std::string output = execute_command("python3 --version 2>/dev/null || python --version 2>/dev/null");
         if (output.empty()) {
             return "";
         }
@@ -252,11 +240,9 @@ std::string LanguageInfo::get_java_version() {
 
 std::string LanguageInfo::get_cpp_version() {
     return get_cached_version("cpp", [this]() -> std::string {
-        std::string output =
-            execute_command("g++ --version 2>/dev/null | head -n 1");
+        std::string output = execute_command("g++ --version 2>/dev/null | head -n 1");
         if (output.empty()) {
-            output =
-                execute_command("clang++ --version 2>/dev/null | head -n 1");
+            output = execute_command("clang++ --version 2>/dev/null | head -n 1");
         }
         if (output.empty()) {
             output = execute_command("gcc --version 2>/dev/null | head -n 1");
@@ -282,8 +268,7 @@ std::string LanguageInfo::get_csharp_version() {
 
 std::string LanguageInfo::get_php_version() {
     return get_cached_version("php", [this]() -> std::string {
-        std::string output =
-            execute_command("php --version 2>/dev/null | head -n 1");
+        std::string output = execute_command("php --version 2>/dev/null | head -n 1");
         if (output.empty()) {
             return "";
         }
@@ -352,8 +337,7 @@ std::string LanguageInfo::get_dart_version() {
             return "";
         }
 
-        std::regex dart_version_regex(
-            "Dart SDK version:\\s+(\\d+\\.\\d+\\.\\d+)");
+        std::regex dart_version_regex("Dart SDK version:\\s+(\\d+\\.\\d+\\.\\d+)");
         std::smatch match;
 
         if (std::regex_search(output, match, dart_version_regex)) {
@@ -436,8 +420,7 @@ std::string LanguageInfo::get_language_version(const std::string& language) {
         return get_java_version();
     } else if (language == "cpp" || language == "c++" || language == "c") {
         return get_cpp_version();
-    } else if (language == "csharp" || language == "c#" ||
-               language == "dotnet") {
+    } else if (language == "csharp" || language == "c#" || language == "dotnet") {
         return get_csharp_version();
     } else if (language == "php") {
         return get_php_version();
@@ -469,8 +452,7 @@ bool LanguageInfo::is_language_project(const std::string& language) {
         return is_java_project();
     } else if (language == "cpp" || language == "c++" || language == "c") {
         return is_cpp_project();
-    } else if (language == "csharp" || language == "c#" ||
-               language == "dotnet") {
+    } else if (language == "csharp" || language == "c#" || language == "dotnet") {
         return is_csharp_project();
     } else if (language == "php") {
         return is_php_project();

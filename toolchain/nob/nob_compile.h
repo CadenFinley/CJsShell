@@ -12,8 +12,7 @@
 #include "nob_sources.h"
 #include "nob_toolchain.h"
 
-static inline bool capture_git_output(const char* const* args, size_t arg_count,
-                                      Nob_String_Builder* output) {
+static inline bool capture_git_output(const char* const* args, size_t arg_count, Nob_String_Builder* output) {
     if (output == NULL) {
         return false;
     }
@@ -58,10 +57,8 @@ static inline bool compute_git_hash_string(char* buffer, size_t buffer_size) {
     }
 
     size_t hash_len = strlen(hash_data);
-    while (hash_len > 0 &&
-           (hash_data[hash_len - 1] == '\n' ||
-            hash_data[hash_len - 1] == '\r' || hash_data[hash_len - 1] == ' ' ||
-            hash_data[hash_len - 1] == '\t')) {
+    while (hash_len > 0 && (hash_data[hash_len - 1] == '\n' || hash_data[hash_len - 1] == '\r' || hash_data[hash_len - 1] == ' ' ||
+                            hash_data[hash_len - 1] == '\t')) {
         hash_data[--hash_len] = '\0';
     }
 
@@ -73,10 +70,8 @@ static inline bool compute_git_hash_string(char* buffer, size_t buffer_size) {
     Nob_String_Builder status_output = {0};
     const char* status_args[] = {"status", "--porcelain"};
     bool dirty = false;
-    if (capture_git_output(status_args, NOB_ARRAY_LEN(status_args),
-                           &status_output)) {
-        size_t status_len =
-            status_output.count > 0 ? status_output.count - 1 : 0;
+    if (capture_git_output(status_args, NOB_ARRAY_LEN(status_args), &status_output)) {
+        size_t status_len = status_output.count > 0 ? status_output.count - 1 : 0;
         for (size_t i = 0; i < status_len; ++i) {
             char c = status_output.items[i];
             if (!isspace((unsigned char)c)) {
@@ -93,8 +88,7 @@ static inline bool compute_git_hash_string(char* buffer, size_t buffer_size) {
     return true;
 }
 
-static inline bool string_array_contains(const String_Array* array,
-                                         const char* value) {
+static inline bool string_array_contains(const String_Array* array, const char* value) {
     for (size_t i = 0; i < array->count; i++) {
         if (strcmp(array->items[i], value) == 0) {
             return true;
@@ -103,8 +97,7 @@ static inline bool string_array_contains(const String_Array* array,
     return false;
 }
 
-static inline bool parse_dependency_file(const char* dep_path,
-                                         String_Array* deps) {
+static inline bool parse_dependency_file(const char* dep_path, String_Array* deps) {
     Nob_String_Builder content = {0};
     if (!nob_read_entire_file(dep_path, &content)) {
         nob_da_free(content);
@@ -117,8 +110,7 @@ static inline bool parse_dependency_file(const char* dep_path,
         if (c == '\\') {
             size_t j = i + 1;
             bool had_newline = false;
-            while (j < content.count &&
-                   (content.items[j] == '\n' || content.items[j] == '\r')) {
+            while (j < content.count && (content.items[j] == '\n' || content.items[j] == '\r')) {
                 had_newline = true;
                 j++;
             }
@@ -184,9 +176,7 @@ static inline bool parse_dependency_file(const char* dep_path,
     return true;
 }
 
-static inline int needs_rebuild_with_dependency_file(const char* obj_path,
-                                                     const char* source_path,
-                                                     const char* dep_path) {
+static inline int needs_rebuild_with_dependency_file(const char* obj_path, const char* source_path, const char* dep_path) {
     int dep_exists = nob_file_exists(dep_path);
     if (dep_exists < 0) {
         return -1;
@@ -204,14 +194,11 @@ static inline int needs_rebuild_with_dependency_file(const char* obj_path,
             free((char*)inputs.items[i]);
         }
         nob_da_free(inputs);
-        nob_log(NOB_WARNING,
-                "Failed to parse dependency file %s. Forcing rebuild.",
-                dep_path);
+        nob_log(NOB_WARNING, "Failed to parse dependency file %s. Forcing rebuild.", dep_path);
         return 1;
     }
 
-    int rebuild_result =
-        nob_needs_rebuild(obj_path, (const char**)inputs.items, inputs.count);
+    int rebuild_result = nob_needs_rebuild(obj_path, (const char**)inputs.items, inputs.count);
 
     for (size_t i = 1; i < inputs.count; i++) {
         free((char*)inputs.items[i]);
@@ -282,17 +269,13 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
     if (env_git_hash != NULL && env_git_hash[0] != '\0') {
         snprintf(git_hash_buffer, sizeof(git_hash_buffer), "%s", env_git_hash);
         nob_set_git_hash_define(git_hash_buffer);
-        nob_log(NOB_INFO,
-                "Embedding git revision from CJSH_GIT_HASH_OVERRIDE: %s",
-                git_hash_buffer);
-    } else if (compute_git_hash_string(git_hash_buffer,
-                                       sizeof(git_hash_buffer))) {
+        nob_log(NOB_INFO, "Embedding git revision from CJSH_GIT_HASH_OVERRIDE: %s", git_hash_buffer);
+    } else if (compute_git_hash_string(git_hash_buffer, sizeof(git_hash_buffer))) {
         nob_set_git_hash_define(git_hash_buffer);
         nob_log(NOB_INFO, "Embedding git revision: %s", git_hash_buffer);
     } else {
         nob_set_git_hash_define("unknown");
-        nob_log(NOB_WARNING,
-                "Unable to determine git revision; embedding 'unknown'");
+        nob_log(NOB_WARNING, "Unable to determine git revision; embedding 'unknown'");
     }
 
     String_Array cpp_sources = {0};
@@ -355,8 +338,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
         nob_sb_append_null(&dep_name);
 
         // Check if compilation is needed
-        int rebuild_result = needs_rebuild_with_dependency_file(
-            obj_name.items, source, dep_name.items);
+        int rebuild_result = needs_rebuild_with_dependency_file(obj_name.items, source, dep_name.items);
         if (rebuild_result < 0) {
             nob_log(NOB_ERROR, "Failed to check if %s needs rebuild", source);
             nob_sb_free(dep_name);
@@ -392,15 +374,11 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
             max_parallel_jobs = 1;  // Sequential for very few files
         } else if (files_needing_compilation <= 8 || total_source_files <= 8) {
             // For small compilations or small projects, use limited parallelism
-            max_parallel_jobs =
-                (int)files_needing_compilation < max_cpu_cores / 2
-                    ? (int)files_needing_compilation
-                    : max_cpu_cores / 2;
+            max_parallel_jobs = (int)files_needing_compilation < max_cpu_cores / 2 ? (int)files_needing_compilation : max_cpu_cores / 2;
             if (max_parallel_jobs < 1)
                 max_parallel_jobs = 1;
         } else {
-            max_parallel_jobs =
-                max_cpu_cores;  // Use all cores for larger compilations
+            max_parallel_jobs = max_cpu_cores;  // Use all cores for larger compilations
         }
     }
 
@@ -413,15 +391,12 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
                     "%zu files",
                     max_parallel_jobs, files_to_compile.count);
         } else {
-            nob_log(NOB_INFO,
-                    "Using %d parallel compilation jobs (auto) for %zu files",
-                    max_parallel_jobs, files_to_compile.count);
+            nob_log(NOB_INFO, "Using %d parallel compilation jobs (auto) for %zu files", max_parallel_jobs, files_to_compile.count);
         }
         nob_log(NOB_INFO,
                 "Starting parallel compilation of %zu C++ files (skipping %zu "
                 "up-to-date)...",
-                files_to_compile.count,
-                cpp_sources.count - files_to_compile.count);
+                files_to_compile.count, cpp_sources.count - files_to_compile.count);
         nob_minimal_log_level = NOB_WARNING;
         for (size_t i = 0; i < files_to_compile.count; i++) {
             Nob_Cmd cmd = {0};
@@ -430,9 +405,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
                 return false;
             }
 
-            nob_cmd_append(&cmd, "-MMD", "-MF",
-                           corresponding_dep_files.items[i], "-MT",
-                           corresponding_obj_files.items[i]);
+            nob_cmd_append(&cmd, "-MMD", "-MF", corresponding_dep_files.items[i], "-MT", corresponding_obj_files.items[i]);
             nob_cmd_append(&cmd, "-c");
             nob_cmd_append(&cmd, files_to_compile.items[i]);
 
@@ -445,15 +418,13 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
             nob_cmd_append(&cmd, "-o", corresponding_obj_files.items[i]);
 
-            if (!nob_cmd_run(&cmd, .async = &procs,
-                             .max_procs = max_parallel_jobs)) {
+            if (!nob_cmd_run(&cmd, .async = &procs, .max_procs = max_parallel_jobs)) {
                 nob_minimal_log_level = original_log_level;
                 nob_log(NOB_ERROR, "Failed to start compilation of %s", source);
                 return false;
             }
 
-            const char* progress_label =
-                (i + 1 == files_to_compile.count) ? "Complete!" : basename;
+            const char* progress_label = (i + 1 == files_to_compile.count) ? "Complete!" : basename;
             update_progress_safe(progress_label, i + 1, files_to_compile.count);
             completed_cpp_files++;
         }
@@ -474,8 +445,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
         handle_compiler_output_interruption();
         clear_progress_line();
         nob_minimal_log_level = original_log_level;
-        nob_log(NOB_INFO, "All %zu C++ files compiled successfully",
-                files_to_compile.count);
+        nob_log(NOB_INFO, "All %zu C++ files compiled successfully", files_to_compile.count);
     }
 
     // Clean up temporary arrays and track totals
@@ -527,8 +497,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
         nob_sb_append_null(&dep_name);
 
         // Check if compilation is needed
-        int rebuild_result = needs_rebuild_with_dependency_file(
-            obj_name.items, source, dep_name.items);
+        int rebuild_result = needs_rebuild_with_dependency_file(obj_name.items, source, dep_name.items);
         if (rebuild_result < 0) {
             nob_log(NOB_ERROR, "Failed to check if %s needs rebuild", source);
             nob_sb_free(dep_name);
@@ -557,19 +526,15 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
             if (c_files_needing_compilation <= 2) {
                 max_parallel_jobs = 1;  // Sequential for very few files
-            } else if (c_files_needing_compilation <= 8 ||
-                       total_source_files <= 8) {
+            } else if (c_files_needing_compilation <= 8 || total_source_files <= 8) {
                 // For small compilations or small projects, use limited
                 // parallelism
                 max_parallel_jobs =
-                    (int)c_files_needing_compilation < max_cpu_cores / 2
-                        ? (int)c_files_needing_compilation
-                        : max_cpu_cores / 2;
+                    (int)c_files_needing_compilation < max_cpu_cores / 2 ? (int)c_files_needing_compilation : max_cpu_cores / 2;
                 if (max_parallel_jobs < 1)
                     max_parallel_jobs = 1;
             } else {
-                max_parallel_jobs =
-                    max_cpu_cores;  // Use all cores for larger compilations
+                max_parallel_jobs = max_cpu_cores;  // Use all cores for larger compilations
             }
         }
     }
@@ -583,9 +548,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
                     "%zu C files",
                     max_parallel_jobs, c_files_to_compile.count);
         } else {
-            nob_log(NOB_INFO,
-                    "Using %d parallel compilation jobs (auto) for %zu C files",
-                    max_parallel_jobs, c_files_to_compile.count);
+            nob_log(NOB_INFO, "Using %d parallel compilation jobs (auto) for %zu C files", max_parallel_jobs, c_files_to_compile.count);
         }
         nob_minimal_log_level = NOB_WARNING;
         for (size_t i = 0; i < c_files_to_compile.count; i++) {
@@ -595,9 +558,7 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
                 return false;
             }
 
-            nob_cmd_append(&cmd, "-MMD", "-MF",
-                           c_corresponding_dep_files.items[i], "-MT",
-                           c_corresponding_obj_files.items[i]);
+            nob_cmd_append(&cmd, "-MMD", "-MF", c_corresponding_dep_files.items[i], "-MT", c_corresponding_obj_files.items[i]);
             nob_cmd_append(&cmd, "-c");
             nob_cmd_append(&cmd, c_files_to_compile.items[i]);
 
@@ -610,17 +571,14 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
 
             nob_cmd_append(&cmd, "-o", c_corresponding_obj_files.items[i]);
 
-            if (!nob_cmd_run(&cmd, .async = &procs,
-                             .max_procs = max_parallel_jobs)) {
+            if (!nob_cmd_run(&cmd, .async = &procs, .max_procs = max_parallel_jobs)) {
                 nob_minimal_log_level = original_log_level;
                 nob_log(NOB_ERROR, "Failed to start compilation of %s", source);
                 return false;
             }
 
-            const char* progress_label =
-                (i + 1 == c_files_to_compile.count) ? "Complete!" : basename;
-            update_progress_safe(progress_label, i + 1,
-                                 c_files_to_compile.count);
+            const char* progress_label = (i + 1 == c_files_to_compile.count) ? "Complete!" : basename;
+            update_progress_safe(progress_label, i + 1, c_files_to_compile.count);
         }
     }
 
@@ -656,22 +614,19 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
     size_t total_compiled = cpp_files_compiled + c_files_compiled;
     size_t total_files = cpp_sources.count + c_sources.count;
     if (total_compiled > 0) {
-        nob_log(NOB_INFO, "Compiled %zu out of %zu files successfully!",
-                total_compiled, total_files);
+        nob_log(NOB_INFO, "Compiled %zu out of %zu files successfully!", total_compiled, total_files);
     } else {
         nob_log(NOB_INFO, "All %zu files are up to date!", total_files);
     }
 
     // Check if linking is needed
     const char* output_binary = "build/" PROJECT_NAME;
-    bool needs_linking =
-        (total_compiled > 0);  // If we compiled anything, we need to relink
+    bool needs_linking = (total_compiled > 0);  // If we compiled anything, we need to relink
 
     if (!needs_linking) {
         // Check if binary exists and is newer than all object files
         const char** obj_file_ptrs = (const char**)obj_files.items;
-        int rebuild_result =
-            nob_needs_rebuild(output_binary, obj_file_ptrs, obj_files.count);
+        int rebuild_result = nob_needs_rebuild(output_binary, obj_file_ptrs, obj_files.count);
         if (rebuild_result < 0) {
             nob_log(NOB_ERROR, "Failed to check if binary needs rebuild");
             return false;

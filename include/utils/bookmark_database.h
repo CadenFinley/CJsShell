@@ -31,15 +31,13 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> load();
     cjsh_filesystem::Result<void> save();
 
-    cjsh_filesystem::Result<void> add_bookmark(const std::string& name,
-                                               const std::string& path);
+    cjsh_filesystem::Result<void> add_bookmark(const std::string& name, const std::string& path);
     cjsh_filesystem::Result<void> remove_bookmark(const std::string& name);
     std::optional<std::string> get_bookmark(const std::string& name);
 
     std::unordered_map<std::string, std::string> get_all_bookmarks();
     std::vector<std::string> search_bookmarks(const std::string& pattern);
-    std::vector<std::pair<std::string, std::string>> get_most_used_bookmarks(
-        int limit = 10);
+    std::vector<std::pair<std::string, std::string>> get_most_used_bookmarks(int limit = 10);
 
     void update_bookmark_access(const std::string& name);
     cjsh_filesystem::Result<void> cleanup_invalid_bookmarks();
@@ -47,8 +45,7 @@ class BookmarkDatabase {
     size_t size() const;
     bool empty() const;
 
-    cjsh_filesystem::Result<void> import_from_map(
-        const std::unordered_map<std::string, std::string>& old_bookmarks);
+    cjsh_filesystem::Result<void> import_from_map(const std::unordered_map<std::string, std::string>& old_bookmarks);
 
    private:
     std::unordered_map<std::string, BookmarkEntry> bookmarks_;
@@ -57,23 +54,18 @@ class BookmarkDatabase {
 
     cjsh_filesystem::Result<void> ensure_database_directory();
     std::string to_text_format() const;
-    cjsh_filesystem::Result<void> from_text_format(
-        const std::string& text_content);
-    std::string time_to_iso_string(
-        const std::chrono::system_clock::time_point& tp) const;
-    std::chrono::system_clock::time_point time_from_iso_string(
-        const std::string& iso_str) const;
+    cjsh_filesystem::Result<void> from_text_format(const std::string& text_content);
+    std::string time_to_iso_string(const std::chrono::system_clock::time_point& tp) const;
+    std::chrono::system_clock::time_point time_from_iso_string(const std::string& iso_str) const;
 };
 
 extern BookmarkDatabase g_bookmark_db;
 
-inline cjsh_filesystem::Result<void> add_directory_bookmark(
-    const std::string& name, const std::string& path) {
+inline cjsh_filesystem::Result<void> add_directory_bookmark(const std::string& name, const std::string& path) {
     return g_bookmark_db.add_bookmark(name, path);
 }
 
-inline std::optional<std::string> find_directory_bookmark(
-    const std::string& name) {
+inline std::optional<std::string> find_directory_bookmark(const std::string& name) {
     return g_bookmark_db.get_bookmark(name);
 }
 

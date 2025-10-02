@@ -34,20 +34,15 @@ struct RGB {
     }
 
     constexpr RGB operator+(const RGB& other) const noexcept {
-        return RGB(std::min(255, int(r) + int(other.r)),
-                   std::min(255, int(g) + int(other.g)),
-                   std::min(255, int(b) + int(other.b)));
+        return RGB(std::min(255, int(r) + int(other.r)), std::min(255, int(g) + int(other.g)), std::min(255, int(b) + int(other.b)));
     }
 
     constexpr RGB operator-(const RGB& other) const noexcept {
-        return RGB(std::max(0, int(r) - int(other.r)),
-                   std::max(0, int(g) - int(other.g)),
-                   std::max(0, int(b) - int(other.b)));
+        return RGB(std::max(0, int(r) - int(other.r)), std::max(0, int(g) - int(other.g)), std::max(0, int(b) - int(other.b)));
     }
 
     constexpr RGB operator*(float factor) const noexcept {
-        return RGB(std::clamp(int(std::round(r * factor)), 0, 255),
-                   std::clamp(int(std::round(g * factor)), 0, 255),
+        return RGB(std::clamp(int(std::round(r * factor)), 0, 255), std::clamp(int(std::round(g * factor)), 0, 255),
                    std::clamp(int(std::round(b * factor)), 0, 255));
     }
 };
@@ -108,34 +103,24 @@ struct GradientSpec {
     RGB end;
     std::string direction;
 
-    GradientSpec()
-        : start(RGB(0, 0, 0)),
-          end(RGB(255, 255, 255)),
-          direction("horizontal") {
+    GradientSpec() : start(RGB(0, 0, 0)), end(RGB(255, 255, 255)), direction("horizontal") {
     }
-    GradientSpec(const RGB& start_color, const RGB& end_color,
-                 const std::string& dir = "horizontal")
+    GradientSpec(const RGB& start_color, const RGB& end_color, const std::string& dir = "horizontal")
         : start(start_color), end(end_color), direction(dir) {
     }
 };
 
 std::vector<RGB> gradient(const RGB& start, const RGB& end, size_t steps);
-std::string gradient_text(const std::string& text, const RGB& start,
-                          const RGB& end);
+std::string gradient_text(const std::string& text, const RGB& start, const RGB& end);
 
 std::string gradient_bg(const std::string& text, const GradientSpec& spec);
 std::string gradient_fg(const std::string& text, const GradientSpec& spec);
-std::string gradient_bg_with_fg(const std::string& text,
-                                const GradientSpec& bg_spec, const RGB& fg_rgb);
+std::string gradient_bg_with_fg(const std::string& text, const GradientSpec& bg_spec, const RGB& fg_rgb);
 GradientSpec parse_gradient_value(const std::string& value);
 
 bool is_gradient_value(const std::string& value);
-std::string apply_color_or_gradient(const std::string& text,
-                                    const std::string& color_value,
-                                    bool is_foreground);
-std::string apply_gradient_bg_with_fg(const std::string& text,
-                                      const std::string& bg_value,
-                                      const std::string& fg_value);
+std::string apply_color_or_gradient(const std::string& text, const std::string& color_value, bool is_foreground);
+std::string apply_gradient_bg_with_fg(const std::string& text, const std::string& bg_value, const std::string& fg_value);
 
 uint8_t rgb_to_xterm256(const RGB& color);
 constexpr RGB xterm256_to_rgb(uint8_t index);
@@ -147,23 +132,22 @@ struct NamedColor {
     RGB color;
 };
 
-inline constexpr std::array<NamedColor, 16> g_basic_colors = {
-    {{"BLACK", RGB(0, 0, 0)},
-     {"RED", RGB(170, 0, 0)},
-     {"GREEN", RGB(0, 170, 0)},
-     {"YELLOW", RGB(170, 85, 0)},
-     {"BLUE", RGB(0, 0, 170)},
-     {"MAGENTA", RGB(170, 0, 170)},
-     {"CYAN", RGB(0, 170, 170)},
-     {"WHITE", RGB(170, 170, 170)},
-     {"BRIGHT_BLACK", RGB(85, 85, 85)},
-     {"BRIGHT_RED", RGB(255, 85, 85)},
-     {"BRIGHT_GREEN", RGB(85, 255, 85)},
-     {"BRIGHT_YELLOW", RGB(255, 255, 85)},
-     {"BRIGHT_BLUE", RGB(85, 85, 255)},
-     {"BRIGHT_MAGENTA", RGB(255, 85, 255)},
-     {"BRIGHT_CYAN", RGB(85, 255, 255)},
-     {"BRIGHT_WHITE", RGB(255, 255, 255)}}};
+inline constexpr std::array<NamedColor, 16> g_basic_colors = {{{"BLACK", RGB(0, 0, 0)},
+                                                               {"RED", RGB(170, 0, 0)},
+                                                               {"GREEN", RGB(0, 170, 0)},
+                                                               {"YELLOW", RGB(170, 85, 0)},
+                                                               {"BLUE", RGB(0, 0, 170)},
+                                                               {"MAGENTA", RGB(170, 0, 170)},
+                                                               {"CYAN", RGB(0, 170, 170)},
+                                                               {"WHITE", RGB(170, 170, 170)},
+                                                               {"BRIGHT_BLACK", RGB(85, 85, 85)},
+                                                               {"BRIGHT_RED", RGB(255, 85, 85)},
+                                                               {"BRIGHT_GREEN", RGB(85, 255, 85)},
+                                                               {"BRIGHT_YELLOW", RGB(255, 255, 85)},
+                                                               {"BRIGHT_BLUE", RGB(85, 85, 255)},
+                                                               {"BRIGHT_MAGENTA", RGB(255, 85, 255)},
+                                                               {"BRIGHT_CYAN", RGB(85, 255, 255)},
+                                                               {"BRIGHT_WHITE", RGB(255, 255, 255)}}};
 
 std::unordered_map<std::string, std::string> get_color_map();
 

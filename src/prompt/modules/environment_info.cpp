@@ -20,8 +20,7 @@ std::pair<int, int> EnvironmentInfo::get_terminal_dimensions() {
     return {w.ws_col, w.ws_row};
 }
 
-std::string EnvironmentInfo::get_active_language_version(
-    const std::string& language) {
+std::string EnvironmentInfo::get_active_language_version(const std::string& language) {
     std::string cmd;
 
     if (language == "python") {

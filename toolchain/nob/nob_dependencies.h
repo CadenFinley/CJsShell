@@ -13,15 +13,13 @@ static inline bool check_dependencies(void) {
     Nob_Cmd cmd = {0};
 
     nob_cmd_append(&cmd, "which", "g++");
-    if (nob_cmd_run(&cmd, .stdout_path = "/dev/null",
-                    .stderr_path = "/dev/null")) {
+    if (nob_cmd_run(&cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
         return true;
     }
 
     cmd.count = 0;
     nob_cmd_append(&cmd, "which", "clang++");
-    if (nob_cmd_run(&cmd, .stdout_path = "/dev/null",
-                    .stderr_path = "/dev/null")) {
+    if (nob_cmd_run(&cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
         return true;
     }
 
@@ -32,8 +30,7 @@ static inline bool check_dependencies(void) {
 static inline bool create_required_directories(void) {
     for (size_t i = 0; i < build_config.required_directories_count; i++) {
         if (!nob_mkdir_if_not_exists(build_config.required_directories[i])) {
-            nob_log(NOB_ERROR, "Could not create directory: %s",
-                    build_config.required_directories[i]);
+            nob_log(NOB_ERROR, "Could not create directory: %s", build_config.required_directories[i]);
             return false;
         }
     }

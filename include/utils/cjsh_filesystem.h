@@ -25,8 +25,7 @@ class Result {
    public:
     explicit Result(T value) : value_(std::move(value)), has_value_(true) {
     }
-    explicit Result(const Error& error)
-        : error_(error.message), has_value_(false) {
+    explicit Result(const Error& error) : error_(error.message), has_value_(false) {
     }
 
     static Result<T> ok(T value) {
@@ -45,15 +44,13 @@ class Result {
 
     const T& value() const {
         if (!has_value_)
-            throw std::runtime_error(
-                "Attempted to access value of error Result");
+            throw std::runtime_error("Attempted to access value of error Result");
         return value_;
     }
 
     T& value() {
         if (!has_value_)
-            throw std::runtime_error(
-                "Attempted to access value of error Result");
+            throw std::runtime_error("Attempted to access value of error Result");
         return value_;
     }
 
@@ -74,8 +71,7 @@ class Result<void> {
    public:
     Result() : has_value_(true) {
     }
-    explicit Result(const Error& error)
-        : error_(error.message), has_value_(false) {
+    explicit Result(const Error& error) : error_(error.message), has_value_(false) {
     }
 
     static Result<void> ok() {
@@ -105,39 +101,31 @@ class Result<void> {
 
 class FileOperations {
    public:
-    static Result<int> safe_open(const std::string& path, int flags,
-                                 mode_t mode = 0644);
+    static Result<int> safe_open(const std::string& path, int flags, mode_t mode = 0644);
     static Result<void> safe_dup2(int oldfd, int newfd);
     static void safe_close(int fd);
-    static Result<void> redirect_fd(const std::string& file, int target_fd,
-                                    int flags);
+    static Result<void> redirect_fd(const std::string& file, int target_fd, int flags);
 
-    static Result<FILE*> safe_fopen(const std::string& path,
-                                    const std::string& mode);
+    static Result<FILE*> safe_fopen(const std::string& path, const std::string& mode);
     static void safe_fclose(FILE* file);
-    static Result<FILE*> safe_popen(const std::string& command,
-                                    const std::string& mode);
+    static Result<FILE*> safe_popen(const std::string& command, const std::string& mode);
     static int safe_pclose(FILE* file);
 
-    static Result<std::string> create_temp_file(
-        const std::string& prefix = "cjsh_temp");
-    static Result<void> write_temp_file(const std::string& path,
-                                        const std::string& content);
+    static Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp");
+    static Result<void> write_temp_file(const std::string& path, const std::string& content);
     static void cleanup_temp_file(const std::string& path);
 
     static Result<std::string> read_command_output(const std::string& command);
-    static Result<void> write_file_content(const std::string& path,
-                                           const std::string& content);
+    static Result<void> write_file_content(const std::string& path, const std::string& content);
     static Result<std::string> read_file_content(const std::string& path);
 };
 
 const fs::path g_user_home_path = []() {
     const char* home = std::getenv("HOME");
     if (!home || home[0] == '\0') {
-        std::cerr
-            << "Warning: HOME environment variable not set or empty. Using "
-               "/tmp as fallback."
-            << std::endl;
+        std::cerr << "Warning: HOME environment variable not set or empty. Using "
+                     "/tmp as fallback."
+                  << std::endl;
         return fs::path("/tmp");
     }
     return fs::path(home);
@@ -159,14 +147,11 @@ const fs::path g_cjsh_plugin_path = g_cjsh_data_path / "plugins";
 const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes";
 const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
 
-const fs::path g_cjsh_ai_conversations_path =
-    g_cjsh_cache_path / "conversations";
+const fs::path g_cjsh_ai_conversations_path = g_cjsh_cache_path / "conversations";
 
-const fs::path g_cjsh_found_executables_path =
-    g_cjsh_cache_path / "cached_executables.cache";
+const fs::path g_cjsh_found_executables_path = g_cjsh_cache_path / "cached_executables.cache";
 
-const fs::path g_cjsh_path_hash_cache_path =
-    g_cjsh_cache_path / "path_hash.cache";
+const fs::path g_cjsh_path_hash_cache_path = g_cjsh_cache_path / "path_hash.cache";
 
 std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();
@@ -174,8 +159,7 @@ bool file_exists(const cjsh_filesystem::fs::path& path);
 bool should_refresh_executable_cache();
 bool initialize_cjsh_path();
 
-void add_executable_to_cache(const std::string& executable_name,
-                             const std::string& full_path);
+void add_executable_to_cache(const std::string& executable_name, const std::string& full_path);
 void remove_executable_from_cache(const std::string& executable_name);
 void invalidate_executable_cache();
 bool is_executable_in_cache(const std::string& executable_name);

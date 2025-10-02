@@ -9,8 +9,7 @@
 
 #include "error_out.h"
 
-std::string format_printf_arg(const std::string& format_spec,
-                              const std::string& arg) {
+std::string format_printf_arg(const std::string& format_spec, const std::string& arg) {
     std::ostringstream result;
 
     if (format_spec.empty())
@@ -187,8 +186,7 @@ std::string process_printf_escapes(const std::string& input) {
                 case '7': {
                     int octal = 0;
                     int digits = 0;
-                    while (i + 1 < input.length() && digits < 3 &&
-                           input[i + 1] >= '0' && input[i + 1] <= '7') {
+                    while (i + 1 < input.length() && digits < 3 && input[i + 1] >= '0' && input[i + 1] <= '7') {
                         i++;
                         octal = octal * 8 + (input[i] - '0');
                         digits++;
@@ -210,10 +208,7 @@ std::string process_printf_escapes(const std::string& input) {
 
 int printf_command(const std::vector<std::string>& args) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "printf",
-                     "missing format string",
-                     {}});
+        print_error({ErrorType::INVALID_ARGUMENT, "printf", "missing format string", {}});
         return 1;
     }
 
@@ -244,31 +239,24 @@ int printf_command(const std::vector<std::string>& args) {
                     i++;
 
                     while (i < format.length() &&
-                           (format[i] == '-' || format[i] == '+' ||
-                            format[i] == ' ' || format[i] == '#' ||
-                            format[i] == '0')) {
+                           (format[i] == '-' || format[i] == '+' || format[i] == ' ' || format[i] == '#' || format[i] == '0')) {
                         i++;
                     }
 
-                    while (i < format.length() && format[i] >= '0' &&
-                           format[i] <= '9') {
+                    while (i < format.length() && format[i] >= '0' && format[i] <= '9') {
                         i++;
                     }
 
                     if (i < format.length() && format[i] == '.') {
                         i++;
-                        while (i < format.length() && format[i] >= '0' &&
-                               format[i] <= '9') {
+                        while (i < format.length() && format[i] >= '0' && format[i] <= '9') {
                             i++;
                         }
                     }
 
                     if (i < format.length()) {
-                        std::string format_spec =
-                            format.substr(spec_start + 1, i - spec_start);
-                        std::string arg = (arg_index < printf_args.size())
-                                              ? printf_args[arg_index]
-                                              : "";
+                        std::string format_spec = format.substr(spec_start + 1, i - spec_start);
+                        std::string arg = (arg_index < printf_args.size()) ? printf_args[arg_index] : "";
 
                         std::cout << format_printf_arg(format_spec, arg);
                         arg_index++;

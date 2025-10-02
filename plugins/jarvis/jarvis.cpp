@@ -31,10 +31,8 @@ static pid_t worker_pid = 0;
 
 // Required plugin information
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
-    static plugin_info_t info = {
-        const_cast<char*>("jarvis"), const_cast<char*>("0.1.0"),
-        const_cast<char*>("Test prompt variable plugin"),
-        const_cast<char*>("caden finley"), PLUGIN_INTERFACE_VERSION};
+    static plugin_info_t info = {const_cast<char*>("jarvis"), const_cast<char*>("0.1.0"), const_cast<char*>("Test prompt variable plugin"),
+                                 const_cast<char*>("caden finley"), PLUGIN_INTERFACE_VERSION};
     return &info;
 }
 
@@ -57,8 +55,7 @@ extern "C" PLUGIN_API plugin_validation_t plugin_validate() {
     // Perform self-validation here
     if (worker_pid > 0 && kill(worker_pid, 0) != 0) {
         result.status = PLUGIN_ERROR_GENERAL;
-        result.error_message =
-            create_string_copy("Worker process is not running");
+        result.error_message = create_string_copy("Worker process is not running");
         return result;
     }
 
@@ -119,11 +116,9 @@ extern "C" PLUGIN_API int plugin_initialize() {
     // Check if script directory exists, create if it doesn't
     struct stat dir_info;
     if (stat(jarvis_dir.c_str(), &dir_info) != 0) {
-        std::cerr << "[jarvis] Creating Jarvis directory: " << jarvis_dir
-                  << std::endl;
+        std::cerr << "[jarvis] Creating Jarvis directory: " << jarvis_dir << std::endl;
         if (mkdir(jarvis_dir.c_str(), 0755) != 0) {
-            std::cerr << "[jarvis] Failed to create Jarvis directory"
-                      << std::endl;
+            std::cerr << "[jarvis] Failed to create Jarvis directory" << std::endl;
             return PLUGIN_ERROR_GENERAL;
         }
     }
@@ -144,49 +139,38 @@ extern "C" PLUGIN_API int plugin_initialize() {
         fprintf(script_file, "import vosk\n");
         fprintf(script_file, "import os\n\n");
         fprintf(script_file, "HOTWORD = \"jarvis\"   # customize hotword\n");
-        fprintf(
-            script_file,
-            "ACTIVE_TIMEOUT = 2   # seconds after hotword to stay active\n\n");
+        fprintf(script_file, "ACTIVE_TIMEOUT = 2   # seconds after hotword to stay active\n\n");
         fprintf(script_file, "q = queue.Queue()\n\n");
-        fprintf(script_file,
-                "def callback(indata, frames, time_info, status):\n");
+        fprintf(script_file, "def callback(indata, frames, time_info, status):\n");
         fprintf(script_file, "    # if status:\n");
         fprintf(script_file, "    #     print(status, file=sys.stderr)\n");
         fprintf(script_file, "    q.put(bytes(indata))\n\n");
         fprintf(script_file, "def main():\n");
+        fprintf(script_file, "    # Set environment variables to suppress logs\n");
         fprintf(script_file,
-                "    # Set environment variables to suppress logs\n");
-        fprintf(
-            script_file,
-            "    os.environ[\"VOSK_LOG_LEVEL\"] = \"0\"  # 0 = no logs, 1 = "
-            "errors, 2 = warnings, 3 = info\n");
-        fprintf(
-            script_file,
-            "    os.environ[\"KALDI_LOG_LEVEL\"] = \"0\"  # Completely silence "
-            "Kaldi logs\n");
+                "    os.environ[\"VOSK_LOG_LEVEL\"] = \"0\"  # 0 = no logs, 1 = "
+                "errors, 2 = warnings, 3 = info\n");
+        fprintf(script_file,
+                "    os.environ[\"KALDI_LOG_LEVEL\"] = \"0\"  # Completely silence "
+                "Kaldi logs\n");
         fprintf(script_file, "    \n");
-        fprintf(script_file,
-                "    # Jarvis response messages in Iron Man style\n");
+        fprintf(script_file, "    # Jarvis response messages in Iron Man style\n");
         fprintf(script_file, "    jarvis_responses = [\n");
         fprintf(script_file, "        \"I'm listening sir.\",\n");
         fprintf(script_file, "        \"At your service, sir.\",\n");
         fprintf(script_file, "        \"How may I assist you today, sir?\",\n");
         fprintf(script_file, "        \"Ready and waiting, sir.\",\n");
         fprintf(script_file, "        \"Processing your request, sir.\",\n");
-        fprintf(script_file,
-                "        \"Standing by for instructions, sir.\",\n");
+        fprintf(script_file, "        \"Standing by for instructions, sir.\",\n");
         fprintf(script_file, "        \"I'm all ears, sir.\",\n");
         fprintf(script_file, "        \"What can I do for you, sir?\",\n");
         fprintf(script_file, "        \"Awaiting your instructions, sir.\",\n");
         fprintf(script_file, "        \"How can I be of assistance, sir?\",\n");
         fprintf(script_file, "    ]\n");
         fprintf(script_file, "    \n");
-        fprintf(script_file,
-                "    # Additional settings to silence all Vosk/Kaldi logs\n");
+        fprintf(script_file, "    # Additional settings to silence all Vosk/Kaldi logs\n");
         fprintf(script_file, "    if hasattr(vosk, \"SetLogLevel\"):\n");
-        fprintf(
-            script_file,
-            "        vosk.SetLogLevel(-1)  # Set to lowest possible level\n");
+        fprintf(script_file, "        vosk.SetLogLevel(-1)  # Set to lowest possible level\n");
         fprintf(script_file, "    \n");
         fprintf(script_file,
                 "    # Redirect stderr temporarily during model loading to "
@@ -206,34 +190,24 @@ extern "C" PLUGIN_API int plugin_initialize() {
         fprintf(script_file, "    sys.stderr = original_stderr\n\n");
         fprintf(script_file, "    active = False\n");
         fprintf(script_file, "    last_active = 0\n\n");
-        fprintf(
-            script_file,
-            "    with sd.RawInputStream(samplerate=16000, blocksize=8000,\n");
+        fprintf(script_file, "    with sd.RawInputStream(samplerate=16000, blocksize=8000,\n");
+        fprintf(script_file, "                           dtype=\"int16\", channels=1,\n");
+        fprintf(script_file, "                           callback=callback):\n");
         fprintf(script_file,
-                "                           dtype=\"int16\", channels=1,\n");
-        fprintf(script_file,
-                "                           callback=callback):\n");
-        fprintf(
-            script_file,
-            "        #print(\"[system] Ready. Say 'jarvis' to wake me up.\", "
-            "file=sys.stderr)\n");
+                "        #print(\"[system] Ready. Say 'jarvis' to wake me up.\", "
+                "file=sys.stderr)\n");
         fprintf(script_file, "        while True:\n");
         fprintf(script_file, "            data = q.get()\n\n");
         fprintf(script_file, "            if rec.AcceptWaveform(data):\n");
-        fprintf(script_file,
-                "                result = json.loads(rec.Result())\n");
+        fprintf(script_file, "                result = json.loads(rec.Result())\n");
         fprintf(script_file, "                if \"text\" in result:\n");
-        fprintf(
-            script_file,
-            "                    text = result[\"text\"].strip().lower()\n");
+        fprintf(script_file, "                    text = result[\"text\"].strip().lower()\n");
         fprintf(script_file, "                    if not text:\n");
         fprintf(script_file, "                        continue\n\n");
+        fprintf(script_file, "                    if not active and HOTWORD in text:\n");
         fprintf(script_file,
-                "                    if not active and HOTWORD in text:\n");
-        fprintf(
-            script_file,
-            "                        # Select a random response when Jarvis is "
-            "activated\n");
+                "                        # Select a random response when Jarvis is "
+                "activated\n");
         fprintf(script_file,
                 "                        response = "
                 "random.choice(jarvis_responses)\n");
@@ -241,53 +215,41 @@ extern "C" PLUGIN_API int plugin_initialize() {
                 "                        print(f\"\\n[jarvis] {response}\", "
                 "file=sys.stderr)\n");
         fprintf(script_file, "                        active = True\n");
-        fprintf(script_file,
-                "                        last_active = time.time()\n");
+        fprintf(script_file, "                        last_active = time.time()\n");
         fprintf(script_file, "                        continue\n\n");
         fprintf(script_file, "                    if active:\n");
-        fprintf(
-            script_file,
-            "                        # Only print the actual command to stdout "
-            "(no prefixes)\n");
-        fprintf(
-            script_file,
-            "                        # This will be treated as a command to "
-            "execute\n");
         fprintf(script_file,
-                "                        print(text)  # forward command\n");
+                "                        # Only print the actual command to stdout "
+                "(no prefixes)\n");
+        fprintf(script_file,
+                "                        # This will be treated as a command to "
+                "execute\n");
+        fprintf(script_file, "                        print(text)  # forward command\n");
         fprintf(script_file, "                        sys.stdout.flush()\n");
         fprintf(script_file,
                 "                        last_active = time.time()  # reset "
                 "timeout\n");
         fprintf(script_file, "            else:\n");
-        fprintf(
-            script_file,
-            "                # Handle partial results (streaming speech)\n");
-        fprintf(script_file,
-                "                part = json.loads(rec.PartialResult())\n");
+        fprintf(script_file, "                # Handle partial results (streaming speech)\n");
+        fprintf(script_file, "                part = json.loads(rec.PartialResult())\n");
         fprintf(script_file, "                if \"partial\" in part:\n");
-        fprintf(
-            script_file,
-            "                    text = part[\"partial\"].strip().lower()\n");
+        fprintf(script_file, "                    text = part[\"partial\"].strip().lower()\n");
         fprintf(script_file, "                    if active and text:\n");
-        fprintf(
-            script_file,
-            "                        # optional: print partials for real-time "
-            "feedback\n");
+        fprintf(script_file,
+                "                        # optional: print partials for real-time "
+                "feedback\n");
         fprintf(script_file,
                 "                        # print(f\"(partial) {text}\", "
                 "file=sys.stderr)\n");
-        fprintf(script_file,
-                "                        last_active = time.time()\n\n");
+        fprintf(script_file, "                        last_active = time.time()\n\n");
         fprintf(script_file, "            # Timeout handling\n");
         fprintf(script_file,
                 "            if active and (time.time() - last_active > "
                 "ACTIVE_TIMEOUT):\n");
         fprintf(script_file, "                active = False\n");
-        fprintf(
-            script_file,
-            "                #print(\"[hotword] timeout, listening again\", "
-            "file=sys.stderr)\n\n");
+        fprintf(script_file,
+                "                #print(\"[hotword] timeout, listening again\", "
+                "file=sys.stderr)\n\n");
         fprintf(script_file, "if __name__ == \"__main__\":\n");
         fprintf(script_file, "    try:\n");
         fprintf(script_file, "        main()\n");
@@ -304,12 +266,10 @@ extern "C" PLUGIN_API int plugin_initialize() {
         // Check if the model directory exists and warn if it doesn't
         std::string model_dir = jarvis_dir + "/vosk-model-small-en-us-0.15";
         if (access(model_dir.c_str(), F_OK) != 0) {
-            std::cout << "[jarvis] Warning: Voice model not found at "
-                      << model_dir << std::endl;
-            std::cout
-                << "[jarvis] Please download the Vosk model and extract it to "
-                   "this location"
-                << std::endl;
+            std::cout << "[jarvis] Warning: Voice model not found at " << model_dir << std::endl;
+            std::cout << "[jarvis] Please download the Vosk model and extract it to "
+                         "this location"
+                      << std::endl;
         }
     }
 
@@ -393,14 +353,12 @@ extern "C" PLUGIN_API char** plugin_get_subscribed_events(int* count) {
     *count = 0;
     return nullptr;
 }
-extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(
-    int* count) {
+extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
     // No settings provided by this plugin
     *count = 0;
     return nullptr;
 }
-extern "C" PLUGIN_API int plugin_update_setting(const char* key,
-                                                const char* value) {
+extern "C" PLUGIN_API int plugin_update_setting(const char* key, const char* value) {
     return PLUGIN_ERROR_NOT_IMPLEMENTED;
 }
 extern "C" PLUGIN_API void plugin_free_memory(void* ptr) {

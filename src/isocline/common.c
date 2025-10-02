@@ -47,8 +47,7 @@ ic_private void ic_memset(void* dest, uint8_t value, ssize_t n) {
     memset(dest, (int8_t)value, to_size_t(n));
 }
 
-ic_private bool ic_memnmove(void* dest, ssize_t dest_size, const void* src,
-                            ssize_t n) {
+ic_private bool ic_memnmove(void* dest, ssize_t dest_size, const void* src, ssize_t n) {
     assert(dest != NULL && src != NULL);
     if (n <= 0)
         return true;
@@ -60,8 +59,7 @@ ic_private bool ic_memnmove(void* dest, ssize_t dest_size, const void* src,
     return true;
 }
 
-ic_private bool ic_strcpy(char* dest, ssize_t dest_size /* including 0 */,
-                          const char* src) {
+ic_private bool ic_strcpy(char* dest, ssize_t dest_size /* including 0 */, const char* src) {
     assert(dest != NULL && src != NULL);
     if (dest == NULL || dest_size <= 0)
         return false;
@@ -73,8 +71,7 @@ ic_private bool ic_strcpy(char* dest, ssize_t dest_size /* including 0 */,
     return true;
 }
 
-ic_private bool ic_strncpy(char* dest, ssize_t dest_size /* including 0 */,
-                           const char* src, ssize_t n) {
+ic_private bool ic_strncpy(char* dest, ssize_t dest_size /* including 0 */, const char* src, ssize_t n) {
     assert(dest != NULL && n < dest_size);
     if (dest == NULL || dest_size <= 0)
         return false;
@@ -144,8 +141,7 @@ ic_private int ic_strnicmp(const char* s1, const char* s2, ssize_t n) {
     if (s2 == NULL)
         return 1;
     ssize_t i;
-    for (i = 0; s1[i] != 0 && i < n;
-         i++) {  // note: if s2[i] == 0 the loop will stop as c1 != c2
+    for (i = 0; s1[i] != 0 && i < n; i++) {  // note: if s2[i] == 0 the loop will stop as c1 != c2
         char c1 = ic_tolower(s1[i]);
         char c2 = ic_tolower(s2[i]);
         if (c1 < c2)
@@ -244,8 +240,7 @@ ic_private bool utf8_is_cont(uint8_t c) {
     return ((c & 0xC0) == 0x80);
 }
 
-ic_private unicode_t unicode_from_qutf8(const uint8_t* s, ssize_t len,
-                                        ssize_t* count) {
+ic_private unicode_t unicode_from_qutf8(const uint8_t* s, ssize_t len, ssize_t* count) {
     unicode_t c0 = 0;
     if (len <= 0 || s == NULL) {
         goto fail;
@@ -266,26 +261,19 @@ ic_private unicode_t unicode_from_qutf8(const uint8_t* s, ssize_t len,
         return (((c0 & 0x1F) << 6) | (s[1] & 0x3F));
     }
     // 3 bytes: reject overlong and surrogate halves
-    else if (len >= 3 && ((c0 == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF &&
-                           utf8_is_cont(s[2])) ||
-                          (c0 >= 0xE1 && c0 <= 0xEC && utf8_is_cont(s[1]) &&
-                           utf8_is_cont(s[2])))) {
+    else if (len >= 3 && ((c0 == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF && utf8_is_cont(s[2])) ||
+                          (c0 >= 0xE1 && c0 <= 0xEC && utf8_is_cont(s[1]) && utf8_is_cont(s[2])))) {
         if (count != NULL)
             *count = 3;
-        return (((c0 & 0x0F) << 12) | ((unicode_t)(s[1] & 0x3F) << 6) |
-                (s[2] & 0x3F));
+        return (((c0 & 0x0F) << 12) | ((unicode_t)(s[1] & 0x3F) << 6) | (s[2] & 0x3F));
     }
     // 4 bytes: reject overlong
-    else if (len >= 4 && (((c0 == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF &&
-                            utf8_is_cont(s[2]) && utf8_is_cont(s[3])) ||
-                           (c0 >= 0xF1 && c0 <= 0xF3 && utf8_is_cont(s[1]) &&
-                            utf8_is_cont(s[2]) && utf8_is_cont(s[3])) ||
-                           (c0 == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F &&
-                            utf8_is_cont(s[2]) && utf8_is_cont(s[3]))))) {
+    else if (len >= 4 && (((c0 == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && utf8_is_cont(s[2]) && utf8_is_cont(s[3])) ||
+                           (c0 >= 0xF1 && c0 <= 0xF3 && utf8_is_cont(s[1]) && utf8_is_cont(s[2]) && utf8_is_cont(s[3])) ||
+                           (c0 == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && utf8_is_cont(s[2]) && utf8_is_cont(s[3]))))) {
         if (count != NULL)
             *count = 4;
-        return (((c0 & 0x07) << 18) | ((unicode_t)(s[1] & 0x3F) << 12) |
-                ((unicode_t)(s[2] & 0x3F) << 6) | (s[3] & 0x3F));
+        return (((c0 & 0x07) << 18) | ((unicode_t)(s[1] & 0x3F) << 12) | ((unicode_t)(s[2] & 0x3F) << 6) | (s[3] & 0x3F));
     }
 fail:
     if (count != NULL)

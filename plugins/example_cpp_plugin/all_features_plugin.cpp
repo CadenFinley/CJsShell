@@ -19,8 +19,7 @@
 extern "C" {
 // This is a weak symbol that will be overridden by the actual implementation in
 // the shell
-__attribute__((weak)) plugin_error_t plugin_register_prompt_variable(
-    const char* name, plugin_get_prompt_variable_func func) {
+__attribute__((weak)) plugin_error_t plugin_register_prompt_variable(const char* name, plugin_get_prompt_variable_func func) {
     // This will never be called as the real implementation will be used at
     // runtime
     std::cerr << "Warning: Using stub implementation of "
@@ -59,8 +58,7 @@ char* create_string_copy(const char* src) {
 }
 
 // Helper function to create a heap-allocated array of string copies
-char** create_string_array(const std::vector<std::string>& strings,
-                           int* count) {
+char** create_string_array(const std::vector<std::string>& strings, int* count) {
     *count = strings.size();
     if (*count == 0)
         return nullptr;
@@ -87,8 +85,7 @@ char** create_string_array(const std::vector<std::string>& strings,
 }
 
 // Helper function to join string arguments
-std::string join_args(plugin_args_t* args, int start_pos = 1,
-                      const std::string& separator = " ") {
+std::string join_args(plugin_args_t* args, int start_pos = 1, const std::string& separator = " ") {
     std::string result;
     for (int i = start_pos; i < args->count; i++) {
         if (i > start_pos)
@@ -122,40 +119,33 @@ static plugin_string_t current_time_callback() {
     }
 
     char* data = create_string_copy(time_str.c_str());
-    plugin_string_t result = {data, static_cast<int>(time_str.length()),
-                              static_cast<int>(time_str.length()) + 1};
+    plugin_string_t result = {data, static_cast<int>(time_str.length()), static_cast<int>(time_str.length()) + 1};
     return result;
 }
 
 static plugin_string_t uptime_callback() {
     static auto start_time = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
-    auto diff =
-        std::chrono::duration_cast<std::chrono::seconds>(now - start_time)
-            .count();
+    auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
 
     std::string uptime_str = std::to_string(diff) + "s";
     char* data = create_string_copy(uptime_str.c_str());
-    plugin_string_t result = {data, static_cast<int>(uptime_str.length()),
-                              static_cast<int>(uptime_str.length()) + 1};
+    plugin_string_t result = {data, static_cast<int>(uptime_str.length()), static_cast<int>(uptime_str.length()) + 1};
     return result;
 }
 
 static plugin_string_t random_quote_callback() {
-    const char* quotes[] = {
-        "The only way to do great work is to love what you do.",
-        "Life is what happens when you're busy making other plans.",
-        "The future belongs to those who believe in the beauty of their "
-        "dreams.",
-        "The purpose of our lives is to be happy.",
-        "Get busy living or get busy dying."};
+    const char* quotes[] = {"The only way to do great work is to love what you do.",
+                            "Life is what happens when you're busy making other plans.",
+                            "The future belongs to those who believe in the beauty of their "
+                            "dreams.",
+                            "The purpose of our lives is to be happy.", "Get busy living or get busy dying."};
     int num_quotes = sizeof(quotes) / sizeof(quotes[0]);
     int index = rand() % num_quotes;
 
     std::string quote = quotes[index];
     char* data = create_string_copy(quote.c_str());
-    plugin_string_t result = {data, static_cast<int>(quote.length()),
-                              static_cast<int>(quote.length()) + 1};
+    plugin_string_t result = {data, static_cast<int>(quote.length()), static_cast<int>(quote.length()) + 1};
     return result;
 }
 
@@ -165,10 +155,9 @@ static plugin_string_t random_quote_callback() {
 
 // Get plugin information
 extern "C" PLUGIN_API plugin_info_t* plugin_get_info() {
-    static plugin_info_t info = {
-        (char*)PLUGIN_NAME, (char*)PLUGIN_VERSION,
-        (char*)"A comprehensive plugin demonstrating all CJSH plugin features",
-        (char*)"Caden Finley", PLUGIN_INTERFACE_VERSION};
+    static plugin_info_t info = {(char*)PLUGIN_NAME, (char*)PLUGIN_VERSION,
+                                 (char*)"A comprehensive plugin demonstrating all CJSH plugin features", (char*)"Caden Finley",
+                                 PLUGIN_INTERFACE_VERSION};
     return &info;
 }
 
@@ -311,8 +300,7 @@ extern "C" PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
         std::cout << "Current plugin settings:\n";
         if (plugin_settings) {
             for (const auto& setting : *plugin_settings) {
-                std::cout << "  " << setting.first << " = " << setting.second
-                          << "\n";
+                std::cout << "  " << setting.first << " = " << setting.second << "\n";
             }
         }
         return PLUGIN_SUCCESS;
@@ -365,31 +353,26 @@ extern "C" PLUGIN_API int plugin_handle_command(plugin_args_t* args) {
 
 // Get commands provided by this plugin
 extern "C" PLUGIN_API char** plugin_get_commands(int* count) {
-    std::vector<std::string> commands = {"hello", "echo", "settings", "history",
-                                         "quote", "time", "uptime",   "help"};
+    std::vector<std::string> commands = {"hello", "echo", "settings", "history", "quote", "time", "uptime", "help"};
     return create_string_array(commands, count);
 }
 
 // Get events this plugin subscribes to
 extern "C" PLUGIN_API char** plugin_get_subscribed_events(int* count) {
-    std::vector<std::string> events = {
-        "main_process_pre_run", "main_process_start",
-        "main_process_end",     "main_process_command_processed",
-        "plugin_enabled",       "plugin_disabled"};
+    std::vector<std::string> events = {"main_process_pre_run",           "main_process_start", "main_process_end",
+                                       "main_process_command_processed", "plugin_enabled",     "plugin_disabled"};
     return create_string_array(events, count);
 }
 
 // Get default plugin settings
-extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(
-    int* count) {
+extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(int* count) {
     if (!count)
         return nullptr;
 
     const int num_settings = 3;
     *count = num_settings;
 
-    plugin_setting_t* settings = (plugin_setting_t*)PLUGIN_MALLOC(
-        num_settings * sizeof(plugin_setting_t));
+    plugin_setting_t* settings = (plugin_setting_t*)PLUGIN_MALLOC(num_settings * sizeof(plugin_setting_t));
     if (!settings) {
         *count = 0;
         return nullptr;
@@ -432,8 +415,7 @@ extern "C" PLUGIN_API plugin_setting_t* plugin_get_default_settings(
 }
 
 // Update a plugin setting
-extern "C" PLUGIN_API int plugin_update_setting(const char* key,
-                                                const char* value) {
+extern "C" PLUGIN_API int plugin_update_setting(const char* key, const char* value) {
     if (!key || !value) {
         return PLUGIN_ERROR_INVALID_ARGS;
     }

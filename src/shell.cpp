@@ -38,9 +38,7 @@ std::unordered_map<std::string, CachedScript> g_script_cache;
 
 std::string to_lower_copy(std::string_view value) {
     std::string result(value);
-    std::transform(
-        result.begin(), result.end(), result.begin(),
-        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    std::transform(result.begin(), result.end(), result.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     return result;
 }
 
@@ -49,8 +47,7 @@ bool has_theme_extension(const std::filesystem::path& path) {
         return false;
     }
     std::string ext_lower = to_lower_copy(path.extension().string());
-    std::string expected =
-        to_lower_copy(std::string(Theme::kThemeFileExtension));
+    std::string expected = to_lower_copy(std::string(Theme::kThemeFileExtension));
     return ext_lower == expected;
 }
 }  // namespace
@@ -65,8 +62,7 @@ ScopedRawMode::ScopedRawMode(int fd) : entered_(false), fd_(fd) {
 
     if (tcgetattr(fd_, &saved_modes_) == -1) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: ScopedRawMode failed to save current termios: "
-                      << strerror(errno) << std::endl;
+            std::cerr << "DEBUG: ScopedRawMode failed to save current termios: " << strerror(errno) << std::endl;
         }
         return;
     }
@@ -78,8 +74,7 @@ ScopedRawMode::ScopedRawMode(int fd) : entered_(false), fd_(fd) {
 
     if (tcsetattr(fd_, TCSANOW, &raw_modes) == -1) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: ScopedRawMode failed to enter raw mode: "
-                      << strerror(errno) << std::endl;
+            std::cerr << "DEBUG: ScopedRawMode failed to enter raw mode: " << strerror(errno) << std::endl;
         }
         return;
     }
@@ -98,8 +93,7 @@ void ScopedRawMode::release() {
 
     if (tcsetattr(fd_, TCSANOW, &saved_modes_) == -1) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: ScopedRawMode failed to restore termios: "
-                      << strerror(errno) << std::endl;
+            std::cerr << "DEBUG: ScopedRawMode failed to restore termios: " << strerror(errno) << std::endl;
         }
     }
 
@@ -152,13 +146,9 @@ Shell::~Shell() {
     restore_terminal_state();
 }
 
-int Shell::execute_script_file(const std::filesystem::path& path,
-                               bool optional) {
+int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
     if (!shell_script_interpreter) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "source",
-                     "script interpreter not available",
-                     {}});
+        print_error({ErrorType::RUNTIME_ERROR, "source", "script interpreter not available", {}});
         return 1;
     }
 
@@ -188,8 +178,7 @@ int Shell::execute_script_file(const std::filesystem::path& path,
         if (it != g_script_cache.end() && it->second.modified == mod_time) {
             cached_lines = it->second.lines;
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Using cached script: " << cache_key
-                          << std::endl;
+                std::cerr << "DEBUG: Using cached script: " << cache_key << std::endl;
             }
         }
     }
@@ -199,23 +188,17 @@ int Shell::execute_script_file(const std::filesystem::path& path,
         if (!file) {
             if (optional) {
                 if (g_debug_mode) {
-                    std::cerr
-                        << "DEBUG: Optional script not found: " << display_path
-                        << std::endl;
+                    std::cerr << "DEBUG: Optional script not found: " << display_path << std::endl;
                 }
                 return 0;
             }
-            print_error({ErrorType::FILE_NOT_FOUND,
-                         "source",
-                         "cannot open file '" + display_path + "'",
-                         {}});
+            print_error({ErrorType::FILE_NOT_FOUND, "source", "cannot open file '" + display_path + "'", {}});
             return 1;
         }
 
         std::stringstream buffer;
         buffer << file.rdbuf();
-        auto parsed_lines = std::make_shared<std::vector<std::string>>(
-            shell_script_interpreter->parse_into_lines(buffer.str()));
+        auto parsed_lines = std::make_shared<std::vector<std::string>>(shell_script_interpreter->parse_into_lines(buffer.str()));
         cached_lines = parsed_lines;
 
         if (!mod_ec) {
@@ -224,16 +207,14 @@ int Shell::execute_script_file(const std::filesystem::path& path,
         }
 
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Parsed script: " << display_path << " ("
-                      << parsed_lines->size() << " lines)" << std::endl;
+            std::cerr << "DEBUG: Parsed script: " << display_path << " (" << parsed_lines->size() << " lines)" << std::endl;
         }
     }
 
     return shell_script_interpreter->execute_block(*cached_lines);
 }
 
-int Shell::load_theme_from_file(const std::filesystem::path& path,
-                                bool optional) {
+int Shell::load_theme_from_file(const std::filesystem::path& path, bool optional) {
     std::filesystem::path normalized = path.lexically_normal();
     std::string display_path = normalized.string();
 
@@ -257,8 +238,7 @@ int Shell::load_theme_from_file(const std::filesystem::path& path,
     if (status_ec || !std::filesystem::is_regular_file(status)) {
         if (optional) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Optional theme file not found: "
-                          << display_path << std::endl;
+                std::cerr << "DEBUG: Optional theme file not found: " << display_path << std::endl;
             }
             return 0;
         }
@@ -283,11 +263,10 @@ int Shell::load_theme_from_file(const std::filesystem::path& path,
     }
 
     if (!g_theme) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR,
-             "theme",
-             "Theme manager not initialized",
-             {"Try running 'theme' again after initialization completes."}});
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "theme",
+                     "Theme manager not initialized",
+                     {"Try running 'theme' again after initialization completes."}});
         return 1;
     }
 
@@ -297,8 +276,7 @@ int Shell::load_theme_from_file(const std::filesystem::path& path,
     }
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Loaded theme from '" << display_path << "'"
-                  << std::endl;
+        std::cerr << "DEBUG: Loaded theme from '" << display_path << "'" << std::endl;
     }
 
     return 0;
@@ -324,11 +302,9 @@ int Shell::execute(const std::string& script) {
     lines = shell_parser->parse_into_lines(processed_script);
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Executing script with " << lines.size()
-                  << " lines:" << std::endl;
+        std::cerr << "DEBUG: Executing script with " << lines.size() << " lines:" << std::endl;
         for (size_t i = 0; i < lines.size(); i++) {
-            std::cerr << "DEBUG:   Line " << (i + 1) << ": " << lines[i]
-                      << std::endl;
+            std::cerr << "DEBUG:   Line " << (i + 1) << ": " << lines[i] << std::endl;
         }
     }
 
@@ -337,10 +313,7 @@ int Shell::execute(const std::string& script) {
         last_command = processed_script;
         return exit_code;
     } else {
-        print_error(ErrorInfo{ErrorType::RUNTIME_ERROR,
-                              "",
-                              "No script interpreter available",
-                              {"Restart cjsh"}});
+        print_error(ErrorInfo{ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
         return 1;
     }
 }
@@ -372,9 +345,7 @@ void Shell::restore_terminal_state() {
     if (terminal_state_saved) {
         if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
             if (g_debug_mode) {
-                std::cerr
-                    << "DEBUG: Warning - failed to restore terminal state: "
-                    << strerror(errno) << std::endl;
+                std::cerr << "DEBUG: Warning - failed to restore terminal state: " << strerror(errno) << std::endl;
             }
 
             tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
@@ -401,8 +372,7 @@ void Shell::setup_job_control() {
         if (errno != EPERM) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "setpgid",
-                         "couldn't put the shell in its own process group: " +
-                             std::string(strerror(errno)),
+                         "couldn't put the shell in its own process group: " + std::string(strerror(errno)),
                          {}});
         }
     }
@@ -413,20 +383,13 @@ void Shell::setup_job_control() {
         int tpgrp = tcgetpgrp(shell_terminal);
         if (tpgrp != -1) {
             if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "tcsetpgrp",
-                             "couldn't grab terminal control: " +
-                                 std::string(strerror(errno)),
-                             {}});
+                print_error({ErrorType::RUNTIME_ERROR, "tcsetpgrp", "couldn't grab terminal control: " + std::string(strerror(errno)), {}});
             }
         }
 
         job_control_enabled = true;
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "",
-                     e.what(),
-                     {"Check terminal settings", "Restart cjsh"}});
+        print_error({ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
         job_control_enabled = false;
     }
 }
@@ -441,8 +404,7 @@ int Shell::do_ai_request(const std::string& command) {
 
     if (!first_word.empty()) {
         auto cached_executables = cjsh_filesystem::read_cached_executables();
-        std::unordered_set<std::string> available_commands =
-            get_available_commands();
+        std::unordered_set<std::string> available_commands = get_available_commands();
 
         bool is_executable = false;
         for (const auto& exec_path : cached_executables) {
@@ -452,33 +414,25 @@ int Shell::do_ai_request(const std::string& command) {
             }
         }
 
-        if (!is_executable &&
-            available_commands.find(first_word) != available_commands.end()) {
+        if (!is_executable && available_commands.find(first_word) != available_commands.end()) {
             is_executable = true;
         }
 
         if (is_executable) {
-            std::cout << "It looks like you're trying to run a command '"
-                      << first_word
+            std::cout << "It looks like you're trying to run a command '" << first_word
                       << "' in AI mode. Did you mean to run it as a shell "
                          "command? (y/n): ";
             std::string response;
             std::getline(std::cin, response);
 
-            if (!response.empty() &&
-                (response[0] == 'y' || response[0] == 'Y')) {
-                std::vector<std::string> lines =
-                    shell_parser->parse_into_lines(command);
+            if (!response.empty() && (response[0] == 'y' || response[0] == 'Y')) {
+                std::vector<std::string> lines = shell_parser->parse_into_lines(command);
                 if (shell_script_interpreter) {
-                    int exit_code =
-                        shell_script_interpreter->execute_block(lines);
+                    int exit_code = shell_script_interpreter->execute_block(lines);
                     last_command = command;
                     return exit_code;
                 } else {
-                    print_error(ErrorInfo{ErrorType::RUNTIME_ERROR,
-                                          "",
-                                          "No script interpreter available",
-                                          {"Restart cjsh"}});
+                    print_error(ErrorInfo{ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
                     return 1;
                 }
             }
@@ -488,21 +442,16 @@ int Shell::do_ai_request(const std::string& command) {
     return built_ins->do_ai_request(command);
 }
 
-int Shell::execute_command(std::vector<std::string> args,
-                           bool run_in_background) {
+int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
     if (g_debug_mode)
-        std::cerr << "DEBUG: Executing command: '" << args[0] << "'"
-                  << std::endl;
+        std::cerr << "DEBUG: Executing command: '" << args[0] << "'" << std::endl;
 
     if (args.empty()) {
         return 0;
     }
     if (!shell_exec || !built_ins) {
         g_exit_flag = true;
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "",
-                     "Shell not properly initialized",
-                     {"Restart cjsh"}});
+        print_error({ErrorType::RUNTIME_ERROR, "", "Shell not properly initialized", {"Restart cjsh"}});
         return 1;
     }
 
@@ -513,8 +462,7 @@ int Shell::execute_command(std::vector<std::string> args,
 
             env_vars[var_name] = var_value;
 
-            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
-                var_name == "USER" || var_name == "SHELL") {
+            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" || var_name == "USER" || var_name == "SHELL") {
                 setenv(var_name.c_str(), var_value.c_str(), 1);
             }
 
@@ -534,27 +482,21 @@ int Shell::execute_command(std::vector<std::string> args,
         int code = built_ins->builtin_command(args);
         last_terminal_output_error = built_ins->get_last_error();
 
-        if (args[0] == "break" || args[0] == "continue" ||
-            args[0] == "return") {
+        if (args[0] == "break" || args[0] == "continue" || args[0] == "return") {
             if (g_debug_mode)
-                std::cerr << "DEBUG: Detected loop control command: " << args[0]
-                          << " with exit code " << code << std::endl;
+                std::cerr << "DEBUG: Detected loop control command: " << args[0] << " with exit code " << code << std::endl;
         }
 
         return code;
     }
 
     if (g_plugin) {
-        std::vector<std::string> enabled_plugins =
-            g_plugin->get_enabled_plugins();
+        std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
         if (!args.empty() && !enabled_plugins.empty()) {
             for (const auto& plugin : enabled_plugins) {
-                std::vector<std::string> plugin_commands =
-                    g_plugin->get_plugin_commands(plugin);
-                if (std::find(plugin_commands.begin(), plugin_commands.end(),
-                              args[0]) != plugin_commands.end()) {
-                    return g_plugin->handle_plugin_command(plugin, args) ? 0
-                                                                         : 1;
+                std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
+                if (std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) != plugin_commands.end()) {
+                    return g_plugin->handle_plugin_command(plugin, args) ? 0 : 1;
                 }
             }
         }
@@ -572,8 +514,7 @@ int Shell::execute_command(std::vector<std::string> args,
                 JobManager::instance().set_last_background_pid(last_pid);
 
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Background job " << job_id
-                              << " started with PID " << last_pid << std::endl;
+                    std::cerr << "DEBUG: Background job " << job_id << " started with PID " << last_pid << std::endl;
                 }
             }
         }
@@ -590,9 +531,7 @@ int Shell::execute_command(std::vector<std::string> args,
 
         if (exit_code != 0) {
             ErrorInfo error = shell_exec->get_error();
-            if (error.type != ErrorType::RUNTIME_ERROR ||
-                error.message.find("command failed with exit code") ==
-                    std::string::npos) {
+            if (error.type != ErrorType::RUNTIME_ERROR || error.message.find("command failed with exit code") == std::string::npos) {
                 shell_exec->print_last_error();
             }
         }
@@ -640,8 +579,7 @@ int Shell::shift_positional_parameters(int count) {
     if (static_cast<size_t>(count) >= positional_parameters.size()) {
         positional_parameters.clear();
     } else {
-        positional_parameters.erase(positional_parameters.begin(),
-                                    positional_parameters.begin() + count);
+        positional_parameters.erase(positional_parameters.begin(), positional_parameters.begin() + count);
     }
 
     return 0;
@@ -658,8 +596,7 @@ size_t Shell::get_positional_parameter_count() const {
 void Shell::set_shell_option(const std::string& option, bool value) {
     shell_options[option] = value;
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Set shell option '" << option << "' to "
-                  << (value ? "true" : "false") << std::endl;
+        std::cerr << "DEBUG: Set shell option '" << option << "' to " << (value ? "true" : "false") << std::endl;
     }
 }
 
@@ -680,9 +617,7 @@ void Shell::expand_env_vars(std::string& value) {
 
 void Shell::sync_env_vars_from_system() {
     if (g_debug_mode)
-        std::cerr
-            << "DEBUG: Syncing shell env_vars cache from system environment"
-            << std::endl;
+        std::cerr << "DEBUG: Syncing shell env_vars cache from system environment" << std::endl;
 
     extern char** environ;
     for (char** env = environ; *env != nullptr; env++) {

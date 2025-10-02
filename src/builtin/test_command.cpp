@@ -61,8 +61,7 @@ int test_command(const std::vector<std::string>& args) {
 
     if (test_args.size() == 3) {
         if (test_args[0] == "!") {
-            std::vector<std::string> neg_args = {"test", test_args[1],
-                                                 test_args[2]};
+            std::vector<std::string> neg_args = {"test", test_args[1], test_args[2]};
             return test_command(neg_args) == 0 ? 1 : 0;
         }
 
@@ -126,8 +125,7 @@ int test_command(const std::vector<std::string>& args) {
     }
 
     if (test_args.size() == 4 && test_args[0] == "!") {
-        std::vector<std::string> neg_args = {"test", test_args[1], test_args[2],
-                                             test_args[3]};
+        std::vector<std::string> neg_args = {"test", test_args[1], test_args[2], test_args[3]};
         return test_command(neg_args) == 0 ? 1 : 0;
     }
 

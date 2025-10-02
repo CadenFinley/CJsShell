@@ -12,30 +12,9 @@
 #include "cjsh.h"
 
 bool pattern_match(const std::string& text, const std::string& pattern) {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: pattern_match called with text='" << text
-                  << "' (len=" << text.size() << ") pattern='" << pattern
-                  << "' (len=" << pattern.size() << ")" << std::endl;
-        std::cerr << "DEBUG: text chars: ";
-        for (size_t k = 0; k < text.size(); ++k) {
-            std::cerr << "[" << k << "]=" << (int)(unsigned char)text[k] << " ";
-        }
-        std::cerr << std::endl;
-        std::cerr << "DEBUG: pattern chars: ";
-        for (size_t k = 0; k < pattern.size(); ++k) {
-            std::cerr << "[" << k << "]=" << (int)(unsigned char)pattern[k]
-                      << " ";
-        }
-        std::cerr << std::endl;
-    }
-
     std::string regex_pattern;
     for (size_t i = 0; i < pattern.size(); ++i) {
         char c = pattern[i];
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: pattern_match processing char[" << i
-                      << "]=" << (int)(unsigned char)c << std::endl;
-        }
         switch (c) {
             case '*':
                 regex_pattern += ".*";
@@ -59,39 +38,20 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
                 break;
             }
             case '\\':
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Handling backslash at pos " << i
-                              << ", next char at pos " << (i + 1) << std::endl;
-                }
                 if (i + 1 < pattern.size()) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Next char after backslash: "
-                                  << (int)(unsigned char)pattern[i + 1]
-                                  << std::endl;
-                    }
 
                     regex_pattern += "\\\\";
 
                     char next_char = pattern[i + 1];
-                    if (next_char == '.' || next_char == '^' ||
-                        next_char == '$' || next_char == '*' ||
-                        next_char == '+' || next_char == '?' ||
-                        next_char == '(' || next_char == ')' ||
-                        next_char == '[' || next_char == ']' ||
-                        next_char == '{' || next_char == '}' ||
-                        next_char == '|' || next_char == '\\') {
+                    if (next_char == '.' || next_char == '^' || next_char == '$' || next_char == '*' || next_char == '+' ||
+                        next_char == '?' || next_char == '(' || next_char == ')' || next_char == '[' || next_char == ']' ||
+                        next_char == '{' || next_char == '}' || next_char == '|' || next_char == '\\') {
                         regex_pattern += "\\";
                     }
                     regex_pattern += next_char;
                     i++;
                 } else {
                     regex_pattern += "\\\\";
-                }
-                if (g_debug_mode) {
-                    std::cerr
-                        << "DEBUG: After backslash processing, regex_pattern='"
-                        << regex_pattern << "', next i=" << (i + 1)
-                        << std::endl;
                 }
                 break;
             case '.':
@@ -114,17 +74,8 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
 
     try {
         std::regex re(regex_pattern);
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: pattern_match: text='" << text << "' pattern='"
-                      << pattern << "' regex='" << regex_pattern << "'"
-                      << std::endl;
-        }
         return std::regex_match(text, re);
     } catch (const std::regex_error&) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: pattern_match: regex error with pattern='"
-                      << regex_pattern << "'" << std::endl;
-        }
         return false;
     }
 }
@@ -170,8 +121,7 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
 
     if (tokens.size() == 3) {
         if (tokens[0] == "!") {
-            std::vector<std::string> sub_tokens(tokens.begin() + 1,
-                                                tokens.end());
+            std::vector<std::string> sub_tokens(tokens.begin() + 1, tokens.end());
             return evaluate_expression(sub_tokens) == 0 ? 1 : 0;
         }
 
@@ -180,10 +130,6 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
         const std::string& arg2 = tokens[2];
 
         if (op == "=" || op == "==") {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Comparing '" << arg1 << "' == '" << arg2
-                          << "'" << std::endl;
-            }
             return pattern_match(arg1, arg2) ? 0 : 1;
         } else if (op == "!=") {
             return pattern_match(arg1, arg2) ? 1 : 0;
@@ -299,8 +245,7 @@ int double_bracket_command(const std::vector<std::string>& args) {
 
     int result = evaluate_expression(expressions[0]);
 
-    for (size_t i = 0; i < operators.size() && i + 1 < expressions.size();
-         ++i) {
+    for (size_t i = 0; i < operators.size() && i + 1 < expressions.size(); ++i) {
         if (operators[i] == "&&") {
             if (result == 0) {
                 result = evaluate_expression(expressions[i + 1]);

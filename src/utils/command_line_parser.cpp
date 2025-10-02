@@ -9,39 +9,34 @@
 #include "error_out.h"
 #include "usage.h"
 
-extern bool g_debug_mode;
-extern bool g_title_line;
-
 namespace cjsh {
 
-CommandLineParser::ParseResult CommandLineParser::parse_arguments(
-    int argc, char* argv[]) {
+CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char* argv[]) {
     ParseResult result;
 
     detect_login_mode(argv);
 
-    static struct option long_options[] = {
-        {"login", no_argument, 0, 'l'},
-        {"interactive", no_argument, 0, 'i'},
-        {"debug", no_argument, 0, 'd'},
-        {"command", required_argument, 0, 'c'},
-        {"version", no_argument, 0, 'v'},
-        {"help", no_argument, 0, 'h'},
-        {"no-plugins", no_argument, 0, 'P'},
-        {"no-themes", no_argument, 0, 'T'},
-        {"no-ai", no_argument, 0, 'A'},
-        {"no-colors", no_argument, 0, 'C'},
-        {"no-titleline", no_argument, 0, 'L'},
-        {"show-startup-time", no_argument, 0, 'U'},
-        {"no-source", no_argument, 0, 'N'},
-        {"no-completions", no_argument, 0, 'O'},
-        {"no-syntax-highlighting", no_argument, 0, 'S'},
-        {"no-smart-cd", no_argument, 0, 'M'},
-        {"startup-test", no_argument, 0, 'X'},
-        {"minimal", no_argument, 0, 'm'},
-        {"disable-custom-ls", no_argument, 0, 'D'},
-        {"secure", no_argument, 0, 's'},
-        {0, 0, 0, 0}};
+    static struct option long_options[] = {{"login", no_argument, 0, 'l'},
+                                           {"interactive", no_argument, 0, 'i'},
+                                           {"debug", no_argument, 0, 'd'},
+                                           {"command", required_argument, 0, 'c'},
+                                           {"version", no_argument, 0, 'v'},
+                                           {"help", no_argument, 0, 'h'},
+                                           {"no-plugins", no_argument, 0, 'P'},
+                                           {"no-themes", no_argument, 0, 'T'},
+                                           {"no-ai", no_argument, 0, 'A'},
+                                           {"no-colors", no_argument, 0, 'C'},
+                                           {"no-titleline", no_argument, 0, 'L'},
+                                           {"show-startup-time", no_argument, 0, 'U'},
+                                           {"no-source", no_argument, 0, 'N'},
+                                           {"no-completions", no_argument, 0, 'O'},
+                                           {"no-syntax-highlighting", no_argument, 0, 'S'},
+                                           {"no-smart-cd", no_argument, 0, 'M'},
+                                           {"startup-test", no_argument, 0, 'X'},
+                                           {"minimal", no_argument, 0, 'm'},
+                                           {"disable-custom-ls", no_argument, 0, 'D'},
+                                           {"secure", no_argument, 0, 's'},
+                                           {0, 0, 0, 0}};
 
     const char* short_options = "+lic:vhdPTACLUNOSMXmDs";
 
@@ -49,8 +44,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
     int c;
     optind = 1;
 
-    while ((c = getopt_long(argc, argv, short_options, long_options,
-                            &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
         switch (c) {
             case 'l':
                 config::login_mode = true;
@@ -68,8 +62,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
                 config::execute_command = true;
                 config::cmd_to_execute = optarg;
                 config::interactive_mode = false;
-                print_debug_info("Command to execute: " +
-                                 config::cmd_to_execute);
+                print_debug_info("Command to execute: " + config::cmd_to_execute);
                 break;
             case 'v':
                 config::show_version = true;
@@ -96,7 +89,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
                 print_debug_info("Colors disabled");
                 break;
             case 'L':
-                g_title_line = false;
+                show_title_line = false;
                 print_debug_info("Title line disabled");
                 break;
             case 'U':
@@ -125,8 +118,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
                 break;
             case 'm':
                 apply_minimal_mode();
-                print_debug_info(
-                    "Minimal mode enabled - all features disabled");
+                print_debug_info("Minimal mode enabled - all features disabled");
                 break;
             case 'D':
                 config::disable_custom_ls = true;
@@ -134,8 +126,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
                 break;
             case 's':
                 config::secure_mode = true;
-                print_debug_info(
-                    "Secure mode enabled - profile and source files disabled");
+                print_debug_info("Secure mode enabled - profile and source files disabled");
                 break;
             case '?':
                 print_usage();
@@ -143,10 +134,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
                 result.should_exit = true;
                 return result;
             default:
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             std::string(1, c),
-                             "Unrecognized option",
-                             {"Check command line arguments"}});
+                print_error({ErrorType::INVALID_ARGUMENT, std::string(1, c), "Unrecognized option", {"Check command line arguments"}});
                 result.exit_code = 127;
                 result.should_exit = true;
                 return result;
@@ -160,15 +148,13 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
 
         for (int i = optind + 1; i < argc; i++) {
             result.script_args.push_back(argv[i]);
-            print_debug_info("Script argument " + std::to_string(i - optind) +
-                             ": " + argv[i]);
+            print_debug_info("Script argument " + std::to_string(i - optind) + ": " + argv[i]);
         }
     }
 
     if (!config::force_interactive && !isatty(STDIN_FILENO)) {
         config::interactive_mode = false;
-        print_debug_info(
-            "Disabling interactive mode (stdin is not a terminal)");
+        print_debug_info("Disabling interactive mode (stdin is not a terminal)");
     }
 
     return result;
@@ -177,8 +163,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
 void CommandLineParser::detect_login_mode(char* argv[]) {
     if (argv && argv[0] && argv[0][0] == '-') {
         config::login_mode = true;
-        print_debug_info("Login mode detected from argv[0]: " +
-                         std::string(argv[0]));
+        print_debug_info("Login mode detected from argv[0]: " + std::string(argv[0]));
     }
 }
 
@@ -194,7 +179,7 @@ void CommandLineParser::apply_minimal_mode() {
     config::smart_cd_enabled = false;
     config::disable_custom_ls = true;
     config::show_startup_time = false;
-    ::g_title_line = false;
+    config::show_title_line = false;
 }
 
 void CommandLineParser::print_debug_info(const std::string& message) {
@@ -209,11 +194,9 @@ void CommandLineParser::apply_profile_startup_flags() {
     if (::g_debug_mode) {
         std::cerr << "DEBUG: Applying profile startup flags" << std::endl;
         if (::g_profile_startup_args.empty()) {
-            std::cerr << "DEBUG: No profile startup flags to process"
-                      << std::endl;
+            std::cerr << "DEBUG: No profile startup flags to process" << std::endl;
         } else {
-            std::cerr << "DEBUG: Profile startup flags to process:"
-                      << std::endl;
+            std::cerr << "DEBUG: Profile startup flags to process:" << std::endl;
             for (const auto& flag : ::g_profile_startup_args) {
                 std::cerr << "DEBUG:   " << flag << std::endl;
             }
@@ -222,14 +205,12 @@ void CommandLineParser::apply_profile_startup_flags() {
 
     for (const std::string& flag : ::g_profile_startup_args) {
         if (::g_debug_mode)
-            std::cerr << "DEBUG: Processing profile startup flag: " << flag
-                      << std::endl;
+            std::cerr << "DEBUG: Processing profile startup flag: " << flag << std::endl;
 
         if (flag == "--debug") {
             ::g_debug_mode = true;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Debug mode enabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Debug mode enabled via profile" << std::endl;
         } else if (flag == "--no-plugins") {
             config::plugins_enabled = false;
             if (::g_debug_mode)
@@ -247,45 +228,37 @@ void CommandLineParser::apply_profile_startup_flags() {
             if (::g_debug_mode)
                 std::cerr << "DEBUG: Colors disabled via profile" << std::endl;
         } else if (flag == "--no-titleline") {
-            ::g_title_line = false;
+            config::show_title_line = false;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Title line disabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Title line disabled via profile" << std::endl;
         } else if (flag == "--show-startup-time") {
             config::show_startup_time = true;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Startup time display enabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Startup time display enabled via profile" << std::endl;
         } else if (flag == "--no-source") {
             config::source_enabled = false;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Source file disabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Source file disabled via profile" << std::endl;
         } else if (flag == "--no-completions") {
             config::completions_enabled = false;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Completions disabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Completions disabled via profile" << std::endl;
         } else if (flag == "--no-syntax-highlighting") {
             config::syntax_highlighting_enabled = false;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Syntax highlighting disabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Syntax highlighting disabled via profile" << std::endl;
         } else if (flag == "--no-smart-cd") {
             config::smart_cd_enabled = false;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Smart cd disabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Smart cd disabled via profile" << std::endl;
         } else if (flag == "--startup-test") {
             config::startup_test = true;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Startup test mode enabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Startup test mode enabled via profile" << std::endl;
         } else if (flag == "--interactive") {
             config::force_interactive = true;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Interactive mode forced via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Interactive mode forced via profile" << std::endl;
         } else if (flag == "--login") {
             if (::g_debug_mode)
                 std::cerr << "DEBUG: Login mode flag found in profile (already "
@@ -300,8 +273,7 @@ void CommandLineParser::apply_profile_startup_flags() {
         } else if (flag == "--disable-custom-ls") {
             config::disable_custom_ls = true;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Disable custom ls enabled via profile"
-                          << std::endl;
+                std::cerr << "DEBUG: Disable custom ls enabled via profile" << std::endl;
         } else if (flag == "--secure") {
             config::secure_mode = true;
             if (::g_debug_mode)

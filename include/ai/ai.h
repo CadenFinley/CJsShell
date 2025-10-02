@@ -7,15 +7,11 @@
 
 class Ai {
    public:
-    Ai(const std::string& api_key, const std::string& assistant_type,
-       const std::string& initial_instruction);
-    Ai(const std::string& api_key, const std::string& assistant_type,
-       const std::string& initial_instruction,
+    Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction);
+    Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
        const std::vector<std::string>& user_files);
-    Ai(const std::string& api_key, const std::string& assistant_type,
-       const std::string& initial_instruction,
-       const std::vector<std::string>& user_files,
-       const std::string& save_directory, bool enabled);
+    Ai(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
+       const std::vector<std::string>& user_files, const std::string& save_directory, bool enabled);
     Ai();
 
     void set_api_key(const std::string& api_key);
@@ -60,8 +56,7 @@ class Ai {
     void set_enabled(bool enabled);
     bool is_enabled() const;
 
-    std::string chat_gpt(const std::string& sys_prompt,
-                         const std::string& message, bool format);
+    std::string chat_gpt(const std::string& sys_prompt, const std::string& message, bool format);
     std::string force_direct_chat_gpt(const std::string& message, bool format);
     int set_files(const std::vector<std::string>& user_files);
     int set_file(const std::string& user_file);
@@ -79,36 +74,25 @@ class Ai {
     std::string get_voice_dictation_instructions() const;
 
    private:
-    void initialize(const std::string& api_key,
-                    const std::string& assistant_type,
-                    const std::string& initial_instruction,
-                    const std::vector<std::string>& user_files,
-                    const std::string& save_directory = "");
+    void initialize(const std::string& api_key, const std::string& assistant_type, const std::string& initial_instruction,
+                    const std::vector<std::string>& user_files, const std::string& save_directory = "");
     bool is_valid_configuration() const;
     std::string get_invalid_configuration_message() const;
-    std::string build_prompt(const std::string& sys_prompt,
-                             const std::string& message);
+    std::string build_prompt(const std::string& sys_prompt, const std::string& message);
     std::string make_call_to_chat_gpt(const std::string& message);
     static std::string filter_message(const std::string& message);
-    std::map<std::string, std::string> parse_json_response(
-        const std::string& json_response) const;
-    std::string extract_content_from_json(
-        const std::string& json_response) const;
+    std::map<std::string, std::string> parse_json_response(const std::string& json_response) const;
+    std::string extract_content_from_json(const std::string& json_response) const;
     int process_file_contents();
     void process_text_file(const std::string& file, std::string& out);
     void process_other_file(const std::string& file, std::string& out);
-    static std::vector<std::string> extract_code_snippet(
-        const std::string& content);
-    std::string process_code_blocks_for_code_interpreter(
-        const std::string& message);
+    static std::vector<std::string> extract_code_snippet(const std::string& content);
+    std::string process_code_blocks_for_code_interpreter(const std::string& message);
     static std::string format_markdown(const std::string& text);
-    std::vector<std::string> split_string(const std::string& str,
-                                          char delimiter);
+    std::vector<std::string> split_string(const std::string& str, char delimiter);
     std::string sanitize_file_name(const std::string& file_name);
-    static void monitor_cancellation(std::atomic<bool>& loading,
-                                     std::atomic<bool>& request_cancelled);
-    static void handle_error_response(int status_code,
-                                      const std::string& error_body);
+    static void monitor_cancellation(std::atomic<bool>& loading, std::atomic<bool>& request_cancelled);
+    static void handle_error_response(int status_code, const std::string& error_body);
 
     bool process_voice_dictation(const std::string& message);
 

@@ -31,21 +31,17 @@ namespace cjsh_filesystem {
 
 fs::path g_cjsh_path;
 
-Result<int> FileOperations::safe_open(const std::string& path, int flags,
-                                      mode_t mode) {
+Result<int> FileOperations::safe_open(const std::string& path, int flags, mode_t mode) {
     int fd = ::open(path.c_str(), flags, mode);
     if (fd == -1) {
-        return Result<int>::error("Failed to open file '" + path +
-                                  "': " + std::string(strerror(errno)));
+        return Result<int>::error("Failed to open file '" + path + "': " + std::string(strerror(errno)));
     }
     return Result<int>::ok(fd);
 }
 
 Result<void> FileOperations::safe_dup2(int oldfd, int newfd) {
     if (::dup2(oldfd, newfd) == -1) {
-        return Result<void>::error("Failed to duplicate file descriptor " +
-                                   std::to_string(oldfd) + " to " +
-                                   std::to_string(newfd) + ": " +
+        return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) + " to " + std::to_string(newfd) + ": " +
                                    std::string(strerror(errno)));
     }
     return Result<void>::ok();
@@ -57,8 +53,7 @@ void FileOperations::safe_close(int fd) {
     }
 }
 
-Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd,
-                                         int flags) {
+Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd, int flags) {
     auto open_result = safe_open(file, flags, 0644);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
@@ -77,13 +72,10 @@ Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd,
     return Result<void>::ok();
 }
 
-Result<FILE*> FileOperations::safe_fopen(const std::string& path,
-                                         const std::string& mode) {
+Result<FILE*> FileOperations::safe_fopen(const std::string& path, const std::string& mode) {
     FILE* file = std::fopen(path.c_str(), mode.c_str());
     if (file == nullptr) {
-        return Result<FILE*>::error("Failed to open file '" + path +
-                                    "' with mode '" + mode +
-                                    "': " + std::string(strerror(errno)));
+        return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode + "': " + std::string(strerror(errno)));
     }
     return Result<FILE*>::ok(file);
 }
@@ -94,12 +86,10 @@ void FileOperations::safe_fclose(FILE* file) {
     }
 }
 
-Result<FILE*> FileOperations::safe_popen(const std::string& command,
-                                         const std::string& mode) {
+Result<FILE*> FileOperations::safe_popen(const std::string& command, const std::string& mode) {
     FILE* pipe = ::popen(command.c_str(), mode.c_str());
     if (pipe == nullptr) {
-        return Result<FILE*>::error("Failed to execute command '" + command +
-                                    "': " + std::string(strerror(errno)));
+        return Result<FILE*>::error("Failed to execute command '" + command + "': " + std::string(strerror(errno)));
     }
     return Result<FILE*>::ok(pipe);
 }
@@ -111,10 +101,8 @@ int FileOperations::safe_pclose(FILE* file) {
     return ::pclose(file);
 }
 
-Result<std::string> FileOperations::create_temp_file(
-    const std::string& prefix) {
-    std::string temp_path = "/tmp/" + prefix + "_" + std::to_string(getpid()) +
-                            "_" + std::to_string(time(nullptr));
+Result<std::string> FileOperations::create_temp_file(const std::string& prefix) {
+    std::string temp_path = "/tmp/" + prefix + "_" + std::to_string(getpid()) + "_" + std::to_string(time(nullptr));
     auto open_result = safe_open(temp_path, O_WRONLY | O_CREAT | O_EXCL, 0600);
     if (open_result.is_error()) {
         return Result<std::string>::error(open_result.error());
@@ -123,8 +111,7 @@ Result<std::string> FileOperations::create_temp_file(
     return Result<std::string>::ok(temp_path);
 }
 
-Result<void> FileOperations::write_temp_file(const std::string& path,
-                                             const std::string& content) {
+Result<void> FileOperations::write_temp_file(const std::string& path, const std::string& content) {
     auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
@@ -135,8 +122,7 @@ Result<void> FileOperations::write_temp_file(const std::string& path,
     safe_close(fd);
 
     if (written != static_cast<ssize_t>(content.length())) {
-        return Result<void>::error(
-            "Failed to write complete content to file '" + path + "'");
+        return Result<void>::error("Failed to write complete content to file '" + path + "'");
     }
 
     return Result<void>::ok();
@@ -146,8 +132,7 @@ void FileOperations::cleanup_temp_file(const std::string& path) {
     std::remove(path.c_str());
 }
 
-Result<std::string> FileOperations::read_command_output(
-    const std::string& command) {
+Result<std::string> FileOperations::read_command_output(const std::string& command) {
     auto pipe_result = safe_popen(command, "r");
     if (pipe_result.is_error()) {
         return Result<std::string>::error(pipe_result.error());
@@ -163,16 +148,13 @@ Result<std::string> FileOperations::read_command_output(
 
     int exit_code = safe_pclose(pipe);
     if (exit_code != 0) {
-        return Result<std::string>::error("Command '" + command +
-                                          "' failed with exit code " +
-                                          std::to_string(exit_code));
+        return Result<std::string>::error("Command '" + command + "' failed with exit code " + std::to_string(exit_code));
     }
 
     return Result<std::string>::ok(output);
 }
 
-Result<void> FileOperations::write_file_content(const std::string& path,
-                                                const std::string& content) {
+Result<void> FileOperations::write_file_content(const std::string& path, const std::string& content) {
     auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
@@ -183,8 +165,7 @@ Result<void> FileOperations::write_file_content(const std::string& path,
     safe_close(fd);
 
     if (written != static_cast<ssize_t>(content.length())) {
-        return Result<void>::error(
-            "Failed to write complete content to file '" + path + "'");
+        return Result<void>::error("Failed to write complete content to file '" + path + "'");
     }
 
     return Result<void>::ok();
@@ -208,8 +189,7 @@ Result<std::string> FileOperations::read_file_content(const std::string& path) {
     safe_close(fd);
 
     if (bytes_read < 0) {
-        return Result<std::string>::error("Failed to read from file '" + path +
-                                          "': " + std::string(strerror(errno)));
+        return Result<std::string>::error("Failed to read from file '" + path + "': " + std::string(strerror(errno)));
     }
 
     return Result<std::string>::ok(content);
@@ -219,16 +199,14 @@ bool should_refresh_executable_cache() {
     try {
         if (has_path_changed()) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Cache refresh needed due to PATH change"
-                          << std::endl;
+                std::cerr << "DEBUG: Cache refresh needed due to PATH change" << std::endl;
             }
             return true;
         }
 
         if (!fs::exists(g_cjsh_found_executables_path)) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Cache refresh needed - cache file missing"
-                          << std::endl;
+                std::cerr << "DEBUG: Cache refresh needed - cache file missing" << std::endl;
             }
             return true;
         }
@@ -238,16 +216,13 @@ bool should_refresh_executable_cache() {
         bool is_old = (now - last) > std::chrono::hours(24);
 
         if (is_old && g_debug_mode) {
-            std::cerr
-                << "DEBUG: Cache refresh needed - cache older than 24 hours"
-                << std::endl;
+            std::cerr << "DEBUG: Cache refresh needed - cache older than 24 hours" << std::endl;
         }
 
         return is_old;
     } catch (...) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Cache refresh needed due to exception"
-                      << std::endl;
+            std::cerr << "DEBUG: Cache refresh needed due to exception" << std::endl;
         }
         return true;
     }
@@ -257,8 +232,7 @@ bool build_executable_cache() {
     const char* path_env = std::getenv("PATH");
     if (!path_env) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Skipping executable cache refresh - PATH unset"
-                      << std::endl;
+            std::cerr << "DEBUG: Skipping executable cache refresh - PATH unset" << std::endl;
         }
         return false;
     }
@@ -277,8 +251,7 @@ bool build_executable_cache() {
 
         if (!fs::exists(directory_path, ec)) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Skipping non-existent PATH entry: " << dir
-                          << std::endl;
+                std::cerr << "DEBUG: Skipping non-existent PATH entry: " << dir << std::endl;
             }
             continue;
         }
@@ -286,8 +259,7 @@ bool build_executable_cache() {
         ec.clear();
         if (!fs::is_directory(directory_path, ec) || ec) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Skipping non-directory PATH entry: "
-                          << dir;
+                std::cerr << "DEBUG: Skipping non-directory PATH entry: " << dir;
                 if (ec) {
                     std::cerr << " (reason: " << ec.message() << ")";
                 }
@@ -296,13 +268,10 @@ bool build_executable_cache() {
             continue;
         }
 
-        fs::directory_iterator it(
-            directory_path, fs::directory_options::skip_permission_denied, ec);
+        fs::directory_iterator it(directory_path, fs::directory_options::skip_permission_denied, ec);
         if (ec) {
             if (g_debug_mode) {
-                std::cerr
-                    << "DEBUG: Unable to iterate PATH entry due to error: "
-                    << dir << " (" << ec.message() << ")" << std::endl;
+                std::cerr << "DEBUG: Unable to iterate PATH entry due to error: " << dir << " (" << ec.message() << ")" << std::endl;
             }
             continue;
         }
@@ -310,8 +279,7 @@ bool build_executable_cache() {
         for (; it != fs::directory_iterator(); it.increment(ec)) {
             if (ec) {
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Error while scanning directory '"
-                              << dir << "': " << ec.message() << std::endl;
+                    std::cerr << "DEBUG: Error while scanning directory '" << dir << "': " << ec.message() << std::endl;
                 }
                 break;
             }
@@ -328,9 +296,7 @@ bool build_executable_cache() {
             }
 
             auto perms = status.permissions();
-            constexpr auto exec_mask = fs::perms::owner_exec |
-                                       fs::perms::group_exec |
-                                       fs::perms::others_exec;
+            constexpr auto exec_mask = fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
 
             if ((perms & exec_mask) != fs::perms::none) {
                 executables.push_back(entry.path());
@@ -340,8 +306,7 @@ bool build_executable_cache() {
 
     if (executables.empty()) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Executable cache refresh produced no entries"
-                      << std::endl;
+            std::cerr << "DEBUG: Executable cache refresh produced no entries" << std::endl;
         }
     }
 
@@ -352,18 +317,15 @@ bool build_executable_cache() {
         content.push_back('\n');
     }
 
-    auto write_result = FileOperations::write_file_content(
-        g_cjsh_found_executables_path.string(), content);
+    auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
 
     if (write_result.is_ok()) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Built fresh executable cache with "
-                      << executables.size() << " executables" << std::endl;
+            std::cerr << "DEBUG: Built fresh executable cache with " << executables.size() << " executables" << std::endl;
         }
         notify_cache_systems_of_update();
     } else if (g_debug_mode) {
-        std::cerr << "DEBUG: Failed to write executable cache: "
-                  << write_result.error() << std::endl;
+        std::cerr << "DEBUG: Failed to write executable cache: " << write_result.error() << std::endl;
     }
 
     return write_result.is_ok();
@@ -372,8 +334,7 @@ bool build_executable_cache() {
 std::vector<fs::path> read_cached_executables() {
     std::vector<fs::path> executables;
 
-    auto read_result = FileOperations::read_file_content(
-        g_cjsh_found_executables_path.string());
+    auto read_result = FileOperations::read_file_content(g_cjsh_found_executables_path.string());
     if (read_result.is_error()) {
         return executables;
     }
@@ -438,8 +399,7 @@ bool initialize_cjsh_directories() {
 
         return true;
     } catch (const fs::filesystem_error& e) {
-        std::cerr << "Error creating cjsh directories: " << e.what()
-                  << std::endl;
+        std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;
         return false;
     }
 }
@@ -467,11 +427,9 @@ std::string find_executable_in_path(const std::string& name) {
         fs::path executable_path = fs::path(dir) / name;
 
         try {
-            if (fs::exists(executable_path) &&
-                fs::is_regular_file(executable_path)) {
+            if (fs::exists(executable_path) && fs::is_regular_file(executable_path)) {
                 auto perms = fs::status(executable_path).permissions();
-                if ((perms & fs::perms::owner_exec) != fs::perms::none ||
-                    (perms & fs::perms::group_exec) != fs::perms::none ||
+                if ((perms & fs::perms::owner_exec) != fs::perms::none || (perms & fs::perms::group_exec) != fs::perms::none ||
                     (perms & fs::perms::others_exec) != fs::perms::none) {
                     return executable_path.string();
                 }
@@ -540,14 +498,10 @@ void create_profile_file() {
         "test "
         "mode\n";
 
-    auto write_result = FileOperations::write_file_content(
-        g_cjsh_profile_path.string(), profile_content);
+    auto write_result = FileOperations::write_file_content(g_cjsh_profile_path.string(), profile_content);
 
     if (!write_result.is_ok()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     write_result.error().c_str(),
-                     {"Check file permissions"}});
+        print_error({ErrorType::RUNTIME_ERROR, nullptr, write_result.error().c_str(), {"Check file permissions"}});
     }
 }
 
@@ -585,14 +539,10 @@ void create_source_file() {
         "    echo \"Uninstalled cjsh\"\n"
         "}\n";
 
-    auto write_result = FileOperations::write_file_content(
-        g_cjsh_source_path.string(), source_content);
+    auto write_result = FileOperations::write_file_content(g_cjsh_source_path.string(), source_content);
 
     if (!write_result.is_ok()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     write_result.error().c_str(),
-                     {"Check file permissions"}});
+        print_error({ErrorType::RUNTIME_ERROR, nullptr, write_result.error().c_str(), {"Check file permissions"}});
     }
 }
 
@@ -601,10 +551,7 @@ bool init_login_filesystem() {
         std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
     try {
         if (!std::filesystem::exists(g_user_home_path)) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         nullptr,
-                         "User home path not found",
-                         {"Check user account configuration"}});
+            print_error({ErrorType::RUNTIME_ERROR, nullptr, "User home path not found", {"Check user account configuration"}});
             return false;
         }
 
@@ -614,10 +561,8 @@ bool init_login_filesystem() {
             create_profile_file();
         }
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     "Failed to initialize login filesystem",
-                     {"Check file permissions", "Reinstall cjsh"}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, nullptr, "Failed to initialize login filesystem", {"Check file permissions", "Reinstall cjsh"}});
         return false;
     }
     return true;
@@ -639,23 +584,17 @@ bool init_interactive_filesystem() {
         bool should_refresh_cache = should_refresh_executable_cache();
 
         if (!home_exists) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         nullptr,
-                         "User home path not found",
-                         {"Check user account configuration"}});
+            print_error({ErrorType::RUNTIME_ERROR, nullptr, "User home path not found", {"Check user account configuration"}});
             return false;
         }
 
         if (!history_exists) {
             if (g_debug_mode)
                 std::cerr << "DEBUG: Creating history file" << std::endl;
-            auto write_result = FileOperations::write_file_content(
-                g_cjsh_history_path.string(), "");
+            auto write_result = FileOperations::write_file_content(g_cjsh_history_path.string(), "");
             if (!write_result.is_ok()) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             g_cjsh_history_path.c_str(),
-                             write_result.error().c_str(),
-                             {"Check file permissions"}});
+                print_error(
+                    {ErrorType::RUNTIME_ERROR, g_cjsh_history_path.c_str(), write_result.error().c_str(), {"Check file permissions"}});
                 return false;
             }
         }
@@ -672,15 +611,12 @@ bool init_interactive_filesystem() {
             build_executable_cache();
         } else {
             if (g_debug_mode)
-                std::cerr << "DEBUG: Using existing executable cache"
-                          << std::endl;
+                std::cerr << "DEBUG: Using existing executable cache" << std::endl;
 
             static int cleanup_counter = 0;
             if (++cleanup_counter % 10 == 0) {
                 if (g_debug_mode)
-                    std::cerr
-                        << "DEBUG: Performing periodic stale cache cleanup"
-                        << std::endl;
+                    std::cerr << "DEBUG: Performing periodic stale cache cleanup" << std::endl;
                 cleanup_stale_cache_entries();
             }
         }
@@ -695,8 +631,7 @@ bool init_interactive_filesystem() {
     return true;
 }
 
-void add_executable_to_cache(const std::string& executable_name,
-                             const std::string& full_path) {
+void add_executable_to_cache(const std::string& executable_name, const std::string& full_path) {
     if (executable_name.empty() || full_path.empty()) {
         return;
     }
@@ -710,21 +645,17 @@ void add_executable_to_cache(const std::string& executable_name,
     cached_executables.emplace_back(executable_name);
 
     std::sort(cached_executables.begin(), cached_executables.end());
-    cached_executables.erase(
-        std::unique(cached_executables.begin(), cached_executables.end()),
-        cached_executables.end());
+    cached_executables.erase(std::unique(cached_executables.begin(), cached_executables.end()), cached_executables.end());
 
     std::string content;
     for (const auto& exec : cached_executables) {
         content += exec.filename().string() + "\n";
     }
 
-    auto write_result = FileOperations::write_file_content(
-        g_cjsh_found_executables_path.string(), content);
+    auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
 
     if (g_debug_mode && write_result.is_ok()) {
-        std::cerr << "DEBUG: Added '" << executable_name
-                  << "' to executable cache" << std::endl;
+        std::cerr << "DEBUG: Added '" << executable_name << "' to executable cache" << std::endl;
     }
 
     if (write_result.is_ok()) {
@@ -748,8 +679,7 @@ void invalidate_executable_cache() {
         }
     } catch (const fs::filesystem_error& e) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Error invalidating cache: " << e.what()
-                      << std::endl;
+            std::cerr << "DEBUG: Error invalidating cache: " << e.what() << std::endl;
         }
     }
 }
@@ -760,20 +690,15 @@ bool is_executable_in_cache(const std::string& executable_name) {
     }
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Checking if '" << executable_name
-                  << "' is in cache" << std::endl;
+        std::cerr << "DEBUG: Checking if '" << executable_name << "' is in cache" << std::endl;
     }
 
     auto cached_executables = read_cached_executables();
-    bool found =
-        std::any_of(cached_executables.begin(), cached_executables.end(),
-                    [&executable_name](const fs::path& exec_path) {
-                        return exec_path.filename().string() == executable_name;
-                    });
+    bool found = std::any_of(cached_executables.begin(), cached_executables.end(),
+                             [&executable_name](const fs::path& exec_path) { return exec_path.filename().string() == executable_name; });
 
     if (g_debug_mode) {
-        std::cerr << "DEBUG: '" << executable_name << "' "
-                  << (found ? "IS" : "IS NOT") << " in cache" << std::endl;
+        std::cerr << "DEBUG: '" << executable_name << "' " << (found ? "IS" : "IS NOT") << " in cache" << std::endl;
     }
 
     return found;
@@ -797,8 +722,7 @@ void set_last_path_hash(const std::string& path_hash) {
         return;
     }
 
-    auto write_result = FileOperations::write_file_content(
-        g_cjsh_path_hash_cache_path.string(), path_hash);
+    auto write_result = FileOperations::write_file_content(g_cjsh_path_hash_cache_path.string(), path_hash);
 
     if (g_debug_mode && write_result.is_ok()) {
         std::cerr << "DEBUG: Updated PATH hash cache" << std::endl;
@@ -811,8 +735,7 @@ bool has_path_changed() {
         return true;
     }
 
-    auto read_result =
-        FileOperations::read_file_content(g_cjsh_path_hash_cache_path.string());
+    auto read_result = FileOperations::read_file_content(g_cjsh_path_hash_cache_path.string());
 
     if (read_result.is_error()) {
         set_last_path_hash(current_hash);
@@ -829,8 +752,7 @@ bool has_path_changed() {
     if (changed) {
         set_last_path_hash(current_hash);
         if (g_debug_mode) {
-            std::cerr << "DEBUG: PATH environment variable has changed"
-                      << std::endl;
+            std::cerr << "DEBUG: PATH environment variable has changed" << std::endl;
         }
     }
 
@@ -847,10 +769,7 @@ void remove_executable_from_cache(const std::string& executable_name) {
     auto original_size = cached_executables.size();
     cached_executables.erase(
         std::remove_if(cached_executables.begin(), cached_executables.end(),
-                       [&executable_name](const fs::path& exec_path) {
-                           return exec_path.filename().string() ==
-                                  executable_name;
-                       }),
+                       [&executable_name](const fs::path& exec_path) { return exec_path.filename().string() == executable_name; }),
         cached_executables.end());
 
     if (cached_executables.size() < original_size) {
@@ -859,13 +778,10 @@ void remove_executable_from_cache(const std::string& executable_name) {
             content += exec.filename().string() + "\n";
         }
 
-        auto write_result = FileOperations::write_file_content(
-            g_cjsh_found_executables_path.string(), content);
+        auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
 
         if (g_debug_mode && write_result.is_ok()) {
-            std::cerr << "DEBUG: Removed '" << executable_name
-                      << "' from executable cache (no longer exists)"
-                      << std::endl;
+            std::cerr << "DEBUG: Removed '" << executable_name << "' from executable cache (no longer exists)" << std::endl;
         }
 
         if (write_result.is_ok()) {
@@ -876,8 +792,7 @@ void remove_executable_from_cache(const std::string& executable_name) {
 
 void cleanup_stale_cache_entries() {
     if (g_debug_mode) {
-        std::cerr << "DEBUG: Starting cleanup of stale cache entries"
-                  << std::endl;
+        std::cerr << "DEBUG: Starting cleanup of stale cache entries" << std::endl;
     }
 
     auto cached_executables = read_cached_executables();
@@ -893,8 +808,7 @@ void cleanup_stale_cache_entries() {
         } else {
             removed_count++;
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Removing stale cache entry: " << exec_name
-                          << std::endl;
+                std::cerr << "DEBUG: Removing stale cache entry: " << exec_name << std::endl;
             }
         }
     }
@@ -905,12 +819,10 @@ void cleanup_stale_cache_entries() {
             content += exec.filename().string() + "\n";
         }
 
-        auto write_result = FileOperations::write_file_content(
-            g_cjsh_found_executables_path.string(), content);
+        auto write_result = FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
 
         if (g_debug_mode && write_result.is_ok()) {
-            std::cerr << "DEBUG: Cleaned up " << removed_count
-                      << " stale cache entries" << std::endl;
+            std::cerr << "DEBUG: Cleaned up " << removed_count << " stale cache entries" << std::endl;
         }
 
         if (write_result.is_ok()) {

@@ -16,11 +16,9 @@ static char git_hash_define[128] = "-DCJSH_GIT_HASH=\"unknown\"";
 
 static inline void nob_set_git_hash_define(const char* hash) {
     if (hash != NULL && hash[0] != '\0') {
-        snprintf(git_hash_define, sizeof(git_hash_define),
-                 "-DCJSH_GIT_HASH=\"%s\"", hash);
+        snprintf(git_hash_define, sizeof(git_hash_define), "-DCJSH_GIT_HASH=\"%s\"", hash);
     } else {
-        snprintf(git_hash_define, sizeof(git_hash_define),
-                 "-DCJSH_GIT_HASH=\"unknown\"");
+        snprintf(git_hash_define, sizeof(git_hash_define), "-DCJSH_GIT_HASH=\"unknown\"");
     }
 }
 
@@ -31,8 +29,7 @@ static inline const char* get_cxx_compiler(void) {
 
     Nob_Cmd test_cmd = {0};
     nob_cmd_append(&test_cmd, "which", "g++");
-    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null",
-                    .stderr_path = "/dev/null")) {
+    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
         cached_cxx_compiler = "g++";
     } else {
         cached_cxx_compiler = "clang++";
@@ -47,8 +44,7 @@ static inline const char* get_c_compiler(void) {
 
     Nob_Cmd test_cmd = {0};
     nob_cmd_append(&test_cmd, "which", "gcc");
-    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null",
-                    .stderr_path = "/dev/null")) {
+    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
         cached_c_compiler = "gcc";
     } else {
         cached_c_compiler = "clang";
@@ -63,8 +59,7 @@ static inline const char* get_linker(void) {
 
     Nob_Cmd test_cmd = {0};
     nob_cmd_append(&test_cmd, "which", "g++");
-    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null",
-                    .stderr_path = "/dev/null")) {
+    if (nob_cmd_run(&test_cmd, .stdout_path = "/dev/null", .stderr_path = "/dev/null")) {
         cached_linker = "g++";
     } else {
         cached_linker = "clang++";
@@ -134,8 +129,7 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
     const char* c_compiler = get_c_compiler();
     nob_cmd_append(cmd, c_compiler);
 
-    nob_cmd_append(cmd, "-std=c11", "-Wall", "-Wno-error",
-                   "-Wno-unused-function", "-Wno-unused-variable");
+    nob_cmd_append(cmd, "-std=c11", "-Wall", "-Wno-error", "-Wno-unused-function", "-Wno-unused-variable");
 
 #ifdef PLATFORM_MACOS
 #ifdef ARCH_ARM64

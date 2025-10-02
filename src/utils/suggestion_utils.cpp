@@ -14,36 +14,24 @@
 
 namespace suggestion_utils {
 
-std::vector<std::string> generate_command_suggestions(
-    const std::string& command) {
+std::vector<std::string> generate_command_suggestions(const std::string& command) {
     std::vector<std::string> suggestions;
 
-    static const std::unordered_map<std::string, std::vector<std::string>>
-        essential_typos = {
+    static const std::unordered_map<std::string, std::vector<std::string>> essential_typos = {
 
-            {"sl", {"ls"}},           {"ll", {"ls -l"}},
-            {"la", {"ls -la"}},       {"ks", {"ls"}},
-            {"dir", {"ls"}},          {"cls", {"clear"}},
+        {"sl", {"ls"}},       {"ll", {"ls -l"}},      {"la", {"ls -la"}},  {"ks", {"ls"}},       {"dir", {"ls"}},
+        {"cls", {"clear"}},
 
-            {"ehco", {"echo"}},       {"exot", {"exit"}},
-            {"eixt", {"exit"}},       {"quit", {"exit"}},
-            {"clea", {"clear"}},      {"clera", {"clear"}},
-            {"whcih", {"which"}},     {"wich", {"which"}},
+        {"ehco", {"echo"}},   {"exot", {"exit"}},     {"eixt", {"exit"}},  {"quit", {"exit"}},   {"clea", {"clear"}},
+        {"clera", {"clear"}}, {"whcih", {"which"}},   {"wich", {"which"}},
 
-            {"gii", {"git"}},         {"gitt", {"git"}},
-            {"tig", {"git"}},
+        {"gii", {"git"}},     {"gitt", {"git"}},      {"tig", {"git"}},
 
-            {"grpe", {"grep"}},       {"gerp", {"grep"}},
-            {"sudp", {"sudo"}},       {"sduo", {"sudo"}},
-            {"crul", {"curl"}},       {"wgte", {"wget"}},
-            {"vmi", {"vim"}},         {"ivm", {"vim"}},
-            {"tarr", {"tar"}},        {"unizp", {"unzip"}},
-            {"gizp", {"gzip"}},       {"gunizp", {"gunzip"}},
-            {"findd", {"find"}},      {"whoa", {"whoami"}},
-            {"hisotry", {"history"}}, {"basrh", {"bash"}},
-            {"zhs", {"zsh"}},         {"shh", {"ssh"}},
-            {"rsyn", {"rsync"}},
-        };
+        {"grpe", {"grep"}},   {"gerp", {"grep"}},     {"sudp", {"sudo"}},  {"sduo", {"sudo"}},   {"crul", {"curl"}},
+        {"wgte", {"wget"}},   {"vmi", {"vim"}},       {"ivm", {"vim"}},    {"tarr", {"tar"}},    {"unizp", {"unzip"}},
+        {"gizp", {"gzip"}},   {"gunizp", {"gunzip"}}, {"findd", {"find"}}, {"whoa", {"whoami"}}, {"hisotry", {"history"}},
+        {"basrh", {"bash"}},  {"zhs", {"zsh"}},       {"shh", {"ssh"}},    {"rsyn", {"rsync"}},
+    };
 
     auto it = essential_typos.find(command);
     if (it != essential_typos.end()) {
@@ -56,14 +44,11 @@ std::vector<std::string> generate_command_suggestions(
     std::unordered_set<std::string> all_commands_set;
 
     static const std::vector<std::string> shell_builtins = {
-        "echo",        "printf",  "pwd",     "cd",     "ls",       "alias",
-        "export",      "unalias", "unset",   "set",    "shift",    "break",
-        "continue",    "return",  "ai",      "source", ".",        "theme",
-        "plugin",      "help",    "approot", "aihelp", "version",  "uninstall",
-        "eval",        "syntax",  "history", "exit",   "quit",     "terminal",
-        "prompt_test", "test",    "[",       "exec",   "trap",     "jobs",
-        "fg",          "bg",      "wait",    "kill",   "readonly", "read",
-        "umask",       "getopts", "times",   "type",   "hash"};
+        "echo",        "printf", "pwd",      "cd",        "ls",    "alias",  "export",  "unalias", "unset",  "set",
+        "shift",       "break",  "continue", "return",    "ai",    "source", ".",       "theme",   "plugin", "help",
+        "approot",     "aihelp", "version",  "uninstall", "eval",  "syntax", "history", "exit",    "quit",   "terminal",
+        "prompt_test", "test",   "[",        "exec",      "trap",  "jobs",   "fg",      "bg",      "wait",   "kill",
+        "readonly",    "read",   "umask",    "getopts",   "times", "type",   "hash"};
 
     for (const auto& builtin : shell_builtins) {
         all_commands_set.insert(builtin);
@@ -75,33 +60,22 @@ std::vector<std::string> generate_command_suggestions(
     }
 
     std::vector<std::string> common_commands = {
-        "man",     "info",    "sudo",   "su",      "which",   "whereis",
-        "locate",  "find",    "grep",   "egrep",   "fgrep",   "sed",
-        "awk",     "cut",     "sort",   "uniq",    "wc",      "head",
-        "tail",    "less",    "more",   "cat",     "tac",     "rev",
-        "tr",      "paste",   "join",   "comm",    "diff",    "cmp",
-        "file",    "stat",    "touch",  "cp",      "mv",      "rm",
-        "rmdir",   "mkdir",   "ln",     "chmod",   "chown",   "chgrp",
-        "umask",   "tar",     "gzip",   "gunzip",  "zip",     "unzip",
-        "bzip2",   "bunzip2", "xz",     "unxz",    "curl",    "wget",
-        "ping",    "ssh",     "scp",    "rsync",   "ftp",     "sftp",
-        "ps",      "top",     "htop",   "kill",    "killall", "jobs",
-        "bg",      "fg",      "nohup",  "df",      "du",      "mount",
-        "umount",  "fdisk",   "free",   "uptime",  "uname",   "whoami",
-        "who",     "w",       "last",   "finger",  "id",      "groups",
-        "su",      "sudo",    "git",    "svn",     "hg",      "bzr",
-        "cvs",     "make",    "cmake",  "gcc",     "g++",     "clang",
-        "python",  "python3", "node",   "npm",     "ruby",    "perl",
-        "java",    "javac",   "docker", "kubectl", "helm",    "terraform",
-        "ansible", "vagrant", "vim",    "vi",      "nano",    "emacs",
-        "less",    "more",    "cat"};
+        "man",     "info",    "sudo", "su",     "which",   "whereis", "locate", "find",  "grep",   "egrep",   "fgrep", "sed",
+        "awk",     "cut",     "sort", "uniq",   "wc",      "head",    "tail",   "less",  "more",   "cat",     "tac",   "rev",
+        "tr",      "paste",   "join", "comm",   "diff",    "cmp",     "file",   "stat",  "touch",  "cp",      "mv",    "rm",
+        "rmdir",   "mkdir",   "ln",   "chmod",  "chown",   "chgrp",   "umask",  "tar",   "gzip",   "gunzip",  "zip",   "unzip",
+        "bzip2",   "bunzip2", "xz",   "unxz",   "curl",    "wget",    "ping",   "ssh",   "scp",    "rsync",   "ftp",   "sftp",
+        "ps",      "top",     "htop", "kill",   "killall", "jobs",    "bg",     "fg",    "nohup",  "df",      "du",    "mount",
+        "umount",  "fdisk",   "free", "uptime", "uname",   "whoami",  "who",    "w",     "last",   "finger",  "id",    "groups",
+        "su",      "sudo",    "git",  "svn",    "hg",      "bzr",     "cvs",    "make",  "cmake",  "gcc",     "g++",   "clang",
+        "python",  "python3", "node", "npm",    "ruby",    "perl",    "java",   "javac", "docker", "kubectl", "helm",  "terraform",
+        "ansible", "vagrant", "vim",  "vi",     "nano",    "emacs",   "less",   "more",  "cat"};
 
     for (const auto& cmd : common_commands) {
         all_commands_set.insert(cmd);
     }
 
-    std::vector<std::string> all_commands(all_commands_set.begin(),
-                                          all_commands_set.end());
+    std::vector<std::string> all_commands(all_commands_set.begin(), all_commands_set.end());
 
     suggestions = generate_fuzzy_suggestions(command, all_commands);
 
@@ -112,12 +86,10 @@ std::vector<std::string> generate_command_suggestions(
     return suggestions;
 }
 
-std::vector<std::string> generate_cd_suggestions(
-    const std::string& target_dir, const std::string& current_dir) {
+std::vector<std::string> generate_cd_suggestions(const std::string& target_dir, const std::string& current_dir) {
     std::vector<std::string> suggestions;
 
-    std::vector<std::string> similar =
-        find_similar_entries(target_dir, current_dir, 3);
+    std::vector<std::string> similar = find_similar_entries(target_dir, current_dir, 3);
 
     for (const auto& dir : similar) {
         suggestions.push_back("Did you mean 'cd " + dir + "'?");
@@ -129,19 +101,16 @@ std::vector<std::string> generate_cd_suggestions(
             suggestions.push_back("Use 'cd ..' to go to parent directory.");
         }
     } else {
-        std::string parent_path =
-            target_dir.substr(0, target_dir.find_last_of('/'));
+        std::string parent_path = target_dir.substr(0, target_dir.find_last_of('/'));
         if (!parent_path.empty() && parent_path != target_dir) {
-            suggestions.push_back("Check if '" + parent_path +
-                                  "' exists first.");
+            suggestions.push_back("Check if '" + parent_path + "' exists first.");
         }
     }
 
     return suggestions;
 }
 
-std::vector<std::string> generate_ls_suggestions(
-    const std::string& path, const std::string& current_dir) {
+std::vector<std::string> generate_ls_suggestions(const std::string& path, const std::string& current_dir) {
     std::vector<std::string> suggestions;
 
     std::string directory = current_dir;
@@ -155,21 +124,18 @@ std::vector<std::string> generate_ls_suggestions(
             directory = "/";
     }
 
-    std::vector<std::string> similar =
-        find_similar_entries(filename, directory, 3);
+    std::vector<std::string> similar = find_similar_entries(filename, directory, 3);
 
     for (const auto& item : similar) {
         if (last_slash != std::string::npos) {
-            suggestions.push_back("Did you mean 'ls " + directory + "/" + item +
-                                  "'?");
+            suggestions.push_back("Did you mean 'ls " + directory + "/" + item + "'?");
         } else {
             suggestions.push_back("Did you mean 'ls " + item + "'?");
         }
     }
 
     if (suggestions.empty()) {
-        suggestions.push_back(
-            "Try 'ls' to see available files and directories.");
+        suggestions.push_back("Try 'ls' to see available files and directories.");
         if (path.find('/') != std::string::npos) {
             suggestions.push_back("Check if the directory path exists.");
         }
@@ -200,8 +166,7 @@ int edit_distance(const std::string& str1, const std::string& str2) {
             if (str1[i - 1] == str2[j - 1]) {
                 dp[i][j] = dp[i - 1][j - 1];
             } else {
-                dp[i][j] = 1 + std::min({dp[i - 1][j], dp[i][j - 1],
-                                         dp[i - 1][j - 1]});
+                dp[i][j] = 1 + std::min({dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]});
             }
         }
     }
@@ -209,16 +174,13 @@ int edit_distance(const std::string& str1, const std::string& str2) {
     return dp[m][n];
 }
 
-std::vector<std::string> find_similar_entries(const std::string& target_name,
-                                              const std::string& directory,
-                                              int max_suggestions) {
+std::vector<std::string> find_similar_entries(const std::string& target_name, const std::string& directory, int max_suggestions) {
     std::vector<std::string> suggestions;
 
     try {
         std::vector<std::pair<int, std::string>> candidates;
 
-        for (const auto& entry :
-             std::filesystem::directory_iterator(directory)) {
+        for (const auto& entry : std::filesystem::directory_iterator(directory)) {
             std::string name = entry.path().filename().string();
 
             if (name[0] == '.' && target_name[0] != '.') {
@@ -234,9 +196,7 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
 
         std::sort(candidates.begin(), candidates.end());
 
-        for (size_t i = 0;
-             i < candidates.size() && i < static_cast<size_t>(max_suggestions);
-             i++) {
+        for (size_t i = 0; i < candidates.size() && i < static_cast<size_t>(max_suggestions); i++) {
             suggestions.push_back(candidates[i].second);
         }
 
@@ -246,9 +206,8 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
     return suggestions;
 }
 
-std::vector<std::string> generate_executable_suggestions(
-    const std::string& command,
-    const std::unordered_set<std::string>& available_commands) {
+std::vector<std::string> generate_executable_suggestions(const std::string& command,
+                                                         const std::unordered_set<std::string>& available_commands) {
     std::vector<std::string> suggestions;
 
     if (command.length() < 2) {
@@ -268,8 +227,7 @@ std::vector<std::string> generate_executable_suggestions(
         if (distance <= 3 && distance > 0) {
             int score = distance;
 
-            if (!command.empty() && !exec_name.empty() &&
-                std::tolower(command[0]) == std::tolower(exec_name[0])) {
+            if (!command.empty() && !exec_name.empty() && std::tolower(command[0]) == std::tolower(exec_name[0])) {
                 score -= 1;
             }
 
@@ -300,8 +258,7 @@ std::vector<std::string> load_cached_suggestions(const std::string& command) {
     std::vector<std::string> suggestions;
 
     try {
-        auto cache_file =
-            cjsh_filesystem::g_cjsh_cache_path / "command_suggestions.cache";
+        auto cache_file = cjsh_filesystem::g_cjsh_cache_path / "command_suggestions.cache";
 
         if (!std::filesystem::exists(cache_file)) {
             return suggestions;
@@ -336,11 +293,9 @@ std::vector<std::string> load_cached_suggestions(const std::string& command) {
     return suggestions;
 }
 
-void cache_suggestions(const std::string& command,
-                       const std::vector<std::string>& suggestions) {
+void cache_suggestions(const std::string& command, const std::vector<std::string>& suggestions) {
     try {
-        auto cache_file =
-            cjsh_filesystem::g_cjsh_cache_path / "command_suggestions.cache";
+        auto cache_file = cjsh_filesystem::g_cjsh_cache_path / "command_suggestions.cache";
 
         std::unordered_map<std::string, std::vector<std::string>> cache_data;
 
@@ -376,8 +331,7 @@ void cache_suggestions(const std::string& command,
 
 void update_command_usage_stats(const std::string& command) {
     try {
-        auto stats_file =
-            cjsh_filesystem::g_cjsh_cache_path / "command_usage_stats.cache";
+        auto stats_file = cjsh_filesystem::g_cjsh_cache_path / "command_usage_stats.cache";
 
         std::unordered_map<std::string, int> usage_stats;
 
@@ -408,8 +362,7 @@ void update_command_usage_stats(const std::string& command) {
 
 int get_command_usage_frequency(const std::string& command) {
     try {
-        auto stats_file =
-            cjsh_filesystem::g_cjsh_cache_path / "command_usage_stats.cache";
+        auto stats_file = cjsh_filesystem::g_cjsh_cache_path / "command_usage_stats.cache";
 
         if (!std::filesystem::exists(stats_file)) {
             return 0;
@@ -433,9 +386,7 @@ int get_command_usage_frequency(const std::string& command) {
     return 0;
 }
 
-std::vector<std::string> generate_fuzzy_suggestions(
-    const std::string& command,
-    const std::vector<std::string>& available_commands) {
+std::vector<std::string> generate_fuzzy_suggestions(const std::string& command, const std::vector<std::string>& available_commands) {
     std::vector<std::string> suggestions;
 
     if (command.empty()) {
@@ -448,11 +399,9 @@ std::vector<std::string> generate_fuzzy_suggestions(
         char target_char = std::tolower(command[0]);
 
         for (const auto& cmd : available_commands) {
-            if (!cmd.empty() && std::tolower(cmd[0]) == target_char &&
-                !seen_commands.count(cmd)) {
+            if (!cmd.empty() && std::tolower(cmd[0]) == target_char && !seen_commands.count(cmd)) {
                 int priority = 0;
-                if (cmd == "ls" || cmd == "cd" || cmd == "ps" || cmd == "cp" ||
-                    cmd == "mv") {
+                if (cmd == "ls" || cmd == "cd" || cmd == "ps" || cmd == "cp" || cmd == "mv") {
                     priority = 100;
                 } else if (cmd.length() <= 4) {
                     priority = 50;
@@ -465,13 +414,10 @@ std::vector<std::string> generate_fuzzy_suggestions(
             }
         }
 
-        std::sort(single_letter_candidates.begin(),
-                  single_letter_candidates.end(),
-                  std::greater<std::pair<int, std::string>>());
+        std::sort(single_letter_candidates.begin(), single_letter_candidates.end(), std::greater<std::pair<int, std::string>>());
 
         for (size_t i = 0; i < single_letter_candidates.size() && i < 5; i++) {
-            suggestions.push_back("Did you mean '" +
-                                  single_letter_candidates[i].second + "'?");
+            suggestions.push_back("Did you mean '" + single_letter_candidates[i].second + "'?");
         }
 
         return suggestions;
@@ -497,8 +443,7 @@ std::vector<std::string> generate_fuzzy_suggestions(
         }
     }
 
-    std::sort(candidates.begin(), candidates.end(),
-              std::greater<std::pair<int, std::string>>());
+    std::sort(candidates.begin(), candidates.end(), std::greater<std::pair<int, std::string>>());
 
     for (size_t i = 0; i < candidates.size() && i < 5; i++) {
         suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
@@ -509,8 +454,7 @@ std::vector<std::string> generate_fuzzy_suggestions(
     return suggestions;
 }
 
-int calculate_fuzzy_score(const std::string& input,
-                          const std::string& candidate) {
+int calculate_fuzzy_score(const std::string& input, const std::string& candidate) {
     if (input.empty() || candidate.empty())
         return 0;
 
@@ -529,8 +473,7 @@ int calculate_fuzzy_score(const std::string& input,
         score += 30;
     }
 
-    if (candidate.length() >= input.length() &&
-        candidate.substr(0, input.length()) == input) {
+    if (candidate.length() >= input.length() && candidate.substr(0, input.length()) == input) {
         score += 40;
     }
 
@@ -538,8 +481,7 @@ int calculate_fuzzy_score(const std::string& input,
         score += 25;
     }
 
-    int length_diff = std::abs(static_cast<int>(input.length()) -
-                               static_cast<int>(candidate.length()));
+    int length_diff = std::abs(static_cast<int>(input.length()) - static_cast<int>(candidate.length()));
     if (length_diff <= 2) {
         score += 15;
     }
@@ -559,8 +501,7 @@ int calculate_fuzzy_score(const std::string& input,
         }
     }
 
-    double char_overlap = static_cast<double>(common_chars) /
-                          std::max(input.length(), candidate.length());
+    double char_overlap = static_cast<double>(common_chars) / std::max(input.length(), candidate.length());
     score += static_cast<int>(char_overlap * 20);
 
     if (input.length() <= 3 && candidate.length() > 8) {
@@ -568,14 +509,11 @@ int calculate_fuzzy_score(const std::string& input,
     }
 
     static const std::unordered_set<std::string> shell_builtins = {
-        "echo",        "printf",  "pwd",     "cd",     "ls",       "alias",
-        "export",      "unalias", "unset",   "set",    "shift",    "break",
-        "continue",    "return",  "ai",      "source", ".",        "theme",
-        "plugin",      "help",    "approot", "aihelp", "version",  "uninstall",
-        "eval",        "syntax",  "history", "exit",   "quit",     "terminal",
-        "prompt_test", "test",    "[",       "exec",   "trap",     "jobs",
-        "fg",          "bg",      "wait",    "kill",   "readonly", "read",
-        "umask",       "getopts", "times",   "type",   "hash"};
+        "echo",        "printf", "pwd",      "cd",        "ls",    "alias",  "export",  "unalias", "unset",  "set",
+        "shift",       "break",  "continue", "return",    "ai",    "source", ".",       "theme",   "plugin", "help",
+        "approot",     "aihelp", "version",  "uninstall", "eval",  "syntax", "history", "exit",    "quit",   "terminal",
+        "prompt_test", "test",   "[",        "exec",      "trap",  "jobs",   "fg",      "bg",      "wait",   "kill",
+        "readonly",    "read",   "umask",    "getopts",   "times", "type",   "hash"};
 
     if (shell_builtins.count(candidate)) {
         score += 15;

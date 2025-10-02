@@ -50,8 +50,7 @@ class Exec {
     int execute_pipeline(const std::vector<Command>& commands);
     int add_job(const Job& job);
     void remove_job(int job_id);
-    void update_job_status(int job_id, bool completed, bool stopped,
-                           int status);
+    void update_job_status(int job_id, bool completed, bool stopped, int status);
     void put_job_in_foreground(int job_id, bool cont);
     void put_job_in_background(int job_id, bool cont);
     void wait_for_job(int job_id);
@@ -59,8 +58,7 @@ class Exec {
     void init_shell();
     void handle_child_signal(pid_t pid, int status);
     void set_error(const ErrorInfo& error);
-    void set_error(ErrorType type, const std::string& command = "",
-                   const std::string& message = "",
+    void set_error(ErrorType type, const std::string& command = "", const std::string& message = "",
                    const std::vector<std::string>& suggestions = {});
     ErrorInfo get_error();
     std::string get_error_string();

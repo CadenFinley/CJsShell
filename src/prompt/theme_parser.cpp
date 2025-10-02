@@ -10,9 +10,7 @@
 #include <utility>
 #include "utils/unicode_support.h"
 
-ThemeParseException::ThemeParseException(size_t line, std::string detail,
-                                         std::string source,
-                                         std::optional<ErrorInfo> error_info)
+ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source, std::optional<ErrorInfo> error_info)
     : std::runtime_error(build_message(line, detail, source)),
       line_(line),
       detail_(std::move(detail)),
@@ -20,9 +18,7 @@ ThemeParseException::ThemeParseException(size_t line, std::string detail,
       error_info_(std::move(error_info)) {
 }
 
-std::string ThemeParseException::build_message(size_t line,
-                                               const std::string& detail,
-                                               const std::string& source) {
+std::string ThemeParseException::build_message(size_t line, const std::string& detail, const std::string& source) {
     std::ostringstream oss;
     oss << "Theme parse error";
     if (!source.empty()) {
@@ -62,27 +58,22 @@ std::string derive_theme_name_from_source(const std::string& source_name) {
 }
 
 std::string encode_utf8(char32_t codepoint) {
-    if (!unicode_is_valid_codepoint(
-            static_cast<unicode_codepoint_t>(codepoint))) {
+    if (!unicode_is_valid_codepoint(static_cast<unicode_codepoint_t>(codepoint))) {
         throw std::runtime_error("Invalid Unicode codepoint in theme string");
     }
 
     uint8_t buffer[4] = {0};
-    int length = unicode_encode_utf8(
-        static_cast<unicode_codepoint_t>(codepoint), buffer);
+    int length = unicode_encode_utf8(static_cast<unicode_codepoint_t>(codepoint), buffer);
 
     if (length <= 0 || length > 4) {
-        throw std::runtime_error(
-            "Failed to encode Unicode codepoint in theme string");
+        throw std::runtime_error("Failed to encode Unicode codepoint in theme string");
     }
 
-    return std::string(reinterpret_cast<const char*>(buffer),
-                       static_cast<size_t>(length));
+    return std::string(reinterpret_cast<const char*>(buffer), static_cast<size_t>(length));
 }
 
 bool is_hex_digit(char c) {
-    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-           (c >= 'A' && c <= 'F');
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 int hex_value(char c) {
@@ -93,23 +84,14 @@ int hex_value(char c) {
     return 10 + (c - 'A');
 }
 
-std::string expand_variables_in_string(
-    const std::string& input,
-    const std::unordered_map<std::string, std::string>& variables,
-    std::unordered_map<std::string, std::string>& cache,
-    std::vector<std::string>& stack);
+std::string expand_variables_in_string(const std::string& input, const std::unordered_map<std::string, std::string>& variables,
+                                       std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack);
 
-std::string expand_variable_reference(
-    const std::string& name,
-    const std::unordered_map<std::string, std::string>& variables,
-    std::unordered_map<std::string, std::string>& cache,
-    std::vector<std::string>& stack);
+std::string expand_variable_reference(const std::string& name, const std::unordered_map<std::string, std::string>& variables,
+                                      std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack);
 
-std::string expand_variables_in_string(
-    const std::string& input,
-    const std::unordered_map<std::string, std::string>& variables,
-    std::unordered_map<std::string, std::string>& cache,
-    std::vector<std::string>& stack) {
+std::string expand_variables_in_string(const std::string& input, const std::unordered_map<std::string, std::string>& variables,
+                                       std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack) {
     if (input.empty() || variables.empty()) {
         return input;
     }
@@ -128,20 +110,17 @@ std::string expand_variables_in_string(
 
         size_t close_brace = input.find('}', marker + 2);
         if (close_brace == std::string::npos) {
-            throw std::runtime_error(
-                "Unterminated theme variable reference in '" + input + "'");
+            throw std::runtime_error("Unterminated theme variable reference in '" + input + "'");
         }
 
-        std::string raw_name =
-            input.substr(marker + 2, close_brace - (marker + 2));
+        std::string raw_name = input.substr(marker + 2, close_brace - (marker + 2));
         std::string name = trim_copy(raw_name);
 
         if (name.empty()) {
             throw std::runtime_error("Empty theme variable reference detected");
         }
 
-        std::string replacement =
-            expand_variable_reference(name, variables, cache, stack);
+        std::string replacement = expand_variable_reference(name, variables, cache, stack);
         result.append(replacement);
 
         position = close_brace + 1;
@@ -154,32 +133,26 @@ std::string expand_variables_in_string(
     return result;
 }
 
-std::string expand_variable_reference(
-    const std::string& name,
-    const std::unordered_map<std::string, std::string>& variables,
-    std::unordered_map<std::string, std::string>& cache,
-    std::vector<std::string>& stack) {
+std::string expand_variable_reference(const std::string& name, const std::unordered_map<std::string, std::string>& variables,
+                                      std::unordered_map<std::string, std::string>& cache, std::vector<std::string>& stack) {
     auto cached = cache.find(name);
     if (cached != cache.end()) {
         return cached->second;
     }
 
     if (std::find(stack.begin(), stack.end(), name) != stack.end()) {
-        throw std::runtime_error(
-            "Cyclic theme variable reference detected for '" + name + "'");
+        throw std::runtime_error("Cyclic theme variable reference detected for '" + name + "'");
     }
 
     auto it = variables.find(name);
     if (it == variables.end()) {
-        throw std::runtime_error("Undefined theme variable referenced: '" +
-                                 name + "'");
+        throw std::runtime_error("Undefined theme variable referenced: '" + name + "'");
     }
 
     stack.push_back(name);
     std::string expanded = it->second;
     if (expanded.find("${") != std::string::npos) {
-        expanded =
-            expand_variables_in_string(expanded, variables, cache, stack);
+        expanded = expand_variables_in_string(expanded, variables, cache, stack);
     }
     stack.pop_back();
 
@@ -187,8 +160,7 @@ std::string expand_variable_reference(
     return expanded;
 }
 
-std::unordered_map<std::string, std::string> resolve_theme_variables(
-    const std::unordered_map<std::string, std::string>& variables) {
+std::unordered_map<std::string, std::string> resolve_theme_variables(const std::unordered_map<std::string, std::string>& variables) {
     if (variables.empty()) {
         return {};
     }
@@ -198,16 +170,13 @@ std::unordered_map<std::string, std::string> resolve_theme_variables(
 
     for (const auto& [name, _] : variables) {
         std::vector<std::string> stack;
-        resolved[name] =
-            expand_variable_reference(name, variables, cache, stack);
+        resolved[name] = expand_variable_reference(name, variables, cache, stack);
     }
 
     return resolved;
 }
 
-void substitute_variables_in_string(
-    std::string& target,
-    const std::unordered_map<std::string, std::string>& variables) {
+void substitute_variables_in_string(std::string& target, const std::unordered_map<std::string, std::string>& variables) {
     if (target.empty() || variables.empty()) {
         return;
     }
@@ -221,9 +190,7 @@ void substitute_variables_in_string(
     target = expand_variables_in_string(target, variables, cache, stack);
 }
 
-void apply_variables_to_segment(
-    ThemeSegment& segment,
-    const std::unordered_map<std::string, std::string>& variables) {
+void apply_variables_to_segment(ThemeSegment& segment, const std::unordered_map<std::string, std::string>& variables) {
     substitute_variables_in_string(segment.content, variables);
     substitute_variables_in_string(segment.fg_color, variables);
     substitute_variables_in_string(segment.bg_color, variables);
@@ -236,17 +203,13 @@ void apply_variables_to_segment(
     substitute_variables_in_string(segment.alignment, variables);
 }
 
-void apply_variables_to_segments(
-    std::vector<ThemeSegment>& segments,
-    const std::unordered_map<std::string, std::string>& variables) {
+void apply_variables_to_segments(std::vector<ThemeSegment>& segments, const std::unordered_map<std::string, std::string>& variables) {
     for (auto& segment : segments) {
         apply_variables_to_segment(segment, variables);
     }
 }
 
-void apply_variables_to_theme(
-    ThemeDefinition& theme,
-    const std::unordered_map<std::string, std::string>& variables) {
+void apply_variables_to_theme(ThemeDefinition& theme, const std::unordered_map<std::string, std::string>& variables) {
     if (variables.empty()) {
         return;
     }
@@ -298,13 +261,8 @@ std::unordered_map<std::string, std::string> ThemeSegment::to_map() const {
     return result;
 }
 
-ThemeParser::ThemeParser(const std::string& theme_content,
-                         std::string source_name)
-    : content(theme_content),
-      position(0),
-      line_number(1),
-      source_name(std::move(source_name)),
-      segment_variable_definitions() {
+ThemeParser::ThemeParser(const std::string& theme_content, std::string source_name)
+    : content(theme_content), position(0), line_number(1), source_name(std::move(source_name)), segment_variable_definitions() {
 }
 
 void ThemeParser::skip_whitespace() {
@@ -406,12 +364,10 @@ std::string ThemeParser::parse_string() {
                         while (!is_at_end() && peek() != '}') {
                             char hex = advance();
                             if (!is_hex_digit(hex)) {
-                                parse_error(
-                                    "Invalid hex digit in unicode escape");
+                                parse_error("Invalid hex digit in unicode escape");
                             }
                             if (digits_parsed >= 8) {
-                                parse_error(
-                                    "Unicode escape sequence is too long");
+                                parse_error("Unicode escape sequence is too long");
                             }
                             codepoint = (codepoint << 4) | hex_value(hex);
                             digits_parsed++;
@@ -428,13 +384,11 @@ std::string ThemeParser::parse_string() {
                     } else {
                         for (int i = 0; i < 4; ++i) {
                             if (is_at_end()) {
-                                parse_error(
-                                    "Incomplete unicode escape sequence");
+                                parse_error("Incomplete unicode escape sequence");
                             }
                             char hex = advance();
                             if (!is_hex_digit(hex)) {
-                                parse_error(
-                                    "Invalid hex digit in unicode escape");
+                                parse_error("Invalid hex digit in unicode escape");
                             }
                             codepoint = (codepoint << 4) | hex_value(hex);
                             digits_parsed++;
@@ -506,8 +460,7 @@ std::string ThemeParser::parse_value() {
         return parse_string();
     } else if (std::isalpha(peek()) || peek() == '_' || peek() == '#') {
         std::string result;
-        while (!is_at_end() && !std::isspace(peek()) && peek() != ',' &&
-               peek() != '}') {
+        while (!is_at_end() && !std::isspace(peek()) && peek() != ',' && peek() != '}') {
             result += advance();
         }
         return result;
@@ -802,8 +755,7 @@ ThemeVariableSet ThemeParser::parse_variables_block() {
                 segment_key = parse_identifier();
             }
 
-            if (variables.string_variables.count(segment_key) ||
-                variables.segment_variables.count(segment_key) ||
+            if (variables.string_variables.count(segment_key) || variables.segment_variables.count(segment_key) ||
                 segment_variable_definitions.count(segment_key)) {
                 parse_error("Duplicate variable definition: " + segment_key);
             }
@@ -822,12 +774,9 @@ ThemeVariableSet ThemeParser::parse_variables_block() {
         }
 
         ThemeProperty prop = parse_property();
-        if (variables.string_variables.find(prop.key) !=
-                variables.string_variables.end() ||
-            variables.segment_variables.find(prop.key) !=
-                variables.segment_variables.end() ||
-            segment_variable_definitions.find(prop.key) !=
-                segment_variable_definitions.end()) {
+        if (variables.string_variables.find(prop.key) != variables.string_variables.end() ||
+            variables.segment_variables.find(prop.key) != variables.segment_variables.end() ||
+            segment_variable_definitions.find(prop.key) != segment_variable_definitions.end()) {
             parse_error("Duplicate variable definition: " + prop.key);
         }
         variables.string_variables[prop.key] = prop.value;
@@ -848,10 +797,8 @@ void ThemeParser::expect_token(const std::string& expected) {
 }
 
 void ThemeParser::parse_error(const std::string& message) {
-    ErrorInfo info{ErrorType::SYNTAX_ERROR,
-                   source_name.empty() ? "theme_parser" : source_name,
-                   message,
-                   {"Check theme syntax and try again."}};
+    ErrorInfo info{
+        ErrorType::SYNTAX_ERROR, source_name.empty() ? "theme_parser" : source_name, message, {"Check theme syntax and try again."}};
     throw ThemeParseException(line_number, message, source_name, info);
 }
 
@@ -917,8 +864,7 @@ ThemeDefinition ThemeParser::parse() {
         } else if (block_name == "variables") {
             ThemeVariableSet parsed_variables = parse_variables_block();
             theme.variables = std::move(parsed_variables.string_variables);
-            theme.segment_variables =
-                std::move(parsed_variables.segment_variables);
+            theme.segment_variables = std::move(parsed_variables.segment_variables);
         } else if (block_name == "ps1") {
             theme.ps1_segments = parse_segments_block();
         } else if (block_name == "git_segments") {
@@ -940,10 +886,7 @@ ThemeDefinition ThemeParser::parse() {
     } catch (const ThemeParseException&) {
         throw;
     } catch (const std::exception& e) {
-        ErrorInfo info{ErrorType::RUNTIME_ERROR,
-                       source_name.empty() ? "theme_parser" : source_name,
-                       e.what(),
-                       {}};
+        ErrorInfo info{ErrorType::RUNTIME_ERROR, source_name.empty() ? "theme_parser" : source_name, e.what(), {}};
         throw ThemeParseException(0, e.what(), source_name, info);
     }
 
@@ -953,16 +896,11 @@ ThemeDefinition ThemeParser::parse() {
 ThemeDefinition ThemeParser::parse_file(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        ErrorInfo info{ErrorType::FILE_NOT_FOUND,
-                       filepath,
-                       "Could not open theme file",
-                       {"Verify the file path and permissions."}};
-        throw ThemeParseException(0, "Could not open theme file", filepath,
-                                  info);
+        ErrorInfo info{ErrorType::FILE_NOT_FOUND, filepath, "Could not open theme file", {"Verify the file path and permissions."}};
+        throw ThemeParseException(0, "Could not open theme file", filepath, info);
     }
 
-    std::string content((std::istreambuf_iterator<char>(file)),
-                        std::istreambuf_iterator<char>());
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     file.close();
 
     ThemeParser parser(content, filepath);
@@ -984,54 +922,39 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     oss << "    bg " << theme.fill.bg_color << "\n";
     oss << "  }\n\n";
 
-    auto write_segment_definition = [&](const ThemeSegment& segment,
-                                        const std::string& base_indent) {
+    auto write_segment_definition = [&](const ThemeSegment& segment, const std::string& base_indent) {
         std::string inner_indent = base_indent + "  ";
         oss << base_indent << "segment \"" << segment.name << "\" {\n";
         oss << inner_indent << "content \"" << segment.content << "\"\n";
         oss << inner_indent << "fg \"" << segment.fg_color << "\"\n";
         oss << inner_indent << "bg \"" << segment.bg_color << "\"\n";
         if (!segment.separator.empty()) {
-            oss << inner_indent << "separator \"" << segment.separator
-                << "\"\n";
-            oss << inner_indent << "separator_fg \"" << segment.separator_fg
-                << "\"\n";
-            oss << inner_indent << "separator_bg \"" << segment.separator_bg
-                << "\"\n";
+            oss << inner_indent << "separator \"" << segment.separator << "\"\n";
+            oss << inner_indent << "separator_fg \"" << segment.separator_fg << "\"\n";
+            oss << inner_indent << "separator_bg \"" << segment.separator_bg << "\"\n";
         }
         if (!segment.forward_separator.empty()) {
-            oss << inner_indent << "forward_separator \""
-                << segment.forward_separator << "\"\n";
-            oss << inner_indent << "forward_separator_fg \""
-                << segment.forward_separator_fg << "\"\n";
-            oss << inner_indent << "forward_separator_bg \""
-                << segment.forward_separator_bg << "\"\n";
+            oss << inner_indent << "forward_separator \"" << segment.forward_separator << "\"\n";
+            oss << inner_indent << "forward_separator_fg \"" << segment.forward_separator_fg << "\"\n";
+            oss << inner_indent << "forward_separator_bg \"" << segment.forward_separator_bg << "\"\n";
         }
         if (!segment.alignment.empty()) {
-            oss << inner_indent << "alignment \"" << segment.alignment
-                << "\"\n";
+            oss << inner_indent << "alignment \"" << segment.alignment << "\"\n";
         }
         oss << base_indent << "}\n";
     };
 
     if (!theme.variables.empty() || !theme.segment_variables.empty()) {
-        std::vector<std::pair<std::string, std::string>> scalar_variables(
-            theme.variables.begin(), theme.variables.end());
-        std::sort(scalar_variables.begin(), scalar_variables.end(),
-                  [](const auto& lhs, const auto& rhs) {
-                      return lhs.first < rhs.first;
-                  });
+        std::vector<std::pair<std::string, std::string>> scalar_variables(theme.variables.begin(), theme.variables.end());
+        std::sort(scalar_variables.begin(), scalar_variables.end(), [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
 
-        std::vector<std::pair<std::string, const ThemeSegment*>>
-            segment_variables;
+        std::vector<std::pair<std::string, const ThemeSegment*>> segment_variables;
         segment_variables.reserve(theme.segment_variables.size());
         for (const auto& [name, segment] : theme.segment_variables) {
             segment_variables.emplace_back(name, &segment);
         }
         std::sort(segment_variables.begin(), segment_variables.end(),
-                  [](const auto& lhs, const auto& rhs) {
-                      return lhs.first < rhs.first;
-                  });
+                  [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
 
         oss << "  variables {\n";
         for (const auto& [name, value] : scalar_variables) {
@@ -1052,8 +975,7 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         oss << "  }\n\n";
     }
 
-    auto write_segments = [&](const std::string& name,
-                              const std::vector<ThemeSegment>& segments) {
+    auto write_segments = [&](const std::string& name, const std::vector<ThemeSegment>& segments) {
         if (!segments.empty()) {
             oss << "  " << name << " {\n";
             for (const auto& segment : segments) {
@@ -1070,12 +992,9 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     write_segments("inline_right", theme.inline_right_segments);
 
     oss << "  behavior {\n";
-    oss << "    cleanup " << (theme.behavior.cleanup ? "true" : "false")
-        << "\n";
-    oss << "    cleanup_empty_line "
-        << (theme.behavior.cleanup_empty_line ? "true" : "false") << "\n";
-    oss << "    newline_after_execution "
-        << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
+    oss << "    cleanup " << (theme.behavior.cleanup ? "true" : "false") << "\n";
+    oss << "    cleanup_empty_line " << (theme.behavior.cleanup_empty_line ? "true" : "false") << "\n";
+    oss << "    newline_after_execution " << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
     oss << "  }\n";
 
     oss << "}\n";

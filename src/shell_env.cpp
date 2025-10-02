@@ -36,8 +36,7 @@ void setup_environment_variables(const char* argv0) {
         auto env_vars = setup_user_system_vars(pw);
 
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Setting " << env_vars.size()
-                      << " environment variables" << std::endl;
+            std::cerr << "DEBUG: Setting " << env_vars.size() << " environment variables" << std::endl;
         }
 
         for (const auto& [name, value] : env_vars) {
@@ -56,11 +55,9 @@ void setup_path_variables(const struct passwd* pw) {
 
     (void)pw;
 
-    if (config::login_mode &&
-        cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
+    if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
         if (g_debug_mode) {
-            std::cerr << "DEBUG: Running /usr/libexec/path_helper via shell"
-                      << std::endl;
+            std::cerr << "DEBUG: Running /usr/libexec/path_helper via shell" << std::endl;
         }
 
         std::string old_path = getenv("PATH") ? getenv("PATH") : "";
@@ -68,32 +65,23 @@ void setup_path_variables(const struct passwd* pw) {
 
         if (!g_shell) {
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Shell not available for path_helper"
-                          << std::endl;
+                std::cerr << "DEBUG: Shell not available for path_helper" << std::endl;
             }
         } else {
-            int result =
-                g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
+            int result = g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
 
             if (result == 0) {
                 const char* new_path = getenv("PATH");
-                if (new_path && std::string(new_path) != old_path &&
-                    g_debug_mode) {
-                    std::cerr
-                        << "DEBUG: PATH updated via path_helper: " << new_path
-                        << std::endl;
+                if (new_path && std::string(new_path) != old_path && g_debug_mode) {
+                    std::cerr << "DEBUG: PATH updated via path_helper: " << new_path << std::endl;
                 }
 
                 const char* new_manpath = getenv("MANPATH");
-                if (new_manpath && std::string(new_manpath) != old_manpath &&
-                    g_debug_mode) {
-                    std::cerr << "DEBUG: MANPATH updated via path_helper: "
-                              << new_manpath << std::endl;
+                if (new_manpath && std::string(new_manpath) != old_manpath && g_debug_mode) {
+                    std::cerr << "DEBUG: MANPATH updated via path_helper: " << new_manpath << std::endl;
                 }
             } else if (g_debug_mode) {
-                std::cerr
-                    << "DEBUG: path_helper execution failed with exit code "
-                    << result << std::endl;
+                std::cerr << "DEBUG: path_helper execution failed with exit code " << result << std::endl;
             }
         }
     }
@@ -107,18 +95,15 @@ void setup_path_variables(const struct passwd* pw) {
         std::string home_bin = std::string(pw->pw_dir) + "/bin";
         std::string home_local_bin = std::string(pw->pw_dir) + "/.local/bin";
 
-        std::vector<std::string> system_paths = {
-            "/usr/local/sbin", "/snap/bin",  "/var/lib/snapd/snap/bin",
-            "/opt/bin",        "/usr/games", home_bin,
-            home_local_bin};
+        std::vector<std::string> system_paths = {"/usr/local/sbin", "/snap/bin",   "/var/lib/snapd/snap/bin", "/opt/bin", "/usr/games",
+                                                 home_bin,          home_local_bin};
 
         for (const auto& path : system_paths) {
             if (cjsh_filesystem::file_exists(path)) {
                 if (current_path.find(path) == std::string::npos) {
                     additional_paths.push_back(path);
                     if (g_debug_mode) {
-                        std::cerr << "DEBUG: Adding to PATH: " << path
-                                  << std::endl;
+                        std::cerr << "DEBUG: Adding to PATH: " << path << std::endl;
                     }
                 }
             }
@@ -135,15 +120,12 @@ void setup_path_variables(const struct passwd* pw) {
             setenv("PATH", new_path.c_str(), 1);
 
             if (g_debug_mode) {
-                std::cerr << "DEBUG: Updated PATH on Linux: " << new_path
-                          << std::endl;
+                std::cerr << "DEBUG: Updated PATH on Linux: " << new_path << std::endl;
             }
         }
 
         if (getenv("MANPATH") == nullptr) {
-            std::vector<std::string> manpaths = {"/usr/local/man",
-                                                 "/usr/local/share/man",
-                                                 "/usr/share/man", "/usr/man"};
+            std::vector<std::string> manpaths = {"/usr/local/man", "/usr/local/share/man", "/usr/share/man", "/usr/man"};
 
             std::string manpath_str;
             for (const auto& path : manpaths) {
@@ -157,8 +139,7 @@ void setup_path_variables(const struct passwd* pw) {
             if (!manpath_str.empty()) {
                 setenv("MANPATH", manpath_str.c_str(), 1);
                 if (g_debug_mode) {
-                    std::cerr << "DEBUG: Set MANPATH on Linux: " << manpath_str
-                              << std::endl;
+                    std::cerr << "DEBUG: Set MANPATH on Linux: " << manpath_str << std::endl;
                 }
             }
         }
@@ -166,8 +147,7 @@ void setup_path_variables(const struct passwd* pw) {
 #endif
 }
 
-std::vector<std::pair<const char*, const char*>> setup_user_system_vars(
-    const struct passwd* pw) {
+std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const struct passwd* pw) {
     std::vector<std::pair<const char*, const char*>> env_vars;
 
     env_vars.emplace_back("USER", pw->pw_name);

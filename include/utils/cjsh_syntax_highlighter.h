@@ -10,8 +10,7 @@ class SyntaxHighlighter {
     static void initialize();
     static void refresh_executables_cache();
 
-    static void highlight(ic_highlight_env_t* henv, const char* input,
-                          void* arg);
+    static void highlight(ic_highlight_env_t* henv, const char* input, void* arg);
 
    private:
     static const std::unordered_set<std::string> basic_unix_commands_;
@@ -26,10 +25,6 @@ class SyntaxHighlighter {
     static bool is_quoted_string(const std::string& token, char& quote_type);
     static bool is_redirection_operator(const std::string& token);
     static bool is_glob_pattern(const std::string& token);
-    static bool is_function_definition(const std::string& input,
-                                       size_t& func_name_start,
-                                       size_t& func_name_end);
-    static void highlight_quotes_and_variables(ic_highlight_env_t* henv,
-                                               const char* input, size_t start,
-                                               size_t length);
+    static bool is_function_definition(const std::string& input, size_t& func_name_start, size_t& func_name_end);
+    static void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input, size_t start, size_t length);
 };
