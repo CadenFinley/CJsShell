@@ -493,10 +493,95 @@ bool create_source_file() {
         "alias ll='ls -la'\n"
         "\n"
         "# Theme configuration\n"
-        "# you can change this to load any installed theme, "
-        "# by default, the 'default' theme is always loaded unless themes are "
-        "disabled\n"
-        "theme load default\n"
+        "# This is the default cjsh theme\n"
+        "# Theme definitions placed in the cjshrc file are always"
+        "# activated when starting an interactive session\n"
+        "# alternatively, you can create theme files in the .config/cjsh/themes directory"
+        "\n"
+        "theme_definition {\n"
+        "  terminal_title \"{PATH}\"\n"
+        "\n"
+        "  fill {\n"
+        "    char \"\"\n"
+        "    fg RESET\n"
+        "    bg RESET\n"
+        "  }\n"
+        "\n"
+        "  ps1 {\n"
+        "    segment \"username\" {\n"
+        "      content \"{USERNAME}@{HOSTNAME}:\"\n"
+        "      fg \"#5555FF\"\n"
+        "      bg \"RESET\"\n"
+        "    }\n"
+        "    segment \"directory\" {\n"
+        "      content \" {DIRECTORY} \"\n"
+        "      fg \"#55FF55\"\n"
+        "      bg \"RESET\"\n"
+        "      separator \" \"\n"
+        "      separator_fg \"#FFFFFF\"\n"
+        "      separator_bg \"RESET\"\n"
+        "    }\n"
+    "    segment \"prompt\" {\n"
+    "      content \"$ \"\n"
+    "      fg \"#FFFFFF\"\n"
+    "      bg \"RESET\"\n"
+        "    }\n"
+        "  }\n"
+        "\n"
+        "  git_segments {\n"
+        "    segment \"path\" {\n"
+        "      content \" {LOCAL_PATH} \"\n"
+        "      fg \"#55FF55\"\n"
+        "      bg \"RESET\"\n"
+        "      separator \" \"\n"
+        "      separator_fg \"#FFFFFF\"\n"
+        "      separator_bg \"RESET\"\n"
+        "    }\n"
+        "    segment \"branch\" {\n"
+        "      content \"{GIT_BRANCH}\"\n"
+        "      fg \"#FFFF55\"\n"
+        "      bg \"RESET\"\n"
+        "    }\n"
+        "    segment \"status\" {\n"
+        "      content \"{GIT_STATUS}\"\n"
+        "      fg \"#FF5555\"\n"
+        "      bg \"RESET\"\n"
+        "      separator \" $ \"\n"
+        "      separator_fg \"#FFFFFF\"\n"
+        "      separator_bg \"RESET\"\n"
+        "    }\n"
+        "  }\n"
+        "\n"
+        "  ai_segments {\n"
+        "    segment \"model\" {\n"
+        "      content \" {AI_MODEL} \"\n"
+        "      fg \"#FF55FF\"\n"
+        "      bg \"RESET\"\n"
+        "      separator \" / \"\n"
+        "      separator_fg \"#FFFFFF\"\n"
+        "      separator_bg \"RESET\"\n"
+        "    }\n"
+        "    segment \"mode\" {\n"
+        "      content \"{AI_AGENT_TYPE} \"\n"
+        "      fg \"#55FFFF\"\n"
+        "      bg \"RESET\"\n"
+        "    }\n"
+        "  }\n"
+        "\n"
+        "  inline_right {\n"
+        "    segment \"time\" {\n"
+        "      content \"[{TIME}]\"\n"
+        "      fg \"#888888\"\n"
+        "      bg \"RESET\"\n"
+        "    }\n"
+        "  }\n"
+        "\n"
+        "  behavior {\n"
+        "    cleanup false\n"
+        "    cleanup_empty_line false\n"
+        "    newline_after_execution false\n"
+        "  }\n"
+        "}\n"
         "\n"
         "# Plugin examples\n"
         "# plugin example_plugin enable\n"
@@ -509,15 +594,35 @@ bool create_source_file() {
         "# cjshopt style_def comment \"italic color=green\"\n"
         "# cjshopt style_def string \"color=#F1FA8C\"\n"
         "# Run 'cjshopt style_def' for more information\n"
-        "\n"
-        "# Uninstall function, DO NOT REMOVE THIS FUNCTION\n"
-        "cjsh_uninstall() {\n"
-        "    rm $(readlink -f $(which cjsh))\n"
-        "    echo \"Uninstalled cjsh\"\n"
-        "}\n";
+        "\n";
 
     auto write_result =
         FileOperations::write_file_content(g_cjsh_source_path.string(), source_content);
+
+    if (!write_result.is_ok()) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     nullptr,
+                     write_result.error().c_str(),
+                     {"Check file permissions"}});
+        return false;
+    }
+
+    return true;
+}
+
+bool create_logout_file() {
+    std::string logout_content =
+        "#!/usr/bin/env cjsh\n"
+        "# cjsh Logout File\n"
+        "# this file is sourced when the shell exits from a login "
+        "session\n"
+        "# you can place any cleanup commands or messages here\n"
+        "\n"
+        "# Example: Display a goodbye message\n"
+        "# echo \"Thank you for using cjsh! Goodbye!\"\n";
+
+    auto write_result =
+        FileOperations::write_file_content(g_cjsh_logout_path.string(), logout_content);
 
     if (!write_result.is_ok()) {
         print_error({ErrorType::RUNTIME_ERROR,

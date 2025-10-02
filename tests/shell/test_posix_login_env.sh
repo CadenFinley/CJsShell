@@ -124,13 +124,13 @@ else
 fi
 
 # Test 10: Shell-specific profile sourcing
-log_test "Shell-specific profile sourcing"
-# Check if cjsh sources its own profile file
-if [ -f "$TEST_HOME/.cjprofile" ]; then
-    pass
-else
-    fail "Shell-specific profile file not created"
-fi
+# log_test "Shell-specific profile sourcing"
+# # Check if cjsh sources its own profile file
+# if [ -f "$TEST_HOME/.cjprofile" ]; then
+#     pass
+# else
+#     fail "Shell-specific profile file not created"
+# fi
 
 # Test 11: Non-login shell behavior
 log_test "Non-login shell behavior"

@@ -21,99 +21,10 @@
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(std::move(theme_dir)), is_enabled(enabled) {
-    std::filesystem::path default_theme_path = resolve_theme_file("default");
-    if (!std::filesystem::exists(default_theme_path)) {
-        create_default_theme();
-    }
     is_enabled = enabled;
 }
 
 Theme::~Theme() {
-}
-
-void Theme::create_default_theme() {
-    ThemeDefinition default_theme("default");
-
-    default_theme.terminal_title = "{PATH}";
-
-    default_theme.fill.character = "";
-    default_theme.fill.fg_color = "RESET";
-    default_theme.fill.bg_color = "RESET";
-
-    default_theme.behavior.cleanup = false;
-    default_theme.behavior.cleanup_empty_line = false;
-    default_theme.behavior.newline_after_execution = false;
-
-    ThemeSegment username_seg("username");
-    username_seg.content = "{USERNAME}@{HOSTNAME}:";
-    username_seg.fg_color = "#5555FF";
-    username_seg.bg_color = "RESET";
-    default_theme.ps1_segments.push_back(username_seg);
-
-    ThemeSegment directory_seg("directory");
-    directory_seg.content = " {DIRECTORY} ";
-    directory_seg.fg_color = "#55FF55";
-    directory_seg.bg_color = "RESET";
-    directory_seg.separator = " ";
-    directory_seg.separator_fg = "#FFFFFF";
-    directory_seg.separator_bg = "RESET";
-    default_theme.ps1_segments.push_back(directory_seg);
-
-    ThemeSegment prompt_seg("prompt");
-    prompt_seg.content = "$ ";
-    prompt_seg.fg_color = "#FFFFFF";
-    prompt_seg.bg_color = "RESET";
-    default_theme.ps1_segments.push_back(prompt_seg);
-
-    ThemeSegment git_path_seg("path");
-    git_path_seg.content = " {LOCAL_PATH} ";
-    git_path_seg.fg_color = "#55FF55";
-    git_path_seg.bg_color = "RESET";
-    git_path_seg.separator = " ";
-    git_path_seg.separator_fg = "#FFFFFF";
-    git_path_seg.separator_bg = "RESET";
-    default_theme.git_segments.push_back(git_path_seg);
-
-    ThemeSegment git_branch_seg("branch");
-    git_branch_seg.content = "{GIT_BRANCH}";
-    git_branch_seg.fg_color = "#FFFF55";
-    git_branch_seg.bg_color = "RESET";
-    default_theme.git_segments.push_back(git_branch_seg);
-
-    ThemeSegment git_status_seg("status");
-    git_status_seg.content = "{GIT_STATUS}";
-    git_status_seg.fg_color = "#FF5555";
-    git_status_seg.bg_color = "RESET";
-    git_status_seg.separator = " $ ";
-    git_status_seg.separator_fg = "#FFFFFF";
-    git_status_seg.separator_bg = "RESET";
-    default_theme.git_segments.push_back(git_status_seg);
-
-    ThemeSegment ai_model_seg("model");
-    ai_model_seg.content = " {AI_MODEL} ";
-    ai_model_seg.fg_color = "#FF55FF";
-    ai_model_seg.bg_color = "RESET";
-    ai_model_seg.separator = " / ";
-    ai_model_seg.separator_fg = "#FFFFFF";
-    ai_model_seg.separator_bg = "RESET";
-    default_theme.ai_segments.push_back(ai_model_seg);
-
-    ThemeSegment ai_mode_seg("mode");
-    ai_mode_seg.content = "{AI_AGENT_TYPE} ";
-    ai_mode_seg.fg_color = "#55FFFF";
-    ai_mode_seg.bg_color = "RESET";
-    default_theme.ai_segments.push_back(ai_mode_seg);
-
-    ThemeSegment time_seg("time");
-    time_seg.content = "[{TIME}]";
-    time_seg.fg_color = "#888888";
-    time_seg.bg_color = "RESET";
-    default_theme.inline_right_segments.push_back(time_seg);
-
-    std::string theme_content = ThemeParser::write_theme(default_theme);
-    std::ofstream file(resolve_theme_file("default"));
-    file << theme_content;
-    file.close();
 }
 
 bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {

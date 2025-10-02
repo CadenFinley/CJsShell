@@ -12,9 +12,6 @@
 #include "isocline/isocline.h"
 #include "utils/cjsh_completions.h"
 
-static int generate_profile_command(const std::vector<std::string>& args);
-static int generate_rc_command(const std::vector<std::string>& args);
-
 int cjshopt_command(const std::vector<std::string>& args) {
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT,
@@ -56,7 +53,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
 
 extern bool g_startup_active;
 
-static int handle_generate_command_common(const std::vector<std::string>& args,
+int handle_generate_command_common(const std::vector<std::string>& args,
                                           const std::string& command_name,
                                           const cjsh_filesystem::fs::path& target_path,
                                           const std::string& description,
@@ -111,7 +108,7 @@ static int handle_generate_command_common(const std::vector<std::string>& args,
     return 0;
 }
 
-static int generate_profile_command(const std::vector<std::string>& args) {
+int generate_profile_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(args,
                                           "generate-profile",
                                           cjsh_filesystem::g_cjsh_profile_path,
@@ -119,12 +116,20 @@ static int generate_profile_command(const std::vector<std::string>& args) {
                                           []() { return cjsh_filesystem::create_profile_file(); });
 }
 
-static int generate_rc_command(const std::vector<std::string>& args) {
+int generate_rc_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(args,
                                           "generate-rc",
                                           cjsh_filesystem::g_cjsh_source_path,
                                           "Create a default ~/.cjshrc configuration file.",
                                           []() { return cjsh_filesystem::create_source_file(); });
+}
+
+int generate_logout_command(const std::vector<std::string>& args) {
+    return handle_generate_command_common(args,
+                                          "generate-logout",
+                                          cjsh_filesystem::g_cjsh_logout_path,
+                                          "Create a default ~/.cjsh_logout file.",
+                                          []() { return cjsh_filesystem::create_logout_file(); });
 }
 
 int completion_case_command(const std::vector<std::string>& args) {

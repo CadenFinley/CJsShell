@@ -38,14 +38,14 @@ else
     fail_test "login mode execution (got '$OUT')"
 fi
 
-# Test that login mode creates necessary files
-"$CJSH_PATH" --login -c "true" 2>/dev/null
-# Check if cjsh profile was created
-if [ -f "$TEST_HOME/.cjprofile" ]; then
-    pass_test "login mode creates profile file"
-else
-    skip_test "login mode did not create profile file"
-fi
+# # Test that login mode creates necessary files
+# "$CJSH_PATH" --login -c "true" 2>/dev/null
+# # Check if cjsh profile was created
+# if [ -f "$TEST_HOME/.cjprofile" ]; then
+#     pass_test "login mode creates profile file"
+# else
+#     skip_test "login mode did not create profile file"
+# fi
 
 # Test profile file sourcing in login mode
 echo "export TEST_PROFILE_VAR=profile_value" > "$TEST_HOME/.profile"

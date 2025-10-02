@@ -12,8 +12,6 @@ class Theme {
    private:
     std::string theme_directory;
     bool is_enabled;
-    void create_default_theme();
-
     std::string terminal_title_format;
     bool check_theme_requirements(const ThemeRequirements& requirements) const;
 

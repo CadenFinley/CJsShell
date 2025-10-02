@@ -70,14 +70,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         return value;
     };
 
-    auto has_theme_extension = [&](const std::filesystem::path& candidate) -> bool {
-        if (!candidate.has_extension()) {
-            return false;
-        }
-        return to_lower_copy(candidate.extension().string()) ==
-               to_lower_copy(std::string(Theme::kThemeFileExtension));
-    };
-
     auto is_readable_file = [](const std::string& path) -> bool {
         struct stat st{};
         return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode) &&
@@ -87,6 +79,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     auto should_interpret_as_cjsh_script = [&](const std::string& path) -> bool {
         if (!is_readable_file(path))
             return false;
+
+        std::filesystem::path candidate(path);
+        if (candidate.has_extension()) {
+            std::string ext_lower = to_lower_copy(candidate.extension().string());
+            std::string theme_ext = to_lower_copy(std::string(Theme::kThemeFileExtension));
+            if (ext_lower == theme_ext)
+                return true;
+        }
 
         std::ifstream f(path);
         if (!f)
@@ -98,29 +98,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         if (first_line.find("cjsh") != std::string::npos)
             return true;
         return false;
-    };
-
-    auto try_execute_theme_file =
-        [&](const std::vector<std::string>& command_words) -> std::optional<int> {
-        if (command_words.empty()) {
-            return std::nullopt;
-        }
-
-        std::filesystem::path candidate(command_words[0]);
-        if (!has_theme_extension(candidate)) {
-            return std::nullopt;
-        }
-
-        if (!g_shell) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "load_theme",
-                         "Theme manager not available",
-                         {"Restart cjsh"}});
-            return 1;
-        }
-
-        int result = g_shell->load_theme_from_file(candidate);
-        return result;
     };
 
     struct CommandSubstitutionExpansion {
@@ -1499,10 +1476,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
             std::vector<std::string> head = shell_parser->parse_command(text);
             if (!head.empty()) {
-                if (auto theme_result = try_execute_theme_file(head)) {
-                    return *theme_result;
-                }
-
                 const std::string& prog = head[0];
                 if (should_interpret_as_cjsh_script(prog)) {
                     std::ifstream f(prog);

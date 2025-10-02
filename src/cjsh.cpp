@@ -163,15 +163,8 @@ void initialize_ai() {
 static int initialize_interactive_components() {
     g_shell->set_interactive_mode(true);
 
-    if (!cjsh_filesystem::init_interactive_filesystem()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     "Failed to initialize file system",
-                     {"Check file permissions", "Reinstall cjsh"}});
-        return 1;
-    }
-
-    g_shell->setup_interactive_handlers();
+    if (cjsh_filesystem::init_interactive_filesystem()) {
+            g_shell->setup_interactive_handlers();
 
     initialize_colors();
 
@@ -189,6 +182,10 @@ static int initialize_interactive_components() {
         }
     }
     return 0;
+    }
+
+
+    return 1;
 }
 
 static void process_profile_files() {
@@ -205,17 +202,12 @@ static void process_profile_files() {
 }
 
 static int initialize_login_mode() {
-    if (!cjsh_filesystem::init_login_filesystem()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     "Failed to initialize file system",
-                     {"Check file permissions", "Reinstall cjsh"}});
-        return 1;
+    if (cjsh_filesystem::init_login_filesystem()) {
+        process_profile_files();
+        cjsh::CommandLineParser::apply_profile_startup_flags();
+        return 0;
     }
-
-    process_profile_files();
-    cjsh::CommandLineParser::apply_profile_startup_flags();
-    return 0;
+    return 1;
 }
 
 static void start_interactive_process() {

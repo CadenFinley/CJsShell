@@ -153,10 +153,6 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
         display_path = normalized.string();
     }
 
-    if (has_theme_extension(normalized)) {
-        return load_theme_from_file(normalized, optional);
-    }
-
     std::string cache_key = normalized.string();
 
     std::error_code mod_ec;
