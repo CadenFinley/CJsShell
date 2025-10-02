@@ -484,7 +484,7 @@ int Built_ins::is_builtin_command(const std::string& cmd) const {
 }
 
 int Built_ins::do_ai_request(const std::string& prompt) {
-    return ::ai_command({"ai", prompt}, this);
+    return ::ai_command({"ai", "chat", prompt}, this);
 }
 
 void Built_ins::add_directory_bookmark(const std::string& dir_path) {
