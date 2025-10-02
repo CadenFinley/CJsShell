@@ -81,12 +81,15 @@ bool startup_test = false;
 bool minimal_mode = false;
 bool disable_custom_ls = false;
 bool show_startup_time = false;
+bool secure_mode = false;
 }  // namespace config
 
 // add --tiny option to disable all extra cjsh compoenents at compile time and compile with -0z
 // add --fast opttim to compile with -O3
 // NFC normalization requires full Unicode decomposition and composition.
 // Until a dedicated normalization routine is added, return the input.
+// rework all d_debug_mode checks to use a debug_log function
+// break up monolith of execute_block
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
@@ -234,13 +237,15 @@ static int initialize_interactive_components() {
         std::cerr << "DEBUG: Saved current directory: " << saved_current_dir
                   << std::endl;
 
-    if (config::source_enabled) {
+    if (config::source_enabled && !config::secure_mode) {
         if (g_debug_mode)
             std::cerr << "DEBUG: Processing source file" << std::endl;
         if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
             g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
         }
     } else {
+        if (config::secure_mode && g_debug_mode)
+            std::cerr << "DEBUG: Secure mode enabled - skipping source file" << std::endl;
         if (g_debug_mode)
             std::cerr
                 << "DEBUG: Restoring current directory due to --no-source: "
@@ -256,6 +261,12 @@ static int initialize_interactive_components() {
 }
 
 static void process_profile_files() {
+    if (config::secure_mode) {
+        if (g_debug_mode)
+            std::cerr << "DEBUG: Secure mode enabled - skipping profile files" << std::endl;
+        return;
+    }
+
     if (g_debug_mode)
         std::cerr << "DEBUG: Processing profile files" << std::endl;
     std::filesystem::path user_profile =

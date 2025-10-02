@@ -40,9 +40,10 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
         {"startup-test", no_argument, 0, 'X'},
         {"minimal", no_argument, 0, 'm'},
         {"disable-custom-ls", no_argument, 0, 'D'},
+        {"secure", no_argument, 0, 's'},
         {0, 0, 0, 0}};
 
-    const char* short_options = "+lic:vhdPTACLUNOSMXmD";
+    const char* short_options = "+lic:vhdPTACLUNOSMXmDs";
 
     int option_index = 0;
     int c;
@@ -130,6 +131,10 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
             case 'D':
                 config::disable_custom_ls = true;
                 print_debug_info("Disable custom ls enabled");
+                break;
+            case 's':
+                config::secure_mode = true;
+                print_debug_info("Secure mode enabled - profile and source files disabled");
                 break;
             case '?':
                 print_usage();
@@ -295,6 +300,11 @@ void CommandLineParser::apply_profile_startup_flags() {
             config::disable_custom_ls = true;
             if (::g_debug_mode)
                 std::cerr << "DEBUG: Disable custom ls enabled via profile"
+                          << std::endl;
+        } else if (flag == "--secure") {
+            config::secure_mode = true;
+            if (::g_debug_mode)
+                std::cerr << "DEBUG: Secure mode enabled via profile - profile and source files disabled"
                           << std::endl;
         }
     }

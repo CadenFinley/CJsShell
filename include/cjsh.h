@@ -57,6 +57,7 @@ extern bool startup_test;
 extern bool minimal_mode;
 extern bool disable_custom_ls;
 extern bool show_startup_time;
+extern bool secure_mode;
 }  // namespace config
 
 void initialize_colors();

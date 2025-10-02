@@ -31,7 +31,8 @@ void print_usage() {
         << "  -D, --disable-custom-ls    Use system ls command instead of "
            "builtin\n"
         << "  -U, --show-startup-time    Display shell startup time\n"
-        << "  -X, --startup-test          Enable startup test mode\n\n"
+        << "  -X, --startup-test          Enable startup test mode\n"
+        << "  -s, --secure               Disable reading profile and source files\n\n"
         << "For more information, visit: "
            "https://github.com/CadenFinley/CJsShell\n"
         << " Or run cjsh --help" << std::endl;
