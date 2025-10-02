@@ -137,6 +137,8 @@ const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile";
 
 const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc";
 
+const fs::path g_cjsh_logout_path = g_user_home_path / ".cjsh_logout";
+
 const fs::path g_config_path = g_user_home_path / ".config";
 const fs::path g_cache_path = g_user_home_path / ".cache";
 

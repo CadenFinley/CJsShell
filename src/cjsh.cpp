@@ -15,6 +15,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <system_error>
 #include <unordered_map>
 #include <vector>
 
@@ -247,10 +248,23 @@ static void start_interactive_process() {
     }
 }
 
+void process_logout_file() {
+    if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
+        const auto& logout_path = cjsh_filesystem::g_cjsh_logout_path;
+        std::error_code logout_status_ec;
+        auto logout_status = std::filesystem::status(logout_path, logout_status_ec);
+
+        if (!logout_status_ec && std::filesystem::is_regular_file(logout_status)) {
+            g_shell->execute_script_file(logout_path, true);
+        }
+    }
+}
+
 void cleanup_resources() {
     if (g_shell) {
         TrapManager::instance().set_shell(g_shell.get());
         TrapManager::instance().execute_exit_trap();
+        process_logout_file();
     }
 
     if (g_ai) {
