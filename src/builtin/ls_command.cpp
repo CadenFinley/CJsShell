@@ -251,11 +251,11 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
                         multi_column_across = true;
                         break;
                     default:
-                        print_error({ErrorType::INVALID_ARGUMENT,
-                                     "ls",
-                                     std::string("unknown option: -") +
-                                         args[i][j],
-                                     {"Try 'ls --help' for usage."}});
+                        print_error(
+                            {ErrorType::INVALID_ARGUMENT,
+                             "ls",
+                             std::string("unknown option: -") + args[i][j],
+                             {"Try 'ls --help' for usage."}});
                         return 1;
                 }
             }
@@ -718,11 +718,11 @@ int list_directory(const std::string& path, bool show_hidden,
         } else if (std::filesystem::is_directory(fs_path, ec)) {
             auto dir_iter = std::filesystem::directory_iterator(path, ec);
             if (ec) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "ls",
-                             "cannot open directory '" + path +
-                                 "': " + ec.message(),
-                             {}});
+                print_error(
+                    {ErrorType::RUNTIME_ERROR,
+                     "ls",
+                     "cannot open directory '" + path + "': " + ec.message(),
+                     {}});
                 return 1;
             }
 
@@ -1055,10 +1055,7 @@ int list_directory(const std::string& path, bool show_hidden,
 
         return 0;
     } catch (const std::filesystem::filesystem_error& ex) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "ls",
-                     ex.what(),
-                     {}});
+        print_error({ErrorType::RUNTIME_ERROR, "ls", ex.what(), {}});
         return 1;
     }
 }

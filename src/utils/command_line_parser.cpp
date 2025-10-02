@@ -134,7 +134,8 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
                 break;
             case 's':
                 config::secure_mode = true;
-                print_debug_info("Secure mode enabled - profile and source files disabled");
+                print_debug_info(
+                    "Secure mode enabled - profile and source files disabled");
                 break;
             case '?':
                 print_usage();
@@ -304,7 +305,8 @@ void CommandLineParser::apply_profile_startup_flags() {
         } else if (flag == "--secure") {
             config::secure_mode = true;
             if (::g_debug_mode)
-                std::cerr << "DEBUG: Secure mode enabled via profile - profile and source files disabled"
+                std::cerr << "DEBUG: Secure mode enabled via profile - profile "
+                             "and source files disabled"
                           << std::endl;
         }
     }

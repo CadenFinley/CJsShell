@@ -7,11 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cjsh.h"
 #include "parser.h"
-
-class Shell;
-struct Command;
 
 enum class DebugLevel {
     NONE = 0,

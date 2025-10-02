@@ -16,8 +16,9 @@
 #include "language_info.h"
 #include "network_info.h"
 #include "system_info.h"
-#include "theme_parser.h"
 #include "time_info.h"
+
+struct ThemeSegment;
 
 class PromptInfo {
    private:

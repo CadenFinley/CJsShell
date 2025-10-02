@@ -3,6 +3,6 @@
 #include <string>
 #include <vector>
 
-#include "shell.h"
+class Shell;
 
 int eval_command(const std::vector<std::string>& args, Shell* shell);

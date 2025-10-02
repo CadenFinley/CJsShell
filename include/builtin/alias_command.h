@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "shell.h"
+class Shell;
 
 int alias_command(const std::vector<std::string>& args, Shell* shell);
 int unalias_command(const std::vector<std::string>& args, Shell* shell);

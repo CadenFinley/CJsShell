@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "shell.h"
+class Shell;
 
 int export_command(const std::vector<std::string>& args, Shell* shell);
 int unset_command(const std::vector<std::string>& args, Shell* shell);

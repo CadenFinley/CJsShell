@@ -7,6 +7,7 @@
 #include "../script_interpreter/shell_script_interpreter_error_reporter.h"
 #include "cjsh.h"
 #include "error_out.h"
+#include "shell.h"
 
 int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     if (g_debug_mode) {

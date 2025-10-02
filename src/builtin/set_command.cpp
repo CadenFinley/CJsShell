@@ -6,6 +6,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
+#include "shell.h"
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
     if (!shell) {

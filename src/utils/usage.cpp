@@ -32,7 +32,8 @@ void print_usage() {
            "builtin\n"
         << "  -U, --show-startup-time    Display shell startup time\n"
         << "  -X, --startup-test          Enable startup test mode\n"
-        << "  -s, --secure               Disable reading profile and source files\n\n"
+        << "  -s, --secure               Disable reading profile and source "
+           "files\n\n"
         << "For more information, visit: "
            "https://github.com/CadenFinley/CJsShell\n"
         << " Or run cjsh --help" << std::endl;

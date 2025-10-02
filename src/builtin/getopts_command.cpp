@@ -6,10 +6,8 @@
 
 int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     if (!shell) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "getopts",
-                     "shell not available",
-                     {}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "getopts", "shell not available", {}});
         return 1;
     }
 
@@ -137,11 +135,11 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
                     setenv(name.c_str(), ":", 1);
                     setenv("OPTARG", opt_val.c_str(), 1);
                 } else {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "getopts",
-                                 std::string("option requires an argument -- ") +
-                                     opt,
-                                 {}});
+                    print_error(
+                        {ErrorType::INVALID_ARGUMENT,
+                         "getopts",
+                         std::string("option requires an argument -- ") + opt,
+                         {}});
                     setenv(name.c_str(), "?", 1);
                     setenv("OPTARG", opt_val.c_str(), 1);
                 }

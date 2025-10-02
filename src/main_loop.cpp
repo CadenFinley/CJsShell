@@ -24,9 +24,6 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
-#include <sys/select.h>
-#include <sys/time.h>
-
 #include "cjsh.h"
 #include "cjsh_completions.h"
 #include "isocline.h"

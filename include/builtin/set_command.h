@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "shell.h"
+class Shell;
 
 int set_command(const std::vector<std::string>& args, Shell* shell);
 int shift_command(const std::vector<std::string>& args, Shell* shell);

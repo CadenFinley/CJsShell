@@ -2,19 +2,13 @@
 
 #include <sys/types.h>
 
+#include <chrono>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 class Shell;
-
-namespace std {
-    namespace chrono {
-        template<typename Clock, typename Duration>
-        class time_point;
-        class steady_clock;
-    }
-}
 
 enum class JobState {
     RUNNING,

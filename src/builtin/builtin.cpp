@@ -43,6 +43,7 @@
 #include "read_command.h"
 #include "readonly_command.h"
 #include "set_command.h"
+#include "shell.h"
 #include "source_command.h"
 #include "suggestion_utils.h"
 #include "syntax_command.h"

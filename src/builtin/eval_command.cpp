@@ -4,6 +4,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
+#include "shell.h"
 
 int eval_command(const std::vector<std::string>& args, Shell* shell) {
     if (g_debug_mode) {

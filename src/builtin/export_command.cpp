@@ -10,6 +10,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "readonly_command.h"
+#include "shell.h"
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() == 1) {
@@ -78,10 +79,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
 int unset_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "unset",
-                     "not enough arguments",
-                     {}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "unset", "not enough arguments", {}});
         return 1;
     }
 
@@ -105,8 +104,8 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
         if (unsetenv(name.c_str()) != 0) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "unset",
-                         std::string("error unsetting ") + name +
-                             ": " + strerror(errno),
+                         std::string("error unsetting ") + name + ": " +
+                             strerror(errno),
                          {}});
             success = false;
         } else {

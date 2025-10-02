@@ -16,7 +16,6 @@
 #include "cjsh_filesystem.h"
 #include "cjsh_syntax_highlighter.h"
 #include "cjshopt_command.h"
-#include "isocline/isocline.h"
 #include "plugin.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"

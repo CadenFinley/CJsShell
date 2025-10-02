@@ -224,8 +224,8 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         if (setenv(var_name.c_str(), value.c_str(), 1) != 0) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "read",
-                         std::string("failed to set ") + var_name +
-                             ": " + std::strerror(errno),
+                         std::string("failed to set ") + var_name + ": " +
+                             std::strerror(errno),
                          {}});
             return 1;
         }

@@ -1,15 +1,21 @@
 #include "plugin.h"
 
-#include <dlfcn.h>
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
-#include <cstring>
-#include <cstdlib>
+
+#include <dlfcn.h>
+#include <sys/utsname.h>
 
 #include "cjsh.h"
 #include "error_out.h"
-#include "pluginapi.h"
+
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 static thread_local std::string current_plugin_context;
 
@@ -60,17 +66,6 @@ extern "C" PLUGIN_API void plugin_free_plugin_string(plugin_string_t* str) {
         str->capacity = 0;
     }
 }
-
-#include <sys/utsname.h>
-
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
-#include "cjsh.h"
-#ifdef __APPLE__
-#include <sys/sysctl.h>
-#endif
 
 Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled,
                bool lazy_loading) {

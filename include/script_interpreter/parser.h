@@ -5,8 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "command_preprocessor.h"
-
 class Shell;
 
 std::vector<std::string> tokenize_command(const std::string& cmdline);

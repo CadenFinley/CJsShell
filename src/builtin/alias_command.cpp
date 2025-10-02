@@ -7,6 +7,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "shell.h"
 
 int alias_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() == 1) {

@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include "error_out.h"
+#include "shell.h"
 #include "utils/cjsh_filesystem.h"
 
 int exec_command(const std::vector<std::string>& args, Shell* shell,

@@ -19,8 +19,7 @@ int times_command(const std::vector<std::string>& args, Shell* shell) {
     if (wall_time == (clock_t)-1) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "times",
-                     std::string("system call failed: ") +
-                         std::strerror(errno),
+                     std::string("system call failed: ") + std::strerror(errno),
                      {}});
         return 1;
     }

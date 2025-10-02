@@ -23,7 +23,6 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
-#include "error_out.h"
 #include "job_control.h"
 #include "parser.h"
 #include "shell.h"

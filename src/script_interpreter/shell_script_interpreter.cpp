@@ -31,7 +31,6 @@
 #include "plugin.h"
 #include "readonly_command.h"
 #include "shell.h"
-#include "shell.h"
 #include "shell_script_interpreter_utils.h"
 #include "suggestion_utils.h"
 

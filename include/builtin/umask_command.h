@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-class Shell;
+#include <sys/types.h>
 
 int umask_command(const std::vector<std::string>& args);
 

@@ -262,12 +262,12 @@ int trap_command(const std::vector<std::string>& args) {
 
     for (size_t i = 2; i < args.size(); ++i) {
         int signal_num = signal_name_to_number(args[i]);
-            if (signal_num == -1) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             "trap",
-                             args[i] + ": invalid signal specification",
-                             {}});
-                return 1;
+        if (signal_num == -1) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "trap",
+                         args[i] + ": invalid signal specification",
+                         {}});
+            return 1;
         }
 
         if (command.empty() || command == "-") {

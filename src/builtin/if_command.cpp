@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include "error_out.h"
+#include "shell.h"
 
 int if_command(const std::vector<std::string>& args, Shell* shell,
                std::string& last_terminal_output_error) {
