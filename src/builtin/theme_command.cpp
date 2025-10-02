@@ -21,7 +21,7 @@ std::filesystem::path resolve_theme_file_path(const std::string& theme_name) {
            Theme::ensure_theme_extension(theme_name);
 }
 
-}  // namespace
+}  
 
 int theme_command(const std::vector<std::string>& args) {
     if (!config::themes_enabled) {
@@ -163,7 +163,7 @@ int theme_command(const std::vector<std::string>& args) {
             return emoji_count;
         };
 
-        // Count emojis in all segment types
+        
         auto count_segments = [&](const std::vector<ThemeSegment>& segments) {
             for (const auto& segment : segments) {
                 int emoji_count = count_emoji(segment.content);

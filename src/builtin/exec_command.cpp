@@ -14,7 +14,7 @@
 int exec_command(const std::vector<std::string>& args, Shell* shell,
                  std::string& last_terminal_output_error) {
     if (args.size() <= 1) {
-        return 0;  // nothing to do
+        return 0;  
     }
 
     std::vector<std::string> exec_args;
@@ -86,7 +86,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                         has_fd_operations = true;
                         continue;
                     } catch (const std::exception&) {
-                        // fallthrough to treat as normal arg
+                        
                     }
                 } else if (op.find(">&") == 0 && op.size() > 2) {
                     try {
@@ -104,7 +104,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                         has_fd_operations = true;
                         continue;
                     } catch (const std::exception&) {
-                        // fallthrough
+                        
                     }
                 }
             }
@@ -114,7 +114,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
     }
 
     if (has_fd_operations && exec_args.empty()) {
-        return 0;  // only fd ops
+        return 0;  
     }
 
     if (!exec_args.empty() && shell) {

@@ -10,16 +10,16 @@
 #include "error_out.h"
 
 int history_command(const std::vector<std::string>& args) {
-    // Ensure directories are initialized
+    
     cjsh_filesystem::initialize_cjsh_directories();
 
-    // Try to read the history file content
+    
     auto read_result = cjsh_filesystem::FileOperations::read_file_content(
         cjsh_filesystem::g_cjsh_history_path.string());
 
     std::string content;
     if (read_result.is_error()) {
-        // If history file doesn't exist, create it
+        
         auto write_result = cjsh_filesystem::FileOperations::write_file_content(
             cjsh_filesystem::g_cjsh_history_path.string(), "");
         if (write_result.is_error()) {
@@ -31,7 +31,7 @@ int history_command(const std::vector<std::string>& args) {
                          {}});
             return 1;
         }
-        content = "";  // Empty content for new file
+        content = "";  
     } else {
         content = read_result.value();
     }

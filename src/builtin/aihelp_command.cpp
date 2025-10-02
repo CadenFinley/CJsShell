@@ -90,7 +90,7 @@ int aihelp_command(const std::vector<std::string>& args) {
             message += " " + remaining_args[i];
         }
     } else {
-        // Enhanced error context
+        
         message =
             "I need help fixing a shell command error. Please analyze the "
             "error and provide:\n"
@@ -109,7 +109,7 @@ int aihelp_command(const std::vector<std::string>& args) {
             "EXIT_CODE: " +
             std::string(getenv("?") ? getenv("?") : "unknown") + "\n";
 
-        // Add directory listing for context
+        
         message += "CURRENT_FILES: ";
         try {
             for (const auto& entry : std::filesystem::directory_iterator(".")) {

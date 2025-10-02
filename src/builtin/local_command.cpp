@@ -6,11 +6,11 @@
 
 int local_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() == 1) {
-        // No arguments - just return success (POSIX behavior)
+        
         return 0;
     }
 
-    // Get the script interpreter to access variable scope functions
+    
     auto script_interpreter = shell->get_shell_script_interpreter();
     if (!script_interpreter) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -25,7 +25,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& arg = args[i];
 
-        // Parse variable assignment (name=value)
+        
         size_t eq_pos = arg.find('=');
         if (eq_pos != std::string::npos) {
             std::string name = arg.substr(0, eq_pos);
@@ -40,7 +40,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            // Set as local variable
+            
             script_interpreter->set_local_variable(name, value);
 
             if (g_debug_mode) {
@@ -48,7 +48,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                           << value << "'" << std::endl;
             }
         } else {
-            // Just declare the variable as local without assigning a value
+            
             std::string name = arg;
 
             if (name.empty()) {
@@ -60,7 +60,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            // Get current value if it exists, otherwise empty
+            
             const char* current_value = getenv(name.c_str());
             std::string value = current_value ? current_value : "";
 

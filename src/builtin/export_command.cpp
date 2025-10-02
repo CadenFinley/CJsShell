@@ -36,7 +36,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            // Expand environment variables in the value
+            
             if (shell) {
                 shell->expand_env_vars(value);
             }
@@ -45,7 +45,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
             setenv(name.c_str(), value.c_str(), 1);
 
-            // Update parser's cache to keep it synchronized
+            
             if (shell && shell->get_parser()) {
                 shell->get_parser()->set_env_vars(env_vars);
             }

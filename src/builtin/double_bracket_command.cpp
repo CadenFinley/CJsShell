@@ -9,9 +9,9 @@
 #include <regex>
 #include <sstream>
 
-#include "cjsh.h"  // For g_debug_mode
+#include "cjsh.h"  
 
-// Helper function to check if a string matches a shell pattern
+
 bool pattern_match(const std::string& text, const std::string& pattern) {
     if (g_debug_mode) {
         std::cerr << "DEBUG: pattern_match called with text='" << text
@@ -29,7 +29,7 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
         }
         std::cerr << std::endl;
     }
-    // Convert shell pattern to regex
+    
     std::string regex_pattern;
     for (size_t i = 0; i < pattern.size(); ++i) {
         char c = pattern[i];
@@ -45,7 +45,7 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
                 regex_pattern += ".";
                 break;
             case '[': {
-                // Handle character classes properly
+                
                 regex_pattern += "[";
                 size_t j = i + 1;
                 while (j < pattern.size() && pattern[j] != ']') {
@@ -56,7 +56,7 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
                     regex_pattern += "]";
                     i = j;
                 } else {
-                    // Unclosed bracket, treat as literal
+                    
                     regex_pattern += "\\[";
                 }
                 break;
@@ -72,12 +72,12 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
                                   << (int)(unsigned char)pattern[i + 1]
                                   << std::endl;
                     }
-                    // Escape both the backslash and the following character
-                    regex_pattern += "\\\\";  // This creates \\ in the regex
-                                              // (literal backslash)
+                    
+                    regex_pattern += "\\\\";  
+                                              
 
-                    // Now handle the character after the backslash - escape it
-                    // if it's a regex special char
+                    
+                    
                     char next_char = pattern[i + 1];
                     if (next_char == '.' || next_char == '^' ||
                         next_char == '$' || next_char == '*' ||
@@ -135,14 +135,14 @@ bool pattern_match(const std::string& text, const std::string& pattern) {
     }
 }
 
-// Helper function to evaluate a single expression
+
 int evaluate_expression(const std::vector<std::string>& tokens) {
     if (tokens.empty()) {
         return 1;
     }
 
     if (tokens.size() == 1) {
-        // Single argument: true if non-empty
+        
         return tokens[0].empty() ? 1 : 0;
     }
 
@@ -178,7 +178,7 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
 
     if (tokens.size() == 3) {
         if (tokens[0] == "!") {
-            // Negation
+            
             std::vector<std::string> sub_tokens(tokens.begin() + 1,
                                                 tokens.end());
             return evaluate_expression(sub_tokens) == 0 ? 1 : 0;
@@ -189,7 +189,7 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
         const std::string& arg2 = tokens[2];
 
         if (op == "=" || op == "==") {
-            // Enhanced string comparison with pattern matching
+            
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Comparing '" << arg1 << "' == '" << arg2
                           << "'" << std::endl;
@@ -198,7 +198,7 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
         } else if (op == "!=") {
             return pattern_match(arg1, arg2) ? 1 : 0;
         } else if (op == "=~") {
-            // Regular expression matching
+            
             try {
                 std::regex re(arg2);
                 return std::regex_search(arg1, re) ? 0 : 1;
@@ -257,7 +257,7 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
     }
 
     if (tokens.size() == 4 && tokens[0] == "!") {
-        // Negation with 3-argument expression
+        
         std::vector<std::string> sub_tokens(tokens.begin() + 1, tokens.end());
         return evaluate_expression(sub_tokens) == 0 ? 1 : 0;
     }
@@ -270,28 +270,28 @@ int double_bracket_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    // Debug: print all arguments
-    // std::cerr << "DEBUG [[ args: ";
-    // for (const auto& arg : args) {
-    //   std::cerr << "'" << arg << "' ";
-    // }
-    // std::cerr << std::endl;
+    
+    
+    
+    
+    
+    
 
     std::vector<std::string> expression_args = args;
 
-    // Remove [[ and ]] tokens
+    
     if (args[0] == "[[" && args.size() > 1 && args.back() == "]]") {
-        expression_args.pop_back();                      // Remove ]]
-        expression_args.erase(expression_args.begin());  // Remove [[
+        expression_args.pop_back();                      
+        expression_args.erase(expression_args.begin());  
     } else if (args[0] == "[[") {
-        expression_args.erase(expression_args.begin());  // Remove [[
+        expression_args.erase(expression_args.begin());  
     }
 
     if (expression_args.empty()) {
         return 1;
     }
 
-    // Handle logical operators (&& and ||)
+    
     std::vector<std::vector<std::string>> expressions;
     std::vector<std::string> operators;
     std::vector<std::string> current_expr;
@@ -318,21 +318,21 @@ int double_bracket_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    // Evaluate expressions with short-circuit logic
+    
     int result = evaluate_expression(expressions[0]);
 
     for (size_t i = 0; i < operators.size() && i + 1 < expressions.size();
          ++i) {
         if (operators[i] == "&&") {
-            if (result == 0) {  // Previous expression was true
+            if (result == 0) {  
                 result = evaluate_expression(expressions[i + 1]);
             }
-            // If previous was false, short-circuit (result stays non-zero)
+            
         } else if (operators[i] == "||") {
-            if (result != 0) {  // Previous expression was false
+            if (result != 0) {  
                 result = evaluate_expression(expressions[i + 1]);
             }
-            // If previous was true, short-circuit (result stays 0)
+            
         }
     }
 
