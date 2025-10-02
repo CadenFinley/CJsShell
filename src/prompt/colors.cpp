@@ -677,4 +677,4 @@ std::unordered_map<std::string, std::string> get_color_map() {
 
     return color_map;
 }
-}  // namespace colors
+}  

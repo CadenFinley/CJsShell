@@ -68,4 +68,4 @@ std::string process_line_for_validation(const std::string& line) {
     return trim(strip_inline_comment(line));
 }
 
-}  // namespace shell_script_interpreter::detail
+}  

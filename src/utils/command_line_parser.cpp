@@ -18,7 +18,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
     int argc, char* argv[]) {
     ParseResult result;
 
-    // Check if invoked as login shell (e.g., -cjsh)
+    
     detect_login_mode(argv);
 
     static struct option long_options[] = {
@@ -44,8 +44,8 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
         {0, 0, 0, 0}};
 
     const char* short_options =
-        "+lic:vhdPTACLUNOSMXmD";  // Leading '+' enables POSIXLY_CORRECT
-                                  // behavior
+        "+lic:vhdPTACLUNOSMXmD";  
+                                  
     int option_index = 0;
     int c;
     optind = 1;
@@ -149,13 +149,13 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
         }
     }
 
-    // Check if there are script files to execute
+    
     if (optind < argc) {
         result.script_file = argv[optind];
         config::interactive_mode = false;
         print_debug_info("Script file specified: " + result.script_file);
 
-        // Collect script arguments (everything after the script file name)
+        
         for (int i = optind + 1; i < argc; i++) {
             result.script_args.push_back(argv[i]);
             print_debug_info("Script argument " + std::to_string(i - optind) +
@@ -163,7 +163,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(
         }
     }
 
-    // Check if stdin is a terminal - if not, disable interactive mode
+    
     if (!config::force_interactive && !isatty(STDIN_FILENO)) {
         config::interactive_mode = false;
         print_debug_info(
@@ -205,7 +205,7 @@ void CommandLineParser::print_debug_info(const std::string& message) {
 void CommandLineParser::apply_profile_startup_flags() {
     extern std::vector<std::string> g_profile_startup_args;
 
-    // Apply startup flags that were collected during profile processing
+    
     if (::g_debug_mode) {
         std::cerr << "DEBUG: Applying profile startup flags" << std::endl;
         if (::g_profile_startup_args.empty()) {
@@ -287,7 +287,7 @@ void CommandLineParser::apply_profile_startup_flags() {
                 std::cerr << "DEBUG: Interactive mode forced via profile"
                           << std::endl;
         } else if (flag == "--login") {
-            // Login mode is already set during initial argument processing
+            
             if (::g_debug_mode)
                 std::cerr << "DEBUG: Login mode flag found in profile (already "
                              "processed)"
@@ -307,4 +307,4 @@ void CommandLineParser::apply_profile_startup_flags() {
     }
 }
 
-}  // namespace cjsh
+}  

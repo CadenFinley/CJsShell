@@ -279,7 +279,7 @@ void apply_variables_to_theme(
     apply_variables_to_segments(theme.inline_right_segments, variables);
 }
 
-}  // namespace
+}  
 
 std::unordered_map<std::string, std::string> ThemeSegment::to_map() const {
     std::unordered_map<std::string, std::string> result;
@@ -318,12 +318,12 @@ void ThemeParser::skip_whitespace() {
 
 void ThemeParser::skip_comments() {
     while (!is_at_end() && peek() == '#') {
-        // Skip to end of line
+        
         while (!is_at_end() && peek() != '\n') {
             advance();
         }
         if (!is_at_end()) {
-            advance();  // Skip the newline
+            advance();  
             line_number++;
         }
     }
@@ -371,12 +371,12 @@ std::string ThemeParser::parse_string() {
         parse_error("Expected string literal");
     }
 
-    advance();  // Skip opening quote
+    advance();  
     std::string result;
 
     while (!is_at_end() && peek() != '"') {
         if (peek() == '\\') {
-            advance();  // Skip backslash
+            advance();  
             if (is_at_end()) {
                 parse_error("Unterminated string literal");
             }
@@ -403,7 +403,7 @@ std::string ThemeParser::parse_string() {
                     int digits_parsed = 0;
 
                     if (peek() == '{') {
-                        advance();  // Skip '{'
+                        advance();  
                         while (!is_at_end() && peek() != '}') {
                             char hex = advance();
                             if (!is_hex_digit(hex)) {
@@ -421,7 +421,7 @@ std::string ThemeParser::parse_string() {
                         if (is_at_end() || peek() != '}') {
                             parse_error("Unterminated unicode escape sequence");
                         }
-                        advance();  // Skip '}'
+                        advance();  
 
                         if (digits_parsed == 0) {
                             parse_error("Empty unicode escape sequence");
@@ -482,7 +482,7 @@ std::string ThemeParser::parse_string() {
         parse_error("Unterminated string literal");
     }
 
-    advance();  // Skip closing quote
+    advance();  
     return result;
 }
 
@@ -506,7 +506,7 @@ std::string ThemeParser::parse_value() {
     if (peek() == '"') {
         return parse_string();
     } else if (std::isalpha(peek()) || peek() == '_' || peek() == '#') {
-        // Parse identifier or color code
+        
         std::string result;
         while (!is_at_end() && !std::isspace(peek()) && peek() != ',' &&
                peek() != '}') {
@@ -514,14 +514,14 @@ std::string ThemeParser::parse_value() {
         }
         return result;
     } else if (std::isdigit(peek()) || peek() == '.') {
-        // Parse number
+        
         std::string result;
         while (!is_at_end() && (std::isdigit(peek()) || peek() == '.')) {
             result += advance();
         }
         return result;
     } else if (peek() == '{') {
-        // Parse complex expression (for conditionals)
+        
         std::string result;
         int brace_count = 0;
         while (!is_at_end()) {
@@ -558,7 +558,7 @@ ThemeProperty ThemeParser::parse_property() {
 
     skip_whitespace();
 
-    // Optional comma
+    
     if (peek() == ',') {
         advance();
     }
@@ -768,12 +768,12 @@ ThemeRequirements ThemeParser::parse_requirements_block() {
         ThemeProperty prop = parse_property();
 
         if (prop.key == "plugins") {
-            // Parse array of plugins (simplified for now)
+            
             requirements.plugins.push_back(prop.value);
         } else if (prop.key == "colors") {
             requirements.colors = prop.value;
         } else if (prop.key == "fonts") {
-            // Parse array of fonts (simplified for now)
+            
             requirements.fonts.push_back(prop.value);
         } else {
             requirements.custom[prop.key] = prop.value;
@@ -868,13 +868,13 @@ ThemeDefinition ThemeParser::parse() {
 
     segment_variable_definitions.clear();
 
-    // Skip shebang if present
+    
     if (position == 0 && content.length() > 2 && content.substr(0, 2) == "#!") {
         while (!is_at_end() && peek() != '\n') {
             advance();
         }
         if (!is_at_end()) {
-            advance();  // Skip newline
+            advance();  
             line_number++;
         }
     }
@@ -986,7 +986,7 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         oss << "  terminal_title \"" << theme.terminal_title << "\"\n\n";
     }
 
-    // Write fill block
+    
     oss << "  fill {\n";
     oss << "    char \"" << theme.fill.character << "\",\n";
     oss << "    fg " << theme.fill.fg_color << "\n";
@@ -1061,7 +1061,7 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         oss << "  }\n\n";
     }
 
-    // Write segments
+    
     auto write_segments = [&](const std::string& name,
                               const std::vector<ThemeSegment>& segments) {
         if (!segments.empty()) {
@@ -1079,7 +1079,7 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     write_segments("newline", theme.newline_segments);
     write_segments("inline_right", theme.inline_right_segments);
 
-    // Write behavior
+    
     oss << "  behavior {\n";
     oss << "    cleanup " << (theme.behavior.cleanup ? "true" : "false")
         << "\n";

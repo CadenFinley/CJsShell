@@ -13,8 +13,8 @@ void CommandInfo::start_command_timing() {
 }
 
 void CommandInfo::end_command_timing(int exit_code) {
-    (void)exit_code;  // Unused - exit code now managed via STATUS environment
-                      // variable
+    (void)exit_code;  
+                      
     if (timing_active) {
         last_command_end = std::chrono::high_resolution_clock::now();
         timing_active = false;
@@ -23,7 +23,7 @@ void CommandInfo::end_command_timing(int exit_code) {
 
 void CommandInfo::reset_command_timing() {
     timing_active = false;
-    // Reset to epoch time to ensure 0 duration
+    
     last_command_start = std::chrono::high_resolution_clock::time_point{};
     last_command_end = std::chrono::high_resolution_clock::time_point{};
 }
@@ -77,7 +77,7 @@ void CommandInfo::set_show_microseconds(bool show) {
 }
 
 void CommandInfo::set_initial_duration(long long microseconds) {
-    // Set the timing to simulate a completed command with the given duration
+    
     timing_active = false;
     auto now = std::chrono::high_resolution_clock::now();
     last_command_end = now;
@@ -87,32 +87,32 @@ void CommandInfo::set_initial_duration(long long microseconds) {
 std::string CommandInfo::format_duration(long long microseconds) {
     std::ostringstream oss;
 
-    // For times less than 1 millisecond, show microseconds
+    
     if (microseconds < 1000) {
         oss << microseconds << "μs";
     }
-    // For times less than 1 second, show milliseconds
+    
     else if (microseconds < 1000000) {
         double milliseconds_val = microseconds / 1000.0;
         oss << std::fixed << std::setprecision(2) << milliseconds_val << "ms";
     }
-    // For times less than 10 seconds, show seconds with decimal precision
+    
     else if (microseconds < 10000000) {
         double seconds = microseconds / 1000000.0;
         oss << std::fixed << std::setprecision(3) << seconds << "s";
     }
-    // For times less than 1 minute, show seconds with 1 decimal place
+    
     else if (microseconds < 60000000) {
         double seconds = microseconds / 1000000.0;
         oss << std::fixed << std::setprecision(1) << seconds << "s";
     }
-    // For times less than 1 hour, show minutes and seconds
+    
     else if (microseconds < 3600000000LL) {
         int minutes = microseconds / 60000000;
         int seconds = (microseconds % 60000000) / 1000000;
         oss << minutes << "m " << seconds << "s";
     }
-    // For times 1 hour or longer, show hours, minutes, and seconds
+    
     else {
         int hours = microseconds / 3600000000LL;
         int minutes = (microseconds % 3600000000LL) / 60000000;

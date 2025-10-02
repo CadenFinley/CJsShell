@@ -19,7 +19,7 @@ bool LanguageInfo::is_project_detected(
     const std::vector<std::string>& folders) {
     std::filesystem::path current_path = std::filesystem::current_path();
 
-    // Use recursive scanning like Starship does
+    
     return scan_directory_recursive(current_path, files, extensions, folders);
 }
 
@@ -32,14 +32,14 @@ bool LanguageInfo::scan_directory_recursive(
     }
 
     try {
-        // Check for specific files in current directory
+        
         for (const auto& file : files) {
             if (std::filesystem::exists(dir / file)) {
                 return true;
             }
         }
 
-        // Check for specific folders in current directory
+        
         for (const auto& folder : folders) {
             if (std::filesystem::exists(dir / folder) &&
                 std::filesystem::is_directory(dir / folder)) {
@@ -47,7 +47,7 @@ bool LanguageInfo::scan_directory_recursive(
             }
         }
 
-        // Check file extensions in current directory
+        
         for (const auto& entry : std::filesystem::directory_iterator(dir)) {
             if (entry.is_regular_file()) {
                 std::string ext = entry.path().extension().string();
@@ -58,14 +58,14 @@ bool LanguageInfo::scan_directory_recursive(
             }
         }
 
-        // For the current directory only, don't recurse too deep
-        // This matches Starship's behavior of primarily checking the current
-        // directory
+        
+        
+        
         if (max_depth == 3) {
-            // Check immediate subdirectories for important project files
+            
             for (const auto& entry : std::filesystem::directory_iterator(dir)) {
                 if (entry.is_directory()) {
-                    // Only recurse into common project structure directories
+                    
                     std::string dirname = entry.path().filename().string();
                     if (dirname == "src" || dirname == "lib" ||
                         dirname == "app") {
@@ -93,7 +93,7 @@ std::string LanguageInfo::execute_command(const std::string& command) {
     }
 
     std::string output = result.value();
-    // Remove trailing newline if present
+    
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();
     }
@@ -117,16 +117,16 @@ std::string LanguageInfo::get_cached_version(
     const std::function<std::string()>& version_func) const {
     std::lock_guard<std::mutex> lock(cache_mutex);
 
-    // Check if we have a valid cached version
+    
     auto it = version_cache.find(language_key);
     if (it != version_cache.end() && it->second.is_valid()) {
         return it->second.version;
     }
 
-    // Cache miss or expired, get fresh version
+    
     std::string version = version_func();
 
-    // Store in cache
+    
     version_cache[language_key] =
         CachedVersion{version, std::chrono::steady_clock::now()};
 
@@ -138,7 +138,7 @@ bool LanguageInfo::is_python_project() {
 }
 
 bool LanguageInfo::is_nodejs_project() {
-    // Use the corrected variable names and include folders
+    
     return is_project_detected(nodejs_files, nodejs_extensions, nodejs_folders);
 }
 
@@ -265,7 +265,7 @@ std::string LanguageInfo::get_java_version() {
 
 std::string LanguageInfo::get_cpp_version() {
     return get_cached_version("cpp", [this]() -> std::string {
-        // Try g++ first, then clang++, then gcc
+        
         std::string output =
             execute_command("g++ --version 2>/dev/null | head -n 1");
         if (output.empty()) {

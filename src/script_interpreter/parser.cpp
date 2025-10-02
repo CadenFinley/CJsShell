@@ -52,7 +52,7 @@ struct DelimiterState {
         *this = {};
     }
 };
-}  // namespace
+}  
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     auto strip_inline_comment = [](std::string_view s) -> std::string {
@@ -787,7 +787,7 @@ void expand_command_paths_with_home(Command& cmd, const std::string& home) {
         expand_path(fd_redir.second);
     }
 }
-}  // namespace
+}  
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
     std::vector<std::string> tokens;
@@ -1353,7 +1353,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                         expand_env_vars(noenv_stripped);
                     }
                 } catch (const std::runtime_error& e) {
-                    // Log error but continue processing
+                    
                     std::cerr
                         << "Warning: Error expanding environment variables: "
                         << e.what() << std::endl;
@@ -1364,7 +1364,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     expand_env_vars_selective(tmp);
                     noenv_stripped = tmp;
                 } catch (const std::runtime_error& e) {
-                    // Log error but continue with original value
+                    
                     std::cerr << "Warning: Error in selective environment "
                                  "variable expansion: "
                               << e.what() << std::endl;
@@ -1619,7 +1619,7 @@ std::string Parser::get_exported_variable_value(const std::string& var_name) {
                   << var_name << "'" << std::endl;
     }
 
-    // Handle special variables that need to work for external commands
+    
     if (var_name == "?" || var_name == "$" || var_name == "#" ||
         var_name == "*" || var_name == "@" || var_name == "!") {
         if (shell && shell->get_shell_script_interpreter()) {
@@ -1628,7 +1628,7 @@ std::string Parser::get_exported_variable_value(const std::string& var_name) {
         }
     }
 
-    // For positional parameters
+    
     if (var_name.length() == 1 && isdigit(var_name[0])) {
         if (shell && shell->get_shell_script_interpreter()) {
             return shell->get_shell_script_interpreter()->get_variable_value(
@@ -1636,7 +1636,7 @@ std::string Parser::get_exported_variable_value(const std::string& var_name) {
         }
     }
 
-    // For regular variables, only check exported environment variables
+    
     const char* env_val = getenv(var_name.c_str());
     std::string result = env_val ? env_val : "";
     if (g_debug_mode) {
@@ -1741,7 +1741,7 @@ void Parser::expand_env_vars(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        // Handle arithmetic expansion $((expression))
+        
         if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' &&
             arg[i + 2] == '(') {
             if (g_debug_mode) {
@@ -1753,7 +1753,7 @@ void Parser::expand_env_vars(std::string& arg) {
             size_t paren_depth = 1;
             size_t end = start;
 
-            // Find the matching ))
+            
             while (end < arg.length() && paren_depth > 0) {
                 if (arg[end] == '(' && end + 1 < arg.length() &&
                     arg[end + 1] == '(') {
@@ -1778,11 +1778,11 @@ void Parser::expand_env_vars(std::string& arg) {
                               << "'" << std::endl;
                 }
 
-                // Expand variables within the arithmetic expression
+                
                 std::string expanded_expr = expr;
                 expand_env_vars(expanded_expr);
 
-                // Evaluate the arithmetic expression
+                
                 try {
                     long long arithmetic_result =
                         evaluate_arithmetic(expanded_expr);
@@ -1792,25 +1792,25 @@ void Parser::expand_env_vars(std::string& arg) {
                                   << std::endl;
                     }
                     result += result_str;
-                    i = end + 1;  // Skip past the ))
+                    i = end + 1;  
                     continue;
                 } catch (const std::exception& e) {
                     if (g_debug_mode) {
                         std::cerr << "DEBUG: Arithmetic evaluation failed: "
                                   << e.what() << std::endl;
                     }
-                    // Fall back to original text if evaluation fails
+                    
                     result += arg.substr(i, end - i + 2);
                     i = end + 1;
                     continue;
                 }
             } else {
-                // Malformed arithmetic expansion, treat as regular character
+                
                 result += arg[i];
                 continue;
             }
         }
-        // Handle escaped dollar signs first, before any other $ processing
+        
         if (arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
             if (!result.empty() && result.back() == '\\') {
                 result.pop_back();
@@ -1889,7 +1889,7 @@ void Parser::expand_env_vars(std::string& arg) {
                                     std::string::npos ||
                                 error_msg.find("parameter not set") !=
                                     std::string::npos) {
-                                // Use fallback value instead of re-throwing
+                                
                                 value = get_variable_value(param_expr);
                             } else {
                                 value = get_variable_value(param_expr);
@@ -2091,7 +2091,7 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        // Handle arithmetic expansion $((expression))
+        
         if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' &&
             arg[i + 2] == '(') {
             if (g_debug_mode) {
@@ -2103,7 +2103,7 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
             size_t paren_depth = 1;
             size_t end = start;
 
-            // Find the matching ))
+            
             while (end < arg.length() && paren_depth > 0) {
                 if (arg[end] == '(' && end + 1 < arg.length() &&
                     arg[end + 1] == '(') {
@@ -2128,12 +2128,12 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                               << "'" << std::endl;
                 }
 
-                // Expand variables within the arithmetic expression (using
-                // exported only)
+                
+                
                 std::string expanded_expr = expr;
                 expand_exported_env_vars_only(expanded_expr);
 
-                // Evaluate the arithmetic expression
+                
                 try {
                     long long arithmetic_result =
                         evaluate_arithmetic(expanded_expr);
@@ -2143,10 +2143,10 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                         std::cerr << "DEBUG: Arithmetic evaluation failed: "
                                   << e.what() << std::endl;
                     }
-                    result += "0";  // Default to 0 on error
+                    result += "0";  
                 }
 
-                i = end + 1;  // Skip past the ))
+                i = end + 1;  
                 continue;
             }
         }
@@ -2156,7 +2156,7 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
             var_name.clear();
         } else if (in_var) {
             if (arg[i] == '{') {
-                // Parameter expansion ${var} or ${var:-default} etc.
+                
                 size_t brace_start = i + 1;
                 size_t brace_end = brace_start;
                 int brace_depth = 1;
@@ -2175,10 +2175,10 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                     std::string param_expr =
                         arg.substr(brace_start, brace_end - brace_start);
 
-                    // Handle various parameter expansion forms
+                    
                     std::string value;
                     if (param_expr.find(":-") != std::string::npos) {
-                        // ${var:-default}
+                        
                         size_t sep_pos = param_expr.find(":-");
                         std::string var_name = param_expr.substr(0, sep_pos);
                         std::string default_val =
@@ -2193,7 +2193,7 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                             value = env_val;
                         }
                     } else if (param_expr.find(":=") != std::string::npos) {
-                        // ${var:=default}
+                        
                         size_t sep_pos = param_expr.find(":=");
                         std::string var_name = param_expr.substr(0, sep_pos);
                         std::string default_val =
@@ -2204,13 +2204,13 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                         if (env_val.empty()) {
                             expand_exported_env_vars_only(default_val);
                             value = default_val;
-                            // Note: We don't actually set the variable since
-                            // we're only dealing with exported vars
+                            
+                            
                         } else {
                             value = env_val;
                         }
                     } else {
-                        // Simple ${var}
+                        
                         value = get_exported_variable_value(param_expr);
                     }
 
@@ -2225,7 +2225,7 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                        arg[i] == '@' || arg[i] == '!' || std::isdigit(arg[i])) {
                 var_name += arg[i];
             } else {
-                // End of variable name
+                
                 std::string value = get_exported_variable_value(var_name);
                 result += value;
 
@@ -2259,14 +2259,14 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
 
 std::vector<std::string> Parser::parse_command_exported_vars_only(
     const std::string& cmdline) {
-    // Temporarily set the flag to use exported vars only
+    
     bool saved_flag = use_exported_vars_only;
     use_exported_vars_only = true;
 
-    // Call the regular parse_command method
+    
     std::vector<std::string> result = parse_command(cmdline);
 
-    // Restore the original flag
+    
     use_exported_vars_only = saved_flag;
 
     return result;
@@ -2275,9 +2275,9 @@ std::vector<std::string> Parser::parse_command_exported_vars_only(
 std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
     std::vector<std::string> result;
 
-    // Check shell's env_vars first, then fall back to getenv for exported
-    // variables
-    std::string ifs = " \t\n";  // default
+    
+    
+    std::string ifs = " \t\n";  
     if (shell) {
         const auto& env_vars = shell->get_env_vars();
         auto it = env_vars.find("IFS");
@@ -2610,7 +2610,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         std::vector<std::string> tokens = merge_redirection_tokens(raw_tokens);
         std::vector<std::string> filtered_args;
 
-        // Check for incomplete redirections first
+        
         auto is_all_digits = [](const std::string& s) {
             return !s.empty() &&
                    std::all_of(s.begin(), s.end(), [](unsigned char ch) {
@@ -2747,14 +2747,14 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             bool is_double = is_double_quoted_token(raw);
             std::string val = strip_quote_tag(raw);
 
-            // Expand environment variables for non-single-quoted tokens
-            // BUT skip expansion for subshell content (argument 1 of
-            // __INTERNAL_SUBSHELL__)
+            
+            
+            
             if (!is_single && !(is_subshell_command && arg_idx == 1)) {
                 try {
                     expand_env_vars(val);
                 } catch (const std::runtime_error& e) {
-                    // Log error but continue processing
+                    
                     if (g_debug_mode) {
                         std::cerr << "Warning: Error expanding environment "
                                      "variables in pipeline: "
@@ -2795,7 +2795,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             expand_command_paths_with_home(cmd, std::string(home));
         }
 
-        // Validate command existence before adding to pipeline
+        
         if (command_validation_enabled && !cmd.args.empty() &&
             should_validate_command(cmd.args[0]) &&
             !is_valid_command(cmd.args[0])) {
@@ -2804,8 +2804,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                           << cmd.args[0] << std::endl;
             }
 
-            // Check if this command is in our cache but no longer exists (stale
-            // entry)
+            
+            
             if (cjsh_filesystem::is_executable_in_cache(cmd.args[0])) {
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: Command '" << cmd.args[0]
@@ -2813,7 +2813,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                                  "if stale..."
                               << std::endl;
                 }
-                // Double-check that it really doesn't exist in PATH
+                
                 std::string full_path =
                     cjsh_filesystem::find_executable_in_path(cmd.args[0]);
                 if (full_path.empty()) {
@@ -2831,9 +2831,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 }
             }
 
-            // Throw a runtime error with the command name that will be caught
-            // by the shell's error handling The shell will generate proper
-            // suggestions in the error report
+            
+            
+            
             throw std::runtime_error("command not found: " + cmd.args[0]);
         }
 
@@ -3216,12 +3216,12 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
 }
 
 bool Parser::should_validate_command(const std::string& command) const {
-    // Skip validation for variable assignments
-    // Look for pattern: identifier=value (where identifier contains only
-    // alphanumeric and underscore)
+    
+    
+    
     size_t equals_pos = command.find('=');
     if (equals_pos != std::string::npos) {
-        // Check if everything before '=' is a valid variable name
+        
         std::string var_name = command.substr(0, equals_pos);
         if (!var_name.empty()) {
             bool valid_var_name = true;
@@ -3232,12 +3232,12 @@ bool Parser::should_validate_command(const std::string& command) const {
                 }
             }
             if (valid_var_name && std::isalpha(var_name[0])) {
-                return false;  // It's a variable assignment
+                return false;  
             }
         }
     }
 
-    // Skip validation for shell operators and keywords
+    
     if (command == "&&" || command == "||" || command == "|" ||
         command == ";" || command == "(" || command == ")" || command == "{" ||
         command == "}" || command == "if" || command == "then" ||
@@ -3248,7 +3248,7 @@ bool Parser::should_validate_command(const std::string& command) const {
         return false;
     }
 
-    // Skip validation for redirections and operators
+    
     if (command.empty() || command[0] == '>' || command[0] == '<' ||
         command == ">>" || command == "<<" || command == "2>" ||
         command == "2>>" || command == "&>" || command == "&>>") {
@@ -3263,13 +3263,13 @@ bool Parser::is_valid_command(const std::string& command_name) const {
         return false;
     }
 
-    // Check if it's a builtin command
+    
     if (shell && shell->get_built_ins() &&
         shell->get_built_ins()->is_builtin_command(command_name)) {
         return true;
     }
 
-    // Check if it's an alias
+    
     if (shell) {
         auto aliases = shell->get_aliases();
         if (aliases.find(command_name) != aliases.end()) {
@@ -3277,7 +3277,7 @@ bool Parser::is_valid_command(const std::string& command_name) const {
         }
     }
 
-    // Check if it's a shell function
+    
     if (shell && shell->get_shell_script_interpreter()) {
         auto* interpreter = shell->get_shell_script_interpreter();
         if (interpreter && interpreter->has_function(command_name)) {
@@ -3285,14 +3285,14 @@ bool Parser::is_valid_command(const std::string& command_name) const {
         }
     }
 
-    // Check if it's an executable in PATH or absolute/relative path
+    
     if (command_name.find('/') != std::string::npos) {
-        // For paths, let the shell handle them naturally - don't validate
-        // This allows the shell to give proper error messages for non-existent
-        // paths
+        
+        
+        
         return true;
     } else {
-        // Search in PATH using existing filesystem utility
+        
         std::string path =
             cjsh_filesystem::find_executable_in_path(command_name);
         return !path.empty();
@@ -3310,7 +3310,7 @@ std::string Parser::get_command_validation_error(
 
 long long Parser::evaluate_arithmetic(const std::string& expr) {
     std::string trimmed = expr;
-    // Remove leading/trailing whitespace
+    
     size_t start = trimmed.find_first_not_of(" \t\n\r");
     size_t end = trimmed.find_last_not_of(" \t\n\r");
     if (start == std::string::npos) {
@@ -3323,12 +3323,12 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
                   << "'" << std::endl;
     }
 
-    // Simple arithmetic evaluator for basic operations
-    // Handle binary operators: +, -, *, /, %
+    
+    
 
     auto find_operator = [](const std::string& s,
                             const std::string& op) -> size_t {
-        // Find operator not inside parentheses
+        
         int paren_depth = 0;
         for (size_t i = 0; i <= s.length() - op.length(); ++i) {
             if (s[i] == '(')
@@ -3336,10 +3336,10 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
             else if (s[i] == ')')
                 paren_depth--;
             else if (paren_depth == 0 && s.substr(i, op.length()) == op) {
-                // Make sure it's not part of a larger operator
+                
                 if (op.length() == 1) {
-                    // For single char operators, check it's not part of ++ or
-                    // --
+                    
+                    
                     if ((op == "+" || op == "-") && i > 0 && s[i - 1] == op[0])
                         continue;
                     if ((op == "+" || op == "-") && i + 1 < s.length() &&
@@ -3356,7 +3356,7 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         if (s.empty())
             return 0;
         std::string clean = s;
-        // Remove leading/trailing whitespace
+        
         size_t start = clean.find_first_not_of(" \t\n\r");
         size_t end = clean.find_last_not_of(" \t\n\r");
         if (start == std::string::npos)
@@ -3370,7 +3370,7 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         }
     };
 
-    // Handle parentheses first
+    
     size_t paren_start = trimmed.find('(');
     if (paren_start != std::string::npos) {
         int depth = 1;
@@ -3393,7 +3393,7 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         }
     }
 
-    // Check for binary operators in order of precedence (lowest to highest)
+    
     std::vector<std::string> operators = {"+", "-", "*", "/", "%"};
 
     for (const auto& op : operators) {
@@ -3423,6 +3423,6 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
         }
     }
 
-    // If no operators found, try to parse as a number
+    
     return parse_number(trimmed);
 }

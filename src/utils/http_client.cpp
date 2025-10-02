@@ -147,7 +147,7 @@ HttpResponse HttpClient::system_curl_post(
         headers_file.close();
     }
 
-    // Cleanup temporary files
+    
     cjsh_filesystem::FileOperations::cleanup_temp_file(temp_data_file);
     cjsh_filesystem::FileOperations::cleanup_temp_file(temp_response_file);
     cjsh_filesystem::FileOperations::cleanup_temp_file(temp_headers_file);

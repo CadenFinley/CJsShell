@@ -13,7 +13,7 @@ Prompt::~Prompt() {
 }
 
 std::string Prompt::get_prompt() {
-    // it should never be empty
+    
     if (g_current_theme.empty()) {
         if (!g_theme || !g_theme->get_enabled()) {
             return info.get_basic_prompt();
@@ -43,7 +43,7 @@ std::string Prompt::get_ai_prompt() {
     std::string modelInfo = g_ai->get_model();
     std::string modeInfo = g_ai->get_assistant_type();
 
-    // it should never be empty
+    
     if (g_current_theme.empty()) {
         if (!g_theme || !g_theme->get_enabled()) {
             return info.get_basic_ai_prompt();
@@ -61,11 +61,11 @@ std::string Prompt::get_ai_prompt() {
     if (modeInfo.empty())
         modeInfo = "Chat";
 
-    // Get variables only for AI prompt
+    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::AI);
 
-    // Add or update AI-specific variables
+    
     vars["AI_MODEL"] = modelInfo;
     vars["AI_AGENT_TYPE"] = modeInfo;
     vars["AI_DIVIDER"] = ">";
@@ -80,7 +80,7 @@ std::string Prompt::get_ai_prompt() {
 }
 
 std::string Prompt::get_newline_prompt() {
-    // it should never be empty
+    
     if (g_current_theme.empty()) {
         if (!g_theme || !g_theme->get_enabled()) {
             return " ";
@@ -93,7 +93,7 @@ std::string Prompt::get_newline_prompt() {
         return " ";
     }
 
-    // Get variables only for newline prompt
+    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::NEWLINE);
 
@@ -113,7 +113,7 @@ std::string Prompt::get_inline_right_prompt() {
         return "";
     }
 
-    // Get variables for inline right prompt
+    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::INLINE_RIGHT);
 
@@ -134,7 +134,7 @@ std::string Prompt::get_title_prompt() {
     }
     std::string prompt_format = g_theme->get_terminal_title_format();
 
-    // Get variables only for title prompt
+    
     std::unordered_map<std::string, std::string> vars =
         get_variables(PromptType::TITLE);
 
@@ -158,10 +158,10 @@ std::string Prompt::replace_placeholder(const std::string& format,
     return result;
 }
 
-// Helper method to get variables for a specific prompt type
+
 std::unordered_map<std::string, std::string> Prompt::get_variables(
     PromptType type, bool is_git_repo) {
-    // Collect only the segments needed for the requested prompt type
+    
     std::vector<ThemeSegment> segments;
 
     switch (type) {
@@ -211,7 +211,7 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(
             break;
     }
 
-    // Get variables only for the specified segments
+    
     return info.get_variables(segments, is_git_repo, repo_root);
 }
 

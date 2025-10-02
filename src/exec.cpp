@@ -378,8 +378,8 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
                 }
             }
 
-            // Update redirection targets that might include the substitution
-            // token
+            
+            
             if (!cmd.input_file.empty()) {
                 replace_first_instance(cmd.input_file, proc_sub, fifo_path);
             }
@@ -401,10 +401,10 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
             }
 
             if (!replaced_arg) {
-                // If we didn't find a direct match in args, fall back to
-                // replacing all occurrences in case the token appeared in
-                // multiple locations (e.g., command substitution inside
-                // redirections)
+                
+                
+                
+                
                 for (auto& arg : cmd.args) {
                     replace_all_instances(arg, proc_sub, fifo_path);
                 }
@@ -445,7 +445,7 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
     resources.fifo_paths.clear();
 }
 
-}  // namespace
+}  
 
 static bool should_noclobber_prevent_overwrite(const std::string& filename,
                                                bool force_overwrite = false) {
@@ -490,7 +490,7 @@ Exec::~Exec() {
     pid_t pid;
     int zombie_count = 0;
     const int max_cleanup_iterations =
-        50;  // Prevent infinite loops in destructor
+        50;  
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0 &&
            zombie_count < max_cleanup_iterations) {
         zombie_count++;
@@ -891,7 +891,7 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
                 std::vector<std::string> exec_args(cmd.args.begin() + 1,
                                                    cmd.args.end());
                 exit_code =
-                    g_shell->execute_command(exec_args, false /* capture */);
+                    g_shell->execute_command(exec_args, false);
             }
         } else {
             exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
@@ -928,14 +928,14 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     size_t cmd_start_idx = collect_env_assignments(args, env_assignments);
 
     if (cmd_start_idx >= args.size()) {
-        // When there's no command after the assignments, set them as shell
-        // variables (not exported to environment) - this matches bash behavior
+        
+        
         if (g_shell) {
             auto& env_vars = g_shell->get_env_vars();
             for (const auto& env : env_assignments) {
                 env_vars[env.first] = env.second;
 
-                // Only export special variables like PATH
+                
                 if (env.first == "PATH" || env.first == "PWD" ||
                     env.first == "HOME" || env.first == "USER" ||
                     env.first == "SHELL") {
@@ -943,7 +943,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
                 }
             }
 
-            // Update parser cache
+            
             if (g_shell->get_parser()) {
                 g_shell->get_parser()->set_env_vars(env_vars);
             }
@@ -1022,7 +1022,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     auto c_args = build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
 
-        // execvp failed - save errno immediately and determine exit code inline
+        
         int saved_errno = errno;
         int exit_code = (saved_errno == EACCES || saved_errno == EISDIR ||
                          saved_errno == ENOEXEC)
@@ -1114,11 +1114,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
     cleanup_process_substitutions(proc_resources, false);
 
-    // Auto-update executable cache for successful external commands
+    
     if (exit_code == 0 && !cmd_args.empty()) {
         const std::string& command_name = cmd_args[0];
 
-        // Extract basename if command_name is a full path
+        
         std::string basename_command;
         size_t last_slash = command_name.find_last_of('/');
         if (last_slash != std::string::npos) {
@@ -1136,7 +1136,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
             std::cerr << " with exit code: " << exit_code << std::endl;
         }
 
-        // Only add to cache if it's not already there
+        
         bool already_in_cache =
             cjsh_filesystem::is_executable_in_cache(basename_command);
 
@@ -1147,7 +1147,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         }
 
         if (!already_in_cache) {
-            // Find the full path of the command using the basename
+            
             std::string full_path =
                 cjsh_filesystem::find_executable_in_path(basename_command);
 
@@ -1171,7 +1171,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
                       << "' already in cache" << std::endl;
         }
     } else if (exit_code == 127 && !cmd_args.empty()) {
-        // Command not found - might be a stale cache entry
+        
         const std::string& command_name = cmd_args[0];
 
         if (g_debug_mode) {
@@ -1272,8 +1272,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
         std::string full_command = join_arguments(args);
         JobManager::instance().add_job(pid, {pid}, full_command,
-                                       /*background=*/true,
-                                       /*reads_stdin=*/false);
+                                      true,
+                                      false);
         JobManager::instance().set_last_background_pid(pid);
 
         std::cerr << "[" << job_id << "] " << pid << std::endl;
@@ -1489,7 +1489,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         _exit(EXIT_FAILURE);
                     }
 
-                    // Redirect stdout first
+                    
                     auto stdout_result =
                         cjsh_filesystem::FileOperations::redirect_fd(
                             cmd.both_output_file, STDOUT_FILENO,
@@ -1501,7 +1501,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         _exit(EXIT_FAILURE);
                     }
 
-                    // Duplicate stdout to stderr
+                    
                     auto stderr_result =
                         cjsh_filesystem::FileOperations::safe_dup2(
                             STDOUT_FILENO, STDERR_FILENO);
@@ -2281,7 +2281,7 @@ void Exec::terminate_all_child_process() {
                     }
                 }
 
-                // Also kill individual PIDs in case process group kill failed
+                
                 for (pid_t pid : job.pids) {
                     if (kill(pid, SIGKILL) == 0 && g_debug_mode) {
                         std::cerr << "DEBUG: Sent SIGKILL to individual PID "

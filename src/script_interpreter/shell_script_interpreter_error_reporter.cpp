@@ -78,7 +78,7 @@ std::string strip_internal_placeholders(const std::string& input,
     return output;
 }
 
-}  // namespace
+}  
 
 size_t ErrorReporter::get_terminal_width() {
     struct winsize w;
@@ -94,25 +94,25 @@ void ErrorReporter::print_error_report(
     using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
     using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
-    // Global error counter for runtime execution
+    
     static thread_local int global_error_count = 0;
 
-    // If start_error_number is -1 (default), use global counter for runtime,
-    // otherwise use provided number
+    
+    
     int actual_start_number;
     if (start_error_number == -1) {
         global_error_count++;
         actual_start_number = global_error_count;
     } else {
         actual_start_number = start_error_number;
-        // For syntax checking (when start_error_number is explicitly provided),
-        // reset global counter
+        
+        
         if (start_error_number == 1) {
             global_error_count = 0;
         }
     }
 
-    // Recursion guard to prevent infinite loops
+    
     static thread_local bool error_reporting_in_progress = false;
     if (error_reporting_in_progress) {
         std::cerr << "cjsh: error: recursive error reporting detected, "
@@ -468,7 +468,7 @@ void ErrorReporter::print_error_report(
             footer_width = std::min(footer_width, terminal_width - 2);
             footer_width = std::min(
                 footer_width,
-                static_cast<size_t>(120));  // Cap at reasonable maximum
+                static_cast<size_t>(120));  
 
             std::cout << "└";
             for (size_t i = 0; i < footer_width; i++) {
@@ -478,12 +478,12 @@ void ErrorReporter::print_error_report(
         }
 
     } catch (...) {
-        // Ensure guard is cleared even if error reporting itself fails
+        
         std::cerr << "cjsh: error: exception during error reporting"
                   << std::endl;
     }
 
-    // Clear recursion guard
+    
     error_reporting_in_progress = false;
 }
 
@@ -507,13 +507,13 @@ void ErrorReporter::print_runtime_error(const std::string& error_message,
 
     std::vector<SyntaxError> errors = {runtime_error};
     print_error_report(errors, true,
-                       !context.empty());  // Use default -1 for global counter
+                       !context.empty());  
 }
 
 void ErrorReporter::reset_error_count() {
-    // This function can be called to reset the error counter for new script
-    // execution The actual reset logic is handled inside print_error_report
-    // when syntax checking starts
+    
+    
+    
 }
 
-}  // namespace shell_script_interpreter
+}  

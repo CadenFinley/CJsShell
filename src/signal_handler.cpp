@@ -17,7 +17,7 @@ volatile sig_atomic_t SignalHandler::s_sigterm_received = 0;
 pid_t SignalHandler::s_main_pid = getpid();
 std::vector<int> SignalHandler::s_observed_signals;
 
-// ty to fish for signal lookup table
+
 const std::vector<SignalInfo> SignalHandler::s_signal_table = {
 #ifdef SIGHUP
     {SIGHUP, "SIGHUP", "Terminal hung up"},
@@ -209,11 +209,11 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             s_sigint_received = 1;
 
             if (!is_observed) {
-                // In non-interactive mode, exit immediately with proper signal
-                // code
+                
+                
                 if (!config::interactive_mode) {
                     g_exit_flag = true;
-                    exit(128 + SIGINT);  // 128 + 2 = 130
+                    exit(128 + SIGINT);  
                 }
             }
             break;
@@ -234,36 +234,36 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
                           << std::endl;
             }
 
-            // SIGHUP typically means terminal window was closed
-            // exit immediately unless SIGHUP is trapped
+            
+            
             if (!is_observed) {
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: SIGHUP not trapped, exiting "
                                  "immediately like bash"
                               << std::endl;
                 }
-                // Use _exit for immediate termination without cleanup
-                _exit(129);  // 128 + SIGHUP (1) = 129
+                
+                _exit(129);  
             } else {
-                // Even if SIGHUP is trapped, we should still exit quickly
-                // since the terminal is likely closed
+                
+                
                 if (g_debug_mode) {
                     std::cerr << "DEBUG: SIGHUP trapped but terminal closed, "
                                  "will exit after brief cleanup"
                               << std::endl;
                 }
-                // Set a flag to force exit after minimal cleanup
-                // The main loop will handle this via g_exit_flag
+                
+                
             }
             break;
         }
 
         case SIGTERM: {
-            // SIGTERM should cause immediate termination like bash
-            // The OS will handle cleanup of child processes
+            
+            
             s_sigterm_received = 1;
             g_exit_flag = true;
-            _exit(128 + SIGTERM);  // 128 + 15 = 143
+            _exit(128 + SIGTERM);  
         }
 
 #ifdef SIGWINCH
@@ -387,11 +387,11 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             pid_t pid;
             int status;
             int reaped_count = 0;
-            const int max_reap_iterations = 100;  // Prevent infinite loops
+            const int max_reap_iterations = 100;  
 
-            // Add small delay to let processes finish cleanly
+            
             if (s_sigchld_received == 1) {
-                usleep(1000);  // 1ms delay on first SIGCHLD
+                usleep(1000);  
             }
 
             while ((pid = waitpid(-1, &status,
@@ -455,7 +455,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                 }
             }
 
-            // Check if we hit the maximum iteration limit
+            
             if (reaped_count >= max_reap_iterations) {
                 std::cerr
                     << "WARNING: SIGCHLD handler hit maximum iteration limit ("
@@ -486,7 +486,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                       << std::endl;
         }
 
-        // Always set exit flag when SIGHUP is received - terminal is closing
+        
         g_exit_flag = true;
 
         if (shell_exec) {
@@ -496,10 +496,10 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                           << std::endl;
             }
 
-            // Send SIGTERM to all child processes immediately
+            
             shell_exec->terminate_all_child_process();
 
-            // Aggressively terminate all jobs without waiting
+            
             auto& job_manager = JobManager::instance();
             auto all_jobs = job_manager.get_all_jobs();
             for (auto& job : all_jobs) {
@@ -509,40 +509,40 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                         std::cerr << "DEBUG: SIGHUP: Force terminating job "
                                   << job->job_id << std::endl;
                     }
-                    // Send SIGKILL after a brief SIGTERM to ensure quick
-                    // cleanup
+                    
+                    
                     killpg(job->pgid, SIGTERM);
-                    usleep(10000);               // 10ms grace period
-                    killpg(job->pgid, SIGKILL);  // Force kill
+                    usleep(10000);               
+                    killpg(job->pgid, SIGKILL);  
                     job->state = JobState::TERMINATED;
                 }
             }
         }
 
-        // If SIGHUP is observed (trapped) by user script, still exit but allow
-        // minimal cleanup
+        
+        
         if (!is_signal_observed(SIGHUP)) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: SIGHUP not trapped, forcing immediate exit"
                           << std::endl;
             }
-            std::quick_exit(129);  // 128 + SIGHUP (1)
+            std::quick_exit(129);  
         } else {
-            // Even if trapped, force exit quickly since terminal is closed
+            
             if (g_debug_mode) {
                 std::cerr << "DEBUG: SIGHUP trapped but terminal closed, "
                              "forcing exit after minimal cleanup"
                           << std::endl;
             }
-            // Give very brief time for cleanup, then force exit
-            alarm(1);  // Force exit in 1 second maximum
+            
+            alarm(1);  
         }
     }
 
     if (s_sigterm_received) {
         s_sigterm_received = 0;
 
-        // SIGTERM should always trigger termination
+        
         g_exit_flag = true;
 
         if (shell_exec) {

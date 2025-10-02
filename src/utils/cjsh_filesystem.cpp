@@ -66,7 +66,7 @@ Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd,
 
     int file_fd = open_result.value();
 
-    // Only dup2 if the file descriptor is different from target
+    
     if (file_fd != target_fd) {
         auto dup_result = safe_dup2(file_fd, target_fd);
         safe_close(file_fd);
@@ -78,7 +78,7 @@ Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd,
     return Result<void>::ok();
 }
 
-// FILE* based operations
+
 Result<FILE*> FileOperations::safe_fopen(const std::string& path,
                                          const std::string& mode) {
     FILE* file = std::fopen(path.c_str(), mode.c_str());
@@ -113,7 +113,7 @@ int FileOperations::safe_pclose(FILE* file) {
     return ::pclose(file);
 }
 
-// Temporary file utilities
+
 Result<std::string> FileOperations::create_temp_file(
     const std::string& prefix) {
     std::string temp_path = "/tmp/" + prefix + "_" + std::to_string(getpid()) +
@@ -149,7 +149,7 @@ void FileOperations::cleanup_temp_file(const std::string& path) {
     std::remove(path.c_str());
 }
 
-// High-level utilities
+
 Result<std::string> FileOperations::read_command_output(
     const std::string& command) {
     auto pipe_result = safe_popen(command, "r");
@@ -221,7 +221,7 @@ Result<std::string> FileOperations::read_file_content(const std::string& path) {
 
 bool should_refresh_executable_cache() {
     try {
-        // Check if PATH environment has changed
+        
         if (has_path_changed()) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Cache refresh needed due to PATH change"
@@ -230,7 +230,7 @@ bool should_refresh_executable_cache() {
             return true;
         }
 
-        // Check if cache file doesn't exist
+        
         if (!fs::exists(g_cjsh_found_executables_path)) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Cache refresh needed - cache file missing"
@@ -239,7 +239,7 @@ bool should_refresh_executable_cache() {
             return true;
         }
 
-        // Check if cache is older than 24 hours
+        
         auto last = fs::last_write_time(g_cjsh_found_executables_path);
         auto now = decltype(last)::clock::now();
         bool is_old = (now - last) > std::chrono::hours(24);
@@ -353,7 +353,7 @@ bool build_executable_cache() {
     }
 
     std::string content;
-    content.reserve(executables.size() * 16);  // rough heuristic
+    content.reserve(executables.size() * 16);  
     for (const auto& executable : executables) {
         content += executable.filename().string();
         content.push_back('\n');
@@ -379,7 +379,7 @@ bool build_executable_cache() {
 std::vector<fs::path> read_cached_executables() {
     std::vector<fs::path> executables;
 
-    // Use FileOperations for safe reading
+    
     auto read_result = FileOperations::read_file_content(
         g_cjsh_found_executables_path.string());
     if (read_result.is_error()) {
@@ -605,7 +605,7 @@ void create_source_file() {
 }
 
 bool init_login_filesystem() {
-    // verify and create if needed the cjsh login filesystem
+    
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing login filesystem" << std::endl;
     try {
@@ -636,14 +636,14 @@ bool init_interactive_filesystem() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing interactive filesystem" << std::endl;
 
-    // Cache current path to avoid multiple filesystem calls
+    
     std::string current_path = std::filesystem::current_path().string();
     if (g_debug_mode)
         std::cerr << "DEBUG: Current path: " << current_path << std::endl;
     setenv("PWD", current_path.c_str(), 1);
 
     try {
-        // Cache file existence results to avoid repeated checks
+        
         bool home_exists = std::filesystem::exists(g_user_home_path);
         bool history_exists = std::filesystem::exists(g_cjsh_history_path);
         bool source_exists = std::filesystem::exists(g_cjsh_source_path);
@@ -657,7 +657,7 @@ bool init_interactive_filesystem() {
             return false;
         }
 
-        // Create files if needed based on cached existence checks
+        
         if (!history_exists) {
             if (g_debug_mode)
                 std::cerr << "DEBUG: Creating history file" << std::endl;
@@ -672,14 +672,14 @@ bool init_interactive_filesystem() {
             }
         }
 
-        // .cjshrc
+        
         if (!source_exists) {
             if (g_debug_mode)
                 std::cerr << "DEBUG: Creating source file" << std::endl;
             create_source_file();
         }
 
-        // Only refresh executable cache if needed
+        
         if (should_refresh_cache) {
             if (g_debug_mode)
                 std::cerr << "DEBUG: Refreshing executable cache" << std::endl;
@@ -689,11 +689,11 @@ bool init_interactive_filesystem() {
                 std::cerr << "DEBUG: Using existing executable cache"
                           << std::endl;
 
-            // Even if we don't rebuild the full cache, occasionally clean up
-            // stale entries This helps remove executables that were uninstalled
-            // since last full refresh
+            
+            
+            
             static int cleanup_counter = 0;
-            if (++cleanup_counter % 10 == 0) {  // Every 10th shell startup
+            if (++cleanup_counter % 10 == 0) {  
                 if (g_debug_mode)
                     std::cerr
                         << "DEBUG: Performing periodic stale cache cleanup"
@@ -712,31 +712,31 @@ bool init_interactive_filesystem() {
     return true;
 }
 
-// Auto-updating executable cache functions
+
 void add_executable_to_cache(const std::string& executable_name,
                              const std::string& full_path) {
     if (executable_name.empty() || full_path.empty()) {
         return;
     }
 
-    // First check if it's already in cache to avoid duplicate writes
+    
     if (is_executable_in_cache(executable_name)) {
         return;
     }
 
-    // Read current cache
+    
     auto cached_executables = read_cached_executables();
 
-    // Add the new executable (just the name, like the original cache)
+    
     cached_executables.emplace_back(executable_name);
 
-    // Remove duplicates and sort for consistency
+    
     std::sort(cached_executables.begin(), cached_executables.end());
     cached_executables.erase(
         std::unique(cached_executables.begin(), cached_executables.end()),
         cached_executables.end());
 
-    // Write back to cache
+    
     std::string content;
     for (const auto& exec : cached_executables) {
         content += exec.filename().string() + "\n";
@@ -750,7 +750,7 @@ void add_executable_to_cache(const std::string& executable_name,
                   << "' to executable cache" << std::endl;
     }
 
-    // Notify other systems of cache update
+    
     if (write_result.is_ok()) {
         notify_cache_systems_of_update();
     }
@@ -809,7 +809,7 @@ std::string get_current_path_hash() {
         return "";
     }
 
-    // Create a hash of the PATH environment variable
+    
     std::string path_str(path_env);
     std::hash<std::string> hasher;
     size_t path_hash = hasher(path_str);
@@ -833,20 +833,20 @@ void set_last_path_hash(const std::string& path_hash) {
 bool has_path_changed() {
     std::string current_hash = get_current_path_hash();
     if (current_hash.empty()) {
-        return true;  // If we can't get current hash, assume it changed
+        return true;  
     }
 
     auto read_result =
         FileOperations::read_file_content(g_cjsh_path_hash_cache_path.string());
 
     if (read_result.is_error()) {
-        // No cached hash means PATH has "changed" (first run)
+        
         set_last_path_hash(current_hash);
         return true;
     }
 
     std::string cached_hash = read_result.value();
-    // Remove any trailing newline
+    
     if (!cached_hash.empty() && cached_hash.back() == '\n') {
         cached_hash.pop_back();
     }
@@ -868,10 +868,10 @@ void remove_executable_from_cache(const std::string& executable_name) {
         return;
     }
 
-    // Read current cache
+    
     auto cached_executables = read_cached_executables();
 
-    // Remove the executable
+    
     auto original_size = cached_executables.size();
     cached_executables.erase(
         std::remove_if(cached_executables.begin(), cached_executables.end(),
@@ -881,7 +881,7 @@ void remove_executable_from_cache(const std::string& executable_name) {
                        }),
         cached_executables.end());
 
-    // Only rewrite cache if something was actually removed
+    
     if (cached_executables.size() < original_size) {
         std::string content;
         for (const auto& exec : cached_executables) {
@@ -897,7 +897,7 @@ void remove_executable_from_cache(const std::string& executable_name) {
                       << std::endl;
         }
 
-        // Notify other systems of cache update
+        
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
@@ -929,7 +929,7 @@ void cleanup_stale_cache_entries() {
         }
     }
 
-    // Only rewrite cache if we removed anything
+    
     if (removed_count > 0) {
         std::string content;
         for (const auto& exec : valid_executables) {
@@ -944,7 +944,7 @@ void cleanup_stale_cache_entries() {
                       << " stale cache entries" << std::endl;
         }
 
-        // Notify other systems of cache update
+        
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
@@ -960,11 +960,11 @@ void notify_cache_systems_of_update() {
                   << std::endl;
     }
 
-    // Refresh syntax highlighter's executable cache
+    
     SyntaxHighlighter::refresh_executables_cache();
 
-    // Refresh completions system (though it already reads fresh data each time)
+    
     refresh_cached_executables();
 }
 
-}  // namespace cjsh_filesystem
+}  

@@ -25,7 +25,7 @@ std::string ContainerInfo::execute_command(const std::string& command) {
     }
 
     std::string output = result.value();
-    // Remove trailing newline if present
+    
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();
     }

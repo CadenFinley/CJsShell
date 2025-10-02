@@ -19,7 +19,7 @@ extern "C" PLUGIN_API plugin_error_t plugin_register_prompt_variable(
     return PLUGIN_SUCCESS;
 }
 
-// Enhanced helper functions for plugin API
+
 extern "C" PLUGIN_API char* plugin_safe_strdup(const char* src) {
     if (!src)
         return nullptr;
@@ -82,11 +82,11 @@ Plugin::Plugin(const std::filesystem::path& plugins_dir, bool enabled,
 
     if (enabled) {
         if (lazy_loading_enabled) {
-            // In lazy loading mode, only discover metadata
+            
             cache_plugin_metadata();
             plugins_discovered = true;
         } else {
-            // Traditional eager loading
+            
             plugins_discovered = discover_plugins();
         }
     } else {
@@ -416,7 +416,7 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
     data.free_memory = reinterpret_cast<plugin_free_memory_func>(
         dlsym(handle, "plugin_free_memory"));
     data.validate = reinterpret_cast<plugin_validate_func>(
-        dlsym(handle, "plugin_validate"));  // Optional function
+        dlsym(handle, "plugin_validate"));  
 
     if (g_debug_mode) {
         std::cerr << "DEBUG: load_plugin - Checking for required functions"
@@ -457,7 +457,7 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
                       << " default settings" << std::endl;
         }
 
-        // Store settings and free memory properly
+        
         if (settings && count > 0) {
             for (int i = 0; i < count; i++) {
                 if (settings[i].key && settings[i].value) {
@@ -470,8 +470,8 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
                 }
             }
 
-            // Free the memory allocated by the plugin using its own free
-            // function
+            
+            
             if (data.free_memory) {
                 for (int i = 0; i < count; i++) {
                     if (settings[i].key) {
@@ -486,7 +486,7 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
         }
     }
 
-    // Run plugin validation if available (enhanced API)
+    
     if (data.validate) {
         if (g_debug_mode) {
             std::cerr << "DEBUG: load_plugin - Running plugin validation"
@@ -498,7 +498,7 @@ bool Plugin::load_plugin(const std::filesystem::path& path) {
             if (validation_result.error_message) {
                 error_msg +=
                     ": " + std::string(validation_result.error_message);
-                // Free the error message if it was allocated
+                
                 if (data.free_memory) {
                     data.free_memory(validation_result.error_message);
                 }
@@ -544,7 +544,7 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
     metadata.is_loaded = false;
     metadata.load_failed = false;
 
-    // Temporarily open the library to extract basic info
+    
     void* temp_handle = dlopen(path.c_str(), RTLD_LAZY);
     if (!temp_handle) {
         if (g_debug_mode) {
@@ -556,7 +556,7 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
         return false;
     }
 
-    // Get plugin info
+    
     plugin_get_info_func get_info = reinterpret_cast<plugin_get_info_func>(
         dlsym(temp_handle, "plugin_get_info"));
     if (!get_info) {
@@ -612,7 +612,7 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
         free(entries);
     };
 
-    // Try to get commands list
+    
     plugin_get_commands_func get_commands =
         reinterpret_cast<plugin_get_commands_func>(
             dlsym(temp_handle, "plugin_get_commands"));
@@ -630,7 +630,7 @@ bool Plugin::extract_plugin_metadata(const std::filesystem::path& path,
         }
     }
 
-    // Try to get subscribed events
+    
     plugin_get_subscribed_events_func get_events =
         reinterpret_cast<plugin_get_subscribed_events_func>(
             dlsym(temp_handle, "plugin_get_subscribed_events"));
@@ -666,7 +666,7 @@ bool Plugin::load_plugin_on_demand(const std::string& name) {
                   << std::endl;
     }
 
-    // Check if already loaded
+    
     {
         std::shared_lock plugins_lock(plugins_mutex);
         if (loaded_plugins.find(name) != loaded_plugins.end()) {
@@ -679,7 +679,7 @@ bool Plugin::load_plugin_on_demand(const std::string& name) {
         }
     }
 
-    // Get metadata to find the library path
+    
     std::shared_lock metadata_lock(metadata_mutex);
     auto metadata_it = plugin_metadata_cache.find(name);
     if (metadata_it == plugin_metadata_cache.end()) {
@@ -694,11 +694,11 @@ bool Plugin::load_plugin_on_demand(const std::string& name) {
     std::filesystem::path library_path = metadata_it->second.library_path;
     metadata_lock.unlock();
 
-    // Load the plugin fully
+    
     bool result = load_plugin(library_path);
 
     if (result) {
-        // Update metadata to mark as loaded
+        
         std::unique_lock metadata_lock(metadata_mutex);
         auto& metadata = plugin_metadata_cache[name];
         metadata.is_loaded = true;
@@ -745,14 +745,14 @@ void Plugin::cache_plugin_metadata() {
 
     std::unique_lock metadata_lock(metadata_mutex);
 
-    // Scan plugin directory for .so/.dylib files
+    
     for (const auto& entry :
          std::filesystem::directory_iterator(plugins_directory)) {
         if (entry.path().extension() == ".so" ||
             entry.path().extension() == ".dylib") {
             std::string filename = entry.path().filename().string();
 
-            // Check if we already have metadata and if it's current
+            
             auto existing = plugin_metadata_cache.find(filename);
             if (existing != plugin_metadata_cache.end()) {
                 if (!is_metadata_stale(existing->second)) {
@@ -765,7 +765,7 @@ void Plugin::cache_plugin_metadata() {
                 }
             }
 
-            // Extract fresh metadata
+            
             plugin_metadata metadata;
             if (extract_plugin_metadata(entry.path(), metadata)) {
                 plugin_metadata_cache[metadata.name] = metadata;
@@ -1004,7 +1004,7 @@ std::vector<std::string> Plugin::get_available_plugins() const {
     std::vector<std::string> plugins;
 
     if (lazy_loading_enabled) {
-        // In lazy loading mode, use metadata cache
+        
         std::shared_lock metadata_lock(metadata_mutex);
         for (const auto& [name, metadata] : plugin_metadata_cache) {
             if (!metadata.load_failed) {
@@ -1012,7 +1012,7 @@ std::vector<std::string> Plugin::get_available_plugins() const {
             }
         }
     } else {
-        // Traditional mode, use loaded plugins
+        
         std::shared_lock plugins_lock(plugins_mutex);
         for (const auto& [name, _] : loaded_plugins) {
             plugins.push_back(name);
@@ -1091,9 +1091,9 @@ bool Plugin::enable_plugin(const std::string& name) {
             return true;
         }
 
-        // In lazy loading mode, load the plugin if not already loaded
+        
         if (lazy_loading_enabled && it == loaded_plugins.end()) {
-            plugins_lock.unlock();  // Release lock before loading
+            plugins_lock.unlock();  
             if (!load_plugin_on_demand(name)) {
                 print_error({ErrorType::RUNTIME_ERROR,
                              "plugin",
@@ -1106,7 +1106,7 @@ bool Plugin::enable_plugin(const std::string& name) {
                 }
                 return false;
             }
-            plugins_lock.lock();  // Re-acquire lock
+            plugins_lock.lock();  
             it = loaded_plugins.find(name);
         }
 
@@ -1376,7 +1376,7 @@ bool Plugin::handle_plugin_command(const std::string& targeted_plugin,
     std::shared_lock plugins_lock(plugins_mutex);
     auto it = loaded_plugins.find(targeted_plugin);
 
-    // If plugin not loaded but lazy loading is enabled, try to load it
+    
     if (lazy_loading_enabled && it == loaded_plugins.end()) {
         plugins_lock.unlock();
         if (load_plugin_on_demand(targeted_plugin)) {
@@ -1454,7 +1454,7 @@ std::vector<std::string> Plugin::get_plugin_commands(
         return {};
     }
 
-    // In lazy loading mode, try to get commands from metadata cache first
+    
     if (lazy_loading_enabled) {
         std::shared_lock metadata_lock(metadata_mutex);
         auto metadata_it = plugin_metadata_cache.find(name);
@@ -1994,7 +1994,7 @@ std::vector<std::string> Plugin::get_available_commands(
         return {};
     }
 
-    // First try metadata cache (for lazy loading)
+    
     if (lazy_loading_enabled) {
         std::shared_lock metadata_lock(metadata_mutex);
         auto metadata_it = plugin_metadata_cache.find(plugin_name);
@@ -2003,7 +2003,7 @@ std::vector<std::string> Plugin::get_available_commands(
         }
     }
 
-    // Fallback to loaded plugins
+    
     return get_plugin_commands(plugin_name);
 }
 

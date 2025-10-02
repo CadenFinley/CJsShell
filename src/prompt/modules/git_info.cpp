@@ -13,10 +13,10 @@
 #include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
-// Safe subprocess execution utility function
-// Returns: 0 on success, -1 on error
-// result: stores command output
-// exit_code: stores the exit code of the command
+
+
+
+
 static int safe_execute_git_command(const std::string& command,
                                     std::string& result, int& exit_code) {
     result.clear();
@@ -43,18 +43,18 @@ static int safe_execute_git_command(const std::string& command,
     }
 
     if (pid == 0) {
-        // Child process
+        
         cjsh_filesystem::FileOperations::safe_close(
-            pipefd[0]);  // Close read end
+            pipefd[0]);  
 
-        // Redirect stdout to pipe
+        
         auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(
             pipefd[1], STDOUT_FILENO);
         if (dup_result.is_error()) {
             _exit(127);
         }
 
-        // Redirect stderr to /dev/null to match original behavior
+        
         auto devnull_result =
             cjsh_filesystem::FileOperations::safe_open("/dev/null", O_WRONLY);
         if (devnull_result.is_ok()) {
@@ -65,15 +65,15 @@ static int safe_execute_git_command(const std::string& command,
 
         cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
 
-        // Execute command via sh -c to handle pipes and redirections
+        
         execl("/bin/sh", "sh", "-c", command.c_str(), (char*)NULL);
         _exit(127);
     }
 
-    // Parent process
-    cjsh_filesystem::FileOperations::safe_close(pipefd[1]);  // Close write end
+    
+    cjsh_filesystem::FileOperations::safe_close(pipefd[1]);  
 
-    // Read output
+    
     char buffer[4096];
     ssize_t bytes_read;
     while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
@@ -83,7 +83,7 @@ static int safe_execute_git_command(const std::string& command,
 
     cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
 
-    // Wait for child and get exit status
+    
     int status;
     if (waitpid(pid, &status, 0) == -1) {
         if (g_debug_mode) {
@@ -197,7 +197,7 @@ std::string GitInfo::get_git_branch(
         }
 
         std::string head_contents = read_result.value();
-        // Remove trailing newline if present
+        
         if (!head_contents.empty() && head_contents.back() == '\n') {
             head_contents.pop_back();
         }

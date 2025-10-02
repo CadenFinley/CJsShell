@@ -99,11 +99,11 @@ struct CompletionTracker {
     bool would_create_duplicate(const char* completion_text, const char* source,
                                 long delete_before = 0) {
         if (added_completions.size() >= MAX_COMPLETION_TRACKER_ENTRIES) {
-            // if (g_debug_mode) {
-            //   std::cerr << "DEBUG: CompletionTracker reached max entries ("
-            //             << MAX_COMPLETION_TRACKER_ENTRIES
-            //             << "), skipping further additions" << std::endl;
-            // }
+            
+            
+            
+            
+            
             return true;
         }
 
@@ -116,13 +116,13 @@ struct CompletionTracker {
                 std::string directory_result = final_result + "/";
                 auto dir_it = added_completions.find(directory_result);
                 if (dir_it != added_completions.end()) {
-                    // if (g_debug_mode) {
-                    //   std::cerr << "DEBUG: Skipping bookmark '" <<
-                    //   completion_text
-                    //             << "' because directory with same name
-                    //             exists"
-                    //             << std::endl;
-                    // }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                     return true;
                 }
             } else if (source && strcmp(source, "directory") == 0) {
@@ -156,16 +156,16 @@ struct CompletionTracker {
     bool add_completion_if_unique(const char* completion_text) {
         const char* source = nullptr;
         if (has_reached_completion_limit()) {
-            // if (g_debug_mode)
-            //   std::cerr << "DEBUG: Reached global completion limit ("
-            //             << MAX_TOTAL_COMPLETIONS << "), skipping: '"
-            //             << completion_text << "'" << std::endl;
+            
+            
+            
+            
             return true;
         }
         if (would_create_duplicate(completion_text, source, 0)) {
-            // if (g_debug_mode)
-            //   std::cerr << "DEBUG: Skipping duplicate completion: '"
-            //             << completion_text << "'" << std::endl;
+            
+            
+            
             return true;
         }
 
@@ -186,16 +186,16 @@ struct CompletionTracker {
                                        long delete_before, long delete_after) {
         const char* source = nullptr;
         if (has_reached_completion_limit()) {
-            // if (g_debug_mode)
-            //   std::cerr << "DEBUG: Reached global completion limit ("
-            //             << MAX_TOTAL_COMPLETIONS << "), skipping (prim): '"
-            //             << completion_text << "'" << std::endl;
+            
+            
+            
+            
             return true;
         }
         if (would_create_duplicate(completion_text, source, delete_before)) {
-            // if (g_debug_mode)
-            //   std::cerr << "DEBUG: Skipping duplicate completion (prim): '"
-            //             << completion_text << "'" << std::endl;
+            
+            
+            
             return true;
         }
 
@@ -217,12 +217,12 @@ struct CompletionTracker {
         const char* completion_text, const char* display, const char* help,
         const char* source, long delete_before, long delete_after) {
         if (has_reached_completion_limit()) {
-            // if (g_debug_mode)
-            //   std::cerr << "DEBUG: Reached global completion limit ("
-            //             << MAX_TOTAL_COMPLETIONS
-            //             << "), skipping (prim with source): '" <<
-            //             completion_text
-            //             << "'" << std::endl;
+            
+            
+            
+            
+            
+            
             return true;
         }
 
@@ -236,13 +236,13 @@ struct CompletionTracker {
                 std::string directory_result = final_result + "/";
                 auto dir_it = added_completions.find(directory_result);
                 if (dir_it != added_completions.end()) {
-                    // if (g_debug_mode) {
-                    //   std::cerr << "DEBUG: Skipping bookmark '" <<
-                    //   completion_text
-                    //             << "' because directory with same name
-                    //             exists"
-                    //             << std::endl;
-                    // }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                     return true;
                 }
             } else if (source && strcmp(source, "directory") == 0) {
@@ -269,16 +269,16 @@ struct CompletionTracker {
             SourcePriority existing_priority = it->second;
 
             if (new_priority <= existing_priority) {
-                // if (g_debug_mode)
-                //   std::cerr << "DEBUG: Skipping lower/equal priority
-                //   completion (prim
-                //   "
-                //                "with source): '"
-                //             << completion_text << "' (source: '"
-                //             << (source ? source : "null")
-                //             << "', priority: " << new_priority
-                //             << " vs existing: " << existing_priority << ")"
-                //             << std::endl;
+                
+                
+                
+                
+                
+                
+                
+                
+                
+                
                 return true;
             }
 
@@ -350,9 +350,9 @@ bool safe_add_completion_with_source(ic_completion_env_t* cenv,
                                      const char* source) {
     if (g_current_completion_tracker &&
         g_current_completion_tracker->has_reached_completion_limit()) {
-        // if (g_debug_mode)
-        //   std::cerr << "DEBUG: Reached global completion limit, skipping: '"
-        //             << completion_text << "'" << std::endl;
+        
+        
+        
         return true;
     }
     return ic_add_completion_ex_with_source(cenv, completion_text, nullptr,
@@ -775,12 +775,12 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     if (completion_limit_hit()) {
-        // if (g_debug_mode)
-        //   std::cerr << "DEBUG: Global completion limit reached, skipping
-        //   command
-        //   "
-        //                "completer"
-        //             << std::endl;
+        
+        
+        
+        
+        
+        
         return;
     }
 
@@ -823,9 +823,9 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     auto builtin_filter = [&](const std::string& cmd) {
         if (is_interactive_builtin(cmd))
             return true;
-        // if (g_debug_mode)
-        //   std::cerr << "DEBUG: Skipping script-only builtin: '" << cmd << "'"
-        //             << std::endl;
+        
+        
+        
         return false;
     };
 
@@ -907,12 +907,12 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     if (completion_limit_hit()) {
-        // if (g_debug_mode)
-        //   std::cerr << "DEBUG: Global completion limit reached, skipping
-        //   history
-        //   "
-        //                "completer"
-        //             << std::endl;
+        
+        
+        
+        
+        
+        
         return;
     }
 
@@ -920,11 +920,11 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     size_t prefix_len = prefix_str.length();
 
     if (prefix_len == 0) {
-        // if (g_debug_mode)
-        //   std::cerr << "DEBUG: History completer with empty prefix (showing
-        //   recent "
-        //                "history)"
-        //             << std::endl;
+        
+        
+        
+        
+        
     }
 
     std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
@@ -946,18 +946,18 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
             continue;
 
         if (line.length() > 1 && line[0] == '#' && line[1] == ' ') {
-            // if (g_debug_mode)
-            //   std::cerr << "DEBUG: Skipping timestamp line: '" << line << "'"
-            //             << std::endl;
+            
+            
+            
             continue;
         }
 
         if (looks_like_file_path(line)) {
-            // if (g_debug_mode)
-            //   std::cerr << "DEBUG: Skipping path-like history entry: '" <<
-            //   line <<
-            //   "'"
-            //             << std::endl;
+            
+            
+            
+            
+            
             continue;
         }
 
@@ -1099,12 +1099,12 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     if (completion_limit_hit()) {
-        // if (g_debug_mode)
-        //   std::cerr << "DEBUG: Global completion limit reached, skipping
-        //   filename
-        //   "
-        //                "completer"
-        //             << std::endl;
+        
+        
+        
+        
+        
+        
         return;
     }
 
@@ -1258,11 +1258,11 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         if (equals_completion_token(command_part, "cd") ||
             starts_with_token(command_part, "cd ")) {
             if (!config::smart_cd_enabled) {
-                // if (g_debug_mode)
-                //   std::cerr
-                //       << "DEBUG: Skipping bookmark completions - smart CD is
-                //       disabled"
-                //       << std::endl;
+                
+                
+                
+                
+                
             } else {
                 if (g_debug_mode)
                     std::cerr << "DEBUG: Processing bookmark completions for "
@@ -1290,14 +1290,14 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                     "./" + bookmark_name;
                                 if (fs::exists(current_dir_item) &&
                                     fs::is_directory(current_dir_item)) {
-                                    // if (g_debug_mode)
-                                    //   std::cerr << "DEBUG: Skipping bookmark
-                                    //   '" << bookmark_name
-                                    //             << "' because a directory
-                                    //             with the same name "
-                                    //                "exists in current
-                                    //                directory"
-                                    //             << std::endl;
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
                                     continue;
                                 }
 
@@ -1471,10 +1471,10 @@ void initialize_completion_system() {
     if (g_debug_mode)
         std::cerr << "DEBUG: Initializing completion system" << std::endl;
 
-    // Initialize default styles first
+    
     reset_to_default_styles();
 
-    // Load any custom styles from .cjshrc
+    
     load_custom_styles_from_config();
 
     if (config::completions_enabled) {
@@ -1547,10 +1547,10 @@ bool is_completion_case_sensitive() {
 }
 
 void refresh_cached_executables() {
-    // The completion system already reads cached_executables fresh on each
-    // call, so this function is provided for consistency with the syntax
-    // highlighter and for potential future optimizations that might cache the
-    // executables.
+    
+    
+    
+    
     if (g_debug_mode) {
         std::cerr << "DEBUG: Cached executables refreshed for completion system"
                   << std::endl;

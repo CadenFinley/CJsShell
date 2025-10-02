@@ -60,11 +60,11 @@ struct TerminalStatus {
     bool parent_alive;
 };
 
-// Consolidated terminal health check with different levels of thoroughness
+
 enum class TerminalCheckLevel {
-    QUICK,         // Fast basic checks (TTY status only)
-    RESPONSIVE,    // Medium checks (includes select/read test)
-    COMPREHENSIVE  // Full checks (includes parent process status)
+    QUICK,         
+    RESPONSIVE,    
+    COMPREHENSIVE  
 };
 
 TerminalStatus check_terminal_health(
@@ -75,7 +75,7 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    // Level 1: Basic TTY checks (always performed)
+    
     if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
         status.terminal_alive = false;
         if (g_debug_mode) {
@@ -89,7 +89,7 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    // Level 2: Responsive checks (select + read test)
+    
     fd_set readfds;
     struct timeval timeout;
     FD_ZERO(&readfds);
@@ -123,8 +123,8 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    // Level 3: Comprehensive checks (includes controlling terminal and parent
-    // process)
+    
+    
     if (!isatty(STDERR_FILENO)) {
         status.terminal_alive = false;
         if (g_debug_mode) {
@@ -133,7 +133,7 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    // Check controlling terminal access
+    
     pid_t tpgrp = tcgetpgrp(STDIN_FILENO);
     if (tpgrp == -1) {
         if (errno == ENOTTY || errno == ENXIO || errno == EIO) {
@@ -153,7 +153,7 @@ TerminalStatus check_terminal_health(
         }
     }
 
-    // Check if we can still get terminal name
+    
     char* tty_name = ttyname(STDIN_FILENO);
     if (tty_name == nullptr) {
         status.terminal_alive = false;
@@ -164,7 +164,7 @@ TerminalStatus check_terminal_health(
         return status;
     }
 
-    // Check parent process status
+    
     pid_t parent_pid = getppid();
     if (parent_pid == 1) {
         status.parent_alive = false;
@@ -236,7 +236,7 @@ bool process_command_line(const std::string& command) {
 
     return g_exit_flag;
 }
-}  // namespace
+}  
 
 void update_terminal_title() {
     if (g_debug_mode) {
@@ -319,12 +319,12 @@ bool handle_null_input() {
                   << std::endl;
     }
 
-    // Check if we're still in a live terminal session and parent is alive
+    
     TerminalStatus status =
         check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
-    // Only exit if terminal is dead or parent is dead
-    // If both are alive, this was likely just Ctrl+C, so continue the loop
+    
+    
     if (!status.terminal_alive || !status.parent_alive) {
         if (g_debug_mode) {
             std::cerr
@@ -332,15 +332,15 @@ bool handle_null_input() {
                 << std::endl;
         }
         g_exit_flag = true;
-        return true;  // Should exit
+        return true;  
     } else {
-        // Terminal and parent are alive, this was likely Ctrl+C - continue loop
+        
         if (g_debug_mode) {
             std::cerr << "DEBUG: Terminal and parent alive, treating as "
                          "interrupt - continuing loop"
                       << std::endl;
         }
-        return false;  // Should continue
+        return false;  
     }
 }
 
@@ -388,13 +388,13 @@ std::pair<std::string, bool> get_next_command() {
     }
 
     if (input == nullptr) {
-        // handle_null_input returns true if we should exit the main loop
+        
         if (handle_null_input()) {
-            return {command_to_run, false};  // Exit requested
+            return {command_to_run, false};  
         } else {
             g_shell->reset_command_timing();
             return {command_to_run,
-                    false};  // Continue loop, no command available
+                    false};  
         }
     }
 
@@ -428,7 +428,7 @@ void main_process_loop() {
 
         g_shell->process_pending_signals();
 
-        // Check if we should exit immediately after processing signals
+        
         if (g_exit_flag) {
             if (g_debug_mode) {
                 std::cerr << "DEBUG: Exit flag set after processing signals, "
@@ -454,7 +454,7 @@ void main_process_loop() {
 
         auto [command_to_run, command_available] = get_next_command();
 
-        // Check if get_next_command requested an exit
+        
         if (g_exit_flag) {
             break;
         }
