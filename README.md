@@ -11,7 +11,7 @@ This is CJ's Shell! This is a fully custom login shell that I wrote after I got 
  
 -Caden 'cj' Finley
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell. I also would not use it as your primary shell script interpreter.
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell. I also would not use it as your primary shell script interpreter. It is also super cool and you will never want to use another shell again.
 
 ## What is CJ's Shell?
 
@@ -54,13 +54,6 @@ For latest stable patch, you can build and install manually from a release on Gi
    ```bash
    ./toolchain/build.sh
    ```
-
-## Uninstalling cjsh
-It is as simple as running a command within the shell in interactive mode:
-
-```bash
-    cjsh_uninstall
-```
    
 # Testing and POSIX Compliance
 
