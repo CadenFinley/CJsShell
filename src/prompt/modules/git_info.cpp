@@ -62,7 +62,6 @@ static int safe_execute_git_command(const std::string& command, std::string& res
 
     int status;
     if (waitpid(pid, &status, 0) == -1) {
-        }
         return -1;
     }
 

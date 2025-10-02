@@ -286,10 +286,8 @@ void load_custom_styles_from_config() {
     }
 
     std::string line;
-    int line_number = 0;
 
     while (std::getline(config_file, line)) {
-        line_number++;
 
         std::string trimmed = line;
         trimmed.erase(0, trimmed.find_first_not_of(" \t"));

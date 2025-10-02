@@ -61,9 +61,6 @@ ScopedRawMode::ScopedRawMode(int fd) : entered_(false), fd_(fd) {
     }
 
     if (tcgetattr(fd_, &saved_modes_) == -1) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: ScopedRawMode failed to save current termios: " << strerror(errno) << std::endl;
-        }
         return;
     }
 
@@ -73,9 +70,6 @@ ScopedRawMode::ScopedRawMode(int fd) : entered_(false), fd_(fd) {
     raw_modes.c_cc[VTIME] = 0;
 
     if (tcsetattr(fd_, TCSANOW, &raw_modes) == -1) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: ScopedRawMode failed to enter raw mode: " << strerror(errno) << std::endl;
-        }
         return;
     }
 
@@ -92,9 +86,7 @@ void ScopedRawMode::release() {
     }
 
     if (tcsetattr(fd_, TCSANOW, &saved_modes_) == -1) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: ScopedRawMode failed to restore termios: " << strerror(errno) << std::endl;
-        }
+        // Failed to restore terminal modes, but there's not much we can do here as shell is likely exiting.
     }
 
     entered_ = false;
@@ -107,8 +99,6 @@ void Shell::process_pending_signals() {
 }
 
 Shell::Shell() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Constructing Shell" << std::endl;
 
     save_terminal_state();
 
@@ -177,9 +167,6 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
         auto it = g_script_cache.find(cache_key);
         if (it != g_script_cache.end() && it->second.modified == mod_time) {
             cached_lines = it->second.lines;
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Using cached script: " << cache_key << std::endl;
-            }
         }
     }
 
@@ -187,9 +174,6 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
         std::ifstream file(normalized);
         if (!file) {
             if (optional) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Optional script not found: " << display_path << std::endl;
-                }
                 return 0;
             }
             print_error({ErrorType::FILE_NOT_FOUND, "source", "cannot open file '" + display_path + "'", {}});
@@ -204,10 +188,6 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
         if (!mod_ec) {
             std::lock_guard<std::mutex> lock(g_script_cache_mutex);
             g_script_cache[cache_key] = {mod_time, parsed_lines};
-        }
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Parsed script: " << display_path << " (" << parsed_lines->size() << " lines)" << std::endl;
         }
     }
 
@@ -226,10 +206,6 @@ int Shell::load_theme_from_file(const std::filesystem::path& path, bool optional
     }
 
     if (!has_theme_extension(normalized)) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: load_theme_from_file called for non-theme "
-                      << "path: " << display_path << std::endl;
-        }
         return 1;
     }
 
@@ -237,9 +213,6 @@ int Shell::load_theme_from_file(const std::filesystem::path& path, bool optional
     auto status = std::filesystem::status(normalized, status_ec);
     if (status_ec || !std::filesystem::is_regular_file(status)) {
         if (optional) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Optional theme file not found: " << display_path << std::endl;
-            }
             return 0;
         }
         print_error({ErrorType::FILE_NOT_FOUND,
@@ -275,10 +248,6 @@ int Shell::load_theme_from_file(const std::filesystem::path& path, bool optional
         return 2;
     }
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Loaded theme from '" << display_path << "'" << std::endl;
-    }
-
     return 0;
 }
 
@@ -301,13 +270,6 @@ int Shell::execute(const std::string& script) {
 
     lines = shell_parser->parse_into_lines(processed_script);
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Executing script with " << lines.size() << " lines:" << std::endl;
-        for (size_t i = 0; i < lines.size(); i++) {
-            std::cerr << "DEBUG:   Line " << (i + 1) << ": " << lines[i] << std::endl;
-        }
-    }
-
     if (shell_script_interpreter) {
         int exit_code = shell_script_interpreter->execute_block(lines);
         last_command = processed_script;
@@ -327,9 +289,6 @@ void Shell::setup_interactive_handlers() {
 }
 
 void Shell::save_terminal_state() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Saving terminal state" << std::endl;
-
     if (isatty(STDIN_FILENO)) {
         if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
             terminal_state_saved = true;
@@ -344,9 +303,6 @@ void Shell::restore_terminal_state() {
 
     if (terminal_state_saved) {
         if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Warning - failed to restore terminal state: " << strerror(errno) << std::endl;
-            }
 
             tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
         }
@@ -358,9 +314,6 @@ void Shell::restore_terminal_state() {
 }
 
 void Shell::setup_job_control() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Setting up job control" << std::endl;
-
     if (!isatty(STDIN_FILENO)) {
         job_control_enabled = false;
         return;
@@ -443,8 +396,6 @@ int Shell::do_ai_request(const std::string& command) {
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Executing command: '" << args[0] << "'" << std::endl;
 
     if (args.empty()) {
         return 0;
@@ -482,11 +433,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         int code = built_ins->builtin_command(args);
         last_terminal_output_error = built_ins->get_last_error();
 
-        if (args[0] == "break" || args[0] == "continue" || args[0] == "return") {
-            if (g_debug_mode)
-                std::cerr << "DEBUG: Detected loop control command: " << args[0] << " with exit code " << code << std::endl;
-        }
-
         return code;
     }
 
@@ -512,10 +458,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
                 setenv("!", std::to_string(last_pid).c_str(), 1);
 
                 JobManager::instance().set_last_background_pid(last_pid);
-
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Background job " << job_id << " started with PID " << last_pid << std::endl;
-                }
             }
         }
         last_terminal_output_error = "Background command launched";
@@ -595,9 +537,6 @@ size_t Shell::get_positional_parameter_count() const {
 
 void Shell::set_shell_option(const std::string& option, bool value) {
     shell_options[option] = value;
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Set shell option '" << option << "' to " << (value ? "true" : "false") << std::endl;
-    }
 }
 
 bool Shell::get_shell_option(const std::string& option) const {
@@ -616,8 +555,6 @@ void Shell::expand_env_vars(std::string& value) {
 }
 
 void Shell::sync_env_vars_from_system() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Syncing shell env_vars cache from system environment" << std::endl;
 
     extern char** environ;
     for (char** env = environ; *env != nullptr; env++) {
@@ -627,10 +564,6 @@ void Shell::sync_env_vars_from_system() {
             std::string name = env_str.substr(0, eq_pos);
             std::string value = env_str.substr(eq_pos + 1);
             env_vars[name] = value;
-
-            if (g_debug_mode && name == "PATH") {
-                std::cerr << "DEBUG: Synced PATH=" << value << std::endl;
-            }
         }
     }
 

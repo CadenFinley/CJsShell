@@ -117,15 +117,11 @@ const std::vector<SignalInfo> SignalHandler::s_signal_table = {
 SignalHandler* g_signal_handler = nullptr;
 
 SignalHandler::SignalHandler() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Constructing SignalHandler" << std::endl;
     signal_unblock_all();
     s_instance.store(this);
 }
 
 SignalHandler::~SignalHandler() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Destroying SignalHandler" << std::endl;
     restore_original_handlers();
     s_instance.store(nullptr);
 }
@@ -225,26 +221,8 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             s_sighup_received = 1;
             g_exit_flag = true;
 
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGHUP received in signal handler - "
-                             "terminal likely closed"
-                          << std::endl;
-            }
-
             if (!is_observed) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: SIGHUP not trapped, exiting "
-                                 "immediately like bash"
-                              << std::endl;
-                }
-
                 _exit(129);
-            } else {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: SIGHUP trapped but terminal closed, "
-                                 "will exit after brief cleanup"
-                              << std::endl;
-                }
             }
             break;
         }
@@ -264,8 +242,6 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 }
 
 void SignalHandler::setup_signal_handlers() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Setting up signal handlers." << std::endl;
 
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
@@ -295,8 +271,6 @@ void SignalHandler::setup_signal_handlers() {
 }
 
 void SignalHandler::setup_interactive_handlers() {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Setting up interactive-specific signal handlers" << std::endl;
 
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
@@ -330,20 +304,9 @@ void SignalHandler::restore_original_handlers() {
 }
 
 void SignalHandler::process_pending_signals(Exec* shell_exec) {
-    if (g_debug_mode && (s_sigint_received || s_sigchld_received || s_sighup_received || s_sigterm_received)) {
-        std::cerr << "DEBUG: Processing pending signals: "
-                  << "SIGINT=" << s_sigint_received << ", "
-                  << "SIGCHLD=" << s_sigchld_received << ", "
-                  << "SIGHUP=" << s_sighup_received << ", "
-                  << "SIGTERM=" << s_sigterm_received << std::endl;
-    }
 
     if (s_sigint_received) {
         s_sigint_received = 0;
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Processing SIGINT signal" << std::endl;
-        }
 
         bool is_observed = is_signal_observed(SIGINT);
 
@@ -365,10 +328,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
     if (s_sigchld_received) {
         s_sigchld_received = 0;
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Processing SIGCHLD signal" << std::endl;
-        }
 
         if (shell_exec) {
             pid_t pid;
@@ -415,12 +374,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                         if (WSTOPSIG(status) == SIGTTIN) {
                             JobManager::instance().mark_job_reads_stdin(pid, true);
                             JobManager::instance().record_stdin_signal(pid, WSTOPSIG(status));
-                            if (g_debug_mode) {
-                                std::cerr << "DEBUG: Detected SIGTTIN for pid " << pid
-                                          << ", marking associated job as "
-                                             "reading stdin"
-                                          << std::endl;
-                            }
                         }
 #endif
                     } else if (WIFCONTINUED(status)) {
@@ -435,34 +388,20 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                           << "), breaking to prevent infinite loop" << std::endl;
             }
 
-            if (g_debug_mode && reaped_count > 0 && reaped_count <= 3) {
-                std::cerr << "DEBUG: SIGCHLD handler reaped " << reaped_count << " children" << std::endl;
-            }
-
-            if (pid == -1 && errno == ECHILD && g_debug_mode) {
-                static int echild_count = 0;
-                if (++echild_count <= 5) {
-                    std::cerr << "DEBUG: All children have been reaped" << std::endl;
-                }
-            }
+            // if (pid == -1 && errno == ECHILD && g_debug_mode) {
+            //     static int echild_count = 0;
+            //     if (++echild_count <= 5) {
+            //         std::cerr << "DEBUG: All children have been reaped" << std::endl;
+            //     }
+            // }
         }
     }
 
     if (s_sighup_received) {
         s_sighup_received = 0;
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Processing SIGHUP signal - terminal closed" << std::endl;
-        }
-
         g_exit_flag = true;
 
         if (shell_exec) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGHUP received, quickly terminating "
-                             "background jobs"
-                          << std::endl;
-            }
 
             shell_exec->terminate_all_child_process();
 
@@ -470,9 +409,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             auto all_jobs = job_manager.get_all_jobs();
             for (auto& job : all_jobs) {
                 if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: SIGHUP: Force terminating job " << job->job_id << std::endl;
-                    }
 
                     killpg(job->pgid, SIGTERM);
                     usleep(10000);
@@ -483,17 +419,8 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         }
 
         if (!is_signal_observed(SIGHUP)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGHUP not trapped, forcing immediate exit" << std::endl;
-            }
             std::quick_exit(129);
         } else {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGHUP trapped but terminal closed, "
-                             "forcing exit after minimal cleanup"
-                          << std::endl;
-            }
-
             alarm(1);
         }
     }
@@ -504,18 +431,12 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         g_exit_flag = true;
 
         if (shell_exec) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: SIGTERM received, terminating background jobs" << std::endl;
-            }
             shell_exec->terminate_all_child_process();
 
             auto& job_manager = JobManager::instance();
             auto all_jobs = job_manager.get_all_jobs();
             for (auto& job : all_jobs) {
                 if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Terminating job " << job->job_id << " via JobManager" << std::endl;
-                    }
                     if (killpg(job->pgid, SIGTERM) == 0) {
                         job->state = JobState::TERMINATED;
                     }
@@ -528,9 +449,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 void SignalHandler::observe_signal(int signum) {
     if (!is_signal_observed(signum)) {
         s_observed_signals.push_back(signum);
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Signal " << signum << " (" << get_signal_name(signum) << ") is now being observed by scripts" << std::endl;
-        }
     }
 }
 
@@ -538,10 +456,6 @@ void SignalHandler::unobserve_signal(int signum) {
     auto it = std::find(s_observed_signals.begin(), s_observed_signals.end(), signum);
     if (it != s_observed_signals.end()) {
         s_observed_signals.erase(it);
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Signal " << signum << " (" << get_signal_name(signum) << ") is no longer being observed by scripts"
-                      << std::endl;
-        }
     }
 }
 

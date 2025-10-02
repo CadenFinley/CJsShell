@@ -25,19 +25,12 @@ int JobManager::add_job(pid_t pgid, const std::vector<pid_t>& pids, const std::s
 
     update_current_previous(job_id);
 
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Added job " << job_id << " with pgid " << pgid << std::endl;
-    }
-
     return job_id;
 }
 
 void JobManager::remove_job(int job_id) {
     auto it = jobs.find(job_id);
     if (it != jobs.end()) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Removing job " << job_id << std::endl;
-        }
 
         if (current_job == job_id) {
             current_job = previous_job;
@@ -77,58 +70,28 @@ std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
 }
 
 void JobManager::update_job_status() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: JobManager::update_job_status() called with " << jobs.size() << " jobs" << std::endl;
-    }
 
     for (auto& pair : jobs) {
         auto job = pair.second;
 
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Checking job " << job->job_id << " with " << job->pids.size() << " PIDs" << std::endl;
-        }
 
         int status;
         for (pid_t pid : job->pids) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Calling waitpid for PID " << pid << std::endl;
-            }
-
             pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
-
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: waitpid returned " << result << " for PID " << pid << std::endl;
-            }
 
             if (result > 0) {
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
                     job->state = WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED;
                     job->exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
-
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Job " << job->job_id << " PID " << pid << " finished" << std::endl;
-                    }
                 } else if (WIFSTOPPED(status)) {
                     job->state = JobState::STOPPED;
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Job " << job->job_id << " PID " << pid << " stopped" << std::endl;
-                    }
                 } else if (WIFCONTINUED(status)) {
                     job->state = JobState::RUNNING;
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Job " << job->job_id << " PID " << pid << " continued" << std::endl;
-                    }
                 }
             } else if (result == -1) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: waitpid error for PID " << pid << ": " << strerror(errno) << std::endl;
-                }
+                // Process no longer exists
             }
         }
-    }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: JobManager::update_job_status() completed" << std::endl;
     }
 }
 
@@ -171,55 +134,25 @@ void JobManager::cleanup_finished_jobs() {
 
 bool JobManager::foreground_job_reads_stdin() {
     if (jobs.empty()) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: foreground_job_reads_stdin -> false (no "
-                         "tracked jobs)"
-                      << std::endl;
-        }
         return false;
     }
 
     int foreground_id = current_job;
     if (foreground_id == -1) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: foreground_job_reads_stdin -> false (no "
-                         "foreground job)"
-                      << std::endl;
-        }
         return false;
     }
 
     auto it = jobs.find(foreground_id);
     if (it == jobs.end()) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: foreground_job_reads_stdin -> false (foreground job "
-                         "missing)"
-                      << std::endl;
-        }
         return false;
     }
 
     const auto& job = it->second;
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Evaluating foreground job " << job->job_id << " (pgid=" << job->pgid << ", background=" << job->background
-                  << ", reads_stdin=" << job->reads_stdin << ", awaiting_signal=" << job->awaiting_stdin_signal
-                  << ", stdin_signal_count=" << job->stdin_signal_count << ")" << std::endl;
-    }
     if (job->background || !job->reads_stdin) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: foreground_job_reads_stdin -> false (job not "
-                         "consuming stdin)"
-                      << std::endl;
-        }
         return false;
     }
 
     if (job->awaiting_stdin_signal) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: foreground_job_reads_stdin -> true (awaiting "
-                         "stdin signal)"
-                      << std::endl;
-        }
         return true;
     }
 
@@ -227,23 +160,8 @@ bool JobManager::foreground_job_reads_stdin() {
         const auto now = std::chrono::steady_clock::now();
         const auto elapsed = now - job->last_stdin_signal_time;
         if (elapsed <= std::chrono::milliseconds(250)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: foreground_job_reads_stdin -> true (recent "
-                             "SIGTTIN within "
-                          << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() << "ms)" << std::endl;
-            }
             return true;
         }
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: foreground_job_reads_stdin: SIGTTIN stale ("
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() << "ms ago)" << std::endl;
-        }
-    }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: foreground_job_reads_stdin -> false (no active stdin "
-                     "indicators)"
-                  << std::endl;
     }
     return false;
 }
@@ -254,17 +172,9 @@ void JobManager::mark_job_reads_stdin(pid_t pid, bool reads_stdin) {
         if (job->pgid == pid || std::find(job->pids.begin(), job->pids.end(), pid) != job->pids.end()) {
             if (job->reads_stdin != reads_stdin) {
                 job->reads_stdin = reads_stdin;
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Job " << job->job_id << (reads_stdin ? " marked as reading" : " marked as not reading")
-                              << " stdin due to signal detection" << std::endl;
-                }
             }
             return;
         }
-    }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: mark_job_reads_stdin could not find job for pid " << pid << std::endl;
     }
 }
 
@@ -278,16 +188,8 @@ void JobManager::record_stdin_signal(pid_t pid, int signal_number) {
             job->last_stdin_signal = signal_number;
             job->stdin_signal_count += 1;
             job->last_stdin_signal_time = now;
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Job " << job->job_id << " reported stdin signal " << signal_number
-                          << " (total=" << job->stdin_signal_count << ")" << std::endl;
-            }
             return;
         }
-    }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: record_stdin_signal could not find job for pid " << pid << std::endl;
     }
 }
 
@@ -300,16 +202,9 @@ void JobManager::clear_stdin_signal(pid_t pid) {
                 job->last_stdin_signal = 0;
                 job->stdin_signal_count = 0;
                 job->last_stdin_signal_time = std::chrono::steady_clock::time_point::min();
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Cleared stdin signal tracking for job " << job->job_id << std::endl;
-                }
             }
             return;
         }
-    }
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: clear_stdin_signal could not find job for pid " << pid << std::endl;
     }
 }
 

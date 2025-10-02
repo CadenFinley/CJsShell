@@ -224,14 +224,14 @@ static void start_interactive_process() {
         g_shell->set_initial_duration(startup_duration.count());
     }
 
-    if (show_title_line) {
+    if (config::show_title_line) {
         std::cout << " CJ's Shell v" << c_version << " - Caden J Finley (c) 2025" << std::endl;
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
                      "University\033[0m"
                   << std::endl;
     }
 
-    if (show_title_line && config::show_startup_time) {
+    if (config::show_title_line && config::show_startup_time) {
         std::cout << std::endl;
     }
 

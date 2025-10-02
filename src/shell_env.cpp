@@ -14,16 +14,10 @@
 namespace cjsh_env {
 
 void setup_environment_variables(const char* argv0) {
-    if (g_debug_mode)
-        std::cerr << "DEBUG: Setting up environment variables" << std::endl;
 
     if (argv0) {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Setting $0=" << argv0 << std::endl;
         setenv("0", argv0, 1);
     } else {
-        if (g_debug_mode)
-            std::cerr << "DEBUG: Setting $0=cjsh" << std::endl;
         setenv("0", "cjsh", 1);
     }
 
@@ -34,10 +28,6 @@ void setup_environment_variables(const char* argv0) {
         setup_path_variables(pw);
 
         auto env_vars = setup_user_system_vars(pw);
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Setting " << env_vars.size() << " environment variables" << std::endl;
-        }
 
         for (const auto& [name, value] : env_vars) {
             setenv(name, value, 1);
@@ -56,33 +46,13 @@ void setup_path_variables(const struct passwd* pw) {
     (void)pw;
 
     if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Running /usr/libexec/path_helper via shell" << std::endl;
-        }
 
         std::string old_path = getenv("PATH") ? getenv("PATH") : "";
         std::string old_manpath = getenv("MANPATH") ? getenv("MANPATH") : "";
 
-        if (!g_shell) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Shell not available for path_helper" << std::endl;
-            }
-        } else {
+        if (g_shell) {
             int result = g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
-
-            if (result == 0) {
-                const char* new_path = getenv("PATH");
-                if (new_path && std::string(new_path) != old_path && g_debug_mode) {
-                    std::cerr << "DEBUG: PATH updated via path_helper: " << new_path << std::endl;
-                }
-
-                const char* new_manpath = getenv("MANPATH");
-                if (new_manpath && std::string(new_manpath) != old_manpath && g_debug_mode) {
-                    std::cerr << "DEBUG: MANPATH updated via path_helper: " << new_manpath << std::endl;
-                }
-            } else if (g_debug_mode) {
-                std::cerr << "DEBUG: path_helper execution failed with exit code " << result << std::endl;
-            }
+            (void)result;
         }
     }
 #endif
@@ -102,9 +72,6 @@ void setup_path_variables(const struct passwd* pw) {
             if (cjsh_filesystem::file_exists(path)) {
                 if (current_path.find(path) == std::string::npos) {
                     additional_paths.push_back(path);
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Adding to PATH: " << path << std::endl;
-                    }
                 }
             }
         }
@@ -118,10 +85,6 @@ void setup_path_variables(const struct passwd* pw) {
             }
             new_path += ":" + current_path;
             setenv("PATH", new_path.c_str(), 1);
-
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Updated PATH on Linux: " << new_path << std::endl;
-            }
         }
 
         if (getenv("MANPATH") == nullptr) {
@@ -138,9 +101,6 @@ void setup_path_variables(const struct passwd* pw) {
 
             if (!manpath_str.empty()) {
                 setenv("MANPATH", manpath_str.c_str(), 1);
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Set MANPATH on Linux: " << manpath_str << std::endl;
-                }
             }
         }
     }
@@ -161,10 +121,6 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
 
     std::string current_path = std::filesystem::current_path().string();
     std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Setting SHELL to: " << shell_path << std::endl;
-    }
 
     setenv("PWD", current_path.c_str(), 1);
     setenv("SHELL", shell_path.c_str(), 1);
@@ -193,14 +149,8 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
     }
     std::string shlvl_str = std::to_string(shlvl);
     setenv("SHLVL", shlvl_str.c_str(), 1);
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Setting SHLVL to: " << shlvl_str << std::endl;
-    }
 
     std::string cjsh_path = cjsh_filesystem::get_cjsh_path().string();
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Setting _ to: " << cjsh_path << std::endl;
-    }
     setenv("_", cjsh_path.c_str(), 1);
 
     std::string status_str = std::to_string(0);

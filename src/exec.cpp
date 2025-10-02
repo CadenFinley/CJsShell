@@ -249,19 +249,6 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
         return resources;
     }
 
-    if (g_debug_mode && !cmd.process_substitutions.empty()) {
-        std::cerr << "DEBUG: setup_process_substitutions for command '" << (cmd.args.empty() ? "" : cmd.args[0])
-                  << "' substitutions=" << cmd.process_substitutions.size() << std::endl;
-        for (const auto& sub : cmd.process_substitutions) {
-            std::cerr << "DEBUG:   substitution token: " << sub << std::endl;
-        }
-        std::cerr << "DEBUG:   original args:";
-        for (const auto& arg : cmd.args) {
-            std::cerr << " ['" << arg << "']";
-        }
-        std::cerr << std::endl;
-    }
-
     try {
         for (size_t i = 0; i < cmd.process_substitutions.size(); ++i) {
             const std::string& proc_sub = cmd.process_substitutions[i];
@@ -436,9 +423,6 @@ Exec::Exec() {
 }
 
 Exec::~Exec() {
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: Exec destructor called" << std::endl;
-    }
 
     int status;
     pid_t pid;
@@ -446,19 +430,12 @@ Exec::~Exec() {
     const int max_cleanup_iterations = 50;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < max_cleanup_iterations) {
         zombie_count++;
-        if (g_debug_mode && zombie_count <= 3) {
-            std::cerr << "DEBUG: Exec destructor reaped zombie " << pid << std::endl;
-        }
     }
 
     if (zombie_count >= max_cleanup_iterations) {
         std::cerr << "WARNING: Exec destructor hit maximum cleanup iterations, "
                      "some zombies may remain"
                   << std::endl;
-    }
-
-    if (g_debug_mode && zombie_count > 0) {
-        std::cerr << "DEBUG: Exec destructor reaped " << zombie_count << " zombies" << std::endl;
     }
 }
 
@@ -612,11 +589,6 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
     ProcessSubstitutionResources proc_resources;
     int exit_code = 0;
     bool persist_fd_changes = (!cmd.args.empty() && cmd.args[0] == "exec" && cmd.args.size() == 1);
-
-    if (g_debug_mode) {
-        std::cerr << "DEBUG: builtin redirection handler for '" << (cmd.args.empty() ? "" : cmd.args[0])
-                  << "' fd_redirections=" << cmd.fd_redirections.size() << " fd_duplications=" << cmd.fd_duplications.size() << std::endl;
-    }
 
     auto restore_descriptors = [&](bool terminate_process_subs) {
         cleanup_process_substitutions(proc_resources, terminate_process_subs);
@@ -924,9 +896,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
                 reads_stdin = pipeline_consumes_terminal_stdin(command_pipeline);
             }
         } catch (const std::exception& e) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Failed to parse command for stdin detection: " << e.what() << std::endl;
-            }
+
         }
     }
 
@@ -966,55 +936,21 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
             basename_command = command_name;
         }
 
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Checking cache update for external command: " << command_name;
-            if (basename_command != command_name) {
-                std::cerr << " (basename: " << basename_command << ")";
-            }
-            std::cerr << " with exit code: " << exit_code << std::endl;
-        }
-
         bool already_in_cache = cjsh_filesystem::is_executable_in_cache(basename_command);
-
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: External command '" << basename_command << "' already_in_cache: " << (already_in_cache ? "true" : "false")
-                      << std::endl;
-        }
 
         if (!already_in_cache) {
             std::string full_path = cjsh_filesystem::find_executable_in_path(basename_command);
 
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Found full path for '" << basename_command << "': " << (full_path.empty() ? "EMPTY" : full_path)
-                          << std::endl;
-            }
-
             if (!full_path.empty()) {
                 cjsh_filesystem::add_executable_to_cache(basename_command, full_path);
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Added new executable '" << basename_command << "' to cache after successful execution"
-                              << std::endl;
-                }
             }
-        } else if (g_debug_mode) {
-            std::cerr << "DEBUG: Skipping cache update - '" << basename_command << "' already in cache" << std::endl;
         }
     } else if (exit_code == 127 && !cmd_args.empty()) {
         const std::string& command_name = cmd_args[0];
 
-        if (g_debug_mode) {
-            std::cerr << "DEBUG: Command not found: " << command_name << " - checking if it's a stale cache entry" << std::endl;
-        }
-
         if (cjsh_filesystem::is_executable_in_cache(command_name)) {
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Removing stale cache entry for: " << command_name << std::endl;
-            }
             cjsh_filesystem::remove_executable_from_cache(command_name);
         }
-    } else if (g_debug_mode) {
-        std::cerr << "DEBUG: Skipping cache update - exit_code=" << exit_code
-                  << ", cmd_args.empty()=" << (cmd_args.empty() ? "true" : "false") << std::endl;
     }
 
     return exit_code;
@@ -1103,10 +1039,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
     if (commands.size() == 1) {
         Command cmd = commands[0];
-
-        if (g_debug_mode && !cmd.process_substitutions.empty()) {
-            std::cerr << "DEBUG: command has process substitutions count=" << cmd.process_substitutions.size() << std::endl;
-        }
 
         if (can_execute_in_process(cmd)) {
             last_exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
@@ -1415,11 +1347,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     make_exit_error_result(cmd.args[0], exit_code, "command completed successfully", "command failed with exit code ");
                 set_error(exit_result.type, cmd.args[0], exit_result.message, exit_result.suggestions);
                 last_exit_code = exit_code;
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: execute_pipeline single-command "
-                                 "(non-interactive) exit="
-                              << last_exit_code << std::endl;
-                }
                 cleanup_process_substitutions(proc_resources, false);
                 return last_exit_code;
             } else {
@@ -1448,12 +1375,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     if (it != jobs.end() && it->second.completed) {
                         JobManager::instance().remove_job(managed_job_id);
                     }
-                }
-
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: execute_pipeline single-command returning "
-                                 "last_exit_code="
-                              << last_exit_code << std::endl;
                 }
                 cleanup_process_substitutions(proc_resources, false);
                 return last_exit_code;
@@ -1777,14 +1698,12 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
     if (shell_is_interactive && isatty(shell_terminal)) {
         if (tcsetpgrp(shell_terminal, job.pgid) == 0) {
             terminal_control_acquired = true;
-            if (g_debug_mode) {
-                std::cerr << "DEBUG: Gave terminal control to job " << job_id << " (pgid: " << job.pgid << ")" << std::endl;
-            }
         } else {
             if (errno != ENOTTY && errno != EINVAL && errno != EPERM) {
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: Could not give terminal control to job " << job_id << ": " << strerror(errno) << std::endl;
-                }
+
+                // MAY NOT BE NEEDED
+                set_error(ErrorType::RUNTIME_ERROR, "tcsetpgrp",
+                          "warning: failed to set terminal control to job: " + std::string(strerror(errno)));
             }
         }
     }
@@ -1919,10 +1838,6 @@ void Exec::wait_for_job(int job_id) {
                 int exit_status = WEXITSTATUS(final_status);
                 last_exit_code = exit_status;
                 job.completed = true;
-                if (g_debug_mode) {
-                    std::cerr << "DEBUG: wait_for_job setting last_exit_code=" << exit_status << " from final_status=" << final_status
-                              << std::endl;
-                }
                 auto exit_result =
                     make_exit_error_result(job.command, exit_status, "command completed successfully", "command failed with exit code ");
                 set_error(exit_result.type, job.command, exit_result.message, exit_result.suggestions);
@@ -1937,10 +1852,6 @@ void Exec::wait_for_job(int job_id) {
 void Exec::terminate_all_child_process() {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
-    if (g_debug_mode && !jobs.empty()) {
-        std::cerr << "DEBUG: Starting graceful termination of " << jobs.size() << " jobs" << std::endl;
-    }
-
     bool any_jobs_terminated = false;
     for (auto& job_pair : jobs) {
         Job& job = job_pair.second;
@@ -1948,9 +1859,6 @@ void Exec::terminate_all_child_process() {
             if (killpg(job.pgid, 0) == 0) {
                 if (killpg(job.pgid, SIGTERM) == 0) {
                     any_jobs_terminated = true;
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Sent SIGTERM to job " << job_pair.first << " (pgid " << job.pgid << ")" << std::endl;
-                    }
                 } else {
                     if (errno != ESRCH) {
                         std::cerr << "cjsh: warning: failed to terminate job [" << job_pair.first << "] '" << job.command
@@ -1971,9 +1879,6 @@ void Exec::terminate_all_child_process() {
         if (!job.completed) {
             if (killpg(job.pgid, 0) == 0) {
                 if (killpg(job.pgid, SIGKILL) == 0) {
-                    if (g_debug_mode) {
-                        std::cerr << "DEBUG: Sent SIGKILL to stubborn job " << job_pair.first << " (pgid " << job.pgid << ")" << std::endl;
-                    }
                 } else {
                     if (errno != ESRCH) {
                         set_error(ErrorType::RUNTIME_ERROR, "killpg",
@@ -1984,9 +1889,7 @@ void Exec::terminate_all_child_process() {
                 }
 
                 for (pid_t pid : job.pids) {
-                    if (kill(pid, SIGKILL) == 0 && g_debug_mode) {
-                        std::cerr << "DEBUG: Sent SIGKILL to individual PID " << pid << std::endl;
-                    }
+                    kill(pid, SIGKILL);
                 }
             }
 
@@ -2002,9 +1905,6 @@ void Exec::terminate_all_child_process() {
     const int max_terminate_iterations = 50;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < max_terminate_iterations) {
         zombie_count++;
-        if (g_debug_mode && zombie_count <= 3) {
-            std::cerr << "DEBUG: Reaped zombie process " << pid << std::endl;
-        }
     }
 
     if (zombie_count >= max_terminate_iterations) {
