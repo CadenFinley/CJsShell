@@ -3,14 +3,57 @@
   "name": "CJsShell Theme",
   "scopeName": "source.cjsh",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#keywords" },
-    { "include": "#strings" },
-    { "include": "#variables" },
-    { "include": "#numbers" },
-    { "include": "#booleans" }
+    { "include": "#shebang" },
+    { "include": "#theme-block" },
+    { "include": "source.shell" }
   ],
   "repository": {
+    "shebang": {
+      "name": "comment.line.shebang.cjsh",
+      "match": "^#!.*$"
+    },
+    "theme-block": {
+      "name": "meta.theme.definition.cjsh",
+      "begin": "(?x)(?m)\n        ^\\s*(theme_definition)\n        (?:\\s+((?:\"[^\"]+\"|\\S+)))?\n        \\s*(\\{)\n      ",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.cjsh" },
+        "2": { "name": "entity.name.section.cjsh" },
+        "3": { "name": "punctuation.section.block.begin.cjsh" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.block.end.cjsh" }
+      },
+      "patterns": [
+        { "include": "#theme-content" },
+        { "include": "#nested-block" }
+      ]
+    },
+    "nested-block": {
+      "name": "meta.theme.block.cjsh",
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.block.begin.cjsh" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.block.end.cjsh" }
+      },
+      "patterns": [
+        { "include": "#theme-content" },
+        { "include": "#nested-block" }
+      ]
+    },
+    "theme-content": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#keywords" },
+        { "include": "#strings" },
+        { "include": "#variables" },
+        { "include": "#numbers" },
+        { "include": "#booleans" }
+      ]
+    },
     "comments": {
       "name": "comment.line.number-sign.cjsh",
       "match": "^\\s*#.*$"
