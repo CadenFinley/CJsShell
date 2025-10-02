@@ -113,10 +113,6 @@ int completion_case_command(const std::vector<std::string>& args) {
 
     bool currently_enabled = is_completion_case_sensitive();
     if (currently_enabled == enable_case_sensitive) {
-        if (!g_startup_active) {
-            std::cout << "Completion case sensitivity is already "
-                      << (currently_enabled ? "enabled" : "disabled") << "." << std::endl;
-        }
         return 0;
     }
 

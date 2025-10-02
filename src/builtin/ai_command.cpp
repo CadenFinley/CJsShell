@@ -1,11 +1,13 @@
 #include "ai_command.h"
 
 #include <algorithm>
+#include <cmath>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -123,9 +125,15 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             }
             return 0;
         }
-        g_ai->set_assistant_type(args[command_index + 1]);
+
+        const std::string& requested_mode = args[command_index + 1];
+        if (g_ai->get_assistant_type() == requested_mode) {
+            return 0;
+        }
+
+        g_ai->set_assistant_type(requested_mode);
         if (!g_startup_active) {
-            std::cout << "Assistant mode set to " << args[command_index + 1] << std::endl;
+            std::cout << "Assistant mode set to " << requested_mode << std::endl;
         }
         return 0;
     }
@@ -144,6 +152,15 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
 
         if (args[command_index + 1] == "set") {
+            std::string directory = built_ins->get_current_directory();
+            if (!directory.empty() && directory.back() != '/') {
+                directory += "/";
+            }
+
+            if (g_ai->get_save_directory() == directory) {
+                return 0;
+            }
+
             g_ai->set_save_directory(built_ins->get_current_directory());
             if (!g_startup_active) {
                 std::cout << "Directory set to " << built_ins->get_current_directory() << std::endl;
@@ -152,6 +169,15 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         }
 
         if (args[command_index + 1] == "clear") {
+            std::string default_directory = cjsh_filesystem::g_cjsh_data_path.string();
+            if (!default_directory.empty() && default_directory.back() != '/') {
+                default_directory += "/";
+            }
+
+            if (g_ai->get_save_directory() == default_directory) {
+                return 0;
+            }
+
             g_ai->set_save_directory(cjsh_filesystem::g_cjsh_data_path);
             if (!g_startup_active) {
                 std::cout << "Directory set to default." << std::endl;
@@ -177,6 +203,11 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         for (unsigned int i = command_index + 2; i < args.size(); i++) {
             instruction += " " + args[i];
         }
+
+        if (g_ai->get_initial_instruction() == instruction) {
+            return 0;
+        }
+
         g_ai->set_initial_instruction(instruction);
         if (!g_startup_active) {
             std::cout << "Initial instruction set to:\n"
@@ -192,9 +223,14 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             }
             return 0;
         }
-        g_ai->set_model(args[command_index + 1]);
+        const std::string& requested_model = args[command_index + 1];
+        if (g_ai->get_model() == requested_model) {
+            return 0;
+        }
+
+        g_ai->set_model(requested_model);
         if (!g_startup_active) {
-            std::cout << "Model set to " << args[command_index + 1] << std::endl;
+            std::cout << "Model set to " << requested_model << std::endl;
         }
         return 0;
     }
@@ -218,6 +254,12 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
 
         try {
             int timeout = std::stoi(args[command_index + 1]);
+            float current_timeout = g_ai->get_timeout_flag_seconds();
+            if (std::fabs(current_timeout - static_cast<float>(timeout)) <=
+                std::numeric_limits<float>::epsilon()) {
+                return 0;
+            }
+
             g_ai->set_timeout_flag_seconds(timeout);
             if (!g_startup_active) {
                 std::cout << "Timeout flag set to " << timeout << " seconds." << std::endl;
@@ -248,6 +290,11 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         for (unsigned int i = command_index + 2; i < args.size(); i++) {
             name += " " + args[i];
         }
+
+        if (g_ai->get_assistant_name() == name) {
+            return 0;
+        }
+
         g_ai->set_assistant_name(name);
         if (!g_startup_active) {
             std::cout << "Assistant name set to " << name << std::endl;
@@ -263,9 +310,14 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             }
             return 0;
         }
-        g_ai->set_voice_dictation_voice(args[command_index + 1]);
+        const std::string& requested_voice = args[command_index + 1];
+        if (g_ai->get_voice_dictation_voice() == requested_voice) {
+            return 0;
+        }
+
+        g_ai->set_voice_dictation_voice(requested_voice);
         if (!g_startup_active) {
-            std::cout << "Voice set to " << args[command_index + 1] << std::endl;
+            std::cout << "Voice set to " << requested_voice << std::endl;
         }
         return 0;
     }
@@ -280,6 +332,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             return 0;
         }
         if (args[command_index + 1] == "enable") {
+            if (g_ai->get_voice_dictation_enabled()) {
+                return 0;
+            }
+
             g_ai->set_voice_dictation_enabled(true);
             if (!g_startup_active) {
                 std::cout << "Voice dictation enabled." << std::endl;
@@ -287,6 +343,10 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
             return 0;
         }
         if (args[command_index + 1] == "disable") {
+            if (!g_ai->get_voice_dictation_enabled()) {
+                return 0;
+            }
+
             g_ai->set_voice_dictation_enabled(false);
             if (!g_startup_active) {
                 std::cout << "Voice dictation disabled." << std::endl;
@@ -310,6 +370,11 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         for (unsigned int i = command_index + 2; i < args.size(); i++) {
             instructions += " " + args[i];
         }
+
+        if (g_ai->get_voice_dictation_instructions() == instructions) {
+            return 0;
+        }
+
         g_ai->set_voice_dictation_instructions(instructions);
         if (!g_startup_active) {
             std::cout << "Voice dictation instructions set to:\n"
