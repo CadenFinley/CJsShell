@@ -187,7 +187,6 @@ static int initialize_interactive_components() {
             g_shell->get_built_ins()->set_current_directory();
         }
     }
-
     return 0;
 }
 
