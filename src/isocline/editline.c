@@ -51,6 +51,153 @@ typedef struct editor_s {
     attrbuf_t* attrs_extra;
 } editor_t;
 
+static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
+static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
+static void edit_history_prev(ic_env_t* env, editor_t* eb);
+static void edit_history_next(ic_env_t* env, editor_t* eb);
+static void edit_clear_screen(ic_env_t* env, editor_t* eb);
+static void edit_undo_restore(ic_env_t* env, editor_t* eb);
+static void edit_redo_restore(ic_env_t* env, editor_t* eb);
+static void edit_show_help(ic_env_t* env, editor_t* eb);
+static void edit_cursor_left(ic_env_t* env, editor_t* eb);
+static void edit_cursor_right(ic_env_t* env, editor_t* eb);
+static void edit_cursor_row_up(ic_env_t* env, editor_t* eb);
+static void edit_cursor_row_down(ic_env_t* env, editor_t* eb);
+static void edit_cursor_line_start(ic_env_t* env, editor_t* eb);
+static void edit_cursor_line_end(ic_env_t* env, editor_t* eb);
+static void edit_cursor_prev_word(ic_env_t* env, editor_t* eb);
+static void edit_cursor_next_word(ic_env_t* env, editor_t* eb);
+static void edit_cursor_to_start(ic_env_t* env, editor_t* eb);
+static void edit_cursor_to_end(ic_env_t* env, editor_t* eb);
+static void edit_cursor_match_brace(ic_env_t* env, editor_t* eb);
+static void edit_backspace(ic_env_t* env, editor_t* eb);
+static void edit_delete_char(ic_env_t* env, editor_t* eb);
+static void edit_delete_to_end_of_word(ic_env_t* env, editor_t* eb);
+static void edit_delete_to_start_of_ws_word(ic_env_t* env, editor_t* eb);
+static void edit_delete_to_start_of_word(ic_env_t* env, editor_t* eb);
+static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb);
+static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb);
+static void edit_swap_char(ic_env_t* env, editor_t* eb);
+static void edit_insert_char(ic_env_t* env, editor_t* eb, char c);
+
+static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action) {
+    switch (action) {
+        case IC_KEY_ACTION_NONE:
+            return true;
+        case IC_KEY_ACTION_COMPLETE:
+            edit_generate_completions(env, eb, false);
+            return true;
+        case IC_KEY_ACTION_HISTORY_SEARCH:
+            edit_history_search_with_current_word(env, eb);
+            return true;
+        case IC_KEY_ACTION_HISTORY_PREV:
+            edit_history_prev(env, eb);
+            return true;
+        case IC_KEY_ACTION_HISTORY_NEXT:
+            edit_history_next(env, eb);
+            return true;
+        case IC_KEY_ACTION_CLEAR_SCREEN:
+            edit_clear_screen(env, eb);
+            return true;
+        case IC_KEY_ACTION_UNDO:
+            edit_undo_restore(env, eb);
+            return true;
+        case IC_KEY_ACTION_REDO:
+            edit_redo_restore(env, eb);
+            return true;
+        case IC_KEY_ACTION_SHOW_HELP:
+            edit_show_help(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_LEFT:
+            edit_cursor_left(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE:
+            if (eb->pos == sbuf_len(eb->input)) {
+                edit_generate_completions(env, eb, false);
+            } else {
+                edit_cursor_right(env, eb);
+            }
+            return true;
+        case IC_KEY_ACTION_CURSOR_UP:
+            edit_cursor_row_up(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_DOWN:
+            edit_cursor_row_down(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_LINE_START:
+            edit_cursor_line_start(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_LINE_END:
+            edit_cursor_line_end(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_WORD_PREV:
+            edit_cursor_prev_word(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE:
+            if (eb->pos == sbuf_len(eb->input)) {
+                edit_generate_completions(env, eb, false);
+            } else {
+                edit_cursor_next_word(env, eb);
+            }
+            return true;
+        case IC_KEY_ACTION_CURSOR_INPUT_START:
+            edit_cursor_to_start(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_INPUT_END:
+            edit_cursor_to_end(env, eb);
+            return true;
+        case IC_KEY_ACTION_CURSOR_MATCH_BRACE:
+            edit_cursor_match_brace(env, eb);
+            return true;
+        case IC_KEY_ACTION_DELETE_BACKWARD:
+            edit_backspace(env, eb);
+            return true;
+        case IC_KEY_ACTION_DELETE_FORWARD:
+            edit_delete_char(env, eb);
+            return true;
+        case IC_KEY_ACTION_DELETE_WORD_END:
+            edit_delete_to_end_of_word(env, eb);
+            return true;
+        case IC_KEY_ACTION_DELETE_WORD_START_WS:
+            edit_delete_to_start_of_ws_word(env, eb);
+            return true;
+        case IC_KEY_ACTION_DELETE_WORD_START:
+            edit_delete_to_start_of_word(env, eb);
+            return true;
+        case IC_KEY_ACTION_DELETE_LINE_START:
+            edit_delete_to_start_of_line(env, eb);
+            return true;
+        case IC_KEY_ACTION_DELETE_LINE_END:
+            edit_delete_to_end_of_line(env, eb);
+            return true;
+        case IC_KEY_ACTION_TRANSPOSE_CHARS:
+            edit_swap_char(env, eb);
+            return true;
+        case IC_KEY_ACTION_INSERT_NEWLINE:
+            if (!env->singleline_only) {
+                edit_insert_char(env, eb, '\n');
+            }
+            return true;
+        default:
+            break;
+    }
+    return false;
+}
+
+static bool key_binding_execute(ic_env_t* env, editor_t* eb, code_t key) {
+    if (env == NULL || env->key_binding_count <= 0)
+        return false;
+    for (ssize_t i = 0; i < env->key_binding_count; ++i) {
+        ic_key_binding_entry_t* entry = &env->key_bindings[i];
+        if (entry->key == key) {
+            if (entry->action == IC_KEY_ACTION_NONE)
+                return true;
+            return key_action_execute(env, eb, entry->action);
+        }
+    }
+    return false;
+}
+
 //-------------------------------------------------------------
 // Main edit line
 //-------------------------------------------------------------
@@ -1209,6 +1356,10 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
             c = KEY_NONE;
         }
 
+        if (c < IC_KEY_EVENT_BASE && key_binding_execute(env, &eb, c)) {
+            continue;
+        }
+
         // Operations that may return
         if (c == KEY_ENTER) {
             if (!env->singleline_only && eb.pos > 0 &&
@@ -1529,6 +1680,10 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
         if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
             edit_generate_completions(env, &eb, true);
             c = KEY_NONE;
+        }
+
+        if (c < IC_KEY_EVENT_BASE && key_binding_execute(env, &eb, c)) {
+            continue;
         }
 
         // Operations that may return
