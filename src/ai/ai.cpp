@@ -1,8 +1,8 @@
 #include "ai.h"
 
-#include <algorithm>
 #include <termios.h>
 #include <unistd.h>
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <future>

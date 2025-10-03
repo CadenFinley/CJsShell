@@ -3079,10 +3079,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
 
             if (!seen_open_brace || brace_depth != 0) {
-                print_error({ErrorType::SYNTAX_ERROR,
-                             "theme",
-                             "Inline theme block missing closing '}'",
-                             {"Ensure theme_definition blocks in configuration files are complete."}});
+                print_error(
+                    {ErrorType::SYNTAX_ERROR,
+                     "theme",
+                     "Inline theme block missing closing '}'",
+                     {"Ensure theme_definition blocks in configuration files are complete."}});
                 last_code = 1;
                 line_index = block_index;
                 continue;

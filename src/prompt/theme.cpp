@@ -201,8 +201,8 @@ bool Theme::load_theme_from_string(const std::string& theme_content, const std::
         ThemeParser parser(theme_content, source_label);
         ThemeDefinition parsed_definition = parser.parse();
 
-        std::string theme_name_to_use = parsed_definition.name.empty() ? std::string("default")
-                                                                       : parsed_definition.name;
+        std::string theme_name_to_use =
+            parsed_definition.name.empty() ? std::string("default") : parsed_definition.name;
 
         std::filesystem::path pseudo_source = sanitize_for_path(source_label, theme_name_to_use);
 
@@ -266,8 +266,7 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
         if (!previous_theme.empty() && theme_name != previous_theme) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "load_theme",
-                         "Theme '" + theme_name +
-                             "' requirements not met (" + source_hint +
+                         "Theme '" + theme_name + "' requirements not met (" + source_hint +
                              "), falling back to previous theme '" + previous_theme + "'.",
                          {}});
             return load_theme(previous_theme, allow_fallback);
@@ -293,8 +292,8 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
         return false;
     };
 
-    if (has_duplicate_tags(definition.ps1_segments) || has_duplicate_tags(definition.git_segments) ||
-        has_duplicate_tags(definition.ai_segments) ||
+    if (has_duplicate_tags(definition.ps1_segments) ||
+        has_duplicate_tags(definition.git_segments) || has_duplicate_tags(definition.ai_segments) ||
         has_duplicate_tags(definition.newline_segments) ||
         has_duplicate_tags(definition.inline_right_segments)) {
         print_error({ErrorType::SYNTAX_ERROR,

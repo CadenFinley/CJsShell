@@ -162,26 +162,25 @@ static int initialize_interactive_components() {
     g_shell->set_interactive_mode(true);
 
     if (cjsh_filesystem::init_interactive_filesystem()) {
-            g_shell->setup_interactive_handlers();
+        g_shell->setup_interactive_handlers();
 
-    initialize_colors();
+        initialize_colors();
 
-    std::string saved_current_dir = std::filesystem::current_path().string();
+        std::string saved_current_dir = std::filesystem::current_path().string();
 
-    if (config::source_enabled && !config::secure_mode) {
-        if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
-            g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
+        if (config::source_enabled && !config::secure_mode) {
+            if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
+                g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
+            }
+        } else {
+            if (std::filesystem::current_path() != saved_current_dir) {
+                std::filesystem::current_path(saved_current_dir);
+                setenv("PWD", saved_current_dir.c_str(), 1);
+                g_shell->get_built_ins()->set_current_directory();
+            }
         }
-    } else {
-        if (std::filesystem::current_path() != saved_current_dir) {
-            std::filesystem::current_path(saved_current_dir);
-            setenv("PWD", saved_current_dir.c_str(), 1);
-            g_shell->get_built_ins()->set_current_directory();
-        }
+        return 0;
     }
-    return 0;
-    }
-
 
     return 1;
 }

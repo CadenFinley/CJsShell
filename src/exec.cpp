@@ -660,8 +660,7 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
 
             if (!error.empty()) {
                 cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
-                throw std::runtime_error("cjsh: failed to write here document content: " +
-                                         error);
+                throw std::runtime_error("cjsh: failed to write here document content: " + error);
             }
 
             auto dup_result =

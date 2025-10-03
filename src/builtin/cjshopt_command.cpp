@@ -17,17 +17,19 @@ int cjshopt_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
                      "Missing subcommand argument",
-                     {"Usage: cjshopt <subcommand> [options]", "Available subcommands:",
-                      "  style_def <token_type> <style>   Define or redefine a syntax "
-                      "highlighting style",
-                      "  login-startup-arg [--flag-name]  Add a startup flag to be "
-                      "applied when sourcing the profile",
-                      "  completion-case <on|off|status>  Configure completion case "
-                      "sensitivity",
-                      "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
-                      "  generate-rc [--force]            Create or overwrite ~/.cjshrc"
-                      "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
-                    }});
+                     {
+                         "Usage: cjshopt <subcommand> [options]",
+                         "Available subcommands:",
+                         "  style_def <token_type> <style>   Define or redefine a syntax "
+                         "highlighting style",
+                         "  login-startup-arg [--flag-name]  Add a startup flag to be "
+                         "applied when sourcing the profile",
+                         "  completion-case <on|off|status>  Configure completion case "
+                         "sensitivity",
+                         "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
+                         "  generate-rc [--force]            Create or overwrite ~/.cjshrc"
+                         "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
+                     }});
         return 1;
     }
 
@@ -58,10 +60,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
 extern bool g_startup_active;
 
 int handle_generate_command_common(const std::vector<std::string>& args,
-                                          const std::string& command_name,
-                                          const cjsh_filesystem::fs::path& target_path,
-                                          const std::string& description,
-                                          const std::function<bool()>& generator) {
+                                   const std::string& command_name,
+                                   const cjsh_filesystem::fs::path& target_path,
+                                   const std::string& description,
+                                   const std::function<bool()>& generator) {
     static const std::vector<std::string> base_usage = {
         "Options:", "  -f, --force   Overwrite the existing file if it exists"};
 
@@ -113,24 +115,20 @@ int handle_generate_command_common(const std::vector<std::string>& args,
 }
 
 int generate_profile_command(const std::vector<std::string>& args) {
-    return handle_generate_command_common(args,
-                                          "generate-profile",
+    return handle_generate_command_common(args, "generate-profile",
                                           cjsh_filesystem::g_cjsh_profile_path,
                                           "Create a default ~/.cjprofile configuration file.",
                                           []() { return cjsh_filesystem::create_profile_file(); });
 }
 
 int generate_rc_command(const std::vector<std::string>& args) {
-    return handle_generate_command_common(args,
-                                          "generate-rc",
-                                          cjsh_filesystem::g_cjsh_source_path,
+    return handle_generate_command_common(args, "generate-rc", cjsh_filesystem::g_cjsh_source_path,
                                           "Create a default ~/.cjshrc configuration file.",
                                           []() { return cjsh_filesystem::create_source_file(); });
 }
 
 int generate_logout_command(const std::vector<std::string>& args) {
-    return handle_generate_command_common(args,
-                                          "generate-logout",
+    return handle_generate_command_common(args, "generate-logout",
                                           cjsh_filesystem::g_cjsh_logout_path,
                                           "Create a default ~/.cjsh_logout file.",
                                           []() { return cjsh_filesystem::create_logout_file(); });
