@@ -81,10 +81,6 @@ bool secure_mode = false;
 bool show_title_line = true;
 }  // namespace config
 
-// TODO
-// add a way to limit size of history file
-// add a way to limit size of cached executable database
-
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {

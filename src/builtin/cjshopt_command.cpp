@@ -31,6 +31,9 @@ void print_cjshopt_usage() {
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout\n";
+    std::cout << "  set-max-bookmarks <number>       Set the maximum number of bookmarks to store\n";
+    std::cout << "  set-history-max <value>          Configure the maximum size of the history file\n";
+    std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
 }
 }  // namespace
 
@@ -82,12 +85,15 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return generate_logout_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "set-max-bookmarks") {
         return set_max_bookmarks_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "set-history-max") {
+        return set_history_max_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
                      "unknown subcommand '" + subcommand + "'",
                      {"Available subcommands: style_def, login-startup-arg, completion-case, "
-                      "generate-profile, generate-rc"}});
+                      "keybind, generate-profile, generate-rc, generate-logout, "
+                      "set-max-bookmarks, set-history-max"}});
         return 1;
     }
 }
@@ -1055,6 +1061,118 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
         return 1;   
 
     }
+    return 0;
+}
+
+int set_history_max_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: set-history-max <number|default|status>",
+        "",
+        "Configure the maximum number of entries written to the history file.",
+        "Use 0 to disable history persistence entirely.",
+        "Use 'default' to restore the built-in limit (" +
+            std::to_string(get_history_default_history_limit()) + " entries).",
+        "Use 'status' to view the current setting.",
+        "Valid range: " + std::to_string(get_history_min_history_limit()) + " - " +
+            std::to_string(get_history_max_history_limit()) + "."};
+
+    if (args.size() == 1) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+                     "expected 1 argument", usage_lines});
+        return 1;
+    }
+
+    if (args.size() > 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+                     "too many arguments provided", usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    std::string normalized = option;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    if (normalized == "--help" || normalized == "-h") {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (normalized == "status" || normalized == "--status") {
+        if (!g_startup_active) {
+            long current_limit = get_history_max_entries();
+            if (current_limit <= 0) {
+                std::cout << "History persistence is currently disabled." << std::endl;
+            } else {
+                std::cout << "History file retains up to " << current_limit
+                          << " entries." << std::endl;
+            }
+        }
+        return 0;
+    }
+
+    long requested_limit = 0;
+    if (normalized == "default" || normalized == "--default") {
+        requested_limit = get_history_default_history_limit();
+    } else {
+        try {
+            requested_limit = std::stol(option);
+        } catch (const std::invalid_argument&) {
+            print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+                         "invalid number: " + option, usage_lines});
+            return 1;
+        } catch (const std::out_of_range&) {
+            print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+                         "number out of range: " + option, usage_lines});
+            return 1;
+        }
+    }
+
+    if (requested_limit < get_history_min_history_limit()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+                     "value must be greater than or equal to " +
+                         std::to_string(get_history_min_history_limit()),
+                     usage_lines});
+        return 1;
+    }
+
+    if (requested_limit > get_history_max_history_limit()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+                     "value exceeds the maximum allowed: " +
+                         std::to_string(get_history_max_history_limit()),
+                     usage_lines});
+        return 1;
+    }
+
+    std::string error_message;
+    if (!set_history_max_entries(requested_limit, &error_message)) {
+        if (error_message.empty()) {
+            error_message = "Failed to update history limit.";
+        }
+        print_error({ErrorType::RUNTIME_ERROR, "set-history-max", error_message, {}});
+        return 1;
+    }
+
+    if (!g_startup_active) {
+        long applied_limit = get_history_max_entries();
+        if (applied_limit <= 0) {
+            std::cout << "History persistence disabled."
+                      << std::endl;
+        } else {
+            std::cout << "History file will retain up to " << applied_limit
+                      << " entries." << std::endl;
+        }
+    }
+
     return 0;
 }
 

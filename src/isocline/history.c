@@ -15,7 +15,8 @@
 #include "isocline/isocline.h"
 #include "isocline/stringbuf.h"
 
-#define IC_MAX_HISTORY (200)
+#define IC_DEFAULT_HISTORY (200)
+#define IC_ABSOLUTE_MAX_HISTORY (5000)
 
 struct history_s {
     ssize_t count;       // current number of entries in use
@@ -212,8 +213,10 @@ ic_private void history_load_from(history_t* h, const char* fname, long max_entr
         assert(h->elems == NULL);
         return;
     }
-    if (max_entries < 0 || max_entries > IC_MAX_HISTORY)
-        max_entries = IC_MAX_HISTORY;
+    if (max_entries < 0)
+        max_entries = IC_DEFAULT_HISTORY;
+    else if (max_entries > IC_ABSOLUTE_MAX_HISTORY)
+        max_entries = IC_ABSOLUTE_MAX_HISTORY;
     h->elems = (const char**)mem_zalloc_tp_n(h->mem, char*, max_entries);
     if (h->elems == NULL)
         return;

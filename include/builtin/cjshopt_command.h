@@ -19,3 +19,4 @@ int generate_rc_command(const std::vector<std::string>& args);
 int generate_logout_command(const std::vector<std::string>& args);
 int keybind_command(const std::vector<std::string>& args);
 int set_max_bookmarks_command(const std::vector<std::string>& args);
+int set_history_max_command(const std::vector<std::string>& args);

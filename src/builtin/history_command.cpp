@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
@@ -42,23 +43,44 @@ int history_command(const std::vector<std::string>& args) {
 
     std::stringstream content_stream(content);
     std::string line;
-    int index = 0;
+    std::vector<std::string> entries;
+    entries.reserve(256);
 
+    while (std::getline(content_stream, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        if (!line.empty() && line[0] == '#') {
+            continue;
+        }
+        entries.push_back(line);
+    }
+
+    int limit = static_cast<int>(entries.size());
     if (args.size() > 1) {
         try {
-            index = std::stoi(args[1]);
+            limit = std::stoi(args[1]);
         } catch (const std::invalid_argument&) {
             print_error({ErrorType::INVALID_ARGUMENT, "history", "Invalid index: " + args[1], {}});
             return 1;
+        } catch (const std::out_of_range&) {
+            print_error({ErrorType::INVALID_ARGUMENT, "history", "Index out of range: " + args[1], {}});
+            return 1;
         }
-        for (int i = 0; i < index && std::getline(content_stream, line); ++i) {
-            std::cout << std::setw(5) << i << "  " << line << std::endl;
+
+        if (limit < 0) {
+            print_error({ErrorType::INVALID_ARGUMENT, "history",
+                         "COUNT must be a non-negative integer", {}});
+            return 1;
         }
-    } else {
-        int i = 0;
-        while (std::getline(content_stream, line)) {
-            std::cout << std::setw(5) << i++ << "  " << line << std::endl;
+
+        if (limit > static_cast<int>(entries.size())) {
+            limit = static_cast<int>(entries.size());
         }
+    }
+
+    for (int i = 0; i < limit; ++i) {
+        std::cout << std::setw(5) << i << "  " << entries[i] << std::endl;
     }
 
     return 0;
