@@ -155,6 +155,8 @@ const fs::path g_cjsh_found_executables_path = g_cjsh_cache_path / "cached_execu
 
 const fs::path g_cjsh_path_hash_cache_path = g_cjsh_cache_path / "path_hash.cache";
 
+const fs::path g_cjsh_first_boot_path = g_cjsh_cache_path / ".first_boot";
+
 std::vector<fs::path> read_cached_executables();
 bool build_executable_cache();
 bool file_exists(const cjsh_filesystem::fs::path& path);
@@ -180,4 +182,6 @@ bool create_logout_file();
 
 bool init_login_filesystem();
 bool init_interactive_filesystem();
+
+bool is_first_boot();
 }  // namespace cjsh_filesystem

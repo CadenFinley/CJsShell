@@ -871,4 +871,8 @@ void notify_cache_systems_of_update() {
     // refresh_cached_executables();
 }
 
+bool is_first_boot() {
+    return !fs::exists(g_cjsh_first_boot_path);
+}
+
 }  // namespace cjsh_filesystem
