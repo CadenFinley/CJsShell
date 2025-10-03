@@ -54,7 +54,6 @@ extern bool secure_mode;
 extern bool show_title_line;
 }  // namespace config
 
-void initialize_colors();
 void initialize_plugins();
 void initialize_themes();
 void initialize_ai();
